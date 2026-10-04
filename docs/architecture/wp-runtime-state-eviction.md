@@ -2,7 +2,7 @@
 title: WP Runtime-State Eviction — Architecture Design
 description: 'Architecture design for evicting runtime-mutable state from tasks/WP##.md into the append-only event log via a non-transition annotation event class; ADR 2026-07-16-1.'
 doc_status: proposal
-updated: '2026-09-30'
+updated: '2026-10-04'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md
@@ -36,7 +36,7 @@ of the evicted mutations are **non-transition** — they carry no lane change:
 |---|---|---|
 | `shell_pid` refresh on **resume** | every `implement` / `agent action`, incl. resume of an already `in_progress` WP | `implement.py:1730`, `workflow_executor.py:669` |
 | **subtask mark** (`- [x] T###`) | mid-`in_progress` | `tasks_materialization.py:260,304`; uncheck in `tasks.md` at `tasks_move_task.py:1662` |
-| **activity-log note** | mid-work, any time | 6 writers incl. `orchestrator_api/commands.py:1563` |
+| **activity-log note** | mid-work, any time | 6 writers incl. `orchestrator_api/wp_lifecycle.py::append_history` |
 
 A transition-event payload cannot carry any of these without a lane change to
 attach to. The design's core structural move is therefore a **non-transition

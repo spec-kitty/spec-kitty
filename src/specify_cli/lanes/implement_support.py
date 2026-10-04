@@ -788,7 +788,7 @@ def check_claim_ancestry(
 
     The single definition all three claim sites call (the boundary-leak fix):
     the CLI seam (``workflow.py``, between ``_ensure_workspace_materialized``
-    and claim emission) and BOTH of ``orchestrator_api/commands.py``'s claim
+    and claim emission) and BOTH of ``orchestrator_api/wp_lifecycle.py``'s claim
     paths (``start_implementation``'s composite and ``transition``'s raw
     ``--to claimed``) -- so no caller independently re-derives (and
     potentially diverges on) this decision.

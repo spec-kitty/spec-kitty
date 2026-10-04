@@ -141,7 +141,7 @@ from specify_cli.consolidation.retention import (
 # WP08 (#2057): done/approved transition emission, the done asserts, resume
 # reconcile, and the per-WP recording loop live in the merge seam's
 # ``done_bookkeeping`` module. _mark_wp_merged_done + the asserts are re-exported
-# from the shim so orchestrator_api/commands.py and tests import unchanged
+# from the shim so orchestrator_api/consolidation.py and tests import unchanged
 # (FR-006). One-way import: ``done_bookkeeping`` never imports this shim.
 from specify_cli.consolidation.done_bookkeeping import (
     _assert_merged_wps_done_on_target,

@@ -842,8 +842,8 @@ def read_primary_meta(
     (FR-011 / M3). The caller's ``declares_coordination`` topology gate then
     decides fail-closed vs. primary-read.
 
-    Lifted from the orchestrator prototype ``orchestrator_api/commands.py``
-    (≈:251) so the seam and the orchestrator share ONE primitive (NFR-004) rather
+    Lifted from the orchestrator prototype ``orchestrator_api/_common.py``
+    so the seam and the orchestrator share ONE primitive (NFR-004) rather
     than two parallel cascades.
     """
     from specify_cli.core.paths import load_meta_fail_closed

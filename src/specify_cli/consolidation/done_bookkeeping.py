@@ -7,7 +7,7 @@ the resume reconcile, and the per-WP recording loop moved out of the command
 shim. ``_mark_wp_merged_done`` (CC22) and ``_assert_merged_wps_done_on_target``
 (CC16) were decomposed into focused helpers (each <= 15 CC, FR-005) preserving
 the PLANNED-fallback / force-done / dedup branching exactly. ``_mark_wp_merged_done``
-is consumed by ``orchestrator_api/commands.py`` and is re-exported from the shim
+is consumed by ``orchestrator_api/consolidation.py`` and is re-exported from the shim
 (FR-006). One-way import: this module never imports the command shim.
 """
 

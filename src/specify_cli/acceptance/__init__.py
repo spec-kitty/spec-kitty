@@ -454,7 +454,7 @@ def _filter_coordination_residue(
 #: Canonical "not ready" wording for a failed host readiness verdict
 #: (``summary.ok is False``). Single-sourced (review cycle 1, WP03 nit) so
 #: every caller -- ``perform_acceptance`` below and orchestrator-api's
-#: ``accept_mission`` (``orchestrator_api/commands.py``) -- describes the
+#: ``accept_mission`` (``orchestrator_api/consolidation.py``) -- describes the
 #: same refusal with the identical string, rather than each holding its own
 #: copy that can drift.
 ACCEPTANCE_CHECKS_FAILED_MESSAGE = "Acceptance checks failed; run verify to see outstanding issues."

@@ -71,7 +71,7 @@ class DecisionKind(StrEnum):
 # by every caller that validates a raw ``--result``/``result`` string before
 # it reaches the engine: the host CLI's ``next`` command
 # (``specify_cli.cli.commands.next_cmd``) and the orchestrator-api's
-# ``answer-decision`` verb (``specify_cli.orchestrator_api.commands``).
+# ``answer-decision`` verb (``specify_cli.orchestrator_api.decision_verbs``).
 # Mirrors ``runtime.next._internal_runtime.engine.ResultType`` (a
 # ``typing.Literal``, not a runtime enum, so it cannot itself be introspected
 # for its member values) -- this tuple is the single source both CLI-facing

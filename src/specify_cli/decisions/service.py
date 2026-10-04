@@ -822,7 +822,7 @@ def resolve_decision(
             whitespace-only. Rejected here, in the ONE shared authority both
             the host CLI's ``cmd_resolve`` (``cli/commands/decision.py``) and
             the orchestrator-api's ``resolve-decision`` verb
-            (``orchestrator_api/commands.py``) call directly -- so this check
+            (``orchestrator_api/decision_verbs.py``) call directly -- so this check
             cannot drift between callers the way the analogous ``rationale``
             emptiness check (duplicated per-caller for defer/cancel) can.
     """

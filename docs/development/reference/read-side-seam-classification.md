@@ -2,7 +2,7 @@
 title: Read-side placement-seam classification ledger
 description: "Per-site verdicts (migrate-fail-loud / stay-lenient / sanction-infra) for every production call site that bypasses PlacementSeam.read_dir(kind)."
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-04'
 audience: docs/context/audience/internal/system-architect.md
 type: reference
 related:
@@ -814,7 +814,7 @@ consumed this row) · `rationale`.
 | `mission_loader/command.py` | `candidate_feature_dir_for_mission` | 1 (:157) | kind-blind | migrate-fail-loud | `PRIMARY_METADATA` | WP07 | Feeds `_ensure_feature_metadata(feature_dir, ...)` — a `meta.json`-adjacent read. |
 | `missions/plan/plan_interview.py` | `resolve_planning_read_dir` | 1 (:66) | kind-aware | migrate-fail-loud | `PRIMARY_METADATA` | WP07 | `mission_id` read for the plan interview; already kind-annotated. |
 | `missions/plan/specify_interview.py` | `resolve_planning_read_dir` | 1 (:66) | kind-aware | migrate-fail-loud | `PRIMARY_METADATA` | WP07 | Same pattern as `plan_interview.py:66` (near-duplicate module pair). |
-| `orchestrator_api/commands.py` | — | 0 real (grep hit only) | n/a | no-site | n/a | WP07 | Grep hit at `:1544` is a comment describing the seam route; zero `ast.Call` sites. |
+| `orchestrator_api/wp_lifecycle.py` | — | 0 real (grep hit only) | n/a | no-site | n/a | WP07 | Grep hit is the comment in `append_history` describing the seam route (it sat in `orchestrator_api/commands.py` at `:1544` before the #5628 split); zero `ast.Call` sites. |
 | `runtime/next/runtime_bridge_identity.py` | — | 0 real (grep hit only) | n/a | no-site | n/a | WP07 | Grep hit at `:97` is a docstring mention of `candidate_feature_dir_for_mission`; zero `ast.Call` sites. Also the shared-package-boundary file the spec's edge cases flag for a routing confirmation — moot here since there is no real call to route. This mission's own census finds THREE real `primary_feature_dir_for_mission` calls in this same file (`runtime/next/runtime_bridge.py:260,1244` and `runtime_bridge_identity.py:118`) — see § "primary_feature_dir_for_mission — live census" above; a different primitive, not a re-derivation of this row. |
 | `sync/events.py` | `candidate_feature_dir_for_mission` | 1 (:120) | kind-blind | migrate-fail-loud | `PRIMARY_METADATA` | WP07 | "Best-effort lookup of the canonical `mission_id`" for a dashboard sync trigger; reads `meta.json` only. |
 | `task_utils/support.py` | `resolve_planning_read_dir` | 1 (:548) | kind-aware | migrate-fail-loud | `WORK_PACKAGE_TASK` | WP07 | `tasks/` root read for the CLI task-view reconstruction. |

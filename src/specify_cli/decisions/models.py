@@ -66,7 +66,7 @@ class DecisionErrorCode(StrEnum):
     # deliberately NOT in ``upstream_contract.json``'s ``allowed_error_codes``
     # (unlike the six members above, which all ARE registered). If a future
     # verify/drift check starts raising it, orchestrator-api's
-    # ``_fail_from_decision_error`` guard (``orchestrator_api/commands.py``)
+    # ``_fail_from_decision_error`` guard (``orchestrator_api/decision_verbs.py``)
     # degrades an unregistered code to a safe, contract-registered fallback
     # rather than leaking it onto the public API -- so this stays reserved
     # here without also needing a matching contract entry.
