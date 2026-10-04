@@ -218,6 +218,11 @@ def default_source_snapshot_builder(source_root: Path, outdir: Path) -> None:
     transient state that HEAD is in (#80), while fetching the resolved commit
     never reads it. The fetch copies objects into a fresh pack in ``outdir``,
     so the snapshot shares nothing (not even hardlinks) with the source.
+
+    ``--update-shallow`` is required for a shallow source (a depth-1 CI
+    checkout): without it git still exits 0 but declines to record the shallow
+    boundary, leaving commits whose parents are missing and no ``.git/shallow``,
+    so every history walk in a project cloned from the snapshot fails.
     """
     commit = _snapshot_commit_of(source_root)
     if commit is None:
@@ -231,6 +236,7 @@ def default_source_snapshot_builder(source_root: Path, outdir: Path) -> None:
             "fetch",
             "-q",
             "--no-tags",
+            "--update-shallow",
             str(source_root),
             commit,
         ],
