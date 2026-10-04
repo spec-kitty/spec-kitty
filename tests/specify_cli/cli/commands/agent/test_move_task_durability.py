@@ -614,7 +614,7 @@ def test_unbackfilled_legacy_lanes_annotation_remains_uncommitted(
         transaction_meta_exists=True,
     )
 
-    assert not _status_transition._lanes_annotation_transaction_available(
+    assert not _status_transition._annotation_transaction_topology(
         identity, mission_slug
     )
 

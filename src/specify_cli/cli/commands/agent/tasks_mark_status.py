@@ -374,6 +374,7 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
     ``_ms_resolve_read_dir`` — never the primary planning directory or
     ``Path.cwd()`` (C-003/#2647).
     """
+    from mission_runtime import is_single_branch, resolve_topology
     from specify_cli.status import Lane, Status, WPInnerStateDelta, emit_inner_state_changed
 
     if not st.updated_tasks:
@@ -393,9 +394,12 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
         joined = ", ".join(unresolved_tasks)
         raise ValueError(f"Could not resolve owning work package for subtask event: {joined}")
 
+    # #5655: a single_branch mission commits its annotation on its write
+    # branch, like its lane transitions, so mark-status leaves the checkout clean.
+    commit_annotation = is_single_branch(resolve_topology(st.main_repo_root, st.mission_slug))
     for wp_id, task_ids_for_wp in resolved_tasks_by_wp.items():
         delta = WPInnerStateDelta(subtasks=dict.fromkeys(task_ids_for_wp, target_status))
-        if st.owned is not None:
+        if st.owned is not None or commit_annotation:
             from specify_cli.coordination import status_transition
 
             event = status_transition.emit_inner_state_changed_transactional(

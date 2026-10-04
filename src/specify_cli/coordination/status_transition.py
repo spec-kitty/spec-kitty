@@ -36,7 +36,7 @@ from kernel.clock import now_utc, now_utc_iso, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from mission_runtime import MissionArtifactKind, TopologySurface, placement_seam
+from mission_runtime import MissionArtifactKind, MissionTopology, TopologySurface, placement_seam
 from specify_cli.coordination.coord_seed import CoordSeedForkRefused
 from specify_cli.coordination.outbound import queue_saas_emission
 from specify_cli.coordination.surface_resolver import (
@@ -54,6 +54,7 @@ from specify_cli.coordination.status_service import (
     wp_lane_actor_from_events,
 )
 from specify_cli.coordination.transaction import (
+    BookkeepingPolicyRefused,
     BookkeepingTransaction,
     BookkeepingWorktreeMissing,
 )
@@ -1707,15 +1708,17 @@ def emit_status_transition_transactional(
         return event
 
 
-def _lanes_annotation_transaction_available(identity: _TransactionIdentity, mission_slug: str) -> bool:
-    """Return whether a stored LANES mission can commit a primary annotation.
+def _annotation_transaction_topology(identity: _TransactionIdentity, mission_slug: str) -> str | None:
+    """Return the stored topology (LANES or SINGLE_BRANCH) when it can commit a primary annotation, else ``None``.
 
-    Modern ``LANES`` missions have no distinct coordination branch, but their
-    target branch still supports the same ``BookkeepingTransaction`` used by
-    the preceding lane transition.  ``SINGLE_BRANCH`` and legacy/flat missions
-    retain their historical uncommitted annotation behavior.
+    Modern ``LANES`` and ``SINGLE_BRANCH`` missions have no distinct
+    coordination branch, but their write branch still supports the same
+    ``BookkeepingTransaction`` used by the preceding lane transition, so the
+    annotation commits there too (#5655: an uncommitted annotation left the
+    single_branch write checkout dirty and a later ``move-task`` refused on
+    it). Legacy/flat missions (no stored topology) retain their historical
+    uncommitted annotation behavior.
     """
-    from mission_runtime import MissionTopology  # noqa: PLC0415
     from specify_cli.core.paths import (  # noqa: PLC0415
         MissionMetaReadError,
         load_meta_fail_closed,
@@ -1724,8 +1727,11 @@ def _lanes_annotation_transaction_available(identity: _TransactionIdentity, miss
     try:
         meta = load_meta_fail_closed(identity.feature_dir)
     except (OSError, MissionMetaReadError):
-        return False
-    return meta is not None and meta.get("topology") == MissionTopology.LANES.value and _transaction_topology_available(identity, mission_slug)
+        return None
+    topology = meta.get("topology") if meta is not None else None
+    if topology in (MissionTopology.LANES.value, MissionTopology.SINGLE_BRANCH.value) and _transaction_topology_available(identity, mission_slug):
+        return str(topology)
+    return None
 
 
 def emit_inner_state_changed_transactional(
@@ -1751,14 +1757,14 @@ def emit_inner_state_changed_transactional(
     the coordination ref and a caller such as ``move-task`` returns a clean tree
     (#2939) rather than one dirtied by a written-but-uncommitted annotation.
 
-    A modern stored ``LANES`` mission has no distinct coordination branch, but
-    its primary target branch supports the same transaction as its preceding
-    lane transition. Its annotation therefore commits there too. Stored
-    ``SINGLE_BRANCH`` and genuinely flat/legacy missions still delegate to the
-    uncommitted ``emit_inner_state_changed`` for byte-identical no-op parity.
+    Modern stored ``LANES`` and ``SINGLE_BRANCH`` missions have no distinct
+    coordination branch, but their write branch supports the same transaction
+    as their preceding lane transition, so their annotation commits there too
+    (#5655). Genuinely flat/legacy missions still delegate to the uncommitted
+    ``emit_inner_state_changed`` for byte-identical no-op parity.
     An explicitly owned checkout instead requires a transaction and never
     falls back to an uncommitted write or another checkout.
-    The narrow :func:`_lanes_annotation_transaction_available` predicate reads
+    The narrow :func:`_annotation_transaction_topology` predicate reads
     the stored topology before consulting transaction availability, avoiding
     the over-broad legacy-meta arm that previously made a flat mission look
     transactional (``test_flat_topology_annotation_still_lands``).
@@ -1813,7 +1819,8 @@ def emit_inner_state_changed_transactional(
             repo_root=repo_root,
         )
 
-    if identity.owned is None and identity.coordination_branch is None and not _lanes_annotation_transaction_available(identity, mission_slug):
+    annotation_topology = _annotation_transaction_topology(identity, mission_slug)
+    if identity.owned is None and identity.coordination_branch is None and annotation_topology is None:
         return _uncommitted_emit()
 
     annotation = _annotate(
@@ -1859,6 +1866,15 @@ def emit_inner_state_changed_transactional(
         # annotation is auxiliary — degrade to the uncommitted primary write
         # instead of hard-failing move-task (see docstring).
         return _uncommitted_emit()
+    except BookkeepingPolicyRefused:
+        # #5655: a single_branch mission whose write ref the policy refuses
+        # (e.g. a legacy mission recorded directly on protected ``main``)
+        # keeps its historical uncommitted annotation instead of turning an
+        # auxiliary write into a hard failure. Every other topology still
+        # surfaces the refusal.
+        if identity.owned is None and annotation_topology == MissionTopology.SINGLE_BRANCH.value:
+            return _uncommitted_emit()
+        raise
     return annotation
 
 
