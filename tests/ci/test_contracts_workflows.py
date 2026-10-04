@@ -1240,8 +1240,6 @@ def test_contracts_yml_no_longer_hosts_the_tool_tests() -> None:
 # -- the tool-test job and the one home of every tests/contract module -----------------------------
 
 
-ROUTER_PATH = WORKFLOWS_DIR / "ci-router.yml"
-ROUTER_TEXT = ROUTER_PATH.read_text(encoding="utf-8")
 ROUTER_CORPUS_JOB = "tests-corpus-blocking"
 CONTRACT_TESTS_DIR = REPO_ROOT / "tests" / "contract"
 TOOL_TEST_MARKER = "corpus and not windows_ci"
@@ -1276,24 +1274,25 @@ def marker_expression_of(command: str) -> str | None:
     return next((group for group in match.groups() if group is not None), None) if match else None
 
 
-def marker_problems(contracts_text: str, router_text: str) -> list[str]:
-    """Both jobs that split ``tests/contract`` must select the same marker, or the single-home reasoning stops holding."""
+def marker_problems(router_text: str) -> list[str]:
+    """Both router jobs that split ``tests/contract`` must select the same marker, or the single-home reasoning stops holding."""
+    router_jobs = jobs(load(router_text))
     found = {
-        "contracts tool-test job": marker_expression_of(pytest_command_of(jobs(load(contracts_text))[TOOL_TEST_JOB])),
-        "router corpus job": marker_expression_of(pytest_command_of(jobs(load(router_text))[ROUTER_CORPUS_JOB])),
+        "router tool-test job": marker_expression_of(pytest_command_of(router_jobs[TOOL_TEST_JOB])),
+        "router corpus job": marker_expression_of(pytest_command_of(router_jobs[ROUTER_CORPUS_JOB])),
     }
     return [f"the {name} selects -m {expression!r}, not {TOOL_TEST_MARKER!r}" for name, expression in found.items() if expression != TOOL_TEST_MARKER]
 
 
-def tool_job_ignores(workflow_text: str) -> frozenset[str]:
-    """The modules the Contracts tool-test job ignores; it selects the rest of ``tests/contract``."""
-    command = pytest_command_of(jobs(load(workflow_text))[TOOL_TEST_JOB])
+def tool_job_ignores(router_text: str) -> frozenset[str]:
+    """The modules the router's tool-test job ignores; it selects the rest of ``tests/contract``."""
+    command = pytest_command_of(jobs(load(router_text))[TOOL_TEST_JOB])
     assert re.search(r"\stests/contract/?(?=\s)", command), "the tool-test job must select the whole tests/contract directory"
     return frozenset(re.findall(r"--ignore=(\S+)", command))
 
 
 def homes_of(module: str, corpus_modules: frozenset[str], router_modules: frozenset[str], ignored: frozenset[str]) -> list[str]:
-    """Which of the router corpus job and the Contracts tool-test job run *module* (both select ``-m corpus``).
+    """Which of the router's corpus job and its tool-test job run *module* (both select ``-m corpus``).
 
     *corpus_modules* is the REAL collected set, so an indirectly applied mark (a shared ``pytestmark`` list, a helper, a
     ``conftest`` hook) counts like a literal ``@pytest.mark.corpus``. An unmarked module is deselected by both and is the
@@ -1305,7 +1304,7 @@ def homes_of(module: str, corpus_modules: frozenset[str], router_modules: frozen
     if module in router_modules:
         homes.append("router corpus job")
     if module not in ignored:
-        homes.append("contracts tool-test job")
+        homes.append("router tool-test job")
     return homes
 
 
@@ -1345,19 +1344,19 @@ def collected_corpus_modules() -> frozenset[str]:
 
 
 def test_both_jobs_that_split_the_contract_tests_select_the_same_marker() -> None:
-    assert marker_problems(CONTRACTS_TEXT, ROUTER_TEXT) == []
-    router_changed = mutate(
+    assert marker_problems(ROUTER_TEXT) == []
+    corpus_changed = mutate(
         ROUTER_TEXT,
         '-m "corpus and not windows_ci" \\\n            tests/contract/test_example_round_trip.py',
         '-m "corpus" \\\n            tests/contract/test_example_round_trip.py',
     )
-    assert any("router corpus job" in problem for problem in marker_problems(CONTRACTS_TEXT, router_changed))
-    contracts_changed = mutate(CONTRACTS_TEXT, '-m "corpus and not windows_ci"', '-m "corpus"')
-    assert any("contracts tool-test job" in problem for problem in marker_problems(contracts_changed, ROUTER_TEXT))
+    assert [problem.split(" selects ")[0] for problem in marker_problems(corpus_changed)] == ["the router corpus job"]
+    tools_changed = mutate(ROUTER_TEXT, '-m "corpus and not windows_ci" tests/contract \\\n', '-m "corpus" tests/contract \\\n')
+    assert [problem.split(" selects ")[0] for problem in marker_problems(tools_changed)] == ["the router tool-test job"]
 
 
 def test_the_tool_test_job_ignores_exactly_the_contract_modules_the_router_owns() -> None:
-    assert tool_job_ignores(CONTRACTS_TEXT) == ROUTER_CONTRACT_MODULES
+    assert tool_job_ignores(ROUTER_TEXT) == ROUTER_CONTRACT_MODULES
 
 
 def test_the_router_corpus_job_runs_exactly_the_contract_modules_it_owns() -> None:
@@ -1368,19 +1367,19 @@ def test_every_corpus_marked_contract_module_has_exactly_one_home() -> None:
     modules = live_contract_modules()
     corpus = collected_corpus_modules()
     router = router_contract_modules(ROUTER_PATH.read_text(encoding="utf-8"))
-    ignored = tool_job_ignores(CONTRACTS_TEXT)
+    ignored = tool_job_ignores(ROUTER_TEXT)
 
     assert corpus <= modules
     assert home_problems(modules, corpus, router, ignored) == []
     # Non-vacuity: both homes really run something, and the tool-test job runs a module the router does not.
     assert any(homes_of(name, corpus, router, ignored) == ["router corpus job"] for name in modules)
-    assert sum(homes_of(name, corpus, router, ignored) == ["contracts tool-test job"] for name in modules) >= 20
+    assert sum(homes_of(name, corpus, router, ignored) == ["router tool-test job"] for name in modules) >= 20
 
 
 def test_a_planted_new_module_that_nothing_runs_is_refused() -> None:
     modules, corpus = live_contract_modules(), collected_corpus_modules()
     router = router_contract_modules(ROUTER_PATH.read_text(encoding="utf-8"))
-    ignored = tool_job_ignores(CONTRACTS_TEXT)
+    ignored = tool_job_ignores(ROUTER_TEXT)
     planted = "tests/contract/test_planted_unrun.py"
 
     assert home_problems(modules | {planted}, corpus | {planted}, router, ignored | {planted}) == [f"{planted} is run by nothing"]
@@ -1390,12 +1389,12 @@ def test_a_planted_new_module_that_nothing_runs_is_refused() -> None:
 def test_a_planted_module_that_two_jobs_run_is_refused() -> None:
     modules, corpus = live_contract_modules(), collected_corpus_modules()
     router = router_contract_modules(ROUTER_PATH.read_text(encoding="utf-8"))
-    ignored = tool_job_ignores(CONTRACTS_TEXT)
+    ignored = tool_job_ignores(ROUTER_TEXT)
     planted = "tests/contract/test_planted_twice.py"
 
     problems = home_problems(modules | {planted}, corpus | {planted}, router | {planted}, ignored)
 
-    assert problems == [f"{planted} is run by ['router corpus job', 'contracts tool-test job']"]
+    assert problems == [f"{planted} is run by ['router corpus job', 'router tool-test job']"]
 
 
 def test_a_module_with_an_unmarked_source_and_a_real_corpus_collection_is_still_judged(tmp_path: Path) -> None:
@@ -1413,13 +1412,13 @@ def test_a_module_with_an_unmarked_source_and_a_real_corpus_collection_is_still_
     name = "tests/contract/test_indirect.py"
     modules, corpus = live_contract_modules() | {name}, collected_corpus_modules() | {name}
     router = router_contract_modules(ROUTER_PATH.read_text(encoding="utf-8"))
-    assert home_problems(modules, corpus, router, tool_job_ignores(CONTRACTS_TEXT) | {name}) == [f"{name} is run by nothing"]
+    assert home_problems(modules, corpus, router, tool_job_ignores(ROUTER_TEXT) | {name}) == [f"{name} is run by nothing"]
 
 
 def test_a_job_naming_a_module_that_does_not_exist_is_refused() -> None:
     modules, corpus = live_contract_modules(), collected_corpus_modules()
     router = router_contract_modules(ROUTER_PATH.read_text(encoding="utf-8"))
-    ignored = tool_job_ignores(CONTRACTS_TEXT)
+    ignored = tool_job_ignores(ROUTER_TEXT)
 
     problems = home_problems(modules, corpus, router, ignored | {"tests/contract/test_renamed_away.py"})
 
