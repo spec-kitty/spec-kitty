@@ -108,7 +108,7 @@ title: Land a contributor PR
 description: Maintainer landing pass on a PR — triage, rebase, classify reds, squad, hand off.
 triggers: ["land this PR", "landing pass"]
 form: prompt                       # prompt | wrapper
-body_path: land-pr.skill.md        # prompt form only; uses $ARGUMENTS
+body_path: land-pr.skill.md        # prompt form only; copied into SKILL.md unchanged (no per-tool placeholder rewrite)
 parameters:
   - {name: pr, required: true, description: "PR number or URL"}
   - {name: steer, required: false, description: "free-text steer"}
@@ -116,7 +116,7 @@ invocation:
   user_invocable: true
   model_invocable: false           # forced false when side_effects is non-empty
   side_effects: [git-push, gh-write]
-tools: ["*"]                       # filtered by the project's configured tools
+tools: ["*"]                       # accepted and stored; deferred: not used to filter projection
 version: 1.0.0
 maintainers: ["@spec-kitty/core"]
 ```
@@ -146,10 +146,12 @@ so the substance is never copied into the skill.
 
 | Tier | Location | Ships? | Example content |
 | --- | --- | --- | --- |
-| built-in | `packs/built-in/skills/` + generated `skill.graph.yaml` shard | yes | consumer-safe shorthands (empty at MVP) |
+| built-in | `packs/built-in/skills/` (a generated `skill.graph.yaml` shard is deferred) | yes | consumer-safe shorthands (empty at MVP) |
 | org | `<pack>/skills/`, declared in `drg/fragment.yaml`, `required_skills:` in `org-charter.yaml` | never for `packs/internal` | `land-pr`, `mission-from-issue`, `issue-triage`, `curate-memory` |
 | project | `.kittify/doctrine/skills/` | repo-local | repository-specific shorthands |
 
+- The built-in tier is empty at the MVP, so no `skill.graph.yaml` shard exists. The extractor helper
+  that emits built-in skill nodes (`_emit_skill_nodes`) is in place for when the tier gains content.
 - Activation: `spec-kitty charter activate skill land-pr --cascade procedure,directive`
   through `plan_activation` / `commit_plan`; config key `activated_skills`. Cascade pulls in
   what the skill `requires`; deactivation keeps anything another active artifact still
@@ -173,8 +175,11 @@ so the substance is never copied into the skill.
 charter (pure)                                  specify_cli (adapter)
 merged DRG + activated_skills
   └─ prepare_project_skill_activations()  ─►  resolve_project_skill_catalog(project_root)
-       (id, rendered name, body, expansion,       ├─ render via command_renderer frontmatter
-        provenance, source_hash)                  │   + User-Input block rewrite
+       (id, rendered name, body, expansion,       ├─ render_pack_skill(): builds its own SKILL.md
+        provenance, source_hash)                  │   (frontmatter, context preamble, parameters,
+                                                  │   instructions); no command_renderer, no
+                                                  │   User-Input block rewrite
+                                                  ├─ stage under .kittify/runtime/pack-skills/
                                                   ├─ project skill roots only, never global
                                                   └─ .kittify/skills-manifest.json ownership
 ```
@@ -192,8 +197,11 @@ merged DRG + activated_skills
 - **Project scope only.** Activation is per repository, so rendered skills go to project
   skill roots (`.claude/skills/`, `.agents/skills/`, and the other roots in
   `AGENT_SKILL_CONFIG`), never to user-global directories.
-- Coverage at MVP: the 16 tools with a project skill root. Amazon Q is wrapper-only and gets
-  a research-gap finding; project-local command files for non-skill tools come later.
+- Coverage at MVP: the 16 tools with a project skill root, and only the primary (first-listed)
+  root of each (`.agents/skills/` for the shared-root tools). Amazon Q is wrapper-only: the
+  installer skips wrapper-class tools silently and raises no finding for it. A research-gap
+  finding for that tool, and project-local command files for non-skill tools, are deferred to
+  slice 3.
 - Deactivation re-runs projection and retires manifest-owned entries only.
 - Rendered copies are gitignored in this repository, so `doctor` / `upgrade` compare the
   freshly prepared `source_hash` (a `sha256:` digest of the skill record, its DRG `requires`,
@@ -207,7 +215,7 @@ merged DRG + activated_skills
 - `spk-`, `spec-kitty-`, and `spec-kitty.` are reserved for built-in. Org and project packs
   declare a `skill_namespace`; skills render as `<namespace>-<id>`. Two activated skills that
   render to the same name fail before any write; an unowned existing directory with that name
-  is preserved and reported.
+  is preserved and reported (an empty directory with that name is projected into).
 - A pack acts only after a maintainer registers it in `charter_packs.org.packs` (built at
   the MVP). **Deferred to slice 3:** remote packs pinning an immutable ref, and verifying
   content hashes at preparation.
@@ -218,6 +226,36 @@ merged DRG + activated_skills
   `allowed-tools`) for org and project skills.
 - Bindings (repository, operator) resolve at run time from project config, never baked into
   rendered files; public packs carry no personal identifiers.
+
+### Ownership proof
+
+The charter's "User Customization Preservation" rule requires any flow that mutates user-visible
+skill directories to document its proof. This flow acts only on what it can prove it owns.
+
+- **Ownership record.** `.kittify/skills-manifest.json` lists every file the installer wrote, with
+  the `content_hash` it wrote. Retire (on `deactivate`, a namespace change, or a skill removed
+  from the pack) and overwrite (on a changed pack source) act only on paths in that manifest.
+  The installer retires an entry only when the current catalog no longer expects its path.
+- **Validated paths.** Before any write the installer checks every manifest entry: the skill name
+  must be one path segment, the source path must be relative with no `..`, and the installed path
+  must equal `<primary skill root>/<name>/<source>`. An entry that fails the check stops the
+  projection with "Skills manifest contains an invalid ownership path". Removal is per file;
+  a directory is removed afterwards only when every entry in it was deleted.
+- **A same-name directory the tool does not own** (no manifest entry) is preserved and reported,
+  even when it has no `SKILL.md`. An **empty** directory with that name holds nothing to
+  preserve, so the installer projects into it.
+- **A locally edited copy is kept.** When an owned file no longer matches its recorded
+  `content_hash`, the installer neither overwrites nor deletes it. `charter activate` and
+  `charter deactivate` list it as "Skill file preserved", and `doctor skills` reports it as drift.
+  Replacing an owned, unmodified file keeps a backup of the old copy.
+- **Names and ids are validated before they reach a path.** A `skill_namespace` must be lowercase
+  ASCII: it starts with a letter, its `[a-z0-9]` segments are joined by single `-`, and it is at
+  most 32 characters. A skill id follows the same grammar and is at most 64 characters. The
+  validator never normalises a value. An invalid namespace is refused before the staging
+  directory or any skill root is touched; an invalid id makes the repository skip that skill file
+  with a warning, which `doctor doctrine` reports. A skill that is already in force and then
+  stops loading is refused instead of dropped, and the projection deletes nothing. Names that start with a reserved prefix, collide
+  with a built-in skill name, or are not a single safe path segment are refused the same way.
 
 ### Consequences
 
@@ -230,9 +268,12 @@ merged DRG + activated_skills
 
 #### Negative
 
-- A new kind is real work: four total tables in `artifact_kinds.py`, `NodeKind`, a doctor
-  health dimension, an extractor helper, the delivery table (`slot=None` with a reason),
-  a generated shard, and roughly a dozen exact-set tests (precedent: the `glossary_pack` kind).
+- A new kind is real work: a row in each of the four per-kind tables in `artifact_kinds.py`
+  (`_PLURALS`, `_HAS_BUILT_IN_CONTENT_DIR`, `_PATTERNS`, `PROJECT_KIND_DIRS`), three new enum
+  facts (`org_requirable`, `selection_overlayable`, `effective_when_absent`), `NodeKind`, a
+  doctor health dimension, an extractor helper, the delivery table (`slot=None` with a reason),
+  and roughly a dozen exact-set tests (precedent: the `glossary_pack` kind). A generated
+  `skill.graph.yaml` shard is deferred while the built-in tier is empty.
 - It expands the visible slash surface per project, which the skills README otherwise avoids;
   that is deliberate and scoped to activated skills only.
 - `packs/built-in/skills/` coexists with `src/charter/offering/skills/` until convergence.
@@ -246,8 +287,9 @@ merged DRG + activated_skills
 - ATDD: activate a pack skill → it appears in `.claude/skills/` and `.agents/skills/`;
   run `upgrade` → still present; deactivate → removed; nothing else touched.
 - Packaging safety: no `packs/internal/skills/**` path in the wheel.
-- The four internal shorthands run from the pack with no private copy, and the landing
-  procedure carries the content that only the private skill held before.
+- Deferred to slice 2: the four internal shorthands run from the pack with no private copy, and
+  the landing procedure carries the content that only the private skill held before. Slice 1
+  ships no `packs/internal/skills/` entry.
 
 ## Delivery slices
 

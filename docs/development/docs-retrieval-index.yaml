@@ -3264,6 +3264,7 @@ pages:
     - {slug: "tiers-merge-and-activation", text: "Tiers, merge, and activation", level: 3}
     - {slug: "rendering-and-installation", text: "Rendering and installation", level: 3}
     - {slug: "namespaces-and-trust", text: "Namespaces and trust", level: 3}
+    - {slug: "ownership-proof", text: "Ownership proof", level: 3}
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "delivery-slices", text: "Delivery slices", level: 2}
