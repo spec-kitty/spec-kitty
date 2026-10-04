@@ -30,6 +30,7 @@ from specify_cli.upgrade.migrations.m_3_2_8_provision_kitty_env import (
     _append_claudeignore_entry,
     _open_claudeignore_no_follow,
 )
+from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.registry import MigrationRegistry
 
 pytestmark = [pytest.mark.unit]
@@ -720,6 +721,18 @@ class TestClaudeignoreSymlinkSafety:
 
 
 class TestOrdering:
+    @pytest.fixture(autouse=True, scope="class")
+    def _discover_migrations(self) -> None:
+        """Register both migrations this class asserts on, every time it runs.
+
+        The module imports only the provision migration, so the heal migration
+        was registered only as a side effect of some earlier test (#5186). A
+        module-level import would not survive either: other tests call
+        ``MigrationRegistry.clear()``, and ``auto_discover_migrations()`` is
+        the rediscovery path that re-registers cleared modules exactly once.
+        """
+        auto_discover_migrations()
+
     def test_shares_target_version_with_heal_migration(self) -> None:
         """Both migrations are capped at the same installed package version --
         the tie is deliberate (see module docstring), not an oversight."""
