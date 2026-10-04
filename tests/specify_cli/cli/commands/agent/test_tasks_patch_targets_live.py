@@ -32,7 +32,8 @@ Liveness is per ``(module, name)``, not per call site: a name that is live somew
 in the module passes for every patch of it. That is a necessary condition for an
 intercept, not a sufficient one. A target the scanner cannot resolve to ``(module, name)``
 is counted (``UNRESOLVABLE_BASELINE``), never dropped. A path that goes deeper than the
-module (``<module>.console.print``) patches a shared object and is out of scope by design.
+module (``<module>.console.print``) patches a shared object and is out of scope by design
+(so a patch through a module alias kept on the old home is not checked).
 """
 
 from __future__ import annotations
@@ -377,7 +378,7 @@ class _Scanner:
 
     def _bind_assign(self, node: ast.Assign, scope: _Scope) -> None:
         names = [t.id for t in node.targets if isinstance(t, ast.Name)]
-        text = self._string(node.value, scope) if isinstance(node.value, (ast.Constant, ast.JoinedStr)) else None
+        text = self._string(node.value, scope) if isinstance(node.value, (ast.Constant, ast.JoinedStr, ast.Attribute, ast.BinOp)) else None
         if text is not None:
             scope.consts.update(dict.fromkeys(names, text))
             return
@@ -641,6 +642,9 @@ def test_scanner_resolves_string_and_fstring_targets() -> None:
         "def f2():\n"
         f'    _L = "{_PKG}.tasks_move_task_gates"\n'
         '    patch(f"{_L}._q")\n'
+        # A module name held in a variable assigned from ``__name__`` is followed too.
+        "_N = tasks_move_task.__name__\n"
+        'k = patch(f"{_N}._nm")\n'
     )
     hits, unresolvable = _scan_source(source, "synthetic.py")
     assert [(h[2], h[3]) for h in hits] == [
@@ -655,6 +659,7 @@ def test_scanner_resolves_string_and_fstring_targets() -> None:
         ("tasks_move_task_gates", "_chain"),
         ("tasks_move_task_hops", "_p"),
         ("tasks_move_task_gates", "_q"),
+        ("tasks_move_task", "_nm"),
     ]
     # c, g (dynamic prefix), h (unresolved name on a dotted chain) and ``patch.multiple(**opts)``.
     assert len(unresolvable) == 4

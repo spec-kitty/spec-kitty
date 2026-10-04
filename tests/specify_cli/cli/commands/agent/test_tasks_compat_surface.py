@@ -96,6 +96,16 @@ def test_identity_predicate_detects_a_copy() -> None:
     assert not is_identity_reexport(ModuleType("empty"), seam, "_output_result")
 
 
+#: Seam modules that expose nothing on ``tasks`` by design.
+_NO_TASKS_SURFACE = frozenset({"tasks_verdict_persistence"})
+
+
+@pytest.mark.parametrize("module_name", sorted(set(_SEAM_MODULES) - _NO_TASKS_SURFACE))
+def test_every_seam_contributes_at_least_one_symbol(module_name: str) -> None:
+    """A whole re-export block vanishing from ``tasks`` empties that seam's share of the keyset."""
+    assert module_name in set(SYMBOL_TO_MODULE.values())
+
+
 def test_shadow_copy_on_tasks_stays_in_keyset_and_fails_identity(monkeypatch: pytest.MonkeyPatch) -> None:
     """End-to-end negative control: a shadow copy planted on the real ``tasks``
     module stays in the derived keyset and fails the identity check.
