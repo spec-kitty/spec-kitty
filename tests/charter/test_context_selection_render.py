@@ -60,7 +60,7 @@ from charter.activation.context_renderers.selection_block import (
 from charter.activation.context_renderers.token_budget import _PROFILE_INLINE_BODY_LIMIT_CHARS
 from charter.activation.profile_resolution import _reset_agent_profile_cache
 from charter.activation.schemas import DoctrineSelectionConfig
-
+from charter.offering.pack_skills.models import PackSkill
 
 pytestmark = pytest.mark.fast
 
@@ -102,6 +102,7 @@ class _StubService:
         procedures: _StubRepo | None = None,
         agent_profiles: _StubRepo | None = None,
         mission_step_contracts: _StubRepo | None = None,
+        skills: _StubRepo | None = None,
     ) -> None:
         self.paradigms = paradigms or _StubRepo()
         self.directives = directives or _StubRepo()
@@ -111,6 +112,7 @@ class _StubService:
         self.procedures = procedures or _StubRepo()
         self.agent_profiles = agent_profiles or _StubRepo()
         self.mission_step_contracts = mission_step_contracts or _StubRepo()
+        self.skills = skills or _StubRepo()
 
 
 class _DummyStyleguide:
@@ -476,6 +478,17 @@ class TestFetchSelectorRecovery:
         )
         paradigm = _DummyParadigm(name="SPDD", summary="Use structured prompts.")
         paradigm.directive_refs = ["DIRECTIVE_039"]
+        ship_skill = PackSkill.model_validate(
+            {
+                "schema_version": "1.0",
+                "id": "ship",
+                "title": "Ship",
+                "description": "Consolidate the mission.",
+                "triggers": ["ship the mission"],
+                "form": "wrapper",
+                "expands_to": {"target": "builtin:spec-kitty.consolidate"},
+            }
+        )
         service = _StubService(
             paradigms=_StubRepo(items={"structured-prompt-driven-development": paradigm}),
             styleguides=_StubRepo(items={"caveman-comments": sg}),
@@ -483,6 +496,7 @@ class TestFetchSelectorRecovery:
             procedures=_StubRepo(items={"review-before-merge": procedure}),
             agent_profiles=_StubRepo(items={"python-pedro": profile}),
             mission_step_contracts=_StubRepo(items={"implement-contract": contract}),
+            skills=_StubRepo(items={"ship": ship_skill}),
         )
 
         cases = (
@@ -492,12 +506,15 @@ class TestFetchSelectorRecovery:
             ("procedure", "review-before-merge", "No repro."),
             ("agent_profile", "python-pedro", "Acknowledge governance before coding."),
             ("mission_step_contract", "implement-contract", "Recover contract guidance."),
+            ("skill", "ship", "builtin:spec-kitty.consolidate"),
         )
         for kind, artifact_id, marker in cases:
             text = _render_doctrine_artifact_include(service, kind, artifact_id)
             assert text is not None
             assert "Full artifact:" in text
             assert marker in text
+        # A skill that exists is rendered, not reported as "not found" (#5193).
+        assert "Skill ship: Ship" in _render_doctrine_artifact_include(service, "skill", "ship")
 
     def test_directive_and_tactic_include_recovers_fields_outside_inline_summary(
         self,

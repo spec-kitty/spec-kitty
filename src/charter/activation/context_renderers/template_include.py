@@ -42,6 +42,7 @@ from charter.activation.context_renderers.artifact_bodies import (
     _format_inline_directive_body,
     _format_inline_paradigm_body,
     _format_inline_procedure_body,
+    _format_inline_skill_body,
     _format_inline_step_contract_body,
     _format_inline_styleguide_body,
     _format_inline_tactic_body,
@@ -275,6 +276,12 @@ def _render_doctrine_artifact_include(
             "Mission step contract",
             "action",
             _format_inline_step_contract_body,
+        ),
+        "skill": (
+            "skills",
+            "Skill",
+            "title",
+            _format_inline_skill_body,
         ),
     }
     renderer = renderers.get(kind)

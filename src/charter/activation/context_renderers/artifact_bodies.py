@@ -21,6 +21,7 @@ __all__ = [
     "_format_inline_glossary_body",
     "_format_inline_paradigm_body",
     "_format_inline_procedure_body",
+    "_format_inline_skill_body",
     "_format_inline_step_contract_body",
     "_format_inline_styleguide_body",
     "_format_inline_tactic_body",
@@ -207,6 +208,28 @@ def _format_inline_paradigm_body(paradigm: object) -> list[str]:
     summary = getattr(paradigm, "summary", None)
     if isinstance(summary, str) and summary.strip():
         body_lines.append(f"    Summary: {summary.strip()}")
+    return body_lines
+
+
+def _format_inline_skill_body(skill: object) -> list[str]:
+    """Render a pack skill's description, form, triggers and wrapper target as indented lines.
+
+    A skill's ``requires`` edges live in the DRG, not on the record; they reach the
+    reader through the rendered skill's context preamble, so they are not repeated here.
+    """
+    body_lines: list[str] = []
+    description = getattr(skill, "description", None)
+    if isinstance(description, str) and description.strip():
+        body_lines.append(f"    Description: {description.strip()}")
+    form = getattr(skill, "form", None)
+    if isinstance(form, str) and form.strip():
+        body_lines.append(f"    Form: {form.strip()}")
+    triggers = [str(trigger) for trigger in getattr(skill, "triggers", None) or []]
+    if triggers:
+        body_lines.append(f"    Triggers: {', '.join(triggers)}")
+    target = getattr(getattr(skill, "expands_to", None), "target", None)
+    if isinstance(target, str) and target.strip():
+        body_lines.append(f"    Expands to: {target.strip()}")
     return body_lines
 
 
