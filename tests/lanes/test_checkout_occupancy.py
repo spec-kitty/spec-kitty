@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.lanes.checkout_occupancy import (
+    _occupancy_candidate_wp_ids,
     dirty_paths,
     in_progress_wps_in_write_checkout,
 )
@@ -211,6 +212,22 @@ def test_mission_with_unreadable_meta_is_skipped_not_fatal(tmp_path: Path) -> No
     occupied = in_progress_wps_in_write_checkout(repo, repo)
 
     assert occupied == [("occ-mission-f", "WP01")]
+
+
+def test_candidate_check_skips_missing_or_corrupt_meta(tmp_path: Path) -> None:
+    """The one meta read fails soft: no ``meta.json`` or a corrupt one is never a candidate.
+
+    Called directly because the mission resolver already drops such
+    directories before the scan reaches them.
+    """
+    missing = tmp_path / "missing"
+    missing.mkdir()
+    corrupt = tmp_path / "corrupt"
+    corrupt.mkdir()
+    (corrupt / "meta.json").write_text("{not valid json", encoding="utf-8")
+
+    assert _occupancy_candidate_wp_ids(missing, "main") == frozenset()
+    assert _occupancy_candidate_wp_ids(corrupt, "main") == frozenset()
 
 
 def test_legacy_single_branch_mission_without_lanes_json_is_not_an_occupant(tmp_path: Path) -> None:

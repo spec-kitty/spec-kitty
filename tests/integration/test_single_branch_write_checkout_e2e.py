@@ -389,7 +389,7 @@ def test_action_implement_resume_in_dirty_checkout_is_allowed(agent_loop_mission
 
 
 def test_mission_writing_to_another_branch_does_not_occupy_the_checkout(agent_loop_mission: tuple[Path, str, Path], tmp_path: Path) -> None:
-    """A finished mission on another write branch does not occupy the checkout (#5680).
+    """A mission whose write branch is another branch does not occupy the checkout (#5680).
 
     Driven through ``spec-kitty agent action implement``; the paired controls
     are :func:`test_action_implement_refuses_occupied_checkout`,

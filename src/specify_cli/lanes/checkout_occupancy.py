@@ -19,8 +19,9 @@ repo-root checkout* no allocation ever touches) and out of
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Any
 
 from kernel.git import GitPath
 from mission_runtime import MissionArtifactKind, MissionTopology, is_single_branch, placement_seam, single_branch_write_ref
@@ -49,7 +50,7 @@ def _repo_root_lane_wp_ids(feature_dir: Path) -> frozenset[str]:
     return frozenset(wp_id for lane in manifest.lanes if is_repo_root_lane(lane) for wp_id in lane.wp_ids)
 
 
-def _writes_to_another_branch(feature_dir: Path, topology: MissionTopology, current_branch: str | None) -> bool:
+def _writes_to_another_branch(meta: Mapping[str, Any], topology: MissionTopology, current_branch: str | None) -> bool:
     """True when the mission's write branch is known and is not *current_branch* (#5680).
 
     A single_branch mission's status is authoritative only on its write
@@ -61,14 +62,11 @@ def _writes_to_another_branch(feature_dir: Path, topology: MissionTopology, curr
     snapshot, not the mission's live state, so it cannot occupy this checkout.
 
     Fails closed (``False``: the mission still counts) whenever either side is
-    unknown: a detached HEAD, or no ``target_branch``. Called only after
-    :func:`read_topology` has parsed the same ``meta.json``.
+    unknown: a detached HEAD, or no ``target_branch``. *meta* is the
+    mission's already-loaded ``meta.json``; this reads nothing itself.
     """
-    from specify_cli.core.paths import load_meta_fail_closed
-
     if current_branch is None:
         return False
-    meta = load_meta_fail_closed(feature_dir) or {}
     target_branch = meta.get("target_branch")
     if not isinstance(target_branch, str) or not target_branch:
         return False
@@ -85,20 +83,25 @@ def _occupancy_candidate_wp_ids(feature_dir: Path, current_branch: str | None) -
     no WP in a repo-root lane, that is completed, or whose write branch is not
     *current_branch*.
     """
-    from specify_cli.core.paths import MissionMetaReadError
-    from specify_cli.migration.backfill_topology import read_topology
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+    from specify_cli.migration.backfill_topology import topology_from_meta
     from specify_cli.status import is_mission_completed
 
+    # One meta.json read per mission (NFR-001): the topology and the write
+    # branch both come from this dict.
     try:
-        topology = read_topology(feature_dir)
-    except (FileNotFoundError, MissionMetaReadError, ValueError):
+        meta = load_meta_fail_closed(feature_dir)
+        if meta is None:
+            return frozenset()
+        topology = topology_from_meta(meta, feature_dir)
+    except (MissionMetaReadError, ValueError):
         return frozenset()
     if not is_single_branch(topology):
         return frozenset()
     repo_root_wp_ids = _repo_root_lane_wp_ids(feature_dir)
     if not repo_root_wp_ids or is_mission_completed(feature_dir):
         return frozenset()
-    if _writes_to_another_branch(feature_dir, topology, current_branch):
+    if _writes_to_another_branch(meta, topology, current_branch):
         return frozenset()
     return repo_root_wp_ids
 
@@ -114,7 +117,7 @@ def in_progress_wps_in_write_checkout(
     A WP occupies the shared repo-root checkout only when it sits in a
     repo-root lane (:func:`specify_cli.lanes.compute.is_repo_root_lane`) of a
     mission whose STORED topology
-    (:func:`specify_cli.migration.backfill_topology.read_topology`) is
+    (:func:`specify_cli.migration.backfill_topology.topology_from_meta`) is
     ``single_branch``. Missions are filtered cheapest-first so the status-log
     read (the only expensive step) happens for real candidates only:
 

@@ -558,7 +558,7 @@ def test_lanes_topology_planning_wp_allows_dirty_checkout(repo: Path) -> None:
 
 
 def test_mission_writing_to_another_branch_does_not_occupy_the_checkout(repo: Path) -> None:
-    """A finished mission on another write branch does not occupy the checkout (#5680).
+    """A mission whose write branch is another branch does not occupy the checkout (#5680).
 
     Driven through ``spec-kitty implement``; the paired controls are
     :func:`test_another_mission_in_progress_refuses` (a live occupant on the
