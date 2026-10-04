@@ -2,7 +2,7 @@
 title: The Artifact Placement Seam
 description: How a mission artifact's kind and topology resolve to a physical tree, the two composition roots, and where callers still bypass the seam.
 doc_status: active
-updated: '2026-10-02'
+updated: '2026-10-04'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/branch-target-routing.md
@@ -202,7 +202,7 @@ write_dir` adds no `resolve_placement_only` or `resolve_artifact_surface` caller
 
 | Root | Total call expressions | Reached via `placement_seam(...)` or in-module projections | Direct callers outside `resolution.py` |
 |---|---|---|---|
-| `resolve_placement_only` (write) | 16 | 2 in `resolution.py`: `PlacementSeam.write_target` (`resolution.py:2352`) and the issue-matrix projection `_issue_matrix_ref` (`:2104`) | **14**, across 8 modules (`coordination/commit_router.py` ×6, `coordination/status_transition.py` ×2, `consolidation/executor.py`, `consolidation/done_bookkeeping.py`, `lanes/for_review_gate.py`, `cli/commands/safe_commit_cmd.py`, `cli/commands/agent/tasks_shared.py`, `mission_runtime/write_target_degrade.py`) |
+| `resolve_placement_only` (write) | 16 | 2 in `resolution.py`: `PlacementSeam.write_target` (`resolution.py:2352`) and the issue-matrix projection `_issue_matrix_ref` (`:2104`) | **14**, across 8 modules (`coordination/commit_router.py` ×6, `coordination/status_transition.py` ×2, `consolidation/run_state.py`, `consolidation/done_bookkeeping.py`, `lanes/for_review_gate.py`, `cli/commands/safe_commit_cmd.py`, `cli/commands/agent/tasks_shared.py`, `mission_runtime/write_target_degrade.py`) |
 | `resolve_artifact_surface` (read) | 11 | 2 in `resolution.py`: `PlacementSeam.read_dir` (`:2419`) and the thin projection `coord_read_dir_for` (`:2992`) | **9**, across 7 modules (`consolidation/forecast.py`, `policy/merge_gates.py` ×2, `cli/commands/accept.py`, `migration/runtime_state_cutover.py` ×2, `acceptance/execution_context.py`, `missions/_read_path_resolver.py` (`:1772`), `mission_runtime/issue_matrix_partition.py`) |
 
 None of these 23 direct callers is a defect by itself — several are the composition root's own
