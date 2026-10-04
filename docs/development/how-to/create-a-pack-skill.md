@@ -162,7 +162,9 @@ Projection refuses, and writes no skill file, when:
 
 - two active skills render to the same name;
 - a skill renders under the name of a built-in skill;
-- the namespace is invalid or missing.
+- the namespace is invalid or missing;
+- a skill is installed or listed in `activated_skills`, and a configured org pack is not fetched or its
+  `org-charter.yaml` cannot be read (run `spec-kitty doctrine fetch --pack <name>` or fix the file).
 
 To see the skipped files, run `spec-kitty doctor doctrine --json` and read
 `profile_health.skills.invalid_skills`.

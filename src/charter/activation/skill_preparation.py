@@ -47,6 +47,7 @@ __all__ = [
     "PackSkillConflictError",
     "PreparedSkill",
     "SkillPreparationError",
+    "pack_skills_matter",
     "prepare_project_skill_activations",
     "require_valid_skill_namespace",
 ]
@@ -232,7 +233,20 @@ def _read_project_skill_namespace(repo_root: Path) -> str | None:
     return require_valid_skill_namespace(node.strip(), _PROJECT_NAMESPACE_REMEDY)
 
 
-def prepare_project_skill_activations(repo_root: Path) -> list[PreparedSkill]:
+def pack_skills_matter(repo_root: Path, *, installed_pack_skills: bool = False) -> bool:
+    """Whether *repo_root* shows evidence that pack skills matter to it.
+
+    True when a pack skill is already installed (*installed_pack_skills*, the
+    caller's manifest fact) or ``activated_skills`` is an explicit non-empty list.
+    A project with neither takes nothing from a pack, so the health of its org packs
+    must not change what any skill path does.
+    """
+    from charter.activation.pack_context import explicit_activated_skills
+
+    return installed_pack_skills or bool(explicit_activated_skills(repo_root))
+
+
+def prepare_project_skill_activations(repo_root: Path, *, installed_pack_skills: bool = False) -> list[PreparedSkill]:
     """Prepare the skills in force for *repo_root*.
 
     The in-force set is the project's explicit ``activated_skills`` list
@@ -242,16 +256,28 @@ def prepare_project_skill_activations(repo_root: Path) -> list[PreparedSkill]:
     no skill in force returns ``[]`` without touching any DRG, so a broken org
     graph never blocks a project that uses no pack skill.
 
+    When pack skills matter (:func:`pack_skills_matter`) the in-force set must also
+    be *establishable*: a configured pack that is not on disk, or (when the org
+    packs decide) an unreadable ``org-charter.yaml`` or a ``required_skills`` that is
+    not a list, raises :class:`SkillPreparationError` instead of reading as "nothing
+    required" -- which would retire installed skills. A project where nothing
+    matters keeps the lenient reading.
+
     Otherwise resolves the doctrine service, the merged built-in + org-chain DRG
     and both namespaces, and delegates to :func:`_prepare_skill_activations`.
     """
     from charter.activation._drg_helpers import load_validated_graph
     from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
     from charter.activation.drg_activation import load_org_drg
-    from charter.activation.org_pack_discovery import read_org_skill_namespace
-    from charter.activation.pack_context import PackContext
+    from charter.activation.org_pack_discovery import read_org_skill_namespace, require_org_skill_policy_readable
+    from charter.activation.pack_context import PackContext, explicit_activated_skills
     from charter.offering.drg.org_pack_config import resolve_existing_org_roots
 
+    explicit = explicit_activated_skills(repo_root)
+    if explicit is not None and not explicit:
+        return []
+    if installed_pack_skills or explicit:
+        require_org_skill_policy_readable(repo_root, org_decides=explicit is None)
     in_force = PackContext.from_config(repo_root).activated_skills
     if in_force is not None and not in_force:
         return []

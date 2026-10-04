@@ -40,6 +40,7 @@ __all__ = [
     "CharterPackConfigError",
     "PackContext",
     "charter_activated_urns",
+    "explicit_activated_skills",
     "normalize_activation_identifier",
     "partition_activated_unreachable",
     "resolve_charter_yaml_pointer",
@@ -714,6 +715,17 @@ def _read_activated_skills(data: dict[str, Any], repo_root: Path) -> frozenset[s
     if declared is not None:
         return declared
     return _absent_key_default(ArtifactKind.SKILL, repo_root)
+
+
+def explicit_activated_skills(repo_root: Path) -> frozenset[str] | None:
+    """The project's own ``activated_skills`` list, or ``None`` when the key is absent.
+
+    Unlike :attr:`PackContext.activated_skills` this never applies the absent-key
+    default (the org-required set), so a caller can tell "the project lists these
+    skills" from "the org packs decide". Raises :class:`CharterPackConfigError` on a
+    non-list value, exactly as :meth:`PackContext.from_config` does.
+    """
+    return _read_list_key(_load_charter_activation_source(repo_root, _load_config(repo_root)), "activated_skills")
 
 
 def _absent_key_default(kind: ArtifactKind, repo_root: Path) -> frozenset[str] | None:

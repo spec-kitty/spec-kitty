@@ -35,12 +35,13 @@ from charter.activation.skill_preparation import (
     PackSkillConflictError,
     PreparedSkill,
     SkillPreparationError,
+    pack_skills_matter,
     prepare_project_skill_activations,
 )
 from charter.drg import DRGLoadError, DRGValidationError, resolve_existing_org_roots
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import UnsafePathSegmentError, assert_safe_path_segment
-from specify_cli.skills.manifest import ORIGIN_PACK
+from specify_cli.skills.manifest import ORIGIN_PACK, load_manifest
 from specify_cli.skills.pack_skill_renderer import PackSkillRenderError, render_pack_skill
 from specify_cli.skills.paths import SkillPathObservation, skill_path_observations
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
@@ -137,17 +138,37 @@ class _Rendered:
     text: str
 
 
-def _project_may_have_pack_skills(project_root: Path) -> bool:
-    """Cheap prefilter: pack skills come from an org pack or the project tier only."""
-    return (project_root / _PROJECT_SKILLS_DIR).is_dir() or bool(resolve_existing_org_roots(project_root))
+def _project_may_have_pack_skills(project_root: Path, *, installed_pack_skills: bool) -> bool:
+    """Cheap prefilter: pack skills come from an org pack or the project tier only.
+
+    A project that shows evidence pack skills matter (an installed pack copy, or an
+    explicit non-empty ``activated_skills``) is never filtered out: with its org pack
+    unfetched there is no org root, yet the skills are still in force and must be
+    reported as unresolvable rather than read as "none".
+    """
+    return (
+        (project_root / _PROJECT_SKILLS_DIR).is_dir()
+        or bool(resolve_existing_org_roots(project_root))
+        or pack_skills_matter(project_root, installed_pack_skills=installed_pack_skills)
+    )
+
+
+def _manifest_holds_pack_skills(project_root: Path) -> bool:
+    """Whether the skills manifest records an installed pack skill (an unreadable manifest records none)."""
+    try:
+        manifest = load_manifest(project_root, strict=True)
+    except ValueError:
+        return False
+    return manifest is not None and any(entry.origin == ORIGIN_PACK for entry in manifest.entries)
 
 
 def _render_active_pack_skills(project_root: Path, shipped: SkillRegistry) -> list[_Rendered]:
     """Prepare, render and collision-check the pack skills in force (no writes)."""
-    if not _project_may_have_pack_skills(project_root):
-        return []
     try:
-        prepared = prepare_project_skill_activations(project_root)
+        installed = _manifest_holds_pack_skills(project_root)
+        if not _project_may_have_pack_skills(project_root, installed_pack_skills=installed):
+            return []
+        prepared = prepare_project_skill_activations(project_root, installed_pack_skills=installed)
         rendered = [_Rendered(item, render_pack_skill(item)) for item in prepared]
     except (
         SkillPreparationError,

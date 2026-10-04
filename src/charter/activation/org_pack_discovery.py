@@ -27,7 +27,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from charter.activation.schemas import DoctrineSelectionConfig
-from charter.activation.skill_preparation import require_valid_skill_namespace
+from charter.activation.skill_preparation import SkillPreparationError, require_valid_skill_namespace
 from charter.offering.artifact_kinds import SELECTION_OVERLAYABLE_KIND_FIELDS, ArtifactKind
 
 __all__ = [
@@ -42,6 +42,7 @@ __all__ = [
     "last_non_empty_token",
     "read_org_required_ids",
     "read_org_skill_namespace",
+    "require_org_skill_policy_readable",
     "union_required_tokens",
 ]
 
@@ -227,6 +228,44 @@ def read_org_skill_namespace(repo_root: Path) -> str | None:
         if namespace is not None:
             require_valid_skill_namespace(namespace, f"fix `skill_namespace` in org pack {name!r}'s org-charter.yaml")
     return namespace
+
+
+def require_org_skill_policy_readable(repo_root: Path, *, org_decides: bool) -> None:
+    """Refuse a configured org pack whose skill policy cannot be established.
+
+    Skill preparation's strict read: the lenient readers above treat "cannot read"
+    as "nothing required", which would retire installed pack skills. A configured
+    pack whose directory is missing is always refused (naming the remedy). When
+    *org_decides* (the project has no ``activated_skills`` list, so the org packs'
+    ``required_skills`` are the in-force set), an ``org-charter.yaml`` that is
+    unreadable, not a mapping, or carries a ``required_skills`` that is not a list of
+    strings is refused too. A pack without an ``org-charter.yaml`` (or with an empty
+    one) requires nothing, which is a legitimate "no longer required".
+    """
+    yaml = YAML(typ="safe")
+    for name, pack_path in _enumerate_org_pack_paths(repo_root):
+        if not pack_path.exists():
+            raise SkillPreparationError(
+                f"org pack {name!r} is configured but its directory does not exist ({pack_path}); "
+                f"run `spec-kitty doctrine fetch --pack {name}`, or remove the pack from .kittify/config.yaml"
+            )
+        charter_path = pack_path / "org-charter.yaml"
+        if org_decides and charter_path.exists():
+            _require_readable_required_skills(yaml, name, charter_path)
+
+
+def _require_readable_required_skills(yaml: YAML, pack_name: str, charter_path: Path) -> None:
+    try:
+        raw = yaml.load(charter_path.read_text(encoding="utf-8"))
+    except (OSError, YAMLError, ValueError) as exc:
+        raise SkillPreparationError(f"cannot read {charter_path} of org pack {pack_name!r}, so its required skills are unknown: {exc}") from exc
+    if raw is None:
+        return
+    if not isinstance(raw, dict):
+        raise SkillPreparationError(f"{charter_path} of org pack {pack_name!r} is not a YAML mapping, so its required skills are unknown")
+    required = raw.get("required_skills")
+    if required is not None and not (isinstance(required, list) and all(isinstance(item, str) for item in required)):
+        raise SkillPreparationError(f"`required_skills` in {charter_path} of org pack {pack_name!r} must be a list of skill ids")
 
 
 def _load_doctrine_selection(repo_root: Path) -> DoctrineSelectionConfig:

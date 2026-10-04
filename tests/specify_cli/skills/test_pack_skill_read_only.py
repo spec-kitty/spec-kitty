@@ -7,6 +7,7 @@ a broken pack skill is a recorded migration failure, not a traceback.
 from __future__ import annotations
 
 import os
+import shutil
 from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -14,7 +15,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from specify_cli.skills.catalog import resolve_project_skill_catalog
-from specify_cli.skills.installer import assess_skill_installation
+from specify_cli.skills.installer import assess_skill_installation, install_all_skills
+from specify_cli.skills.manifest import save_manifest
 from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
 from specify_cli.upgrade.migrations.m_2_0_11_install_skills import InstallSkillsMigration
 from specify_cli.upgrade.migrations.m_2_1_1_repair_skill_pack import RepairSkillPackMigration
@@ -113,23 +115,46 @@ def _outcome(root: Path, migration: type) -> tuple[bool, bool, int]:
     return detected, result.success, len(result.changes_made)
 
 
+def _broken_org_drg(root: Path, pack: Path) -> None:
+    (pack / "broken.graph.yaml").write_text("nodes: [unclosed\n", encoding="utf-8")
+
+
+def _unfetched_pack(root: Path, pack: Path) -> None:
+    shutil.rmtree(pack)
+
+
+def _unparsable_charter(root: Path, pack: Path) -> None:
+    (pack / "org-charter.yaml").write_text("org_name: [unclosed\n", encoding="utf-8")
+
+
+def _string_required_skills(root: Path, pack: Path) -> None:
+    (pack / "org-charter.yaml").write_text("org_name: acme-org\nrequired_skills: deploy-helper\n", encoding="utf-8")
+
+
+@pytest.mark.parametrize("damage", [_broken_org_drg, _unfetched_pack, _unparsable_charter, _string_required_skills])
 @pytest.mark.parametrize("migration", DETECTING)
-def test_a_broken_org_drg_changes_nothing_for_a_project_that_uses_no_pack_skill(tmp_path: Path, migration: type) -> None:
-    """A pack that ships zero skills may have any DRG; no skill path may depend on its health."""
+def test_a_broken_org_pack_changes_nothing_for_a_project_that_uses_no_pack_skill(tmp_path: Path, migration: type, damage: Callable[[Path, Path], None]) -> None:
+    """No skill path may depend on the health of a pack the project takes no skill from (no pack entry, no activation)."""
     plain = tmp_path / "plain"
     plain.mkdir()
     support.write_config(plain, None, extra="agents:\n  available:\n    - claude\n    - codex\n")
     pack = tmp_path / "pack"
     pack.mkdir()
     support.write_org_charter(pack)
-    (pack / "broken.graph.yaml").write_text("nodes: [unclosed\n", encoding="utf-8")
     broken = tmp_path / "broken"
     broken.mkdir()
     support.write_config(broken, pack, extra="agents:\n  available:\n    - claude\n    - codex\n")
+    damage(broken, pack)
 
     assert _outcome(broken, migration) == _outcome(plain, migration)
     consent = ApplyConsent(automatic=True)
-    assert prepare_upgrade_repairs(broken, consent=consent).complete == prepare_upgrade_repairs(plain, consent=consent).complete
+    assert _skill_codes(broken, consent) == _skill_codes(plain, consent)
+
+
+def _skill_codes(root: Path, consent: ApplyConsent) -> set[str]:
+    """Diagnostic codes of the skill paths. An unfetched pack also changes the *profile* provider's codes
+    (``profile_input_invalid`` and friends, unrelated to skills and untouched by this mission): not compared."""
+    return {item.code for item in prepare_upgrade_repairs(root, consent=consent).diagnostics if "profile" not in item.code}
 
 
 def _no_namespace(root: Path, pack: Path) -> None:
@@ -147,7 +172,7 @@ def _sibling_duplicate_id(root: Path, pack: Path) -> None:
 
 
 def _broken_graph(root: Path, pack: Path) -> None:
-    (pack / "broken.graph.yaml").write_text("nodes: [unclosed\n", encoding="utf-8")
+    _broken_org_drg(root, pack)
 
 
 def _non_utf8_body(root: Path, pack: Path) -> None:
@@ -159,10 +184,53 @@ def _non_list_activation(root: Path, pack: Path) -> None:
     config.write_text(config.read_text(encoding="utf-8").replace("activated_skills:\n  - deploy-helper\n", "activated_skills: deploy-helper\n"), encoding="utf-8")
 
 
-@pytest.mark.parametrize("cause", [_no_namespace, _sibling_duplicate_id, _broken_graph, _non_utf8_body, _non_list_activation])
+def _org_required(root: Path, pack: Path, charter: str = "org_name: acme-org\nskill_namespace: acme\nrequired_skills: [deploy-helper]\n") -> None:
+    """Switch the project from an explicit activation to the org-required default (the org charter decides)."""
+    config = root / ".kittify" / "config.yaml"
+    config.write_text(config.read_text(encoding="utf-8").replace("activated_skills:\n  - deploy-helper\n", ""), encoding="utf-8")
+    (pack / "org-charter.yaml").write_text(charter, encoding="utf-8")
+
+
+def _explicit_pack_not_fetched(root: Path, pack: Path) -> None:
+    shutil.rmtree(pack)
+
+
+def _org_required_pack_not_fetched(root: Path, pack: Path) -> None:
+    _org_required(root, pack)
+    shutil.rmtree(pack)
+
+
+def _org_charter_unparsable(root: Path, pack: Path) -> None:
+    _org_required(root, pack, "org_name: [unclosed\n")
+
+
+def _org_required_skills_not_a_list(root: Path, pack: Path) -> None:
+    _org_required(root, pack, "org_name: acme-org\nskill_namespace: acme\nrequired_skills: deploy-helper\n")
+
+
+def _installed_copies(project: Path) -> list[Path]:
+    return [project / ".claude" / "skills" / "acme-deploy-helper" / "SKILL.md", project / ".agents" / "skills" / "acme-deploy-helper" / "SKILL.md"]
+
+
+@pytest.mark.parametrize(
+    "cause",
+    [
+        _no_namespace,
+        _sibling_duplicate_id,
+        _broken_graph,
+        _non_utf8_body,
+        _non_list_activation,
+        _explicit_pack_not_fetched,
+        _org_required_pack_not_fetched,
+        _org_charter_unparsable,
+        _org_required_skills_not_a_list,
+    ],
+)
 @pytest.mark.parametrize("migration", DETECTING)
 def test_a_broken_pack_makes_detect_true_and_apply_a_reported_error(tmp_path: Path, migration: type, cause: Callable[[Path, Path], None]) -> None:
     project = _project(tmp_path)
+    save_manifest(install_all_skills(project, ["claude", "codex"], resolve_project_skill_catalog(project)), project)
+    assert all(copy.is_file() for copy in _installed_copies(project))
     cause(project, tmp_path / "pack")
     before = _tree(project)
 
@@ -171,6 +239,7 @@ def test_a_broken_pack_makes_detect_true_and_apply_a_reported_error(tmp_path: Pa
         result = migration().apply(project, dry_run=dry_run)
         assert not result.success and "Pack skills could not be resolved" in result.errors[0]
     assert _tree(project) == before
+    assert all(copy.is_file() for copy in _installed_copies(project))  # a refusal never retires an installed copy
 
 
 def test_the_runner_records_a_failed_migration_for_a_broken_pack(tmp_path: Path) -> None:
