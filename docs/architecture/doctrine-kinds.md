@@ -32,28 +32,28 @@ and cross-checked against the running CLI. You can reproduce the same list yours
 spec-kitty charter activate bogus-kind some-id
 # Error: Unknown kind 'bogus-kind'. Valid kinds: agent-profile, directive,
 # glossary-pack, mission-step-contract, mission-type, paradigm, procedure,
-# styleguide, tactic, toolguide.
+# skill, styleguide, tactic, toolguide.
 ```
 
 Strip `mission-type` from that list (it is a *mission* concept, not a doctrine artifact kind —
-see [the mission system](mission-system.md)) and you have the **nine charter-activatable**
+see [the mission system](mission-system.md)) and you have the **ten charter-activatable**
 doctrine artifact kinds: **directive, tactic, styleguide, toolguide, paradigm, procedure,
-agent_profile, mission_step_contract, glossary_pack**. Those nine are the activation vocabulary;
-they are part of a larger **twelve-member `ArtifactKind` enum** — the remaining three
+agent_profile, mission_step_contract, glossary_pack, skill**. Those ten are the activation vocabulary;
+they are part of a larger **thirteen-member `ArtifactKind` enum** — the remaining three
 (`template`, `asset`, `anti_pattern`) are real kinds handled specially, not separately activated
-(see the note below and the [schema overview](#schema-at-a-glance)). All twelve are documented on
+(see the note below and the [schema overview](#schema-at-a-glance)). All thirteen are documented on
 this page.
 
 ## Schema at a glance
 
 The **`ArtifactKind` vocabulary** below is generated from the frozen enum
 (`src/charter/offering/artifact_kinds.py`) via `list(ArtifactKind)` and kept honest by the drift guard
-(`tests/docs/diagram_drift/`, FR-004) — the twelve members are introspected, never hand-typed, so
+(`tests/docs/diagram_drift/`, FR-004) — the thirteen members are introspected, never hand-typed, so
 this list cannot silently fall out of step with the code (as the stale "eight" prose once did).
 
 ```plantuml
 @startyaml
-title Doctrine artifact kinds — the ArtifactKind vocabulary (12 members)
+title Doctrine artifact kinds — the ArtifactKind vocabulary (13 members)
 ArtifactKind:
   - directive
   - tactic
@@ -67,6 +67,7 @@ ArtifactKind:
   - asset
   - glossary_pack
   - anti_pattern
+  - skill
 @endyaml
 ```
 
@@ -131,9 +132,9 @@ artifact to project languages. Three tokens are reserved and never name a real l
 
 > **A note on `template`, `asset`, and `anti_pattern` (the three non-activatable kinds).** If you
 > read `src/charter/offering/artifact_kinds.py` directly, you will see three members of the `ArtifactKind`
-> enum beyond the nine activatable kinds: `template`, `asset`, and `anti_pattern` — the exact set in
+> enum beyond the ten activatable kinds: `template`, `asset`, and `anti_pattern` — the exact set in
 > `_NON_AUGMENTATION_ELIGIBLE_KINDS`. All three are real and handled by the doctrine system — but
-> none is one of the nine activatable kinds above, and the CLI error message above is the proof:
+> none is one of the ten activatable kinds above, and the CLI error message above is the proof:
 > `template` and `asset` do not appear in the
 > "Valid kinds" list because they are explicitly excluded from `CHARTER_KIND_TOKENS` (the set
 > `charter activate`/`deactivate`/`list`/`context --include` operate over). `template` is
@@ -147,7 +148,7 @@ artifact to project languages. Three tokens are reserved and never name a real l
 > `docs_structural_lint.py.asset.yaml`). Resolve it — from any installation, no charter step
 > required — with `spec-kitty doctrine asset path common-docs-structural-lint` (or list every
 > resolvable asset and its source tier with `spec-kitty doctrine asset list`). Both are worth
-> knowing exist; neither is part of the nine-kind activation vocabulary this page and its
+> knowing exist; neither is part of the ten-kind activation vocabulary this page and its
 > companion how-to cover — see [The asset kind](#the-asset-kind) below for how to author and
 > resolve one, and [Delivery verdicts: which kinds reach a mission](#delivery-verdicts-which-kinds-reach-a-mission)
 > for why the shipped asset arrives without being activated. `anti_pattern` is the third: it is a
@@ -159,7 +160,7 @@ artifact to project languages. Three tokens are reserved and never name a real l
 
 ## The asset kind
 
-The nine activatable kinds are the **activation vocabulary** — you author one, `charter activate` it,
+The ten activatable kinds are the **activation vocabulary** — you author one, `charter activate` it,
 and it becomes eligible for injection into governed mission context. The `asset` kind sits outside
 that vocabulary on purpose. An asset is not a rule, a technique, or a persona; it is a **blob** —
 a file whose bytes are the payload (an image, a font, a template fixture, or a shipped script such
@@ -191,7 +192,7 @@ with two columns — the bundle *slot* the kind feeds, and the *gate* that filte
 |---|---|---|---|
 | **Delivered, activation-gated** | directive, tactic, styleguide, toolguide, procedure | `ACTIVATED` | `activated(kind) ∩ reachable` — only the ones you activated *and* the DRG reaches |
 | **Delivered, not activation-gated** | **asset** | `ALL` | `reachable` alone — every asset a reachable source pulls in, no activation list consulted |
-| **Not bundle-delivered (stated reason)** | paradigm, agent_profile, mission_step_contract, glossary_pack, anti_pattern, template | — | excluded, each with a recorded reason (e.g. template is mission-scoped file selection; agent_profile ships through the profile channel) |
+| **Not bundle-delivered (stated reason)** | paradigm, agent_profile, mission_step_contract, glossary_pack, anti_pattern, template, skill | — | excluded, each with a recorded reason (e.g. template is mission-scoped file selection; agent_profile ships through the profile channel) |
 
 Assets are the **third category** — *delivered but not activation-gated*. This matters because an
 asset has no `activated_assets` list to appear on: `activated(asset)` is empty by construction, so
@@ -343,7 +344,7 @@ pull in exactly that doctrine, in that order.
 **Purpose.** A bundled set of canonical terminology — term definitions, aliases, and the scopes
 they apply in — activated as a unit so a mission speaks one precise vocabulary. Where a single
 term lives on a `glossary` node and its applicability on a `glossary_scope` node in the DRG, a
-**glossary pack** is the activatable artifact that packages a coherent group of them (the ninth
+**glossary pack** is the activatable artifact that packages a coherent group of them (a
 member of the charter-activation vocabulary — it *is* charter-activatable via the `glossary-pack`
 token, unlike `template`/`asset`/`anti_pattern`).
 
@@ -355,10 +356,27 @@ glossary-pack <id>`.
 bundling the canonical terms for a domain into one activatable pack keeps a mission's language
 internally consistent and lets the glossary integrity pipeline check the group as a whole.
 
+### Skill
+
+**Purpose.** A thin, parameterised **entry point** a team types into its AI tool (a "pack skill"),
+shared through a pack instead of private per-user copies. A skill carries no substance of its own:
+it `requires` the procedures and directives that do (DRG edges), and its rendered `SKILL.md`
+fetches them at run time with `spec-kitty charter context --include <urn>`. Forms: `prompt` (a
+body file) or `wrapper` (a thin shorthand over a `spec-kitty.*` command or `spec-kitty` argv).
+
+**Location.** Org packs: `<pack>/skills/*.skill.yaml` (`packs/internal` never ships); project:
+`.kittify/doctrine/skills/`. `packs/built-in/skills/` is empty at present. Activate it with
+`spec-kitty charter activate skill <id>`; when `activated_skills` is absent, only the org packs'
+`required_skills` are in force (never every available skill). Activated skills are rendered as
+`<skill_namespace>-<id>` into each configured tool's **project** skill root and owned by
+`.kittify/skills-manifest.json`; `spec-kitty doctor skills` reports drift, staleness and orphaned
+copies. Not bundle-delivered: a skill reaches the agent through its skill root, not the mission
+context bundle. See [ADR 2026-09-27-1](../adr/3.x/2026-09-27-1-pack-skills-share-commands-through-charter-packs.md).
+
 ### Anti-pattern
 
 **Purpose.** A named bad practice or smell that good doctrine should steer away from. Unlike the
-nine activatable kinds, an **anti-pattern is not an authored artifact schema you activate** — it is
+ten activatable kinds, an **anti-pattern is not an authored artifact schema you activate** — it is
 a **DRG node kind** (`NodeKind.ANTI_PATTERN`) with **no backing model class**: a marker node that
 other artifacts point at with `rejects` edges (see [Doctrine relationships](doctrine-relationships.md)).
 A paradigm such as `domain-driven-design`, for example, authors `rejects` edges naming the

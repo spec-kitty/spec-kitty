@@ -38,6 +38,10 @@ _LEGACY_REQUIRED = frozenset(
         "assets",
     }
 )
+#: Kinds added after the refactor snapshot (membership deltas, reviewed one by one).
+#: ``skills`` (pack-skills-kind-01M43419 WP02): org-requirable, NOT selection-overlayable
+#: and without a ``selected_skills`` charter field.
+_ADDED_AFTER_SNAPSHOT_REQUIRED = frozenset({"skills"})
 _LEGACY_OVERLAYABLE = frozenset(
     {
         "directives",
@@ -69,11 +73,11 @@ def _model_fields(model: type[BaseModel], prefix: str) -> frozenset[str]:
 
 
 def test_snapshot_of_pre_refactor_tables() -> None:
-    assert frozenset(REQUIRED_KIND_FIELDS) == _LEGACY_REQUIRED
-    assert len(REQUIRED_KIND_FIELDS) == len(_LEGACY_REQUIRED)
+    assert frozenset(REQUIRED_KIND_FIELDS) == _LEGACY_REQUIRED | _ADDED_AFTER_SNAPSHOT_REQUIRED
+    assert len(REQUIRED_KIND_FIELDS) == len(_LEGACY_REQUIRED | _ADDED_AFTER_SNAPSHOT_REQUIRED)
     assert frozenset(org_pack_discovery._REQUIRED_KIND_FIELDS) == _LEGACY_OVERLAYABLE
     assert len(org_pack_discovery._REQUIRED_KIND_FIELDS) == len(_LEGACY_OVERLAYABLE)
-    assert dict(drg_activation._SINGULAR_TO_PER_KIND_FIELD) == _LEGACY_PER_KIND_FIELD
+    assert dict(drg_activation._SINGULAR_TO_PER_KIND_FIELD) == {**_LEGACY_PER_KIND_FIELD, "skill": "activated_skills"}
 
 
 #: Accepted order after the derivation (ArtifactKind declaration order). The
@@ -92,6 +96,7 @@ _ACCEPTED_REQUIRED_ORDER = (
     "mission_step_contracts",
     "assets",
     "glossary_packs",
+    "skills",
 )
 
 
@@ -119,7 +124,12 @@ def test_overlayable_is_the_selected_fields_minus_the_non_overlaid_kinds() -> No
     selected = _model_fields(DoctrineSelectionConfig, "selected_")
     assert overlayable <= selected
     assert selected - overlayable == {"glossary_packs", "assets"}
-    assert selected == frozenset(REQUIRED_KIND_FIELDS)
+    # ``skills`` is org-requirable but has no ``selected_skills`` field and is
+    # not overlayable (pack-skills-kind-01M43419 WP02, ADR 2026-09-27-1).
+    assert selected | _ADDED_AFTER_SNAPSHOT_REQUIRED == frozenset(REQUIRED_KIND_FIELDS)
+    assert "skills" not in overlayable
+    assert not ArtifactKind.SKILL.selection_overlayable
+    assert ArtifactKind.SKILL.org_requirable
 
 
 def test_derived_order_is_artifact_kind_declaration_order() -> None:

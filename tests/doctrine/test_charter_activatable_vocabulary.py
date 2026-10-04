@@ -1,7 +1,7 @@
 """The derived charter-activatable kind vocabulary authority (WP03 / T016).
 
 FR-004/FR-005/C-003: one derived authority for the plural↔singular kind
-vocabulary — 10 kinds including ``anti_pattern`` (distinct from the 9-token
+vocabulary — 11 kinds including ``anti_pattern`` (distinct from the 9-token
 ``CHARTER_KIND_TOKENS`` and from ``_NON_AUGMENTATION_ELIGIBLE_KINDS``).
 """
 
@@ -20,7 +20,7 @@ from charter.offering.artifact_kinds import (
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
-def test_exactly_ten_activatable_kinds() -> None:
+def test_exactly_eleven_activatable_kinds() -> None:
     # Pin the exact member set, not a bare count: adding, removing, or renaming
     # an activatable kind must force a content edit here, never pass silently at
     # an unchanged cardinality (golden-count contract, #2076).
@@ -32,6 +32,7 @@ def test_exactly_ten_activatable_kinds() -> None:
         ArtifactKind.MISSION_STEP_CONTRACT,
         ArtifactKind.PARADIGM,
         ArtifactKind.PROCEDURE,
+        ArtifactKind.SKILL,
         ArtifactKind.STYLEGUIDE,
         ArtifactKind.TACTIC,
         ArtifactKind.TOOLGUIDE,

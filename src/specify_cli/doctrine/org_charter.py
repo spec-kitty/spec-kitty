@@ -154,6 +154,13 @@ class OrgCharterPolicy(BaseModel):
     required_mission_step_contracts: list[str] = Field(default_factory=list)
     required_glossary_packs: list[str] = Field(default_factory=list)
     required_assets: list[str] = Field(default_factory=list)
+    required_skills: list[str] = Field(default_factory=list)
+    skill_namespace: str | None = None
+    """Namespace prefix pack skills render under (``<namespace>-<id>``).
+
+    Reserved built-in prefixes (``spk-``, ``spec-kitty-``, ``spec-kitty.``) are
+    refused by the pack-skill validator; WP03 owns the activation semantics.
+    """
     governance_policies: list[GovernancePolicy] = Field(default_factory=list)
     activations: list[ActivationEntry] = Field(default_factory=list)
     """Org-pack-level activation registry (FR-008 / WP06 T028).  Each pack
@@ -525,6 +532,7 @@ def _fold_policies(
     * ``activations`` — concatenated and deduplicated on the 4-tuple
       identity key keeping the *last* occurrence.
     * ``org_name`` — last non-empty value wins.
+    * ``skill_namespace`` — last non-empty value wins.
     * ``extends`` — always ``None`` on the merged result (the merged policy
       is the resolved snapshot, not a chain link).
 
@@ -555,10 +563,13 @@ def _fold_policies(
     merged_governance: list[GovernancePolicy] = []
     activation_dedup: dict[tuple[str, str, str, str], ActivationEntry] = {}
     org_name: str | None = None
+    skill_namespace: str | None = None
 
     for policy in policies:
         if policy.org_name:
             org_name = policy.org_name
+        if policy.skill_namespace:
+            skill_namespace = policy.skill_namespace
         # Per-key replacement: later key wins; earlier keys not overridden
         # remain in place.
         merged_interview_defaults.update(policy.interview_defaults)
@@ -582,6 +593,8 @@ def _fold_policies(
         required_mission_step_contracts=merged_required["mission_step_contracts"],
         required_glossary_packs=merged_required["glossary_packs"],
         required_assets=merged_required["assets"],
+        required_skills=merged_required["skills"],
+        skill_namespace=skill_namespace,
         governance_policies=_dedupe_governance(merged_governance),
         activations=list(activation_dedup.values()),
     )

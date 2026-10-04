@@ -171,6 +171,9 @@ class PackContext:
     activated_anti_patterns: frozenset[str] | None = None
     """Anti-pattern node IDs activated for this project (three-state)."""
 
+    activated_skills: frozenset[str] | None = None
+    """Pack-skill IDs activated for this project (three-state)."""
+
     # ------------------------------------------------------------------
     # Derived accessors
     # ------------------------------------------------------------------
@@ -270,6 +273,7 @@ class PackContext:
             activated_mission_step_contracts=_read_activated_mission_step_contracts(activation),
             activated_glossary_packs=_read_activated_glossary_packs(activation),
             activated_anti_patterns=_read_activated_anti_patterns(activation),
+            activated_skills=_read_activated_skills(activation),
         )
 
 
@@ -695,6 +699,11 @@ def _read_activated_glossary_packs(data: dict[str, Any]) -> frozenset[str] | Non
 def _read_activated_anti_patterns(data: dict[str, Any]) -> frozenset[str] | None:
     """Extract ``activated_anti_patterns`` from parsed config data (three-state)."""
     return _read_list_key(data, "activated_anti_patterns")
+
+
+def _read_activated_skills(data: dict[str, Any]) -> frozenset[str] | None:
+    """Extract ``activated_skills`` from parsed config data (three-state)."""
+    return _read_list_key(data, "activated_skills")
 
 
 def _read_org_packs(repo_root: Path, _data: dict[str, Any]) -> tuple[tuple[str, ...], tuple[Path, ...]]:

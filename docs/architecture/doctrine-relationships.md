@@ -73,6 +73,7 @@ NodeKind:
   - glossary_pack
   - mission_type
   - anti_pattern
+  - skill
 Relation:
   - requires
   - suggests

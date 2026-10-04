@@ -95,4 +95,5 @@ ARTIFACT_KIND_DISPOSITIONS: dict[str, str] = {
     "asset": "consciously-omitted",  # loose-contract blob, resolved to a path
     "glossary_pack": "consciously-omitted",  # documented; bundle of glossary/scope nodes
     "anti_pattern": "consciously-omitted",  # DRG node kind, no backing model class
+    "skill": "consciously-omitted",  # documented (doctrine-kinds.md#skill); PackSkill model, thin entry point
 }

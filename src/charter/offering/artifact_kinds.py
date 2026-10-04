@@ -73,6 +73,7 @@ _PLURALS: dict[str, str] = {
     "asset": "assets",
     "glossary_pack": "glossary_packs",
     "anti_pattern": "anti_patterns",
+    "skill": "skills",
 }
 
 #: Single source of truth for "does this kind ship a `packs/built-in/<plural>/`
@@ -102,6 +103,9 @@ _HAS_BUILT_IN_CONTENT_DIR: dict[str, bool] = {
     "asset": True,
     "glossary_pack": True,
     "anti_pattern": False,
+    # Pack skills are org/project-tier content; the built-in dir exists but is
+    # intentionally empty at MVP (``packs/built-in/skills/.gitkeep``).
+    "skill": True,
 }
 
 _PATTERNS: dict[str, str] = {
@@ -123,6 +127,7 @@ _PATTERNS: dict[str, str] = {
     # in generic `for kind in ArtifactKind: kind.glob_pattern` consumers) but
     # is not expected to match any file on disk.
     "anti_pattern": "*.anti_pattern.yaml",
+    "skill": "*.skill.yaml",
 }
 
 #: Operator token (hyphenated CLI surface) that callers must explicitly route to
@@ -153,6 +158,7 @@ class ArtifactKind(StrEnum):
     ASSET = "asset"
     GLOSSARY_PACK = "glossary_pack"
     ANTI_PATTERN = "anti_pattern"
+    SKILL = "skill"
 
     @property
     def plural(self) -> str:
@@ -296,13 +302,14 @@ _ORG_REQUIRABLE_KINDS: frozenset[ArtifactKind] = frozenset(
         ArtifactKind.MISSION_STEP_CONTRACT,
         ArtifactKind.GLOSSARY_PACK,
         ArtifactKind.ASSET,
+        ArtifactKind.SKILL,
     }
 )
 
 #: Members whose org-required list overlays a ``selected_<plural>`` charter
 #: field (8 kinds; a strict subset of :data:`_ORG_REQUIRABLE_KINDS`). Single
 #: home of the fact behind :attr:`ArtifactKind.selection_overlayable`.
-_SELECTION_OVERLAYABLE_KINDS: frozenset[ArtifactKind] = _ORG_REQUIRABLE_KINDS - {ArtifactKind.GLOSSARY_PACK, ArtifactKind.ASSET}
+_SELECTION_OVERLAYABLE_KINDS: frozenset[ArtifactKind] = _ORG_REQUIRABLE_KINDS - {ArtifactKind.GLOSSARY_PACK, ArtifactKind.ASSET, ArtifactKind.SKILL}
 
 #: Plural field suffixes of the org-requirable kinds, in :class:`ArtifactKind`
 #: declaration order (stable; consumers key dicts by it).
@@ -382,6 +389,7 @@ PROJECT_KIND_DIRS: dict[ArtifactKind, str] = {
     ArtifactKind.ASSET: "assets",
     ArtifactKind.GLOSSARY_PACK: "glossary_packs",
     ArtifactKind.ANTI_PATTERN: "anti_patterns",
+    ArtifactKind.SKILL: "skills",
 }
 
 

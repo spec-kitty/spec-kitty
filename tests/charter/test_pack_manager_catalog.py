@@ -98,6 +98,8 @@ _LEGACY_YAML_KEY_MAP: dict[str, str] = {
     "agent-profile": "activated_agent_profiles",
     "mission-step-contract": "activated_mission_step_contracts",
     "glossary-pack": "activated_glossary_packs",
+    # pack-skills-kind-01M43419 WP02: the skill kind is charter-activatable.
+    "skill": "activated_skills",
 }
 
 

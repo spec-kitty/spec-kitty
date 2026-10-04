@@ -118,6 +118,7 @@ _ACTION_BUNDLE_DELIVERY_BY_KIND: dict[NodeKind, _KindDelivery] = {
     NodeKind.MISSION_STEP_CONTRACT: _KindDelivery(None, _Gate.ACTIVATED),  # step executor
     NodeKind.ANTI_PATTERN: _KindDelivery(None, _Gate.ACTIVATED),  # validation-tier topology only
     NodeKind.TEMPLATE: _KindDelivery(None, _Gate.ALL),  # template-file selection (C-004)
+    NodeKind.SKILL: _KindDelivery(None, _Gate.ACTIVATED),  # rendered into project skill roots
     # Not artefacts this bundle carries:
     NodeKind.ACTION: _KindDelivery(None, _Gate.ALL),
     NodeKind.MISSION_TYPE: _KindDelivery(None, _Gate.ALL),
@@ -145,6 +146,7 @@ _DELIVERY_REASON_BY_KIND: dict[NodeKind, str] = {
         "validation-tier topology only (rejects edges) -- never a delivered bundle artefact"
     ),
     NodeKind.TEMPLATE: "template-file selection (C-004), not a doctrine bundle artefact",
+    NodeKind.SKILL: "a pack skill is rendered into project skill roots by the skill installer, not delivered in the action bundle",
     NodeKind.ACTION: "an action node is the resolution root, not a delivered artefact",
     NodeKind.MISSION_TYPE: "a mission-type node is graph structure, not a delivered artefact",
     NodeKind.GLOSSARY: "a glossary namespace node is graph structure, not a delivered artefact",

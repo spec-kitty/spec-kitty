@@ -172,13 +172,14 @@ def manager() -> CharterPackManager:
 
 
 class TestYamlKeyMap:
-    def test_has_exactly_ten_entries(self) -> None:
+    def test_has_exactly_eleven_entries(self) -> None:
         assert YAML_KEY_MAP == {
             "agent-profile": "activated_agent_profiles",
             "directive": "activated_directives",
             "glossary-pack": "activated_glossary_packs",
             "mission-step-contract": "activated_mission_step_contracts",
             "mission-type": "mission_type_activations",
+            "skill": "activated_skills",
             "paradigm": "activated_paradigms",
             "procedure": "activated_procedures",
             "styleguide": "activated_styleguides",
@@ -395,7 +396,7 @@ class TestListActivated:
     def test_none_for_all_kinds_on_empty_config(self, manager: CharterPackManager, ctx: ProjectContext) -> None:
         """All kinds return None when config.yaml has no activation keys."""
         result = manager.list_activated(ctx)
-        assert len(result) == 10
+        assert len(result) == 11
         for kind in YAML_KEY_MAP:
             assert result[kind] is None, f"Expected None for kind '{kind}'"
 
@@ -429,7 +430,7 @@ class TestListActivated:
 class TestMergeDefaults:
     def test_writes_absent_keys(self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path) -> None:
         result = manager.merge_defaults(ctx)
-        assert len(result.kinds_written) == 10  # all 10 kinds were absent
+        assert len(result.kinds_written) == 11  # all 11 kinds were absent
         config = project_root / ".kittify" / "config.yaml"
         data = yaml.safe_load(config.read_text())
         for yaml_key in YAML_KEY_MAP.values():
@@ -446,9 +447,9 @@ class TestMergeDefaults:
         data = yaml.safe_load(config.read_text())
         # existing directive key must not be overwritten
         assert data["activated_directives"] == ["only-mine"]
-        # other 9 absent kinds must have been written
+        # other 10 absent kinds must have been written
         assert "directive" not in result.kinds_written
-        assert len(result.kinds_written) == 9
+        assert len(result.kinds_written) == 10
 
     def test_creates_backup_when_charter_exists(self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path) -> None:
         charter_dir = project_root / ".kittify" / "charter"

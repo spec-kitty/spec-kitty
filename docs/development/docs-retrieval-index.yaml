@@ -4954,6 +4954,7 @@ pages:
     - {slug: "agent-profile", text: "Agent Profile", level: 3}
     - {slug: "mission-step-contract", text: "Mission step contract", level: 3}
     - {slug: "glossary-pack", text: "Glossary pack", level: 3}
+    - {slug: "skill", text: "Skill", level: 3}
     - {slug: "anti-pattern", text: "Anti-pattern", level: 3}
     - {slug: "where-to-go-next", text: "Where to go next", level: 2}
   - path: "docs/architecture/doctrine-relationships.md"

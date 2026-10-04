@@ -74,6 +74,10 @@ class NodeKind(StrEnum):
     # activated as a live rule; finer marking (e.g. "smell") lives in
     # `DRGNode.tags`, not a second `NodeKind` member.
     ANTI_PATTERN = "anti_pattern"
+    # URN prefix: "skill:<id>"; a pack skill (thin entry point) addressed in
+    # org/project DRG fragments with `requires`/`suggests` edges to the
+    # procedures/directives carrying the substance.
+    SKILL = "skill"
 
 
 class Relation(StrEnum):

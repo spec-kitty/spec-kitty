@@ -30,6 +30,7 @@ class TestArtifactKindValues:
             "asset",
             "glossary_pack",
             "anti_pattern",
+            "skill",
         }
         assert {m.value for m in ArtifactKind} == expected
 
