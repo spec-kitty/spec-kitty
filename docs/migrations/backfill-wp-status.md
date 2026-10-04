@@ -116,8 +116,8 @@ The log in the PRIMARY-partition `kitty-specs/` directory is not its authority,
 so seeding it would split the Mission's status in two. The command therefore
 refuses such a Mission: it reports `COORD_SURFACE_LIVE`, counts it as skipped
 (exit stays `0`) and writes nothing. Consolidate the Mission first
-(`spec-kitty consolidate --mission <handle>`), or run the command from the
-coordination checkout. A Mission whose coordination branch has been deleted is
+(`spec-kitty consolidate --mission <handle>`) and rerun the command once the
+coordination branch is gone. A Mission whose coordination branch has been deleted is
 not refused; it is repaired in the PRIMARY-partition directory and no branch is
 created.
 

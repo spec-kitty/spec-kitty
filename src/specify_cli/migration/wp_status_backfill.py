@@ -72,7 +72,7 @@ COORD_SURFACE_LIVE = "COORD_SURFACE_LIVE"
 COORD_SURFACE_LIVE_MESSAGE = (
     "its status log lives on a live coordination surface, so the PRIMARY-partition log is not the authority "
     "and seeding it would split-brain the Mission. Consolidate the Mission first "
-    "(`spec-kitty consolidate --mission <slug>`), or run this command from the coordination checkout."
+    "(`spec-kitty consolidate --mission <slug>`) and rerun once the coordination branch is gone."
 )
 
 

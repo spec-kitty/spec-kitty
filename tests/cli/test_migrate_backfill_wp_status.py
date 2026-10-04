@@ -581,7 +581,8 @@ def test_live_coordination_mission_is_named_in_the_human_summary(repo: Path) -> 
     assert result.exit_code == 0, result.output
     flat = " ".join(result.output.split())
     assert "refused" in flat and _SLUG_ONE in flat and "COORD_SURFACE_LIVE" in flat
-    assert "Consolidate the Mission first" in flat and "coordination checkout" in flat
+    assert "Consolidate the Mission first" in flat and "rerun once the coordination branch is gone" in flat
+    assert "coordination checkout" not in flat  # running the command from there is impossible: the root resolves to the main repo
 
 
 def test_manifest_entry_for_a_refused_mission_is_reported_as_coordination_surface_live(repo: Path, tmp_path: Path) -> None:

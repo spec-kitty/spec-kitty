@@ -1425,7 +1425,7 @@ def backfill_wp_status_cmd(
     nothing. WPs the snapshot carries without a WP file are reported, never
     repaired. A Mission whose status log lives on a live coordination surface
     is refused (``COORD_SURFACE_LIVE``, counted as skipped, nothing written):
-    consolidate it first, or run from the coordination checkout.
+    consolidate it first and rerun once the coordination branch is gone.
 
     A Mission with terminal evidence (``meta.json`` ``merged_at`` /
     ``accepted_at``, or an entry in ``--evidence-manifest``) has its freshly
