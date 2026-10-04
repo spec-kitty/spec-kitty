@@ -502,6 +502,28 @@ def test_dirty_refusal_is_isolated_and_carries_error_code_and_remedy(repo: Path)
     assert "Commit or stash them" in str(excinfo.value)
 
 
+def test_review_lock_in_write_checkout_is_not_dirty(repo: Path) -> None:
+    """``agent action review`` leaves ``.spec-kitty/review-lock.json`` untracked
+    in the repository-root write checkout; the tool's own lock must not refuse
+    the next claim as "dirty" (a user was told to commit or stash a lock file).
+    The real operator edit beside it still refuses, so the exemption is not
+    "any dirt"."""
+    mission_slug = "impl-review-lock"
+    _build_mission(repo, mission_slug, "01IMPLREVIEWLOCK000001")
+    lock = repo / ".spec-kitty" / "review-lock.json"
+    lock.parent.mkdir()
+    lock.write_text("{}\n", encoding="utf-8")
+    ws = _resolved_workspace(repo, mission_slug, "WP01", "trunk")
+
+    assert _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws) is True
+
+    (repo / "uncommitted-lock.py").write_text("X = 1\n", encoding="utf-8")
+    with pytest.raises(WriteCheckoutDirtyError) as excinfo:
+        _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws)
+    assert "uncommitted-lock.py" in str(excinfo.value)
+    assert ".spec-kitty" not in str(excinfo.value)
+
+
 # ---------------------------------------------------------------------------
 # Review cycle-1 issue 1: the refusals are scoped to single_branch missions.
 # ---------------------------------------------------------------------------

@@ -56,19 +56,24 @@ def _owned_status_prefixes(mission_slug: str) -> tuple[str, ...]:
     """Spec-kitty-owned path prefixes to exclude from the dirty-checkout scan.
 
     A single_branch mission's status log and snapshot live on the PRIMARY
-    partition (no coordination worktree), and ``.kittify/`` holds spec-kitty's
-    own runtime/workspace state -- neither is the operator's own uncommitted
-    work. ``meta.json`` is included too: ``implement`` itself writes to it
-    earlier in the SAME call (``_ensure_vcs_in_meta`` locks the VCS backend
-    on a mission's first claim) -- without this, that self-inflicted write
-    would make every first-ever single_branch claim refuse itself as
-    "dirty".
+    partition (no coordination worktree), and ``.kittify/`` and ``.spec-kitty/``
+    (the review lock ``agent action review`` writes untracked into the repo
+    root) hold spec-kitty's own runtime state -- none is the operator's own
+    uncommitted work. The two directories mirror the runtime-state authority
+    ``_RUNTIME_STATE_DENY_LIST`` in ``cli/commands/agent/tasks_shared.py``;
+    ``lanes/`` sits below the CLI layer, so it names them here instead of
+    importing a private CLI constant. ``meta.json`` is included too:
+    ``implement`` itself writes to it earlier in the SAME call
+    (``_ensure_vcs_in_meta`` locks the VCS backend on a mission's first
+    claim) -- without this, that self-inflicted write would make every
+    first-ever single_branch claim refuse itself as "dirty".
     """
     return (
         f"kitty-specs/{mission_slug}/status.events.jsonl",
         f"kitty-specs/{mission_slug}/status.json",
         f"kitty-specs/{mission_slug}/meta.json",
         ".kittify/",
+        ".spec-kitty/",
     )
 
 
