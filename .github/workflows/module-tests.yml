@@ -178,6 +178,7 @@ jobs:
           TEST_DIRS: ${{ inputs.test_dirs }}
           SHARD_IDX: ${{ steps.shard-info.outputs.idx }}
           SHARD_TOTAL: ${{ steps.shard-info.outputs.total }}
+          MODE: ${{ inputs.mode }}
         run: |
           set -euo pipefail
           venv_python="${{ steps.warmup.outputs.venv-path }}/bin/python"
@@ -192,7 +193,65 @@ jobs:
             --shard "$SHARD_IDX/$SHARD_TOTAL" \
             --test-dirs "$TEST_DIRS" \
             --python "$venv_python" \
-            --out shard_tests.txt
+            --out "$RUNNER_TEMP/shard_tests.txt"
+
+          # Shared test-universe collection (mission shared-collection-and-shard-recapture,
+          # FR-008, research D-06). The workflow serves every module and shard, so the
+          # pre-test step below runs only where the selected list holds the test that
+          # collects the universe -- decided from the list, never from a module name
+          # that would break silently when the test moves. The greedy-LPT split is per
+          # test, so the consuming FILE spans both `ci` shards; only the shard that holds
+          # the test using `live_universe` would reuse a collection, so the condition
+          # names that one test (tests/ci/test_ci_workflow_prestep_shape.py pins that it
+          # exists and still takes the fixture). The list lives in the runner
+          # temp directory: an untracked file in the checkout would make the store report
+          # a dirty checkout for the rest of the job (research B-02). pr mode only: the
+          # full-mode warm-up upgrades a pinned package, which may rewrite the
+          # tracked lockfile and so leave the checkout dirty.
+          universe=false
+          if [ "$MODE" = "pr" ] && grep -q -x -F "tests/ci/test_corpus_blocking_home.py::test_every_corpus_test_has_a_blocking_per_pr_home" "$RUNNER_TEMP/shard_tests.txt"; then
+            universe=true
+          fi
+          echo "universe=$universe" >> "$GITHUB_OUTPUT"
+          echo "module-tests: test-universe pre-step selected: $universe"
+
+      - name: Compute the test-universe collection key
+        id: universe-key
+        if: steps.select.outputs.universe == 'true'
+        shell: bash
+        run: |
+          venv_python="${{ steps.warmup.outputs.venv-path }}/bin/python"
+          # Prints nothing and exits 2 on a dirty checkout: the empty output keeps restore
+          # and save off, and the collect step then fails the job with the dirty paths.
+          # The key includes the commit: a stored record is valid for one commit only and a
+          # cache key never changes once saved, so a key without it could go stale.
+          key="$("$venv_python" -m scripts.ci.collect_universe_prestep key --with-commit)" || key=""
+          echo "key=${key:+universe-$key}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the test-universe store
+        id: universe-restore
+        if: steps.select.outputs.universe == 'true' && steps.universe-key.outputs.key != ''
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .pytest_cache/universe-store
+          key: ${{ steps.universe-key.outputs.key }}
+
+      - name: Collect the test universe once (pre-test step)
+        id: universe-collect
+        if: steps.select.outputs.universe == 'true'
+        shell: bash
+        env:
+          SK_GATE_REUSE_REPORT: ${{ runner.temp }}/universe-reuse.jsonl
+        run: |
+          venv_python="${{ steps.warmup.outputs.venv-path }}/bin/python"
+          "$venv_python" -m scripts.ci.collect_universe_prestep collect
+
+      - name: Save the test-universe store
+        if: steps.select.outputs.universe == 'true' && steps.universe-key.outputs.key != '' && steps.universe-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .pytest_cache/universe-store
+          key: ${{ steps.universe-key.outputs.key }}
 
       - name: Run pytest for this shard
         id: pytest-run
@@ -202,6 +261,8 @@ jobs:
           MODULE: ${{ inputs.module }}
           MODE: ${{ inputs.mode }}
           COV_TARGET: ${{ inputs.cov_target }}
+          # Empty (no report) on every shard that did not run the pre-test step.
+          SK_GATE_REUSE_REPORT: ${{ steps.select.outputs.universe == 'true' && format('{0}/universe-reuse.jsonl', runner.temp) || '' }}
         run: |
           set -euo pipefail
           venv_python="${{ steps.warmup.outputs.venv-path }}/bin/python"
@@ -270,7 +331,7 @@ jobs:
           coverage_xml="out/reports/coverage/coverage-${tier}-${mod}-shard${slug}.xml"
           xunit_xml="out/reports/xunit-reports/xunit-result-${mod}-shard${slug}-${run_id}.xml"
 
-          mapfile -t shard_tests < shard_tests.txt
+          mapfile -t shard_tests < "$RUNNER_TEMP/shard_tests.txt"
 
           set +e
           "$venv_python" -m pytest "${shard_tests[@]}" \
@@ -291,6 +352,15 @@ jobs:
             # pr mode: fail-fast -- propagate this shard's exit status.
             exit "$status"
           fi
+
+      - name: Check the test-universe reuse
+        if: always() && steps.select.outputs.universe == 'true'
+        shell: bash
+        env:
+          SK_GATE_REUSE_REPORT: ${{ runner.temp }}/universe-reuse.jsonl
+        run: |
+          venv_python="${{ steps.warmup.outputs.venv-path }}/bin/python"
+          "$venv_python" -m scripts.ci.collect_universe_prestep check
 
       - name: Upload coverage + xunit artefacts
         if: always()

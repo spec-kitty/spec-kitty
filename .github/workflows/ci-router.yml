@@ -755,8 +755,70 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
-      - run: |
-          uv sync --frozen --all-extras
+      - name: Sync dev environment
+        run: uv sync --frozen --all-extras
+      # Shared test-universe collection (mission shared-collection-and-shard-recapture,
+      # FR-008/FR-009). A leg that holds a test requesting the universe, and the `ci`
+      # module shard, collect once HERE, before pytest, and the tests reuse the stored
+      # record instead of collecting again. The battery partition moves with the
+      # timings, so each leg first asks the Python authority whether its own files hold
+      # such a test (`consumers`, an AST scan of tests/architectural, never a file name
+      # written here); a leg that holds none skips every universe step below, as the
+      # module shard does with the same `select` step id and `universe` output. The
+      # question is not allowed to fail quietly: no `||` and no continue-on-error, so
+      # an error fails the job rather than skip the pre-step on a leg that may hold a
+      # consumer (tests/ci/test_ci_workflow_prestep_shape.py pins both).
+      # Order (contracts/collection-store.md): key -> restore -> collect -> save ->
+      # pytest -> check. `key` prints nothing and exits 2 on a dirty checkout; the
+      # empty output keeps restore and save off, and `collect` then fails the job with
+      # the dirty paths, so a dirty checkout never silently disables reuse. The save
+      # sits before pytest so a leg that goes red on a test is still re-runnable warm.
+      # Only an exact key may restore (no restore-keys): the key is the content guard.
+      # The key is the collection key plus the commit (`key --with-commit`): a stored
+      # record is valid for one commit only and a cache key never changes once saved, so
+      # a key without the commit could keep a record that a later commit rejects.
+      - name: Decide whether this leg holds a test that collects the universe
+        id: select
+        shell: bash
+        run: |
+          universe="$(uv run --frozen python -m scripts.ci.collect_universe_prestep consumers --battery-part ${{ matrix.shard }})"
+          case "$universe" in
+            true | false) ;;
+            *) echo "architectural-heavy: unexpected consumers answer: '$universe'" >&2; exit 1 ;;
+          esac
+          echo "universe=$universe" >> "$GITHUB_OUTPUT"
+          echo "architectural-heavy ${{ matrix.shard }}: test-universe pre-step selected: $universe"
+      - name: Compute the test-universe collection key
+        id: universe-key
+        if: steps.select.outputs.universe == 'true'
+        shell: bash
+        run: |
+          key="$(uv run --frozen python -m scripts.ci.collect_universe_prestep key --with-commit)" || key=""
+          echo "key=${key:+universe-$key}" >> "$GITHUB_OUTPUT"
+      - name: Restore the test-universe store
+        id: universe-restore
+        if: steps.select.outputs.universe == 'true' && steps.universe-key.outputs.key != ''
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .pytest_cache/universe-store
+          key: ${{ steps.universe-key.outputs.key }}
+      - name: Collect the test universe once (pre-test step)
+        id: universe-collect
+        if: steps.select.outputs.universe == 'true'
+        shell: bash
+        env:
+          SK_GATE_REUSE_REPORT: ${{ runner.temp }}/universe-reuse.jsonl
+        run: uv run --frozen python -m scripts.ci.collect_universe_prestep collect
+      - name: Save the test-universe store
+        if: steps.select.outputs.universe == 'true' && steps.universe-key.outputs.key != '' && steps.universe-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .pytest_cache/universe-store
+          key: ${{ steps.universe-key.outputs.key }}
+      - name: Run the architectural battery leg
+        env:
+          SK_GATE_REUSE_REPORT: ${{ runner.temp }}/universe-reuse.jsonl
+        run: |
           # Run the battery in parallel (per-worker HOME isolation via conftest,
           # --dist loadfile) — the full serial run overran the timeout. Deselect
           # the parallel-unsafe / off-PR families (performance/stress/timing),
@@ -771,6 +833,12 @@ jobs:
             --deselect tests/architectural/test_archive_root_byte_identical.py \
             -p scripts.ci.battery_partition_plugin --battery-part ${{ matrix.shard }} \
             --junitxml=out/reports/xunit-architectural-heavy-${{ matrix.label }}.xml
+      - name: Check the test-universe reuse
+        if: always() && steps.select.outputs.universe == 'true'
+        shell: bash
+        env:
+          SK_GATE_REUSE_REPORT: ${{ runner.temp }}/universe-reuse.jsonl
+        run: uv run --frozen python -m scripts.ci.collect_universe_prestep check
       - name: Report peak memory (NFR-005)
         if: always()
         run: python3 -m scripts.ci.memory_sampler stop --out "$RUNNER_TEMP/memory-sampler.json"

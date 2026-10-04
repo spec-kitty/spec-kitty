@@ -1368,13 +1368,58 @@ jobs:
           echo "integration slice passed (exit 0)."
 
   # ---------------------------------------------------------------------------
+  # universe-equivalence: a stored test universe equals a fresh collection
+  # (mission shared-collection-and-shard-recapture, NFR-005).
+  #
+  # The per-PR consuming jobs trust a stored record keyed on the committed tree
+  # and the collecting environment. This job is the standing proof that the key
+  # is sufficient: `collect` stores the universe of this checkout, then `compare`
+  # collects once more with the store bypassed and diffs the two. Any difference,
+  # or no stored record, fails the job directly (no escalation helper, no exit
+  # variable: the failure IS the signal, and it reaches nightly-summary through
+  # `needs`).
+  #
+  # timeout-minutes: not measured yet (the job is new). Sized from the stages: one
+  # environment sync, plus two collections of roughly two minutes each.
+  # ---------------------------------------------------------------------------
+  universe-equivalence:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    name: Test-universe reuse equals a fresh collection (nightly)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          # Full history, same as the other nightly lanes that collect the battery.
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+
+      - name: Sync dev environment
+        shell: bash
+        run: uv sync --frozen --all-extras
+
+      - name: Collect and store the test universe
+        shell: bash
+        env:
+          SK_GATE_REUSE_REPORT: ${{ runner.temp }}/universe-reuse.jsonl
+        run: uv run --frozen python -m scripts.ci.collect_universe_prestep collect
+
+      - name: Compare the stored universe with a fresh collection
+        shell: bash
+        run: uv run --frozen python -m scripts.ci.collect_universe_prestep compare
+
+  # ---------------------------------------------------------------------------
   # nightly-summary: terminal `if: always()` aggregator so a scheduled/dispatch
   # run's complete failure set is visible in one place, never short-circuited.
   # ---------------------------------------------------------------------------
   nightly-summary:
     name: Nightly full-mode summary
     runs-on: ubuntu-24.04
-    needs: [performance, e2e, stress, p0-repro, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next, integration-slice, specify-cli-out-of-matrix, architectural-backstop, full-module-matrix]
+    needs: [performance, e2e, stress, p0-repro, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next, integration-slice, specify-cli-out-of-matrix, architectural-backstop, full-module-matrix, universe-equivalence]
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() }}
     steps:
       - name: Report full-mode results (run-all-regardless, never fail-fast)
@@ -1395,3 +1440,4 @@ jobs:
           echo "specify-cli-out-of-matrix: ${{ needs.specify-cli-out-of-matrix.result }}"
           echo "architectural-backstop: ${{ needs.architectural-backstop.result }}"
           echo "full-module-matrix: ${{ needs.full-module-matrix.result }}"
+          echo "universe-equivalence: ${{ needs.universe-equivalence.result }}"
