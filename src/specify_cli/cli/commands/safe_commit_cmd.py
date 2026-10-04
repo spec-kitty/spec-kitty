@@ -63,6 +63,7 @@ from pathlib import Path
 
 import typer
 from specify_cli.cli.console import console
+from specify_cli.cli.commands._commit_message import MESSAGE_OPTION_HELP, join_message_paragraphs
 
 from kernel.git import GitCommandError, status_entries
 from kernel.resolution import resolve_rejecting_loops
@@ -430,7 +431,7 @@ def safe_commit_command(
             "changed/untracked files with an explicit expansion report."
         ),
     ),
-    message: str = typer.Option(..., "--message", "-m", help="Commit message."),
+    message: list[str] = typer.Option(..., "--message", "-m", help=MESSAGE_OPTION_HELP),
     to_branch: str | None = typer.Option(
         None,
         "--to-branch",
@@ -445,6 +446,7 @@ def safe_commit_command(
 ) -> None:
     """Commit only the requested files via Spec Kitty's safe-commit path."""
     try:
+        commit_message = join_message_paragraphs(message)
         repo_root = _current_worktree_root()
         normalized_files = [
             _resolve_file_argument(repo_root / file_path if not file_path.is_absolute() else file_path)
@@ -480,7 +482,7 @@ def safe_commit_command(
                 repo_root=repo_root,
                 worktree_root=repo_root,
                 target=target,
-                message=message,
+                message=commit_message,
                 paths=tuple(expanded_files),
                 capability=capability,
             )

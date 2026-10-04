@@ -29,6 +29,7 @@ import typer
 from specify_cli.cli.console import console
 
 from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout
+from specify_cli.cli.commands._commit_message import MESSAGE_OPTION_HELP, join_message_paragraphs
 from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption, resolve_owned_or_refuse
 from specify_cli.coordination import commit_outcome
 from specify_cli.coordination.commit_outcome import (
@@ -472,7 +473,7 @@ def spec_commit_command(
         ...,
         help=("Spec artifacts to commit (absolute or relative paths). Must belong to the mission resolved via --mission or the kitty-specs/<slug>/ path."),
     ),
-    message: str = typer.Option(..., "--message", "-m", help="Commit message."),
+    message: list[str] = typer.Option(..., "--message", "-m", help=MESSAGE_OPTION_HELP),
     mission: str | None = typer.Option(
         None,
         "--mission",
@@ -505,6 +506,7 @@ def spec_commit_command(
     Pass individual FILES, not directories.
     """
     try:
+        commit_message = join_message_paragraphs(message)
         repo_root = _current_repo_root()
         derived_slug = _mission_slug_from_args(files, mission)
         # Validate --owned-checkout (or adopt the caller's checkout) exactly once. A
@@ -529,7 +531,7 @@ def spec_commit_command(
             )
             raise typer.Exit(1)
 
-        result = _commit_spec_files(repo_root, mission_slug, abs_files, message, target_branch, owned)
+        result = _commit_spec_files(repo_root, mission_slug, abs_files, commit_message, target_branch, owned)
         _render_spec_commit_result(result, json_output=json_output, abs_files=abs_files, repo_root=repo_root)
 
     except typer.Exit:
