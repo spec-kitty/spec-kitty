@@ -12091,34 +12091,19 @@ pages:
   - path: "docs/guides/how-to/missions/merge-mission.md"
     title: "How to Merge a Mission"
     divio_type: "how-to"
-    abstract: "How to merge a mission with Spec Kitty 3.2: Use this guide to merge completed work packages from a Spec Kitty mission into its target branch."
+    abstract: "How to merge a mission with Spec Kitty 3.2: land approved work packages on the local target branch with spec-kitty consolidate, preview it, and choose cleanup."
     anchors:
     - {slug: "prerequisites", text: "Prerequisites", level: 2}
     - {slug: "quick-start", text: "Quick Start", level: 2}
-    - {slug: "pre-flight-validation", text: "Pre-flight Validation", level: 2}
-    - {slug: "fixing-pre-flight-failures", text: "Fixing Pre-flight Failures", level: 3}
-    - {slug: "focused-pr-for-autonomous-local-runs", text: "Focused PR for Autonomous Local Runs", level: 3}
     - {slug: "preview-with-dry-run", text: "Preview with Dry-Run", level: 2}
-    - {slug: "conflict-forecasting", text: "Conflict Forecasting", level: 3}
-    - {slug: "merge-strategies", text: "Merge Strategies", level: 2}
-    - {slug: "default-merge-commits", text: "Default (Merge Commits)", level: 3}
-    - {slug: "squash", text: "Squash", level: 3}
-    - {slug: "rebase", text: "Rebase", level: 3}
+    - {slug: "strategies", text: "Strategies", level: 2}
+    - {slug: "target-branch", text: "Target Branch", level: 2}
     - {slug: "cleanup-options", text: "Cleanup Options", level: 2}
-    - {slug: "keep-worktrees", text: "Keep Worktrees", level: 3}
-    - {slug: "keep-branches", text: "Keep Branches", level: 3}
-    - {slug: "keep-both", text: "Keep Both", level: 3}
-    - {slug: "explicit-cleanup", text: "Explicit Cleanup", level: 3}
     - {slug: "mission-retention-policy", text: "Mission Retention Policy", level: 3}
-    - {slug: "push-after-merge", text: "Push After Merge", level: 2}
-    - {slug: "merge-from-the-repository-root-checkout", text: "Merge from the repository root checkout", level: 2}
-    - {slug: "target-branch", text: "target branch", level: 2}
-    - {slug: "dependency-ordered-merging", text: "Dependency-Ordered Merging", level: 2}
-    - {slug: "interrupted-merge-recovery", text: "Interrupted Merge Recovery", level: 2}
-    - {slug: "see-also", text: "See Also", level: 2}
+    - {slug: "publish-the-result", text: "Publish the Result", level: 2}
     - {slug: "after-merge", text: "After Merge", level: 2}
     - {slug: "command-reference", text: "Command Reference", level: 2}
-    - {slug: "see-also-2", text: "See Also", level: 2}
+    - {slug: "see-also", text: "See Also", level: 2}
     - {slug: "background", text: "Background", level: 2}
     - {slug: "getting-started", text: "Getting Started", level: 2}
   - path: "docs/guides/how-to/missions/review-artifacts-with-planbridge.md"
@@ -12240,32 +12225,20 @@ pages:
   - path: "docs/guides/how-to/recovery/troubleshoot-merge.md"
     title: "How to Troubleshoot Merge Issues"
     divio_type: "how-to"
-    abstract: "How to troubleshoot merge issues with Spec Kitty 3.2: Use this guide to recover from interrupted merges, resolve conflicts, and fix pre-flight failures."
+    abstract: "How to troubleshoot spec-kitty consolidate with Spec Kitty 3.2: resume or abort a stopped run and fix the refusals operators meet most, each with its command."
     anchors:
     - {slug: "quick-reference", text: "Quick Reference", level: 2}
-    - {slug: "resume-an-interrupted-merge", text: "Resume an Interrupted Merge", level: 2}
-    - {slug: "understanding-merge-state", text: "Understanding merge state", level: 3}
-    - {slug: "when-to-use-resume", text: "When to Use --resume", level: 3}
-    - {slug: "abort-and-start-fresh", text: "Abort and Start Fresh", level: 2}
-    - {slug: "what-abort-clears", text: "What --abort Clears", level: 3}
-    - {slug: "when-to-use-abort", text: "When to Use --abort", level: 3}
-    - {slug: "resolve-merge-conflicts", text: "Resolve Merge Conflicts", level: 2}
-    - {slug: "status-file-conflicts-automatic", text: "Status File Conflicts (Automatic)", level: 3}
-    - {slug: "when-auto-resolution-fails", text: "When Auto-Resolution Fails", level: 3}
-    - {slug: "code-conflicts-manual", text: "Code Conflicts (Manual)", level: 3}
+    - {slug: "resume-an-interrupted-consolidation", text: "Resume an Interrupted Consolidation", level: 2}
+    - {slug: "undo-a-run-with-abort", text: "Undo a Run with --abort", level: 2}
+    - {slug: "the-run-refused-before-moving-anything", text: "The Run Refused Before Moving Anything", level: 2}
+    - {slug: "wrong-branch-or-uncommitted-changes", text: "Wrong branch or uncommitted changes", level: 3}
     - {slug: "target-branch-content-conflicts-during-squash", text: "Target-Branch Content Conflicts During Squash", level: 3}
-    - {slug: "gate-artifact-verdict-conflicts-fail-closed", text: "Gate Artifact Verdict Conflicts (Fail-Closed)", level: 3}
-    - {slug: "conflict-resolution-tips", text: "Conflict Resolution Tips", level: 3}
-    - {slug: "pre-flight-validation-failures", text: "Pre-flight Validation Failures", level: 2}
-    - {slug: "uncommitted-changes", text: "Uncommitted Changes", level: 3}
-    - {slug: "missing-worktree", text: "Missing Worktree", level: 3}
-    - {slug: "target-branch-not-synchronized-with-origin", text: "target branch not synchronized with origin", level: 3}
-    - {slug: "branch-does-not-exist", text: "Branch Does Not Exist", level: 3}
-    - {slug: "error-message-reference", text: "Error Message Reference", level: 2}
-    - {slug: "command-reference", text: "Command Reference", level: 2}
+    - {slug: "not-synchronized-with-origin-only-with-push", text: "Not synchronized with origin (only with --push)", level: 3}
+    - {slug: "the-run-stopped-after-moving-branches", text: "The Run Stopped After Moving Branches", level: 2}
+    - {slug: "a-lane-failed-to-merge", text: "A lane failed to merge", level: 3}
+    - {slug: "reconciliation-failed-or-refused", text: "Reconciliation FAILED or refused", level: 3}
+    - {slug: "exit-code-75-the-landing-stands", text: "Exit code 75: the landing stands", level: 3}
     - {slug: "see-also", text: "See Also", level: 2}
-    - {slug: "background", text: "Background", level: 2}
-    - {slug: "getting-started", text: "Getting Started", level: 2}
   - path: "docs/guides/how-to/scenarios/agency-client-demo.md"
     title: "Agency Client Transparency Workflow"
     divio_type: "how-to"
