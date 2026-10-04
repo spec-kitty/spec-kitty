@@ -17,7 +17,8 @@ Precedent: :func:`charter.activation.compiler.prepare_mission_type_activations`
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Mapping
+import warnings
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
@@ -108,15 +109,18 @@ def _prepare_skill_activations(
     graph: DRGGraph,
     org_namespace: str | None,
     project_namespace: str | None,
+    load_problems: Sequence[str] = (),
 ) -> list[PreparedSkill]:
     """Prepare *activated_ids* for projection, sorted by id.
 
     Raises :class:`SkillPreparationError` -- before returning anything -- when
-    an org/project skill has no namespace to render under, when its rendered
-    name uses a prefix reserved for built-in skills, or when two skills render
-    to the same name.
+    an activated id is not loadable from any pack tier (*load_problems* carries
+    what the loader reported, so the refusal says why), when an org/project
+    skill has no namespace to render under, when its rendered name uses a
+    prefix reserved for built-in skills, or when two skills render to the same
+    name.
     """
-    prepared = [_prepare_one(source, skill_id, graph, org_namespace, project_namespace) for skill_id in sorted(set(activated_ids))]
+    prepared = [_prepare_one(source, skill_id, graph, org_namespace, project_namespace, load_problems) for skill_id in sorted(set(activated_ids))]
     _refuse_duplicate_names(prepared)
     return prepared
 
@@ -127,11 +131,13 @@ def _prepare_one(
     graph: DRGGraph,
     org_namespace: str | None,
     project_namespace: str | None,
+    load_problems: Sequence[str] = (),
 ) -> PreparedSkill:
     skill = source.get(skill_id)
     source_path = source.source_path(skill_id)
     if skill is None or source_path is None:
-        raise SkillPreparationError(f"activated skill {skill_id!r} is not available in any pack tier")
+        reasons = f" (the loader reported: {'; '.join(load_problems)})" if load_problems else ""
+        raise SkillPreparationError(f"activated skill {skill_id!r} is not available in any pack tier{reasons}")
     tier = _tier(source.provenance_of(skill_id), skill_id)
     name = _name_for(skill_id, tier, org_namespace, project_namespace)
     body = source.body_text(skill_id)
@@ -247,15 +253,33 @@ def prepare_project_skill_activations(repo_root: Path) -> list[PreparedSkill]:
     if in_force is not None and not in_force:
         return []
     service = build_activation_aware_doctrine_service(repo_root)
+    source, load_problems = _load_skill_source(service)
     graph = load_validated_graph(
         repo_root,
         org_roots=resolve_existing_org_roots(repo_root),
         org_fragments=load_org_drg(repo_root, strict=False),
     )
     return _prepare_skill_activations(
-        service.raw_repository("skills"),
-        service.skills,
+        source,
+        service.skills if in_force is None else in_force,
         graph=graph,
         org_namespace=read_org_skill_namespace(repo_root),
         project_namespace=_read_project_skill_namespace(repo_root),
+        load_problems=load_problems,
     )
+
+
+def _load_skill_source(service: Any) -> tuple[Any, list[str]]:
+    """Load the raw skill repository, returning it with the problems the loader warned about.
+
+    The pack-skill loader reports a record it cannot load (an unknown key, a
+    failing tier rule) only as a ``UserWarning``. Those warnings are re-emitted
+    unchanged and also returned, so a refusal for an in-force skill that did
+    not load can say why.
+    """
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        source = service.raw_repository("skills")
+    for item in caught:
+        warnings.warn_explicit(item.message, item.category, item.filename, item.lineno)
+    return source, [str(item.message) for item in caught if issubclass(item.category, UserWarning)]

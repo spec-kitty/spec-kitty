@@ -357,6 +357,18 @@ def test_project_preparation_default_in_force_is_only_the_required_skills(tmp_pa
 
     assert [p.rendered_name for p in prepare_project_skill_activations(tmp_path)] == ["acme-required-one"]
 
+    # An id required by the org but present in no pack tier is refused, not resolved cleanly.
+    support.write_org_charter(pack, required_skills=["required-one", "ghost"])
+    with pytest.raises(SkillPreparationError, match="ghost"):
+        prepare_project_skill_activations(tmp_path)
+
+    # A required skill whose record stopped loading is refused naming it, never silently dropped.
+    support.write_org_charter(pack, required_skills=["required-one"])
+    record = pack / "skills" / "required-one.skill.yaml"
+    record.write_text(record.read_text(encoding="utf-8").replace("{", "{unknown_key: 1, ", 1), encoding="utf-8")
+    with pytest.warns(UserWarning, match="Skipping invalid org pack-skill"), pytest.raises(SkillPreparationError, match="(?s)required-one.*unknown_key"):
+        prepare_project_skill_activations(tmp_path)
+
 
 @pytest.mark.integration
 def test_project_preparation_refuses_a_project_skill_without_a_namespace(tmp_path: Path) -> None:

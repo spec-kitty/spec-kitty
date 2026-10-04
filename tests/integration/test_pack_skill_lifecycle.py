@@ -22,6 +22,8 @@ from specify_cli.skills.catalog import PackSkillCatalogError, resolve_project_sk
 from specify_cli.skills.installer import install_all_skills
 from specify_cli.skills.manifest import ORIGIN_PACK, load_manifest, save_manifest
 from specify_cli.skills.verifier import repair_skills, verify_installed_skills
+from specify_cli.tool_surface.operations import ApplyConsent
+from specify_cli.upgrade.assessment import prepare_upgrade_repairs
 from specify_cli.upgrade.migrations.m_2_0_11_install_skills import InstallSkillsMigration
 from specify_cli.upgrade.migrations.m_2_1_1_repair_skill_pack import RepairSkillPackMigration
 from specify_cli.upgrade.migrations.m_3_0_3_globalize_skill_pack import GlobalizeSkillPackMigration
@@ -135,6 +137,15 @@ def test_pack_skill_lifecycle_survives_every_retiring_path(project: Path, home: 
     assert (repaired, failed) == (1, 0)
     _assert_projected(project)
     assert verify_installed_skills(project).ok
+
+    # A skill in force whose source stopped loading is a refusal, never a planned retirement.
+    record = project.parent / "pack" / "skills" / f"{SKILL_ID}.skill.yaml"
+    loadable = record.read_text(encoding="utf-8")
+    record.write_text(loadable.replace("{", "{unknown_key: 1, ", 1), encoding="utf-8")
+    with pytest.warns(UserWarning, match="Skipping invalid org pack-skill"), pytest.raises(PackSkillCatalogError, match=SKILL_ID):
+        prepare_upgrade_repairs(project, consent=ApplyConsent(automatic=True))
+    record.write_text(loadable, encoding="utf-8")
+    _assert_projected(project)
 
     # Pack skills are project-root only: nothing carrying the rendered name under HOME.
     assert not [path for path in home.rglob("*") if RENDERED in path.as_posix()]
