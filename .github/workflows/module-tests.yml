@@ -200,9 +200,9 @@ jobs:
           # pre-test step below runs only where the selected list holds the test that
           # collects the universe -- decided from the list, never from a module name
           # that would break silently when the test moves. The greedy-LPT split is per
-          # test, so the consuming FILE spans both `ci` shards; only the shard that holds
-          # the test using `live_universe` would reuse a collection, so the condition
-          # names that one test (tests/ci/test_ci_workflow_prestep_shape.py pins that it
+          # test; the `ci` module runs as one shard, and the condition names the one test
+          # that uses `live_universe` (so a module that splits would run the step only on
+          # the shard holding it) (tests/ci/test_ci_workflow_prestep_shape.py pins that it
           # exists and still takes the fixture). The list lives in the runner
           # temp directory: an untracked file in the checkout would make the store report
           # a dirty checkout for the rest of the job (research B-02). pr mode only: the

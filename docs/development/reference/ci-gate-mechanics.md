@@ -375,12 +375,15 @@ CPUs. The list is now collected once per job, in a step before pytest, and store
 disk; the tests read the stored copy.
 
 **What it does and does not do.** A first run of a checkout still collects once
-in each job that consumes the list, so three times per pull-request update (the two
-architectural battery legs and one `ci` module shard). The change moves that
+in each job that consumes the list, so twice per pull-request update (architectural
+battery leg 1/2 and the `ci` module shard; leg 2/2 holds no collecting test and skips
+the step). The change moves that
 collection out of test setup and out of worker contention. A re-run of the same
 checkout restores the stored list from the CI cache instead of collecting. On one
-developer machine a collection took 62.5 s and reading the stored copy 0.33 s.
-There is no CI measurement yet.
+developer machine a collection took 62.5 s and reading the stored copy 0.33 s. On CI
+the pre-test step took 89 to 233 s on a first run and 0.3 to 0.6 s when restored from
+the Actions cache; the three runs are in
+`kitty-specs/shared-collection-and-shard-recapture-01M42V58/evidence/ci-measurements.md`.
 
 ### Where it lives and what it is keyed on
 
@@ -459,8 +462,8 @@ itself, `check` prints a fallback note and exits 0.
 - **`module-tests.yml`, job `test`.** The same steps, but only in per-PR mode and
   only on the shard whose selected test list contains
   `tests/ci/test_corpus_blocking_home.py::test_every_corpus_test_has_a_blocking_per_pr_home`,
-  the test that takes the `live_universe` fixture. The `ci` module splits by test,
-  so that file spans two shards and only one of them needs the list.
+  the test that takes the `live_universe` fixture. The `ci` module runs as one shard
+  (`shard_count: 1` in `.github/ci-module-registry.yml`), so that shard holds the test.
   `tests/ci/test_ci_workflow_prestep_shape.py` pins that the test still exists.
   Full-mode warm-up may rewrite `uv.lock` and leave the checkout dirty, so it
   skips the step.
@@ -501,7 +504,9 @@ python -m scripts.ci.collect_universe_prestep compare
 ```
 
 A dirty checkout (including an untracked file) is bypassed on purpose; commit or
-stash first to see a `reused` line.
+stash first to see a `reused` line. To force a fresh collection, run
+`rm -rf .pytest_cache/universe-store`; there is no bypass environment variable, and
+`pytest --cache-clear` does not remove that directory.
 
 ## Scheduled shard-timings recapture
 
