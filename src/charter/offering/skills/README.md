@@ -28,6 +28,20 @@ load a tactic, reading an action index to scope context). Skills should
 > is what should bridge those without expanding the visible slash-command
 > surface." — internal design review, PR #305
 
+## Pack Skills (separate from shipped skills)
+
+Teams can also ship **pack skills**: thin, parameterised entry points declared
+in an org pack (`<pack>/skills/`) or the project tier
+(`.kittify/doctrine/skills/`) as the `skill` doctrine kind. They are not part
+of this shipped catalog. They are charter-activated
+(`spec-kitty charter activate skill <id>`), rendered as
+`<skill_namespace>-<id>` (the `spk-`, `spec-kitty-` and `spec-kitty.` prefixes
+stay reserved for the skills here), and projected to project skill roots only.
+A pack skill `requires` the procedure that carries the substance, so it obeys
+the boundary above. `spec-kitty doctor skills` reports a locally edited or
+stale rendered copy and names its pack source. See ADR
+`docs/adr/3.x/2026-09-27-1-pack-skills-share-commands-through-charter-packs.md`.
+
 ## Context Loading Pattern
 
 Skills should teach agents to load doctrine **iteratively**:

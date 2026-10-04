@@ -36,7 +36,7 @@ src/charter/offering/drg/models.py              # NodeKind.SKILL
 src/charter/offering/skills_kind/               # NEW: models.py (PackSkill), repository.py, validation
 src/charter/offering/schemas/skill.schema.yaml  # NEW
 src/charter/offering/drg/extractor.py           # _emit_skill_nodes (built-in shard, empty at MVP)
-src/charter/activation/skill_preparation.py     # NEW: prepare_skill_activations (pure)
+src/charter/activation/skill_preparation.py     # NEW: prepare_project_skill_activations (project-root seam over a pure core)
 src/charter/activation/{pack_context,org_pack_discovery,drg_activation,delivery_table}.py
 src/specify_cli/doctrine/org_charter.py         # required_skills, skill_namespace; derived REQUIRED_KIND_FIELDS
 src/specify_cli/skills/catalog.py               # NEW: resolve_project_skill_catalog (the one seam)
@@ -66,7 +66,7 @@ The two lists are deliberately different sets: keep them distinct and derive bot
 Enum member, NodeKind, tables, PROJECT_KIND_DIRS (`skills`), schema, Pydantic model (`prompt|wrapper` discriminated), validator (reserved prefixes, no `scripts/`, no `allowed-tools`), repository over three tiers with overrides/enhances + sibling conflict, extractor helper, delivery-table entry (`slot=None` with reason), doctor health dimension, exact-set test updates.
 
 ### IC-03 — Activation + preparation (FR-006, FR-007, FR-008)
-Config key `activated_skills`, `required_skills` in org-charter (SKILL is org_requirable, not overlayable), `effective_when_absent` resolved in pack_context, charter-side namespace read, cascade over edges, `prepare_skill_activations` returning `PreparedSkill` records.
+Config key `activated_skills`, `required_skills` in org-charter (SKILL is org_requirable, not overlayable), `effective_when_absent` resolved in pack_context, charter-side namespace read, cascade over edges, `prepare_project_skill_activations` returning `PreparedSkill` records.
 
 ### IC-04 — specify_cli projection (FR-009, FR-010, FR-011, FR-013)
 Staged-root rendering + merged-registry catalog seam (`snapshot_catalog` respected), manifest `origin`/`source_ref`/`source_hash`, renderer, installer integration with manifest ownership, collisions-before-write, unowned-dir preservation, all callers migrated, wrapper target validation, deactivate → reproject.

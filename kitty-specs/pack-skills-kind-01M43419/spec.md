@@ -77,7 +77,7 @@ A maintainer runs `spec-kitty charter activate skill <id>`. The skill, declared 
 | FR-005 | Skill repository across tiers | As a maintainer, I want skills loaded from built-in `packs/built-in/skills/` (empty), org `<pack>/skills/` and project `.kittify/doctrine/skills/`, with `overrides`/`enhances` semantics per the ADR and a hard conflict on same id in sibling org packs. | High | Open | [build] | no |
 | FR-006 | Activation and cascade | As a maintainer, I want `charter activate/deactivate skill <id> [--cascade …]` through `plan_activation`/`commit_plan` with config key `activated_skills`, cascading along `requires`/`suggests` and C-005 shared-reference safety on deactivate. | High | Open | [build] | no |
 | FR-007 | Default in force | As a maintainer, I want the effective skill set, when `activated_skills` is absent, to be org-pack `required_skills` plus built-in defaults, never every available skill. | High | Open | [build] | no |
-| FR-008 | prepare_skill_activations | As the adapter layer, I want a pure charter function returning, per effective skill, id, rendered name, body or expansion, required URNs, provenance and `content_hash`, so that rendering needs no doctrine knowledge. | High | Open | [build] | no |
+| FR-008 | prepare_project_skill_activations | As the adapter layer, I want a pure charter function returning, per effective skill, id, rendered name, body or expansion, required URNs, provenance and `content_hash`, so that rendering needs no doctrine knowledge. | High | Open | [build] | no |
 | FR-009 | One catalog-composition seam | As a maintainer, I want every caller that builds the installable skill catalog and installs with retire semantics (init, upgrade migrations, verifier, managed-skills provider) to go through one `resolve_project_skill_catalog(project_root)` seam, so that no caller prunes pack skills. | High | Open | [build] | no |
 | FR-010 | Project-root projection | As a maintainer, I want activated pack skills rendered into project skill roots of configured tools only (never user-global), with a generated `charter context --include` preamble, recorded in `.kittify/skills-manifest.json`, and retired on deactivation. | High | Open | [build] | no |
 | FR-011 | Reserved namespaces and collisions | As a maintainer, I want `spk-`/`spec-kitty-`/`spec-kitty.` reserved for built-in, org/project skills rendered as `<skill_namespace>-<id>`, render-name collisions failing before any write, and unowned same-name directories preserved and reported. | High | Open | [build] | no |
@@ -110,7 +110,7 @@ A maintainer runs `spec-kitty charter activate skill <id>`. The skill, declared 
 - **Pack skill** (`skill:<id>`): thin, parameterised entry point; forms `prompt | wrapper`; tiers built-in/org/project.
 - **Skill namespace**: per org pack (`skill_namespace` in `org-charter.yaml`) or project (config key); prefixes rendered names.
 - **Skill activation** (`activated_skills`): charter config list; absent → default in force.
-- **Prepared skill**: output of `prepare_skill_activations` — rendered name, body/expansion, required URNs, provenance, `content_hash`.
+- **Prepared skill**: output of `prepare_project_skill_activations` — rendered name, body/expansion, required URNs, provenance, `content_hash`.
 - **Project skill catalog**: union of built-in doctrine skills and prepared pack skills, the single input to the managed installer.
 
 ## Success Criteria *(mandatory)*

@@ -1,13 +1,13 @@
 ---
 title: 'ADR: pack skills — share and co-maintain agent commands through charter packs'
-description: 'Proposed: a charter-activatable `skill` doctrine kind so teams share and co-maintain agent commands through pack tiers, not private per-user copies.'
-status: Proposed
+description: 'Accepted: a charter-activatable `skill` doctrine kind so teams share and co-maintain agent commands through pack tiers, not private per-user copies.'
+status: Accepted
 date: '2026-09-27'
 ---
 
-**Status:** Proposed
+**Status:** Accepted
 
-**Date:** 2026-09-27
+**Date:** 2026-09-27 (accepted 2026-10-04, mission `pack-skills-kind-01M43419`)
 
 **Deciders:** Stijn Dejongh (owner). Design produced by a profile-loaded research and
 architecture squad: `researcher-robbie` (prior art), `architect-alphonso` (design),
@@ -172,7 +172,7 @@ so the substance is never copied into the skill.
 ```
 charter (pure)                                  specify_cli (adapter)
 merged DRG + activated_skills
-  └─ prepare_skill_activations()  ─────────►  resolve_project_skill_catalog(project_root)
+  └─ prepare_project_skill_activations()  ─►  resolve_project_skill_catalog(project_root)
        (id, rendered name, body, expansion,       ├─ render via command_renderer frontmatter
         provenance, content_hash)                 │   + User-Input block rewrite
                                                   ├─ project skill roots only, never global
@@ -251,7 +251,7 @@ merged DRG + activated_skills
    (`src/charter/offering/drg/org_pack_loader.py`), and `REQUIRED_KIND_FIELDS` from
    `ArtifactKind`, so this and every later kind adds no lockstep copies.
 1. **MVP:** kind and node registration, schema and validator for both forms, activation and
-   cascade with the default-in-force rule, `prepare_skill_activations`, the catalog seam,
+   cascade with the default-in-force rule, `prepare_project_skill_activations`, the catalog seam,
    project-root projection, namespaces, drift and staleness findings, retire on deactivate.
 2. **Migration:** augment `landing-contributor-prs` and the other procedures with the content
    only the private skills hold, then add the four thin `packs/internal/skills/*` entries and
@@ -299,12 +299,24 @@ merged DRG + activated_skills
   invariant; aliases only, so no home for full prompt skills; no DRG edge to the procedure it
   shortcuts, and no charter activation. If this ADR is accepted, #2470 is superseded by #5193.
 
-## Open questions
+## Resolved questions
 
-- Which of the 16 skill-root tools expose project skills as `/name` rather than model-routed
-  only? Verify against `src/specify_cli/tool_surface/profiles/capability_matrix.py`.
-- Project-tier namespace: required config key, or derived from the repository name?
-- Placeholder syntax for run-time bindings must not collide with `$ARGUMENTS` or TOML `{{args}}`.
+Resolved when the MVP landed (mission `pack-skills-kind-01M43419`):
+
+- **`/name` exposure.** `src/specify_cli/tool_surface/profiles/capability_matrix.py` records only
+  native named-agent primitives (it does not say which tools surface a project skill as a
+  `/name` command), so it cannot answer this. The in-repo record is the command-surface table
+  in `AGENTS.md`: Codex invokes `$<name>`, Pi `/skill:<name>`, Vibe `/<name>`, and Letta
+  routes Agent Skills through the model. Decision: a pack skill is an Agent Skill in the
+  project skill roots and promises no `/name` form; how each tool surfaces it is the tool's
+  own rule. Per-tool exposure is not asserted by Spec Kitty.
+- **Project-tier namespace.** A required config key, `charter_packs.project.skill_namespace`;
+  it is never derived from the repository name. A project-tier skill without it is refused
+  with the remedy. The org-tier `skill_namespace` in `org-charter.yaml` is likewise required.
+- **Run-time binding placeholders.** Deferred to slice 2 with the first migrated shorthand.
+  Slice 1 renders no binding placeholders, so no syntax can collide with `$ARGUMENTS` or
+  TOML `{{args}}` yet.
+- **#2470 supersession.** Remains the owner's call; this ADR does not close or relabel it.
 
 ## Related drift found during research
 
