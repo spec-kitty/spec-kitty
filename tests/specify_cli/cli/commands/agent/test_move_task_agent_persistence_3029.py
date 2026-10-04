@@ -51,7 +51,7 @@ from specify_cli.status.reducer import reduce as reduce_snapshot
 from specify_cli.status.store import append_event, read_event_stream
 from tests.lane_test_utils import write_single_lane_manifest
 
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _MISSION_SLUG = "001-move-task-agent-persistence-3029"
 _OWNER = "implementer-a"

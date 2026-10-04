@@ -13,7 +13,7 @@ from specify_cli.review.artifacts import AffectedFile, ReviewCycleArtifact
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 from tests.integration.coord_topology_fixture import _build_coord_topology
-from tests.specify_cli.cli.commands.agent.test_tasks_move_task_seam import (
+from tests.specify_cli.cli.commands.agent.test_tasks_move_task_cli_4899 import (
     _PARITY_MISSION_SLUG,
     _PARITY_WP_SLUG,
     _build_in_review_repo,

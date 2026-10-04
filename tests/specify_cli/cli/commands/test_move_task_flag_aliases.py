@@ -26,7 +26,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import _MoveTaskArgs, app
 
-pytestmark = pytest.mark.regression
+pytestmark = pytest.mark.unit
 
 runner = CliRunner()
 

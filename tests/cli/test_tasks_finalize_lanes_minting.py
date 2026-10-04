@@ -28,7 +28,7 @@ from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.status.lane_reader import get_all_wp_lanes, has_event_log
 from specify_cli.status.models import Lane
 
-pytestmark = pytest.mark.regression
+pytestmark = [pytest.mark.fast, pytest.mark.regression]
 
 runner = CliRunner()
 

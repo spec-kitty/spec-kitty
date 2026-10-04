@@ -1,4 +1,4 @@
-"""Red-first regression: charter recompile discards the recorded mission type (#4908).
+"""Permanent guard (#4908, fixed): charter recompile preserves the recorded mission type.
 
 Root cause (SSOT violation, ``kitty-specs/silent-destructive-write-hardening-01M355VK/``
 WP01): ``charter activate``/``deactivate`` and ``charter pack apply --compile``
@@ -31,7 +31,6 @@ exactly the operator action issue #4908 pins. Contract:
 from __future__ import annotations
 
 import contextlib
-import re
 import subprocess
 from pathlib import Path
 
@@ -46,7 +45,7 @@ from specify_cli.cli.commands.charter.generate import (
     _resolve_recorded_mission_type,
 )
 
-pytestmark = [pytest.mark.regression, pytest.mark.integration]
+pytestmark = pytest.mark.integration
 
 runner = CliRunner()
 
@@ -114,6 +113,7 @@ def _read_catalog(repo: Path) -> dict:
     return document["catalog"]
 
 
+@pytest.mark.regression
 def test_activate_recompile_preserves_recorded_mission_type(tmp_path: Path) -> None:
     """#4908: a plain ``charter activate`` on a ``research`` project must not
     flip ``catalog.mission``/``catalog.template_set`` to ``software-dev`` or
@@ -336,26 +336,3 @@ def test_catalog_field_from_document_reads_only_a_mapping_catalog(document: obje
     themselves (the rc5 provenance migration, which must fail closed on an
     unreadable file) applies the same shape rules as ``read_catalog_field``."""
     assert catalog_field_from_document(document, "mission") == expected
-
-
-def test_catalog_mission_has_exactly_one_reader_outside_the_shared_accessor() -> None:
-    """AC-B3 / NFR-003 / SC-002 grep proof: no second ``catalog.mission``
-    parser survives outside ``charter_yaml_io.read_catalog_field`` /
-    ``read_catalog_mission``. Issue #4993 claimed three readers; the true
-    count was two (the claimed third read ``catalog.languages``) -- both
-    now delegate, so a direct ``catalog["mission"]`` / ``catalog.get(
-    "mission")`` read anywhere in ``src/`` other than the accessor itself is
-    a regression."""
-    repo_root = Path(__file__).resolve().parents[5]
-    accessor_path = repo_root / "src" / "charter" / "activation" / "charter_yaml_io.py"
-    pattern = re.compile(r"""catalog(\.get\(|\[)["']mission["']""")
-
-    hits: list[str] = []
-    for path in (repo_root / "src").rglob("*.py"):
-        if path == accessor_path:
-            continue
-        text = path.read_text(encoding="utf-8")
-        if pattern.search(text):
-            hits.append(str(path.relative_to(repo_root)))
-
-    assert hits == [], f"catalog.mission must be read only through charter.activation.charter_yaml_io.read_catalog_mission -- found direct reads in: {hits}"

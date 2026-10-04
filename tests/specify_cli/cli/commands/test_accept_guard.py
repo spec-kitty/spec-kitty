@@ -38,7 +38,7 @@ import pytest
 
 from specify_cli import _run_app_with_error_hook, app
 
-pytestmark = [pytest.mark.regression, pytest.mark.unit]
+pytestmark = [pytest.mark.regression, pytest.mark.integration]
 
 _UNSAFE_MISSION_ERROR_FRAGMENT = "not a safe path segment"
 

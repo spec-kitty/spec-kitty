@@ -662,7 +662,6 @@ def test_planned_rollback_from_reachable_source_keeps_review_feedback_text(sourc
     assert "cannot be bypassed with --force" in outcome.error
 
 
-@pytest.mark.regression
 def test_reimplement_edge_refusal_names_the_actual_target_not_planned() -> None:
     """F1 (#4899 pre-PR fold): on the ``in_review -> in_progress`` re-implement edge,
     the no-feedback refusal must name the operator's ACTUAL target (``in_progress``),

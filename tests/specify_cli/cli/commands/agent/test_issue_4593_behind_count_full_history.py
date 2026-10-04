@@ -106,7 +106,6 @@ def _build_treesame_merge_repo(tmp_path):
 
 
 class TestFullHistoryFlagClosesTheUndercount:
-    @pytest.mark.regression
     def test_full_history_includes_the_treesame_pruned_source_commit(self, tmp_path) -> None:
         repo, old_ref, _merge_sha, _topic_sha = _build_treesame_merge_repo(tmp_path)
         rev_range = f"{old_ref}..main"
@@ -117,7 +116,7 @@ class TestFullHistoryFlagClosesTheUndercount:
 
         assert without_full_history is not None
         assert with_full_history is not None
-        # RED-first proof: default simplification prunes the topic commit
+        # Proof of the undercount being closed: default simplification prunes the topic commit
         # (and collapses the merge into a pass-through), undercounting.
         assert without_full_history == 1, "default simplification must undercount to just the main-line commit"
         # GREEN: --full-history recovers the pruned source commit (and also

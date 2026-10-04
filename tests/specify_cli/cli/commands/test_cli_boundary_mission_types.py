@@ -48,7 +48,6 @@ def error_payload(result: Result, code: str | None = None) -> dict[str, Any]:
     return value
 
 
-@pytest.mark.regression
 @pytest.mark.parametrize("app,args", ROUTES)
 @pytest.mark.parametrize("contents", [b"- invalid-root\n", b"\xff\xfe"])
 def test_issue_4600_content_load_names_config_without_traceback(project: Path, app: Any, args: list[str], contents: bytes) -> None:
@@ -64,7 +63,6 @@ def test_issue_4600_content_load_names_config_without_traceback(project: Path, a
         assert "decode" in payload["error"]["message"]
 
 
-@pytest.mark.regression
 @pytest.mark.parametrize("app,args", ROUTES[:3])
 def test_issue_4598_aliases_keep_activation_subset(project: Path, app: Any, args: list[str]) -> None:
     result = runner.invoke(app, [*args, "--json"])
@@ -83,7 +81,6 @@ def test_inactive_discovery_and_doctrine_success_schema(project: Path) -> None:
     assert all(set(row) == {"id", "source_layer", "display_name"} for row in rows)
 
 
-@pytest.mark.regression
 def test_issue_4601_unknown_type_json(project: Path) -> None:
     human = runner.invoke(mission_type_app, ["show", "missing-type"])
     machine = runner.invoke(mission_type_app, ["show", "missing-type", "--json"])

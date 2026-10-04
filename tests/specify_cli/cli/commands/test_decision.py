@@ -966,7 +966,6 @@ def _assert_index_unreadable_response(result: object, index_file: Path) -> dict[
     return payload
 
 
-@pytest.mark.regression
 @pytest.mark.parametrize("corrupt_content", _CORRUPTION_CASES)
 def test_verify_corrupt_index_exits_1_no_traceback(tmp_path: Path, corrupt_content: bytes) -> None:
     """#4642: ``decision verify`` presents a corrupt index.json cleanly."""
@@ -978,7 +977,6 @@ def test_verify_corrupt_index_exits_1_no_traceback(tmp_path: Path, corrupt_conte
     _assert_index_unreadable_response(result, index_file)
 
 
-@pytest.mark.regression
 @pytest.mark.parametrize("corrupt_content", _CORRUPTION_CASES)
 def test_resolve_corrupt_index_exits_1_no_traceback(tmp_path: Path, corrupt_content: bytes) -> None:
     """#4642: ``decision resolve`` presents a corrupt index.json cleanly."""
@@ -1005,7 +1003,6 @@ def test_resolve_corrupt_index_exits_1_no_traceback(tmp_path: Path, corrupt_cont
     _assert_index_unreadable_response(result, index_file)
 
 
-@pytest.mark.regression
 def test_list_corrupt_index_exits_1_no_traceback(tmp_path: Path) -> None:
     """#4642: ``decision list`` presents a corrupt index.json cleanly."""
     mission_dir = _setup_mission(tmp_path)
@@ -1016,7 +1013,6 @@ def test_list_corrupt_index_exits_1_no_traceback(tmp_path: Path) -> None:
     _assert_index_unreadable_response(result, index_file)
 
 
-@pytest.mark.regression
 def test_open_corrupt_index_exits_1_no_traceback(tmp_path: Path) -> None:
     """#4642: ``decision open`` presents a corrupt index.json cleanly.
 
@@ -1048,7 +1044,6 @@ def test_open_corrupt_index_exits_1_no_traceback(tmp_path: Path) -> None:
     _assert_index_unreadable_response(result, index_file)
 
 
-@pytest.mark.regression
 def test_defer_corrupt_index_exits_1_no_traceback(tmp_path: Path) -> None:
     """#4642: ``decision defer`` presents a corrupt index.json cleanly."""
     mission_dir = _setup_mission(tmp_path)
@@ -1070,7 +1065,6 @@ def test_defer_corrupt_index_exits_1_no_traceback(tmp_path: Path) -> None:
     _assert_index_unreadable_response(result, index_file)
 
 
-@pytest.mark.regression
 def test_cancel_corrupt_index_exits_1_no_traceback(tmp_path: Path) -> None:
     """#4642: ``decision cancel`` presents a corrupt index.json cleanly."""
     mission_dir = _setup_mission(tmp_path)
@@ -1103,7 +1097,6 @@ def test_cancel_corrupt_index_exits_1_no_traceback(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.regression
 def test_open_corrupt_events_log_exits_1_structured_no_traceback(tmp_path: Path) -> None:
     """#2899: ``decision open`` re-open with a corrupt status.events.jsonl.
 

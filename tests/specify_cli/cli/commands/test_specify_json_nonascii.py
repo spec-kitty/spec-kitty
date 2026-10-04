@@ -1,4 +1,5 @@
-"""Regression net for #4720 (mission cli-error-surface-seam-01M2WJD2, WP06):
+"""Permanent guard for #4720 (mission cli-error-surface-seam-01M2WJD2, WP06;
+the defect is fixed -- this is an end-to-end smoke, not a red-first repro):
 ``spec-kitty specify <name>`` must reject a non-ASCII (or empty/whitespace)
 name EXPLICITLY -- never silently truncate/slugify it -- and route the
 rejection through the WP01 global error hook so ``--json`` gets a single
@@ -22,7 +23,14 @@ named in the error, via a single ``NonAsciiNameError`` (a ``GuardedReadError``
 subclass) the WP01 hook renders -- never a Typer usage error (exit 2) for
 this validation.
 
-These tests drive the REAL ``spec-kitty specify`` command through
+The per-input slug rules (the three named scenarios, the "no name given" vs
+"no usable ASCII characters" wording, the ASCII normalisation of valid names)
+are pinned as fast units in ``test_slugify_mission_input.py`` (#5619). This
+module keeps ONE end-to-end ``--json`` smoke: the real command, through the
+global error hook, emits a single parseable error object at exit 1 and writes
+nothing (NFR-005).
+
+This test drives the REAL ``spec-kitty specify`` command through
 ``specify_cli._run_app_with_error_hook`` (mirrors
 ``tests/specify_cli/test_error_hook.py`` and
 ``tests/specify_cli/cli/commands/test_mission_close_guard.py``'s pattern) --
@@ -42,17 +50,11 @@ import pytest
 
 from specify_cli import _argv_requests_json_mode, _run_app_with_error_hook, app
 
-pytestmark = [pytest.mark.regression, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
-_NO_NAME_GIVEN = "no name given"
-
-# The three named scenarios from #4720 -- exact code points, do not substitute
-# equivalent-but-different ones (spec pins these for reproducibility and for
-# the NFR-005 accented-Latin + non-Latin-script regression matrix).
-_ALL_NON_LATIN = "日本語"
+# Accented-Latin scenario from #4720 -- exact code points, do not substitute an
+# equivalent-but-different one (the other named scenarios live in the unit file).
 _ACCENTED_LATIN = "Ünïcödé"
-_MIXED_ASCII_NON_LATIN = "auth日本"
-_REJECTED_NAMES = (_ALL_NON_LATIN, _ACCENTED_LATIN, _MIXED_ASCII_NON_LATIN)
 
 
 # ---------------------------------------------------------------------------
@@ -136,19 +138,18 @@ def repo(tmp_path: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("name", _REJECTED_NAMES, ids=["all-non-latin", "accented-latin", "mixed-ascii-non-latin"])
 def test_specify_json_rejects_nonascii_name_with_envelope(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     repo: Path,
-    name: str,
 ) -> None:
-    """#4720: each of the 3 named non-ASCII scenarios exits 1 (not 2, not 0)
-    with a single parseable JSON error object on stdout naming the value."""
+    """#4720 e2e smoke: an accented-Latin name exits 1 (not 2, not 0) with a
+    single parseable JSON error object on stdout naming the value, and writes
+    no mission directory, branch or ``meta.json`` (NFR-005)."""
     before_dirs = _mission_dirs(repo)
     before_branches = _branch_list(repo)
 
-    exit_code = _invoke(monkeypatch, repo, ["specify", name, "--json"])
+    exit_code = _invoke(monkeypatch, repo, ["specify", _ACCENTED_LATIN, "--json"])
 
     assert exit_code == 1
     captured = capsys.readouterr()
@@ -157,13 +158,18 @@ def test_specify_json_rejects_nonascii_name_with_envelope(
     assert len(lines) == 1, f"expected exactly one line of JSON on stdout, got: {captured.out!r}"
     payload = json.loads(lines[0])
     assert payload["kind"] == "NonAsciiNameError"
-    assert payload["path"] == name
-    assert name in payload["error"]
+    assert payload["path"] == _ACCENTED_LATIN
+    assert _ACCENTED_LATIN in payload["error"]
 
     # NFR-005: nothing written for a rejected name.
     assert _mission_dirs(repo) == before_dirs
     assert _branch_list(repo) == before_branches
     assert _meta_json_files(repo) == []
+
+
+# ---------------------------------------------------------------------------
+# Non-``--json`` contract: clean ``Error:`` line on stderr, exit 1
+# ---------------------------------------------------------------------------
 
 
 def test_specify_no_json_rejects_nonascii_name_clean_stderr(
@@ -182,75 +188,3 @@ def test_specify_no_json_rejects_nonascii_name_clean_stderr(
     assert "Traceback" not in captured.out
     assert captured.err.strip().startswith("Error:")
     assert _ACCENTED_LATIN in captured.err
-
-
-# ---------------------------------------------------------------------------
-# NFR-005: no mission dir / branch / meta.json for ANY rejected name
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("name", _REJECTED_NAMES, ids=["all-non-latin", "accented-latin", "mixed-ascii-non-latin"])
-def test_specify_rejects_nonascii_name_writes_nothing(
-    monkeypatch: pytest.MonkeyPatch,
-    repo: Path,
-    name: str,
-) -> None:
-    """NFR-005 negative assertion, isolated from the JSON-shape test above:
-    no mission directory, no git branch, and no ``meta.json`` anywhere under
-    ``kitty-specs/`` after a rejected non-ASCII name -- and no trace of the
-    rejected name's slug survives on disk."""
-    before_dirs = _mission_dirs(repo)
-    before_branches = _branch_list(repo)
-
-    _invoke(monkeypatch, repo, ["specify", name, "--json"])
-
-    after_dirs = _mission_dirs(repo)
-    assert after_dirs == before_dirs, f"a rejected name must create no mission directory, found: {after_dirs!r}"
-    assert _branch_list(repo) == before_branches, "a rejected name must create no git branch"
-    assert _meta_json_files(repo) == [], "a rejected name must write no meta.json"
-
-
-# ---------------------------------------------------------------------------
-# Distinct-message assertion: "no name given" != "no usable ASCII characters"
-# ---------------------------------------------------------------------------
-
-
-def test_no_name_given_and_nonascii_messages_are_distinct(
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-    repo: Path,
-) -> None:
-    """The whitespace-only ("no name given") rejection must stay worded
-    differently from the non-ASCII ("no usable ASCII characters")
-    rejection -- a caller debugging automation needs to tell them apart."""
-    _invoke(monkeypatch, repo, ["specify", "   ", "--json"])
-    empty_payload = json.loads(capsys.readouterr().out.strip())
-
-    _invoke(monkeypatch, repo, ["specify", _ALL_NON_LATIN, "--json"])
-    nonascii_payload = json.loads(capsys.readouterr().out.strip())
-
-    assert empty_payload["error"] != nonascii_payload["error"]
-    assert _NO_NAME_GIVEN in empty_payload["error"]
-    assert _NO_NAME_GIVEN not in nonascii_payload["error"]
-    assert empty_payload["path"] == "   "
-    assert nonascii_payload["path"] == _ALL_NON_LATIN
-
-
-# ---------------------------------------------------------------------------
-# Happy-path regression: a valid ASCII name is unaffected by the fix
-# ---------------------------------------------------------------------------
-
-
-def test_specify_ascii_name_still_slugifies_and_succeeds(
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-    repo: Path,
-) -> None:
-    """Guards against over-rejection: a normal ASCII name still creates a
-    mission scaffold exactly as before the fix."""
-    exit_code = _invoke(monkeypatch, repo, ["specify", "Auth Refactor", "--json"])
-
-    assert exit_code == 0, capsys.readouterr().out
-    dirs = _mission_dirs(repo)
-    assert len(dirs) == 1
-    assert dirs[0].name.startswith("auth-refactor")

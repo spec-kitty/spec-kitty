@@ -144,7 +144,6 @@ def test_emit_only_lifecycle_reaches_done(tmp_path: Path, feature_dir: Path) -> 
     assert _extract_json(done.output)["to_lane"] == "done"
 
 
-@pytest.mark.regression
 def test_emit_rejects_malformed_review_result_json(tmp_path: Path, feature_dir: Path) -> None:
     """A malformed verdict is rejected via the hoisted parser's error shape."""
     _walk_to_in_review(tmp_path, feature_dir)

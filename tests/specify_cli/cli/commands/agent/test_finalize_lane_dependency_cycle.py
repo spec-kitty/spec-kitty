@@ -22,7 +22,6 @@ pytestmark = [
     pytest.mark.integration,
     pytest.mark.git_repo,
     pytest.mark.non_sandbox,
-    pytest.mark.regression,
 ]
 
 _MISSION_SLUG = "099-cyclic-finalize"

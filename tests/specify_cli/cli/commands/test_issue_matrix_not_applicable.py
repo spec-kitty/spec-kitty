@@ -30,7 +30,7 @@ from specify_cli.cli.commands.agent.tasks_parsing_validation import (
 from specify_cli.cli.commands.review._issue_matrix import IssueMatrixVerdict
 from specify_cli.status.models import Lane
 
-pytestmark = [pytest.mark.regression, pytest.mark.fast]
+pytestmark = pytest.mark.fast
 
 
 def _write_issue_matrix(

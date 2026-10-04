@@ -9,7 +9,7 @@ destructive FIX site independently, so a remote-present branch can never be
 flattened even if a ``NEVER_CREATED`` finding is somehow reached (a future
 probe regression, a race).
 
-RED-first (T007): a mission whose declared ``coordination_branch`` is
+Permanent guard (#4979, fixed; originally red-first, T007): a mission whose declared ``coordination_branch`` is
 genuinely still pushed to a real bare ``origin`` remote must NOT be flattened
 by ``_fix_never_created_branches`` / ``_apply_never_created_fix``. Pre-fix,
 neither function consults the remote at all, so the flatten proceeds
@@ -29,7 +29,7 @@ import pytest
 
 from specify_cli.cli.commands import _coordination_doctor as cd
 
-pytestmark = [pytest.mark.unit, pytest.mark.git_repo, pytest.mark.regression]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 MISSION_SLUG = "remote-guard-4979-01J7AA00"
 MISSION_ID = "01J7AA00ABCDEFGHJKMNPQRSTV"
@@ -104,10 +104,10 @@ def test_remote_present_branch_is_not_flattened(tmp_path: Path) -> None:
     """FR-004: a NEVER_CREATED finding whose branch is genuinely still pushed
     to origin must NOT be flattened — ``coordination_branch`` survives the fix.
 
-    RED on unmodified ``_fix_never_created_branches`` (it flattens
-    unconditionally, never consulting the remote). GREEN once T008 wires the
-    WP01 ``remote_branch_lookup`` re-verify guard in ahead of
-    ``flatten_coordination_metadata``.
+    Permanent guard: the defect is fixed (the WP01 ``remote_branch_lookup``
+    re-verify guard runs ahead of ``flatten_coordination_metadata``); before
+    the fix ``_fix_never_created_branches`` flattened unconditionally,
+    never consulting the remote.
     """
     repo = _repo_with_coord_branch_pushed_to_origin(tmp_path)
     meta_path = _write_meta(repo, MISSION_SLUG, MISSION_ID, COORD_BRANCH)

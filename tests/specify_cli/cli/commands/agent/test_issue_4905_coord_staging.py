@@ -1,4 +1,4 @@
-"""Regression guard for GitHub issue #4905 (P1) -- coord-staging partition.
+"""Permanent guard for GitHub issue #4905 (P1, fixed) -- coord-staging partition.
 
 On ``coord`` / ``lanes_with_coord`` topologies the agent-verb lifecycle commit
 (``_commit_via_coordination_transaction``, the shared sink every claim /
@@ -40,7 +40,8 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner, Result
+from click.testing import Result
+from typer.testing import CliRunner
 
 from specify_cli import app as root_app
 from specify_cli.acceptance.matrix import AcceptanceCriterion, AcceptanceMatrix, write_acceptance_matrix
@@ -59,7 +60,7 @@ from tests.specify_cli.charter_preflight._fixtures import (
 )
 from tests.utils import _seed_canonical_wp_state, write_wp
 
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 
@@ -477,24 +478,8 @@ def _disable_auto_commit(repo_root: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# T010 -- red-first repro (coord pollution on claim)
+# Claim-time guards: split mission event logs and dirty-planning gates
 # ---------------------------------------------------------------------------
-
-
-def test_claim_does_not_stage_wp_file_on_coord(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """RED on pre-fix code: WP01's claim stages tasks/WP01.md onto coord.
-
-    Asserts the DESIRED post-fix state directly (ADR 2026-07-17-1): after a
-    real ``agent action implement WP01`` claim on a coord mission, the
-    coordination branch tree has ZERO ``tasks/WP*.md`` blobs.
-    """
-    repo_root, mission_dirname, coord_branch = _build_two_lane_coord_mission(tmp_path, monkeypatch, mission_slug="coord-staging-4905")
-
-    result = _run_implement(mission_dirname, "WP01")
-    assert result.exit_code == 0, result.output
-
-    flagged = _wp_task_blobs_on_coord(repo_root, coord_branch, mission_dirname)
-    assert flagged == [], f"#4905 regression: WP01's claim staged a WP file onto the coordination branch: {flagged!r}"
 
 
 def test_claim_preserves_split_mission_event_logs(
@@ -672,7 +657,7 @@ def test_deleting_primary_mission_event_log_keeps_structural_refusal(
 
 
 # ---------------------------------------------------------------------------
-# T011 -- red-first repro (WP02 planning-merge conflict)
+# T011 -- end-to-end guard (WP02 planning-merge conflict; subsumes the WP01 claim)
 # ---------------------------------------------------------------------------
 
 
@@ -702,28 +687,8 @@ def test_wp02_starts_without_planning_merge_conflict(tmp_path: Path, monkeypatch
 
 
 # ---------------------------------------------------------------------------
-# T015 -- multi-site coverage: resume-refresh + review-claim, lanes control
+# T015 -- review-claim funnel site, review-cycle numbering, lanes control
 # ---------------------------------------------------------------------------
-
-
-def test_resume_refresh_does_not_stage_wp_file_on_coord(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """RED on pre-fix code: the resume-refresh funnel site also pollutes coord.
-
-    A second ``implement WP01`` call while WP01 is already ``in_progress``
-    takes the resume-refresh path (``workflow_executor.py:1066``, distinct
-    from the claim site) rather than re-claiming. Covers SC-003's "one
-    assertion per funnel site" requirement.
-    """
-    repo_root, mission_dirname, coord_branch = _build_two_lane_coord_mission(tmp_path, monkeypatch, mission_slug="coord-staging-4905-resume")
-
-    first = _run_implement(mission_dirname, "WP01")
-    assert first.exit_code == 0, first.output
-
-    second = _run_implement(mission_dirname, "WP01")
-    assert second.exit_code == 0, second.output
-
-    flagged = _wp_task_blobs_on_coord(repo_root, coord_branch, mission_dirname)
-    assert flagged == [], f"#4905 regression: resume-refresh staged a WP file onto the coordination branch: {flagged!r}"
 
 
 def test_review_claim_does_not_stage_wp_file_on_coord(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

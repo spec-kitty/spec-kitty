@@ -19,12 +19,17 @@ already rewrites:
   ``_normalize_endpoint`` copy, and keeps returning a string (never
   raises) so ``auth status``/``doctor`` render on a mismatch instead of
   aborting.
+
+Behaviour units only. The former AST shape pins (no local
+``_normalize_endpoint``, ``_normalize_url`` imported, no
+``ConfigurationError`` import/handler) were retired in #5619: planted break B
+(raw-string comparison in ``format_saas_mismatch_warning``) turns
+``tests/cli/commands/test_auth_status.py`` red while this file stays green,
+so that file is the real normaliser guard.
 """
 
 from __future__ import annotations
 
-import ast
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
@@ -41,15 +46,9 @@ from specify_cli.cli.commands._auth_saas_target import (
 )
 from specify_cli.cli.commands.auth import app
 
-pytestmark = [pytest.mark.fast, pytest.mark.regression]
+pytestmark = pytest.mark.fast
 
 runner = CliRunner()
-
-_MODULE_PATH = Path(__file__).resolve().parents[2] / "src" / "specify_cli" / "cli" / "commands" / "_auth_saas_target.py"
-
-
-def _module_tree() -> ast.Module:
-    return ast.parse(_MODULE_PATH.read_text(encoding="utf-8"), filename=str(_MODULE_PATH))
 
 
 def _make_session(*, issuer_url: str | None) -> StoredSession:
@@ -74,7 +73,7 @@ def _make_session(*, issuer_url: str | None) -> StoredSession:
     )
 
 
-def _mock_storage_returning(session: StoredSession | None):
+def _mock_storage_returning(session: StoredSession | None) -> Mock:
     mock_storage = Mock()
     mock_storage.read.return_value = session
     mock_storage.backend_name = "file"
@@ -91,29 +90,6 @@ def _flat(text: str) -> str:
 
 
 class TestFold4053DeadBranchRemoved:
-    def test_configuration_error_is_not_imported(self) -> None:
-        """The module no longer imports the exception it no longer catches."""
-        tree = _module_tree()
-        imported_names = {alias.asname or alias.name for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) for alias in node.names}
-        assert "ConfigurationError" not in imported_names
-
-    def test_no_except_clause_names_configuration_error(self) -> None:
-        """No ``try/except`` anywhere in the module still handles it."""
-        tree = _module_tree()
-        handled_exception_names: set[str] = set()
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.Try):
-                continue
-            for handler in node.handlers:
-                handler_type = handler.type
-                if handler_type is None:
-                    continue
-                names = handler_type.elts if isinstance(handler_type, ast.Tuple) else [handler_type]
-                for name in names:
-                    if isinstance(name, ast.Name):
-                        handled_exception_names.add(name.id)
-        assert "ConfigurationError" not in handled_exception_names
-
     def test_print_saas_endpoint_still_catches_split_brain(self) -> None:
         """The one exception shape ``resolve_server_target`` can still raise
         (``ServerTargetSplitBrainError``) is still handled -- the branch
@@ -172,26 +148,17 @@ class TestFold4053ProvenanceLabelCorrected:
         assert saas_source_name(target) == "SPEC_KITTY_SAAS_URL"
 
 
-# ---------------------------------------------------------------------------
-# T020: the local ``_normalize_endpoint`` copy is gone
-# ---------------------------------------------------------------------------
-
-
-class TestNormalizerUnified:
-    def test_no_local_normalize_endpoint_function(self) -> None:
-        tree = _module_tree()
-        function_names = {node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
-        assert "_normalize_endpoint" not in function_names
-
-    def test_normalize_url_is_imported_from_server_target(self) -> None:
-        tree = _module_tree()
-        imported = {
-            alias.name
-            for node in ast.walk(tree)
-            if isinstance(node, ast.ImportFrom) and node.module is not None and node.module.split(".")[-1] == "server_target"
-            for alias in node.names
-        }
-        assert "_normalize_url" in imported
+class TestMismatchWarningUsesTheSharedNormaliser:
+    def test_whitespace_and_trailing_slash_are_not_a_mismatch(self) -> None:
+        """The shared ``_normalize_url`` strips whitespace as well as a trailing slash."""
+        assert (
+            format_saas_mismatch_warning(
+                " https://x.example/ ",
+                source_name="SPEC_KITTY_SAAS_URL",
+                resolved_server_url="https://x.example",
+            )
+            is None
+        )
 
 
 # ---------------------------------------------------------------------------

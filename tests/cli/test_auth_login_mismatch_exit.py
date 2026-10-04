@@ -30,7 +30,7 @@ from specify_cli.auth import reset_token_manager
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands.auth import app
 
-pytestmark = [pytest.mark.fast, pytest.mark.regression]
+pytestmark = pytest.mark.fast
 
 runner = CliRunner()
 

@@ -60,7 +60,7 @@ from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status import Lane, StatusEvent
 from specify_cli.status.store import append_event
 
-pytestmark = [pytest.mark.fast, pytest.mark.regression]
+pytestmark = [pytest.mark.integration, pytest.mark.regression]
 
 _MISSION_SLUG = "wp01-actor-identity-4665-demo"
 _FULL_IDENTITY = "codex:gpt-6:python-pedro:implementer"

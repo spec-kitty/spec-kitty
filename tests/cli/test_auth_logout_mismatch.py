@@ -1,4 +1,4 @@
-"""Red-first repros: ``auth logout`` targets the issuer, refuses on mismatch,
+"""Permanent guards (#4755, fixed): ``auth logout`` targets the issuer, refuses on mismatch,
 and still tears down the local session (WP03, #4755, T013).
 
 Two consequences from
@@ -31,7 +31,7 @@ from specify_cli.auth.server_target import SAAS_URL_ENV_VAR
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands.auth import app
 
-pytestmark = [pytest.mark.fast, pytest.mark.regression]
+pytestmark = pytest.mark.fast
 
 runner = CliRunner()
 

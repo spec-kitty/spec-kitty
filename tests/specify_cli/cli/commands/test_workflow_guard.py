@@ -70,7 +70,6 @@ def _invoke(argv: list[str], *, monkeypatch: pytest.MonkeyPatch, json_mode: bool
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.regression
 def test_workflow_import_malformed_yaml_presents_clean_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """#4738: malformed YAML must exit 1 with an actionable message, no traceback."""
     source = tmp_path / "bad.yaml"
@@ -89,7 +88,6 @@ def test_workflow_import_malformed_yaml_presents_clean_error(tmp_path: Path, mon
     assert "Traceback" not in captured.err
 
 
-@pytest.mark.regression
 def test_workflow_import_malformed_yaml_json_envelope(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """#4738: ``--json`` mode emits exactly one JSON object matching the envelope contract."""
     source = tmp_path / "bad.yaml"
@@ -118,7 +116,6 @@ def test_workflow_import_malformed_yaml_json_envelope(tmp_path: Path, monkeypatc
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.regression
 def test_workflow_import_wrong_schema_presents_clean_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """#4738: valid YAML that fails ``WorkflowSequence`` validation is the same clean error."""
     source = tmp_path / "wrong-schema.yaml"
@@ -141,7 +138,6 @@ def test_workflow_import_wrong_schema_presents_clean_error(tmp_path: Path, monke
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.regression
 def test_workflow_import_wrong_top_level_type_presents_clean_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """#4738: a bare YAML list (not a mapping) is the same clean error, no pydantic traceback."""
     source = tmp_path / "list.yaml"
@@ -164,7 +160,6 @@ def test_workflow_import_wrong_top_level_type_presents_clean_error(tmp_path: Pat
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.regression
 @pytest.mark.skipif(
     sys.platform == "win32" or os.geteuid() == 0,
     reason="chmod 0o000 does not deny reads on Windows or for root",
@@ -203,7 +198,6 @@ def _write_override(project_root: Path, *, workflow_id: str, content: str) -> Pa
     return path
 
 
-@pytest.mark.regression
 def test_workflow_export_corrupt_resolved_workflow_presents_clean_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -224,7 +218,6 @@ def test_workflow_export_corrupt_resolved_workflow_presents_clean_error(
     assert not destination.exists()
 
 
-@pytest.mark.regression
 def test_workflow_export_corrupt_resolved_workflow_json_envelope(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """#4738: export's corrupt-file path also emits the JSON envelope under ``--json``."""
     project_root = tmp_path / "project"
@@ -255,7 +248,6 @@ def test_workflow_export_corrupt_resolved_workflow_json_envelope(tmp_path: Path,
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.regression
 def test_workflow_export_id_mismatch_still_presents_via_hook_unchanged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """spec.md Edge Cases: re-parenting ``UnknownWorkflowError`` changes surface, not
     wording — the file-declares-X-but-requested-Y message must be byte-identical."""
@@ -290,7 +282,6 @@ actions:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.regression
 def test_workflow_import_guards_the_raw_copy_read(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """``_copy_workflow``'s ``source.read_bytes()`` (``workflow.py:85``) is reachable
     from both commands and must route through ``read_guarded`` too (BINDING

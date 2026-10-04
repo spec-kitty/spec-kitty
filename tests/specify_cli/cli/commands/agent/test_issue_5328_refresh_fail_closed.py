@@ -25,7 +25,7 @@ from tests.specify_cli.cli.commands.agent.test_issue_4905_coord_staging import (
     _build_two_lane_coord_mission,
 )
 
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 SEAM = "specify_cli.cli.commands.agent.mission_finalize"
 TARGET_BRANCH = "mission-target"

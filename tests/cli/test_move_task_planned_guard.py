@@ -44,7 +44,7 @@ from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
     FakeRender,
 )
 
-pytestmark = [pytest.mark.regression, pytest.mark.fast]
+pytestmark = pytest.mark.fast
 
 _MISSION = "test-move-task-planned-guard"
 _WP_ID = "WP01"

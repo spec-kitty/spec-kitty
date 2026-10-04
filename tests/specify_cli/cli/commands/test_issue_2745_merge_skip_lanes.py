@@ -258,9 +258,14 @@ def test_skip_lanes_flag_is_what_enables_genuine_completion(tmp_path: Path, monk
     #    stuck" dead-end this WP's affordance fixes) --
     no_flag_result = _invoke_merge(repo, ["--mission", MISSION_SLUG, "--yes"], monkeypatch)
     assert no_flag_result.exit_code == 1, no_flag_result.output
-    assert "lanes.json" in no_flag_result.output.lower() or "MissingLanesError" in no_flag_result.output.lower() or "required" in no_flag_result.output.lower(), (
-        f"expected the missing-lanes translation, got: {no_flag_result.output!r}"
-    )
+    # Tight oracle (#5619): the exact MissingLanesError message emitted by
+    # ``require_lanes_json`` and rendered by the merge CLI as ``Error: <message>``.
+    # Rich may wrap the line, so compare whitespace-normalised output. A looser
+    # disjunction ("lanes.json" or "required") would also pass for any unrelated
+    # refusal that merely mentions "required".
+    normalised_output = " ".join(no_flag_result.output.split())
+    assert "Error: lanes.json is required for" in normalised_output, f"expected the MissingLanesError translation, got: {no_flag_result.output!r}"
+    assert "spec-kitty agent mission finalize-tasks" in normalised_output, f"the refusal must carry the finalize-tasks remedy: {no_flag_result.output!r}"
     assert _branch_tip(repo, TARGET_BRANCH) == pre_run_tip, "no-flag run must leave the target ref untouched"
 
     # -- With --skip-lanes: genuinely completes --
