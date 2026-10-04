@@ -526,6 +526,33 @@ def test_deleted_coordination_branch_is_not_live(tmp_path: Path) -> None:
     assert planner.coordination_surface_is_live(feature_dir) is False
 
 
+@pytest.mark.parametrize("tracking_ref_kept", [True, False], ids=["remote-tracking-only", "origin-only"])
+def test_coordination_branch_that_is_not_a_local_head_is_still_live(tmp_path: Path, tracking_ref_kept: bool) -> None:
+    """A fresh clone / second machine has no local ``refs/heads/<coord>``; the surface is still live (#5579 L1).
+
+    The branch lives as a remote-tracking ref, or only on ``origin`` once the tracking ref is
+    pruned. Either way the PRIMARY partition is not the authority, so the Mission is refused
+    rather than seeded onto it.
+    """
+    work = tmp_path / "work"
+    work.mkdir()
+    feature_dir, git = _coord_mission(work, branch_exists=True)
+    origin = tmp_path / "origin.git"
+    subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True)
+    git("remote", "add", "origin", str(origin))
+    git("push", "-q", "origin", COORD_BRANCH)
+    git("fetch", "-q", "origin")
+    git("branch", "-D", COORD_BRANCH)
+    if not tracking_ref_kept:
+        git("update-ref", "-d", f"refs/remotes/origin/{COORD_BRANCH}")
+    before = _log_bytes(feature_dir)
+
+    assert git("branch", "--list", COORD_BRANCH).strip() == ""  # no local head
+    assert planner.coordination_surface_is_live(feature_dir) is True
+    assert b.apply_wp_status_backfill(feature_dir).skip_reason == planner.COORD_SURFACE_LIVE
+    assert _log_bytes(feature_dir) == before
+
+
 def _resolve_to_would_be_coord_path(monkeypatch: pytest.MonkeyPatch, repo_root: Path, feature_dir: Path) -> Path:
     """Pin the resolver to the would-be coordination path it returns when nothing backs it."""
     from specify_cli.coordination import surface_resolver
