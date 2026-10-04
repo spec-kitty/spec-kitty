@@ -86,7 +86,19 @@ The alternative is exit 0 with a warning on a run that applied nothing. It is no
 
 ### Enforcement
 
-`tests/architectural/test_upgrade_outcome_single_rendering.py` fails when closing-line text appears in `cli/commands/upgrade.py`, when a JSON builder takes `status` from anything but `outcome.status`, when a presentation function reads message state directly or takes an `errors` or `effective_success` parameter, when `derive_exit_code` has a second call site, when anything but `typer.Exit(outcome.exit_code)` exits after the finalizer, or when `derive_exit_code` reads more than the kind. It has no allowlist. Floor assertions name the real renderers and builders, and synthetic violations prove each rule can fail.
+`tests/architectural/test_upgrade_outcome_single_rendering.py` fails when:
+
+- closing-line text appears in `cli/commands/upgrade.py`;
+- a JSON builder takes `status` from anything but `outcome.status`, `errors` from anything but the call `outcome.errors()`, or `warnings` from anything but the call `outcome.warnings()`, omits one of the three, or assigns one of them by subscript after the dict literal;
+- the tail renderer never reaches a `closing_line()` call;
+- a presentation function reads message state directly, fetches it with `getattr(<x>, "<name>")`, or takes an `errors` or `effective_success` parameter. A presentation function is one named `_display*`, `_render*`, `_build_*` or `_print*`, or any function with an `outcome` parameter that calls `console.print` or `print`;
+- a presentation function exits at all (`typer.Exit`, `raise SystemExit`, `sys.exit` or `os._exit`);
+- `derive_exit_code` has a second call site, or its one call is outside the finalizer;
+- anything but `raise typer.Exit(outcome.exit_code)` exits after the finalizer call in `upgrade()`, or that raise is not directly under a test of `outcome.exit_code`;
+- anything in `cli/commands/upgrade.py` assigns to an `.exit_code` attribute;
+- `derive_exit_code` reads anything from `self` but `kind`, passes `self` on, or stores in `self.exit_code` a value that does not read `self.kind`.
+
+It has no allowlist. Floor assertions name the real renderers, builders and exit sites, and synthetic violations prove every check can fail.
 
 ### Follow-ups, not in scope
 
