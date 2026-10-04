@@ -61,7 +61,12 @@ from kernel.clock import now_utc_iso
 # surface as ``PLAN_SETUP_FAILED`` too, with the real code in ``data.reason``.
 # Additive keys plus a closed-envelope remap on ``plan``'s previously-leaking
 # codes, so a minor bump rather than purely additive; no field is removed.
-CONTRACT_VERSION = "1.8.0"
+# 1.9.0: the ``consolidate-mission`` failure envelope's ``data`` gains
+# ``teardown_error_code`` when the landing succeeded and only the cleanup after
+# it refused (``COORD_MOVED_AFTER_LANDING``, #5613). The envelope ``error_code``
+# stays ``PREFLIGHT_FAILED`` and ``data.errors`` is unchanged. Purely additive:
+# the key is absent on every other failure.
+CONTRACT_VERSION = "1.9.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

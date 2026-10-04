@@ -29,7 +29,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.8.0`
+- `CONTRACT_VERSION`: `1.9.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -87,6 +87,12 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   passed through verbatim as `error_code` (none was contract-registered)
   and now surface as `PLAN_SETUP_FAILED` too. Additive keys plus a
   closed-envelope remap on `plan`'s previously-leaking codes; minor bump.
+- `1.9.0` — the `consolidate-mission` failure envelope's `data` gains
+  `teardown_error_code` when the landing succeeded and only the cleanup after
+  it refused (`COORD_MOVED_AFTER_LANDING`, #5613; see
+  [`data.teardown_error_code`](#consolidate-mission-datateardown_error_code)).
+  The envelope `error_code` stays `PREFLIGHT_FAILED` and `data.errors` is
+  unchanged. Purely additive: the key is absent on every other failure.
 
 ## Response Envelope
 

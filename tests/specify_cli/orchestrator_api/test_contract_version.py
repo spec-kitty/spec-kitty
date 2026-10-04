@@ -1,8 +1,9 @@
 """WP07 (design-phase-orchestrator-api-01M1HE6M) -- CONTRACT_VERSION bump to
 1.4.0.
 
-(Superseded: the pin below now reads ``1.8.0`` after WP06 of
-requirement-id-grammar-01M3NRCA made the ``tasks`` verb's pass-through
+(Superseded: the pin below now reads ``1.9.0`` after the ``consolidate-mission``
+failure envelope's ``data`` gained ``teardown_error_code`` (#5613); it read
+``1.8.0`` after WP06 of requirement-id-grammar-01M3NRCA made the ``tasks`` verb's pass-through
 ``data`` additive (``parsed_spec_ids`` / ``rejected_requirement_refs`` /
 ``success_criteria_coverage``) and the ``plan`` verb's ``data`` additive
 (``requirement_id_warnings``) plus remapped its previously-unregistered
@@ -65,13 +66,13 @@ _NEW_VERBS = (
 )
 
 
-def test_contract_version_response_reports_1_8_0() -> None:
+def test_contract_version_response_reports_1_9_0() -> None:
     result = runner.invoke(app, ["contract-version"])
     assert result.exit_code == 0, result.output
     envelope = json.loads(result.output.strip().split("\n")[0])
     assert envelope["success"] is True
-    assert envelope["data"]["api_version"] == "1.8.0"
-    assert envelope["contract_version"] == "1.8.0"
+    assert envelope["data"]["api_version"] == "1.9.0"
+    assert envelope["contract_version"] == "1.9.0"
 
 
 def test_min_provider_version_unchanged() -> None:
@@ -86,7 +87,7 @@ def test_changelog_comment_names_all_eleven_new_verbs() -> None:
     Guidance, WP07 task file)."""
     source = inspect.getsource(envelope_module)
     changelog_start = source.index("# 1.1.0:")
-    changelog_end = source.index('CONTRACT_VERSION = "1.8.0"')
+    changelog_end = source.index('CONTRACT_VERSION = "1.9.0"')
     changelog_block = source[changelog_start:changelog_end]
 
     missing = [verb for verb in _NEW_VERBS if verb not in changelog_block]
