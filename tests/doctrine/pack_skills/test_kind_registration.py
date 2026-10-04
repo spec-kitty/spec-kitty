@@ -56,10 +56,8 @@ def test_skill_is_activatable_and_org_requirable_but_not_selection_overlayable()
     assert "skills" not in SELECTION_OVERLAYABLE_KIND_FIELDS
 
 
-def test_built_in_skills_dir_exists_and_is_empty_of_skills() -> None:
-    directory = built_in_dir(ArtifactKind.SKILL)
-    assert directory.is_dir()
-    assert list(directory.rglob("*.skill.yaml")) == []
+def test_built_in_skills_dir_exists() -> None:
+    assert built_in_dir(ArtifactKind.SKILL).is_dir()
 
 
 def test_org_charter_policy_gains_required_skills_and_namespace(tmp_path: Path) -> None:

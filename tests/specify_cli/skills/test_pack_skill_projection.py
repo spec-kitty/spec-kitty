@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import stat
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -275,6 +276,23 @@ def test_a_hostile_skill_namespace_is_refused_and_nothing_is_written_anywhere(pr
     support.write_org_charter(tmp_path / "pack", namespace="acme")
     names = [skill.name for skill in resolve_project_skill_catalog(project, builtin=shipped, stage=stage).discover_skills()]
     assert RENDERED in names and all(name.isascii() for name in names)
+
+
+@pytest.mark.parametrize("stage", [True, False], ids=["staged", "read-only"])
+def test_the_sink_refuses_an_unsafe_rendered_name_even_when_preparation_let_it_through(
+    project: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stage: bool
+) -> None:
+    """Every rendered name is checked again where it becomes a path, independently of the namespace grammar."""
+    real = catalog_module.prepare_project_skill_activations
+    monkeypatch.setattr(catalog_module, "prepare_project_skill_activations", lambda root, **kw: [replace(item, rendered_name="../x") for item in real(root, **kw)])
+    shipped = _fake_builtin(tmp_path, "spk-one")
+    read_only_parent = catalog_module._read_only_parent()
+    before = (_tree(tmp_path), _tree(read_only_parent))
+
+    with pytest.raises(PackSkillCatalogError, match="unsafe directory name"):
+        resolve_project_skill_catalog(project, builtin=shipped, stage=stage)
+
+    assert (_tree(tmp_path), _tree(read_only_parent)) == before
 
 
 # -- manifest provenance --------------------------------------------------------

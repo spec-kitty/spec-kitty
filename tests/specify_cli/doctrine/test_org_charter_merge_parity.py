@@ -39,7 +39,7 @@ required_directives: [DIRECTIVE_002, DIRECTIVE_001]
 """
 PACK_C = """\
 schema_version: "1"
-skill_namespace: "gamma"
+skill_namespace: " gamma "
 required_skills: [only-c]
 """
 PACK_D = """\
@@ -72,5 +72,5 @@ def test_both_views_agree_on_a_multi_pack_fixture(tmp_path: Path) -> None:
 
 def test_blank_namespace_never_clears_an_earlier_one(tmp_path: Path) -> None:
     root = _project(tmp_path)
-    (tmp_path / "pack-c" / "org-charter.yaml").write_text(PACK_C.replace('"gamma"', '""'), encoding="utf-8")
+    (tmp_path / "pack-c" / "org-charter.yaml").write_text(PACK_C.replace('" gamma "', '""'), encoding="utf-8")
     assert read_org_skill_namespace(root) == load_org_charter_policies(root).skill_namespace == "alpha"

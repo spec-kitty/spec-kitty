@@ -168,6 +168,18 @@ def test_source_hash_is_a_pinned_digest_of_record_requires_rendered_name_and_bod
     assert prepared.source_hash == "sha256:cdbad7b9edd44a1e0331aa1116a3b6ea07ab79804c82501eff79b719b71bec94"
 
 
+def test_a_wrapper_skill_without_a_body_hashes_as_an_empty_body() -> None:
+    """Golden value for the body-less form: a missing body hashes as zero bytes after the NUL, not as a placeholder.
+
+    Computed independently with ``hashlib.sha256`` over the hand-written canonical JSON of the wrapper record,
+    ``requires`` ``[]`` and ``rendered_name`` ``acme-ship`` (sorted keys), then a NUL byte and nothing.
+    """
+    (prepared,) = _prepare(FakeSource().add(_wrapper("ship"), "org", body=None), ["ship"])
+
+    assert prepared.body is None
+    assert prepared.source_hash == "sha256:66be17e25df67c48ae245d36cc6031d3c07e0b0f95c62d2f7702afca7e5edfda"
+
+
 def test_source_hash_changes_with_the_body_and_with_the_record() -> None:
     base = _prepare(FakeSource().add(_skill("a"), "org", body="one"), ["a"])[0].source_hash
     other_body = _prepare(FakeSource().add(_skill("a"), "org", body="two"), ["a"])[0].source_hash

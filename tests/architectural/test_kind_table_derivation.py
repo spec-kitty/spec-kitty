@@ -91,7 +91,26 @@ def test_overlayable_is_the_selected_fields_minus_the_non_overlaid_kinds() -> No
     assert ArtifactKind.SKILL.org_requirable
 
 
+#: The eleven charter-activatable kinds and the ``PackContext`` field holding each one's activated ids,
+#: written out by hand (the ten that were hand-listed before the table was derived, plus ``skill``): the
+#: derived table must neither lose a kind nor invent one.
+_PER_KIND_FIELD = {
+    "directive": "activated_directives",
+    "tactic": "activated_tactics",
+    "styleguide": "activated_styleguides",
+    "toolguide": "activated_toolguides",
+    "paradigm": "activated_paradigms",
+    "procedure": "activated_procedures",
+    "agent_profile": "activated_agent_profiles",
+    "mission_step_contract": "activated_mission_step_contracts",
+    "glossary_pack": "activated_glossary_packs",
+    "anti_pattern": "activated_anti_patterns",
+    "skill": "activated_skills",
+}
+
+
 def test_per_kind_field_values_are_real_pack_context_attributes() -> None:
+    assert dict(drg_activation._SINGULAR_TO_PER_KIND_FIELD) == _PER_KIND_FIELD
     attrs = {f.name for f in dataclasses.fields(PackContext)}
     for field_name in drg_activation._SINGULAR_TO_PER_KIND_FIELD.values():
         assert field_name in attrs, field_name

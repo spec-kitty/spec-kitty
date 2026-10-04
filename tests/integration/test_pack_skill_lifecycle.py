@@ -206,3 +206,22 @@ def test_unknown_builtin_wrapper_target_is_refused_with_no_writes(tmp_path: Path
     with pytest.raises(PackSkillCatalogError, match="spec-kitty.nope"):
         resolve_project_skill_catalog(project)
     assert _snapshot(project) == snapshot
+
+
+def test_activating_a_kind_other_than_skill_never_reprojects_pack_skills(tmp_path: Path, project: Path) -> None:
+    """With pack skills that cannot be projected, a directive activation still succeeds and says nothing about skills."""
+    pack = tmp_path / "pack"
+    support.write_skill(pack, "x-y")
+    support.write_directive(pack, "release-gate")
+    support.write_skill(project / ".kittify" / "doctrine", "y")
+    _reconfigure(project, pack, ["x-y", "y"], project_namespace="acme-x")  # both skills render as acme-x-y: not projectable
+    skill_roots = {root: _snapshot(project / root) for root in AGENT_ROOTS}
+
+    skill = runner.invoke(charter_app, ["activate", "--repo-root", str(project), "--no-compile", "skill", "x-y"], catch_exceptions=False)
+    assert skill.exit_code == 1 and "pack skills were not projected" in skill.output  # the fixture really cannot project
+
+    result = runner.invoke(charter_app, ["activate", "--repo-root", str(project), "--no-compile", "directive", "release-gate"], catch_exceptions=False)
+
+    assert result.exit_code == 0, result.output
+    assert "pack skills were not projected" not in result.output
+    assert {root: _snapshot(project / root) for root in AGENT_ROOTS} == skill_roots
