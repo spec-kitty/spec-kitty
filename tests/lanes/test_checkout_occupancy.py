@@ -309,11 +309,16 @@ def test_protected_target_mint_is_the_write_branch(tmp_path: Path) -> None:
     assert in_progress_wps_in_write_checkout(repo, repo) == [("occ-mint", "WP01")]
 
 
-def test_unknown_write_branch_fails_closed(tmp_path: Path) -> None:
-    """No ``target_branch`` in ``meta.json``: the mission still counts as an occupant."""
+@pytest.mark.parametrize("target_branch", [None, "", 123], ids=["absent", "empty", "non-string"])
+def test_unknown_write_branch_fails_closed(tmp_path: Path, target_branch: object) -> None:
+    """No usable ``target_branch`` in ``meta.json``: the mission still counts as an occupant.
+
+    ``None`` drops the key. An empty or non-string value must not read as a
+    write branch that differs from the current one.
+    """
     repo = tmp_path / "repo"
     _init_repo(repo)
-    _in_progress_occupant(repo, "occ-no-target", "01OCCNOTARGET0000000000N", target_branch=None)
+    _in_progress_occupant(repo, "occ-no-target", "01OCCNOTARGET0000000000N", target_branch=target_branch)
 
     assert in_progress_wps_in_write_checkout(repo, repo) == [("occ-no-target", "WP01")]
 

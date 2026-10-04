@@ -170,8 +170,9 @@ def _ensure_repo_root_checkout_available(
     if occupants:
         other_mission, other_wp = occupants[0]
         # The scan only reports missions whose write branch is the branch the
-        # checkout is on (#5680), and the wrong-branch refusal above pinned
-        # that to expected_branch, so it is the occupant's write branch too.
+        # checkout is on (#5680), or whose write branch is unknown and so
+        # counts fail-closed; the wrong-branch refusal above pinned the
+        # checkout's branch to expected_branch.
         raise WriteCheckoutOccupiedError(
             f"{other_mission} {other_wp} is already in_progress in the shared "
             f"write checkout at {write_checkout} on branch {expected_branch!r}. "

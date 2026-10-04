@@ -62,7 +62,11 @@ def _writes_to_another_branch(meta: Mapping[str, Any], topology: MissionTopology
     snapshot, not the mission's live state, so it cannot occupy this checkout.
 
     Fails closed (``False``: the mission still counts) whenever either side is
-    unknown: a detached HEAD, or no ``target_branch``. *meta* is the
+    unknown: a detached HEAD, or no usable ``target_branch``. This
+    deliberately does not apply the primary-branch default of
+    :func:`specify_cli.core.paths.read_target_branch_from_meta`: an occupant
+    whose target is unrecorded keeps blocking rather than being assumed to
+    write elsewhere. *meta* is the
     mission's already-loaded ``meta.json``; this reads nothing itself.
     """
     if current_branch is None:
