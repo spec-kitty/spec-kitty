@@ -924,6 +924,25 @@ def _emit_glossary_pack_nodes(
         _ensure_node(nodes_by_urn, src_urn, NodeKind.GLOSSARY_PACK)
 
 
+def _emit_skill_nodes(packs_root: Path, nodes_by_urn: dict[str, DRGNode]) -> None:
+    """Register a ``skill:<id>`` source node for each built-in pack skill.
+
+    The built-in tier ships no skills at MVP (``packs/built-in/skills/`` is
+    empty), so the built-in shard stays empty; the helper exists so a future
+    consumer-safe built-in skill is picked up without touching the extractor.
+    Skill relationships are DRG edges declared in org/project fragments, never
+    extracted from the skill file, so only the node is emitted.
+    """
+    skills_dir = packs_root / "skills"
+    if not skills_dir.is_dir():
+        return
+    for path in sorted(skills_dir.glob("*.skill.yaml")):
+        data = _load_yaml(path)
+        skill_id = "" if data is None else data.get("id", "")
+        if skill_id:
+            _ensure_node(nodes_by_urn, artifact_to_urn("skill", skill_id), NodeKind.SKILL)
+
+
 # ---------------------------------------------------------------------------
 # Operating-procedures data-drive (M3: #2994/#3352)
 # ---------------------------------------------------------------------------
@@ -1267,6 +1286,7 @@ def extract_artifact_edges(  # noqa: C901
 
     # --- Glossary packs (source-node emission only, WP03) ---
     _emit_glossary_pack_nodes(packs_root, nodes_by_urn)
+    _emit_skill_nodes(packs_root, nodes_by_urn)
 
     # --- Operating-procedures data-drive (M3: #2994/#3352) ---
     # Emit agent_profile --requires--> procedure from the operating-procedures

@@ -12,6 +12,7 @@ from charter.offering.assets import AssetRepository
 from charter.offering.directives import DirectiveRepository
 from charter.offering.glossary_packs import GlossaryPackRepository
 from charter.offering.missions.step_contracts import MissionStepContractRepository
+from charter.offering.pack_skills import PackSkillRepository
 from charter.offering.paradigms import ParadigmRepository
 from charter.offering.procedures import ProcedureRepository
 from charter.offering.styleguides import StyleguideRepository
@@ -137,6 +138,15 @@ class DoctrineService:
                 project_dir=self._project_dir("glossary_packs"),
             )
         return cast(GlossaryPackRepository, self._cache["glossary_packs"])
+
+    @property
+    def skills(self) -> PackSkillRepository:
+        if "skills" not in self._cache:
+            self._cache["skills"] = PackSkillRepository(
+                org_dirs=self._org_dirs("skills"),
+                project_dir=self._project_dir("skills"),
+            )
+        return cast(PackSkillRepository, self._cache["skills"])
 
     @property
     def assets(self) -> AssetRepository:

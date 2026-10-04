@@ -81,6 +81,7 @@ if TYPE_CHECKING:
     from charter.offering.drg.models import DRGGraph
     from charter.offering.glossary_packs.models import GlossaryPack
     from charter.offering.missions.step_contracts import MissionStepContract
+    from charter.offering.pack_skills.models import PackSkill
     from charter.offering.paradigms.models import Paradigm
     from charter.offering.procedures.models import Procedure
     from charter.offering.styleguides.models import Styleguide
@@ -327,6 +328,15 @@ class DoctrineService:
         if pack_ctx is not None and pack_ctx.activated_glossary_packs is not None:
             return {k: v for k, v in all_glossary_packs.items() if k in pack_ctx.activated_glossary_packs}
         return all_glossary_packs
+
+    @property
+    def skills(self) -> dict[str, PackSkill]:
+        """Return pack skills dict, filtered by ``activated_skills`` when set."""
+        all_skills: dict[str, PackSkill] = {item.id: item for item in self._inner.skills.list_all()}
+        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
+        if pack_ctx is not None and pack_ctx.activated_skills is not None:
+            return {k: v for k, v in all_skills.items() if k in pack_ctx.activated_skills}
+        return all_skills
 
     # ------------------------------------------------------------------
     # FR-001: pinned lineage/mutation accessor (NOT a gated property --
