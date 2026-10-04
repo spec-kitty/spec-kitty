@@ -592,6 +592,7 @@ def _run_finalize_failing_the_final_commit(
     return exit_code, output
 
 
+@pytest.mark.regression
 @pytest.mark.parametrize("topology_name", ["COORD", "LANES_WITH_COORD", "LANES", "SINGLE_BRANCH"])
 def test_final_commit_failure_leaves_every_branch_and_checkout_as_found(tmp_path: Path, topology_name: str) -> None:
     """A failed final commit leaves no per-WP status commits behind (guard for #5641, fixed).
