@@ -65,10 +65,13 @@ steps:
   - title: Write the dispatch prompt, with every field filled in
     description: >
       The prompt has these sections, in this order.
-      (0) Setup: branch off the latest main (never push to main), sync and
-      install the CLI from the checkout, read CLAUDE.md and the charter in full,
-      and load `spec-kitty charter context --action <action>` for each phase.
-      The charter overrides the prompt.
+      (0) Setup: branch off the latest main (never push to main), run
+      `bash scripts/dev/cloud-session-setup.sh` (it syncs the environment,
+      installs the CLI from the checkout, keeps `.codegraph/` out of
+      `git status` and starts the CodeGraph index build), read CLAUDE.md and
+      the charter in full, and load
+      `spec-kitty charter context --action <action>` for each phase. The
+      charter overrides the prompt.
       (1) A read-only code-grounding run, committed as the mission's research
       note before anything is specified. It records sizes and a responsibility
       map of the target files; the invariants that must survive, with their ADR
