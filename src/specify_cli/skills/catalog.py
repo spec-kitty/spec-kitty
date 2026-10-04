@@ -31,9 +31,13 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from charter.activation.pack_context import CharterPackConfigError
-from charter.activation.skill_preparation import PreparedSkill, SkillPreparationError, prepare_project_skill_activations
+from charter.activation.skill_preparation import (
+    PackSkillConflictError,
+    PreparedSkill,
+    SkillPreparationError,
+    prepare_project_skill_activations,
+)
 from charter.drg import DRGLoadError, DRGValidationError, resolve_existing_org_roots
-from charter.offering.pack_skills import PackSkillConflictError
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import UnsafePathSegmentError, assert_safe_path_segment
 from specify_cli.skills.manifest import ORIGIN_PACK

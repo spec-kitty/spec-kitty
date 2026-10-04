@@ -376,15 +376,18 @@ def _promote_org_required_to_config(policy: OrgCharterPolicy, repo_root: Path) -
     LAND-BLOCKER). :func:`~charter.activation.default_pack.load_default_pack_activation_ids`
     supplies that real set — never an empty/omitted default.
     """
-    required_by_kind: dict[str, list[str]] = {
-        kind: list(getattr(policy, f"required_{kind}")) for kind in _INTERVIEW_SEEDED_KIND_FIELDS if getattr(policy, f"required_{kind}")
-    }
-    if not required_by_kind:
-        return []
-
     from charter.activation.activation_engine import promote_activations
     from charter.activation.catalog import resolve_doctrine_root
     from charter.activation.pack_manager import resolve_activation_write_target
+
+    target_path, config_data, save = resolve_activation_write_target(repo_root)
+    # A kind that is in force by default is promoted only when the project
+    # already lists it explicitly: an explicit list is exactly that list, so the
+    # org-required ids must be unioned in. An absent key is never seeded.
+    promotable = [kind for kind in REQUIRED_KIND_FIELDS if kind in _INTERVIEW_SEEDED_KIND_FIELDS or f"activated_{kind}" in config_data]
+    required_by_kind: dict[str, list[str]] = {kind: list(getattr(policy, f"required_{kind}")) for kind in promotable if getattr(policy, f"required_{kind}")}
+    if not required_by_kind:
+        return []
 
     try:
         doctrine_root: Path | None = resolve_doctrine_root()
@@ -411,7 +414,6 @@ def _promote_org_required_to_config(policy: OrgCharterPolicy, repo_root: Path) -
         for kind, raw_ids in required_by_kind.items()
     }
 
-    target_path, config_data, save = resolve_activation_write_target(repo_root)
     default_ids = load_default_pack_activation_ids()
 
     plans = promote_activations(
