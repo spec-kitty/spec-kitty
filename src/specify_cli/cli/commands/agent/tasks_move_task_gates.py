@@ -14,11 +14,19 @@ site still calls ``tasks_move_task._mt_run_pre_review_gate`` by name, so a
 monkeypatch on that symbol keeps intercepting. A patch that must intercept a
 call made *inside* the gate family targets this module instead.
 
-**Seam bridge.** Patched ``tasks`` seam symbols are still reached through the
-lazy in-function ``from specify_cli.cli.commands.agent import tasks as _tasks``
-import, exactly as before the move. ``_MoveTaskState`` is imported for typing
-only, and ``_lane_deliverable_paths`` lazily, so this module never imports
+**Seam bridge.** ``_MoveTaskState`` is imported for typing only, and
+``_lane_deliverable_paths`` lazily, so this module never imports
 ``tasks_move_task`` at module scope (no import cycle).
+
+**Patch-seam rule (stated once for ``tasks_move_task`` and its gates, hops and
+executor seams).** A patch must target the module whose globals the call reads.
+Three forms exist: (1) a module-scope import (``from x import f``) binds ``f`` in
+the importing module, so patch the importing module; (2) a function-local
+``from ...tasks_move_task import X`` re-reads ``tasks_move_task.X`` on every call,
+so patch ``tasks_move_task``; (3) the lazy in-function
+``from specify_cli.cli.commands.agent import tasks as _tasks`` bridge reads
+``_tasks.<name>``, so patch ``tasks``. A patch on any other module stays green and
+intercepts nothing; ``test_tasks_patch_targets_live`` catches the dead ones.
 
 **One name is not re-exported.** The once-per-process latch
 ``_pre_review_test_command_deprecation_emitted`` is rebound with ``global`` in

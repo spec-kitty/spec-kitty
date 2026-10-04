@@ -16,7 +16,12 @@ in-lock from-lane derivation, the append, and the fan-out timing (deferred
 behind the commit). ``MissionStatus`` (``status/aggregate.py``) composes the
 single door and is the intended domain facade for callers; it is not the
 write chokepoint (the eight direct transactional callers remain until a
-caller-migration mission).
+caller-migration mission). :func:`emit_runtime_annotation` is not a fourth door:
+it only SELECTS the durability of a runtime annotation for its two CLI callers
+(``tasks_move_task_executor`` and ``tasks_mark_status``) and adds no lock or
+transaction of its own; the other annotation writers (``workflow_executor``,
+``tasks_map_requirements``, ``tasks_materialization``, the consolidation
+preflight) call the inner-state emitters directly until that same migration.
 
 Fan-out timing (FR-008): every coord arm -- the ``BookkeepingTransaction``
 doors AND the non-transactional coord fallback arms -- announces an event
@@ -2057,6 +2062,13 @@ def emit_runtime_annotation(
     repo_root: Path | None = None,
 ) -> InnerStateChanged:
     """Choose and call the inner-state emitter for a runtime annotation.
+
+    This is a durability SELECTOR for the two CLI callers
+    (``tasks_move_task_executor`` and ``tasks_mark_status``), not one of the three
+    doors that own acquire/derive/append/fan-out: it adds no lock or transaction of
+    its own and only picks which emitter runs. The other writers of runtime
+    annotations still call the emitters directly (see the module docstring's
+    caller-migration note).
 
     Precedence (preserved from the move-task / mark-status call sites):
 

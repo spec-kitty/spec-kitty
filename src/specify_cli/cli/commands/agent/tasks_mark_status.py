@@ -415,6 +415,8 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
             mission_slug=st.mission_slug,
             repo_root=st.main_repo_root,
         )
+        # Same two conditions as ``emit_runtime_annotation``'s first two branches (owned, then
+        # auto_commit): exactly when it takes a transactional path the event is durable here.
         if st.owned is not None or commit_annotation:
             st.applied_event_ids.append(event.event_id)
             st.applied_wps.append(wp_id)

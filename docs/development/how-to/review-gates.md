@@ -2,7 +2,7 @@
 title: 'Review Gates: Pre-PR Hygiene, Review-Cycle Mechanics, and the Consolidation Gate'
 description: Review-cycle-artifact and consolidation-gate mechanics, the --skip-review-artifact-check override, and issue-matrix discovery, so review focuses on substance.
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-04'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -190,7 +190,7 @@ a genuine `move-task` transition can change the event-sourced verdict:
   writes its own `approved` `ReviewResult` into the event log from the fact
   that the transition itself is happening
   (`_mt_plan_review_result` in
-  [`tasks_move_task.py`](../../../src/specify_cli/cli/commands/agent/tasks_move_task.py))
+  [`tasks_move_task_hops.py`](../../../src/specify_cli/cli/commands/agent/tasks_move_task_hops.py))
   — no artifact content is read to decide this.
 - When the WP's current event-sourced verdict was `changes_requested`,
   that same approval transition additionally synthesizes a durable

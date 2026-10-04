@@ -2,9 +2,9 @@
 
 Hop-planning policy builders moved VERBATIM; no behaviour changed.
 ``tasks_move_task`` re-imports every symbol in the ``as`` re-export form.
-Patched ``tasks`` seam symbols are reached via the lazy ``_tasks`` bridge;
 ``_MoveTaskState`` is imported for typing only (no module-scope import of
-``tasks_move_task``).
+``tasks_move_task``). Where a patch must point: see the patch-seam rule in the
+``tasks_move_task_gates`` module docstring.
 """
 
 from __future__ import annotations
