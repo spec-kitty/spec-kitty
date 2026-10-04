@@ -236,7 +236,9 @@ class _StraddleOutcome:
 #: Matches pytest's ``-rA`` per-test summary lines, e.g.
 #: ``PASSED test_polluter.py::test_b_innocent_leaves_the_leaked_files_untouched``
 #: or ``ERROR test_polluter.py::test_a_polluter_writes_status_artifacts_at_the_root``.
-_RESULT_LINE_RE = re.compile(r"^(?P<outcome>PASSED|FAILED|ERROR)\s+(?P<nodeid>\S+)\s*$", re.MULTILINE)
+#: With ``CI`` (or ``BUILD_NUMBER``) set, pytest appends `` - <message>`` to
+#: these lines, so the optional suffix is accepted after the node id.
+_RESULT_LINE_RE = re.compile(r"^(?P<outcome>PASSED|FAILED|ERROR)[ \t]+(?P<nodeid>\S+)(?:[ \t]+-[ \t].*)?[ \t]*$", re.MULTILINE)
 
 
 def _classify_straddle_result(result: subprocess.CompletedProcess[str]) -> _StraddleOutcome:

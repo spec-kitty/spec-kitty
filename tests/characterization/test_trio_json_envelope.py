@@ -33,7 +33,11 @@ change without an explicit, reviewed update to this suite)
   in-flight worktree/context state. This is the ONLY read-only,
   side-effect-free path through ``implement.py``'s ``--json`` surface; the
   non-recover path materializes a real git worktree and is out of scope
-  for this WP (tracked as a gap below).
+  for this WP (tracked as a gap below). The coord case runs on a fixture
+  whose coordination worktree IS materialized (``coord_repo_materialized``,
+  the shape ``mission create`` leaves): since ``2fd7eabf0`` a coordination
+  read on an unmaterialized coordination worktree fails closed by design,
+  so ``--recover`` on the unmaterialized ``coord_repo`` refuses instead.
 
 * ``spec-kitty agent action implement WP01 --mission <slug>`` (flat + coord
   MATERIALIZED, TEXT output -- see gap note below): a FIRST call on a
@@ -318,6 +322,17 @@ def coord_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, s
 
 
 @pytest.fixture()
+def coord_repo_materialized(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, str]:
+    """Coord-topology mission, WP01 ``approved``, coord worktree MATERIALIZED
+    -- the shape ``mission create`` leaves. A coordination read on an
+    unmaterialized coordination worktree fails closed (``2fd7eabf0``), so the
+    recover surface is characterized here rather than on ``coord_repo``."""
+    return _build_mission_repo(
+        tmp_path, monkeypatch, coord=True, mission_slug="trio-coord-recover", wp_lane="approved", materialize_coord=True
+    )
+
+
+@pytest.fixture()
 def flat_repo_planned(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, str]:
     """Flat mission, WP01 ``planned`` -- implement surface (claimable)."""
     return _build_mission_repo(tmp_path, monkeypatch, coord=False, mission_slug="trio-flat-implement", wp_lane="planned")
@@ -452,8 +467,8 @@ class TestImplementRecoverJson:
             "errors": [],
         }
 
-    def test_coord_mission_no_crashed_sessions(self, coord_repo: tuple[Path, str]) -> None:
-        repo_root, mission_slug = coord_repo
+    def test_coord_mission_no_crashed_sessions(self, coord_repo_materialized: tuple[Path, str]) -> None:
+        repo_root, mission_slug = coord_repo_materialized
         payload = self._run(repo_root, mission_slug)
 
         assert payload == {
