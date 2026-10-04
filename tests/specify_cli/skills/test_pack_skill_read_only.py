@@ -136,16 +136,64 @@ def _pack_block(root: Path, pack: Path) -> tuple[Path, str, str]:
     return config, config.read_text(encoding="utf-8"), f"      - name: acme\n        local_path: {pack}\n"
 
 
+def _registry_entry_without_local_path_beside_the_pack(root: Path, pack: Path) -> None:
+    config, text, entry = _pack_block(root, pack)
+    config.write_text(text.replace(entry, f"{entry}      - name: nopath\n"), encoding="utf-8")
+
+
+def _registry_entry_without_local_path_alone(root: Path, pack: Path) -> None:
+    config, text, entry = _pack_block(root, pack)
+    config.write_text(text.replace(entry, "      - name: nopath\n"), encoding="utf-8")
+
+
+def _packs_not_a_list(root: Path, pack: Path) -> None:
+    config, text, entry = _pack_block(root, pack)
+    config.write_text(text.replace(f"    packs:\n{entry}", "    packs: acme\n"), encoding="utf-8")
+
+
+def _charter_packs_not_a_mapping(root: Path, pack: Path) -> None:
+    config, text, entry = _pack_block(root, pack)
+    config.write_text(text.replace(f"charter_packs:\n  org:\n    packs:\n{entry}", "charter_packs: nope\n"), encoding="utf-8")
+
+
+def _org_block_not_a_mapping(root: Path, pack: Path) -> None:
+    config, text, entry = _pack_block(root, pack)
+    config.write_text(text.replace(f"  org:\n    packs:\n{entry}", "  org: nope\n"), encoding="utf-8")
+
+
+def _pack_path_is_a_file(root: Path, pack: Path) -> None:
+    shutil.rmtree(pack)
+    pack.write_text("not a directory\n", encoding="utf-8")
+
+
 def _unset_env_var_in_pack_path(root: Path, pack: Path) -> None:
     config, text, _entry = _pack_block(root, pack)
     config.write_text(text.replace(f"local_path: {pack}", "local_path: ${SPEC_KITTY_TEST_UNSET_PACK_DIR}/pack"), encoding="utf-8")
 
 
+def _empty_org_charter(root: Path, pack: Path) -> None:
+    (pack / "org-charter.yaml").write_bytes(b"")
+
+
+def _whitespace_only_org_charter(root: Path, pack: Path) -> None:
+    (pack / "org-charter.yaml").write_text(" \n\n  \n", encoding="utf-8")
+
+
 #: Damages to the org-pack registry or the pack on disk, valid for a project with or without a pack skill.
-REGISTRY_DAMAGES = [_unset_env_var_in_pack_path]
+REGISTRY_DAMAGES = [
+    _registry_entry_without_local_path_beside_the_pack,
+    _registry_entry_without_local_path_alone,
+    _packs_not_a_list,
+    _charter_packs_not_a_mapping,
+    _org_block_not_a_mapping,
+    _pack_path_is_a_file,
+    _unset_env_var_in_pack_path,
+]
 
 
-@pytest.mark.parametrize("damage", [_broken_org_drg, _unfetched_pack, _unparsable_charter, _string_required_skills, *REGISTRY_DAMAGES])
+@pytest.mark.parametrize(
+    "damage", [_broken_org_drg, _unfetched_pack, _unparsable_charter, _string_required_skills, _empty_org_charter, _whitespace_only_org_charter, *REGISTRY_DAMAGES]
+)
 @pytest.mark.parametrize("migration", DETECTING)
 def test_a_broken_org_pack_changes_nothing_for_a_project_that_uses_no_pack_skill(tmp_path: Path, migration: type, damage: Callable[[Path, Path], None]) -> None:
     """No skill path may depend on the health of a pack the project takes no skill from (no pack entry, no activation)."""
@@ -236,6 +284,14 @@ def _while_org_decides(damage: Callable[[Path, Path], None]) -> Callable[[Path, 
     return damaged
 
 
+def _org_charter_empty(root: Path, pack: Path) -> None:
+    _org_required(root, pack, "")
+
+
+def _org_charter_whitespace_only(root: Path, pack: Path) -> None:
+    _org_required(root, pack, " \n\n  \n")
+
+
 def _installed_copies(project: Path) -> list[Path]:
     return [project / ".claude" / "skills" / "acme-deploy-helper" / "SKILL.md", project / ".agents" / "skills" / "acme-deploy-helper" / "SKILL.md"]
 
@@ -252,6 +308,8 @@ def _installed_copies(project: Path) -> list[Path]:
         _org_required_pack_not_fetched,
         _org_charter_unparsable,
         _org_required_skills_not_a_list,
+        _org_charter_empty,
+        _org_charter_whitespace_only,
         *[_while_org_decides(damage) for damage in REGISTRY_DAMAGES],
     ],
 )
@@ -269,6 +327,44 @@ def test_a_broken_pack_makes_detect_true_and_apply_a_reported_error(tmp_path: Pa
         assert not result.success and "Pack skills could not be resolved" in result.errors[0]
     assert _tree(project) == before
     assert all(copy.is_file() for copy in _installed_copies(project))  # a refusal never retires an installed copy
+
+
+def _charter_without_required_skills(root: Path, pack: Path) -> None:
+    _org_required(root, pack, "org_name: acme-org\nskill_namespace: acme\n")
+
+
+def _charter_with_null_required_skills(root: Path, pack: Path) -> None:
+    _org_required(root, pack, "org_name: acme-org\nskill_namespace: acme\nrequired_skills:\n")
+
+
+def _charter_requiring_nothing(root: Path, pack: Path) -> None:
+    _org_required(root, pack, "org_name: acme-org\nskill_namespace: acme\nrequired_skills: []\n")
+
+
+def _charter_deleted(root: Path, pack: Path) -> None:
+    _org_required(root, pack)
+    (pack / "org-charter.yaml").unlink()
+
+
+def _pack_removed_from_config(root: Path, pack: Path) -> None:
+    _org_required(root, pack)
+    support.write_config(root, None, extra="agents:\n  available:\n    - claude\n    - codex\n")
+
+
+@pytest.mark.parametrize(
+    "authored",
+    [_charter_without_required_skills, _charter_with_null_required_skills, _charter_requiring_nothing, _charter_deleted, _pack_removed_from_config],
+)
+def test_a_pack_skill_the_org_no_longer_requires_is_still_retired(tmp_path: Path, authored: Callable[[Path, Path], None]) -> None:
+    """The refusals above never turn into "keep forever": an authored state that no longer requires the skill retires it."""
+    project = _project(tmp_path)
+    save_manifest(install_all_skills(project, ["claude", "codex"], resolve_project_skill_catalog(project)), project)
+    authored(project, tmp_path / "pack")
+
+    result = RepairSkillPackMigration().apply(project, dry_run=False)
+
+    assert result.success, result.errors
+    assert not any(copy.exists() for copy in _installed_copies(project))
 
 
 def test_the_runner_records_a_failed_migration_for_a_broken_pack(tmp_path: Path) -> None:

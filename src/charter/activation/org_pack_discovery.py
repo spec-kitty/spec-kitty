@@ -89,6 +89,20 @@ def _enumerate_org_pack_paths(repo_root: Path) -> list[tuple[str, Path]]:
     return [(pack.name, pack.effective_root(repo_root)) for pack in registry.packs]
 
 
+def _enumerate_org_pack_paths_strict(repo_root: Path) -> list[tuple[str, Path]]:
+    """Like :func:`_enumerate_org_pack_paths`, but a registry that cannot be established raises.
+
+    The lenient sibling answers an invalid registry, an unset ``${VAR}`` in a pack path or a
+    subdir escape with "no configured packs"; a caller that must not mistake "unknown" for
+    "none" (skill preparation) reads through this one. Raises :class:`ValueError` (pydantic
+    ``ValidationError`` included, :class:`~charter.offering.drg.org_pack_config.OrgPackEnvVarUnsetError`
+    and ``OrgPackSubdirEscapeError`` too) with the cause in its message.
+    """
+    from charter.offering.drg.org_pack_config import load_pack_registry  # noqa: PLC0415
+
+    return [(pack.name, pack.effective_root(repo_root)) for pack in load_pack_registry(repo_root, strict=True).packs]
+
+
 def _missing_pack_diagnostic(repo_root: Path) -> str | None:
     """Return a human-readable diagnostic when an org pack is missing on disk.
 
@@ -234,19 +248,22 @@ def require_org_skill_policy_readable(repo_root: Path, *, org_decides: bool) -> 
     """Refuse a configured org pack whose skill policy cannot be established.
 
     Skill preparation's strict read: the lenient readers above treat "cannot read"
-    as "nothing required", which would retire installed pack skills. A configured
-    pack whose directory is missing is always refused (naming the remedy). When
-    *org_decides* (the project has no ``activated_skills`` list, so the org packs'
-    ``required_skills`` are the in-force set), an ``org-charter.yaml`` that is
-    unreadable, not a mapping, or carries a ``required_skills`` that is not a list of
-    strings is refused too. A pack without an ``org-charter.yaml`` (or with an empty
-    one) requires nothing, which is a legitimate "no longer required".
+    as "nothing required", which would retire installed pack skills. The pack
+    registry itself is read strictly (an invalid ``.kittify/config.yaml`` block, an
+    unset ``${VAR}`` in a pack path or a subdir escape raises instead of reading as
+    "no packs"). A configured pack whose path is not an existing directory is always
+    refused (naming the remedy). When *org_decides* (the project has no
+    ``activated_skills`` list, so the org packs' ``required_skills`` are the in-force
+    set), an ``org-charter.yaml`` that is unreadable, empty, not a mapping, or carries
+    a ``required_skills`` that is not a list of strings is refused too. A pack without
+    an ``org-charter.yaml``, or one that is a mapping without ``required_skills``,
+    requires nothing, which is a legitimate "no longer required".
     """
     yaml = YAML(typ="safe")
-    for name, pack_path in _enumerate_org_pack_paths(repo_root):
-        if not pack_path.exists():
+    for name, pack_path in _enumerate_org_pack_paths_strict(repo_root):
+        if not pack_path.is_dir():
             raise SkillPreparationError(
-                f"org pack {name!r} is configured but its directory does not exist ({pack_path}); "
+                f"org pack {name!r} is configured but its path is not an existing directory ({pack_path}); "
                 f"run `spec-kitty doctrine fetch --pack {name}`, or remove the pack from .kittify/config.yaml"
             )
         charter_path = pack_path / "org-charter.yaml"
@@ -260,7 +277,9 @@ def _require_readable_required_skills(yaml: YAML, pack_name: str, charter_path: 
     except (OSError, YAMLError, ValueError) as exc:
         raise SkillPreparationError(f"cannot read {charter_path} of org pack {pack_name!r}, so its required skills are unknown: {exc}") from exc
     if raw is None:
-        return
+        # A zero-byte charter is never an authored state: the pack that supplied an installed skill
+        # needed a namespace from it. "Required nothing" is an authored mapping that omits the key.
+        raise SkillPreparationError(f"{charter_path} of org pack {pack_name!r} is empty, so its required skills are unknown")
     if not isinstance(raw, dict):
         raise SkillPreparationError(f"{charter_path} of org pack {pack_name!r} is not a YAML mapping, so its required skills are unknown")
     required = raw.get("required_skills")

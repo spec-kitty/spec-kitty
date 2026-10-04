@@ -17,7 +17,7 @@ import warnings
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from ruamel.yaml import YAML
 from ulid import ULID
 
@@ -433,7 +433,7 @@ class PackRegistry(BaseModel):
         return [pack.name for pack in self.packs]
 
 
-def load_pack_registry(repo_root: Path, *, quiet: bool = False) -> PackRegistry:
+def load_pack_registry(repo_root: Path, *, quiet: bool = False, strict: bool = False) -> PackRegistry:
     """Read configured org packs from ``repo_root/.kittify/config.yaml``.
 
     Canonical shape:
@@ -474,11 +474,21 @@ def load_pack_registry(repo_root: Path, *, quiet: bool = False) -> PackRegistry:
     know it's broken. Diagnostic surfaces such as ``spec-kitty doctor
     doctrine`` and ``charter list`` call this function without ``quiet`` and
     so keep the full, unchanged, always-loud behaviour for both signals.
+
+    ``strict`` (default ``False``) is for a caller whose decision depends on
+    the registry being *known*, not merely best-effort (retiring an installed
+    pack skill is the one such caller): every defect that the lenient read
+    answers with a warning and an empty registry -- an unreadable config, an
+    invalid pack entry, an org block of the wrong shape -- is raised as a
+    :class:`ValueError` instead. The lenient behaviour of every other caller
+    is unchanged.
     """
 
     try:
         data = _load_yaml_data(_config_path(repo_root))
     except Exception as exc:  # pragma: no cover - defensive unreadable YAML
+        if strict:
+            raise ValueError(f"Failed to read .kittify/config.yaml: {exc}") from exc
         msg = f"Failed to read .kittify/config.yaml; org doctrine disabled: {exc}"
         if quiet:
             logger.debug(msg)
@@ -487,6 +497,8 @@ def load_pack_registry(repo_root: Path, *, quiet: bool = False) -> PackRegistry:
         return PackRegistry()
 
     try:
+        if strict:
+            _require_well_shaped_org_config(data)
         registry = _registry_from_org_packs_block(data, _CANONICAL_ORG_PACKS_KEY)
         if registry is not None:
             return registry
@@ -503,13 +515,9 @@ def load_pack_registry(repo_root: Path, *, quiet: bool = False) -> PackRegistry:
                 stacklevel=2,
             )
             return legacy_flat_registry
-    except ValidationError as exc:
-        warnings.warn(
-            f"Invalid org-pack config; ignoring org layer: {exc}",
-            stacklevel=2,
-        )
-        return PackRegistry()
-    except ValueError as exc:
+    except ValueError as exc:  # pydantic's ValidationError is a ValueError
+        if strict:
+            raise ValueError(f"Invalid org-pack config in .kittify/config.yaml: {exc}") from exc
         warnings.warn(
             f"Invalid org-pack config; ignoring org layer: {exc}",
             stacklevel=2,
@@ -517,6 +525,19 @@ def load_pack_registry(repo_root: Path, *, quiet: bool = False) -> PackRegistry:
         return PackRegistry()
 
     return PackRegistry()
+
+
+def _require_well_shaped_org_config(data: dict[str, Any]) -> None:
+    """Strict mode: a canonical registry container of the wrong type is an error, not an absent registry.
+
+    Only the canonical ``charter_packs.org`` block is judged; the retired shapes are read as before.
+    """
+    section = data.get(_CANONICAL_ORG_PACKS_KEY)
+    if section is not None and not isinstance(section, dict):
+        raise ValueError(f"`{_CANONICAL_ORG_PACKS_KEY}` must be a mapping, got {type(section).__name__}")
+    org_block = section.get("org") if section is not None else None
+    if org_block is not None and not isinstance(org_block, dict):
+        raise ValueError(f"`{_CANONICAL_ORG_PACKS_KEY}.org` must be a mapping, got {type(org_block).__name__}")
 
 
 def save_pack_registry(repo_root: Path, registry: PackRegistry) -> None:
