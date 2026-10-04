@@ -216,8 +216,8 @@ Things to know:
 spec-kitty doctor skills
 ```
 
-`doctor skills` exits 1 when it finds a problem with a pack skill. It reports three findings.
-Each one names the pack source file. With `--json`, the same findings appear in a `pack_skills`
+`doctor skills` exits 1 when it finds a problem with a pack skill. It reports four kinds of finding.
+The first three name the pack source file. With `--json`, the same findings appear in a `pack_skills`
 list. That key is additive: existing keys are unchanged.
 
 | Finding | What it means | What to do |
@@ -225,12 +225,12 @@ list. That key is additive: existing keys are unchanged.
 | `drift` | Someone edited the rendered `SKILL.md`. Spec Kitty keeps the edited copy. | Make the change in the pack source file instead. To drop the local edit, delete the copied file and run `spec-kitty upgrade`. |
 | `stale` | The pack source changed after the copy was written. | Run `spec-kitty upgrade`. It refreshes the copy. |
 | `orphaned` | The manifest lists a copy that the current pack no longer provides: the skill was removed or deactivated, or the namespace changed so the skill renders under a new name. | Run `spec-kitty upgrade` to retire the old copy, or activate the skill again. |
+| `unresolvable` | Spec Kitty could not work out which pack skills are in force, so it could not check the installed copies. The message gives the reason: a missing or invalid `skill_namespace`, a pack that does not load, two packs with the same skill id. | Fix the cause the message names, then run `spec-kitty doctor skills` again. |
 
 The rendered file is read-only by default. Edit the pack source, not the copy.
 
-If Spec Kitty cannot resolve the pack skills at all (see the last section), `doctor skills`
-reports no pack finding. The error shows up on `charter activate` and `spec-kitty upgrade`
-instead.
+The same cause also stops `charter activate skill` and `spec-kitty upgrade` (see the last
+section). Fix it once and all three work again.
 
 ## Step 5: Deactivate it
 
