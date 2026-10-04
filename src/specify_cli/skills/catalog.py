@@ -22,8 +22,10 @@ skill roots only and never to a user-global root.
 
 from __future__ import annotations
 
+import atexit
 import logging
 import shutil
+import tempfile
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -91,6 +93,7 @@ def resolve_project_skill_catalog(
     builtin: SkillRegistry | None = None,
     local_repo: Path | None = None,
     prefer_local: bool = False,
+    stage: bool = True,
 ) -> SkillRegistry:
     """Return the merged catalog (built-in plus staged pack skills) for *project_root*.
 
@@ -101,10 +104,15 @@ def resolve_project_skill_catalog(
     :class:`PackSkillCatalogError` -- before writing anything -- when the pack
     skills in force cannot be prepared or rendered, or when one renders under
     the name of a shipped skill.
+
+    ``stage=False`` is the read-only mode (detect, assessment, dry-run, verify):
+    the pack skills are rendered into a process-lifetime temporary directory
+    outside the project, so the project tree is never written. Only install and
+    apply paths stage under ``.kittify/runtime/pack-skills/``.
     """
     shipped = builtin or resolve_builtin_skill_catalog(local_repo=local_repo, prefer_local=prefer_local) or SkillRegistry.from_package()
     rendered = _render_active_pack_skills(project_root, shipped)
-    staged = _stage(project_root, rendered)
+    staged = _stage(project_root, rendered) if stage else _stage_read_only(rendered)
     if staged is None:
         return shipped
     return _MergedSkillRegistry(shipped, staged, {item.prepared.rendered_name: item.prepared for item in rendered}, project_root)
@@ -154,7 +162,7 @@ def _stage(project_root: Path, rendered: list[_Rendered]) -> SkillRegistry | Non
     if root.is_symlink() or (root.exists() and not root.is_dir()):
         raise PackSkillCatalogError(f"pack-skill staging root is not a regular directory: {root}")
     if not rendered:
-        if root.exists():
+        if root.is_dir() and any(root.iterdir()):
             shutil.rmtree(root)
         return None
     wanted = {item.prepared.rendered_name for item in rendered}
@@ -162,6 +170,17 @@ def _stage(project_root: Path, rendered: list[_Rendered]) -> SkillRegistry | Non
         for child in sorted(root.iterdir()):
             if child.name not in wanted:
                 _remove_node(child)
+    for item in rendered:
+        _write_staged(root / item.prepared.rendered_name / _SKILL_FILENAME, item.text)
+    return SkillRegistry(root)
+
+
+def _stage_read_only(rendered: list[_Rendered]) -> SkillRegistry | None:
+    """Render into a temporary root outside the project (removed at interpreter exit)."""
+    if not rendered:
+        return None
+    root = Path(tempfile.mkdtemp(prefix="spec-kitty-pack-skills-"))
+    atexit.register(shutil.rmtree, root, ignore_errors=True)
     for item in rendered:
         _write_staged(root / item.prepared.rendered_name / _SKILL_FILENAME, item.text)
     return SkillRegistry(root)

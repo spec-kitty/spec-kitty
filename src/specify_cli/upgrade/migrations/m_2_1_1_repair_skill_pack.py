@@ -12,11 +12,14 @@ if TYPE_CHECKING:
     from specify_cli.skills.registry import SkillRegistry
 
 
-def _discover_registry(project_path: Path) -> SkillRegistry | None:
-    """Resolve the project's skill catalog (built-in plus pack skills) through the one seam."""
+def _discover_registry(project_path: Path, *, stage: bool = True) -> SkillRegistry | None:
+    """Resolve the project's skill catalog (built-in plus pack skills) through the one seam.
+
+    ``detect`` passes ``stage=False`` (read-only); only ``apply`` stages.
+    """
     from specify_cli.skills.catalog import resolve_project_skill_catalog
 
-    return resolve_project_skill_catalog(project_path)
+    return resolve_project_skill_catalog(project_path, stage=stage)
 
 
 def _get_installable_agents(agent_keys: list[str]) -> list[str]:
@@ -44,6 +47,7 @@ class RepairSkillPackMigration(BaseMigration):
 
     def detect(self, project_path: Path) -> bool:
         """Return True when a project is missing expected managed skill state."""
+        from specify_cli.skills.catalog import PackSkillCatalogError
         from specify_cli.core.agent_config import load_agent_config
         from specify_cli.skills.manifest import load_manifest
         from specify_cli.skills.verifier import verify_installed_skills
@@ -60,7 +64,10 @@ class RepairSkillPackMigration(BaseMigration):
         if not installable_agents:
             return False
 
-        registry = _discover_registry(project_path)
+        try:
+            registry = _discover_registry(project_path, stage=False)
+        except PackSkillCatalogError:
+            return True  # fail closed: apply() reports the broken pack as a migration error
         if registry is None:
             return True
 
@@ -105,7 +112,7 @@ class RepairSkillPackMigration(BaseMigration):
         errors: list[str] = []
 
         try:
-            registry = _discover_registry(project_path)
+            registry = _discover_registry(project_path, stage=not dry_run)
         except PackSkillCatalogError as exc:
             errors.append(f"Pack skills could not be resolved: {exc}")
             return MigrationResult(success=False, changes_made=changes, errors=errors)

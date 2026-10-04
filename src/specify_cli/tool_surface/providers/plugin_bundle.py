@@ -268,7 +268,7 @@ class PluginBundleProvider:
                 continue
             owner_inputs = AssessmentInputs(inputs.root, consent=inputs.consent)
             if provider.provider_key == "managed_skills":
-                installation = assess_skill_installation(owner_inputs, resolve_project_skill_catalog(inputs.root.path),
+                installation = assess_skill_installation(owner_inputs, resolve_project_skill_catalog(inputs.root.path, stage=False),
                                                         tuple(sorted({s.tool_key for s in selections})))
                 owner_inputs = AssessmentInputs(inputs.root, projected=installation, consent=inputs.consent)
             assessment = provider.assess(owner_inputs, (), selections=selections)

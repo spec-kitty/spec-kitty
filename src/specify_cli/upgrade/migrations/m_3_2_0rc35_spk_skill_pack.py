@@ -15,11 +15,14 @@ if TYPE_CHECKING:
     from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 
 
-def _discover_registry(project_path: Path) -> SkillRegistry | None:
-    """Resolve the project's skill catalog (built-in plus pack skills) through the one seam."""
+def _discover_registry(project_path: Path, *, stage: bool = True) -> SkillRegistry | None:
+    """Resolve the project's skill catalog (built-in plus pack skills) through the one seam.
+
+    ``detect`` passes ``stage=False`` (read-only); only ``apply`` stages.
+    """
     from specify_cli.skills.catalog import resolve_project_skill_catalog
 
-    return resolve_project_skill_catalog(project_path)
+    return resolve_project_skill_catalog(project_path, stage=stage)
 
 
 def _installable_agents(project_path: Path) -> list[str]:
@@ -73,10 +76,14 @@ class SpkSkillPackMigration(BaseMigration):
     target_version = "3.2.0rc35"
 
     def detect(self, project_path: Path) -> bool:
+        from specify_cli.skills.catalog import PackSkillCatalogError
         if not (project_path / ".kittify").is_dir():
             return False
 
-        registry = _discover_registry(project_path)
+        try:
+            registry = _discover_registry(project_path, stage=False)
+        except PackSkillCatalogError:
+            return True  # fail closed: apply() reports the broken pack as a migration error
         if registry is None:
             return False
 
@@ -108,7 +115,7 @@ class SpkSkillPackMigration(BaseMigration):
         errors: list[str] = []
 
         try:
-            registry = _discover_registry(project_path)
+            registry = _discover_registry(project_path, stage=not dry_run)
         except PackSkillCatalogError as exc:
             errors.append(f"Pack skills could not be resolved: {exc}")
             return MigrationResult(success=False, changes_made=changes, errors=errors)

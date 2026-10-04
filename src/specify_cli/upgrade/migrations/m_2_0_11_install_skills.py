@@ -59,7 +59,7 @@ class InstallSkillsMigration(BaseMigration):
 
         # Discover skills through the one catalog seam (built-in plus pack skills).
         try:
-            registry = resolve_project_skill_catalog(project_path)
+            registry = resolve_project_skill_catalog(project_path, stage=not dry_run)
         except PackSkillCatalogError as exc:
             errors.append(f"Pack skills could not be resolved: {exc}")
             return MigrationResult(success=False, changes_made=changes, errors=errors)

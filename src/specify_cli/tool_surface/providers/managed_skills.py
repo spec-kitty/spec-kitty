@@ -600,7 +600,7 @@ class ManagedSkillsProvider:
         ids = tuple(_surface_id(status.instance) for status in statuses)
         consent = ApplyConsent(automatic=True)
         try:
-            registry = self._resolve_registry(project_root)
+            registry = self._resolve_registry(project_root, stage=not dry_run)
             if registry is None:
                 return RepairResult(failed=("managed_skills: no canonical skill registry",) + ids, dry_run=dry_run)
             inputs = AssessmentInputs(OperationRoot("project", "project", project_root.absolute()), consent=consent)
@@ -638,7 +638,7 @@ class ManagedSkillsProvider:
         ids: tuple[str, ...],
         unmanifested: bool,
     ) -> RepairResult:
-        registry = self._resolve_registry(project_root)
+        registry = self._resolve_registry(project_root, stage=True)
         if registry is None:
             return RepairResult(
                 failed=("managed_skills: no canonical skill registry",) + ids,
@@ -673,14 +673,14 @@ class ManagedSkillsProvider:
             return RepairResult(failed=("managed_skills: ambiguous legacy repair count",) + ids)
         return RepairResult(repaired=ids, dry_run=False)
 
-    def _catalog_for(self, project_root: Path) -> SkillRegistry:
+    def _catalog_for(self, project_root: Path, *, stage: bool = False) -> SkillRegistry:
         if self._registry_factory is not None:
             return self._registry_factory()
-        return resolve_project_skill_catalog(project_root)
+        return resolve_project_skill_catalog(project_root, stage=stage)
 
-    def _resolve_registry(self, project_root: Path) -> SkillRegistry | None:
+    def _resolve_registry(self, project_root: Path, *, stage: bool = False) -> SkillRegistry | None:
         try:
-            registry = self._catalog_for(project_root)
+            registry = self._catalog_for(project_root, stage=stage)
         except PackSkillCatalogError as exc:
             logger.warning("Pack skills could not be resolved: %s", exc)
             return None

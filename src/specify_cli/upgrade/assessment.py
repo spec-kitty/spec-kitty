@@ -123,7 +123,7 @@ def prepare_upgrade_repairs(project_path: Path, *, consent: ApplyConsent) -> Pre
     builder = SurfacePlanBuilder(build_registry((*agents, PLUGIN_BUNDLE_TOOL_KEY)), providers)
     installation = assess_skill_installation(
         AssessmentInputs(root, projected=provisioning, consent=consent),
-        resolve_project_skill_catalog(root.path),
+        resolve_project_skill_catalog(root.path, stage=False),
         agents,
         runtime=True,
         commands=True,

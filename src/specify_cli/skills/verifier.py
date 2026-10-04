@@ -146,7 +146,7 @@ def _find_source_file(skill_dir: Path, source_file: str) -> Path | None:
 
 def _discover_registry(project_path: Path) -> SkillRegistry | None:
     """Resolve the project's skill catalog (built-in plus pack skills) for drift detection."""
-    return resolve_project_skill_catalog(project_path)
+    return resolve_project_skill_catalog(project_path, stage=False)
 
 
 def _expected_hash(entry: ManagedFileEntry, registry: SkillRegistry | None) -> str | None:
