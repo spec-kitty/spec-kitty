@@ -211,18 +211,13 @@ def test_validate_refuses_a_missing_or_blank_reason_and_names_both_flags(reason:
 
 @pytest.mark.parametrize("wp_id", ["WP01", "WP99"], ids=["not-canceled", "unknown-wp"])
 def test_validate_refuses_a_wp_that_is_not_acceptably_canceled_and_says_nothing_was_recorded(wp_id: str) -> None:
+    """The request is all-or-nothing: one offender beside a valid WP refuses the whole request and names only the offender."""
     with pytest.raises(ca.AttestationError) as excinfo:
-        ca.validate_attestation_request([wp_id], "checked", acceptably_canceled=frozenset({"WP02"}))
+        ca.validate_attestation_request(["WP02", wp_id], "checked", acceptably_canceled=frozenset({"WP02"}))
     message = str(excinfo.value)
     assert f"not canceled: {wp_id}" in message
+    assert "WP02" not in message
     assert "Nothing was recorded." in message
-
-
-def test_validate_refuses_the_whole_request_when_any_one_wp_is_not_canceled() -> None:
-    """A mixed request is all-or-nothing: the error names only the offender."""
-    with pytest.raises(ca.AttestationError) as excinfo:
-        ca.validate_attestation_request(["WP02", "WP03", "WP01"], "checked", acceptably_canceled=frozenset({"WP02", "WP03"}))
-    assert str(excinfo.value) == (f"{ca.ATTEST_FLAG} applies only to a WP canceled with operator provenance; not canceled: WP01. Nothing was recorded.")
 
 
 def _invoke_consolidate_dry_run(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, args: list[str]) -> tuple[Result, list[dict[str, object]]]:

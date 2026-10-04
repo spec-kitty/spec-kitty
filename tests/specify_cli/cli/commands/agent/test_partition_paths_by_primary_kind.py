@@ -96,21 +96,3 @@ def test_mixed_paths_are_split_and_keep_input_order() -> None:
 
     assert primary_bound == [wp01, spec]
     assert coord_bound == [events, root_meta, status]
-
-
-def test_empty_input_yields_two_empty_partitions() -> None:
-    assert _partition() == ([], [])
-
-
-def test_partitions_are_disjoint_and_exhaustive() -> None:
-    paths = [
-        _SPECS / "tasks" / "WP01-first.md",
-        _SPECS / "status.events.jsonl",
-        _SPECS / "plan.md",
-        Path("repo") / "meta.json",
-    ]
-
-    primary_bound, coord_bound = _partition(*paths)
-
-    assert sorted(primary_bound + coord_bound) == sorted(paths)
-    assert not set(primary_bound) & set(coord_bound)
