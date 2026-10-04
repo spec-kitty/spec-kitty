@@ -5816,7 +5816,9 @@ _Show which team admits this checkout and which relay carries its moments._
 │                           [required]                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --message    -m      TEXT  Commit message. [required]                     │
+│ *  --message    -m      TEXT  Commit message. Repeat -m to add paragraphs    │
+│                               (joined by a blank line, as git commit does).  │
+│                               [required]                                     │
 │    --to-branch          TEXT  Short branch name the commit must land on. The │
 │                               helper asserts HEAD matches this branch before │
 │                               staging. When omitted, the current HEAD branch │
@@ -5880,13 +5882,22 @@ _Emit the open-Ops reminder for the Claude Code Stop hook._
 │                           [required]                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --message         -m      TEXT  Commit message. [required]                │
+│ *  --message         -m      TEXT  Commit message. Repeat -m to add          │
+│                                    paragraphs (joined by a blank line, as    │
+│                                    git commit does).                         │
+│                                    [required]                                │
 │    --mission                 TEXT  Mission slug (e.g. '001-my-mission').     │
 │                                    When omitted, the slug is derived from    │
 │                                    the first file argument's                 │
 │                                    kitty-specs/<slug>/ path.                 │
-│    --target-branch           TEXT  Short primary branch name used for the    │
-│                                    post-commit ff-advance (WP09 / FR-010).   │
+│    --target-branch           TEXT  Short TARGET branch name for this Mission │
+│                                    (not the repository-root checkout).       │
+│                                    Passed to the commit router for placement │
+│                                    resolution and, on an --owned-checkout    │
+│                                    run, as the owned checkout's target       │
+│                                    override. No longer used for a            │
+│                                    post-commit fast-forward -- that          │
+│                                    best-effort advance was retired (FR-008). │
 │                                    Optional.                                 │
 │    --json                          Output JSON.                              │
 │    --owned-checkout          PATH  Run against an owned checkout: a linked   │
