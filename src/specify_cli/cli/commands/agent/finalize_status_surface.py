@@ -55,6 +55,7 @@ from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
+from kernel.git import GitCommandError, changed_paths, commit_paths
 from specify_cli.acceptance.matrix import MATRIX_FILENAME
 from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
 from specify_cli.status import (
@@ -96,8 +97,10 @@ def _own_status_paths(status_dir: Path, root: Path) -> frozenset[str]:
 
 def _touches_only(root: Path, commit: str, own_paths: frozenset[str]) -> bool:
     """Whether ``commit`` changes at least one file and every file it changes is in ``own_paths``."""
-    names = _git(root, "diff-tree", "--root", "-r", "--no-commit-id", "--name-only", "-z", commit)
-    touched = {name for name in (names or "").split("\0") if name}
+    try:
+        touched = {path.as_posix() for path in commit_paths(root, commit)}
+    except (GitCommandError, OSError):
+        return False
     return bool(touched) and touched <= own_paths
 
 
@@ -277,10 +280,11 @@ class StatusSurfaceGuard:
         """
         if self.surface_root is None or self.branch is None or self.tip_before is None or self.is_at_tip_before():
             return frozenset()
-        names = _git(self.surface_root, "diff", "--name-only", "-z", self.tip_before, f"refs/heads/{self.branch}")
-        if names is None:
+        try:
+            changed = changed_paths(self.surface_root, self.tip_before, f"refs/heads/{self.branch}")
+        except (GitCommandError, OSError):
             return None
-        return frozenset((self.surface_root / name).resolve() for name in names.split("\0") if name)
+        return frozenset((self.surface_root / path.as_posix()).resolve() for path in changed)
 
     def is_at_tip_before(self) -> bool:
         """Whether the captured branch points where it did before the run (status bytes may then be put back)."""

@@ -34,6 +34,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
+from kernel.git import GitCommandError, GitPath
 from specify_cli.cli.commands.agent import finalize_status_surface
 from specify_cli.cli.commands.agent.mission import app
 from specify_cli.core.checkout_identity import CheckoutIdentity
@@ -685,12 +686,12 @@ def test_final_commit_failure_never_rewrites_a_foreign_commit_and_names_the_seed
         foreign_sha.append(_git(surface, "rev-parse", "HEAD").stdout.strip())
 
     hooks = {"after_status_writes": "before_failing", "during_status_writes": "during_status_writes"}
-    real_git = finalize_status_surface._git
+    real_changed_paths = finalize_status_surface.changed_paths
 
-    def _git_that_cannot_list_a_diff(cwd: Path, *args: str) -> str | None:
-        return None if args[0] == "diff" else real_git(cwd, *args)
+    def _cannot_list_a_diff(cwd: Path, *revs: str) -> tuple[GitPath, ...]:
+        raise GitCommandError(argv=["diff", *revs], cwd=cwd, returncode=128, stderr="fatal: cannot list")
 
-    with patch.object(finalize_status_surface, "_git", side_effect=real_git if kept_files_listable else _git_that_cannot_list_a_diff):
+    with patch.object(finalize_status_surface, "changed_paths", side_effect=real_changed_paths if kept_files_listable else _cannot_list_a_diff):
         exit_code, output = _run_finalize_failing_the_final_commit(root, mission_slug, **{hooks[foreign_commit_lands]: _foreign_commit})
 
     assert exit_code != 0, output
