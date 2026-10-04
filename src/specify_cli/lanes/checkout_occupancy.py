@@ -49,6 +49,31 @@ def _repo_root_lane_wp_ids(feature_dir: Path) -> frozenset[str]:
     return frozenset(wp_id for lane in manifest.lanes if is_repo_root_lane(lane) for wp_id in lane.wp_ids)
 
 
+def _occupancy_candidate_wp_ids(feature_dir: Path) -> frozenset[str]:
+    """Repo-root-lane WP ids of *feature_dir* when its mission can occupy the checkout.
+
+    Empty for every mission that cannot hold the shared write checkout, so the
+    caller reads the status log only for real candidates (filters 1-3 of
+    :func:`in_progress_wps_in_write_checkout`): a mission whose ``meta.json``
+    cannot be read, whose stored topology is not ``single_branch``, that has
+    no WP in a repo-root lane, or that is completed.
+    """
+    from specify_cli.core.paths import MissionMetaReadError
+    from specify_cli.migration.backfill_topology import read_topology
+    from specify_cli.status import is_mission_completed
+
+    try:
+        topology = read_topology(feature_dir)
+    except (FileNotFoundError, MissionMetaReadError, ValueError):
+        return frozenset()
+    if not is_single_branch(topology):
+        return frozenset()
+    repo_root_wp_ids = _repo_root_lane_wp_ids(feature_dir)
+    if not repo_root_wp_ids or is_mission_completed(feature_dir):
+        return frozenset()
+    return repo_root_wp_ids
+
+
 def in_progress_wps_in_write_checkout(
     repo_root: Path,
     write_checkout: Path,
@@ -88,9 +113,7 @@ def in_progress_wps_in_write_checkout(
     never reads as occupancy by another WP (contract's resume exemption).
     """
     from specify_cli.context.mission_resolver import FsMissionResolver
-    from specify_cli.core.paths import MissionMetaReadError
-    from specify_cli.migration.backfill_topology import read_topology
-    from specify_cli.status import Lane, is_mission_completed
+    from specify_cli.status import Lane
     from specify_cli.status import read_events as _read_events
     from specify_cli.status import reduce as _reduce_events
 
@@ -105,15 +128,8 @@ def in_progress_wps_in_write_checkout(
     # lookup would re-walk the tree for every mission (quadratic).
     for mission in FsMissionResolver(repo_root).all_missions():
         mission_slug = mission.mission_slug
-        feature_dir = mission.feature_dir
-        try:
-            topology = read_topology(feature_dir)
-        except (FileNotFoundError, MissionMetaReadError, ValueError):
-            continue
-        if not is_single_branch(topology):
-            continue
-        repo_root_wp_ids = _repo_root_lane_wp_ids(feature_dir)
-        if not repo_root_wp_ids or is_mission_completed(feature_dir):
+        repo_root_wp_ids = _occupancy_candidate_wp_ids(mission.feature_dir)
+        if not repo_root_wp_ids:
             continue
 
         # single_branch has no coordination partition: the status log is read
