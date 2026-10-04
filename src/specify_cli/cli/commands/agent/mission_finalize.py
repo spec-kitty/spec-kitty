@@ -4680,7 +4680,13 @@ def _report_target_branch_revert_failure(revert_error: str | None, *, json_outpu
         console.print(f"[yellow]Warning:[/yellow] failed to revert unpersisted --target-branch override in meta.json: {revert_error}")
 
 
-def _emit_finalize_error_with_revert_note(error: Exception, revert_error: str | None, *, json_output: bool) -> None:
+def _emit_finalize_error_with_revert_note(
+    error: Exception,
+    revert_error: str | None,
+    *,
+    json_output: bool,
+    status_leftover: StatusSurfaceLeftover | None = None,
+) -> None:
     """Phase: emit finalize_tasks's terminal error, folding in a revert-failure note (SK3466-RR-003).
 
     Preserves the existing ``{"error": str(e)}`` / ``[red]Error:[/red]``
@@ -4710,6 +4716,9 @@ def _emit_finalize_error_with_revert_note(error: Exception, revert_error: str | 
             )
         if revert_error:
             error_payload["target_branch_override_revert_error"] = revert_error
+        if status_leftover is not None:
+            # #5641: one envelope on this path, like the meta.json revert note.
+            error_payload["status_commits_not_undone"] = status_leftover.as_payload()
         _emit_json(error_payload)
         return
     console.print(f"[red]Error:[/red] {error}")
@@ -4719,6 +4728,7 @@ def _emit_finalize_error_with_revert_note(error: Exception, revert_error: str | 
             console.print(f"  {lane.lane_id}: {', '.join(lane.wp_ids)}")
     if revert_error:
         console.print(f"[yellow]Warning:[/yellow] failed to revert unpersisted --target-branch override in meta.json: {revert_error}")
+    _report_status_surface_leftover(status_leftover, json_output=False)
 
 
 def _mission_write_scope_files(mission_dir: Path) -> set[Path]:
@@ -5669,8 +5679,7 @@ def finalize_tasks(
             if owned_derived_dir is not None:
                 _restore_mission_write_scope(owned_derived_snapshot, owned_derived_dir)
             status_leftover = _restore_status_surface(status_surface)
-        _emit_finalize_error_with_revert_note(e, revert_error, json_output=json_output)
-        _report_status_surface_leftover(status_leftover, json_output=json_output)
+        _emit_finalize_error_with_revert_note(e, revert_error, json_output=json_output, status_leftover=status_leftover)
         raise typer.Exit(1) from None
     finally:
         _OWNED_ENVELOPE_EXTRAS.reset(envelope_token)
