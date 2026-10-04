@@ -49,6 +49,7 @@ from specify_cli.consolidation.conflict_classifier import (
     classify,
     validate_resolution,
 )
+from specify_cli.state.contract import is_primary_owned_path
 from specify_cli.status import EventLogMergeError, materialize, merge_event_log_texts
 from specify_cli.coordination.coherence import is_coord_residue_churn
 from mission_runtime import (
@@ -66,6 +67,10 @@ _STATUS_JSON_FILENAME = "status.json"
 RULE_ID_STATUS_EVENTS = "R-STATUS-EVENTS-JSONL-UNION"
 RULE_ID_STATUS_JSON = "R-STATUS-JSON-REMATERIALIZE"
 RULE_ID_COORDINATION_ARTIFACT = "R-COORDINATION-ARTIFACT-THEIRS"
+#: Whole-file take-theirs for a primary-owned project-global bookkeeping path
+#: (``is_primary_owned_path``, e.g. ``.kittify/metadata.yaml``): the incoming
+#: coordination / mission branch is closer to the primary branch (#5457).
+RULE_ID_PRIMARY_OWNED = "R-PRIMARY-OWNED-BOOKKEEPING"
 
 # Auto-rebase manages a SUPERSET of the surface-residue set, because two
 # DISTINCT concerns were conflated by the #2070 delegation:
@@ -445,6 +450,10 @@ def _resolve_managed_artifact_conflicts(
             status_json_paths_by_dir[file_path.parent] = file_path
             status_refresh_dirs.add(file_path.parent)
             continue
+        elif is_primary_owned_path(rel_path):
+            classification, halt_reason = _resolve_take_theirs(
+                file_path, worktree, rule_id=RULE_ID_PRIMARY_OWNED
+            )
         elif _is_coordination_owned_artifact(rel_path):
             classification, halt_reason = _resolve_take_theirs(file_path, worktree)
         else:
