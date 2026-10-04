@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "mission_slug": "single-branch-commit-loop-01M43B3T",
+  "mission_id": "01M43B3TEECJ3R4126QPRT052F",
+  "mission_branch": "ccr-ba04d8aa-fx98ee",
+  "target_branch": "ccr-ba04d8aa-fx98ee",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/reference/ci-gate-mechanics.md",
+        "src/specify_cli/cli/commands/agent/tasks_mark_status.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/commit_message.py",
+        "src/specify_cli/cli/commands/safe_commit_cmd.py",
+        "src/specify_cli/cli/commands/spec_commit_cmd.py",
+        "src/specify_cli/coordination/status_transition.py",
+        "src/specify_cli/lanes/implement_support.py",
+        "tests/lanes/test_issue_5459_action_implement_guard.py",
+        "tests/specify_cli/cli/commands/agent/test_issue_5655_single_branch_status_commit.py",
+        "tests/specify_cli/cli/commands/test_issue_5647_repeated_message.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-04T11:36:24.285086+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "424cc7e5a4410165523bd7ed9c5cc9989a198f3f"
+}

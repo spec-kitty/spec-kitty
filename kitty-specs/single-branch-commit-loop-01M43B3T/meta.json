@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-10-04T11:34:52.452730+00:00",
+  "flattened": false,
+  "friendly_name": "single_branch implement/review loop + commit-message hygiene",
+  "mid8": "01M43B3T",
+  "mission_id": "01M43B3TEECJ3R4126QPRT052F",
+  "mission_number": null,
+  "mission_slug": "single-branch-commit-loop-01M43B3T",
+  "mission_type": "software-dev",
+  "purpose_context": "Bundles #5459, #5655, #5647, #5648.",
+  "purpose_tldr": "Make agent action implement and status mutations on single_branch missions governed and clean; fix safe-commit -m and a stale doc.",
+  "slug": "single-branch-commit-loop-01M43B3T",
+  "target_branch": "ccr-ba04d8aa-fx98ee",
+  "topology": "single_branch"
+}

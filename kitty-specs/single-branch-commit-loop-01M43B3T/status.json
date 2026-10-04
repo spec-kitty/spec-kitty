@@ -1,0 +1,43 @@
+{
+  "event_count": 3,
+  "last_event_id": "01M43B6SQXEPXE9ANZ5E73EDBE",
+  "materialized_at": "2026-10-04T11:36:23.037308+00:00",
+  "mission_number": "",
+  "mission_slug": "single-branch-commit-loop-01M43B3T",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 3
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M43B6NV718N263SJA03HCXAK",
+      "last_transition_at": "2026-10-04T11:36:19.047733+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M43B6R43F98B1G36CS3S5FF6",
+      "last_transition_at": "2026-10-04T11:36:21.379858+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M43B6SQXEPXE9ANZ5E73EDBE",
+      "last_transition_at": "2026-10-04T11:36:23.037308+00:00"
+    }
+  }
+}

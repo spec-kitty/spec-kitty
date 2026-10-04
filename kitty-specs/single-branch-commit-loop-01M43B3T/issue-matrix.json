@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#5459": {
+      "evidence_ref": "<link or commit>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "unknown",
+      "wp": null
+    },
+    "#5647": {
+      "evidence_ref": "<link or commit>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "unknown",
+      "wp": null
+    },
+    "#5648": {
+      "evidence_ref": "<link or commit>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "unknown",
+      "wp": null
+    },
+    "#5655": {
+      "evidence_ref": "<link or commit>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "unknown",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
