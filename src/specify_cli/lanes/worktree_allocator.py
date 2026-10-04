@@ -199,7 +199,7 @@ class DestroyedLaneError(StructuredError):
     ``Exception`` (contrast :class:`DirtyWorktreeError` /
     :class:`LaneNotFoundError` above): the orchestrator-api's existing
     ``except (..., RuntimeError)`` arm at
-    ``orchestrator_api/commands.py::_resolve_start_workspace`` must catch this
+    ``orchestrator_api/wp_lifecycle.py::_resolve_start_workspace`` must catch this
     and surface a structured ``LANE_ALLOCATION_FAILED`` envelope rather than a
     raw traceback (NFR-004) -- without any edit to that file (it is outside
     this WP's owned files).
@@ -915,7 +915,7 @@ def _backfill_context_if_missing(
     returns -- honored ``--base``, declared WP dependencies, frontmatter
     updates -- which simply overwrites this best-effort record with the
     fuller one (last-write-wins, no conflict). This backfill exists for the
-    orchestrator-api path (``orchestrator_api/commands.py::_resolve_start_
+    orchestrator-api path (``orchestrator_api/wp_lifecycle.py::_resolve_start_
     workspace``), which calls this function directly and, before WP07, wrote
     NO context at all -- leaving an orchestrator-allocated lane invisible to
     every context-keyed guard, most importantly this module's own destroyed-

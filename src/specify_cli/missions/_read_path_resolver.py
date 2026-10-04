@@ -928,7 +928,7 @@ def resolve_handle_to_read_path(
 
     THE single guarded read-side seam (IC-01; FR-001, FR-004, FR-005-invariant),
     lifted from the working orchestrator prototype
-    (``orchestrator_api/commands.py:_resolve_mission_dir`` + ``_read_primary_meta``).
+    (``orchestrator_api/_common.py:_resolve_mission_dir`` + ``_read_primary_meta``).
     Every read-side migration consumes this so exactly ONE definition exists
     (NFR-004).
 
