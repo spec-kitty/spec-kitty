@@ -1,6 +1,6 @@
 ---
 title: 'ADR: a completed upgrade run reports one outcome'
-description: 'UpgradeOutcome owns the kind, reasons, messages, JSON status, closing line and exit code of every spec-kitty upgrade run that reaches the finalizer; presentation code reads from it and cannot build its own.'
+description: 'The upgrade outcome owns the kind, reasons, messages, JSON status, closing line and exit code of a run; presentation code reads them and cannot build its own.'
 status: Accepted
 date: '2026-10-04'
 updated: '2026-10-04'
