@@ -12,7 +12,10 @@ a WP that is not canceled; the ``--dry-run`` not-applied notice) are pinned at t
 (#5618 part 2): ``tests/consolidation/test_canceled_attestation.py`` and
 ``tests/consolidation/test_reconciliation.py`` go red when the not-canceled check is
 removed, the dry-run notice is dropped, an attested WP no longer lifts the overridable
-REFUSE, or the recorded event loses ``force`` / ``reason_source``.
+REFUSE, or the recorded event loses ``force`` / ``reason_source``. They do NOT go red when
+``executor._record_operator_attestations`` stops recording the flag at all; that is caught by
+``tests/terminus/test_canceled_dependency_fast_forward_verdicts.py`` and
+``tests/terminus/test_mixed_lane_closed_world.py::test_straggler_after_the_attestation_still_refuses``.
 
 Every test drives the REAL ``spec-kitty consolidate`` CLI
 (:func:`tests.terminus.conftest.run_terminus`) against a real on-disk
