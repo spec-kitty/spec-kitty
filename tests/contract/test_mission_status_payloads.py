@@ -716,21 +716,28 @@ def test_history_lists_transitions_only_oldest_first(source: helper.MissionSourc
 
 
 def test_history_is_ordered_by_time_then_event_id_whatever_order_the_log_was_written_in(tmp_path: Path, tools: helper.ContractTools) -> None:
-    """The log is written out of order, and two transitions share an instant with their event ids in the opposite order."""
+    """The log is written out of order, two transitions share an instant with their event ids in the opposite order, and the stamps mix forms.
+
+    Real logs mix ``...00Z`` and ``...00.5+00:00`` stamps: as text the fraction sorts first, as instants it is later. A stamp that is not an
+    instant sorts last, so the contract check can name it instead of the sort raising.
+    """
     t = "2026-09-01T10:{minute}:00+00:00".format
+    genesis_at, claimed_at = "2026-09-01T10:05:00Z", "2026-09-01T10:05:00.5+00:00"
     written_order = [
+        helper.transition_row(5, "WP01", "for_review", "approved", at="not-a-time"),
         helper.transition_row(4, "WP01", "in_progress", "for_review", at=t(minute="08")),
-        helper.transition_row(2, "WP01", "planned", "claimed", at=t(minute="06")),
+        helper.transition_row(2, "WP01", "planned", "claimed", at=claimed_at),
         helper.transition_row(3, "WP01", "claimed", "in_progress", at=t(minute="08")),
-        helper.transition_row(1, "WP01", "genesis", "planned", at=t(minute="05")),
+        helper.transition_row(1, "WP01", "genesis", "planned", at=genesis_at),
     ]
+    assert sorted([genesis_at, claimed_at]) == [claimed_at, genesis_at], "control: as text the later instant sorts first"
     helper.write_fixture_mission(tmp_path, MISSION, work_packages={"WP01": {"dependencies": []}}, rows=written_order)
     shuffled = helper.load_source(tmp_path, MISSION)
     assert [row["event_id"] for row in shuffled.rows if "to_lane" in row] == [row["event_id"] for row in written_order], "the reader keeps the file order"
     _, payloads = _payloads(shuffled, tools)
     history = payloads["WP01"]["history"]
-    assert [entry["eventId"] for entry in history] == [helper.fixture_ulid(1000 + number) for number in (1, 2, 3, 4)]
-    assert [entry["toStatusLane"] for entry in history] == ["planned", "claimed", "in_progress", "for_review"]
+    assert [entry["eventId"] for entry in history] == [helper.fixture_ulid(1000 + number) for number in (1, 2, 3, 4, 5)]
+    assert [entry["toStatusLane"] for entry in history] == ["planned", "claimed", "in_progress", "for_review", "approved"]
     assert history[2]["at"] == history[3]["at"], "the tie is broken by the event id, not by the file order"
 
 

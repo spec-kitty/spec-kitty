@@ -878,6 +878,19 @@ def _cancellation(state: Mapping[str, Any], lane: str | None, projector: Project
     }
 
 
+def _history_order_key(entry: Mapping[str, Any]) -> tuple[int, float, str, str]:
+    """Order by the parsed instant (stamps mix ``Z``, fractions and offsets, so text order is wrong), event id as the tie-break.
+
+    A stamp that is not an instant sorts after every real one, so the contract check names it instead of the sort raising.
+    """
+    stamp = str(entry["at"])
+    try:
+        instant = parse_iso(stamp).timestamp()
+    except ValueError:
+        return (1, 0.0, stamp, str(entry["eventId"]))
+    return (0, instant, "", str(entry["eventId"]))
+
+
 def history_entries(source: MissionSource, wp_id: str, projector: Projector) -> list[dict[str, Any]]:
     """Status transitions of one work package, oldest first by time then event id; no other row kind appears."""
     entries = []
@@ -897,7 +910,7 @@ def history_entries(source: MissionSource, wp_id: str, projector: Projector) -> 
                     "reviewVerdict": verdict,
                 }
             )
-    return sorted(entries, key=lambda item: (str(item["at"]), str(item["eventId"])))
+    return sorted(entries, key=_history_order_key)
 
 
 def build_work_package(source: MissionSource, authored: AuthoredWorkPackage, projector: Projector, *, include_prompt: bool = False) -> dict[str, Any]:
