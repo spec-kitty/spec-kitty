@@ -102,6 +102,9 @@ class SkillExpansion(BaseModel):
             return self
         if self.target.startswith(CLI_TARGET_PREFIX):
             self._validate_cli_target(self.target.removeprefix(CLI_TARGET_PREFIX))
+            # The renderer appends ``args`` to the same ```bash`` line, so it needs the same guard.
+            if _SHELL_METACHARACTERS & set(self.args):
+                raise ValueError("expands_to.args of a cli target must be plain arguments (no shell metacharacters)")
             return self
         raise ValueError(f"expands_to.target {self.target!r} must start with '{BUILTIN_TARGET_PREFIX}' or '{CLI_TARGET_PREFIX}'")
 
