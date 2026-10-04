@@ -377,7 +377,9 @@ Follow [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) for PyPI and GitHub releas
   `WRITE_CHECKOUT_WRONG_BRANCH`, `WRITE_CHECKOUT_OCCUPIED` (another WP is
   `in_progress` in the same write checkout, for a mission whose write branch is
   the branch checked out there; a status copy on any other branch does not
-  count, #5680) or `WRITE_CHECKOUT_DIRTY` (a resume is exempt), all in
+  count, except that a mission whose write branch cannot be determined -- no
+  usable `target_branch`, `meta.json` and `lanes.json` disagreeing, or a
+  detached HEAD -- still counts on every branch, #5550) or `WRITE_CHECKOUT_DIRTY` (a resume is exempt), all in
   `src/specify_cli/lanes/implement_support.py`.
 - **Create-time topology.** On a non-primary branch the create default is `lanes`.
   `single_branch` comes only from `--topology single_branch` or `--owned-checkout`.
