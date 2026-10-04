@@ -102,10 +102,11 @@ def coordination_surface_is_live(feature_dir: Path) -> bool:
       resolver's own existence check: local, remote-tracking and remote);
     * the coordination branch is gone (``CoordinationBranchDeleted``) -- the
       documented degrade, kept so a post-deletion Mission can still be repaired;
-    * there is no repository, no readable ``meta.json`` or no resolvable root.
+    * there is no repository, no ``meta.json`` at all or no resolvable root.
 
     Fail closed: any other ``StatusReadPathNotFound`` (a coord-declared topology
-    whose surface cannot be proven) counts as live. Read-only: the resolver
+    whose surface cannot be proven) counts as live, and so does a ``meta.json`` that
+    exists but is corrupt (``MissionMetaReadError``). Read-only: the resolver
     never writes, materialises or mints a branch.
     """
     from specify_cli.coordination.surface_resolver import (
@@ -122,7 +123,10 @@ def coordination_surface_is_live(feature_dir: Path) -> bool:
             return False
         repo_root = resolve_canonical_root(feature_dir)
         surface = resolve_status_surface_with_anchor(repo_root, feature_dir.name)
-    except (WorkspaceRootNotFound, FileNotFoundError, MissionMetaReadError, CoordinationBranchDeleted):
+    except MissionMetaReadError:
+        # A corrupt meta.json cannot prove the Mission has no coordination surface: refuse.
+        return True
+    except (WorkspaceRootNotFound, FileNotFoundError, CoordinationBranchDeleted):
         # CoordinationBranchDeleted is a StatusReadPathNotFound: keep it ahead of
         # the fail-closed arm by listing it here, in the degrade set.
         return False

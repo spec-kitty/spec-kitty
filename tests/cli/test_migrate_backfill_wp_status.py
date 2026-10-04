@@ -650,3 +650,35 @@ def test_status_json_refresh_failure_is_a_counted_warning_and_exit_stays_0(repo:
     (feature_dir / "status.events.jsonl").write_text((feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines()[0] + "\n", encoding="utf-8")
     human = " ".join(_invoke(repo).output.split())
     assert "warning" in human and "disk full" in human and "Refresh warnings" in human
+
+
+_ID_THREE = "01LTHIRDMISSIONULID000C3"
+_SLUG_THREE = "gamma-mission-01LTHIRD"
+
+
+def test_corrupt_meta_json_is_one_missions_error_and_the_run_carries_on(repo: Path) -> None:
+    """A corrupt ``meta.json`` is a per-Mission ``error``; it never crashes the run or hides the summary (#5579 L2)."""
+    first = _mission(repo, _SLUG_ONE, _ID_ONE)
+    broken = _mission(repo, _SLUG_TWO, _ID_TWO)
+    last = _mission(repo, _SLUG_THREE, _ID_THREE)
+    (broken / "meta.json").write_text("{not json", encoding="utf-8")
+    broken_before = {p.name: p.read_bytes() for p in broken.iterdir() if p.is_file()}
+
+    machine = _invoke(repo, "--json")
+
+    assert machine.exit_code == 1, machine.output
+    assert machine.exception is None or isinstance(machine.exception, SystemExit)
+    payload = _json(machine)  # the whole stdout is one valid JSON document
+    rows = {row["slug"]: row for row in payload["missions"]}
+    assert set(rows) == {_SLUG_ONE, _SLUG_TWO, _SLUG_THREE}
+    assert rows[_SLUG_TWO]["error"] is not None and "MissionMetaReadError" in rows[_SLUG_TWO]["error"]
+    assert rows[_SLUG_TWO]["seeded"] == 0
+    assert rows[_SLUG_ONE]["error"] is None and rows[_SLUG_ONE]["seeded"] == 2
+    assert rows[_SLUG_THREE]["error"] is None and rows[_SLUG_THREE]["seeded"] == 2
+    assert payload["result"] == "errors_present" and payload["summary"]["errors"] == 1
+    assert set(materialize_snapshot(first).work_packages) == set(_THREE)
+    assert set(materialize_snapshot(last).work_packages) == set(_THREE)
+    assert {p.name: p.read_bytes() for p in broken.iterdir() if p.is_file()} == broken_before
+
+    human = _invoke(repo, "--dry-run")
+    assert human.exit_code == 1 and "backfill-wp-status summary" in human.output and "error" in human.output

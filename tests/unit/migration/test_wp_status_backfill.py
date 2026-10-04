@@ -613,6 +613,36 @@ def test_mission_declaring_no_coordination_branch_is_never_live(tmp_path: Path) 
     assert planner.coordination_surface_is_live(tmp_path / "kitty-specs" / "no-meta-at-all") is False
 
 
+def test_corrupt_meta_json_is_refused_as_live_not_waved_through(tmp_path: Path) -> None:
+    """A ``meta.json`` that exists but cannot be read proves nothing, so the probe refuses (#5579 L2)."""
+    feature_dir, _git = _coord_mission(tmp_path, branch_exists=True)
+    (feature_dir / "meta.json").write_text("{not json", encoding="utf-8")
+    before = _log_bytes(feature_dir)
+
+    assert planner.coordination_surface_is_live(feature_dir) is True
+    result = b.apply_wp_status_backfill(feature_dir)
+    assert result.skip_reason is None and result.error is not None and "MissionMetaReadError" in result.error
+    assert _log_bytes(feature_dir) == before
+
+
+def test_meta_corrupted_after_the_plan_still_reports_a_refresh_warning_not_a_crash(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``MissionMetaReadError`` from the post-append ``status.json`` refresh is a warning, like any refresh failure."""
+    from specify_cli.core.paths import MissionMetaReadError
+
+    feature_dir = _build_mission(tmp_path, wp_ids=THREE, seeded=("WP01",))
+    (feature_dir / "status.json").write_text("{}", encoding="utf-8")
+
+    def _corrupt(_dir: Path) -> None:
+        raise MissionMetaReadError(_dir / "meta.json", ValueError("corrupt"))
+
+    monkeypatch.setattr(b, "materialize", _corrupt)
+
+    result = b.apply_wp_status_backfill(feature_dir)
+
+    assert result.error is None and result.seeded == 2
+    assert result.refresh_error is not None and "MissionMetaReadError" in result.refresh_error
+
+
 def test_mission_outside_a_repository_is_not_live(tmp_path: Path) -> None:
     feature_dir = _build_mission(tmp_path, wp_ids=THREE, seeded=("WP01",))
 

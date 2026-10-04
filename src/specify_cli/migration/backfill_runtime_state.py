@@ -1595,6 +1595,11 @@ class WpStatusBackfillResult:
     error: str | None = None
 
 
+#: Per-Mission read failures the WP-status backfill reports instead of raising: an unreadable
+#: event log, an I/O fault, or a ``meta.json`` that exists but is corrupt (fail-closed read).
+_WP_STATUS_MISSION_ERRORS = (StoreError, OSError, MissionMetaReadError)
+
+
 def _wp_status_result(plan: WpStatusPlan, feature_dir: Path, **fields: Any) -> WpStatusBackfillResult:
     """Build a result carrying the plan's gap and evidence plus per-outcome *fields*."""
     return WpStatusBackfillResult(
@@ -1650,7 +1655,7 @@ def apply_wp_status_backfill(
     try:
         with feature_status_lock(lock_root, slug):
             return _apply_wp_status_backfill_locked(feature_dir, dry_run=dry_run, evidence=evidence)
-    except (StoreError, OSError, MissionMetaReadError) as exc:
+    except _WP_STATUS_MISSION_ERRORS as exc:
         return WpStatusBackfillResult(feature_dir=feature_dir, slug=slug, error=f"{type(exc).__name__}: {exc}")
 
 
@@ -1660,12 +1665,12 @@ def _refused_for_live_coordination(feature_dir: Path) -> bool:
     The liveness probe can cost a remote lookup per Mission (a deleted coordination
     branch falls through to the remote-ref primitive), so it only runs for a Mission
     that actually has a WP file the snapshot lacks; a Mission with nothing to seed
-    is reported by the normal path without touching git. An unreadable log is left
-    to the locked path, which reports it as the Mission's error.
+    is reported by the normal path without touching git. An unreadable log or a corrupt
+    ``meta.json`` is left to the locked path, which reports it as the Mission's error.
     """
     try:
         needs_seeding = bool(plan_wp_status_backfill(feature_dir).gap.files_only)
-    except (StoreError, OSError):
+    except _WP_STATUS_MISSION_ERRORS:
         return False
     return needs_seeding and coordination_surface_is_live(feature_dir)
 
@@ -1706,7 +1711,7 @@ def _refresh_snapshot_if_present(feature_dir: Path) -> tuple[bool, str | None]:
         return False, None
     try:
         materialize(feature_dir)
-    except (StoreError, OSError) as exc:
+    except _WP_STATUS_MISSION_ERRORS as exc:
         return False, f"status.json refresh failed after seeding: {type(exc).__name__}: {exc}"
     return True, None
 
