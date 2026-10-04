@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import re
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, replace
@@ -392,6 +393,27 @@ def test_matrix_text_and_json_agree_on_one_outcome(row: _Row, path: str, tmp_pat
         assert text.output.rstrip().splitlines()[-1] == closing
     else:
         assert payload["errors"] == []
+
+
+_AUTO_COMMITTED_PATTERN = re.compile(r"^→ Auto-committed upgrade changes \((\d+) files\)$", re.MULTILINE)
+
+
+@pytest.mark.parametrize("path", [_NO_MIGRATIONS, _MIGRATIONS])
+def test_text_reports_the_auto_commit_of_a_drift_unresolved_run_as_json_does(path: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, quiet: None) -> None:
+    """The churn commit runs before the verdict: a non-success run that committed says so in text too."""
+    row = _Row("drift", ("drift", _NO_WRITES), "drift_unresolved", ("surface_drift",))
+    (text_root, json_root), args = _prepare_state(tmp_path, monkeypatch, row, path, "as-text", "as-json")
+
+    text = _invoke(text_root, args)
+    machine = _invoke(json_root, [*args, "--json"])
+    payload = json.loads(machine.output.strip().splitlines()[-1])
+
+    assert text.exit_code == machine.exit_code == 1, (text.output, machine.output)
+    assert payload["auto_committed"] is True
+    assert payload["auto_commit_paths"]
+    committed_lines = _AUTO_COMMITTED_PATTERN.findall(text.output)
+    assert committed_lines == [str(len(payload["auto_commit_paths"]))], text.output
+    assert text.output.rstrip().splitlines()[-1] == _CLOSING_DRIFT
 
 
 # ---------------------------------------------------------------------------

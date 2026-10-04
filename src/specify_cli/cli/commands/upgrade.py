@@ -936,7 +936,9 @@ def _render_outcome_tail(
 
     A no-op keeps its established layout. Every other kind, on either path, prints
     warnings, then errors, then the manual-review paths, a blank line and the closing
-    line last, so a non-zero exit always shows its reasons before the verdict.
+    line last, so a non-zero exit always shows its reasons before the verdict. The
+    commit line follows the closing line on a success and precedes it otherwise; a
+    dry run never prints it.
     """
     if outcome.kind is UpgradeOutcomeKind.NO_OP:
         _render_no_op_tail(outcome, auto_commit_paths=auto_commit_paths, left_uncommitted=left_uncommitted)
@@ -944,9 +946,14 @@ def _render_outcome_tail(
     _print_upgrade_section(_WARNINGS_HEADER, outcome.warnings(), "  [yellow]![/yellow] ")
     _print_upgrade_section(_ERRORS_HEADER, outcome.errors(), "  [red]✗[/red] ")
     _print_upgrade_section(_MANUAL_REVIEW_HEADER, manual_review_paths, "  [yellow]![/yellow] ")
+    commit_line_applies = not outcome.result.dry_run
+    if commit_line_applies and outcome.kind not in SUCCESS_KINDS:
+        # The churn commit runs before the verdict, so a non-success run can have committed
+        # (JSON says ``auto_committed``); say so before the verdict, which stays last.
+        _print_commit_line(outcome, auto_commit_paths=auto_commit_paths, left_uncommitted=left_uncommitted)
     console.print()
     _print_closing_line(outcome)
-    if outcome.kind in SUCCESS_KINDS and not outcome.result.dry_run:
+    if commit_line_applies and outcome.kind in SUCCESS_KINDS:
         _print_commit_line(outcome, auto_commit_paths=auto_commit_paths, left_uncommitted=left_uncommitted)
 
 
