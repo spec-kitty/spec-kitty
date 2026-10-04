@@ -9217,13 +9217,14 @@ pages:
     - {slug: "upgrade-notes", text: "Upgrade Notes", level: 3}
     - {slug: "added", text: "Added", level: 3}
     - {slug: "fixed", text: "Fixed", level: 3}
+    - {slug: "internal", text: "Internal", level: 3}
     - {slug: "4-0-0rc5-2026-10-02", text: "[4.0.0rc5] - 2026-10-02", level: 2}
     - {slug: "breaking", text: "Breaking", level: 3}
     - {slug: "upgrade-notes-2", text: "Upgrade Notes", level: 3}
     - {slug: "added-2", text: "Added", level: 3}
     - {slug: "changed", text: "Changed", level: 3}
     - {slug: "fixed-2", text: "Fixed", level: 3}
-    - {slug: "internal", text: "Internal", level: 3}
+    - {slug: "internal-2", text: "Internal", level: 3}
     - {slug: "4-0-0rc4-2026-09-21", text: "[4.0.0rc4] - 2026-09-21", level: 2}
     - {slug: "added-3", text: "Added", level: 3}
     - {slug: "fixed-3", text: "Fixed", level: 3}
@@ -9400,26 +9401,26 @@ pages:
     - {slug: "known-limitations-2", text: "Known Limitations", level: 3}
     - {slug: "3-2-0a10-2026-05-04", text: "[3.2.0a10] - 2026-05-04", level: 2}
     - {slug: "fixed-38", text: "Fixed", level: 3}
-    - {slug: "internal-2", text: "Internal", level: 3}
+    - {slug: "internal-3", text: "Internal", level: 3}
     - {slug: "3-2-0a9-2026-05-03", text: "[3.2.0a9] - 2026-05-03", level: 2}
     - {slug: "added-27", text: "Added", level: 3}
     - {slug: "fixed-39", text: "Fixed", level: 3}
-    - {slug: "internal-3", text: "Internal", level: 3}
+    - {slug: "internal-4", text: "Internal", level: 3}
     - {slug: "3-2-0a8-2026-05-01", text: "[3.2.0a8] - 2026-05-01", level: 2}
     - {slug: "fixed-40", text: "Fixed", level: 3}
-    - {slug: "internal-4", text: "Internal", level: 3}
+    - {slug: "internal-5", text: "Internal", level: 3}
     - {slug: "3-2-0a7-2026-05-01", text: "[3.2.0a7] - 2026-05-01", level: 2}
     - {slug: "fixed-41", text: "Fixed", level: 3}
-    - {slug: "internal-5", text: "Internal", level: 3}
+    - {slug: "internal-6", text: "Internal", level: 3}
     - {slug: "3-2-0a6-2026-04-30", text: "[3.2.0a6] - 2026-04-30", level: 2}
     - {slug: "fixed-42", text: "Fixed", level: 3}
-    - {slug: "internal-6", text: "Internal", level: 3}
+    - {slug: "internal-7", text: "Internal", level: 3}
     - {slug: "tranche-2-acceptance-pass-sc-001-sc-008", text: "Tranche-2 acceptance pass (SC-001..SC-008)", level: 3}
     - {slug: "3-2-0a5-2026-04-27", text: "[3.2.0a5] - 2026-04-27", level: 2}
     - {slug: "fixed-43", text: "Fixed", level: 3}
     - {slug: "changed-32", text: "Changed", level: 3}
     - {slug: "removed-3", text: "Removed", level: 3}
-    - {slug: "internal-7", text: "Internal", level: 3}
+    - {slug: "internal-8", text: "Internal", level: 3}
     - {slug: "added-28", text: "Added", level: 3}
     - {slug: "changed-33", text: "Changed", level: 3}
     - {slug: "removed-4", text: "Removed", level: 3}
