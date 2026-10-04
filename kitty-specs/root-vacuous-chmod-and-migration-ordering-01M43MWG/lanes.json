@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "mission_slug": "root-vacuous-chmod-and-migration-ordering-01M43MWG",
+  "mission_id": "01M43MWG7V7EXR0AHJ56WRWXH4",
+  "mission_branch": "claude/happy-rubin-aq1qc6",
+  "target_branch": "claude/happy-rubin-aq1qc6",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/gitignore_manager.py",
+        "tests/cross_cutting/test_gitignore_manager_unit.py",
+        "tests/specify_cli/readiness/test_upgrade_ux_migration.py",
+        "tests/specify_cli/upgrade/migrations/test_provision_kitty_env.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-04T15:01:41.649468+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "7fb50f73bb9b734f6e55f99676d8868ac18b9f8e"
+}
