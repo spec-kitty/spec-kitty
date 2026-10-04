@@ -10,6 +10,7 @@
   "purpose_context": "Implements ADR 2026-09-27-1 slices 0 and 1 (#5193): derive lockstep kind sets from ArtifactKind, then add a charter-activatable skill doctrine kind with activation, a single catalog-composition seam, project-root projection through the managed doctrine-skill installer, reserved namespaces, and drift findings.",
   "purpose_tldr": "Let charter packs ship thin, activatable agent skills projected into project skill roots.",
   "slug": "pack-skills-kind-01M43419",
+  "status_phase": "1",
   "target_branch": "claude/festive-babbage-lhkqac",
   "topology": "single_branch"
 }

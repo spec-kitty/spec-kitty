@@ -1,13 +1,13 @@
 {
-  "event_count": 5,
-  "last_event_id": "01M434BJDAP6NDSJ1YA8QCRWQP",
-  "materialized_at": "2026-10-04T09:36:39.338839+00:00",
+  "event_count": 30,
+  "last_event_id": "01M43HP9H6P957GAVWD0GHT6R7",
+  "materialized_at": "2026-10-04T13:29:42.182687+00:00",
   "mission_number": "",
   "mission_slug": "pack-skills-kind-01M43419",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 0,
+    "approved": 5,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
@@ -15,43 +15,166 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 5
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
-      "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M434BAKF6REQSRDFWKCJQJA6",
-      "last_transition_at": "2026-10-04T09:36:31.343572+00:00"
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M435TWYG62QMPPTRJ7N1QPCM",
+      "last_transition_at": "2026-10-04T10:02:30.224100+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementation commit db55854d; force needed: single_branch claim recorded no claim base (CLI gap, to be filed)",
+        "Review folds applied"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 6071,
+      "shell_pid_created_at": "1791106699.16",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
-      "actor": "finalize-tasks",
-      "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M434BCFZD8ZP8N0RE8V5BB4Z",
-      "last_transition_at": "2026-10-04T09:36:33.279266+00:00"
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4389CVPWMY4X6E47GRHPM66",
+      "last_transition_at": "2026-10-04T10:45:22.422159+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Commits 068083b0..6acc6928; force: single_branch claim-base gap",
+        "Approved by reviewer-renata (opus)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 22209,
+      "shell_pid_created_at": "1791108157.15",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     },
     "WP03": {
-      "actor": "finalize-tasks",
-      "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M434BENE31W544W9QFDFM9WK",
-      "last_transition_at": "2026-10-04T09:36:35.502863+00:00"
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M43AXBB5N0MRQ3B15HBNEFCV",
+      "last_transition_at": "2026-10-04T11:31:13.381076+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP03 commits; force: #5459 claim-base gap",
+        "Approved; remedy fold applied"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 16724,
+      "shell_pid_created_at": "1791110715.47",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
     },
     "WP04": {
-      "actor": "finalize-tasks",
-      "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M434BGMPEAFAQSBGDGMWD4EZ",
-      "last_transition_at": "2026-10-04T09:36:37.526943+00:00"
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M43FBJPP7KN0RWANNCDT5F97",
+      "last_transition_at": "2026-10-04T12:48:53.975029+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP04 commits 00bc3e1f..51560769; force: #5459",
+        "Approved cycle 2 (reviewer-renata)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 6042,
+      "shell_pid_created_at": "1791113466.0",
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
     },
     "WP05": {
-      "actor": "finalize-tasks",
-      "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M434BJDAP6NDSJ1YA8QCRWQP",
-      "last_transition_at": "2026-10-04T09:36:39.338839+00:00"
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M43HP9H6P957GAVWD0GHT6R7",
+      "last_transition_at": "2026-10-04T13:29:42.182687+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP05 commits 883af06b..faa0886d; force: #5459",
+        "Approved cycle 2"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 7475,
+      "shell_pid_created_at": "1791118126.51",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      }
     }
   }
 }

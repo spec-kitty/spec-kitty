@@ -1,7 +1,19 @@
 {
   "rows": {
+    "#2470": {
+      "evidence_ref": "Referenced only as owner-decision supersession note (ADR option 6); not in scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5193": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Slices 0+1 delivered across WP01\u2013WP05 (slice 0: db55854d)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,8 +21,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP04"
     }
   },
   "schema_version": 1
