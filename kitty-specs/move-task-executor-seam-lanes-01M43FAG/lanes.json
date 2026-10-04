@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "mission_slug": "move-task-executor-seam-lanes-01M43FAG",
+  "mission_id": "01M43FAG864Q3M3BQ41NPWDS4C",
+  "mission_branch": "kitty/mission-move-task-executor-seam-lanes-01M43FAG",
+  "target_branch": "claude/move-task-degod-slice-2",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_move_task_gates_seam.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_move_task_seams.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_mark_status.py",
+        "src/specify_cli/coordination/status_transition.py",
+        "tests/git_ops/test_atomic_status_commits_unit.py",
+        "tests/integration/test_owned_checkout_mark_status.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_mark_status.py",
+        "tests/specify_cli/coordination/test_emit_runtime_annotation.py",
+        "tests/specify_cli/orchestrator_api/test_commands_fail_closed.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task_executor.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task_hops.py",
+        "tests/acceptance/test_accept_gate_rejection_cycle.py",
+        "tests/architectural/test_exemption_registry_ratchet.py",
+        "tests/architectural/test_no_read_side_bypass.py",
+        "tests/architectural/test_no_write_side_rederivation.py",
+        "tests/architectural/test_status_events_writes_gate.py",
+        "tests/architectural/test_untrusted_path_containment.py",
+        "tests/architectural/untrusted_path_audit/inventory.md",
+        "tests/consolidation/test_merge_canceled_wp.py",
+        "tests/integration/review/test_verdict_save_topologies.py",
+        "tests/integration/test_2939_move_task_clean_tree_after_rejection.py",
+        "tests/integration/test_review_durability_matrix.py",
+        "tests/review/test_cycle.py",
+        "tests/specify_cli/cli/commands/agent/test_claim_event_source.py",
+        "tests/specify_cli/cli/commands/agent/test_fixmode_ownership_4673.py",
+        "tests/specify_cli/cli/commands/agent/test_move_task_agent_persistence_3029.py",
+        "tests/specify_cli/cli/commands/agent/test_move_task_approval_body_collision.py",
+        "tests/specify_cli/cli/commands/agent/test_move_task_durability.py",
+        "tests/specify_cli/cli/commands/agent/test_move_task_orchestration.py",
+        "tests/specify_cli/cli/commands/agent/test_move_task_rollback_clears_claim.py",
+        "tests/specify_cli/cli/commands/agent/test_move_task_rollback_signal.py",
+        "tests/specify_cli/cli/commands/agent/test_owned_checkout_move_task.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_move_task_authority_staging.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_move_task_executor.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_move_task_hops.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_move_task_seam.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_transition_core.py",
+        "tests/specify_cli/status/test_execution_mode_stamp_paths.py",
+        "tests/status/test_cutover_eligibility.py",
+        "tests/status/test_work_package_lifecycle.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/review/fixtures/parity/_capture.py",
+        "tests/review/test_transition_gate_parity.py",
+        "tests/specify_cli/cli/commands/agent/test_move_task_patch_targets_live.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-04T12:48:52.524353+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "03efe5ff01f8e24d3e4a2efc57c5b5aba6b51325"
+}

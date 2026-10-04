@@ -1,0 +1,50 @@
+{
+  "event_count": 4,
+  "last_event_id": "01M43FBG2D0DTWN8D5RQXRZRW8",
+  "materialized_at": "2026-10-04T12:48:51.277330+00:00",
+  "mission_number": "",
+  "mission_slug": "move-task-executor-seam-lanes-01M43FAG",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 4
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M43FB9XQ47HADKTQZ5JEMM2C",
+      "last_transition_at": "2026-10-04T12:48:44.983137+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M43FBC3S3FRTCWJAKPKXTNSJ",
+      "last_transition_at": "2026-10-04T12:48:47.225688+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M43FBE1V73E7XGV5DC4YNBH3",
+      "last_transition_at": "2026-10-04T12:48:49.211915+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M43FBG2D0DTWN8D5RQXRZRW8",
+      "last_transition_at": "2026-10-04T12:48:51.277330+00:00"
+    }
+  }
+}
