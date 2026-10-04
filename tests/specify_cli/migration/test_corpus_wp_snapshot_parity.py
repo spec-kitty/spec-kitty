@@ -49,7 +49,8 @@ import pytest
 from pydantic import ValidationError
 
 from specify_cli.frontmatter import FrontmatterError
-from specify_cli.migration.wp_status_backfill import coordination_surface_is_live, wp_task_files
+from specify_cli.migration.wp_status_backfill import coordination_surface_is_live
+from specify_cli.status import wp_task_files
 from specify_cli.status.reducer import materialize_snapshot
 from specify_cli.status.store import StoreError
 from specify_cli.status.wp_metadata import read_authored_wp_frontmatter

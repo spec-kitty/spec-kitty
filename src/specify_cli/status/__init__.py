@@ -157,6 +157,7 @@ from .wp_metadata import (
     read_authored_wp_frontmatter,
     read_authored_wp_frontmatter_lenient,
     read_wp_frontmatter,
+    wp_task_files,
 )
 from .wp_status_metadata import (
     WPStatusChangeMetadata,
@@ -441,6 +442,7 @@ __all__ = [
     "read_event_stream_from_text",
     "read_authored_wp_frontmatter",
     "read_authored_wp_frontmatter_lenient",
+    "wp_task_files",
     "CoordAuthorityUnavailable",
     "EventLogMergeError",
     "BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS",

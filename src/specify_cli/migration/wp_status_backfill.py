@@ -35,7 +35,7 @@ from pydantic import ValidationError
 from kernel.clock import UTC, datetime, parse_iso, timedelta
 from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.frontmatter import FrontmatterError
-from specify_cli.status import Lane, StatusEvent, materialize_snapshot, read_authored_wp_frontmatter
+from specify_cli.status import Lane, StatusEvent, materialize_snapshot, read_authored_wp_frontmatter, wp_task_files
 
 from .mission_state import deterministic_ulid
 
@@ -175,19 +175,6 @@ class WpStatusPlan:
     gap: WpGap
     evidence: TerminalEvidence | None
     events: tuple[StatusEvent, ...]
-
-
-def wp_task_files(tasks_dir: Path) -> list[Path]:
-    """The ``tasks/WP*.md`` entries of *tasks_dir*, sorted; ``[]`` when it is absent.
-
-    The match is an explicit, case-sensitive ``startswith("WP")`` / ``endswith(".md")``
-    on the entry name, not ``Path.glob``: glob case sensitivity is platform and
-    Python-version dependent, and a ``wp01.md`` must never count as a WP file on any
-    of them. The corpus gate uses this same filter so the two cannot disagree.
-    """
-    if not tasks_dir.is_dir():
-        return []
-    return sorted(entry for entry in tasks_dir.iterdir() if entry.name.startswith("WP") and entry.name.endswith(".md"))
 
 
 def collect_wp_file_ids(tasks_dir: Path) -> tuple[frozenset[str], tuple[str, ...]]:

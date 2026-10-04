@@ -570,3 +570,29 @@ def test_final_snapshot_skipped_when_feature_dir_holds_no_event_log(tmp_path: Pa
     assert seeded == ["WP01"]
     assert result.newly_seeded == 1
     assert not (feature_dir / "status.json").exists()
+
+
+def test_collect_wp_ids_selects_files_with_the_single_case_sensitive_owner(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """WP-file selection has one owner (#5579 L7): ``wp02.md`` / ``Wp03.md`` are not WP files, on any host filesystem.
+
+    ``Path.glob`` is poisoned so the test cannot pass by leaning on a platform's glob
+    case sensitivity; the names are distinct beyond case so a case-insensitive
+    filesystem keeps all five files apart.
+    """
+    from specify_cli.status.bootstrap import _collect_wp_ids
+    from specify_cli.status.wp_metadata import wp_task_files
+
+    tasks = tmp_path / "tasks"
+    tasks.mkdir()
+    for name, wp_id in (("WP01.md", "WP01"), ("wp02.md", "WP02"), ("Wp03.md", "WP03"), ("XWP04.md", "WP04"), ("WP05.txt", "WP05")):
+        (tasks / name).write_text(f"---\nwork_package_id: {wp_id}\ntitle: t\n---\n", encoding="utf-8")
+
+    def _no_glob(self: Path, pattern: str) -> object:
+        raise AssertionError(f"bootstrap must select WP files through wp_task_files, not Path.glob({pattern!r})")
+
+    monkeypatch.setattr(Path, "glob", _no_glob)
+    result = BootstrapResult()
+
+    assert _collect_wp_ids(tasks, result) == ["WP01"]
+    assert [p.name for p in wp_task_files(tasks)] == ["WP01.md"]
+    assert result.skipped == 0

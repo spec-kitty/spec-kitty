@@ -729,10 +729,25 @@ def read_wp_frontmatter(path: Path) -> tuple[WPMetadata, str]:
     return metadata, body
 
 
+def wp_task_files(tasks_dir: Path) -> list[Path]:
+    """The ``tasks/WP*.md`` entries of *tasks_dir*, sorted; ``[]`` when it is absent.
+
+    The single owner of WP-file selection (bootstrap, the ``backfill-wp-status`` planner
+    and the corpus parity gate all use it). The match is an explicit, case-sensitive
+    ``startswith("WP")`` / ``endswith(".md")`` on the entry name, not ``Path.glob``: glob
+    case sensitivity is platform and Python-version dependent, and a ``wp01.md`` must
+    never count as a WP file on any of them.
+    """
+    if not tasks_dir.is_dir():
+        return []
+    return sorted(entry for entry in tasks_dir.iterdir() if entry.name.startswith("WP") and entry.name.endswith(".md"))
+
+
 __all__ = [
     "WPMetadata",
     "coerce_legacy_dependencies",
     "read_authored_wp_frontmatter",
     "read_authored_wp_frontmatter_lenient",
     "read_wp_frontmatter",
+    "wp_task_files",
 ]

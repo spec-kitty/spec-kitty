@@ -23,7 +23,7 @@ from specify_cli.frontmatter import FrontmatterError
 from specify_cli.status.models import TransitionRequest
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import EVENTS_FILENAME
-from specify_cli.status.wp_metadata import read_wp_frontmatter
+from specify_cli.status.wp_metadata import read_wp_frontmatter, wp_task_files
 
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
@@ -64,7 +64,7 @@ def _collect_wp_ids(tasks_dir: Path, result: BootstrapResult) -> list[str]:
     id here, change it there too.
     """
     wp_ids: list[str] = []
-    for wp_file in sorted(tasks_dir.glob("WP*.md")):
+    for wp_file in wp_task_files(tasks_dir):
         try:
             meta, _body = read_wp_frontmatter(wp_file)
         except (FrontmatterError, ValidationError):
