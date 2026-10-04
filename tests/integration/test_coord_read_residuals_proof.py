@@ -221,25 +221,6 @@ def _spy_seam_read_dir(monkeypatch: pytest.MonkeyPatch, captured: dict[Any, Path
     monkeypatch.setattr(PlacementSeam, "read_dir", _spy)
 
 
-def _spy_seam_write_dir(monkeypatch: pytest.MonkeyPatch, captured: dict[Any, Path]) -> None:
-    """Install a PASS-THROUGH spy over the seam's write-location accessor.
-
-    Records ``kind → location.path`` for every routed write-location lookup while
-    the real routing decision (and any seed/materialization it performs) still
-    happens inside production code (NFR-004: no primary-dir stub).
-    """
-    from mission_runtime import MissionArtifactKind, PlacementSeam, WriteLocation
-
-    real_write_dir = PlacementSeam.write_dir
-
-    def _spy(self: PlacementSeam, kind: MissionArtifactKind) -> WriteLocation:
-        location: WriteLocation = real_write_dir(self, kind)
-        captured[kind] = location.path
-        return location
-
-    monkeypatch.setattr(PlacementSeam, "write_dir", _spy)
-
-
 # ===========================================================================
 # T023 — routed PRIMARY reads return PRIMARY domain values (end-to-end), and
 #        reverting to coord-aware flips the domain value RED.
@@ -457,19 +438,20 @@ def test_executor_status_feature_dir_stays_coord_aware(
     coord_topology_mission_sentinel_meta: CoordTopologyContext,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``_run_lane_based_consolidation`` binds its STATUS ``feature_dir`` off the COORD husk.
+    """``_run_lane_based_consolidation`` threads the COORD husk as its STATUS ``feature_dir``.
 
-    The executor threads ``feature_dir`` (the seam's kind-aware
-    ``write_dir(STATUS_STATE)`` location — the WRITE accessor, ruling Q4 / FR-003,
-    never a read resolver) into ``status_feature_dir`` (the C-001 KEEP STATUS leg).
-    We spy that accessor and the read projection (both pass-through, so the routing
-    decision still happens in production) and short-circuit just past the PRIMARY
-    reads, then assert the STATUS feature_dir resolves the coord husk — NOT PRIMARY
-    (NFR-001).
+    The outer executor resolves the STATUS location off the seam's write accessor
+    (ruling Q4 / FR-003, never a read resolver) and hands it to
+    ``_run_lane_based_consolidation_locked`` as ``feature_dir`` (the C-001 KEEP
+    STATUS leg: done bookkeeping, birth cutover, status reads). We stop the probe
+    AT that call and assert the value it was actually given is the coord husk,
+    NOT PRIMARY (NFR-001), so a later re-resolution of ``feature_dir`` off any
+    other kind goes red.
 
-    The spy is kind-keyed, so it ALSO pins the per-leg split the executor depends
-    on: the same seam hands back PRIMARY for ``LANE_STATE`` / ``PRIMARY_METADATA``
-    in the very same call, which a kind-blind stub would have flattened away.
+    The read spy is pass-through and kind-keyed, so it ALSO pins the per-leg
+    split the executor depends on: the same seam hands back PRIMARY for
+    ``LANE_STATE`` / ``PRIMARY_METADATA`` in the very same call, which a
+    kind-blind stub would have flattened away.
     """
     from mission_runtime import MissionArtifactKind
     from specify_cli.consolidation import executor
@@ -478,15 +460,16 @@ def test_executor_status_feature_dir_stays_coord_aware(
     _assert_divergence_triad(ctx)
 
     captured: dict[Any, Path] = {}
-    write_captured: dict[Any, Path] = {}
     _spy_seam_read_dir(monkeypatch, captured)
-    _spy_seam_write_dir(monkeypatch, write_captured)
     monkeypatch.setattr(executor, "require_no_sparse_checkout", lambda **kwargs: None)
 
-    def _stop(*_args: Any, **_kwargs: Any) -> NoReturn:
+    locked_kwargs: dict[str, Any] = {}
+
+    def _stop(*_args: Any, **kwargs: Any) -> NoReturn:
+        locked_kwargs.update(kwargs)
         raise _StopProbe
 
-    monkeypatch.setattr(executor, "_effective_push_requested", _stop)
+    monkeypatch.setattr(executor, "_run_lane_based_consolidation_locked", _stop)
 
     with pytest.raises(_StopProbe):
         executor._run_lane_based_consolidation(
@@ -497,10 +480,8 @@ def test_executor_status_feature_dir_stays_coord_aware(
             remove_worktree=False,
         )
 
-    # The STATUS leg comes from the WRITE accessor (ruling Q4, FR-003), never
-    # from a read resolver.
-    assert MissionArtifactKind.STATUS_STATE not in captured, "the executor STATUS feature_dir must come from write_dir, not read_dir"
-    status_dir = write_captured.get(MissionArtifactKind.STATUS_STATE)
+    # The value the executor actually THREADS into the locked driver.
+    status_dir = locked_kwargs["feature_dir"]
     assert status_dir == ctx.coord_feature_dir, f"NFR-001: the executor STATUS feature_dir must resolve the COORD husk; got {status_dir!r}"
     assert status_dir != ctx.primary_feature_dir
     # The per-leg split, same call: the PRIMARY-partition kinds must NOT follow
