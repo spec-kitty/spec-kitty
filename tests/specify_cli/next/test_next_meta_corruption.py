@@ -3,7 +3,10 @@ mission ``meta.json`` (#4642 -- fixed; this is a permanent guard).
 
 The per-mode guard lives in ``test_next_cmd_meta_dispatch.py``: stub-level units
 for ``_dispatch_query_mode`` and ``_dispatch_advancing_mode`` (plain and
-``--json``).  This file keeps ONE end-to-end smoke through the real entry point.
+``--json``).  This file keeps ONE end-to-end smoke through the real entry point, run in advancing
+mode (``--result``): it also exercises the lifecycle-pairing step that runs before
+``decide_next``, which the unit seams stub out, while query mode is fully covered
+by the units.
 
 Root cause (history): the corrupt-meta decode escaped DOWNSTREAM of the
 slug-resolution guard in ``next_cmd.py`` via
@@ -11,7 +14,7 @@ slug-resolution guard in ``next_cmd.py`` via
 ``MissionMetaReadError`` subclasses ``RuntimeError`` (not ``ValueError``), so it
 also slipped past the existing ``except ValueError`` arm.
 
-The smoke drives the REAL ``spec-kitty next --mission <slug> --json`` path via
+The smoke drives the REAL ``spec-kitty next --mission <slug> --agent <a> --result success --json`` path via
 ``typer.testing.CliRunner`` against a mission whose ``meta.json`` is malformed,
 asserting exit 1 with a clean JSON diagnostic -- never an uncaught traceback.
 """
@@ -111,13 +114,13 @@ class TestNextMetaCorruptionFailsClosed:
     """`spec-kitty next` on a corrupt ``meta.json`` must exit 1 with a clean
     diagnostic -- never an uncaught traceback (#4642)."""
 
-    def test_malformed_json_query_mode_json_output(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_malformed_json_advancing_mode_json_output(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         repo_root = _scaffold_project(tmp_path)
         monkeypatch.chdir(repo_root)
         meta_path = _meta_path(repo_root)
         meta_path.write_text("{not valid json", encoding="utf-8")
 
-        result = runner.invoke(cli_app, ["next", "--mission", _MISSION_SLUG, "--json"])
+        result = runner.invoke(cli_app, ["next", "--mission", _MISSION_SLUG, "--agent", "test-agent", "--result", "success", "--json"])
 
         assert result.exit_code == 1, f"expected exit 1, got {result.exit_code}; output={result.output!r}"
         assert result.exception is None or isinstance(result.exception, SystemExit), (
