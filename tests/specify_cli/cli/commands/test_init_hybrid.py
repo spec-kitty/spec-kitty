@@ -145,7 +145,6 @@ class TestHybridInstallOutputShape:
 
         claude_dir = project / ".claude" / "commands"
         shim_files = list(claude_dir.glob("spec-kitty.*.md"))
-        assert len(shim_files) == len(CLI_DRIVEN_COMMANDS), f"Expected {len(CLI_DRIVEN_COMMANDS)} shim files, got {len(shim_files)}: {[f.name for f in shim_files]}"
         assert {f.stem.removeprefix("spec-kitty.") for f in shim_files} == set(CLI_DRIVEN_COMMANDS)
 
         for f in shim_files:
@@ -198,8 +197,6 @@ class TestHybridInstallOutputShape:
         # is not a registry-classified command; every other name follows the registry.
         fixture_only_prompts = {"checklist"}
         expected_names = set(PROMPT_DRIVEN_COMMANDS) | set(CLI_DRIVEN_COMMANDS) | fixture_only_prompts
-        expected_total = len(PROMPT_DRIVEN_COMMANDS) + len(fixture_only_prompts) + len(CLI_DRIVEN_COMMANDS)
-        assert len(all_files) == expected_total, f"Expected {expected_total} files total, got {len(all_files)}: {sorted(all_files.keys())}"
         assert set(all_files) == expected_names
 
         # Prompt-driven commands: full prompts (>=100 lines)
