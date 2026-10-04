@@ -414,6 +414,15 @@ def test_sync_create_missing_restores_vibe_pointer_without_touching_manifest(
     assert manifest.read_bytes() == manifest_before
 
 
+@pytest.mark.parametrize("agent_key", ["codex", "pi", "letta"])
+def test_restore_installed_skill_agent_pointer_ignores_non_vibe_agents(tmp_path: Path, agent_key: str) -> None:
+    """Only vibe has a ``.vibe/config.toml`` pointer; other skill agents are left alone."""
+    from specify_cli.cli.commands.agent.config import _restore_installed_skill_agent_pointer
+
+    assert _restore_installed_skill_agent_pointer(tmp_path, agent_key) == (False, None)
+    assert not (tmp_path / ".vibe").exists()
+
+
 def test_sync_create_missing_reports_unrestorable_vibe_pointer(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A corrupt ``.vibe/config.toml`` is reported as an error and left untouched.
 
