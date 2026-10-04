@@ -30,6 +30,27 @@ from ._common import (
 )
 
 
+# ---------------------------------------------------------------------------
+# Command: design-status (WP06, FR-010)
+#
+# A narrow, design-phase-only reduction over on-disk artifact presence
+# (spec.md/plan.md/tasks/-finalized/analysis-report.md, all PRIMARY-partition)
+# and the decisions/index.json ledger (COORD-partition) -- spec Clarification
+# 6. Mirrors list-ready's own "no state transition, no event emission"
+# read-only contract: no --policy required, reduces state rather than
+# invoking the full DAG engines.
+#
+# HARD CONSTRAINT (Clarification 6): never import or call
+# resolve_next_workflow_action (_internal_runtime/planner.py) or
+# decide_next/_resolve_next_unified_step/runtime_bridge.query_current_state --
+# both return a WP-loop/run-state-shaped payload (action/wp_id/prompt_file),
+# not FR-010's four design-phase fields, and decide_next's query path
+# materializes/reads a runtime run (get_or_start_run) as a side effect this
+# read-only verb must not depend on. A reviewer should reject any import of
+# either.
+# ---------------------------------------------------------------------------
+
+
 def _tasks_are_finalized(mission_dir: Path) -> bool:
     """True once ``finalize-tasks`` has bootstrapped canonical status for at
     least one WP -- the SAME signal ``bootstrap_canonical_state``

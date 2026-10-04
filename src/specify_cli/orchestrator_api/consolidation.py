@@ -477,7 +477,7 @@ def _execute_lane_merge(
     )
 
 
-# ── Command 1: contract-version ────────────────────────────────────────────
+# ── Command 8: accept-mission ──────────────────────────────────────────────
 
 
 def _readiness_failure_payload(mission_dir: Path, summary: AcceptanceSummary) -> dict[str, object]:
@@ -730,13 +730,3 @@ def consolidate_mission(
         data=data,
     )
     _emit(envelope)
-
-
-# ── specify / plan / tasks (WP03) ────────────────────────────────────────
-#
-# Thin, in-process adapters over the SAME JSON-mode service functions the
-# host CLI's own ``specify``/``plan``/``tasks`` shims
-# (``specify_cli.cli.commands.lifecycle``) already delegate to. NEVER shell
-# out to the host CLI: each verb captures the delegate's single ``--json``
-# stdout line, then re-emits it (enriched for ``specify``, raw for
-# ``plan``/``tasks``) inside the canonical orchestrator-api envelope.

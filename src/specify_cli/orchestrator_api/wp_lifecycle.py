@@ -81,6 +81,9 @@ def _resolve_wp_file(tasks_dir: Path, wp_id: str) -> Path | None:
     return None
 
 
+# ── Command 4: start-implementation ────────────────────────────────────────
+
+
 @dataclass(frozen=True)
 class _StartWorkspace:
     """The workspace resolved for a WP at start-implementation.
@@ -936,6 +939,3 @@ def append_history(
         data=data,
     )
     _emit(envelope)
-
-
-# ── Command 8: accept-mission ──────────────────────────────────────────────

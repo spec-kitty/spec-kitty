@@ -86,6 +86,16 @@ def _plan_contract_error(error_code: str, error_data: dict[str, Any]) -> tuple[s
     return _PLAN_SETUP_FAILED_FALLBACK, {**error_data, "reason": error_code}
 
 
+# ── specify / plan / tasks (WP03) ────────────────────────────────────────
+#
+# Thin, in-process adapters over the SAME JSON-mode service functions the
+# host CLI's own ``specify``/``plan``/``tasks`` shims
+# (``specify_cli.cli.commands.lifecycle``) already delegate to. NEVER shell
+# out to the host CLI: each verb captures the delegate's single ``--json``
+# stdout line, then re-emits it (enriched for ``specify``, raw for
+# ``plan``/``tasks``) inside the canonical orchestrator-api envelope.
+
+
 def _extract_json_payload(raw_output: str) -> dict[str, Any] | None:
     """Parse the one JSON object a delegate command printed to its stdout.
 
@@ -906,23 +916,3 @@ def record_analysis(
     elif write_outcome.raised is not None:
         failure_data["underlying_call_error"] = str(write_outcome.raised)
     _fail(cmd, error_code, message, failure_data)
-
-
-# ── Commands 15-18: open/resolve/defer/cancel-decision (Mechanism A) ────────
-#
-# WP05: OriginFlow-keyed decisions/index.json ledger verbs (FR-006/007/008/
-# 009, FR-012, C-001/003). Wrap ``decisions/service.py``'s four pure
-# functions 1:1 -- the SAME functions the host-CLI ``spec-kitty agent
-# decision open|resolve|defer|cancel`` subcommands call
-# (``cli/commands/decision.py``). Deliberately do NOT reuse
-# ``decision.py``'s own ``_open_response_to_dict``/``_terminal_response_to_dict``/
-# ``_handle_decision_error`` helpers -- those are CLI-layer presentation code;
-# this WP shapes its own ``data`` dict independently and translates
-# ``DecisionError`` into this module's ``_fail``/``make_envelope`` shape,
-# matching how ``start-review`` independently shapes its own response rather
-# than reusing ``next_cmd.py``'s print helpers.
-#
-# Mechanism A only (spec Clarification 3): unrelated to WP08's
-# ``answer-decision`` (run-snapshot ``pending_decisions``, no ``OriginFlow``
-# concept at all) -- FR-012's ``INVALID_ORIGIN_FLOW`` guard below must NEVER
-# be applied to that verb.

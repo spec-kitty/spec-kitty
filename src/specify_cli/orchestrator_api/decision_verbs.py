@@ -129,6 +129,25 @@ def _fail_decision_event_log_unreadable(cmd: str, mission: str, exc: DecisionEve
     )
 
 
+# ── Commands 15-18: open/resolve/defer/cancel-decision (Mechanism A) ────────
+#
+# WP05: OriginFlow-keyed decisions/index.json ledger verbs (FR-006/007/008/
+# 009, FR-012, C-001/003). Wrap ``decisions/service.py``'s four pure
+# functions 1:1 -- the SAME functions the host-CLI ``spec-kitty agent
+# decision open|resolve|defer|cancel`` subcommands call
+# (``cli/commands/decision.py``). Deliberately do NOT reuse
+# ``decision.py``'s own ``_open_response_to_dict``/``_terminal_response_to_dict``/
+# ``_handle_decision_error`` helpers -- those are CLI-layer presentation code;
+# this WP shapes its own ``data`` dict independently and translates
+# ``DecisionError`` into this module's ``_fail``/``make_envelope`` shape,
+# matching how ``start-review`` independently shapes its own response rather
+# than reusing ``next_cmd.py``'s print helpers.
+#
+# Mechanism A only (spec Clarification 3): unrelated to WP08's
+# ``answer-decision`` (run-snapshot ``pending_decisions``, no ``OriginFlow``
+# concept at all) -- FR-012's ``INVALID_ORIGIN_FLOW`` guard below must NEVER
+# be applied to that verb.
+
 _HELP_DECISION_ID = "Decision ledger entry ID (ULID)"
 _HELP_ORIGIN_FLOW = "Origin flow: charter | specify | plan"
 _HELP_RATIONALE_REQUIRED = "Explanation of why (required)"
@@ -714,24 +733,3 @@ def answer_decision(
     validate_outbound_payload(data, "orchestrator_api")
     envelope = make_envelope(command=cmd, success=True, data=data)
     _emit(envelope)
-
-
-# ---------------------------------------------------------------------------
-# Command: design-status (WP06, FR-010)
-#
-# A narrow, design-phase-only reduction over on-disk artifact presence
-# (spec.md/plan.md/tasks/-finalized/analysis-report.md, all PRIMARY-partition)
-# and the decisions/index.json ledger (COORD-partition) -- spec Clarification
-# 6. Mirrors list-ready's own "no state transition, no event emission"
-# read-only contract: no --policy required, reduces state rather than
-# invoking the full DAG engines.
-#
-# HARD CONSTRAINT (Clarification 6): never import or call
-# resolve_next_workflow_action (_internal_runtime/planner.py) or
-# decide_next/_resolve_next_unified_step/runtime_bridge.query_current_state --
-# both return a WP-loop/run-state-shaped payload (action/wp_id/prompt_file),
-# not FR-010's four design-phase fields, and decide_next's query path
-# materializes/reads a runtime run (get_or_start_run) as a side effect this
-# read-only verb must not depend on. A reviewer should reject any import of
-# either.
-# ---------------------------------------------------------------------------

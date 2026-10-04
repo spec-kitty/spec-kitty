@@ -297,6 +297,9 @@ app = typer.Typer(
 )
 
 
+# ── Command 1: contract-version ────────────────────────────────────────────
+
+
 @app.command(name="contract-version")
 def contract_version(
     provider_version: str = typer.Option(
@@ -475,9 +478,6 @@ def list_ready(
         data=data,
     )
     _emit(envelope)
-
-
-# ── Command 4: start-implementation ────────────────────────────────────────
 
 
 # ── Command table ───────────────────────────────────────────────────────────
