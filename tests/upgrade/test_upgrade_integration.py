@@ -215,12 +215,11 @@ def test_failed_run_exit_code_equals_outcome_exit_code_human_mode(tmp_path: Path
     result = _run_upgrade(["--target", "1.0.0a1", "--yes", "--no-worktrees"], cwd=project)
 
     assert result.exit_code == 1
-    # The no-migrations human renderer (_display_no_migrations_results) never
-    # printed an "Upgrade failed." banner even pre-refactor — it surfaces the
-    # error line directly. What matters here is: the error is rendered AND
-    # the exit code is 1, with no stray typer.Exit short-circuiting the tail
-    # before the renderer runs.
+    # The error is rendered AND the run closes on the failure verdict, with no
+    # stray typer.Exit short-circuiting the tail before the renderer runs.
     assert "forced activation failure" in result.output
+    assert result.output.rstrip().splitlines()[-1] == "Upgrade failed."
+    assert "already up to date" not in result.output.lower()
 
 
 # ---------------------------------------------------------------------------

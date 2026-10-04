@@ -122,7 +122,7 @@ def test_surface_repair_is_skipped_when_preparation_raises(tmp_path: Path, monke
 
     result = _invoke(project, _real_run_args(_CURRENT_VERSION))
 
-    assert result.exit_code != 0, result.output  # preparation errors become activation errors
+    assert result.exit_code == 1, result.output  # preparation errors become activation errors
     assert spies.apply_calls == 0  # surface repair skipped
 
 
@@ -149,5 +149,5 @@ def test_surface_repair_is_skipped_after_a_failed_migration(tmp_path: Path, monk
 
     result = _invoke(project, _real_run_args("3.2.0rc38"))
 
-    assert result.exit_code != 0, result.output
+    assert result.exit_code == 1, result.output
     assert spies.apply_calls == 0

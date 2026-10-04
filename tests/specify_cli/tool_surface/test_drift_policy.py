@@ -568,6 +568,13 @@ class TestDriftPolicyViaCli:
         assert target.read_text(encoding="utf-8") == custom, (
             "drifted file must be preserved verbatim under --yes"
         )
+        # #4925: a non-zero exit names its reason and never claims success.
+        assert "Unresolved tool-surface drift in " in result.stdout
+        assert "spec-kitty doctor tool-surfaces" in result.stdout
+        assert "already up to date" not in result.stdout.lower()
+        assert result.stdout.rstrip().splitlines()[-1] == (
+            "Upgrade finished with unresolved tool-surface drift."
+        )
 
     def test_rule4_drifted_reported_only_under_yes_json(
         self,

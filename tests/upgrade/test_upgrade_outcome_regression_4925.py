@@ -1,4 +1,4 @@
-"""Red-first reproduction of GitHub issue #4925 through the real ``upgrade`` command.
+"""The behaviours GitHub issue #4925 broke, pinned through the real ``upgrade`` command.
 
 On an up-to-date project (no migrations pending) with one managed tool-surface
 file that needs the operator's consent before it is overwritten,
@@ -6,10 +6,12 @@ file that needs the operator's consent before it is overwritten,
 exited 1 with no reason. A repair that was not applied at all was worded
 ``Unresolved tool-surface drift in 0 file(s)``.
 
-Both defects are witnessed here through the pre-existing entry point: the
-command is driven with ``CliRunner`` on a real project, and only the prepared
-repair inventory (the input the drift comes from) is shaped by the fixture. The
-outcome object is never constructed by hand.
+Both are exercised here through the pre-existing entry point: the command is
+driven with ``CliRunner`` on a real project, and only the prepared repair
+inventory (the input the drift comes from) is shaped by the fixture. The outcome
+object is never constructed by hand. The fixed behaviour is also a row of the
+outcome matrix in ``test_upgrade_outcome_rendering.py``; these two tests stay as
+the focused, behaviour-named witnesses (they were committed red before the fix).
 """
 
 from __future__ import annotations
@@ -30,7 +32,7 @@ from specify_cli.migration.schema_version import MAX_SUPPORTED_SCHEMA
 from specify_cli.tool_surface.operations import Disposition, OwnerApplyResult, OwnerAssessment
 from specify_cli.upgrade import assessment
 
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _VERSION = "3.2.0rc37"
 _OWNER = "agent_profiles"

@@ -79,10 +79,11 @@ def _upgrade_yes(project: Path, *extra: str) -> tuple[int, str]:
 
 
 def _upgrade_yes_json(project: Path) -> tuple[int, dict[str, Any]]:
-    """Run ``upgrade --yes --json``: the drift report is only machine-visible here.
+    """Run ``upgrade --yes --json`` and decode the payload.
 
-    The human renderer's drift lines do not reach the ``CliRunner`` capture, so
-    the guidance text and the reported paths are asserted from the JSON payload.
+    The machine payload carries the reported paths (``surface_repair``) next to the
+    same error strings the human renderer prints, so both are asserted against the
+    one run state.
     """
     exit_code, output = _upgrade_yes(project, "--json")
     return exit_code, json.loads(output)
@@ -120,6 +121,8 @@ def test_real_edit_is_kept_and_reported_by_unattended_upgrade(project: Path) -> 
 
     human_exit, human_output = _upgrade_yes(project)
     assert human_exit != 0, human_output
+    assert f"{_DRIFT_BANNER} in 1 file(s)" in human_output, human_output
+    assert "already up to date" not in human_output.lower(), human_output
     json_exit, payload = _upgrade_yes_json(project)
 
     assert json_exit != 0, payload

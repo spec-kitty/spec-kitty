@@ -144,6 +144,9 @@ def test_upgrade_with_yes_does_not_overwrite_drifted(tmp_path: Path) -> None:
     assert drifted_path.read_text(encoding="utf-8") == custom_content, (
         "drifted file must not be overwritten by --yes"
     )
+    # #4925: the exit code is explained, and the run does not claim success.
+    assert "Unresolved tool-surface drift in " in result.stdout
+    assert "already up to date" not in result.stdout.lower()
 
 
 def test_upgrade_refreshes_stale_orientation_block_same_version(tmp_path: Path) -> None:
