@@ -286,6 +286,36 @@ def _skill_agent_already_installed(repo_root: Path, agent_key: str) -> bool:
     return any(agent_key in entry.agents for entry in manifest.entries)
 
 
+def _restore_installed_skill_agent_pointer(repo_root: Path, agent_key: str) -> tuple[bool, str | None]:
+    """Restore the gitignored vibe ``skill_paths`` pointer for an installed agent.
+
+    An already-installed skill agent is never re-run through the installer
+    (that would rewrite the pinned command-skills manifest, #2691), but the
+    ``.vibe/config.toml`` pointer is not part of that manifest: it is an
+    independently missable, gitignored part of the vibe surface (#4433). It is
+    the one thing ``init`` tells the operator to recover with
+    ``sync --create-missing``, so restore it here — and only it.
+
+    Returns ``(restored, error)``; ``(False, None)`` when nothing was needed.
+    """
+    if agent_key != "vibe":
+        return False, None
+
+    from specify_cli.skills.vibe_config import (  # noqa: PLC0415
+        ensure_project_skill_path,
+        skill_path_configured,
+    )
+
+    if skill_path_configured(repo_root):
+        return False, None
+    try:
+        ensure_project_skill_path(repo_root)
+    except (ValueError, OSError) as exc:
+        return False, f"Failed to restore .vibe/config.toml skill_paths pointer: {exc}"
+    console.print("  [green]✓[/green] Restored .vibe/config.toml skill_paths pointer for vibe")
+    return True, None
+
+
 def _check_or_create_configured_agent_dirs(repo_root: Path, config: AgentConfig) -> bool:
     """Check configured managed surfaces and create legacy local dirs if needed."""
     console.print("\n[cyan]Checking for missing directories...[/cyan]")
@@ -309,6 +339,11 @@ def _check_or_create_configured_agent_dirs(repo_root: Path, config: AgentConfig)
         if agent_key in SKILL_ONLY_AGENTS:
             if _skill_agent_already_installed(repo_root, agent_key):
                 console.print(f"  [green]✓[/green] Skill commands present for {agent_key} in .agents/skills/")
+                restored, error = _restore_installed_skill_agent_pointer(repo_root, agent_key)
+                changes_made = restored or changes_made
+                if error:
+                    console.print(f"  [red]✗[/red] {error}")
+                    errors_found = True
                 continue
             ok, error = _register_skill_agent(
                 repo_root,
