@@ -17,14 +17,161 @@ from typing import TYPE_CHECKING
 
 import typer
 
-from mission_runtime import MissionArtifactKind, TopologyManifestMismatch
+from mission_runtime import MissionArtifactKind, MissionTopology, TopologyManifestMismatch
 from mission_runtime import OwnedCheckout
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.ownership.models import OwnershipManifest
 from specify_cli.status import WPMetadata
+from specify_cli.cli.commands.agent.mission_finalize_seams import logger
 
 if TYPE_CHECKING:
     from specify_cli.cli.commands.agent.mission_finalize_planning_pin import PlanningCommitResolution
+    from specify_cli.lanes.compute import LaneMembershipFrozenError
+    from specify_cli.lanes.frozen_membership import FrozenLaneMembership
+
+
+def _status_unreadable_error() -> LaneMembershipFrozenError:
+    """Build the ``status_unreadable`` refusal (#5573 FR-007); the caller chains the cause."""
+    from specify_cli.lanes.compute import LaneMembershipFrozenError
+    from specify_cli.lanes.frozen_membership import MembershipConflict, remedy_for
+
+    conflict = MembershipConflict(reason="status_unreadable", wp_ids=(), recorded_lanes=(), remedy=remedy_for("status_unreadable", ()))
+    error: LaneMembershipFrozenError = LaneMembershipFrozenError((conflict,))
+    return error
+
+
+def _read_started_wp_ids(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None) -> frozenset[str]:
+    """Read the history-started WPs from the status log, read-only and fail-closed (#5573 FR-007).
+
+    An absent event log means nothing started. An unresolvable status surface
+    or an unreadable log (malformed line, bad encoding, I/O error) raises the
+    ``status_unreadable`` refusal: with a lane manifest on disk, "unknown"
+    must never read as "nothing started". Never calls ``materialize()``.
+    """
+    from specify_cli.cli.commands.agent import mission_finalize as _mf
+
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted, StatusReadPathNotFound
+    from specify_cli.lanes.frozen_membership import started_wp_ids
+    from specify_cli.status import StoreError, has_event_log, read_events
+
+    try:
+        read_dir = _mf._resolve_status_read_dir(repo_root, mission_slug, owned=owned)
+    except (FileNotFoundError, ValueError, StatusReadPathNotFound, CoordinationBranchDeleted) as exc:
+        raise _status_unreadable_error() from exc
+    try:
+        if not has_event_log(read_dir):
+            return frozenset()
+        started: frozenset[str] = started_wp_ids(read_events(read_dir))
+    except (StoreError, UnicodeDecodeError, OSError) as exc:
+        raise _status_unreadable_error() from exc
+    return started
+
+
+def _gather_frozen_lane_membership(
+    planning_dir: Path,
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    wp_frontmatters: dict[str, WPMetadata],
+    eligible_wp_ids: frozenset[str],
+    owned: OwnedCheckout | None = None,
+) -> FrozenLaneMembership:
+    """Gather the evidence for the frozen lane membership of started WPs (#5573).
+
+    A first finalize (no ``lanes.json``) reads nothing and constrains nothing.
+    Otherwise the started set comes from the status history
+    (:func:`_read_started_wp_ids`, fail-closed), and the recorded lane work
+    tips are listed (one git call) only when a prior code lane has no
+    history-started member, the only case the tip fallback can change.
+    """
+    from specify_cli.lanes.branch_naming import PLANNING_LANE_ID
+    from specify_cli.lanes.frozen_membership import FrozenLaneMembership, build_frozen_membership
+    from specify_cli.lanes.lane_tip import recorded_tip_branches
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    previous = read_lanes_json(planning_dir)
+    if previous is None:
+        return FrozenLaneMembership.empty()
+    started = _read_started_wp_ids(repo_root, mission_slug, owned=owned)
+    needs_tips = any(lane.lane_id != PLANNING_LANE_ID and started.isdisjoint(lane.wp_ids) for lane in previous.lanes)
+    tipped = recorded_tip_branches(owned.repository_root if owned else repo_root) if needs_tips else frozenset()
+    return build_frozen_membership(
+        previous,
+        started=started,
+        tipped_branches=tipped,
+        present_wp_ids=frozenset(wp_frontmatters),
+        eligible_wp_ids=eligible_wp_ids,
+    )
+
+
+def _preflight_frozen_lane_membership(
+    planning_dir: Path,
+    repo_root: Path,
+    mission_slug: str,
+    meta: dict[str, object] | None,
+    target_branch: str,
+    *,
+    lane_wp_manifests: dict[str, OwnershipManifest],
+    lane_wp_dependencies: dict[str, list[str]],
+    lane_wp_bodies: dict[str, str],
+    wp_frontmatters: dict[str, WPMetadata],
+    eligible_wp_ids: frozenset[str],
+    owned: OwnedCheckout | None = None,
+) -> FrozenLaneMembership:
+    """Refuse, before the first status write, a re-finalize that would move started work (#5573).
+
+    Read-only: gathers the frozen membership and dry-runs ``compute_lanes``
+    with it against the previous manifest, so a
+    :class:`~specify_cli.lanes.compute.LaneMembershipFrozenError` surfaces
+    before any status event or ``lanes.json`` write, ``--validate-only``
+    included. ``SINGLE_BRANCH`` has one repository-root lane and nothing to
+    move. Lane-computation failures other than the frozen refusal are left to
+    the real lane write, which reports them with their existing text (C-003).
+
+    Returns:
+        The membership to thread into the real lane write.
+    """
+    from specify_cli.lanes.branch_naming import InvalidMissionIdentity
+    from specify_cli.lanes.compute import LaneComputationError, LaneMembershipFrozenError, compute_lanes
+    from specify_cli.lanes.frozen_membership import FrozenLaneMembership
+    from specify_cli.lanes.persistence import read_lanes_json
+    from specify_cli.migration.backfill_topology import topology_from_meta
+
+    topology = topology_from_meta(meta or {}, planning_dir)
+    if topology is MissionTopology.SINGLE_BRANCH:
+        return FrozenLaneMembership.empty()
+    frozen = _gather_frozen_lane_membership(
+        planning_dir,
+        repo_root,
+        mission_slug,
+        wp_frontmatters=wp_frontmatters,
+        eligible_wp_ids=eligible_wp_ids,
+        owned=owned,
+    )
+    if frozen.is_empty or not (lane_wp_manifests and lane_wp_dependencies):
+        return frozen
+    raw_mission_id = meta.get("mission_id") if meta else None
+    raw_mission_branch = meta.get("mission_branch") if meta else None
+    try:
+        compute_lanes(
+            dependency_graph=lane_wp_dependencies,
+            ownership_manifests=lane_wp_manifests,
+            mission_slug=mission_slug,
+            target_branch=target_branch,
+            wp_bodies=lane_wp_bodies,
+            mission_id=raw_mission_id if isinstance(raw_mission_id, str) else None,
+            previous_lanes=read_lanes_json(planning_dir),
+            topology=topology,
+            mission_branch=raw_mission_branch if isinstance(raw_mission_branch, str) else None,
+            frozen=frozen,
+        )
+    except LaneMembershipFrozenError:
+        raise
+    except (LaneComputationError, InvalidMissionIdentity) as exc:
+        # Deferred, not swallowed: the real lane write recomputes from the same
+        # inputs, raises this again and renders it with its existing text (C-003).
+        logger.debug("frozen-lane preflight deferred a lane-computation failure to the lane write: %s", exc)
+    return frozen
 
 
 def _compute_and_write_lanes(
@@ -44,6 +191,7 @@ def _compute_and_write_lanes(
     refresh_planning_commit: bool = False,
     allow_orphaned: bool = False,
     planning_sha: PlanningCommitResolution | None = None,
+    frozen: FrozenLaneMembership | None = None,
 ) -> tuple[Path | None, LanesManifest | None, PlanningCommitResolution | None]:
     """Phase: compute execution lanes + write lanes.json + risk report.
 
@@ -118,6 +266,7 @@ def _compute_and_write_lanes(
             mission_id=mission_id,
             topology=topology,
             mission_branch=resolved_mission_branch,
+            frozen=frozen,
         )
     except LaneGlobValidationError as exc:
         glob_result = exc.result

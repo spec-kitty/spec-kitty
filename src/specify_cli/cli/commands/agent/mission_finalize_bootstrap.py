@@ -54,6 +54,7 @@ from specify_cli.cli.commands.agent.mission_parsing import (
 if TYPE_CHECKING:
     from specify_cli.cli.commands.agent.mission_finalize_planning_pin import PlanningCommitResolution
     from specify_cli.cli.commands.agent.mission_finalize_validation import _DependencyResolution
+    from specify_cli.lanes.frozen_membership import FrozenLaneMembership
 from specify_cli.cli.commands.agent.mission_finalize_seams import (
     FINALIZE_TASKS_COMMAND_NAME,
     INVALID_WP_OWNED_FILES_KITTY_SPECS,
@@ -705,10 +706,13 @@ def _emit_validate_only_report(
     owned: OwnedCheckout | None = None,
     planning_sha: PlanningCommitResolution | None = None,
     refresh_status_findings: list[str] | None = None,
+    frozen: FrozenLaneMembership | None = None,
 ) -> None:
     """Phase: emit the --validate-only report (INV-6: zero mutation).
 
-    Runs bootstrap + lane computation in dry-run mode only.
+    Runs bootstrap + lane computation in dry-run mode only. The lane preview
+    reads back the previous ``lanes.json`` and honours *frozen* (#5573), so its
+    ``lane_ids`` match what a real run would write.
     """
 
     from specify_cli.cli.commands.agent import mission_finalize as _mf
@@ -735,6 +739,7 @@ def _emit_validate_only_report(
     )
     if (wp_manifests and wp_dependencies) or all_canceled:
         from specify_cli.lanes.compute import compute_lanes as _compute_lanes_validate
+        from specify_cli.lanes.persistence import read_lanes_json
 
         raw_mission_id = meta.get("mission_id") if meta else None
         mission_id = raw_mission_id if isinstance(raw_mission_id, str) else None
@@ -745,6 +750,8 @@ def _emit_validate_only_report(
             target_branch=target_branch,
             wp_bodies=wp_bodies,
             mission_id=mission_id,
+            previous_lanes=read_lanes_json(planning_dir),
+            frozen=frozen,
         )
         cr_dry = lanes_manifest_dry.collapse_report
         lanes_stats = {

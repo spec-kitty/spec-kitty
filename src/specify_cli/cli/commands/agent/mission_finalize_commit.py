@@ -37,6 +37,8 @@ if TYPE_CHECKING:
     from specify_cli.cli.commands.agent.mission_finalize_bootstrap import _BootstrapState
     from specify_cli.cli.commands.agent.mission_finalize_planning_pin import PlanningCommitResolution
     from specify_cli.cli.commands.agent.mission_finalize_validation import _DependencyResolution
+    from specify_cli.lanes.compute import LaneMembershipFrozenError
+    from specify_cli.lanes.frozen_membership import FrozenLaneMembership
 from specify_cli.cli.commands.agent.finalize_status_surface import StatusSurfaceGuard, StatusSurfaceLeftover
 from specify_cli.cli.commands.agent.mission_finalize_branch_contract import TargetBranchPersistOutcome
 from specify_cli.cli.commands.agent.mission_finalize_seams import FINALIZE_TASKS_COMMAND_NAME, META_JSON_FILENAME, logger
@@ -633,6 +635,7 @@ def _run_commit_pipeline(
     allow_orphaned: bool = False,
     planning_sha: PlanningCommitResolution | None = None,
     status_surface: StatusSurfaceGuard | None = None,
+    frozen: FrozenLaneMembership | None = None,
 ) -> None:
     """Phase: the post-validate-only commit pipeline.
 
@@ -715,6 +718,7 @@ def _run_commit_pipeline(
             refresh_planning_commit=refresh_planning_commit,
             allow_orphaned=allow_orphaned,
             planning_sha=planning_sha,
+            frozen=frozen,
         )
 
         _mf._scaffold_acceptance_matrix_if_lane_based(
@@ -935,12 +939,21 @@ def _emit_finalize_error_with_revert_note(
     """
     from specify_cli.cli.commands.agent import mission_finalize as _mf
 
-    from specify_cli.lanes.compute import LaneDependencyCycleError
+    from specify_cli.lanes.compute import LaneDependencyCycleError, LaneMembershipFrozenError
 
     if json_output:
         error_payload: dict[str, object] = {"error": str(error)}
         if isinstance(error, ActionContextError):
             error_payload["error_code"] = error.code
+        if isinstance(error, LaneMembershipFrozenError):
+            error_payload.update(
+                {
+                    "error_code": error.error_code,
+                    "reason": error.reason,
+                    "conflicts": [conflict.to_dict() for conflict in error.conflicts],
+                    "next_step": error.next_step,
+                }
+            )
         if isinstance(error, LaneDependencyCycleError):
             error_payload.update(
                 {
@@ -967,9 +980,21 @@ def _emit_finalize_error_with_revert_note(
         _mf.console.print(f"  Cycle path: {' -> '.join(error.cycle_path)}")
         for lane in error.cycle_lanes:
             _mf.console.print(f"  {lane.lane_id}: {', '.join(lane.wp_ids)}")
+    if isinstance(error, LaneMembershipFrozenError):
+        _print_membership_conflicts(error)
     if revert_error:
         _mf.console.print(f"[yellow]Warning:[/yellow] failed to revert unpersisted --target-branch override in meta.json: {revert_error}")
     _report_status_surface_leftover(status_leftover, json_output=False)
+
+
+def _print_membership_conflicts(error: LaneMembershipFrozenError) -> None:
+    """Console form of a ``LANE_MEMBERSHIP_FROZEN`` refusal: one line per conflict plus its remedy (#5573)."""
+    from specify_cli.cli.commands.agent import mission_finalize as _mf
+
+    for conflict in error.conflicts:
+        named = ", ".join(f"{wp_id} ({lane_id})" for wp_id, lane_id in conflict.pairs) or ", ".join(conflict.wp_ids)
+        _mf.console.print(f"  {conflict.reason}: {named}" if named else f"  {conflict.reason}")
+        _mf.console.print(f"  Remedy: {conflict.remedy}")
 
 
 def _mission_write_scope_files(mission_dir: Path) -> set[Path]:

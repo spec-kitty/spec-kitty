@@ -54,11 +54,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, cast
+from typing import TYPE_CHECKING, Annotated, cast
 
 import typer
 
 from specify_cli.cli.console import console as console
+
+if TYPE_CHECKING:
+    from specify_cli.lanes.frozen_membership import FrozenLaneMembership
 from kernel.paths import repo_tree_path
 from mission_runtime import ActionContextError, MissionArtifactKind
 from specify_cli.core.checkout_identity import CheckoutIdentity, Intent, resolve_checkout_identity
@@ -221,9 +224,13 @@ from specify_cli.cli.commands.agent.mission_finalize_planning_pin import (
 )
 from specify_cli.cli.commands.agent.mission_finalize_lanes import (
     _compute_and_write_lanes as _compute_and_write_lanes,
+    _gather_frozen_lane_membership as _gather_frozen_lane_membership,
+    _preflight_frozen_lane_membership as _preflight_frozen_lane_membership,
+    _read_started_wp_ids as _read_started_wp_ids,
     _report_parallelization_risk as _report_parallelization_risk,
     _resolve_acceptance_matrix_home as _resolve_acceptance_matrix_home,
     _scaffold_acceptance_matrix_if_lane_based as _scaffold_acceptance_matrix_if_lane_based,
+    _status_unreadable_error as _status_unreadable_error,
 )
 from specify_cli.cli.commands.agent.mission_finalize_commit import (
     OwnedCheckoutCandidateOutsidePlanningError as OwnedCheckoutCandidateOutsidePlanningError,
@@ -244,6 +251,7 @@ from specify_cli.cli.commands.agent.mission_finalize_commit import (
     _finalize_candidate_display_path as _finalize_candidate_display_path,
     _finalize_candidates_dirty as _finalize_candidates_dirty,
     _mission_write_scope_files as _mission_write_scope_files,
+    _print_membership_conflicts as _print_membership_conflicts,
     _report_status_surface_leftover as _report_status_surface_leftover,
     _report_target_branch_revert_failure as _report_target_branch_revert_failure,
     _resolve_finalize_commit_candidates as _resolve_finalize_commit_candidates,
@@ -1296,7 +1304,24 @@ def finalize_tasks(
 
         meta = _read_meta_for_emission(planning_dir)
         _warn_missing_meta(planning_dir, meta, json_output=json_output)
+        # #5573: refuse a re-finalize that would move started work BEFORE the
+        # first status write (``_emit_tasks_started``), ``--validate-only``
+        # included; a refresh-only run never recomputes membership.
+        frozen: FrozenLaneMembership | None = None
         if not refresh_planning_commit:
+            frozen = _preflight_frozen_lane_membership(
+                planning_dir,
+                repo_root,
+                mission_slug,
+                meta,
+                target_branch,
+                lane_wp_manifests=lane_wp_manifests,
+                lane_wp_dependencies=lane_wp_dependencies,
+                lane_wp_bodies=lane_wp_bodies,
+                wp_frontmatters=wp_frontmatters,
+                eligible_wp_ids=frozenset(eligibility.eligible_wp_ids),
+                owned=owned,
+            )
             _emit_tasks_started(
                 mission_slug,
                 state,
@@ -1323,6 +1348,7 @@ def finalize_tasks(
                 **({"owned": owned} if owned else {}),
                 planning_sha=planning_sha,
                 refresh_status_findings=refresh_status_findings,
+                frozen=frozen,
             )
             return
 
@@ -1377,6 +1403,7 @@ def finalize_tasks(
             allow_orphaned=allow_orphaned,
             planning_sha=planning_sha,
             status_surface=status_surface,
+            frozen=frozen,
             **({"owned": owned} if owned else {}),
         )
 
