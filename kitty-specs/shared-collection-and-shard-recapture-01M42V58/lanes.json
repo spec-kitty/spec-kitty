@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "mission_slug": "shared-collection-and-shard-recapture-01M42V58",
+  "mission_id": "01M42V58B793R59V51H1YAA6TB",
+  "mission_branch": "kitty/mission-shared-collection-and-shard-recapture-01M42V58",
+  "target_branch": "issue-5559-shared-collection-and-shard-recapture",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/_gate_coverage.py",
+        "tests/architectural/_universe_store.py",
+        "tests/architectural/test_universe_store.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-charter-shard-recapture.yml",
+        "scripts/ci/recapture_charter_shard_timings.py",
+        "scripts/ci/recapture_shard_timings.py",
+        "tests/ci/test_recapture_charter_shard_timings.py",
+        "tests/ci/test_recapture_shard_timings.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "scripts/ci/collect_universe_prestep.py",
+        "tests/ci/test_collect_universe_prestep.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-nightly.yml",
+        ".github/workflows/ci-router.yml",
+        ".github/workflows/module-tests.yml",
+        "tests/ci/test_ci_workflow_prestep_shape.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-shard-recapture.yml",
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/how-to/pr-landing.md",
+        "docs/development/reference/ci-gate-mechanics.md",
+        "docs/development/testing/testing-parallel.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        ".github/ci-module-registry.yml",
+        ".github/ci-shard-timings.json",
+        "tests/architectural/test_module_length_agreement.py",
+        "tests/architectural/test_shard_capture_provenance.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-f"
+      ],
+      "parallel_group": 4
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "kitty-specs/shared-collection-and-shard-recapture-01M42V58/evidence/ci-measurements.md",
+        "kitty-specs/shared-collection-and-shard-recapture-01M42V58/evidence/local-measurements.md",
+        "kitty-specs/shared-collection-and-shard-recapture-01M42V58/evidence/publish-failure-classification.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 5
+    }
+  ],
+  "computed_at": "2026-10-04T07:28:23.460276+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP07"
+  ],
+  "planning_commit_sha": "654e473472da35b470210b24530dfe38870a971f"
+}

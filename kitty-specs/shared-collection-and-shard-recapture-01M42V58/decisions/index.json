@@ -1,0 +1,105 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-04T06:56:10.107911Z",
+      "decision_id": "01M42V5PVVQ0W5D0SJ60A4X6AA",
+      "final_answer": "Re-scope to cross-job sharing",
+      "input_key": "collection_sharing_boundary",
+      "mission_id": "01M42V58B793R59V51H1YAA6TB",
+      "mission_slug": "shared-collection-and-shard-recapture-01M42V58",
+      "opened_by": "cli",
+      "options": [
+        "Re-scope to cross-job sharing",
+        "Implement as written with an honest claim",
+        "Drop #5559 from the mission",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "The per-PR jobs each run collect_universe() exactly once on separate runners, so a worker-shared cache does not move the cited setup time. How should the mission treat #5559?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T06:56:17.805294Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.collection-sharing-boundary",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-04T06:56:11.705659Z",
+      "decision_id": "01M42V5RDSJN1R0C7R4YKEB0E1",
+      "final_answer": "Recapture all 17 and generalise the scheduled recapture",
+      "input_key": "recapture_extent",
+      "mission_id": "01M42V58B793R59V51H1YAA6TB",
+      "mission_slug": "shared-collection-and-shard-recapture-01M42V58",
+      "opened_by": "cli",
+      "options": [
+        "Recapture all 17 and generalise the scheduled recapture",
+        "Recapture all 17 without automation",
+        "Recapture but keep allowlisted",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "De-allowlisted modules hard-fail the scheduled strict check and only charter is auto-recaptured. How far should the #5561 recapture go?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T06:56:19.350219Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.recapture-extent",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-04T07:03:58.606647Z",
+      "decision_id": "01M42VM0CEBBZHCJEAN4KTDYYC",
+      "final_answer": "Uncontended pre-step in each consuming job",
+      "input_key": "sharing_transport",
+      "mission_id": "01M42V58B793R59V51H1YAA6TB",
+      "mission_slug": "shared-collection-and-shard-recapture-01M42V58",
+      "opened_by": "cli",
+      "options": [
+        "Uncontended pre-step in each consuming job",
+        "Producer job for the battery legs",
+        "Local store only",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "The battery legs (ci-router.yml, Python 3.12) and the ci shard (ci-modules.yml, Python 3.11) run in independent workflows, so one collection per run cannot span all three consumers. Which design should the mission build?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T07:04:01.784574Z",
+      "resolved_by": null,
+      "slot_key": "specify.design.sharing-transport",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-04T07:04:00.214668Z",
+      "decision_id": "01M42VM1YPDQPPGP1FK0W9AECK",
+      "final_answer": "Exit 0 or 1 with a non-empty capture",
+      "input_key": "valid_capture",
+      "mission_id": "01M42V58B793R59V51H1YAA6TB",
+      "mission_slug": "shared-collection-and-shard-recapture-01M42V58",
+      "opened_by": "cli",
+      "options": [
+        "Exit 0 or 1 with a non-empty capture",
+        "Exit 0 only",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "The triage asked for exit_code 0 provenance, but the existing recapture trusts exit 0 or 1 and charter/agent carry exit 1. What counts as a valid capture?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T07:04:03.386031Z",
+      "resolved_by": null,
+      "slot_key": "specify.provenance.valid-capture",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M42V58B793R59V51H1YAA6TB",
+  "version": 1
+}

@@ -1,0 +1,151 @@
+schema_version: 1
+mission_id: 01M42V58B793R59V51H1YAA6TB
+mission_slug: shared-collection-and-shard-recapture-01M42V58
+mission_number: 214
+friendly_name: Shared battery collection and complete shard-timing provenance
+mission_type: software-dev
+target_branch: issue-5559-shared-collection-and-shard-recapture
+created_at: '2026-10-04T11:58:58.173500+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-04T11:58:58.173500+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-002
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-003
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-004
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-012
+not_helpful:
+- id: n-004
+  category: doc
+  summary: analysis-report.md records 6 finding(s)
+  evidence_refs:
+  - e-016
+  details: The analysis-report.md artifact for this mission records 6 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: review_loop
+  summary: WP02 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-013
+  details: WP WP02 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP04 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-014
+  details: WP WP04 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP07 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-015
+  details: WP WP07 was sent back to an earlier lane with documented review feedback 1 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/shared-collection-and-shard-recapture-01M42V58/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/shared-collection-and-shard-recapture-01M42V58/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/shared-collection-and-shard-recapture-01M42V58/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/shared-collection-and-shard-recapture-01M42V58/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/shared-collection-and-shard-recapture-01M42V58/tasks/WP01-collection-key-and-store.md
+- id: e-006
+  kind: file
+  path: kitty-specs/shared-collection-and-shard-recapture-01M42V58/tasks/WP02-pre-step-script-and-reuse-check.md
+- id: e-007
+  kind: file
+  path: kitty-specs/shared-collection-and-shard-recapture-01M42V58/tasks/WP03-pre-test-step-in-workflows.md
+- id: e-008
+  kind: file
+  path: kitty-specs/shared-collection-and-shard-recapture-01M42V58/tasks/WP04-generalised-scheduled-recapture.md
+- id: e-009
+  kind: file
+  path: kitty-specs/shared-collection-and-shard-recapture-01M42V58/tasks/WP05-full-recapture-and-allowlist-removal.md
+- id: e-010
+  kind: file
+  path: kitty-specs/shared-collection-and-shard-recapture-01M42V58/tasks/WP06-workflow-rename-docs-changelog.md
+- id: e-011
+  kind: file
+  path: kitty-specs/shared-collection-and-shard-recapture-01M42V58/tasks/WP07-evidence-and-tracer-assessment.md
+- id: e-012
+  kind: file
+  path: kitty-specs/shared-collection-and-shard-recapture-01M42V58/status.events.jsonl
+- id: e-013
+  kind: event_range
+  path: kitty-specs/shared-collection-and-shard-recapture-01M42V58/status.events.jsonl
+  range: 01M430W70BGC6N1W9TVR19CCYQ
+- id: e-014
+  kind: event_range
+  path: kitty-specs/shared-collection-and-shard-recapture-01M42V58/status.events.jsonl
+  range: 01M42YD8PREKCS095WB5RNP3RQ
+- id: e-015
+  kind: event_range
+  path: kitty-specs/shared-collection-and-shard-recapture-01M42V58/status.events.jsonl
+  range: 01M43BXG8624PN5D7GC1N0BSZJ
+- id: e-016
+  kind: file
+  path: kitty-specs/shared-collection-and-shard-recapture-01M42V58/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

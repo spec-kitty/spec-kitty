@@ -1,0 +1,37 @@
+{
+  "accept_commit": "2632a629df5dc84e9f9fcf92aa8a21b603c6917d",
+  "acceptance_history": [
+    {
+      "accept_commit": "2632a629df5dc84e9f9fcf92aa8a21b603c6917d",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-04T11:53:05.627009+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "47499f4ca67604e37a8ba56a2dcb02ea7d560688"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-04T11:53:05.627009+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "47499f4ca67604e37a8ba56a2dcb02ea7d560688",
+  "baseline_merge_commit": "5c51ba4e470281cd66f06d68644ff1f574ddaee3",
+  "coordination_branch": "kitty/mission-shared-collection-and-shard-recapture-01M42V58",
+  "created_at": "2026-10-04T06:55:55.317870+00:00",
+  "flattened": false,
+  "friendly_name": "Shared battery collection and complete shard-timing provenance",
+  "merged_at": "2026-10-04T11:58:08.037381+00:00",
+  "merged_commit": "55da3194117cb36e035908ad2a5be61236dff713",
+  "mid8": "01M42V58",
+  "mission_id": "01M42V58B793R59V51H1YAA6TB",
+  "mission_number": 214,
+  "mission_slug": "shared-collection-and-shard-recapture-01M42V58",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Three separate per-PR CI jobs each run the same full test-universe collection under worker contention, and its setup time sits close to the 180-second bound for the slowest architectural-battery test. Separately, 17 CI modules still carry shard timings with no measured capture behind them, and only one module is recaptured automatically, so shard counts rest on unproven data and drift after every recapture. This mission shares one keyed collection across jobs and single-job runs, recaptures every module, drains the mismatch allowlist, and extends the scheduled recapture to all modules.",
+  "purpose_tldr": "Collect the test universe once per CI run instead of once per job, and put every CI module's shard timings on measured, self-refreshing data.",
+  "slug": "shared-collection-and-shard-recapture-01M42V58",
+  "status_phase": "1",
+  "target_branch": "issue-5559-shared-collection-and-shard-recapture",
+  "topology": "lanes_with_coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-04T07:29:33.025659+00:00"
+}
