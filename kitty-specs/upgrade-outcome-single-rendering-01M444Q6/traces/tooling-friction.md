@@ -1,0 +1,16 @@
+# Tooling friction
+
+Mission `upgrade-outcome-single-rendering-01M444Q6`. Tooling touched: `spec-kitty agent mission create`, `spec-commit`, `setup-plan`, `gh`, CodeGraph.
+
+- 2026-10-04 — `agent mission create --start-branch` failed once with `safe_commit: failed to stage requested files`. Staging the same three paths by hand succeeded, so the cause was probably a transient index lock; the helper discards git's stderr, so the real reason is not shown. The failed create switched back to the starting branch and deleted the new branch but left the scaffold directory behind; the resume probe then reported it `malformed` (coordination branch declared in `meta.json` but deleted). Removed the orphan directory and retried; the second create succeeded.
+- 2026-10-04 — A grounding subagent ran `upgrade --yes` under the real home directory before switching to an isolated one. Only cache and lock files changed. Briefs that reproduce upgrade behaviour should require an isolated `HOME` from the first command.
+- 2026-10-04 — With the real home, a brand-new project fails `upgrade` because user-global managed skills under `~/.claude/skills` count as drift. Context for the open classification issue; not this mission's scope.
+- 2026-10-04 — `record-analysis` refused because of 20 unrelated untracked files in the checkout (other missions' matrix files, local tool config). Worked around by appending them to `.git/info/exclude` for the duration of the mission, with a backup to restore at hand-off.
+- 2026-10-04 — The tracer files were committed by `spec-commit` to the coordination branch only, leaving untracked duplicates on the topic branch. Removed the duplicates; the coordination worktree is the place to append.
+- 2026-10-04 — `scripts/docs/build_cli_reference.py` defaults to `uv run spec-kitty`, which mission work may not use; a lane implementer cannot regenerate the CLI reference as documented.
+- 2026-10-04 — WP01 implementer: the commit guard prints `ACTIVE_WP_SCOPE_VIOLATION` warnings for out-of-map edits that the ownership-leeway rule allows; warnings only.
+- 2026-10-04 — A review rejection (`move-task --to planned`) resets the subtask completion marks; the next `--to for_review` refuses with "unchecked subtasks" until `mark-status` is run again. The refusal is clear, but the reset is not announced at rejection time.
+- 2026-10-04 — A finished implementer subagent re-delivered its hand-back several times while background test processes of its own wound down; no state changed.
+- 2026-10-04 — `spec-kitty accept` refused until every acceptance-matrix criterion had a verdict; the matrix is seeded with placeholder rows ("TODO: replace with a real acceptance criterion") and nothing earlier in the flow prompts for them. Recorded 18 verdicts with `agent acceptance-verdict`.
+- 2026-10-04 — `consolidate` computed each lane's write scope from the `lanes.json` written at the first `finalize-tasks`; files added to `owned_files` by a later prompt amendment were not in it. No refusal followed, but the forecast under-reports the lane's scope.
+- 2026-10-04 — `scripts/docs/check_docs_freshness.py` needs both the repository root and `src` on `PYTHONPATH` when run without `uv`; with `src` alone it fails importing `scripts`.
