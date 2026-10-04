@@ -1,0 +1,39 @@
+work_packages:
+  - id: WP01
+    title: "Branch-scoped single_branch occupancy with a runnable remedy"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/lanes/checkout_occupancy.py"
+      - "src/specify_cli/lanes/implement_support.py"
+      - "tests/lanes/test_checkout_occupancy.py"
+      - "tests/specify_cli/cli/commands/test_single_branch_implement_refusals.py"
+      - "tests/integration/test_single_branch_write_checkout_e2e.py"
+      - "docs/changelog/CHANGELOG.md"
+      - "docs/context/topology.md"
+      - "CLAUDE.md"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - FR-004
+      - FR-005
+      - FR-006
+      - FR-007
+      - NFR-001
+      - NFR-002
+      - C-001
+      - C-002
+      - C-003
+      - C-004
+      - C-005
+    plan_concern_refs:
+      - IC-01
+      - IC-02
+      - IC-03
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+    prompt_file: "tasks/WP01-branch-scoped-occupancy.md"

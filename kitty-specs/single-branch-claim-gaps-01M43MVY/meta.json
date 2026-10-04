@@ -1,0 +1,16 @@
+{
+  "coordination_branch": "kitty/mission-single-branch-claim-gaps-01M43MVY",
+  "created_at": "2026-10-04T14:25:14.308513+00:00",
+  "flattened": false,
+  "friendly_name": "single_branch claim gaps: stale occupant and claim base",
+  "mid8": "01M43MVY",
+  "mission_id": "01M43MVY8TPQYNA0S9SF057V4C",
+  "mission_number": null,
+  "mission_slug": "single-branch-claim-gaps-01M43MVY",
+  "mission_type": "software-dev",
+  "purpose_context": "single_branch work-package claims are refused WRITE_CHECKOUT_OCCUPIED by an in_progress WP of an already merged mission (#5680), and agent action implement was reported never to record the claim base (#5663). This mission makes occupancy track the live status surface and verifies the claim-base path, so operators can claim single_branch work without --force.",
+  "purpose_tldr": "Stop a finished mission's stale in_progress WP from blocking every single_branch claim, and confirm agent claims record their claim base",
+  "slug": "single-branch-claim-gaps-01M43MVY",
+  "target_branch": "issue-5680-single-branch-claim-gaps",
+  "topology": "coord"
+}

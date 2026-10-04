@@ -1,0 +1,46 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-04T14:26:26.909519Z",
+      "decision_id": "01M43MY6EX66Y6Z68C9NRCKHWH",
+      "final_answer": "Operator brief (dispatch prompt, 2026-10-04): #5663 verify-or-fix, and per grounding it is already fixed by #5659 (pinned by test_action_implement_records_claim_base_and_reaches_review), so close it as a duplicate with that evidence and add no new code. #5680 is fixed red-first through both claim verbs, with paired controls (finished occupant passes, live occupant refuses, same-WP resume allowed). Non-goals: no weakening for live missions; no editing another mission's status log; no new gates.",
+      "input_key": "scope_issues",
+      "mission_id": "01M43MVY8TPQYNA0S9SF057V4C",
+      "mission_slug": "single-branch-claim-gaps-01M43MVY",
+      "opened_by": "cli",
+      "options": [],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which issues are in scope and which delivery shape?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T14:26:39.307775Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-04T14:26:29.875117Z",
+      "decision_id": "01M43MY9BKY2BBJQN4D2GVM436",
+      "final_answer": "Branch-scoped liveness: a WP occupies the write checkout only when its mission's write branch (mission_runtime.single_branch_write_ref over meta.json) is the branch the checkout is on, in addition to the existing is_mission_completed filter. Rationale: a single_branch mission's authoritative status surface is its write branch, so a status copy read on another branch is not live. The operator brief delegates the final choice to plan, where it is recorded with its authority.",
+      "input_key": "occupancy_predicate",
+      "mission_id": "01M43MVY8TPQYNA0S9SF057V4C",
+      "mission_slug": "single-branch-claim-gaps-01M43MVY",
+      "opened_by": "cli",
+      "options": [],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which canonical predicate decides that a mission no longer occupies the write checkout?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T14:26:42.323562Z",
+      "resolved_by": null,
+      "slot_key": "specify.occupancy.predicate",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M43MVY8TPQYNA0S9SF057V4C",
+  "version": 1
+}

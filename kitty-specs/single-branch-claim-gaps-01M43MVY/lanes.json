@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "mission_slug": "single-branch-claim-gaps-01M43MVY",
+  "mission_id": "01M43MVY8TPQYNA0S9SF057V4C",
+  "mission_branch": "kitty/mission-single-branch-claim-gaps-01M43MVY",
+  "target_branch": "issue-5680-single-branch-claim-gaps",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "CLAUDE.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/context/topology.md",
+        "src/specify_cli/lanes/checkout_occupancy.py",
+        "src/specify_cli/lanes/implement_support.py",
+        "tests/integration/test_single_branch_write_checkout_e2e.py",
+        "tests/lanes/test_checkout_occupancy.py",
+        "tests/specify_cli/cli/commands/test_single_branch_implement_refusals.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-04T14:30:28.473548+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "c9ff7e5b32a921154495b699572e0829ec5942ac"
+}
