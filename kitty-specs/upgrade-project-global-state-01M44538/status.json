@@ -1,0 +1,211 @@
+{
+  "event_count": 47,
+  "last_event_id": "01M44GHYF6BW380XMAXZ594ZH8",
+  "materialized_at": "2026-10-04T22:29:05.638570+00:00",
+  "mission_number": "216",
+  "mission_slug": "upgrade-project-global-state-01M44538",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M44GH6VK2EH6RPDKXDEAZ6VS",
+      "last_transition_at": "2026-10-04T22:28:41.459170+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP01: StateSurface.primary_owned + primary_owned_paths/is_primary_owned_path; unit tests; shared older-version/broken-state fixtures with selftest. 108 tests + dead-symbol/ratchet/gitignore gates green.",
+        "Cycle 1 rework. EXPECTED TRANSIENT RED: tests/architectural/test_no_dead_symbols.py reports specify_cli.state.contract.is_primary_owned_path (no production caller until WP03); WP03 acceptance must include that gate going green; no allowlist touched. Selftest now asserts only fix-agnostic facts; defect-observable positive control moves to WP02's own red test over UpgradeObservation (branches_with_divergent_metadata == [] and branches_with_upgrade_commit == []).",
+        "Review cycle 2 passed (reviewer-renata); dead-symbol red only for is_primary_owned_path, accepted until WP03"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP01:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 9122,
+      "shell_pid_created_at": "1791145248.14",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M44GHBMKYG3SJCRY7ZH0H2YW",
+      "last_transition_at": "2026-10-04T22:28:46.355441+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Skip seam in MigrationRunner._upgrade_worktrees via _worktrees_to_upgrade/_is_integrating_worktree (no .git -> not integrating; detached -> integrating; else parse_mission_slug_from_branch). Red 0cf2bab86 before fix 8270fa0d0; re-pins 2f136e3b2. New: test_upgrade_integrating_worktrees.py 5 passed, test_upgrade_live_lanes_cli.py 3 passed (paths A/B/C real CLI). tests/upgrade + selftest + e2e post_state + m_3_2_5: 907 passed, 47 failed (all baseline env reds: preview oracle/cli_contract/witnesses expect <worktree>/.venv). Gates: migration_chain/no_op_stable_writes/layer_rules green; test_no_dead_symbols 2 red on WP01's unwired is_primary_owned_path (lane-base, not WP02). Fast tier 2275 passed. C-001 result/exit untouched.",
+        "Review passed (reviewer-renata): skip seam _is_integrating_worktree/_worktrees_to_upgrade matches fold rule exactly; C-001 diff confined to worktree selection (cli/commands/upgrade.py untouched, result/warnings/exit untouched); red commit 0cf2bab86 verified red for the named defects (6 failed); 125 targeted+gate tests pass; tests/upgrade 47 reds identical on base 4368e36d7 (hard-coded LANE/.venv/bin/python in test_preview_oracle etc.). Non-blocking follow-ups: (1) WP01 fixture writes legacy mission state (feature_slug events, status.json stub, meta.json without created_at/friendly_name/slug) so upgrade repairs it uncommitted and Path A/B need _commit_root_repair - fixture artifact, not SC-001 regression; (2) _upgrade_worktrees C901 24>15 under pre-existing ruff.toml:118 per-file ignore, diff lowered it 25->24; extract after C6 lands. No shared-file overlap with other lanes beyond WP01's inherited fixtures."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 17680,
+      "shell_pid_created_at": "1791150412.58",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M44GHG9SD1DQ6ZNN7J4GCGNK",
+      "last_transition_at": "2026-10-04T22:28:51.129774+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Stale rules: primary-owned + content-identical (tree_entries) overlaps dropped in check_lane_staleness; red-first; half-by-half revert verified (T010 off -> metadata.yaml stale; T011 off -> .gitattributes stale); dead-symbol, exemption-ratchet, git-path-listing gates green; ruff/mypy clean",
+        "Review passed (reviewer-renata): red 0ca0ad563 red for the right reason (stale_files ['.gitattributes','.kittify/metadata.yaml']); predicate called, no literal; tree_entries (mode,oid), fail-safe probe, both-absent handled; Story 5 AS-1 control byte-identical via consolidate_lane_into_mission; both revert legs re-verified red; dead-symbol gate now GREEN; 135 targeted + 728 tests/lanes passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 19234,
+      "shell_pid_created_at": "1791146878.91",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M44GHSXT6FTES37HQZ2PKGH7",
+      "last_transition_at": "2026-10-04T22:29:00.986200+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Merge-site resolver: resolve_primary_owned_conflicts (stage 2 / rm) wired into _run_squash_merge (before status reconcile), the MERGE branch of _merge_branch_into (lane->mission and --strategy merge), and _merge_dependency_lane_tips; abort/reset literals untouched in place. Red-first: 771e03e37 (CLI AS-1/2/3, 5 red), 62559e2ca (MERGE/squash unit, 4 red), d2f2b358c (implement WP02, 1 red). Half-by-half: squash/MERGE/dep/WP03 T010/T011 reverts each turn their scenario red. Tests: new files 24 passed; tests/lanes + fixture selftest 759 passed 1 skipped; tests/consolidation 948+802 passed (5 xfailed, 1 skipped); 6 named gates 143 passed. ruff/format/mypy clean.",
+        "Review passed (reviewer-renata): red CLI tests at 771e03e37 red for right reasons (Merge of ... failed on .kittify/metadata.yaml; TARGET_BRANCH_CONTENT_CONFLICT in dry-run); resolver touches only is_primary_owned_path unmerged paths via cat-file -e :2:, no -X; squash order planning->primary-owned->status; abort/reset literals unchanged, gates green; source-only TARGET_BRANCH_CONTENT_CONFLICT block and .gitattributes stale refusal pass unchanged at base (byte-identical pins); MERGE and dependency revert legs re-verified red; implement.py and destructive-op gate untouched. 214 targeted + 1750 tests/consolidation passed. Follow-up (LOW): fold schema_version/meta.json/WP02-planned fixture patches into the WP01 fixture."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 13834,
+      "shell_pid_created_at": "1791150680.46",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M44GHNNRE8ZN1MKSNFE42B87",
+      "last_transition_at": "2026-10-04T22:28:56.632300+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "R-PRIMARY-OWNED-BOOKKEEPING in the auto-rebase managed-artifact arm: a primary-owned path (is_primary_owned_path) takes stage 3 via the sparse-aware _resolve_take_theirs (rule_id parametrised tidy-first). Red: sync_lane_after_coordination_commit on a lanes_with_coord broken-state fixture. Controls: src/shared.txt conflict refuses with unchanged text; modify/delete removes the path under the rule id. Targeted 94 passed; gates 121 passed (incl. test_no_dead_symbols).",
+        "Review passed (reviewer-renata): tidy-first 099415660 behaviour-preserving (halt texts identical; 40 auto_rebase tests green at that commit); red 0fbd418d3 reproduces exact defect text 'LANE_AUTO_REBASE_FAILED ... no classifier rule matched .../.kittify/metadata.yaml' (3/3 final tests red pre-fix, modify/delete red with 'no conflict markers'); R-PRIMARY-OWNED-BOOKKEEPING in managed arm via is_primary_owned_path + sparse-aware _resolve_take_theirs, not in RULES, no filename literal; audit subject asserted; src/shared.txt control refuses with unchanged format. 215 passed incl. ratchet/destructive-op/dead-symbol/path-listing gates. LOW nits: test imports private tests.terminus.conftest._event; mypy no-any-return at test_auto_rebase_primary_owned.py:66 is the follow_imports=skip narrow-check artifact (same on test_lane_lifecycle_sync.py). Entry point sync_lane_after_coordination_commit is the WP-sanctioned production function."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 22028,
+      "shell_pid_created_at": "1791147109.74",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M44GHYF6BW380XMAXZ594ZH8",
+      "last_transition_at": "2026-10-04T22:29:05.638570+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "ADR 4.x 2026-10-04-2, two 3.x amendments, recovery runbook, branch-target-routing note, changelog entry; docs freshness errors=0, terminology gate green; inventory/retrieval-index regenerated",
+        "Review passed (reviewer-renata): ADR/amendments/runbook/arch note/CHANGELOG match shipped code (runner _is_integrating_worktree incl. detached-HEAD fail-safe; contract predicate; stage 2 at lane->mission, mission->target squash/merge, dependency merge; stage 3 R-PRIMARY-OWNED-BOOKKEEPING in auto-rebase; stale check drops primary-owned + content-identical); residuals stated; no destructive recipes; amendments append-only dated; terminology clean. Gates: 147 passed; check_docs_freshness errors=0 (9 network link-health warnings, none on WP06 files). Follow-up (non-blocking, out-of-map): list the runbook in docs/operations/recovery-index.md."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP06:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 23539,
+      "shell_pid_created_at": "1791152072.31",
+      "subtasks": {
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      }
+    }
+  }
+}

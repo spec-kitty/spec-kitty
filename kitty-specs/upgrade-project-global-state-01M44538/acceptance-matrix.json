@@ -1,0 +1,139 @@
+{
+  "mission_slug": "upgrade-project-global-state-01M44538",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_upgrade_integrating_worktrees.py (red 0cf2bab86 -> green 8270fa0d0); live: issue pathA.sh with real 4.0.0rc4 wheel, lanes + lanes_with_coord: lane/coord branches carry no upgrade commit",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-04T22:24:40.331406+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_upgrade_integrating_worktrees.py root-branch single upgrade commit; tests/integration/test_upgrade_live_lanes_cli.py",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-04T22:24:47.365401+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_upgrade_worktree_commit.py + test_issue_4972_idempotent_worktree_metadata.py + test_worktree_stamp_guard.py on non-integrating wip/* worktrees",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-04T22:24:54.004030+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/test_state_contract_primary_owned.py; tests/specify_cli/test_state_contract.py to_dict pin",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-04T22:25:00.777452+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_stale_check_primary_owned.py (red 0ca0ad563); revert-leg proof in WP03/WP04 reviews",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-04T22:25:07.243151+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_stale_check_primary_owned.py identical/mode/delete/probe-failure cases; Story 4 AS-2 CLI in test_consolidate_upgraded_mission_recovery.py",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-04T22:25:13.468859+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_consolidate_upgraded_mission_recovery.py AS-3 (+status.json mix, dry-run); tests/lanes/test_primary_owned_merge_sites.py --strategy merge leg; live pathB.sh with real 3.2.7 wheel: OK WP01 landed on work",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-04T22:25:20.321878+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_auto_rebase_primary_owned.py (red 0fbd418d3 -> green bb1b154f1, audit rule id asserted); live pathC.sh: review start [ok] on coordination branch",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-04T22:25:26.748390+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "controls: Story 5 AS-1/AS-2 byte-identical refusals, src/shared.txt auto-rebase control, dependency source-conflict control; integrated run 498 passed incl. 9 architectural gates",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-04T22:25:32.885487+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "manual",
+      "evidence": "docs/operations/upgrade-with-live-lanes-recovery.md; live recovery: pathA with buggy origin/main upgrade then fixed consolidate lands both WPs (lanes + lanes_with_coord)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-04T22:25:39.373234+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "re-pins in tests/upgrade (commit 2f136e3b2), none deleted; WP02 review",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-04T22:25:45.751001+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_consolidate_upgraded_mission_recovery.py AS-1/AS-2; tests/lanes/test_primary_owned_merge_sites.py MERGE leg",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-04T22:25:52.679795+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_worktree_allocator_primary_owned.py via spec-kitty implement (red d2f2b358c -> green a21696912)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-04T22:25:59.308669+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

@@ -1,0 +1,148 @@
+{
+  "version": 1,
+  "mission_slug": "upgrade-project-global-state-01M44538",
+  "mission_id": "01M44538YVXB3NS5RCRN0CWYX8",
+  "mission_branch": "kitty/mission-upgrade-project-global-state-01M44538",
+  "target_branch": "issue-5457-upgrade-project-global-state",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/state/contract.py",
+        "tests/integration/primary_owned_fixtures.py",
+        "tests/integration/test_primary_owned_fixtures_selftest.py",
+        "tests/specify_cli/test_state_contract.py",
+        "tests/specify_cli/test_state_contract_primary_owned.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/runner.py",
+        "tests/integration/test_upgrade_live_lanes_cli.py",
+        "tests/upgrade/test_issue_4972_idempotent_worktree_metadata.py",
+        "tests/upgrade/test_symlinked_ignore_guard.py",
+        "tests/upgrade/test_upgrade_integrating_worktrees.py",
+        "tests/upgrade/test_upgrade_worktree_commit.py",
+        "tests/upgrade/test_worktree_stamp_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/lanes/stale_check.py",
+        "tests/lanes/test_stale_check.py",
+        "tests/lanes/test_stale_check_primary_owned.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/lanes/auto_rebase.py",
+        "tests/integration/test_lane_lifecycle_sync.py",
+        "tests/lanes/test_auto_rebase_primary_owned.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/lanes/consolidation.py",
+        "src/specify_cli/lanes/worktree_allocator.py",
+        "tests/architectural/test_destructive_op_routing.py",
+        "tests/integration/test_consolidate_upgraded_mission_recovery.py",
+        "tests/lanes/test_primary_owned_merge_sites.py",
+        "tests/lanes/test_worktree_allocator_primary_owned.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-05-14-1-stale-lane-auto-rebase-classifier-policy.md",
+        "docs/adr/3.x/2026-07-07-1-ignored-surface-backfill-migration-pattern.md",
+        "docs/adr/4.x/2026-10-04-2-upgrade-writes-project-global-state-once.md",
+        "docs/adr/4.x/index.md",
+        "docs/architecture/branch-target-routing.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/operations/index.md",
+        "docs/operations/toc.yml",
+        "docs/operations/upgrade-with-live-lanes-recovery.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-10-04T19:37:39.640492+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP06"
+  ],
+  "planning_commit_sha": "8f34aa0fdc5ee81922d501bbde834158720e48a1"
+}

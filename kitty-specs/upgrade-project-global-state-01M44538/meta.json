@@ -1,0 +1,38 @@
+{
+  "accept_commit": "9b41d35cde9ec22130cc6d9628e276eb08e7a248",
+  "acceptance_history": [
+    {
+      "accept_commit": "9b41d35cde9ec22130cc6d9628e276eb08e7a248",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-04T22:26:10.066829+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "9a71ecc7efb60af7c5230d1e73dc514ead033389"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-04T22:26:10.066829+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "9a71ecc7efb60af7c5230d1e73dc514ead033389",
+  "baseline_merge_commit": "87caf7b56baabfe8a064beff5c10861360112afd",
+  "contracts": "none",
+  "contracts_rationale": "Bug fix inside existing CLI commands (upgrade, consolidate, lane sync, implement); no new or changed external interface, command, flag or payload.",
+  "created_at": "2026-10-04T19:08:51.983903+00:00",
+  "flattened": false,
+  "friendly_name": "Upgrade writes project-global state once",
+  "merged_at": "2026-10-04T22:28:39.658450+00:00",
+  "merged_commit": "c3bcb82744141f2bc61a8c81fc5f17bf1ad40c1a",
+  "mid8": "01M44538",
+  "mission_id": "01M44538YVXB3NS5RCRN0CWYX8",
+  "mission_number": 216,
+  "mission_slug": "upgrade-project-global-state-01M44538",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Today, running spec-kitty upgrade while a mission has live lane worktrees writes and commits the project's generated bookkeeping separately on every lane branch, and consolidate, review and implement then refuse the mission on a file the operator never touched. This mission makes upgrade write project-wide state once on the repository root checkout, teaches the integration checks to recognise that bookkeeping by rule, and lets missions already caught in the broken state land without manual edits.",
+  "purpose_tldr": "Upgrading Spec Kitty while a mission is in flight no longer blocks that mission from landing.",
+  "slug": "upgrade-project-global-state-01M44538",
+  "status_phase": "1",
+  "target_branch": "issue-5457-upgrade-project-global-state",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-04T19:38:36.077954+00:00"
+}

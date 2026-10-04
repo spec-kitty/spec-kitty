@@ -1,0 +1,78 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-04T19:11:19.121868Z",
+      "decision_id": "01M4457T2HTWW5XGWA55TWYVNT",
+      "final_answer": "No: write once on the repository root checkout; skip integrating worktrees (operator brief Done-when 1; grounding \u00a72/\u00a74)",
+      "input_key": "upgrade_worktree_write_placement",
+      "mission_id": "01M44538YVXB3NS5RCRN0CWYX8",
+      "mission_slug": "upgrade-project-global-state-01M44538",
+      "opened_by": "cli",
+      "options": [
+        "No: write once on the repository root checkout; skip integrating worktrees",
+        "Yes, but align contents",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should upgrade keep writing/committing project-global state in worktrees whose branch integrates back into the primary branch?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T19:11:29.330881Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.write_placement",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-04T19:11:22.581435Z",
+      "decision_id": "01M4457XEN4YFYVKVT40HX047P",
+      "final_answer": "Only fully generated do-not-edit surfaces (.kittify/metadata.yaml), plus a content-identical overlap rule for the rest (grounding \u00a73; #4933 lesson)",
+      "input_key": "primary_owned_path_set",
+      "mission_id": "01M44538YVXB3NS5RCRN0CWYX8",
+      "mission_slug": "upgrade-project-global-state-01M44538",
+      "opened_by": "cli",
+      "options": [
+        "Only fully generated do-not-edit surfaces (.kittify/metadata.yaml), plus a content-identical overlap rule for the rest",
+        "All .kittify/ and .gitattributes",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which paths are classified as primary-owned bookkeeping that integration resolves to the primary side?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T19:11:33.106620Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.classified_paths",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-04T19:11:26.076716Z",
+      "decision_id": "01M44580VWDA5VDH5V7ZVZV8DD",
+      "final_answer": "Simulate faithfully through the real CLI entry points; verbatim issue scripts against real old wheels as live evidence (operator brief \u00a73.4 permits simulation; grounding \u00a77)",
+      "input_key": "red_test_fidelity",
+      "mission_id": "01M44538YVXB3NS5RCRN0CWYX8",
+      "mission_slug": "upgrade-project-global-state-01M44538",
+      "opened_by": "cli",
+      "options": [
+        "Simulate faithfully through the real CLI entry points; verbatim issue scripts against real old wheels as live evidence",
+        "Installed old-CLI e2e harness",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Do red-first tests install old CLI wheels or simulate the pre-upgrade state?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T19:11:36.489181Z",
+      "resolved_by": null,
+      "slot_key": "specify.testing.red_fidelity",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M44538YVXB3NS5RCRN0CWYX8",
+  "version": 1
+}
