@@ -19,17 +19,18 @@ from __future__ import annotations
 
 import json
 import logging
-import stat
 from kernel.clock import parse_iso
 from pathlib import Path
 
 import pytest
 
+from specify_cli.mission_v1 import events as events_module
 from specify_cli.mission_v1.events import (
     MISSION_EVENTS_FILE,
     emit_event,
     _read_events,
 )
+from tests._support.eacces import deny_open_in
 
 
 # ---------------------------------------------------------------------------
@@ -116,23 +117,21 @@ class TestEmitEvent:
         events_file = tmp_path / MISSION_EVENTS_FILE
         assert not events_file.exists()
 
-    def test_readonly_dir_logs_warning_no_exception(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_readonly_dir_logs_warning_no_exception(self, tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> None:
         """emit_event on a read-only directory logs a warning but does not raise."""
         readonly_dir = tmp_path / "readonly"
         readonly_dir.mkdir()
 
-        # Make directory read-only
-        readonly_dir.chmod(stat.S_IRUSR | stat.S_IXUSR)
+        # Deny the append at the ``open`` seam instead of chmod: root bypasses
+        # directory mode bits, so a chmod-based setup gave a different verdict
+        # per uid (#5622).
+        deny_open_in(monkeypatch, events_module, readonly_dir / MISSION_EVENTS_FILE)
 
-        try:
-            with caplog.at_level(logging.WARNING):
-                # This must NOT raise
-                emit_event("phase_entered", {"state": "x"}, "test", readonly_dir)
+        with caplog.at_level(logging.WARNING):
+            # This must NOT raise
+            emit_event("phase_entered", {"state": "x"}, "test", readonly_dir)
 
-            assert any("Failed to emit event" in r.message for r in caplog.records)
-        finally:
-            # Restore write permission for cleanup
-            readonly_dir.chmod(stat.S_IRWXU)
+        assert any("Failed to emit event" in r.message for r in caplog.records)
 
     def test_default_mission_name_empty(self, tmp_path: Path) -> None:
         """Default mission_name is empty string."""

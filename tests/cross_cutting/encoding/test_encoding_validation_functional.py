@@ -18,9 +18,8 @@ from specify_cli.text_sanitization import (
     sanitize_file,
     sanitize_directory,
 )
-import contextlib
-
 from tests._perf_helpers import assert_timing_budget
+from tests._support.eacces import deny_path_method
 
 
 pytestmark = [pytest.mark.integration]
@@ -371,27 +370,22 @@ class TestEdgeCases:
             assert error is None, f"Large file should not cause error: {error}"
             assert was_modified is True, "Large file with issues should be detected"
 
-    def test_permission_denied_handling(self):
+    def test_permission_denied_handling(self, monkeypatch: pytest.MonkeyPatch):
         """Verify sanitizer handles permission errors gracefully."""
-        import stat
-
         with TemporaryDirectory() as tmpdir:
             readonly_file = Path(tmpdir) / "readonly.md"
             readonly_file.write_text("User\u2019s test")
 
-            # Make file read-only
-            readonly_file.chmod(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+            # Deny the rewrite at the Path.write_bytes seam instead of chmod:
+            # root bypasses file mode bits, so a chmod-based setup gave a
+            # different verdict per uid (#5622).
+            deny_path_method(monkeypatch, "write_bytes", readonly_file)
 
-            try:
-                was_modified, error = sanitize_file(readonly_file, backup=False, dry_run=False)
+            was_modified, error = sanitize_file(readonly_file, backup=False, dry_run=False)
 
-                # Should report error
-                assert error is not None, "Should report permission error"
-                assert "permission" in error.lower() or "denied" in error.lower() or "read-only" in error.lower(), f"Error should mention permission issue: {error}"
-            finally:
-                # Restore permissions for cleanup
-                with contextlib.suppress(BaseException):
-                    readonly_file.chmod(stat.S_IWUSR | stat.S_IRUSR)
+            # Should report error
+            assert error is not None, "Should report permission error"
+            assert "permission" in error.lower() or "denied" in error.lower() or "read-only" in error.lower(), f"Error should mention permission issue: {error}"
 
 
 # Regression tests
