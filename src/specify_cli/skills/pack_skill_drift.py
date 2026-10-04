@@ -1,6 +1,6 @@
 """Drift and staleness findings for installed pack skills (FR-012, FR-014).
 
-Two distinct, independently reported conditions per installed pack-skill file:
+Distinct, independently reported conditions per installed pack-skill file:
 
 * **drift** -- the installed rendered copy's bytes no longer hash to the
   manifest ``content_hash`` (a local edit); the remedy is to edit the pack
@@ -9,7 +9,12 @@ Two distinct, independently reported conditions per installed pack-skill file:
   manifest ``source_hash`` (the pack changed since install); re-project to
   refresh the copy.
 
-Both findings name ``source_ref``. Built-in entries and manifests written
+* **orphaned** -- the manifest names a pack skill the current catalog no longer
+  provides (e.g. the skill namespace changed, so it renders under a new name, or
+  the skill was deactivated/removed); `spec-kitty upgrade` retires the leftover
+  copy, or re-activate the skill.
+
+All findings name ``source_ref``. Built-in entries and manifests written
 before pack skills existed (no ``origin``/``source_*``) never produce findings.
 Resolution is read-only (``stage=False``): nothing is written to the project.
 """
@@ -30,6 +35,7 @@ __all__ = ["find_pack_skill_findings"]
 
 KIND_DRIFT = "drift"
 KIND_STALE = "stale"
+KIND_ORPHANED = "orphaned"
 
 
 @dataclass(frozen=True)
@@ -45,6 +51,11 @@ class PackSkillFinding:
     def message(self) -> str:
         if self.kind == KIND_DRIFT:
             return f"{self.installed_path}: rendered pack skill {self.skill_name!r} was edited locally; edit its source {self.source_ref!r} and re-project instead"
+        if self.kind == KIND_ORPHANED:
+            return (
+                f"{self.installed_path}: pack skill {self.skill_name!r} (source {self.source_ref!r}) is no longer provided by the current pack catalog "
+                "(namespace changed, or the skill was deactivated or removed); run `spec-kitty upgrade` to retire it or re-activate the skill"
+            )
         return (
             f"{self.installed_path}: pack skill {self.skill_name!r} is stale, its source {self.source_ref!r} "
             "changed since install; re-project (`spec-kitty upgrade`) to refresh it"
@@ -73,18 +84,20 @@ def find_pack_skill_findings(project_path: Path) -> tuple[PackSkillFinding, ...]
     entries = [entry for entry in (manifest.entries if manifest else []) if entry.origin == ORIGIN_PACK]
     if not entries:
         return ()
-    current = _current_source_hashes(project_path)
+    current = _current_source_hashes(project_path)  # None: catalog unresolvable, nothing assessed
     findings: list[PackSkillFinding] = []
     for entry in entries:
         findings.extend(_entry_findings(project_path, entry, current))
     return tuple(findings)
 
 
-def _entry_findings(project_path: Path, entry: ManagedFileEntry, current: dict[str, str]) -> list[PackSkillFinding]:
+def _entry_findings(project_path: Path, entry: ManagedFileEntry, current: dict[str, str] | None) -> list[PackSkillFinding]:
+    if current is not None and entry.skill_name not in current:
+        return [PackSkillFinding(KIND_ORPHANED, entry.skill_name, entry.installed_path, entry.source_ref)]
     found: list[PackSkillFinding] = []
     if _installed_hash(project_path, entry) not in (None, entry.content_hash):
         found.append(PackSkillFinding(KIND_DRIFT, entry.skill_name, entry.installed_path, entry.source_ref))
-    fresh = current.get(entry.skill_name)
+    fresh = current.get(entry.skill_name) if current is not None else None
     # A manifest written before the shared ``sha256:`` digest format carries a bare-hex
     # source_hash; it can never equal a fresh digest, so it is reported stale ONCE and
     # re-projection rewrites it in the current format (no permanent false staleness).
@@ -104,12 +117,12 @@ def _installed_hash(project_path: Path, entry: ManagedFileEntry) -> str | None:
         return None
 
 
-def _current_source_hashes(project_path: Path) -> dict[str, str]:
-    """Rendered skill name -> freshly prepared ``source_hash`` (read-only resolution)."""
+def _current_source_hashes(project_path: Path) -> dict[str, str] | None:
+    """Rendered skill name -> freshly prepared ``source_hash`` (read-only resolution); ``None`` when unresolvable."""
     try:
         registry = resolve_project_skill_catalog(project_path, stage=False)
         skills = registry.discover_skills()
     except PackSkillCatalogError:
         logger.debug("pack skill catalog unresolvable; staleness not assessed", exc_info=True)
-        return {}
-    return {skill.name: skill.source_hash for skill in skills if skill.origin == ORIGIN_PACK and skill.source_hash}
+        return None
+    return {skill.name: skill.source_hash for skill in skills if skill.origin == ORIGIN_PACK}

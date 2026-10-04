@@ -20,7 +20,7 @@ from specify_cli.skills import catalog
 from specify_cli.skills.catalog import resolve_project_skill_catalog
 from specify_cli.skills.installer import install_all_skills
 from specify_cli.skills.manifest import ORIGIN_PACK, load_manifest, save_manifest
-from specify_cli.skills.pack_skill_drift import KIND_DRIFT, KIND_STALE, find_pack_skill_findings
+from specify_cli.skills.pack_skill_drift import KIND_DRIFT, KIND_ORPHANED, KIND_STALE, find_pack_skill_findings
 from specify_cli.tool_surface.operations import ApplyConsent
 from specify_cli.upgrade.assessment import prepare_upgrade_repairs
 from tests.charter import skill_pack_support as support
@@ -225,3 +225,23 @@ def test_legacy_bare_hex_source_hash_is_stale_once_then_clean(project: Path) -> 
 
     save_manifest(install_all_skills(project, ["claude", "codex"], resolve_project_skill_catalog(project)), project)
     assert find_pack_skill_findings(project) == ()
+
+
+def test_namespace_change_orphans_the_old_copies_on_every_surface(project: Path, pack: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    support.write_org_charter(pack, namespace="beta")  # skill now renders as beta-deploy-helper
+
+    findings = find_pack_skill_findings(project)
+    assert {f.kind for f in findings} == {KIND_ORPHANED}
+    assert len(findings) == 2  # claude + codex copies, one orphaned finding each
+    assert {f.skill_name for f in findings} == {RENDERED}
+    source_ref = findings[0].source_ref
+    assert source_ref
+    assert source_ref in findings[0].message and "spec-kitty upgrade" in findings[0].message
+
+    code, payload = _doctor(project, monkeypatch)
+    assert code == 1
+    assert {item["kind"] for item in payload["pack_skills"]} == {KIND_ORPHANED}
+
+    messages = _diagnostic_codes(project)
+    assert set(messages) == {"pack_skill_orphaned"}
+    assert source_ref in messages["pack_skill_orphaned"]
