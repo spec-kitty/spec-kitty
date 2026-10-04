@@ -533,12 +533,14 @@ been fixed, the end-state is stated instead of the trap.
   in `tests/docs/test_check_cli_reference_freshness.py`; the current values
   live in that test, not here. That re-pin-in-the-same-PR pattern is the
   model for the second bin of [step 4](#4-classify-every-red-check).
-- **Seam completeness gates are invisible to contributors.** Adding a `def`
-  to `src/specify_cli/cli/commands/agent/tasks_move_task.py` also requires
-  joining the `_MOVE_SET` pin in
-  `tests/specify_cli/cli/commands/agent/test_tasks_move_task_seam.py` and the
-  re-export block in `agent/tasks.py`. Expect this as a fold on PRs that
-  touch decomposed command modules.
+- **Seam completeness gates are invisible to contributors.** A new symbol in
+  `src/specify_cli/cli/commands/agent/tasks_move_task.py` must join its tuple
+  in `tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py` and
+  the re-export block in `agent/tasks.py`. A new gate in
+  `tasks_move_task_gates.py` needs three joins: `_TASKS_MOVE_TASK_GATES` in that
+  same test file, the re-export block in `tasks_move_task.py`, and the one in
+  `agent/tasks.py`. Expect this as a fold on PRs that touch decomposed command
+  modules.
 - **CI-only architectural gates land late.** Repo-wide gates (terminology,
   shim retirement, seam boundaries) run in the architectural battery: the
   always-on `architectural fast gates (ratchet/census, always-on)` job and the
