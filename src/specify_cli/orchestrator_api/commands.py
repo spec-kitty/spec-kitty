@@ -481,8 +481,10 @@ def list_ready(
 
 
 # ── Command table ───────────────────────────────────────────────────────────
-# Every verb outside this module is registered here, in contract order, so the
-# group's ``--help`` and dispatch order live in one place (#5628).
+# Every verb outside this module is registered here, in the order it was
+# registered before the split (the group's ``--help`` order), so that order
+# lives in one place (#5628). It is not the order of ``allowed_commands`` in
+# ``upstream_contract.json``; the contract tests compare sets.
 # ``contract-version``, ``mission-state`` and ``list-ready`` register above via
 # their decorators; the latter two stay here for #5532.
 _COMMAND_TABLE: tuple[tuple[str, Callable[..., None]], ...] = (
