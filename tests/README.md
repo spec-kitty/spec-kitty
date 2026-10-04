@@ -41,7 +41,7 @@ A new test for a merge capability belongs in `tests/merge/`.
 Test type (unit vs integration) is a runner-mechanics concern. It is expressed through:
 
 | Signal | Meaning |
-|--------|---------|
+| -------- | --------- |
 | `pytest.mark.fast` | Pure-logic test — no subprocess, no git, sub-second |
 | `pytest.mark.git_repo` | Creates a real git repository |
 | `pytest.mark.slow` | Measured slow path: normally >5s call time, or a deliberately serial external/subprocess workload |
@@ -235,7 +235,7 @@ def test_merge_records_done_evidence(merge_repo: tuple[Path, Path, str]) -> None
 Core fixtures are defined in `tests/conftest.py` and available everywhere:
 
 | Fixture | Scope | Description |
-|---------|-------|-------------|
+| --------- | ------- | ------------- |
 | `isolated_env` | function | `os.environ` dict that blocks host `spec-kitty-cli`, sets `PYTHONPATH=src/` |
 | `run_cli` | function | Callable that runs `spec-kitty` via venv subprocess inside a project dir |
 | `temp_repo` | function | `tmp_path` with `git init`, user name/email configured |
@@ -265,7 +265,7 @@ Integration-specific fixtures live in the conftest.py files inside each slice
 ### What lives there
 
 | Subdirectory | Contents |
-|---|---|
+| --- | --- |
 | `legacy/unit/` | 0.x unit contract tests (mission schema, etc.) |
 | `legacy/integration/` | 0.x integration tests (full CLI workflows, branch routing) |
 | `legacy/specify_cli/` | 0.x specify_cli-level tests |
@@ -307,10 +307,11 @@ automatically. Do not delete the cache merely because another worker is building
 - Runtime is evidence, not a marker guess. A test is treated as slow when measured
   collection/setup/call or external-process cost warrants the serial/slow route;
   a `slow` name alone neither protects nor condemns it.
-- Accepted red-first reproductions use `pytest.mark.regression` and the blocking
-  `regression-tests` job. The job discovers the current marker set, treats pytest
-  exit 5 as an honest empty set, and remains in `quality-gate`; it never retries,
-  skips, xfails, or quarantines a correctness failure.
+- Accepted red-first reproductions of an open P0 bug use
+  `pytest.mark.p0_repro(issue=N)` and run only in the nightly `p0-repro` job; no
+  per-PR job runs them. They are never retried, skipped, xfailed, or quarantined.
+  `pytest.mark.regression` is a different thing: an issue-pinned guard of a bug
+  that is already fixed, run per PR.
 - Quarantine is a Tier-3, visibility-only environmental mechanism. Its owner
   manifest is currently empty. Deterministic correctness failures and timing
   thresholds are never moved there to obtain green CI.

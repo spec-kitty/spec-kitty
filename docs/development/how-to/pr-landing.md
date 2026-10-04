@@ -2,7 +2,7 @@
 title: 'Landing Contributor PRs: The Maintainer Runbook'
 description: 'The maintainer workflow for landing contributor PRs: claim, worktree isolation, rebase, red classification, folds, red-first verification, push discipline, and hand-off.'
 doc_status: active
-updated: '2026-10-01'
+updated: '2026-10-04'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -95,7 +95,7 @@ This is the core reviewer decision point. Diagnose each red check on the
 rebased tip and classify it into exactly one of four bins:
 
 | Classification | What it looks like | Action |
-|---|---|---|
+| --- | --- | --- |
 | **PR defect** | The PR's own change breaks a test or gate | Fix it on the branch (a "fold", [step 5](#5-folds-remediation-commits-on-the-contributor-branch)) |
 | **Contract the PR legitimately crosses** | A seam move-set completeness gate, a census tolerance band | Re-pin the contract **in the same PR**, with a dated rationale in the pin |
 | **Pre-existing main breakage** | The same red reproduces on an unrelated main-based branch | **Fold the fix in by default** ([step 5](#5-folds-remediation-commits-on-the-contributor-branch)) — keep main green even for a red the PR did not cause — *unless* one of the two carve-outs below applies |
@@ -150,39 +150,45 @@ unwired reference are all fixable inline, and a landing pass that leaves an
 easy pre-existing red on the board just defers the cost and keeps main red for
 longer. Two carve-outs override that default:
 
-- **A `regression`-marked red-first test.** An intentionally-failing,
-  issue-pinned reproduction (per
-  [ADR 2026-07-17-1](../../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md))
-  is a *deliberate* red-mainline signal for an open P0 bug — **leave it red.**
-  Do not fold it to green; the product fix that closes its tracking issue is
-  separate, dedicated work, never a landing-pass fold. Greening it here would
-  erase the honest release-blocker signal the ADR exists to preserve.
+- **A `p0_repro`-marked red-first test.** An intentionally-failing,
+  issue-pinned reproduction of an open P0 bug (per
+  [ADR 2026-07-17-1](../../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md),
+  Amendment 2026-10-04) carries `@pytest.mark.p0_repro(issue=N)`. It is a
+  *deliberate* red signal that holds the nightly, and so the release, open until
+  the P0 is fixed — **leave it red.** Do not fold it to green; the product fix
+  that closes its tracking issue is separate, dedicated work, never a
+  landing-pass fold. Greening it here would erase the honest release-blocker
+  signal the ADR exists to preserve.
 
-  Tell these apart by the `@pytest.mark.regression` marker and the in-test
-  NOTE naming the tracking issue — but **check for the marker per test, not
-  per file.** It is routinely applied as a decorator on the individual test
-  while the module's `pytestmark` lists only category markers, so a file-level
-  grep reports "unmarked" for a properly-pinned P0 reproduction. This misread
-  happened on the 2026-08-04 pass and nearly produced a needless "add the
-  marker" fold for three tests that already had it:
+  A pull request never runs these tests: `tests/_support/p0_repro.py` deselects
+  them unless `SPEC_KITTY_RUN_P0_REPRO=1` is set, and only the nightly
+  `p0-repro` job sets it. So a landing pass meets one only in a nightly run or
+  an explicit opt-in run (`SPEC_KITTY_RUN_P0_REPRO=1 uv run --frozen pytest -m p0_repro -q`).
+  Each failure starts with an `[OPEN P0 #N]` banner naming the issue. Details:
+  [Red Main and Release Readiness](../reference/red-main-and-release-readiness.md#where-the-reproduction-runs-the-nightly-p0-repro-lane).
+
+  The `regression` marker is a different thing: it pins a bug that is already
+  **fixed**, and it runs per PR. A red `regression` test is a real failure in
+  the PR, not a deliberate signal. Fold it or fix the code.
+
+  Check for the marker per test, not per file. It is applied as a decorator on
+  the individual test while the module's `pytestmark` may list only category
+  markers, so a file-level grep reports "unmarked" for a properly pinned
+  reproduction:
 
   ```bash
-  grep -rn "pytest.mark.regression" tests/ | sort   # catches both forms
+  git grep -n "pytest.mark.p0_repro" -- tests/   # catches both forms
   ```
-
-  Since the 2026-08-04 pass, these tests live in `tests/regression/` and are
-  excluded from every other suite's selection — so **a red outside
-  `tests/regression/` is a real signal**, and the classification above only
-  has to be applied to reds inside it. Entry and exit rules:
-  [`tests/regression/README.md`](../../../tests/regression/README.md).
 - **A fix that is mission scope and cannot reasonably be folded.** If the real
   fix belongs to a distinct mission — wide blast radius, its own spec/design, an
   in-flight mission's own reconciliation — do not cram it into the contributor
-  PR. Instead **accept the failure as an honest P0 red**: mark the failing test
-  `@pytest.mark.regression`, pin it (an in-test note) to the owning issue/mission,
-  and leave it red per
-  [Red Main and Release Readiness](../reference/red-main-and-release-readiness.md). Never
-  retry-to-green.
+  PR. Instead **accept the failure as an honest P0 red**: file or find the P0
+  issue, pin the failing test to it with `@pytest.mark.p0_repro(issue=N)`, and
+  leave it red per
+  [Red Main and Release Readiness](../reference/red-main-and-release-readiness.md).
+  The marker takes the test out of per-PR CI and into the nightly `p0-repro`
+  lane, so the PR still lands green. Do not mark it `regression`, which would
+  keep it red in every PR. Never retry-to-green.
 
 See [manage-issue-tracker.md](manage-issue-tracker.md#triaging-issues-type-severity-and-release-blocking-bugs)
 for the type/severity triage this leans on, and
@@ -288,9 +294,9 @@ Typical folds: canonical-source fixes (the changelog lives in
 `docs/changelog/`), seam re-pins with dated rationale, retired-shim API
 migrations, doc/contract artifact sync, and — by default — fixes for
 **pre-existing main breakage** the PR happens to surface ([step 4](#4-classify-every-red-check)).
-The one red you do **not** fold to green is a `regression`-marked red-first
-test: it is a deliberate open-P0 signal and stays red until its own product
-fix lands (ADR 2026-07-17-1).
+The one red you do **not** fold to green is a `p0_repro`-marked red-first
+test: it is a deliberate open-P0 signal in the nightly and stays red until its
+own product fix lands (ADR 2026-07-17-1).
 
 ### Clean history: compress bookkeeping, keep code separate
 
@@ -308,7 +314,7 @@ changes. That is not the target. When landing a contributor PR:
   neither a single opaque squash nor 200 noise commits.
 
 This governs the *contributor's* commits. Landing folds (above) are always
-their own single-purpose `landing fold: ...` commits regardless.
+their own single-purpose `<type>(landing): ...` commits regardless.
 
 ## 6. Red-first verification for bugfix PRs
 
@@ -518,7 +524,7 @@ been fixed, the end-state is stated instead of the trap.
   local runs red on *every* rebased branch in the pass. The default is to
   **fold the fix** ([step 4](#4-classify-every-red-check)) — that clears main
   and every rebased branch inherits the green. When you *can't* fold (a
-  `regression`-marked red-first test, or a mission-scope fix), file early; the
+  `p0_repro`-marked red-first test, or a mission-scope fix), file early; the
   filed issue is what lets subsequent PRs skip re-reproducing it.
 - **Saturated tolerance bands trip on the next legitimate change.** The CLI
   visible-count census sat at the top of its band, so the next legitimate

@@ -2,7 +2,7 @@
 title: 'Known Current Friction Points'
 description: 'A time-stamped, fast-drifting list of current repo and tooling friction points a maintainer or agent hits mid-mission; re-verify against the tracker before trusting specifics.'
 doc_status: active
-updated: '2026-10-01'
+updated: '2026-10-04'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -32,11 +32,11 @@ closed — so the "known reds" below are already a different set than a month ag
 ## The friction points
 
 - **`main` may be legitimately RED.** Honest P0 reproductions are left red on
-  purpose ([ADR 2026-07-17-1](../../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md));
+  purpose (in the nightly `p0-repro` lane, not per PR) ([ADR 2026-07-17-1](../../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md));
   currently open examples: **#2736**, **#1834**. Before "fixing" any red,
   **attribute** it — reproduce on `upstream/main` / the merge-base. Never
-  green-wash a `@pytest.mark.regression` red; that erases a deliberate
-  release-blocker signal.
+  green-wash a `@pytest.mark.p0_repro` red (it shows only in the nightly); that
+  erases a deliberate release-blocker signal.
 - **CI-environment false reds that pass locally:** auth
   (`logged_out_on_connected_teamspace`) and the pre-review gate opt-out
   (`SPEC_KITTY_SKIP_PRE_REVIEW_GATE`, its own name since #3980). Config, not
