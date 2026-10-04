@@ -581,6 +581,43 @@ def test_discarded_has_a_fixture_built_positive_control(tmp_path: Path, tools: h
     assert overview["lifecycleStatus"] == "discarded"
 
 
+def test_the_values_the_corpus_floors_leave_out_have_a_fixture_built_control(tmp_path: Path, tools: helper.ContractTools, contract: helper.Contract) -> None:
+    """Claimed, for_review, in_review, blocked and lanes_with_coord sit on a few Missions in transient states, so the floors do not require them.
+
+    One fixture Mission holds a work package in each of those lanes under that topology, and the very function the corpus cases use must
+    project it clean: every enum value of the contract is validated at least once without a status change to a real Mission turning the job red.
+    """
+    assert set(helper.CORPUS_LANES).isdisjoint(helper.CONTROL_LANES) and {*helper.CORPUS_LANES, *helper.CONTROL_LANES} == set(helper.STATUS_LANES), (
+        "every lane is classified once"
+    )
+    assert set(helper.CORPUS_TOPOLOGIES).isdisjoint(helper.CONTROL_TOPOLOGIES) and {*helper.CORPUS_TOPOLOGIES, *helper.CONTROL_TOPOLOGIES} == {
+        *helper.TOPOLOGIES,
+        helper.UNKNOWN_TOPOLOGY,
+    }
+    subprocess.run(["git", "-C", str(tmp_path), "init", "-q"], check=True)
+    stamp = "2026-09-01T10:{minute:02d}:00+00:00".format
+    path = {
+        "WP01": ("claimed",),
+        "WP02": ("claimed", "in_progress", "for_review"),
+        "WP03": ("claimed", "in_progress", "for_review", "in_review"),
+        "WP04": ("blocked",),
+    }
+    rows, number = [], 0
+    for wp_id, lanes in path.items():
+        for source, target in zip(("genesis", "planned", *lanes), ("planned", *lanes), strict=False):
+            number += 1
+            rows.append(helper.transition_row(number, wp_id, source, target, at=stamp(minute=number)))
+    helper.write_fixture_mission(
+        tmp_path, "transient-control", meta={"topology": "lanes_with_coord"}, work_packages=dict.fromkeys(path, {"dependencies": []}), rows=rows
+    )
+
+    result = run_case("transient-control", tools, contract, repo_root=tmp_path)
+
+    assert result.failures == [], result.failures
+    assert all(result.overview["statusLaneCounts"][lane] > 0 for lane in helper.CONTROL_LANES), result.overview["statusLaneCounts"]
+    assert result.overview["topology"] in helper.CONTROL_TOPOLOGIES and result.work_packages == len(path)
+
+
 # ---------------------------------------------------------------------------
 # Report and the counting test (LAST)
 # ---------------------------------------------------------------------------

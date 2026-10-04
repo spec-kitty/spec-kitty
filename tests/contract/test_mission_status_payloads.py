@@ -969,14 +969,16 @@ def test_the_floors_fail_on_a_small_corpus_and_name_each_gap(fixture_repo: Path)
     failures = helper.floor_failures(helper.own_directory_pass(fixture_repo))
     text = "; ".join(failures)
     assert "Missions with a meta.json" in text and "snapshot work packages" in text and "work package files" in text
-    assert "no Mission has a work package in the blocked lane" in text and "no Mission reads as done" in text and "no Mission has the topology coord" in text
+    assert "no Mission has a work package in the in_progress lane" in text and "no Mission reads as done" in text and "no Mission has the topology coord" in text
+    assert "blocked lane" not in text and "lanes_with_coord" not in text, "transient values are controlled by a fixture, not floored"
 
 
 def test_the_floors_pass_on_a_corpus_that_meets_them() -> None:
-    lanes = dict.fromkeys(helper.STATUS_LANES, 1)
-    topologies = (*helper.TOPOLOGIES, helper.UNKNOWN_TOPOLOGY)
+    """The corpus holds only the stable lanes and topologies: the transient ones are the reality module's fixture control, not a floor."""
+    lanes = {lane: int(lane in helper.CORPUS_LANES) for lane in helper.STATUS_LANES}
+    topologies = helper.CORPUS_TOPOLOGIES
     kinds = ("active", "planned", "done", "draft")
-    corpus = [helper.OwnMission(f"m{index}", 6, 7, lanes, kinds[index % 4], topologies[index % 5]) for index in range(helper.FLOORS.missions)]
+    corpus = [helper.OwnMission(f"m{index}", 6, 7, lanes, kinds[index % 4], topologies[index % len(topologies)]) for index in range(helper.FLOORS.missions)]
     assert helper.floor_failures(corpus) == []
     assert helper.floor_failures(corpus[:-1]) != [], "one Mission fewer than the floor must fail"
 

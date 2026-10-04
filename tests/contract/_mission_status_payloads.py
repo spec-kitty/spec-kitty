@@ -70,6 +70,15 @@ STATUS_LANES: tuple[str, ...] = (
 NON_DISPLAY_LANES = frozenset({"genesis", "uninitialized"})
 TOPOLOGIES: tuple[str, ...] = ("lanes", "single_branch", "coord", "lanes_with_coord")
 UNKNOWN_TOPOLOGY = "unknown"
+# Which enum values the real corpus must hold and which a fixture-built control exercises instead (non-vacuity, FR-025).
+# Measured on 545 Missions: a lane or topology is required in the corpus when it is terminal or held by at least ten Missions
+# (done 374, approved 100, planned 30, in_progress 17, canceled 1 and terminal; lanes 294, single_branch 150, unknown 51, coord 48).
+# The rest sit on a handful of Missions in transient states (claimed 3, for_review 2, in_review 4, blocked 1, lanes_with_coord 2),
+# so an ordinary status change to one of them must not turn the corpus job red: their control is the reality module's fixture Mission.
+CORPUS_LANES: tuple[str, ...] = ("planned", "in_progress", "approved", "done", "canceled")
+CONTROL_LANES: tuple[str, ...] = ("claimed", "for_review", "in_review", "blocked")
+CORPUS_TOPOLOGIES: tuple[str, ...] = ("lanes", "single_branch", "coord", "unknown")
+CONTROL_TOPOLOGIES: tuple[str, ...] = ("lanes_with_coord",)
 LIFECYCLE_STATUSES: tuple[str, ...] = ("active", "planned", "done", "draft", "discarded")
 PHASE_NAMES: tuple[str, ...] = ("specify", "plan", "tasks", "implement", "review")
 
@@ -699,7 +708,10 @@ def disagreement_list(own: Iterable[OwnMission]) -> list[tuple[str, int, int]]:
 
 
 def floor_failures(own: Sequence[OwnMission]) -> list[str]:
-    """Every floor of the corpus that is not met (empty means all are)."""
+    """Every floor of the corpus that is not met (empty means all are).
+
+    Every lane and topology outside ``CORPUS_LANES`` / ``CORPUS_TOPOLOGIES`` is exercised by a fixture-built control instead.
+    """
     failures: list[str] = []
     if len(own) < FLOORS.missions:
         failures.append(f"{len(own)} Missions with a meta.json, floor {FLOORS.missions}")
@@ -707,9 +719,9 @@ def floor_failures(own: Sequence[OwnMission]) -> list[str]:
         failures.append(f"{sum(item.snapshot_work_packages for item in own)} snapshot work packages, floor {FLOORS.snapshot_work_packages}")
     if sum(item.work_package_files for item in own) < FLOORS.work_package_payloads:
         failures.append(f"{sum(item.work_package_files for item in own)} work package files, floor {FLOORS.work_package_payloads}")
-    failures.extend(f"no Mission has a work package in the {lane} lane" for lane in STATUS_LANES if not any(item.lane_counts.get(lane) for item in own))
+    failures.extend(f"no Mission has a work package in the {lane} lane" for lane in CORPUS_LANES if not any(item.lane_counts.get(lane) for item in own))
     failures.extend(f"no Mission reads as {value}" for value in ("active", "planned", "done", "draft") if not any(item.lifecycle == value for item in own))
-    failures.extend(f"no Mission has the topology {value}" for value in (*TOPOLOGIES, UNKNOWN_TOPOLOGY) if not any(item.topology == value for item in own))
+    failures.extend(f"no Mission has the topology {value}" for value in CORPUS_TOPOLOGIES if not any(item.topology == value for item in own))
     return failures
 
 
