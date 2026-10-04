@@ -10252,6 +10252,7 @@ pages:
     - {slug: "context-execution", text: "Context: Execution", level: 2}
     - {slug: "tool", text: "Tool", level: 3}
     - {slug: "tool-surface", text: "Tool Surface", level: 3}
+    - {slug: "pack-skill", text: "Pack skill", level: 3}
     - {slug: "slash-command", text: "Slash Command", level: 3}
     - {slug: "semantic-check", text: "Semantic Check", level: 3}
     - {slug: "glossary-strictness", text: "Glossary Strictness", level: 3}

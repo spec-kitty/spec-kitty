@@ -560,7 +560,12 @@ terms:
 - confidence: 0.95
   definition: A markdown file encoding a domain-specific agent workflow, 
     discoverable as a named command. Skills are the primary unit of reusable 
-    agent capability in spec-kitty.
+    agent capability in spec-kitty. The word names three distinct artifacts, so
+    name the sense. A pack skill is a charter-activatable skill that a team
+    shares through an org pack or the project tier. A doctrine skill ships with
+    the product under src/charter/offering/skills/. A command skill is a
+    generated spec-kitty.<command> skill. See the Pack skill entry in
+    docs/context/execution.md.
   status: active
   surface: skill
 - confidence: 0.95

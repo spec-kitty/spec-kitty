@@ -2,7 +2,7 @@
 title: 'Context: Execution'
 description: 'Glossary context for execution semantics: tool invocation and the semantic safety gates applied during generation within a Spec Kitty mission.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-04'
 related:
 - docs/context/governance.md
 - docs/context/identity.md
@@ -33,10 +33,24 @@ Terms describing tool invocation and semantic safety gates during generation.
 | **Context** | Execution |
 | **Status** | candidate |
 | **Applicable to** | `3.x` |
-| **Examples** | slash command file, skill directory, custom agent profile file, hook config, MCP config, plugin manifest |
+| **Examples** | slash command file, skill directory ("skill" has more than one meaning: see [Pack skill](#pack-skill)), custom agent profile file, hook config, MCP config, plugin manifest |
 | **Use when** | Describing install/config/doctor/plugin ownership for Claude Code, Codex, Copilot, Cursor, Windsurf, Kiro, or another concrete tool. |
 | **Do NOT use when** | Describing logical collaborator identity, assignment, handoff, or role; use [Agent](./identity.md#agent) or [Agent Profile](./identity.md#agent-profile) instead. The concept is the physical tree a mission artifact resolves to — use [Topology Surface](./orchestration.md#topology-surface) (`surface` **Sense 2**). Never write bare "surface" in governed prose; name the sense ("tool surface" / "topology surface"). |
 | **Related terms** | [Tool](#tool), [Slash Command](#slash-command), [Agent](./identity.md#agent), [Topology Surface](./orchestration.md#topology-surface) |
+
+---
+
+### Pack skill
+
+| | |
+|---|---|
+| **Definition** | A thin, parameterized entry point that a team shares through a charter pack instead of through private per-user copies. It is a doctrine artifact of kind `skill` (`ArtifactKind.SKILL`, URN `skill:<id>`), declared as a `<id>.skill.yaml` record (plus a body file in the `prompt` form) in an org pack's `skills/` directory or in the project's `.kittify/doctrine/skills/` directory. A maintainer switches it on with `spec-kitty charter activate skill <id>`. Spec Kitty then renders it as `<skill_namespace>-<id>/SKILL.md` into the project skill root of each configured tool, and records ownership in `.kittify/skills-manifest.json`. A pack skill carries no doctrine substance of its own: it `requires` the procedures and directives that do. |
+| **Context** | Execution |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **The senses of "skill"** | The word "skill" names three different artifacts in this codebase. All three share one packaging format: a directory with a `SKILL.md` descriptor (the core glossary pack calls this a "skill package"). **Pack skill** — the charter-activatable artifact defined here. **Doctrine skill** — a skill shipped inside the product under `src/charter/offering/skills/` (for example `spk-*`); it teaches an agent how to operate Spec Kitty; realized as `ToolSurfaceKind.DOCTRINE_SKILL`. **Command skill** — a generated `spec-kitty.<command>` skill (for example under `.agents/skills/spec-kitty.<command>/`) that exposes a slash command to Agent Skills tools; realized as `ToolSurfaceKind.COMMAND_SKILL`. |
+| **Do NOT use when** | The concept is a skill that ships with the product to teach an agent how to operate Spec Kitty (under `src/charter/offering/skills/`) — say "doctrine skill". The concept is a generated `spec-kitty.<command>` skill — say "command skill". The concept is the `ToolSurfaceKind` value — write the member name (`DOCTRINE_SKILL`, `COMMAND_SKILL`). The concept is only the rendered `SKILL.md` directory on disk — that is the *projection* of a pack skill (or of a doctrine skill); the pack skill is the declared artifact. Never write bare "skill" in governed prose when the sense is not obvious; name it. The `spk-`, `spec-kitty-` and `spec-kitty.` name prefixes are reserved for doctrine and command skills: a pack skill renders under its own `skill_namespace` prefix instead. |
+| **Related terms** | [Tool Surface](#tool-surface), [Slash Command](#slash-command), [Tool](#tool) |
 
 ---
 
