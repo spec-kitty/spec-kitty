@@ -96,7 +96,7 @@ class StatusSurfaceLeftover:
 class StatusSurfaceGuard:
     """Capture-then-restore of the status surface across one ``finalize-tasks`` run."""
 
-    checkout_root: Path | None = None
+    surface_root: Path | None = None
     branch: str | None = None
     tip_before: str | None = None
     index_tree: str | None = None
@@ -124,7 +124,7 @@ class StatusSurfaceGuard:
             # unreadable snapshot.
             logger.warning("finalize atomicity: status surface at %s is not a checkout on a branch with a readable HEAD and index", status_dir)
             return
-        self.checkout_root, self.branch, self.tip_before, self.index_tree = root, branch, tip, tree
+        self.surface_root, self.branch, self.tip_before, self.index_tree = root, branch, tip, tree
 
     @contextmanager
     def recording(self) -> Iterator[None]:
@@ -137,12 +137,12 @@ class StatusSurfaceGuard:
         try:
             yield
         finally:
-            if self.checkout_root is not None and self.branch is not None:
-                self.tip_after = _git(self.checkout_root, "rev-parse", "--verify", f"refs/heads/{self.branch}")
+            if self.surface_root is not None and self.branch is not None:
+                self.tip_after = _git(self.surface_root, "rev-parse", "--verify", f"refs/heads/{self.branch}")
 
     def restore(self) -> StatusSurfaceLeftover | None:
         """Undo this run's status commits; ``None`` when nothing of this run is left behind."""
-        root, branch, before, ours = self.checkout_root, self.branch, self.tip_before, self.tip_after
+        root, branch, before, ours = self.surface_root, self.branch, self.tip_before, self.tip_after
         if root is None or branch is None or before is None:
             return None  # never captured: the run failed before its first status write
         current = _git(root, "rev-parse", "--verify", f"refs/heads/{branch}")
@@ -167,9 +167,9 @@ class StatusSurfaceGuard:
 
     def is_at_tip_before(self) -> bool:
         """Whether the captured branch points where it did before the run (status bytes may then be put back)."""
-        if self.checkout_root is None or self.branch is None:
+        if self.surface_root is None or self.branch is None:
             return False
-        return _git(self.checkout_root, "rev-parse", "--verify", f"refs/heads/{self.branch}") == self.tip_before
+        return _git(self.surface_root, "rev-parse", "--verify", f"refs/heads/{self.branch}") == self.tip_before
 
 
 def _leftover(root: Path, branch: str, before: str, ours: str, reason: str) -> StatusSurfaceLeftover:
