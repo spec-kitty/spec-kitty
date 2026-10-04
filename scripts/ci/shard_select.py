@@ -16,9 +16,9 @@ Module-row shard *assignment* is identical to the retired heredoc: when the
 committed timings do not line up with the collected tests the weights are still
 uniform. Since WP02 (FR-005, #5092 acceptance criterion 2) that fallback is
 never silent: a ``::warning title=shard timings::`` annotation and one
-``$GITHUB_STEP_SUMMARY`` line report it. Today that fires for every module in
-``test_module_length_agreement.py``'s ``_MISMATCH_ALLOWLIST``; that visibility
-is intended (research R1 section 4d).
+``$GITHUB_STEP_SUMMARY`` line report it. It fires for any module whose committed
+timings no longer match live collection; that visibility is intended (research
+R1 section 4d).
 
 WP02 also owns the battery's file granularity: :func:`enumerate_base_files` is
 THE list of battery test files (the WP05 plugin and the WP06 gate model both

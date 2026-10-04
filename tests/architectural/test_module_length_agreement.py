@@ -27,33 +27,27 @@ A test asserting the committed duration-list length equals what the
 consumer actually collects would have caught that. It is non-vacuous by
 construction: it fails exactly when the durations stop being used.
 
-The honest baseline (measured 2026-09-22, this WP)
-----------------------------------------------------
-Of the module registry's 21 rows, only ``charter`` -- the one module WP04/
-WP05 recaptured -- currently agrees with live collection. The other 20 rows
-predate this mission and were never touched by it; asserting agreement for
-all 21 unconditionally would red the suite on arrival, which is not
-shippable. Per the charter's Standing Order #2 ("freeze current offenders as
-a baseline when a litter class cannot be cleared in-mission"), the 20 known
-mismatches are frozen below in ``_MISMATCH_ALLOWLIST`` -- a debt ledger, not
-a blanket exemption. New drift beyond this frozen baseline fails
-immediately; the baseline can only shrink (enforced by
-``test_allowlist_does_not_exceed_baseline`` below), never grow silently, and
-a stale entry that has since started agreeing is itself a failure
-(``test_allowlisted_modules_still_genuinely_mismatch``).
+Every module agrees, no exemptions
+-----------------------------------
+Every row of the module registry must agree with live collection: there is no
+allowlist, no frozen baseline and no per-module exemption. A module whose
+committed duration list drifts is recaptured (``scripts/ci/capture_shard_timings.py``
+or the scheduled ``ci-shard-recapture.yml``), never excused. The comparison is
+non-vacuous in both directions: the live tests below fail on real drift and the
+self-mutation tests at the bottom prove a deliberately wrong count is detected.
 
 Cost trade-off
 ---------------
 Live collection is the only non-vacuous comparison -- comparing the
 committed file to a number recorded in the SAME file would be exactly the
 self-validating defect this gate exists to close. It is not free: collecting
-all 21 modules serially measured ~36s locally (2026-09-22, via
+all the modules serially measured ~36s locally (2026-09-22, via
 ``.venv/bin/python``); a later local run of this whole file under strict mode
 took ~230s wall (2026-09-28, 4 cores), which is what
-``ci-charter-shard-recapture.yml``'s ``strict-shard-timings-check`` timeout is
+``ci-shard-recapture.yml``'s ``strict-shard-timings-check`` timeout is
 sized against. This module pays that cost once per pytest session,
 via the session-scoped ``_collected_counts`` fixture, so every assertion
-below reuses the same 21 subprocess calls instead of repeating them per
+below reuses the same per-module subprocess calls instead of repeating them per
 test. The live-collection test is marked ``slow`` (pytest.ini: "expected to
 take >30 seconds"), never ``fast``. The genuinely fast, self-validating half
 of this gate -- proving the comparison mechanism actually FIRES on a real
@@ -108,45 +102,6 @@ _TIMINGS_PATH = _REPO_ROOT / ".github" / "ci-shard-timings.json"
 # measure exactly what `module-tests.yml`'s select step collects, so it may not
 # carry a copy that could drift.
 
-# Frozen, shrink-only baseline (Standing Order #2): every module known to
-# mismatch as of 2026-09-22 -- the day this gate was minted -- with the
-# measured committed/collected counts recorded for audit. `charter` is
-# deliberately absent; `test_charter_is_not_allowlisted_and_agrees` below
-# pins that absence as a hard invariant independent of the count ratchet, so
-# a count-preserving swap (fix one module, sneak `charter` in) cannot mask a
-# real regression in the module this mission actually recaptured.
-_MISMATCH_ALLOWLIST: dict[str, str] = {
-    "missions": "committed=633 collected=319 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
-    "post_merge": "committed=100 collected=123 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
-    "release": "committed=86 collected=253 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
-    "status": "committed=1702 collected=1758 (2026-09-22 baseline; cited by DM-01M3584PY5A6F79DWX1QFDHW87, never recaptured by this mission)",
-    "review": "committed=535 collected=537 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
-    "next": "committed=1588 collected=559 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
-    "lanes": "committed=318 collected=456 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
-    "upgrade": "committed=733 collected=874 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
-    "cli": "committed=2704 collected=682 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
-    # `agent` removed (ci-coverage-honesty WP02): enrolling tests/specify_cli/agent_utils into
-    # the agent row + re-measuring its timings made committed==collected, so the mismatch is
-    # gone and the allowlist entry is stale. Shrinking the ledger is always welcome.
-    "kernel": "committed=270 collected=468 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
-    "glossary": "committed=149 collected=185 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
-    "execution_context": "committed=4106 collected=3406 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
-    "core_misc": "committed=5927 collected=3574 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
-    "unit": "committed=454 collected=496 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
-    "specify_cli_runtime": "committed=77 collected=90 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
-    "ci": "committed=286 collected=392 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
-    "auth": "committed=573 collected=609 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
-}
-
-# Shrink-only high-water mark (mirrors `test_ruff_format_exclude_ratchet.py`'s
-# `_BASELINE_EXCLUDE_COUNT` pattern). Growing `_MISMATCH_ALLOWLIST` requires
-# bumping this constant in the SAME PR as the new entry, with a reason the
-# mismatch could not instead be fixed by recapturing the module. Recapturing
-# a module and deleting its entry shrinks both this constant's headroom and
-# `len(_MISMATCH_ALLOWLIST)` together, and is always welcome.
-_BASELINE_ALLOWLIST_COUNT = 17
-
-
 # spec-kitty#5189 interim relief: a committed/collected count drift no longer
 # reds the per-PR architectural battery. Any +1/-1 test-count change in a
 # pinned module (charter above all) otherwise forced a ~18-min serial measured
@@ -166,7 +121,7 @@ def _strict_mode() -> bool:
 
     Any other value -- ``"true"``, ``"yes"``, ``"1 "``, ``"0"``, empty, or unset -- keeps
     the non-blocking warn-by-default behaviour. Set exactly ``1`` to restore the hard
-    failure (as ``ci-charter-shard-recapture.yml``'s ``strict-shard-timings-check`` does).
+    failure (as ``ci-shard-recapture.yml``'s ``strict-shard-timings-check`` does).
     """
     return os.environ.get(_STRICT_ENV_VAR) == "1"
 
@@ -260,11 +215,10 @@ def _live_collected_count(test_dirs: tuple[str, ...]) -> int:
 
 def _find_mismatches(
     modules: list[str],
-    allowlist: dict[str, str],
     committed_lengths: dict[str, int],
     collected_counts: dict[str, int],
 ) -> list[_Mismatch]:
-    """Pure comparison: every non-allowlisted module whose lengths disagree.
+    """Pure comparison: every module whose committed and collected lengths disagree.
 
     Deliberately IO-free and side-effect-free so the self-mutation tests
     below can prove the comparison fires on a synthetic mismatch without
@@ -272,8 +226,6 @@ def _find_mismatches(
     """
     mismatches = []
     for module in modules:
-        if module in allowlist:
-            continue
         committed = committed_lengths[module]
         collected = collected_counts[module]
         if committed != collected:
@@ -308,24 +260,24 @@ def _collected_counts(_live_registry_state: dict[str, Any]) -> dict[str, int]:
 # The real gate.
 # ---------------------------------------------------------------------------
 @pytest.mark.slow
-def test_non_allowlisted_modules_agree_with_live_collection(
+def test_every_registry_module_agrees_with_live_collection(
     _live_registry_state: dict[str, Any],
     _live_timings_state: dict[str, Any],
     _collected_counts: dict[str, int],
 ) -> None:
     """FR-008/NFR-003's honest replacement (DM-01M3584PY5A6F79DWX1QFDHW87).
 
-    A module NOT in `_MISMATCH_ALLOWLIST` must have a committed duration-list
-    length equal to what the consumer genuinely collects right now. This is
-    the ONE comparison the pre-WP06 gate never made -- it always compared the
-    committed file to itself.
+    EVERY registry module must have a committed duration-list length equal to
+    what the consumer genuinely collects right now (FR-014: no allowlist, no
+    exemptions). This is the ONE comparison the pre-WP06 gate never made -- it
+    always compared the committed file to itself.
     """
     modules = _registry_modules(_live_registry_state)
     committed_lengths = {module: _committed_length(_live_timings_state, module) for module in modules}
-    mismatches = _find_mismatches(modules, _MISMATCH_ALLOWLIST, committed_lengths, _collected_counts)
+    mismatches = _find_mismatches(modules, committed_lengths, _collected_counts)
     if mismatches:
         _report_drift(
-            "committed/collected length mismatch for module(s) NOT in the frozen baseline allowlist: "
+            "committed/collected length mismatch for registry module(s): "
             f"{[(m.module, m.committed, m.collected) for m in mismatches]}. The module's timings drifted "
             "without recapture (recapture via scripts/ci/capture_shard_timings.py --module <name> --write); "
             f"non-blocking per PR since spec-kitty#5189, strict when {_STRICT_ENV_VAR}=1.",
@@ -334,11 +286,11 @@ def test_non_allowlisted_modules_agree_with_live_collection(
 
 
 @pytest.mark.slow
-def test_charter_is_not_allowlisted_and_agrees(
+def test_charter_agrees_with_live_collection(
     _live_timings_state: dict[str, Any],
     _collected_counts: dict[str, int],
 ) -> None:
-    """Pins this mission's actual deliverable, independent of the count ratchet.
+    """Pins spec-kitty#4865's actual deliverable on its own, as well as in the every-module check.
 
     `charter` is spec-kitty#4865's subject: WP04 recaptured its timings. This
     assertion is the honest replacement for the withdrawn skew-sensitivity
@@ -346,7 +298,6 @@ def test_charter_is_not_allowlisted_and_agrees(
     `module-tests.yml` collects, so its shards are weighted by measured time,
     never the silent uniform-weight fallback.
     """
-    assert "charter" not in _MISMATCH_ALLOWLIST, "`charter` must never enter the mismatch allowlist -- it is this mission's own recaptured module."
     committed = _committed_length(_live_timings_state, "charter")
     collected = _collected_counts["charter"]
     if committed != collected:
@@ -359,37 +310,19 @@ def test_charter_is_not_allowlisted_and_agrees(
 
 @pytest.mark.fast
 def test_consolidation_registry_row_is_split(_live_registry_state: dict[str, Any]) -> None:
-    """#5510 FR-012 (partial #5086): the consolidation row is split AND no longer allow-listed.
+    """#5510 FR-012 (partial #5086): the consolidation row is split.
 
     The strict length-agreement gate above is env-gated (per-PR drift is only a warning since
     #5189), so this unconditional registry-only pin is what makes the FR-012 deliverable fail
     closed: a recapture alone (timings 782 -> 1617) cannot turn it green -- only the registry's
-    `shard_count >= 2` can, and re-adding consolidation to the allowlist turns it red again.
+    `shard_count >= 2` can.
     """
-    assert "consolidation" not in _MISMATCH_ALLOWLIST, (
-        "`consolidation` must not be in _MISMATCH_ALLOWLIST (#5510 FR-012): its timings were recaptured "
-        "so the committed list length equals the consumer's live collection."
-    )
     rows = [row for row in _live_registry_state["modules"] if row["module"] == "consolidation"]
     assert len(rows) == 1, f"expected exactly one `consolidation` registry row, found {len(rows)}"
     shard_count = rows[0].get("shard_count", 1)
     assert shard_count >= 2, (
         f"consolidation registry row has shard_count={shard_count}; #5510 FR-012 requires >= 2 so the "
         "longest module pipeline is split into measured-time-balanced shards."
-    )
-
-
-@pytest.mark.fast
-def test_allowlist_baseline_is_tight() -> None:
-    """The shrink-only baseline must equal the allowlist size, so a fix always lowers it.
-
-    `test_allowlist_does_not_exceed_baseline` only bounds from above: after a module leaves the
-    allowlist a stale, higher baseline would silently re-grant headroom for a new mismatch
-    (#5510 FR-012 took consolidation out: 19 -> 18 entries, baseline 20 -> 18).
-    """
-    assert len(_MISMATCH_ALLOWLIST) == _BASELINE_ALLOWLIST_COUNT, (
-        f"_BASELINE_ALLOWLIST_COUNT ({_BASELINE_ALLOWLIST_COUNT}) must equal len(_MISMATCH_ALLOWLIST) "
-        f"({len(_MISMATCH_ALLOWLIST)}); lower the constant in the same commit that removes an entry."
     )
 
 
@@ -418,44 +351,6 @@ def test_test_dirs_resolve_through_the_shard_resolver_not_the_recorder(monkeypat
     assert calls == [("alpha", json.dumps(["tests/a"]))]
 
 
-@pytest.mark.fast
-def test_allowlist_does_not_exceed_baseline() -> None:
-    """Shrink-only ratchet (Standing Order #2): debt cannot grow silently."""
-    assert len(_MISMATCH_ALLOWLIST) <= _BASELINE_ALLOWLIST_COUNT, (
-        f"_MISMATCH_ALLOWLIST grew to {len(_MISMATCH_ALLOWLIST)} entries, above the pinned baseline of "
-        f"{_BASELINE_ALLOWLIST_COUNT}. Growing the allowlist requires bumping _BASELINE_ALLOWLIST_COUNT in "
-        "this same PR, with a reason the new mismatch could not instead be fixed by recapturing the module."
-    )
-
-
-@pytest.mark.fast
-def test_allowlist_entries_are_real_registry_modules(_live_registry_state: dict[str, Any]) -> None:
-    """A dangling allowlist entry names no coverage gap, but is dead, confusing debt."""
-    modules = set(_registry_modules(_live_registry_state))
-    stale = sorted(set(_MISMATCH_ALLOWLIST) - modules)
-    assert not stale, f"_MISMATCH_ALLOWLIST names module(s) no longer in the registry: {stale}. Remove the stale entry."
-
-
-@pytest.mark.slow
-def test_allowlisted_modules_still_genuinely_mismatch(
-    _live_timings_state: dict[str, Any],
-    _collected_counts: dict[str, int],
-) -> None:
-    """A fixed module must be REMOVED from the allowlist, not left as dead debt.
-
-    Mirrors `test_ruff_format_exclude_ratchet.py`'s
-    `test_every_exclude_entry_still_genuinely_reformats`: an allowlist entry
-    that no longer mismatches is not evidence of continued debt -- it is a
-    stale exemption silently keeping an already-agreeing module out of the
-    real gate above.
-    """
-    now_agreeing = [module for module in _MISMATCH_ALLOWLIST if _committed_length(_live_timings_state, module) == _collected_counts.get(module, -1)]
-    assert not now_agreeing, (
-        f"module(s) {now_agreeing} are in _MISMATCH_ALLOWLIST but now genuinely agree -- remove them from "
-        "the allowlist (and lower _BASELINE_ALLOWLIST_COUNT to match) instead of leaving a dead exemption."
-    )
-
-
 # ---------------------------------------------------------------------------
 # Self-mutation tests (Standing Order #5): prove the comparison mechanism
 # itself fires on a real mismatch, deterministically, with no subprocess and
@@ -469,7 +364,7 @@ def test_mismatch_detection_fires_on_synthetic_length_disagreement() -> None:
     committed_lengths = {"alpha": 10, "bravo": 20}
     collected_counts = {"alpha": 10, "bravo": 21}  # bravo perturbed +1
 
-    mismatches = _find_mismatches(modules, allowlist={}, committed_lengths=committed_lengths, collected_counts=collected_counts)
+    mismatches = _find_mismatches(modules, committed_lengths=committed_lengths, collected_counts=collected_counts)
 
     assert [m.module for m in mismatches] == ["bravo"]
     assert mismatches[0] == _Mismatch(module="bravo", committed=20, collected=21)
@@ -482,17 +377,7 @@ def test_mismatch_detection_is_silent_on_agreement() -> None:
     committed_lengths = {"alpha": 10, "bravo": 20}
     collected_counts = {"alpha": 10, "bravo": 20}
 
-    assert _find_mismatches(modules, allowlist={}, committed_lengths=committed_lengths, collected_counts=collected_counts) == []
-
-
-@pytest.mark.fast
-def test_mismatch_detection_respects_allowlist() -> None:
-    """An allowlisted module's mismatch is skipped, never silently 'fixed'."""
-    modules = ["alpha", "bravo"]
-    committed_lengths = {"alpha": 10, "bravo": 20}
-    collected_counts = {"alpha": 10, "bravo": 999}
-
-    assert _find_mismatches(modules, allowlist={"bravo": "known debt"}, committed_lengths=committed_lengths, collected_counts=collected_counts) == []
+    assert _find_mismatches(modules, committed_lengths=committed_lengths, collected_counts=collected_counts) == []
 
 
 @pytest.mark.fast
@@ -530,7 +415,7 @@ def test_strict_mode_reads_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
 # ---------------------------------------------------------------------------
 @pytest.mark.fast
 def test_charter_disagreement_emits_shard_timings_drift_warning(monkeypatch: pytest.MonkeyPatch) -> None:
-    """spec-kitty#5189 amendment: catches a revert of test_charter_is_not_allowlisted_and_agrees's
+    """spec-kitty#5189 amendment: catches a revert of test_charter_agrees_with_live_collection's
     mismatch branch back to a bare hard assert -- #5240's own 3 unit tests exercise only the
     _report_drift/_strict_mode helpers in isolation, never this production function.
 
@@ -542,7 +427,7 @@ def test_charter_disagreement_emits_shard_timings_drift_warning(monkeypatch: pyt
     fake_timings = {"module_test_durations": {"charter": [0.0] * 10}}
     fake_collected = {"charter": 11}
     with pytest.warns(ShardTimingsDriftWarning, match="charter drifted"):
-        test_charter_is_not_allowlisted_and_agrees(fake_timings, fake_collected)
+        test_charter_agrees_with_live_collection(fake_timings, fake_collected)
 
 
 @pytest.mark.fast
@@ -553,14 +438,14 @@ def test_charter_agreement_emits_no_shard_timings_drift_warning(recwarn: pytest.
     ShardTimingsDriftWarning and the production gate function returns normally."""
     fake_timings = {"module_test_durations": {"charter": [0.0] * 10}}
     fake_collected = {"charter": 10}
-    result = test_charter_is_not_allowlisted_and_agrees(fake_timings, fake_collected)
+    result = test_charter_agrees_with_live_collection(fake_timings, fake_collected)
     assert result is None
     drift_warnings = [w for w in recwarn.list if issubclass(w.category, ShardTimingsDriftWarning)]
     assert drift_warnings == [], f"expected no ShardTimingsDriftWarning on agreement, got: {drift_warnings}"
 
 
 @pytest.mark.fast
-def test_non_allowlisted_disagreement_emits_shard_timings_drift_warning(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_registry_module_disagreement_emits_shard_timings_drift_warning(monkeypatch: pytest.MonkeyPatch) -> None:
     """spec-kitty#5189 amendment: the second live-collection gate #5240 also demoted. Uses a
     synthetic module name -- never a real SK-247 module -- so this stays in scope (C-001).
 
@@ -572,18 +457,18 @@ def test_non_allowlisted_disagreement_emits_shard_timings_drift_warning(monkeypa
     fake_timings = {"module_test_durations": {"synthetic_test_module": [0.0] * 5}}
     fake_collected = {"synthetic_test_module": 6}
     with pytest.warns(ShardTimingsDriftWarning, match="synthetic_test_module"):
-        test_non_allowlisted_modules_agree_with_live_collection(fake_registry, fake_timings, fake_collected)
+        test_every_registry_module_agrees_with_live_collection(fake_registry, fake_timings, fake_collected)
 
 
 @pytest.mark.fast
-def test_non_allowlisted_agreement_emits_no_shard_timings_drift_warning(recwarn: pytest.WarningsRecorder) -> None:
+def test_registry_module_agreement_emits_no_shard_timings_drift_warning(recwarn: pytest.WarningsRecorder) -> None:
     """spec-kitty#5189 amendment fix round 2 (AMENDMENT-FRESH-002): the cross-module gate's own
     agreeing-case proof, mirroring the charter test above. Uses a synthetic module name --
     never a real SK-247 module -- so this stays in scope (C-001)."""
     fake_registry = {"modules": [{"module": "synthetic_test_module"}]}
     fake_timings = {"module_test_durations": {"synthetic_test_module": [0.0] * 5}}
     fake_collected = {"synthetic_test_module": 5}
-    result = test_non_allowlisted_modules_agree_with_live_collection(fake_registry, fake_timings, fake_collected)
+    result = test_every_registry_module_agrees_with_live_collection(fake_registry, fake_timings, fake_collected)
     assert result is None
     drift_warnings = [w for w in recwarn.list if issubclass(w.category, ShardTimingsDriftWarning)]
     assert drift_warnings == [], f"expected no ShardTimingsDriftWarning on agreement, got: {drift_warnings}"
@@ -597,18 +482,18 @@ def test_charter_disagreement_fails_in_strict_mode(monkeypatch: pytest.MonkeyPat
     fake_timings = {"module_test_durations": {"charter": [0.0] * 10}}
     fake_collected = {"charter": 11}
     with pytest.raises(pytest.fail.Exception, match="charter drifted"):
-        test_charter_is_not_allowlisted_and_agrees(fake_timings, fake_collected)
+        test_charter_agrees_with_live_collection(fake_timings, fake_collected)
 
 
 @pytest.mark.fast
-def test_non_allowlisted_disagreement_fails_in_strict_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_registry_module_disagreement_fails_in_strict_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     """spec-kitty#5189 amendment: same proof for the cross-module gate."""
     monkeypatch.setenv(_STRICT_ENV_VAR, "1")
     fake_registry = {"modules": [{"module": "synthetic_test_module"}]}
     fake_timings = {"module_test_durations": {"synthetic_test_module": [0.0] * 5}}
     fake_collected = {"synthetic_test_module": 6}
     with pytest.raises(pytest.fail.Exception, match="synthetic_test_module"):
-        test_non_allowlisted_modules_agree_with_live_collection(fake_registry, fake_timings, fake_collected)
+        test_every_registry_module_agrees_with_live_collection(fake_registry, fake_timings, fake_collected)
 
 
 @pytest.mark.fast

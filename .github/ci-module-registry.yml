@@ -39,11 +39,10 @@ modules:
   # the Mission PR's CI over >= 3 runs, `module-tests (consolidation shard 1/2)` and `(... 2/2)`;
   # not a local claim). 3 shards were rejected (R3 3.6): unnecessary for the measured weight and
   # more runner start-up overhead.
-  # Consequence (R3 3.3): consolidation is no longer in test_module_length_agreement's
-  # _MISMATCH_ALLOWLIST, so the scheduled `strict-shard-timings-check` hard-fails on future
-  # consolidation count drift; per PR it is a `ShardTimingsDriftWarning` plus the loud selector
-  # warning. Recapture with the command above. Follow-up: generalise the scheduled recapture
-  # beyond charter (child of #5086).
+  # Consequence (R3 3.3): consolidation counts are checked like every other module (the
+  # mismatch allowlist no longer exists), so the scheduled `strict-shard-timings-check`
+  # hard-fails on count drift; per PR it is a `ShardTimingsDriftWarning` plus the loud selector
+  # warning. The scheduled recapture (`ci-shard-recapture.yml`) covers every registry module.
   shard_count: 2
   # spec-kitty#5001 (terminus-merge-integrity): tests/terminus holds the real-CLI,
   # mock-free terminus reconciliation repros. The spine they exercise lives under
