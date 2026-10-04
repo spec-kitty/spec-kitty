@@ -197,3 +197,31 @@ def test_prepare_then_apply_upgrade_with_active_pack_skill_is_not_invalidated(pr
         assert not [e for e in errors if getattr(e, "severity", "error") == "error"], errors
         results = apply_upgrade_repairs(prepared)
     assert all(r.outcome != "precondition_changed" for r in results), results
+
+
+def test_requires_edge_change_is_staleness(project: Path, pack: Path) -> None:
+    """The rendered preamble depends on DRG ``requires``; adding an edge makes the install stale."""
+    assert find_pack_skill_findings(project) == ()
+    support.write_procedure(pack, "proc-p")
+    support.write_fragment(
+        pack,
+        nodes=[(f"skill:{SKILL_ID}", "skill"), ("procedure:proc-p", "procedure")],
+        edges=[(f"skill:{SKILL_ID}", "procedure:proc-p", "requires")],
+    )
+
+    assert {f.kind for f in find_pack_skill_findings(project)} == {KIND_STALE}
+
+
+def test_legacy_bare_hex_source_hash_is_stale_once_then_clean(project: Path) -> None:
+    """A pre-``sha256:`` manifest is reported stale once; re-projection rewrites the prefixed form."""
+    manifest = load_manifest(project, strict=True)
+    assert manifest is not None
+    for entry in manifest.entries:
+        if entry.origin == ORIGIN_PACK:
+            assert entry.source_hash.startswith("sha256:")
+            entry.source_hash = entry.source_hash.removeprefix("sha256:")
+    save_manifest(manifest, project)
+    assert {f.kind for f in find_pack_skill_findings(project)} == {KIND_STALE}
+
+    save_manifest(install_all_skills(project, ["claude", "codex"], resolve_project_skill_catalog(project)), project)
+    assert find_pack_skill_findings(project) == ()

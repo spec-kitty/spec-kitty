@@ -85,6 +85,9 @@ def _entry_findings(project_path: Path, entry: ManagedFileEntry, current: dict[s
     if _installed_hash(project_path, entry) not in (None, entry.content_hash):
         found.append(PackSkillFinding(KIND_DRIFT, entry.skill_name, entry.installed_path, entry.source_ref))
     fresh = current.get(entry.skill_name)
+    # A manifest written before the shared ``sha256:`` digest format carries a bare-hex
+    # source_hash; it can never equal a fresh digest, so it is reported stale ONCE and
+    # re-projection rewrites it in the current format (no permanent false staleness).
     if entry.source_hash and fresh is not None and fresh != entry.source_hash:
         found.append(PackSkillFinding(KIND_STALE, entry.skill_name, entry.installed_path, entry.source_ref))
     return found

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 from dataclasses import asdict, dataclass, field, replace
@@ -10,6 +9,7 @@ from pathlib import Path
 
 from specify_cli.core.atomic import atomic_write
 from kernel.clock import now_utc_iso
+from kernel.content_digest import sha256_digest
 from specify_cli.skills.paths import SkillPathObservation, recheck_skill_paths, skill_path_observations
 
 logger = logging.getLogger(__name__)
@@ -243,6 +243,4 @@ def clear_manifest(project_path: Path) -> None:
 
 def compute_content_hash(file_path: Path) -> str:
     """Compute sha256 hash of file content."""
-    content = file_path.read_bytes()
-    digest = hashlib.sha256(content).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
-    return f"sha256:{digest}"
+    return sha256_digest(file_path.read_bytes())

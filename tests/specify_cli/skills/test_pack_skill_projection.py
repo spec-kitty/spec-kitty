@@ -140,7 +140,7 @@ def test_pack_skill_is_staged_tagged_and_merged_with_the_shipped_catalog(project
     assert set(skills) == {"spk-one", RENDERED}
     assert skills["spk-one"].origin == ORIGIN_BUILTIN and skills["spk-one"].source_hash == ""
     pack = skills[RENDERED]
-    assert pack.origin == ORIGIN_PACK and len(pack.source_hash) == 64
+    assert pack.origin == ORIGIN_PACK and pack.source_hash.startswith("sha256:") and len(pack.source_hash) == 71
     assert pack.source_ref.endswith("deploy-helper.skill.yaml")
     assert registry.get_skill(RENDERED) == pack
 

@@ -16,7 +16,6 @@ Precedent: :func:`charter.activation.compiler.prepare_mission_type_activations`
 
 from __future__ import annotations
 
-import hashlib
 import json
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
@@ -26,6 +25,7 @@ from typing import Any, Protocol
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from kernel.content_digest import sha256_digest
 from charter.drg import DRGGraph, Relation
 from charter.offering.pack_skills.models import BUILTIN_TARGET_PREFIX, CLI_TARGET_PREFIX, PackSkill, SkillExpansion
 from charter.offering.pack_skills.validation import RESERVED_PREFIXES, Tier, rendered_name
@@ -68,9 +68,10 @@ class PreparedSkill:
     """One activated skill, ready to render.
 
     ``body`` is set for prompt-form skills, ``expansion`` for wrapper-form ones
-    (its ``builtin:`` target is *unresolved*). ``source_hash`` is the sha256 of
-    the JSON-canonical (``sort_keys``) skill record followed by the body bytes:
-    a changed pack source changes it even when the rendered bytes would not.
+    (its ``builtin:`` target is *unresolved*). ``source_hash`` is the
+    ``sha256:`` digest of the canonical record, sorted ``requires``, rendered
+    name and body: a changed pack source or DRG edge changes it even when the
+    rendered bytes would not.
     """
 
     id: str
@@ -119,6 +120,7 @@ def _prepare_one(
     tier = _tier(source.provenance_of(skill_id), skill_id)
     name = _name_for(skill_id, tier, org_namespace, project_namespace)
     body = source.body_text(skill_id)
+    requires = _requires(graph, skill_id)
     return PreparedSkill(
         id=skill_id,
         tier=tier,
@@ -126,9 +128,9 @@ def _prepare_one(
         form=skill.form,
         body=body,
         expansion=skill.expands_to,
-        requires=_requires(graph, skill_id),
+        requires=requires,
         source_path=source_path,
-        source_hash=_source_hash(skill, body),
+        source_hash=_source_hash(skill, body, requires, name),
         skill=skill,
     )
 
@@ -151,7 +153,7 @@ def _name_for(skill_id: str, tier: Tier, org_namespace: str | None, project_name
     if not namespace:
         remedy = _ORG_NAMESPACE_REMEDY if tier == "org" else _PROJECT_NAMESPACE_REMEDY
         raise SkillPreparationError(f"{tier}-tier skill {skill_id!r} has no skill namespace to render under; {remedy}")
-    name = rendered_name(skill_id, namespace)
+    name: str = rendered_name(skill_id, namespace)
     if name.startswith(RESERVED_PREFIXES):
         raise SkillPreparationError(f"{tier}-tier skill {skill_id!r} renders as {name!r}, a prefix reserved for built-in skills {list(RESERVED_PREFIXES)}")
     return name
@@ -162,11 +164,15 @@ def _requires(graph: DRGGraph, skill_id: str) -> tuple[str, ...]:
     return tuple(sorted({edge.target for edge in graph.edges_from(urn, Relation.REQUIRES)}))
 
 
-def _source_hash(skill: PackSkill, body: str | None) -> str:
-    record = json.dumps(skill.model_dump(mode="json"), sort_keys=True).encode("utf-8")
-    digest = hashlib.sha256(record)  # noqa: TID251 - provenance checksum over pack source bytes, not charter content (hash_content would normalize and strip)
-    digest.update((body or "").encode("utf-8"))
-    return digest.hexdigest()
+def _source_hash(skill: PackSkill, body: str | None, requires: tuple[str, ...], name: str) -> str:
+    """``sha256:`` digest of every input the rendered ``SKILL.md`` depends on.
+
+    Canonical JSON of the record, the sorted DRG ``requires`` (rendered as the
+    context preamble), the rendered name (frontmatter) and the body bytes.
+    """
+    inputs = {"record": skill.model_dump(mode="json"), "requires": sorted(requires), "rendered_name": name}
+    canonical = json.dumps(inputs, sort_keys=True).encode("utf-8")
+    return sha256_digest(canonical + b"\0" + (body or "").encode("utf-8"))
 
 
 def _refuse_duplicate_names(prepared: list[PreparedSkill]) -> None:

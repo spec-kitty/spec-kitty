@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
 
@@ -17,6 +16,7 @@ from charter.activation.skill_preparation import (
 )
 from charter.drg import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from charter.offering.pack_skills.models import PackSkill
+from kernel.content_digest import sha256_digest
 
 from . import skill_pack_support as support
 
@@ -161,14 +161,19 @@ def test_nothing_activated_prepares_nothing() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_source_hash_is_sha256_of_canonical_record_plus_body_bytes() -> None:
+def _expected_hash(skill: PackSkill, body: str | None, requires: list[str], name: str) -> str:
+    inputs = {"record": skill.model_dump(mode="json"), "requires": requires, "rendered_name": name}
+    return sha256_digest(json.dumps(inputs, sort_keys=True).encode("utf-8") + b"\0" + (body or "").encode("utf-8"))
+
+
+def test_source_hash_covers_record_requires_rendered_name_and_body_bytes() -> None:
     skill = _skill("land-pr")
     source = FakeSource().add(skill, "org", body="héllo\n")
 
     (prepared,) = _prepare(source, ["land-pr"])
 
-    expected = hashlib.sha256(json.dumps(skill.model_dump(mode="json"), sort_keys=True).encode("utf-8") + "héllo\n".encode()).hexdigest()  # noqa: TID251 - independent expectation of the provenance checksum
-    assert prepared.source_hash == expected
+    assert prepared.source_hash == _expected_hash(skill, "héllo\n", [], "acme-land-pr")
+    assert prepared.source_hash.startswith("sha256:")
 
 
 def test_source_hash_changes_with_the_body_and_with_the_record() -> None:
@@ -178,16 +183,17 @@ def test_source_hash_changes_with_the_body_and_with_the_record() -> None:
     assert len({base, other_body, other_record}) == 3
 
 
-def test_source_hash_is_stable_for_the_same_input_and_ignores_tier_namespace() -> None:
-    first = _prepare(FakeSource().add(_skill("a"), "org"), ["a"], org="one")[0].source_hash
-    second = _prepare(FakeSource().add(_skill("a"), "org"), ["a"], org="two")[0].source_hash
-    assert first == second
+def test_source_hash_is_stable_for_the_same_input_and_tracks_the_rendered_name() -> None:
+    again = [_prepare(FakeSource().add(_skill("a"), "org"), ["a"], org="one")[0].source_hash for _ in range(2)]
+    other_namespace = _prepare(FakeSource().add(_skill("a"), "org"), ["a"], org="two")[0].source_hash
+    assert again[0] == again[1]
+    assert other_namespace != again[0]  # the rendered name is a rendered-output input
 
 
 def test_wrapper_hash_has_no_body_component() -> None:
     wrapper = _wrapper("ship")
     (prepared,) = _prepare(FakeSource().add(wrapper, "org", body=None), ["ship"])
-    assert prepared.source_hash == hashlib.sha256(json.dumps(wrapper.model_dump(mode="json"), sort_keys=True).encode("utf-8")).hexdigest()  # noqa: TID251 - independent expectation of the provenance checksum
+    assert prepared.source_hash == _expected_hash(wrapper, None, [], prepared.rendered_name)
 
 
 # ---------------------------------------------------------------------------
