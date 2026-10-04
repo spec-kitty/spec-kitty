@@ -186,8 +186,10 @@ class UpgradeOutcome:
 
         Order: migration errors, activation errors, worktree failures, surface-repair
         failure messages, then the drift message when any file is drifted (its count
-        is ``len(drifted_paths)``). A reason that left no message of its own gets a
-        generic line, so a non-zero exit never has an empty list (invariant 3).
+        is ``len(drifted_paths)``). A surface-repair or preview reason that left no
+        message of its own gets its generic line even when other messages exist;
+        any other reason gets one only when the list would otherwise be empty, so a
+        non-zero exit never has an empty list (invariant 3).
         """
         collected = [
             *self.result.errors,
@@ -195,12 +197,22 @@ class UpgradeOutcome:
             *self.worktree_failures,
             *self.surface_repair_messages,
         ]
+        if not self.surface_repair_messages:
+            collected.extend(self._unexplained_surface_messages())
         if self.drifted_paths:
             collected.append(_DRIFT_MESSAGE.format(count=len(self.drifted_paths)))
         errors = list(dict.fromkeys(collected))
         if not errors:
             errors = [_UNEXPLAINED_FAILURE_MESSAGES[reason] for reason in self.reasons[:1] if reason in _UNEXPLAINED_FAILURE_MESSAGES]
         return errors
+
+    def _unexplained_surface_messages(self) -> list[str]:
+        """Generic lines for a surface-repair or preview reason that recorded no message."""
+        held = (
+            (UpgradeFailureReason.SURFACE_REPAIR_FAILED, self.surface_repair_failed),
+            (UpgradeFailureReason.PREVIEW_INCOMPLETE, self.preview_incomplete),
+        )
+        return [_UNEXPLAINED_FAILURE_MESSAGES[reason] for reason, holds in held if holds]
 
     def warnings(self) -> list[str]:
         """Non-fatal messages: the run's warnings plus a mission-state repair failure the gate did not show."""

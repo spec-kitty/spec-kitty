@@ -244,6 +244,31 @@ def test_a_reason_without_a_message_still_gets_an_error_line(held: str, expected
     assert outcome.derive_exit_code() == 1
 
 
+def test_a_repair_failure_without_a_message_is_named_next_to_the_drift_line() -> None:
+    """The generic repair line is per reason: another message in the list does not suppress it."""
+    outcome = UpgradeOutcome(
+        result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO),
+        drifted_paths=[_DRIFT_PATHS[0]],
+        surface_repair_failed=True,
+    )
+
+    assert outcome.kind is UpgradeOutcomeKind.FAILED
+    assert outcome.errors() == [
+        "Tool-surface repair did not complete; re-run 'spec-kitty upgrade'.",
+        "Unresolved tool-surface drift in 1 file(s); run 'spec-kitty doctor tool-surfaces' to review.",
+    ]
+
+
+def test_an_incomplete_preview_without_a_message_is_named_next_to_another_error() -> None:
+    outcome = UpgradeOutcome(
+        result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO, dry_run=True),
+        worktree_failures=[_WORKTREE_FAILURE],
+        preview_incomplete=True,
+    )
+
+    assert outcome.errors() == [_WORKTREE_FAILURE, "The upgrade preview could not be completed."]
+
+
 def test_worktree_failure_mirrored_into_result_errors_is_listed_once() -> None:
     """The migrations path mirrors worktree failures into ``result.errors``; the list de-duplicates."""
     outcome = UpgradeOutcome(result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO, errors=[_WORKTREE_FAILURE]), had_migrations=True)
