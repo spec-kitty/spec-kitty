@@ -387,8 +387,13 @@ def test_planning_lane_cycle_is_rendered_with_sorted_membership(
 def test_generic_finalize_error_payload_is_unchanged(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The specialized renderer preserves the legacy generic JSON contract."""
+    """The specialized renderer preserves the legacy generic JSON contract.
+
+    A status leftover (#5641) rides in the same envelope under one key, so the
+    ``Exception`` path emits a single JSON document.
+    """
     from specify_cli.cli.commands.agent import mission_finalize
+    from specify_cli.cli.commands.agent.finalize_status_surface import StatusSurfaceLeftover
 
     emitted: list[dict[str, object]] = []
     monkeypatch.setattr(mission_finalize, "_emit_json", emitted.append)
@@ -396,3 +401,8 @@ def test_generic_finalize_error_payload_is_unchanged(
     mission_finalize._emit_finalize_error_with_revert_note(ValueError("ordinary failure"), None, json_output=True)
 
     assert emitted == [{"error": "ordinary failure"}]
+
+    leftover = StatusSurfaceLeftover(branch="kitty/m", reason="the branch moved", commits=("abc1234 seed WP01",))
+    emitted.clear()
+    mission_finalize._emit_finalize_error_with_revert_note(ValueError("ordinary failure"), None, json_output=True, status_leftover=leftover)
+    assert emitted == [{"error": "ordinary failure", "status_commits_not_undone": leftover.as_payload()}]

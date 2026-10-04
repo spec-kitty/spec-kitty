@@ -479,8 +479,8 @@ def test_coord_topology_lane_cycle_refusal_leaves_every_branch_and_checkout_as_f
     """A non-owned ``coord`` Mission's real lane-cycle refusal is a whole-checkout no-op (#5641).
 
     The refusal fires after the bootstrap committed the per-WP seeds to the
-    coordination branch (``typer.Exit`` path, unlike the commit-failure guard
-    below, which takes the ``Exception`` path). The Mission directory, the
+    coordination branch (``typer.Exit`` path, like the commit-failure guard
+    below). The Mission directory, the
     coordination branch and every checkout's tracked state must be as found.
     """
     from mission_runtime import MissionTopology
