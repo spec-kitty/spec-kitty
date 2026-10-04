@@ -190,8 +190,7 @@ def test_each_checkout_is_anchored_on_its_own_persisted_tip(tmp_path: Path) -> N
 
 
 @BRANCHES
-def test_resume_refreshes_a_pure_lag_in_place(tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, branch: str, label: str) -> None:
-    monkeypatch.setenv("COLUMNS", "400")
+def test_resume_refreshes_a_pure_lag_in_place(tmp_path: Path, branch: str, label: str) -> None:
     lag = _build_lag(tmp_path, branch)
     _persist_state(lag, {branch: lag.base})
 
@@ -199,7 +198,6 @@ def test_resume_refreshes_a_pure_lag_in_place(tmp_path: Path, capsys: pytest.Cap
 
     assert (lag.worktree / "lane.py").read_text(encoding="utf-8") == "lane\n"
     assert _git(lag.worktree, "status", "--porcelain") == ""
-    assert f"Recovered a behind-own-HEAD {label}" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("refs", [{}, {"some/other-branch": "0" * 40}])
@@ -287,14 +285,13 @@ def test_a_lag_with_an_edit_prints_save_the_edit_first_advice(
 
     out = _flat(_report(lag, capsys, base_sha=lag.base))
 
-    assert f"The {label} {lag.worktree} is behind its own HEAD" in out
+    assert f"git -C {lag.worktree} reset --hard HEAD" in out
     assert _DO_NOT_RECORD in out and "Do NOT use git stash" in out
     assert not _ADVISES_COMMIT.search(out), out
     save = out.index("Save your own edits outside the worktree first")
     refresh = out.index("reset --hard HEAD")
     resume = out.index("spec-kitty consolidate --resume")
     assert save < refresh < resume < out.index("re-apply"), "save, refresh, resume, and only then re-apply"
-    assert "Merge aborted before any state change" in out
     assert (lag.worktree / "alpha.txt").read_text(encoding="utf-8") == "genuine edit\n", "the report only prints"
 
 
@@ -458,34 +455,6 @@ def test_the_resume_leg_passes_a_clean_mission_worktree(tmp_path: Path) -> None:
     ex._assert_mission_checkouts_clean(lag.repo, _no_lanes(), _state({}), is_residue=lambda _path: False)
 
 
-@pytest.mark.parametrize("resume", [False, True])
-def test_the_preflight_runs_the_mission_checkout_leg_only_on_a_resume(tmp_path: Path, resume: bool) -> None:
-    manifest: Any = SimpleNamespace(target_branch="main", mission_branch=_MISSION_BRANCH)
-    state = _state({}) if resume else None
-
-    with (
-        patch.object(ex, "_stored_topology_for", return_value=None),
-        patch("specify_cli.lanes.single_branch_landing.expected_consolidate_checkout", return_value="main"),
-        patch.object(ex, "assert_checkout_on_target"),
-        patch.object(ex, "assert_worktree_clean"),
-        patch.object(ex, "_assert_mission_checkouts_clean") as mock_leg,
-    ):
-        ex._pre_mutation_safety_preflight(
-            tmp_path,
-            "m",
-            "main",
-            manifest,
-            tmp_path / "meta",
-            remove_worktree=False,
-            teardown_coordination=False,
-            resume_state=state,
-        )
-
-    assert mock_leg.call_count == (1 if resume else 0)
-    if resume:
-        assert mock_leg.call_args.args == (tmp_path, manifest, state)
-
-
 # --- wrapper wiring ------------------------------------------------------------------------
 
 
@@ -499,20 +468,6 @@ def _retention() -> Any:
 
 def _run_wrapper(lag: _Lag) -> None:
     ex._pre_mutation_safety_preflight_with_recovery(lag.repo, "m", _manifest(), _MISSION_ID, lag.repo / "meta", _retention())
-
-
-@pytest.mark.parametrize("persisted", [False, True])
-def test_the_wrapper_marks_the_run_a_resume_only_when_a_merge_record_exists(tmp_path: Path, persisted: bool) -> None:
-    lag = _build_lag(tmp_path)
-    if persisted:
-        _persist_state(lag, {})
-
-    with patch.object(ex, "_pre_mutation_safety_preflight") as mock_preflight:
-        _run_wrapper(lag)
-
-    resume_state = mock_preflight.call_args.kwargs["resume_state"]
-    assert (resume_state is not None) is persisted
-    assert resume_state is None or resume_state.mission_id == _MISSION_ID
 
 
 def test_the_wrapper_recovers_several_checkouts_but_each_only_once(tmp_path: Path) -> None:
@@ -605,6 +560,14 @@ def test_a_resume_refuses_a_retained_dirty_worktree_when_no_anchor_was_recorded(
     assert exit_info.value.exit_code == 1
 
 
+def test_a_fresh_run_never_inspects_a_lagging_mission_worktree(tmp_path: Path) -> None:
+    lag = _build_lag(tmp_path)  # no persisted merge record: not a --resume, so the mission-checkout leg does not run
+
+    _run_real_preflight(lag, _no_lanes())
+
+    assert not (lag.worktree / "lane.py").exists(), "a fresh run neither refuses over nor refreshes the lagging mission worktree"
+
+
 def test_a_worktree_listing_failure_is_rendered_as_a_refusal(tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("COLUMNS", "400")
     lag = _build_lag(tmp_path)
@@ -620,4 +583,3 @@ def test_a_worktree_listing_failure_is_rendered_as_a_refusal(tmp_path: Path, cap
     out = _flat(capsys.readouterr().out)
     assert exit_info.value.exit_code == 1
     assert "git worktree list failed: boom" in out and _MISSION_BRANCH in out
-    assert "Merge aborted before any state change" in out

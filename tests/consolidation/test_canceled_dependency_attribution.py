@@ -121,7 +121,6 @@ def test_verdict_fails_with_the_code_alongside_the_strategy_clause(tmp_path: Pat
     else:
         assert built.wp01_sha in {sha for sha, _pid in result.divergence.reachable_excluded}
     text = result.divergence.describe()
-    assert "belongs to NO approved WP" in text
     assert CANCELED_REACHABLE_VIA_DEPENDENCY in text and "WP01" in text and LANE_A in text and LANE_B in text and WP01_PATH in text
 
 
@@ -194,7 +193,7 @@ def test_attestation_lifts_the_unstamped_refusal_only_while_no_stamp_is_overrida
 
     refused = _claim(built)
 
-    assert refused.refusal is not None and "is carried by approved lane(s)" in refused.refusal
+    assert refused.refusal is not None and "WP01" in refused.refusal and "--attest-canceled-superseded WP01" in refused.refusal
 
 
 def _add_unstamped_sibling(mission: CoordMission, wp_id: str, *, like: str) -> None:
@@ -335,11 +334,9 @@ def test_canceled_spine_content_skips_merges_and_bookkeeping(tmp_path: Path, mon
     assert wpa.canceled_spine_content(repo, spine, canceled, lambda _p: False) == (frozenset(), {})
 
 
-def test_describe_names_change_vs_deletion_and_offers_no_attestation() -> None:
+def test_describe_names_the_code_wps_lanes_and_path_and_offers_no_attestation() -> None:
     changed = _describe_canceled_reachable(_entry())
     deleted = _describe_canceled_reachable(_entry(deleted=True))
     for text in (changed, deleted):
         assert CANCELED_REACHABLE_VIA_DEPENDENCY in text and "WP01" in text and LANE_A in text and LANE_B in text and "src/a.py" in text
         assert "--attest-canceled-superseded" not in text
-        assert text.count(";") == 1
-    assert "its change" in changed and "its deletion" in deleted

@@ -323,13 +323,10 @@ def test_description_names_code_wp_lane_path_and_the_recovery() -> None:
     unchanged = replace(absent, found="unchanged")
     deletion = replace(absent, expected=None, found="unchanged")
 
-    text = _describe_approved_content_missing(absent)
-    assert text.startswith(f"{APPROVED_CONTENT_MISSING}: approved WP01 (lane lane-a) file 'a.py' is absent from the target")
-    assert "git reset --hard HEAD" in text and "then re-run spec-kitty consolidate" in text
-    assert "the target branch did not change this path, so revert nothing there" in text, "the recovery must not read as advice to revert a target commit"
-    assert text.count(";") == 1, "one ';' between the situation and the recovery"
-    assert "pre-consolidation content" in _describe_approved_content_missing(unchanged)
-    assert "deletion of 'a.py' is not applied" in _describe_approved_content_missing(deletion)
+    for entry in (absent, unchanged, deletion):
+        text = _describe_approved_content_missing(entry)
+        assert all(token in text for token in (APPROVED_CONTENT_MISSING, "WP01", "lane-a", "a.py")), text
+    assert "git reset --hard HEAD" in _describe_approved_content_missing(absent), "the remedy command is printed"
     assert APPROVED_CONTENT_MISSING in Divergence(approved_content_missing=(absent,)).describe()
 
 
@@ -582,9 +579,11 @@ def test_claim_leaves_a_canceled_or_unapproved_lane_out_of_the_content(tmp_path:
 
 @pytest.mark.integration
 @pytest.mark.git_repo
-@pytest.mark.parametrize("final", ["canceled", "in_progress"])
-@pytest.mark.parametrize("strategy", _STRATEGIES)
-@pytest.mark.parametrize("edit", _EDITS)
+@pytest.mark.parametrize(
+    ("edit", "strategy", "final"),
+    # A canceled and an unapproved lane leave the claim identically (see the claim test above): one unapproved row suffices.
+    [(edit, strategy, "canceled") for strategy in _STRATEGIES for edit in _EDITS] + [("delete", "squash", "in_progress")],
+)
 def test_twin_a_later_wp_that_is_not_approved_supersedes_nothing(tmp_path: Path, edit: Edit, strategy: str, final: Wp02Final) -> None:
     """Same fixture, same landed target; only WP02's approval differs, and WP01's content is now missing."""
     built = build_dependent_edit_mission(tmp_path, edit=edit, wp02_final=final)

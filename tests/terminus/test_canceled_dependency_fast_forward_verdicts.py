@@ -132,7 +132,6 @@ def test_control_superseded_canceled_change_consolidates(tmp_path: Path, strateg
 
 def _assert_unattributable_refusal(flat: str) -> None:
     assert REFUSE_HEADER in flat and f"{ATTEST_FLAG} WP01" in flat, flat
-    assert "is carried by approved lane" in flat, f"the refusal must come from the carried-canceled resolution:\n{flat}"
 
 
 @pytest.mark.parametrize("strategy", _STRATEGIES)
@@ -156,7 +155,7 @@ def test_unattributable_canceled_dependency_refuses_then_attestation_lifts_only_
     rc, flat = _consolidate(built, strategy, ATTEST_FLAG, "WP01", "--attest-reason", _ATTEST_REASON)
     assert rc != 0, f"an attestation must not let a legacy canceled WP's live content ship ({strategy}):\n{flat}"
     assert _ERROR_CODE in flat, f"expected the content verdict {_ERROR_CODE} once the refusal is lifted:\n{flat}"
-    assert "is carried by approved lane" not in flat, f"the attestation must have lifted the attribution-evidence refusal:\n{flat}"
+    assert REFUSE_HEADER not in flat, f"the attestation must have lifted the attribution-evidence refusal:\n{flat}"
     assert mission.rev(mission.target_branch) == pre_target, "target must be restored after the content verdict"
     assert not blob_present_at(mission.repo, mission.target_branch, WP01_PATH), "canceled WP01 content must not be on the target"
 

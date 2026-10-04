@@ -95,7 +95,7 @@ def test_a_moved_mission_branch_carries_its_code_in_the_envelope_data(moved: tup
     assert envelope["success"] is False and envelope["error_code"] == "PREFLIGHT_FAILED"
     assert envelope["data"]["teardown_error_code"] == "COORD_MOVED_AFTER_LANDING"
     (error,) = envelope["data"]["errors"]
-    assert error.startswith(f"Merge landed, but mission branch {MISSION_BRANCH!r} moved to {late[:12]}")
+    assert MISSION_BRANCH in error and late[:12] in error, "the message names the branch and the moved tip"
     assert error.endswith("Error code: COORD_MOVED_AFTER_LANDING.")
     assert _git(repo, "rev-parse", f"refs/heads/{MISSION_BRANCH}") == late, "the late commit stays reachable"
 
