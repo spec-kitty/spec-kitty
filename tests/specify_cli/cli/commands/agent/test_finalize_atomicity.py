@@ -633,18 +633,20 @@ def test_final_commit_failure_never_rewrites_a_foreign_commit_and_names_the_seed
     write) or between them and the failing final commit (inside the status-write
     window, where the run's own commits and the foreign one share the range the
     restore would rewrite). The restore must leave the branch where it is,
-    keep the foreign commit and its file, and report every commit it could not
-    undo as a ``status_commits_not_undone`` warning.
+    keep the foreign commit and its file (here inside the Mission directory, which
+    the byte restore otherwise rewrites), leave every checkout's tracked files
+    consistent with their own HEAD, and report every commit it could not undo as
+    a ``status_commits_not_undone`` warning.
     """
     root, mission_slug = _two_wp_mission(tmp_path, topology_name)
     surface = _status_surface_checkout(root)
     seeded_from = _git(surface, "rev-parse", "HEAD").stdout.strip()
-    foreign_file = surface / "foreign-note.txt"
+    foreign_file = surface / "kitty-specs" / mission_slug / "foreign-note.txt"
     foreign_sha: list[str] = []
 
     def _foreign_commit() -> None:
         foreign_file.write_text("someone else's work\n", encoding="utf-8")
-        _git(surface, "add", foreign_file.name)
+        _git(surface, "add", str(foreign_file.relative_to(surface)))
         _git(surface, "commit", "-q", "-m", "foreign: someone else's commit")
         foreign_sha.append(_git(surface, "rev-parse", "HEAD").stdout.strip())
 
@@ -655,6 +657,8 @@ def test_final_commit_failure_never_rewrites_a_foreign_commit_and_names_the_seed
     assert foreign_sha, "fixture: the foreign commit never landed"
     _git(surface, "merge-base", "--is-ancestor", foreign_sha[0], "HEAD")  # raises when the foreign commit became unreachable
     assert _git(surface, "rev-parse", "HEAD").stdout.strip() != seeded_from, "the branch was moved back over the foreign commit"
+    dirty = {name: status for name, status in _branches_and_checkouts(root).items() if name.startswith("status ") and status}
+    assert not dirty, f"a checkout was left modified against its own HEAD: {dirty}"
     assert foreign_file.read_text(encoding="utf-8") == "someone else's work\n", "the foreign commit's file was removed from disk"
     warnings = [json.loads(line) for line in output.splitlines() if line.startswith("{") and '"warning"' in line]
     leftover = next(w for w in warnings if w["warning"] == "status_commits_not_undone")

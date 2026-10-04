@@ -37,7 +37,7 @@ import contextlib
 import contextvars
 import json
 import logging
-from dataclasses import dataclass, field, replace as dataclass_replace
+from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Annotated, Final, NoReturn, cast
 
@@ -4758,24 +4758,30 @@ def _snapshot_mission_write_scope(mission_dir: Path) -> dict[Path, bytes]:
     return {path: path.read_bytes() for path in _mission_write_scope_files(mission_dir)}
 
 
-def _restore_mission_write_scope(before: dict[Path, bytes], mission_dir: Path) -> None:
+def _restore_mission_write_scope(before: dict[Path, bytes], mission_dir: Path, *, keep: frozenset[Path] = frozenset()) -> None:
     """Undo every tracked write under ``mission_dir`` since the matching snapshot (FR-015/NFR-001).
 
     A file present in ``before`` is rewritten to its original bytes; a file
     that now exists under ``mission_dir`` but was absent from ``before``
-    (created by the failed attempt) is deleted. Each path is restored
+    (created by the failed attempt) is deleted. A file in ``keep`` (resolved
+    paths a commit left on the status branch changed) is neither rewritten nor
+    deleted: it is that commit's, not this attempt's. Each path is restored
     independently and a failure is logged, never raised -- this is
     best-effort cleanup alongside the ORIGINAL exception that triggered it,
     never a replacement diagnostic for it.
     """
     current = _mission_write_scope_files(mission_dir)
     for path, original in before.items():
+        if keep and path.resolve() in keep:
+            continue
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(original)
         except OSError as exc:
             logger.warning("finalize atomicity: failed to restore %s: %s", path, exc)
     for path in current - before.keys():
+        if keep and path.resolve() in keep:
+            continue
         try:
             path.unlink(missing_ok=True)
         except OSError as exc:
@@ -4798,24 +4804,19 @@ def _capture_status_surface(guard: StatusSurfaceGuard, status_dir: Path, plannin
 def _restore_status_surface(guard: StatusSurfaceGuard) -> StatusSurfaceLeftover | None:
     """Undo the status commits of a run whose finalize commit never landed (FR-015/NFR-001, #5641).
 
-    Runs AFTER :func:`_restore_mission_write_scope`, so on a repository-root
-    status surface (``lanes`` / ``single_branch``, an owned checkout) the
-    status files already hold their pre-run bytes and only the branch and index
-    move back. A status directory outside the Mission directory (the
-    coordination worktree) gets its bytes back only once its branch did, so a
-    refused restore never leaves that worktree diverged from its own HEAD.
-    Best-effort like the other restore helpers: returns what it could not undo,
-    never raises.
+    Runs BEFORE :func:`_restore_mission_write_scope`, which then skips the files
+    of any commit the guard kept (``guard.kept_paths()``): on a repository-root
+    status surface (``lanes`` / ``single_branch``, an owned checkout) the status
+    files either go back with the branch or stay exactly as the kept commits
+    left them, never modified against their own HEAD. A status directory outside
+    the Mission directory (the coordination worktree) gets its bytes back only
+    once its branch did, so a refused restore never leaves that worktree
+    diverged from its own HEAD. Best-effort like the other restore helpers:
+    returns what it could not undo, never raises.
     """
     leftover = guard.restore()
     if guard.status_bytes is not None and guard.status_dir is not None and guard.is_at_tip_before():
         _restore_mission_write_scope(guard.status_bytes, guard.status_dir)
-    if leftover is not None and leftover.commits and guard.status_bytes is None:
-        # Repository-root surface: the Mission directory restore already put the
-        # status files back, so the checkout now differs from its HEAD by these commits.
-        leftover = dataclass_replace(
-            leftover, reason=f"{leftover.reason}; the status files were restored to their pre-run bytes, so the checkout differs from HEAD by these commits"
-        )
     return leftover
 
 
@@ -5660,10 +5661,10 @@ def finalize_tasks(
         # field excludes it. A LATER, unrelated failure after a real commit
         # must never unwind an already-durable finalize.
         if mission_write_scope_dir is not None and not commit_landed.landed:
-            _restore_mission_write_scope(mission_write_scope_snapshot, mission_write_scope_dir)
+            status_leftover = _restore_status_surface(status_surface)
+            _restore_mission_write_scope(mission_write_scope_snapshot, mission_write_scope_dir, keep=status_surface.kept_paths())
             if owned_derived_dir is not None:
                 _restore_mission_write_scope(owned_derived_snapshot, owned_derived_dir)
-            status_leftover = _restore_status_surface(status_surface)
         # SK3466-RR-003: the ORIGINAL error already emitted its own
         # diagnostic before raising typer.Exit above; this is a best-effort,
         # ADDITIONAL note if the meta.json revert itself also failed.
@@ -5678,10 +5679,10 @@ def finalize_tasks(
             meta_commit_progress=meta_commit_progress,
         )
         if mission_write_scope_dir is not None and not commit_landed.landed:
-            _restore_mission_write_scope(mission_write_scope_snapshot, mission_write_scope_dir)
+            status_leftover = _restore_status_surface(status_surface)
+            _restore_mission_write_scope(mission_write_scope_snapshot, mission_write_scope_dir, keep=status_surface.kept_paths())
             if owned_derived_dir is not None:
                 _restore_mission_write_scope(owned_derived_snapshot, owned_derived_dir)
-            status_leftover = _restore_status_surface(status_surface)
         _emit_finalize_error_with_revert_note(e, revert_error, json_output=json_output, status_leftover=status_leftover)
         raise typer.Exit(1) from None
     finally:

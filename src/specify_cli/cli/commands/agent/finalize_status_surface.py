@@ -22,7 +22,9 @@ it:
 * the checkout's index is put back with ``git read-tree`` of the captured tree,
   which never touches the working tree (the ``core/mission_creation.py``
   precedent);
-* the working-tree bytes are restored by the caller's byte snapshot.
+* the working-tree bytes are restored by the caller's byte snapshot, except
+  for the files a kept commit changed (:meth:`StatusSurfaceGuard.kept_paths`),
+  which stay as that commit left them.
 
 The branch is only ever moved back over commits this run provably made. A
 branch that moved after this run's last status write is left alone, and so is a
@@ -225,6 +227,21 @@ class StatusSurfaceGuard:
             if not _touches_only(root, commit, self.own_paths):
                 return f"{span} include {commit[:12]}, which is not limited to this Mission's status files"
         return None
+
+    def kept_paths(self) -> frozenset[Path]:
+        """Files changed by the commits left on the branch, which the caller's byte restore must not touch.
+
+        Empty when the branch is back at ``tip_before`` (nothing was kept), when
+        the guard captured nothing, or when git cannot list the change; a rewrite
+        of a file that a kept commit changed would leave the checkout modified
+        against its own HEAD, or delete a file that commit added.
+        """
+        if self.surface_root is None or self.branch is None or self.tip_before is None:
+            return frozenset()
+        names = _git(self.surface_root, "diff", "--name-only", "-z", self.tip_before, f"refs/heads/{self.branch}")
+        if not names:
+            return frozenset()
+        return frozenset((self.surface_root / name).resolve() for name in names.split("\0") if name)
 
     def is_at_tip_before(self) -> bool:
         """Whether the captured branch points where it did before the run (status bytes may then be put back)."""
