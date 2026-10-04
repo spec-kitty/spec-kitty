@@ -224,18 +224,28 @@ def _read_project_skill_namespace(repo_root: Path) -> str | None:
 
 
 def prepare_project_skill_activations(repo_root: Path) -> list[PreparedSkill]:
-    """Prepare the skills in force for *repo_root* (activated ∪ org-required).
+    """Prepare the skills in force for *repo_root*.
 
-    Resolves the activation-aware service (so the default-in-force rule
-    applies), the merged built-in + org-chain DRG, and both namespaces, then
-    delegates to :func:`_prepare_skill_activations`.
+    The in-force set is the project's explicit ``activated_skills`` list
+    (exactly that list, ``[]`` meaning none) or, when the key is absent, the org
+    packs' ``required_skills`` plus the built-in defaults (none at MVP) -- the
+    ``PackContext`` rule. It is decided first, from config alone: a project with
+    no skill in force returns ``[]`` without touching any DRG, so a broken org
+    graph never blocks a project that uses no pack skill.
+
+    Otherwise resolves the doctrine service, the merged built-in + org-chain DRG
+    and both namespaces, and delegates to :func:`_prepare_skill_activations`.
     """
     from charter.activation._drg_helpers import load_validated_graph
     from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
     from charter.activation.drg_activation import load_org_drg
     from charter.activation.org_pack_discovery import read_org_skill_namespace
+    from charter.activation.pack_context import PackContext
     from charter.offering.drg.org_pack_config import resolve_existing_org_roots
 
+    in_force = PackContext.from_config(repo_root).activated_skills
+    if in_force is not None and not in_force:
+        return []
     service = build_activation_aware_doctrine_service(repo_root)
     graph = load_validated_graph(
         repo_root,

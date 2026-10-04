@@ -7,6 +7,7 @@ a broken pack skill is a recorded migration failure, not a traceback.
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -19,6 +20,7 @@ from specify_cli.upgrade.migrations.m_2_0_11_install_skills import InstallSkills
 from specify_cli.upgrade.migrations.m_2_1_1_repair_skill_pack import RepairSkillPackMigration
 from specify_cli.upgrade.migrations.m_3_0_3_globalize_skill_pack import GlobalizeSkillPackMigration
 from specify_cli.upgrade.migrations.m_3_2_0rc35_spk_skill_pack import SpkSkillPackMigration
+from specify_cli.upgrade.assessment import prepare_upgrade_repairs
 from specify_cli.upgrade.runner import MigrationRunner
 from tests.charter import skill_pack_support as support
 
@@ -104,9 +106,64 @@ def test_dry_run_apply_writes_nothing(tmp_path: Path, migration: type) -> None:
     assert _tree(project) == before
 
 
+def _outcome(root: Path, migration: type) -> tuple[bool, bool, int]:
+    """What a project's own migration run reports: detect, apply success, number of changes."""
+    detected = migration().detect(root)
+    result = migration().apply(root, dry_run=False)
+    return detected, result.success, len(result.changes_made)
+
+
 @pytest.mark.parametrize("migration", DETECTING)
-def test_a_broken_pack_makes_detect_true_and_apply_a_reported_error(tmp_path: Path, migration: type) -> None:
-    project = _project(tmp_path, namespace=None)
+def test_a_broken_org_drg_changes_nothing_for_a_project_that_uses_no_pack_skill(tmp_path: Path, migration: type) -> None:
+    """A pack that ships zero skills may have any DRG; no skill path may depend on its health."""
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    support.write_config(plain, None, extra="agents:\n  available:\n    - claude\n    - codex\n")
+    pack = tmp_path / "pack"
+    pack.mkdir()
+    support.write_org_charter(pack)
+    (pack / "broken.graph.yaml").write_text("nodes: [unclosed\n", encoding="utf-8")
+    broken = tmp_path / "broken"
+    broken.mkdir()
+    support.write_config(broken, pack, extra="agents:\n  available:\n    - claude\n    - codex\n")
+
+    assert _outcome(broken, migration) == _outcome(plain, migration)
+    consent = ApplyConsent(automatic=True)
+    assert prepare_upgrade_repairs(broken, consent=consent).complete == prepare_upgrade_repairs(plain, consent=consent).complete
+
+
+def _no_namespace(root: Path, pack: Path) -> None:
+    support.write_org_charter(pack, namespace=None)
+
+
+def _sibling_duplicate_id(root: Path, pack: Path) -> None:
+    other = root.parent / "other-pack"
+    other.mkdir()
+    support.write_skill(other, "deploy-helper")
+    support.write_org_charter(other, namespace="other")
+    config = root / ".kittify" / "config.yaml"
+    entry = f"        local_path: {pack}\n"
+    config.write_text(config.read_text(encoding="utf-8").replace(entry, f"{entry}      - name: other\n        local_path: {other}\n"), encoding="utf-8")
+
+
+def _broken_graph(root: Path, pack: Path) -> None:
+    (pack / "broken.graph.yaml").write_text("nodes: [unclosed\n", encoding="utf-8")
+
+
+def _non_utf8_body(root: Path, pack: Path) -> None:
+    (pack / "skills" / "deploy-helper.skill.md").write_bytes(b"\xff\xfe not utf-8")
+
+
+def _non_list_activation(root: Path, pack: Path) -> None:
+    config = root / ".kittify" / "config.yaml"
+    config.write_text(config.read_text(encoding="utf-8").replace("activated_skills:\n  - deploy-helper\n", "activated_skills: deploy-helper\n"), encoding="utf-8")
+
+
+@pytest.mark.parametrize("cause", [_no_namespace, _sibling_duplicate_id, _broken_graph, _non_utf8_body, _non_list_activation])
+@pytest.mark.parametrize("migration", DETECTING)
+def test_a_broken_pack_makes_detect_true_and_apply_a_reported_error(tmp_path: Path, migration: type, cause: Callable[[Path, Path], None]) -> None:
+    project = _project(tmp_path)
+    cause(project, tmp_path / "pack")
     before = _tree(project)
 
     assert migration().detect(project) is True

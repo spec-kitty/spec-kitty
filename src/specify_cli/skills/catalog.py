@@ -30,6 +30,7 @@ import tempfile
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from charter.activation.pack_context import CharterPackConfigError
 from charter.activation.skill_preparation import PreparedSkill, SkillPreparationError, prepare_project_skill_activations
 from charter.drg import DRGLoadError, DRGValidationError, resolve_existing_org_roots
 from charter.offering.pack_skills import PackSkillConflictError
@@ -144,9 +145,20 @@ def _render_active_pack_skills(project_root: Path, shipped: SkillRegistry) -> li
     try:
         prepared = prepare_project_skill_activations(project_root)
         rendered = [_Rendered(item, render_pack_skill(item)) for item in prepared]
-    except (SkillPreparationError, PackSkillRenderError, PackSkillConflictError, DRGLoadError, DRGValidationError) as exc:
+    except (
+        SkillPreparationError,
+        PackSkillRenderError,
+        PackSkillConflictError,
+        DRGLoadError,
+        DRGValidationError,
+        CharterPackConfigError,
+        UnicodeDecodeError,
+        OSError,
+    ) as exc:
         # Every cause that stops the pack skills in force from being resolved is a refusal,
-        # whatever its own type (two packs sharing an id, a malformed or dangling org DRG fragment).
+        # whatever its own type (two packs sharing an id, a malformed or dangling org DRG fragment,
+        # a non-list activation key, a pack file that cannot be read or decoded). This try covers
+        # only the read/prepare/render step: the staging writes below are not translated.
         raise PackSkillCatalogError(str(exc)) from exc
     _refuse_unsafe_names(rendered)
     _refuse_builtin_collisions(rendered, shipped)
