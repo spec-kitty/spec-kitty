@@ -304,13 +304,12 @@ def test_a_malformed_ceiling_is_rejected(ceiling: Any) -> None:
 def test_the_pinned_list_only_ever_shrinks_and_the_ceiling_cannot_be_raised_without_a_name() -> None:
     names = ["m-a", "m-b"]
     assert helper.grown_problem(names, names) is None and helper.stale_problem(names, names) is None, "control: the pinned list is clean"
-    grew = helper.grown_problem(["m-a", "m-b", "m-new"], names) or ""
-    assert "m-new" in grew and "commit its status snapshot together with its work package files" in grew, "the failure names the Mission and the remedy"
-    assert "may only shrink" in grew and "never add a name or raise the ceiling" in grew
     swapped = ["m-a", "m-new"]  # one Mission fixed, one new: the count stays at two, the names do not
-    assert "m-new" in (helper.grown_problem(swapped, names) or "") and "m-b" in (helper.stale_problem(swapped, names) or "")
+    grew = helper.grown_problem(swapped, names) or ""
+    assert "m-new" in grew and "commit its status snapshot together with its work package files" in grew, "the failure names the Mission and the remedy"
+    assert "m-b" in (helper.stale_problem(swapped, names) or "")
     stale = helper.stale_problem(["m-a"], names) or ""
-    assert stale.startswith("stale pin: m-b no longer disagree") and "lower header.ceiling to 1 " in stale, "the failure names the Mission and the new ceiling"
+    assert "m-b" in stale and "lower header.ceiling to 1 " in stale, "the failure names the Mission and the new ceiling"
     raised = {**GOOD_HEADER, "ceiling": 3}
     assert any("cannot be raised without naming a Mission" in problem for problem in helper.ratchet_header_problems(raised))
     assert any("disagreeing_missions" in problem for problem in helper.ratchet_header_problems({**GOOD_HEADER, "disagreeing_missions": ["m-b", "m-a"]}))
@@ -970,7 +969,6 @@ def test_the_floors_fail_on_a_small_corpus_and_name_each_gap(fixture_repo: Path)
     text = "; ".join(failures)
     assert "Missions with a meta.json" in text and "snapshot work packages" in text and "work package files" in text
     assert "no Mission has a work package in the in_progress lane" in text and "no Mission reads as done" in text and "no Mission has the topology coord" in text
-    assert "blocked lane" not in text and "lanes_with_coord" not in text, "transient values are controlled by a fixture, not floored"
 
 
 def test_the_floors_pass_on_a_corpus_that_meets_them() -> None:

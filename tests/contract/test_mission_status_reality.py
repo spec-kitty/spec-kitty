@@ -63,15 +63,16 @@ AT = chr(64)
 CASES: list[str] = require_cases(enumerate_missions(REPO_ROOT))
 
 # Every label of a row the projection drops on purpose, with the reason it is not a contract event. The set is explicit so a new row kind
-# in a committed log is a decision (map it into the contract, or add it here with its reason), never a silent drop.
+# in a committed log is a decision (map it into the contract, or add it here with its reason), never a silent drop. The lifecycle types
+# dropped by design are the helper's own declaration (one source of truth), not a second hand-kept list.
+_NOT_A_FORWARDED_TYPE = "not a status transition or one of the seven forwarded lifecycle types"
 KNOWN_DROPPED_LABELS: dict[str, str] = {
+    **dict.fromkeys(helper.undeclared_lifecycle_types(), "lifecycle type outside the seven the contract forwards (spec FR-007)"),
     "annotation": "assignment and subtask deltas: folded into the snapshot, not an event of the contract",
-    "WPCreated": "lifecycle type outside the seven the contract forwards (spec FR-007)",
-    "ReviewerSelfApproval": "lifecycle type outside the seven the contract forwards (spec FR-007)",
-    "DecisionPointOpened": "decision-moment row: not a status transition or one of the seven forwarded lifecycle types",
-    "DecisionPointResolved": "decision-moment row: not a status transition or one of the seven forwarded lifecycle types",
-    "RetrospectiveCaptured": "retrospective row: not a status transition or one of the seven forwarded lifecycle types",
-    "RetrospectiveCaptureFailed": "retrospective row: not a status transition or one of the seven forwarded lifecycle types",
+    "DecisionPointOpened": f"decision-moment row: {_NOT_A_FORWARDED_TYPE}",
+    "DecisionPointResolved": f"decision-moment row: {_NOT_A_FORWARDED_TYPE}",
+    "RetrospectiveCaptured": f"retrospective row: {_NOT_A_FORWARDED_TYPE}",
+    "RetrospectiveCaptureFailed": f"retrospective row: {_NOT_A_FORWARDED_TYPE}",
 }
 
 # Filled by the per-Mission case; read by the counting test, which is the last test of the file.
@@ -178,13 +179,16 @@ def snapshot_equality_problems(payload: Mapping[str, Any], state: Mapping[str, A
 
 
 def lane_accounting_problem(overview: Mapping[str, Any], work_packages: Mapping[str, Mapping[str, Any]]) -> str | None:
-    """``wpTotal`` must equal the lane counts plus the work packages in a non-display lane: a lane outside the nine is never dropped silently."""
+    """``wpTotal`` must equal the lane counts plus the work packages in a non-display lane (genesis, uninitialized).
+
+    A lane outside the eleven cannot be read at all (the event store refuses it), so the only way a work package goes uncounted is a
+    non-display lane, which a log row can still name, or a counting defect in the overview builder.
+    """
     counted = sum(overview["statusLaneCounts"].values())
     hidden = sum(1 for state in work_packages.values() if str(state.get("lane")) in helper.NON_DISPLAY_LANES)
     if counted + hidden == overview["wpTotal"]:
         return None
-    lanes = sorted({str(state.get("lane")) for state in work_packages.values()} - set(helper.STATUS_LANES) - helper.NON_DISPLAY_LANES)
-    return f"wpTotal {overview['wpTotal']} is not the {counted} counted work packages plus {hidden} in a non-display lane (lanes outside the nine: {lanes})"
+    return f"wpTotal {overview['wpTotal']} is not the {counted} counted work packages plus {hidden} in a non-display lane"
 
 
 def _first(errors: list[str]) -> str:
@@ -202,9 +206,11 @@ def run_case(
     """Build and check every payload of one Mission; the result is cached so the corpus-level tests reuse it.
 
     ``repo_root`` and ``tamper_work_package`` exist for the controls: they run this very function on a planted
-    repository, or with a planted defect in each work package payload, and the three checks must catch it. A run
-    with either is never cached. Every check is also counted, and the case fails when a check ran fewer times than
-    the payloads it should have covered, so removing a check from this function cannot leave the case green.
+    repository, or with a planted defect in each work package payload, and the schema, leak and snapshot-equality
+    checks must catch it; a control may also patch the helper's builders to plant a defect the accounting check
+    must catch. A run with either argument is never cached. The schema, leak and snapshot checks are also counted,
+    and the case fails when one ran fewer times than the payloads it should have covered, so removing one of them
+    from this function cannot leave the case green.
     """
     controlled = repo_root != REPO_ROOT or tamper_work_package is not None
     if not controlled and mission in CASE_RESULTS:
@@ -492,13 +498,16 @@ def test_snapshot_equality_negative_control_fails_when_the_frontmatter_value_is_
     assert snapshot_equality_problems({**payload, "statusLane": None}, None) == []
 
 
-def test_a_work_package_in_a_lane_outside_the_nine_is_not_silently_uncounted() -> None:
-    counts = {**dict.fromkeys(helper.STATUS_LANES, 0), "done": 1}
-    states = {"WP01": {"lane": "done"}, "WP02": {"lane": "genesis"}}
-    assert lane_accounting_problem({"statusLaneCounts": counts, "wpTotal": 2}, states) is None, "control: a non-display lane is accounted for"
-    problem = lane_accounting_problem({"statusLaneCounts": counts, "wpTotal": 3}, {**states, "WP03": {"lane": "doing"}})
-    assert problem is not None and "['doing']" in problem
-    assert lane_accounting_problem({"statusLaneCounts": counts, "wpTotal": 3}, states) is not None, "a total above the counts is reported"
+def test_run_case_reports_a_work_package_the_lane_counts_do_not_account_for(
+    control_repo: Path, tools: helper.ContractTools, contract: helper.Contract, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Planted control: a counting defect that drops a held lane from ``statusLaneCounts`` must fail the case on ``wpTotal``."""
+    real = helper.lane_counts_of
+    monkeypatch.setattr(helper, "lane_counts_of", lambda snapshot: {**real(snapshot), "in_progress": 0})
+
+    result = run_case(CONTROL_MISSION, tools, contract, repo_root=control_repo)
+
+    assert any("wpTotal 1 is not the 0 counted work packages" in failure for failure in result.failures), result.failures
 
 
 def test_run_case_is_clean_on_the_control_mission_and_runs_every_check_for_every_payload(
@@ -603,7 +612,7 @@ def test_discarded_has_a_fixture_built_positive_control(tmp_path: Path, tools: h
 
 
 def test_the_values_the_corpus_floors_leave_out_have_a_fixture_built_control(tmp_path: Path, tools: helper.ContractTools, contract: helper.Contract) -> None:
-    """Claimed, for_review, in_review, blocked and lanes_with_coord sit on a few Missions in transient states, so the floors do not require them.
+    """Claimed, for_review, in_review, blocked, canceled and lanes_with_coord sit on only a few Missions, so the floors do not require them.
 
     One fixture Mission holds a work package in each of those lanes under that topology, and the very function the corpus cases use must
     project it clean: every enum value of the contract is validated at least once without a status change to a real Mission turning the job red.
@@ -622,6 +631,7 @@ def test_the_values_the_corpus_floors_leave_out_have_a_fixture_built_control(tmp
         "WP02": ("claimed", "in_progress", "for_review"),
         "WP03": ("claimed", "in_progress", "for_review", "in_review"),
         "WP04": ("blocked",),
+        "WP05": ("canceled",),
     }
     rows, number = [], 0
     for wp_id, lanes in path.items():

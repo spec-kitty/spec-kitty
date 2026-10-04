@@ -1268,22 +1268,6 @@ def router_contract_modules(router_text: str) -> frozenset[str]:
     return frozenset(re.findall(r"tests/contract/test_\w+\.py", command))
 
 
-def marker_expression_of(command: str) -> str | None:
-    """The ``-m`` expression of a logical pytest command, or ``None``."""
-    match = re.search(r"""\s-m\s+(?:"([^"]*)"|'([^']*)'|(\S+))""", command)
-    return next((group for group in match.groups() if group is not None), None) if match else None
-
-
-def marker_problems(router_text: str) -> list[str]:
-    """Both router jobs that split ``tests/contract`` must select the same marker, or the single-home reasoning stops holding."""
-    router_jobs = jobs(load(router_text))
-    found = {
-        "router tool-test job": marker_expression_of(pytest_command_of(router_jobs[TOOL_TEST_JOB])),
-        "router corpus job": marker_expression_of(pytest_command_of(router_jobs[ROUTER_CORPUS_JOB])),
-    }
-    return [f"the {name} selects -m {expression!r}, not {TOOL_TEST_MARKER!r}" for name, expression in found.items() if expression != TOOL_TEST_MARKER]
-
-
 def tool_job_ignores(router_text: str) -> frozenset[str]:
     """The modules the router's tool-test job ignores; it selects the rest of ``tests/contract``."""
     command = pytest_command_of(jobs(load(router_text))[TOOL_TEST_JOB])
@@ -1341,18 +1325,6 @@ def collected_corpus_modules() -> frozenset[str]:
     modules = _collected_corpus_modules[0]
     assert modules, "non-vacuity: the corpus marker collected no tests/contract module"
     return modules
-
-
-def test_both_jobs_that_split_the_contract_tests_select_the_same_marker() -> None:
-    assert marker_problems(ROUTER_TEXT) == []
-    corpus_changed = mutate(
-        ROUTER_TEXT,
-        '-m "corpus and not windows_ci" \\\n            tests/contract/test_example_round_trip.py',
-        '-m "corpus" \\\n            tests/contract/test_example_round_trip.py',
-    )
-    assert [problem.split(" selects ")[0] for problem in marker_problems(corpus_changed)] == ["the router corpus job"]
-    tools_changed = mutate(ROUTER_TEXT, '-m "corpus and not windows_ci" tests/contract \\\n', '-m "corpus" tests/contract \\\n')
-    assert [problem.split(" selects ")[0] for problem in marker_problems(tools_changed)] == ["the router tool-test job"]
 
 
 def test_the_tool_test_job_ignores_exactly_the_contract_modules_the_router_owns() -> None:

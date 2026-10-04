@@ -71,12 +71,12 @@ NON_DISPLAY_LANES = frozenset({"genesis", "uninitialized"})
 TOPOLOGIES: tuple[str, ...] = ("lanes", "single_branch", "coord", "lanes_with_coord")
 UNKNOWN_TOPOLOGY = "unknown"
 # Which enum values the real corpus must hold and which a fixture-built control exercises instead (non-vacuity, FR-025).
-# Measured on 545 Missions: a lane or topology is required in the corpus when it is terminal or held by at least ten Missions
-# (done 374, approved 100, planned 30, in_progress 17, canceled 1 and terminal; lanes 294, single_branch 150, unknown 51, coord 48).
-# The rest sit on a handful of Missions in transient states (claimed 3, for_review 2, in_review 4, blocked 1, lanes_with_coord 2),
-# so an ordinary status change to one of them must not turn the corpus job red: their control is the reality module's fixture Mission.
-CORPUS_LANES: tuple[str, ...] = ("planned", "in_progress", "approved", "done", "canceled")
-CONTROL_LANES: tuple[str, ...] = ("claimed", "for_review", "in_review", "blocked")
+# The rule: a lane or topology is required in the real corpus only when many Missions hold it. A value that only a handful of
+# Missions hold (a transient lane such as claimed or blocked, a rare topology), or that exactly one Mission holds (canceled), is not
+# floored: an ordinary status change, or archiving that one directory, must not turn the corpus job red. Its control is the reality
+# module's fixture-built Mission, which validates the value without depending on any real Mission.
+CORPUS_LANES: tuple[str, ...] = ("planned", "in_progress", "approved", "done")
+CONTROL_LANES: tuple[str, ...] = ("claimed", "for_review", "in_review", "blocked", "canceled")
 CORPUS_TOPOLOGIES: tuple[str, ...] = ("lanes", "single_branch", "coord", "unknown")
 CONTROL_TOPOLOGIES: tuple[str, ...] = ("lanes_with_coord",)
 LIFECYCLE_STATUSES: tuple[str, ...] = ("active", "planned", "done", "draft", "discarded")
