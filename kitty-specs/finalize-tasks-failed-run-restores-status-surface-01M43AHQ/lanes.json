@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "mission_slug": "finalize-tasks-failed-run-restores-status-surface-01M43AHQ",
+  "mission_id": "01M43AHQQYMDGJSZ9GQJGN42XX",
+  "mission_branch": "kitty/fix-5641-finalize-tasks-atomic-status",
+  "target_branch": "kitty/fix-5641-finalize-tasks-atomic-status",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "kitty-specs/finalize-tasks-failed-run-restores-status-surface-01M43AHQ/research/retry-evidence.md",
+        "src/specify_cli/cli/commands/agent/finalize_status_surface.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
+        "tests/specify_cli/cli/commands/agent/test_finalize_atomicity.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-04T11:29:45.732430+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "8252b2642d9c77481274d15ab6e8ba63aeb59dfc"
+}

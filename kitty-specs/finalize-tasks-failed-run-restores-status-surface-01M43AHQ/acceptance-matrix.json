@@ -1,0 +1,69 @@
+{
+  "mission_slug": "finalize-tasks-failed-run-restores-status-surface-01M43AHQ",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_finalize_atomicity.py::test_final_commit_failure_leaves_every_branch_and_checkout_as_found (4 topologies) + ::test_coord_topology_lane_cycle_refusal_leaves_every_branch_and_checkout_as_found; red on revert",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-04T12:05:41.417646+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_finalize_atomicity.py::test_final_commit_failure_never_rewrites_a_foreign_commit_and_names_the_seeds_it_left; CAS mutation caught",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-04T12:05:46.740120+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_finalize_atomicity.py::test_final_commit_failure_never_rewrites_a_foreign_commit_and_names_the_seeds_it_left (status_commits_not_undone payload, exit non-zero)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-04T12:05:51.629333+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "_restore_owned_head retired; owned suites green (tests/integration/test_owned_lifecycle_acceptance_finalize.py except the base-red ledger test); reviewer saw two owned tests go red with the guard disabled",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-04T12:05:56.338278+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "recorded_run",
+      "evidence": "kitty-specs/finalize-tasks-failed-run-restores-status-surface-01M43AHQ/research/retry-evidence.md (base vs branch; re-run on HEAD by reviewer)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-04T12:06:00.758090+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "review",
+      "evidence": "NOT COVERED comment in mission_finalize.py finalize_tasks; docs/changelog/CHANGELOG.md Fixed entry; style + spelling checks clean",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-04T12:06:05.493850+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

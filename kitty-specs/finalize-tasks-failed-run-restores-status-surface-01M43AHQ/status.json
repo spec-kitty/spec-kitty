@@ -1,0 +1,77 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M43CZKC8H09W89C4JSG64HM3",
+  "materialized_at": "2026-10-04T12:07:24.296376+00:00",
+  "mission_number": "215",
+  "mission_slug": "finalize-tasks-failed-run-restores-status-surface-01M43AHQ",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M43CZGTA744M05J90MY9NTQM",
+      "last_transition_at": "2026-10-04T12:07:21.674281+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementation commit d22666066; forced only because the claim went through move-task (implement refused WRITE_CHECKOUT_OCCUPIED on a stale foreign record), so no claim base was recorded",
+        "Independent review APPROVE: 0 blocking, 5 non-blocking (4 folded, 1 documented residual); 6 added/changed tests KEEP, red on revert; CAS mutation caught"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261004",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M43CZKC8H09W89C4JSG64HM3",
+      "last_transition_at": "2026-10-04T12:07:24.296376+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Evidence research/retry-evidence.md and changelog entry in 014d95b58",
+        "Independent review APPROVE: changelog style/spelling clean, evidence rows re-run on HEAD match; 3 non-blocking notes folded"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261004",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done"
+      }
+    }
+  }
+}

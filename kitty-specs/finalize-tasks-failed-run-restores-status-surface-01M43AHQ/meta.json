@@ -1,0 +1,33 @@
+{
+  "accept_commit": "7cad1e96735f2be52d6963d2fc02c0e640333c19",
+  "acceptance_history": [
+    {
+      "accept_commit": "7cad1e96735f2be52d6963d2fc02c0e640333c19",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-04T12:06:52.085121+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "7544f0114ccee7d37f3f28c4f47a8fc4ae312696"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-04T12:06:52.085121+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "7544f0114ccee7d37f3f28c4f47a8fc4ae312696",
+  "baseline_merge_commit": "eaab3e5af0c23056ac6e5617f0a7175f76205e34",
+  "created_at": "2026-10-04T11:24:54.209888+00:00",
+  "flattened": false,
+  "friendly_name": "finalize-tasks: a failed run leaves the status surface as it found it",
+  "merged_at": "2026-10-04T12:07:20.439108+00:00",
+  "merged_commit": "eaab3e5af0c23056ac6e5617f0a7175f76205e34",
+  "mid8": "01M43AHQ",
+  "mission_id": "01M43AHQQYMDGJSZ9GQJGN42XX",
+  "mission_number": 215,
+  "mission_slug": "finalize-tasks-failed-run-restores-status-surface-01M43AHQ",
+  "mission_type": "software-dev",
+  "purpose_context": "When finalize-tasks fails at its final commit it restores the Mission files but keeps the per-WP status commits the bootstrap already made, so the status surface's branch advances and, for lanes and single_branch Missions, the checkout is left dirty against its own HEAD. This mission restores the status surface through the compare-and-swap ref-restore route and reports precisely any commit it cannot undo.",
+  "purpose_tldr": "A failed finalize-tasks run undoes the per-WP status commits it made, for every topology (#5641).",
+  "slug": "finalize-tasks-failed-run-restores-status-surface-01M43AHQ",
+  "status_phase": "1",
+  "target_branch": "kitty/fix-5641-finalize-tasks-atomic-status",
+  "topology": "single_branch"
+}
