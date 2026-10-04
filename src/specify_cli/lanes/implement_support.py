@@ -179,7 +179,8 @@ def _ensure_repo_root_checkout_available(
             f"Move {other_wp} out of in_progress (approve, reject, or block it) "
             f"before claiming {mission_slug} {wp_id}. If {other_mission} is "
             f"finished or abandoned, run: spec-kitty agent tasks move-task "
-            f'{other_wp} --to blocked --mission {other_mission} --note "<reason>"'
+            f'{other_wp} --to blocked --mission {other_mission} --note "<reason>" '
+            "(use --to canceled instead if the work is abandoned)"
         )
 
     status_feature_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)

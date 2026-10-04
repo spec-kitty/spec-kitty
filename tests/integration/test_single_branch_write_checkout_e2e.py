@@ -436,6 +436,7 @@ def test_occupied_refusal_remedy_clears_a_live_occupant(agent_loop_mission: tupl
     assert "WRITE_CHECKOUT_OCCUPIED" in refused.output, refused.output
     remedy = f'spec-kitty agent tasks move-task WP01 --to blocked --mission {occupant} --note "<reason>"'
     assert remedy in " ".join(refused.output.split()), refused.output
+    assert "use --to canceled instead if the work is abandoned" in " ".join(refused.output.split()), refused.output
 
     moved = runner.invoke(root_app, ["agent", "tasks", "move-task", "WP01", "--to", "blocked", "--mission", occupant, "--note", "finished elsewhere"])
     _assert_setup_ok("remedy move-task", moved)

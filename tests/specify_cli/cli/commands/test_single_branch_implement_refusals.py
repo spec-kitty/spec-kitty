@@ -408,6 +408,7 @@ def test_occupied_refusal_is_isolated_and_carries_error_code_and_remedy(repo: Pa
     assert "Move WP01 out of in_progress" in message
     assert "on branch 'trunk'" in message
     assert f'spec-kitty agent tasks move-task WP01 --to blocked --mission {other_slug} --note "<reason>"' in message
+    assert "use --to canceled instead if the work is abandoned" in message
 
 
 def test_occupancy_scan_runs_once_per_implement_call(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
