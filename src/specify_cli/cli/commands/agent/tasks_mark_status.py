@@ -395,8 +395,9 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
         raise ValueError(f"Could not resolve owning work package for subtask event: {joined}")
 
     # #5655: a single_branch mission commits its annotation on its write
-    # branch, like its lane transitions, so mark-status leaves the checkout clean.
-    commit_annotation = is_single_branch(resolve_topology(st.main_repo_root, st.mission_slug))
+    # branch, like its lane transitions, so mark-status leaves the checkout clean
+    # -- unless the operator opted out with --no-auto-commit / ``auto_commit: false``.
+    commit_annotation = st.resolved_auto_commit and is_single_branch(resolve_topology(st.main_repo_root, st.mission_slug))
     for wp_id, task_ids_for_wp in resolved_tasks_by_wp.items():
         delta = WPInnerStateDelta(subtasks=dict.fromkeys(task_ids_for_wp, target_status))
         if st.owned is not None or commit_annotation:

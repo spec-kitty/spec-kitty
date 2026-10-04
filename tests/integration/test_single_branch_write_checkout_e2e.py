@@ -281,8 +281,8 @@ def _action_implement(wp_id: str, mission_slug: str) -> Result:
     return runner.invoke(root_app, ["agent", "action", "implement", wp_id, "--agent", "claude", "--mission", mission_slug])
 
 
-def _mark_done(task_id: str, mission_slug: str) -> Result:
-    return runner.invoke(root_app, ["agent", "tasks", "mark-status", task_id, "--status", "done", "--mission", mission_slug])
+def _mark_done(task_id: str, mission_slug: str, *extra: str) -> Result:
+    return runner.invoke(root_app, ["agent", "tasks", "mark-status", task_id, "--status", "done", "--mission", mission_slug, *extra])
 
 
 def _lane_of(feature_dir: Path, wp_id: str) -> str | None:
@@ -327,6 +327,12 @@ def test_action_implement_records_claim_base_and_reaches_review(agent_loop_missi
     assert result.exit_code == 0, result.output
     assert _lane_of(feature_dir, "WP01") == "for_review"
     assert _git(repo, "status", "--porcelain") == "", "move-task left the write checkout dirty"
+
+    # --no-auto-commit stays honoured on single_branch: the annotation is
+    # written but HEAD does not move.
+    head_before = _git(repo, "rev-parse", "HEAD")
+    _assert_setup_ok("mark-status T002 --no-auto-commit", _mark_done("T002", slug, "--no-auto-commit"))
+    assert _git(repo, "rev-parse", "HEAD") == head_before, "mark-status --no-auto-commit committed on single_branch"
 
 
 def test_action_implement_refuses_occupied_checkout(agent_loop_mission: tuple[Path, str, Path]) -> None:
