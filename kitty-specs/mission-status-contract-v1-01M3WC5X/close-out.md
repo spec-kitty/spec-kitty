@@ -2,6 +2,8 @@
 
 Mission `mission-status-contract-v1-01M3WC5X` (issue #5558, part of epic #5528). Written 2026-10-03 by WP12 (IC-10, part b) as the evidence ledger behind the pull-request bodies.
 
+Sections 15 and 16 supersede earlier text where they differ: section 15 records the maintainer landing of slices 1 to 3, and section 16 records the landing of slices 4 and 5 (2026-10-04). Sections 1 to 14 are an evidence ledger of runs on pre-landing heads and are left as written.
+
 How to read this file. Every claim cites a commit (verified with `git cat-file -t`), a CI run id (verified with `gh run view <id> --json conclusion`), a file path or an issue or pull-request number. A figure that could not be obtained is written "not measured" or "not available" with the reason; nothing is estimated. Commit hashes cited as "lane" are on the code lane branch `kitty/mission-mission-status-contract-v1-01M3WC5X-lane-a` (final tip `c02b14852`); the seam branches were rebuilt from that lane after the pull-request CI fixes, so the same content has different hashes there. Seam 6 (`issue-5558-mission-status-contract-v1-seam6`, tip `e38f59e24`) has a tree identical to the lane tip (`git diff` between them is empty).
 
 Terminology: Mission, never feature; a status lane (a work package's workflow state), a code lane (a git worktree lane) and the repository-root checkout are kept apart.
@@ -327,3 +329,97 @@ From the maintainer's note on #5578 (2026-10-03T09:47:36Z), folded into the slic
 - Fixed in two rounds. Round 1 verified at `17d09989f` (`reviews/pr2-verify.yaml`: all anchored findings resolved); the fresh sweep found two sev-2 (`PR2-FRESH-001`, `PR2-FRESH-002`; `reviews/pr2-fresh.yaml`). Round 2 verified at `f86142ac7` (`reviews/pr2-verify-r2.yaml`: both resolved); the second fresh sweep found 0 (`reviews/pr2-fresh-r2.yaml`). Converged in 2 rounds with no finding open.
 - DD-32 verification: `reviews/pr-verify-dd32.yaml`.
 - Development-assist test cleanup over the tests added by seams 4 to 6: 26 file-level rows kept, 0 retired, 0 split; 6 mission-label strips and 1 rename on kept tests. `test_the_run_report` was restored as kept and made non-vacuous (it now asserts every required section is present) because the run report is spec-required output.
+
+## 16. Update after slices 4 and 5 landed (2026-10-04)
+
+This section was added after section 15. Sections 1 to 15 are left as written. Where this section and an earlier one disagree, this section is the current reading. Line numbers below refer to this file before the header pointer and this section were added.
+
+### 16.1 Landing history
+
+| Slice | Pull request | What happened |
+| --- | --- | --- |
+| 1 | #5566 | Merged 2026-10-03 with maintainer landing folds (section 15.1). |
+| 2 | #5591 | Merged 2026-10-03. It replaced #5568, which was closed. |
+| 3 | #5594 | Merged 2026-10-03. It replaced #5577, which was closed. |
+| 4 | #5606 | Merged 2026-10-03 with seven maintainer landing folds (16.3). It replaced #5578, which was closed. |
+| 5 | #5581 | Merged 2026-10-04 with maintainer landing folds (16.3). It kept its number. |
+| 6 | #5582 | This pull request: documentation and this close-out record. It kept its number. |
+
+The commit heads, CI run ids and bundle checksum quoted in sections 1 to 15 belong to the pre-landing seam branches. Those heads are not on `main`, and the run ids describe runs of those heads. On the landed tree the reality check covered 546 Missions, 3,193 work package payloads and 24,419 events.
+
+### 16.2 Earlier statements that are now false
+
+| Where | Earlier statement | Current reading |
+| --- | --- | --- |
+| "Planning-text corrections" row A7 (line 20); section 15.2 (line 303) | The contract tool tests run in the `contract-tool-tests` job of `contracts.yml`. | There is no such job. The Contracts workflow has nine jobs and runs no pytest. The tool tests run in the router job `tests (contract tools)` (`tests-contract-tools` in `ci-router.yml`), a required check through `router-gate`. Slice 4 landing moved them there so that a break in them blocks the merge. |
+| Section 3 (line 56) | The 27 corpus-marked modules under `tests/contract/` are listed in the router's `tests-corpus-blocking` job. | That job lists the reality check, its payload helper and the example round trip from `tests/contract/`, plus `tests/integration/test_mission_review_contract_gate.py`, `tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py` and one performance class. The other corpus-marked contract modules run in `tests (contract tools)`. Each module has one home. |
+| Section 5 (lines 96 and 97); section 15.3 (line 310) | 541 or 544 Missions projected; 52 Missions on the disagreement list, ceiling 52. | 546 Missions, 3,193 work package payloads and 24,419 events on the landed tree. The ratchet is a shrink-only list of Mission names (`header.disagreeing_missions` in `tests/contract/fixtures/mission_status_expected.json`), and the ceiling equals the list length. The #5579 work package status backfill landed, and slice 5 lowered the ceiling from 52 to 8. Tracker #5579 stays open, drain by 2026-12-31. |
+| Header paragraph on accepted risk P-10 (line 11); section 6 (line 105) | A change confined to the status readers or to `tests/contract/**` selects no job. | An edit under `tests/contract/**` now selects `tests (contract tools)`, which does not run the reality check. The reality check does not run on a pull request that edits only its own test files, its fixture, the status readers, or a Mission's `meta.json` or `status.events.jsonl`. The nightly interpreter shard 4 catches those. |
+| Section 10 (lines 122 to 135) | Six open stacked pull requests; PR 6 "not opened"; "all five open pull requests are drafts". | Slices 1 to 5 are merged (16.1). PR 6 is #5582. #5568, #5577 and #5578 were closed and replaced by #5591, #5594 and #5606. |
+| Post-merge steps, item 1 (line 247) | Merge the six pull requests bottom-up. | Five are merged. Only #5582 remains. |
+| Section 14, item 2 (line 283) | PR 6 (seam 6) is not opened. | It is open as #5582. |
+| Section 15.1 (line 298) | Slices 4 to 6 (#5578 and the two after it) were restacked. | #5578 was closed and replaced by a new pull request, #5606. #5581 and #5582 kept their numbers. |
+| Section 15.4 (line 314) | The maintainer's folds on slice 4 are attributed to #5578. | The maintainer's landing folds on slice 4 are recorded on #5606, which replaced #5578. |
+| Section 15.5 (line 322) | The release workflow is described as one gate. | `contracts-release.yml` has two jobs. A read-only `build` job runs every check and builds the assets. The `publish` job (`needs: build`) is the only one with a write token. It confirms that the tag still resolves to the built commit before it publishes. |
+| Section 15.2 (line 304) | The tool tests were verified in the Contracts workflow with 28 corpus-marked modules, each with one home. | The two homes are now router jobs, `tests (corpus-blocking)` and `tests (contract tools)`. `tests/ci/test_contracts_workflows.py` still fails when a corpus-marked `tests/contract` module has no home or two. |
+
+Section 14 gaps:
+
+| Gap | Status |
+| --- | --- |
+| 1. Draft pull request bodies lack the section 13 items. | Superseded. The drafts it names were replaced or merged. Not re-verified against the body of #5582. |
+| 2. PR 6 is not opened. | Closed: it is #5582. |
+| 3. NFR-001 headroom, no full-mode `packs.yml` dispatch, run predates the fold rounds. | Superseded by section 15.2 and 16.4. Not re-measured. |
+| 4. NFR-007 coverage paste not available. | Not re-verified. |
+| 5. `wps.yaml` `owned_files` does not list the later appends. | Not re-verified. |
+| 6. The scaffold commit subject reads the legacy wording. | Not re-verified. |
+| 7. The `cutover-guard` block is unchanged. | Not re-verified. |
+| 8. No preview tags published. | Not re-verified for the preview tags. No `contract-*` tag is published: the contract version is `1.0.0-SNAPSHOT`. |
+
+### 16.3 Maintainer landing folds on slices 4 and 5
+
+Slice 4 (#5606, merged 2026-10-03, seven folds):
+
+1. The contract tool tests moved into the router job `tests (contract tools)`, a required check.
+2. The release workflow split into a read-only `build` job and a `publish` job.
+3. `breaking_check.py` also treats a new `default` or range (`4XX`/`5XX`) response (`response-key-added`), a write-only property that becomes readable, and added `patternProperties` as breaking.
+4. `verify_pins` refuses a pin that has no `url`.
+5. The Contracts workflow trigger paths grew from four to ten.
+6. Pushes to `main` no longer cancel each other's Contracts runs (one concurrency group per commit).
+7. The breaking-change baseline is the latest release tag reachable from the commit under test, ordered by semver 2.0 precedence, so prerelease versions order correctly.
+
+Slice 5 (#5581, merged 2026-10-04):
+
+1. The disagreement ratchet is pinned by Mission name and was lowered from 52 to 8 after the #5579 work package status backfill landed.
+2. Work package history is sorted by parsed instant instead of by timestamp text.
+3. Dropped rows are asserted.
+4. The corpus floors require only stable values; transient lanes are covered by a fixture-built control.
+5. Lane counts must account for `wpTotal`.
+6. `tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py` got a merge-blocking home in `tests (corpus-blocking)`.
+
+### 16.4 NFR-001
+
+The 3m43s figure in section 15.2 was measured on the full-mode run 37131680223, before the slice 5 folds. It has not been re-measured on the landed tree. The slice 5 folds also gave `tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py` a home in that job. NFR-001 is met on the measured run and unconfirmed on the landed tree.
+
+### 16.5 Accepted risk as it stands
+
+Status-reader drift is not caught on the pull request. The reality check does not run on a pull request that edits only its own test files, its fixture, the status readers (`src/specify_cli/status/**`), or a Mission's `meta.json` or `status.events.jsonl`. The nightly interpreter shard 4 runs `tests/contract` daily and catches the drift up to a day later. The tracker is #5623. `contracts/README.md` and `docs/development/reference/ci-gate-mechanics.md` state the same risk.
+
+### 16.6 Records not in this repository
+
+The Mission's dossier files that are on `main` (`tracer-design-decisions.md`, `tracer-tooling-friction.md`, `research.md`, `plan.md`, `analysis-report.md`, `contracts/tools-and-workflows.md`) are the slice 1 snapshot. They are frozen: the archive rule allows new files in a Mission directory, not edits to existing ones. Entries that earlier sections of this file cite are therefore not in the repository. Each gap below was checked against the files on this branch:
+
+| Cited record | What the repository holds |
+| --- | --- |
+| Design decisions DD-22 and later (DD-22 to DD-32 are cited in several earlier sections) | `tracer-design-decisions.md` stops at DD-21. |
+| Tooling friction entries F-15 and later (cited in sections 1, 12 and 14) | `tracer-tooling-friction.md` stops at F-14. |
+| `research.md` R-8 NFR-001 measurements, taken 2026-10-03 (cited in the NFR-001 section), and the R-5 job-name note (cited in the T074 table) | `research.md` R-8 holds only the baseline, and R-5 does not name `tests-corpus-blocking`. |
+| The `plan.md` corrections P-9 and P-10, Reflexivity items 5, 7 and 8, the gate table and baseline step 5 (cited in "Planning-text corrections") | `plan.md` P-9 and P-10 still read "caught on push to `main` by `built-in-corpus-suite`", the reading the close-out calls superseded. |
+| The re-analysis at commit `c80975b74` (cited in "Planning-text corrections") | The commit is not an object in this repository, and `analysis-report.md` does not mention it. |
+| The update to `contracts/tools-and-workflows.md` that closes PR-DD32-001 (cited in section 15.2) | `contracts/tools-and-workflows.md` has no such update. Its job table lists nine jobs with `contracts-gate` needing eight, with no tool-test job. That now matches the landed workflow, because slice 4 moved the tool tests to the router, so the finding no longer needs an update. |
+
+Section 12 says tracer entries were recorded on the Mission's planning branch; that branch is not in this repository, so where these records are now was not checked. They can be added later as new files in this Mission directory; they cannot be added as edits to the frozen files.
+
+### 16.7 Status surface
+
+`status.events.jsonl` and `status.json` in this Mission directory show every work package at `planned` (12 work packages; `status.json` was last materialized 2026-10-02), and `acceptance-matrix.json` shows `overall_verdict: pending`. The Mission's status surface was never updated after slice 1. The 13 review-cycle files under `tasks/` and this close-out are the record of what was reviewed. This section does not claim that the Mission is accepted in the matrix.
