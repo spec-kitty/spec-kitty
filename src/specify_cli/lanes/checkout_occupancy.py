@@ -29,14 +29,20 @@ from mission_runtime import MissionArtifactKind, MissionTopology, is_single_bran
 __all__ = ["dirty_paths", "in_progress_wps_in_write_checkout"]
 
 
-def _repo_root_lane_wp_ids(feature_dir: Path) -> frozenset[str]:
-    """WP ids assigned to a repo-root lane in *feature_dir*'s ``lanes.json``.
+def _repo_root_lane_claim(feature_dir: Path) -> tuple[frozenset[str], str | None]:
+    """Repo-root-lane WP ids and the manifest's target branch for *feature_dir*.
 
-    Empty when the mission has no ``lanes.json`` (a legacy flat mission whose
-    WPs never ran in the shared checkout) or no WP in a repo-root lane (an
+    The WP ids are those assigned to a repo-root lane in ``lanes.json``: empty
+    when the mission has no ``lanes.json`` (a legacy flat mission whose WPs
+    never ran in the shared checkout) or no WP in a repo-root lane (an
     unmigrated single_branch mission keeps its WPs in CODE lanes -- each with
     its own worktree). A corrupt ``lanes.json`` also reads as empty: one bad
     mission's manifest must not block every OTHER mission's implement.
+
+    The target branch is the manifest's ``target_branch`` -- the value the
+    claim path pins an occupant's write branch from -- returned from the same
+    read so the scan needs no second one; ``None`` when there is no usable
+    manifest.
     """
     from specify_cli.lanes.compute import is_repo_root_lane
     from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
@@ -44,37 +50,55 @@ def _repo_root_lane_wp_ids(feature_dir: Path) -> frozenset[str]:
     try:
         manifest = read_lanes_json(feature_dir)
     except CorruptLanesError:
-        return frozenset()
+        return frozenset(), None
     if manifest is None:
-        return frozenset()
-    return frozenset(wp_id for lane in manifest.lanes if is_repo_root_lane(lane) for wp_id in lane.wp_ids)
+        return frozenset(), None
+    wp_ids = frozenset(wp_id for lane in manifest.lanes if is_repo_root_lane(lane) for wp_id in lane.wp_ids)
+    return wp_ids, manifest.target_branch
 
 
-def _writes_to_another_branch(meta: Mapping[str, Any], topology: MissionTopology, current_branch: str | None) -> bool:
-    """True when the mission's write branch is known and is not *current_branch* (#5680).
+def _writes_to_another_branch(
+    meta: Mapping[str, Any],
+    topology: MissionTopology,
+    lanes_target_branch: str | None,
+    current_branch: str | None,
+) -> bool:
+    """True when the mission's write branch is known, agreed and is not *current_branch* (#5680).
 
     A single_branch mission's status is authoritative only on its write
     branch: the protected-target mint recorded as ``meta.json``
-    ``mission_branch``, else ``target_branch``
+    ``mission_branch``, else the target branch
     (:func:`mission_runtime.single_branch_write_ref`, the one write-branch
     rule). A copy of its status on any other branch -- carried there by
     branching off, or by integrating a merge without ``consolidate`` -- is a
     snapshot, not the mission's live state, so it cannot occupy this checkout.
 
-    Fails closed (``False``: the mission still counts) whenever either side is
-    unknown: a detached HEAD, or no usable ``target_branch``. This
-    deliberately does not apply the primary-branch default of
+    The write branch is computed from BOTH places that name a target: the
+    scan's ``meta.json`` ``target_branch`` and *lanes_target_branch* (the
+    manifest value the claim path pins an occupant's write branch from,
+    ``workspace.context``). The mission is skipped only when both yield the
+    SAME ref and it is not *current_branch*. Fails closed (``False``: the
+    mission still counts) whenever anything is unknown or contested: a
+    detached HEAD, no usable target in either file, or the two files naming
+    different write branches -- then the WP may be claimable on the current
+    branch, so it must keep blocking. This deliberately does not apply the
+    primary-branch default of
     :func:`specify_cli.core.paths.read_target_branch_from_meta`: an occupant
     whose target is unrecorded keeps blocking rather than being assumed to
-    write elsewhere. *meta* is the
-    mission's already-loaded ``meta.json``; this reads nothing itself.
+    write elsewhere. *meta* is the mission's already-loaded ``meta.json``;
+    this reads nothing itself.
     """
     if current_branch is None:
         return False
-    target_branch = meta.get("target_branch")
-    if not isinstance(target_branch, str) or not target_branch:
+    meta_target = meta.get("target_branch")
+    if not isinstance(meta_target, str) or not meta_target:
         return False
-    return single_branch_write_ref(topology, meta.get("mission_branch"), target_branch) != current_branch
+    if not isinstance(lanes_target_branch, str) or not lanes_target_branch:
+        return False
+    mission_branch = meta.get("mission_branch")
+    meta_ref = single_branch_write_ref(topology, mission_branch, meta_target)
+    lanes_ref = single_branch_write_ref(topology, mission_branch, lanes_target_branch)
+    return meta_ref == lanes_ref and meta_ref != current_branch
 
 
 def _occupancy_candidate_wp_ids(feature_dir: Path, current_branch: str | None) -> frozenset[str]:
@@ -84,15 +108,17 @@ def _occupancy_candidate_wp_ids(feature_dir: Path, current_branch: str | None) -
     caller reads the status log only for real candidates (filters 1-4 of
     :func:`in_progress_wps_in_write_checkout`): a mission whose ``meta.json``
     cannot be read, whose stored topology is not ``single_branch``, that has
-    no WP in a repo-root lane, that is completed, or whose write branch is not
+    no WP in a repo-root lane, that is completed, or whose write branch --
+    computed from ``meta.json`` AND ``lanes.json`` -- is agreed and is not
     *current_branch*.
     """
     from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
     from specify_cli.migration.backfill_topology import topology_from_meta
     from specify_cli.status import is_mission_completed
 
-    # One meta.json read per mission (NFR-001): the topology and the write
-    # branch both come from this dict.
+    # One meta.json read per mission and one lanes.json read per mission
+    # (NFR-001): the topology and the write branch come from the meta dict, the
+    # repo-root WP ids and the manifest's target from the single manifest read.
     try:
         meta = load_meta_fail_closed(feature_dir)
         if meta is None:
@@ -102,10 +128,10 @@ def _occupancy_candidate_wp_ids(feature_dir: Path, current_branch: str | None) -
         return frozenset()
     if not is_single_branch(topology):
         return frozenset()
-    repo_root_wp_ids = _repo_root_lane_wp_ids(feature_dir)
+    repo_root_wp_ids, lanes_target_branch = _repo_root_lane_claim(feature_dir)
     if not repo_root_wp_ids or is_mission_completed(feature_dir):
         return frozenset()
-    if _writes_to_another_branch(meta, topology, current_branch):
+    if _writes_to_another_branch(meta, topology, lanes_target_branch, current_branch):
         return frozenset()
     return repo_root_wp_ids
 
@@ -132,11 +158,14 @@ def in_progress_wps_in_write_checkout(
        unmigrated single_branch mission whose WPs sit in code lanes;
     3. the mission is not completed
        (:func:`specify_cli.status.is_mission_completed`);
-    4. the mission's write branch is the branch *write_checkout* is on
-       (#5680; see :func:`_writes_to_another_branch`) -- a status copy on
-       any other branch is not that mission's live status, so a mission
-       merged into this branch without ``consolidate`` no longer occupies
-       it. Unknown branches fail closed;
+    4. the mission's write branch, computed from ``meta.json`` AND
+       ``lanes.json`` (#5680; see :func:`_writes_to_another_branch`), is
+       the branch *write_checkout* is on, or cannot be established -- a
+       detached HEAD, no usable target in either file, or the two files
+       naming different write branches all fail closed (the mission
+       counts). A status copy on any other branch is not that mission's
+       live status, so a mission merged into this branch without
+       ``consolidate`` no longer occupies it;
     5. the status snapshot: a repo-root-lane WP whose lane is ``in_progress``.
 
     A single_branch mission's write checkout has no persisted alternate root

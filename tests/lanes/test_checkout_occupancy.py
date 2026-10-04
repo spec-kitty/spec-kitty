@@ -67,14 +67,14 @@ def _write_single_branch_meta(repo: Path, mission_slug: str, mission_id: str) ->
     )
 
 
-def _write_lanes(repo: Path, mission_slug: str, lanes: dict[str, tuple[str, ...]]) -> None:
-    """Write a ``lanes.json`` mapping each lane id to its WP ids."""
+def _write_lanes(repo: Path, mission_slug: str, lanes: dict[str, tuple[str, ...]], *, target_branch: str = "main") -> None:
+    """Write a ``lanes.json`` mapping each lane id to its WP ids, targeting *target_branch*."""
     manifest = LanesManifest(
         version=1,
         mission_slug=mission_slug,
         mission_id=None,
         mission_branch=f"kitty/mission-{mission_slug}",
-        target_branch="main",
+        target_branch=target_branch,
         lanes=[
             ExecutionLane(
                 lane_id=lane_id,
@@ -92,9 +92,9 @@ def _write_lanes(repo: Path, mission_slug: str, lanes: dict[str, tuple[str, ...]
     write_lanes_json(repo / "kitty-specs" / mission_slug, manifest)
 
 
-def _write_repo_root_lane(repo: Path, mission_slug: str, *wp_ids: str) -> None:
+def _write_repo_root_lane(repo: Path, mission_slug: str, *wp_ids: str, target_branch: str = "main") -> None:
     """Assign *wp_ids* to the mission's repo-root (``lane-planning``) lane."""
-    _write_lanes(repo, mission_slug, {PLANNING_LANE_ID: tuple(wp_ids)})
+    _write_lanes(repo, mission_slug, {PLANNING_LANE_ID: tuple(wp_ids)}, target_branch=target_branch)
 
 
 # ---------------------------------------------------------------------------
@@ -270,10 +270,26 @@ def _set_meta_fields(repo: Path, mission_slug: str, **fields: object) -> None:
     meta_path.write_text(json.dumps(meta), encoding="utf-8")
 
 
-def _in_progress_occupant(repo: Path, mission_slug: str, mission_id: str, **meta_fields: object) -> None:
+def _in_progress_occupant(
+    repo: Path,
+    mission_slug: str,
+    mission_id: str,
+    *,
+    lanes_target_branch: str | None = None,
+    **meta_fields: object,
+) -> None:
+    """An ``in_progress`` repo-root-lane WP whose ``meta.json`` and ``lanes.json`` agree on the target.
+
+    *lanes_target_branch* overrides the ``lanes.json`` target to model the two
+    files disagreeing; by default it follows ``meta.json``'s ``target_branch``
+    (or ``main`` when that is absent or not a usable string).
+    """
     _write_single_branch_meta(repo, mission_slug, mission_id)
     _set_meta_fields(repo, mission_slug, **meta_fields)
-    _write_repo_root_lane(repo, mission_slug, "WP01")
+    meta_target = meta_fields.get("target_branch", "main")
+    if lanes_target_branch is None:
+        lanes_target_branch = meta_target if isinstance(meta_target, str) and meta_target else "main"
+    _write_repo_root_lane(repo, mission_slug, "WP01", target_branch=lanes_target_branch)
     write_wp(repo, mission_slug, "in_progress", "WP01")
 
 
@@ -309,16 +325,29 @@ def test_protected_target_mint_is_the_write_branch(tmp_path: Path) -> None:
     assert in_progress_wps_in_write_checkout(repo, repo) == [("occ-mint", "WP01")]
 
 
-@pytest.mark.parametrize("target_branch", [None, "", 123], ids=["absent", "empty", "non-string"])
-def test_unknown_write_branch_fails_closed(tmp_path: Path, target_branch: object) -> None:
-    """No usable ``target_branch`` in ``meta.json``: the mission still counts as an occupant.
+@pytest.mark.parametrize(
+    ("meta_target", "lanes_target"),
+    [(None, "main"), ("", "main"), (123, "main"), ("fix/other", "main")],
+    ids=["absent", "empty", "non-string", "meta-and-lanes-disagree"],
+)
+def test_unknown_write_branch_fails_closed(tmp_path: Path, meta_target: object, lanes_target: str) -> None:
+    """An unknown or contested write branch: the mission still counts as an occupant.
 
-    ``None`` drops the key. An empty or non-string value must not read as a
-    write branch that differs from the current one.
+    ``None`` drops the ``meta.json`` key. An empty or non-string value must not
+    read as a write branch that differs from the current one. When ``meta.json``
+    says ``fix/other`` but ``lanes.json`` (what the claim path pins the WP's
+    write branch from) says ``main``, the WP is claimable on ``main``, so it
+    must occupy a checkout that sits on ``main``.
     """
     repo = tmp_path / "repo"
     _init_repo(repo)
-    _in_progress_occupant(repo, "occ-no-target", "01OCCNOTARGET0000000000N", target_branch=target_branch)
+    _in_progress_occupant(
+        repo,
+        "occ-no-target",
+        "01OCCNOTARGET0000000000N",
+        lanes_target_branch=lanes_target,
+        target_branch=meta_target,
+    )
 
     assert in_progress_wps_in_write_checkout(repo, repo) == [("occ-no-target", "WP01")]
 
