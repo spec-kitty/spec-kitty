@@ -27,6 +27,12 @@ access on the lazily imported module, whether called directly or first bound to
 a local such as ``routed = _tasks.commit_for_mission``), or (c) a
 ``getattr(<alias>, "<prefix>" + ... + "<suffix>")`` read matches its prefix and
 suffix (the KITTY_SPECS_DIR-named alias).
+
+Liveness is per ``(module, name)``, not per call site: a name that is live somewhere
+in the module passes for every patch of it. That is a necessary condition for an
+intercept, not a sufficient one. A target the scanner cannot resolve to ``(module, name)``
+is counted (``UNRESOLVABLE_BASELINE``), never dropped. A path that goes deeper than the
+module (``<module>.console.print``) patches a shared object and is out of scope by design.
 """
 
 from __future__ import annotations
@@ -35,6 +41,7 @@ import ast
 import functools
 import importlib
 import re
+from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
 
@@ -288,58 +295,159 @@ def _module_of_dotted(dotted: str) -> tuple[str, str] | None:
     return None
 
 
+_FUNCTIONS = (ast.FunctionDef, ast.AsyncFunctionDef)
+#: ``patch.multiple`` keywords that configure the patch rather than name an attribute.
+_PATCH_OPTIONS = frozenset({"spec", "create", "spec_set", "autospec", "new_callable"})
+
+
+def _nodes_in_scope(node: ast.AST) -> Iterator[ast.AST]:
+    """Pre-order descendants of ``node`` that belong to its own scope (not nested functions)."""
+    for child in ast.iter_child_nodes(node):
+        yield child
+        if not isinstance(child, (*_FUNCTIONS, ast.Lambda)):
+            yield from _nodes_in_scope(child)
+
+
+def _attr_chain(node: ast.expr) -> str | None:
+    """``a.b.c`` for a pure ``Name``/``Attribute`` chain, else ``None``."""
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        head = _attr_chain(node.value)
+        return None if head is None else f"{head}.{node.attr}"
+    return None
+
+
+class _Scope:
+    """String constants and tasks-module aliases bound directly in one function (or the module).
+
+    Lookups fall back to the enclosing scope, so two functions that bind the same local
+    name to different modules each resolve their own.
+    """
+
+    def __init__(self, parent: _Scope | None) -> None:
+        self.parent = parent
+        self.consts: dict[str, str] = {}
+        self.aliases: dict[str, str] = {}
+
+    def const(self, name: str) -> str | None:
+        scope: _Scope | None = self
+        while scope is not None:
+            if name in scope.consts:
+                return scope.consts[name]
+            scope = scope.parent
+        return None
+
+    def alias(self, name: str) -> str | None:
+        scope: _Scope | None = self
+        while scope is not None:
+            if name in scope.aliases:
+                return scope.aliases[name]
+            scope = scope.parent
+        return None
+
+    def alias_names(self) -> set[str]:
+        names = set(self.parent.alias_names()) if self.parent else set()
+        return names | set(self.aliases)
+
+
 class _Scanner:
-    """Collect in-scope patch targets from one test source."""
+    """Collect in-scope patch targets from one test source.
+
+    A patch call whose target mentions a tasks module but cannot be resolved to
+    ``(module, name)`` is recorded as unresolvable, never silently dropped.
+    """
 
     def __init__(self, source: str, rel: str) -> None:
         self.rel = rel
         self.tree = ast.parse(source)
         self.hits: list[Hit] = []
         self.unresolvable: list[tuple[str, int]] = []
-        self.aliases: dict[str, str] = {}
-        self.consts: dict[str, str] = {}
-        self._collect_bindings()
 
-    def _collect_bindings(self) -> None:
-        for node in ast.walk(self.tree):
-            if isinstance(node, ast.ImportFrom) and node.module == _PKG:
-                for a in node.names:
-                    if a.name in _MODULES:
-                        self.aliases[a.asname or a.name] = a.name
-            elif isinstance(node, ast.Import):
-                for a in node.names:
+    def _bind_scope(self, node: ast.AST, scope: _Scope) -> None:
+        for child in _nodes_in_scope(node):
+            if isinstance(child, ast.ImportFrom) and child.module == _PKG:
+                scope.aliases.update({a.asname or a.name: a.name for a in child.names if a.name in _MODULES})
+            elif isinstance(child, ast.Import):
+                for a in child.names:
                     if a.asname and a.name.startswith(f"{_PKG}.") and a.name.rsplit(".", 1)[1] in _MODULES:
-                        self.aliases[a.asname] = a.name.rsplit(".", 1)[1]
-            elif isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
-                for t in node.targets:
-                    if isinstance(t, ast.Name):
-                        self.consts[t.id] = node.value.value
+                        scope.aliases[a.asname] = a.name.rsplit(".", 1)[1]
+            elif isinstance(child, ast.Assign):
+                self._bind_assign(child, scope)
 
-    def _string(self, node: ast.expr) -> str | None:
+    def _bind_assign(self, node: ast.Assign, scope: _Scope) -> None:
+        names = [t.id for t in node.targets if isinstance(t, ast.Name)]
+        text = self._string(node.value, scope) if isinstance(node.value, (ast.Constant, ast.JoinedStr)) else None
+        if text is not None:
+            scope.consts.update(dict.fromkeys(names, text))
+            return
+        module = self._imported_module(node.value, scope)
+        if module is not None:
+            scope.aliases.update(dict.fromkeys(names, module))
+
+    def _imported_module(self, node: ast.expr, scope: _Scope) -> str | None:
+        """Module short name for ``importlib.import_module("<pkg>.<module>")`` (or bare ``import_module``)."""
+        if not (isinstance(node, ast.Call) and node.args):
+            return None
+        func = node.func
+        if not ((isinstance(func, ast.Name) and func.id == "import_module") or (isinstance(func, ast.Attribute) and func.attr == "import_module")):
+            return None
+        dotted = self._string(node.args[0], scope)
+        resolved = _module_of_dotted(f"{dotted}.x") if dotted else None
+        return resolved[0] if resolved else None
+
+    def _module_ref(self, node: ast.expr, scope: _Scope) -> str | None:
+        """The tasks module an expression refers to (alias, dotted attribute chain or ``import_module``)."""
+        if isinstance(node, ast.Name):
+            return scope.alias(node.id)
+        if isinstance(node, ast.Call):
+            return self._imported_module(node, scope)
+        chain = _attr_chain(node)
+        if chain is not None and chain.startswith(f"{_PKG}."):
+            tail = chain[len(_PKG) + 1 :]
+            return tail if tail in _MODULES else None
+        return None
+
+    def _string(self, node: ast.expr, scope: _Scope) -> str | None:
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             return node.value
         if isinstance(node, ast.Name):
-            return self.consts.get(node.id)
+            return scope.const(node.id)
+        if isinstance(node, ast.Attribute) and node.attr == "__name__":
+            module = self._module_ref(node.value, scope)
+            return None if module is None else f"{_PKG}.{module}"
+        if isinstance(node, ast.FormattedValue):
+            return self._string(node.value, scope)
         if isinstance(node, ast.JoinedStr):
-            parts: list[str] = []
-            for v in node.values:
-                piece = self._string(v.value) if isinstance(v, ast.FormattedValue) else self._string(v)
-                if piece is None:
-                    return None
-                parts.append(piece)
-            return "".join(parts)
+            return self._join([self._string(v, scope) for v in node.values])
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+            return self._join([self._string(node.left, scope), self._string(node.right, scope)])
         return None
 
-    def _fragments_mention_module(self, node: ast.expr) -> bool:
-        return any(isinstance(n, ast.Constant) and isinstance(n.value, str) and _MODULE_HINT.search(n.value) for n in ast.walk(node))
+    @staticmethod
+    def _join(pieces: list[str | None]) -> str | None:
+        return None if any(p is None for p in pieces) else "".join(p for p in pieces if p is not None)
+
+    @staticmethod
+    def _mentions_module(node: ast.expr, scope: _Scope) -> bool:
+        """True when ``node`` names a tasks module by alias, string fragment or dotted attribute chain."""
+        aliases = scope.alias_names()
+        for n in ast.walk(node):
+            if isinstance(n, ast.Name) and n.id in aliases:
+                return True
+            if isinstance(n, ast.Constant) and isinstance(n.value, str) and _MODULE_HINT.search(n.value):
+                return True
+            if isinstance(n, ast.Attribute) and _MODULE_HINT.search(_attr_chain(n) or ""):
+                return True
+        return False
 
     @staticmethod
     def _is_patch_call(call: ast.Call) -> str | None:
         """Classify a call by its trailing attribute chain.
 
         Covers ``patch``, ``mock.patch``, ``unittest.mock.patch``,
-        ``mocker.patch`` (string form), the matching ``.object`` forms and
-        ``monkeypatch.setattr``.
+        ``mocker.patch`` (string form), the matching ``.object`` and ``.multiple``
+        forms and ``monkeypatch.setattr``.
         """
 
         def is_patch(n: ast.expr) -> bool:
@@ -349,8 +457,8 @@ class _Scanner:
         if is_patch(f):
             return "string"
         if isinstance(f, ast.Attribute):
-            if f.attr == "object" and is_patch(f.value):
-                return "object"
+            if f.attr in ("object", "multiple") and is_patch(f.value):
+                return f.attr
             if f.attr == "setattr":
                 return "setattr"
         return None
@@ -366,34 +474,76 @@ class _Scanner:
         return None
 
     def scan(self) -> None:
-        for node in ast.walk(self.tree):
-            if isinstance(node, ast.Call):
-                kind = self._is_patch_call(node)
-                if kind is not None:
-                    self._handle(node, kind)
+        self._visit(self.tree, self._new_scope(self.tree, None))
 
-    def _handle(self, call: ast.Call, kind: str) -> None:
+    def _new_scope(self, node: ast.AST, parent: _Scope | None) -> _Scope:
+        scope = _Scope(parent)
+        self._bind_scope(node, scope)
+        return scope
+
+    def _visit(self, node: ast.AST, scope: _Scope) -> None:
+        if isinstance(node, ast.Call):
+            kind = self._is_patch_call(node)
+            if kind is not None:
+                self._handle(node, kind, scope)
+        if isinstance(node, _FUNCTIONS):
+            # Decorators and defaults run in the enclosing scope; only the body sees the locals.
+            for outer in (*node.decorator_list, node.args, node.returns):
+                if outer is not None:
+                    self._visit(outer, scope)
+            inner = self._new_scope(node, scope)
+            for stmt in node.body:
+                self._visit(stmt, inner)
+            return
+        for child in ast.iter_child_nodes(node):
+            self._visit(child, scope)
+
+    def _record(self, call: ast.Call, module: str, name: str | None) -> None:
+        if name is None:
+            self.unresolvable.append((self.rel, call.lineno))
+        else:
+            self.hits.append((self.rel, call.lineno, module, name))
+
+    def _handle(self, call: ast.Call, kind: str, scope: _Scope) -> None:
         target = self._arg(call, 0, "target")
         if target is None:
             return
-        if isinstance(target, ast.Name) and target.id in self.aliases:
-            module = self.aliases[target.id]
-            attr_node = self._arg(call, 1, "attribute", "name")
-            name = self._string(attr_node) if attr_node is not None else None
-            if name is None:
-                self.unresolvable.append((self.rel, call.lineno))
-            else:
-                self.hits.append((self.rel, call.lineno, module, name))
-            return
-        if kind in ("string", "setattr"):
-            dotted = self._string(target)
-            if dotted is None:
-                if self._fragments_mention_module(target):
-                    self.unresolvable.append((self.rel, call.lineno))
+        module = self._module_ref(target, scope)
+        if module is None and kind in ("string", "setattr", "multiple"):
+            dotted = self._string(target, scope)
+            if dotted is not None and kind == "multiple" and dotted.startswith(f"{_PKG}."):
+                module = dotted[len(_PKG) + 1 :] if dotted[len(_PKG) + 1 :] in _MODULES else None
+            elif dotted is not None:
+                self._handle_dotted(call, dotted)
                 return
-            resolved = _module_of_dotted(dotted)
-            if resolved is not None:
-                self.hits.append((self.rel, call.lineno, *resolved))
+        if module is not None:
+            self._handle_module(call, kind, module, scope)
+        elif self._is_nested_object(target, scope):
+            return  # patches an attribute of an object the module holds, not the module global
+        elif self._mentions_module(target, scope):
+            self.unresolvable.append((self.rel, call.lineno))
+
+    def _is_nested_object(self, node: ast.expr, scope: _Scope) -> bool:
+        """``<module>.<obj>[.<attr>...]`` as an object target (``patch.object(tasks.console, "print")``)."""
+        return isinstance(node, ast.Attribute) and (self._module_ref(node.value, scope) is not None or self._is_nested_object(node.value, scope))
+
+    def _handle_dotted(self, call: ast.Call, dotted: str) -> None:
+        resolved = _module_of_dotted(dotted)
+        if resolved is not None:
+            self.hits.append((self.rel, call.lineno, *resolved))
+        # A deeper path (``<module>.console.print``) patches the shared object itself and
+        # intercepts every caller regardless of which module reads it: out of scope by design.
+
+    def _handle_module(self, call: ast.Call, kind: str, module: str, scope: _Scope) -> None:
+        if kind == "multiple":
+            if any(kw.arg is None for kw in call.keywords):
+                self.unresolvable.append((self.rel, call.lineno))
+            for kw in call.keywords:
+                if kw.arg is not None and kw.arg not in _PATCH_OPTIONS:
+                    self._record(call, module, kw.arg)
+            return
+        attr_node = self._arg(call, 1, "attribute", "name")
+        self._record(call, module, self._string(attr_node, scope) if attr_node is not None else None)
 
 
 def _scan_source(source: str, rel: str) -> tuple[list[Hit], list[tuple[str, int]]]:
@@ -427,7 +577,11 @@ def _scan_tests() -> tuple[list[Hit], list[tuple[str, int]]]:
 def test_every_tasks_patch_target_is_live() -> None:
     hits, unresolvable = _scan_tests()
     live = _live_names_by_module()
-    assert hits, "scan found no tasks patch targets at all; the scanner is broken"
+    # Positive control: one real f-string site (``f"{_tmt_executor.__name__}.<name>"``) must be found.
+    seam_test = "tests/specify_cli/cli/commands/agent/test_tasks_move_task_seam.py"
+    assert (seam_test, "tasks_move_task_executor", "_persist_approved_review_cycle") in {(h[0], h[2], h[3]) for h in hits}, (
+        "scan lost a known patch site; the scanner is broken"
+    )
     dead = _dead_hits(hits, live)
     print(f"tasks patch targets scanned: {len(hits)}; unresolvable: {len(unresolvable)}")
     for file, line in unresolvable:
@@ -458,15 +612,52 @@ def test_negative_control_moved_symbol_patch_is_reported_dead() -> None:
 
 def test_scanner_resolves_string_and_fstring_targets() -> None:
     source = (
+        "import importlib\n"
         "from unittest.mock import patch\n"
+        "from specify_cli.cli.commands.agent import tasks_move_task, tasks_move_task_executor as _ex\n"
         f'_M = "{_PKG}.tasks_move_task_gates"\n'
         f'a = patch("{_PKG}.tasks_move_task_hops._x")\n'
         'b = patch(f"{_M}._y")\n'
         'c = patch(f"{unknown}.tasks_move_task._z")\n'
+        # ``{<alias>.__name__}`` resolves to the aliased module.
+        'd = patch(f"{tasks_move_task.__name__}._n")\n'
+        'e = patch(f"{_ex.__name__}._m")\n'
+        'f = patch(_ex.__name__ + "._k")\n'
+        # A tasks target that cannot be resolved is counted, never dropped.
+        'g = patch(f"{dyn()}.tasks_move_task._lost")\n'
+        "h = patch.object(pkg.sub.tasks_move_task, name_var)\n"
+        "def alias_binding():\n"
+        f'    m = importlib.import_module("{_PKG}.tasks_move_task_hops")\n'
+        '    patch.object(m, "_im")\n'
+        "    patch.multiple(m, _ma=1, _mb=2, create=True)\n"
+        "    patch.multiple(m, **opts)\n"
+        # Module-level ``patch.object`` on a dotted attribute chain resolves; nested objects are out of scope.
+        f'i = patch.object({_PKG}.tasks_move_task_gates, "_chain")\n'
+        'j = patch.object(tasks_move_task.console, "print")\n'
+        # A local string bound in a function is scoped to it: same name, different module per function.
+        "def f1():\n"
+        f'    _L = "{_PKG}.tasks_move_task_hops"\n'
+        '    patch(f"{_L}._p")\n'
+        "def f2():\n"
+        f'    _L = "{_PKG}.tasks_move_task_gates"\n'
+        '    patch(f"{_L}._q")\n'
     )
     hits, unresolvable = _scan_source(source, "synthetic.py")
-    assert [(h[2], h[3]) for h in hits] == [("tasks_move_task_hops", "_x"), ("tasks_move_task_gates", "_y")]
-    assert len(unresolvable) == 1
+    assert [(h[2], h[3]) for h in hits] == [
+        ("tasks_move_task_hops", "_x"),
+        ("tasks_move_task_gates", "_y"),
+        ("tasks_move_task", "_n"),
+        ("tasks_move_task_executor", "_m"),
+        ("tasks_move_task_executor", "_k"),
+        ("tasks_move_task_hops", "_im"),
+        ("tasks_move_task_hops", "_ma"),
+        ("tasks_move_task_hops", "_mb"),
+        ("tasks_move_task_gates", "_chain"),
+        ("tasks_move_task_hops", "_p"),
+        ("tasks_move_task_gates", "_q"),
+    ]
+    # c, g (dynamic prefix), h (unresolved name on a dotted chain) and ``patch.multiple(**opts)``.
+    assert len(unresolvable) == 4
 
 
 def test_recursion_and_reexport_do_not_make_a_name_live() -> None:
@@ -543,28 +734,10 @@ def test_lazy_function_local_import_is_not_live() -> None:
     assert {"eager", "local"} <= live
 
 
-def _never_called_name(module: str) -> str:
-    """A name ``module`` defines at module level but never calls (else a sentinel)."""
-    defined = {n.name for n in _module_tree(module).body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
-    dead = sorted(defined - _live_names_by_module()[module])
-    return dead[0] if dead else "_never_called_sentinel_zz"
-
-
 def test_module_set_is_derived_from_the_package() -> None:
     assert _BRIDGE in _MODULES
     assert {"tasks_move_task", "tasks_move_task_executor", "tasks_shared", "tasks_finalize"} <= set(_SEAMS)
     assert all(m == _BRIDGE or m.startswith("tasks_") for m in _MODULES)
-
-
-@pytest.mark.parametrize("module", _SEAMS)
-def test_negative_control_uncalled_name_is_dead_for_every_seam(module: str) -> None:
-    """A patch on a name the seam defines but never calls must be reported dead."""
-    name = _never_called_name(module)
-    source = f"from unittest.mock import patch\nfrom {_PKG} import {module}\ndef test_x():\n    with patch.object({module}, {name!r}):\n        pass\n"
-    hits, unresolvable = _scan_source(source, "synthetic.py")
-    assert hits == [("synthetic.py", 4, module, name)]
-    assert not unresolvable
-    assert _dead_hits(hits, _live_names_by_module()) == hits
 
 
 def _bridge_hit(name: str) -> list[Hit]:
