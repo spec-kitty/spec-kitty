@@ -525,6 +525,20 @@ def reset_would_obstruct_untracked(
     return any(reason is _DirtyReason.OBSTRUCTION for reason, _ in verdicts)
 
 
+def worktrees_with_branch_checked_out(repo_root: Path, branch: str, *, env: dict[str, str] | None = None) -> list[Path]:
+    """Paths of every worktree that has ``refs/heads/<branch>`` checked out (detached checkouts excluded).
+
+    The checkouts :func:`advance_branch_ref` resyncs when it moves ``branch``. Public so the
+    consolidation preflight can inspect, before any mutation, the same set this module would
+    refuse or reset mid-run (#5613).
+
+    Raises:
+        RefAdvanceError: the worktrees could not be enumerated.
+    """
+    ref = f"refs/heads/{branch}"
+    return [entry.path for entry in _list_worktrees(repo_root, env) if not entry.detached and entry.branch == ref]
+
+
 def _checkouts_ready_for(
     repo_root: Path,
     branch: str,
@@ -540,8 +554,7 @@ def _checkouts_ready_for(
     advanced, nothing reset). Shared by :func:`advance_branch_ref` and
     :func:`restore_branch_ref` (``resync_checkouts=True``).
     """
-    ref = f"refs/heads/{branch}"
-    checkouts = [entry.path for entry in _list_worktrees(repo_root, env) if not entry.detached and entry.branch == ref]
+    checkouts = worktrees_with_branch_checked_out(repo_root, branch, env=env)
     target_paths = _target_tree_paths(repo_root, new_sha, env)
     for worktree in checkouts:
         dirty = _dirty_entries(

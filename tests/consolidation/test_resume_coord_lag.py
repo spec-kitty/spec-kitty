@@ -170,7 +170,7 @@ def test_lag_checkout_for_the_coordination_worktree_refusal(tmp_path: Path) -> N
     assert checkout is not None and checkout.label == "coordination worktree"
 
 
-def test_lag_checkout_none_for_a_lane_worktree_refusal(tmp_path: Path) -> None:
+def test_lag_checkout_none_for_a_refused_path_that_is_not_a_checkout(tmp_path: Path) -> None:
     lag = _build_lag(tmp_path)
     lane_worktree = tmp_path / "lane-a"
     lane_worktree.mkdir()
@@ -290,11 +290,12 @@ def test_the_target_anchor_does_not_prove_a_coordination_lag(tmp_path: Path) -> 
     assert not (lag.coord / "lane.py").exists()
 
 
-def test_a_lane_worktree_is_never_a_recovery_candidate(tmp_path: Path) -> None:
+def test_a_worktree_without_a_snapshot_anchor_is_never_recovered(tmp_path: Path) -> None:
     lag = _build_lag(tmp_path)
     _persist_state(lag, coord_sha=lag.base)
 
-    assert _recover(lag, _worktree_refusal(lag.coord), None) is False  # coordination worktree not resolved
+    # Coordination worktree not resolved: it is judged as a mission worktree, whose branch has no pre_mutation_refs entry (#5613).
+    assert _recover(lag, _worktree_refusal(lag.coord), None) is False
 
     assert not (lag.coord / "lane.py").exists()
 
@@ -384,7 +385,7 @@ def test_report_fresh_merge_without_a_base_keeps_the_stock_remedy(tmp_path: Path
     assert _DO_NOT_RECORD not in out
 
 
-def test_report_lane_worktree_refusal_keeps_the_stock_remedy(tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
+def test_report_refusal_for_a_non_checkout_path_keeps_the_stock_remedy(tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("COLUMNS", "400")
     lag = _build_lag(tmp_path)
 

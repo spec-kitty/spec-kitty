@@ -9,6 +9,8 @@ remediation). One-way import: this module never imports the command shim.
 from __future__ import annotations
 
 import json
+import shlex
+import zlib
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -18,6 +20,7 @@ import typer
 
 from kernel.git import GitCommandError, GitPath
 from kernel.git import changed_paths as git_changed_paths
+from kernel.git_topology import GitTopologyError, git_common_dir
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.cli.console import console
@@ -886,6 +889,71 @@ def has_unrefreshed_head_advance(repo_root: Path, *, base_sha: str | None) -> bo
         return False
     advanced_paths = _diff_paths(repo_root, str(base_sha), "HEAD")
     return bool(advanced_paths & _diff_paths(repo_root, "HEAD"))
+
+
+def checked_out_branch(checkout: Path) -> str | None:
+    """The branch *checkout* has checked out, or ``None`` (detached HEAD, not a checkout, missing directory)."""
+    if not checkout.is_dir():
+        return None
+    ret, out, _err = run_command(["git", "symbolic-ref", "--short", "-q", "HEAD"], capture=True, check_return=False, cwd=checkout)
+    return (out.strip() or None) if ret == 0 else None
+
+
+def _resume_edit_patch_path(checkout: Path) -> Path:
+    """Where the operator saves their edit: the repository's COMMON git dir, which survives a worktree removal.
+
+    The file name carries a checksum of the checkout's full path, so two worktrees that share a
+    directory name never write the same patch. When git cannot name the common dir the patch
+    goes beside the checkout, never under ``<checkout>/.git`` (a file in a linked worktree).
+    """
+    resolved = checkout.resolve()
+    digest = f"{zlib.crc32(str(resolved).encode('utf-8', 'surrogateescape')):08x}"
+    try:
+        directory = git_common_dir(resolved)
+    except GitTopologyError:
+        directory = resolved.parent
+    return directory / f"spec-kitty-resume-edit-{checkout.name}-{digest}.patch"
+
+
+def lag_with_edit_guidance(checkout: Path, *, label: str, base_sha: str) -> list[str]:
+    """Advice for a worktree that lags its own HEAD AND carries an operator edit (#5571 / #5613).
+
+    Call only when :func:`has_unrefreshed_head_advance` holds and :func:`is_pure_behind_head_lag`
+    does not. Nothing is mutated; the lines are printed by the refusal report.
+
+    The edit is saved as a ``--binary`` patch (a plain diff records a binary edit only as "Binary
+    files differ", which the advised ``reset --hard`` would then lose) of ONLY the paths that
+    differ from ``base_sha`` (the branch tip before the interrupted run): at the lag the working tree still equals that tip, so those paths
+    are the operator's own and never a lane path the lag reads as deleted. Two remedies are ruled
+    out by name: recording the checkout (it reverts the integrated lanes) and ``git stash`` (the
+    stash is taken against the advanced HEAD, so popping it after the refresh deletes the lane
+    files again). The patch is re-applied only AFTER the resume, whose guards refuse a dirty
+    worktree and whose refresh would overwrite the edit.
+    """
+    where = f"git -C {shlex.quote(str(checkout))}"
+    patch = shlex.quote(str(_resume_edit_patch_path(checkout)))
+    edited = " ".join(shlex.quote(str(path)) for path in sorted(_diff_paths(checkout, base_sha), key=str))
+    lines = [
+        f"The {label} {checkout} is behind its own HEAD (a prior consolidation advanced its branch but never refreshed this worktree) "
+        "AND carries changes of its own.",
+        "Do NOT stage or record these changes: the staged deletions are the integrated lanes read in reverse and recording them reverts the merge.",
+        "Do NOT use git stash for your edit: popping it after the refresh deletes the lane files again.",
+    ]
+    if reset_would_obstruct_untracked(checkout, "HEAD"):
+        lines.append("Untracked or ignored files sit on paths HEAD tracks and the refresh would overwrite them: move them out of the worktree first.")
+    if edited:
+        save = f"{where} diff --binary {base_sha} -- {edited} > {patch}"
+        lines.append(f"Save your own edits outside the worktree first, as a patch of only the paths you changed: {save}")
+    else:
+        lines.append("Save your own edits outside the worktree first.")
+    lines.append(f"Refresh the worktree to its own HEAD: {where} reset --hard HEAD")
+    lines.append(_RESUME_HINT)
+    if edited:
+        lines.append(f"Only after the resume completes, re-apply your edit (add --3way if a lane changed the same lines): {where} apply {patch}")
+        lines.append("If the consolidation removed this worktree, run that git apply in the checkout that now holds those files.")
+    else:
+        lines.append("Only after the resume completes, re-apply your edits.")
+    return lines
 
 
 def is_pure_behind_head_lag(
