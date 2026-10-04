@@ -408,3 +408,30 @@ def test_issue_5680_finished_mission_on_another_write_branch_does_not_occupy(age
     assert result.exit_code == 0, result.output
     assert "WRITE_CHECKOUT_OCCUPIED" not in result.output
     assert _lane_of(claimant_dir, "WP01") == "in_progress"
+
+
+def test_occupied_refusal_remedy_clears_a_live_occupant(agent_loop_mission: tuple[Path, str, Path], tmp_path: Path) -> None:
+    """#5680 FR-005: the refusal names a command that really frees the write checkout.
+
+    A second mission on the SAME write branch is refused while the first one's
+    WP01 is ``in_progress``. Running the ``move-task`` command the refusal
+    prints, then retrying, succeeds.
+    """
+    repo, occupant, occupant_dir = agent_loop_mission
+    _assert_setup_ok("action implement occupant WP01", _action_implement("WP01", occupant))
+    _commit_all(repo, "occupant status")
+    claimant, _ = _ready_mission(repo, tmp_path, "issue-5680-same-branch")
+    _commit_all(repo, "claimant analysis")
+
+    refused = _action_implement("WP01", claimant)
+    assert refused.exit_code != 0
+    assert "WRITE_CHECKOUT_OCCUPIED" in refused.output, refused.output
+    remedy = f'spec-kitty agent tasks move-task WP01 --to blocked --mission {occupant} --note "<reason>"'
+    assert remedy in " ".join(refused.output.split()), refused.output
+
+    moved = runner.invoke(root_app, ["agent", "tasks", "move-task", "WP01", "--to", "blocked", "--mission", occupant, "--note", "finished elsewhere"])
+    _assert_setup_ok("remedy move-task", moved)
+    assert _lane_of(occupant_dir, "WP01") == "blocked"
+
+    result = _action_implement("WP01", claimant)
+    assert result.exit_code == 0, result.output

@@ -404,7 +404,10 @@ def test_occupied_refusal_is_isolated_and_carries_error_code_and_remedy(repo: Pa
         _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws)
 
     assert excinfo.value.error_code == "WRITE_CHECKOUT_OCCUPIED"
-    assert "Move WP01 out of in_progress" in str(excinfo.value)
+    message = str(excinfo.value)
+    assert "Move WP01 out of in_progress" in message
+    assert "on branch 'trunk'" in message
+    assert f'spec-kitty agent tasks move-task WP01 --to blocked --mission {other_slug} --note "<reason>"' in message
 
 
 def test_occupancy_scan_runs_once_per_implement_call(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:

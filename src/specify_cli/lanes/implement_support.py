@@ -169,11 +169,16 @@ def _ensure_repo_root_checkout_available(
     occupants = [] if occupancy_verified else in_progress_wps_in_write_checkout(repo_root, write_checkout, exclude=(mission_slug, wp_id))
     if occupants:
         other_mission, other_wp = occupants[0]
+        # The scan only reports missions whose write branch is the branch the
+        # checkout is on (#5680), and the wrong-branch refusal above pinned
+        # that to expected_branch, so it is the occupant's write branch too.
         raise WriteCheckoutOccupiedError(
             f"{other_mission} {other_wp} is already in_progress in the shared "
-            f"write checkout at {write_checkout}. Move {other_wp} out of "
-            f"in_progress (approve, reject, or block it) before claiming "
-            f"{mission_slug} {wp_id}."
+            f"write checkout at {write_checkout} on branch {expected_branch!r}. "
+            f"Move {other_wp} out of in_progress (approve, reject, or block it) "
+            f"before claiming {mission_slug} {wp_id}. If {other_mission} is "
+            f"finished or abandoned, run: spec-kitty agent tasks move-task "
+            f'{other_wp} --to blocked --mission {other_mission} --note "<reason>"'
         )
 
     status_feature_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
