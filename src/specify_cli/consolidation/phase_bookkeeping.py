@@ -384,7 +384,7 @@ def _run_birth_cutover(run: _MergeRunState) -> None:
     (``_phase_mission_to_target`` already advanced the target ref) and AFTER
     :func:`_project_status_bookkeeping_to_target` just above — NOT at the
     pre-target bake hook (``mission_number.bake._bake_mission_number_into_mission_branch``,
-    ``executor.py`` bake phase). A detached mission-branch worktree (the
+    the ``phase_advance`` bake phase). A detached mission-branch worktree (the
     mission-number bake's own mechanism) cannot host the flip: ``_flip_phase``
     resolves its write target via ``canonicalize_feature_dir``, which follows
     ANY real worktree's ``.git`` pointer back to the canonical main-repo root

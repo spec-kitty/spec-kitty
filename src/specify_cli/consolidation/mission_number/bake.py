@@ -637,7 +637,7 @@ def _bake_mission_number_into_mission_branch(
     (``acquire_merge_lock("__global_merge__", ...)``) for the duration.
 
     NOTE (#4900): ``mission_number_baked`` is set ONLY by the executor
-    (``executor._verify_and_announce_mission_number``), and only AFTER
+    (``phase_bookkeeping._verify_and_announce_mission_number``), and only AFTER
     ``baseline.assert_mission_number_on_target`` verifies the number is
     durably recorded on the TARGET tree -- never here, on a successful
     idempotency hit or a successful mission-branch/primary-tree write alone.
@@ -660,7 +660,7 @@ def _bake_mission_number_into_mission_branch(
     mission-branch tip this function writes to — the exact same hazard this
     function itself avoids by using ``compose_meta_json_path`` + direct
     ``write_meta`` (never ``canonicalize_feature_dir``). The birth-cutover is
-    wired POST-target instead, in ``executor._run_birth_cutover`` (called from
+    wired POST-target instead, in ``phase_bookkeeping._run_birth_cutover`` (called from
     ``_phase_record_done_and_project``); see ``tracers/design-decisions.md``
     (IC-08) for the full analysis.
 
@@ -721,7 +721,7 @@ def _bake_mission_number_into_mission_branch(
 
     # #4900: the "Assigned" announcement happens AFTER the target-tree
     # read-back verification (``baseline.assert_mission_number_on_target``,
-    # called from ``executor._phase_commit_and_assert``) -- printing it here,
+    # called from ``phase_bookkeeping._phase_commit_and_assert``) -- printing it here,
     # before the mission->target squash even runs, is exactly what made the
     # pre-fix announcement untruthful. This mission-branch write is only ever
     # a candidate value until the executor verifies it landed on the target.
@@ -746,7 +746,7 @@ def _assign_planning_only_mission_number_if_needed(
 
     Returns the number written onto ``feature_dir/meta.json`` (``None`` when no
     assignment was needed). Deliberately prints NOTHING (#4900): the "Assigned" line is announced by
-    ``executor._verify_and_announce_mission_number`` only AFTER the target
+    ``phase_bookkeeping._verify_and_announce_mission_number`` only AFTER the target
     read-back verification, exactly as on the lane consolidation path.
     """
     from specify_cli.consolidation.state import needs_number_assignment
@@ -818,7 +818,7 @@ def _read_target_tree_mission_number(target_feature_dir: Path) -> int | None:
     same independence for the baseline invariant. If the "what do we expect"
     read used the SAME mechanism as the "did it land" verify read, a broken
     read seam would make both agree and the verification would be vacuous
-    (it would prove nothing). The caller (``executor._resolve_expected_
+    (it would prove nothing). The caller (``phase_bookkeeping._resolve_expected_
     mission_number``) reads this AFTER ``_refresh_primary_checkout_after_
     merge``, so the working tree accurately reflects the target's
     post-squash committed state.

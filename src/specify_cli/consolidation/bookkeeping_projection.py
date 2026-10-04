@@ -304,7 +304,7 @@ def _project_status_bookkeeping_to_target(
     the coord branch is torn down. The status byte-sets keep their union /
     rematerialize path below (FR-005); the general projection deliberately skips
     them. Both kwargs default to ``None`` so the existing call site
-    (``executor._phase_record_done_and_project``) is byte-unchanged until wired.
+    (``phase_bookkeeping._phase_record_done_and_project``) is byte-unchanged until wired.
     """
     target_events_path, target_status_path = _target_bookkeeping_status_paths(
         main_repo=main_repo,

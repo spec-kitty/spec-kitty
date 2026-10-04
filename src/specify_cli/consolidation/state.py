@@ -207,10 +207,10 @@ class ConsolidationState:
     pre_interrupt_lane_tips: dict[str, str] = field(default_factory=dict)
     # terminus-reconciliation-attribution-integrity-01M3D4RW WP02 (#5021 residual
     # 1, T008): the TARGET branch tip SHA at the exact moment the reconciliation
-    # gate (``executor._phase_reconcile_before_teardown``) recorded a PASS for a
+    # gate (``phase_gate._phase_reconcile_before_teardown``) recorded a PASS for a
     # squash merge. A compare-and-swap anchor, not a bare boolean: ``--resume``
     # short-circuits the content-axis re-verification ONLY when this persisted
-    # SHA still equals the target branch's CURRENT tip (``executor._resume_
+    # SHA still equals the target branch's CURRENT tip (``run_state._resume_
     # reconciliation_already_passed``) -- anything that moved the target since
     # (a rollback, a further commit) falls through to the full gate, so a
     # genuinely-incomplete merge is never silently tolerated (R2 guard). Without

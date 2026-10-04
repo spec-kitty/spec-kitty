@@ -42,7 +42,7 @@ GLOBAL_MERGE_LOCK_ID = "__global_merge__"
 # Stable code of the #5570 refusal (#5613): the mission or coordination branch moved
 # after the landing was verified, so the compare-and-swap delete kept it instead of
 # deleting it over the late commit. The landing itself stands. Raised and rendered on
-# both terminus paths (``spec-kitty consolidate`` via ``executor.CoordMovedAfterLanding``,
+# both terminus paths (``spec-kitty consolidate`` via ``run_state.CoordMovedAfterLanding``,
 # ``orchestrator-api consolidate-mission`` via ``data["teardown_error_code"]``).
 # What finishes the cleanup depends on the variant, as each message says:
 #   * coordination branch: ``spec-kitty consolidate --resume`` projects the late

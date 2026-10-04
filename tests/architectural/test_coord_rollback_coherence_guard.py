@@ -114,7 +114,7 @@ _WRITE_SET: list[str] = [STRANDED_WP, COHERENT_WP]
 def _feature_dir(repo: Path) -> Path:
     """Primary feature dir (``name == slug``) anchoring the committed-coord read.
 
-    Mirrors ``executor._coord_reconcile_read_feature_dir`` — the same placement the
+    Mirrors ``coord_strand._coord_reconcile_read_feature_dir`` — the same placement the
     rollback marker derivation uses, so the checker reads the identical committed
     coordination ref.
     """

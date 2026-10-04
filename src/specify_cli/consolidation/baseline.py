@@ -129,7 +129,7 @@ def record_baseline_merge_commit(
     """Persist the post-consolidation review baseline AND merge completion marker in meta.json.
 
     Two sibling records land here on the same merge-finalize path
-    (``executor.py`` ``_phase_capture_and_baseline``), folded into the one
+    (``phase_bookkeeping._phase_capture_and_baseline``), folded into the one
     bookkeeping commit + durability path:
 
     * ``baseline_merge_commit`` — anchors post-consolidation review diffs. It should
