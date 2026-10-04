@@ -58,7 +58,7 @@ from specify_cli.coordination.transaction import (
     BookkeepingTransaction,
     BookkeepingWorktreeMissing,
 )
-from specify_cli.coordination.types import Refused
+from specify_cli.coordination.types import PROTECTED_BRANCH_REFUSED, Refused
 from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes.branch_naming import (
     coord_mission_dir_name as _seam_coord_mission_dir_name,
@@ -1708,6 +1708,20 @@ def emit_status_transition_transactional(
         return event
 
 
+def _annotation_degrades_uncommitted(
+    identity: _TransactionIdentity,
+    annotation_topology: str | None,
+    refusal: BookkeepingPolicyRefused,
+) -> bool:
+    """Whether a policy refusal may degrade an inner-state annotation to the uncommitted write.
+
+    Only a single_branch mission (not an owned checkout) refused because it
+    records directly on a protected branch (#5655); any other refusal code is a
+    real failure and must propagate.
+    """
+    return identity.owned is None and annotation_topology == MissionTopology.SINGLE_BRANCH.value and refusal.verdict.error_code == PROTECTED_BRANCH_REFUSED
+
+
 def _annotation_transaction_topology(identity: _TransactionIdentity, mission_slug: str) -> str | None:
     """Return the stored topology (LANES or SINGLE_BRANCH) when it can commit a primary annotation, else ``None``.
 
@@ -1866,15 +1880,20 @@ def emit_inner_state_changed_transactional(
         # annotation is auxiliary — degrade to the uncommitted primary write
         # instead of hard-failing move-task (see docstring).
         return _uncommitted_emit()
-    except BookkeepingPolicyRefused:
-        # #5655: a single_branch mission whose write ref the policy refuses
-        # (e.g. a legacy mission recorded directly on protected ``main``)
-        # keeps its historical uncommitted annotation instead of turning an
-        # auxiliary write into a hard failure. Every other topology still
-        # surfaces the refusal.
-        if identity.owned is None and annotation_topology == MissionTopology.SINGLE_BRANCH.value:
-            return _uncommitted_emit()
-        raise
+    except BookkeepingPolicyRefused as refusal:
+        # #5655: a single_branch mission recorded directly on a protected
+        # branch (e.g. a legacy mission on ``main``) keeps its historical
+        # uncommitted annotation instead of turning an auxiliary write into a
+        # hard failure -- and says so. Every other refusal (a missing or
+        # malformed destination ref) and every other topology still surfaces.
+        if not _annotation_degrades_uncommitted(identity, annotation_topology, refusal):
+            raise
+        _logger.warning(
+            "Status annotation for %s %s was written but not committed: the mission records directly on a protected branch.",
+            mission_slug,
+            wp_id,
+        )
+        return _uncommitted_emit()
     return annotation
 
 

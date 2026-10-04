@@ -28,6 +28,7 @@ from specify_cli.coordination.status_service import (
     read_event_log,
 )
 from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+from specify_cli.coordination.types import DESTINATION_REF_NOT_FOUND, PROTECTED_BRANCH_REFUSED, Refused
 from specify_cli.coordination.transaction import BookkeepingCommitFailed
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from tests._owned_fixtures import mint_test_fact
@@ -690,6 +691,57 @@ def test_inner_state_annotation_degrades_when_coordination_branch_missing(
     assert events_path.exists()
     assert "degrade-on-missing-coord-branch" in events_path.read_text(encoding="utf-8")
     assert _git(repo, "status", "--short").stdout.strip() != ""
+
+
+@pytest.mark.parametrize(
+    ("error_code", "degrades"),
+    [
+        pytest.param(PROTECTED_BRANCH_REFUSED, True, id="protected-branch-degrades-with-notice"),
+        pytest.param(DESTINATION_REF_NOT_FOUND, False, id="other-refusal-propagates"),
+    ],
+)
+def test_single_branch_annotation_degrades_only_for_a_protected_branch_refusal(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    error_code: str,
+    degrades: bool,
+) -> None:
+    """#5655: a single_branch mission recorded directly on a protected branch keeps
+    its uncommitted annotation, and says so; any other policy refusal (a missing or
+    malformed destination ref) is a real failure and must not degrade in silence."""
+    from specify_cli.coordination import status_transition as st
+    from specify_cli.coordination.transaction import BookkeepingPolicyRefused, BookkeepingTransaction
+
+    monkeypatch.setattr(st, "_annotation_transaction_topology", lambda _identity, _slug: MissionTopology.SINGLE_BRANCH.value)
+
+    def _refuse(**_kwargs: Any) -> None:
+        raise BookkeepingPolicyRefused(Refused(error_code=error_code, message="scratch refusal", destination_ref="main", next_step="none"))
+
+    monkeypatch.setattr(BookkeepingTransaction, "acquire", _refuse)
+    events_path = repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl"
+
+    def _annotate() -> object:
+        return emit_inner_state_changed_transactional(
+            repo / "kitty-specs" / MISSION_DIRNAME,
+            "WP01",
+            WPInnerStateDelta(note="policy-refusal-narrowing"),
+            actor="issue-5655-test",
+            mission_slug=MISSION_SLUG,
+            repo_root=repo,
+        )
+
+    if not degrades:
+        with pytest.raises(BookkeepingPolicyRefused):
+            _annotate()
+        assert not events_path.exists()
+        return
+
+    with caplog.at_level("WARNING", logger=st.__name__):
+        annotation = _annotate()
+    assert isinstance(annotation, InnerStateChanged)
+    assert "policy-refusal-narrowing" in events_path.read_text(encoding="utf-8")
+    assert any("not committed" in record.getMessage() for record in caplog.records)
 
 
 def test_transactional_emit_fails_closed_on_malformed_meta(
