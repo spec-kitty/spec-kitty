@@ -789,7 +789,7 @@ jobs:
   # Non-code shards (data groups). docs/e2e/corpus-blocking select these; NONE is a
   # code shard, so a docs-only PR selects 0 code shards (NFR-002). The `-m corpus`
   # suite no longer runs here as a whole: packs.yml is its sole (advisory) owner
-  # (FR-009), including the exit-5 floor (#3008). Only the 40 corpus node-ids with no
+  # (FR-009), including the exit-5 floor (#3008). Only the corpus node-ids with no
   # other blocking per-PR home keep one -- `tests-corpus-blocking` below (D-13/D-22).
   # The router `corpus` filter group gates it and also feeds `prose-scan` and
   # scripts/ci/corpus_select.py (Packs' trigger).
@@ -828,7 +828,7 @@ jobs:
           uv sync --frozen --all-extras
           uv run --frozen pytest tests/e2e -q
 
-  # The 40 corpus-marked node-ids that no other required job runs (D-13/D-22): the
+  # The corpus-marked node-ids that no other required job runs (D-13/D-22). Forty of them: the
   # whole of tests/contract/test_example_round_trip.py (34) and
   # tests/integration/test_mission_review_contract_gate.py (5) -- both trees are
   # outside the module matrix -- plus the single performance-marked class
@@ -836,7 +836,7 @@ jobs:
   # run in the `charter` module row). tests/conftest.py skips that class per-PR unless
   # SPEC_KITTY_RUN_PERFORMANCE=1; its executing home is the nightly `performance` job.
   # Keeping it in this selection preserves "selected by exactly one required job".
-  # Two contract modules read the committed corpus and are listed too:
+  # Two contract modules (#5558) read the committed corpus and are listed too:
   # tests/contract/test_mission_status_reality.py (the reality check over every Mission under
   # kitty-specs/) and tests/contract/test_mission_status_payloads.py (its payload helper).
   # The contract tool unit tests (tests/contract/test_bundle.py .. test_schema_formats.py) read no
@@ -870,7 +870,7 @@ jobs:
   # The contract tool unit tests (#5558): every corpus-marked module of tests/contract except the three that
   # `tests-corpus-blocking` owns (the directory minus those three, so a new tool test module is picked up
   # without an edit here): the example round trip, and the reality check and its payload helper, which read
-  # the committed corpus. They read no corpus and used to run only in contracts.yml's path-filtered
+  # the committed corpus. The tool tests read no corpus and used to run only in contracts.yml's path-filtered
   # `contract-tool-tests` job, which is not a required check, so a PR that broke them could auto-merge. As a router
   # job under `router-gate` they block the merge. Gated on the `corpus` group (contracts/**) or the `contract_tools`
   # group (tests/contract/** and what the tools run on); mode=full and the unmatched catch-all run it too. Packs'
