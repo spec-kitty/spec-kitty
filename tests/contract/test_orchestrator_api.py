@@ -228,6 +228,32 @@ class TestAllowedCommandNames:
             f"allowed_commands: {sorted(undeclared)}"
         )
 
+    def test_commands_register_in_help_order(self):
+        """``--help`` lists the verbs in registration order; the sets alone do not pin it."""
+        assert [info.name for info in app.registered_commands] == [
+            "contract-version",
+            "mission-state",
+            "list-ready",
+            "resolve-workspace",
+            "start-implementation",
+            "start-review",
+            "transition",
+            "append-history",
+            "accept-mission",
+            "consolidate-mission",
+            "specify",
+            "plan",
+            "tasks",
+            "check-prerequisites",
+            "record-analysis",
+            "open-decision",
+            "resolve-decision",
+            "defer-decision",
+            "cancel-decision",
+            "answer-decision",
+            "design-status",
+        ]
+
     def test_forbidden_commands_are_not_registered(self, orchestrator_api_contract):
         """No forbidden command from the contract may be registered."""
         import typer.main
