@@ -33,8 +33,10 @@ from __future__ import annotations
 
 import ast
 import functools
+import importlib
 import re
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -47,6 +49,17 @@ _BRIDGE = "tasks"
 #: Seam modules (``tasks_*.py``) derived from the package directory.
 _SEAMS = tuple(sorted(p.stem for p in _SRC_DIR.glob("tasks_*.py")))
 _MODULES = (*_SEAMS, _BRIDGE)
+
+
+def seam_modules() -> dict[str, ModuleType]:
+    """Every ``tasks_*.py`` seam module on disk, imported, keyed by short name.
+
+    The one discovery shared by this gate, ``test_tasks_compat_surface`` and
+    ``test_tasks_move_task_seams``: a new seam module joins all three by existing.
+    """
+    return {name: importlib.import_module(f"{_PKG}.{name}") for name in _SEAMS}
+
+
 _MODULE_HINT = re.compile(r"agent\.tasks|\.tasks\.|tasks_[a-z_]+")
 _TESTS_DIR = _REPO / "tests"
 

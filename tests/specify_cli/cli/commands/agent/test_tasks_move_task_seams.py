@@ -1,6 +1,6 @@
 """Seam pins for extracted ``tasks_move_task`` seams (#5629, DIRECTIVE_041).
 
-Per seam module in ``MOVE_TASK_SEAMS``:
+Per seam module in ``MOVE_TASK_SEAMS`` (every ``tasks_move_task_*.py`` on disk):
 
 * every native symbol is an IDENTITY re-export on ``tasks_move_task``;
 * ``tasks_move_task`` keeps no native shadow definition of it;
@@ -15,17 +15,14 @@ from types import ModuleType
 
 import pytest
 
-from specify_cli.cli.commands.agent import (
-    tasks_move_task,
-    tasks_move_task_executor,
-    tasks_move_task_gates,
-    tasks_move_task_hops,
-)
+from specify_cli.cli.commands.agent import tasks_move_task
+from tests.specify_cli.cli.commands.agent.test_tasks_patch_targets_live import seam_modules
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-#: Every extracted ``tasks_move_task`` seam module; add new seams here.
-MOVE_TASK_SEAMS: list[ModuleType] = [tasks_move_task_gates, tasks_move_task_hops, tasks_move_task_executor]
+#: Every extracted ``tasks_move_task_*`` seam module, discovered from disk (shared with the
+#: compat-surface and patch-liveness gates), so a new seam joins by existing.
+MOVE_TASK_SEAMS: list[ModuleType] = [mod for name, mod in seam_modules().items() if name.startswith("tasks_move_task_")]
 
 _MOVE_TASK_MODULE = tasks_move_task.__name__
 

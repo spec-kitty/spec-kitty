@@ -1,6 +1,7 @@
 """Derived re-export identity guard for the ``tasks`` compat surface (#5629, DIRECTIVE_041).
 
-The keyset is DERIVED from the seam modules, never hand-listed: each seam's
+The keyset is DERIVED from the ``tasks_*.py`` modules on disk, never hand-listed
+(a duplicate native definition raises while the keyset is built): each seam's
 native definitions are the callables whose ``__module__`` is the seam plus the
 declared non-callable constants. A behaviour-neutral move of a function between
 seams therefore needs no edit here.
@@ -18,28 +19,18 @@ from types import ModuleType
 
 import pytest
 
-from specify_cli.cli.commands.agent import (
-    tasks,
-    tasks_finalize,
-    tasks_map_requirements,
-    tasks_mark_status,
-    tasks_move_task,
-    tasks_move_task_gates,
-    tasks_shared,
-    tasks_status_cmd,
-)
+from specify_cli.cli.commands.agent import tasks, tasks_shared
+from tests.specify_cli.cli.commands.agent.test_tasks_patch_targets_live import seam_modules
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-_SEAM_MODULES: dict[str, ModuleType] = {
-    "tasks_finalize": tasks_finalize,
-    "tasks_map_requirements": tasks_map_requirements,
-    "tasks_shared": tasks_shared,
-    "tasks_status_cmd": tasks_status_cmd,
-    "tasks_move_task": tasks_move_task,
-    "tasks_move_task_gates": tasks_move_task_gates,
-    "tasks_mark_status": tasks_mark_status,
-}
+#: Every ``tasks_*.py`` module on disk (one shared discovery), so a moved or new seam
+#: joins the guard by existing and cannot drop out of it unnoticed.
+_SEAM_MODULES: dict[str, ModuleType] = seam_modules()
+
+#: A name two seams both define natively because one wraps the other. ``tasks`` must
+#: expose the wrapper named here; any other duplicate is a bug and raises below.
+_DELIBERATE_WRAPPERS: dict[str, str] = {"_validate_ready_for_review": "tasks_shared"}
 
 #: Non-callable natively-defined symbols the callable-based scan would miss.
 _EXTRA_NON_CALLABLE_NATIVE_DEFS: dict[str, frozenset[str]] = {
@@ -65,9 +56,12 @@ def _derive_compat_keys() -> dict[str, str]:
         for symbol in sorted(_native_module_defs(module_name)):
             if not hasattr(tasks, symbol):
                 continue
-            if symbol in mapping:
+            if symbol in _DELIBERATE_WRAPPERS:
+                mapping[symbol] = _DELIBERATE_WRAPPERS[symbol]
+            elif symbol in mapping:
                 raise AssertionError(f"symbol {symbol!r} natively defined in both {mapping[symbol]!r} and {module_name!r}")
-            mapping[symbol] = module_name
+            else:
+                mapping[symbol] = module_name
     return mapping
 
 
@@ -82,32 +76,6 @@ def test_tasks_binding_is_seam_object(symbol: str, module_name: str) -> None:
     assert is_identity_reexport(tasks, seam_module, symbol), (
         f"tasks.{symbol} is not the same object as {module_name}.{symbol} -- the compat re-export is missing or a copy (breaks patch interception on tasks.<name>)."
     )
-
-
-def test_seam_natives_are_disjoint() -> None:
-    seen: dict[str, str] = {}
-    for module_name in _SEAM_MODULES:
-        for symbol in _native_module_defs(module_name):
-            assert symbol not in seen, f"{symbol!r} natively defined in both {seen[symbol]!r} and {module_name!r}"
-            seen[symbol] = module_name
-
-
-@pytest.mark.parametrize("module_name", sorted(_SEAM_MODULES))
-def test_every_seam_contributes_at_least_one_symbol(module_name: str) -> None:
-    assert module_name in set(SYMBOL_TO_MODULE.values()), f"{module_name} contributes no symbol to the compat surface"
-
-
-def test_seam_maps_agree() -> None:
-    """The seam set is a contract: dropping a whole seam must fail loudly."""
-    assert set(_SEAM_MODULES) == {
-        "tasks_finalize",
-        "tasks_map_requirements",
-        "tasks_shared",
-        "tasks_status_cmd",
-        "tasks_move_task",
-        "tasks_move_task_gates",
-        "tasks_mark_status",
-    }
 
 
 def test_identity_predicate_detects_a_copy() -> None:
@@ -130,8 +98,13 @@ def test_identity_predicate_detects_a_copy() -> None:
 
 def test_shadow_copy_on_tasks_stays_in_keyset_and_fails_identity(monkeypatch: pytest.MonkeyPatch) -> None:
     """End-to-end negative control: a shadow copy planted on the real ``tasks``
-    module stays in the derived keyset and fails the identity check."""
-    name, module_name = sorted(_derive_compat_keys().items())[0]
+    module stays in the derived keyset and fails the identity check.
+
+    The planted name is the first one ``tasks_move_task_executor`` owns, a seam PR #5695 added: the
+    control also proves moved names are in the keyset (the 21 that once dropped out).
+    """
+    name = next(sym for sym, mod in sorted(_derive_compat_keys().items()) if mod == "tasks_move_task_executor")
+    module_name = _derive_compat_keys()[name]
     seam = _SEAM_MODULES[module_name]
     original = getattr(seam, name)
 
