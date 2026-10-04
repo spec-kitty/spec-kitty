@@ -251,28 +251,9 @@ def _invoke_synthesize(
     syn_adapter: Any,
     extra_args: list[str],
 ) -> Any:
-    """Invoke ``charter synthesize --adapter fixture --json <extra_args>``.
+    """Invoke ``charter synthesize --adapter fixture --json <extra_args>`` from ``tmp_path``.
 
-    Mocks only ``find_repo_root``/``_collect_evidence_result``/
-    ``_build_synthesis_request`` -- the SAME narrow-mocking convention
-    ``tests/charter/test_reject_not_drop_cli.py`` and
-    ``tests/agent/cli/commands/test_charter_synthesize_cli.py`` already use
-    -- so every WP03-owned reconciliation/reporting code path in
-    ``synthesize.py``/``_synthesis.py`` runs for real against *tmp_path*.
-
-    #4785 Finding 3 / WP04 reconciliation: ``synthesize.py`` now also fails
-    closed via the WP02 write-root guard (``resolve_charter_write_root``),
-    which is probed against the REAL process cwd -- deliberately NOT
-    patchable through the ``find_repo_root`` mock above, since the whole
-    point of the guard is to catch the case where a real invocation's cwd
-    diverges from whatever ``find_repo_root`` resolves to. Without isolating
-    cwd here, this helper would spuriously trip the guard whenever the test
-    process happens to be running from inside an actual linked git worktree
-    (e.g. a spec-kitty lane worktree) -- unrelated to anything this test
-    suite exercises. ``tmp_path`` is a plain (non-git) directory, so
-    chdir'ing into it makes the guard's kernel ``git_topology`` probe
-    degrade safely (not-a-repo -> not-a-linked-worktree, no raise) exactly
-    like a real, ordinary checkout would.
+    The chdir keeps the charter write guard off the invoking checkout; the rationale is in ``tests/_support/charter_cwd.py``.
     """
     with (
         contextlib.chdir(tmp_path),
