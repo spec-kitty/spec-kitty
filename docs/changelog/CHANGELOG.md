@@ -23,6 +23,7 @@ this section at publish._
 ### Upgrade Notes
 
 - **The rc5 note that four `spec-kitty consolidate` fixes "do not fully hold" is superseded** (#5569, #5570, #5571, #5572). All four shapes it named are fixed in this release (see Fixed). The workarounds it listed are no longer needed.
+- **Known issue: `spec-kitty consolidate` can refuse a coordination Mission whose directory name does not end in its `mid8`** (#5611). If such a Mission targets a protected branch, `consolidate` stops with `MERGE_UNSAFE_WORKTREE_DIRTY` and lists its own `status.events.jsonl` and `status.json` as untracked files in the coordination worktree. Missions created by `spec-kitty agent mission create` end in their `mid8` and are not affected. A fix is pending a design decision.
 
 ### Added
 
