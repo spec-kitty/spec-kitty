@@ -694,36 +694,48 @@ def test_inner_state_annotation_degrades_when_coordination_branch_missing(
 
 
 @pytest.mark.parametrize(
-    ("error_code", "degrades"),
+    ("topology", "forced_error_code", "degrades"),
     [
-        pytest.param(PROTECTED_BRANCH_REFUSED, True, id="protected-branch-degrades-with-notice"),
-        pytest.param(DESTINATION_REF_NOT_FOUND, False, id="other-refusal-propagates"),
+        # Real ProtectionPolicy: the mission records on ``main``, the repo's primary branch.
+        pytest.param(MissionTopology.SINGLE_BRANCH.value, None, True, id="single-branch-on-protected-main-degrades-with-notice"),
+        pytest.param(MissionTopology.LANES.value, None, False, id="lanes-on-protected-main-propagates"),
+        # A hand-built refusal: the single_branch topology alone must not degrade it.
+        pytest.param(MissionTopology.SINGLE_BRANCH.value, DESTINATION_REF_NOT_FOUND, False, id="other-refusal-propagates"),
     ],
 )
 def test_single_branch_annotation_degrades_only_for_a_protected_branch_refusal(
     repo: Path,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
-    error_code: str,
+    topology: str,
+    forced_error_code: str | None,
     degrades: bool,
 ) -> None:
     """#5655: a single_branch mission recorded directly on a protected branch keeps
-    its uncommitted annotation, and says so; any other policy refusal (a missing or
-    malformed destination ref) is a real failure and must not degrade in silence."""
+    its uncommitted annotation, and says so; any other topology on that same branch,
+    and any other policy refusal (a missing or malformed destination ref), is a real
+    failure and must not degrade in silence."""
     from specify_cli.coordination import status_transition as st
     from specify_cli.coordination.transaction import BookkeepingPolicyRefused, BookkeepingTransaction
 
-    monkeypatch.setattr(st, "_annotation_transaction_topology", lambda _identity, _slug: MissionTopology.SINGLE_BRANCH.value)
+    feature_dir = repo / "kitty-specs" / MISSION_DIRNAME
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    meta.pop("coordination_branch")
+    meta.update({"topology": topology, "target_branch": "main"})
+    (feature_dir / "meta.json").write_text(json.dumps(meta) + "\n", encoding="utf-8")
+    _git(repo, "commit", "-q", "-am", "record on the protected branch")
 
-    def _refuse(**_kwargs: Any) -> None:
-        raise BookkeepingPolicyRefused(Refused(error_code=error_code, message="scratch refusal", destination_ref="main", next_step="none"))
+    if forced_error_code is not None:
 
-    monkeypatch.setattr(BookkeepingTransaction, "acquire", _refuse)
-    events_path = repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl"
+        def _refuse(**_kwargs: Any) -> None:
+            raise BookkeepingPolicyRefused(Refused(error_code=forced_error_code, message="scratch refusal", destination_ref="main", next_step="none"))
+
+        monkeypatch.setattr(BookkeepingTransaction, "acquire", _refuse)
+    events_path = feature_dir / "status.events.jsonl"
 
     def _annotate() -> object:
         return emit_inner_state_changed_transactional(
-            repo / "kitty-specs" / MISSION_DIRNAME,
+            feature_dir,
             "WP01",
             WPInnerStateDelta(note="policy-refusal-narrowing"),
             actor="issue-5655-test",
@@ -732,8 +744,9 @@ def test_single_branch_annotation_degrades_only_for_a_protected_branch_refusal(
         )
 
     if not degrades:
-        with pytest.raises(BookkeepingPolicyRefused):
+        with pytest.raises(BookkeepingPolicyRefused) as excinfo:
             _annotate()
+        assert excinfo.value.verdict.error_code == (forced_error_code or PROTECTED_BRANCH_REFUSED)
         assert not events_path.exists()
         return
 
@@ -742,6 +755,7 @@ def test_single_branch_annotation_degrades_only_for_a_protected_branch_refusal(
     assert isinstance(annotation, InnerStateChanged)
     assert "policy-refusal-narrowing" in events_path.read_text(encoding="utf-8")
     assert any("not committed" in record.getMessage() for record in caplog.records)
+    assert _git(repo, "status", "--short").stdout.strip() != ""
 
 
 def test_transactional_emit_fails_closed_on_malformed_meta(

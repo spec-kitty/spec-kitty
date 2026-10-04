@@ -155,8 +155,8 @@ def _implement(wp_id: str, mission_slug: str, *, json_output: bool = False) -> R
     return runner.invoke(root_app, args)
 
 
-def _move_to_for_review(wp_id: str, mission_slug: str) -> Result:
-    return runner.invoke(root_app, ["agent", "tasks", "move-task", wp_id, "--to", "for_review", "--mission", mission_slug, "--json"])
+def _move_to_for_review(wp_id: str, mission_slug: str, *extra: str) -> Result:
+    return runner.invoke(root_app, ["agent", "tasks", "move-task", wp_id, "--to", "for_review", "--mission", mission_slug, "--json", *extra])
 
 
 def _read_events(feature_dir: Path) -> list[dict[str, Any]]:
@@ -323,7 +323,9 @@ def test_action_implement_records_claim_base_and_reaches_review(agent_loop_missi
     _assert_setup_ok("mark-status T001", _mark_done("T001", slug))
     assert _git(repo, "status", "--porcelain") == "", "mark-status left the write checkout dirty"
 
-    result = _move_to_for_review("WP01", slug)
+    # --note makes move-task emit a status annotation (an empty delta writes
+    # none), so the clean-tree check below can actually catch an uncommitted one.
+    result = _move_to_for_review("WP01", slug, "--note", "ready")
     assert result.exit_code == 0, result.output
     assert _lane_of(feature_dir, "WP01") == "for_review"
     assert _git(repo, "status", "--porcelain") == "", "move-task left the write checkout dirty"
@@ -361,6 +363,7 @@ def test_action_implement_resume_in_dirty_checkout_is_allowed(agent_loop_mission
     repo, slug, _ = agent_loop_mission
     _assert_setup_ok("action implement WP01", _action_implement("WP01", slug))
     base = read_claim_base(repo, slug, "WP01")
+    assert base is not None, "agent action implement recorded no claim base"
     (repo / "src" / "wp01.py").write_text("VALUE = 11\n", encoding="utf-8")
     _assert_setup_ok("resume WP01", _action_implement("WP01", slug))
     assert read_claim_base(repo, slug, "WP01") == base

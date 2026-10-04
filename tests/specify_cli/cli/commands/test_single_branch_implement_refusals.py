@@ -31,6 +31,7 @@ from specify_cli.lanes.implement_support import (
 )
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
+from specify_cli.review.lock import LOCK_DIR, LOCK_FILE
 from specify_cli.status.store import read_events
 from specify_cli.workspace.context import ResolvedWorkspace
 from tests.utils import _seed_canonical_wp_state
@@ -510,7 +511,7 @@ def test_review_lock_in_write_checkout_is_not_dirty(repo: Path) -> None:
     "any dirt"."""
     mission_slug = "impl-review-lock"
     _build_mission(repo, mission_slug, "01IMPLREVIEWLOCK000001")
-    lock = repo / ".spec-kitty" / "review-lock.json"
+    lock = repo / LOCK_DIR / LOCK_FILE
     lock.parent.mkdir()
     lock.write_text("{}\n", encoding="utf-8")
     ws = _resolved_workspace(repo, mission_slug, "WP01", "trunk")
@@ -521,7 +522,7 @@ def test_review_lock_in_write_checkout_is_not_dirty(repo: Path) -> None:
     with pytest.raises(WriteCheckoutDirtyError) as excinfo:
         _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws)
     assert "uncommitted-lock.py" in str(excinfo.value)
-    assert ".spec-kitty" not in str(excinfo.value)
+    assert LOCK_DIR not in str(excinfo.value)
 
 
 # ---------------------------------------------------------------------------
