@@ -177,6 +177,16 @@ def snapshot_equality_problems(payload: Mapping[str, Any], state: Mapping[str, A
     return [f"{payload['wpId']}: {key} is {got[key]!r}, the snapshot has {wanted[key]!r}" for key in wanted if got[key] != wanted[key]]
 
 
+def lane_accounting_problem(overview: Mapping[str, Any], work_packages: Mapping[str, Mapping[str, Any]]) -> str | None:
+    """``wpTotal`` must equal the lane counts plus the work packages in a non-display lane: a lane outside the nine is never dropped silently."""
+    counted = sum(overview["statusLaneCounts"].values())
+    hidden = sum(1 for state in work_packages.values() if str(state.get("lane")) in helper.NON_DISPLAY_LANES)
+    if counted + hidden == overview["wpTotal"]:
+        return None
+    lanes = sorted({str(state.get("lane")) for state in work_packages.values()} - set(helper.STATUS_LANES) - helper.NON_DISPLAY_LANES)
+    return f"wpTotal {overview['wpTotal']} is not the {counted} counted work packages plus {hidden} in a non-display lane (lanes outside the nine: {lanes})"
+
+
 def _first(errors: list[str]) -> str:
     return errors[0] + (f" (+{len(errors) - 1} more)" if len(errors) > 1 else "")
 
@@ -219,6 +229,8 @@ def run_case(
     fresh = materialize_snapshot(source.read_dir)  # an independent re-read: the helper's intermediate is not reused
     if result.overview["wpTotal"] != len(fresh.work_packages):
         problems.append(f"{mission}: wpTotal {result.overview['wpTotal']} differs from the snapshot's {len(fresh.work_packages)} work packages")
+    if (accounting := lane_accounting_problem(result.overview, fresh.work_packages)) is not None:
+        problems.append(f"{mission}: {accounting}")
     files = helper.read_authored_files(source.own_dir)
     check(helper.SCHEMA_DETAIL, helper.build_detail(source, projector, files), "detail")
     for authored in files:
@@ -478,6 +490,15 @@ def test_snapshot_equality_negative_control_fails_when_the_frontmatter_value_is_
     assert len(problems) == 3 and "statusLane" in problems[0] and "agent" in problems[1] and "assignee" in problems[2]
     assert snapshot_equality_problems({**payload, "statusLane": "planned"}, None), "a lane without a snapshot entry is not representable"
     assert snapshot_equality_problems({**payload, "statusLane": None}, None) == []
+
+
+def test_a_work_package_in_a_lane_outside_the_nine_is_not_silently_uncounted() -> None:
+    counts = {**dict.fromkeys(helper.STATUS_LANES, 0), "done": 1}
+    states = {"WP01": {"lane": "done"}, "WP02": {"lane": "genesis"}}
+    assert lane_accounting_problem({"statusLaneCounts": counts, "wpTotal": 2}, states) is None, "control: a non-display lane is accounted for"
+    problem = lane_accounting_problem({"statusLaneCounts": counts, "wpTotal": 3}, {**states, "WP03": {"lane": "doing"}})
+    assert problem is not None and "['doing']" in problem
+    assert lane_accounting_problem({"statusLaneCounts": counts, "wpTotal": 3}, states) is not None, "a total above the counts is reported"
 
 
 def test_run_case_is_clean_on_the_control_mission_and_runs_every_check_for_every_payload(
