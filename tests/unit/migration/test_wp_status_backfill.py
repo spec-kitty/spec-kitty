@@ -520,6 +520,60 @@ def test_liveness_probe_only_runs_for_a_mission_with_something_to_seed(tmp_path:
     assert b.apply_wp_status_backfill(feature_dir).error is not None  # unreadable log: reported, probe untouched
 
 
+def _stale_prelock_plan(monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    """Make only the FIRST (pre-lock) plan look empty, as if the Mission changed before the lock was taken."""
+    calls: list[int] = []
+    real = b.plan_wp_status_backfill
+
+    def _plan(feature_dir: Path, *, manifest: Any = None) -> Any:
+        calls.append(1)
+        plan = real(feature_dir, manifest=manifest)
+        if len(calls) == 1:
+            return planner.WpStatusPlan(slug=plan.slug, gap=planner.compute_gap((), ()), evidence=None, events=())
+        return plan
+
+    monkeypatch.setattr(b, "plan_wp_status_backfill", _plan)
+    return calls
+
+
+@pytest.mark.parametrize("dry_run", [False, True], ids=["live-run", "dry-run"])
+def test_liveness_is_rechecked_under_the_lock_when_the_prelock_probe_was_skipped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, dry_run: bool) -> None:
+    """A pre-lock plan that found nothing skips the probe; a non-empty locked plan must still be probed (#5579 L6)."""
+    feature_dir = _build_mission(tmp_path, wp_ids=THREE, seeded=("WP01",), meta_extra={"topology": "coord", "coordination_branch": COORD_BRANCH})
+    _stale_prelock_plan(monkeypatch)
+    probed: list[Path] = []
+
+    def _live(directory: Path) -> bool:
+        probed.append(directory)
+        return True
+
+    monkeypatch.setattr(b, "coordination_surface_is_live", _live)
+    before = _log_bytes(feature_dir)
+
+    result = b.apply_wp_status_backfill(feature_dir, dry_run=dry_run)
+
+    assert result.skip_reason == planner.COORD_SURFACE_LIVE and result.error is None
+    assert result.seeded == 0 and result.would_seed == 0
+    assert probed == [feature_dir]
+    assert _log_bytes(feature_dir) == before
+
+
+def test_liveness_is_not_probed_twice_when_the_prelock_probe_already_cleared_the_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    feature_dir = _build_mission(tmp_path, wp_ids=THREE, seeded=("WP01",))
+    probed: list[Path] = []
+
+    def _not_live(directory: Path) -> bool:
+        probed.append(directory)
+        return False
+
+    monkeypatch.setattr(b, "coordination_surface_is_live", _not_live)
+
+    result = b.apply_wp_status_backfill(feature_dir)
+
+    assert result.seeded == 2 and result.skip_reason is None
+    assert probed == [feature_dir]  # once, before the lock; the locked section trusts that verdict
+
+
 def test_deleted_coordination_branch_is_not_live(tmp_path: Path) -> None:
     feature_dir, _git = _coord_mission(tmp_path, branch_exists=False)
 

@@ -1648,31 +1648,36 @@ def apply_wp_status_backfill(
     slug = feature_dir.name
     if not (feature_dir / "tasks").is_dir():
         return WpStatusBackfillResult(feature_dir=feature_dir, slug=slug, skip_reason="no tasks/ directory")
-    # Before the lock: the liveness probe may run git, which the locked section must not.
-    if _refused_for_live_coordination(feature_dir):
+    # Before the lock: the liveness probe may run git, which the locked section avoids.
+    refused, probed = _refused_for_live_coordination(feature_dir)
+    if refused:
         return WpStatusBackfillResult(feature_dir=feature_dir, slug=slug, skip_reason=COORD_SURFACE_LIVE)
     lock_root = resolve_status_lock_root(feature_dir, None)
     try:
         with feature_status_lock(lock_root, slug):
-            return _apply_wp_status_backfill_locked(feature_dir, dry_run=dry_run, evidence=evidence)
+            return _apply_wp_status_backfill_locked(feature_dir, dry_run=dry_run, evidence=evidence, coord_probed=probed)
     except _WP_STATUS_MISSION_ERRORS as exc:
         return WpStatusBackfillResult(feature_dir=feature_dir, slug=slug, error=f"{type(exc).__name__}: {exc}")
 
 
-def _refused_for_live_coordination(feature_dir: Path) -> bool:
-    """Whether *feature_dir* has WPs to seed AND a live coordination surface (refuse it).
+def _refused_for_live_coordination(feature_dir: Path) -> tuple[bool, bool]:
+    """Return ``(refuse, probed)``: whether *feature_dir* has WPs to seed AND a live coordination surface.
 
     The liveness probe can cost a remote lookup per Mission (a deleted coordination
     branch falls through to the remote-ref primitive), so it only runs for a Mission
     that actually has a WP file the snapshot lacks; a Mission with nothing to seed
-    is reported by the normal path without touching git. An unreadable log or a corrupt
-    ``meta.json`` is left to the locked path, which reports it as the Mission's error.
+    is reported by the normal path without touching git (``probed`` is ``False``).
+    An unreadable log or a corrupt ``meta.json`` is left to the locked path, which
+    reports it as the Mission's error. This pre-lock verdict can go stale, so the
+    locked section re-checks whenever it finds work and ``probed`` is ``False``.
     """
     try:
         needs_seeding = bool(plan_wp_status_backfill(feature_dir).gap.files_only)
     except _WP_STATUS_MISSION_ERRORS:
-        return False
-    return needs_seeding and coordination_surface_is_live(feature_dir)
+        return False, False
+    if not needs_seeding:
+        return False, False
+    return coordination_surface_is_live(feature_dir), True
 
 
 def _apply_wp_status_backfill_locked(
@@ -1680,8 +1685,15 @@ def _apply_wp_status_backfill_locked(
     *,
     dry_run: bool,
     evidence: Mapping[str, str] | None,
+    coord_probed: bool,
 ) -> WpStatusBackfillResult:
-    """Plan, dedupe against the log, and append; caller holds the status lock."""
+    """Plan, dedupe against the log, and append; caller holds the status lock.
+
+    *coord_probed* says the pre-lock liveness probe already ran and cleared the
+    Mission. When it did not (the pre-lock plan was empty, e.g. a WP file landed
+    or the log changed before the lock was taken), a non-empty locked plan is
+    probed here, so no seed is ever appended without a liveness verdict.
+    """
     plan = plan_wp_status_backfill(feature_dir, manifest=evidence)
     stream = read_event_stream(feature_dir)
     existing_ids = {event.event_id for event in _combined_events(stream.transitions, stream.annotations)}
@@ -1689,6 +1701,8 @@ def _apply_wp_status_backfill_locked(
 
     if not new_events:
         return _wp_status_result(plan, feature_dir, skip_reason="nothing new to seed (idempotent)")
+    if not coord_probed and coordination_surface_is_live(feature_dir):
+        return WpStatusBackfillResult(feature_dir=feature_dir, slug=plan.slug, skip_reason=COORD_SURFACE_LIVE)
     if dry_run:
         return _wp_status_result(plan, feature_dir, would_seed=len(new_events), skip_reason="dry-run (no write)")
 
