@@ -23,6 +23,9 @@ from specify_cli.lanes.compute_and_persist import (
     LaneGlobValidationError,
     compute_and_write_lanes,
 )
+from specify_cli.lanes.compute import LaneMembershipFrozenError
+from specify_cli.lanes.frozen_membership import FrozenLaneMembership
+from specify_cli.lanes.models import LanesManifest
 from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.ownership.models import OwnershipManifest, WorkProductKind
 from specify_cli.status import WPMetadata
@@ -206,3 +209,71 @@ class TestComputeAndWriteLanesDeterminism:
         second_bytes = second_path.read_bytes()
 
         assert first_bytes == second_bytes
+
+
+class TestComputeAndWriteLanesFrozenMembership:
+    """#5573 T007: the writer threads ``frozen`` through and re-asserts it before writing."""
+
+    def _write(self, tmp_path: Path, wp_manifests: dict[str, OwnershipManifest], **kwargs: object) -> tuple[Path, LanesManifest]:
+        repo_root = tmp_path
+        feature_dir = tmp_path / "kitty-specs" / "test-mission"
+        wp_frontmatters = {wp: WPMetadata(work_package_id=wp, title=wp) for wp in wp_manifests}
+        return compute_and_write_lanes(
+            feature_dir,
+            repo_root,
+            "test-mission",
+            wp_manifests,
+            dict.fromkeys(wp_manifests, []),
+            wp_frontmatters,
+            {wp: f"{wp} body" for wp in wp_manifests},
+            "main",
+            planning_commit_sha=None,
+            mission_id=None,
+            topology=MissionTopology.LANES,
+            **kwargs,  # type: ignore[arg-type]  # forwarding the keyword under test
+        )
+
+    def _first_finalize(self, tmp_path: Path) -> tuple[dict[str, OwnershipManifest], Path]:
+        _make_repo_with_owned_files(tmp_path)
+        _feature_dir(tmp_path)
+        manifests = {
+            "WP01": _wp_manifest(("src/wp01/**",), "src/wp01/"),
+            "WP02": _wp_manifest(("src/wp02/**",), "src/wp02/"),
+        }
+        lanes_path, first = self._write(tmp_path, manifests)
+        assert {wp: lane.lane_id for lane in first.lanes for wp in lane.wp_ids} == {"WP01": "lane-a", "WP02": "lane-b"}
+        return manifests, lanes_path
+
+    def test_honoured_frozen_membership_writes_normally(self, tmp_path: Path) -> None:
+        manifests, _ = self._first_finalize(tmp_path)
+        manifests["WP01"] = _wp_manifest(("src/wp01/**", "src/wp02/**"), "src/wp01/")
+        frozen = FrozenLaneMembership(bindings={"WP02": "lane-b"}, retired_wp_ids=frozenset())
+        _, manifest = self._write(tmp_path, manifests, frozen=frozen)
+        assert {wp: lane.lane_id for lane in manifest.lanes for wp in lane.wp_ids} == {"WP01": "lane-b", "WP02": "lane-b"}
+        reread = read_lanes_json(tmp_path / "kitty-specs" / "test-mission")
+        assert reread is not None
+        assert [lane.lane_id for lane in reread.lanes] == ["lane-b"]
+
+    def test_conflicting_frozen_membership_raises_and_leaves_lanes_json_byte_identical(self, tmp_path: Path) -> None:
+        manifests, lanes_path = self._first_finalize(tmp_path)
+        before = lanes_path.read_bytes()
+        manifests["WP01"] = _wp_manifest(("src/wp01/**", "src/wp02/**"), "src/wp01/")
+        frozen = FrozenLaneMembership(bindings={"WP01": "lane-a", "WP02": "lane-b"}, retired_wp_ids=frozenset())
+        with pytest.raises(LaneMembershipFrozenError) as excinfo:
+            self._write(tmp_path, manifests, frozen=frozen)
+        assert excinfo.value.reason == "started_lanes_collapsed"
+        assert lanes_path.read_bytes() == before
+
+    def test_post_check_refuses_a_manifest_that_violates_bindings(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Defence in depth: even if compute_lanes regressed, the writer refuses before writing."""
+        manifests, lanes_path = self._first_finalize(tmp_path)
+        before = lanes_path.read_bytes()
+        violating = read_lanes_json(tmp_path / "kitty-specs" / "test-mission")
+        assert violating is not None
+        monkeypatch.setattr("specify_cli.lanes.compute_and_persist.compute_lanes", lambda **_kwargs: violating)
+        frozen = FrozenLaneMembership(bindings={"WP02": "lane-z"}, retired_wp_ids=frozenset())
+        with pytest.raises(LaneMembershipFrozenError) as excinfo:
+            self._write(tmp_path, manifests, frozen=frozen)
+        assert excinfo.value.conflicts[0].wp_ids == ("WP02",)
+        assert excinfo.value.conflicts[0].recorded_lanes == ("lane-z",)
+        assert lanes_path.read_bytes() == before
