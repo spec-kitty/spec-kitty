@@ -39,6 +39,38 @@ from specify_cli.cli.commands.agent.mission_finalize_branch_contract import Targ
 from specify_cli.cli.commands.agent.mission_finalize_commit import _CommitOutcome
 
 
+def _resolve_status_read_dir(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    owned: OwnedCheckout | None = None,
+) -> Path:
+    """Resolve the coordination-aware status read dir for ``mission_slug``.
+
+    The single recipe for "where does finalize read this mission's status
+    from": the placement seam's ``STATUS_STATE`` read dir for an owned
+    checkout, otherwise :func:`resolve_status_surface_with_anchor` (the same
+    authority ``implement.py`` uses).
+
+    It applies **no** failure policy: ``FileNotFoundError``, ``ValueError``,
+    ``StatusReadPathNotFound`` and ``CoordinationBranchDeleted`` propagate
+    unchanged. Callers own the policy -- :func:`_execution_has_begun` degrades
+    to "not begun", a fail-closed caller refuses.
+    """
+    from specify_cli.coordination.surface_resolver import resolve_status_surface_with_anchor
+
+    if owned is not None:
+        from mission_runtime import placement_seam
+
+        return placement_seam(
+            owned.repository_root,
+            mission_slug,
+            owned=owned,
+        ).read_dir(MissionArtifactKind.STATUS_STATE)
+    read_dir: Path = resolve_status_surface_with_anchor(repo_root, mission_slug).read_dir
+    return read_dir
+
+
 def _execution_has_begun(
     repo_root: Path,
     mission_slug: str,
@@ -74,21 +106,11 @@ def _execution_has_begun(
     from specify_cli.coordination.surface_resolver import (
         CoordinationBranchDeleted,
         StatusReadPathNotFound,
-        resolve_status_surface_with_anchor,
     )
     from specify_cli.status import StoreError, get_all_wp_lanes, has_event_log
 
     try:
-        if owned is not None:
-            from mission_runtime import placement_seam
-
-            read_dir = placement_seam(
-                owned.repository_root,
-                mission_slug,
-                owned=owned,
-            ).read_dir(MissionArtifactKind.STATUS_STATE)
-        else:
-            read_dir = resolve_status_surface_with_anchor(repo_root, mission_slug).read_dir
+        read_dir = _resolve_status_read_dir(repo_root, mission_slug, owned=owned)
     except (FileNotFoundError, ValueError, StatusReadPathNotFound, CoordinationBranchDeleted):
         # Surface resolution failed closed (no meta.json / malformed meta / an
         # unresolvable coord surface). No event log can be read from an

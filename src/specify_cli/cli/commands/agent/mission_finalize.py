@@ -215,6 +215,7 @@ from specify_cli.cli.commands.agent.mission_finalize_planning_pin import (
     _report_validate_only_pin_change as _report_validate_only_pin_change,
     _resolve_preserve_planning_commit_decision as _resolve_preserve_planning_commit_decision,
     _resolve_refresh_planning_commit_decision as _resolve_refresh_planning_commit_decision,
+    _resolve_status_read_dir as _resolve_status_read_dir,
     _restore_planning_pin_candidate as _restore_planning_pin_candidate,
     _validate_only_planning_preview as _validate_only_planning_preview,
 )
