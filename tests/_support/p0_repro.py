@@ -73,7 +73,7 @@ def invalid_pins(items: Iterable[pytest.Item]) -> list[str]:
 
 
 def failure_banner(issue: int) -> str:
-    """The banner prepended to a failing reproduction's report."""
+    """The banner attached to a failing reproduction's report."""
     return (
         f"[OPEN P0 #{issue}] This is the red-first reproduction of open P0 issue "
         f"#{issue} ({ISSUE_URL.format(issue=issue)}). It is EXPECTED to fail until "
@@ -123,7 +123,9 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[None]) ->
     if issue is not None and report.when == "call":
         item.user_properties.append((ISSUE_PROPERTY, issue))
         if report.failed:
-            report.longrepr = f"{failure_banner(issue)}\n\n{report.longrepr}"
+            # A section, not a rewrite of longrepr: the JUnit failure message and
+            # the nightly summary's first line must stay the real assertion.
+            report.sections.append((f"OPEN P0 #{issue}", failure_banner(issue)))
         elif report.passed:
             item.config.stash.setdefault(_PASSED_KEY, []).append(passing_notice(issue, item.nodeid))
     return report

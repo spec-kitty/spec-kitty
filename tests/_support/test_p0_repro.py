@@ -100,7 +100,10 @@ def test_nightly_lane_names_the_open_issue_and_reports_the_fixed_one(tmp_path: P
     cases = {case.get("name"): case for case in ET.parse(junit).getroot().iter("testcase")}
     failure = cases["test_open_bug"].find("failure")
     assert failure is not None
-    assert "[OPEN P0 #4242]" in (failure.get("message", "") + (failure.text or ""))
+    # The nightly summary (scripts/ci/nightly_xunit.py) surfaces the first
+    # non-blank line of the failure: it must be the real assertion, not the banner.
+    first_line = next(line for line in (failure.get("message") or failure.text or "").splitlines() if line.strip())
+    assert "bug still reproduces" in first_line
     issue_props = [p.get("value") for p in cases["test_open_bug"].iter("property") if p.get("name") == "p0_issue"]
     assert issue_props == ["4242"]
 
