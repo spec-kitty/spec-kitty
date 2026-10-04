@@ -23,10 +23,33 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 SKILL_ID_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
+
+#: Grammar of a skill namespace (the ``<namespace>-`` prefix a non-built-in skill
+#: renders under): lowercase ASCII, starting with a letter, ``[a-z0-9]`` segments
+#: joined by single ``-``, no trailing ``-``. Match with ``fullmatch``.
+SKILL_NAMESPACE_PATTERN = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*")
+
+#: Longest accepted namespace; ``<namespace>-<id>`` stays far below a 255-byte file name.
+SKILL_NAMESPACE_MAX_LENGTH = 32
 BUILTIN_TARGET_PREFIX = "builtin:"
 CLI_TARGET_PREFIX = "cli:"
 CLI_ALLOWED_PROGRAM = "spec-kitty"
 _SHELL_METACHARACTERS = frozenset(";&|<>$`\n\r")
+
+
+def skill_namespace_violation(value: str) -> str | None:
+    """Return why *value* is not a valid skill namespace, or ``None`` when it is.
+
+    The namespace becomes a directory-name prefix in every project skill root, so
+    it is refused -- never normalised -- unless it matches
+    :data:`SKILL_NAMESPACE_PATTERN` within :data:`SKILL_NAMESPACE_MAX_LENGTH`.
+    """
+    if len(value) <= SKILL_NAMESPACE_MAX_LENGTH and SKILL_NAMESPACE_PATTERN.fullmatch(value):
+        return None
+    return (
+        f"skill namespace {value!r} is not valid: it must be lowercase ASCII kebab-case "
+        f"(letters and digits joined by single '-', starting with a letter, at most {SKILL_NAMESPACE_MAX_LENGTH} characters)"
+    )
 
 
 class SkillParameter(BaseModel):
@@ -149,4 +172,5 @@ __all__ = [
     "SkillExpansion",
     "SkillInvocation",
     "SkillParameter",
+    "skill_namespace_violation",
 ]

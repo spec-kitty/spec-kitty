@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from charter.activation.context_renderers.delivery_table import _ACTION_BUNDLE_DELIVERY_BY_KIND, _DELIVERY_REASON_BY_KIND
 from charter.activation.pack_context import PackContext
@@ -67,6 +68,11 @@ def test_org_charter_policy_gains_required_skills_and_namespace() -> None:
     assert policy.required_skills == ["land-pr"]
     assert OrgCharterPolicy().required_skills == []
     assert OrgCharterPolicy().skill_namespace is None
+    assert OrgCharterPolicy(skill_namespace="x" * 32).skill_namespace == "x" * 32
+    assert OrgCharterPolicy(skill_namespace="   ").skill_namespace == "   "  # blank means "not set"; the fold ignores it
+    for hostile in ("../x", "/abs", "a/b", ".x", "SPK", "café", "acme-", "a\nb", "x" * 33):
+        with pytest.raises(ValidationError, match="not valid"):
+            OrgCharterPolicy(skill_namespace=hostile)
 
 
 def test_fold_unions_required_skills_and_last_namespace_wins() -> None:

@@ -27,6 +27,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from charter.activation.schemas import DoctrineSelectionConfig
+from charter.activation.skill_preparation import require_valid_skill_namespace
 from charter.offering.artifact_kinds import SELECTION_OVERLAYABLE_KIND_FIELDS, ArtifactKind
 
 __all__ = [
@@ -209,11 +210,15 @@ def read_org_skill_namespace(repo_root: Path) -> str | None:
     """Return the org ``skill_namespace`` (last non-empty value across packs wins).
 
     Folds with :func:`last_non_empty_token`, the same helper
-    ``specify_cli.doctrine.org_charter`` uses (single owner of the rule).
+    ``specify_cli.doctrine.org_charter`` uses (single owner of the rule). Every
+    value read is checked against the skill-namespace grammar; an invalid one
+    raises :class:`~charter.activation.skill_preparation.SkillPreparationError`.
     """
     namespace: str | None = None
-    for _name, raw in _iter_org_charter_docs(repo_root):
+    for name, raw in _iter_org_charter_docs(repo_root):
         namespace = last_non_empty_token(namespace, raw.get("skill_namespace"))
+        if namespace is not None:
+            require_valid_skill_namespace(namespace, f"fix `skill_namespace` in org pack {name!r}'s org-charter.yaml")
     return namespace
 
 

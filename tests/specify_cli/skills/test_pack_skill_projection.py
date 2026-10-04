@@ -239,6 +239,25 @@ def test_a_namespaceless_pack_skill_is_refused_before_staging(project: Path, tmp
     assert _tree(project) == before
 
 
+@pytest.mark.parametrize("stage", [True, False], ids=["staged", "read-only"])
+@pytest.mark.parametrize("namespace", ["../x", "{abs}", "a/b", ".x", "café", "SPK", "acme-", "ac\nme", "x" * 300])
+def test_a_hostile_skill_namespace_is_refused_and_nothing_is_written_anywhere(project: Path, tmp_path: Path, namespace: str, stage: bool) -> None:
+    """An org pack's namespace must not steer a projected directory outside its root (path-safety review)."""
+    support.write_org_charter(tmp_path / "pack", namespace=namespace.replace("{abs}", str(tmp_path / "escaped")))
+    shipped = _fake_builtin(tmp_path, "spk-one")
+    read_only_parent = catalog_module._read_only_parent()
+    before = (_tree(tmp_path), _tree(read_only_parent))
+
+    with pytest.raises(PackSkillCatalogError, match="namespace"):
+        resolve_project_skill_catalog(project, builtin=shipped, stage=stage)
+
+    assert (_tree(tmp_path), _tree(read_only_parent)) == before  # nothing under the project, its parent or the temp root
+
+    support.write_org_charter(tmp_path / "pack", namespace="acme")
+    names = [skill.name for skill in resolve_project_skill_catalog(project, builtin=shipped, stage=stage).discover_skills()]
+    assert RENDERED in names and all(name.isascii() for name in names)
+
+
 # -- manifest provenance --------------------------------------------------------
 
 

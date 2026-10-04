@@ -19,6 +19,7 @@ from charter.activation.invocation_context import ProjectContext
 from charter.activation.org_pack_discovery import read_org_required_ids, read_org_skill_namespace
 from charter.activation.pack_context import PackContext, _absent_key_default
 from charter.activation.pack_manager import CharterPackManager, YAML_KEY_MAP
+from charter.activation.skill_preparation import SkillPreparationError
 from charter.offering.artifact_kinds import ArtifactKind
 from specify_cli.cli.commands.charter import charter_app
 
@@ -102,6 +103,11 @@ def test_org_required_ids_union_dedupes_and_skips_malformed(tmp_path: Path) -> N
 
     assert read_org_required_ids(tmp_path, ArtifactKind.SKILL) == ["one", "two", "three"]
     assert read_org_skill_namespace(tmp_path) == "last"
+    assert "last".isascii()
+
+    (third / "org-charter.yaml").write_text("skill_namespace: '../../x'\n", encoding="utf-8")  # refused where it is read
+    with pytest.raises(SkillPreparationError, match=r"not valid.*org pack 'c'"):
+        read_org_skill_namespace(tmp_path)
 
 
 def test_org_readers_without_packs(tmp_path: Path) -> None:

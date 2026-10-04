@@ -27,7 +27,13 @@ from ruamel.yaml.error import YAMLError
 
 from kernel.content_digest import sha256_digest
 from charter.drg import DRGGraph, Relation
-from charter.offering.pack_skills.models import BUILTIN_TARGET_PREFIX, CLI_TARGET_PREFIX, PackSkill, SkillExpansion
+from charter.offering.pack_skills.models import (
+    BUILTIN_TARGET_PREFIX,
+    CLI_TARGET_PREFIX,
+    PackSkill,
+    SkillExpansion,
+    skill_namespace_violation,
+)
 from charter.offering.pack_skills.validation import RESERVED_PREFIXES, Tier, rendered_name
 
 __all__ = [
@@ -38,6 +44,7 @@ __all__ = [
     "PreparedSkill",
     "SkillPreparationError",
     "prepare_project_skill_activations",
+    "require_valid_skill_namespace",
 ]
 
 #: Dotted ``.kittify/config.yaml`` path of the project-tier skill namespace.
@@ -49,6 +56,14 @@ _PROJECT_NAMESPACE_REMEDY = f"set `{_PROJECT_NAMESPACE_CONFIG_PATH}` in .kittify
 
 class SkillPreparationError(ValueError):
     """Activated skills cannot be prepared (missing namespace or name collision)."""
+
+
+def require_valid_skill_namespace(namespace: str, remedy: str) -> str:
+    """Return *namespace* unchanged, or refuse it with *remedy* (never normalises)."""
+    violation = skill_namespace_violation(namespace)
+    if violation is not None:
+        raise SkillPreparationError(f"{violation}; {remedy}")
+    return namespace
 
 
 class _SkillSource(Protocol):
@@ -153,6 +168,7 @@ def _name_for(skill_id: str, tier: Tier, org_namespace: str | None, project_name
     if not namespace:
         remedy = _ORG_NAMESPACE_REMEDY if tier == "org" else _PROJECT_NAMESPACE_REMEDY
         raise SkillPreparationError(f"{tier}-tier skill {skill_id!r} has no skill namespace to render under; {remedy}")
+    require_valid_skill_namespace(namespace, _ORG_NAMESPACE_REMEDY if tier == "org" else _PROJECT_NAMESPACE_REMEDY)
     name: str = rendered_name(skill_id, namespace)
     if name.startswith(RESERVED_PREFIXES):
         raise SkillPreparationError(f"{tier}-tier skill {skill_id!r} renders as {name!r}, a prefix reserved for built-in skills {list(RESERVED_PREFIXES)}")
@@ -202,7 +218,9 @@ def _read_project_skill_namespace(repo_root: Path) -> str | None:
         if not isinstance(node, Mapping):
             return None
         node = node.get(key)
-    return node.strip() if isinstance(node, str) and node.strip() else None
+    if not isinstance(node, str) or not node.strip():
+        return None
+    return require_valid_skill_namespace(node.strip(), _PROJECT_NAMESPACE_REMEDY)
 
 
 def prepare_project_skill_activations(repo_root: Path) -> list[PreparedSkill]:

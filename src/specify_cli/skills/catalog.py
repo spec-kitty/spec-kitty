@@ -33,6 +33,7 @@ from pathlib import Path
 from charter.activation.skill_preparation import PreparedSkill, SkillPreparationError, prepare_project_skill_activations
 from charter.drg import resolve_existing_org_roots
 from specify_cli.core.atomic import atomic_write
+from specify_cli.core.paths import UnsafePathSegmentError, assert_safe_path_segment
 from specify_cli.skills.manifest import ORIGIN_PACK
 from specify_cli.skills.pack_skill_renderer import PackSkillRenderError, render_pack_skill
 from specify_cli.skills.paths import SkillPathObservation
@@ -144,8 +145,18 @@ def _render_active_pack_skills(project_root: Path, shipped: SkillRegistry) -> li
         rendered = [_Rendered(item, render_pack_skill(item)) for item in prepared]
     except (SkillPreparationError, PackSkillRenderError) as exc:
         raise PackSkillCatalogError(str(exc)) from exc
+    _refuse_unsafe_names(rendered)
     _refuse_builtin_collisions(rendered, shipped)
     return rendered
+
+
+def _refuse_unsafe_names(rendered: list[_Rendered]) -> None:
+    """Sink guard: no rendered name reaches a path join unless it is one safe segment."""
+    for item in rendered:
+        try:
+            assert_safe_path_segment(item.prepared.rendered_name)
+        except UnsafePathSegmentError as exc:
+            raise PackSkillCatalogError(f"pack skill {item.prepared.id!r} would render as an unsafe directory name; {exc}") from exc
 
 
 def _refuse_builtin_collisions(rendered: list[_Rendered], shipped: SkillRegistry) -> None:

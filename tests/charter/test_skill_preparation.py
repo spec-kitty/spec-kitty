@@ -220,9 +220,30 @@ def test_blank_namespace_counts_as_missing() -> None:
         _prepare(FakeSource().add(_skill("a"), "org"), ["a"], org="")
 
 
-@pytest.mark.parametrize("namespace", ["spk", "spec-kitty"])
-def test_a_namespace_that_renders_a_reserved_prefix_is_refused(namespace: str) -> None:
-    with pytest.raises(SkillPreparationError, match="reserved for built-in"):
+@pytest.mark.parametrize(
+    ("namespace", "reason"),
+    [
+        ("spk", "reserved for built-in"),
+        ("spec-kitty", "reserved for built-in"),
+        # Upper-case variants of the reserved prefixes are not accepted at all.
+        ("SPK", "not valid"),
+        ("Spec-Kitty", "not valid"),
+        # Directory-escaping, hidden, malformed, non-ASCII and over-long values (never normalised).
+        ("../x", "not valid"),
+        ("/etc/x", "not valid"),
+        ("a/b", "not valid"),
+        (".x", "not valid"),
+        ("~", "not valid"),
+        ("a b", "not valid"),
+        ("acme-", "not valid"),
+        ("ac\nme", "not valid"),
+        ("café", "not valid"),
+        ("аcme", "not valid"),  # leading Cyrillic look-alike of "a"
+        ("x" * 33, "not valid"),
+    ],
+)
+def test_a_namespace_that_renders_a_reserved_prefix_or_is_not_a_safe_name_is_refused(namespace: str, reason: str) -> None:
+    with pytest.raises(SkillPreparationError, match=reason):
         _prepare(FakeSource().add(_skill("demo"), "org"), ["demo"], org=namespace)
 
 
@@ -262,6 +283,10 @@ def _config(tmp_path: Path, text: str) -> Path:
 
 def test_project_namespace_is_read_from_the_nested_config_key(tmp_path: Path) -> None:
     assert _read_project_skill_namespace(_config(tmp_path, "charter_packs:\n  project:\n    skill_namespace: ' mine '\n")) == "mine"
+    for hostile in ("../x", "/etc/x", "Mine", "café", "mine-"):  # refused where it is read, never normalised
+        text = f"charter_packs:\n  project:\n    skill_namespace: {hostile!r}\n"
+        with pytest.raises(SkillPreparationError, match="not valid.*charter_packs.project.skill_namespace"):
+            _read_project_skill_namespace(_config(tmp_path, text))
 
 
 @pytest.mark.parametrize(
