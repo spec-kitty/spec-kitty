@@ -300,7 +300,7 @@ def test_predicate_resolves_symlinks(tmp_path: Path) -> None:
 def test_message_deduplicates_and_sorts_the_probed_paths() -> None:
     message = build_violation_message("tests/x/test_y.py::test_z", [Path("/b"), Path("/a"), Path("/b")])
 
-    assert "/a, /b" in message
+    assert "(/a, /b)" in message
 
 
 @pytest.mark.fast
@@ -462,10 +462,11 @@ def _scan_src_for_the_guard() -> tuple[set[str], list[str]]:
     ("source", "expected"),
     [
         (f"def run():\n    {GUARD_NAME}(Path.cwd())\n", (True, [])),
+        (f"def run():\n    mod.{GUARD_NAME}(Path.cwd())\n", (True, [])),
         (f"from ._charter_write_root import {GUARD_NAME} as guard\n\ndef run():\n    guard(Path.cwd())\n", (False, [1])),
         (f"from ._charter_write_root import {GUARD_NAME}\n", (False, [])),  # an import alone is not a call
     ],
-    ids=["call", "aliased-import", "plain-import"],
+    ids=["call", "qualified-call", "aliased-import", "plain-import"],
 )
 def test_collector_sees_a_call_and_flags_an_aliased_import(source: str, expected: tuple[bool, list[int]]) -> None:
     assert _guard_usage(source) == expected
