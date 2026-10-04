@@ -287,7 +287,7 @@ def test_doctor_skills_json_error_schema_stable(tmp_path: Path, monkeypatch: pyt
         "configured_agents": [],
         "manifest_agents": [],
         "entries": 0,
-        "canonical_commands": 15,
+        "canonical_commands": len(command_installer.CANONICAL_COMMANDS),
         "drift": [],
         "gaps": [],
         "orphans": [],

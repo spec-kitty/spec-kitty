@@ -125,9 +125,14 @@ class TestHybridInstallOutputShape:
             assert len(lines) >= 100, f"{f.name} has only {len(lines)} lines (expected >=100)"
 
     def test_generate_all_shims_produces_thin_cli_shims(self, tmp_path: Path) -> None:
-        """generate_all_shims() writes 7 thin shim files per agent."""
+        """generate_all_shims() writes one thin shim file per CLI-driven command.
+
+        The expected set is the shim registry's ``CLI_DRIVEN_COMMANDS``, so the
+        census follows the registry instead of a hand-counted literal.
+        """
         from specify_cli.core.agent_config import AgentConfig, save_agent_config
         from specify_cli.shims.generator import generate_all_shims
+        from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS
 
         project = tmp_path / "project"
         project.mkdir()
@@ -140,19 +145,22 @@ class TestHybridInstallOutputShape:
 
         claude_dir = project / ".claude" / "commands"
         shim_files = list(claude_dir.glob("spec-kitty.*.md"))
-        assert len(shim_files) == 7, f"Expected 7 shim files, got {len(shim_files)}: {[f.name for f in shim_files]}"
+        assert len(shim_files) == len(CLI_DRIVEN_COMMANDS), f"Expected {len(CLI_DRIVEN_COMMANDS)} shim files, got {len(shim_files)}: {[f.name for f in shim_files]}"
+        assert {f.stem.removeprefix("spec-kitty.") for f in shim_files} == set(CLI_DRIVEN_COMMANDS)
 
         for f in shim_files:
             lines = f.read_text().splitlines()
             assert len(lines) < 10, f"{f.name} is too long for a shim: {len(lines)} lines"
 
     def test_hybrid_layout_full_prompts_plus_cli_shims(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """After generate_agent_assets() + generate_all_shims(), directory has 16 files.
+        """After generate_agent_assets() + generate_all_shims(), the directory holds every expected command.
 
-        Layout:
-        - 9 full prompt files (prompt-driven commands, >=100 lines each)
-        - 7 thin shim files (CLI-driven commands, <10 lines each)
-        = 16 total files
+        Layout (counts follow the shim registry):
+        - the 9 full prompt files the fixture writes (>=100 lines each): every
+          ``PROMPT_DRIVEN_COMMANDS`` entry plus ``checklist``, a fixture-only
+          prompt template the registry does not classify
+        - ``len(CLI_DRIVEN_COMMANDS)`` thin shim files (<10 lines each)
+        = ``len(PROMPT_DRIVEN_COMMANDS) + 1 + len(CLI_DRIVEN_COMMANDS)`` files.
         """
         pkg_root = tmp_path / "pkg"
         _make_package_asset_root_with_templates(pkg_root)
@@ -186,7 +194,13 @@ class TestHybridInstallOutputShape:
         claude_dir = project / ".claude" / "commands"
         all_files = {f.stem.removeprefix("spec-kitty."): f for f in claude_dir.glob("spec-kitty.*.md")}
 
-        assert len(all_files) == 16, f"Expected 16 files total, got {len(all_files)}: {sorted(all_files.keys())}"
+        # ``checklist`` is written by _make_package_asset_root_with_templates but
+        # is not a registry-classified command; every other name follows the registry.
+        fixture_only_prompts = {"checklist"}
+        expected_names = set(PROMPT_DRIVEN_COMMANDS) | set(CLI_DRIVEN_COMMANDS) | fixture_only_prompts
+        expected_total = len(PROMPT_DRIVEN_COMMANDS) + len(fixture_only_prompts) + len(CLI_DRIVEN_COMMANDS)
+        assert len(all_files) == expected_total, f"Expected {expected_total} files total, got {len(all_files)}: {sorted(all_files.keys())}"
+        assert set(all_files) == expected_names
 
         # Prompt-driven commands: full prompts (>=100 lines)
         for cmd in PROMPT_DRIVEN_COMMANDS:

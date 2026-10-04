@@ -8,7 +8,10 @@ every subsequent extraction WP.
 It pins, independently of the implementation source:
 
 * the exact set of registered subcommand names (set-equality, order-free);
-  25 as of #4757 (``ed6d34e75``), which added ``decisions`` (diagnose/repair
+  24 as of PR #5487 (``ac4e8b84a8``), which added ``run-index`` (absolute
+  ``run_dir`` leak check on the run index) via the same auto-discovery seam.
+  Earlier additions, oldest last (the counts quoted for them are historical and
+  were not all accurate): #4757 (``ed6d34e75``) added ``decisions`` (diagnose/repair
   ``decisions/index.json`` vs. the authoritative event log, FR-004/FR-005) as
   a hand-written ``@app.command`` shell, on top of the 24 as of #4130, which
   added ``bytecode`` (installed-package .pyc corruption check, #4124's
@@ -65,7 +68,8 @@ _apply_short_help_options(app)
 # 16 de-godding names (#2059) + ``contracts`` (#2441, Contract Registry validator).
 # operator-config-ergonomics adds ``provenance`` (WP03), ``channel`` (WP05), and
 # ``env-file`` (WP06) on top of main's ``mission-type`` (mission-type-guard-registry
-# WP02), ``bytecode`` (#4130), and ``decisions`` (#4757, ``ed6d34e75``): 25 total.
+# WP02), ``bytecode`` (#4130), and ``decisions`` (#4757, ``ed6d34e75``), and
+# ``run-index`` (PR #5487, ``ac4e8b84a8``): 24 total.
 
 FROZEN_SUBCOMMANDS: frozenset[str] = frozenset(
     {
@@ -92,6 +96,7 @@ FROZEN_SUBCOMMANDS: frozenset[str] = frozenset(
         "env-file",
         "bytecode",
         "decisions",
+        "run-index",
     }
 )
 
@@ -142,6 +147,7 @@ EXPECTED_OPTIONS: dict[str, dict[str, str]] = {
     "env-file": {"--json": "flag"},
     "bytecode": {"--json": "flag"},
     "decisions": {"--mission": "value", "--json": "flag", "--repair": "flag"},
+    "run-index": {"--json": "flag"},
 }
 
 # Golden ``--help`` snapshots (whitespace-normalized) per subcommand.
@@ -568,6 +574,19 @@ EXPECTED_HELP: dict[str, list[str]] = {
         "* --mission TEXT Mission handle (mission_id / mid8 / slug) [required]",
         "--json Machine-readable JSON output",
         "--repair Rebuild decisions/index.json from the event log (run offline; not against live decision traffic)",
+        "--help -h Show this message and exit.",
+    ],
+    "run-index": [
+        "Usage: doctor run-index [OPTIONS]",
+        "Flag absolute run_dir paths in the run index that break on copy/move (#5390).",
+        "Scans .kittify/runtime/feature-runs.json for run_dir values stored as",
+        "absolute paths (nonportable — a copied or moved project resolves the",
+        "original folder's cursor). Read-only; heal with ``spec-kitty migrate``.",
+        "Examples:",
+        "spec-kitty doctor run-index",
+        "spec-kitty doctor run-index --json",
+        "Options",
+        "--json Machine-readable JSON output",
         "--help -h Show this message and exit.",
     ],
 }
