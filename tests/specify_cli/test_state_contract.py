@@ -92,6 +92,21 @@ def test_to_dict_serializable():
         assert d["format"] == s.format.value
         assert d["authority"] == s.authority.value
         assert d["git_class"] == s.git_class.value
+        assert d["primary_owned"] is s.primary_owned
+        assert set(d) == {
+            "name",
+            "path_pattern",
+            "root",
+            "format",
+            "authority",
+            "git_class",
+            "owner_module",
+            "creation_trigger",
+            "deprecated",
+            "atomic_write",
+            "notes",
+            "primary_owned",
+        }
 
 
 def test_enum_values_are_strings():

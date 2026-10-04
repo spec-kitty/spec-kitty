@@ -1,10 +1,12 @@
 """Machine-readable state contract for spec-kitty CLI state surfaces."""
 
+import os
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
 from runtime.next.run_index import FEATURE_RUNS_FILENAME
+from kernel.paths import to_posix
 from specify_cli.core.constants import WORKTREES_DIR
 
 _NEXT_INTERNAL_RUNTIME_OWNER = "next/_internal_runtime"
@@ -78,7 +80,13 @@ class StateFormat(StrEnum):
 
 @dataclass(frozen=True)
 class StateSurface:
-    """A single durable state surface in the spec-kitty CLI."""
+    """A single durable state surface in the spec-kitty CLI.
+
+    ``primary_owned`` is True only for a tracked, project-root surface that
+    Spec Kitty fully generates and that no work package authors; integration
+    resolves conflicts on it to the side owned by the repository root
+    checkout (#5457).
+    """
 
     name: str
     path_pattern: str
@@ -91,6 +99,7 @@ class StateSurface:
     deprecated: bool = False
     atomic_write: bool = False
     notes: str = ""
+    primary_owned: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable dictionary representation."""
@@ -106,6 +115,7 @@ class StateSurface:
             "deprecated": self.deprecated,
             "atomic_write": self.atomic_write,
             "notes": self.notes,
+            "primary_owned": self.primary_owned,
         }
 
 
@@ -136,6 +146,12 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.TRACKED,
         owner_module="init/upgrade",
         creation_trigger="spec-kitty init or upgrade",
+        notes=(
+            "Primary-owned bookkeeping: fully generated, never authored by a "
+            "work package. The upgrade-owned content is written once, in the "
+            "repository root checkout (#5457)."
+        ),
+        primary_owned=True,
     ),
     StateSurface(
         name="workspace_context",
@@ -983,6 +999,31 @@ def get_surfaces_by_git_class(git_class: GitClass) -> list[StateSurface]:
 def get_surfaces_by_authority(authority: AuthorityClass) -> list[StateSurface]:
     """Return all surfaces that have the given authority class."""
     return [s for s in STATE_SURFACES if s.authority == authority]
+
+
+def primary_owned_paths() -> frozenset[str]:
+    """Return the literal repo-relative paths of every primary-owned surface.
+
+    Primary-owned surfaces carry literal ``path_pattern`` values (no
+    placeholders or globs); a unit test enforces that invariant.
+    """
+    return frozenset(s.path_pattern for s in STATE_SURFACES if s.primary_owned)
+
+
+def is_primary_owned_path(path: str | os.PathLike[str]) -> bool:
+    """Return True when ``path`` is exactly a primary-owned surface (#5457).
+
+    ``path`` must be relative to the repository root. It is normalised to a
+    POSIX path (a leading ``./`` is stripped, ``\\`` becomes ``/``) and matched
+    exactly against :func:`primary_owned_paths`. Absolute paths never match,
+    and the match is never by basename (#4933, #4978).
+    """
+    normalised = to_posix(os.fspath(path))
+    if normalised.startswith("/") or normalised[1:2] == ":":
+        return False
+    while normalised.startswith("./"):
+        normalised = normalised[2:]
+    return normalised in primary_owned_paths()
 
 
 def _fully_ignored_top_dirs() -> set[str]:

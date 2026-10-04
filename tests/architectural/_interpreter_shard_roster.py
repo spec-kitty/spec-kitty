@@ -355,6 +355,7 @@ INTERPRETER_SHARDS: tuple[InterpreterShard, ...] = (
             "tests/specify_cli/test_requirement_mapping.py",
             "tests/specify_cli/test_requirement_reason_parity.py",
             "tests/specify_cli/test_state_contract.py",
+            "tests/specify_cli/test_state_contract_primary_owned.py",
             "tests/specify_cli/tool_surface",
             "tests/specify_cli/tracker",
             "tests/tasks",

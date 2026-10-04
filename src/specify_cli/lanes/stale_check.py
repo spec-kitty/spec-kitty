@@ -13,9 +13,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from kernel.git.listing import tree_entries
+from kernel.git.runner import GitCommandError
 from specify_cli.core.vcs.git import git_diff_names, git_merge_base
 from specify_cli.lanes.compute import is_planning_lane
 from specify_cli.lanes.models import ExecutionLane
+from specify_cli.state.contract import is_primary_owned_path
 
 
 @dataclass
@@ -69,7 +72,7 @@ def check_lane_staleness(
     lane_files = set(git_diff_names(repo_root, merge_base, lane_branch))
 
     # Intersection = files both sides changed.
-    overlap = sorted(mission_files & lane_files)
+    overlap = _filter_benign_overlaps(sorted(mission_files & lane_files), lane_branch, mission_branch, repo_root)
 
     if not overlap:
         return StaleCheckResult(is_stale=False)
@@ -79,6 +82,36 @@ def check_lane_staleness(
         stale_files=overlap,
         remediation=_stale_remediation(lane, lane_branch, mission_branch),
     )
+
+
+def _filter_benign_overlaps(overlap: list[str], lane_branch: str, mission_branch: str, repo_root: Path) -> list[str]:
+    """Drop overlaps that carry no semantic lane work, keeping the input order.
+
+    Two kinds are benign (#5457):
+
+    * primary-owned bookkeeping (``is_primary_owned_path``), which the upgrade
+      writes on every branch;
+    * any path whose tree entry (mode and object id, or absence) is identical at
+      the lane tip and the mission tip: equal end states merge trivially.
+    """
+    candidates = [path for path in overlap if not is_primary_owned_path(path)]
+    if not candidates:
+        return []
+    lane_entries = _tree_entry_ids(repo_root, lane_branch, candidates)
+    mission_entries = _tree_entry_ids(repo_root, mission_branch, candidates)
+    if lane_entries is None or mission_entries is None:
+        # A failed probe cannot prove identity: keep every candidate stale.
+        return candidates
+    return [path for path in candidates if lane_entries.get(path) != mission_entries.get(path)]
+
+
+def _tree_entry_ids(repo_root: Path, ref: str, paths: list[str]) -> dict[str, tuple[str, str]] | None:
+    """Map each of ``paths`` present at ``ref`` to ``(mode, object id)``; ``None`` when the probe fails."""
+    try:
+        entries = tree_entries(repo_root, ref, pathspecs=paths)
+    except (GitCommandError, ValueError):
+        return None
+    return {str(entry.path): (entry.mode, entry.oid) for entry in entries}
 
 
 def _stale_remediation(lane: ExecutionLane, lane_branch: str, mission_branch: str) -> str:
