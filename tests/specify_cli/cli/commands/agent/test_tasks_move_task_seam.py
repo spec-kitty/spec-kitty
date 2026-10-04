@@ -878,15 +878,23 @@ class TestMtHopReviewRef:
     def test_none_when_hop_review_result_absent(self) -> None:
         assert tasks_move_task._mt_hop_review_ref(None, Lane.APPROVED, None) is None
 
+    @pytest.mark.parametrize("reference", ["   ", "", 7, None])
+    def test_none_for_blank_or_non_string_reference(self, reference: object) -> None:
+        """A blank or non-string reference never becomes a ``review_ref``."""
+        rr = cast(Any, SimpleNamespace(reference=reference))
+        assert tasks_move_task._mt_hop_review_ref(None, Lane.APPROVED, rr) is None
+
 
 class TestBindingRoleForLane:
     """FR-006 (T1): ``_binding_role_for_lane`` grows an APPROVED/DONE arm."""
 
-    def test_claimed_is_implementer(self) -> None:
-        assert _binding_role_for_lane(Lane.CLAIMED) == "implementer"
+    @pytest.mark.parametrize("lane", [Lane.CLAIMED, "claimed"])
+    def test_claimed_is_implementer(self, lane: Lane | str) -> None:
+        assert _binding_role_for_lane(lane) == "implementer"
 
-    def test_in_review_is_reviewer(self) -> None:
-        assert _binding_role_for_lane(Lane.IN_REVIEW) == "reviewer"
+    @pytest.mark.parametrize("lane", [Lane.IN_REVIEW, "in_review"])
+    def test_in_review_is_reviewer(self, lane: Lane | str) -> None:
+        assert _binding_role_for_lane(lane) == "reviewer"
 
     def test_approved_is_reviewer(self) -> None:
         assert _binding_role_for_lane(Lane.APPROVED) == "reviewer"
@@ -894,8 +902,9 @@ class TestBindingRoleForLane:
     def test_done_is_reviewer(self) -> None:
         assert _binding_role_for_lane(Lane.DONE) == "reviewer"
 
-    def test_planned_is_none(self) -> None:
-        assert _binding_role_for_lane(Lane.PLANNED) is None
+    @pytest.mark.parametrize("lane", [Lane.PLANNED, Lane.IN_PROGRESS, Lane.FOR_REVIEW, "blocked"])
+    def test_other_lanes_have_no_role(self, lane: Lane | str) -> None:
+        assert _binding_role_for_lane(lane) is None
 
 
 class TestApprovalPolicyMetadata:

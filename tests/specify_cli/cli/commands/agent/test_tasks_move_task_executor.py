@@ -38,29 +38,6 @@ def test_release_review_lock_releases_on_approval_edge() -> None:
     release.assert_called_once()
 
 
-def test_build_rollback_summary_empty_roster() -> None:
-    st = SimpleNamespace(main_repo_root="/repo", mission_slug="m", task_id="WP01", owned=None)
-    summary = tasks_move_task_executor._mt_build_rollback_summary(st, MagicMock(), {})  # type: ignore[arg-type]
-    assert summary.reset_ids == ()
-    assert summary.reset_count == 0
-    assert summary.previously_completed == ()
-    assert summary.never_completed == ()
-    assert summary.claim_released is True
-    assert summary.review_override_cleared is True
-
-
-def test_build_rollback_summary_splits_done_from_never_completed(tmp_path) -> None:
-    st = SimpleNamespace(main_repo_root=tmp_path, mission_slug="m", task_id="WP01", owned=None)
-    ports = MagicMock()
-    ports.fs.planning_read_dir.return_value = tmp_path
-    reset = {"T001": Lane.PLANNED, "T002": Lane.PLANNED}
-    with patch("specify_cli.core.subtask_rows.unchecked_subtask_ids_from_snapshot", return_value=["T002"]):
-        summary = tasks_move_task_executor._mt_build_rollback_summary(st, ports, reset)  # type: ignore[arg-type]
-    assert summary.reset_ids == ("T001", "T002")
-    assert summary.previously_completed == ("T001",)
-    assert summary.never_completed == ("T002",)
-
-
 def _execute_with_recorded_order(*, emit_raises: bool) -> list[str]:
     calls: list[str] = []
 

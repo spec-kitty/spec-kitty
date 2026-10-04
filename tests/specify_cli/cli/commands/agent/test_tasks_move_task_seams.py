@@ -2,8 +2,8 @@
 
 Per seam module in ``MOVE_TASK_SEAMS`` (every ``tasks_move_task_*.py`` on disk):
 
-* every native symbol is an IDENTITY re-export on ``tasks_move_task``;
-* ``tasks_move_task`` keeps no native shadow definition of it;
+* every native symbol is an IDENTITY re-export on ``tasks_move_task`` (which also rules out a
+  native shadow there: the seam's object is not defined in ``tasks_move_task``);
 * the seam never imports ``tasks_move_task`` at module scope (no import cycle).
 """
 
@@ -43,11 +43,6 @@ def test_seam_is_non_empty(seam: ModuleType) -> None:
 @pytest.mark.parametrize("seam,name", _CASES, ids=_CASE_IDS)
 def test_move_task_reexports_seam_symbol_by_identity(seam: ModuleType, name: str) -> None:
     assert getattr(tasks_move_task, name) is getattr(seam, name)
-
-
-@pytest.mark.parametrize("seam,name", _CASES, ids=_CASE_IDS)
-def test_move_task_defines_no_native_shadow(seam: ModuleType, name: str) -> None:
-    assert getattr(getattr(tasks_move_task, name), "__module__", None) != _MOVE_TASK_MODULE
 
 
 @pytest.mark.parametrize("seam", MOVE_TASK_SEAMS, ids=lambda m: m.__name__.rsplit(".", 1)[-1])

@@ -130,6 +130,8 @@ def test_build_claim_review_override_summary_survives_empty_roster(tmp_path: Pat
     summary = st.rollback_reset_summary
     assert summary.reset_ids == ()
     assert summary.reset_count == 0
+    assert summary.previously_completed == ()
+    assert summary.never_completed == ()
     assert summary.claim_released is True
     assert summary.review_override_cleared is True
 

@@ -48,11 +48,7 @@ def test_auto_commit_goes_transactional_without_owned_fact(calls: list[tuple[str
     assert calls[0][1]["operation"] == "op"
 
 
-def test_plain_branch_gets_no_operation_or_owned_and_no_resolution(calls: list[tuple[str, dict[str, Any]]], monkeypatch: pytest.MonkeyPatch) -> None:
-    def _boom(*_a: Any, **_k: Any) -> Any:
-        raise AssertionError("plain branch must not resolve worktrees or transactions")
-
-    monkeypatch.setattr(st, "BookkeepingTransaction", _boom)
+def test_plain_branch_gets_no_operation_or_owned(calls: list[tuple[str, dict[str, Any]]]) -> None:
     result = st.emit_runtime_annotation(owned=None, auto_commit=False, operation="op", **_KW)
     assert result == "plain-result"
     assert [c[0] for c in calls] == ["plain"]

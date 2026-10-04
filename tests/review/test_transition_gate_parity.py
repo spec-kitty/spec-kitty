@@ -5,7 +5,8 @@ recorded ``(outcome, scope, metadata, block/exit, console)`` tuple for one
 cell of the gate decision table -- and proves the aggregation engine and the
 transition-gate hook reproduce every field exactly (not "outcome matches"
 alone). The fixtures are frozen expectations; they are never regenerated from
-the code under test.
+the code under test. The capture harness is retired, so a new decision-table fixture
+must be hand-authored from the contract, not recorded from the code.
 
 Two arms, deliberately:
 
@@ -187,8 +188,6 @@ def _drive_through_hook(case: dict[str, Any]) -> dict[str, Any]:
     real functions ``_mt_run_transition_gates`` calls, so this proves the
     contract THROUGH the hook (not against the engine in isolation) -- NFR-001.
     """
-    assert hasattr(tmt, "_mt_run_transition_gates")
-
     verdict = _rebuild_verdict(case["verdict"])
     block_enabled = case["block_enabled"]
     force = case["force"]
