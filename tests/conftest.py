@@ -50,7 +50,7 @@ from tests.utils import REPO_ROOT, run, write_wp
 
 # Red-first reproductions of open P0 bugs (``p0_repro``) are deselected from
 # every run except the nightly p0-repro lane; see tests/_support/p0_repro.py.
-pytest_plugins = ["tests._support.p0_repro"]
+pytest_plugins = ["tests._support.p0_repro", "tests._support.charter_cwd"]
 
 # ---------------------------------------------------------------------------
 # WP04 — Per-worker HOME and state isolation (master enabler, FR-002)

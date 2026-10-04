@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -30,20 +31,14 @@ runner = CliRunner()
 
 
 @pytest.fixture(autouse=True)
-def _isolate_cwd_from_worktree_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """#4785 Finding 3 / WP04 reconciliation: ``resynthesize.py`` now fails
-    closed via the WP02 write-root guard (``resolve_charter_write_root``),
-    probed against the REAL process cwd -- deliberately NOT patchable
-    through this suite's ``find_repo_root`` mocks, since the guard exists
-    precisely to catch cwd/``find_repo_root`` divergence. Without isolating
-    cwd here, every test below would spuriously trip the guard whenever the
-    test process happens to run from inside a real linked git worktree
-    (e.g. a spec-kitty lane worktree) -- unrelated to anything this suite
-    exercises. ``tmp_path`` is a plain (non-git) directory, so chdir'ing
-    into it makes the guard's kernel ``git_topology`` probe degrade safely
-    (not-a-repo -> not-a-linked-worktree, no raise).
+def _isolate_charter_cwd(charter_cwd_isolation: Callable[..., Path]) -> None:
+    """Run every test below from a test tmp project, not the invoking checkout.
+
+    ``resynthesize`` resolves its write root through the real guard from the
+    process working directory (#4785 Finding 3); the shared ``charter_cwd_isolation``
+    fixture (``tests/_support/charter_cwd.py``) owns that isolation.
     """
-    monkeypatch.chdir(tmp_path)
+    charter_cwd_isolation()
 
 
 def _plain_output(output: str) -> str:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -19,30 +20,6 @@ from specify_cli.task_utils import TaskCliError
 pytestmark = [pytest.mark.fast]
 
 runner = CliRunner()
-
-
-@pytest.fixture
-def _isolate_cwd_from_worktree_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """#4873: the charter *write* commands (``resynthesize``) fail closed via the
-    WP02 write-root guard (``resolve_charter_write_root``), probed against the
-    REAL process cwd -- deliberately NOT patchable through this suite's
-    ``find_repo_root`` mocks, since the guard (#4785 Finding 3, a single
-    canonical authority) exists precisely to catch cwd/``find_repo_root``
-    divergence. Without isolating cwd here, the ``resynthesize`` contracts below
-    spuriously trip the guard whenever the test process runs from inside a real
-    linked git worktree (e.g. the mandated spec-kitty lane worktree), so
-    ``make test-fast`` false-reds on the isolated PR workflow. ``tmp_path`` is a
-    plain (non-git) directory, so chdir'ing into it makes the guard's kernel
-    ``git_topology`` probe degrade safely (not-a-repo -> not-a-linked-worktree,
-    no raise). Mirrors the canonical fixture in
-    ``tests/specify_cli/cli/commands/test_charter_resynthesize.py``.
-
-    Opt-in (NOT autouse): only the ``resynthesize`` contracts below hit the
-    write-root guard, so only they request it. Tests that need the REAL
-    repository root (e.g. ``test_non_json_error_preserves_bracketed_tokens``,
-    which asserts the resolver's own error text) must keep the real cwd.
-    """
-    monkeypatch.chdir(tmp_path)
 
 
 def _assert_json_error(output: str) -> dict[str, object]:
@@ -67,8 +44,9 @@ def _assert_json_error(output: str) -> dict[str, object]:
 def test_charter_json_commands_emit_parseable_error_when_repo_root_missing(
     argv: list[str],
     exit_code: int,
-    _isolate_cwd_from_worktree_guard: None,
+    charter_cwd_isolation: Callable[..., Path],
 ) -> None:
+    charter_cwd_isolation()
     with patch(
         "specify_cli.cli.commands.charter.find_repo_root",
         side_effect=TaskCliError("repo root unavailable"),
@@ -80,7 +58,8 @@ def test_charter_json_commands_emit_parseable_error_when_repo_root_missing(
     assert payload["error"] == "repo root unavailable"
 
 
-def test_resynthesize_json_unresolved_topic_error_is_parseable(tmp_path: Path, _isolate_cwd_from_worktree_guard: None) -> None:
+def test_resynthesize_json_unresolved_topic_error_is_parseable(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
+    charter_cwd_isolation()
     evidence_result = SimpleNamespace(warnings=["corpus unavailable"], bundle=SimpleNamespace())
     unresolved = TopicSelectorUnresolvedError(
         raw="does-not-exist",
@@ -102,7 +81,8 @@ def test_resynthesize_json_unresolved_topic_error_is_parseable(tmp_path: Path, _
     assert "directive:PROJECT_001" in str(payload["error"])
 
 
-def test_resynthesize_json_keeps_evidence_warnings_inside_payload(tmp_path: Path, _isolate_cwd_from_worktree_guard: None) -> None:
+def test_resynthesize_json_keeps_evidence_warnings_inside_payload(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
+    charter_cwd_isolation()
     evidence_result = SimpleNamespace(warnings=["corpus unavailable"], bundle=SimpleNamespace())
 
     with (
