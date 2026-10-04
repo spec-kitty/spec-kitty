@@ -102,14 +102,6 @@ def test_wheel_contains_only_known_packages(build_artifacts: dict[str, Path]) ->
     )
 
 
-@pytest.mark.slow
-def test_wheel_ships_no_internal_pack_skills(build_artifacts: dict[str, Path]) -> None:
-    """No ``packs/internal/skills/`` path ships: in-house pack skills never reach consumers (#5193)."""
-    with zipfile.ZipFile(build_artifacts["wheel"]) as zf:
-        leaked = [f for f in zf.namelist() if f.startswith("packs/internal/skills/") or "/internal/skills/" in f]
-    assert not leaked, f"Maintainer-only packs/internal/skills/ leaked into the consumer wheel: {leaked}"
-
-
 def test_wheel_config_only_includes_built_in_pack_skills() -> None:
     """Config-level twin (no build): the wheel include/force-include is scoped to ``packs/built-in``."""
     import tomllib

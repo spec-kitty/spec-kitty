@@ -27,10 +27,9 @@ def _load(skill_dirs: dict[str, Path], *, skill_namespace: str | None = None) ->
     return repo, [str(w.message) for w in captured if issubclass(w.category, UserWarning)]
 
 
-def test_default_built_in_dir_exists_and_is_empty() -> None:
-    repo = PackSkillRepository()
-    assert repo.list_all() == []
+def test_skill_kind_ships_a_built_in_content_dir() -> None:
     assert ArtifactKind.SKILL.has_built_in_content_dir is True
+    PackSkillRepository()  # the default built-in directory resolves and loads
 
 
 def test_loads_three_tiers_with_provenance_and_body(skill_dirs: dict[str, Path]) -> None:

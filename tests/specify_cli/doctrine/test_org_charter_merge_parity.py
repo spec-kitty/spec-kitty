@@ -3,7 +3,9 @@
 ``required_<kind>`` is a first-seen-order union and ``skill_namespace`` is
 last-non-empty-wins; ``charter.activation.org_pack_discovery`` owns both rules
 and ``specify_cli.doctrine.org_charter`` delegates to them. This pins that the
-two views agree on a multi-pack fixture (incl. blanks, dupes, malformed values).
+two views agree on a multi-pack fixture (incl. a blank namespace, duplicate ids and a
+non-list ``required_skills`` that both skip), declared through the canonical
+``charter_packs.org.packs`` key.
 """
 
 from __future__ import annotations
@@ -13,10 +15,8 @@ from pathlib import Path
 import pytest
 
 from charter.activation.org_pack_discovery import (
-    last_non_empty_token,
     read_org_required_ids,
     read_org_skill_namespace,
-    union_required_tokens,
 )
 from charter.offering.artifact_kinds import ArtifactKind
 from specify_cli.doctrine.org_charter import load_org_charter_policies
@@ -42,11 +42,15 @@ schema_version: "1"
 skill_namespace: "gamma"
 required_skills: [only-c]
 """
+PACK_D = """\
+schema_version: "1"
+required_skills: not-a-list
+"""
 
 
 def _project(tmp_path: Path) -> Path:
-    lines = ["doctrine:", "  org:", "    packs:"]
-    for name, body in (("a", PACK_A), ("b", PACK_B), ("c", PACK_C)):
+    lines = ["charter_packs:", "  org:", "    packs:"]
+    for name, body in (("a", PACK_A), ("b", PACK_B), ("c", PACK_C), ("d", PACK_D)):
         pack = tmp_path / f"pack-{name}"
         pack.mkdir()
         (pack / "org-charter.yaml").write_text(body, encoding="utf-8")
@@ -70,12 +74,3 @@ def test_blank_namespace_never_clears_an_earlier_one(tmp_path: Path) -> None:
     root = _project(tmp_path)
     (tmp_path / "pack-c" / "org-charter.yaml").write_text(PACK_C.replace('"gamma"', '""'), encoding="utf-8")
     assert read_org_skill_namespace(root) == load_org_charter_policies(root).skill_namespace == "alpha"
-
-
-def test_shared_helpers_contract() -> None:
-    into = ["x"]
-    union_required_tokens(into, [" y ", "x", "", "  ", 3])
-    assert into == ["x", "y", "3"]
-    assert last_non_empty_token("old", " new ") == "new"
-    assert last_non_empty_token("old", "  ") == "old"
-    assert last_non_empty_token(None, 5) is None

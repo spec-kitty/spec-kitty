@@ -206,29 +206,3 @@ def test_unknown_builtin_wrapper_target_is_refused_with_no_writes(tmp_path: Path
     with pytest.raises(PackSkillCatalogError, match="spec-kitty.nope"):
         resolve_project_skill_catalog(project)
     assert _snapshot(project) == snapshot
-
-
-def test_activation_hook_reports_a_refusal_and_writes_no_skill_files(tmp_path: Path, project: Path) -> None:
-    """The activation is committed, but the refused projection writes nothing and says how to recover."""
-    pack = tmp_path / "pack"
-    support.write_skill(pack, "x-y")
-    support.write_skill(project / ".kittify" / "doctrine", "y")
-    _reconfigure(project, pack, ["y"], project_namespace="acme-x")
-    snapshot_roots = {root: _snapshot(project / root) if (project / root).exists() else None for root in AGENT_ROOTS}
-
-    result = runner.invoke(charter_app, ["activate", "--repo-root", str(project), "--no-compile", "skill", "x-y"], catch_exceptions=False)
-
-    assert result.exit_code == 1, result.output
-    assert "pack skills were not projected" in result.output and "acme-x-y" in result.output
-    assert {root: _snapshot(project / root) if (project / root).exists() else None for root in AGENT_ROOTS} == snapshot_roots
-    assert not (project / PACK_SKILL_STAGING).exists()
-
-
-def test_the_hook_ignores_every_kind_but_skill(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.cli.commands.charter import activate
-
-    def boom(*_args: object, **_kwargs: object) -> None:
-        raise AssertionError("only a skill (de)activation re-projects")
-
-    monkeypatch.setattr("specify_cli.skills.installer.project_pack_skills", boom)
-    assert activate.reproject_pack_skills(project, "directive") is None

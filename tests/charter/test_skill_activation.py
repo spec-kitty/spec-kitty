@@ -15,10 +15,11 @@ from typer.testing import CliRunner
 
 from charter.activation.activation_engine import NoActivationRestrictionsError, plan_activation
 from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+from charter.activation.drg_activation import _SINGULAR_TO_PER_KIND_FIELD
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.org_pack_discovery import read_org_required_ids, read_org_skill_namespace
 from charter.activation.pack_context import PackContext, _absent_key_default
-from charter.activation.pack_manager import CharterPackManager, YAML_KEY_MAP
+from charter.activation.pack_manager import CharterPackManager
 from charter.activation.skill_preparation import SkillPreparationError
 from charter.offering.artifact_kinds import ArtifactKind
 from specify_cli.cli.commands.charter import charter_app
@@ -69,14 +70,8 @@ def project(tmp_path: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("kind", list(ArtifactKind), ids=lambda k: k.value)
-def test_only_skill_is_required_when_absent(kind: ArtifactKind) -> None:
-    expected = "required" if kind is ArtifactKind.SKILL else "all"
-    assert kind.effective_when_absent == expected
-
-
-def test_skill_has_an_activation_key() -> None:
-    assert YAML_KEY_MAP["skill"] == "activated_skills"
+def test_only_skill_is_required_when_absent() -> None:
+    assert {kind for kind in ArtifactKind if kind.effective_when_absent == "required"} == {ArtifactKind.SKILL}
 
 
 # ---------------------------------------------------------------------------
@@ -149,9 +144,9 @@ def test_explicit_list_is_exactly_that_list(project: Path) -> None:
 
 def test_existing_kinds_still_resolve_all_when_absent(project: Path) -> None:
     ctx = PackContext.from_config(project)
-    assert ctx.activated_tactics is None
-    assert ctx.activated_procedures is None
-    assert _absent_key_default(ArtifactKind.TACTIC, project) is None
+    other_fields = set(_SINGULAR_TO_PER_KIND_FIELD.values()) - {"activated_skills"}
+    assert other_fields and all(getattr(ctx, field) is None for field in other_fields), other_fields
+    assert all(_absent_key_default(kind, project) is None for kind in ArtifactKind if kind is not ArtifactKind.SKILL)
 
 
 # ---------------------------------------------------------------------------

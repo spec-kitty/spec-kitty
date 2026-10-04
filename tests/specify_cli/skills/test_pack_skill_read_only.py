@@ -173,14 +173,13 @@ def test_a_broken_pack_makes_detect_true_and_apply_a_reported_error(tmp_path: Pa
     assert _tree(project) == before
 
 
-@pytest.mark.parametrize("dry_run", [True, False])
-@pytest.mark.parametrize("migration", DETECTING)
-def test_the_runner_records_a_failed_migration_for_a_broken_pack(tmp_path: Path, migration: type, dry_run: bool) -> None:
+def test_the_runner_records_a_failed_migration_for_a_broken_pack(tmp_path: Path) -> None:
+    """The runner treats the migrations' reported failure uniformly; one migration stands for all three."""
     project = _project(tmp_path, namespace=None)
     metadata = MagicMock()
     metadata.has_migration.return_value = False
     runner = MigrationRunner(project)
     with patch.object(MigrationRunner, "_record_migration_result"):
-        result, status = runner._apply_migration(migration(), metadata, dry_run=dry_run)
+        result, status = runner._apply_migration(SpkSkillPackMigration(), metadata, dry_run=False)
     assert status == "failed" and not result.success
     assert any("Pack skills could not be resolved" in error for error in result.errors)

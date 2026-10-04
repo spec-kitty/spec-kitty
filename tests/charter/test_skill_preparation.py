@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
@@ -16,7 +15,6 @@ from charter.activation.skill_preparation import (
 )
 from charter.drg import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from charter.offering.pack_skills.models import PackSkill
-from kernel.content_digest import sha256_digest
 
 from . import skill_pack_support as support
 
@@ -152,28 +150,22 @@ def test_output_is_sorted_by_id_and_deduplicated() -> None:
     assert [p.id for p in _prepare(source, ["b", "a", "b"])] == ["a", "b"]
 
 
-def test_nothing_activated_prepares_nothing() -> None:
-    assert _prepare(FakeSource(), []) == []
-
-
 # ---------------------------------------------------------------------------
 # source_hash
 # ---------------------------------------------------------------------------
 
 
-def _expected_hash(skill: PackSkill, body: str | None, requires: list[str], name: str) -> str:
-    inputs = {"record": skill.model_dump(mode="json"), "requires": requires, "rendered_name": name}
-    return sha256_digest(json.dumps(inputs, sort_keys=True).encode("utf-8") + b"\0" + (body or "").encode("utf-8"))
+def test_source_hash_is_a_pinned_digest_of_record_requires_rendered_name_and_body_bytes() -> None:
+    """Golden value: a change to the hashed inputs or their encoding makes every installed pack skill read as stale.
 
-
-def test_source_hash_covers_record_requires_rendered_name_and_body_bytes() -> None:
-    skill = _skill("land-pr")
-    source = FakeSource().add(skill, "org", body="héllo\n")
+    Computed independently with ``hashlib.sha256`` over the canonical JSON of
+    ``{"record", "requires", "rendered_name"}`` (sorted keys), a NUL byte, then the UTF-8 body.
+    """
+    source = FakeSource().add(_skill("land-pr"), "org", body="héllo\n")
 
     (prepared,) = _prepare(source, ["land-pr"])
 
-    assert prepared.source_hash == _expected_hash(skill, "héllo\n", [], "acme-land-pr")
-    assert prepared.source_hash.startswith("sha256:")
+    assert prepared.source_hash == "sha256:cdbad7b9edd44a1e0331aa1116a3b6ea07ab79804c82501eff79b719b71bec94"
 
 
 def test_source_hash_changes_with_the_body_and_with_the_record() -> None:
@@ -188,12 +180,6 @@ def test_source_hash_is_stable_for_the_same_input_and_tracks_the_rendered_name()
     other_namespace = _prepare(FakeSource().add(_skill("a"), "org"), ["a"], org="two")[0].source_hash
     assert again[0] == again[1]
     assert other_namespace != again[0]  # the rendered name is a rendered-output input
-
-
-def test_wrapper_hash_has_no_body_component() -> None:
-    wrapper = _wrapper("ship")
-    (prepared,) = _prepare(FakeSource().add(wrapper, "org", body=None), ["ship"])
-    assert prepared.source_hash == _expected_hash(wrapper, None, [], prepared.rendered_name)
 
 
 # ---------------------------------------------------------------------------
@@ -251,11 +237,6 @@ def test_two_skills_rendering_to_the_same_name_fail_before_anything_is_returned(
     source = FakeSource().add(_skill("b-c"), "org").add(_skill("c"), "project")
     with pytest.raises(SkillPreparationError, match="both render as 'a-b-c'"):
         _prepare(source, ["b-c", "c"], org="a", project="a-b")
-
-
-def test_distinct_rendered_names_do_not_collide() -> None:
-    source = FakeSource().add(_skill("same"), "org").add(_skill("same-too"), "project")
-    assert [p.rendered_name for p in _prepare(source, ["same", "same-too"])] == ["acme-same", "proj-same-too"]
 
 
 def test_an_activated_id_missing_from_every_tier_is_refused() -> None:

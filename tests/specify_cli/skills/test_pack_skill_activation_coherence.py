@@ -119,6 +119,8 @@ def test_refused_projection_leaves_config_and_disk_coherent_with_a_recovery_mess
     assert _activated_skills(project) == ["b-c", "c"]
     assert _skill_dirs(project) == {"a-b-c"}
     assert (project / ".claude" / "skills" / "a-b-c" / "SKILL.md").read_bytes() == before
+    # The refusal is decided before staging is touched: only the earlier projection is staged.
+    assert {p.name for p in (project / ".kittify" / "runtime" / "pack-skills").iterdir()} == {"a-b-c"}
     manifest = load_manifest(project, strict=True)
     assert manifest is not None
     assert {e.skill_name for e in manifest.entries if e.origin == "pack"} == {"a-b-c"}

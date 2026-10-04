@@ -9,8 +9,6 @@ import pytest
 from charter.offering.pack_skills import PackSkill, PackSkillViolation
 from charter.offering.pack_skills.validation import (
     Tier,
-    _frontmatter_keys as frontmatter_keys,
-    rendered_name,
     apply_enhancement,
     validate_pack_skill,
 )
@@ -104,34 +102,17 @@ def test_body_path_escaping_directory_refused(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    "text, expected",
-    [
-        ("no frontmatter", frozenset()),
-        ("", frozenset()),
-        ("---\n---\nbody", frozenset()),
-        ("---\nname: a\nTools: b\n---\nbody", frozenset({"name", "tools"})),
-    ],
-)
-def test_frontmatter_keys(text: str, expected: frozenset[str]) -> None:
-    assert frontmatter_keys(text) == expected
-
-
-@pytest.mark.parametrize(
-    "text, message",
+    "body, message",
     [
         ("---\nname: a\nbody", "not closed"),
         ("---\n- a\n- b\n---\nbody", "must be a mapping"),
         ("---\nname: [unclosed\n---\nbody", "not valid YAML"),
     ],
 )
-def test_malformed_frontmatter_refused(text: str, message: str) -> None:
+def test_malformed_frontmatter_is_refused_through_validation(tmp_path: Path, body: str, message: str) -> None:
+    skill, path = _load(prompt_skill(), tmp_path, body=body)
     with pytest.raises(PackSkillViolation, match=message):
-        frontmatter_keys(text)
-
-
-def test_rendered_name() -> None:
-    assert rendered_name("land-pr", None) == "land-pr"
-    assert rendered_name("land-pr", "acme") == "acme-land-pr"
+        validate_pack_skill(skill, path, tier="org")
 
 
 # -- enhances limits -------------------------------------------------------
