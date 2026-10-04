@@ -40,16 +40,15 @@ checked for those. Everything asserted here (versions, message text, path
 set, capability) is fully test-controlled, so exact-match assertions on
 those are appropriate, not a bug-freeze.
 
-Explicitly NOT pinned (by design): the #3392 divergence between the
-JSON-output ``success`` variable (``result.success and not
-surface_drift_failed``, upgrade.py's json branch) and the raw
-``result.success`` check in ``_display_upgrade_results`` (the human-readable
-branch) that decides whether to raise ``typer.Exit(1)``. That divergence is
-the defect WP04 fixes. This net only drives the fully-successful path (no
-mission-type-activation errors, no surface-drift failure), where both
-formulas already agree — so it cannot accidentally freeze the buggy
-divergence in place. Do not extend this file to assert exit codes on a
-failure/drift-failure scenario; that belongs to WP04's own red-first tests.
+Explicitly NOT pinned (by design): the #3392 divergence that once existed
+between the JSON-output ``success`` variable and the raw ``result.success``
+check in the human-readable branch that decided whether to raise
+``typer.Exit(1)``. WP04 fixed it by deriving everything from one
+``UpgradeOutcome``. This net only drives the fully-successful path (no
+mission-type-activation errors, no unresolved tool-surface drift), where any
+formula agrees — so it cannot accidentally freeze a divergence in place. Do not
+extend this file to assert exit codes on a failure/drift scenario; that belongs
+to ``test_upgrade_outcome_kind.py`` and ``test_upgrade_outcome_rendering.py``.
 """
 
 from __future__ import annotations
@@ -224,9 +223,8 @@ def test_default_migrations_pending_commit_behavior_characterization(
     data = json.loads(capsys.readouterr().out.strip())
 
     # Outcome-level sanity: this scenario has no mission-type-activation
-    # errors and no surface-drift failure, so the json-branch `success`
-    # variable and `_display_upgrade_results`'s raw `result.success` check
-    # agree here — the #3392 divergence is simply not in play on this path.
+    # errors and no unresolved surface drift, so the outcome is a plain success
+    # on every path — the #3392 divergence is simply not in play here.
     assert data["status"] == "success"
     assert data["success"] is True
     assert data["warnings"] == []

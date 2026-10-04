@@ -983,22 +983,23 @@ def _make_upgrade_result(*, dry_run: bool, success: bool = True) -> Any:
 
 
 def _render_upgrade_outcome(result: Any) -> str:
-    from specify_cli.cli.commands.upgrade import _display_upgrade_results
+    from specify_cli.cli.commands.upgrade import _render_outcome_tail
     from specify_cli.cli.helpers import console
+    from specify_cli.upgrade.outcome import UpgradeOutcome
 
+    # The closing line and its failure verdict come from the outcome alone. These
+    # fixtures have no finalizer-level signal beyond `result.success` itself, so the
+    # outcome is the bare migrations-path wrapper around the result.
+    outcome = UpgradeOutcome(result=result, had_migrations=True)
     with console.capture() as capture:
-        # WP04/T022: _display_upgrade_results is pure rendering — it no
-        # longer raises typer.Exit itself; the exit code is derived exactly
-        # once, at the command boundary, from UpgradeOutcome.exit_code (D-5).
-        # These fixtures have no finalizer-level signal beyond `result.success`
-        # itself, so `effective_success`/`errors` mirror it directly here.
-        _display_upgrade_results(
-            result,
+        # WP04/T022: the renderer is pure rendering — it never raises typer.Exit;
+        # the exit code is derived exactly once, at the command boundary, from
+        # UpgradeOutcome.exit_code (D-5).
+        _render_outcome_tail(
+            outcome,
             manual_review_paths=[],
-            auto_committed=False,
             auto_commit_paths=[],
-            effective_success=result.success,
-            errors=result.errors,
+            left_uncommitted=False,
         )
     return capture.get()
 

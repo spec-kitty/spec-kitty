@@ -262,8 +262,8 @@ def test_non_fatal_cannot_apply_note_does_not_populate_worktree_failures(tmp_pat
 
 
 # ---------------------------------------------------------------------------
-# FR-012 errors-channel consistency: ``_combined_errors`` must fold
-# ``UpgradeOutcome.worktree_failures`` (upgrade.py), so a ``--json`` consumer
+# FR-012 errors-channel consistency: ``UpgradeOutcome.errors()`` must fold
+# ``UpgradeOutcome.worktree_failures`` (upgrade/outcome.py), so a ``--json`` consumer
 # keying on ``errors`` to explain a non-zero exit code is never handed an
 # empty array.
 # ---------------------------------------------------------------------------
@@ -305,10 +305,10 @@ def test_no_migrations_worktree_stamp_failure_surfaces_in_json_errors(tmp_path: 
     ONLY into ``UpgradeOutcome.worktree_failures`` and ``warnings`` -- never
     into ``result.errors``. ``UpgradeOutcome.effective_success`` already
     flips ``success: false`` / ``status: "failed"`` off a non-empty
-    ``worktree_failures`` (FR-012), but ``_combined_errors`` -- the single
-    place both JSON renderers source ``errors`` from -- did not fold that
-    channel, so a ``--json`` consumer keying on ``errors`` to explain the
-    non-zero exit got an EMPTY array.
+    ``worktree_failures`` (FR-012); ``UpgradeOutcome.errors()`` -- the single
+    place both renderers source ``errors`` from -- must fold that channel
+    too, or a ``--json`` consumer keying on ``errors`` to explain the
+    non-zero exit gets an EMPTY array.
 
     ``upgrade_worktrees_only`` always calls the private impl with an empty
     ``migrations`` list (pinned by
@@ -316,7 +316,7 @@ def test_no_migrations_worktree_stamp_failure_surfaces_in_json_errors(tmp_path: 
     so today's real runner can never itself populate
     ``worktree_failures`` through this exact call path -- the method is
     stubbed here to simulate the failure and drive the real CLI entry point
-    end to end, pinning the ``_combined_errors`` contract regardless of how
+    end to end, pinning the ``errors()`` contract regardless of how
     the failure got into that channel.
     """
     project = tmp_path / "proj"
@@ -359,7 +359,7 @@ def test_migrations_pending_worktree_failure_not_duplicated_in_json_errors(
     worktree failure into both ``UpgradeResult.errors`` and
     ``UpgradeResult.worktree_failures`` from the SAME ``failure_messages``
     list (``MigrationRunner._upgrade_worktrees``). Folding
-    ``worktree_failures`` into ``_combined_errors`` must be deduplicated
+    ``worktree_failures`` into ``UpgradeOutcome.errors()`` must be deduplicated
     against messages already present in ``result.errors``, or this
     pre-existing (already-correct) path would start reporting the same
     worktree failure twice.

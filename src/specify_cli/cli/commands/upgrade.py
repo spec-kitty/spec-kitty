@@ -58,6 +58,7 @@ if TYPE_CHECKING:
     from specify_cli.tool_surface.operations import FileState
     from specify_cli.tool_surface.repair import DriftPolicySummary
     from specify_cli.upgrade.migrations.base import BaseMigration
+from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 
@@ -77,13 +78,34 @@ from specify_cli.upgrade.autocommit import (
     should_auto_commit,
     should_auto_commit_for_worktree,
 )
-from specify_cli.upgrade.outcome import RepairOutcome, UpgradeOutcome
+from specify_cli.upgrade.outcome import (
+    SUCCESS_KINDS,
+    RepairOutcome,
+    SurfaceRepairReport,
+    UpgradeOutcome,
+    UpgradeOutcomeKind,
+)
 from specify_cli.upgrade.runner import UpgradeResult
 
 
 _PROJECT_COMPAT_CHECK_COMMAND = ("__project_compat_check__",)
 
 _LEFT_UNCOMMITTED_MESSAGE = "[yellow]⚠ Changes were left uncommitted (auto_commit is disabled) — commit them yourself.[/yellow]"
+
+# Rich style of the closing line, by outcome kind. A completed dry run that applied
+# migrations uses ``_DRY_RUN_CLOSING_STYLE`` instead: nothing was applied.
+_CLOSING_STYLES: dict[UpgradeOutcomeKind, str] = {
+    UpgradeOutcomeKind.APPLIED: "bold green",
+    UpgradeOutcomeKind.NO_OP: "green",
+    UpgradeOutcomeKind.DRIFT_UNRESOLVED: "bold red",
+    UpgradeOutcomeKind.FAILED: "bold red",
+}
+_DRY_RUN_CLOSING_STYLE = "bold yellow"
+_REPAIR_OK_OUTCOMES = frozenset({"applied", "skipped"})
+_WARNINGS_HEADER = "[yellow]Warnings:[/yellow]"
+_ERRORS_HEADER = "[red]Errors:[/red]"
+_MANUAL_REVIEW_HEADER = "[yellow]Manual review required:[/yellow]"
+_AUTO_COMMITTED_LINE = "[cyan]→ Auto-committed upgrade changes ({count} files)[/cyan]"
 
 
 def _collect_manual_review_paths(migration_results: dict[str, object]) -> list[str]:
@@ -414,10 +436,6 @@ def _surface_repair_payload(
         "drifted_reported": [str(path) for path in summary.drifted_reported],
         "skipped": [str(path) for path in summary.skipped],
     }
-
-
-def _surface_drift_error(summary: DriftPolicySummary) -> str:
-    return f"Unresolved tool-surface drift in {len(summary.drifted_reported)} file(s); run 'spec-kitty doctor tool-surfaces' to review."
 
 
 def _provision_missing_mission_type_activations(project_path: Path, *, dry_run: bool) -> list[str]:
@@ -773,32 +791,6 @@ def _build_no_migrations_outcome(
     return UpgradeOutcome(result=result, worktree_failures=worktree_failures)
 
 
-def _combined_errors(outcome: UpgradeOutcome, surface_repair_summary: DriftPolicySummary | None) -> list[str]:
-    """Fold the errors channel (data-model.md): ``result.errors`` +
-    ``activation_errors`` + ``worktree_failures`` + the surface-drift
-    message, read from the finalized outcome — the one place both renderers
-    source errors from.
-
-    ``worktree_failures`` is what ``effective_success`` keys on to flip
-    ``success: false`` (FR-012), so it must be visible here too — otherwise a
-    ``--json`` consumer sees a failed run with an empty ``errors`` array. The
-    migrations-pending path (``MigrationRunner._upgrade_worktrees``) already
-    mirrors the same failure strings into ``result.errors`` from the SAME
-    list, so folding is deduplicated against what's already present rather
-    than blindly extended, or that path would report each failure twice.
-    """
-    errors = list(outcome.result.errors)
-    errors.extend(outcome.activation_errors)
-    seen = set(errors)
-    for failure in outcome.worktree_failures:
-        if failure not in seen:
-            errors.append(failure)
-            seen.add(failure)
-    if outcome.surface_drift_failed and surface_repair_summary is not None:
-        errors.append(_surface_drift_error(surface_repair_summary))
-    return errors
-
-
 def _build_migration_json_payload(
     outcome: UpgradeOutcome,
     migrations_needed: Sequence[BaseMigration],
@@ -853,9 +845,10 @@ def _build_migration_json_payload(
             # break the operator contract.
             continue
 
-    success = outcome.effective_success
     return {
-        "status": "success" if success else "failed",
+        "status": outcome.status,
+        "outcome": outcome.kind.value,
+        "failure_reasons": [reason.value for reason in outcome.reasons],
         "current_version": result.from_version,
         "target_version": result.to_version,
         "dry_run": result.dry_run,
@@ -863,9 +856,9 @@ def _build_migration_json_payload(
         "migrations_applied": result.migrations_applied,
         "migrations_skipped": result.migrations_skipped,
         "migration_reports": migration_reports,
-        "success": success,
-        "errors": _combined_errors(outcome, surface_repair_summary),
-        "warnings": result.warnings,
+        "success": outcome.effective_success,
+        "errors": outcome.errors(),
+        "warnings": outcome.warnings(),
         "manual_review_required": bool(manual_review_paths),
         "manual_review_paths": manual_review_paths,
         "auto_committed": outcome.committed,
@@ -888,41 +881,102 @@ def _build_no_migrations_json_payload(
     separately-computed ``upgrade_failed`` formula (#3392).
     """
     result = outcome.result
-    success = outcome.effective_success
     return {
-        "status": "up_to_date" if success else "failed",
+        "status": outcome.status,
+        "outcome": outcome.kind.value,
+        "failure_reasons": [reason.value for reason in outcome.reasons],
         "current_version": result.from_version,
         "target_version": result.to_version,
-        "success": success,
-        "errors": _combined_errors(outcome, surface_repair_summary),
+        "success": outcome.effective_success,
+        "errors": outcome.errors(),
         "auto_committed": outcome.committed,
         "auto_commit_paths": auto_commit_paths,
-        "warnings": result.warnings,
+        "warnings": outcome.warnings(),
         "surface_repair": _surface_repair_payload(surface_repair_summary),
     }
 
 
-def _display_no_migrations_results(outcome: UpgradeOutcome, *, auto_commit_paths: list[str], left_uncommitted: bool = False) -> None:
-    """Render the human-readable up-to-date (no-migrations) outcome.
+def _print_closing_line(outcome: UpgradeOutcome) -> None:
+    """Print the outcome's closing line, styled by its kind (a completed dry run is not green)."""
+    dry_run_applied = outcome.kind is UpgradeOutcomeKind.APPLIED and outcome.result.dry_run
+    style = _DRY_RUN_CLOSING_STYLE if dry_run_applied else _CLOSING_STYLES[outcome.kind]
+    console.print(outcome.closing_line(), style=style, markup=False, highlight=False)
 
-    Pure rendering (T022): never raises. The caller derives the exit code
-    exactly once, from ``UpgradeOutcome.exit_code`` (D-5).
-    """
-    result = outcome.result
-    console.print("[green]Project is already up to date![/green]")
-    for warning in result.warnings:
-        console.print(f"[yellow]Warning:[/yellow] {warning}")
-    for error in outcome.activation_errors:
-        console.print(f"[red]Error:[/red] {error}")
-    # #4888/FR-012: `result.errors` (e.g. a rendered SafeCommitRecoveryFailed
-    # from the commit_churn step) must be visible on the no-migrations path
-    # too — this path runs `commit_churn` exactly like the migrations path.
-    for error in result.errors:
-        console.print(f"[red]Error:[/red] {error}")
+
+def _print_commit_line(outcome: UpgradeOutcome, *, auto_commit_paths: list[str], left_uncommitted: bool) -> None:
+    """Report whether the upgrade churn was committed or deliberately left uncommitted."""
     if outcome.committed:
-        console.print(f"[cyan]→ Auto-committed upgrade changes ({len(auto_commit_paths)} files)[/cyan]")
+        console.print(_AUTO_COMMITTED_LINE.format(count=len(auto_commit_paths)))
     elif left_uncommitted:
         console.print(_LEFT_UNCOMMITTED_MESSAGE)
+
+
+def _render_no_op_tail(outcome: UpgradeOutcome, *, auto_commit_paths: list[str], left_uncommitted: bool) -> None:
+    """The no-op layout: closing line first, then inline warnings, then the commit line."""
+    _print_closing_line(outcome)
+    for warning in outcome.warnings():
+        console.print(f"[yellow]Warning:[/yellow] {escape(warning)}", soft_wrap=True)
+    for error in outcome.errors():
+        console.print(f"[red]Error:[/red] {escape(error)}", soft_wrap=True)
+    _print_commit_line(outcome, auto_commit_paths=auto_commit_paths, left_uncommitted=left_uncommitted)
+
+
+def _render_outcome_tail(
+    outcome: UpgradeOutcome,
+    *,
+    manual_review_paths: list[str],
+    auto_commit_paths: list[str],
+    left_uncommitted: bool,
+) -> None:
+    """Render everything a completed run prints after its migration sections.
+
+    Pure rendering (T022, FR-008/#3392): never raises, and reads every message
+    and the closing line from ``outcome`` alone. The caller derives the exit code
+    exactly once, from ``UpgradeOutcome.exit_code`` (D-5).
+
+    A no-op keeps its established layout. Every other kind, on either path, prints
+    warnings, then errors, then the manual-review paths, a blank line and the closing
+    line last, so a non-zero exit always shows its reasons before the verdict.
+    """
+    if outcome.kind is UpgradeOutcomeKind.NO_OP:
+        _render_no_op_tail(outcome, auto_commit_paths=auto_commit_paths, left_uncommitted=left_uncommitted)
+        return
+    _print_upgrade_section(_WARNINGS_HEADER, outcome.warnings(), "  [yellow]![/yellow] ")
+    _print_upgrade_section(_ERRORS_HEADER, outcome.errors(), "  [red]✗[/red] ")
+    _print_upgrade_section(_MANUAL_REVIEW_HEADER, manual_review_paths, "  [yellow]![/yellow] ")
+    console.print()
+    _print_closing_line(outcome)
+    if outcome.kind in SUCCESS_KINDS and not outcome.result.dry_run:
+        _print_commit_line(outcome, auto_commit_paths=auto_commit_paths, left_uncommitted=left_uncommitted)
+
+
+def _render_text_report(
+    outcome: UpgradeOutcome,
+    *,
+    manual_review_paths: list[str],
+    auto_commit_paths: list[str],
+    left_uncommitted: bool,
+    project_path: Path,
+    dry_run: bool,
+) -> None:
+    """Render a completed run in text mode, for both the migrations and no-migrations paths."""
+    if outcome.had_migrations:
+        _display_upgrade_results(outcome.result)
+    # Dry-run parity: the finalizer provisions mission_type_activations on BOTH paths, so an
+    # up-to-date project still missing the key is seeded on a real run; a dry run must preview
+    # that too (no-op for --json and outside dry-run). A no-op keeps it after the closing line;
+    # any other kind prints it first so its closing line stays last.
+    notice_before_tail = not outcome.had_migrations and outcome.kind is not UpgradeOutcomeKind.NO_OP
+    if notice_before_tail:
+        _print_dry_run_provisioning_notice(project_path, dry_run=dry_run, json_output=False)
+    _render_outcome_tail(
+        outcome,
+        manual_review_paths=manual_review_paths,
+        auto_commit_paths=auto_commit_paths,
+        left_uncommitted=left_uncommitted,
+    )
+    if not outcome.had_migrations and not notice_before_tail:
+        _print_dry_run_provisioning_notice(project_path, dry_run=dry_run, json_output=False)
 
 
 class _FinalizerRenderContext:
@@ -1004,6 +1058,53 @@ def _supporting_repair_preview(project_path: Path) -> tuple[str, bool]:
     return " ".join((*lines, hint)), False
 
 
+def _dry_run_surface_report(project_path: Path, *, json_output: bool) -> SurfaceRepairReport:
+    """Dry-run leg of the surface-repair step: describe, never write.
+
+    A complete preview's notice is printed here (text mode). An incomplete preview's
+    notice travels in the report and is printed once, by the renderer's error section.
+    """
+    notice, incomplete = _supporting_repair_preview(project_path)
+    if incomplete:
+        return SurfaceRepairReport(preview_incomplete=True, failure_messages=(notice,))
+    if notice and not json_output:
+        console.print(notice, markup=False)
+    return SurfaceRepairReport()
+
+
+def _unapplied_repair_messages(results: Sequence[Any]) -> tuple[str, ...]:
+    """One reason per non-applied repair that gave no error diagnostic of its own."""
+    return tuple(
+        f"Tool-surface repair for {result.owner_key} was not applied ({result.outcome}); re-run 'spec-kitty upgrade'."
+        for result in results
+        if result.outcome not in _REPAIR_OK_OUTCOMES and not any(d.severity == "error" for d in result.diagnostics)
+    )
+
+
+def _apply_prepared_surface_repairs(outcome: UpgradeOutcome, ctx: _FinalizerRenderContext, prepared: PreparedUpgradeRepairs) -> SurfaceRepairReport:
+    """Apply the prepared repairs and report drift, failures and the summary the JSON payload reads."""
+    from specify_cli.upgrade.assessment import apply_upgrade_repairs
+    from specify_cli.tool_surface.repair import DriftPolicySummary
+
+    results = apply_upgrade_repairs(prepared)
+    succeeded = {effect_id for result in results for effect_id in result.succeeded}
+    summary = DriftPolicySummary()
+    for effect in prepared.effects:
+        if effect.id in succeeded:
+            (summary.created if effect.action == "create" else summary.repaired).append(effect.destination)
+    for owner in prepared.owners:
+        summary.drifted_reported.extend(
+            owner.root.path / disposition.path for disposition in owner.dispositions if disposition.state == "consent_required" and disposition.path is not None
+        )
+    ctx.surface_repair_summary = summary
+    outcome.result.errors.extend(d.message for result in results for d in result.diagnostics if d.severity == "error")
+    return SurfaceRepairReport(
+        drifted_paths=tuple(summary.drifted_reported),
+        failed=any(result.outcome not in _REPAIR_OK_OUTCOMES for result in results),
+        failure_messages=_unapplied_repair_messages(results),
+    )
+
+
 def _finalizer_step_surface_repair(
     outcome: UpgradeOutcome,
     ctx: _FinalizerRenderContext,
@@ -1011,42 +1112,26 @@ def _finalizer_step_surface_repair(
     project_path: Path,
     dry_run: bool,
     json_output: bool,
-) -> bool:
+) -> SurfaceRepairReport:
     """Injected ``run_surface_repair`` step (C4 order position 2).
+
+    Returns a :class:`SurfaceRepairReport` that keeps the three conditions apart:
+    managed files left alone pending consent (``drifted_paths``), a repair that was
+    not applied (``failed``) and a dry-run preview that could not be completed
+    (``preview_incomplete``).
 
     Gated on ``outcome.result.success`` — surface repair (and its own
     JSON/human output) never runs after a failed migration, mirroring the
-    pre-refactor behavior.
+    pre-refactor behavior. Nothing prepared (preparation failed or did not run)
+    means no surface repair was attempted: an empty report.
     """
     if not outcome.result.success:
-        return False
+        return SurfaceRepairReport()
     if dry_run:
-        notice, incomplete = _supporting_repair_preview(project_path)
-        if notice and not json_output:
-            console.print(notice, markup=False)
-        if incomplete:
-            outcome.result.errors.append(notice)
-        return incomplete
-    if ctx.prepared_repairs is not None:
-        from specify_cli.upgrade.assessment import apply_upgrade_repairs
-        from specify_cli.tool_surface.repair import DriftPolicySummary
-
-        prepared = ctx.prepared_repairs
-        results = apply_upgrade_repairs(prepared)
-        succeeded = {effect_id for result in results for effect_id in result.succeeded}
-        summary = DriftPolicySummary()
-        for effect in prepared.effects:
-            if effect.id in succeeded:
-                (summary.created if effect.action == "create" else summary.repaired).append(effect.destination)
-        for owner in prepared.owners:
-            summary.drifted_reported.extend(
-                owner.root.path / disposition.path for disposition in owner.dispositions if disposition.state == "consent_required" and disposition.path is not None
-            )
-        ctx.surface_repair_summary = summary
-        outcome.result.errors.extend(d.message for result in results for d in result.diagnostics if d.severity == "error")
-        return bool(summary.drifted_reported) or any(result.outcome not in {"applied", "skipped"} for result in results)
-    # Nothing was prepared (preparation failed or did not run): no surface repair was attempted.
-    return False
+        return _dry_run_surface_report(project_path, json_output=json_output)
+    if ctx.prepared_repairs is None:
+        return SurfaceRepairReport()
+    return _apply_prepared_surface_repairs(outcome, ctx, ctx.prepared_repairs)
 
 
 def _render_safe_commit_recovery_failed(exc: SafeCommitRecoveryFailed) -> str:
@@ -1079,7 +1164,9 @@ def _finalizer_step_commit_churn(
     A ``SafeCommitRecoveryFailed`` (#4888/FR-012) is never folded into the
     generic ``commit_warning`` skip message: it is a genuine failure that
     must flip the exit code non-zero and name the orphaned stash ref + landed
-    SHA, not a silent "please commit manually" that hides both.
+    SHA, not a silent "please commit manually" that hides both. It is recorded
+    as its own failure reason (``commit_recovery_failed``), not as a failed
+    migration: the migrations themselves completed.
     """
     try:
         committed, paths, warning = autocommit.commit_touched_checkout(
@@ -1090,7 +1177,7 @@ def _finalizer_step_commit_churn(
         )
     except SafeCommitRecoveryFailed as exc:
         ctx.commit_paths = []
-        outcome.result.success = False
+        outcome.commit_recovery_failed = True
         outcome.result.errors.append(_render_safe_commit_recovery_failed(exc))
         return False
     ctx.commit_paths = paths
@@ -1741,6 +1828,7 @@ def upgrade(
             result=result,
             manual_review_paths=[Path(p) for p in manual_review_paths],
             worktree_failures=list(result.worktree_failures),
+            had_migrations=True,
         )
 
     # T017/C4 — one shared tail: wire the finalizer with the step
@@ -1816,26 +1904,15 @@ def upgrade(
             )
         )
         print(json.dumps(json_payload))
-    elif migrations_needed:
-        _display_upgrade_results(
-            outcome.result,
-            manual_review_paths=manual_review_paths,
-            auto_committed=outcome.committed,
-            auto_commit_paths=auto_commit_paths,
-            effective_success=outcome.effective_success,
-            errors=_combined_errors(outcome, surface_repair_summary),
-            left_uncommitted=left_uncommitted,
-        )
     else:
-        _display_no_migrations_results(outcome, auto_commit_paths=auto_commit_paths, left_uncommitted=left_uncommitted)
-        # Dry-run parity: the finalizer provisions mission_type_activations on
-        # BOTH the migration and no-migrations paths (upgrade/finalize.py — the
-        # single tail), so an up-to-date project still missing the key is seeded
-        # on a real run. The migration path previews that via
-        # _show_migration_plan_and_confirm; the up-to-date path must too, or a
-        # --dry-run silently under-reports the pending seed (no-ops for --json
-        # and outside dry-run).
-        _print_dry_run_provisioning_notice(project_path, dry_run=dry_run, json_output=json_output)
+        _render_text_report(
+            outcome,
+            manual_review_paths=manual_review_paths,
+            auto_commit_paths=auto_commit_paths,
+            left_uncommitted=left_uncommitted,
+            project_path=project_path,
+            dry_run=dry_run,
+        )
 
     # D-5 — the exit code is derived exactly once, here, from the finalized
     # outcome. No other site in the tail may raise typer.Exit. A successful
@@ -1852,34 +1929,17 @@ def _print_upgrade_section(header: str, items: list[str], item_prefix: str) -> N
         return
     console.print(header)
     for item in items:
-        console.print(f"{item_prefix}{item}")
+        console.print(f"{item_prefix}{escape(item)}", soft_wrap=True)
 
 
-def _display_upgrade_results(
-    result: UpgradeResult,
-    *,
-    manual_review_paths: list[str],
-    auto_committed: bool,
-    auto_commit_paths: list[str],
-    effective_success: bool,
-    errors: list[str],
-    left_uncommitted: bool = False,
-) -> None:
-    """Render the human-readable upgrade outcome.
+def _display_upgrade_results(result: UpgradeResult) -> None:
+    """Render the migrations-only part of a run: the dry-run panel and the migration lists.
 
-    Pure rendering (T022, FR-008/#3392): this function never raises. The
-    caller derives the exit code exactly once, from
+    Pure rendering (T022, FR-008/#3392): this function never raises. Everything
+    that explains or summarises the run (warnings, errors, manual-review paths and
+    the closing line) is rendered by :func:`_render_outcome_tail` from the finalized
+    ``UpgradeOutcome``, and the caller derives the exit code exactly once, from
     ``UpgradeOutcome.exit_code`` (D-5), after every renderer has run.
-
-    WP02 / FR-013 (#1784 P3 crumb): a ``--dry-run`` invocation must never print
-    a success line implying changes were applied — the closing line is
-    dry-run-specific ("Dry run complete — no changes applied."), while a real
-    successful run keeps the "Upgrade complete!" line unchanged.
-
-    ``effective_success``/``errors`` come from the finalized
-    ``UpgradeOutcome`` rather than ``result.success``/``result.errors``
-    directly: activation errors and surface-repair drift are finalizer-owned
-    signals that are not folded into ``result`` itself (D-3).
     """
     console.print()
 
@@ -1897,23 +1957,6 @@ def _display_upgrade_results(
         result.migrations_skipped,
         "  [dim]○[/dim] ",
     )
-    _print_upgrade_section("[yellow]Warnings:[/yellow]", result.warnings, "  [yellow]![/yellow] ")
-    _print_upgrade_section("[red]Errors:[/red]", errors, "  [red]✗[/red] ")
-    _print_upgrade_section("[yellow]Manual review required:[/yellow]", manual_review_paths, "  [yellow]![/yellow] ")
-
-    console.print()
-    if not effective_success:
-        console.print("[bold red]Upgrade failed.[/bold red]")
-        return
-    if result.dry_run:
-        # Honest dry-run: nothing was applied, so do not imply it was.
-        console.print(f"[bold yellow]Dry run complete[/bold yellow] — no changes applied. ({result.from_version} -> {result.to_version} previewed)")
-    else:
-        console.print(f"[bold green]Upgrade complete![/bold green] {result.from_version} -> {result.to_version}")
-        if auto_committed:
-            console.print(f"[cyan]→ Auto-committed upgrade changes ({len(auto_commit_paths)} files)[/cyan]")
-        elif left_uncommitted:
-            console.print(_LEFT_UNCOMMITTED_MESSAGE)
 
 
 # ---------------------------------------------------------------------------

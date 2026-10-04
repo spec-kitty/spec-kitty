@@ -348,13 +348,17 @@ def test_upgrade_finalizer_step_flips_exit_code_non_zero_on_recovery_failure(
     )
 
     assert committed is False
-    assert outcome.result.success is False
+    # A commit-recovery failure is its own reason, not a failed migration: the migrations completed.
+    assert outcome.result.success is True
+    assert outcome.commit_recovery_failed is True
     assert outcome.result.errors, "the recovery-failed message must land in result.errors"
     assert "cafed00d" * 5 in outcome.result.errors[0]
     assert "stash@{0}" in outcome.result.errors[0]
 
     outcome.derive_exit_code()
     assert outcome.exit_code != 0, "a forced SafeCommitRecoveryFailed must never leave the upgrade exit code at 0"
+    assert [reason.value for reason in outcome.reasons] == ["commit_recovery_failed"]
+    assert outcome.errors() == outcome.result.errors
 
 
 # ---------------------------------------------------------------------------

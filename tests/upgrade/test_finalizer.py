@@ -15,7 +15,13 @@ from pathlib import Path
 import pytest
 
 from specify_cli.upgrade.finalize import finalize_upgrade
-from specify_cli.upgrade.outcome import RepairOutcome, UpgradeOutcome
+from specify_cli.upgrade.outcome import (
+    RepairOutcome,
+    SurfaceRepairReport,
+    UpgradeFailureReason,
+    UpgradeOutcome,
+    UpgradeOutcomeKind,
+)
 from specify_cli.upgrade.runner import UpgradeResult
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -80,9 +86,9 @@ def test_finalizer_runs_steps_in_contract_order(tmp_path: Path) -> None:
         calls.append("provision")
         return []
 
-    def _surface_repair() -> bool:
+    def _surface_repair() -> SurfaceRepairReport:
         calls.append("surface_repair")
-        return False
+        return SurfaceRepairReport()
 
     def _commit_churn() -> bool:
         calls.append("commit_churn")
@@ -113,7 +119,7 @@ def test_finalizer_skips_commit_when_should_commit_is_false(tmp_path: Path) -> N
     result = finalize_upgrade(
         outcome,
         provision_activations=lambda: [],
-        run_surface_repair=lambda: False,
+        run_surface_repair=SurfaceRepairReport,
         offer_repair=lambda: RepairOutcome(pending=True),
         commit_churn=_commit_churn,
         should_commit=False,
@@ -133,7 +139,7 @@ def test_successful_upgrade_derives_exit_code_zero() -> None:
     result = finalize_upgrade(
         outcome,
         provision_activations=lambda: [],
-        run_surface_repair=lambda: False,
+        run_surface_repair=SurfaceRepairReport,
         offer_repair=lambda: RepairOutcome(pending=True),
         commit_churn=lambda: True,
         should_commit=True,
@@ -149,7 +155,7 @@ def test_failed_migration_result_derives_exit_code_one_no_typer_exit() -> None:
     result = finalize_upgrade(
         outcome,
         provision_activations=lambda: [],
-        run_surface_repair=lambda: False,
+        run_surface_repair=SurfaceRepairReport,
         offer_repair=lambda: RepairOutcome(pending=True),
         commit_churn=lambda: False,
         should_commit=False,
@@ -166,7 +172,7 @@ def test_worktree_failures_flip_exit_code_nonzero() -> None:
     result = finalize_upgrade(
         outcome,
         provision_activations=lambda: [],
-        run_surface_repair=lambda: False,
+        run_surface_repair=SurfaceRepairReport,
         offer_repair=lambda: RepairOutcome(pending=True),
         commit_churn=lambda: False,
         should_commit=False,
@@ -181,7 +187,7 @@ def test_optional_repair_failure_does_not_flip_a_successful_exit_code() -> None:
     result = finalize_upgrade(
         outcome,
         provision_activations=lambda: [],
-        run_surface_repair=lambda: False,
+        run_surface_repair=SurfaceRepairReport,
         offer_repair=lambda: RepairOutcome(ran=True, failed=True, message="repair blew up"),
         commit_churn=lambda: True,
         should_commit=True,
@@ -189,6 +195,8 @@ def test_optional_repair_failure_does_not_flip_a_successful_exit_code() -> None:
     assert result.repair.failed is True
     assert result.exit_code == 0
     assert result.effective_success is True
+    # The gate printed its own failure; the outcome must not list it a second time.
+    assert result.warnings() == []
 
 
 def test_offer_repair_exception_is_isolated_and_does_not_flip_exit_code() -> None:
@@ -203,28 +211,66 @@ def test_offer_repair_exception_is_isolated_and_does_not_flip_exit_code() -> Non
     result = finalize_upgrade(
         outcome,
         provision_activations=lambda: [],
-        run_surface_repair=lambda: False,
+        run_surface_repair=SurfaceRepairReport,
         offer_repair=_boom,
         commit_churn=lambda: True,
         should_commit=True,
     )
     assert result.repair.failed is True
     assert result.exit_code == 0
+    # The gate never saw this failure, so the outcome lists it as a warning (and nothing else changes).
+    assert result.warnings() == ["Mission-state repair boundary raised: unexpected repair blowup"]
+    assert result.kind is UpgradeOutcomeKind.NO_OP
 
 
-def test_activation_errors_and_surface_drift_feed_effective_success() -> None:
+def test_activation_errors_stop_the_surface_repair_step_and_fail_the_outcome() -> None:
     outcome = UpgradeOutcome(result=_synthesized_result(success=True))
     result = finalize_upgrade(
         outcome,
         provision_activations=lambda: ["mission-type X activation failed"],
-        run_surface_repair=lambda: True,
+        run_surface_repair=lambda: pytest.fail("surface repair must not run after an activation error"),
         offer_repair=lambda: RepairOutcome(pending=True),
         commit_churn=lambda: False,
         should_commit=False,
     )
     assert result.activation_errors == ["mission-type X activation failed"]
-    assert result.surface_drift_failed is False
+    assert result.reasons == (UpgradeFailureReason.ACTIVATION_ERROR,)
+    assert result.kind is UpgradeOutcomeKind.FAILED
     assert result.effective_success is False
+    assert result.exit_code == 1
+
+
+def test_unresolved_drift_is_recorded_and_derives_exit_code_one() -> None:
+    drifted = (Path("/proj/.claude/agents/a.md"), Path("/proj/.claude/agents/b.md"))
+    result = finalize_upgrade(
+        UpgradeOutcome(result=_synthesized_result(success=True)),
+        provision_activations=lambda: [],
+        run_surface_repair=lambda: SurfaceRepairReport(drifted_paths=drifted),
+        offer_repair=lambda: RepairOutcome(pending=True),
+        commit_churn=lambda: False,
+        should_commit=False,
+    )
+    assert result.drifted_paths == list(drifted)
+    assert result.reasons == (UpgradeFailureReason.SURFACE_DRIFT,)
+    assert result.kind is UpgradeOutcomeKind.DRIFT_UNRESOLVED
+    assert result.errors() == ["Unresolved tool-surface drift in 2 file(s); run 'spec-kitty doctor tool-surfaces' to review."]
+    assert result.exit_code == 1
+
+
+def test_unapplied_repair_is_recorded_as_a_failure_not_as_drift() -> None:
+    report = SurfaceRepairReport(failed=True, failure_messages=("Tool-surface repair for x was not applied (failed); re-run 'spec-kitty upgrade'.",))
+    result = finalize_upgrade(
+        UpgradeOutcome(result=_synthesized_result(success=True)),
+        provision_activations=lambda: [],
+        run_surface_repair=lambda: report,
+        offer_repair=lambda: RepairOutcome(pending=True),
+        commit_churn=lambda: False,
+        should_commit=False,
+    )
+    assert result.drifted_paths == []
+    assert result.reasons == (UpgradeFailureReason.SURFACE_REPAIR_FAILED,)
+    assert result.kind is UpgradeOutcomeKind.FAILED
+    assert result.errors() == list(report.failure_messages)
     assert result.exit_code == 1
 
 
@@ -233,9 +279,9 @@ def test_provisioning_refusal_prevents_dependent_writes_and_commit(tmp_path: Pat
     output = tmp_path / "surface.txt"
     commits: list[str] = []
 
-    def repair_surface() -> bool:
+    def repair_surface() -> SurfaceRepairReport:
         output.write_text("dependent output\n")
-        return False
+        return SurfaceRepairReport()
 
     def commit() -> bool:
         commits.append("commit")
@@ -270,9 +316,9 @@ def test_finalizer_keeps_preflight_around_writes_not_commit_or_mission_repair() 
         calls.append("provision")
         return []
 
-    def surfaces() -> bool:
+    def surfaces() -> SurfaceRepairReport:
         calls.append("surfaces")
-        return False
+        return SurfaceRepairReport()
 
     def commit() -> bool:
         calls.append("commit")
@@ -308,10 +354,10 @@ def test_single_churn_commit_excludes_mission_state_repair_paths(tmp_path: Path)
     _init_git_repo(tmp_path)
     commits_before = _commit_count(tmp_path)
 
-    def _surface_repair() -> bool:
+    def _surface_repair() -> SurfaceRepairReport:
         (tmp_path / "surface_repaired.txt").write_text("repaired\n", encoding="utf-8")
         subprocess.run(["git", "add", "surface_repaired.txt"], cwd=tmp_path, check=True)
-        return False
+        return SurfaceRepairReport()
 
     def _commit_churn() -> bool:
         subprocess.run(
