@@ -241,6 +241,76 @@ def test_completed_single_branch_mission_is_not_an_occupant(tmp_path: Path) -> N
     assert in_progress_wps_in_write_checkout(repo, repo) == []
 
 
+def _set_meta_fields(repo: Path, mission_slug: str, **fields: object) -> None:
+    """Overwrite (or, with ``None``, drop) top-level ``meta.json`` fields."""
+    meta_path = repo / "kitty-specs" / mission_slug / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    for key, value in fields.items():
+        if value is None:
+            meta.pop(key, None)
+        else:
+            meta[key] = value
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+
+
+def _in_progress_occupant(repo: Path, mission_slug: str, mission_id: str, **meta_fields: object) -> None:
+    _write_single_branch_meta(repo, mission_slug, mission_id)
+    _set_meta_fields(repo, mission_slug, **meta_fields)
+    _write_repo_root_lane(repo, mission_slug, "WP01")
+    write_wp(repo, mission_slug, "in_progress", "WP01")
+
+
+def test_mission_writing_to_another_branch_is_not_an_occupant(tmp_path: Path) -> None:
+    """#5680: a status copy on a branch that is not the mission's write branch is not live."""
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    _in_progress_occupant(repo, "occ-landed", "01OCCLANDED000000000000L", target_branch="fix/landed-elsewhere")
+
+    assert _git(repo, "branch", "--show-current") == "main"
+    assert in_progress_wps_in_write_checkout(repo, repo) == []
+
+
+def test_mission_writing_to_the_current_branch_is_an_occupant(tmp_path: Path) -> None:
+    """Control for the #5680 filter: the same fixture with the write branch set to the current branch."""
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    _git(repo, "checkout", "-q", "-b", "topic")
+    _in_progress_occupant(repo, "occ-live", "01OCCLIVE00000000000000V", target_branch="topic")
+
+    assert in_progress_wps_in_write_checkout(repo, repo) == [("occ-live", "WP01")]
+
+
+def test_protected_target_mint_is_the_write_branch(tmp_path: Path) -> None:
+    """A recorded ``mission_branch`` (protected-target mint) wins over ``target_branch``."""
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    _git(repo, "checkout", "-q", "-b", "kitty/mission-occ-mint")
+    _in_progress_occupant(repo, "occ-mint", "01OCCMINT00000000000000T", mission_branch="kitty/mission-occ-mint")
+    _in_progress_occupant(repo, "occ-target-only", "01OCCTARGETONLY000000000O")
+
+    # occ-target-only writes to ``main`` and is skipped; occ-mint writes to the mint it sits on.
+    assert in_progress_wps_in_write_checkout(repo, repo) == [("occ-mint", "WP01")]
+
+
+def test_unknown_write_branch_fails_closed(tmp_path: Path) -> None:
+    """No ``target_branch`` in ``meta.json``: the mission still counts as an occupant."""
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    _in_progress_occupant(repo, "occ-no-target", "01OCCNOTARGET0000000000N", target_branch=None)
+
+    assert in_progress_wps_in_write_checkout(repo, repo) == [("occ-no-target", "WP01")]
+
+
+def test_detached_head_fails_closed(tmp_path: Path) -> None:
+    """A detached write checkout cannot be compared, so every candidate still counts."""
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    _in_progress_occupant(repo, "occ-elsewhere", "01OCCELSEWHERE000000000E", target_branch="fix/landed-elsewhere")
+    _git(repo, "checkout", "-q", "--detach")
+
+    assert in_progress_wps_in_write_checkout(repo, repo) == [("occ-elsewhere", "WP01")]
+
+
 def test_wp_in_a_code_lane_of_a_single_branch_mission_is_not_an_occupant(tmp_path: Path) -> None:
     """An unmigrated single_branch mission keeps its WPs in CODE lanes (own worktree)."""
     repo = tmp_path / "repo"

@@ -23,7 +23,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from kernel.git import GitPath
-from mission_runtime import MissionArtifactKind, is_single_branch, placement_seam
+from mission_runtime import MissionArtifactKind, MissionTopology, is_single_branch, placement_seam, single_branch_write_ref
 
 __all__ = ["dirty_paths", "in_progress_wps_in_write_checkout"]
 
@@ -49,14 +49,41 @@ def _repo_root_lane_wp_ids(feature_dir: Path) -> frozenset[str]:
     return frozenset(wp_id for lane in manifest.lanes if is_repo_root_lane(lane) for wp_id in lane.wp_ids)
 
 
-def _occupancy_candidate_wp_ids(feature_dir: Path) -> frozenset[str]:
+def _writes_to_another_branch(feature_dir: Path, topology: MissionTopology, current_branch: str | None) -> bool:
+    """True when the mission's write branch is known and is not *current_branch* (#5680).
+
+    A single_branch mission's status is authoritative only on its write
+    branch: the protected-target mint recorded as ``meta.json``
+    ``mission_branch``, else ``target_branch``
+    (:func:`mission_runtime.single_branch_write_ref`, the one write-branch
+    rule). A copy of its status on any other branch -- carried there by
+    branching off, or by integrating a merge without ``consolidate`` -- is a
+    snapshot, not the mission's live state, so it cannot occupy this checkout.
+
+    Fails closed (``False``: the mission still counts) whenever either side is
+    unknown: a detached HEAD, or no ``target_branch``. Called only after
+    :func:`read_topology` has parsed the same ``meta.json``.
+    """
+    from specify_cli.core.paths import load_meta_fail_closed
+
+    if current_branch is None:
+        return False
+    meta = load_meta_fail_closed(feature_dir) or {}
+    target_branch = meta.get("target_branch")
+    if not isinstance(target_branch, str) or not target_branch:
+        return False
+    return single_branch_write_ref(topology, meta.get("mission_branch"), target_branch) != current_branch
+
+
+def _occupancy_candidate_wp_ids(feature_dir: Path, current_branch: str | None) -> frozenset[str]:
     """Repo-root-lane WP ids of *feature_dir* when its mission can occupy the checkout.
 
     Empty for every mission that cannot hold the shared write checkout, so the
-    caller reads the status log only for real candidates (filters 1-3 of
+    caller reads the status log only for real candidates (filters 1-4 of
     :func:`in_progress_wps_in_write_checkout`): a mission whose ``meta.json``
     cannot be read, whose stored topology is not ``single_branch``, that has
-    no WP in a repo-root lane, or that is completed.
+    no WP in a repo-root lane, that is completed, or whose write branch is not
+    *current_branch*.
     """
     from specify_cli.core.paths import MissionMetaReadError
     from specify_cli.migration.backfill_topology import read_topology
@@ -70,6 +97,8 @@ def _occupancy_candidate_wp_ids(feature_dir: Path) -> frozenset[str]:
         return frozenset()
     repo_root_wp_ids = _repo_root_lane_wp_ids(feature_dir)
     if not repo_root_wp_ids or is_mission_completed(feature_dir):
+        return frozenset()
+    if _writes_to_another_branch(feature_dir, topology, current_branch):
         return frozenset()
     return repo_root_wp_ids
 
@@ -96,7 +125,12 @@ def in_progress_wps_in_write_checkout(
        unmigrated single_branch mission whose WPs sit in code lanes;
     3. the mission is not completed
        (:func:`specify_cli.status.is_mission_completed`);
-    4. the status snapshot: a repo-root-lane WP whose lane is ``in_progress``.
+    4. the mission's write branch is the branch *write_checkout* is on
+       (#5680; see :func:`_writes_to_another_branch`) -- a status copy on
+       any other branch is not that mission's live status, so a mission
+       merged into this branch without ``consolidate`` no longer occupies
+       it. Unknown branches fail closed;
+    5. the status snapshot: a repo-root-lane WP whose lane is ``in_progress``.
 
     A single_branch mission's write checkout has no persisted alternate root
     (``effective_root`` is a per-invocation resolver parameter, never written
@@ -113,6 +147,7 @@ def in_progress_wps_in_write_checkout(
     never reads as occupancy by another WP (contract's resume exemption).
     """
     from specify_cli.context.mission_resolver import FsMissionResolver
+    from specify_cli.core.git_ops import get_current_branch
     from specify_cli.status import Lane
     from specify_cli.status import read_events as _read_events
     from specify_cli.status import reduce as _reduce_events
@@ -123,12 +158,14 @@ def in_progress_wps_in_write_checkout(
         # repo_root without a persisted alternate root -- see the docstring.
         return []
 
+    # One branch read per scan (NFR-001): every candidate is compared to it.
+    current_branch = get_current_branch(write_checkout_resolved)
     occupied: list[tuple[str, str]] = []
     # One walk of kitty-specs/ (the resolver port); the per-mission seam
     # lookup would re-walk the tree for every mission (quadratic).
     for mission in FsMissionResolver(repo_root).all_missions():
         mission_slug = mission.mission_slug
-        repo_root_wp_ids = _occupancy_candidate_wp_ids(mission.feature_dir)
+        repo_root_wp_ids = _occupancy_candidate_wp_ids(mission.feature_dir, current_branch)
         if not repo_root_wp_ids:
             continue
 
