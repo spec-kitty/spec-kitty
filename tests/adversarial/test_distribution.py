@@ -246,9 +246,7 @@ class TestUpgradeWithAllMissions:
         # check. In a logged-out environment (e.g. CI without credentials) the
         # child emits a `logged_out_on_connected_teamspace` banner and exits
         # non-zero before doing real work — that is an environment condition,
-        # not a product regression, so skip rather than red the suite. Detection
-        # mirrors the canonical banner check used elsewhere (e.g.
-        # tests/charter/evidence/test_orchestrator.py::test_dry_run_evidence_on_spec_kitty_repo).
+        # not a product regression, so skip rather than red the suite.
         if "logged_out_on_connected_teamspace" in upgrade_result.stdout or (
             "logged_out_on_connected_teamspace" in upgrade_result.stderr
         ):
