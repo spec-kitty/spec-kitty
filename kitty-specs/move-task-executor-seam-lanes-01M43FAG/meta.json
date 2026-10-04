@@ -1,15 +1,35 @@
 {
+  "accept_commit": "6843ecf7c0bd563a0afa5aa70517adf81ef1d676",
+  "acceptance_history": [
+    {
+      "accept_commit": "6843ecf7c0bd563a0afa5aa70517adf81ef1d676",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-04T13:59:47.274645+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "676a36efd8b915346661c7478f2253c11e5c8b51"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-04T13:59:47.274645+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "676a36efd8b915346661c7478f2253c11e5c8b51",
+  "baseline_merge_commit": "94ce879af9ab4b5668dcac772751b31599ae917f",
   "created_at": "2026-10-04T12:48:20.081277+00:00",
   "flattened": false,
   "friendly_name": "Move-task executor seam and test-friction cleanup",
+  "merged_at": "2026-10-04T14:02:01.625269+00:00",
+  "merged_commit": "59e76434a28e2e85e18db504bcbab0d47cddc5b2",
   "mid8": "01M43FAG",
   "mission_id": "01M43FAG864Q3M3BQ41NPWDS4C",
-  "mission_number": null,
+  "mission_number": 215,
   "mission_slug": "move-task-executor-seam-lanes-01M43FAG",
   "mission_type": "software-dev",
   "purpose_context": "Slice 2 of #5629. Keeps move-task behaviour identical while shrinking the CLI module to parse/present/call-core, and applies DIRECTIVE_041 and the development-assist test-cleanup procedure.",
   "purpose_tldr": "Move move-task decision, emission and recovery logic behind the transition core and coordination shell, and retire move-task test friction.",
   "slug": "move-task-executor-seam-lanes-01M43FAG",
+  "status_phase": "1",
   "target_branch": "claude/move-task-degod-slice-2",
-  "topology": "lanes"
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-04T12:49:13.940977+00:00"
 }

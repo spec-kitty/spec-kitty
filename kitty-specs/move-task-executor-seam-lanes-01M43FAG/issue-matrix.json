@@ -1,7 +1,7 @@
 {
   "rows": {
     "#2555": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "adjacent recovery friction; tracked by #2555 itself, relocation enables a targeted fix",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +9,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#2561": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "partial: move-task seam patch sites re-homed to owning modules (FR-008); wider runtime_bridge scope stays on #2561",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,11 +21,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP03"
     },
     "#3460": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "historical guard (plain emit builds no transaction) preserved and pinned by WP02 tests",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,11 +33,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#3563": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "review-facts gathering not moved in this slice; tracked by #3563",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,11 +45,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#3866": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "historical guard (owned= threading) preserved and pinned by WP02 tests",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,11 +57,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#5151": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "behaviour fix out of scope (C-003); tracked by #5151",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,11 +69,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#5447": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "behaviour fix out of scope (C-003); tracked by #5447",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,11 +81,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#5468": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "concurrency residual out of scope (C-003); tracked by #5468",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -93,11 +93,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#5629": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "slice 2 of the move-task degod; this mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -105,11 +105,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP03"
     },
     "#5661": {
-      "evidence_ref": "<auto-classified: no action required>",
+      "evidence_ref": "slice-1 PR this mission stacks on",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -118,6 +118,30 @@
       "source_file": "spec.md",
       "title": "<auto-classified: pr_or_commit_ref>",
       "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5684": {
+      "evidence_ref": "commit 6d514ef3 on claude/move-task-degod-slice-2 (boy-scout fold)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": null
+    },
+    "#5685": {
+      "evidence_ref": "commit 9f33bc64 on claude/move-task-degod-slice-2 (boy-scout fold)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
       "wp": null
     }
   },

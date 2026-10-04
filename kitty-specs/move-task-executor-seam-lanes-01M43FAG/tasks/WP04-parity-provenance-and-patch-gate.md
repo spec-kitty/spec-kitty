@@ -9,6 +9,9 @@ requirement_refs:
 planning_base_branch: claude/move-task-degod-slice-2
 merge_target_branch: claude/move-task-degod-slice-2
 branch_strategy: Planning artifacts for this mission were generated on claude/move-task-degod-slice-2. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/move-task-degod-slice-2 unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-move-task-executor-seam-lanes-01M43FAG
+base_commit: c66ee0b78cd6ab84d9a66cf5f1c975157688a357
+created_at: '2026-10-04T13:42:41.188450+00:00'
 subtasks:
 - T011
 - T012
