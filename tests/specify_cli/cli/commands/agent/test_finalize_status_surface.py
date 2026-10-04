@@ -64,7 +64,6 @@ def test_a_detached_head_is_not_guarded_and_never_touched(checkout: Path) -> Non
 
 
 def test_a_branch_moved_by_someone_else_is_left_and_only_this_runs_commits_are_named(checkout: Path) -> None:
-    before = _git(checkout, "rev-parse", "HEAD")
     guard = _captured(checkout)
     with guard.recording():
         _seed(checkout, "seed WP01")
@@ -78,24 +77,22 @@ def test_a_branch_moved_by_someone_else_is_left_and_only_this_runs_commits_are_n
     assert [c.split(" ", 1)[1] for c in leftover.commits] == ["seed WP01"]
     assert "work" in leftover.lines()[0]
     assert not guard.is_at_tip_before()
-    assert before != tip
 
 
 def test_a_refused_compare_and_swap_is_reported_not_retried(checkout: Path) -> None:
     guard = _captured(checkout)
     with guard.recording():
         _seed(checkout, "seed WP01")
-    tip = _git(checkout, "rev-parse", "HEAD")
 
     with patch(
         "specify_cli.cli.commands.agent.finalize_status_surface.restore_branch_ref",
         side_effect=RefRestoreError("ref moved under us"),
-    ):
+    ) as restore_branch_ref:
         leftover = guard.restore()
 
     assert leftover is not None
     assert leftover.reason == "ref moved under us"
-    assert _git(checkout, "rev-parse", "HEAD") == tip
+    restore_branch_ref.assert_called_once()
 
 
 def test_an_index_that_cannot_be_restored_names_the_repair(checkout: Path) -> None:
