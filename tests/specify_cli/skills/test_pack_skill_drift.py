@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import stat
 from pathlib import Path
 
 import pytest
@@ -61,6 +62,12 @@ def _rendered(project: Path) -> Path:
     return project / ".claude" / "skills" / RENDERED / "SKILL.md"
 
 
+def _edit_installed(path: Path, text: str) -> None:
+    """Edit an installed skill the way a user must: the installer leaves ``SKILL.md`` without write bits."""
+    path.chmod(path.stat().st_mode | stat.S_IWUSR)
+    path.write_text(text, encoding="utf-8")
+
+
 def _doctor(project: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[int, dict[str, object]]:
     monkeypatch.setattr("specify_cli.cli.commands.doctor.locate_project_root", lambda: project)
     result = runner.invoke(doctor_app, ["skills", "--json"])
@@ -81,7 +88,7 @@ def test_clean_install_has_no_findings(project: Path, monkeypatch: pytest.Monkey
 
 
 def test_local_edit_is_drift_naming_source_ref(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    _rendered(project).write_text(_rendered(project).read_text(encoding="utf-8") + "\nlocal edit\n", encoding="utf-8")
+    _edit_installed(_rendered(project), _rendered(project).read_text(encoding="utf-8") + "\nlocal edit\n")
 
     findings = find_pack_skill_findings(project)
     assert {f.kind for f in findings} == {KIND_DRIFT}
@@ -119,7 +126,7 @@ def test_pack_change_is_staleness_naming_source_ref(project: Path, pack: Path, m
 
 
 def test_findings_are_read_only(project: Path, pack: Path) -> None:
-    _rendered(project).write_text("edited\n", encoding="utf-8")
+    _edit_installed(_rendered(project), "edited\n")
     (pack / "skills" / f"{SKILL_ID}.skill.md").write_text("changed\n", encoding="utf-8")
     before = {p: p.read_bytes() for p in project.rglob("*") if p.is_file()}
     find_pack_skill_findings(project)
@@ -134,7 +141,7 @@ def test_old_manifest_without_provenance_gives_no_false_drift(project: Path, pac
         entry.origin, entry.source_ref, entry.source_hash = "builtin", "", ""
     save_manifest(manifest, project)
     (pack / "skills" / f"{SKILL_ID}.skill.md").write_text("changed\n", encoding="utf-8")
-    _rendered(project).write_text("edited\n", encoding="utf-8")
+    _edit_installed(_rendered(project), "edited\n")
 
     assert find_pack_skill_findings(project) == ()
 

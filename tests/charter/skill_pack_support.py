@@ -10,7 +10,7 @@ from ruamel.yaml import YAML
 NAMESPACE = "acme"
 
 
-def write_skill(pack_root: Path, skill_id: str, *, form: str = "prompt", expands_to: str = "builtin:spec-kitty.merge") -> None:
+def write_skill(pack_root: Path, skill_id: str, *, form: str = "prompt", expands_to: str = "builtin:spec-kitty.consolidate") -> None:
     """Write ``skills/<id>.skill.yaml`` (+ body for prompt form) into an org pack."""
     skills = pack_root / "skills"
     skills.mkdir(parents=True, exist_ok=True)

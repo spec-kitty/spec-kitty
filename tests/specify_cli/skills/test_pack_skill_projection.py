@@ -7,6 +7,7 @@ manifest byte-identical (0 writes). Pack skills never reach a user-global root.
 from __future__ import annotations
 
 import os
+import stat
 from pathlib import Path
 
 import pytest
@@ -49,6 +50,12 @@ def _tree(root: Path) -> dict[str, object]:
         key = path.relative_to(root).as_posix()
         out[key] = ("link", os.readlink(path)) if path.is_symlink() else ("dir" if path.is_dir() else path.read_bytes())
     return out
+
+
+def _edit_installed(path: Path, text: str) -> None:
+    """Edit an installed skill the way a user must: the installer leaves ``SKILL.md`` without write bits."""
+    path.chmod(path.stat().st_mode | stat.S_IWUSR)
+    path.write_text(text, encoding="utf-8")
 
 
 def _fake_builtin(tmp_path: Path, *names: str) -> SkillRegistry:
@@ -386,7 +393,7 @@ def test_the_last_pack_skill_is_retired_even_with_an_empty_catalog(project: Path
 def test_a_locally_modified_pack_file_survives_retirement_and_is_reported(project: Path, tmp_path: Path) -> None:
     shipped, _ = _installed(project, tmp_path)
     edited = project / ".claude" / "skills" / RENDERED / "SKILL.md"
-    edited.write_text("my edits\n", encoding="utf-8")
+    _edit_installed(edited, "my edits\n")
 
     support.write_config(project, tmp_path / "pack", extra="agents:\n  available:\n    - claude\n    - codex\nactivated_skills: []\n")
     projection = project_pack_skills(project, registry=resolve_project_skill_catalog(project, builtin=shipped))

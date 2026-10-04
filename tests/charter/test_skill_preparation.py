@@ -44,7 +44,7 @@ def _wrapper(skill_id: str) -> PackSkill:
             "title": "t",
             "description": "d",
             "form": "wrapper",
-            "expands_to": {"target": "builtin:spec-kitty.merge", "args": "--strategy squash $ARGUMENTS"},
+            "expands_to": {"target": "builtin:spec-kitty.consolidate", "args": "--strategy squash $ARGUMENTS"},
         }
     )
 
@@ -128,7 +128,7 @@ def test_wrapper_skill_keeps_its_builtin_target_unresolved() -> None:
     assert prepared.form == "wrapper"
     assert prepared.body is None
     assert prepared.expansion is not None
-    assert prepared.expansion.target == "builtin:spec-kitty.merge"
+    assert prepared.expansion.target == "builtin:spec-kitty.consolidate"
     assert prepared.expansion.args == "--strategy squash $ARGUMENTS"
     assert prepared.requires == ()
 

@@ -29,9 +29,9 @@ def wrapper_skill(skill_id: str = "ship", **overrides: Any) -> dict[str, Any]:
         "schema_version": "1.0",
         "id": skill_id,
         "title": "Ship",
-        "description": "Shorthand for merge.",
+        "description": "Shorthand for consolidate.",
         "form": "wrapper",
-        "expands_to": {"target": "builtin:spec-kitty.merge", "args": "$ARGUMENTS"},
+        "expands_to": {"target": "builtin:spec-kitty.consolidate", "args": "$ARGUMENTS"},
     }
     data.update(overrides)
     return data
