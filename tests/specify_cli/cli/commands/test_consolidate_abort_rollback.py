@@ -281,3 +281,24 @@ def test_abort_with_a_snapshot_refuses_while_a_live_foreign_merge_holds_the_lock
     assert {b: _git(repo, "rev-parse", b) for b in advanced} == advanced, "nothing may be restored while another merge is live"
     assert (repo / ".kittify" / "runtime" / "merge" / _MISSION_ID / "state.json").exists(), "the record must be kept"
     assert read_merge_lock_owner(_LOCK, repo) == _OTHER_ID
+
+
+def test_abort_keeps_the_record_and_releases_the_lock_when_the_restore_is_incomplete(repo: Path) -> None:
+    """Composition guard: an incomplete restore verdict must stop ``_abort_lock_restore_clear`` before it clears.
+
+    A run-movable branch moved by another actor since the recorded post tip makes the restore
+    incomplete: the abort exits 1, keeps ``state.json`` (not cleared, coordination not torn down)
+    and releases the lock it took, leaving the other actor's commit in place.
+    """
+    state = _state(repo)
+    _advance_both(repo)
+    record_post_mutation_tips(repo, state)
+    moved = _commit(repo, _MISSION_BRANCH, "another actor")
+
+    with consolidate.console.capture(), pytest.raises(typer.Exit) as excinfo:
+        consolidate._abort_lock_restore_clear(repo, "abort-unit", (None, state))
+
+    assert excinfo.value.exit_code == 1
+    assert (repo / ".kittify" / "runtime" / "merge" / _MISSION_ID / "state.json").exists(), "the record must be kept"
+    assert not is_merge_locked(_LOCK, repo), "the lock this abort took must be released"
+    assert _git(repo, "rev-parse", _MISSION_BRANCH) == moved
