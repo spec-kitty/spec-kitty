@@ -618,24 +618,26 @@ been fixed, the end-state is stated instead of the trap.
 - **Per-worktree venv rebuild.** The first `uv run` in a fresh landing
   worktree rebuilds the virtualenv (~40 s + disk). Budget for it; do not
   debug it.
-- **Do NOT recapture `charter` shard-timings during a landing (#5189).** When a
-  PR changes `tests/charter`'s test count, the committed `charter` durations in
-  `.github/ci-shard-timings.json` no longer match live collection, so
-  `test_charter_is_not_allowlisted_and_agrees` /
-  `test_non_allowlisted_modules_agree_with_live_collection`
-  (`tests/architectural/test_module_length_agreement.py`) drift. This is the one
+- **Do NOT recapture shard-timings during a landing (#5189, #5536).** When a PR
+  adds or removes tests in a registry module, that module's committed count and
+  durations in `.github/ci-shard-timings.json` no longer match live collection, so
+  the exact-count checks in `tests/architectural/test_module_length_agreement.py`
+  (for example `test_charter_agrees_with_live_collection` and
+  `test_every_registry_module_agrees_with_live_collection`) drift. This is the one
   count-pinning anchor the general "recapture a drifted count anchor" advice does
-  **not** apply to. Mission `per-pr-shard-timings-recapture-friction-01M3H7V8`
-  (#5189) deliberately removed per-PR charter recapture as landing work: per-PR
-  the drift is a non-blocking `ShardTimingsDriftWarning`, not a failure; the
-  strict exact-count gate lives only in `ci-charter-shard-recapture.yml`
-  (`schedule` + `workflow_dispatch`, no PR/push trigger → it cannot run on a PR
-  or block merge); and its `recapture-charter-shard-timings` job auto-opens the
-  fix PR on the next scheduled `main` run (~18-min in-process capture). So note
-  the drift as #5189-relieved and automation-owned in the hand-off and move on —
-  a local recapture is ~18–30 min of machine-specific measurement for a gate that
-  cannot block the PR and self-heals. Recapture still applies to *other*
-  non-allowlisted modules without dedicated automation (today only `agent`).
+  **not** apply to, for any module. Per PR the drift is a non-blocking
+  `ShardTimingsDriftWarning`, not a failure. The strict exact-count gate lives in
+  `ci-shard-recapture.yml` (`schedule` + `workflow_dispatch`, no PR/push trigger, so
+  it cannot run on a PR or block merge). Its `recapture-shard-timings` job counts
+  every module's tests on each scheduled run on the primary branch (`main`),
+  recaptures the drifted ones within a 70-minute budget (the rest are deferred to
+  the next run) and opens or refreshes one pull request on `ci/recapture-shard-timings`. Until that proposal
+  merges, the strict check is red on the scheduled run; that is the accepted
+  window. So note the drift as automation-owned in the hand-off and move on: a local
+  recapture of a large module takes 18-30 minutes of machine-specific measurement
+  for a gate that cannot block the PR. If the scheduled job captured but could not
+  push, the publish step names the token secret to replace (see #5624). See
+  [Scheduled shard-timings recapture](../reference/ci-gate-mechanics.md#scheduled-shard-timings-recapture).
 - **A `docs(landing)` fold that edits a `kitty-specs/**` mission dossier reds
   `archive freeze`.** Archived mission dossiers are frozen byte-identical
   (`tests/architectural/test_archive_root_byte_identical.py`, the always-on

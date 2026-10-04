@@ -2,7 +2,7 @@
 title: Running the test suite in parallel
 description: 'How to run the Spec Kitty test suite in parallel locally and in CI: the one correct command, why it is shaped that way, and reproducing the coverage-neutrality gates.'
 doc_status: active
-updated: '2026-10-01'
+updated: '2026-10-04'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -299,6 +299,13 @@ above are unchanged.
 - **Local targets keep `-n auto`.** `make test-fast` and `make test-full` run on machines
   with an unknown core count, so the literal is a CI-runner fact and not a local
   recommendation. The `-n auto` recipes in this page stay correct.
+- **The test list is collected once per job, before pytest.** The heavy battery legs
+  and the `ci` module shard that holds the `live_universe` test run a pre-test step
+  that collects the full list of tests and stores it, so no test collects inside its
+  own setup while four workers compete for the CPUs. A first run still collects once
+  per consuming job; a re-run restores the stored list. The step, the cache key, the
+  conditions that bypass the store and the `check` that fails a silent fallback are in
+  [Stored test-universe collection](../reference/ci-gate-mechanics.md#stored-test-universe-collection).
 - **The nightly backstop.** `ci-nightly.yml` job `architectural-backstop` runs the full
   battery base selection (`tests/architectural` with the base marker expression and the same
   deselects) in one plain pytest invocation, with no partition plugin, on Python 3.12 with a

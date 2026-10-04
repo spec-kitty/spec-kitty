@@ -365,6 +365,212 @@ guard (`tests/architectural/test_module_shard_registry.py`,
   the gate-selection logic (`scripts/ci/gate_selection.py`) rather than
   hand-authoring a second map.
 
+## Stored test-universe collection
+
+Several architectural gates need the full list of collected tests with their
+markers (the "test universe"). One real `pytest --collect-only` of the tree takes
+tens of seconds, and before this change the first test that needed the list
+collected it inside its own setup while four xdist workers competed for the same
+CPUs. The list is now collected once per job, in a step before pytest, and stored on
+disk; the tests read the stored copy.
+
+**What it does and does not do.** A first run of a checkout still collects once
+in each job that consumes the list, so three times per pull-request update (the two
+architectural battery legs and one `ci` module shard). The change moves that
+collection out of test setup and out of worker contention. A re-run of the same
+checkout restores the stored list from the CI cache instead of collecting. On one
+developer machine a collection took 62.5 s and reading the stored copy 0.33 s.
+There is no CI measurement yet.
+
+### Where it lives and what it is keyed on
+
+- The code is `tests/architectural/_universe_store.py`. `collect_universe()` in
+  `tests/architectural/_gate_coverage.py` calls it; its signature and return value are
+  unchanged.
+- The store is `.pytest_cache/universe-store/`, which git ignores. It holds one
+  record file, `<key>.json`, plus a lock file. Writing a record deletes every other
+  record file.
+- The key is a digest of the committed tree (not the commit), the interpreter,
+  the platform, every installed distribution with its version, and the environment
+  variables named `SPEC_KITTY_*` plus `PYTEST_ADDOPTS`. The variables the test
+  session sets for itself are listed in `ENV_EXCLUDED_NAMES` and left out, so a
+  pre-test step and a test compute the same key. The key also overlays the
+  operator env file (`.kitty.env`) through the product's own loader. A machine whose
+  home-level `.kitty.env` sets `SPEC_KITTY_*` variables may therefore see local reuse
+  not happen, because pytest isolates `HOME`; CI is unaffected.
+- A record is stored only when the checkout is still the one the key was computed
+  for after the collection: if a commit, a branch switch or an edit happened
+  meanwhile, the caller still gets the universe it collected, the report line says
+  `not stored: the checkout changed during the collection`, and the pre-test step
+  fails on that line.
+- A record is read only when its schema, key, record count and origin (commit and
+  tree) all match and it holds at least 1,000 records (a corruption guard, not a
+  ratchet). Anything else is treated as absent and replaced after a fresh
+  collection.
+- For one key, one collection runs at a time on a machine. Other callers wait on
+  the lock and then read the stored copy.
+
+### When the store is bypassed
+
+The store is not read or written, and the caller collects for itself, when:
+
+| Reason in the report | Condition |
+| --- | --- |
+| `dirty-checkout` | `git status --porcelain` is not empty. Untracked files count, because an untracked test file changes what is collected. |
+| `root-override` | the caller passed a `repo_root` (a patched root). |
+| `unsupported-platform` | the platform is not Linux or macOS. The same reason, with a `detail`, is reported when the store directory or its lock cannot be used. |
+| `git-unavailable` | git cannot describe the checkout. |
+| `env-file-unreadable` | an operator `.kitty.env` exists but cannot be read, so the environment variables of the key are unknown. |
+
+### The report line
+
+When `SK_GATE_REUSE_REPORT` names a file, each call of `collect_universe()` appends
+one JSON line to it: `outcome` (`reused`, `collected` or `bypassed`), `reason`
+(`no-record`, `invalid-record`, `origin-mismatch` or a bypass reason from the table),
+`key`, `caller` (the pre-step is `prestep`, a test is its file path), `seconds`, and
+when present `detail` and `dirty_paths`. A `detail` starting with `not stored` on a
+`collected` line means the fresh collection could not be written back.
+
+### The pre-test step and the post-test check
+
+`python -m scripts.ci.collect_universe_prestep <command>` runs from the repository
+root checkout:
+
+| Command | What it does | Exit status |
+| --- | --- | --- |
+| `key [--with-commit]` | Prints the collection key. With `--with-commit` it prints `<key>-<commit>`, which is the CI cache key. | 0; 2 when the checkout is dirty or git cannot describe it |
+| `collect` | Calls `collect_universe()` once and prints the report line. | 0 only when the line is `reused`, `collected` with the record stored, or an unsupported-platform bypass without a `detail`; 1 for anything else, including a record that could not be stored |
+| `check` | Reads the report file and writes a table to the job summary. | 1 when the pre-test line is not acceptable, when a later request in the job collected or was bypassed (other than `root-override`) after the pre-test step stored or reused a record, or when a report line is malformed; 0 otherwise |
+| `consumers --battery-part <part>` | Prints `true` when the battery partition holds a test file that calls `collect_universe()` (found by scanning `tests/architectural/test_*.py`), `false` otherwise. | 0 with an answer; 1 and no answer for an unknown part |
+| `compare` | Collects once with the store bypassed and diffs the result against the stored record. | 1 on any difference or when no usable record exists |
+
+`collect` and `check` fail when the pre-test step could not store a collection.
+Only an unsupported platform is a legitimate fallback: the job then collects for
+itself, `check` prints a fallback note and exits 0.
+
+### Where it runs
+
+- **`ci-router.yml`, job `architectural-heavy`** (a leg runs these steps only when its
+  partition holds a collecting test; the battery partition moves with the timings, so
+  each leg first runs `consumers --battery-part <leg>` in a step with id `select`, and
+  a failed answer fails the job). Steps in order: compute the key, restore the store,
+  `collect`, save the store, run the battery (the pytest command line is unchanged),
+  `check` with `if: always()`.
+- **`module-tests.yml`, job `test`.** The same steps, but only in per-PR mode and
+  only on the shard whose selected test list contains
+  `tests/ci/test_corpus_blocking_home.py::test_every_corpus_test_has_a_blocking_per_pr_home`,
+  the test that takes the `live_universe` fixture. The `ci` module splits by test,
+  so that file spans two shards and only one of them needs the list.
+  `tests/ci/test_ci_workflow_prestep_shape.py` pins that the test still exists.
+  Full-mode warm-up may rewrite `uv.lock` and leave the checkout dirty, so it
+  skips the step.
+- **The cache key is `universe-<key>-<commit>`.** It includes the commit because a
+  stored record is valid for one commit only and a CI cache key never changes once
+  saved; a key without the commit could keep a record that a later commit rejects,
+  and the save step is skipped after a restore hit. Only an exact key restores
+  (there are no `restore-keys`), and the save runs before pytest, so a leg that goes
+  red on a test can still be re-run warm.
+- **The shard list lives in the runner's temp directory**, not in the checkout. An
+  untracked file there would make the checkout dirty for the rest of the job.
+- **None of the collect, check or compare steps sets `continue-on-error`.** The
+  shape test pins that, because it would turn the check into a summary.
+
+### Nightly equivalence job
+
+`ci-nightly.yml` job `universe-equivalence` runs `collect` and then `compare` in
+one job. It shows that collection is deterministic and that a stored record
+round-trips to the same list as a fresh collection. It does not show that a record
+restored from the CI cache on another runner equals a fresh one. It is part of
+`nightly-summary`.
+
+### Run it locally
+
+```bash
+# The key of a clean checkout, and the CI cache key (commit appended)
+python -m scripts.ci.collect_universe_prestep key
+python -m scripts.ci.collect_universe_prestep key --with-commit
+
+# Collect once and store it, then run a gate against the stored copy
+export SK_GATE_REUSE_REPORT=/tmp/universe-reuse.jsonl
+python -m scripts.ci.collect_universe_prestep collect
+PYTHONPATH=src python -m pytest tests/architectural/test_fast_tier_marker_completeness.py -q
+python -m scripts.ci.collect_universe_prestep check
+
+# Prove the stored copy equals a fresh collection
+python -m scripts.ci.collect_universe_prestep compare
+```
+
+A dirty checkout (including an untracked file) is bypassed on purpose; commit or
+stash first to see a `reused` line.
+
+## Scheduled shard-timings recapture
+
+`.github/ci-shard-timings.json` records, for each registry module, how many tests
+its shard collects and how long each took. The count drifts whenever tests are
+added or removed. The workflow `ci-shard-recapture.yml` (schedule 04:41 UTC daily,
+plus `workflow_dispatch`, and only on the primary branch (`main`)) refreshes the drifted entries for
+**every** registry module and proposes the change as a pull request. The code is
+`scripts/ci/recapture_shard_timings.py`.
+
+The job `recapture-shard-timings` runs the script in three steps:
+
+| Phase | Holds the token | What it does |
+| --- | --- | --- |
+| `detect` | yes | Asks `gh` whether a recapture pull request is open on the proposal branch. |
+| `capture` | no | Finds drifted modules, captures them, and writes the result (`drifted`, `captured`, `failed`, `deferred`) as a step output and a job-summary table. |
+| `publish` | yes | Pushes the refreshed file and opens or refreshes the pull request. |
+
+The `capture` phase runs test code for a long time, so it refuses to run when
+`CHARTER_SHARD_RECAPTURE_TOKEN` is in its environment and starts every subprocess
+without any token variable.
+
+**Finding drift.** A count-only pass (`pytest --collect-only`, over the same
+directories and marker expression the producer uses) counts each module whose
+committed provenance is valid. A module is drifted when its count differs from the
+committed `module_test_count`, or its provenance record is missing or not valid.
+
+**Capturing.** Each drifted module is captured by
+`python -m scripts.ci.capture_shard_timings --module <m> --write` in its own
+subprocess, longest-untouched first.
+
+**Time budget.** The workflow passes `--budget-seconds 4200`, counted from the start
+of the `capture` phase, so the count-only passes are inside it. No count pass and no
+capture starts once the budget is spent; the modules left over are reported as
+`deferred`, never as clean, and the next run recomputes drift (no state is kept).
+A count pass is capped at 300 s per module, a capture at 2,100 s, and the job at
+120 minutes.
+
+**The valid-capture rule.** A capture is kept when its provenance record carries
+the run id the script passed in, the pytest exit status was 0 or 1, and at least one
+test was measured. Anything else (a crash, a collection error, a timeout, an
+unreadable file) puts the committed file back byte for byte and reports the module
+as `failed`; the other modules still run. A count pass that fails or times out also
+reports its module as `failed`. The script exits 1 when any module failed.
+
+**Proposal.** The branch is `ci/recapture-shard-timings`, and GitHub allows one open
+pull request per head branch.
+
+- With no open pull request, `publish` force-pushes the branch and opens one.
+- With an open pull request, `capture` starts from the proposal's timings for the
+  modules it already refreshed, so each run continues the work, and `publish` adds
+  a follow-up commit with a plain push. It never forces.
+- A push the token is not allowed to make (HTTP 403) fails the step with a message
+  naming the secret. That is a token problem code cannot fix; see #5624.
+
+**The red window.** Per pull request, a drifted count is a non-blocking
+`ShardTimingsDriftWarning`. The job `strict-shard-timings-check` in the same
+workflow runs `tests/architectural/test_module_length_agreement.py` with
+`SPEC_KITTY_STRICT_SHARD_TIMINGS=1` and has no `needs` edge to the recapture job. So
+from the first scheduled run that sees a drift until the proposal merges, the strict
+check is red on each scheduled run. That window is accepted: the red is the alarm
+and the proposal is the fix.
+
+To run it by hand, `capture` without `--write` only reports drift:
+
+```bash
+python -m scripts.ci.recapture_shard_timings capture --module charter
+```
+
 ## Docs-freshness and registration gates
 
 Adding or moving a `docs/**` page trips several documentation gates that draw
