@@ -381,6 +381,66 @@ jobs:
           echo "Stress suite passed (exit 0 or a marker-empty exit 5)."
 
   # ---------------------------------------------------------------------------
+  # p0-repro: the ONLY lane that runs red-first reproductions of open P0 bugs
+  # (`@pytest.mark.p0_repro(issue=N)`). tests/conftest.py deselects them from
+  # every other run -- every per-PR lane, `make test-fast`/`make test-full` and
+  # every other nightly lane -- unless SPEC_KITTY_RUN_P0_REPRO=1, which only
+  # this job sets, so PRs land green while an open P0 keeps the nightly
+  # honestly red (ADR 2026-07-17-1). Each failure carries an [OPEN P0 #N]
+  # banner naming its issue, surfaced by the summary step below. No escalation
+  # step: every reproduction is already pinned to its own open P0 issue, so a
+  # generic "Nightly suite red" issue would duplicate it. An empty marker
+  # (pytest exit 5) is green. Serial: the slice is a handful of tests, and the
+  # passing-reproduction notice is printed by the controller's terminal summary.
+  p0-repro:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    name: Open-P0 reproductions (nightly-only)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      PWHEADLESS: "1"
+      SPEC_KITTY_RUN_P0_REPRO: "1"
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      - name: Sync dev environment
+        shell: bash
+        run: uv sync --frozen --all-extras
+
+      - name: Run open-P0 reproductions (full-mode, run-all-regardless)
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          uv run --frozen pytest -m p0_repro -q -rf --junitxml=out/reports/xunit-nightly-p0-repro.xml
+          code=$?
+          echo "P0_REPRO_EXIT=$code" >> "$GITHUB_ENV"
+          echo "::notice::p0-repro suite exit=$code (if: always() -- a red suite is surfaced by the terminal fail-loud step)"
+
+      - name: Upload nightly p0-repro reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-nightly-p0-repro-reports
+          path: out/reports/
+
+      - name: Fail the job while an open-P0 reproduction is red (run-all-then-fail-loud)
+        if: always()
+        shell: bash
+        run: |
+          python3 scripts/ci/nightly_xunit.py summarize --suite-key p0-repro --xunit out/reports/xunit-nightly-p0-repro.xml --log-step 'Run open-P0 reproductions (full-mode, run-all-regardless)' || echo "::warning::nightly xunit summary helper failed"
+          if [ "${P0_REPRO_EXIT:-1}" -ne 0 ] && [ "${P0_REPRO_EXIT:-1}" -ne 5 ]; then
+            echo "::error::open-P0 reproductions are red (exit ${P0_REPRO_EXIT}): each failure names its [OPEN P0 #N] issue -- this is the expected signal while those P0s are open"
+            exit 1
+          fi
+          echo "No open-P0 reproduction is red (exit 0 or a marker-empty exit 5)."
+
+  # ---------------------------------------------------------------------------
   # interpreter-matrix-shard-<N>: FR-021 -- above-3.12 interpreter lane,
   # nightly-only, split into N independent shards (issue #4951) because the
   # single combined job could never finish `pytest -m "fast or unit"` on
@@ -1304,7 +1364,7 @@ jobs:
   nightly-summary:
     name: Nightly full-mode summary
     runs-on: ubuntu-24.04
-    needs: [performance, e2e, stress, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next, integration-slice, specify-cli-out-of-matrix, architectural-backstop, full-module-matrix]
+    needs: [performance, e2e, stress, p0-repro, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next, integration-slice, specify-cli-out-of-matrix, architectural-backstop, full-module-matrix]
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() }}
     steps:
       - name: Report full-mode results (run-all-regardless, never fail-fast)
@@ -1313,6 +1373,7 @@ jobs:
           echo "performance: ${{ needs.performance.result }}"
           echo "e2e: ${{ needs.e2e.result }}"
           echo "stress: ${{ needs.stress.result }}"
+          echo "p0-repro: ${{ needs.p0-repro.result }}"
           echo "interpreter-matrix-shard-1: ${{ needs.interpreter-matrix-shard-1.result }}"
           echo "interpreter-matrix-shard-2: ${{ needs.interpreter-matrix-shard-2.result }}"
           echo "interpreter-matrix-shard-3: ${{ needs.interpreter-matrix-shard-3.result }}"

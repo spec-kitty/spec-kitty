@@ -209,15 +209,18 @@ imply a red mainline.
 ### A P0 bug should carry a failing reproduction test
 
 Per the ADR, when you file or accept a P0 bug, land an **issue-pinned red-first
-reproduction test** so mainline honestly reflects the blocker rather than merely
-asserting it. Mark it `@pytest.mark.regression` (the issue-pinned
-exact-reproduction marker — **not** `quarantine`, which is built to *never* red
-main), reproduce the defect through the pre-existing entry point, and note in the
-test that it is an intentional red-first P0 reproduction referencing its tracking
-issue. It must fail because of the product defect, not a test error — a
-false red corrupts the signal it exists to give. Expensive QA and manual testing
-wait for green; maintainers prioritize red recovery. See the
-[red-main policy](../reference/red-main-and-release-readiness.md).
+reproduction test** so CI honestly reflects the blocker instead of only asserting it.
+Mark it `@pytest.mark.p0_repro(issue=N)`, reproduce the defect through the
+pre-existing entry point, and say in the docstring that it is an intentional red-first P0
+reproduction. It must fail because of the product defect, not because of a test error: a
+false red corrupts the signal it exists to give.
+
+`p0_repro` tests run **only** in the nightly `p0-repro` lane. They never run in a PR's CI,
+so PRs land on green while the nightly, and therefore the release, stays blocked until the
+fix lands. The fix PR removes the marker. Do **not** use `regression` (per-PR guards for
+bugs that are already fixed) or `quarantine` (built never to run) for an open P0.
+Expensive QA and manual testing wait for green, and maintainers prioritize red recovery.
+See the [red-main policy](../reference/red-main-and-release-readiness.md#where-the-reproduction-runs-the-nightly-p0-repro-lane).
 
 ### What "good first issue" means here
 

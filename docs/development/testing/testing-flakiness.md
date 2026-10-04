@@ -162,10 +162,12 @@ deliberately keeps red.
 Five baseline-red categories that are **not yours to fix**:
 
 1. **Pre-existing known-P0 reds.** Per [ADR 2026-07-17-1](../../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md),
-   an open P0 bug is *expected* to red mainline (e.g. #2736 batch poisoning, #2772 charter
-   clobber, #1834 accept-overwrite). They carry `@pytest.mark.regression` and reference a
-   tracking issue. **Leave them red** — do not deselect, quarantine, or "fix" them in an
-   unrelated change (that is the fold-first policy in [pr-landing.md](../how-to/pr-landing.md)).
+   an open P0 bug is *expected* to red mainline. Its reproduction carries
+   `@pytest.mark.p0_repro(issue=N)` and runs only in the nightly `p0-repro` lane, so it
+   never reds a PR. You will see it only in a nightly run or in an explicit
+   `SPEC_KITTY_RUN_P0_REPRO=1` run, where each failure names its `[OPEN P0 #N]` issue.
+   **Leave it red.** Do not unmark it, quarantine it, or "fix" it in an unrelated change
+   (the fold-first policy in [pr-landing.md](../how-to/pr-landing.md)).
 2. **CI-environment failures.** Auth state (`logged_out_on_connected_teamspace` during
    `upgrade`) and the gate opt-out `SPEC_KITTY_SKIP_PRE_REVIEW_GATE` (the pre-review
    gate's own name since #3980 — it no longer reads the sync-disable vocabulary) make
@@ -203,7 +205,9 @@ green on the base**. Confirm the base state by running the same node id against
 `upstream/main` — e.g. from a throwaway worktree with
 `PYTHONPATH="$(pwd)/src" python -m pytest <nodeid>` — or by checking the tracker for a P0
 label. When you *do* add a red-first P0 reproduction on purpose (per the ADR), mark it
-`regression`, docstring the issue, and make sure it fails for the product reason, not setup.
+`p0_repro(issue=N)`, docstring the issue, and make sure it fails for the product reason,
+not because of setup. It runs only in the nightly; see
+[Red Main and Release Readiness](../reference/red-main-and-release-readiness.md#where-the-reproduction-runs-the-nightly-p0-repro-lane).
 
 This applies to **dispatched subagents** as much as the orchestrator: an implementer that runs
 the suite in its worktree must not report the baseline reds as regressions or try to fix them.

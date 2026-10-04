@@ -32,15 +32,12 @@ Honest three-state split (re-derived live at implement, 2026-07-04, NFR-004;
       the spec's documented edge case: a job selects it, so it is ROUTED;
       blocking-ness is a separate axis. Its held-out population is governed by
       #2295/#2309 (17) + #2342 (`test_200_missions_under_5s`) and is never
-      hard-pinned here. `regression` is routed by marker to the `-m regression`
-      gate `regression-tests`, which — unlike `quarantine-visibility` — is
-      BLOCKING (a member of `quality-gate.needs`): a red-first P0 reproduction
-      is expected to red mainline and, because CI is the release authority, must
-      gate releases; a non-blocking regression lane would fake green on P0s
-      (#2772-family course-correction of the #2774 visibility-only design). Its
-      orphan carriers by path — e.g. `tests/delivery/` reaches no path gate —
-      make an explicit `-m regression` job their required CI home rather than a
-      silent CI_INVISIBLE entry.)
+      hard-pinned here. `regression` (issue-pinned guards of FIXED bugs) has no
+      `-m regression` job today: its carriers run in the per-PR module shards
+      by path. The former blocking `regression-tests` gate no longer exists, and
+      open-P0 red-first reproductions moved to their own marker, `p0_repro`,
+      routed by the ci-nightly `-m p0_repro` lane -- the only run where
+      tests/_support/p0_repro.py lets them execute.)
   ROUTED-BY-PATH (12): adversarial, agent, asyncio, distribution, doctrine,
       e2e, no_git_tmp_path, no_readiness_stub, non_sandbox,
       requires_symlinks, timeout, upgrade

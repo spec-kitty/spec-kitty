@@ -64,3 +64,10 @@ The precipitating events: #2752 was merged with known reds (a CI-guard change wh
 ### Confirmation
 
 The decision is confirmed in practice by two observable invariants: (a) no release is cut while mainline CI is red, and (b) an accepted P0 either carries a failing reproduction test or a filed issue (ideally both). A release cut on red, or an accepted P0 silently reverted to keep `main` green, is a violation of this ADR. The operational runbook lives in [`docs/development/red-main-and-release-readiness.md`](../../development/reference/red-main-and-release-readiness.md).
+
+## Amendment 2026-10-04 — the red lives in the nightly, never in a PR
+
+Rule 3's "red-first reproduction at mainline scope" now has one fixed home. A reproduction of an open P0 carries `@pytest.mark.p0_repro(issue=N)` and runs **only** in the `p0-repro` job of `.github/workflows/ci-nightly.yml`. `tests/_support/p0_repro.py` deselects it from every other run: every per-PR lane, `make test-fast` / `make test-full`, and every other nightly lane. So a pull request always lands on a green per-PR gate, while an open P0 keeps the nightly honestly red, and each failure carries an `[OPEN P0 #N]` banner naming its issue.
+
+Rules 1, 2 and 5 are unchanged in substance. "Mainline CI" includes the nightly, and a release requires a green nightly run for the exact release SHA (`scripts/ci/release_nightly_gate.py`), so an open P0 reproduction still blocks every release. The `regression` marker no longer carries P0 reproductions. It stays the marker for issue-pinned guards of bugs that are already fixed, and those guards run per PR. The fix PR for a P0 removes the `p0_repro` marker in the same change, which turns the reproduction into such a guard.
+

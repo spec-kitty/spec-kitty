@@ -48,6 +48,10 @@ from tests.mutmut_env import prepare_mutants_environment_from_cwd
 from tests.test_isolation_helpers import get_installed_version
 from tests.utils import REPO_ROOT, run, write_wp
 
+# Red-first reproductions of open P0 bugs (``p0_repro``) are deselected from
+# every run except the nightly p0-repro lane; see tests/_support/p0_repro.py.
+pytest_plugins = ["tests._support.p0_repro"]
+
 # ---------------------------------------------------------------------------
 # WP04 — Per-worker HOME and state isolation (master enabler, FR-002)
 #

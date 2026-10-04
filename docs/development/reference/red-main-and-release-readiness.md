@@ -2,7 +2,7 @@
 title: 'Red Main and Release Readiness'
 description: 'What a red main branch means, why CI status is the authoritative release gate, how P0 bugs carry failing reproduction tests, and how maintainers prioritize recovery.'
 doc_status: active
-updated: '2026-07-17'
+updated: '2026-10-04'
 audience: docs/context/audience/internal/maintainer.md
 type: explanation
 related:
@@ -40,6 +40,17 @@ When you file or accept a P0 bug, you are **free and encouraged** to land a test
 - A P0 that carries a failing test is unambiguous, self-documenting, and impossible to lose track of. A P0 described only in prose drifts and gets rediscovered downstream.
 - Turning `main` red this way is **honouring the process, not breaking it.** The red is the point: it makes the defect visible until it is fixed.
 - This is the mainline-scope extension of the red-first / never-retry-to-green discipline already applied per-PR — see [test-flakiness handling](../testing/testing-flakiness.md) and the red classification bins in the [PR-landing runbook](../how-to/pr-landing.md).
+
+### Where the reproduction runs: the nightly `p0-repro` lane
+
+Mark the reproduction `@pytest.mark.p0_repro(issue=N)`, where `N` is the P0 issue. It runs **only** in the nightly `p0-repro` job (`.github/workflows/ci-nightly.yml`). A pull request never runs it, so pull requests always land on a green per-PR gate, and the nightly stays red until the P0 is fixed.
+
+- **How it is held out.** The plugin `tests/_support/p0_repro.py` deselects every `p0_repro` test unless `SPEC_KITTY_RUN_P0_REPRO=1` is set, and only the `p0-repro` job sets it. A `-m` expression cannot pull it into another lane. `make test-fast` and `make test-full` never run it either.
+- **How it fails.** Each failure starts with `[OPEN P0 #N] … expected to fail until that bug is fixed`. The job summary and `::error` annotations name every red reproduction, and the JUnit report records the issue as a `p0_issue` property. The lane opens no generic "Nightly suite red" issue, because each reproduction already has its own P0 issue.
+- **Why it still blocks a release.** A release needs a green nightly for the exact release SHA (`scripts/ci/release_nightly_gate.py`), so the red keeps blocking releases.
+- **A pin without an issue is rejected.** `p0_repro` without a positive `issue=` number is a collection error in every run, including per-PR runs.
+- **When the fix lands.** The fix PR removes the `p0_repro` marker in the same change. The test then runs per PR as an ordinary guard (mark it `regression` only if it is an end-to-end replay of the bug's exact sequence) and must pass there. If a reproduction passes in the nightly before its marker is removed, the run ends with a `[P0 #N REPRO PASSES]` line: either the fix landed without removing the marker, or the reproduction is broken.
+- **Run it locally:** `SPEC_KITTY_RUN_P0_REPRO=1 uv run --frozen pytest -m p0_repro -q`.
 
 ## Expensive QA and manual testing wait for green
 
