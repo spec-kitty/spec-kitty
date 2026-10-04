@@ -80,12 +80,19 @@ CHURN_SURFACE_MODULES: tuple[str, ...] = (
     "src/specify_cli/coordination/transaction.py",
     "src/specify_cli/consolidation/bookkeeping_projection.py",
     "src/specify_cli/consolidation/executor.py",
-    # #2026: executor.py split; every family module holding filename literals.
+    # #2026: executor.py was split into phase modules. Scan every family module, as the
+    # whole of executor.py was scanned before the split, so a filename-exemption collection
+    # added to any phase later cannot escape the ratchet.
     "src/specify_cli/consolidation/run_state.py",
-    "src/specify_cli/consolidation/phase_advance.py",
-    "src/specify_cli/consolidation/phase_bookkeeping.py",
-    "src/specify_cli/consolidation/phase_teardown.py",
     "src/specify_cli/consolidation/entry_preflight.py",
+    "src/specify_cli/consolidation/resume_recovery.py",
+    "src/specify_cli/consolidation/phase_claim.py",
+    "src/specify_cli/consolidation/phase_advance.py",
+    "src/specify_cli/consolidation/coord_strand.py",
+    "src/specify_cli/consolidation/phase_bookkeeping.py",
+    "src/specify_cli/consolidation/phase_gate.py",
+    "src/specify_cli/consolidation/phase_teardown.py",
+    "src/specify_cli/consolidation/phase_finalize.py",
     "src/mission_runtime/artifacts.py",
     "src/specify_cli/status/__init__.py",
     "src/specify_cli/coordination/commit_router.py",
