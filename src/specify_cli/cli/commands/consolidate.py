@@ -717,8 +717,10 @@ def _run_real_merge(
         # #3926: the merge itself landed; only the coord triple did not come
         # down. Report it as the partial state it is — a success line here
         # would send the operator away from a stranded coord worktree/branch.
+        # #5570/#5613: a branch that moved after landing reports its own exit code
+        # (``exc.exit_code``, 75); every other teardown refusal stays 1.
         console.print(f"[red]Error:[/red] coordination teardown incomplete: {exc}")
-        raise typer.Exit(1) from exc
+        raise typer.Exit(exc.exit_code) from exc
 
     # -- Post-merge: WP07/FR-007 retrospective postcondition (fail-open) --
     run_retrospective_postcondition(mission_slug=resolved_mission, repo_root=repo_root)

@@ -39,6 +39,25 @@ TARGET_BRANCH_CONTENT_CONFLICT_REMEDIATION_UPDATE = "Update the mission branch a
 # One definition so the two sides can never drift apart (slice-10 F6).
 GLOBAL_MERGE_LOCK_ID = "__global_merge__"
 
+# Stable code of the #5570 refusal (#5613): the mission or coordination branch moved
+# after the landing was verified, so the compare-and-swap delete kept it instead of
+# deleting it over the late commit. The landing itself stands. Raised and rendered on
+# both terminus paths (``spec-kitty consolidate`` via ``executor.CoordMovedAfterLanding``,
+# ``orchestrator-api consolidate-mission`` via ``data["teardown_error_code"]``).
+# What finishes the cleanup depends on the variant, as each message says:
+#   * coordination branch: ``spec-kitty consolidate --resume`` projects the late
+#     commit(s) onto the target and finishes the teardown;
+#   * mission branch without a coordination topology (and the orchestrator-api path):
+#     the operator lands the late commit(s) and deletes the branch by hand.
+COORD_MOVED_AFTER_LANDING = "COORD_MOVED_AFTER_LANDING"
+# The code is rendered as a SUFFIX of the refusal: the message text before it is the
+# pre-#5613 wording, whose prefix the upstream tests assert, so it stays byte-identical.
+COORD_MOVED_AFTER_LANDING_SUFFIX = f" Error code: {COORD_MOVED_AFTER_LANDING}."
+# Exit code ``spec-kitty consolidate`` returns for that refusal: 75 = EX_TEMPFAIL
+# (sysexits.h, "temporary failure, retry later"): nothing was lost and the cleanup can
+# be completed afterwards. Every other teardown refusal keeps exit 1.
+COORD_MOVED_AFTER_LANDING_EXIT_CODE = 75
+
 # Canonical status-surface filenames.
 _STATUS_EVENTS_FILENAME = "status.events.jsonl"
 _STATUS_FILENAME = "status.json"

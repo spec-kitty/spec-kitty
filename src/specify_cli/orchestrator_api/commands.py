@@ -459,6 +459,20 @@ def _fail_from_decision_error(cmd: str, exc: DecisionError) -> NoReturn:
 _DESTRUCTIVE_OP_REFUSED_FALLBACK = "PREFLIGHT_FAILED"
 
 
+class MergeTeardownRefused(RuntimeError):
+    """A merge that landed, whose post-landing cleanup refused with a stable code (#5613).
+
+    A ``RuntimeError``, so ``consolidate_mission`` envelopes it exactly as before
+    (``PREFLIGHT_FAILED``, the message in ``data["errors"]``). The code travels in
+    ``data["teardown_error_code"]`` so callers key on it instead of the prose, the
+    way :func:`_fail_from_destructive_op_refused` carries ``destructive_op_error_code``.
+    """
+
+    def __init__(self, message: str, *, error_code: str) -> None:
+        self.error_code = error_code
+        super().__init__(message)
+
+
 def _fail_from_destructive_op_refused(cmd: str, mission_dir: Path, target_branch: str, exc: DestructiveOpRefused) -> NoReturn:
     """Envelope a :class:`DestructiveOpRefused` refusal instead of letting it
     escape as a raw traceback (#4753 finding B).
@@ -938,16 +952,18 @@ def _delete_mission_branch_at(main_repo_root: Path, lanes_manifest: LanesManifes
 
     Replaces an unconditional ``git branch -D`` (``check_return=False``) that made a commit
     landing after the merge unreachable and still reported success. A branch that moved keeps
-    its commits and the merge reports a failure (``RuntimeError``, which ``merge_mission``
-    envelopes); an already-absent branch has nothing to protect. A branch git refuses to
-    drop for another reason (e.g. checked out in a coordination worktree this path does not
+    its commits and the merge reports a failure (:class:`MergeTeardownRefused`, a ``RuntimeError``
+    that ``consolidate_mission`` envelopes) carrying the ``COORD_MOVED_AFTER_LANDING`` code, which
+    its message also ends with (#5613); an already-absent branch has nothing to protect. A branch
+    git refuses to drop for another reason (e.g. checked out in a coordination worktree this path does not
     remove, a pre-existing limitation) is left in place with a warning, as before.
 
     Raises:
-        RuntimeError: the branch moved past *approved_tip*; it was NOT deleted.
+        MergeTeardownRefused: the branch moved past *approved_tip*; it was NOT deleted.
     """
     import logging
 
+    from specify_cli.consolidation._constants import COORD_MOVED_AFTER_LANDING, COORD_MOVED_AFTER_LANDING_SUFFIX
     from specify_cli.git.ref_advance import RefDeleteError, RefDeleteMismatchError, delete_branch_ref
 
     branch = lanes_manifest.mission_branch
@@ -958,10 +974,11 @@ def _delete_mission_branch_at(main_repo_root: Path, lanes_manifest: LanesManifes
     except RefDeleteMismatchError as exc:
         if exc.actual_sha is None:
             return  # already gone: nothing was destroyed by us
-        raise RuntimeError(
+        raise MergeTeardownRefused(
             f"Merge landed, but mission branch {branch!r} moved to {exc.actual_sha[:12]} during cleanup (it was at {approved_tip[:12]}); "
             f"it was NOT deleted. Review the commit(s) with `git log {lanes_manifest.target_branch}..{branch}`, "
-            "land any that belong on the target, then delete the branch yourself."
+            f"land any that belong on the target, then delete the branch yourself.{COORD_MOVED_AFTER_LANDING_SUFFIX}",
+            error_code=COORD_MOVED_AFTER_LANDING,
         ) from exc
     except RefDeleteError as exc:
         logging.getLogger(__name__).warning("Mission branch %s was not deleted: %s", branch, exc)
@@ -2430,16 +2447,15 @@ def consolidate_mission(
         # caught first or it escapes as a raw traceback.
         _fail_from_destructive_op_refused(cmd, mission_dir, preflight.target_branch, exc)
     except RuntimeError as exc:
-        _fail(
-            cmd,
-            "PREFLIGHT_FAILED",
-            "Merge failed",
-            {
-                **_mission_identity_payload(mission_dir),
-                "target_branch": preflight.target_branch,
-                "errors": [str(exc)],
-            },
-        )
+        failure: dict[str, object] = {
+            **_mission_identity_payload(mission_dir),
+            "target_branch": preflight.target_branch,
+            "errors": [str(exc)],
+        }
+        if isinstance(exc, MergeTeardownRefused):
+            # #5613: the stable code, beside the unchanged envelope code and message.
+            failure["teardown_error_code"] = exc.error_code
+        _fail(cmd, "PREFLIGHT_FAILED", "Merge failed", failure)
         return
 
     data = {

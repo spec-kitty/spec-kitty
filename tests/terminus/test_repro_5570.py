@@ -1,0 +1,111 @@
+"""#5570 contract (#5613) -- a coordination branch that moved after landing has a stable code and exit code.
+
+The behaviour itself (the branch delete is a compare-and-swap, the late commit
+survives, ``--resume`` projects it) is pinned by
+``tests/terminus/test_coord_teardown_cas_branch_delete.py`` and
+``tests/orchestrator_api/test_mission_branch_delete_cas.py``. This file pins only
+what automation keys on: the ``COORD_MOVED_AFTER_LANDING`` code and the distinct
+exit code of ``spec-kitty consolidate``, both asserted by value, next to the
+existing message. It reuses that suite's real-CLI concurrency injection.
+"""
+
+from __future__ import annotations
+
+import subprocess
+from pathlib import Path
+
+import pytest
+
+from specify_cli.consolidation import executor as ex
+from specify_cli.git.ref_advance import RefDeleteMismatchError
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.orchestrator_api import commands as orchestrator_commands
+from tests.terminus.conftest import build_coord_mission
+from tests.terminus.test_coord_teardown_cas_branch_delete import (
+    _LATE_SHA_FILE,
+    _consolidate_with_late_commit,
+    _flat,
+    _windowless_resume_run,
+)
+
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+#: Pinned by value, independent of the production constants (not 0, 1 or 2).
+_COORD_MOVED_EXIT = 75
+_COORD_MOVED_CODE = "COORD_MOVED_AFTER_LANDING"
+
+
+def test_5570_moved_coordination_branch_exits_75_with_the_stable_code(tmp_path: Path) -> None:
+    mission = build_coord_mission(tmp_path, wps=("WP01",), mid8="01M5570F")
+
+    first = _consolidate_with_late_commit(mission)
+
+    late_sha = (mission.repo / _LATE_SHA_FILE).read_text(encoding="utf-8").strip()
+    combined = _flat(first)
+    assert first.returncode == _COORD_MOVED_EXIT, combined
+    assert _COORD_MOVED_CODE in combined
+    # The code is added to the existing message, which still names the branch, the tip and the resume.
+    assert mission.coord_branch in combined and late_sha[:12] in combined and "spec-kitty consolidate --resume" in combined
+
+    # A branch that moves again during the advised resume reports the same contract.
+    second = _consolidate_with_late_commit(mission, resume=True, note_name="late-again.md", sha_file="late-again-sha.txt")
+    assert second.returncode == _COORD_MOVED_EXIT, _flat(second)
+    assert _COORD_MOVED_CODE in _flat(second)
+
+
+@pytest.mark.parametrize("coordination", [True, False], ids=["coordination-branch", "mission-branch"])
+def test_tip_moved_error_carries_the_code_and_exit_code(coordination: bool) -> None:
+    mismatch = RefDeleteMismatchError(branch="kitty/mission-x", expected_sha="a" * 40, actual_sha="b" * 40)
+
+    error = ex._tip_moved_teardown_error("kitty/mission-x", mismatch, coordination=coordination)
+
+    assert isinstance(error, ex.CoordinationTeardownError), "existing handlers must still catch it"
+    assert error.exit_code == _COORD_MOVED_EXIT
+    assert error.error_code == _COORD_MOVED_CODE
+    assert str(error).endswith(f" Error code: {_COORD_MOVED_CODE}."), "the code is appended; the message before it is unchanged"
+    assert "NOT deleted" in str(error) and "kitty/mission-x" in str(error)
+
+
+def test_other_teardown_refusals_keep_the_generic_exit_code(tmp_path: Path) -> None:
+    """Only a moved tip is COORD_MOVED_AFTER_LANDING: an unbuildable late window stays a plain refusal."""
+    run = _windowless_resume_run(tmp_path, is_resume=True)
+
+    with pytest.raises(ex.CoordinationTeardownError) as raised:
+        ex._land_late_coordination_commits(run)
+
+    assert raised.value.exit_code == 1
+    assert _COORD_MOVED_CODE not in str(raised.value)
+
+
+def test_orchestrator_api_moved_mission_branch_names_the_code(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args: str) -> str:
+        return subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True).stdout.strip()
+
+    branch = "kitty/mission-orch-moved-01M5570P"
+    git("init", "-q", "-b", "main")
+    git("-c", "user.name=T", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "seed")
+    git("branch", branch)
+    approved = git("rev-parse", branch)
+    late = git("-c", "user.name=L", "-c", "user.email=l@example.invalid", "commit-tree", git("rev-parse", "main^{tree}"), "-p", branch, "-m", "late")
+    git("update-ref", f"refs/heads/{branch}", late)
+    manifest = LanesManifest(
+        version=1,
+        mission_slug="orch-moved-01M5570P",
+        mission_id="orch-moved-01M5570P",
+        mission_branch=branch,
+        target_branch="main",
+        lanes=[ExecutionLane(lane_id="lane-a", wp_ids=("WP01",), write_scope=(), predicted_surfaces=(), depends_on_lanes=(), parallel_group=0)],
+        computed_at="2026-01-01T00:00:00+00:00",
+        computed_from="test",
+    )
+
+    with pytest.raises(RuntimeError) as raised:
+        orchestrator_commands._delete_mission_branch_at(repo, manifest, approved)
+
+    message = str(raised.value)
+    assert message.endswith(f" Error code: {_COORD_MOVED_CODE}.")
+    assert f"git log main..{branch}" in message, "the existing message is kept"
+    assert git("rev-parse", branch) == late

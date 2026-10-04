@@ -101,6 +101,9 @@ from specify_cli.lanes.compute import lane_created_branch as _created_lane_branc
 from specify_cli.lanes.compute import lane_fully_canceled as _lane_fully_canceled
 from specify_cli.lanes.persistence import read_lanes_json, require_lanes_json
 from specify_cli.consolidation._constants import (
+    COORD_MOVED_AFTER_LANDING,
+    COORD_MOVED_AFTER_LANDING_EXIT_CODE,
+    COORD_MOVED_AFTER_LANDING_SUFFIX,
     GLOBAL_MERGE_LOCK_ID as _GLOBAL_MERGE_LOCK_ID,
     _STATUS_EVENTS_FILENAME,
     _STATUS_FILENAME,
@@ -221,6 +224,36 @@ class CoordinationTeardownError(RuntimeError):
     stop the run and say so rather than print a success line over a git error
     and leave a stranded coord worktree/branch behind (#3926).
     """
+
+    #: The exit code ``spec-kitty consolidate`` reports for this refusal.
+    exit_code: int = 1
+
+
+class CoordMovedAfterLanding(CoordinationTeardownError):
+    """The mission/coordination branch moved after the landing was verified (#5570, #5613).
+
+    The compare-and-swap delete kept the branch, so the late commit is intact and
+    the landed target is not rolled back. A subclass, so every existing handler
+    of :class:`CoordinationTeardownError` still sees it; it only adds the stable
+    code and the distinct exit code automation keys on.
+
+    The remedy differs per variant and is spelled out by the message
+    (:func:`_tip_moved_teardown_error`): a coordination branch is finished by
+    ``spec-kitty consolidate --resume``; a mission branch with no coordination
+    topology is landed and deleted by hand.
+
+    Not the same refusal as
+    :class:`~specify_cli.coordination.teardown.ProjectionTeardownAbort`
+    (``PROJECTION_TEARDOWN_ABORTED``). That one is the same race caught in an
+    EARLIER window: the coordination tip moved between the projection capture and
+    the teardown gate, before anything was persisted or destroyed, so the whole
+    coordination triple survives. It keeps its own code and exit 1. This class is
+    the later window: the gate passed and the worktree was removed, then the branch
+    moved before its compare-and-swap delete.
+    """
+
+    error_code = COORD_MOVED_AFTER_LANDING
+    exit_code = COORD_MOVED_AFTER_LANDING_EXIT_CODE
 
 
 class LaneNamingSlugMismatch(RuntimeError):
@@ -2909,7 +2942,7 @@ def _mission_branch_tip(run: _MergeRunState) -> str | None:
     return _resolve_ref_sha(run.main_repo, f"refs/heads/{run.lanes_manifest.mission_branch}") or None
 
 
-def _tip_moved_teardown_error(branch: str, exc: RefDeleteMismatchError, *, coordination: bool = True) -> CoordinationTeardownError:
+def _tip_moved_teardown_error(branch: str, exc: RefDeleteMismatchError, *, coordination: bool = True) -> CoordMovedAfterLanding:
     """Operator-facing refusal for a mission branch that moved past the tip teardown approved (#5570).
 
     A coordination mission names the branch, the intact marker and the ``--resume`` that projects
@@ -2921,16 +2954,17 @@ def _tip_moved_teardown_error(branch: str, exc: RefDeleteMismatchError, *, coord
     approved = exc.expected_sha[:12]
     review = f"Review the commit(s) with `git log {approved}..{branch}`"
     if not coordination:
-        return CoordinationTeardownError(
+        return CoordMovedAfterLanding(
             f"mission branch {branch!r} moved to {moved} while teardown was deleting it (it was at {approved}; "
             f"a commit landed during teardown); it was NOT deleted. {review}; if they belong on the target, "
-            "land them there, then delete the branch yourself."
+            f"land them there, then delete the branch yourself.{COORD_MOVED_AFTER_LANDING_SUFFIX}"
         )
-    return CoordinationTeardownError(
+    return CoordMovedAfterLanding(
         f"coordination branch {branch!r} moved to {moved} after teardown approved "
         f"{approved} (a commit landed during teardown); it was NOT deleted and the mission's "
         f"coordination marker was left intact. {review}, then run `spec-kitty consolidate --resume`: it projects "
         "the late commit(s) onto the target, deletes the branch only if it has not moved again, and finishes teardown."
+        f"{COORD_MOVED_AFTER_LANDING_SUFFIX}"
     )
 
 
