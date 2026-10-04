@@ -37,8 +37,7 @@ steps:
       When the scope is a marker slice (for example @pytest.mark.regression),
       select the files with `pytest --collect-only -q -m <marker>` or an AST
       read of the marker, never a text search: prose-only mentions of the
-      marker over-select (the 2026-10-04 regression-slice run included more
-      than ten files that named the marker only in prose; #5621).
+      marker over-select (#5621).
     actor: agent
 
   - title: Run the static triage pass
