@@ -135,7 +135,8 @@ Exit codes:
 | Code | Meaning |
 |------|---------|
 | `0` | Every visited Mission was repaired, needed nothing, or was refused as `COORD_SURFACE_LIVE` |
-| `1` | A per-Mission error, an invalid evidence manifest, or an unknown or ambiguous `--mission` handle |
+| `1` | A per-Mission error, an invalid evidence manifest, or, with `--json`, an unknown or ambiguous `--mission` handle |
+| `2` | An unknown or ambiguous `--mission` handle in human output (the same canonical resolver as the other `migrate` commands) |
 
 A per-Mission error does not stop the walk over the other Missions; the run
 still exits 1.
@@ -153,8 +154,9 @@ With `--json`, the command prints one object:
 | `manifest.unused` | Entries that had no effect, each `{mission, reason}` where `reason` is `not in scope` (`--mission` named another Mission), `nothing to seed`, or `coordination surface live` (the Mission was refused) |
 | `missions` | One row per Mission: `slug`, `seeded`, `would_seed`, `files_only`, `snapshot_only`, `malformed`, `terminal_reason`, `status_json_refreshed`, `refresh_error`, `skip_reason` (`COORD_SURFACE_LIVE` for a refused Mission), `error` |
 
-A failure before any write (bad manifest, unknown handle) prints
-`{"success": false, "error_code": ..., "error": ...}` instead.
+A failure before any write prints `{"success": false, "error_code": ..., "error": ...}`
+instead. An unknown or ambiguous handle adds `handle` (and, when ambiguous,
+`candidates`) and uses the codes `MISSION_NOT_FOUND` and `MISSION_AMBIGUOUS_SELECTOR`.
 
 ## Related
 

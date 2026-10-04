@@ -6,7 +6,7 @@ contract the tests hold.
 
 ## Inputs
 
-- `--mission <handle>`: optional; resolved mission_id → mid8 → slug (ambiguous → `MISSION_AMBIGUOUS`, unknown → `MISSION_NOT_FOUND`; both exit 1, nothing written). Absent → whole `kitty-specs/` corpus.
+- `--mission <handle>`: optional; resolved mission_id → mid8 → slug (delegated to `cli.selector_resolution.resolve_mission_handle`, as the sibling `migrate` commands: ambiguous → `MISSION_AMBIGUOUS_SELECTOR` with `handle` + `candidates`, unknown → `MISSION_NOT_FOUND` with `handle`; exit 2 in human mode, exit 1 under `--json`, nothing written; an exact `kitty-specs/` directory name of a legacy Mission without `mission_id` short-circuits to itself). Absent → whole `kitty-specs/` corpus.
 - `--dry-run`: report the plan; write nothing.
 - `--evidence-manifest <file>`: YAML `missions: {<exact Mission dir name>: {reason: <non-empty text>}}`, validated before any write.
 - `--json`: one JSON object on stdout.
@@ -27,7 +27,7 @@ Event ids are deterministic; re-runs append nothing. Terminal evidence supplied 
 
 ## Output
 
-- Exit `0`: every visited Mission repaired, needed nothing, or was refused as `COORD_SURFACE_LIVE` (counted in `coord_surface_live_missions`, not in `skipped`, never an error). Exit `1`: any per-Mission error, invalid manifest, unknown/ambiguous handle.
+- Exit `0`: every visited Mission repaired, needed nothing, or was refused as `COORD_SURFACE_LIVE` (counted in `coord_surface_live_missions`, not in `skipped`, never an error). Exit `1`: any per-Mission error, invalid manifest, or (`--json`) unknown/ambiguous handle; exit `2`: unknown/ambiguous handle in human mode.
 - JSON keys: `dry_run`, `result`, `mission`, `summary{scanned, missions_seeded, missions_would_seed, events_seeded, events_would_seed, finished_missions, snapshot_only_missions, malformed_missions, coord_surface_live_missions, refresh_warnings, skipped, errors}`, `manifest{path, entries, unused[{mission, reason}]}`, `missions[{slug, seeded, would_seed, files_only, snapshot_only, malformed, terminal_reason, status_json_refreshed, refresh_error, skip_reason, error}]`. Pre-write failure: `{success: false, error_code, error}`.
 
 ## Invariant held by the corpus gate

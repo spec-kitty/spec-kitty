@@ -6,10 +6,12 @@ read surface that lists WPs from the files. WP01 owns the repair
 (:func:`~specify_cli.migration.backfill_runtime_state.apply_wp_status_backfill`);
 this module is the thin CLI layer around it:
 
-* resolve ``--mission`` through the canonical Mission resolver;
+* resolve ``--mission`` through the canonical Mission resolver
+  (:func:`~specify_cli.cli.selector_resolution.resolve_mission_handle`);
 * load and validate the ``--evidence-manifest`` **before any write** (fail
-  closed: a bad manifest or an unresolvable Mission slug exits 1, nothing is
-  written);
+  closed: a bad manifest exits 1; an unknown or ambiguous ``--mission`` exits 2
+  in human mode and 1 under ``--json``, like the sibling ``migrate`` commands;
+  nothing is written);
 * run the repair over the corpus (or the one Mission);
 * render a human summary or a stable ``--json`` payload, and map per-Mission
   errors to exit 1.
@@ -38,12 +40,8 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from specify_cli.cli.console import console
-from specify_cli.context.mission_resolver import (
-    AmbiguousHandleError,
-    MissionNotFoundError,
-    list_missions_for_selection,
-    resolve_mission,
-)
+from specify_cli.cli.selector_resolution import resolve_mission_handle
+from specify_cli.context.mission_resolver import list_missions_for_selection
 from specify_cli.migration.backfill_runtime_state import (
     MissionSelectorRejectedError,
     WpStatusBackfillResult,
@@ -68,8 +66,6 @@ RESULT_ERRORS = "errors_present"
 #: Error codes of the fail-closed envelope ``{"success": false, "error_code", "error"}``.
 ERR_MANIFEST_INVALID = "EVIDENCE_MANIFEST_INVALID"
 ERR_MANIFEST_UNREADABLE = "EVIDENCE_MANIFEST_UNREADABLE"
-ERR_MISSION_NOT_FOUND = "MISSION_NOT_FOUND"
-ERR_MISSION_AMBIGUOUS = "MISSION_AMBIGUOUS"
 ERR_BAD_SELECTOR = "MISSION_SELECTOR_REJECTED"
 
 #: Appended to every unused-manifest warning: why a late manifest does nothing.
@@ -177,27 +173,27 @@ def known_mission_slugs(repo_root: Path) -> list[str]:
     return [listing.mission_slug for listing in list_missions_for_selection(repo_root)]
 
 
-def resolve_scope(handle: str, repo_root: Path) -> str:
+def resolve_scope(handle: str, repo_root: Path, *, json_mode: bool) -> str:
     """Resolve ``--mission`` (mission_id / mid8 / slug) to a Mission directory name.
 
-    Goes through the canonical resolver first; a legacy Mission without a
-    ``mission_id`` (which the identity resolver cannot index) still resolves by
-    its exact directory name.
+    Delegates to the canonical :func:`~specify_cli.cli.selector_resolution.resolve_mission_handle`,
+    so an unknown or ambiguous handle fails exactly like the sibling ``migrate``
+    commands: exit 2 with a message in human mode, exit 1 with the
+    ``{success, error_code, error, handle[, candidates]}`` envelope under ``--json``,
+    before anything is written.
+
+    One short-circuit stays local, because the canonical resolver cannot serve it: a
+    legacy Mission without a ``mission_id`` is invisible to the identity index, yet
+    ``list_missions_for_selection`` still lists it. An exact ``kitty-specs/`` directory
+    name is unambiguous by construction (directory names are unique), so it resolves
+    to itself; every other handle form goes through the canonical resolver.
 
     Raises:
-        BackfillWpStatusError: unknown or ambiguous handle.
+        SystemExit: unknown or ambiguous handle (raised by the canonical resolver).
     """
-    try:
-        return str(resolve_mission(handle, repo_root).mission_slug)
-    except AmbiguousHandleError as exc:
-        raise BackfillWpStatusError(ERR_MISSION_AMBIGUOUS, str(exc)) from exc
-    except MissionNotFoundError as exc:
-        if handle in known_mission_slugs(repo_root):
-            return handle
-        raise BackfillWpStatusError(
-            ERR_MISSION_NOT_FOUND,
-            f'No mission found for handle "{handle}". Check that the handle is correct and that the mission exists in kitty-specs/.',
-        ) from exc
+    if handle in known_mission_slugs(repo_root):
+        return handle
+    return str(resolve_mission_handle(handle, repo_root, json_mode=json_mode).mission_slug)
 
 
 # ---------------------------------------------------------------------------
@@ -362,11 +358,11 @@ def _emit_failure(error: BackfillWpStatusError, *, json_output: bool) -> None:
         console.print(f"[red]Error:[/red] {escape(error.message)}")
 
 
-def _prepare(repo_root: Path, mission: str | None, manifest_path: Path | None) -> tuple[str | None, dict[str, str]]:
+def _prepare(repo_root: Path, mission: str | None, manifest_path: Path | None, *, json_output: bool) -> tuple[str | None, dict[str, str]]:
     """Validate every input before the first write; return ``(scope, manifest)``."""
     manifest = load_evidence_manifest(manifest_path) if manifest_path is not None else {}
     check_manifest_slugs(manifest, known_mission_slugs(repo_root))
-    scope = resolve_scope(mission, repo_root) if mission is not None else None
+    scope = resolve_scope(mission, repo_root, json_mode=json_output) if mission is not None else None
     return scope, manifest
 
 
@@ -376,6 +372,7 @@ def _validate_and_apply(
     mission: str | None,
     dry_run: bool,
     evidence_manifest: Path | None,
+    json_output: bool,
 ) -> tuple[list[WpStatusBackfillResult], dict[str, str]]:
     """Validate the inputs, then run the repair; selector refusals become ``BackfillWpStatusError``.
 
@@ -386,7 +383,7 @@ def _validate_and_apply(
     masquerading as a bad ``--mission``.
     """
     try:
-        scope, manifest = _prepare(repo_root, mission, evidence_manifest)
+        scope, manifest = _prepare(repo_root, mission, evidence_manifest, json_output=json_output)
     except ValueError as exc:
         raise BackfillWpStatusError(ERR_BAD_SELECTOR, str(exc)) from exc
     try:
@@ -407,11 +404,12 @@ def run_backfill_wp_status(
     """Run the repair and render it; return the process exit code (0 ok, 1 error).
 
     Inputs are validated first (fail closed: nothing is written on a bad
-    manifest, an unresolvable slug or an unknown ``--mission``). After that,
+    manifest, an unresolvable slug or an unknown ``--mission``; the last exits
+    through the canonical resolver: 2 in human mode, 1 under ``--json``). After that,
     per-Mission failures never abort the walk; any of them yields exit 1.
     """
     try:
-        results, manifest = _validate_and_apply(repo_root, mission=mission, dry_run=dry_run, evidence_manifest=evidence_manifest)
+        results, manifest = _validate_and_apply(repo_root, mission=mission, dry_run=dry_run, evidence_manifest=evidence_manifest, json_output=json_output)
     except BackfillWpStatusError as exc:
         _emit_failure(exc, json_output=json_output)
         return 1

@@ -1451,8 +1451,9 @@ def backfill_wp_status_cmd(
 
     - ``0`` — every visited Mission was repaired, needed nothing, or was refused
       as ``COORD_SURFACE_LIVE``
-    - ``1`` — a per-Mission error, an invalid evidence manifest, or an unknown
-      ``--mission`` handle
+    - ``1`` — a per-Mission error, an invalid evidence manifest, or (with
+      ``--json``) an unknown or ambiguous ``--mission`` handle
+    - ``2`` — an unknown or ambiguous ``--mission`` handle (human output)
 
     Examples:
 

@@ -232,16 +232,20 @@ def test_mission_option_accepts_a_mid8_handle(repo: Path) -> None:
 
 
 @pytest.mark.parametrize("json_mode", [False, True])
-def test_unknown_mission_handle_exits_1_and_writes_nothing(repo: Path, json_mode: bool) -> None:
+def test_unknown_mission_handle_follows_the_canonical_exit_contract_and_writes_nothing(repo: Path, json_mode: bool) -> None:
+    """Same contract as the sibling ``migrate`` commands (#5579 L8): exit 2 human, exit 1 + envelope under ``--json``."""
     _mission(repo, _SLUG_ONE, _ID_ONE)
     before = _tree_bytes(repo)
 
     result = _invoke(repo, "--mission", "no-such-mission", *(["--json"] if json_mode else []))
 
-    assert result.exit_code == 1, result.output
+    assert result.exit_code == (1 if json_mode else 2), result.output
     assert _tree_bytes(repo) == before
     if json_mode:
-        assert _json(result)["success"] is False
+        payload = _json(result)
+        assert payload["success"] is False and payload["error_code"] == "MISSION_NOT_FOUND" and payload["handle"] == "no-such-mission"
+    else:
+        assert "No mission found" in result.output
 
 
 # ---------------------------------------------------------------------------
@@ -257,9 +261,11 @@ def test_ambiguous_mid8_handle_is_a_structured_error_with_no_silent_fallback(rep
     human = _invoke(repo, "--mission", "01JSAMEM")
     machine = _invoke(repo, "--mission", "01JSAMEM", "--json")
 
-    assert human.exit_code == 1 and machine.exit_code == 1
+    assert human.exit_code == 2 and machine.exit_code == 1
     payload = _json(machine)
-    assert payload["success"] is False and payload["error_code"] == "MISSION_AMBIGUOUS"
+    assert payload["success"] is False and payload["error_code"] == "MISSION_AMBIGUOUS_SELECTOR"
+    assert payload["handle"] == "01JSAMEM"
+    assert {candidate["slug"] for candidate in payload["candidates"]} == {"gamma-mission", "delta-mission"}
     assert "gamma-mission" in payload["error"] and "delta-mission" in payload["error"]
     assert _tree_bytes(repo) == before
 
@@ -286,7 +292,8 @@ def test_near_miss_of_a_legacy_directory_name_is_not_found(repo: Path, near_miss
     result = _invoke(repo, "--mission", near_miss, "--json")
 
     assert result.exit_code == 1, result.output
-    assert _json(result)["error_code"] == "MISSION_NOT_FOUND"
+    payload = _json(result)
+    assert payload["error_code"] == "MISSION_NOT_FOUND" and payload["handle"] == near_miss
     assert _tree_bytes(repo) == before
 
 
