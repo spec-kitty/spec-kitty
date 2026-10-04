@@ -395,95 +395,6 @@ def _guard_project_or_fallback_to_cli(
     _run_cli_mode(json_output=json_output, dry_run=dry_run, no_nag=no_nag)
 
 
-def _repair_stale_command_manifest(project_path: Path, *, json_output: bool) -> None:
-    """Self-heal a stale command-skill manifest during upgrade.
-
-    FR-030: a manifest whose entry count is behind the canonical command set
-    (e.g. an rc44-era 11-entry manifest) is auto-repaired to the canonical
-    count without prompting. FR-032: unsafe symlink artifacts under
-    ``.agents/skills/`` are removed. Drifted (user-edited) generated files are
-    NOT touched here — they flow through the drift policy in
-    ``run_surface_repair``. Failures are non-fatal: upgrade must never abort
-    because of manifest repair.
-    """
-    manifest_path = project_path / ".kittify" / "command-skills-manifest.json"
-    if not manifest_path.exists():
-        return
-    try:
-        from specify_cli.skills.command_installer import CANONICAL_COMMANDS
-        from specify_cli.skills.manifest_store import (
-            remove_unsafe_symlinks,
-            repair_stale_manifest,
-        )
-
-        symlink_result = remove_unsafe_symlinks(project_path)
-        repair_result = repair_stale_manifest(
-            project_path,
-            canonical_commands=list(CANONICAL_COMMANDS),
-        )
-        if json_output:
-            return
-        if repair_result.added or repair_result.removed:
-            console.print(f"[dim]Repaired command-skill manifest (+{len(repair_result.added)}/-{len(repair_result.removed)} entries)[/dim]")
-        if symlink_result.symlinks_removed:
-            console.print(f"[dim]Removed {len(symlink_result.symlinks_removed)} unsafe symlink artifact(s)[/dim]")
-    except Exception as manifest_exc:  # noqa: BLE001
-        if not json_output:
-            console.print(f"[dim]Note: Could not repair command-skill manifest: {manifest_exc}[/dim]")
-
-
-def _run_upgrade_surface_repair(
-    project_path: Path,
-    *,
-    confirm: bool,
-    dry_run: bool,
-    json_output: bool,
-) -> DriftPolicySummary | None:
-    """Run tool-surface repair after an upgrade and report the outcome.
-
-    FR-001/FR-002 wiring: this MUST run on every ``upgrade`` invocation —
-    including the "already up to date" path where no migrations are pending —
-    so that missing or stale generated surfaces (agent profiles, command-skill
-    manifests) are healed even when the project version is unchanged.
-
-    NFR-007: ``--yes``/``--force`` sets ``interactive=False``, which triggers
-    Rule 4 (report-only) for drifted files — NOT Rule 5 (overwrite). Overwrite
-    requires an explicit ``--repair-drift=overwrite`` flag (not yet exposed,
-    defaults False). FR-006: a non-interactive run exits non-zero when drift is
-    detected and was not explicitly overwritten.
-
-    T017/C4: this is one of the finalizer's injected callables (the caller
-    wraps it to return a bool). It reports drift but no longer raises
-    ``typer.Exit`` itself (D-5) — the caller derives ``surface_drift_failed``
-    from the returned summary via :func:`_surface_drift_exit_required` and
-    folds it into the single, outcome-derived exit code.
-    """
-    if dry_run:
-        return None
-    try:
-        _repair_stale_command_manifest(project_path, json_output=json_output)
-
-        from specify_cli.tool_surface.repair import (
-            render_surface_summary_lines,
-            run_surface_repair,
-        )
-
-        summary = run_surface_repair(
-            project_path,
-            interactive=not confirm,
-            repair_drift=False,
-        )
-        if not json_output:
-            for line in render_surface_summary_lines(summary):
-                console.print(line)
-        return summary
-    except Exception as surf_exc:  # noqa: BLE001
-        # Never fail upgrade due to surface repair errors; report and continue.
-        if not json_output:
-            console.print(f"[dim]Note: Could not run tool surface repair: {surf_exc}[/dim]")
-        return None
-
-
 def _surface_repair_payload(
     summary: DriftPolicySummary | None,
 ) -> dict[str, list[str]]:
@@ -503,15 +414,6 @@ def _surface_repair_payload(
         "drifted_reported": [str(path) for path in summary.drifted_reported],
         "skipped": [str(path) for path in summary.skipped],
     }
-
-
-def _surface_drift_exit_required(
-    summary: DriftPolicySummary | None,
-    *,
-    confirm: bool,
-) -> bool:
-    """Return True when non-interactive upgrade reported unresolved drift."""
-    return bool(confirm and summary is not None and summary.drifted_reported)
 
 
 def _surface_drift_error(summary: DriftPolicySummary) -> str:
@@ -560,9 +462,9 @@ def _provision_missing_mission_type_activations(project_path: Path, *, dry_run: 
     fail-closed if the shipped ``src/charter/activation/packs/default.yaml`` is missing
     or the resolved ``charter:`` pointer is dangling/unreadable.
 
-    Must run on every real ``upgrade`` invocation, mirroring
-    ``_run_upgrade_surface_repair``'s "even when no migrations are pending"
-    wiring (FR-001/FR-002) — this exact gap is why the rc36-rc38 stranding
+    Must run on every real ``upgrade`` invocation, mirroring the surface
+    repair's "even when no migrations are pending" wiring (FR-001/FR-002;
+    both run from the shared finalizer tail) — this exact gap is why the rc36-rc38 stranding
     survived the version-pinned migration path. Never writes during
     ``--dry-run``.
 
@@ -1107,7 +1009,6 @@ def _finalizer_step_surface_repair(
     ctx: _FinalizerRenderContext,
     *,
     project_path: Path,
-    confirm: bool,
     dry_run: bool,
     json_output: bool,
 ) -> bool:
@@ -1144,13 +1045,8 @@ def _finalizer_step_surface_repair(
         ctx.surface_repair_summary = summary
         outcome.result.errors.extend(d.message for result in results for d in result.diagnostics if d.severity == "error")
         return bool(summary.drifted_reported) or any(result.outcome not in {"applied", "skipped"} for result in results)
-    ctx.surface_repair_summary = _run_upgrade_surface_repair(
-        project_path,
-        confirm=confirm,
-        dry_run=dry_run,
-        json_output=json_output,
-    )
-    return _surface_drift_exit_required(ctx.surface_repair_summary, confirm=confirm)
+    # Nothing was prepared (preparation failed or did not run): no surface repair was attempted.
+    return False
 
 
 def _render_safe_commit_recovery_failed(exc: SafeCommitRecoveryFailed) -> str:
@@ -1866,7 +1762,6 @@ def upgrade(
             outcome,
             render_ctx,
             project_path=project_path,
-            confirm=confirm,
             dry_run=dry_run,
             json_output=json_output,
         ),

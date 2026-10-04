@@ -4,7 +4,7 @@
 provisioning, surface repair, the single churn commit, and scoped mission-state
 repair — but not the step implementations themselves. Those live one layer up
 in ``cli.commands.upgrade`` (``_provision_missing_mission_type_activations``,
-``_run_upgrade_surface_repair``, ...) and are supplied here as **injected
+``_finalizer_step_surface_repair``, ...) and are supplied here as **injected
 callables**. This module MUST NOT import ``cli.commands`` — the dependency
 direction is ``cli.commands -> upgrade``, and the finalizer reaching back up
 would both invert that layering and recreate the WP03<->WP04 cycle the split

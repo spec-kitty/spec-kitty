@@ -1,14 +1,14 @@
-"""Pin that the legacy surface-repair fallback in ``spec-kitty upgrade`` is dead.
+"""``spec-kitty upgrade`` has exactly one surface-repair path: the prepared one.
 
-``_finalizer_step_surface_repair`` once fell back to ``_run_upgrade_surface_repair``
-whenever ``ctx.prepared_repairs`` was ``None`` on a real, successful run. Since
-``_prepare_finalizer_repairs`` either sets ``prepared_repairs`` or returns errors
-(which ``finalize_upgrade`` records as ``activation_errors`` and then skips the
-surface-repair step), that fallback cannot be reached.
+``_finalizer_step_surface_repair`` once fell back to a legacy helper whenever
+``ctx.prepared_repairs`` was ``None`` on a real, successful run. That fallback
+was unreachable (``_prepare_finalizer_repairs`` either sets ``prepared_repairs``
+or returns errors, which ``finalize_upgrade`` records as ``activation_errors``
+and then skips the surface-repair step) and has been removed.
 
-These tests drive the real ``upgrade`` command in-process through ``CliRunner``
-and fail if the legacy helper is ever called, across every way the preparation
-and migration stages can end.
+These tests assert the legacy names are gone and drive the real ``upgrade``
+command in-process through ``CliRunner`` to pin what does happen in every way
+the preparation and migration stages can end.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ from specify_cli.upgrade.runner import MigrationRunner, UpgradeResult
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
-_LEGACY_HELPER = "_run_upgrade_surface_repair"
+_REMOVED_NAMES = ("_run_upgrade_surface_repair", "_surface_drift_exit_required")
 _CURRENT_VERSION = "3.2.0rc37"
 _STALE_VERSION = "0.0.1"
 _PREPARE = "prepare_upgrade_repairs"
@@ -58,25 +58,17 @@ def _write_project(project: Path, *, version: str) -> None:
 
 
 class _Spies:
-    """Call counters for the legacy helper and the live apply seam."""
+    """Call counter for the live apply seam."""
 
     def __init__(self) -> None:
-        self.legacy_calls = 0
         self.apply_calls = 0
 
 
 @pytest.fixture
 def spies(monkeypatch: pytest.MonkeyPatch) -> _Spies:
-    """Install the legacy-helper spy and an apply-seam counter on the real flow."""
+    """Count calls to the live apply seam while running the real flow."""
     counters = _Spies()
     monkeypatch.setenv("CI", "1")
-
-    if hasattr(upgrade_module, _LEGACY_HELPER):
-
-        def _legacy_spy(*args: Any, **kwargs: Any) -> None:
-            counters.legacy_calls += 1
-
-        monkeypatch.setattr(upgrade_module, _LEGACY_HELPER, _legacy_spy)
 
     real_apply = getattr(assessment, _APPLY)
 
@@ -97,7 +89,12 @@ def _real_run_args(target: str) -> list[str]:
     return ["--target", target, "--force", "--no-worktrees", "--no-nag"]
 
 
-def test_legacy_helper_is_never_called_when_preparation_succeeds(tmp_path: Path, spies: _Spies) -> None:
+@pytest.mark.parametrize("name", _REMOVED_NAMES)
+def test_legacy_surface_repair_helpers_are_gone(name: str) -> None:
+    assert not hasattr(upgrade_module, name)
+
+
+def test_surface_repair_is_applied_when_preparation_succeeds(tmp_path: Path, spies: _Spies) -> None:
     project = tmp_path / "prepared"
     project.mkdir()
     _write_project(project, version=_CURRENT_VERSION)
@@ -106,7 +103,6 @@ def test_legacy_helper_is_never_called_when_preparation_succeeds(tmp_path: Path,
 
     assert result.exit_code == 0, result.output
     assert spies.apply_calls == 1  # the prepared path did the surface repair
-    assert spies.legacy_calls == 0
 
 
 @pytest.mark.parametrize(
@@ -114,7 +110,7 @@ def test_legacy_helper_is_never_called_when_preparation_succeeds(tmp_path: Path,
     [OSError("disk unreadable"), ValueError("bad agent config"), AgentConfigError("agent config invalid")],
     ids=["oserror", "valueerror", "agentconfigerror"],
 )
-def test_legacy_helper_is_never_called_when_preparation_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, spies: _Spies, error: Exception) -> None:
+def test_surface_repair_is_skipped_when_preparation_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, spies: _Spies, error: Exception) -> None:
     project = tmp_path / "prep-raises"
     project.mkdir()
     _write_project(project, version=_CURRENT_VERSION)
@@ -128,10 +124,9 @@ def test_legacy_helper_is_never_called_when_preparation_raises(tmp_path: Path, m
 
     assert result.exit_code != 0, result.output  # preparation errors become activation errors
     assert spies.apply_calls == 0  # surface repair skipped
-    assert spies.legacy_calls == 0
 
 
-def test_legacy_helper_is_never_called_on_dry_run(tmp_path: Path, spies: _Spies) -> None:
+def test_surface_repair_is_not_applied_on_dry_run(tmp_path: Path, spies: _Spies) -> None:
     project = tmp_path / "dry-run"
     project.mkdir()
     _write_project(project, version=_CURRENT_VERSION)
@@ -140,10 +135,9 @@ def test_legacy_helper_is_never_called_on_dry_run(tmp_path: Path, spies: _Spies)
 
     assert result.exit_code == 0, result.output
     assert spies.apply_calls == 0
-    assert spies.legacy_calls == 0
 
 
-def test_legacy_helper_is_never_called_after_a_failed_migration(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, spies: _Spies) -> None:
+def test_surface_repair_is_skipped_after_a_failed_migration(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, spies: _Spies) -> None:
     project = tmp_path / "failed-migration"
     project.mkdir()
     _write_project(project, version=_STALE_VERSION)
@@ -157,4 +151,3 @@ def test_legacy_helper_is_never_called_after_a_failed_migration(tmp_path: Path, 
 
     assert result.exit_code != 0, result.output
     assert spies.apply_calls == 0
-    assert spies.legacy_calls == 0
