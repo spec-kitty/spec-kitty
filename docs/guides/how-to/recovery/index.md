@@ -13,8 +13,8 @@ related:
 Recover from implementation crashes and interrupted merges, and troubleshoot merge failures.
 
 - [Recover from an Implementation Crash](recover-from-implementation-crash.md) — How to recover from an implementation crash with Spec Kitty 3.2: Learn how to restore a work package that is stuck in inprogress after an agent crash or.
-- [Recover from an Interrupted Merge](recover-from-interrupted-merge.md) — How to recover from an interrupted merge with Spec Kitty 3.2: Learn how to resume or abort a spec-kitty merge that was interrupted before it completed.
-- [How to Troubleshoot Merge Issues](troubleshoot-merge.md) — How to troubleshoot merge issues with Spec Kitty 3.2: Use this guide to recover from interrupted merges, resolve conflicts, and fix pre-flight failures.
+- [Recover from an Interrupted Consolidation](recover-from-interrupted-merge.md) — How to recover from an interrupted consolidation with Spec Kitty 3.2: Learn how to resume or abort a spec-kitty consolidate run that was interrupted before it completed.
+- [How to Troubleshoot Merge Issues](troubleshoot-merge.md) — How to troubleshoot spec-kitty consolidate with Spec Kitty 3.2: resume or abort a stopped run and fix the refusals operators meet most, each with its command.
 
 ## See also
 

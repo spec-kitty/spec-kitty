@@ -18,7 +18,7 @@ Author and drive a mission from specification through plan, tasks, implementatio
 - [How to implement a work package](implement-work-package.md) — How to implement a work package with Spec Kitty 3.2: Use this guide to implement a single work package (WP) in its execution workspace.
 - [How to review a work package](review-work-package.md) — How to review a work package with Spec Kitty 3.2: Use this guide to review a completed work package and update its lane.
 - [How to Accept and Merge a Mission](accept-and-merge.md) — How to accept and merge a mission with Spec Kitty 3.2: Use this guide to validate mission readiness and merge to the mission's target branch.
-- [How to Merge a Mission](merge-mission.md) — How to merge a mission with Spec Kitty 3.2: Use this guide to merge completed work packages from a Spec Kitty mission into its target branch.
+- [How to Merge a Mission](merge-mission.md) — How to merge a mission with Spec Kitty 3.2: land approved work packages on the local target branch with spec-kitty consolidate, preview it, and choose cleanup.
 - [How to handle work package dependencies](handle-dependencies.md) — Declare, implement, and maintain dependencies between work packages in Spec Kitty.
 - [How to Switch Missions](switch-missions.md) — Choose and change missions to match software, research, or documentation workflows.
 - [Review Spec Kitty Artifacts with PlanBridge](review-artifacts-with-planbridge.md) — How to review spec kitty artifacts with planbridge with Spec Kitty 3.2: Review Spec Kitty Artifacts with PlanBridge.

@@ -556,7 +556,6 @@ _COMMAND_SURFACE_PHRASE_BASELINE: frozenset[str] = frozenset(
         "docs/guides/how-to/governance/use-retrospective-learning.md",
         "docs/guides/how-to/missions/keep-main-clean.md",
         "docs/guides/how-to/missions/merge-mission.md",
-        "docs/guides/how-to/recovery/index.md",
         "docs/guides/how-to/recovery/recover-from-implementation-crash.md",
         "docs/guides/tutorials/claude-code-workflow.md",
         "docs/guides/tutorials/your-first-mission.md",

@@ -32,7 +32,7 @@ Once the blocking condition is resolved (conflict fixed, push retried, etc.), ru
 spec-kitty consolidate --resume
 ```
 
-This reads `.kittify/runtime/merge/<mission_id>/state.json`, skips already-completed WPs, and continues from the current WP. The `--strategy` and `--target` values from the original invocation are preserved in the state file and do not need to be repeated.
+This reads `.kittify/runtime/merge/<mission_id>/state.json`, skips already-completed WPs, and continues from the current WP. A resume reads the strategy and the target branch recorded in that file, so you do not repeat `--strategy` or `--target`. A `--strategy` that contradicts the recorded one is refused, and an explicit `--target` takes precedence over the recorded target.
 
 ### A worktree that shows staged deletions after an interruption
 
