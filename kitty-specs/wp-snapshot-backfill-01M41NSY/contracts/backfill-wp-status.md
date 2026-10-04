@@ -27,7 +27,7 @@ Event ids are deterministic; re-runs append nothing. Terminal evidence supplied 
 
 ## Output
 
-- Exit `0`: every visited Mission repaired, needed nothing, or was refused as `COORD_SURFACE_LIVE` (counted as skipped, never an error). Exit `1`: any per-Mission error, invalid manifest, unknown/ambiguous handle.
+- Exit `0`: every visited Mission repaired, needed nothing, or was refused as `COORD_SURFACE_LIVE` (counted in `coord_surface_live_missions`, not in `skipped`, never an error). Exit `1`: any per-Mission error, invalid manifest, unknown/ambiguous handle.
 - JSON keys: `dry_run`, `result`, `mission`, `summary{scanned, missions_seeded, missions_would_seed, events_seeded, events_would_seed, finished_missions, snapshot_only_missions, malformed_missions, coord_surface_live_missions, refresh_warnings, skipped, errors}`, `manifest{path, entries, unused[{mission, reason}]}`, `missions[{slug, seeded, would_seed, files_only, snapshot_only, malformed, terminal_reason, status_json_refreshed, refresh_error, skip_reason, error}]`. Pre-write failure: `{success: false, error_code, error}`.
 
 ## Invariant held by the corpus gate

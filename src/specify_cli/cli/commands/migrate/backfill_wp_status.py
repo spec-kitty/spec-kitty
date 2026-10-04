@@ -246,7 +246,7 @@ def build_summary(results: Sequence[WpStatusBackfillResult]) -> dict[str, int]:
         "malformed_missions": sum(1 for r in results if r.malformed),
         "coord_surface_live_missions": sum(1 for r in results if r.skip_reason == COORD_SURFACE_LIVE),
         "refresh_warnings": sum(1 for r in results if r.refresh_error is not None),
-        "skipped": sum(1 for r in results if r.error is None and _new_events(r) == 0),
+        "skipped": sum(1 for r in results if r.error is None and r.skip_reason != COORD_SURFACE_LIVE and _new_events(r) == 0),
         "errors": sum(1 for r in results if r.error is not None),
     }
 

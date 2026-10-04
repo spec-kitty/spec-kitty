@@ -536,7 +536,7 @@ def test_group_level_dry_run_is_forwarded_to_the_subcommand(repo: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# live coordination surface: refused, counted as skipped (never an error)
+# live coordination surface: refused, counted as refused not skipped (never an error)
 # ---------------------------------------------------------------------------
 
 _COORD_BRANCH = "kitty/mission-alpha-01JMISSI"
@@ -555,7 +555,7 @@ def _live_coord_mission(repo: Path) -> Path:
     return feature_dir
 
 
-def test_live_coordination_mission_is_refused_in_json_counted_as_skipped_and_exits_0(repo: Path) -> None:
+def test_live_coordination_mission_is_refused_in_json_not_counted_as_skipped_and_exits_0(repo: Path) -> None:
     feature_dir = _live_coord_mission(repo)
     plain = _mission(repo, _SLUG_TWO, _ID_TWO, seeded=())
     before = (feature_dir / "status.events.jsonl").read_bytes()
@@ -567,7 +567,8 @@ def test_live_coordination_mission_is_refused_in_json_counted_as_skipped_and_exi
     row = next(r for r in payload["missions"] if r["slug"] == _SLUG_ONE)
     assert row["skip_reason"] == "COORD_SURFACE_LIVE" and row["error"] is None and row["seeded"] == 0
     assert payload["summary"]["coord_surface_live_missions"] == 1
-    assert payload["summary"]["skipped"] == 1 and payload["summary"]["errors"] == 0
+    # The refusal is counted once, as refused -- never also as "skipped" (nothing to seed).
+    assert payload["summary"]["skipped"] == 0 and payload["summary"]["errors"] == 0
     assert payload["result"] == "success"
     assert (feature_dir / "status.events.jsonl").read_bytes() == before
     assert set(materialize_snapshot(plain).work_packages) == set(_THREE)
@@ -683,3 +684,19 @@ def test_corrupt_meta_json_is_one_missions_error_and_the_run_carries_on(repo: Pa
 
     human = _invoke(repo, "--dry-run")
     assert human.exit_code == 1 and "backfill-wp-status summary" in human.output and "error" in human.output
+
+
+def test_refused_and_nothing_to_seed_missions_are_counted_apart(repo: Path) -> None:
+    """A live-coordination refusal is "refused"; only a Mission with nothing to seed is "skipped" (#5579 L4)."""
+    _live_coord_mission(repo)
+    _mission(repo, _SLUG_TWO, _ID_TWO, seeded=_THREE)
+
+    machine = _invoke(repo, "--json")
+
+    assert machine.exit_code == 0, machine.output
+    summary = _json(machine)["summary"]
+    assert summary["coord_surface_live_missions"] == 1 and summary["skipped"] == 1 and summary["errors"] == 0
+    human = _invoke(repo).output
+    assert "Refused (live coord surface)" in human and "Skipped (nothing to seed)" in human
+    rows = {line.split(":")[0].strip(): line.split(":")[1].strip() for line in human.splitlines() if line.startswith("  ") and ":" in line}
+    assert rows["Refused (live coord surface)"] == "1 mission(s)" and rows["Skipped (nothing to seed)"] == "1"

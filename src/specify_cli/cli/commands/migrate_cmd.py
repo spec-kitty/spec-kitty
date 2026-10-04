@@ -1424,7 +1424,7 @@ def backfill_wp_status_cmd(
     PRIMARY-partition status surface. It is idempotent: a re-run appends
     nothing. WPs the snapshot carries without a WP file are reported, never
     repaired. A Mission whose status log lives on a live coordination surface
-    is refused (``COORD_SURFACE_LIVE``, counted as skipped, nothing written):
+    is refused (``COORD_SURFACE_LIVE``, counted as refused rather than skipped, nothing written):
     consolidate it first and rerun once the coordination branch is gone.
 
     A Mission with terminal evidence (``meta.json`` ``merged_at`` /
