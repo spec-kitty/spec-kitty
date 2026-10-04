@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.consolidation.ordering import assign_next_mission_number
+from specify_cli.consolidation.mission_number.bake import assign_next_mission_number
 from specify_cli.consolidation.state import needs_number_assignment
 
 pytestmark = pytest.mark.fast

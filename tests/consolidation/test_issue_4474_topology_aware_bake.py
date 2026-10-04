@@ -2,7 +2,7 @@
 
 Defect
 -------
-``_write_mission_number_to_branch`` (``src/specify_cli/merge/ordering.py``)
+``_write_mission_number_to_branch`` (``src/specify_cli/consolidation/mission_number/bake.py``)
 composes the ``meta.json`` path *inside the detached mission-branch worktree*
 (``compose_meta_json_path(mission_tmp_path, mission_slug)``). On a coord-topology
 mission (the "083+ layout", where ``lanes_manifest.mission_branch ==
@@ -109,7 +109,7 @@ def _run_bake(
     *,
     merge_state=None,  # noqa: ANN001 — imported lazily below, matches other tests/merge/ modules
 ):
-    from specify_cli.consolidation.ordering import _bake_mission_number_into_mission_branch
+    from specify_cli.consolidation.mission_number.bake import _bake_mission_number_into_mission_branch
 
     return _bake_mission_number_into_mission_branch(
         main_repo=repo,
@@ -201,7 +201,7 @@ def test_unreachable_primary_returns_decided_number_unbaked_and_surfaces_it(tmp_
     by ``tests/consolidation/test_mission_number_truthful_4900.py::
     test_absent_target_meta_refuses_instead_of_fabricating``.
     """
-    from specify_cli.consolidation import ordering
+    from specify_cli.consolidation.mission_number import bake
     from specify_cli.consolidation.state import ConsolidationState
 
     repo = tmp_path / "repo"
@@ -239,8 +239,8 @@ def test_unreachable_primary_returns_decided_number_unbaked_and_surfaces_it(tmp_
     printed: list[str] = []
     from unittest.mock import patch
 
-    with patch.object(ordering.console, "print", side_effect=lambda *a, **k: printed.append(" ".join(str(x) for x in a))):
-        result = ordering._bake_mission_number_into_mission_branch(
+    with patch.object(bake.console, "print", side_effect=lambda *a, **k: printed.append(" ".join(str(x) for x in a))):
+        result = bake._bake_mission_number_into_mission_branch(
             main_repo=repo,
             mission_slug=mission_slug,
             mission_branch=coord_branch,

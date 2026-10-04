@@ -19,9 +19,9 @@ from specify_cli.consolidation.conflict_resolver import (
     classify_conflict,
     resolve_owned_conflicts,
 )
+from specify_cli.consolidation.mission_number.bake import assign_next_mission_number
 from specify_cli.consolidation.ordering import (
     MergeOrderError,
-    assign_next_mission_number,
     get_merge_order,
     has_dependency_info,
 )

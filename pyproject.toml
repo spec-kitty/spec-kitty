@@ -2691,7 +2691,7 @@ module = [
     "glossary.events",
     "glossary.middleware",
     "specify_cli.manifest",
-    "specify_cli.consolidation.ordering",
+    "specify_cli.consolidation.mission_number.bake",
     "specify_cli.mission",
     "specify_cli.mission_v1.compat",
     "specify_cli.mission_v1.events",

@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from specify_cli.consolidation.ordering import assign_next_mission_number
+from specify_cli.consolidation.mission_number.bake import assign_next_mission_number
 from specify_cli.core.worktree import (
     _compose_worktree_feature_dir,
     _exclude_from_git,

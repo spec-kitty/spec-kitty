@@ -110,19 +110,19 @@ def _qualnames_with_bodies(
 
 
 def find_git_show_blob_readers(root: Path) -> set[tuple[str, str]]:
-    """Scan every ``*.py`` file directly under *root* for a raw git-show blob reader.
+    """Scan every ``*.py`` file under *root* (subpackages included) for a raw git-show blob reader.
 
     Returns ``{(rel_path, qualname)}`` for every function whose body contains a
     call matching :func:`_is_subprocess_git_show_call` (SC-002). Pure AST
     walk -- never executes ``git`` or the scanned code.
     """
     found: set[tuple[str, str]] = set()
-    for path in sorted(root.glob("*.py")):
+    for path in sorted(root.rglob("*.py")):
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         except (OSError, SyntaxError, UnicodeDecodeError) as exc:
             raise ValueError(f"{path}: cannot parse as Python source -- fix the file or exclude it explicitly") from exc
-        rel = f"specify_cli/consolidation/{path.name}"
+        rel = f"specify_cli/consolidation/{path.relative_to(root).as_posix()}"
         for qualname, func in _qualnames_with_bodies(tree):
             if any(_is_subprocess_git_show_call(call) for call in ast.walk(func)):
                 found.add((rel, qualname))

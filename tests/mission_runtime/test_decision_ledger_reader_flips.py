@@ -325,7 +325,7 @@ def test_review_dirty_classifier_treats_ledger_as_not_benign() -> None:
 def test_injected_residue_predicate_treats_ledger_as_real_work() -> None:
     """Rollback / ordering / orchestrator lane cleanup / workspace teardown.
 
-    ``consolidation/rollback.py``, ``consolidation/ordering.py``,
+    ``consolidation/rollback.py``, ``consolidation/mission_number/bake.py``,
     ``orchestrator_api/commands.py`` and ``coordination/workspace.py`` each
     inject ``is_toolchain_generated_churn`` (via ``functools.partial(...,
     mission_slug=mission_slug)``) as the ``is_residue`` callback a lower-level

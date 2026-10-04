@@ -40,7 +40,7 @@ from specify_cli.consolidation._constants import (
     logger,
 )
 from specify_cli.consolidation.config import MergeStrategy
-from specify_cli.consolidation.ordering import assign_next_mission_number
+from specify_cli.consolidation.mission_number.bake import assign_next_mission_number
 from specify_cli.consolidation.preflight import refuse_protected_status_target
 from specify_cli.consolidation.state import needs_number_assignment
 from mission_runtime import MissionArtifactKind, placement_seam, resolve_artifact_surface

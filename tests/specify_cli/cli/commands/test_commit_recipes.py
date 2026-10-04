@@ -72,7 +72,7 @@ _ALLOWED_GIT_COMMIT_HITS: dict[tuple[str, str], str] = {
         "single-target model covers."
     ),
     (
-        "consolidation/ordering.py",
+        "consolidation/mission_number/bake.py",
         "git commit failed on the primary checkout",
     ): "Error-reason string reporting an ALREADY-ATTEMPTED subprocess git commit's failure, not a recipe.",
     (

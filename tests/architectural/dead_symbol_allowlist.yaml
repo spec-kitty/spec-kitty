@@ -1096,10 +1096,10 @@ entries:
 - module: specify_cli.consolidation.bookkeeping_projection
   name: _restore_optional_bytes
   category: category_c_merge_decomp_shim_reexport_2057
-- module: specify_cli.consolidation.ordering
+- module: specify_cli.consolidation.mission_number.bake
   name: _already_baked
   category: category_c_merge_decomp_shim_reexport_2057
-- module: specify_cli.consolidation.ordering
+- module: specify_cli.consolidation.mission_number.bake
   name: _is_assigned_mission_number
   category: category_c_merge_decomp_shim_reexport_2057
 - module: specify_cli.consolidation.push_preflight
