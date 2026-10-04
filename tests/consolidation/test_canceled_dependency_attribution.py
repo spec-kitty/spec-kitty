@@ -23,14 +23,11 @@ from specify_cli.consolidation.reconciliation import (
     CANCELED_REACHABLE_VIA_DEPENDENCY,
     ApprovedWpCommitSet,
     CanceledDependencyContent,
-    Divergence,
     MergeOutcomeVerifier,
-    VerifyResult,
     VerifyStatus,
     _CanceledLaneQuery,
     _carried_dependency_content,
     _describe_canceled_reachable,
-    _fold_divergence,
     build_approved_wp_set,
 )
 from specify_cli.coordination.surface_resolver import resolve_status_surface
@@ -336,27 +333,6 @@ def test_canceled_spine_content_skips_merges_and_bookkeeping(tmp_path: Path, mon
 
     monkeypatch.setattr(wpa, "is_merge_commit", lambda _repo, _sha: True)
     assert wpa.canceled_spine_content(repo, spine, canceled, lambda _p: False) == (frozenset(), {})
-
-
-def test_fold_helper_composes_like_the_canceled_content_fold() -> None:
-    field_name = "canceled_reachable_via_dependency"
-    hit = _entry()
-    refused = VerifyResult.refused("because")
-    assert _fold_divergence(refused, field_name, [hit]) is refused
-    passed = VerifyResult.passed()
-    assert _fold_divergence(passed, field_name, []) is passed
-
-    from_pass = _fold_divergence(passed, field_name, [hit])
-    assert from_pass.status is VerifyStatus.FAIL
-    assert from_pass.divergence is not None and from_pass.divergence.canceled_reachable_via_dependency == (hit,)
-
-    other = _entry("src/b.py")
-    merged = _fold_divergence(VerifyResult.failed(Divergence(canceled_reachable_via_dependency=(other,))), field_name, [hit])
-    assert merged.divergence is not None and merged.divergence.canceled_reachable_via_dependency == (other, hit)
-
-    plain = _fold_divergence(VerifyResult.failed(Divergence(missing_approved=(("WP02", "deadbeef"),))), field_name, [hit])
-    assert plain.divergence is not None and plain.divergence.missing_approved == (("WP02", "deadbeef"),)
-    assert plain.divergence.canceled_reachable_via_dependency == (hit,)
 
 
 def test_describe_names_change_vs_deletion_and_offers_no_attestation() -> None:

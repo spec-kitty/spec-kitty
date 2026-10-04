@@ -39,6 +39,10 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _LATE_SHA_FILE = "late-commit-sha.txt"
 
+#: Pinned by value, independent of the production constants (not 0, 1 or 2).
+_COORD_MOVED_EXIT = 75
+_COORD_MOVED_CODE = "COORD_MOVED_AFTER_LANDING"
+
 # Runs the real CLI after wrapping up to two seams, each calling the REAL function:
 # * the destroy leg first lands a real commit on the coordination branch (inside its worktree);
 # * with FOREIGN_ON_RETRO set, the retrospective bookkeeping commit is followed by a FOREIGN
@@ -154,10 +158,11 @@ def test_5570_commit_landing_after_the_gate_survives_and_consolidate_fails_loud(
     late_sha_file = mission.repo / _LATE_SHA_FILE
     assert late_sha_file.exists(), f"fixture invalid: the injection seam never ran\n{output}"
     late_sha = late_sha_file.read_text(encoding="utf-8").strip()
-    assert result.returncode != 0, f"#5570: consolidate exited 0 after deleting a coordination branch that moved past the gate\n{output}"
+    combined = _flat(result)
+    assert result.returncode == _COORD_MOVED_EXIT, f"#5570: a coordination branch that moved past the gate must exit {_COORD_MOVED_EXIT}\n{output}"
+    assert _COORD_MOVED_CODE in combined, f"the refusal must carry {_COORD_MOVED_CODE}\n{output}"
     assert _branch_exists(mission, mission.coord_branch), f"#5570: the coordination branch was deleted over the late commit\n{output}"
     assert mission.rev(mission.coord_branch) == late_sha, "the late commit must still be the coordination tip"
-    combined = _flat(result)
     assert mission.coord_branch in combined, f"the refusal must name the branch\n{output}"
     assert late_sha[:12] in combined, f"the refusal must name the moved tip\n{output}"
 
@@ -273,7 +278,8 @@ def test_5570_coordination_branch_moving_again_after_the_late_projection_refuses
     assert again_file.exists(), f"fixture invalid: the resume never reached the teardown seam\n{output}"
     again_sha = again_file.read_text(encoding="utf-8").strip()
 
-    assert second.returncode != 0, f"#5570: the resume deleted a branch that moved after its projection\n{output}"
+    assert second.returncode == _COORD_MOVED_EXIT, f"#5570: a branch that moved after the resume's projection must exit {_COORD_MOVED_EXIT}\n{output}"
+    assert _COORD_MOVED_CODE in _flat(second), f"the refusal must carry {_COORD_MOVED_CODE}\n{output}"
     assert _branch_exists(mission, mission.coord_branch), f"the branch must be kept\n{output}"
     assert mission.rev(mission.coord_branch) == again_sha, "the second late commit must still be the branch tip"
     assert again_sha[:12] in _flat(second), f"the refusal must name the moved tip\n{output}"
@@ -368,6 +374,8 @@ def test_resume_without_a_projection_window_keeps_the_coordination_branch(tmp_pa
     assert _WINDOW_BRANCH in message
     assert "NOT deleted" in message
     assert f"git log main..{_WINDOW_BRANCH}" in message
+    assert raised.value.exit_code == 1, "only a moved tip is COORD_MOVED_AFTER_LANDING: an unbuildable late window stays a plain refusal"
+    assert _COORD_MOVED_CODE not in message
     assert (
         subprocess.run(["git", "-C", str(run.main_repo), "rev-parse", "--verify", f"refs/heads/{_WINDOW_BRANCH}"], capture_output=True, check=False).returncode == 0
     )

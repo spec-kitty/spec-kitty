@@ -19,6 +19,7 @@ built atop it superseded the path. These tests cover
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 
@@ -29,6 +30,7 @@ from specify_cli.consolidation.reconciliation import (
     APPROVED_CONTENT_MISSING,
     ApprovedLaneContent,
     ApprovedWpCommitSet,
+    CanceledDependencyContent,
     Divergence,
     MergeOutcomeVerifier,
     MissingApprovedContent,
@@ -331,21 +333,38 @@ def test_description_names_code_wp_lane_path_and_the_recovery() -> None:
     assert APPROVED_CONTENT_MISSING in Divergence(approved_content_missing=(absent,)).describe()
 
 
+def _missing(path: str) -> MissingApprovedContent:
+    return MissingApprovedContent(wp_ids=("WP01",), lane_ids=("lane-a",), path=path, expected=V1, found="absent")
+
+
+def _carried(path: str) -> CanceledDependencyContent:
+    return CanceledDependencyContent(wp_ids=("WP01",), canceled_lane_id="lane-a", carrier_lane_id="lane-b", path=path, state="blob")
+
+
 @pytest.mark.fast
-def test_fold_composes_like_the_other_divergence_folds() -> None:
-    field_name = "approved_content_missing"
-    entry = MissingApprovedContent(wp_ids=("WP01",), lane_ids=("lane-a",), path="a.py", expected=V1, found="absent")
+@pytest.mark.parametrize(
+    ("field_name", "make", "other"),
+    [
+        pytest.param("approved_content_missing", _missing, Divergence(unattributable_deletions=("z.py",)), id="approved_content_missing"),
+        pytest.param("canceled_reachable_via_dependency", _carried, Divergence(missing_approved=(("WP02", "deadbeef"),)), id="canceled_reachable_via_dependency"),
+    ],
+)
+def test_fold_composes_like_the_other_divergence_folds(field_name: str, make: Callable[[str], object], other: Divergence) -> None:
+    entry, earlier = make("a.py"), make("b.py")
     refused = VerifyResult.refused("x")
+    passed = VerifyResult.passed()
 
     assert _fold_divergence(refused, field_name, [entry]) is refused
-    assert _fold_divergence(VerifyResult.passed(), field_name, []).is_pass
-    failed = _fold_divergence(VerifyResult.passed(), field_name, [entry])
-    assert failed.divergence is not None and failed.divergence.approved_content_missing == (entry,)
-    existing = VerifyResult.failed(Divergence(unattributable_deletions=("z.py",)))
-    combined = _fold_divergence(existing, field_name, [entry])
-    assert combined.divergence is not None
-    assert combined.divergence.unattributable_deletions == ("z.py",)
-    assert combined.divergence.approved_content_missing == (entry,)
+    assert _fold_divergence(passed, field_name, []) is passed
+    from_pass = _fold_divergence(passed, field_name, [entry])
+    assert from_pass.status is VerifyStatus.FAIL
+    assert from_pass.divergence is not None and getattr(from_pass.divergence, field_name) == (entry,)
+    appended = _fold_divergence(VerifyResult.failed(replace(Divergence(), **{field_name: (earlier,)})), field_name, [entry])
+    assert appended.divergence is not None and getattr(appended.divergence, field_name) == (earlier, entry)
+    keeps_other_axes = _fold_divergence(VerifyResult.failed(other), field_name, [entry])
+    assert keeps_other_axes.divergence is not None
+    assert getattr(keeps_other_axes.divergence, field_name) == (entry,)
+    assert replace(keeps_other_axes.divergence, **{field_name: ()}) == other
 
 
 # --------------------------------------------------------------------------- #

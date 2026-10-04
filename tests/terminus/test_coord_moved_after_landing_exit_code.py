@@ -1,12 +1,13 @@
 """#5570 contract (#5613) -- a coordination branch that moved after landing has a stable code and exit code.
 
 The behaviour itself (the branch delete is a compare-and-swap, the late commit
-survives, ``--resume`` projects it) is pinned by
+survives, ``--resume`` projects it) and the real-CLI exit code 75 with the
+``COORD_MOVED_AFTER_LANDING`` code are pinned by
 ``tests/terminus/test_coord_teardown_cas_branch_delete.py`` and
-``tests/orchestrator_api/test_mission_branch_delete_cas.py``. This file pins only
-what automation keys on: the ``COORD_MOVED_AFTER_LANDING`` code and the distinct
-exit code of ``spec-kitty consolidate``, both asserted by value, next to the
-existing message. It reuses that suite's real-CLI concurrency injection.
+``tests/orchestrator_api/test_mission_branch_delete_cas.py``. This file pins what
+automation keys on at the unit seam: the code and the distinct exit code of the
+teardown error, both asserted by value, next to the existing message; the early
+teardown-gate window that stays a plain exit 1; and the orchestrator-api message.
 """
 
 from __future__ import annotations
@@ -23,36 +24,9 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.orchestrator_api import commands as orchestrator_commands
 from tests.terminus.conftest import _cli_env as cli_env
 from tests.terminus.conftest import build_coord_mission
-from tests.terminus.test_coord_teardown_cas_branch_delete import (
-    _LATE_SHA_FILE,
-    _consolidate_with_late_commit,
-    _flat,
-    _windowless_resume_run,
-)
+from tests.terminus.test_coord_teardown_cas_branch_delete import _COORD_MOVED_CODE, _COORD_MOVED_EXIT, _flat
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
-
-#: Pinned by value, independent of the production constants (not 0, 1 or 2).
-_COORD_MOVED_EXIT = 75
-_COORD_MOVED_CODE = "COORD_MOVED_AFTER_LANDING"
-
-
-def test_5570_moved_coordination_branch_exits_75_with_the_stable_code(tmp_path: Path) -> None:
-    mission = build_coord_mission(tmp_path, wps=("WP01",), mid8="01M5570F")
-
-    first = _consolidate_with_late_commit(mission)
-
-    late_sha = (mission.repo / _LATE_SHA_FILE).read_text(encoding="utf-8").strip()
-    combined = _flat(first)
-    assert first.returncode == _COORD_MOVED_EXIT, combined
-    assert _COORD_MOVED_CODE in combined
-    # The code is added to the existing message, which still names the branch, the tip and the resume.
-    assert mission.coord_branch in combined and late_sha[:12] in combined and "spec-kitty consolidate --resume" in combined
-
-    # A branch that moves again during the advised resume reports the same contract.
-    second = _consolidate_with_late_commit(mission, resume=True, note_name="late-again.md", sha_file="late-again-sha.txt")
-    assert second.returncode == _COORD_MOVED_EXIT, _flat(second)
-    assert _COORD_MOVED_CODE in _flat(second)
 
 
 @pytest.mark.parametrize("coordination", [True, False], ids=["coordination-branch", "mission-branch"])
@@ -66,17 +40,6 @@ def test_tip_moved_error_carries_the_code_and_exit_code(coordination: bool) -> N
     assert error.error_code == _COORD_MOVED_CODE
     assert str(error).endswith(f" Error code: {_COORD_MOVED_CODE}."), "the code is appended; the message before it is unchanged"
     assert "NOT deleted" in str(error) and "kitty/mission-x" in str(error)
-
-
-def test_other_teardown_refusals_keep_the_generic_exit_code(tmp_path: Path) -> None:
-    """Only a moved tip is COORD_MOVED_AFTER_LANDING: an unbuildable late window stays a plain refusal."""
-    run = _windowless_resume_run(tmp_path, is_resume=True)
-
-    with pytest.raises(ex.CoordinationTeardownError) as raised:
-        ex._land_late_coordination_commits(run)
-
-    assert raised.value.exit_code == 1
-    assert _COORD_MOVED_CODE not in str(raised.value)
 
 
 # Lands a real commit on the coordination branch just before the REAL teardown gate runs its
