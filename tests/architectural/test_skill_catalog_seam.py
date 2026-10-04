@@ -10,6 +10,12 @@ skills, and the retiring installer then deletes every projected pack skill
   (``else SkillRegistry.from_package``) or ``getattr(..., "from_package")``;
 * no ``SkillRegistry(...)`` construction (including through an import alias).
 
+The seam also exports ``resolve_builtin_skill_catalog``, a catalog of shipped skills
+only. Handed to a project-scope ``assess_project_skills(retire=True)`` it would retire
+every pack-origin manifest entry, so it is a second door to the same hazard: only
+``catalog.py`` and ``runtime/agent_skills.py`` (global roots, where no pack skill is
+ever installed) may reference it.
+
 Only ``catalog.py`` (the seam) and ``registry.py`` (the definition) are exempt.
 The allowlist is empty: a new entry needs a reviewed read-only-listing rationale.
 Subclassing ``SkillRegistry`` (the installer's captured registry) is not a
@@ -36,19 +42,9 @@ _ALLOWLIST: dict[str, str] = {}
 _FACTORIES = frozenset({"from_package", "from_local_repo"})
 _CLASS = "SkillRegistry"
 
-#: Every module the plan pins as an install/assess caller, with the seam name it must use.
-_PINNED_CALLERS = {
-    "src/specify_cli/skills/verifier.py": "resolve_project_skill_catalog",
-    "src/specify_cli/runtime/agent_skills.py": "resolve_builtin_skill_catalog",
-    "src/specify_cli/cli/commands/init.py": "resolve_project_skill_catalog",
-    "src/specify_cli/upgrade/migrations/m_2_0_11_install_skills.py": "resolve_project_skill_catalog",
-    "src/specify_cli/upgrade/migrations/m_2_1_1_repair_skill_pack.py": "resolve_project_skill_catalog",
-    "src/specify_cli/upgrade/migrations/m_3_0_3_globalize_skill_pack.py": "resolve_project_skill_catalog",
-    "src/specify_cli/upgrade/migrations/m_3_2_0rc35_spk_skill_pack.py": "resolve_project_skill_catalog",
-    "src/specify_cli/upgrade/assessment.py": "resolve_project_skill_catalog",
-    "src/specify_cli/tool_surface/providers/managed_skills.py": "resolve_project_skill_catalog",
-    "src/specify_cli/tool_surface/providers/plugin_bundle.py": "resolve_project_skill_catalog",
-}
+#: The seam function that returns shipped skills only, and the one module that may use it.
+_BUILTIN_ONLY = "resolve_builtin_skill_catalog"
+_BUILTIN_ONLY_ALLOWED = frozenset({"src/specify_cli/skills/catalog.py", "src/specify_cli/runtime/agent_skills.py"})
 
 
 def _class_aliases(tree: ast.Module) -> set[str]:
@@ -147,7 +143,34 @@ def test_the_scanner_detects_each_bypass_shape(source: str, expected: list[str])
     assert sorted(found) == sorted(expected)
 
 
-@pytest.mark.parametrize(("module", "seam_name"), sorted(_PINNED_CALLERS.items()))
-def test_every_pinned_caller_resolves_through_the_seam(module: str, seam_name: str) -> None:
-    source, _ = read_and_parse(_SRC.parent / module)
-    assert seam_name in source, f"{module} no longer references {seam_name}"
+def find_builtin_only_references(tree: ast.Module) -> list[int]:
+    """Line numbers where *tree* names the built-in-only catalog: a name, attribute, import or string."""
+    lines: list[int] = []
+    for node in ast.walk(tree):
+        if (
+            (isinstance(node, ast.Name) and node.id == _BUILTIN_ONLY)
+            or (isinstance(node, ast.Attribute) and node.attr == _BUILTIN_ONLY)
+            or (isinstance(node, ast.alias) and node.name == _BUILTIN_ONLY)
+            or (isinstance(node, ast.Constant) and node.value == _BUILTIN_ONLY)
+        ):
+            lines.append(getattr(node, "lineno", 0))
+    return lines
+
+
+def test_the_built_in_only_catalog_is_not_a_second_door_around_the_seam() -> None:
+    referencing = {
+        path.relative_to(_SRC.parent).as_posix()
+        for path in sorted(_SRC.rglob("*.py"))
+        if "__pycache__" not in path.parts and find_builtin_only_references(read_and_parse(path)[1])
+    }
+    assert referencing == _BUILTIN_ONLY_ALLOWED, (
+        f"{_BUILTIN_ONLY} returns shipped skills only; a project-scope caller passing it to assess_project_skills(retire=True) "
+        f"retires every pack skill (#5193). Unexpected or missing: {sorted(referencing ^ _BUILTIN_ONLY_ALLOWED)}"
+    )
+
+    planted = parse_source(
+        f"from specify_cli.skills.catalog import {_BUILTIN_ONLY}\nimport specify_cli.skills.catalog as c\nc.{_BUILTIN_ONLY}()\ngetattr(c, '{_BUILTIN_ONLY}')\n",
+        display="<probe>",
+    )
+    assert len(find_builtin_only_references(planted)) == 3  # the import, the attribute call, the getattr string
+    assert find_builtin_only_references(parse_source("from specify_cli.skills.catalog import resolve_project_skill_catalog\n", display="<probe>")) == []
