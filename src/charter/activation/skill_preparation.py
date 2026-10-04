@@ -35,7 +35,6 @@ from charter.offering.pack_skills.models import (
     SkillExpansion,
     skill_namespace_violation,
 )
-from charter.offering.pack_skills.repository import PackSkillConflictError
 from charter.offering.pack_skills.validation import RESERVED_PREFIXES, Tier, rendered_name
 
 __all__ = [
@@ -43,8 +42,6 @@ __all__ = [
     # charter rather than importing charter.offering directly.
     "BUILTIN_TARGET_PREFIX",
     "CLI_TARGET_PREFIX",
-    # The sibling-pack id conflict, re-exported for the same reason.
-    "PackSkillConflictError",
     "PreparedSkill",
     "SkillPreparationError",
     "pack_skills_matter",

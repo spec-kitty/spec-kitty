@@ -21,7 +21,7 @@ import json
 from charter.activation.skill_preparation import BUILTIN_TARGET_PREFIX, CLI_TARGET_PREFIX, PreparedSkill
 from specify_cli.skills.command_installer import CANONICAL_COMMANDS
 
-__all__ = ["PackSkillRenderError", "render_pack_skill"]
+__all__ = ["render_pack_skill"]
 
 #: Name of the built-in command skills a ``builtin:`` target points at.
 _COMMAND_SKILL_PREFIX = "spec-kitty."
