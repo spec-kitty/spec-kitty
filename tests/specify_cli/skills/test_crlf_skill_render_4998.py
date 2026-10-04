@@ -527,7 +527,7 @@ def test_doctrine_skill_repair_converges_via_real_upgrade_cli(tmp_path: Path, mo
     ``upgrade.assessment.prepare_upgrade_repairs``/``apply_upgrade_repairs``
     (the ``ManagedSkillsProvider``, ``kinds=(DOCTRINE_SKILL,)``) on EVERY
     invocation -- including the "Project is already up to date!" path where
-    no version migration runs at all (``_run_upgrade_surface_repair`` in
+    no version migration runs at all (``_finalizer_step_surface_repair`` in
     ``cli/commands/upgrade.py``). It
     never calls ``install_all_skills`` (that function is exercised
     separately below, for the one-shot migration path it DOES own).

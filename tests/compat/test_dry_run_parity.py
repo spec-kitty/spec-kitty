@@ -91,14 +91,8 @@ def _run_dry_run_human(project: Path, monkeypatch: pytest.MonkeyPatch) -> str:
     """Invoke the human ``upgrade --dry-run --no-nag`` preview; return its output.
 
     The provisioning divergence is surfaced on the human preview (the frozen
-    ``compat-planner.json`` machine contract owns no provisioning field). The
-    generated-surface repair is stubbed out so the assertion stays scoped to
-    the provisioning notice.
+    ``compat-planner.json`` machine contract owns no provisioning field).
     """
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.upgrade._run_upgrade_surface_repair",
-        lambda *a, **k: None,
-    )
     result = _invoke_upgrade(project, ["--dry-run", "--no-nag", "--no-worktrees"], monkeypatch)
     assert result.exit_code == 0, result.output
     return result.output

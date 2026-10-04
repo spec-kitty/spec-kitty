@@ -234,13 +234,6 @@ def test_upgrade_heals_stranded_project_and_unblocks_mission_creation(tmp_path: 
     _write_stranded_project(project)
     _init_git_repo(project)
 
-    # Keep this test scoped to the provisioning fix: skip the (unrelated,
-    # heavier) generated-surface repair that also runs on every upgrade.
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.upgrade._run_upgrade_surface_repair",
-        lambda *a, **k: None,
-    )
-
     assert existing_mission_types(project) == []
 
     result = _run_upgrade(
@@ -265,10 +258,6 @@ def test_upgrade_provisioning_is_idempotent(tmp_path: Path, monkeypatch: pytest.
     project.mkdir()
     _write_stranded_project(project)
     _init_git_repo(project)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.upgrade._run_upgrade_surface_repair",
-        lambda *a, **k: None,
-    )
 
     first = _run_upgrade(
         ["--target", _STRANDED_FROM_VERSION, "--force", "--no-worktrees"],
@@ -294,10 +283,6 @@ def test_upgrade_preserves_authored_empty_activation_list(tmp_path: Path, monkey
     project.mkdir()
     _write_stranded_project(project, config_body="vcs:\n  type: git\nmission_type_activations: []\n")
     _init_git_repo(project)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.upgrade._run_upgrade_surface_repair",
-        lambda *a, **k: None,
-    )
 
     result = _run_upgrade(
         ["--target", _STRANDED_FROM_VERSION, "--force", "--no-worktrees"],
@@ -326,10 +311,6 @@ def test_upgrade_heals_pointer_charter_activation(tmp_path: Path, monkeypatch: p
     project.mkdir()
     charter_path = _write_pointer_charter_project(project)
     _init_git_repo(project)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.upgrade._run_upgrade_surface_repair",
-        lambda *a, **k: None,
-    )
 
     assert existing_mission_types(project) == []
 
@@ -369,10 +350,6 @@ def test_upgrade_preserves_authored_empty_pointer_activation_and_previews_not_pe
     charter_body = _CHARTER_YAML_WITHOUT_KEY + "mission_type_activations: []\n"
     charter_path = _write_pointer_charter_project(project, charter_body=charter_body)
     _init_git_repo(project)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.upgrade._run_upgrade_surface_repair",
-        lambda *a, **k: None,
-    )
 
     assert _mission_type_activation_provisioning_pending(project) is False
 
