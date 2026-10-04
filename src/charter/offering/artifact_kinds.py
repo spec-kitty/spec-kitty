@@ -198,6 +198,28 @@ class ArtifactKind(StrEnum):
         return self not in (ArtifactKind.TEMPLATE, ArtifactKind.ASSET)
 
     @property
+    def org_requirable(self) -> bool:
+        """Whether an org pack may declare ``required_<plural>`` for this kind.
+
+        ``True`` for the 10 kinds carrying a ``required_<plural>`` list on
+        ``OrgCharterPolicy``: every activatable kind except ``ANTI_PATTERN``,
+        plus ``ASSET``. Backs :data:`ORG_REQUIRABLE_KINDS`.
+        """
+        return self in _ORG_REQUIRABLE_KINDS
+
+    @property
+    def selection_overlayable(self) -> bool:
+        """Whether an org-required list overlays ``selected_<plural>`` on the charter.
+
+        ``True`` for the 8 kinds with a ``selected_<plural>`` field on
+        ``DoctrineSelectionConfig`` that org ``required_*`` lists union into
+        (a strict subset of :attr:`org_requirable`: ``GLOSSARY_PACK`` and
+        ``ASSET`` are requirable but not overlayable). Backs
+        :data:`SELECTION_OVERLAYABLE_KINDS`.
+        """
+        return self in _SELECTION_OVERLAYABLE_KINDS
+
+    @property
     def operator_token(self) -> str:
         """Hyphenated operator token for this kind (CLI surface, help text).
 
@@ -257,6 +279,37 @@ class ArtifactKind(StrEnum):
         valid = ", ".join(member.operator_token for member in cls)
         raise ValueError(f"Unknown artifact kind token {token!r}. Valid operator tokens: {valid}.")
 
+
+#: Members for which an org pack may declare ``required_<plural>`` (10 kinds,
+#: mirroring the ``OrgCharterPolicy.required_*`` fields; pinned by
+#: ``tests/architectural/test_kind_table_derivation.py``). Single home of the
+#: fact behind :attr:`ArtifactKind.org_requirable`.
+_ORG_REQUIRABLE_KINDS: frozenset[ArtifactKind] = frozenset(
+    {
+        ArtifactKind.DIRECTIVE,
+        ArtifactKind.TACTIC,
+        ArtifactKind.PARADIGM,
+        ArtifactKind.STYLEGUIDE,
+        ArtifactKind.TOOLGUIDE,
+        ArtifactKind.PROCEDURE,
+        ArtifactKind.AGENT_PROFILE,
+        ArtifactKind.MISSION_STEP_CONTRACT,
+        ArtifactKind.GLOSSARY_PACK,
+        ArtifactKind.ASSET,
+    }
+)
+
+#: Members whose org-required list overlays a ``selected_<plural>`` charter
+#: field (8 kinds; a strict subset of :data:`_ORG_REQUIRABLE_KINDS`). Single
+#: home of the fact behind :attr:`ArtifactKind.selection_overlayable`.
+_SELECTION_OVERLAYABLE_KINDS: frozenset[ArtifactKind] = _ORG_REQUIRABLE_KINDS - {ArtifactKind.GLOSSARY_PACK, ArtifactKind.ASSET}
+
+#: Plural field suffixes of the org-requirable kinds, in :class:`ArtifactKind`
+#: declaration order (stable; consumers key dicts by it).
+ORG_REQUIRABLE_KIND_FIELDS: tuple[str, ...] = tuple(kind.plural for kind in ArtifactKind if kind.org_requirable)
+
+#: Plural field suffixes of the selection-overlayable kinds, in declaration order.
+SELECTION_OVERLAYABLE_KIND_FIELDS: tuple[str, ...] = tuple(kind.plural for kind in ArtifactKind if kind.selection_overlayable)
 
 #: Canonical set of :class:`ArtifactKind` members that are never eligible for
 #: pack augmentation (``enhances``/``overrides``) or the charter kind universe.

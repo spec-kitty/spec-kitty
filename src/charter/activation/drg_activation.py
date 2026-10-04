@@ -31,7 +31,7 @@ import logging
 from pathlib import Path
 
 from charter.offering.api import ArtifactKind
-from charter.offering.artifact_kinds import CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL
+from charter.offering.artifact_kinds import CHARTER_ACTIVATABLE_KINDS, CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL
 from charter.offering.drg.merge import merge_three_layers
 from charter.offering.drg.models import DRGGraph
 from charter.offering.drg.org_pack_config import load_pack_registry
@@ -228,18 +228,7 @@ _SINGULAR_TO_PLURAL = CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL
 #: Per-kind ``PackContext`` field names for per-artifact-ID gate (FR-038, WP08).
 #: Maps a singular URN kind prefix to the corresponding ``PackContext`` attribute
 #: that holds the three-state frozenset of activated artifact IDs.
-_SINGULAR_TO_PER_KIND_FIELD: dict[str, str] = {
-    "directive": "activated_directives",
-    "tactic": "activated_tactics",
-    "styleguide": "activated_styleguides",
-    "toolguide": "activated_toolguides",
-    "paradigm": "activated_paradigms",
-    "procedure": "activated_procedures",
-    "agent_profile": "activated_agent_profiles",
-    "mission_step_contract": "activated_mission_step_contracts",
-    "glossary_pack": "activated_glossary_packs",
-    "anti_pattern": "activated_anti_patterns",
-}
+_SINGULAR_TO_PER_KIND_FIELD: dict[str, str] = {kind.value: f"activated_{kind.plural}" for kind in ArtifactKind if kind in CHARTER_ACTIVATABLE_KINDS}
 
 
 #: URN kind prefixes that represent mission steps. When the filter encounters

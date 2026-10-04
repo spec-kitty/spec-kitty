@@ -102,7 +102,7 @@ class PackContext:
     """Artifact kinds explicitly activated in the project charter.
 
     Plural form (e.g. ``"directives"``, ``"agent_profiles"``).
-    Defaults to all eight built-in kinds when the ``activated_kinds``
+    Defaults to all built-in kinds (every :class:`ArtifactKind`) when the ``activated_kinds``
     key is absent from ``.kittify/config.yaml``.
     """
 
@@ -604,7 +604,7 @@ def _read_list_key(data: dict[str, Any], key: str) -> frozenset[str] | None:
 def _read_activated_kinds(data: dict[str, Any]) -> frozenset[str]:
     """Extract ``activated_kinds`` from parsed config data.
 
-    Falls back to all eight built-in kinds when the key is absent.
+    Falls back to all built-in kinds when the key is absent.
     An explicit empty list ``[]`` returns ``frozenset()`` (FR-039 fix).
     """
     activated = _read_list_key(data, "activated_kinds")

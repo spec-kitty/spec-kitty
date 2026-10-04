@@ -4,7 +4,7 @@ Mission B WP06 (T026/T031) extends ``apply_org_charter_to_interview`` to
 union every ``required_<kind>`` declared in an org pack's
 ``org-charter.yaml`` into the matching ``selected_<kind>`` field on the
 in-memory interview.  This module pins the union semantics for each of
-the 8 kinds in :data:`specify_cli.doctrine.org_charter.REQUIRED_KIND_FIELDS`
+each kind in :data:`specify_cli.doctrine.org_charter.REQUIRED_KIND_FIELDS`
 and the non-destructive merge contract.
 """
 

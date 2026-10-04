@@ -46,7 +46,7 @@ from charter.activation.kind_vocabulary import (
     UnrepresentableDirectiveIdError,
     resolve_selected_id_to_stem,
 )
-from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.artifact_kinds import ORG_REQUIRABLE_KIND_FIELDS, ArtifactKind
 
 if TYPE_CHECKING:
     from charter.activation.pack_context import PackContext
@@ -82,18 +82,7 @@ __all__ = [
 #: ordering and is used by the union loop in
 #: :func:`apply_org_charter_to_interview` and the merge loop in
 #: :func:`load_org_charter_policies`.
-REQUIRED_KIND_FIELDS: tuple[str, ...] = (
-    "directives",
-    "tactics",
-    "paradigms",
-    "styleguides",
-    "toolguides",
-    "procedures",
-    "agent_profiles",
-    "mission_step_contracts",
-    "glossary_packs",
-    "assets",
-)
+REQUIRED_KIND_FIELDS: tuple[str, ...] = ORG_REQUIRABLE_KIND_FIELDS
 
 
 # ---------------------------------------------------------------------------
@@ -656,7 +645,7 @@ def load_org_charter_policies(
     * ``schema_version`` — last non-empty value wins.
     * ``org_name`` — last non-empty value wins.
     * ``interview_defaults`` — dict update; later packs overwrite earlier.
-    * ``required_<kind>`` (all 8 in :data:`REQUIRED_KIND_FIELDS`) — union,
+    * ``required_<kind>`` (every kind in :data:`REQUIRED_KIND_FIELDS`) — union,
       preserving first-seen order across packs.
     * ``governance_policies`` — concatenated, deduplicated by
       ``(field, value)`` keeping the *last* occurrence.

@@ -26,7 +26,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from charter.activation.schemas import DoctrineSelectionConfig
-from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.artifact_kinds import SELECTION_OVERLAYABLE_KIND_FIELDS
 
 __all__ = [
     # `_enumerate_org_pack_paths` retired from __all__ (#3520 chain fold): its
@@ -50,24 +50,13 @@ _LOGGER = logging.getLogger(__name__)
 #: cross-pack union without importing ``specify_cli`` (preserves the
 #: kernel <- doctrine <- charter <- specify_cli dependency direction).
 #:
-#: The curated membership (the kinds that carry a ``required_<kind>`` overlay:
-#: every activatable kind except ``glossary_pack`` and ``anti_pattern``) is
-#: named via :class:`ArtifactKind` members and its plural forms are derived from
-#: the authority, so the singular↔plural spelling can never drift from the enum
-#: (issue #5409). Declaration order is preserved.
-_REQUIRED_KIND_FIELDS: tuple[str, ...] = tuple(
-    kind.plural
-    for kind in (
-        ArtifactKind.DIRECTIVE,
-        ArtifactKind.TACTIC,
-        ArtifactKind.PARADIGM,
-        ArtifactKind.STYLEGUIDE,
-        ArtifactKind.TOOLGUIDE,
-        ArtifactKind.PROCEDURE,
-        ArtifactKind.AGENT_PROFILE,
-        ArtifactKind.MISSION_STEP_CONTRACT,
-    )
-)
+#: Derived from the :attr:`ArtifactKind.selection_overlayable` fact: the kinds
+#: whose org ``required_<kind>`` list unions into a ``selected_<kind>`` field of
+#: ``DoctrineSelectionConfig``. This is deliberately a strict subset of the
+#: org-requirable kinds (``glossary_pack`` and ``asset`` carry a
+#: ``required_<kind>`` list but no ``selected_<kind>`` overlay). Declaration
+#: order of :class:`ArtifactKind` is preserved.
+_REQUIRED_KIND_FIELDS: tuple[str, ...] = SELECTION_OVERLAYABLE_KIND_FIELDS
 
 
 def _enumerate_org_pack_paths(repo_root: Path) -> list[tuple[str, Path]]:

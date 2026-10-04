@@ -154,7 +154,7 @@ def _compile(project_root: Path, interview: CharterInterview):
 
 class TestOrgRequiredPromotedIntoConfig:
     """``apply_org_charter_to_interview`` writes ``config.yaml`` directly,
-    for all 8 :data:`REQUIRED_KIND_FIELDS` kinds -- not just roots."""
+    for every :data:`REQUIRED_KIND_FIELDS` kind -- not just roots."""
 
     @pytest.mark.parametrize("kind", list(REQUIRED_KIND_FIELDS))
     def test_required_kind_promoted_into_config_activated(self, kind: str, tmp_path: Path) -> None:
