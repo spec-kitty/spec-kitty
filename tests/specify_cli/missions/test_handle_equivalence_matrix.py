@@ -15,6 +15,7 @@ operator handle, so a mid8 handle yielded ``kitty-specs/<mid8>/`` surfaces,
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -68,13 +69,14 @@ def _seed_mission(
     slug: str,
     mission_id: str,
     coordination_branch: str | None = None,
+    mission_type: str = "software-dev",
 ) -> Path:
     feature_dir = repo_root / "kitty-specs" / slug
     feature_dir.mkdir(parents=True)
     meta: dict[str, object] = {
         "mission_id": mission_id,
         "mission_slug": slug,
-        "mission_type": "software-dev",
+        "mission_type": mission_type,
         "target_branch": _TARGET_BRANCH,
         "friendly_name": slug,
     }
@@ -786,10 +788,32 @@ def _seed_custom_mission(repo: Path) -> None:
     (mission_dir / "mission.yaml").write_text(_CUSTOM_MISSION_BODY, encoding="utf-8")
 
 
+@pytest.fixture
+def custom_run_repo(repo: Path) -> Path:
+    """``repo`` with mission A re-seeded as a mission of the custom type it runs.
+
+    ``mission run <key>`` refuses to retype an existing mission
+    (``MISSION_TYPE_CONFLICT``), so the mission the custom run attaches to must
+    already carry ``mission_type == _CUSTOM_MISSION_KEY``. Only mission A is
+    re-seeded; the shared ``repo`` fixture and every other test are untouched.
+    """
+    shutil.rmtree(repo / "kitty-specs" / _FULL_SLUG)
+    _seed_mission(
+        repo,
+        slug=_FULL_SLUG,
+        mission_id=_MISSION_ID,
+        mission_type=_CUSTOM_MISSION_KEY,
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "retype mission A to the custom mission type")
+    return repo
+
+
 @pytest.mark.parametrize("handle", [_FULL_SLUG, _MID8, "083"])
 def test_mission_run_identity_identical_across_handle_forms(
-    repo: Path, handle: str, monkeypatch: pytest.MonkeyPatch
+    custom_run_repo: Path, handle: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    repo = custom_run_repo
     from typer.testing import CliRunner
 
     from specify_cli.cli.commands import mission_type
