@@ -148,7 +148,7 @@ def mission_has_code(manifest: LanesManifest, wp_kinds: Mapping[str, WorkProduct
     ``has_code_lanes`` cannot see: a single_branch mission's ONE repo-root
     lane holding real CODE WPs. A single_branch mission's CODE WPs are
     verified to always carry an EXPLICIT ``execution_mode`` after
-    ``finalize-tasks`` (``mission_finalize.py::_apply_ownership_inference``
+    ``finalize-tasks`` (``mission_finalize_bootstrap.py::_apply_ownership_inference``
     writes it for every WP missing one, regardless of topology) -- so this
     never needs the wider legacy-inference tolerance ``has_code_lanes``
     already covers for lanes/coord.

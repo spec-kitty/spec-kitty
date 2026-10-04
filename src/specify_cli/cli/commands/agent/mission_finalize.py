@@ -38,8 +38,11 @@ lives in a sibling leaf module, moved verbatim:
 * ``mission_finalize_commit`` -- the commit pipeline, success report and rollback guards
 
 Every name those modules define is re-exported here, so ``mission_finalize.<name>``
-stays the import and patch surface. The phase modules call patched names through
-this module at call time (see ``tests/.../test_mission_finalize_phase_modules.py``).
+stays importable. A phase module calls through this module at call time only for a
+function another finalize module owns and for a name tests patch here; any other call
+inside a phase module is direct, so patch that module to intercept it (see
+``tests/.../test_mission_finalize_phase_modules.py`` and
+``docs/api/finalize-tasks-internals.md``).
 
 Behavior is preserved byte-for-byte from the pre-decomposition ``mission.py``;
 the WP01 golden harness is the regression net. ``_stage_finalize_artifacts_in_

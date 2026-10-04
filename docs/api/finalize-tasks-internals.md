@@ -2,7 +2,7 @@
 title: finalize-tasks internals reference
 description: 'finalize-tasks internals: empty owned_files, lane-depth cycle safety, the planning_commit_sha refresh override, and the automatic planning-pin refresh.'
 doc_status: active
-updated: '2026-10-02'
+updated: '2026-10-04'
 ---
 # `finalize-tasks` internals reference
 
@@ -142,25 +142,38 @@ The explicit flag and its refusals are unchanged. Code: `PlanningCommitResolutio
 ## Module map
 
 `finalize-tasks` is split across sibling modules in
-`src/specify_cli/cli/commands/agent/` (#5627). `mission_finalize.py` keeps the
-command, its context and phase orchestration, and the artifact-collection
-helpers. Each phase lives in its own module:
+`src/specify_cli/cli/commands/agent/` (#5627). `mission_finalize.py` is the
+facade: it keeps the command, and every other phase lives in its own module:
 
 | Module | Owns |
-|---|---|
+| --- | --- |
+| `mission_finalize.py` | The `finalize_tasks` command, its context (`_resolve_finalize_context`), the branch-setup phase (`_run_finalize_branch_setup`), the validation-gate and ownership-gate runners, and the helpers `_meta_json_delta_is_finalize_attributable` and `_collect_finalize_artifacts`; re-exports every name below |
 | `mission_finalize_seams.py` | Constants, the owned-envelope `ContextVar`, `_emit_json` and the `mission`-routed patch seams |
 | `mission_finalize_branch_contract.py` | Target-branch resolution, branch-contract persistence, the `--target-branch` override |
 | `mission_finalize_validation.py` | Requirement-ID, dependency, requirement-mapping and issue-matrix gates |
 | `mission_finalize_bootstrap.py` | The per-WP frontmatter bootstrap loop, ownership gates, lane-input projection, the `--validate-only` report, local canonical status events |
 | `mission_finalize_planning_pin.py` | The planning-commit pin: preserve-or-capture, `--refresh-planning-commit` and the automatic refresh |
 | `mission_finalize_lanes.py` | Lane computation and the acceptance-matrix scaffold |
-| `mission_finalize_commit.py` | The commit pipeline, the success report and the refusal-time rollback guards |
+| `mission_finalize_commit.py` | The commit pipeline, the success report and the refusal-time rollback guards; wraps the status-surface guard with `_capture_status_surface`, `_restore_status_surface`, `_restore_mission_write_scope_beside_status` and `_report_status_surface_leftover` |
 
-`mission_finalize` re-exports every name these modules define, so
-`mission_finalize.<name>` is still the import and patch surface. A phase module
-calls a patched name through `mission_finalize` at call time, using a lazy
-in-function import, so a test that patches `mission_finalize.<name>` still
-intercepts it. `tests/specify_cli/cli/commands/agent/test_mission_finalize_phase_modules.py`
-pins the re-exports, the lazy import and the interception. Structural pins that
-read the source use `tests/_support/finalize_source.py`, which reads the whole
-module family.
+`finalize_status_surface.py` is not a phase module. It owns `StatusSurfaceGuard`
+and `StatusSurfaceLeftover`, which `mission_finalize_commit.py` wraps.
+
+`mission_finalize` re-exports every name the phase modules define, so
+`mission_finalize.<name>` stays importable. How a phase module reaches a name
+decides whether a patch on `mission_finalize.<name>` intercepts the call. The
+module goes through `mission_finalize` at call time with a lazy in-function
+import (`_mf.<name>`), under three rules:
+
+1. A call to a function another finalize module owns always goes through `_mf`.
+2. A call to a name that tests patch on `mission_finalize` goes through `_mf`.
+3. Any other call inside a phase module is direct. To intercept it, patch the
+   phase module that makes the call, not `mission_finalize`.
+
+`tests/specify_cli/cli/commands/agent/test_mission_finalize_phase_modules.py`
+pins the re-exports, the lazy import, and both routing rules (patched names and
+cross-module functions are never referenced bare in a phase module). When a test
+starts patching another name on `mission_finalize`, add it to `_ROUTED_NAMES`
+there: the gate does not read the tests, so a newly patched name that a phase
+module calls directly would not be intercepted and nothing would fail. Structural pins that read the source use `tests/_support/finalize_source.py`,
+which reads the whole module family.

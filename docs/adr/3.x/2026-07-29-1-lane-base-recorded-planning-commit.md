@@ -3,6 +3,7 @@ title: 'ADR: Lane Base Merges the Recorded Planning-Artifact Commit (FR-009)'
 description: 'Each lane gains the planning-artifact commit recorded at finalize-tasks as an extra ancestor, leaving its git parentage intact and never reading a live branch tip.'
 status: Accepted
 date: '2026-07-29'
+updated: '2026-10-04'
 ---
 
 ## Context
@@ -271,3 +272,7 @@ NFR-005). Research: `research.md` D-5. Plan: `plan.md` (Risks). Tasks: `tasks.md
 (`_compute_and_write_lanes`, the SHA-capture producer),
 [`src/specify_cli/lanes/auto_rebase.py`](../../../src/specify_cli/lanes/auto_rebase.py)
 (`_refuse_preexisting_lane_status_deletions` — reconciled, unchanged, §4).
+
+## Erratum (2026-10-04, #5627)
+
+The `mission_finalize.py: _compute_and_write_lanes` citations above (the producer reference in section 1 and the canonical-seams list) point to that file as it was when this ADR was written. Mission `mission-finalize-degod-01M43EW2` later split it into phase modules, with bodies moved verbatim. `_compute_and_write_lanes` now lives in `src/specify_cli/cli/commands/agent/mission_finalize_lanes.py`, and `mission_finalize` still re-exports it. The decision is unchanged.

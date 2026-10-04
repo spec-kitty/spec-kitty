@@ -2609,6 +2609,7 @@ pages:
     - {slug: "neutral", text: "Neutral", level: 3}
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "erratum-2026-10-04-5627", text: "Erratum (2026-10-04, #5627)", level: 2}
   - path: "docs/adr/3.x/2026-07-30-1-consolidated-write-surface-and-consolidate-terminology.md"
     title: "ADR: CONSOLIDATED Write-Surface Wiring and `consolidate` as Canonical Lane-Consolidation Terminology"
     divio_type: "none"
