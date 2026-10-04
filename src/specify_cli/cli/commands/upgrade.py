@@ -1227,7 +1227,9 @@ def _finalizer_step_offer_repair(
     """Injected ``offer_repair`` step (C4 order position 4).
 
     Mirrors the pre-refactor gating: the interactive mission-state prompt
-    never runs under ``--json``, nor after a failed migration.
+    never runs under ``--json``, nor after a failed migration, nor after a
+    failed commit recovery (``outcome.commit_recovery_failed``: the checkout's
+    staging restore just failed, so the gate must not write into it).
 
     Passes ``repair_opt_in=confirm`` alongside ``assume_yes=confirm``
     (#4775, FR-017/NFR-003 reconciliation): ``confirm`` is the caller's
@@ -1239,8 +1241,8 @@ def _finalizer_step_offer_repair(
     would defeat NFR-003 by making the repair always run without any
     consent at all.
     """
-    if json_output or not outcome.result.success:
-        return RepairOutcome(pending=True, message="Repair prompt skipped (json output or failed migration).")
+    if json_output or not outcome.result.success or outcome.commit_recovery_failed:
+        return RepairOutcome(pending=True, message="Repair prompt skipped (json output, failed migration or failed commit recovery).")
     return offer_teamspace_mission_state_migration(
         project_path,
         console=console,

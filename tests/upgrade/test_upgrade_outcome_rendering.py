@@ -591,6 +591,29 @@ def test_step_keeps_an_error_diagnostic_in_the_result_errors_instead_of_synthesi
 
 
 # ---------------------------------------------------------------------------
+# The mission-state repair gate stays closed after a failed commit recovery
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("path", [_NO_MIGRATIONS, _MIGRATIONS])
+@pytest.mark.parametrize(("recovery_fails", "gate_calls"), [(True, 0), (False, 1)], ids=["recovery-failed", "clean-run"])
+def test_mission_state_repair_gate_is_not_offered_after_a_failed_commit_recovery(
+    path: str, recovery_fails: bool, gate_calls: int, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, quiet: None
+) -> None:
+    from specify_cli.upgrade.outcome import RepairOutcome
+
+    row = _Row("gate", ("commit_recovery_failure",) if recovery_fails else (), "failed" if recovery_fails else "applied", (), yes=True)
+    (root,), args = _prepare_state(tmp_path, monkeypatch, row, path, "gate")
+    gate = MagicMock(return_value=RepairOutcome())
+    monkeypatch.setattr(upgrade_module, "offer_teamspace_mission_state_migration", gate)
+
+    result = _invoke(root, args)
+
+    assert gate.call_count == gate_calls, result.output
+    assert (result.exit_code != 0) is recovery_fails
+
+
+# ---------------------------------------------------------------------------
 # Help text (FR-014)
 # ---------------------------------------------------------------------------
 
