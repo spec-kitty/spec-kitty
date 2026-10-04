@@ -115,6 +115,7 @@ _CLI_KIND_TO_DRG_SINGULAR: dict[str, str] = {
     "mission-step-contract": "mission_step_contract",
     "glossary-pack": "glossary_pack",
     # "mission-type" has no DRG singular; omitted intentionally.
+    # "skill" is omitted on purpose: the parity loop loads the graph without org fragments, so org skills would read as false gaps.
 }
 
 # Inverse: DRG singular → CLI kind (for DRG edge traversal lookups).

@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import logging
-import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from kernel.content_digest import sha256_digest
 from specify_cli.skills.manifest import (
     ManagedFileEntry,
     compute_content_hash,
@@ -171,4 +171,4 @@ def _expected_content_hash(source: Path, skill_name: str, source_file: str) -> s
         return compute_content_hash(source)
     content = source.read_text(encoding="utf-8")
     normalized = ensure_skill_frontmatter(content, skill_name).encode("utf-8")
-    return "sha256:" + hashlib.sha256(normalized).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
+    return sha256_digest(normalized)

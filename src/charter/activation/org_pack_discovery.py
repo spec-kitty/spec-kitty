@@ -39,8 +39,10 @@ __all__ = [
     "_load_doctrine_selection",
     "_missing_pack_diagnostic",
     "_read_org_required_selections",
+    "last_non_empty_token",
     "read_org_required_ids",
     "read_org_skill_namespace",
+    "union_required_tokens",
 ]
 
 
@@ -165,7 +167,12 @@ def union_required_tokens(into: list[str], items: Iterable[object]) -> None:
 
 
 def last_non_empty_token(current: str | None, candidate: object) -> str | None:
-    """Last-non-empty-wins fold step shared by ``skill_namespace`` / ``org_name``."""
+    """Last-non-empty-wins fold step for ``skill_namespace``.
+
+    Used by :func:`read_org_skill_namespace` (charter layer) and by
+    ``specify_cli.doctrine.org_charter`` when it folds parsed policies. ``org_name``
+    follows the same rule but is still open-coded in ``org_charter.py``.
+    """
     if isinstance(candidate, str) and candidate.strip():
         return candidate.strip()
     return current

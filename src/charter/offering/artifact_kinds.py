@@ -9,14 +9,14 @@ Two distinct concepts — do not conflate (#5409)
   hand-authorable operator tokens the charter command surfaces (``activate`` /
   ``deactivate`` / ``list`` / ``context --include``) expose, which is::
 
-      the 9 hand-authorable ``ArtifactKind`` tokens  +  ``mission-type``
+      the hand-authorable ``ArtifactKind`` tokens  +  ``mission-type``
 
   It excludes :data:`_NON_AUGMENTATION_ELIGIBLE_KINDS` (``template``, ``asset``,
   ``anti_pattern``): those are not hand-authored as standalone artifact files, so
   an operator never names them here.
 * **Charter-*activatable* kinds** (:attr:`ArtifactKind.activatable` /
   :data:`CHARTER_ACTIVATABLE_KINDS`) — whether a kind can be activated as a live
-  governance rule. This is **10 kinds**: every kind except ``template`` and
+  governance rule. This is every kind except ``template`` and
   ``asset``. ``anti_pattern`` **IS** charter-activatable (issue #5409, ruling
   2026-09-30) and the activation surfaces accept it end to end; it is merely
   absent from the *token* universe above because it is not hand-authored.
@@ -29,7 +29,7 @@ mapping it to an artifact kind (R-009 / CL-1: no silent fallback).
 
 ``template`` *is* an :class:`ArtifactKind` member but is resolved specially
 (mission-tier, empty glob — see :attr:`ArtifactKind.glob_pattern`) and is not
-charter-activatable; it is not one of the 9 non-template artifact tokens
+charter-activatable; it is not one of the non-template artifact tokens
 enumerated in :data:`CHARTER_KIND_TOKENS`.
 
 ``anti_pattern`` *is* an :class:`ArtifactKind` member (mission
@@ -79,10 +79,10 @@ _PLURALS: dict[str, str] = {
 
 #: Single source of truth for "does this kind ship a `packs/built-in/<plural>/`
 #: content directory". Backs :attr:`ArtifactKind.has_built_in_content_dir`
-#: (mission ``doctrine-built-in-seam-consolidation-01KYW3TX``, WP01). Exactly
-#: 9 kinds are ``True`` -- ``agent_profile``, ``asset``, ``directive``,
-#: ``glossary_pack``, ``paradigm``, ``procedure``, ``styleguide``, ``tactic``,
-#: ``toolguide``. The 3-kind carve-out (``mission_step_contract``, ``template``,
+#: (mission ``doctrine-built-in-seam-consolidation-01KYW3TX``, WP01). The
+#: kinds that are ``True`` are ``agent_profile``, ``asset``, ``directive``,
+#: ``glossary_pack``, ``paradigm``, ``procedure``, ``skill``, ``styleguide``,
+#: ``tactic``, ``toolguide``. The 3-kind carve-out (``mission_step_contract``, ``template``,
 #: ``anti_pattern``) is ``False``: these are package-resource/graph-only kinds
 #: with no shipped content directory (see mission #3091 for the step-contract/
 #: template relocation). Do NOT reuse :data:`_NON_AUGMENTATION_ELIGIBLE_KINDS`
@@ -178,7 +178,7 @@ class ArtifactKind(StrEnum):
     def has_built_in_content_dir(self) -> bool:
         """Whether this kind ships a ``packs/built-in/<plural>/`` content dir.
 
-        ``True`` for exactly the 9 shipped content-dir kinds; ``False`` for the
+        ``True`` for exactly the shipped content-dir kinds; ``False`` for the
         derived 3-kind carve-out (``MISSION_STEP_CONTRACT``, ``TEMPLATE``,
         ``ANTI_PATTERN``), which are package-resource/graph-only kinds (see
         mission #3091 for the step-contract/template relocation). This is the
@@ -208,7 +208,7 @@ class ArtifactKind(StrEnum):
     def org_requirable(self) -> bool:
         """Whether an org pack may declare ``required_<plural>`` for this kind.
 
-        ``True`` for the 10 kinds carrying a ``required_<plural>`` list on
+        ``True`` for the kinds carrying a ``required_<plural>`` list on
         ``OrgCharterPolicy``: every activatable kind except ``ANTI_PATTERN``,
         plus ``ASSET``. Backs :data:`ORG_REQUIRABLE_KINDS`.
         """
@@ -218,7 +218,7 @@ class ArtifactKind(StrEnum):
     def selection_overlayable(self) -> bool:
         """Whether an org-required list overlays ``selected_<plural>`` on the charter.
 
-        ``True`` for the 8 kinds with a ``selected_<plural>`` field on
+        ``True`` for the kinds with a ``selected_<plural>`` field on
         ``DoctrineSelectionConfig`` that org ``required_*`` lists union into
         (a strict subset of :attr:`org_requirable`: ``GLOSSARY_PACK`` and
         ``ASSET`` are requirable but not overlayable). Backs
@@ -306,8 +306,7 @@ class ArtifactKind(StrEnum):
 #: :attr:`ArtifactKind.effective_when_absent`.
 _REQUIRED_WHEN_ABSENT_KINDS: frozenset[ArtifactKind] = frozenset({ArtifactKind.SKILL})
 
-#: Members for which an org pack may declare ``required_<plural>`` (10 kinds,
-#: mirroring the ``OrgCharterPolicy.required_*`` fields; pinned by
+#: Members for which an org pack may declare ``required_<plural>`` (mirroring the ``OrgCharterPolicy.required_*`` fields; pinned by
 #: ``tests/architectural/test_kind_table_derivation.py``). Single home of the
 #: fact behind :attr:`ArtifactKind.org_requirable`.
 _ORG_REQUIRABLE_KINDS: frozenset[ArtifactKind] = frozenset(
@@ -327,7 +326,7 @@ _ORG_REQUIRABLE_KINDS: frozenset[ArtifactKind] = frozenset(
 )
 
 #: Members whose org-required list overlays a ``selected_<plural>`` charter
-#: field (8 kinds; a strict subset of :data:`_ORG_REQUIRABLE_KINDS`). Single
+#: field (a strict subset of :data:`_ORG_REQUIRABLE_KINDS`). Single
 #: home of the fact behind :attr:`ArtifactKind.selection_overlayable`.
 _SELECTION_OVERLAYABLE_KINDS: frozenset[ArtifactKind] = _ORG_REQUIRABLE_KINDS - {ArtifactKind.GLOSSARY_PACK, ArtifactKind.ASSET, ArtifactKind.SKILL}
 
@@ -417,9 +416,9 @@ PROJECT_KIND_DIRS: dict[ArtifactKind, str] = {
 #:
 #: Every :class:`ArtifactKind` *except* the two that resolve specially and are
 #: never activated as a live governance rule: ``TEMPLATE`` (mission-tier, empty
-#: glob) and ``ASSET`` (loose-contract blob manifest). This is **10 kinds,
-#: including ``ANTI_PATTERN``** — deliberately distinct from both
-#: :data:`CHARTER_KIND_TOKENS` (9 tokens; also drops ``anti_pattern`` via
+#: glob) and ``ASSET`` (loose-contract blob manifest). This set includes
+#: ``ANTI_PATTERN`` — deliberately distinct from both
+#: :data:`CHARTER_KIND_TOKENS` (which also drops ``anti_pattern`` via
 #: :data:`_NON_AUGMENTATION_ELIGIBLE_KINDS`) and that exclusion set itself
 #: (which additionally drops ``anti_pattern``). C-003/FR-005 require the
 #: ``anti_pattern`` entry be preserved here, which is why membership is keyed on
@@ -510,7 +509,9 @@ __all__ = [
     "CHARTER_KIND_TOKENS",
     "DIRECT_WRITE_KINDS",
     "MISSION_TYPE_TOKEN",
+    "ORG_REQUIRABLE_KIND_FIELDS",
     "PROJECT_KIND_DIRS",
+    "SELECTION_OVERLAYABLE_KIND_FIELDS",
     "MissionTypeNotAnArtifactKind",
     "slug_for",
 ]
