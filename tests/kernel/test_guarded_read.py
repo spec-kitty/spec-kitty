@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+from tests._support.eacces import deny_path_method
 from kernel.errors import GuardedReadError
 from kernel.guarded_read import read_guarded
 
@@ -59,16 +60,16 @@ def test_missing_file_raises_guarded_read_error(tmp_path: Path) -> None:
     assert isinstance(exc_info.value.__cause__, OSError)
 
 
-def test_permission_denied_raises_guarded_read_error(tmp_path: Path) -> None:
+def test_permission_denied_raises_guarded_read_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     path = tmp_path / "locked.txt"
     path.write_text("secret", encoding="utf-8")
-    path.chmod(0o000)
-    try:
-        with pytest.raises(GuardedReadError) as exc_info:
-            read_guarded(path, lambda text: text)
-        assert isinstance(exc_info.value.__cause__, OSError)
-    finally:
-        path.chmod(0o644)
+    # Deny at the read seam instead of chmod(0): root bypasses file mode bits,
+    # so a chmod-based setup gave a different verdict per uid (#5622).
+    deny_path_method(monkeypatch, "read_text", path)
+
+    with pytest.raises(GuardedReadError) as exc_info:
+        read_guarded(path, lambda text: text)
+    assert isinstance(exc_info.value.__cause__, PermissionError)
 
 
 def test_undecodable_bytes_raise_guarded_read_error_in_text_mode(tmp_path: Path) -> None:

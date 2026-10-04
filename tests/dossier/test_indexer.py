@@ -10,13 +10,14 @@ Tests cover:
 - Error handling without silent failures
 """
 
-import os
 import pytest
 import tempfile
 from kernel.clock import now_utc
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from specify_cli.dossier import hasher as hasher_module
+from tests._support.eacces import deny_open_in
 from specify_cli.dossier.indexer import Indexer
 from specify_cli.dossier.manifest import (
     ManifestRegistry,
@@ -28,6 +29,7 @@ from specify_cli.dossier.models import ArtifactRef, MissionDossier
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 class TestIndexerScanning:
     """Test Indexer directory scanning."""
@@ -380,24 +382,20 @@ class TestMissingArtifactDetection:
 class TestUnreadableArtifactHandling:
     """Test graceful handling of unreadable artifacts."""
 
-    def test_permission_denied_artifact(self, tmp_path):
+    def test_permission_denied_artifact(self, tmp_path, monkeypatch):
         """Artifact with no read permission is recorded with error_reason='unreadable'."""
         protected_file = tmp_path / "protected.md"
         protected_file.write_text("protected content")
         # Remove read permission
-        os.chmod(protected_file, 0o000)
+        deny_open_in(monkeypatch, hasher_module, protected_file)
 
-        try:
-            indexer = Indexer(ManifestRegistry())
-            artifact = indexer._index_file(protected_file, tmp_path, "software-dev")
+        indexer = Indexer(ManifestRegistry())
+        artifact = indexer._index_file(protected_file, tmp_path, "software-dev")
 
-            assert artifact is not None
-            assert artifact.is_present is False
-            assert artifact.error_reason == "unreadable"
-            assert artifact.content_hash_sha256 == ""
-        finally:
-            # Restore permission for cleanup
-            os.chmod(protected_file, 0o644)
+        assert artifact is not None
+        assert artifact.is_present is False
+        assert artifact.error_reason == "unreadable"
+        assert artifact.content_hash_sha256 == ""
 
     def test_invalid_utf8_artifact(self, tmp_path):
         """Artifact with invalid UTF-8 is recorded with error_reason='invalid_utf8'."""
@@ -413,32 +411,29 @@ class TestUnreadableArtifactHandling:
         assert artifact.is_present is False
         assert artifact.error_reason == "invalid_utf8"
 
-    def test_scan_continues_after_unreadable_artifact(self, tmp_path):
+    def test_scan_continues_after_unreadable_artifact(self, tmp_path, monkeypatch):
         """Scan continues after encountering unreadable artifact (no exception)."""
         readable_file = tmp_path / "readable.md"
         readable_file.write_text("readable content")
 
         protected_file = tmp_path / "protected.md"
         protected_file.write_text("protected content")
-        os.chmod(protected_file, 0o000)
+        deny_open_in(monkeypatch, hasher_module, protected_file)
 
-        try:
-            indexer = Indexer(ManifestRegistry())
-            files = list(indexer._scan_directory(tmp_path))
-            indexed_artifacts = []
-            for file_path in files:
-                artifact = indexer._index_file(file_path, tmp_path, "software-dev")
-                if artifact:
-                    indexed_artifacts.append(artifact)
+        indexer = Indexer(ManifestRegistry())
+        files = list(indexer._scan_directory(tmp_path))
+        indexed_artifacts = []
+        for file_path in files:
+            artifact = indexer._index_file(file_path, tmp_path, "software-dev")
+            if artifact:
+                indexed_artifacts.append(artifact)
 
-            # Should have exactly these 2 artifacts, one readable and one not.
-            by_path = {a.relative_path: a for a in indexed_artifacts}
-            assert set(by_path) == {"readable.md", "protected.md"}
-            assert by_path["readable.md"].is_present is True
-            assert by_path["protected.md"].is_present is False
-            assert by_path["protected.md"].error_reason == "unreadable"
-        finally:
-            os.chmod(protected_file, 0o644)
+        # Should have exactly these 2 artifacts, one readable and one not.
+        by_path = {a.relative_path: a for a in indexed_artifacts}
+        assert set(by_path) == {"readable.md", "protected.md"}
+        assert by_path["readable.md"].is_present is True
+        assert by_path["protected.md"].is_present is False
+        assert by_path["protected.md"].error_reason == "unreadable"
 
 
 class TestMissionDossierBuilder:
@@ -458,26 +453,23 @@ class TestMissionDossierBuilder:
         assert dossier.feature_dir == str(tmp_path)
         assert len(dossier.artifacts) >= 3
 
-    def test_dossier_includes_all_indexed_artifacts(self, tmp_path):
+    def test_dossier_includes_all_indexed_artifacts(self, tmp_path, monkeypatch):
         """Dossier includes all indexed artifacts (present + unreadable)."""
         (tmp_path / "spec.md").write_text("# Specification")
 
         protected_file = tmp_path / "protected.md"
         protected_file.write_text("protected")
-        os.chmod(protected_file, 0o000)
+        deny_open_in(monkeypatch, hasher_module, protected_file)
 
-        try:
-            indexer = Indexer(ManifestRegistry())
-            dossier = indexer.index_feature(tmp_path, "software-dev")
+        indexer = Indexer(ManifestRegistry())
+        dossier = indexer.index_feature(tmp_path, "software-dev")
 
-            # Should have both readable and unreadable
-            assert len(dossier.artifacts) >= 2
-            readable = [a for a in dossier.artifacts if a.is_present]
-            unreadable = [a for a in dossier.artifacts if not a.is_present]
-            assert len(readable) >= 1
-            assert len(unreadable) >= 1
-        finally:
-            os.chmod(protected_file, 0o644)
+        # Should have both readable and unreadable
+        assert len(dossier.artifacts) >= 2
+        readable = [a for a in dossier.artifacts if a.is_present]
+        unreadable = [a for a in dossier.artifacts if not a.is_present]
+        assert len(readable) >= 1
+        assert len(unreadable) >= 1
 
     def test_dossier_includes_missing_artifacts(self):
         """Dossier includes missing artifacts (is_present=False)."""

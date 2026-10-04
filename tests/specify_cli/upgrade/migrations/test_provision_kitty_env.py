@@ -575,23 +575,34 @@ class TestClaudeignoreSymlinkSafety:
         mode = claudeignore.stat().st_mode & 0o777
         assert mode == 0o640
 
-    def test_permission_denied_still_raised_on_readonly_claudeignore(self, tmp_path: Path) -> None:
+    def test_permission_denied_still_raised_on_readonly_claudeignore(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """os.replace() ignores the target's mode bits; the migration must not.
 
         A read-only `.claudeignore` must still surface `PermissionError` --
         an `os.replace()`-only implementation would silently clobber it
         instead, since rename() only checks the parent directory's
         permissions.
+
+        The denial is injected at the write-probe seam
+        (``_open_claudeignore_no_follow`` with ``O_WRONLY``) rather than via
+        ``chmod(0o444)``: root bypasses file mode bits, so a chmod-based setup
+        gave a different verdict per uid (#5622).
         """
         claudeignore = tmp_path / ".claudeignore"
         claudeignore.touch()
-        os.chmod(claudeignore, 0o444)
-        try:
-            migration = ProvisionKittyEnvMigration()
-            with pytest.raises(PermissionError):
-                migration.apply(tmp_path, dry_run=False)
-        finally:
-            os.chmod(claudeignore, 0o644)
+        original_open = provision_module._open_claudeignore_no_follow
+
+        def deny_write_probe(path: Path, flags: int) -> int:
+            if path == claudeignore and flags & os.O_WRONLY:
+                raise PermissionError(13, "Permission denied", str(path))
+            fd: int = original_open(path, flags)
+            return fd
+
+        monkeypatch.setattr(provision_module, "_open_claudeignore_no_follow", deny_write_probe)
+
+        migration = ProvisionKittyEnvMigration()
+        with pytest.raises(PermissionError):
+            migration.apply(tmp_path, dry_run=False)
 
     def test_brand_new_claudeignore_respects_process_umask(self, tmp_path: Path) -> None:
         """A first-time .claudeignore must land at the umask-respecting mode

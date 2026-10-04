@@ -9,8 +9,8 @@ only. ``load_meta_fail_closed`` (``core/paths.py``) wraps *only* the
 ``OSError`` raised by the filesystem probe itself
 (``Path.exists()``/``.read_text()``). Concretely: ``mission_metadata.load_meta``
 calls ``meta_path.exists()`` *before* entering its own try/except -- when the
-mission directory itself is unreadable (``chmod 000`` on the directory, not
-the file), ``Path.exists()`` re-raises ``PermissionError`` instead of
+mission directory itself is unreadable (a directory the process cannot
+probe, not an unreadable file), ``Path.exists()`` re-raises ``PermissionError`` instead of
 swallowing it (``pathlib`` only swallows ``ENOENT``/``ENOTDIR``/... , not
 ``EACCES``). That raw ``PermissionError`` then propagates through every
 caller whose narrowed ``except MissionMetaReadError`` does not also catch
@@ -26,44 +26,43 @@ matching the pattern already used correctly at
 from __future__ import annotations
 
 import json
-import os
-from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from tests._support.eacces import deny_path_method
 
 pytestmark = [pytest.mark.unit]
 
 
-def _make_unreadable_mission_dir(tmp_path: Path, name: str = "mission") -> Path:
-    """A mission directory containing a valid meta.json, then locked down.
+def _make_unreadable_mission_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str = "mission"
+) -> Path:
+    """A mission directory containing a valid meta.json that cannot be probed.
 
-    ``chmod(0)`` on the DIRECTORY (not the file) is load-bearing: it is what
-    makes ``Path.exists()`` itself raise ``PermissionError`` before any
-    JSON-parsing try/except is reached, reproducing the actual defect. Locking
-    only the file would be caught already by the JSON-parsing layer's
-    ``except (json.JSONDecodeError, OSError)``.
+    The denial is injected at the filesystem-probe seam (``Path.exists`` and
+    the ``Path`` read methods raise ``PermissionError`` for ``meta.json``)
+    rather than via ``chmod(0)`` on the DIRECTORY: root bypasses file mode
+    bits, so a chmod-based setup gave a different verdict per uid (#5622).
+    Making ``Path.exists()`` itself raise ``PermissionError`` is what
+    reproduces the actual defect -- it fires before any JSON-parsing
+    try/except is reached; denying only the read would be caught already by
+    the JSON-parsing layer's ``except (json.JSONDecodeError, OSError)``.
     """
     mission_dir = tmp_path / name
     mission_dir.mkdir()
-    (mission_dir / "meta.json").write_text(
-        json.dumps({"mission_id": "01JPROBEUNREADABLEDIRXXXX"}), encoding="utf-8"
-    )
-    os.chmod(mission_dir, 0)
+    meta_path = mission_dir / "meta.json"
+    meta_path.write_text(json.dumps({"mission_id": "01JPROBEUNREADABLEDIRXXXX"}), encoding="utf-8")
+
+    for attr in ("exists", "read_text", "read_bytes"):
+        deny_path_method(monkeypatch, attr, meta_path)
     return mission_dir
 
 
 @pytest.fixture
-def unreadable_mission_dir(tmp_path: Path) -> Iterator[Path]:
-    mission_dir = _make_unreadable_mission_dir(tmp_path)
-    try:
-        yield mission_dir
-    finally:
-        # Restore so pytest can clean up tmp_path afterwards.
-        os.chmod(mission_dir, 0o755)
+def unreadable_mission_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    return _make_unreadable_mission_dir(tmp_path, monkeypatch)
 
 
-@pytest.mark.skipif(os.name == "nt", reason="POSIX file-mode semantics required")
 class TestMetaReadPermissionDeniedRegression:
     """One case per remediated call site (PR #3155 landing fold)."""
 

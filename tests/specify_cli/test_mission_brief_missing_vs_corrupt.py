@@ -16,11 +16,11 @@ These tests pin the post-fix behaviour:
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
 
+from tests._support.eacces import deny_path_method
 from specify_cli.intake.errors import IntakeFileUnreadableError
 from specify_cli.mission_brief import (
     BRIEF_SOURCE_FILENAME,
@@ -145,20 +145,17 @@ def test_read_brief_source_raises_on_invalid_utf8(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Permission-denied path (POSIX-only)
+# Permission-denied path
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(os.name == "nt", reason="POSIX file-mode semantics required")
-def test_read_mission_brief_raises_on_permission_denied(tmp_path: Path) -> None:
+def test_read_mission_brief_raises_on_permission_denied(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     (tmp_path / ".kittify").mkdir()
     locked = tmp_path / ".kittify" / MISSION_BRIEF_FILENAME
     locked.write_text("# brief\n", encoding="utf-8")
-    # Strip read permissions so open() raises PermissionError.
-    locked.chmod(0)
-    try:
-        with pytest.raises(IntakeFileUnreadableError):
-            read_mission_brief(tmp_path)
-    finally:
-        # Restore so pytest can clean up the tmp_path tree.
-        locked.chmod(0o644)
+    # Deny at the read seam instead of chmod(0): root bypasses file mode bits,
+    # so a chmod-based setup gave a different verdict per uid (#5622).
+    deny_path_method(monkeypatch, "read_text", locked)
+
+    with pytest.raises(IntakeFileUnreadableError):
+        read_mission_brief(tmp_path)

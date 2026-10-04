@@ -27,7 +27,6 @@ Test Categories:
 Quality Bar: Zero silent failures (FR-009). Every anomaly explicit in events and API.
 """
 
-import os
 import json
 import pytest
 import tempfile
@@ -46,6 +45,8 @@ from specify_cli.dossier.manifest import (
 )
 from specify_cli.dossier.models import ArtifactRef, MissionDossier
 from specify_cli.dossier.snapshot import compute_snapshot
+from specify_cli.dossier import hasher as hasher_module
+from tests._support.eacces import deny_open_in
 from specify_cli.dossier.hasher import hash_file
 
 
@@ -55,6 +56,8 @@ from specify_cli.dossier.hasher import hash_file
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
 @pytest.fixture
 def minimal_feature_dir(tmp_path):
     """Create minimal feature with spec.md, plan.md, tasks.md."""
@@ -282,7 +285,7 @@ class TestOptionalArtifactHandling:
 class TestUnreadableArtifactHandling:
     """T053: Unreadable artifacts recorded (no silent failures per FR-009)."""
 
-    def test_permission_denied_artifact_recorded(self, tmp_path):
+    def test_permission_denied_artifact_recorded(self, tmp_path, monkeypatch):
         """Artifact with no read permission is recorded with error_reason='unreadable'."""
         feature_dir = tmp_path / "feature"
         feature_dir.mkdir()
@@ -293,20 +296,16 @@ class TestUnreadableArtifactHandling:
         # Create unreadable artifact
         unreadable = feature_dir / "secret.md"
         unreadable.write_text("Secret\n", encoding='utf-8')
-        os.chmod(unreadable, 0o000)  # Remove all permissions
+        deny_open_in(monkeypatch, hasher_module, unreadable)
 
-        try:
-            indexer = Indexer(ManifestRegistry())
-            dossier = indexer.index_feature(feature_dir, 'software-dev')
+        indexer = Indexer(ManifestRegistry())
+        dossier = indexer.index_feature(feature_dir, 'software-dev')
 
-            # Verify unreadable artifact recorded (not skipped)
-            secret_artifact = next((a for a in dossier.artifacts if 'secret' in a.relative_path), None)
-            assert secret_artifact is not None, "Unreadable artifact should be indexed"
-            assert not secret_artifact.is_present
-            assert secret_artifact.error_reason == 'unreadable'
-        finally:
-            # Clean up
-            os.chmod(unreadable, 0o644)
+        # Verify unreadable artifact recorded (not skipped)
+        secret_artifact = next((a for a in dossier.artifacts if 'secret' in a.relative_path), None)
+        assert secret_artifact is not None, "Unreadable artifact should be indexed"
+        assert not secret_artifact.is_present
+        assert secret_artifact.error_reason == 'unreadable'
 
     def test_invalid_utf8_artifact_recorded(self, tmp_path):
         """Invalid UTF-8 artifact recorded with error_reason='invalid_utf8'."""
@@ -329,7 +328,7 @@ class TestUnreadableArtifactHandling:
         assert not corrupted.is_present
         assert corrupted.error_reason == 'invalid_utf8'
 
-    def test_no_silent_failures_all_artifacts_recorded(self, tmp_path):
+    def test_no_silent_failures_all_artifacts_recorded(self, tmp_path, monkeypatch):
         """All artifacts recorded in dossier (no silent skips per FR-009)."""
         feature_dir = tmp_path / "feature"
         feature_dir.mkdir()
@@ -341,32 +340,29 @@ class TestUnreadableArtifactHandling:
         # Unreadable
         unreadable = feature_dir / "secret.txt"
         unreadable.write_text("secret")
-        os.chmod(unreadable, 0o000)
+        deny_open_in(monkeypatch, hasher_module, unreadable)
 
         # Invalid UTF-8
         invalid = feature_dir / "bad.bin"
         invalid.write_bytes(b"\xff\xfe")
 
-        try:
-            indexer = Indexer(ManifestRegistry())
-            dossier = indexer.index_feature(feature_dir, 'software-dev')
+        indexer = Indexer(ManifestRegistry())
+        dossier = indexer.index_feature(feature_dir, 'software-dev')
 
-            # Count all files created
-            expected_count = 4  # spec.md, plan.md, secret.txt, bad.bin
+        # Count all files created
+        expected_count = 4  # spec.md, plan.md, secret.txt, bad.bin
 
-            # All should be in dossier
-            assert len(dossier.artifacts) == expected_count, \
-                f"Missing artifacts from scan (silent failure). Expected {expected_count}, got {len(dossier.artifacts)}"
+        # All should be in dossier
+        assert len(dossier.artifacts) == expected_count, \
+            f"Missing artifacts from scan (silent failure). Expected {expected_count}, got {len(dossier.artifacts)}"
 
-            # Unreadable artifacts should have error_reason
-            for artifact in dossier.artifacts:
-                if not artifact.is_present:
-                    assert artifact.error_reason is not None, \
-                        f"Unreadable artifact {artifact.artifact_key} missing error_reason"
-        finally:
-            os.chmod(unreadable, 0o644)
+        # Unreadable artifacts should have error_reason
+        for artifact in dossier.artifacts:
+            if not artifact.is_present:
+                assert artifact.error_reason is not None, \
+                    f"Unreadable artifact {artifact.artifact_key} missing error_reason"
 
-    def test_unreadable_artifacts_no_crash(self, tmp_path):
+    def test_unreadable_artifacts_no_crash(self, tmp_path, monkeypatch):
         """Scan completes gracefully with unreadable artifacts (no crash)."""
         feature_dir = tmp_path / "feature"
         feature_dir.mkdir()
@@ -374,15 +370,12 @@ class TestUnreadableArtifactHandling:
         # Create unreadable artifact
         unreadable = feature_dir / "protected.md"
         unreadable.write_text("protected")
-        os.chmod(unreadable, 0o000)
+        deny_open_in(monkeypatch, hasher_module, unreadable)
 
-        try:
-            indexer = Indexer(ManifestRegistry())
-            # Should not raise exception
-            dossier = indexer.index_feature(feature_dir, 'software-dev')
-            assert dossier is not None
-        finally:
-            os.chmod(unreadable, 0o644)
+        indexer = Indexer(ManifestRegistry())
+        # Should not raise exception
+        dossier = indexer.index_feature(feature_dir, 'software-dev')
+        assert dossier is not None
 
 
 # ============================================================================
@@ -674,7 +667,7 @@ class TestEdgeCasesCombined:
         assert dossier.manifest is not None
         assert dossier.completeness_status == 'complete'  # No required_always artifacts, so complete
 
-    def test_mixed_readable_unreadable_artifacts(self, tmp_path):
+    def test_mixed_readable_unreadable_artifacts(self, tmp_path, monkeypatch):
         """Mix of readable and unreadable artifacts all indexed."""
         feature_dir = tmp_path / "feature"
         feature_dir.mkdir()
@@ -686,25 +679,22 @@ class TestEdgeCasesCombined:
         # Unreadable
         unreadable = feature_dir / "secret.txt"
         unreadable.write_text("secret")
-        os.chmod(unreadable, 0o000)
+        deny_open_in(monkeypatch, hasher_module, unreadable)
 
-        try:
-            indexer = Indexer(ManifestRegistry())
-            dossier = indexer.index_feature(feature_dir, 'software-dev')
+        indexer = Indexer(ManifestRegistry())
+        dossier = indexer.index_feature(feature_dir, 'software-dev')
 
-            # All files should be indexed
-            assert len(dossier.artifacts) == 3
+        # All files should be indexed
+        assert len(dossier.artifacts) == 3
 
-            # Verify readable artifacts
-            readable_artifacts = [a for a in dossier.artifacts if a.is_present]
-            assert len(readable_artifacts) == 2
+        # Verify readable artifacts
+        readable_artifacts = [a for a in dossier.artifacts if a.is_present]
+        assert len(readable_artifacts) == 2
 
-            # Verify unreadable artifact
-            unreadable_artifacts = [a for a in dossier.artifacts if not a.is_present]
-            assert len(unreadable_artifacts) == 1
-            assert unreadable_artifacts[0].error_reason == 'unreadable'
-        finally:
-            os.chmod(unreadable, 0o644)
+        # Verify unreadable artifact
+        unreadable_artifacts = [a for a in dossier.artifacts if not a.is_present]
+        assert len(unreadable_artifacts) == 1
+        assert unreadable_artifacts[0].error_reason == 'unreadable'
 
     def test_snapshot_hash_includes_all_artifacts(self, realistic_feature_dir):
         """Snapshot hash includes all indexed artifacts."""
