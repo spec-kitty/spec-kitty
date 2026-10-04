@@ -78,6 +78,21 @@
       "reason": "Declares 'the sonarcloud job in .github/workflows/ci-quality.yml calls this module'. After the retirement the callers are ci-aggregate.yml's sonar-pr job and sonar.yml. A module docstring naming a deleted caller is a justification describing something no longer true (C-005)."
     },
     {
+      "rule": "tests/_support/p0_repro.py::<module-docstring>",
+      "file": "tests/_support/p0_repro.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        6
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
+    },
+    {
       "rule": "tests/architectural/_fast_tier_gate.py::<module-docstring>",
       "file": "tests/architectural/_fast_tier_gate.py",
       "scope": "<module-docstring>",
@@ -103,12 +118,12 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        104,
-        472,
+        106,
         474,
-        480,
-        533,
-        959
+        476,
+        482,
+        535,
+        961
       ],
       "dependency": true,
       "disposition": "rewrite",
@@ -123,7 +138,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        131
+        133
       ],
       "dependency": true,
       "disposition": "rewrite",
@@ -138,7 +153,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        2242
+        2260
       ],
       "dependency": true,
       "disposition": "none",
@@ -308,7 +323,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        63
+        57
       ],
       "dependency": false,
       "disposition": "none",
@@ -1755,7 +1770,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        406
+        407
       ],
       "dependency": false,
       "disposition": "none",
