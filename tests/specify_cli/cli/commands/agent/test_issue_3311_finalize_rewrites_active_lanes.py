@@ -36,10 +36,9 @@ materialize the established lanes, then again — after seeding a WP-past-
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
-import typer
 
 from specify_cli.coordination.surface_resolver import (
     resolve_status_surface_with_anchor,
@@ -48,6 +47,7 @@ from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 
+from tests.specify_cli.cli.commands.agent.finalize_runner import run_finalize
 from tests.specify_cli.cli.commands.agent.test_feature_finalize_bootstrap import (
     MODULE,
     _common_patches,
@@ -58,21 +58,6 @@ from tests.specify_cli.cli.commands.agent.test_feature_finalize_bootstrap import
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _SEEDED_PLANNING_SHA = "deadbeef000deadbeef000deadbeef000deadbeef"
-
-
-def _run_finalize(mission_slug: str, patches: dict[str, object]) -> None:
-    from specify_cli.cli.commands.agent.mission import finalize_tasks
-
-    ctx_patches = {k: patch(k, v) for k, v in patches.items()}
-    for p in ctx_patches.values():
-        p.start()
-    try:
-        finalize_tasks(feature=mission_slug, json_output=True, validate_only=False)
-    except (typer.Exit, SystemExit):
-        pass  # finalize-tasks may exit; the file writes are what we assert on
-    finally:
-        for p in ctx_patches.values():
-            p.stop()
 
 
 def test_ownership_only_amendment_preserves_established_lanes_and_provenance(
@@ -95,7 +80,7 @@ def test_ownership_only_amendment_preserves_established_lanes_and_provenance(
 
     # Run 1: materialize the established topology (WP01 and WP02 own disjoint
     # files → two independent lanes).
-    _run_finalize(mission_slug, patches)
+    run_finalize(mission_slug, patches)
     established = read_lanes_json(feature_dir)
     assert established is not None
     baseline_topology = {lane.lane_id: sorted(lane.wp_ids) for lane in established.lanes}
@@ -140,7 +125,7 @@ def test_ownership_only_amendment_preserves_established_lanes_and_provenance(
     )
 
     # Run 2: the ownership-only amendment, now with execution already begun.
-    _run_finalize(mission_slug, patches)
+    run_finalize(mission_slug, patches)
     after = read_lanes_json(feature_dir)
     assert after is not None
 

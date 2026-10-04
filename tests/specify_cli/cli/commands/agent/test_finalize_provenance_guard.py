@@ -40,7 +40,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-import typer
 
 from specify_cli.coordination.surface_resolver import (
     resolve_status_surface_with_anchor,
@@ -49,6 +48,7 @@ from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 
+from tests.specify_cli.cli.commands.agent.finalize_runner import run_finalize
 from tests.specify_cli.cli.commands.agent.test_feature_finalize_bootstrap import (
     MODULE,
     _common_patches,
@@ -59,21 +59,6 @@ from tests.specify_cli.cli.commands.agent.test_feature_finalize_bootstrap import
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _SEEDED_PLANNING_SHA = "deadbeef000deadbeef000deadbeef000deadbeef"
-
-
-def _run_finalize(mission_slug: str, patches: dict[str, object]) -> None:
-    from specify_cli.cli.commands.agent.mission import finalize_tasks
-
-    ctx_patches = {k: patch(k, v) for k, v in patches.items()}
-    for p in ctx_patches.values():
-        p.start()
-    try:
-        finalize_tasks(feature=mission_slug, json_output=True, validate_only=False)
-    except (typer.Exit, SystemExit):
-        pass  # finalize-tasks may exit; the file writes are what we assert on
-    finally:
-        for p in ctx_patches.values():
-            p.stop()
 
 
 def _git(repo_root: Path, *args: str) -> str:
@@ -184,7 +169,7 @@ def test_execution_begun_preserves_recorded_sha_against_differing_tip(
     patches = _base_patches(tmp_path, mission_slug, feature_dir)
 
     # Run 1: materialize the established topology (WP01/WP02 -> two lanes).
-    _run_finalize(mission_slug, patches)
+    run_finalize(mission_slug, patches)
     established = read_lanes_json(feature_dir)
     assert established is not None
     baseline_topology = {lane.lane_id: sorted(lane.wp_ids) for lane in established.lanes}
@@ -209,7 +194,7 @@ def test_execution_begun_preserves_recorded_sha_against_differing_tip(
     _amend_wp01_owned_files(feature_dir)
 
     # Run 2: the execution-begun re-finalize.
-    _run_finalize(mission_slug, patches)
+    run_finalize(mission_slug, patches)
     after = read_lanes_json(feature_dir)
     assert after is not None
 
@@ -239,7 +224,7 @@ def test_pre_execution_amendment_actually_regenerates(tmp_path: Path) -> None:
     # Run 1: materialize the established topology. No status events are
     # seeded here — every WP is (at most) `planned` — so execution has not
     # begun.
-    _run_finalize(mission_slug, patches)
+    run_finalize(mission_slug, patches)
     established = read_lanes_json(feature_dir)
     assert established is not None
     baseline_topology = {lane.lane_id: sorted(lane.wp_ids) for lane in established.lanes}
@@ -256,7 +241,7 @@ def test_pre_execution_amendment_actually_regenerates(tmp_path: Path) -> None:
     _amend_wp01_owned_files(feature_dir)
 
     # Run 2: the pre-execution re-finalize.
-    _run_finalize(mission_slug, patches)
+    run_finalize(mission_slug, patches)
     after = read_lanes_json(feature_dir)
     assert after is not None
     after_topology = {lane.lane_id: sorted(lane.wp_ids) for lane in after.lanes}
@@ -315,7 +300,7 @@ def test_execution_begun_path_does_not_write_status_json(tmp_path: Path) -> None
     patches = _base_patches(tmp_path, mission_slug, feature_dir)
 
     # Run 1: materialize the established topology.
-    _run_finalize(mission_slug, patches)
+    run_finalize(mission_slug, patches)
     established = read_lanes_json(feature_dir)
     assert established is not None
     established.planning_commit_sha = _SEEDED_PLANNING_SHA
@@ -342,7 +327,7 @@ def test_execution_begun_path_does_not_write_status_json(tmp_path: Path) -> None
             "signal helper must never do (C-005)."
         ),
     ) as materialize_spy:
-        _run_finalize(mission_slug, patches)
+        run_finalize(mission_slug, patches)
 
     materialize_spy.assert_not_called()
     assert not (read_dir / "status.json").exists(), (
