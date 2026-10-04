@@ -2,7 +2,7 @@
 title: 'Context: Topology'
 description: 'Glossary context for mission topology: the four topologies, write checkout, repo-root and code lanes, protected target, mission branch, lane work tip, and absorbed lane.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-04'
 related:
 - docs/context/orchestration.md
 - docs/context/execution.md
@@ -29,7 +29,7 @@ Terms describing the shape a mission is given at creation and where its work run
 
 | | |
 |---|---|
-| **Definition** | The one checkout a `single_branch` mission writes code and status into: either the [repository root checkout](./execution.md#repository-root-checkout) or a validated owned checkout (ADR 2026-09-03-1). Work packages run in it one at a time, stamped `execution_mode: direct_repo`. `implement` refuses with `WRITE_CHECKOUT_WRONG_BRANCH`, `WRITE_CHECKOUT_OCCUPIED` or `WRITE_CHECKOUT_DIRTY` (a resume is exempt from the dirty check). |
+| **Definition** | The one checkout a `single_branch` mission writes code and status into: either the [repository root checkout](./execution.md#repository-root-checkout) or a validated owned checkout (ADR 2026-09-03-1). Work packages run in it one at a time, stamped `execution_mode: direct_repo`. `implement` refuses with `WRITE_CHECKOUT_WRONG_BRANCH`, `WRITE_CHECKOUT_OCCUPIED` or `WRITE_CHECKOUT_DIRTY` (a resume is exempt from the dirty check). `WRITE_CHECKOUT_OCCUPIED` counts an `in_progress` WP only when its mission writes to the branch the checkout is on (#5680). |
 | **Context** | Topology |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
