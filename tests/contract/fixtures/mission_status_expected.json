@@ -13,7 +13,7 @@
     "issue": "#5579",
     "owner": "@stijn-dejongh",
     "drain_by": "2026-12-31",
-    "ceiling": 52,
+    "ceiling": 8,
     "exit_condition": "a snapshot-versus-files disagreement list of length zero"
   },
   "sample": [
