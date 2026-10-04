@@ -2625,14 +2625,9 @@ def _collect_authored(
 
 
 __all__ = [
-    "APPROVED_CONTENT_MISSING",
-    "CANCELED_REACHABLE_VIA_DEPENDENCY",
-    "ApprovedLaneContent",
     "ApprovedWpCommitSet",
-    "CanceledDependencyContent",
     "Divergence",
     "MergeOutcomeVerifier",
-    "MissingApprovedContent",
     "TERMINUS_ENTRY_POINTS",
     "UnroutedTerminusPathError",
     "VerifyResult",
@@ -2641,6 +2636,5 @@ __all__ = [
     "claim_integrity_refusal",
     "detect_legacy_in_flight_state",
     "route_terminus",
-    "unmet_approved_content",
     "write_post_fix_marker",
 ]
