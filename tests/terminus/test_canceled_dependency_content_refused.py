@@ -42,6 +42,7 @@ def test_canceled_dependency_lane_content_never_ships(tmp_path: Path, strategy_a
     output = result.stdout + result.stderr
     assert result.returncode != 0, f"canceled WP01 content must not land at exit 0:\n{output}"
     assert "WP01" in output, f"the refusal must name the canceled WP:\n{output}"
+    assert "CANCELED_REACHABLE_VIA_DEPENDENCY" in output, f"the refusal must carry its stable code:\n{output}"
     assert blob_present_at(mission.repo, mission.target_branch, _CANCELED_PATH) is False
 
 
