@@ -32,7 +32,9 @@ _ISSUE_NAMED = re.compile(r"^test_(?:issue|repro)_\d{3,}")
 # 2026-10-01: bumped 83 -> 84 for tests/charter/test_issue_5409_anti_pattern_activation.py,
 # the issue-pinned red-first regression required by ADR 2026-07-17-1 for the #5409
 # anti-pattern activation fix. A reviewed keep-verdict (legitimate issue-named repro).
-_HIGH_WATER = 84
+# 2026-10-04: lowered 84 -> 83; #5621 retired tests/regressions/
+# test_issue_4962_charter_encoding.py after porting its last case to a seam test.
+_HIGH_WATER = 83
 
 
 def _is_issue_named(filename: str) -> bool:
