@@ -1,0 +1,34 @@
+{
+  "accept_commit": "40d81e542b0db470fb02f90a5cb82a54e4eb89b6",
+  "acceptance_history": [
+    {
+      "accept_commit": "40d81e542b0db470fb02f90a5cb82a54e4eb89b6",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-04T12:38:08.164875+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "4d3cb7245c5bf426ec113b2be47adafe21e76b1f"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-04T12:38:08.164875+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "4d3cb7245c5bf426ec113b2be47adafe21e76b1f",
+  "baseline_merge_commit": "76ebd54bb4e6673adb26324621a4ad8050f806a7",
+  "commit_to_target": true,
+  "created_at": "2026-10-04T11:58:50.461007+00:00",
+  "flattened": false,
+  "friendly_name": "Split the orchestrator-api commands god-module",
+  "merged_at": "2026-10-04T12:38:45.887353+00:00",
+  "merged_commit": "76ebd54bb4e6673adb26324621a4ad8050f806a7",
+  "mid8": "01M43CFW",
+  "mission_id": "01M43CFWGT1NA1G9SXAYXEHBNQ",
+  "mission_number": 215,
+  "mission_slug": "orchestrator-api-commands-degod-01M43CFW",
+  "mission_type": "software-dev",
+  "purpose_context": "commands.py is 4,191 LOC holding every orchestrator-api subcommand. Extract cohesive per-concern modules while the JSON envelope, help output and command order stay byte-identical; leave mission-state and list-ready to #5532.",
+  "purpose_tldr": "Split orchestrator_api/commands.py into per-concern modules behind an unchanged contract (#5628)",
+  "slug": "orchestrator-api-commands-degod-01M43CFW",
+  "status_phase": "1",
+  "target_branch": "claude/funny-cannon-2kiwuz",
+  "topology": "single_branch"
+}

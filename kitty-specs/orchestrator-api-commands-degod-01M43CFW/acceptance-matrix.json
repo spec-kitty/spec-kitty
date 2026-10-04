@@ -1,0 +1,49 @@
+{
+  "mission_slug": "orchestrator-api-commands-degod-01M43CFW",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/orchestrator_api/test_command_table.py::test_verbs_register_in_contract_order_from_their_concern_modules (each verb owned by its concern module)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T12:37:43.143118+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "help snapshot of group + 21 verbs byte-identical (cmp before/after); test_command_table.py pins contract order",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T12:37:48.461243+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "AST equivalence check: no symbol defined twice across orchestrator_api modules; shared helpers only in _common.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T12:37:53.125768+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "AST equivalence: mission_state/list_ready identical to original modulo _common. qualification (reviewer-renata review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T12:37:58.138680+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

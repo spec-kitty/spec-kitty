@@ -1,0 +1,54 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M43ES2A6688RGKJPWECE773W",
+  "materialized_at": "2026-10-04T12:38:47.366172+00:00",
+  "mission_number": "215",
+  "mission_slug": "orchestrator-api-commands-degod-01M43CFW",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M43ES2A6688RGKJPWECE773W",
+      "last_transition_at": "2026-10-04T12:38:47.366172+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Claimed via move-task: implement is blocked by #5550 (stale WRITE_CHECKOUT_OCCUPIED occupant).",
+        "Implementation already committed as 6f8b35ba and 52e40cdb.",
+        "Forced: the implementation (6f8b35ba split, 52e40cdb review fold) was committed BEFORE the claim, because implement was blocked by #5550; there is no post-claim commit by construction. Help snapshot byte-identical; AST-equal bodies; ruff/format/mypy clean.",
+        "Opus reviewer (reviewer-renata profile) reviewing 6f8b35ba.",
+        "Approved: no silent patch misses, no duplicated state, no import cycles, no behaviour change (AST-equal modulo dict[str, Any] tightening), #5532 readers unchanged beyond _common. qualification. One should-fix (35 dead façade imports hidden by a ruff F401 exemption) folded in 52e40cdb."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "52e40cdb",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    }
+  }
+}

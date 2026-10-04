@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "mission_slug": "orchestrator-api-commands-degod-01M43CFW",
+  "mission_id": "01M43CFWGT1NA1G9SXAYXEHBNQ",
+  "mission_branch": "claude/funny-cannon-2kiwuz",
+  "target_branch": "claude/funny-cannon-2kiwuz",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/lanes/worktree_allocator.py",
+        "src/specify_cli/missions/_read_path_resolver.py",
+        "src/specify_cli/orchestrator_api/**",
+        "tests/**"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-04T12:25:44.022297+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "8050f6eb3d30c524c999260546a2823f8955cea6"
+}
