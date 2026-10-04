@@ -33,6 +33,7 @@ from typer.testing import CliRunner
 
 from mission_runtime import MissionTopology
 from specify_cli import app as root_app
+from specify_cli.lanes.claim_base import read_claim_base
 from tests._factories import make_mission
 from tests.specify_cli.charter_preflight._fixtures import (
     seed_bundle_files,
@@ -91,12 +92,21 @@ def _seed_repo(tmp_path: Path, *, name: str) -> Path:
     return repo
 
 
-def _write_two_code_wps(repo: Path, feature_dir: Path) -> None:
-    """Write WP01 (no deps) + WP02 (depends on WP01)."""
+def _write_two_code_wps(repo: Path, feature_dir: Path, *, wp02_independent: bool = False) -> None:
+    """Write WP01 (no deps) + WP02 (depends on WP01 unless ``wp02_independent``).
+
+    The default dependency means ``implement WP02`` while WP01 is
+    ``in_progress`` is refused by dependency readiness before the occupancy
+    check runs; the occupancy test passes ``wp02_independent=True`` to
+    isolate the real discriminator.
+    """
+    wp02_deps_prose = "None" if wp02_independent else "WP01"
+    wp02_deps_frontmatter = "[]" if wp02_independent else "[WP01]"
     (feature_dir / "spec.md").write_text("# Spec\n\n## Functional Requirements\n\n- **FR-001**: repro.\n", encoding="utf-8")
     (feature_dir / "plan.md").write_text("# Plan\n\n**Language/Version**: Python 3.11\n", encoding="utf-8")
     (feature_dir / "tasks.md").write_text(
-        "# Tasks\n\n## Work Package WP01\n\n**Dependencies**: None\n\n- [ ] T001 alpha\n\n## Work Package WP02\n\n**Dependencies**: WP01\n\n- [ ] T002 beta\n",
+        "# Tasks\n\n## Work Package WP01\n\n**Dependencies**: None\n\n- [ ] T001 alpha\n\n"
+        f"## Work Package WP02\n\n**Dependencies**: {wp02_deps_prose}\n\n- [ ] T002 beta\n",
         encoding="utf-8",
     )
     (feature_dir / "tasks").mkdir(exist_ok=True)
@@ -107,7 +117,7 @@ def _write_two_code_wps(repo: Path, feature_dir: Path) -> None:
         encoding="utf-8",
     )
     (feature_dir / "tasks" / "WP02.md").write_text(
-        "---\nwork_package_id: WP02\ntitle: Second code WP\ndependencies: [WP01]\n"
+        f"---\nwork_package_id: WP02\ntitle: Second code WP\ndependencies: {wp02_deps_frontmatter}\n"
         "requirement_refs: [FR-001]\nexecution_mode: code_change\nowned_files: [src/wp02.py]\n"
         "authoritative_surface: src/wp02.py\nsubtasks: [T002]\n---\n\n# WP02\n",
         encoding="utf-8",
@@ -122,12 +132,13 @@ def _build_mission(
     slug: str,
     *,
     topology: MissionTopology,
+    wp02_independent: bool = False,
     **overrides: object,
 ) -> tuple[str, Path]:
     result = make_mission(repo, slug, topology=topology, target_branch=_WORK_BRANCH, **overrides)
     feature_dir = result.feature_dir
     mission_slug = result.mission_slug
-    _write_two_code_wps(repo, feature_dir)
+    _write_two_code_wps(repo, feature_dir, wp02_independent=wp02_independent)
     _git(repo, "add", "-A")
     _git(repo, "commit", "-m", f"seed mission {mission_slug}")
     return mission_slug, feature_dir
@@ -264,3 +275,86 @@ def test_for_review_never_auto_commits_stray_repo_root_files(single_branch_missi
     assert _git(repo, "rev-parse", "HEAD") == head_before, "no auto-commit may land on the target branch"
     assert ".env.local" not in _git(repo, "ls-files"), "a stray file must never be committed"
     assert not [e for e in _read_events(feature_dir) if e.get("wp_id") == "WP01" and e.get("to_lane") == "for_review"]
+
+
+def _action_implement(wp_id: str, mission_slug: str) -> Result:
+    return runner.invoke(root_app, ["agent", "action", "implement", wp_id, "--agent", "claude", "--mission", mission_slug])
+
+
+def _mark_done(task_id: str, mission_slug: str) -> Result:
+    return runner.invoke(root_app, ["agent", "tasks", "mark-status", task_id, "--status", "done", "--mission", mission_slug])
+
+
+def _lane_of(feature_dir: Path, wp_id: str) -> str | None:
+    lanes = [e["to_lane"] for e in _read_events(feature_dir) if e.get("wp_id") == wp_id and e.get("to_lane")]
+    return lanes[-1] if lanes else None
+
+
+@pytest.fixture
+def agent_loop_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, str, Path]:
+    """A finalized, analysed single_branch mission with an independent WP02."""
+    repo = _seed_repo(tmp_path, name="repo")
+    mission_slug, feature_dir = _build_mission(repo, "issue-5459-sb", topology=MissionTopology.SINGLE_BRANCH, wp02_independent=True)
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
+    (repo / ".gitignore").write_text(".kittify/derived/\n.kittify/runtime/\n.kittify/charter/context-state.json\n", encoding="utf-8")
+    _assert_setup_ok("finalize-tasks", _finalize(mission_slug))
+    _git(repo, "add", "-A")
+    if _git(repo, "status", "--porcelain"):
+        _git(repo, "commit", "-m", "finalize")
+    analysis = tmp_path / "analysis.md"
+    analysis.write_text("# Analysis\n\nNo blocking findings.\n", encoding="utf-8")
+    _assert_setup_ok(
+        "record-analysis",
+        runner.invoke(root_app, ["agent", "mission", "record-analysis", "--mission", mission_slug, "--input-file", str(analysis)]),
+    )
+    return repo, mission_slug, feature_dir
+
+
+def test_action_implement_records_claim_base_and_reaches_review(agent_loop_mission: tuple[Path, str, Path]) -> None:
+    """#5459 symptom 1 + #5655: claim base recorded; for_review passes without --force; tree stays clean."""
+    repo, slug, feature_dir = agent_loop_mission
+    _assert_setup_ok("action implement WP01", _action_implement("WP01", slug))
+    assert read_claim_base(repo, slug, "WP01") is not None, "agent action implement recorded no claim base"
+
+    (repo / "src" / "wp01.py").write_text("VALUE = 10\n", encoding="utf-8")
+    _git(repo, "commit", "-am", "WP01 work")
+
+    _assert_setup_ok("mark-status T001", _mark_done("T001", slug))
+    assert _git(repo, "status", "--porcelain") == "", "mark-status left the write checkout dirty"
+
+    result = _move_to_for_review("WP01", slug)
+    assert result.exit_code == 0, result.output
+    assert _lane_of(feature_dir, "WP01") == "for_review"
+    assert _git(repo, "status", "--porcelain") == "", "move-task left the write checkout dirty"
+
+
+def test_action_implement_refuses_occupied_checkout(agent_loop_mission: tuple[Path, str, Path]) -> None:
+    """#5459 symptom 2: a second WP is refused while WP01 is in_progress."""
+    _repo, slug, feature_dir = agent_loop_mission
+    _assert_setup_ok("action implement WP01", _action_implement("WP01", slug))
+    result = _action_implement("WP02", slug)
+    assert result.exit_code != 0
+    assert "WRITE_CHECKOUT_OCCUPIED" in result.output, result.output
+    assert _lane_of(feature_dir, "WP02") in (None, "planned")
+
+
+def test_action_implement_refuses_dirty_checkout(agent_loop_mission: tuple[Path, str, Path]) -> None:
+    """#5459: an operator's uncommitted edit refuses a fresh claim."""
+    repo, slug, feature_dir = agent_loop_mission
+    (repo / "README.md").write_text("operator edit\n", encoding="utf-8")
+    result = _action_implement("WP01", slug)
+    assert result.exit_code != 0
+    assert "WRITE_CHECKOUT_DIRTY" in result.output, result.output
+    assert _lane_of(feature_dir, "WP01") in (None, "planned")
+    assert read_claim_base(repo, slug, "WP01") is None
+
+
+def test_action_implement_resume_in_dirty_checkout_is_allowed(agent_loop_mission: tuple[Path, str, Path]) -> None:
+    """Positive control: resuming the in-flight WP with its own uncommitted work is not refused."""
+    repo, slug, _ = agent_loop_mission
+    _assert_setup_ok("action implement WP01", _action_implement("WP01", slug))
+    base = read_claim_base(repo, slug, "WP01")
+    (repo / "src" / "wp01.py").write_text("VALUE = 11\n", encoding="utf-8")
+    _assert_setup_ok("resume WP01", _action_implement("WP01", slug))
+    assert read_claim_base(repo, slug, "WP01") == base
