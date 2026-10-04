@@ -1,45 +1,20 @@
-"""Consolidated re-export identity guard for the ``tasks`` compat surface
-(mission ``dev-assist-retire-path-hardening-01KXAVR0``, WP05a / #2565).
+"""Derived re-export identity guard for the ``tasks`` compat surface (#5629, DIRECTIVE_041).
 
-The ``tasks.py`` wave-2 decomposition (mission ``tasks-py-degod-wave2-01KWH9EQ``)
-left 6 sibling ``test_tasks_*_seam.py`` files, each carrying its own
-``test_tasks_binding_is_<seam>_object`` identity battery (parametrized over a
-private ``_MOVE_SET``) plus an exact-set ``test_move_set_matches_<seam>_defs``
-completeness pin. The identity coverage is the one piece of that scaffolding
-with no golden-file duplicate elsewhere — it is the only thing standing
-between a future extraction and a silently dropped ``tasks.<name>`` re-export
-(a historical ``@patch("...agent.tasks.<name>")`` or
-``from ...agent.tasks import <name>`` edge going stale). This module folds
-all 6 batteries into ONE guard so that coverage lives in a single place next
-to the compat surface it protects, instead of scattered across 6 files that
-are being retired piecemeal (WP05a here; WP05b/WP06 retires the remaining 3
-heavy seams' batteries against the coverage this guard already provides).
+The keyset is DERIVED from the seam modules, never hand-listed: each seam's
+native definitions are the callables whose ``__module__`` is the seam plus the
+declared non-callable constants. A behaviour-neutral move of a function between
+seams therefore needs no edit here.
 
-Shape mirrors ``test_mission_shim_reexports.py`` (grouped required-symbol
-tuples + a ``hasattr``/identity parametrized gate) and re-derives the required
-surface straight from source (a completeness check rather than a
-hand-maintained list trusted on faith).
-Self-contained: no import of the 6 seam test files' internal ``_MOVE_SET``
-tuples (those files are being retired around this guard) — the map below is
-this file's own literal data, and the completeness check re-derives the
-seams' surface straight from the production ``tasks_*.py`` modules.
-
-Two guarantees:
-
-1. **Identity re-export.** For every ``(symbol, residual_module)`` pair,
-   ``tasks.<symbol> is <residual_module>.<symbol>`` — the SAME object, not a
-   coincidental native redefinition on ``tasks`` that happens to compare
-   equal.
-2. **Genuine origin + superset coverage.** Every mapped symbol is confirmed
-   to be natively defined in its claimed residual module (catches a
-   mis-mapped row), and the union of all 7 residual modules' natively
-   defined symbols is re-derived from source and asserted to be a SUBSET of
-   this guard's key-set — so a symbol dropped from the map here, while still
-   defined in the seam module, fails loudly right next to the guard instead
-   of silently losing coverage.
+The real invariant: whatever ``tasks`` re-exports from a seam must be that
+seam's object by identity, not a copy. Names native to a seam but NOT exposed
+on ``tasks`` are allowed -- the compat surface is "whatever ``tasks``
+re-exports must be the seam's object". A deleted re-export is deliberately out
+of scope here: callers that still use it fail on their own import or patch.
 """
 
 from __future__ import annotations
+
+from types import ModuleType
 
 import pytest
 
@@ -56,335 +31,7 @@ from specify_cli.cli.commands.agent import (
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-# ---------------------------------------------------------------------------
-# Per-seam symbol groups — one tuple per residual module, mirroring each
-# retired seam file's own ``_MOVE_SET`` (grouped for readability; the guard
-# treats the union as one required key-set). Counts noted per group for
-# traceability against the seam files' own docstring counts at authoring
-# time (finalize=8, map_requirements=15, shared=20, status_cmd=21,
-# move_task=65, mark_status=13 — 142 total). WP04 (#2684) added two net-new
-# natively-defined symbols atop that baseline: ``_legacy_unchecked_subtask_ids``
-# (shared=21) and ``_ms_emit_subtask_state`` (mark_status=14) — 144 total. #2816
-# WP13 (IC-10) then retired ``_legacy_unchecked_subtask_ids`` (shared 21 -> 20)
-# when the guard stopped reading checkbox rows.
-# ---------------------------------------------------------------------------
-
-_TASKS_FINALIZE: tuple[str, ...] = (  # WP08 (wave2, +2 coord-artifact-single-home-01M3V4BE WP15) — 10 symbols
-    "_FinalizeState",
-    "_default_finalize_ports",
-    "_ft_resolve_context",
-    "_ft_validate",
-    "_ft_validate_occurrence_map_ready",
-    "_ft_apply_writes",
-    "_ft_output",
-    "_do_finalize_tasks",
-    # WP15 (T004/T080): the STATUS-partition write leg, extracted out of
-    # ``_ft_apply_writes`` so it can resolve ``write_dir`` (not ``read_dir``).
-    "_ft_emit_status_events",
-    "_tasks_bootstrap_canonical_state",
-)
-
-_TASKS_MAP_REQUIREMENTS: tuple[str, ...] = (  # WP06 (wave2, +1 WP06/#3396, +4 #2991) — 20 symbols
-    "_default_map_requirements_ports",
-    "_MapReqState",
-    "_mr_validate_modes",
-    "_mr_resolve_context",
-    "_mr_build_new_mappings",
-    "_mr_unknown_wp_gate",
-    "_mr_resolve_read_dirs",
-    # bare-prose-requirements-uncounted-01KZYV3C WP06 (#3396) T032a: the
-    # fail-loud bare-prose requirement-id detector wrapper.
-    "_mr_detect_bare_prose_requirement_ids",
-    "_mr_plan",
-    "_mr_gate_offenders",
-    "_mr_write_frontmatter",
-    "_mr_stale_gate",
-    "_mr_auto_commit",
-    "_mr_emit_output",
-    "_do_map_requirements",
-    "_map_requirements_feature_dir",
-    # one-requirement-ID-grammar (#2991): grammar-backed classification helpers
-    # added to the map-requirements seam.
-    "_canonical_input_refs",
-    "_mr_accepted_refs_by_wp",
-    "_mr_classify_wp_refs",
-    "_mr_sorted_spec_ids",
-    # coord-artifact-single-home-01M3V4BE WP08 (FR-007/SC-003): refused-surface
-    # rendering + the additive `surfaces` JSON payload.
-    "_mr_render_refused_surfaces",
-    "_mr_surface_needs_warning",
-    "_mr_surfaces_payload",
-)
-
-_TASKS_SHARED: tuple[str, ...] = (  # WP02 (wave2) — 20 symbols
-    # ``resolve_primary_branch`` removed by FR-007 (mission
-    # primary-merge-vocabulary, WP04): the delegating shim was retired so the
-    # canonical ``core.git_ops.resolve_primary_branch`` is the single source
-    # (21 -> 20; total 141 -> 140).
-    "_review_currency_check_branch",
-    "_RUNTIME_STATE_DENY_LIST",
-    "_filter_runtime_state_paths",
-    "_emit_sparse_session_warning",
-    "_ensure_target_branch_checked_out",
-    "_find_mission_slug",
-    "_output_result",
-    "_output_error",
-    "_protected_branch_status_commit_error",
-    "_coord_topology_active",
-    "_skip_target_branch_commit",
-    "_mission_identity_payload",
-    "_resolve_git_common_dir",
-    "_check_unchecked_subtasks",
-    "_validate_ready_for_review",
-    "_wp_branch_merged_into_target",
-    "_filter_by_planning_tip_content",
-    "_list_wp_branch_mission_specs_changes",
-    "_list_wp_branch_specs_changes_for_guard",
-    "_mark_status_json_payload",
-)
-
-_TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) -- 23 (#2816); +3 WP09 (_st_status_read_dir, _st_resolve_owned, _st_config_root) = 26
-    "_default_status_ports",
-    "_StatusState",
-    "_status_error",
-    "_status_selector_error",
-    "_st_resolve_dirs",
-    "_st_status_read_dir",
-    "_st_resolve_owned",
-    "_st_config_root",
-    "_st_gated_runtime_fields",
-    "_st_runtime_row",
-    "_st_resolve_execution_mode",
-    "_st_load_work_packages",
-    "_st_apply_review_flags",
-    "_st_emit_json",
-    "_st_board_cell",
-    "_st_render_overview",
-    "_st_render_board",
-    "_st_render_arbiter",
-    "_st_render_review_queues",
-    "_st_render_active",
-    "_st_render_planned",
-    "_st_render_summary",
-    "_st_render_human",
-    "_do_status",
-    "_review_stall_threshold_minutes",
-    "_get_hic_marker",
-    "_apply_stale_status_fields",
-    "_render_stale_status",
-)
-
-# WP05 (wave2): grown to 75 via WP09, +1 (_binding_role_for_lane) = 76,
-# -1 (_mt_pre_review_gate_verdict retired, WP04) = 75, +1 (#2573 human
-# status observer) = 76, +1 (#3590 WP01 _mt_hop_reason_source) = 77 on the
-# experimental convergence base, then +4 (#3578 rollback-signal quartet) = 81.
-_TASKS_MOVE_TASK: tuple[str, ...] = (
-    # (#2513/#2160: +uncheck/clear-markers/reset-rollback; #2573: +gate
-    # skip-reason pair; WP07 #2649: +param-object + commit/uncheck degod helpers;
-    # #2639: +complete-deferred-readiness + pre-review-dirty-paths;
-    # coord-commit-integrity #2861: +_binding_role_for_lane role-map dedup)
-    "_binding_role_for_lane",
-    # WP02 (verdict-seam-boundary-hardening-01KZG179, T007): campsite
-    # extraction out of the cc=14 ``_mt_emit_runtime_state`` (78 -> 79).
-    "_build_claim_review_override",
-    "_default_move_task_ports",
-    "_MoveTaskState",
-    "_MoveTaskArgs",
-    "_PostTransitionSideEffectFailure",
-    "_mt_warn_worktree_kitty_specs",
-    "_mt_preflight_owned_request",
-    # owned-checkout-lifecycle-authority WP16: the owned arm of target
-    # resolution, extracted so ``_mt_resolve_targets`` stays at cc 13.
-    "_mt_apply_owned_targets",
-    "_mt_resolve_targets",
-    "_mt_resolve_feedback",
-    "_mt_build_request",
-    "_lane_deliverable_paths",
-    "_drop_lane_coord_residue",
-    "_mt_owned_file_patterns",
-    "_mt_matches_owned_file",
-    "_mt_require_owned_implementation",
-    "_mt_commit_lane_deliverables",
-    "_mt_complete_deferred_for_review_readiness",
-    "_mt_gather_review_facts",
-    "_mt_fire_override_persist",
-    "_mt_done_ancestry_facts",
-    "_mt_issue_matrix_facts",
-    "_mt_approval_facts",
-    "_mt_gather_late_facts",
-    "_mt_fire_arbiter_persist",
-    "_mt_run_decision",
-    "_mt_finalize_plan",
-    # #4899 (WP01, review-feedback-to-implementer-01M3GKZ8, T004 campsite
-    # tidy-first): the pointer-restore-and-persist block extracted out of
-    # ``_mt_finalize_plan`` into its own named, unit-tested helper.
-    "_mt_persist_rejection_cycle",
-    "_mt_current_event_lane",
-    "_mt_hop_review_result",
-    "_mt_hop_actor",
-    # #3590 WP01 (operator-authored cancellation provenance): the reason_source
-    # resolver feeding the status-event hop — a native move-task seam def.
-    "_mt_hop_reason_source",
-    "_mt_emit_transitions",
-    # WP10 (wp-runtime-state-eviction, closeout reconciliation): the god-write
-    # cut (WP06/WP07, FR-006/FR-007/FR-008) DELETED the frontmatter-writing
-    # runtime-state family — ``_mt_persist_tracker_refs`` (tracker refs now an
-    # off-axis union delta), ``_mt_clear_rollback_claim_markers`` /
-    # ``_mt_uncheck_rollback_subtasks`` / ``_mt_attempt_uncheck_write`` /
-    # ``_mt_commit_uncheck_tasks_md`` / ``_mt_reset_for_planned_rollback`` (the
-    # rollback-to-planned reset is now an event-sourced ``InnerStateChanged``
-    # ``subtasks`` delta). Their rows are removed from this guard; the six
-    # event-sourcing helpers that REPLACED them are added below. The unit test
-    # modules that imported the deleted symbols are reconciled in the same
-    # closeout.
-    "_mt_persist_wp_file",
-    "_mt_release_review_lock",
-    # WP10 closeout: the event-sourcing helpers WP06/WP07 added to the move_task
-    # seam (off-axis runtime-state emit, claim-triple policy_metadata packer,
-    # review planner, rollback subtask-reset delta builder, shell-pid baseline
-    # reader, current-agent resolver). Each is a genuine native def with an
-    # identity re-export on ``tasks``, so it joins the compat surface like every
-    # other def. #2816/IC-04 (runtime-state-corpus-cutover, WP05) deleted the
-    # flag-OFF ``_mt_dual_write_wp_file`` bridge (the last dual-write path was
-    # cut) and added ``_mt_resolve_current_agent`` (the ownership-read reroute
-    # onto the snapshot seam) — reconciled here (net 0).
-    "_mt_emit_runtime_state",
-    "_mt_reassignment_binding_fields",
-    "_mt_resolve_current_agent",
-    "_mt_owned_workspace",
-    "_mt_resolve_owned_review_base",
-    "_mt_hop_policy_metadata",
-    # governance-at-the-gate WP04 (#3682, FR-006, IC-04): the APPROVED/DONE
-    # hop's policy_metadata sidecar builder and the per-hop review_ref
-    # resolver (derives review_ref from the SAME hop_review_result object
-    # used as review_result, so the two can never diverge) (81 -> 83).
-    "_mt_approval_policy_metadata",
-    "_mt_hop_review_ref",
-    "_mt_plan_review_result",
-    "_mt_rollback_subtasks_reset",
-    "_mt_shell_pid_baseline",
-    # #3578 (M4 operator-signal sweep): the rollback-to-``planned`` operator
-    # signal — summary value object + builder + JSON/human emitters.
-    "_RollbackResetSummary",
-    "_mt_build_rollback_summary",
-    "_mt_apply_rollback_signal",
-    "_mt_rollback_signal_lines",
-    "_mt_execute",
-    "_mt_output",
-    "_mt_post_transition_diagnostic",
-    "_do_move_task",
-    "_coord_status_events_path",
-    "_status_event_result_fields",
-    "_detect_reviewer_name",
-    "_detect_arbiter_override",
-    "_run_arbiter_override",
-    # fix(review) (2026-08-05): the --reviewer resolution shared by the
-    # rejected review-cycle artifact's frontmatter and the structured
-    # ReviewResult derivation is a native move-task seam def and therefore
-    # joins the compat surface like every other one (77 -> 78).
-    "_mt_resolve_reviewer_identity",
-    # #4670 (WP02, verdict-attribution): the event-log resolver that fills the
-    # active claimed reviewer identity for an agent-driven completion that
-    # omits --agent is a native move-task seam def and therefore joins the
-    # compat surface like every other one (78 -> 79).
-    "_mt_resolve_active_reviewer_identity",
-    # #4758 (WP02, FR-002/FR-006): the planned-boundary lanes.json guard is a
-    # native move-task seam def and therefore joins the compat surface like
-    # every other one (79 -> 80).
-    "_mt_guard_planned_boundary_lanes",
-)
-
-#: #5629: the transition-gate family extracted VERBATIM out of
-#: ``tasks_move_task`` into its own seam. ``tasks_move_task`` and ``tasks``
-#: both keep identity re-exports, so every row stays a ``tasks.<name>``
-#: compat symbol; only the native home moved.
-_TASKS_MOVE_TASK_GATES: tuple[str, ...] = (
-    "_mt_run_pre_review_gate",
-    # WP09 (doctrine-controlled-transition-gates-01KY51Z7): the inverted,
-    # doctrine-resolved transition gate + its thin-orchestrator helpers. Barrel
-    # lines + tuple entries move together (P-F1); the forwarder
-    # ``_mt_run_pre_review_gate`` above stays a real symbol delegating to
-    # ``_mt_run_transition_gates``.
-    "_mt_run_transition_gates",
-    "_TransitionGateInputs",
-    "_TransitionGateEffect",
-    "_mt_warn_pre_review_test_command_deprecated",
-    "_mt_resolve_scope_source",
-    "_mt_resolve_active_gate_bindings",
-    "_mt_resolve_gate_baseline",
-    "_mt_build_transition_gate_context",
-    "_mt_cancelled_verdict",
-    "_mt_fail_open_gate",
-    "_mt_resolve_transition_gate_verdicts",
-    "_mt_dispatch_one_gate",
-    "_mt_dispatch_transition_gates",
-    "_mt_human_gate_status_observer",
-    "_mt_collect_transition_gate_verdicts",
-    "_mt_resolve_transition_gate_inputs",
-    "_mt_gate_representative",
-    "_mt_translate_gate_verdicts",
-    "_mt_emit_skipped_gate",
-    "_mt_emit_transition_gate_effect",
-    "_mt_resolve_pre_review_workspace",
-    "_mt_pre_review_changed_files",
-    "_mt_pre_review_dirty_paths",
-    "_mt_pre_review_gate_with_override_scope",
-    "_mt_empty_scope_verdict",
-    # #3821: the undeclared-repo quiet skip — the declaration probe and the
-    # ``SKIPPED`` verdict builder are native move-task seam defs.
-    "_mt_pre_review_gate_declared",
-    "_mt_not_declared_skip_verdict",
-    # WP16 (lifecycle-gate-execution-context-01KY72GQ, IC-07f): the retired
-    # new_checkout_paths byproduct-diff now enrols the gate subprocess's
-    # created paths into the tool-artifact owner compensator.
-    "_mt_enrol_gate_byproducts",
-    "_mt_pre_review_gate_metadata",
-    "_mt_pre_review_gate_console_warning",
-    "_mt_pre_review_gate_block_message",
-    "_mt_review_config_section",
-    "_mt_pre_review_block_enabled",
-    # #2573 fast-follow: the --skip-pre-review-gate flag + disable-env seam.
-    "_mt_pre_review_gate_env_disable_reason",
-    "_mt_pre_review_gate_skip_reason",
-    "_mt_pre_review_scope_override",
-    "_pre_review_gate_filter_groups",
-    "_pre_review_gate_composite_routing",
-)
-
-_TASKS_MARK_STATUS: tuple[str, ...] = (  # WP08 (wave2) core family + campsite/follow-up native defs
-    "_MarkStatusState",
-    "_default_mark_status_ports",
-    "_ms_validate_inputs",
-    "_ms_resolve_context",
-    "_ms_resolve_read_dir",
-    "_ms_report_none_resolved",
-    "_ms_commit",
-    "_ms_apply_updates",
-    "_ms_emit_subtask_state",
-    # owned-checkout-lifecycle-authority WP16: the owned failure envelope
-    # builder (also the Typer-edge refusal envelope) and its reporter.
-    "_ms_failure_payload",
-    "_ms_report_owned_failure",
-    "_ms_output",
-    "_do_mark_status",
-    "_resolve_inline_subtasks",
-    # #2962 campsite fix: the authored-roster resolver and the owning-WP
-    # helper its two event-emit call sites share with it.
-    "_resolve_authored_roster",
-    "owning_wp_from_authored_roster",
-    # #3865: the owned-mode error-recovery extraction out of
-    # ``_do_mark_status``'s inline ``except`` — cause-chain walk + the
-    # ``git show`` event-id diff, now natively defined here and therefore
-    # enrolled like every other native def.
-    "_reconstruct_applied_events",
-    "_recovery_commit_sha",
-)
-
-#: seam-module-name -> imported module object, and -> that seam's required
-#: symbol tuple. Both keyed by the same short name used in the seam test
-#: files' own module names (``test_tasks_<name>_seam.py``) for easy
-#: cross-reference.
-_SEAM_MODULES = {
+_SEAM_MODULES: dict[str, ModuleType] = {
     "tasks_finalize": tasks_finalize,
     "tasks_map_requirements": tasks_map_requirements,
     "tasks_shared": tasks_shared,
@@ -394,120 +41,65 @@ _SEAM_MODULES = {
     "tasks_mark_status": tasks_mark_status,
 }
 
-_SEAM_GROUPS: dict[str, tuple[str, ...]] = {
-    "tasks_finalize": _TASKS_FINALIZE,
-    "tasks_map_requirements": _TASKS_MAP_REQUIREMENTS,
-    "tasks_shared": _TASKS_SHARED,
-    "tasks_status_cmd": _TASKS_STATUS_CMD,
-    "tasks_move_task": _TASKS_MOVE_TASK,
-    "tasks_move_task_gates": _TASKS_MOVE_TASK_GATES,
-    "tasks_mark_status": _TASKS_MARK_STATUS,
-}
-
-#: symbol -> residual (seam) module name. Built explicitly (not via a dict
-#: comprehension over possibly-colliding keys) so a future accidental symbol
-#: collision across two seams' tuples raises HERE at import time rather than
-#: silently overwriting one seam's mapping with another's.
-SYMBOL_TO_MODULE: dict[str, str] = {}
-for _module_name, _symbols in _SEAM_GROUPS.items():
-    for _symbol in _symbols:
-        if _symbol in SYMBOL_TO_MODULE:
-            raise AssertionError(f"symbol {_symbol!r} claimed by both {SYMBOL_TO_MODULE[_symbol]!r} and {_module_name!r} — seam groups must be disjoint.")
-        SYMBOL_TO_MODULE[_symbol] = _module_name
-
-#: Non-callable natively-defined symbols per seam that the callable-based
-#: native-def scan below would otherwise miss (module-level constants, not
-#: functions/classes). Mirrors ``test_tasks_shared_seam.py``'s
-#: ``module_defs.add("_RUNTIME_STATE_DENY_LIST")`` precedent.
+#: Non-callable natively-defined symbols the callable-based scan would miss.
 _EXTRA_NON_CALLABLE_NATIVE_DEFS: dict[str, frozenset[str]] = {
     "tasks_shared": frozenset({"_RUNTIME_STATE_DENY_LIST"}),
 }
 
 
-def _native_module_defs(module_name: str) -> set[str]:
-    """Re-derive a seam module's natively-defined public/private surface.
+def is_identity_reexport(front: ModuleType, seam: ModuleType, name: str) -> bool:
+    """True when ``front.<name>`` resolves and is the very object ``seam.<name>``."""
+    return hasattr(front, name) and getattr(front, name) is getattr(seam, name)
 
-    Same technique each retired seam file used for its own completeness pin
-    (``getattr(obj, "__module__", None) == module.__name__ and callable(obj)``),
-    generalized across all 7 modules plus the one known non-callable
-    constant exception, so this guard's coverage claim is checked against
-    production source rather than trusted on faith.
-    """
+
+def _native_module_defs(module_name: str) -> set[str]:
     module = _SEAM_MODULES[module_name]
     callable_defs = {name for name, obj in vars(module).items() if getattr(obj, "__module__", None) == module.__name__ and callable(obj)}
     return callable_defs | set(_EXTRA_NON_CALLABLE_NATIVE_DEFS.get(module_name, frozenset()))
 
 
-# ===========================================================================
-# Guard 1 — identity re-export
-# ===========================================================================
-
-
-@pytest.mark.parametrize(
-    "symbol,module_name",
-    sorted(SYMBOL_TO_MODULE.items()),
-    ids=[f"{mod}.{sym}" for sym, mod in sorted(SYMBOL_TO_MODULE.items())],
-)
-def test_tasks_binding_is_seam_object(symbol: str, module_name: str) -> None:
-    """``tasks.<symbol>`` resolves and is the SAME object as
-    ``<residual_module>.<symbol>`` — a genuine identity re-export, not a
-    coincidental native redefinition on ``tasks``."""
-    seam_module = _SEAM_MODULES[module_name]
-    assert hasattr(tasks, symbol), f"tasks.{symbol} no longer resolves — a re-export from {module_name} was dropped."
-    assert getattr(tasks, symbol) is getattr(seam_module, symbol), (
-        f"tasks.{symbol} is NOT the same object as {module_name}.{symbol} — "
-        "the compat re-export is a copy, not an identity re-export (breaks "
-        "monkeypatch/mocker.patch interception on tasks.<name>)."
-    )
-
-
-# ===========================================================================
-# Guard 2 — genuine origin + superset coverage
-# ===========================================================================
-
-
-@pytest.mark.parametrize(
-    "symbol,module_name",
-    sorted(SYMBOL_TO_MODULE.items()),
-    ids=[f"{mod}.{sym}" for sym, mod in sorted(SYMBOL_TO_MODULE.items())],
-)
-def test_guard_symbol_is_genuinely_native_to_its_seam(symbol: str, module_name: str) -> None:
-    """Every mapped symbol is confirmed to actually originate in the seam
-    module the guard claims — catches a mis-mapped row (e.g. a symbol
-    attributed to the wrong seam) that a bare identity check alone would not
-    reliably surface."""
-    assert symbol in _native_module_defs(module_name), (
-        f"{symbol!r} is mapped to {module_name!r} in the guard but is not natively defined there — check SYMBOL_TO_MODULE / the seam group."
-    )
-
-
-def test_guard_keyset_is_superset_of_all_seven_seams_native_defs() -> None:
-    """The guard's key-set must be a superset of the union of all 7 residual
-    modules' natively-defined symbols, re-derived straight from production
-    source — so a symbol dropped from this guard (while still defined in its
-    seam module) fails HERE, loudly, instead of silently losing coverage.
-
-    This is the guard that satisfies coverage-before-deletion for the
-    remaining heavy seams' scaffolding retirement.
-    """
-    union_of_native_defs: set[str] = set()
+def _derive_compat_keys() -> dict[str, str]:
+    """symbol -> seam name, for native defs that ``tasks`` exposes."""
+    mapping: dict[str, str] = {}
     for module_name in _SEAM_MODULES:
-        union_of_native_defs |= _native_module_defs(module_name)
+        for symbol in sorted(_native_module_defs(module_name)):
+            if not hasattr(tasks, symbol):
+                continue
+            if symbol in mapping:
+                raise AssertionError(f"symbol {symbol!r} natively defined in both {mapping[symbol]!r} and {module_name!r}")
+            mapping[symbol] = module_name
+    return mapping
 
-    guard_keys = set(SYMBOL_TO_MODULE)
-    missing = union_of_native_defs - guard_keys
-    assert not missing, f"Symbols natively defined in a seam module but missing from the consolidated compat guard: {sorted(missing)}"
-    assert union_of_native_defs <= guard_keys
+
+SYMBOL_TO_MODULE = _derive_compat_keys()
+_PARAMS = sorted(SYMBOL_TO_MODULE.items())
+_IDS = [f"{mod}.{sym}" for sym, mod in _PARAMS]
+
+
+@pytest.mark.parametrize("symbol,module_name", _PARAMS, ids=_IDS)
+def test_tasks_binding_is_seam_object(symbol: str, module_name: str) -> None:
+    seam_module = _SEAM_MODULES[module_name]
+    assert is_identity_reexport(tasks, seam_module, symbol), (
+        f"tasks.{symbol} is not the same object as {module_name}.{symbol} -- the compat re-export is missing or a copy (breaks patch interception on tasks.<name>)."
+    )
+
+
+def test_seam_natives_are_disjoint() -> None:
+    seen: dict[str, str] = {}
+    for module_name in _SEAM_MODULES:
+        for symbol in _native_module_defs(module_name):
+            assert symbol not in seen, f"{symbol!r} natively defined in both {seen[symbol]!r} and {module_name!r}"
+            seen[symbol] = module_name
+
+
+@pytest.mark.parametrize("module_name", sorted(_SEAM_MODULES))
+def test_every_seam_contributes_at_least_one_symbol(module_name: str) -> None:
+    assert module_name in set(SYMBOL_TO_MODULE.values()), f"{module_name} contributes no symbol to the compat surface"
 
 
 def test_seam_maps_agree() -> None:
-    """``_SEAM_GROUPS`` and ``_SEAM_MODULES`` must key the exact same seven
-    seams — a contract cardinality, not an incidental count. A whole-seam
-    drop from both maps together (the shape the old exact-count pin here
-    missed) now fails HERE, instead of silently losing coverage across
-    every parametrized guard above that iterates ``_SEAM_MODULES`` /
-    ``SYMBOL_TO_MODULE``."""
-    seven_seams = {
+    """The seam set is a contract: dropping a whole seam must fail loudly."""
+    assert set(_SEAM_MODULES) == {
         "tasks_finalize",
         "tasks_map_requirements",
         "tasks_shared",
@@ -516,11 +108,37 @@ def test_seam_maps_agree() -> None:
         "tasks_move_task_gates",
         "tasks_mark_status",
     }
-    assert set(_SEAM_GROUPS) == set(_SEAM_MODULES) == seven_seams
 
 
-def test_every_seam_group_declares_at_least_one_symbol() -> None:
-    """Non-vacuity: an emptied seam tuple cannot silently pass the membership battery."""
-    assert _SEAM_GROUPS, "no seam groups declared"
-    empty = [name for name, symbols in _SEAM_GROUPS.items() if not symbols]
-    assert not empty, f"seam groups with no symbols: {empty}"
+def test_identity_predicate_detects_a_copy() -> None:
+    """Negative control: a same-named copy must be reported as NOT identical."""
+    original = tasks_shared._output_result
+    front = ModuleType("fake_front")
+    seam = ModuleType("fake_seam")
+    seam._output_result = original  # type: ignore[attr-defined]
+    front._output_result = original  # type: ignore[attr-defined]
+    assert is_identity_reexport(front, seam, "_output_result")
+
+    def _copy(*args: object, **kwargs: object) -> object:
+        return original(*args, **kwargs)
+
+    _copy.__name__ = original.__name__
+    front._output_result = _copy  # type: ignore[attr-defined]
+    assert not is_identity_reexport(front, seam, "_output_result")
+    assert not is_identity_reexport(ModuleType("empty"), seam, "_output_result")
+
+
+def test_shadow_copy_on_tasks_stays_in_keyset_and_fails_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    """End-to-end negative control: a shadow copy planted on the real ``tasks``
+    module stays in the derived keyset and fails the identity check."""
+    name, module_name = sorted(_derive_compat_keys().items())[0]
+    seam = _SEAM_MODULES[module_name]
+    original = getattr(seam, name)
+
+    def shadow(*args: object, **kwargs: object) -> object:  # pragma: no cover - never called
+        return original(*args, **kwargs)
+
+    shadow.__module__ = seam.__name__
+    monkeypatch.setattr(tasks, name, shadow)
+    assert name in _derive_compat_keys()
+    assert not is_identity_reexport(tasks, seam, name)
