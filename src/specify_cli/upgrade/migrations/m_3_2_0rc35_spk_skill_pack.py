@@ -15,25 +15,11 @@ if TYPE_CHECKING:
     from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 
 
-def _discover_registry() -> SkillRegistry | None:
-    """Resolve canonical skills from the installed package or local checkout."""
-    from specify_cli.skills.registry import SkillRegistry
-    from specify_cli.template import get_local_repo_root
+def _discover_registry(project_path: Path) -> SkillRegistry | None:
+    """Resolve the project's skill catalog (built-in plus pack skills) through the one seam."""
+    from specify_cli.skills.catalog import resolve_project_skill_catalog
 
-    try:
-        registry = SkillRegistry.from_package()
-        if registry.discover_skills():
-            return registry
-    except Exception:
-        pass
-
-    local_repo = get_local_repo_root()
-    if local_repo is not None:
-        registry = SkillRegistry.from_local_repo(local_repo)
-        if registry.discover_skills():
-            return registry
-
-    return None
+    return resolve_project_skill_catalog(project_path)
 
 
 def _installable_agents(project_path: Path) -> list[str]:
@@ -90,7 +76,7 @@ class SpkSkillPackMigration(BaseMigration):
         if not (project_path / ".kittify").is_dir():
             return False
 
-        registry = _discover_registry()
+        registry = _discover_registry(project_path)
         if registry is None:
             return False
 
@@ -113,14 +99,19 @@ class SpkSkillPackMigration(BaseMigration):
         return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+        from specify_cli.skills.catalog import PackSkillCatalogError
         from specify_cli.skills.installer import install_all_skills
-        from specify_cli.skills.manifest import load_manifest, save_manifest
+        from specify_cli.skills.manifest import ORIGIN_PACK, load_manifest, save_manifest
 
         changes: list[str] = []
         warnings: list[str] = []
         errors: list[str] = []
 
-        registry = _discover_registry()
+        try:
+            registry = _discover_registry(project_path)
+        except PackSkillCatalogError as exc:
+            errors.append(f"Pack skills could not be resolved: {exc}")
+            return MigrationResult(success=False, changes_made=changes, errors=errors)
         if registry is None:
             errors.append("No canonical skills discovered for spk skill-pack install")
             return MigrationResult(success=False, changes_made=changes, errors=errors)
@@ -151,7 +142,9 @@ class SpkSkillPackMigration(BaseMigration):
                 entry
                 for entry in existing.entries
                 if entry.skill_name not in RETIRED_CANONICAL_SKILL_NAMES
-                and (entry.skill_name not in canonical_names or entry.agent_key not in agents)
+                # Pack-origin entries are owned by the installer pass above (a
+                # retired pack skill must not be resurrected from the old manifest).
+                and ((entry.skill_name not in canonical_names and entry.origin != ORIGIN_PACK) or entry.agent_key not in agents)
             ]
             manifest.entries.extend(preserved)
 

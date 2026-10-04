@@ -12,25 +12,11 @@ if TYPE_CHECKING:
     from specify_cli.skills.registry import SkillRegistry
 
 
-def _discover_registry() -> SkillRegistry | None:
-    """Resolve the canonical skill registry from package or local checkout."""
-    from specify_cli.skills.registry import SkillRegistry
-    from specify_cli.template import get_local_repo_root
+def _discover_registry(project_path: Path) -> SkillRegistry | None:
+    """Resolve the project's skill catalog (built-in plus pack skills) through the one seam."""
+    from specify_cli.skills.catalog import resolve_project_skill_catalog
 
-    try:
-        registry = SkillRegistry.from_package()
-        if registry.discover_skills():
-            return registry
-    except Exception:
-        pass
-
-    local_repo = get_local_repo_root()
-    if local_repo is not None:
-        registry = SkillRegistry.from_local_repo(local_repo)
-        if registry.discover_skills():
-            return registry
-
-    return None
+    return resolve_project_skill_catalog(project_path)
 
 
 def _get_installable_agents(agent_keys: list[str]) -> list[str]:
@@ -74,7 +60,7 @@ class RepairSkillPackMigration(BaseMigration):
         if not installable_agents:
             return False
 
-        registry = _discover_registry()
+        registry = _discover_registry(project_path)
         if registry is None:
             return True
 
@@ -109,6 +95,7 @@ class RepairSkillPackMigration(BaseMigration):
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Rebuild canonical managed skills from the packaged doctrine registry."""
+        from specify_cli.skills.catalog import PackSkillCatalogError
         from specify_cli.core.agent_config import load_agent_config
         from specify_cli.skills.installer import install_all_skills
         from specify_cli.skills.manifest import save_manifest
@@ -117,7 +104,11 @@ class RepairSkillPackMigration(BaseMigration):
         warnings: list[str] = []
         errors: list[str] = []
 
-        registry = _discover_registry()
+        try:
+            registry = _discover_registry(project_path)
+        except PackSkillCatalogError as exc:
+            errors.append(f"Pack skills could not be resolved: {exc}")
+            return MigrationResult(success=False, changes_made=changes, errors=errors)
         if registry is None:
             errors.append("No bundled skills found in the installed package")
             return MigrationResult(success=False, changes_made=changes, errors=errors)

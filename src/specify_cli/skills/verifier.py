@@ -14,9 +14,9 @@ from specify_cli.skills.manifest import (
 )
 from specify_cli.skills.paths import get_primary_global_skill_root as get_primary_global_skill_root
 from specify_cli.skills.paths import skill_path_observations
+from specify_cli.skills.catalog import PackSkillCatalogError, resolve_project_skill_catalog
 from specify_cli.skills.registry import SkillRegistry
 from specify_cli.skills.command_renderer import ensure_skill_frontmatter
-from specify_cli.template import get_local_repo_root
 from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
 
 logger = logging.getLogger(__name__)
@@ -55,7 +55,10 @@ def verify_installed_skills(project_path: Path) -> VerifyResult:
     missing: list[ManagedFileEntry] = []
     drifted: list[tuple[ManagedFileEntry, str]] = []
     errors: list[str] = []
-    registry = _discover_registry()
+    try:
+        registry = _discover_registry(project_path)
+    except PackSkillCatalogError as exc:
+        return VerifyResult(ok=False, errors=[str(exc)])
 
     for entry in manifest.entries:
         installed = project_path / entry.installed_path
@@ -141,22 +144,9 @@ def _find_source_file(skill_dir: Path, source_file: str) -> Path | None:
     return candidate if state.kind == "file" else None
 
 
-def _discover_registry() -> SkillRegistry | None:
-    """Resolve the canonical skill registry for dynamic drift detection."""
-    try:
-        registry = SkillRegistry.from_package()
-        if registry.discover_skills():
-            return registry
-    except Exception:
-        logger.debug("Package skill registry unavailable", exc_info=True)
-
-    local_repo = get_local_repo_root()
-    if local_repo is not None:
-        registry = SkillRegistry.from_local_repo(local_repo)
-        if registry.discover_skills():
-            return registry
-
-    return None
+def _discover_registry(project_path: Path) -> SkillRegistry | None:
+    """Resolve the project's skill catalog (built-in plus pack skills) for drift detection."""
+    return resolve_project_skill_catalog(project_path)
 
 
 def _expected_hash(entry: ManagedFileEntry, registry: SkillRegistry | None) -> str | None:

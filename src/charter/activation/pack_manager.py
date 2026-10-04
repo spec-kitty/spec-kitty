@@ -446,6 +446,12 @@ def _chain_complete_available(
     return frozenset(available)
 
 
+def _kind_stays_absent(token: str) -> bool:
+    """Whether *token*'s activation key must stay absent until explicitly activated."""
+    kind = _resolve_kind(token)
+    return kind is not None and kind.effective_when_absent == "required"
+
+
 def _effective_ids_for_kind(repo_root: Path, kind: str) -> tuple[str, ...]:
     """What the activation-aware resolver currently has in force for *kind*.
 
@@ -711,6 +717,11 @@ class CharterPackManager:
             raise ValueError(f"Unknown activation kind '{kind}'. Valid kinds: {sorted(YAML_KEY_MAP)}")
         return _resolve_kind(kind)
 
+    def _effective_when_absent(self, kind: str) -> str:
+        """The kind's absent-key meaning; ``mission-type`` (no ArtifactKind) is ``"all"``."""
+        resolved = self._require_kind(kind)
+        return resolved.effective_when_absent if resolved is not None else "all"
+
     def activate(
         self,
         ctx: ProjectContext,
@@ -772,7 +783,11 @@ class CharterPackManager:
         # for the kinds the resolver filters by raw ``id:`` — the resolver's
         # own keys, so a declared id that diverges from its filename stem is
         # not written in a spelling the filter drops.
-        preserved = set(_chain_complete_available(self, ctx, kind, repo_root, layer_roots))
+        when_absent = self._effective_when_absent(kind)
+        # A "required" kind (skills) has a narrower absent-key meaning than
+        # "everything available": preserving the whole catalog would turn
+        # `activate skill X` into "activate every skill".
+        preserved = set(_chain_complete_available(self, ctx, kind, repo_root, layer_roots)) if when_absent == "all" else set()
         preserved.update(_effective_ids_for_kind(repo_root, kind))
 
         # plan_activation validates BEFORE computing any post-state (NFR-003);
@@ -785,6 +800,7 @@ class CharterPackManager:
             available_ids=available,
             config_data=data,
             effective_ids=sorted(preserved),
+            effective_when_absent=when_absent,
         )
 
         result = ActivationResult(activated=list(plan.activated), warnings=list(plan.warnings))
@@ -1106,13 +1122,15 @@ class CharterPackManager:
         target_path, data, save = resolve_activation_write_target(repo_root)
         default_pack = _load_default_pack()
 
-        for yaml_key in YAML_KEY_MAP.values():
+        # A "required" kind (skills) keeps an absent key absent: writing the
+        # default pack's (empty) list would flip default-in-force
+        # ("org-required only") to an explicit empty set that drops them.
+        for kind, yaml_key in YAML_KEY_MAP.items():
+            if _kind_stays_absent(kind):
+                continue
             raw = _activation_list_or_error(data, yaml_key)
             if raw is None:
-                default_ids = default_pack.get(yaml_key, [])
-                data[yaml_key] = list(default_ids)
-                # Map yaml_key back to CLI kind for the result
-                kind = next(k for k, v in YAML_KEY_MAP.items() if v == yaml_key)
+                data[yaml_key] = list(default_pack.get(yaml_key, []))
                 result.kinds_written.append(kind)
 
         if result.kinds_written:

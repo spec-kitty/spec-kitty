@@ -16,6 +16,10 @@ logger = logging.getLogger(__name__)
 
 MANIFEST_FILENAME = "skills-manifest.json"
 
+ORIGIN_BUILTIN = "builtin"
+ORIGIN_PACK = "pack"
+_PROVENANCE_DEFAULTS = {"origin": ORIGIN_BUILTIN, "source_ref": "", "source_hash": ""}
+
 
 @dataclass
 class ManagedFileEntry:
@@ -32,6 +36,12 @@ class ManagedFileEntry:
     content_hash: str  # "sha256:<hex>"
     installed_at: str  # ISO 8601 UTC
     delivery_mode: str = "copy"  # "copy" or "symlink"
+    # Provenance, not placement: ``installation_class`` stays the placement
+    # taxonomy. Defaults keep every pre-pack-skills manifest loadable and
+    # byte-stable (default values are omitted when serializing).
+    origin: str = ORIGIN_BUILTIN  # "builtin" | "pack"
+    source_ref: str = ""  # pack source path (pack origin only)
+    source_hash: str = ""  # sha256 of the prepared pack-skill input (pack origin only)
 
     def __post_init__(self) -> None:
         """Normalize paths produced on Windows or loaded from older manifests.
@@ -92,6 +102,10 @@ class ManagedSkillManifest:
 def _render_manifest(manifest: ManagedSkillManifest) -> str:
     """Serialize the managed-skill schema in its established wire format."""
     data = asdict(manifest)
+    for entry in data["entries"]:
+        for key, default in _PROVENANCE_DEFAULTS.items():
+            if entry[key] == default:
+                del entry[key]
     return json.dumps(data, indent=2) + "\n"
 
 

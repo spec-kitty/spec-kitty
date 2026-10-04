@@ -57,8 +57,13 @@ __all__ = [
 #:   packs' per-kind keys here would fight that migration's contract instead
 #:   of composing with it. Mirrors the special-case comment style in
 #:   ``charter.activation.charter_yaml_io._ACTIVATION_KEYS``.
+#: * ``activated_skills`` -- pack-skill activation is opt-in
+#:   (``ArtifactKind.effective_when_absent == "required"``, ADR
+#:   2026-09-27-1): an ABSENT key puts only the org-required skills in
+#:   force, so a built-in charter pack must never write the key (it would
+#:   flip default-in-force to an explicit set).
 _NON_PACK_ACTIVATION_KEYS: frozenset[str] = frozenset(
-    {"mission_type_activations", "activated_glossary_packs"}
+    {"mission_type_activations", "activated_glossary_packs", "activated_skills"}
 )
 
 #: The per-kind activation keys a charter pack may populate. DERIVED from

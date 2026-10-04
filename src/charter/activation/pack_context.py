@@ -32,6 +32,7 @@ from kernel.errors import KittyInternalConsistencyError
 from ruamel.yaml import YAML
 
 from charter.activation.charter_yaml_io import load_charter_yaml
+from charter.activation.org_pack_discovery import read_org_required_ids
 from charter.offering.artifact_kinds import ArtifactKind
 
 __all__ = [
@@ -273,7 +274,7 @@ class PackContext:
             activated_mission_step_contracts=_read_activated_mission_step_contracts(activation),
             activated_glossary_packs=_read_activated_glossary_packs(activation),
             activated_anti_patterns=_read_activated_anti_patterns(activation),
-            activated_skills=_read_activated_skills(activation),
+            activated_skills=_read_activated_skills(activation, repo_root),
         )
 
 
@@ -701,9 +702,30 @@ def _read_activated_anti_patterns(data: dict[str, Any]) -> frozenset[str] | None
     return _read_list_key(data, "activated_anti_patterns")
 
 
-def _read_activated_skills(data: dict[str, Any]) -> frozenset[str] | None:
-    """Extract ``activated_skills`` from parsed config data (three-state)."""
-    return _read_list_key(data, "activated_skills")
+def _read_activated_skills(data: dict[str, Any], repo_root: Path) -> frozenset[str] | None:
+    """Extract ``activated_skills`` (three-state), applying the absent-key default.
+
+    A present key keeps its literal meaning (``[]`` = nothing, ``[ids]`` =
+    exactly those). An absent key resolves through
+    :func:`_absent_key_default` -- for skills that is the org-required set, not
+    ``None`` ("everything").
+    """
+    declared = _read_list_key(data, "activated_skills")
+    if declared is not None:
+        return declared
+    return _absent_key_default(ArtifactKind.SKILL, repo_root)
+
+
+def _absent_key_default(kind: ArtifactKind, repo_root: Path) -> frozenset[str] | None:
+    """What an absent activation key means for *kind* (default-in-force, plan decision 5).
+
+    ``effective_when_absent == "all"`` kinds stay ``None`` (unrestricted: every
+    available artifact is effective). ``"required"`` kinds put only the org
+    packs' ``required_<plural>`` in force -- built-in defaults are empty at MVP.
+    """
+    if kind.effective_when_absent == "all":
+        return None
+    return frozenset(read_org_required_ids(repo_root, kind))
 
 
 def _read_org_packs(repo_root: Path, _data: dict[str, Any]) -> tuple[tuple[str, ...], tuple[Path, ...]]:

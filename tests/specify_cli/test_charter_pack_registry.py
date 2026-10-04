@@ -42,7 +42,14 @@ def test_per_kind_activation_keys_matches_yaml_key_map_minus_glossary() -> None:
     assert set(PER_KIND_ACTIVATION_KEYS) == set(YAML_KEY_MAP.values()) - {
         "mission_type_activations",
         "activated_glossary_packs",
+        "activated_skills",
     }
+
+
+def test_per_kind_activation_keys_excludes_skills() -> None:
+    """Skill activation is opt-in: an absent key means org-required only, so no
+    built-in pack may carry the key (it would flip default-in-force)."""
+    assert "activated_skills" not in PER_KIND_ACTIVATION_KEYS
 
 
 def test_per_kind_activation_keys_excludes_glossary() -> None:

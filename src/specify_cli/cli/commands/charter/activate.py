@@ -764,6 +764,36 @@ def recompile_or_notify(repo_root: Path, *, resynthesize: bool, compile_catalog:
         )
 
 
+def reproject_pack_skills(repo_root: Path, kind: str) -> None:
+    """Re-run the managed installer's pack-skill projection after a skill (de)activation.
+
+    Shared tail for ``activate_cmd``/``deactivate_cmd``. Only the ``skill`` kind
+    changes what is projected into the project skill roots (ADR 2026-09-27-1);
+    deactivation retires manifest-owned pack entries, never built-in skills. The
+    activation change is already committed when this runs, so a refusal (name
+    collision, unknown wrapper target, unusable namespace) is reported with the
+    remedy and exits non-zero without having written any skill file.
+    """
+    if kind != ArtifactKind.SKILL.operator_token:
+        return
+    from specify_cli.core.agent_config import AgentConfigError
+    from specify_cli.skills.catalog import PackSkillCatalogError
+    from specify_cli.skills.installer import project_pack_skills
+
+    try:
+        projection = project_pack_skills(repo_root)
+    except (PackSkillCatalogError, AgentConfigError, OSError, ValueError) as exc:
+        console.print(
+            f"[red]Error:[/red] pack skills were not projected: {exc}. "
+            "The activation change is recorded; fix the cause and re-run this command."
+        )
+        raise typer.Exit(1) from exc
+    for path in projection.changed:
+        console.print(f"[green]Skill file synced[/green]: {path}")
+    for path, reason in projection.preserved:
+        console.print(f"[yellow]Skill file preserved[/yellow]: {path} ({reason})")
+
+
 def activate_cmd(
     ctx: typer.Context,
     kind: str | None = typer.Argument(None, help="Activation kind (e.g. directive, agent-profile)."),
@@ -903,3 +933,4 @@ def activate_cmd(
     # the direct target. See `recompile_or_notify` for the
     # resynthesize/compile/no-compile precedence.
     recompile_or_notify(repo_root, resynthesize=resynthesize, compile_catalog=compile_catalog)
+    reproject_pack_skills(repo_root, kind)

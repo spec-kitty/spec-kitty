@@ -89,7 +89,8 @@ def _config(root: Path, body: str) -> None:
 
 def test_pack_context_reads_activated_skills_three_state(tmp_path: Path) -> None:
     _config(tmp_path, "agents:\n  available: [claude]\n")
-    assert PackContext.from_config(tmp_path).activated_skills is None
+    # default-in-force (WP03): an absent key is "org-required only" (none here), never None/"all"
+    assert PackContext.from_config(tmp_path).activated_skills == frozenset()
     _config(tmp_path, "activated_skills: [land-pr]\n")
     assert PackContext.from_config(tmp_path).activated_skills == frozenset({"land-pr"})
     _config(tmp_path, "activated_skills: []\n")
@@ -139,5 +140,5 @@ def test_resolver_filters_skills_by_activation(tmp_path: Path) -> None:
 
     _config(tmp_path, "agents:\n  available: [claude]\n")
     absent = ActivationService(inner, pack_context=PackContext.from_config(tmp_path))
-    assert set(absent.skills) == {"alpha", "beta"}
+    assert set(absent.skills) == set()  # default-in-force: no required skills => none in force
     assert unfiltered.raw_repository("skills") is inner.skills

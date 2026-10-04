@@ -19,7 +19,7 @@ from charter.offering.pack_skills.models import PackSkill, SkillInvocation, Skil
 Tier = Literal["builtin", "org", "project"]
 
 #: Name prefixes reserved for built-in skills (ADR "Namespaces and trust").
-_RESERVED_PREFIXES: Final[tuple[str, ...]] = ("spk-", "spec-kitty-", "spec-kitty.")
+RESERVED_PREFIXES: Final[tuple[str, ...]] = ("spk-", "spec-kitty-", "spec-kitty.")
 
 #: Frontmatter keys that would widen the host tool's permissions.
 _FORBIDDEN_FRONTMATTER_KEYS: Final[frozenset[str]] = frozenset({"allowed-tools", "allowed_tools"})
@@ -31,7 +31,7 @@ class PackSkillViolation(ValueError):
     """A pack skill breaks a tier, trust or augmentation rule."""
 
 
-def _rendered_name(skill_id: str, namespace: str | None) -> str:
+def rendered_name(skill_id: str, namespace: str | None) -> str:
     """Name a skill renders under: ``<namespace>-<id>`` or the bare id."""
     return f"{namespace}-{skill_id}" if namespace else skill_id
 
@@ -73,9 +73,9 @@ def _read_body(skill: PackSkill, skill_file: Path) -> str:
 
 
 def _check_reserved_prefix(skill: PackSkill, namespace: str | None) -> None:
-    for candidate in (skill.id, _rendered_name(skill.id, namespace)):
-        if candidate.startswith(_RESERVED_PREFIXES):
-            raise PackSkillViolation(f"skill {skill.id!r}: name {candidate!r} uses a prefix reserved for built-in skills {list(_RESERVED_PREFIXES)}")
+    for candidate in (skill.id, rendered_name(skill.id, namespace)):
+        if candidate.startswith(RESERVED_PREFIXES):
+            raise PackSkillViolation(f"skill {skill.id!r}: name {candidate!r} uses a prefix reserved for built-in skills {list(RESERVED_PREFIXES)}")
 
 
 def _check_no_scripts_dir(skill: PackSkill, skill_file: Path) -> None:
@@ -184,8 +184,10 @@ def _require_narrowing(base: SkillInvocation, enhancer: SkillInvocation) -> None
 
 
 __all__ = [
+    "RESERVED_PREFIXES",
     "PackSkillViolation",
     "Tier",
     "apply_enhancement",
+    "rendered_name",
     "validate_pack_skill",
 ]

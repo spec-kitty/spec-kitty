@@ -430,11 +430,15 @@ class TestListActivated:
 class TestMergeDefaults:
     def test_writes_absent_keys(self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path) -> None:
         result = manager.merge_defaults(ctx)
-        assert len(result.kinds_written) == 11  # all 11 kinds were absent
+        assert len(result.kinds_written) == 10  # every kind but the opt-in skill kind
         config = project_root / ".kittify" / "config.yaml"
         data = yaml.safe_load(config.read_text())
         for yaml_key in YAML_KEY_MAP.values():
+            if yaml_key == "activated_skills":
+                continue  # default-in-force: an absent skills key stays absent
             assert yaml_key in data, f"Missing key after merge_defaults: {yaml_key}"
+        assert "activated_skills" not in data
+        assert "skill" not in result.kinds_written
 
     def test_does_not_overwrite_present_keys(self, manager: CharterPackManager, project_root: Path) -> None:
         config = project_root / ".kittify" / "config.yaml"
@@ -447,9 +451,9 @@ class TestMergeDefaults:
         data = yaml.safe_load(config.read_text())
         # existing directive key must not be overwritten
         assert data["activated_directives"] == ["only-mine"]
-        # other 10 absent kinds must have been written
+        # the other 9 absent kinds (all but directive and the opt-in skill kind) are written
         assert "directive" not in result.kinds_written
-        assert len(result.kinds_written) == 10
+        assert len(result.kinds_written) == 9
 
     def test_creates_backup_when_charter_exists(self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path) -> None:
         charter_dir = project_root / ".kittify" / "charter"

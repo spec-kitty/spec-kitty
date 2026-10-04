@@ -252,7 +252,7 @@ class PluginBundleProvider:
     def _source_assessments(inputs: AssessmentInputs, plans: Sequence[SurfacePlan]) -> tuple[OwnerAssessment, ...]:
         """Ask the selected registered owners for their concrete desired outputs."""
         from specify_cli.skills.installer import assess_skill_installation
-        from specify_cli.skills.registry import SkillRegistry
+        from specify_cli.skills.catalog import resolve_project_skill_catalog
         from ..providers.protocol import AssessingSurfaceProvider
         from ..service import build_providers
 
@@ -268,7 +268,7 @@ class PluginBundleProvider:
                 continue
             owner_inputs = AssessmentInputs(inputs.root, consent=inputs.consent)
             if provider.provider_key == "managed_skills":
-                installation = assess_skill_installation(owner_inputs, SkillRegistry.from_package(),
+                installation = assess_skill_installation(owner_inputs, resolve_project_skill_catalog(inputs.root.path),
                                                         tuple(sorted({s.tool_key for s in selections})))
                 owner_inputs = AssessmentInputs(inputs.root, projected=installation, consent=inputs.consent)
             assessment = provider.assess(owner_inputs, (), selections=selections)

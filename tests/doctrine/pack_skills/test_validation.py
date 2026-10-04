@@ -9,7 +9,7 @@ import pytest
 from charter.offering.pack_skills import PackSkill, PackSkillViolation
 from charter.offering.pack_skills.validation import (
     _frontmatter_keys as frontmatter_keys,
-    _rendered_name as rendered_name,
+    rendered_name,
     apply_enhancement,
     validate_pack_skill,
 )

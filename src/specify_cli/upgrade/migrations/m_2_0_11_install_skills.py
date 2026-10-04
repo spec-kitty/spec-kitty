@@ -51,25 +51,19 @@ class InstallSkillsMigration(BaseMigration):
         from specify_cli.core.agent_config import load_agent_config
         from specify_cli.skills.installer import install_skills_for_agent
         from specify_cli.skills.manifest import ManagedSkillManifest, save_manifest
-        from specify_cli.skills.registry import SkillRegistry
-        from specify_cli.template import get_local_repo_root
+        from specify_cli.skills.catalog import PackSkillCatalogError, resolve_project_skill_catalog
 
         changes: list[str] = []
         warnings: list[str] = []
         errors: list[str] = []
 
-        # Discover skills (package first, local repo fallback)
+        # Discover skills through the one catalog seam (built-in plus pack skills).
         try:
-            registry = SkillRegistry.from_package()
-            skills = registry.discover_skills()
-        except Exception:
-            skills = []
-
-        if not skills:
-            local_repo = get_local_repo_root()
-            if local_repo is not None:
-                registry = SkillRegistry.from_local_repo(local_repo)
-                skills = registry.discover_skills()
+            registry = resolve_project_skill_catalog(project_path)
+        except PackSkillCatalogError as exc:
+            errors.append(f"Pack skills could not be resolved: {exc}")
+            return MigrationResult(success=False, changes_made=changes, errors=errors)
+        skills = registry.discover_skills() if registry is not None else []
 
         if not skills:
             warnings.append("No skills found to install")

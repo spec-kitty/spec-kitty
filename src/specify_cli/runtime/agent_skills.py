@@ -11,11 +11,11 @@ from specify_cli.runtime.bootstrap import _get_cli_version
 from specify_cli.runtime.asset_preparation import AssetPreparation, _GlobalAssetPreparation
 from specify_cli.runtime.home import get_kittify_home
 from specify_cli.core.config import AGENT_SKILL_CONFIG
+from specify_cli.skills.catalog import resolve_builtin_skill_catalog
 from specify_cli.skills.command_renderer import ensure_skill_frontmatter
 from specify_cli.skills.paths import get_primary_global_skill_root, iter_installable_agents
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
-from specify_cli.template import get_local_repo_root
 from specify_cli.tool_surface.operations import ApplyConsent, OwnerAssessment
 
 logger = logging.getLogger(__name__)
@@ -58,21 +58,12 @@ class GlobalSkillSelection:
 
 
 def _discover_registry() -> SkillRegistry | None:
-    """Resolve the canonical bundled skill registry."""
-    try:
-        registry = SkillRegistry.from_package()
-        if registry.discover_skills():
-            return registry
-    except ModuleNotFoundError:
-        logger.debug("Package skill registry unavailable", exc_info=True)
+    """Resolve the canonical bundled skill registry.
 
-    local_repo = get_local_repo_root()
-    if local_repo is not None:
-        registry = SkillRegistry.from_local_repo(local_repo)
-        if registry.discover_skills():
-            return registry
-
-    return None
+    Built-in only, by design: this feeds the user-global skill roots, and pack
+    skills are project-root only (ADR 2026-09-27-1).
+    """
+    return resolve_builtin_skill_catalog()
 
 
 def _unique_global_roots(agent_keys: tuple[str, ...] | None = None) -> list[Path]:

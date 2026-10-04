@@ -1,0 +1,227 @@
+"""Prepare activated pack skills for projection (ADR 2026-09-27-1, FR-008).
+
+:func:`_prepare_skill_activations` is the charter-side half of the projection
+seam: it turns the *activated* pack skills (already filtered by the
+default-in-force rule) into :class:`PreparedSkill` records that the
+``specify_cli`` adapter renders into project skill roots. It is pure over its
+inputs -- a skill source, the activated ids, the merged DRG and the two
+namespaces -- so the adapter (and tests) can call it without a project layout.
+Charter never imports ``specify_cli``: a wrapper skill's ``builtin:`` target is
+carried through *unresolved* and validated by the adapter against its command
+set.
+
+Precedent: :func:`charter.activation.compiler.prepare_mission_type_activations`
+(a charter-owned prepare step the adapter wraps).
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Protocol
+
+from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
+
+from charter.drg import DRGGraph, Relation
+from charter.offering.pack_skills.models import BUILTIN_TARGET_PREFIX, CLI_TARGET_PREFIX, PackSkill, SkillExpansion
+from charter.offering.pack_skills.validation import RESERVED_PREFIXES, Tier, rendered_name
+
+__all__ = [
+    # Wrapper-target prefixes, re-exported so specify_cli reaches them through
+    # charter rather than importing charter.offering directly.
+    "BUILTIN_TARGET_PREFIX",
+    "CLI_TARGET_PREFIX",
+    "PreparedSkill",
+    "SkillPreparationError",
+    "prepare_project_skill_activations",
+]
+
+#: Dotted ``.kittify/config.yaml`` path of the project-tier skill namespace.
+_PROJECT_NAMESPACE_CONFIG_PATH = "charter_packs.project.skill_namespace"
+
+_ORG_NAMESPACE_REMEDY = "set `skill_namespace` in the org pack's org-charter.yaml"
+_PROJECT_NAMESPACE_REMEDY = f"set `{_PROJECT_NAMESPACE_CONFIG_PATH}` in .kittify/config.yaml"
+
+
+class SkillPreparationError(ValueError):
+    """Activated skills cannot be prepared (missing namespace or name collision)."""
+
+
+class _SkillSource(Protocol):
+    """The read-only slice of :class:`PackSkillRepository` preparation needs."""
+
+    def get(self, item_id: str) -> PackSkill | None: ...
+
+    def source_path(self, skill_id: str) -> Path | None: ...
+
+    def provenance_of(self, skill_id: str) -> str | None: ...
+
+    def body_text(self, skill_id: str) -> str | None: ...
+
+
+@dataclass(frozen=True)
+class PreparedSkill:
+    """One activated skill, ready to render.
+
+    ``body`` is set for prompt-form skills, ``expansion`` for wrapper-form ones
+    (its ``builtin:`` target is *unresolved*). ``source_hash`` is the sha256 of
+    the JSON-canonical (``sort_keys``) skill record followed by the body bytes:
+    a changed pack source changes it even when the rendered bytes would not.
+    """
+
+    id: str
+    tier: Tier
+    rendered_name: str
+    form: str
+    body: str | None
+    expansion: SkillExpansion | None
+    requires: tuple[str, ...]
+    source_path: Path
+    source_hash: str
+    skill: PackSkill
+
+
+def _prepare_skill_activations(
+    source: _SkillSource,
+    activated_ids: Iterable[str],
+    *,
+    graph: DRGGraph,
+    org_namespace: str | None,
+    project_namespace: str | None,
+) -> list[PreparedSkill]:
+    """Prepare *activated_ids* for projection, sorted by id.
+
+    Raises :class:`SkillPreparationError` -- before returning anything -- when
+    an org/project skill has no namespace to render under, when its rendered
+    name uses a prefix reserved for built-in skills, or when two skills render
+    to the same name.
+    """
+    prepared = [_prepare_one(source, skill_id, graph, org_namespace, project_namespace) for skill_id in sorted(set(activated_ids))]
+    _refuse_duplicate_names(prepared)
+    return prepared
+
+
+def _prepare_one(
+    source: _SkillSource,
+    skill_id: str,
+    graph: DRGGraph,
+    org_namespace: str | None,
+    project_namespace: str | None,
+) -> PreparedSkill:
+    skill = source.get(skill_id)
+    source_path = source.source_path(skill_id)
+    if skill is None or source_path is None:
+        raise SkillPreparationError(f"activated skill {skill_id!r} is not available in any pack tier")
+    tier = _tier(source.provenance_of(skill_id), skill_id)
+    name = _name_for(skill_id, tier, org_namespace, project_namespace)
+    body = source.body_text(skill_id)
+    return PreparedSkill(
+        id=skill_id,
+        tier=tier,
+        rendered_name=name,
+        form=skill.form,
+        body=body,
+        expansion=skill.expands_to,
+        requires=_requires(graph, skill_id),
+        source_path=source_path,
+        source_hash=_source_hash(skill, body),
+        skill=skill,
+    )
+
+
+def _tier(provenance: str | None, skill_id: str) -> Tier:
+    if provenance == "builtin":
+        return "builtin"
+    if provenance == "org":
+        return "org"
+    if provenance == "project":
+        return "project"
+    raise SkillPreparationError(f"activated skill {skill_id!r} has unknown provenance {provenance!r}")
+
+
+def _name_for(skill_id: str, tier: Tier, org_namespace: str | None, project_namespace: str | None) -> str:
+    """Rendered name: bare id for built-in, ``<namespace>-<id>`` otherwise."""
+    if tier == "builtin":
+        return skill_id
+    namespace = org_namespace if tier == "org" else project_namespace
+    if not namespace:
+        remedy = _ORG_NAMESPACE_REMEDY if tier == "org" else _PROJECT_NAMESPACE_REMEDY
+        raise SkillPreparationError(f"{tier}-tier skill {skill_id!r} has no skill namespace to render under; {remedy}")
+    name = rendered_name(skill_id, namespace)
+    if name.startswith(RESERVED_PREFIXES):
+        raise SkillPreparationError(f"{tier}-tier skill {skill_id!r} renders as {name!r}, a prefix reserved for built-in skills {list(RESERVED_PREFIXES)}")
+    return name
+
+
+def _requires(graph: DRGGraph, skill_id: str) -> tuple[str, ...]:
+    urn = f"skill:{skill_id}"
+    return tuple(sorted({edge.target for edge in graph.edges_from(urn, Relation.REQUIRES)}))
+
+
+def _source_hash(skill: PackSkill, body: str | None) -> str:
+    record = json.dumps(skill.model_dump(mode="json"), sort_keys=True).encode("utf-8")
+    digest = hashlib.sha256(record)  # noqa: TID251 - provenance checksum over pack source bytes, not charter content (hash_content would normalize and strip)
+    digest.update((body or "").encode("utf-8"))
+    return digest.hexdigest()
+
+
+def _refuse_duplicate_names(prepared: list[PreparedSkill]) -> None:
+    owners: dict[str, str] = {}
+    for item in prepared:
+        previous = owners.setdefault(item.rendered_name, item.id)
+        if previous != item.id:
+            raise SkillPreparationError(f"skills {previous!r} and {item.id!r} both render as {item.rendered_name!r}; give one a different id or namespace")
+
+
+# ---------------------------------------------------------------------------
+# Project-level convenience (reads the same inputs the adapter would)
+# ---------------------------------------------------------------------------
+
+
+def _read_project_skill_namespace(repo_root: Path) -> str | None:
+    """Return ``charter_packs.project.skill_namespace`` from ``.kittify/config.yaml``, if set."""
+    config_path = repo_root / ".kittify" / "config.yaml"
+    if not config_path.is_file():
+        return None
+    try:
+        data: Any = YAML(typ="safe").load(config_path.read_text(encoding="utf-8"))
+    except (OSError, YAMLError) as exc:
+        raise SkillPreparationError(f"cannot read {config_path}: {exc}") from exc
+    node: Any = data
+    for key in _PROJECT_NAMESPACE_CONFIG_PATH.split("."):
+        if not isinstance(node, Mapping):
+            return None
+        node = node.get(key)
+    return node.strip() if isinstance(node, str) and node.strip() else None
+
+
+def prepare_project_skill_activations(repo_root: Path) -> list[PreparedSkill]:
+    """Prepare the skills in force for *repo_root* (activated ∪ org-required).
+
+    Resolves the activation-aware service (so the default-in-force rule
+    applies), the merged built-in + org-chain DRG, and both namespaces, then
+    delegates to :func:`_prepare_skill_activations`.
+    """
+    from charter.activation._drg_helpers import load_validated_graph
+    from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+    from charter.activation.drg_activation import load_org_drg
+    from charter.activation.org_pack_discovery import read_org_skill_namespace
+    from charter.offering.drg.org_pack_config import resolve_existing_org_roots
+
+    service = build_activation_aware_doctrine_service(repo_root)
+    graph = load_validated_graph(
+        repo_root,
+        org_roots=resolve_existing_org_roots(repo_root),
+        org_fragments=load_org_drg(repo_root, strict=False),
+    )
+    return _prepare_skill_activations(
+        service.raw_repository("skills"),
+        service.skills,
+        graph=graph,
+        org_namespace=read_org_skill_namespace(repo_root),
+        project_namespace=_read_project_skill_namespace(repo_root),
+    )

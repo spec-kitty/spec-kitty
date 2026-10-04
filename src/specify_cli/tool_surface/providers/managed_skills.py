@@ -27,6 +27,7 @@ or conflict with that output.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from contextvars import ContextVar
@@ -44,6 +45,7 @@ from specify_cli.skills.manifest import (
     load_manifest,
 )
 from specify_cli.skills.paths import SkillPathObservation, get_primary_project_skill_root, observe_skill_path, recheck_skill_paths
+from specify_cli.skills.catalog import PackSkillCatalogError, resolve_project_skill_catalog
 from specify_cli.skills.registry import SkillRegistry
 from specify_cli.skills.command_installer import windows_dir_mode_only_divergence
 
@@ -74,6 +76,8 @@ from ..status import (
     _surface_id,
 )
 from ._registry import SurfaceProviderRegistry, SurfaceRegistration
+
+logger = logging.getLogger(__name__)
 
 PROVIDER_KEY = "managed_skills"
 _PATH_PATTERN = ".kittify/skills-manifest.json:{installed_path}"
@@ -268,11 +272,9 @@ class ManagedSkillsProvider:
         self._installer: _RepairProto = (
             installer if installer is not None else cast(_RepairProto, skill_verifier)
         )
-        self._registry_factory: Callable[[], SkillRegistry] = (
-            registry_factory
-            if registry_factory is not None
-            else SkillRegistry.from_package
-        )
+        # An injected factory is a test seam. Production resolves the project's
+        # catalog (built-in plus pack skills) through the one catalog seam.
+        self._registry_factory: Callable[[], SkillRegistry] | None = registry_factory
         self._legacy_collaborators = verifier is not None or installer is not None
 
     def can_handle(self, definition: SurfaceDefinition) -> bool:
@@ -370,7 +372,12 @@ class ManagedSkillsProvider:
             return OwnerAssessment(PROVIDER_KEY, inputs.root, complete=False, diagnostics=(
                 Diagnostic("skill_context_mismatch", PROVIDER_KEY, "error", "Coordinated skill context differs from selected project inputs"),
             ))
-        assessment = skill_installer.assess_project_skills(inputs, self._registry_factory(), agents)
+        try:
+            catalog = self._catalog_for(inputs.root.path)
+        except PackSkillCatalogError as exc:
+            failure = Diagnostic("pack_skill_catalog_failed", PROVIDER_KEY, "error", str(exc))
+            return OwnerAssessment(PROVIDER_KEY, inputs.root, complete=False, diagnostics=(failure,))
+        assessment = skill_installer.assess_project_skills(inputs, catalog, agents)
         return replace(assessment, complete=False, diagnostics=assessment.diagnostics + (
             Diagnostic("managed_skills_global_context_required", PROVIDER_KEY, "error",
                        "Prepare and dispatch the separate coordinated global owner using assess_skill_installation"),
@@ -470,7 +477,7 @@ class ManagedSkillsProvider:
         )
         entries_by_path = {
             entry.installed_path: entry
-            for entry in self._expected_entries(tool_key)
+            for entry in self._expected_entries(tool_key, project_root)
         }
         for entry in manifest_entries:
             expected = entries_by_path.get(entry.installed_path)
@@ -593,7 +600,7 @@ class ManagedSkillsProvider:
         ids = tuple(_surface_id(status.instance) for status in statuses)
         consent = ApplyConsent(automatic=True)
         try:
-            registry = self._resolve_registry()
+            registry = self._resolve_registry(project_root)
             if registry is None:
                 return RepairResult(failed=("managed_skills: no canonical skill registry",) + ids, dry_run=dry_run)
             inputs = AssessmentInputs(OperationRoot("project", "project", project_root.absolute()), consent=consent)
@@ -631,7 +638,7 @@ class ManagedSkillsProvider:
         ids: tuple[str, ...],
         unmanifested: bool,
     ) -> RepairResult:
-        registry = self._resolve_registry()
+        registry = self._resolve_registry(project_root)
         if registry is None:
             return RepairResult(
                 failed=("managed_skills: no canonical skill registry",) + ids,
@@ -666,20 +673,29 @@ class ManagedSkillsProvider:
             return RepairResult(failed=("managed_skills: ambiguous legacy repair count",) + ids)
         return RepairResult(repaired=ids, dry_run=False)
 
-    def _resolve_registry(self) -> SkillRegistry | None:
-        registry = self._registry_factory()
+    def _catalog_for(self, project_root: Path) -> SkillRegistry:
+        if self._registry_factory is not None:
+            return self._registry_factory()
+        return resolve_project_skill_catalog(project_root)
+
+    def _resolve_registry(self, project_root: Path) -> SkillRegistry | None:
+        try:
+            registry = self._catalog_for(project_root)
+        except PackSkillCatalogError as exc:
+            logger.warning("Pack skills could not be resolved: %s", exc)
+            return None
         if registry.discover_skills():
             return registry
         return None
 
-    def _expected_entries(self, tool_key: str) -> list[ManagedFileEntry]:
+    def _expected_entries(self, tool_key: str, project_root: Path) -> list[ManagedFileEntry]:
         config = AGENT_SKILL_CONFIG.get(tool_key)
         if config is None or config["class"] == SKILL_CLASS_WRAPPER:
             return []
         root = get_primary_project_skill_root(tool_key)
         if root is None:
             return []
-        registry = self._resolve_registry()
+        registry = self._resolve_registry(project_root)
         if registry is None:
             return []
         installation_class = str(config["class"])

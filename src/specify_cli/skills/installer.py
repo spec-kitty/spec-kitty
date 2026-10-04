@@ -29,10 +29,13 @@ from specify_cli.core.atomic import atomic_write
 from specify_cli.core.agent_config import AgentConfigError, load_agent_config
 from specify_cli.core.safe_delete import safe_rmdir as _safe_rmdir
 from specify_cli.core.safe_delete import safe_unlink as _safe_unlink
+from specify_cli.skills.catalog import resolve_project_skill_catalog
 from specify_cli.skills.command_renderer import ensure_skill_frontmatter
 from specify_cli.skills.manifest import (
     ManagedFileEntry,
     ManagedSkillManifest,
+    ORIGIN_BUILTIN,
+    ORIGIN_PACK,
     compute_content_hash,
     load_manifest,
     prepare_manifest,
@@ -689,7 +692,18 @@ def _expected_project_entries(
                 if relative == "SKILL.md":
                     source_content = ensure_skill_frontmatter(source_content.decode("utf-8"), skill.name).encode("utf-8")
                 state = _skill_bytes_state(source_content, stat.S_IMODE(source.stat().st_mode) & ~0o222)
-                entry = ManagedFileEntry(skill.name, relative, path, str(AGENT_SKILL_CONFIG[agent]["class"]), agent, f"sha256:{state.sha256}", now)
+                entry = ManagedFileEntry(
+                    skill.name,
+                    relative,
+                    path,
+                    str(AGENT_SKILL_CONFIG[agent]["class"]),
+                    agent,
+                    f"sha256:{state.sha256}",
+                    now,
+                    origin=skill.origin,
+                    source_ref=skill.source_ref,
+                    source_hash=skill.source_hash,
+                )
                 if not _valid_skill_entry(entry):
                     raise ValueError(f"Unsafe canonical skill path: {path}")
                 if path in expected:
@@ -700,6 +714,50 @@ def _expected_project_entries(
                 else:
                     expected[path] = source_content, state, [entry]
     return expected
+
+
+def _drop_unowned_pack_directories(
+    plan: _ProjectSkillPreparation,
+    expected: dict[str, tuple[bytes, FileState, list[ManagedFileEntry]]],
+    manifest: ManagedSkillManifest,
+) -> dict[str, tuple[bytes, FileState, list[ManagedFileEntry]]]:
+    """Leave a pre-existing, unowned same-name directory alone (and report it).
+
+    A pack skill renders under a namespaced name; a user directory that already
+    carries that name without a managed record is theirs, even when it has no
+    ``SKILL.md`` yet. A file at the target path is handled by the normal
+    unmanaged-content rule.
+    """
+    owned_directories = {Path(entry.installed_path).parent.as_posix() for entry in manifest.entries}
+    kept: dict[str, tuple[bytes, FileState, list[ManagedFileEntry]]] = {}
+    for path, wanted in expected.items():
+        directory = Path(path).parent.as_posix()
+        pack_only = all(entry.origin == ORIGIN_PACK for entry in wanted[2])
+        if pack_only and directory not in owned_directories and plan.observe(directory).kind == "directory" and plan.observe(path).kind == "absent":
+            plan.disposition(path, "preserve", "Existing skill directory is not owned by the skill manager")
+            continue
+        kept[path] = wanted
+    return kept
+
+
+def _retirable_paths(
+    manifest: ManagedSkillManifest,
+    agents: tuple[str, ...],
+    expected: dict[str, tuple[bytes, FileState, list[ManagedFileEntry]]],
+    *,
+    catalog_empty: bool,
+) -> set[str]:
+    """Manifest-owned paths of *agents* that the current catalog no longer expects.
+
+    An empty catalog is ambiguous for built-in skills (a missing package must
+    never wipe them), so only pack-origin entries -- whose absence from the
+    catalog is deliberate (deactivation) -- are retired in that case.
+    """
+    return {
+        entry.installed_path
+        for entry in manifest.entries
+        if entry.agent_key in agents and entry.installed_path not in expected and (not catalog_empty or entry.origin == ORIGIN_PACK)
+    }
 
 
 def _reject_provisioning_source_overlap(
@@ -729,14 +787,14 @@ def _prepare_project_skills(
     _reject_provisioning_source_overlap(plan.provisioning, skills)
     plan.observations.extend(catalog_inputs)
     now = now_utc_iso()
-    expected = _expected_project_entries(skills, agents, now)
+    expected = _drop_unowned_pack_directories(plan, _expected_project_entries(skills, agents, now), manifest)
     backups: list[tuple[SkillBackupReplacement, bytes | None, tuple[ManagedFileEntry, ...], tuple[ManagedFileEntry, ...]]] = []
     retired_entries: list[ManagedFileEntry] = []
     paths = set(expected)
     if selected_paths is not None:
         paths.intersection_update(selected_paths)
-    if retire and skills:
-        paths.update(entry.installed_path for entry in manifest.entries if entry.agent_key in agents and entry.installed_path not in expected)
+    if retire:
+        paths.update(_retirable_paths(manifest, agents, expected, catalog_empty=not skills))
     for path in sorted(paths):
         before = plan.observe(path)
         owners = tuple(entry for entry in manifest.entries if entry.installed_path == path)
@@ -1055,7 +1113,8 @@ def assess_skill_installation(
     agents = tuple(sorted(set(agent_keys)))
     skills, observations = registry.snapshot_catalog()
     captured = _CapturedSkillRegistry(skills, observations)
-    selection = GlobalSkillSelection(skills=skills, agent_keys=agents)
+    # Pack skills are project-root only (ADR 2026-09-27-1): never user-global.
+    selection = GlobalSkillSelection(skills=tuple(skill for skill in skills if skill.origin == ORIGIN_BUILTIN), agent_keys=agents)
     project = assess_project_skills(inputs, captured, agents, retire=retire, persist_manifest=persist_manifest)
     global_assets = assess_global_assets(runtime=runtime, commands=commands, agent_keys=command_agent_keys, skill_selection=selection, consent=inputs.consent)
     return SkillInstallationAssessment(global_assets, project, agents)
@@ -1162,3 +1221,78 @@ def _install_caller_skills(
     if not isinstance(prepared, PreparedProjectSkills):
         raise TypeError("Missing prepared project skill manifest")
     return _parse_manifest(prepared.manifest_content.decode("utf-8"))
+
+
+# ---------------------------------------------------------------------------
+# Pack-skill re-projection (charter activate/deactivate skill)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class PackSkillProjection:
+    """Outcome of one pack-skill re-projection.
+
+    ``changed`` lists project-relative skill files created, updated or retired;
+    ``preserved`` lists ``(path, reason)`` pairs the installer deliberately left
+    alone (an unowned same-name directory, a locally modified managed file).
+    """
+
+    changed: tuple[str, ...] = ()
+    preserved: tuple[tuple[str, str], ...] = ()
+
+
+def _installable_agent_keys(project_path: Path) -> tuple[str, ...]:
+    """Configured agents that accept project skill files."""
+    return tuple(
+        sorted(
+            agent
+            for agent in load_agent_config(project_path).available
+            if agent in AGENT_SKILL_CONFIG and AGENT_SKILL_CONFIG[agent]["class"] != SKILL_CLASS_WRAPPER
+        )
+    )
+
+
+def _pack_skill_paths(skills: list[CanonicalSkill], agents: tuple[str, ...]) -> set[str]:
+    """Project-relative installed paths of every pack-skill file for *agents*."""
+    paths: set[str] = set()
+    for agent in agents:
+        root = get_primary_project_skill_root(agent)
+        if root is None:
+            continue
+        for skill in skills:
+            paths.update((Path(root) / skill.name / source.relative_to(skill.skill_dir)).as_posix() for source in skill.all_files)
+    return paths
+
+
+def project_pack_skills(project_path: Path, *, registry: SkillRegistry | None = None) -> PackSkillProjection:
+    """Re-project the pack skills in force into the project skill roots.
+
+    Project-only and scoped to pack skills: built-in skill files are never
+    touched (the assessment is restricted to pack-skill paths plus
+    manifest-owned pack entries, which are retired when no longer in force).
+    Raises :class:`OSError` when the batch cannot be prepared or applied.
+    """
+    agents = _installable_agent_keys(project_path)
+    if not agents:
+        return PackSkillProjection()  # nothing to project into: do not even stage
+    catalog = registry if registry is not None else resolve_project_skill_catalog(project_path)
+    manifest = load_manifest(project_path, strict=True)
+    owned = {entry.installed_path for entry in manifest.entries if entry.origin == ORIGIN_PACK and entry.agent_key in agents} if manifest else set()
+    selected = _pack_skill_paths([skill for skill in catalog.discover_skills() if skill.origin == ORIGIN_PACK], agents) | owned
+    if not selected:
+        return PackSkillProjection()
+    consent = ApplyConsent(automatic=True)
+    inputs = AssessmentInputs(OperationRoot("project", "project", project_path.absolute()), consent=consent)
+    assessment = assess_project_skills(inputs, catalog, agents, selected_paths=tuple(sorted(selected)))
+    if not assessment.complete:
+        raise OSError("; ".join(item.message for item in assessment.diagnostics) or "pack skill assessment is incomplete")
+    with recheck_project_skills(assessment) as diagnostics:
+        if diagnostics:
+            raise OSError("; ".join(item.message for item in diagnostics))
+        result = apply_project_skills(assessment, consent)
+    if result.outcome not in {"applied", "skipped"}:
+        raise OSError("; ".join(item.message for item in result.diagnostics) or f"pack skill projection {result.outcome}")
+    succeeded = set(result.succeeded)
+    changed = tuple(sorted(effect.path for effect in assessment.effects if effect.id in succeeded and effect.path in selected))
+    preserved = tuple((item.path or "", item.reason) for item in assessment.dispositions if item.state in {"preserve", "consent_required"})
+    return PackSkillProjection(changed, preserved)

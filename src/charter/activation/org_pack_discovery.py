@@ -26,7 +26,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from charter.activation.schemas import DoctrineSelectionConfig
-from charter.offering.artifact_kinds import SELECTION_OVERLAYABLE_KIND_FIELDS
+from charter.offering.artifact_kinds import SELECTION_OVERLAYABLE_KIND_FIELDS, ArtifactKind
 
 __all__ = [
     # `_enumerate_org_pack_paths` retired from __all__ (#3520 chain fold): its
@@ -37,6 +37,8 @@ __all__ = [
     "_load_doctrine_selection",
     "_missing_pack_diagnostic",
     "_read_org_required_selections",
+    "read_org_required_ids",
+    "read_org_skill_namespace",
 ]
 
 
@@ -168,6 +170,40 @@ def _read_org_required_selections(repo_root: Path) -> dict[str, list[str]]:
                 if token and token not in out[kind]:
                     out[kind].append(token)
     return out
+
+
+def read_org_required_ids(repo_root: Path, kind: ArtifactKind) -> list[str]:
+    """Union every org pack's ``required_<plural>`` for one *kind*, first-seen order.
+
+    Unlike :func:`_read_org_required_selections` this is not limited to the
+    selection-overlayable kinds: it serves ``required_skills``, which has no
+    ``selected_skills`` overlay. A malformed (non-list) value is skipped.
+    """
+    field = f"required_{kind.plural}"
+    out: list[str] = []
+    for _name, raw in _iter_org_charter_docs(repo_root):
+        value = raw.get(field)
+        if not isinstance(value, list):
+            continue
+        for item in value:
+            token = str(item).strip()
+            if token and token not in out:
+                out.append(token)
+    return out
+
+
+def read_org_skill_namespace(repo_root: Path) -> str | None:
+    """Return the org ``skill_namespace`` (last non-empty value across packs wins).
+
+    Mirrors the merge rule of ``specify_cli.doctrine.org_charter`` without
+    importing it (charter must not import ``specify_cli``).
+    """
+    namespace: str | None = None
+    for _name, raw in _iter_org_charter_docs(repo_root):
+        value = raw.get("skill_namespace")
+        if isinstance(value, str) and value.strip():
+            namespace = value.strip()
+    return namespace
 
 
 def _load_doctrine_selection(repo_root: Path) -> DoctrineSelectionConfig:

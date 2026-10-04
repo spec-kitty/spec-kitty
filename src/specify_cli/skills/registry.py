@@ -18,6 +18,13 @@ class CanonicalSkill:
     references: list[Path] = field(default_factory=list)
     scripts: list[Path] = field(default_factory=list)
     assets: list[Path] = field(default_factory=list)
+    #: ``builtin`` for the shipped doctrine skills, ``pack`` for a charter-pack
+    #: skill rendered into the staged root (ADR 2026-09-27-1). Pack skills are
+    #: project-root only: they never feed a user-global asset batch.
+    origin: str = "builtin"
+    #: Pack source path and prepared-input hash; empty for built-in skills.
+    source_ref: str = ""
+    source_hash: str = ""
 
     @property
     def all_files(self) -> list[Path]:

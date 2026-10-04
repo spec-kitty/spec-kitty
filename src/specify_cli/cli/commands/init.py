@@ -51,6 +51,7 @@ from specify_cli.provisioning.default_charter import (
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 from specify_cli.skills.installer import install_skills_for_agent
 from specify_cli.skills.manifest import ManagedSkillManifest, save_manifest
+from specify_cli.skills.catalog import resolve_project_skill_catalog
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 
 # Module-level variables to hold injected dependencies
@@ -306,7 +307,7 @@ def _restore_native_project_skills(project: Path, agents: list[str]) -> None:
     native = [agent for agent in agents if (AGENT_SKILL_CONFIG.get(agent) or {}).get("class") == SKILL_CLASS_NATIVE]
     if not native:
         return
-    skills = SkillRegistry.from_package().discover_skills()
+    skills = resolve_project_skill_catalog(project).discover_skills()
     if not skills:
         raise ValueError("No packaged skills found to restore for: " + ", ".join(native))
     pending: dict[str, tuple[str, list[str]]] = {}
@@ -1126,10 +1127,11 @@ def init(  # noqa: C901
                         tracker.complete(f"{agent_key}-skills", "skipped (global runtime)")
                     else:
                         if skill_registry_per_agent is None:
-                            if template_mode == "local" and local_repo is not None:
-                                skill_registry_per_agent = SkillRegistry.from_local_repo(local_repo)
-                            else:
-                                skill_registry_per_agent = SkillRegistry.from_package()
+                            skill_registry_per_agent = resolve_project_skill_catalog(
+                                project_path,
+                                local_repo=local_repo,
+                                prefer_local=template_mode == "local" and local_repo is not None,
+                            )
                         agent_skills = skill_registry_per_agent.discover_skills()
                         if agent_skills:
                             entries = install_skills_for_agent(

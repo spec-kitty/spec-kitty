@@ -46,6 +46,7 @@ may be re-declared elsewhere.
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 from urllib.parse import quote
 
 
@@ -226,6 +227,20 @@ class ArtifactKind(StrEnum):
         return self in _SELECTION_OVERLAYABLE_KINDS
 
     @property
+    def effective_when_absent(self) -> Literal["all", "required"]:
+        """What is in force for this kind while its activation key is absent.
+
+        ``"all"`` (every kind except ``SKILL``): an absent key is the
+        unrestricted state, so every available artifact is effective.
+        ``"required"`` (``SKILL``, ADR 2026-09-27-1): an absent key puts only
+        the org packs' ``required_<plural>`` (plus built-in defaults, empty at
+        MVP) in force -- registering a pack must not silently add N commands to
+        every tool. Single enum fact; the three-state resolution and the
+        activation planner both read it, neither branches on a kind.
+        """
+        return "required" if self in _REQUIRED_WHEN_ABSENT_KINDS else "all"
+
+    @property
     def operator_token(self) -> str:
         """Hyphenated operator token for this kind (CLI surface, help text).
 
@@ -285,6 +300,11 @@ class ArtifactKind(StrEnum):
         valid = ", ".join(member.operator_token for member in cls)
         raise ValueError(f"Unknown artifact kind token {token!r}. Valid operator tokens: {valid}.")
 
+
+#: Members whose absent activation key puts only the org-required set in force
+#: (not every available artifact). Single home of the fact behind
+#: :attr:`ArtifactKind.effective_when_absent`.
+_REQUIRED_WHEN_ABSENT_KINDS: frozenset[ArtifactKind] = frozenset({ArtifactKind.SKILL})
 
 #: Members for which an org pack may declare ``required_<plural>`` (10 kinds,
 #: mirroring the ``OrgCharterPolicy.required_*`` fields; pinned by

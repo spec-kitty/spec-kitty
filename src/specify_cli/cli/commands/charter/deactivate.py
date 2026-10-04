@@ -50,6 +50,7 @@ from specify_cli.cli.commands.charter.activate import (
     NO_COMPILE_HELP,
     RESYNTHESIZE_HELP,
     recompile_or_notify,
+    reproject_pack_skills,
     render_pack_config_error,
     resolve_write_root_or_exit,
     validate_pack_config,
@@ -345,3 +346,4 @@ def deactivate_cmd(
     # post-deactivation config state. See `recompile_or_notify` for the
     # resynthesize/compile/no-compile precedence.
     recompile_or_notify(repo_root, resynthesize=resynthesize, compile_catalog=compile_catalog)
+    reproject_pack_skills(repo_root, kind)

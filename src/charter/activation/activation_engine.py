@@ -62,6 +62,8 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from charter.offering.artifact_kinds import ArtifactKind
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -113,9 +115,28 @@ class NoActivationRestrictionsError(RuntimeError):
 
     def __init__(self, kind: str) -> None:
         self.kind = kind
-        super().__init__(
-            f"Kind {kind!r} has no explicit activation set. Run `spec-kitty upgrade` to initialize the default pack before modifying individual activations."
+        super().__init__(_no_restrictions_message(kind))
+
+
+def _no_restrictions_message(kind: str) -> str:
+    """Return the operator remedy for deactivating a kind with no explicit set.
+
+    ``spec-kitty upgrade`` seeds the default pack, but a kind whose absent key
+    means "required only" (see :attr:`ArtifactKind.effective_when_absent`) is
+    deliberately never seeded, so that advice would loop. Such kinds get a
+    remedy that actually materializes the list.
+    """
+    try:
+        required_only = ArtifactKind.from_operator_token(kind).effective_when_absent == "required"
+    except ValueError:
+        required_only = False
+    if required_only:
+        return (
+            f"Kind {kind!r} has no explicit activation set (only org-required entries are in force). "
+            f"Activate one first with `spec-kitty charter activate {kind} <id>`, or set the list explicitly in "
+            "`.kittify/config.yaml`, before deactivating individual entries."
         )
+    return f"Kind {kind!r} has no explicit activation set. Run `spec-kitty upgrade` to initialize the default pack before modifying individual activations."
 
 
 # ---------------------------------------------------------------------------
@@ -197,6 +218,7 @@ def plan_activation(
     available_ids: Iterable[str],
     config_data: Mapping[str, Any],
     effective_ids: Iterable[str] = (),
+    effective_when_absent: str = "all",
     cascade_scope: Any = None,  # noqa: ANN401
 ) -> ActivationPlan:
     """Compute the post-state for activating *artifact_id* — purely (FR-011/012).
@@ -231,7 +253,12 @@ def plan_activation(
         supplied as data by the caller (C-008). This is the materialization
         source for the no-restrictions state: it spans the full declared org
         chain and is already in the keyspace the resolver filters on. Empty
-        falls back to ``available_ids``.
+        falls back to ``available_ids`` (for ``effective_when_absent="all"``).
+    effective_when_absent:
+        ``ArtifactKind.effective_when_absent`` of *kind*. ``"required"`` means
+        the absent key put only the org-required set in force, so an empty
+        *effective_ids* is genuinely empty and must NOT fall back to every
+        available artifact (that would activate all skills at once).
 
         ``default_ids`` used to be this function's materialization source and
         is gone (#4399 squad MINOR): once the preserved set became the
@@ -289,7 +316,9 @@ def plan_activation(
         # back to ``available_ids`` keeps a caller that cannot build a
         # service — or a kind the service does not expose — behaving as it
         # did before.
-        materialized = list(dict.fromkeys(effective_ids)) or list(dict.fromkeys(available_ids))
+        materialized = list(dict.fromkeys(effective_ids))
+        if not materialized and effective_when_absent == "all":
+            materialized = list(dict.fromkeys(available_ids))
         warnings.append(
             f"Kind {kind!r} had no explicit activation set. "
             f"Initialized from the {len(materialized)} artifact(s) already effective, "

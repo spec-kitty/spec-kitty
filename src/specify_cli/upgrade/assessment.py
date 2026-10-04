@@ -18,7 +18,7 @@ from specify_cli.core.agent_config import load_agent_config
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
 from specify_cli.skills.command_installer import PreparedCommands, SUPPORTED_AGENTS
 from specify_cli.skills.installer import SkillInstallationAssessment, assess_skill_installation
-from specify_cli.skills.registry import SkillRegistry
+from specify_cli.skills.catalog import resolve_project_skill_catalog
 from specify_cli.tool_surface.enums import ToolSurfaceKind
 from specify_cli.tool_surface.operations import (
     ApplyConsent,
@@ -123,7 +123,7 @@ def prepare_upgrade_repairs(project_path: Path, *, consent: ApplyConsent) -> Pre
     builder = SurfacePlanBuilder(build_registry((*agents, PLUGIN_BUNDLE_TOOL_KEY)), providers)
     installation = assess_skill_installation(
         AssessmentInputs(root, projected=provisioning, consent=consent),
-        SkillRegistry.from_package(),
+        resolve_project_skill_catalog(root.path),
         agents,
         runtime=True,
         commands=True,
