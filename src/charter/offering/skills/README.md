@@ -38,8 +38,9 @@ of this shipped catalog. They are charter-activated
 `<skill_namespace>-<id>` (the `spk-`, `spec-kitty-` and `spec-kitty.` prefixes
 stay reserved for the skills here), and projected to project skill roots only.
 A pack skill `requires` the procedure that carries the substance, so it obeys
-the boundary above. `spec-kitty doctor skills` reports a locally edited or
-stale rendered copy and names its pack source. See ADR
+the boundary above. `spec-kitty doctor skills` reports a locally edited, stale or
+orphaned rendered copy and names its pack source. To author one, see
+`docs/development/how-to/create-a-pack-skill.md`. See ADR
 `docs/adr/3.x/2026-09-27-1-pack-skills-share-commands-through-charter-packs.md`.
 Converging the built-in `spk-*` skills onto the pack-skill kind is later work
 (slice 3, #5193); until then the skills in this catalog stay as shipped.

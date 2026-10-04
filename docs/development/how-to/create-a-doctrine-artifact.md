@@ -2,10 +2,11 @@
 title: Create a doctrine artifact
 description: A concrete, followable walkthrough for authoring a new doctrine artifact end to end — file location, schema, activation, and the loose-contract asset kind.
 doc_status: active
-updated: '2026-09-08'
+updated: '2026-10-04'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
+- docs/development/how-to/create-a-pack-skill.md
 - docs/architecture/doctrine-kinds.md
 - docs/architecture/doctrine-relationships.md
 - docs/context/charter.md
@@ -18,9 +19,11 @@ related:
 This guide walks through authoring one new doctrine artifact — from picking a kind through
 verifying it is live in governed mission context. It uses a **tactic** as the worked example
 because tactics have the simplest schema and the most built-in precedent to copy from, but the
-same six steps apply to any of the [eight doctrine artifact kinds](../../architecture/doctrine-kinds.md). The
-loose-contract `asset` kind (a shipped blob, not an activatable artifact) works differently and
-has its own short recipe at the end: [Author an asset](#author-an-asset-a-shipped-blob).
+same six steps apply to the doctrine artifact kinds listed on the [doctrine kinds](../../architecture/doctrine-kinds.md)
+page. Two kinds need a different recipe. A **pack skill** has its own page:
+[Create and activate a pack skill](create-a-pack-skill.md). The loose-contract `asset` kind (a
+shipped blob, not an activatable artifact) has a short recipe at the end:
+[Author an asset](#author-an-asset-a-shipped-blob).
 
 This guide covers **project-tier** artifacts — the fast, self-serve path for one project's own
 doctrine. If you are building a shareable **org pack** (doctrine distributed across multiple
@@ -53,7 +56,11 @@ mapping:
 | `paradigm` | `.kittify/doctrine/paradigms/` | `.paradigm.yaml` | `paradigm.schema.yaml` | `id` |
 | `agent_profile` | `.kittify/doctrine/agent_profiles/` | `.agent.yaml` | `agent-profile.schema.yaml` | `profile-id` |
 | `mission_step_contract` | `.kittify/doctrine/mission_step_contracts/` | `.step-contract.yaml` | (Pydantic model, no standalone JSON Schema file) | `id` |
+| `skill` | `.kittify/doctrine/skills/` | `.skill.yaml` | `skill.schema.yaml` | `id` |
 
+The `skill` kind does not follow Steps 2–6 below: it needs a `skill_namespace`, a body file, and
+it projects files into each tool's skill root. Follow [Create and activate a pack
+skill](create-a-pack-skill.md) for it.
 Schemas live under `src/charter/offering/schemas/`. If you are working from a project that installed
 `spec-kitty` as a package rather than from this source checkout, the fastest way to see a kind's
 required fields is to copy a real built-in file of that kind and edit it — every built-in
@@ -212,12 +219,12 @@ artifact gone entirely.
 
 ## Author an asset (a shipped blob)
 
-The walkthrough above covers the eight **activation** kinds. The `asset` kind works differently and
+The walkthrough above covers the **activation** kinds. The `asset` kind works differently and
 gets its own short recipe here — it is the canonical way to ship an image, font, template fixture,
 or an executable script (a lint, a hook) to a downstream repo, instead of naming a repo-local
 `scripts/…` or `.github/…` path a consumer does not have (see
 [`review-gates.md`](review-gates.md)). An asset is a **blob** plus a **sidecar
-manifest**; there is no schema on the blob and — unlike the eight kinds above — **no
+manifest**; there is no schema on the blob and — unlike the activation kinds above — **no
 `charter activate` step**. It is delivered when a reachable artifact points at it, not when you
 activate it (see [Delivery verdicts](../../architecture/doctrine-kinds.md#delivery-verdicts-which-kinds-reach-a-mission)).
 
@@ -281,8 +288,10 @@ There is nothing to undo — no activation entry was written. Delete the blob an
 
 ## See also
 
-- [Doctrine artifact kinds](../../architecture/doctrine-kinds.md) — what each of the eight kinds is for, with a
+- [Doctrine artifact kinds](../../architecture/doctrine-kinds.md) — what each kind is for, with a
   real example of each.
+- [Create and activate a pack skill](create-a-pack-skill.md) — author a `skill` and project it
+  into each configured tool.
 - [Doctrine relationships](../../architecture/doctrine-relationships.md) — the full DRG relation
   reference, including the tension vocabulary (`in_tension_with`, `reconciles_tension`,
   `rejects`) that supersedes the retired `opposed_by` field.

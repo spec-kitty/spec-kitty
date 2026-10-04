@@ -10795,6 +10795,24 @@ pages:
     - {slug: "step-b-write-the-sidecar-manifest", text: "Step B: write the sidecar manifest", level: 3}
     - {slug: "step-c-resolve-it", text: "Step C: resolve it", level: 3}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/development/how-to/create-a-pack-skill.md"
+    title: "Create and activate a pack skill"
+    divio_type: "how-to"
+    abstract: "Author a pack skill, set its namespace, activate it into each configured tool's project skill root, and keep it healthy with doctor skills and upgrade."
+    anchors:
+    - {slug: "prerequisites", text: "Prerequisites", level: 2}
+    - {slug: "step-1-set-the-skill-namespace", text: "Step 1: Set the skill namespace", level: 2}
+    - {slug: "step-2-write-the-skill", text: "Step 2: Write the skill", level: 2}
+    - {slug: "the-fields", text: "The fields", level: 3}
+    - {slug: "the-two-forms", text: "The two forms", level: 3}
+    - {slug: "what-requires-does", text: "What `requires` does", level: 3}
+    - {slug: "what-spec-kitty-refuses", text: "What Spec Kitty refuses", level: 3}
+    - {slug: "step-3-activate-it", text: "Step 3: Activate it", level: 2}
+    - {slug: "step-4-check-the-result", text: "Step 4: Check the result", level: 2}
+    - {slug: "step-5-deactivate-it", text: "Step 5: Deactivate it", level: 2}
+    - {slug: "what-spec-kitty-upgrade-does-with-pack-skills", text: "What `spec-kitty upgrade` does with pack skills", level: 2}
+    - {slug: "share-the-skill-through-an-org-pack", text: "Share the skill through an org pack", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/how-to/cutover-guard.md"
     title: "Cut-over guard: fail-closed pre-merge gate for runtime-state cut-over"
     divio_type: "how-to"
@@ -10810,7 +10828,7 @@ pages:
   - path: "docs/development/how-to/index.md"
     title: "How-to (contributor & maintainer tasks)"
     divio_type: "none"
-    abstract: "Task-oriented runbooks for contributors and maintainers — landing PRs, pre-review gates, cross-package overrides, the issue tracker, contract pinning, and authoring doctrine."
+    abstract: "Task-oriented runbooks for contributors and maintainers — landing PRs, review gates, overrides, the issue tracker, contract pinning, and authoring doctrine and pack skills."
     anchors:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/how-to/local-overrides.md"
