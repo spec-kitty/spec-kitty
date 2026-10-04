@@ -415,72 +415,68 @@ def test_finder_skips_a_meta_path_entry_that_has_no_find_spec(monkeypatch: pytes
 
 
 # ---------------------------------------------------------------------------
-# Coverage: every guard call that probes the process working directory is watched
+# Coverage: every module that calls the guard is watched
 # ---------------------------------------------------------------------------
 
-_CHARTER_SOURCE_DIR = _REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "charter"
+_SRC_DIR = _REPO_ROOT / "src"
 
 
-def _calls_the_guard(source: str) -> bool:
-    """Whether ``source`` calls the guard at all, under its own name or as ``module.<name>``."""
+def _guard_usage(source: str) -> tuple[bool, list[int]]:
+    """Whether ``source`` calls the guard, and the lines that import it under another name.
+
+    A call is ``resolve_charter_write_root(...)`` or ``module.resolve_charter_write_root(...)``.
+    An aliased import (``from x import resolve_charter_write_root as guard``) is invisible to this scan
+    and to the plugin's ``getattr(module, GUARD_NAME)``, so it is reported instead of trusted.
+    """
+    calls = False
+    aliased: list[int] = []
     for node in ast.walk(ast.parse(source)):
-        if not isinstance(node, ast.Call):
+        if isinstance(node, ast.Call):
+            callee = node.func
+            called = callee.id if isinstance(callee, ast.Name) else callee.attr if isinstance(callee, ast.Attribute) else ""
+            calls = calls or called == GUARD_NAME
+        elif isinstance(node, ast.ImportFrom):
+            aliased.extend(node.lineno for alias in node.names if alias.name == GUARD_NAME and alias.asname not in (None, GUARD_NAME))
+    return calls, aliased
+
+
+def _scan_src_for_the_guard() -> tuple[set[str], list[str]]:
+    """Dotted names of every module under ``src/`` that calls the guard, and every aliased import of it."""
+    calling: set[str] = set()
+    aliased: list[str] = []
+    for path in sorted(_SRC_DIR.rglob("*.py")):
+        text = path.read_text(encoding="utf-8")
+        if GUARD_NAME not in text:
             continue
-        callee = node.func
-        called = callee.id if isinstance(callee, ast.Name) else callee.attr if isinstance(callee, ast.Attribute) else ""
-        if called == GUARD_NAME:
-            return True
-    return False
-
-
-def _modules_calling_the_guard() -> set[str]:
-    """Dotted names of every module in the charter commands package, at any depth, that calls the guard."""
-    modules: set[str] = set()
-    for path in sorted(_CHARTER_SOURCE_DIR.rglob("*.py")):
-        if _calls_the_guard(path.read_text(encoding="utf-8")):
-            parts = path.relative_to(_CHARTER_SOURCE_DIR).with_suffix("").parts
-            modules.add(".".join([CHARTER_PACKAGE, *(part for part in parts if part != "__init__")]))
-    return modules
+        module = ".".join(part for part in path.relative_to(_SRC_DIR).with_suffix("").parts if part != "__init__")
+        calls, lines = _guard_usage(text)
+        if calls:
+            calling.add(module)
+        aliased.extend(f"{module}:{line}" for line in lines)
+    return calling, aliased
 
 
 @pytest.mark.fast
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    "source",
+    ("source", "expected"),
     [
-        f"from pathlib import Path\n\ndef run():\n    {GUARD_NAME}(Path.cwd())\n",
-        f"import pathlib\n\ndef run():\n    mod.{GUARD_NAME}(Path.cwd())\n",
-        f"def run(root):\n    {GUARD_NAME}(root)\n",  # a root passed in, as activate.py does
-        f"def run():\n    {GUARD_NAME}(Path.cwd().parent)\n",
-        f"def run():\n    {GUARD_NAME}()\n",
+        (f"def run():\n    {GUARD_NAME}(Path.cwd())\n", (True, [])),
+        (f"from ._charter_write_root import {GUARD_NAME} as guard\n\ndef run():\n    guard(Path.cwd())\n", (False, [1])),
+        (f"from ._charter_write_root import {GUARD_NAME}\n", (False, [])),  # an import alone is not a call
     ],
-    ids=["cwd", "qualified", "passed-in-root", "derived-from-cwd", "no-argument"],
+    ids=["call", "aliased-import", "plain-import"],
 )
-def test_collector_finds_any_call_of_the_guard(source: str) -> None:
-    assert _calls_the_guard(source) is True
-
-
-@pytest.mark.fast
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    "source",
-    [
-        "def run():\n    other(Path.cwd())\n",
-        f"from ._charter_write_root import {GUARD_NAME}\n",  # an import is not a call
-        f'def run():\n    """Calls {GUARD_NAME}(root) in prose."""\n',
-        f"def run():\n    alias = {GUARD_NAME}\n    return alias\n",  # a reference without a call
-    ],
-    ids=["other-callee", "import-only", "docstring-mention", "reference"],
-)
-def test_collector_ignores_sources_that_do_not_call_the_guard(source: str) -> None:
-    assert _calls_the_guard(source) is False
+def test_collector_sees_a_call_and_flags_an_aliased_import(source: str, expected: tuple[bool, list[int]]) -> None:
+    assert _guard_usage(source) == expected
 
 
 @pytest.mark.fast
 @pytest.mark.unit
 def test_every_module_that_calls_the_guard_is_watched() -> None:
-    calling = _modules_calling_the_guard()
+    calling, aliased = _scan_src_for_the_guard()
 
+    assert aliased == [], f"bind the guard under its own name: {aliased}"
     # A concrete floor: a pattern that silently matches nothing must not pass.
     assert {f"{CHARTER_PACKAGE}.{name}" for name in ("generate", "synthesize", "resynthesize", "activate")} <= calling
     assert calling == set(WATCHED_MODULES)
