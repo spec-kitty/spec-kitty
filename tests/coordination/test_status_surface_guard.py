@@ -160,7 +160,9 @@ def test_the_refusal_names_the_code_the_events_and_the_remedy(repo: Path) -> Non
     text = str(error)
     assert isinstance(error, BookkeepingError) and error.error_code == "COORD_STATUS_SURFACE_DIVERGED"
     assert text.startswith("COORD_STATUS_SURFACE_DIVERGED") and "A, B, C (+2 more)" in text
-    assert "doctor coordination --fix" in text
+    # The unscoped form flattens every other mission, so both heals must be scoped to this one.
+    assert "`spec-kitty doctor coordination --fix --mission m-01KXTM73`" in text
+    assert "`spec-kitty consolidate --resume --mission m-01KXTM73`" in text
     assert "checkout HEAD -- kitty-specs/m-01KXTM73/status.events.jsonl kitty-specs/m-01KXTM73/status.json" in text
     # WP04 review follow-up: the two remedies are NOT interchangeable -- say which one reverts the strand.
     heals = text[text.index("doctor coordination --fix") :]

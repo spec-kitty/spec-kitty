@@ -55,15 +55,21 @@ class BookkeepingStatusSurfaceDiverged(BookkeepingError):
         self.missing_event_ids = missing_event_ids
         status_dir = events_path.parent.relative_to(worktree_root).as_posix()
         shown = ", ".join(missing_event_ids[:3]) + (f" (+{len(missing_event_ids) - 3} more)" if len(missing_event_ids) > 3 else "")
+        mission = events_path.parent.name  # the mission directory name is the slug `--mission` takes
         super().__init__(
             f"{self.error_code}: the coordination worktree {worktree_root} has {events_path.name} bytes that drop "
             f"{len(missing_event_ids)} event(s) its branch HEAD has committed ({shown}), e.g. after a rolled-back "
             f"consolidation. Writing now would silently lose them; nothing was written. Choose deliberately: "
-            f"`spec-kitty doctor coordination --fix` heals the strand AWAY (it reverts the stranded `done`, so the "
-            f"mission is no longer recorded as done), whereas "
+            f"`spec-kitty doctor coordination --fix --mission {mission}` heals the strand AWAY (it reverts the stranded "
+            f"`done`, so the mission is no longer recorded as done), and `spec-kitty consolidate --resume --mission "
+            f"{mission}` does the same heal and then completes the consolidation, whereas "
             f"`git -C {worktree_root} checkout HEAD -- {status_dir}/{events_path.name} {status_dir}/{SNAPSHOT_FILENAME}` "
             f"KEEPS the committed events (the stranded `done` stays recorded) and only discards the stale "
-            f"working-tree bytes; then retry."
+            f"working-tree bytes. Once a later status write lands on top of the kept events, `consolidate --resume` "
+            f"and `doctor coordination --fix` decline the automatic heal (the status log holds a commit the marker "
+            f"did not record) and ask you to reconcile manually. Do not run `doctor coordination --fix` without "
+            f"`--mission`: it then acts on every mission and flattens those with a stale coordination branch. Then retry "
+            f"the status write."
         )
 
 

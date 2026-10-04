@@ -74,7 +74,7 @@ unchanged.
   There is no separate `error_code` key on this refusal, so match on the prefix of `error`.
 
 The `COORD_STATUS_SURFACE_DIVERGED` message contains both recovery commands with the real
-paths filled in. Do not retry the write unchanged: it refuses again until the worktree log
+paths and the Mission slug filled in. Do not retry the write unchanged: it refuses again until the worktree log
 holds every committed event.
 
 <!-- BEGIN GENERATED -->
