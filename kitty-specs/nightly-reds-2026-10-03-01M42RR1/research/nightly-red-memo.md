@@ -61,3 +61,10 @@ performance lane is nightly-only. The pull requests that changed the product mer
    0.57 s). The saving is unproven and this is product work beyond a test repair.
 3. Change what the tests measure (budget relative to the start-up floor, or a higher absolute
    budget). The brief forbids raising budgets, so this needs an explicit ruling.
+
+## Outcome (2026-10-04)
+
+- Operator ruling on group G: align the budget to the 2.5 s of `tests/performance/test_cli_startup_budget_4409.py`. Both files now read one constant, `CLI_COLD_START_BUDGET_SECONDS` in `tests/_perf_helpers.py`. The two red nightlies measured 2.6 to 2.7 s, so the tests can still fail on a slow runner. Follow-up: #5614.
+- Group C is red only when the whole migration registry is loaded (a full-suite run); the file alone passes on base. The repaired tests pass in both conditions.
+- Tooling friction: `spec-kitty consolidate` (squash) merged all four lanes and then refused with "projected coordination bookkeeping content did not land on the target" and rolled back, twice. The only divergent path was the derived `status.json` snapshot (the target copy was re-materialized without `schema_version` and several fields; `status.events.jsonl` was identical). The branch was assembled from the tool's own squash result, one commit per work package, with the coordination copy of `status.json`.
+- Tooling friction: `spec-kitty agent mission create` run from a linked git worktree resolves the primary checkout as the repository root, so `--start-branch` on the worktree's own branch fails. A standalone clone was used instead.

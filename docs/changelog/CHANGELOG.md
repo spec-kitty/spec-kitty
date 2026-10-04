@@ -4,7 +4,7 @@ description: Canonical changelog for the Spec Kitty CLI and templates, following
 doc_status: active
 type: reference
 audience: docs/context/audience/external/project-owner.md
-updated: '2026-10-03'
+updated: '2026-10-04'
 ---
 # Changelog
 
@@ -39,6 +39,10 @@ this section at publish._
 - **`spec-kitty doctor tool-surfaces --fix` now restores a command skill you edited** (#5575). **Before:** the repair the drift message sent you to reported success but kept your edited `.agents/skills/spec-kitty.<command>/SKILL.md`, so the drift never cleared. **After:** `--fix` replaces the edited file with the current release's version, as it already did for agent profiles, and the drift finding names that command. An unattended `spec-kitty upgrade --yes` still never overwrites your edit; it reports it and exits non-zero.
 - **`spec-kitty implement` no longer treats line-ending-only differences in planning files as uncommitted changes** (#5576). **Before:** on a checkout where Git converts line endings (for example Windows with `core.autocrlf`, or a `.gitattributes` `eol=crlf` rule), planning files that `git status` reported as clean were seen as changed, so `implement --no-auto-commit` asked you to commit them and auto-commit could attempt an empty commit. **After:** the check compares what Git would store, so a clean checkout starts implementation without a commit. A planning file whose text you actually changed is still listed, whatever its line endings.
 - **The Windows install guide no longer tells you to get Python from the Microsoft Store** (#5596). **Before:** it offered python.org or the Store, and described only the per-version installer that python.org deprecated in Python 3.14. **After:** it requires Python 3.11–3.13 from python.org, covers python.org's Python install manager (`py install 3.13`), and shows how to spot and replace a Store Python or the `python.exe` Store stub.
+
+### Internal
+
+- Nightly test repairs for the Python 3.13 shard 3, `specify_cli` out-of-matrix and performance suites (#5418, #5258, #5419). No product behavior changes. Three count tests follow the command registry after the dashboard removal and the new `doctor run-index` subcommand; the handle-equivalence test runs its custom mission on a mission of that type; the hosted-endpoint sequencing tests apply only the two migrations they order; and the shared test source snapshot is readable when CI checks out a single commit. The owned-checkout wall-clock tests now use the same 2.5 s budget as the CLI start-up test. They still depend on runner speed and can fail on a slow runner; #5614 tracks their rewrite.
 
 ## [4.0.0rc5] - 2026-10-02
 
