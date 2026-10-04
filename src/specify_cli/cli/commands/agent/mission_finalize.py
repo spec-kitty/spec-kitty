@@ -5422,12 +5422,19 @@ def finalize_tasks(
     #     restored by compare-and-swap, index by ``read-tree``, status files by
     #     bytes, see ``finalize_status_surface.StatusSurfaceGuard``; and, owned
     #     runs only, P's ``.kittify/derived/<slug>``.
-    #   * NOT UNDONE, REPORTED: status commits on a branch that moved after
-    #     this run's last status write (a foreign commit landed on top). The
-    #     branch is never forced; the run names the commits it left. On a
-    #     ``lanes`` / ``single_branch`` surface the finalize commit itself
-    #     shares that branch, so a failure after it lands but before
-    #     ``commit_landed`` is set reads as "moved" too (same safe outcome).
+    #   * NOT UNDONE, REPORTED: status commits on a branch that gained a
+    #     commit the run did not make -- after its last status write (a
+    #     foreign commit on top), or inside the status-write window (every
+    #     commit in ``tip_before..tip_after`` must be a non-merge commit
+    #     touching only this Mission's status files and the acceptance-matrix
+    #     scaffold, else the range is not provably the run's own). The branch
+    #     is never forced, the files those commits changed are left as they
+    #     left them, and the run names the commits it left. Residual: a
+    #     commit by another process for the SAME Mission inside the window is
+    #     indistinguishable from the run's own. On a ``lanes`` /
+    #     ``single_branch`` surface the finalize commit itself shares that
+    #     branch, so a failure after it lands but before ``commit_landed`` is
+    #     set reads as "moved" too (same safe outcome).
     #   * NOT COVERED (tracked in #5343): a status surface the guard cannot
     #     capture at the run's first status write -- a coordination worktree
     #     the run itself materializes, a detached HEAD -- whose status commits
