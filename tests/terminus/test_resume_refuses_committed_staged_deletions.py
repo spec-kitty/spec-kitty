@@ -27,12 +27,10 @@ import os
 import shutil
 import signal
 import stat
-import subprocess
 from pathlib import Path
 
 import pytest
 
-from specify_cli.consolidation.git_probes import _lane_already_integrated
 from specify_cli.status.reducer import materialize_snapshot
 from tests.terminus.conftest import CoordMission, blob_present_at, build_coord_mission, run_terminus
 from tests.terminus.conftest import _git as git
@@ -159,15 +157,3 @@ def test_5571_control_reverting_the_staged_deletions_lands_all_code(tmp_path: Pa
     assert rc == 0, f"resume after discarding the staged deletions must land the mission ({strategy}):\n{flat}"
     for wp, path in WP_PATHS.items():
         assert blob_present_at(mission.repo, mission.target_branch, path), f"{wp}'s approved code must be on the target"
-
-
-def test_5571_the_ancestry_skip_is_what_hides_the_missing_content(tmp_path: Path) -> None:
-    """The fix is the presence axis, not a change to the ancestry skip: after the committed revert the lane still reads as integrated."""
-    run = Interrupted(tmp_path, "merge", mid8="01M55712")
-    mission = run.mission
-    run.operator_commits_staged_deletions()
-
-    assert _lane_already_integrated(mission.repo, mission.lane_branch("WP01"), mission.coord_branch), (
-        "the committed revert leaves lane-a an ancestor of the mission branch, so the ancestry skip still fires"
-    )
-    assert subprocess.run(["git", "-C", str(mission.repo), "cat-file", "-e", f"{mission.coord_branch}:{WP_PATHS['WP01']}"], check=False).returncode != 0

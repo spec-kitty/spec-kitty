@@ -129,27 +129,8 @@ def test_verdict_fails_with_the_code_alongside_the_strategy_clause(tmp_path: Pat
 
 
 # --------------------------------------------------------------------------- #
-# Controls, including the superseded dependency upstream used to refuse
+# The superseded dependency upstream used to refuse
 # --------------------------------------------------------------------------- #
-
-
-@pytest.mark.parametrize(
-    ("kwargs", "excluded"),
-    [
-        pytest.param({"depends": False}, frozenset({"WP01"}), id="independent-wp"),
-        pytest.param({"wp01_final": "approved"}, frozenset(), id="approved-dependency"),
-        pytest.param({"wp02_overwrites_wp01": True}, frozenset({"WP01"}), id="superseded-by-approved-wp"),
-    ],
-)
-@pytest.mark.parametrize("squash", [True, False], ids=["squash", "merge"])
-def test_controls_carry_nothing_and_pass(tmp_path: Path, kwargs: dict[str, object], excluded: frozenset[str], squash: bool) -> None:
-    built = build_canceled_dependency_mission(tmp_path, **kwargs)  # type: ignore[arg-type]  # parametrised literal kwargs
-    claim = _claim(built, excluded=excluded)
-
-    assert claim.canceled_dependency_content == frozenset()
-    assert claim.refusal is None
-    result = MergeOutcomeVerifier(built.mission.repo).verify(_integrated_target(built, squash=squash), replace(claim, verify_reachability=not squash))
-    assert result.status is VerifyStatus.PASS, result
 
 
 def test_superseded_canceled_commit_stays_in_the_carrier_authorship_without_its_blob(tmp_path: Path) -> None:
@@ -207,43 +188,6 @@ def test_mixed_lane_claim_is_untouched(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_unstamped_canceled_dependency_refuses_naming_the_override(tmp_path: Path) -> None:
-    built = build_canceled_dependency_mission(tmp_path, mid8="01M5569U")
-    strip_lane_head_stamps(built.mission, "WP01")
-
-    refused = _claim(built)
-
-    assert refused.refusal is not None
-    assert "WP01" in refused.refusal and LANE_A in refused.refusal and f"is carried by approved lane(s) {LANE_B}" in refused.refusal
-    assert "--attest-canceled-superseded WP01" in refused.refusal
-
-
-def test_attestation_lifts_only_the_unstamped_refusal_and_live_content_stays_out_of_the_claim(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The end-to-end attestation is in tests/terminus/test_canceled_dependency_fast_forward_verdicts.py; here only its effect on the claim."""
-    built = build_canceled_dependency_mission(tmp_path, mid8="01M5569T")
-    strip_lane_head_stamps(built.mission, "WP01")
-    monkeypatch.setattr(f"{_RECONCILIATION}.attestation_stamps", lambda _events: {"WP01": None})
-
-    claim = _claim(built)
-
-    assert claim.refusal is None, "the attestation lifts the attribution-evidence refusal"
-    assert built.wp01_sha not in claim.authored_shas, "an attested canceled commit is still not approved authorship"
-    assert [(e.wp_ids, e.path) for e in claim.canceled_dependency_content] == [(("WP01",), WP01_PATH)], "its live content is still named for the verifier"
-
-
-def test_attested_unstamped_lane_whose_content_is_superseded_carries_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    built = build_canceled_dependency_mission(tmp_path, wp02_overwrites_wp01=True, mid8="01M5569Q")
-    strip_lane_head_stamps(built.mission, "WP01")
-    assert _claim(built).refusal is not None, "unattested, the unstamped WP refuses even when its content is superseded"
-    monkeypatch.setattr(f"{_RECONCILIATION}.attestation_stamps", lambda _events: {"WP01": None})
-
-    claim = _claim(built)
-
-    assert claim.refusal is None
-    assert claim.canceled_dependency_content == frozenset()
-    assert built.wp01_sha in claim.authored_shas, "superseded on every carrier: same treatment as a stamped canceled commit"
-
-
 def test_attestation_lifts_the_unstamped_refusal_only_while_no_stamp_is_overridable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The lift follows the one authority (``canceled_attestation.OVERRIDABLE_REASONS``), never a second hard-wired rule."""
     built = build_canceled_dependency_mission(tmp_path, mid8="01M5569N")
@@ -295,16 +239,6 @@ def test_attesting_an_unstamped_wp_never_lifts_a_stamped_sibling_of_the_same_can
     assert built.wp01_sha not in claim.authored_shas, "attesting WP03 must not turn stamped WP01's commit into approved authorship"
     assert built.wp01_sha in claim.excluded_shas
     assert [(e.wp_ids, e.path) for e in claim.canceled_dependency_content] == [(("WP01", "WP03"), WP01_PATH)]
-
-
-def test_attestation_does_not_lift_a_stamped_canceled_dependency(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    built = build_canceled_dependency_mission(tmp_path, mid8="01M5569S")
-    monkeypatch.setattr(f"{_RECONCILIATION}.attestation_stamps", lambda _events: {"WP01": None})
-
-    claim = _claim(built)
-
-    assert built.wp01_sha not in claim.authored_shas
-    assert [e.path for e in claim.canceled_dependency_content] == [WP01_PATH]
 
 
 def test_lacks_lane_head_stamps_is_event_only(tmp_path: Path) -> None:

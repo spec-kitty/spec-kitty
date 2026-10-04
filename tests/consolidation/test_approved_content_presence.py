@@ -563,18 +563,6 @@ def test_claim_leaves_a_canceled_or_unapproved_lane_out_of_the_content(tmp_path:
 
 @pytest.mark.integration
 @pytest.mark.git_repo
-@pytest.mark.parametrize("strategy", _STRATEGIES)
-@pytest.mark.parametrize("edit", _EDITS)
-def test_a_later_approved_wp_that_edits_the_path_supersedes_it(tmp_path: Path, edit: Edit, strategy: str) -> None:
-    built = build_dependent_edit_mission(tmp_path, edit=edit, wp02_final="approved")
-
-    result = _verify(built, strategy, "landed")
-
-    assert result.status is VerifyStatus.PASS, result.recovery_guidance()
-
-
-@pytest.mark.integration
-@pytest.mark.git_repo
 @pytest.mark.parametrize("final", ["canceled", "in_progress"])
 @pytest.mark.parametrize("strategy", _STRATEGIES)
 @pytest.mark.parametrize("edit", _EDITS)

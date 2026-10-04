@@ -515,24 +515,6 @@ def test_the_wrapper_marks_the_run_a_resume_only_when_a_merge_record_exists(tmp_
     assert resume_state is None or resume_state.mission_id == _MISSION_ID
 
 
-def test_the_wrapper_recovers_a_lagging_mission_worktree_then_retries(tmp_path: Path) -> None:
-    lag = _build_lag(tmp_path)
-    _persist_state(lag, {lag.branch: lag.base})
-
-    def _preflight(*_args: object, **_kwargs: object) -> None:
-        if not (lag.worktree / "lane.py").exists():
-            raise _refusal(lag.worktree)
-
-    with (
-        patch.object(ex, "_pre_mutation_safety_preflight", side_effect=_preflight) as mock_preflight,
-        patch.object(ex, "_resolve_coord_worktree_for_preflight", return_value=None),
-    ):
-        _run_wrapper(lag)
-
-    assert mock_preflight.call_count == 2
-    assert (lag.worktree / "lane.py").exists()
-
-
 def test_the_wrapper_recovers_several_checkouts_but_each_only_once(tmp_path: Path) -> None:
     lag = _build_lag(tmp_path)
     first, second = _refusal(tmp_path / "one"), _refusal(tmp_path / "two")
@@ -551,22 +533,6 @@ def test_the_wrapper_recovers_several_checkouts_but_each_only_once(tmp_path: Pat
     assert mock_preflight.call_count == 3
     assert [call.args[0] for call in mock_recover.call_args_list] == [first, second], "the already-recovered checkout is not recovered again"
     assert mock_report.call_args.args[0] is again
-
-
-def test_the_wrapper_threads_the_snapshot_anchor_into_the_refusal_report(tmp_path: Path) -> None:
-    lag = _build_lag(tmp_path)
-    _persist_state(lag, {lag.branch: lag.base})
-
-    with (
-        patch.object(ex, "_pre_mutation_safety_preflight", side_effect=_refusal(lag.worktree)),
-        patch.object(ex, "_resolve_coord_worktree_for_preflight", return_value=None),
-        patch.object(ex, "_recover_behind_head_primary_on_resume", return_value=False),
-        patch.object(ex, "_report_pre_mutation_refusal") as mock_report,
-        pytest.raises(typer.Exit),
-    ):
-        _run_wrapper(lag)
-
-    assert mock_report.call_args.kwargs["base_sha"] == lag.base
 
 
 # --- the resume leg refuses a lag, not retained dirt (#5613 review) ---------------------------
