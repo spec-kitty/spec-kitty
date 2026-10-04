@@ -124,10 +124,6 @@ Error codes used:
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
 
 import typer
 
@@ -509,6 +505,7 @@ _COMMAND_TABLE: tuple[tuple[str, Callable[..., None]], ...] = (
 )
 for _name, _handler in _COMMAND_TABLE:
     app.command(name=_name)(_handler)
+del _name, _handler
 
 
 __all__ = ["app"]

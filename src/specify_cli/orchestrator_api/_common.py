@@ -14,10 +14,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NoReturn
-
-if TYPE_CHECKING:
-    pass
+from typing import Any, NoReturn
 
 import typer
 
