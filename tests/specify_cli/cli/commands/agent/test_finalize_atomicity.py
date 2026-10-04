@@ -34,6 +34,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
+from specify_cli.cli.commands.agent import finalize_status_surface
 from specify_cli.cli.commands.agent.mission import app
 from specify_cli.core.checkout_identity import CheckoutIdentity
 
@@ -642,10 +643,17 @@ def _status_writer_would_wait(root: Path, mission_slug: str) -> bool:
 
 
 @pytest.mark.parametrize(
-    ("topology_name", "foreign_commit_lands"),
-    [("LANES", "after_status_writes"), ("LANES", "during_status_writes"), ("COORD", "during_status_writes")],
+    ("topology_name", "foreign_commit_lands", "kept_files_listable"),
+    [
+        ("LANES", "after_status_writes", True),
+        ("LANES", "during_status_writes", True),
+        ("COORD", "during_status_writes", True),
+        ("LANES", "after_status_writes", False),
+    ],
 )
-def test_final_commit_failure_never_rewrites_a_foreign_commit_and_names_the_seeds_it_left(tmp_path: Path, topology_name: str, foreign_commit_lands: str) -> None:
+def test_final_commit_failure_never_rewrites_a_foreign_commit_and_names_the_seeds_it_left(
+    tmp_path: Path, topology_name: str, foreign_commit_lands: str, kept_files_listable: bool
+) -> None:
     """A status-surface branch that gained a commit this run did not make is never forced back (#5641, FR-002/FR-003).
 
     A foreign commit lands on the status surface's branch -- the current branch
@@ -677,13 +685,24 @@ def test_final_commit_failure_never_rewrites_a_foreign_commit_and_names_the_seed
         foreign_sha.append(_git(surface, "rev-parse", "HEAD").stdout.strip())
 
     hooks = {"after_status_writes": "before_failing", "during_status_writes": "during_status_writes"}
-    exit_code, output = _run_finalize_failing_the_final_commit(root, mission_slug, **{hooks[foreign_commit_lands]: _foreign_commit})
+    real_git = finalize_status_surface._git
+
+    def _git_that_cannot_list_a_diff(cwd: Path, *args: str) -> str | None:
+        return None if args[0] == "diff" else real_git(cwd, *args)
+
+    with patch.object(finalize_status_surface, "_git", side_effect=real_git if kept_files_listable else _git_that_cannot_list_a_diff):
+        exit_code, output = _run_finalize_failing_the_final_commit(root, mission_slug, **{hooks[foreign_commit_lands]: _foreign_commit})
 
     assert exit_code != 0, output
     assert foreign_sha, "fixture: the foreign commit never landed"
     _git(surface, "merge-base", "--is-ancestor", foreign_sha[0], "HEAD")  # raises when the foreign commit became unreachable
     assert _git(surface, "rev-parse", "HEAD").stdout.strip() != seeded_from, "the branch was moved back over the foreign commit"
     dirty = {name: status for name, status in _branches_and_checkouts(root).items() if name.startswith("status ") and status}
+    if not kept_files_listable:
+        # Fail closed: nothing under the Mission directory is rewritten, so the run's own uncommitted
+        # edits to the WP files stay too -- but never a file a kept commit changed.
+        dirty = {name: "".join(f"{line}\n" for line in status.splitlines() if "/tasks/WP" not in line) for name, status in dirty.items()}
+        dirty = {name: status for name, status in dirty.items() if status}
     assert not dirty, f"a checkout was left modified against its own HEAD: {dirty}"
     assert foreign_file.read_text(encoding="utf-8") == "someone else's work\n", "the foreign commit's file was removed from disk"
     warnings = [json.loads(line) for line in output.splitlines() if line.startswith("{") and '"warning"' in line]
@@ -695,3 +714,5 @@ def test_final_commit_failure_never_rewrites_a_foreign_commit_and_names_the_seed
     if foreign_commit_lands == "during_status_writes":
         assert _git(surface, "rev-parse", "--short", foreign_sha[0]).stdout.strip() in [entry.split()[0] for entry in leftover["commits"]]
         assert "did not make" in leftover["detail"]
+    if not kept_files_listable:
+        assert "left as they are" in leftover["detail"]

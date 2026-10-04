@@ -4758,21 +4758,34 @@ def _snapshot_mission_write_scope(mission_dir: Path) -> dict[Path, bytes]:
     return {path: path.read_bytes() for path in _mission_write_scope_files(mission_dir)}
 
 
-def _restore_mission_write_scope(before: dict[Path, bytes], mission_dir: Path, *, keep: frozenset[Path] = frozenset()) -> None:
+def _restore_mission_write_scope(
+    before: dict[Path, bytes],
+    mission_dir: Path,
+    *,
+    keep: frozenset[Path] = frozenset(),
+    keep_under: Path | None = None,
+) -> None:
     """Undo every tracked write under ``mission_dir`` since the matching snapshot (FR-015/NFR-001).
 
     A file present in ``before`` is rewritten to its original bytes; a file
     that now exists under ``mission_dir`` but was absent from ``before``
     (created by the failed attempt) is deleted. A file in ``keep`` (resolved
-    paths a commit left on the status branch changed) is neither rewritten nor
-    deleted: it is that commit's, not this attempt's. Each path is restored
-    independently and a failure is logged, never raised -- this is
-    best-effort cleanup alongside the ORIGINAL exception that triggered it,
-    never a replacement diagnostic for it.
+    paths a commit left on the status branch changed), or anywhere under
+    ``keep_under`` (the status directory, when those paths could not be listed),
+    is neither rewritten nor deleted: it is that commit's, not this attempt's.
+    Each path is restored independently and a failure is logged, never raised --
+    this is best-effort cleanup alongside the ORIGINAL exception that triggered
+    it, never a replacement diagnostic for it.
     """
+    keep_root = keep_under.resolve() if keep_under is not None else None
+
+    def _is_kept(path: Path) -> bool:
+        resolved = path.resolve()
+        return resolved in keep or (keep_root is not None and resolved.is_relative_to(keep_root))
+
     current = _mission_write_scope_files(mission_dir)
     for path, original in before.items():
-        if keep and path.resolve() in keep:
+        if _is_kept(path):
             continue
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -4780,12 +4793,22 @@ def _restore_mission_write_scope(before: dict[Path, bytes], mission_dir: Path, *
         except OSError as exc:
             logger.warning("finalize atomicity: failed to restore %s: %s", path, exc)
     for path in current - before.keys():
-        if keep and path.resolve() in keep:
+        if _is_kept(path):
             continue
         try:
             path.unlink(missing_ok=True)
         except OSError as exc:
             logger.warning("finalize atomicity: failed to remove %s: %s", path, exc)
+
+
+def _restore_mission_write_scope_beside_status(guard: StatusSurfaceGuard, before: dict[Path, bytes], mission_dir: Path) -> None:
+    """:func:`_restore_mission_write_scope`, leaving what the status branch kept as it is (#5641).
+
+    The files a kept commit changed stay; when git cannot list them, so does
+    everything under the status directory -- fail closed, never the rewrite.
+    """
+    kept = guard.kept_paths()
+    _restore_mission_write_scope(before, mission_dir, keep=kept or frozenset(), keep_under=guard.status_dir if kept is None else None)
 
 
 def _capture_status_surface(guard: StatusSurfaceGuard, status_dir: Path, planning_dir: Path) -> None:
@@ -4804,7 +4827,7 @@ def _capture_status_surface(guard: StatusSurfaceGuard, status_dir: Path, plannin
 def _restore_status_surface(guard: StatusSurfaceGuard) -> StatusSurfaceLeftover | None:
     """Undo the status commits of a run whose finalize commit never landed (FR-015/NFR-001, #5641).
 
-    Runs BEFORE :func:`_restore_mission_write_scope`, which then skips the files
+    Runs BEFORE :func:`_restore_mission_write_scope_beside_status`, which then skips the files
     of any commit the guard kept (``guard.kept_paths()``): on a repository-root
     status surface (``lanes`` / ``single_branch``, an owned checkout) the status
     files either go back with the branch or stay exactly as the kept commits
@@ -5671,7 +5694,7 @@ def finalize_tasks(
         # must never unwind an already-durable finalize.
         if mission_write_scope_dir is not None and not commit_landed.landed:
             status_leftover = _restore_status_surface(status_surface)
-            _restore_mission_write_scope(mission_write_scope_snapshot, mission_write_scope_dir, keep=status_surface.kept_paths())
+            _restore_mission_write_scope_beside_status(status_surface, mission_write_scope_snapshot, mission_write_scope_dir)
             if owned_derived_dir is not None:
                 _restore_mission_write_scope(owned_derived_snapshot, owned_derived_dir)
         # SK3466-RR-003: the ORIGINAL error already emitted its own
@@ -5689,7 +5712,7 @@ def finalize_tasks(
         )
         if mission_write_scope_dir is not None and not commit_landed.landed:
             status_leftover = _restore_status_surface(status_surface)
-            _restore_mission_write_scope(mission_write_scope_snapshot, mission_write_scope_dir, keep=status_surface.kept_paths())
+            _restore_mission_write_scope_beside_status(status_surface, mission_write_scope_snapshot, mission_write_scope_dir)
             if owned_derived_dir is not None:
                 _restore_mission_write_scope(owned_derived_snapshot, owned_derived_dir)
         _emit_finalize_error_with_revert_note(e, revert_error, json_output=json_output, status_leftover=status_leftover)

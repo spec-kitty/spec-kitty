@@ -24,7 +24,8 @@ it:
   precedent);
 * the working-tree bytes are restored by the caller's byte snapshot, except
   for the files a kept commit changed (:meth:`StatusSurfaceGuard.kept_paths`),
-  which stay as that commit left them.
+  which stay as that commit left them -- and, when git cannot list them, every
+  file under the status directory.
 
 The branch is only ever moved back over commits this run provably made. A
 branch that moved after this run's last status write is left alone, and so is a
@@ -51,7 +52,7 @@ import logging
 import subprocess
 from collections.abc import Iterator
 from contextlib import contextmanager, nullcontext
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from specify_cli.acceptance.matrix import MATRIX_FILENAME
@@ -199,7 +200,20 @@ class StatusSurfaceGuard:
                     self.tip_after = _git(root, "rev-parse", "--verify", f"refs/heads/{self.branch}")
 
     def restore(self) -> StatusSurfaceLeftover | None:
-        """Undo this run's status commits; ``None`` when nothing of this run is left behind."""
+        """Undo this run's status commits; ``None`` when nothing of this run is left behind.
+
+        When the branch is kept and the files its kept commits changed cannot be
+        listed, the leftover says the Mission files under the status directory
+        were left as they are (:meth:`kept_paths`).
+        """
+        leftover = self._restore_branch()
+        if leftover is not None and self.kept_paths() is None:
+            reason = f"{leftover.reason}; the files the kept commits changed could not be listed, so the files under {self.status_dir} were left as they are"
+            return replace(leftover, reason=reason)
+        return leftover
+
+    def _restore_branch(self) -> StatusSurfaceLeftover | None:
+        """Move the branch and index back when this run's commits are provably its own."""
         root, branch, before, ours = self.surface_root, self.branch, self.tip_before, self.tip_after
         if root is None or branch is None or before is None:
             return None  # never captured: the run failed before its first status write
@@ -251,19 +265,21 @@ class StatusSurfaceGuard:
                 return f"{span} include {commit[:12]}, which is not limited to this Mission's status files"
         return None
 
-    def kept_paths(self) -> frozenset[Path]:
+    def kept_paths(self) -> frozenset[Path] | None:
         """Files changed by the commits left on the branch, which the caller's byte restore must not touch.
 
-        Empty when the branch is back at ``tip_before`` (nothing was kept), when
-        the guard captured nothing, or when git cannot list the change; a rewrite
-        of a file that a kept commit changed would leave the checkout modified
-        against its own HEAD, or delete a file that commit added.
+        Empty when the branch is back at ``tip_before`` (nothing was kept) or
+        when the guard captured nothing; a rewrite of a file that a kept commit
+        changed would leave the checkout modified against its own HEAD, or
+        delete a file that commit added. ``None`` when the branch was kept but
+        git cannot list the change: the caller must then leave every file under
+        :attr:`status_dir` as it is, never fall back to the rewrite.
         """
-        if self.surface_root is None or self.branch is None or self.tip_before is None:
+        if self.surface_root is None or self.branch is None or self.tip_before is None or self.is_at_tip_before():
             return frozenset()
         names = _git(self.surface_root, "diff", "--name-only", "-z", self.tip_before, f"refs/heads/{self.branch}")
-        if not names:
-            return frozenset()
+        if names is None:
+            return None
         return frozenset((self.surface_root / name).resolve() for name in names.split("\0") if name)
 
     def is_at_tip_before(self) -> bool:
