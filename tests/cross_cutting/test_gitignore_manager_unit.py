@@ -444,6 +444,8 @@ class TestGitignoreSymlinkSafety:
 
             assert outside_target.read_text() == "do-not-touch\n"
             assert manager.gitignore_path.is_symlink()
+            # The refused write leaves no tempfile behind.
+            assert not list(temp_dir.glob(".gitignore.spec-kitty-*"))
         finally:
             manager.gitignore_path.unlink(missing_ok=True)
             outside_target.unlink(missing_ok=True)
@@ -503,8 +505,10 @@ class TestGitignoreSymlinkSafety:
         """`write_gitignore_text()` refuses a symlinked `.gitignore` itself.
 
         Callers other than the manager (the upgrade migrations) do not run
-        `_reject_symlink()` first, so the writer's own guard must keep the
-        symlink's target untouched.
+        `_reject_symlink()` first, so the writer must refuse by itself and
+        leave the symlink's target untouched. Either of its two checks does
+        it: the one before the tempfile, or the re-check just before the
+        replace.
         """
         secret = temp_dir.parent / f"secret-write-{os.getpid()}.txt"
         secret.write_text("do-not-leak\n")
