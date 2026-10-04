@@ -2,7 +2,7 @@
 title: Agent Subcommand Reference
 description: Reference for spec-kitty agent subcommands. Learn how agent-only actions like config, status, decision, and retrospect behave in workflows.
 doc_status: active
-updated: '2026-10-02'
+updated: '2026-10-04'
 ---
 # Agent Subcommand Reference
 
@@ -51,6 +51,31 @@ record: the 2026-10-01 amendment of
   not-yet-materialized or empty coordination surface materializes or seeds it (or refuses
   with `COORDINATION_WORKTREE_UNMATERIALIZED` / `COORD_SEED_FORK_REFUSED` / `STATUS_LOCK_HELD`)
   instead of landing on the repository root checkout.
+
+## Coordination status writes: refusal on a diverged status log
+
+Applies to `agent status emit`, `agent tasks move-task` and every other agent command that
+records a lane transition on a Mission whose topology is `coord` or `lanes_with_coord`. The
+rule and its recovery are stated once, in the
+[status model](../architecture/status-model.md#coordination-status-write-guard); this section
+only describes what a caller sees.
+
+| Code | Meaning |
+|---|---|
+| `COORD_STATUS_SURFACE_DIVERGED` | The coordination worktree's status log lost events its branch HEAD has committed. |
+| `COORD_STATUS_SURFACE_UNREADABLE` | The committed status log (or the working-tree log) cannot be read or is not a valid event log, so the check cannot be answered. |
+
+Both exit `1` and write nothing: the event log, `status.json` and the coordination branch are
+unchanged.
+
+- **Human mode** prints `Error: <CODE>: <message>`.
+- **`--json` mode** prints one object with a single `error` key whose value starts with the
+  code, for example `{"error": "COORD_STATUS_SURFACE_DIVERGED: the coordination worktree ..."}`.
+  There is no separate `error_code` key on this refusal, so match on the prefix of `error`.
+
+The `COORD_STATUS_SURFACE_DIVERGED` message contains both recovery commands with the real
+paths filled in. Do not retry the write unchanged: it refuses again until the worktree log
+holds every committed event.
 
 <!-- BEGIN GENERATED -->
 # Agent Subcommand Reference

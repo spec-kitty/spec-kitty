@@ -874,8 +874,9 @@ def consolidate(
         "--attest-canceled-superseded",
         help=(
             "Operator attestation (repeatable, one WP id each): the named canceled WP's "
-            "content is absent or superseded, verified by hand. Lifts a mixed-lane REFUSE "
-            "whose attribution evidence can never appear later; never lifts a FAIL. "
+            "content is absent or superseded, verified by hand. Lifts, for that WP only, a "
+            "REFUSE whose attribution evidence can never appear later (a mixed lane, or an "
+            "unstamped canceled WP on a canceled dependency lane); never lifts a FAIL. "
             "Requires --attest-reason; recorded durably in the status event log."
         ),
     ),
@@ -885,7 +886,14 @@ def consolidate(
         help="What you checked, recorded with --attest-canceled-superseded (required with it).",
     ),
 ) -> None:
-    """Consolidate a lane-based mission into its target branch."""
+    """Consolidate a lane-based mission into its target branch.
+
+    Exit codes: 0 on success. 75 (error code COORD_MOVED_AFTER_LANDING) when the
+    landing stands but the coordination or mission branch moved after it and was
+    kept instead of deleted; for a coordination branch, --resume lands the late
+    commits and finishes the teardown. Any other non-zero code is a refusal or
+    failure.
+    """
     del context_token, keep_workspace
     attested_wps = _validated_attestation_flags(attest_canceled_superseded, attest_reason)
 

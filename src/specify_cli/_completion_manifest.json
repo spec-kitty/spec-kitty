@@ -577,7 +577,7 @@
    "deprecated": false
   },
   "consolidate": {
-   "help": "Consolidate a lane-based mission into its target branch.",
+   "help": "Consolidate a lane-based mission into its target branch.\n\nExit codes: 0 on success. 75 (error code COORD_MOVED_AFTER_LANDING) when the\nlanding stands but the coordination or mission branch moved after it and was\nkept instead of deleted; for a coordination branch, --resume lands the late\ncommits and finishes the teardown. Any other non-zero code is a refusal or\nfailure.",
    "hidden": false,
    "deprecated": false
   },

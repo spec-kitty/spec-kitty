@@ -3478,6 +3478,7 @@ pages:
     - {slug: "getting-started", text: "Getting Started", level: 2}
     - {slug: "practical-usage", text: "Practical Usage", level: 2}
     - {slug: "coordination-routed-missions-where-agent-writes-land", text: "Coordination-routed Missions: where agent writes land", level: 2}
+    - {slug: "coordination-status-writes-refusal-on-a-diverged-status-log", text: "Coordination status writes: refusal on a diverged status log", level: 2}
     - {slug: "spec-kitty-agent", text: "spec-kitty agent", level: 2}
     - {slug: "spec-kitty-agent-acceptance-verdict", text: "spec-kitty agent acceptance-verdict", level: 2}
     - {slug: "spec-kitty-agent-action", text: "spec-kitty agent action", level: 2}
@@ -3822,6 +3823,7 @@ pages:
     - {slug: "practical-usage", text: "Practical Usage", level: 2}
     - {slug: "command-internals", text: "Command Internals", level: 2}
     - {slug: "coordination-routed-missions-where-writes-land", text: "Coordination-routed Missions: where writes land", level: 2}
+    - {slug: "spec-kitty-consolidate-exit-codes-and-refusal-codes", text: "`spec-kitty consolidate`: exit codes and refusal codes", level: 2}
     - {slug: "schema-references", text: "Schema references", level: 2}
     - {slug: "spec-kitty-accept", text: "spec-kitty accept", level: 2}
     - {slug: "spec-kitty-archive", text: "spec-kitty archive", level: 2}
@@ -5475,6 +5477,7 @@ pages:
     - {slug: "commit-attribution-stamp-policy-metadata-lane-head", text: "Commit attribution stamp (`policy_metadata.lane_head`)", level: 2}
     - {slug: "file-layout-per-feature", text: "File Layout (per feature)", level: 2}
     - {slug: "troubleshooting", text: "Troubleshooting", level: 2}
+    - {slug: "coordination-status-write-guard", text: "Coordination status-write guard", level: 3}
     - {slug: "pre-3-0-layout-rejection", text: "Pre-3.0 layout rejection", level: 3}
   - path: "docs/architecture/team-kitty-saas.md"
     title: "Team Kitty (SaaS): the end-to-end hosted-sync flow"
@@ -12227,6 +12230,8 @@ pages:
     anchors:
     - {slug: "why-consolidation-runs-can-be-interrupted", text: "Why Consolidation Runs Can Be Interrupted", level: 2}
     - {slug: "resuming-with-resume", text: "Resuming with `--resume`", level: 2}
+    - {slug: "a-worktree-that-shows-staged-deletions-after-an-interruption", text: "A worktree that shows staged deletions after an interruption", level: 3}
+    - {slug: "exit-code-75-the-landing-stands-the-cleanup-did-not-finish", text: "Exit code 75: the landing stands, the cleanup did not finish", level: 3}
     - {slug: "aborting-a-consolidation", text: "Aborting a Consolidation", level: 2}
     - {slug: "the-consolidation-state-file", text: "The consolidation state file", level: 2}
     - {slug: "consolidation-strategy-selection", text: "Consolidation Strategy Selection", level: 2}

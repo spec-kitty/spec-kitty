@@ -881,6 +881,14 @@ The key is absent on every other failure. The message in `data.errors` ends
 with `Error code: COORD_MOVED_AFTER_LANDING.` The host command
 `spec-kitty consolidate` reports the same condition with exit code 75.
 
+`consolidate-mission` does not run the host command's reconciliation gate, so
+the gate's verdict codes (`APPROVED_CONTENT_MISSING`,
+`CANCELED_REACHABLE_VIA_DEPENDENCY` and the others in the
+[status model](../architecture/status-model.md)) are never reported here, and
+`--resume` and `--attest-canceled-superseded` exist only on
+`spec-kitty consolidate`. The full list of that command's exit codes and codes is
+in the [CLI reference](cli-commands.md#spec-kitty-consolidate-exit-codes-and-refusal-codes).
+
 ## Provider Rules
 
 - Call `contract-version` once before mutating state.

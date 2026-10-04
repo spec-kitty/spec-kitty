@@ -2,7 +2,7 @@
 title: CLI Command Reference
 description: Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output.
 doc_status: active
-updated: '2026-10-02'
+updated: '2026-10-04'
 related:
 - docs/api/bulk-edit-gate.md
 - docs/api/finalize-tasks-internals.md
@@ -96,6 +96,43 @@ record is the 2026-10-01 amendment of
   by `decision_id` instead of conflicting. Projects initialised earlier get the driver from the
   upgrade migration `m_4_0_0rc5_decision_index_merge_driver`; run `spec-kitty upgrade`. Git runs
   the driver itself during a merge; it is an internal command you never invoke by hand.
+
+## `spec-kitty consolidate`: exit codes and refusal codes
+
+Hand-authored companion to the generated `consolidate` section below. `consolidate` lands a
+Mission on its **local** target branch only; it never publishes to a remote unless `--push`
+is passed.
+
+| Exit code | Meaning |
+|---|---|
+| `0` | The Mission landed and the cleanup finished. |
+| `75` | The landing stands, but the coordination branch (or the mission branch of a Mission without a coordination topology) moved after it and was kept instead of deleted. Error code `COORD_MOVED_AFTER_LANDING`. Nothing was lost and nothing was rolled back. |
+| any other non-zero | A refusal or a failure. The message says whether anything had moved and reports, per branch, what the rollback restored. |
+
+Stable codes that appear in the output. Match on the code, not on the surrounding prose:
+
+| Code | When | What to do |
+|---|---|---|
+| `APPROVED_CONTENT_MISSING` | The reconciliation gate found that an approved code lane's own net change to a path is not on the target, while the target left that path alone since the lane was cut and no later approved lane superseded it. The run FAILs and rolls back. Typical cause: the staged deletions of a lagging worktree were committed before a `--resume`. | Restore the change on the mission branch (for example revert the commit that recorded the deletions), then re-run. Not overridable. |
+| `CANCELED_REACHABLE_VIA_DEPENDENCY` | Content of a fully-canceled dependency lane reached an approved lane, is still live there and is on the target. The run FAILs and rolls back. Content that every carrying lane fully superseded is not counted. | Undo the change on the carrying lane through a surviving WP's governed work, then re-run. Not overridable: `--attest-canceled-superseded` never lifts it. |
+| `COORD_MOVED_AFTER_LANDING` | Exit code `75`, see above. The message ends with `Error code: COORD_MOVED_AFTER_LANDING.` | Coordination branch: review the late commit(s) with the `git log` command in the message, then run `spec-kitty consolidate --resume`, which lands them on the target and finishes the teardown. Mission branch without a coordination topology: land the commit(s) and delete the branch yourself. |
+| `PROJECTION_TEARDOWN_ABORTED` | The same race caught earlier: the coordination branch moved before anything was torn down, so the coordination worktree, branch and marker all survive. Exit code `1`. | Re-run `spec-kitty consolidate --resume`. |
+
+- **`--attest-canceled-superseded <WP>`** lifts a REFUSE whose attribution evidence can never
+  appear later, for the named WP only. Since #5613 that includes a canceled WP without a
+  `lane_head` stamp on a fully-canceled dependency lane, which REFUSEs before any branch
+  moves. It never lifts a FAIL. The verdict table and the override rules are stated once, in
+  the [status model](../architecture/status-model.md#commit-attribution-stamp-policy_metadatalane_head).
+- **`--resume`** refreshes in place a repository root checkout, coordination worktree,
+  mission worktree or lane worktree that only lags its own HEAD, and refuses with the exact
+  recovery commands when such a worktree also holds an edit of your own. See
+  [Recover from an Interrupted Consolidation](../guides/how-to/recovery/recover-from-interrupted-merge.md).
+- **`spec-kitty orchestrator-api consolidate-mission`** reports `COORD_MOVED_AFTER_LANDING` as
+  `data.teardown_error_code`; see the
+  [orchestrator API reference](orchestrator-api.md#consolidate-mission-datateardown_error_code).
+- A status write that follows a rolled-back consolidation can be refused with
+  `COORD_STATUS_SURFACE_DIVERGED`; see the
+  [status model](../architecture/status-model.md#coordination-status-write-guard).
 
 ## Schema references
 
@@ -1255,6 +1292,12 @@ _Charter pack management commands._
 
  Consolidate a lane-based mission into its target branch.
 
+ Exit codes: 0 on success. 75 (error code COORD_MOVED_AFTER_LANDING) when the
+ landing stands but the coordination or mission branch moved after it and was
+ kept instead of deleted; for a coordination branch, --resume lands the late
+ commits and finishes the teardown. Any other non-zero code is a refusal or
+ failure.
+
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --strategy                                [merge|squash|r  Strategy for the  │
 │                                           ebase]           branch-integrati… │
@@ -1401,14 +1444,19 @@ _Charter pack management commands._
 │                                                            absent or         │
 │                                                            superseded,       │
 │                                                            verified by hand. │
-│                                                            Lifts a           │
-│                                                            mixed-lane REFUSE │
+│                                                            Lifts, for that   │
+│                                                            WP only, a REFUSE │
 │                                                            whose attribution │
 │                                                            evidence can      │
 │                                                            never appear      │
-│                                                            later; never      │
-│                                                            lifts a FAIL.     │
-│                                                            Requires          │
+│                                                            later (a mixed    │
+│                                                            lane, or an       │
+│                                                            unstamped         │
+│                                                            canceled WP on a  │
+│                                                            canceled          │
+│                                                            dependency lane); │
+│                                                            never lifts a     │
+│                                                            FAIL. Requires    │
 │                                                            --attest-reason;  │
 │                                                            recorded durably  │
 │                                                            in the status     │

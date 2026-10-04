@@ -2,7 +2,7 @@
 title: 'Git Workflow: Who Does What'
 description: "The boundary between infrastructure git that Python owns (worktrees, status commits, merges) and content git that agents own (code, rebases, conflicts), plus auto-commit rules."
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-04'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/execution-lanes.md
@@ -91,15 +91,18 @@ the target).
    `--strategy rebase` are the alternatives. The chosen strategy is persisted in
    `ConsolidationState.strategy`, so `consolidate --resume` keeps it.
 2. **Verify the landing.** A reconciliation gate checks that every content change on the
-   target can be attributed to an approved WP. If it fails or refuses, the target is
-   restored to its pre-run tip with a compare-and-swap rollback.
+   target can be attributed to an approved WP, and that every approved WP's own change is
+   present on the target. If it fails or refuses, the target is restored to its pre-run tip
+   with a compare-and-swap rollback.
 3. **Clean up.** Lane worktrees are removed (`git worktree remove`) and lane branches
    deleted, unless `--keep-worktree` / `--keep-branch` or the mission's
    `retain_worktrees` / `retain_branches` metadata says to keep them.
 
 Consolidation is local only; publish the result through a topic branch and a pull
 request. See [status model](status-model.md) and the `spec-kitty consolidate` help for
-the details.
+the details, and the
+[CLI reference](../api/cli-commands.md#spec-kitty-consolidate-exit-codes-and-refusal-codes)
+for its exit codes and refusal codes.
 
 ### 5. Cleaned Up
 

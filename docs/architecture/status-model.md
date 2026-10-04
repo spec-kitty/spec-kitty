@@ -113,6 +113,10 @@ spec-kitty agent status emit WP01 --to claimed --actor claude --json
 | `--execution-mode` | No | `worktree` (default) or `direct_repo` |
 | `--json` | No | Machine-readable JSON output |
 
+On a coordination-routed Mission the write can be refused with
+`COORD_STATUS_SURFACE_DIVERGED` or `COORD_STATUS_SURFACE_UNREADABLE`; see
+[Coordination status-write guard](#coordination-status-write-guard).
+
 ### `spec-kitty agent status materialize`
 
 Rebuild `status.json` from the canonical event log.
@@ -512,6 +516,25 @@ kitty-specs/<feature>/
 **"No event log found"**: Run `spec-kitty agent status migrate --mission <slug>` to bootstrap from existing frontmatter state.
 
 **Stale claims reported by doctor**: Either continue work on the WP or release the claim by moving it back to `planned` (requires reason).
+
+### Coordination status-write guard
+
+On a Mission with a coordination topology, every status write (`agent status
+emit`, `agent tasks move-task`, and any other command that records a lane
+transition) is committed from the coordination worktree. Before such a write
+opens, the status log in that worktree is compared with the log its branch HEAD
+has committed (#5572, #5613). The write is refused, and nothing is written, in
+two cases:
+
+| Code | Condition | Recovery |
+|---|---|---|
+| `COORD_STATUS_SURFACE_DIVERGED` | The worktree's `status.events.jsonl` no longer holds events that HEAD has committed, for example after a rolled-back consolidation restored the file to its earlier bytes. Writing on top of it would commit a log without those events | The message names up to three of the missing event ids and offers two remedies. `spec-kitty doctor coordination --fix` reverts the stranded `done`, so the Mission is no longer recorded as done. `git -C <coordination worktree> checkout HEAD -- <mission dir>/status.events.jsonl <mission dir>/status.json` keeps the committed events and discards only the stale working-tree bytes. Choose one, then retry the write |
+| `COORD_STATUS_SURFACE_UNREADABLE` | The check cannot be answered: HEAD or its committed log cannot be read, the committed log has a malformed line or repeats an event id, or the working-tree log cannot be read | Repair the committed log or the checkout, then retry. The message names the reason |
+
+Extra, uncommitted lines in the worktree log are not a divergence: an
+interrupted append is repaired by the write's own rollback. A Mission without a
+coordination topology is not checked. The caller-visible shape of the refusal is
+in the [agent subcommand reference](../api/agent-subcommands.md#coordination-status-writes-refusal-on-a-diverged-status-log).
 
 ### Pre-3.0 layout rejection
 
