@@ -137,7 +137,7 @@ def test_public_cli_path_refuses_plain_commit_to_protected_branch(
     with pytest.raises(typer.Exit) as excinfo:
         safe_commit_command(
             files=[Path("docs/cli-note.md")],
-            message="docs: add a cli note",
+            message=["docs: add a cli note"],
             to_branch=repo.target_branch,
             json_output=False,
         )

@@ -19,6 +19,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli import app as cli_app
+from specify_cli.cli.commands._commit_message import join_message_paragraphs
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -313,3 +314,45 @@ def test_cli_genuinely_different_file_never_reports_no_changes(tmp_path: Path, m
 
     head_after = _git(tmp_path, "rev-parse", "HEAD").stdout.strip()
     assert head_after != head_before, "the genuinely-changed file must be committed"
+
+
+# ---------------------------------------------------------------------------
+# #5647 -- repeated ``-m`` builds a multi-paragraph message, as ``git commit`` does
+# ---------------------------------------------------------------------------
+
+
+def test_cli_keeps_every_repeated_message(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5647: ``-m subject -m body -m trailer`` kept only the trailer and exited 0."""
+    branch = "kitty/mission-test-01ABCDEF"
+    trailer = "Co-Authored-By: Name <name@example.invalid>"
+    _init_lane_repo(tmp_path, branch=branch)
+    (tmp_path / "x.py").write_text("X = 1\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(
+        cli_app,
+        ["safe-commit", "x.py", "-m", "test(x): subject", "-m", "Body paragraph.", "-m", trailer, "--to-branch", branch],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.stdout + (result.stderr or "")
+    assert _git(tmp_path, "log", "-1", "--format=%B").stdout.strip() == f"test(x): subject\n\nBody paragraph.\n\n{trailer}"
+
+
+def test_cli_refuses_an_empty_message(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    branch = "kitty/mission-test-01ABCDEF"
+    _init_lane_repo(tmp_path, branch=branch)
+    (tmp_path / "x.py").write_text("X = 1\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    head = _git(tmp_path, "rev-parse", "HEAD").stdout.strip()
+
+    result = runner.invoke(cli_app, ["safe-commit", "x.py", "-m", "  ", "--to-branch", branch], catch_exceptions=False)
+
+    assert result.exit_code == 1
+    assert "Commit message is empty" in result.stdout + (result.stderr or "")
+    assert _git(tmp_path, "rev-parse", "HEAD").stdout.strip() == head
+
+
+def test_join_message_paragraphs_drops_empty_values_and_strips() -> None:
+    """The one helper case the CLI tests do not reach: blank values vanish, the rest are stripped."""
+    assert join_message_paragraphs(["a", "", "  ", "b\n"]) == "a\n\nb"

@@ -268,6 +268,28 @@ def test_spec_commit_json_output(tmp_path: Path) -> None:
     assert payload["committed"] is True
 
 
+def test_spec_commit_joins_repeated_messages(tmp_path: Path) -> None:
+    """#5647: repeated ``-m`` values reach the router as one git-style message."""
+    from specify_cli.coordination.commit_router import CommitRouterResult
+    from specify_cli.git.protection_policy import ProtectionPolicy
+
+    artifact = tmp_path / "spec.md"
+    artifact.write_text("# Spec\n", encoding="utf-8")
+    policy = ProtectionPolicy(protected_branches=frozenset(), operator_hatch_active=False)
+    committed = CommitRouterResult(status="committed", placement_ref="main", commit_hash="abc1234")
+    trailer = "Co-Authored-By: Name <name@example.invalid>"
+
+    with (
+        patch("specify_cli.cli.commands.spec_commit_cmd._current_repo_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.spec_commit_cmd.ProtectionPolicy.resolve", return_value=policy),
+        patch("specify_cli.cli.commands.spec_commit_cmd.commit_for_mission", return_value=committed) as router,
+    ):
+        result = CliRunner().invoke(_make_app(), [str(artifact), "-m", "docs: subject", "-m", trailer, "--mission", "001-my-mission"])
+
+    assert result.exit_code == 0, result.output
+    assert router.call_args.kwargs["message"] == f"docs: subject\n\n{trailer}"
+
+
 # ---------------------------------------------------------------------------
 # WP13 T002 — the extracted render helper reproduces the pre-extraction shape
 # (hand-built ``CommitRouterResult`` per status, no router/CLI involved).
