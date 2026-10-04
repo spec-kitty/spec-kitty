@@ -97,7 +97,7 @@ class TestCheckLaneStaleness:
             _lane(), "kitty/mission-feat-lane-a", "kitty/mission-feat", repo,
         )
         assert result.is_stale is True
-        assert "src/views.py" in result.stale_files
+        assert result.stale_files == ["src/views.py"]
         assert result.remediation is not None
         assert "git merge" in result.remediation
 
