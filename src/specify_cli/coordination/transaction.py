@@ -75,6 +75,7 @@ from specify_cli.status.models import InnerStateChanged, StatusEvent
 # ``from specify_cli.coordination.transaction import <name>`` imports (and the
 # ``transaction_module.<name>`` monkeypatch surfaces used by the oracle) keep
 # resolving to the same objects.
+from specify_cli.coordination.status_surface_guard import committed_events_missing_from_worktree
 from specify_cli.coordination.transaction_errors import (
     BookkeepingCommitFailed,
     BookkeepingDoubleEventId,
@@ -82,6 +83,7 @@ from specify_cli.coordination.transaction_errors import (
     BookkeepingLegacyResolutionFailed,
     BookkeepingLockTimeout,
     BookkeepingPolicyRefused,
+    BookkeepingStatusSurfaceDiverged,
     BookkeepingWorktreeMissing,
 )
 from specify_cli.coordination.legacy_resolution import (
@@ -328,6 +330,7 @@ __all__ = [
     "BookkeepingError",
     "BookkeepingLockTimeout",
     "BookkeepingPolicyRefused",
+    "BookkeepingStatusSurfaceDiverged",
     "BookkeepingTransaction",
     "BookkeepingWorktreeMissing",
     "build_status_event",
@@ -856,6 +859,13 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             raise BookkeepingPolicyRefused(verdict)
         # ``Allowed`` — fall through.
         assert isinstance(verdict, Allowed)  # noqa: S101 — defensive
+
+        # 4b. (#5613) Refuse to build on a coordination worktree whose status log lost
+        # events its branch HEAD has committed -- the write would drop them silently.
+        if coord_feature_dir is not None:
+            missing = committed_events_missing_from_worktree(worktree_root, events_path)
+            if missing:
+                raise BookkeepingStatusSurfaceDiverged(worktree_root=worktree_root, events_path=events_path, missing_event_ids=missing)
 
         # 5. Capture the pre-emit size of the event log (FR-010) and
         # snapshot of status.json (so rollback is byte-identical, not

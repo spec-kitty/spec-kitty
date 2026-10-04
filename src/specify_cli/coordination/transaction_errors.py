@@ -9,9 +9,11 @@ BookkeepingError`` (and the rest) keeps resolving to the same class objects.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import ClassVar
 
 from specify_cli.coordination.types import Refused
+from specify_cli.status import SNAPSHOT_FILENAME
 
 
 class BookkeepingError(Exception):
@@ -37,6 +39,49 @@ class BookkeepingPolicyRefused(BookkeepingError):
         self.verdict = verdict
         super().__init__(
             f"Bookkeeping refused: {verdict.error_code}: {verdict.message}"
+        )
+
+
+class BookkeepingStatusSurfaceDiverged(BookkeepingError):
+    """The coordination worktree's status log lost events its HEAD has committed (#5572).
+
+    A status write built on such a tree would commit a log without those events,
+    silently dropping them. Raised before anything is written.
+    """
+
+    error_code: ClassVar[str] = "COORD_STATUS_SURFACE_DIVERGED"
+
+    def __init__(self, *, worktree_root: Path, events_path: Path, missing_event_ids: list[str]) -> None:
+        self.missing_event_ids = missing_event_ids
+        status_dir = events_path.parent.relative_to(worktree_root).as_posix()
+        shown = ", ".join(missing_event_ids[:3]) + (f" (+{len(missing_event_ids) - 3} more)" if len(missing_event_ids) > 3 else "")
+        super().__init__(
+            f"{self.error_code}: the coordination worktree {worktree_root} has {events_path.name} bytes that drop "
+            f"{len(missing_event_ids)} event(s) its branch HEAD has committed ({shown}), e.g. after a rolled-back "
+            f"consolidation. Writing now would silently lose them; nothing was written. Choose deliberately: "
+            f"`spec-kitty doctor coordination --fix` heals the strand AWAY (it reverts the stranded `done`, so the "
+            f"mission is no longer recorded as done), whereas "
+            f"`git -C {worktree_root} checkout HEAD -- {status_dir}/{events_path.name} {status_dir}/{SNAPSHOT_FILENAME}` "
+            f"KEEPS the committed events (the stranded `done` stays recorded) and only discards the stale "
+            f"working-tree bytes; then retry."
+        )
+
+
+class BookkeepingStatusSurfaceUnreadable(BookkeepingError):
+    """The status log committed at the coordination worktree's HEAD could not be read (#5613).
+
+    The guard cannot tell whether a status write would drop committed events, so it
+    refuses rather than report "nothing missing". Raised before anything is written.
+    """
+
+    error_code: ClassVar[str] = "COORD_STATUS_SURFACE_UNREADABLE"
+
+    def __init__(self, *, worktree_root: Path, events_path: Path, reason: str) -> None:
+        self.reason = reason
+        super().__init__(
+            f"{self.error_code}: cannot verify that the coordination worktree {worktree_root} still holds every event "
+            f"its branch HEAD has committed in {events_path.name}: {reason}. Writing now could silently lose committed "
+            f"events; nothing was written. Repair the committed log or the checkout, then retry."
         )
 
 
