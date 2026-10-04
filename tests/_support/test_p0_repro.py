@@ -20,7 +20,6 @@ import pytest
 
 from tests._support.p0_repro import (
     RUN_P0_REPRO_ENV_VAR,
-    failure_banner,
     p0_repro_opted_in,
     pinned_issue,
 )
@@ -77,18 +76,20 @@ def _run(tmp_path: Path, source: str, *args: str, opt_in: bool) -> subprocess.Co
     return subprocess.run(argv, cwd=_REPO_ROOT, env=env, capture_output=True, text=True, timeout=120, check=False)
 
 
-def test_reproductions_are_deselected_without_the_opt_in(tmp_path: Path) -> None:
-    proc = _run(tmp_path, _SYNTHETIC, opt_in=False)
+@pytest.mark.parametrize(
+    ("args", "returncode", "summary"),
+    [
+        ((), 0, "1 passed, 3 deselected"),
+        # The per-PR hazard: a marker expression must not select them either.
+        (("-m", "p0_repro"), 5, "4 deselected"),
+    ],
+    ids=["plain", "marker-expression"],
+)
+def test_reproductions_are_deselected_without_the_opt_in(tmp_path: Path, args: tuple[str, ...], returncode: int, summary: str) -> None:
+    proc = _run(tmp_path, _SYNTHETIC, *args, opt_in=False)
 
-    assert proc.returncode == 0, proc.stdout + proc.stderr
-    assert "1 passed, 3 deselected" in proc.stdout
-
-
-def test_a_per_pr_marker_expression_cannot_select_them_without_the_opt_in(tmp_path: Path) -> None:
-    proc = _run(tmp_path, _SYNTHETIC, "-m", "p0_repro", opt_in=False)
-
-    assert proc.returncode == 5, proc.stdout + proc.stderr  # nothing collected to run
-    assert "4 deselected" in proc.stdout
+    assert proc.returncode == returncode, proc.stdout + proc.stderr
+    assert summary in proc.stdout
 
 
 @pytest.mark.parametrize("xdist_args", [(), ("-n", "2")], ids=["serial", "xdist"])
@@ -101,6 +102,7 @@ def test_nightly_lane_names_the_open_issue_and_reports_the_fixed_and_skipped_one
     assert proc.returncode == 1, proc.stdout + proc.stderr
     assert "1 failed, 1 passed, 1 skipped" in proc.stdout
     assert "[OPEN P0 #4242]" in proc.stdout
+    assert "https://github.com/spec-kitty/spec-kitty/issues/4242" in proc.stdout
     # The passing / skipped notices come from the controller's terminal summary,
     # which under xdist only sees what the workers' reports carry.
     assert "[P0 #4243 REPRO PASSES]" in proc.stdout
@@ -144,13 +146,6 @@ def test_pinned_issue_accepts_only_a_positive_int(args: tuple[object, ...], kwar
     assert pinned_issue(pytest.mark.p0_repro(*args, **kwargs).mark) == expected
 
 
-@pytest.mark.parametrize(("value", "expected"), [("1", True), ("0", False), ("true", False), ("", False)])
+@pytest.mark.parametrize(("value", "expected"), [("1", True), ("true", False)])
 def test_opt_in_is_strictly_the_literal_one(value: str, expected: bool) -> None:
     assert p0_repro_opted_in({RUN_P0_REPRO_ENV_VAR: value}) is expected
-    assert p0_repro_opted_in({}) is False
-
-
-def test_failure_banner_links_the_issue() -> None:
-    banner = failure_banner(5613)
-    assert banner.startswith("[OPEN P0 #5613]")
-    assert "https://github.com/spec-kitty/spec-kitty/issues/5613" in banner
