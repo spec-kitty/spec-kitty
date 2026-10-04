@@ -1,8 +1,8 @@
 ---
 title: How to Troubleshoot Merge Issues
-description: 'How to troubleshoot merge issues with Spec Kitty 3.2: Use this guide to recover from interrupted merges, resolve conflicts, and fix pre-flight failures.'
+description: 'How to troubleshoot spec-kitty consolidate with Spec Kitty 3.2: resume or abort a stopped run and fix the refusals operators meet most, each with its command.'
 doc_status: active
-updated: '2026-09-22'
+updated: '2026-10-04'
 audience: docs/context/audience/external/project-owner.md
 type: how-to
 related:
@@ -12,408 +12,160 @@ related:
 ---
 # How to Troubleshoot Merge Issues
 
-Use this guide to recover from interrupted merges, resolve conflicts, and fix pre-flight failures.
+Use this guide when `spec-kitty consolidate` stopped, refused to start, or was interrupted.
+
+`consolidate` lands a Mission's lane branches on its mission branch, then lands the mission branch on the **local** target branch. It never publishes to origin unless you pass `--push`.
+
+Each section gives what you see, what it means, and the command to run. The full list of exit codes and refusal codes is in the [CLI reference](../../../api/cli-commands.md#spec-kitty-consolidate-exit-codes-and-refusal-codes); this guide covers the cases you are likely to meet.
 
 ## Quick Reference
 
-```
-Merge failed?
-├── Pre-flight failed → See "Pre-flight Failures" below
-├── Conflicts during merge → See "Resolve Merge Conflicts" below
-├── Interrupted (terminal closed) → spec-kitty merge --resume
-└── Want to start over → spec-kitty merge --abort
-```
+| What happened | Run |
+| --- | --- |
+| The run was interrupted (terminal closed, process killed, a lane failed to merge) | `spec-kitty consolidate --resume` |
+| You want to undo what the run moved and start over | `spec-kitty consolidate --abort` |
+| You want to check readiness without changing anything | `spec-kitty consolidate --dry-run` |
+| Exit code 75, `COORD_MOVED_AFTER_LANDING` | `spec-kitty consolidate --resume`, see [Exit code 75](#exit-code-75-the-landing-stands) |
 
-## Resume an Interrupted Merge
+## Resume an Interrupted Consolidation
 
-If your merge was interrupted (terminal closed, system crash, etc.), resume from where it stopped:
-
-```bash
-spec-kitty merge --resume
-```
-
-Example output:
-
-```
-Resuming merge of 017-my-feature
-  Progress: 1/2 lanes
-  Remaining: lane-b
-
-Merging lane-b (kitty/mission-017-my-feature-lane-b)...
-✓ lane-b merged
-```
-
-### Understanding merge state
-
-Merge progress is saved in `.kittify/merge-state.json`:
-
-```json
-{
-  "feature_slug": "017-my-feature",
-  "target_branch": "main",
-  "wp_order": ["WP01", "WP02", "WP03", "WP04", "WP05"],
-  "completed_wps": ["WP01", "WP02"],
-  "current_wp": "WP03",
-  "has_pending_conflicts": false,
-  "strategy": "merge",
-  "started_at": "2026-01-18T10:00:00+00:00",
-  "updated_at": "2026-01-18T10:15:00+00:00"
-}
-```
-
-| Field | Description |
-|-------|-------------|
-| `feature_slug` | Legacy merge-state field for the mission being merged |
-| `target_branch` | Branch being merged into |
-| `wp_order` | Ordered list of WPs to merge |
-| `completed_wps` | WPs that have been successfully merged |
-| `current_wp` | WP being merged when interrupted (if any) |
-| `has_pending_conflicts` | True if git merge conflicts exist |
-| `strategy` | Merge strategy (merge, squash, rebase) |
-| `started_at` | When merge began |
-| `updated_at` | Last state update |
-
-### When to Use --resume
-
-Use `--resume` when:
-- Terminal closed during merge
-- System crashed mid-merge
-- You manually fixed conflicts and want to continue
-
-Do **not** use `--resume` if you want to:
-- Change merge strategy
-- Merge a different mission
-- Start fresh after major changes
-
-## Abort and Start Fresh
-
-Clear merge state and abort any in-progress git merge:
+Run the command from the repository root checkout:
 
 ```bash
-spec-kitty merge --abort
+spec-kitty consolidate --resume
 ```
 
-Example output:
+Add `--mission <slug>` to name the Mission. Resume reads the record in `.kittify/runtime/merge/<mission_id>/state.json` and continues from the progress it holds.
 
-```
-✓ merge state cleared for 017-my-feature
-  Progress was: 2/5 WPs complete
-✓ Git merge aborted
-```
+Running `spec-kitty consolidate --mission <slug>` on a Mission with an unfinished record has the same effect: it prints `Detected interrupted merge` and resumes.
 
-After aborting, you can start a new merge:
+- **Strategy.** A resume keeps the strategy of the interrupted run. Passing a different `--strategy` is refused. Resume without `--strategy`, or run `--abort` and start again.
+- **No record.** `No interrupted merge to resume.` means there is nothing to continue. Start a fresh run with `spec-kitty consolidate --mission <slug>`.
+- **Worktree that shows staged deletions.** Do not commit them. See [Recover from an Interrupted Consolidation](recover-from-interrupted-merge.md#a-worktree-that-shows-staged-deletions-after-an-interruption).
+
+## Undo a Run with --abort
 
 ```bash
-spec-kitty merge --mission 017-my-feature
+spec-kitty consolidate --abort
 ```
 
-### What --abort Clears
+`--abort` restores the branches the run moved (the target branch, the mission branch and the coordination branch) to the commits they had before the run. It restores a branch only while that branch is still at the commit this run recorded, so it never overwrites a commit that someone else added.
 
-1. **merge state file** (`.kittify/merge-state.json`) - Removed
-2. **Git merge state** - If git is mid-merge, runs `git merge --abort`
+The command prints a rollback report with one line per branch. A branch is either restored, already at its snapshot, or marked `NOT restored` with the reason.
 
-What it does **not** do:
-- Does not delete worktrees (they remain as-is)
-- Does not delete branches (completed WPs stay merged)
-- Does not revert already-merged commits
+- **Everything restored.** The command exits 0 and clears the record.
+- **A branch could not be restored.** The command exits 1 and keeps the record. Resolve the branch named in the report, then run `spec-kitty consolidate --abort` again.
+- **The landing was already verified.** The command prints `Kept the landing verified by an earlier reconciliation`, rolls nothing back, exits 1 and keeps the record. Finish with `spec-kitty consolidate --resume` instead.
 
-### When to Use --abort
+Lane branches are never moved. For a Mission with a coordination topology, `--abort` also removes the coordination worktree unless the Mission's `meta.json` retains worktrees.
 
-Use `--abort` when:
-- You want to change merge strategy
-- Something went fundamentally wrong
-- You need to make changes before re-merging
+For the full description, see [Recover from an Interrupted Consolidation](recover-from-interrupted-merge.md#aborting-a-consolidation).
 
-## Resolve Merge Conflicts
+## The Run Refused Before Moving Anything
 
-### Status File Conflicts (Automatic)
+These refusals stop the run before any branch moves. Fix the cause, then run `spec-kitty consolidate` again.
 
-Conflicts in WP prompt files (`kitty-specs/*/tasks/*.md`) are automatically resolved:
+### Wrong branch or uncommitted changes
 
-- **Lane field**: Takes the more advanced status (done > approved > in_review > for_review > in_progress > claimed > planned)
-- **Checkboxes**: Takes checked [x] over unchecked [ ]
-- **History array**: Merges both sides chronologically, removes duplicates
+```text
+Refusing destructive operation (MERGE_UNSAFE_PRIMARY_OFF_TARGET).
+```
 
-You don't need to do anything for these files - they're auto-resolved and staged.
+The repository root checkout is not on the branch `consolidate` expects. The refusal names the branch. Check it out in the repository root checkout:
 
-### When Auto-Resolution Fails
+```bash
+git checkout <target-branch>
+```
 
-If auto-resolution fails (unusual file structure, corrupted content):
+```text
+Refusing destructive operation (MERGE_UNSAFE_PRIMARY_DIRTY).
+Refusing destructive operation (MERGE_UNSAFE_WORKTREE_DIRTY).
+```
 
-1. Open the conflicted file
-2. Find conflict markers:
-   ```
-   <<<<<<< HEAD
-   lane: "done"
-   =======
-   lane: "for_review"
-   >>>>>>> kitty/mission-017-feature-lane-b
-   ```
-3. Choose the appropriate value (usually "done" for lane)
-4. Remove conflict markers
-5. Save and stage:
-   ```bash
-   git add kitty-specs/017-feature/tasks/WP03-guide.md
-   ```
-6. Resume merge:
-   ```bash
-   spec-kitty merge --resume
-   ```
+The first code names the repository root checkout. The second names a lane worktree or the coordination worktree. The refusal lists the worktree and its dirty entries. Commit, stash or revert the changes in that worktree, then resume.
 
-### Code Conflicts (Manual)
-
-For conflicts in source code files:
-
-1. Check which files have conflicts:
-   ```bash
-   git status
-   ```
-   Look for "both modified" files.
-
-2. Open each conflicted file and resolve:
-   ```
-   <<<<<<< HEAD
-   def existing_function():
-       return "old behavior"
-   =======
-   def existing_function():
-       return "new behavior"
-   >>>>>>> kitty/mission-017-feature-lane-a
-   ```
-
-3. Edit to combine both changes appropriately:
-   ```python
-   def existing_function():
-       return "combined behavior"
-   ```
-
-4. Stage resolved files:
-   ```bash
-   git add src/path/to/file.py
-   ```
-
-5. Resume merge:
-   ```bash
-   spec-kitty merge --resume
-   ```
+A lane worktree is checked only when the run is going to remove it. With `--keep-worktree`, a dirty lane worktree does not stop the run.
 
 ### Target-Branch Content Conflicts During Squash
 
-The default squash strategy fails closed when both the mission branch and a
-newer target-branch commit changed the same ordinary source hunk. Dry-run reports
-the same condition before the target ref can move — scoped to conflicts already
-present on the **mission-branch tip** (it does not first consolidate the lane
-branches, so a conflict living only in an un-consolidated lane commit surfaces at
-the real merge, not the forecast; the real merge still stops safely on it):
+```text
+Default squash integration would conflict with newer target-branch content.
+  diagnostic_code: TARGET_BRANCH_CONTENT_CONFLICT
+  mission_branch: <mission-branch>
+  target_branch: <target-branch>
+  conflicting_path: <path>
+```
+
+The mission branch and a newer target-branch commit changed the same content. Spec Kitty does not pick a side. `--dry-run` reports the same code before anything moves, and it checks the mission branch as it stands now.
+
+The remedy is to update the mission branch against the current target branch, resolve the listed paths, then rerun. Do the update in a separate worktree. `consolidate` refuses to run when the repository root checkout is off the target branch, so a checkout of the mission branch there would block the rerun.
+
+```bash
+git worktree add <path> <mission-branch>
+git -C <path> merge <target-branch>
+# Resolve each conflicting_path, stage it, then commit.
+git -C <path> add src/path/to/file.py
+git -C <path> commit
+git worktree remove <path>
+spec-kitty consolidate --dry-run
+spec-kitty consolidate
+```
+
+### Not synchronized with origin (only with --push)
 
 ```text
-diagnostic_code: TARGET_BRANCH_CONTENT_CONFLICT
-mission_branch: kitty/mission-017-my-feature
-target_branch: main
-conflicting_path: src/specify_cli/lanes/consolidation.py
+diagnostic_code: TARGET_BRANCH_NOT_SYNCHRONIZED
 ```
 
-This protects target-branch hotfixes and concurrent mission landings. Spec Kitty
-does not choose either side automatically. Update the mission branch against the
-current target, resolve the listed files on the mission branch, run the relevant
-tests, and check readiness again.
+This check runs only when `--push` is in effect. A plain `consolidate` does not need the target branch to match origin. The code means the local target branch is ahead of, behind or diverged from its tracking branch.
 
-Do the update in a **throwaway worktree**, not the primary checkout. `spec-kitty
-merge`'s preflight refuses to run when the primary checkout is off the target
-branch (`MERGE_UNSAFE_PRIMARY_OFF_TARGET`), so a bare `git checkout
-kitty/mission-…` in the primary checkout would leave you unable to merge. A
-worktree keeps the primary checkout on `main` the whole time:
+Do not push the local target branch to satisfy the check; its extra commits may belong to other Missions. Choose one:
 
-```bash
-# Reconcile the mission branch against current main in a scratch worktree.
-git worktree add /tmp/reconcile-017 kitty/mission-017-my-feature
-git -C /tmp/reconcile-017 merge main
-# Resolve the named conflicts, then commit and run the relevant tests.
-git -C /tmp/reconcile-017 commit
-git worktree remove /tmp/reconcile-017
+- **Run without `--push`.** Land locally, then publish through a topic branch and a pull request.
+- **Use the focused pull request path the refusal prints.** It creates a branch from the mission branch, pushes that branch, and opens the pull request into the target branch.
 
-# Back in the primary checkout (still on main), re-check readiness and merge.
-spec-kitty merge --mission 017-my-feature --dry-run
-spec-kitty merge --mission 017-my-feature
+## The Run Stopped After Moving Branches
+
+### A lane failed to merge
+
+```text
+✗ <lane>: <error>
 ```
 
-The reconciling `git merge main` leaves an ordinary merge commit on the mission
-branch — that is fine: the mission→target squash flattens the mission branch
-into a single commit, so the merge commit is absorbed and never reaches `main`.
-If you would rather not add a worktree, run `git checkout main` in the primary
-checkout before the `spec-kitty merge` lines instead.
+A lane could not be merged into the mission branch. The run exits 1 and rolls back the branches it moved. Fix the lane branch, then run `spec-kitty consolidate --resume`. If `--resume` answers `No interrupted merge to resume.`, the run left no record; run `spec-kitty consolidate --mission <slug>` instead. To drop the run, use `--abort`.
 
-The failed attempt does not advance the target ref, mark work packages done,
-write the retrospective, or remove lane branches and worktrees. Registered Spec
-Kitty artifact merge drivers and the target-newer planning-artifact policy still
-handle their own governed paths.
+### Reconciliation FAILED or refused
 
-### Gate Artifact Verdict Conflicts (Fail-Closed)
-
-If a merge stops with a message like this and leaves `acceptance-matrix.json`
-(or the issue matrix) conflicted:
-
-```
-row 'FR-042': verdict field 'pass_fail' diverged on both sides with no common base value (target/ours='pass', incoming/theirs='fail')
+```text
+Reconciliation FAILED: <divergence>
+Reconciliation refused (fail-closed): <reason>
 ```
 
-it means **two lanes recorded conflicting verdicts** for the same criterion or
-invariant — one graded it `pass`, the other `fail`. Spec Kitty refuses to guess
-(a wrong guess would silently corrupt an acceptance record), so it fails closed
-and hands the decision to you. This is intentional, not a bug.
+After landing, `consolidate` checks that the target holds exactly the approved work. When the check fails or cannot decide, the run restores the branches it moved and prints the rollback report that starts `Rollback to the pre-consolidation snapshot:`.
 
-**Fix**: open the named matrix, find the row the message names (`FR-042` above),
-decide the correct verdict yourself, write that single value in place of the git
-conflict markers, save, stage, and resume:
+Read the divergence or reason. It names the WP, the lane and the paths. Correct the lane, then run `spec-kitty consolidate` or `--resume`.
 
-```bash
-git add kitty-specs/<mission>/acceptance-matrix.json
-spec-kitty merge --resume
-```
+- **A FAIL cannot be overridden.** Correct the content on the lane through a surviving WP.
+- **Missing or contradictory attribution about a canceled WP** can be attested after you check by hand that the canceled content is absent or superseded:
 
-A scaffold/placeholder verdict (`pending`, `unknown`) never triggers this — it
-yields to the graded side automatically. Only two genuinely-graded, disagreeing
-verdicts stop the merge.
+  ```bash
+  spec-kitty consolidate --attest-canceled-superseded WP03 --attest-reason "<what you checked>"
+  ```
 
-### Conflict Resolution Tips
+  The flag is repeatable, one WP per use, and `--attest-reason` is required. It never lifts a FAIL. A `--dry-run` does not apply it.
 
-- **Read both sides**: Understand what each WP was trying to do
-- **Check imports**: Import conflicts often need combining, not choosing
-- **Test after resolve**: Run tests before resuming to catch integration issues
-- **When in doubt, abort**: `spec-kitty merge --abort` and merge manually
+The codes are defined in the [CLI reference](../../../api/cli-commands.md#spec-kitty-consolidate-exit-codes-and-refusal-codes). The attribution rules and the full verdict table are in the [status model](../../../architecture/status-model.md#commit-attribution-stamp-policy_metadatalane_head).
 
-## Pre-flight Validation Failures
+### Exit code 75: the landing stands
 
-Pre-flight runs before any merge operations. All issues are shown upfront.
+Exit code 75 with `Error code: COORD_MOVED_AFTER_LANDING.` means the landing is verified, but a commit reached the coordination branch (or the mission branch) before it could be deleted. The branch is kept and nothing is rolled back. For a coordination branch, review the late commits with the `git log` command in the message, then run `spec-kitty consolidate --resume`.
 
-### Uncommitted Changes
-
-```
-Pre-flight failed. Fix these issues before merging:
-  1. Uncommitted changes in kitty/mission-017-feature-lane-a
-```
-
-**Fix**: Commit or stash changes in that execution workspace:
-
-```bash
-cd <workspace path printed by spec-kitty implement>
-git add -A
-git commit -m "Complete WP02 implementation"
-```
-
-Or stash if you're not ready to commit:
-
-```bash
-cd <workspace path printed by spec-kitty implement>
-git stash
-```
-
-### Missing Worktree
-
-```
-Pre-flight failed. Fix these issues before merging:
-
-  1. Missing worktree for lane-b. Expected at 017-feature-lane-b. Run: spec-kitty agent action implement WP03
-```
-
-**Fix**: Create the missing worktree using the agent workflow command:
-
-```bash
-spec-kitty agent action implement WP03
-```
-
-### target branch not synchronized with origin
-
-```
-Error: target branch is not synchronized with its tracking branch.
-  diagnostic_code: TARGET_BRANCH_NOT_SYNCHRONIZED
-  branch_or_work_package: main
-  violated_invariant: local_target_branch_must_match_tracking_branch
-```
-
-`spec-kitty merge` stops before mutating merge state when the target branch is ahead of, behind, or diverged from its tracking branch.
-
-First inspect the branch state:
-
-```bash
-git fetch origin main
-git log --oneline --left-right --cherry-pick main...origin/main
-git diff --name-only origin/main...main
-```
-
-If local `main` is **ahead** or **diverged**, do not push it just to satisfy the preflight. Ahead commits may include Spec Kitty orchestration history, agent state commits, worktree bookkeeping, unrelated missions, or other local-only work. Use the focused PR path from the diagnostic unless you verified every ahead commit belongs on `main` now:
-
-```bash
-git switch -c kitty/pr/<mission-slug>-to-main kitty/mission-<mission-slug>
-git push -u origin kitty/pr/<mission-slug>-to-main
-gh pr create --base main --head kitty/pr/<mission-slug>-to-main
-```
-
-Only direct-push `main` after reviewing both commits and changed paths, and only when the human explicitly wants those commits published.
-
-If local `main` is only **behind**, update it from the tracking branch after reviewing remote-only commits, then retry the merge from any checkout where the mission resolves correctly.
-
-### Branch Does Not Exist
-
-```
-Pre-flight failed. Fix these issues before merging:
-  1. Branch kitty/mission-017-feature-lane-a does not exist
-```
-
-**Fix**: This usually means the worktree was manually deleted without the branch. Recreate:
-
-```bash
-spec-kitty implement WP02
-```
-
----
-
-## Error Message Reference
-
-| Error Message | Cause | Solution |
-|--------------|-------|----------|
-| `Error: Already on <branch> branch.` | Running merge from the target branch without `--mission` | Use `spec-kitty merge --mission <slug>` |
-| `Error: No worktrees found for feature '<slug>'.` | Mission has no execution workspaces or the slug is wrong | Check the slug, then run `spec-kitty agent action implement WP01` |
-| `Cannot merge: WP workspaces not ready` | One or more execution workspaces are not merge-ready | Fix the listed workspace errors, then retry merge |
-| `Worktree <name> has uncommitted changes` | Specific worktree has unstaged/uncommitted work | `cd .worktrees/<name>` then commit or stash |
-| `Uncommitted changes in <worktree-name>` | Worktree has uncommitted changes (pre-flight) | Commit or stash changes in that worktree |
-| `Error: Working directory has uncommitted changes.` | Legacy merge run from a dirty worktree | Commit or stash changes, then retry merge |
-| `Target repository at <path> has uncommitted changes.` | repository root checkout has uncommitted work | Commit or stash in the repository root checkout |
-| `Missing worktree for WP##. Expected at <path>. Run: spec-kitty agent action implement WP##` | The resolved execution workspace for that WP does not exist yet | Run `spec-kitty agent action implement WP##` |
-| `Branch <branch> does not exist` | Git branch was deleted manually | Recreate worktree with `spec-kitty implement WP##` |
-| `TARGET_BRANCH_NOT_SYNCHRONIZED` | target branch is ahead of, behind, or diverged from its tracking branch | Inspect commits and paths; use the focused PR path for ahead/diverged local target branches unless every ahead commit is intentionally ready for `main` |
-| `TARGET_BRANCH_CONTENT_CONFLICT` | Default squash integration found ordinary content changed differently on the mission and target branches | Update the mission branch against the target, resolve the listed paths, then rerun `spec-kitty merge --dry-run` |
-| `<branch> is N commit(s) behind origin. Run: git checkout <branch> && git pull` | Legacy target branch staleness diagnostic | Review remote-only commits, then update the local target branch |
-| `Warning: Could not fast-forward <branch>.` | Fast-forward failed, conflicts likely | Resolve conflicts manually |
-| `row '<id>': verdict field '<field>' diverged on both sides ...` | Two lanes recorded conflicting graded verdicts for the same matrix row (fail-closed, #4880) | Open the named matrix, pick the correct verdict for that row by hand, stage it, then `spec-kitty merge --resume` |
-| `Merge failed. Resolve conflicts and try again.` | Git merge conflict occurred in a multi-workspace mission | Resolve conflicts, then `spec-kitty merge --resume` |
-| `Merge failed. You may need to resolve conflicts.` | Git merge conflict occurred (legacy merge) | Resolve conflicts, then re-run merge |
-| `Error: No merge state to resume` | No `.kittify/merge-state.json` exists | Run `spec-kitty merge --mission <slug>` to start a new merge |
-| `⚠ Invalid merge state file cleared` | State file was corrupted | Start fresh with `spec-kitty merge` |
-| `⚠ Git merge in progress - resolve conflicts first` | Unresolved conflict from previous attempt | Resolve conflicts, then `spec-kitty merge --resume` |
-| `No merge state to abort` | No active merge to abort | Nothing to do, merge was already complete or never started |
-| `Note: Rebase strategy not supported for execution-lanes.` | Used --strategy rebase with a multi-workspace mission | Use `merge` or `squash` strategy instead |
-| `Pre-flight failed. Fix these issues before merging:` | One or more pre-flight checks failed | See numbered list below message, fix each issue |
-| `Warning: No WP worktrees found for feature <slug>` | The mission may already be merged, not implemented yet, or still using only lane manifests without created worktrees | Check the mission slug, then create or inspect the expected execution workspaces |
-
----
-
-## Command Reference
-
-- [Merge Feature Guide](../missions/merge-mission.md) - Complete merge workflow
-- [CLI Commands](../../../api/cli-commands.md) - Full CLI reference
+See [Exit code 75](recover-from-interrupted-merge.md#exit-code-75-the-landing-stands-the-cleanup-did-not-finish) for the mission-branch variant.
 
 ## See Also
 
-- [Merge a Feature](../missions/merge-mission.md) - Standard merge workflow
-- [Accept and Merge](../missions/accept-and-merge.md) - Pre-merge validation
-- [Handle Dependencies](../missions/handle-dependencies.md) - WP dependency management
-
-## Background
-
-- [Execution Lanes](../../../architecture/execution-lanes.md) - How worktrees and merging work
-- [Git Worktrees](../../../architecture/git-worktrees.md) - Git worktree fundamentals
-
-## Getting Started
-
-- [Your First Mission](../../tutorials/your-first-mission.md) - Complete workflow walkthrough
+- [How to Merge a Mission](../missions/merge-mission.md): the normal consolidation flow
+- [Accept and Merge](../missions/accept-and-merge.md): validation before consolidation
+- [Handle Dependencies](../missions/handle-dependencies.md): WP dependency management
+- [CLI reference: exit codes and refusal codes](../../../api/cli-commands.md#spec-kitty-consolidate-exit-codes-and-refusal-codes)
+- [Git workflow](../../../architecture/git-workflow.md#4-consolidated): what each consolidation step does
