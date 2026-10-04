@@ -1,0 +1,26 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-04T12:21:35.798418Z",
+      "decision_id": "01M43DSJXP334BFKRQFAVMH22J",
+      "final_answer": "Operator brief (2026-10-04): deliver #5552 (WP01) and #5298 (WP02) unconditionally. WP03 (#5653) and WP04 (#5654 + #5186) run only if PR #5650 and PR #5656 have merged by the time WP01/WP02 are done; otherwise the mission ships WP01+WP02 and references the deferred issues with Refs. #5298 waiver shape is operator-ruled: flat meta.json contracts: none + required non-empty contracts_rationale, one fail-closed reader in core/paths.py.",
+      "input_key": "scope",
+      "mission_id": "01M43DRV1H73N4KTPPMMK4A0Z6",
+      "mission_slug": "friction-remediation-01M43DRV",
+      "opened_by": "claude",
+      "options": [],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which issues does this mission deliver, and how are WP03 (#5653) and WP04 (#5654, #5186) sequenced against open PRs #5650 and #5656?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T12:21:38.617037Z",
+      "resolved_by": null,
+      "slot_key": null,
+      "status": "resolved",
+      "step_id": "scope",
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M43DRV1H73N4KTPPMMK4A0Z6",
+  "version": 1
+}

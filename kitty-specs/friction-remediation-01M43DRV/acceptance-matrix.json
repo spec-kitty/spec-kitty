@@ -1,0 +1,99 @@
+{
+  "mission_slug": "friction-remediation-01M43DRV",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_projection_excludes_plan_outputs.py::test_plan_outputs_classify_to_a_primary_kind[quickstart] (red at f0bcbb83, green at 8cb523e9)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-10-04T13:16:52.597462+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_projection_excludes_plan_outputs.py::test_plan_outputs_classify_to_a_primary_kind[contracts*] + test_squash_proof_passes_on_the_refused_run_shape (red->green)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-10-04T13:16:58.126833+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_projection_excludes_plan_outputs.py::test_plan_outputs_are_not_projected_but_coord_bookkeeping_is (traces/ stays projected, same fixture)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-10-04T13:17:03.027255+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_contracts_waiver_reader.py (well-formed/absent/7 malformed/corrupt; red at 78fba9a8)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-10-04T13:17:07.849420+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/acceptance/test_accept_contracts_waiver.py::test_well_formed_waiver_clears_the_contracts_violation + live strict accept on this Mission",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-10-04T13:17:13.317457+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_accept_contracts_waiver.py::test_no_waiver_still_blocks_on_missing_contracts, ::test_malformed_waiver_still_blocks_and_warns, tests/agent/test_validators_unit.py::test_a_build_path_is_never_waived",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-10-04T13:17:18.708825+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/adr/4.x/2026-10-04-1-mission-contracts-waiver-in-meta-json.md + MissionMetaOptional fields (mission_metadata.py)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-10-04T13:17:23.769489+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_canceled_attestation.py dry_run notice unit tests (red first) + terminus CLI smoke; byte-identical output",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-10-04T13:17:29.048652+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "manual",
+      "evidence": "Sequencing gate (C-004) evaluated at closeout: PR #5656 still open, so WP04 was canceled as deferred, not delivered. #5654/#5186 are deferred-with-followup in issue-matrix.json and referenced with Refs, not Closes.",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-10-04T13:17:34.291776+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

@@ -1,0 +1,36 @@
+{
+  "accept_commit": "29e9da5857b7b6eb039c3edb0d96c80979c4c167",
+  "acceptance_history": [
+    {
+      "accept_commit": "29e9da5857b7b6eb039c3edb0d96c80979c4c167",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-04T13:18:03.806277+00:00",
+      "accepted_by": "claude-orchestrator",
+      "accepted_from_commit": "1e7647edf24ee875525e6d1b3b4342b0ff89cb46"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-04T13:18:03.806277+00:00",
+  "accepted_by": "claude-orchestrator",
+  "accepted_from_commit": "1e7647edf24ee875525e6d1b3b4342b0ff89cb46",
+  "baseline_merge_commit": "b4a66b61dff03af656ec6029a08ad55ed2a066df",
+  "contracts": "none",
+  "contracts_rationale": "Classifier, accept-gate and refactor fixes; this Mission defines no new interfaces (#5298 dogfood).",
+  "created_at": "2026-10-04T12:21:12.861789+00:00",
+  "flattened": false,
+  "friendly_name": "Regression-slice friction remediation",
+  "merged_at": "2026-10-04T13:18:26.442617+00:00",
+  "merged_commit": "b4a66b61dff03af656ec6029a08ad55ed2a066df",
+  "mid8": "01M43DRV",
+  "mission_id": "01M43DRV1H73N4KTPPMMK4A0Z6",
+  "mission_number": 215,
+  "mission_slug": "friction-remediation-01M43DRV",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Clears product friction found by the regression-slice cleanup mission (PR #5656): #5552 (quickstart.md and contracts/** unclassified so squash consolidate refuses) and #5298 (accept blocks on a missing contracts/ for missions that define no interfaces). #5653, #5654 and #5186 are sequenced behind open PRs #5650/#5656.",
+  "purpose_tldr": "Fix squash consolidate false-REFUSE on quickstart/contracts and let accept honour an explicit no-contracts waiver",
+  "slug": "friction-remediation-01M43DRV",
+  "status_phase": "1",
+  "target_branch": "issue-5552-friction-remediation",
+  "topology": "single_branch"
+}

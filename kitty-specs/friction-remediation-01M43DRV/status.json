@@ -1,0 +1,148 @@
+{
+  "event_count": 24,
+  "last_event_id": "01M43H1WSQSEYCQ3AWC4AJY6TR",
+  "materialized_at": "2026-10-04T13:18:33.783999+00:00",
+  "mission_number": "215",
+  "mission_slug": "friction-remediation-01M43DRV",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 1,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-subagent",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M43H1PYVP1DF65340G0ZVYD2",
+      "last_transition_at": "2026-10-04T13:18:27.803480+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review. --force only because of #5459: agent action implement records no claim base on single_branch. Implementation commits: f0bcbb83 (red test), 8cb523e9 (fix). Targeted tests: 853 + 707 passed.",
+        "Independent reviewer subagent: APPROVE. 320 targeted tests re-run green; caller impact checked across src/. Nits folded in 71b6944d. Minor (planning_recency now applies the #3942 recency rule to contracts/quickstart) recorded as an accepted consequence in the PR. Classifier tests live in tests/consolidation/test_projection_excludes_plan_outputs.py; coverage is equivalent to test_artifact_partition.py."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 6652,
+      "shell_pid_created_at": "1791116832.29",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      },
+      "tracker_refs": [
+        "#5552"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-subagent",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M43H1ST8V24JPAH40E05RV8D",
+      "last_transition_at": "2026-10-04T13:18:30.728353+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review. --force only because of #5459: no claim base on single_branch agent action implement. Commits: 78fba9a8 (red), 44585ee9 (fix). Targeted: 428 + 190 + 1123 docs tests passed.",
+        "Independent reviewer subagent: APPROVE (25 targeted tests re-run, fail-closed reader, build paths unwaivable, gates green). Three minors folded in the follow-up fix commit: waiver scoped to artifact-tagged contracts, waived token also dedups the optional-missing warning, and a unit pin that only artifact paths are waivable (red on a planted break, reverted). Nits deferred: format_errors hint to the waiver (ADR follow-up)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 10358,
+      "shell_pid_created_at": "1791117457.62",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      },
+      "tracker_refs": [
+        "#5298"
+      ]
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "reviewer-subagent",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M43H1WSQSEYCQ3AWC4AJY6TR",
+      "last_transition_at": "2026-10-04T13:18:33.783999+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review. --force only because of #5459 (no claim base on single_branch). PR #5650 merged into the branch first. Commits: red unit tests, then the extraction. 100 targeted tests passed.",
+        "Independent reviewer subagent: APPROVE. Byte-identical text and identical truth table verified; no import-cycle risk; C901 suppression not widened; dead-symbol gate green; 60+19 targeted tests re-run. LOW import-comment placement folded."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3236,
+      "shell_pid_created_at": "1791118554.09",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      },
+      "tracker_refs": [
+        "#5653"
+      ]
+    },
+    "WP04": {
+      "actor": "claude-orchestrator",
+      "agent": "claude-orchestrator",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "cancellation_reason": "Deferred: waits on open PR #5656; #5654/#5186 stay open (Refs).",
+      "force_count": 2,
+      "lane": "canceled",
+      "last_event_id": "01M43GXN5RWCVHA32MP1SCK1DM",
+      "last_transition_at": "2026-10-04T13:16:14.904998+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Deferred: waits on PR #5656 (adds tests/_support/eacces.py deny_open_in/deny_path_method and edits test_provision_kitty_env.py), still open and conflicting with main at closeout. Not stacked or duplicated per the operator brief; #5654 and #5186 stay open (Refs).",
+        "Deferred: waits on open PR #5656; #5654/#5186 stay open (Refs)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "reason_source": "operator",
+      "role": "implementer",
+      "tracker_refs": [
+        "#5654",
+        "#5186"
+      ]
+    }
+  }
+}

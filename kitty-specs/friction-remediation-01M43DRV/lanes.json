@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "mission_slug": "friction-remediation-01M43DRV",
+  "mission_id": "01M43DRV1H73N4KTPPMMK4A0Z6",
+  "mission_branch": "issue-5552-friction-remediation",
+  "target_branch": "issue-5552-friction-remediation",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-04-1-mission-contracts-waiver-in-meta-json.md",
+        "docs/adr/4.x/index.md",
+        "src/mission_runtime/artifacts.py",
+        "src/specify_cli/acceptance/summary_core.py",
+        "src/specify_cli/cli/commands/consolidate.py",
+        "src/specify_cli/consolidation/canceled_attestation.py",
+        "src/specify_cli/coordination/commit_router.py",
+        "src/specify_cli/core/paths.py",
+        "src/specify_cli/gitignore_manager.py",
+        "src/specify_cli/mission_metadata.py",
+        "src/specify_cli/validators/paths.py",
+        "tests/architectural/test_merge_reconciliation_class_guard.py",
+        "tests/architectural/test_write_surface_placement_guard.py",
+        "tests/consolidation/test_canceled_attestation.py",
+        "tests/consolidation/test_projection_excludes_plan_outputs.py",
+        "tests/core/test_contracts_waiver_reader.py",
+        "tests/cross_cutting/encoding/test_encoding_validation_functional.py",
+        "tests/cross_cutting/test_gitignore_manager_unit.py",
+        "tests/mission_runtime/test_artifact_partition.py",
+        "tests/missions/test_mission_v1_events_unit.py",
+        "tests/specify_cli/acceptance/test_accept_contracts_waiver.py",
+        "tests/specify_cli/readiness/test_upgrade_ux_migration.py",
+        "tests/specify_cli/upgrade/migrations/test_provision_kitty_env.py",
+        "tests/terminus/test_mixed_lane_fail_recovery_and_attestation.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-04T12:26:25.700568+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "fdc7c775d6be9aafa649cf2b4be8b169b7b1537b"
+}
