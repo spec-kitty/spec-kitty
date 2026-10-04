@@ -378,13 +378,16 @@ def test_sync_create_missing_restores_lost_vibe_pointer(tmp_path: Path, monkeypa
     ``sync --create-missing`` skips re-installing an already-installed skill
     agent, but the gitignored vibe ``skill_paths`` pointer is not part of the
     command-skills manifest and must still be restored. A repeat run reports no
-    change. (That the pinned manifest itself is never rewritten is owned by
-    ``tests/regressions/test_issue_2691_agent_config_sync_preservation.py``.)
+    change. The restore must also leave a manifest pinned to a foreign release,
+    and the skill file it fingerprints, byte-identical: the fixture drifts one
+    skill file and pins its drifted hash under another release, so a restore
+    that re-ran the installer would rewrite both and fail this test.
     """
+    import dataclasses
     import json
     import subprocess
 
-    from specify_cli.skills import command_installer
+    from specify_cli.skills import command_installer, manifest_store
     from specify_cli.skills.vibe_config import skill_path_configured
 
     # Arrange: an initialized vibe clone whose skills are present, pointer absent.
@@ -392,15 +395,33 @@ def test_sync_create_missing_restores_lost_vibe_pointer(tmp_path: Path, monkeypa
     _write_project(tmp_path, ["vibe"])
     command_installer.install(tmp_path, "vibe")
     assert not skill_path_configured(tmp_path)
+    # Pin the manifest to a foreign release over a drifted skill file.
+    entry = manifest_store.load(tmp_path).entries[0]
+    skill_file = tmp_path / entry.path
+    skill_file.write_bytes(skill_file.read_bytes() + b"\n<!-- operator edit -->\n")
+    pinned = manifest_store.load(tmp_path)
+    pinned.upsert(
+        dataclasses.replace(
+            entry,
+            content_hash=manifest_store.fingerprint_file(skill_file),
+            spec_kitty_version="3.9.0-pinned",
+        )
+    )
+    manifest_store.save(tmp_path, pinned)
+    manifest_path = tmp_path / ".kittify" / "command-skills-manifest.json"
+    manifest_before = manifest_path.read_bytes()
+    skill_before = skill_file.read_bytes()
     monkeypatch.chdir(tmp_path)
 
     # Act: the recovery command init recommends.
     first = runner.invoke(app, ["sync", "--create-missing", "--keep-orphaned", "--json"])
     second = runner.invoke(app, ["sync", "--create-missing", "--keep-orphaned", "--json"])
 
-    # Assert: pointer restored once, repeat is a no-op.
+    # Assert: pointer restored once, pinned manifest and skill untouched, repeat is a no-op.
     assert first.exit_code == 0, first.output
     assert skill_path_configured(tmp_path)
+    assert manifest_path.read_bytes() == manifest_before
+    assert skill_file.read_bytes() == skill_before
     first_summary = json.loads(first.output[first.output.index("{") :])
     assert first_summary == {"changes_made": True, "tracked_mutations": []}
 
