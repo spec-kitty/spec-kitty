@@ -839,6 +839,8 @@ jobs:
   # Two contract modules (#5558) read the committed corpus and are listed too:
   # tests/contract/test_mission_status_reality.py (the reality check over every Mission under
   # kitty-specs/) and tests/contract/test_mission_status_payloads.py (its payload helper).
+  # tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py (#5579) is listed as well: its
+  # module row deselects the corpus marker, so no other required job runs it.
   # The contract tool unit tests (tests/contract/test_bundle.py .. test_schema_formats.py) read no
   # corpus: they run in the separate `tests-contract-tools` job below (with them this job
   # took 7m20s of its 10 minute timeout), so this job stays well inside its timeout.
@@ -865,6 +867,7 @@ jobs:
             tests/contract/test_mission_status_payloads.py \
             tests/contract/test_mission_status_reality.py \
             tests/integration/test_mission_review_contract_gate.py \
+            tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py \
             "tests/doctrine/test_shipped_profiles.py::TestShippedProfilesPerformance"
 
   # The contract tool unit tests (#5558): every corpus-marked module of tests/contract except the three that
