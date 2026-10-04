@@ -716,6 +716,68 @@ def read_retention_from_meta(
     return data.get("retain_branches"), data.get("retain_worktrees")
 
 
+#: The ONE accepted ``meta.json`` ``contracts`` value: the Mission declares it
+#: defines no interface contracts (#5298, operator ruling 2026-09-28 /
+#: 2026-10-04). Exact, case-sensitive -- anything else is malformed.
+_CONTRACTS_WAIVER_VALUE = "none"
+_CONTRACTS_FIELD = "contracts"
+_CONTRACTS_RATIONALE_FIELD = "contracts_rationale"
+
+
+@dataclass(frozen=True)
+class ContractsWaiver:
+    """Verdict of :func:`read_contracts_waiver_from_meta`.
+
+    ``waived`` is ``True`` only for a well-formed declaration, which then
+    carries its stripped ``rationale``. A present-but-malformed declaration is
+    NOT a waiver and carries an operator-facing ``warning`` instead.
+    """
+
+    waived: bool
+    rationale: str | None = None
+    warning: str | None = None
+
+
+def _malformed_contracts_waiver(problem: str) -> ContractsWaiver:
+    return ContractsWaiver(
+        waived=False,
+        warning=(
+            f"meta.json {_CONTRACTS_FIELD!r} waiver ignored: {problem}. The contracts/ "
+            f'requirement stays in force; declare "{_CONTRACTS_FIELD}": "{_CONTRACTS_WAIVER_VALUE}" '
+            f"with a non-empty {_CONTRACTS_RATIONALE_FIELD!r} to waive it."
+        ),
+    )
+
+
+def read_contracts_waiver_from_meta(primary_meta_dir: Path) -> ContractsWaiver:
+    """Read the Mission's "defines no contracts" waiver from ``meta.json`` (#5298).
+
+    The ONE authority for the waiver (no spec/plan-frontmatter source): a flat
+    ``"contracts": "none"`` plus a required non-empty string
+    ``contracts_rationale``. Thin adapter over :func:`load_meta_fail_closed`,
+    mirroring :func:`read_retention_from_meta`.
+
+    Fail-closed (never truthiness-coerced): an unknown or non-string value, an
+    explicit ``null``, or a missing / blank / non-string rationale keeps the
+    requirement in force and returns a ``warning`` naming the problem. An
+    absent field is simply "no waiver" (silent).
+
+    Raises:
+        MissionMetaReadError: When meta.json exists but is corrupt or
+            unreadable (propagated from :func:`load_meta_fail_closed`).
+    """
+    data = load_meta_fail_closed(primary_meta_dir)
+    if not data or _CONTRACTS_FIELD not in data:
+        return ContractsWaiver(waived=False)
+    value = data[_CONTRACTS_FIELD]
+    if value != _CONTRACTS_WAIVER_VALUE:
+        return _malformed_contracts_waiver(f"value {value!r} is not {_CONTRACTS_WAIVER_VALUE!r}")
+    rationale = data.get(_CONTRACTS_RATIONALE_FIELD)
+    if not isinstance(rationale, str) or not rationale.strip():
+        return _malformed_contracts_waiver(f"{_CONTRACTS_RATIONALE_FIELD!r} must be a non-empty string")
+    return ContractsWaiver(waived=True, rationale=rationale.strip())
+
+
 def read_commit_to_target(meta: dict[str, Any] | None) -> bool:
     """Read the ``commit_to_target`` override from an already-loaded meta dict.
 
@@ -1131,6 +1193,8 @@ __all__ = [
     "MissionMetaReadError",
     "load_meta_fail_closed",
     "read_target_branch_from_meta",
+    "ContractsWaiver",
+    "read_contracts_waiver_from_meta",
     "get_feature_target_branch",
     "resolve_merge_target_branch",
     "require_explicit_feature",

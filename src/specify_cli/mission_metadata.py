@@ -90,6 +90,11 @@ class MissionMetaOptional(TypedDict, total=False):
     retain_branches: bool
     retain_worktrees: bool
     commit_to_target: bool
+    # #5298 (ADR 2026-10-04-1): "none" waives the contracts/ deliverable path
+    # convention in strict accept; read only by
+    # ``core.paths.read_contracts_waiver_from_meta`` (fail-closed).
+    contracts: str
+    contracts_rationale: str
 
 
 # ---------------------------------------------------------------------------

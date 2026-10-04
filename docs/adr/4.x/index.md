@@ -49,3 +49,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-01 | [a mission status read API replaces the CLI-bundled dashboard (extract and replace)](2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md) |
 | 2026-10-01 | [the decision ledger is a PRIMARY-partition kind (reverses the #3928 COORD intent)](2026-10-01-3-decision-ledger-primary-partition.md) |
 | 2026-10-03 | [replace charter reads and writes through a staged Java service strangler](2026-10-03-1-charter-read-write-service-strangler.md) |
+| 2026-10-04 | [a Mission waives the contracts/ deliverable with a meta.json declaration](2026-10-04-1-mission-contracts-waiver-in-meta-json.md) |

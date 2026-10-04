@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.config.path_conventions import load_project_path_conventions
+from specify_cli.core.paths import ContractsWaiver, read_contracts_waiver_from_meta
 from specify_cli.mission import get_deliverables_path
 from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 from specify_cli.task_utils import WorkPackage
@@ -179,6 +180,37 @@ def _path_prefix_for_mission(mission: Any, feature_dir: Path) -> str | None:
     return str(path) if path is not None else None
 
 
+#: The mission-artifact token the meta.json contracts waiver governs (#5298).
+_CONTRACTS_ARTIFACT = "contracts"
+
+
+def _contracts_waiver_effect(mission: Any, feature_dir: Path, planning_read_dir: Path) -> tuple[frozenset[str], str | None]:
+    """Resolve the meta.json contracts waiver into ``(waived tokens, notice)`` (#5298).
+
+    Consulted only when ``contracts`` is BOTH a declared path convention and a
+    declared mission artifact resolved on the mission surface (not research's
+    ``path_prefix`` mode) -- exactly the case ``validate_mission_paths`` can
+    waive -- so the notice never claims a waiver the validator did not apply.
+    The notice is the operator-facing trail: the rationale of an honoured
+    waiver, or the warning of a malformed one (which waives nothing --
+    fail-closed).
+    """
+    paths = mission.config.paths or {}
+    declared = {normalize_path_token(path) for path in (paths.values() if isinstance(paths, Mapping) else paths)}
+    waivable = _CONTRACTS_ARTIFACT in declared and _CONTRACTS_ARTIFACT in artifact_tokens_for_mission(mission)
+    if not waivable or _path_prefix_for_mission(mission, feature_dir) is not None:
+        return frozenset(), None
+    waiver: ContractsWaiver = read_contracts_waiver_from_meta(planning_read_dir)
+    if not waiver.waived:
+        return frozenset(), waiver.warning
+    notice = f"contracts/ requirement waived by meta.json (contracts: none): {waiver.rationale}"
+    return frozenset({_CONTRACTS_ARTIFACT}), notice
+
+
+def _with_notice(text: str, notice: str | None) -> str:
+    return f"{text}\n{notice}" if notice else text
+
+
 def evaluate_path_conventions(
     mission: Any,
     repo_root: Path,
@@ -199,9 +231,21 @@ def evaluate_path_conventions(
     invoked non-strict here so the caller owns the blocking decision rather
     than catching a raise. When ``mission`` has no path conventions this is a
     no-op: ``([], None, frozenset())``.
+
+    #5298: a Mission may waive the ``contracts`` deliverable with a
+    ``meta.json`` declaration (``"contracts": "none"`` + ``contracts_rationale``,
+    read by :func:`~specify_cli.core.paths.read_contracts_waiver_from_meta`).
+    The waived token is passed down to ``validate_mission_paths`` (the waiver
+    applies at or below this single caller). The waiver's rationale -- or a
+    malformed waiver's warning -- rides along in the returned text so the
+    decision stays auditable in the accept output. The waived token is also
+    returned with the dedup tokens (in both modes): the Mission declared the
+    artifact absent on purpose, so the caller drops it from the
+    "Optional artifacts missing" warning too.
     """
     if not (mission and mission.config.paths):
         return [], None, frozenset()
+    waived_tokens, waiver_notice = _contracts_waiver_effect(mission, feature_dir, planning_read_dir)
 
     # Mission-artifact paths (e.g. ``contracts/``) live on the PRIMARY mission
     # surface, not the repo root — resolve them via the canonical
@@ -218,14 +262,15 @@ def evaluate_path_conventions(
         # integrated, so a build path introduced by that lane exists only in
         # its worktree. The caller supplies approved lanes only.
         candidate_source_roots=candidate_source_roots,
+        waived_artifact_tokens=waived_tokens,
     )
     if not path_result.missing_paths:
-        return [], None, frozenset()
+        return [], waiver_notice, waived_tokens
     if strict_metadata:
         artifact_tokens = artifact_tokens_for_mission(mission)
         dedup_tokens = frozenset(normalize_path_token(token) for token in path_result.missing_artifact_tokens if normalize_path_token(token) in artifact_tokens)
-        return [path_result.format_errors() or _PATH_CONVENTIONS_NOT_SATISFIED], None, dedup_tokens
-    return [], path_result.format_warnings() or _PATH_CONVENTIONS_NOT_SATISFIED, frozenset()
+        return [_with_notice(path_result.format_errors() or _PATH_CONVENTIONS_NOT_SATISFIED, waiver_notice)], None, dedup_tokens | waived_tokens
+    return [], _with_notice(path_result.format_warnings() or _PATH_CONVENTIONS_NOT_SATISFIED, waiver_notice), waived_tokens
 
 
 def build_warnings(

@@ -235,6 +235,7 @@ def validate_mission_paths(
     feature_dir: Path | None = None,
     path_overrides: dict[str, str] | None = None,
     candidate_source_roots: Sequence[Path] = (),
+    waived_artifact_tokens: frozenset[str] = frozenset(),
 ) -> PathValidationResult:
     """Validate that project directories follow mission-defined conventions.
 
@@ -267,6 +268,12 @@ def validate_mission_paths(
             only APPROVED lanes, so an unapproved or foreign checkout cannot
             satisfy a path); artifact-tagged paths never consult them — mission
             artifacts stay on the primary surface.
+        waived_artifact_tokens: Normalized mission-artifact tokens the Mission
+            explicitly waived (#5298: ``meta.json`` ``"contracts": "none"``,
+            read by ``core.paths.read_contracts_waiver_from_meta``). A declared
+            path whose token is waived is not required. Only ARTIFACT-tagged
+            paths can be waived -- a build/repo path (``src/``, ``tests/``,
+            ``docs/``) is never skipped, whatever this set holds.
 
     Returns:
         PathValidationResult summarising the state of each required path.
@@ -305,6 +312,9 @@ def validate_mission_paths(
         if candidate.is_absolute():
             full_path = candidate
         elif normalize_path_token(declared[key]) in artifact_tokens:
+            if normalize_path_token(declared[key]) in waived_artifact_tokens:
+                # #5298: the Mission declared it has no such artifact.
+                continue
             # Mission artifact → resolve on the mission's primary surface.
             full_path = feature_dir / candidate  # type: ignore[operator]
             is_artifact_tagged = True

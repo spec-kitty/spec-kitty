@@ -367,6 +367,10 @@ Apply this section whenever the plan adds, upgrades, or removes a dependency, in
    - For each externally visible event, webhook, or integration callback → contract or payload shape when applicable
    - Use standard REST/GraphQL patterns
    - Output OpenAPI/GraphQL schema to `/contracts/`
+   - If the Mission defines no interfaces (test remediation, refactor), do not
+     create an empty `contracts/`. Instead add `"contracts": "none"` and a
+     non-empty `"contracts_rationale"` to the Mission's `meta.json`, so strict
+     `spec-kitty accept` waives the `contracts/` requirement.
 
 **Output**: data-model.md, /contracts/*, quickstart.md
 
