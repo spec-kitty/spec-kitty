@@ -13,7 +13,7 @@ live here, singly-owned, instead of inside ``tasks_move_task.py``.
 **The four extracted sites** (see the DM ruling for the C-003 grounds):
 
 1. :func:`resolve_review_verdict_facts` — the inline verdict resolver
-   formerly inside ``_mt_gather_review_facts`` (``tasks_move_task.py:557``),
+   formerly inside ``_mt_gather_review_facts`` (in ``tasks_move_task``),
    which computed ``review_verdict`` / ``verdict_artifact_path`` via
    ``_get_latest_review_cycle_verdict``. ``_mt_gather_review_facts`` itself
    stays in ``tasks_move_task.py`` (it is a frozen ``tasks.<name>`` compat
@@ -22,7 +22,7 @@ live here, singly-owned, instead of inside ``tasks_move_task.py``.
    prior name to rename: it was never a standalone symbol).
 2. :func:`persist_review_override_before_guard` — the OLD-timing
    review-artifact override persist, formerly the entire body of
-   ``_mt_fire_override_persist`` (``tasks_move_task.py:635``).
+   ``_mt_fire_override_persist`` (in ``tasks_move_task``).
    ``_mt_fire_override_persist`` itself stays in ``tasks_move_task.py`` (same
    frozen-compat-symbol reason as above) as a thin forwarder onto this
    function — mirroring the house forwarder precedent already established by
@@ -32,8 +32,8 @@ live here, singly-owned, instead of inside ``tasks_move_task.py``.
 3. :func:`_persist_approved_review_cycle` and
    :func:`persist_rejected_review_cycle_for_rollback` — formerly a NESTED
    CLOSURE of the former name (inside ``_mt_finalize_plan``,
-   ``tasks_move_task.py:1712-1757``) and an adjacent unnamed rollback block
-   (``tasks_move_task.py:1759-1772``) respectively. Per the DM ruling
+   now hosted in ``tasks_move_task_executor``) and an adjacent unnamed rollback block
+   (also in ``_mt_finalize_plan``) respectively. Per the DM ruling
    CONDITION 2, de-nesting the closure is recorded as the INTRODUCTION of a
    new module-level function with the closure deleted (not a pure move) —
    its captured locals (``st``, ``ports``) are threaded in as explicit
@@ -42,7 +42,7 @@ live here, singly-owned, instead of inside ``tasks_move_task.py``.
 4. :func:`persist_arbiter_override_decision` — the
    ``try: ... persist_arbiter_decision(...) except Exception: ...`` block
    (and its exception handling) formerly inside ``_run_arbiter_override``
-   (``tasks_move_task.py:2540-2552``). ``_run_arbiter_override`` itself stays
+   (in ``tasks_move_task``). ``_run_arbiter_override`` itself stays
    in ``tasks_move_task.py`` (frozen compat symbol, same reason as #2) — only
    this inline try/except block moves, under a new name.
 
@@ -559,7 +559,7 @@ def resolve_review_verdict_facts(
     """Resolve the latest review verdict for an approval-lane move (FR-002/D-PLAN-9).
 
     Extracted verbatim (site 1) from the inline block formerly inside
-    ``_mt_gather_review_facts`` (``tasks_move_task.py:557``), guarded there by
+    ``_mt_gather_review_facts`` (in ``tasks_move_task``), guarded there by
     ``target_lane in (Lane.APPROVED, Lane.DONE)`` — the guard itself stays at
     the call site; this function is the unconditional resolve step.
     Returns ``(review_verdict, verdict_artifact_path, review_artifact_name)``.
@@ -685,7 +685,7 @@ def persist_review_override_before_guard(st: _MoveTaskState) -> None:
     """OLD-timing review-artifact override persist (FR-004 partial-write-on-refusal).
 
     Extracted verbatim (site 2) from ``_mt_fire_override_persist``
-    (``tasks_move_task.py:635``), which is now a thin forwarder onto this
+    (in ``tasks_move_task``), which is now a thin forwarder onto this
     function (frozen ``tasks.<name>`` compat symbol — see the module
     docstring). Fires before the guard sequence so a LATER guard's exit-1
     refusal still leaves the override on disk, reproducing the un-refactored
@@ -720,7 +720,7 @@ def _persist_approved_review_cycle(st: _MoveTaskState, ports: TasksPorts) -> Ver
     actually attempted (T049/T050).
 
     De-nested (site 3a) from the closure of the same name formerly inside
-    ``_mt_finalize_plan`` (``tasks_move_task.py:1712-1757``) per the DM ruling
+    ``_mt_finalize_plan`` (``tasks_move_task_executor``) per the DM ruling
     CONDITION 2: its captured locals (``st``, ``ports``) are threaded in as
     explicit parameters — a mechanical parameter-passing change, not a rename
     of the function's own name (kept identical).
@@ -838,7 +838,7 @@ def persist_rejected_review_cycle_for_rollback(st: _MoveTaskState, ports: TasksP
 
     Extracted (site 3b) from the ``if decision.is_review_rejection and
     st.resolved_feedback_source is not None:`` block formerly inside
-    ``_mt_finalize_plan`` (``tasks_move_task.py:1759-1772``). The guard itself
+    ``_mt_finalize_plan`` (``tasks_move_task_executor``). The guard itself
     stays at the call site (unchanged); this function is the unconditional
     body, so the caller must only invoke it once the guard has already
     confirmed ``st.resolved_feedback_source is not None`` — asserted here to
@@ -891,7 +891,7 @@ def persist_arbiter_override_decision(
     the real ``main_repo_root`` the downstream event-sourced write needs.
 
     Extracted verbatim (site 4) from ``_run_arbiter_override``
-    (``tasks_move_task.py:2540-2552``). ``_run_arbiter_override`` itself stays
+    (in ``tasks_move_task``). ``_run_arbiter_override`` itself stays
     in ``tasks_move_task.py`` (frozen ``tasks.<name>`` compat symbol — see the
     module docstring) and now calls straight into this function instead of
     running the try/except inline. ``persist_arbiter_decision`` is imported

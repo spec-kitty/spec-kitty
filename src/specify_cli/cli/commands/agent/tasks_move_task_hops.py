@@ -251,7 +251,7 @@ def _mt_hop_reason_source(st: _MoveTaskState, target: str) -> str | None:
 def _binding_role_for_lane(lane: Lane | str) -> str | None:
     """Map a target lane to its resolved-binding role.
 
-    Shared by :func:`_mt_emit_transitions` (the live transition-emit path,
+    Shared by :func:`_mt_emit_transitions` (in ``tasks_move_task_executor``; the live transition-emit path,
     which needs the ``None`` case to skip binding-role annotation for any
     lane that is neither a claim nor a review-claim) and
     :func:`_mt_reassignment_binding_fields` (the off-transition reassignment

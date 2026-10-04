@@ -712,7 +712,7 @@ def owning_wp_from_authored_roster(feature_dir: Path, task_id: str) -> str | Non
     the same partition, so they resolve to the same directory — the same
     co-membership :func:`authored_subtask_roster` (``core/subtask_rows.py``)
     and its other callers (``status/emit.py``, ``tasks_shared.py``,
-    ``tasks_move_task.py``) all rely on implicitly via a shared ``feature_dir``.
+    ``tasks_move_task_executor.py``) all rely on implicitly via a shared ``feature_dir``.
     Declaring the kind explicitly here alone would not close the risk (the
     sibling callers would still assume it), so this is intentionally a pinning
     comment rather than a partial fix; see

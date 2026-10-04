@@ -574,7 +574,7 @@ def _guard_rejected_verdict(req: MoveTaskRequest) -> RefuseExit1 | None:
     ``tasks_verdict_persistence.py``, not this file), refusing here was the only
     way to stop a rejected verdict from being silently approved over — there was
     nothing that could record a genuine approval artifact, so blocking was
-    the safest failure mode. Now that ``tasks_move_task.py``'s ``_mt_finalize_plan``
+    the safest failure mode. Now that ``tasks_move_task_executor.py``'s ``_mt_finalize_plan``
     calls into that function and persists a real ``verdict: approved``
     review-cycle artifact once the transition proceeds, continuing to refuse
     would keep the ordinary reject-fix-approve path hitting the "only escape

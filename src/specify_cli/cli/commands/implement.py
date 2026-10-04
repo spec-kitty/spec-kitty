@@ -545,8 +545,8 @@ class _BookkeepingTransactionIdentifiers(NamedTuple):
     """The identifiers :func:`_resolve_bookkeeping_transaction_identifiers` returns.
 
     A ``NamedTuple`` (PR #2662 squad LOW-3 hardening): it IS a 5-tuple, so the
-    frozen C-006 contract holds by construction — ``tasks_move_task.py`` reads
-    ``[0]`` cross-lane and the in-module caller unpacks all five, both unchanged
+    frozen C-006 contract holds by construction — the cross-lane
+    filter reads ``[0]`` and the other in-module caller unpacks all five, both unchanged
     — while the fields are now named/structural instead of a bare positional
     pin. Arity and order MUST NOT change (C-006).
     """
@@ -566,8 +566,8 @@ def _resolve_bookkeeping_transaction_identifiers(
     """Resolve the ``(coord_branch, mission_id, mid8, effective_mission_id,
     effective_mid8)`` bookkeeping identifiers as a 5-field NamedTuple.
 
-    C-006 (frozen contract, #2649): ``tasks_move_task.py`` imports this
-    symbol and reads only element ``[0]`` cross-lane, while the in-module
+    C-006 (frozen contract, #2649): the in-module cross-lane
+    filter reads only element ``[0]``, while the other in-module
     caller (``_ensure_planning_artifacts_committed_git``) unpacks all five —
     the 5-tuple arity and order MUST NOT change (a NamedTuple keeps both the
     positional and the new named access working).

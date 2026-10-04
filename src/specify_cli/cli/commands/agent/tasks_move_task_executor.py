@@ -2,9 +2,15 @@
 
 Plan finalisation, transition emission, persistence, review-lock release and
 rollback-summary helpers moved VERBATIM; no behaviour changed.
-``tasks_move_task`` re-imports every symbol in the ``as`` re-export form.
-Patched ``tasks`` seam symbols are reached via the lazy ``_tasks`` bridge;
-``_MoveTaskState`` is imported for typing only.
+``tasks_move_task`` re-imports the moved symbols from here so existing
+``tasks_move_task.<name>`` references keep resolving. Patched ``tasks`` seam
+symbols are reached via the lazy ``_tasks`` bridge; ``_MoveTaskState`` is
+imported for typing only.
+
+Import-cycle invariant: this module imports ``tasks_move_task_hops`` at module
+scope, but ``tasks_move_task_hops`` reaches names from this module only via
+function-local (lazy) imports. That must never become a module-scope import,
+or the two modules form an import cycle.
 """
 
 from __future__ import annotations

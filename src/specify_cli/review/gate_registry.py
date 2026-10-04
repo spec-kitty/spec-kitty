@@ -15,7 +15,7 @@ reproduces the current :class:`~specify_cli.review.pre_review_gate.GateVerdict`
 byte-for-byte. It introduces no aggregation, precedence, or block/terminal
 logic — that is owned by WP08's ``aggregate_verdicts`` and WP09's inverted
 hook. Wiring this registry into the live transition path (replacing the
-hardcoded call in ``tasks_move_task.py``) is WP09's responsibility, not
+hardcoded call in ``tasks_move_task_gates.py``) is WP09's responsibility, not
 this module's.
 
 ``TransitionGateContext`` (data-model.md §8) has its **single home** here —

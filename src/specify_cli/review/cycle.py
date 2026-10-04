@@ -1066,7 +1066,7 @@ def _allocate_and_write_review_cycle_locked(
 
     This is a DIFFERENT, disjoint critical section from ``_mt_execute``'s own
     ``feature_status_lock`` acquisition over the status-event emit
-    (``tasks_move_task.py`` calls ``_mt_finalize_plan`` — which reaches this
+    (``tasks_move_task_executor`` calls ``_mt_finalize_plan`` — which reaches this
     writer — BEFORE ``_mt_execute`` acquires its own lock instance). The two
     do not serialize against each other: this WP's FR-005 scope is
     deliberately narrowed to (cycle-number-allocation + artifact-write) only,

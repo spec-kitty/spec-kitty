@@ -261,8 +261,8 @@ def test_every_move_task_patch_target_is_live() -> None:
 
 
 def test_negative_control_moved_symbol_patch_is_reported_dead() -> None:
-    """WP03 moved ``_mt_emit_runtime_state`` out of ``tasks_move_task``; a patch
-    left on the old home must be reported dead."""
+    """A patch on a module that no longer calls the patched name (here
+    ``_mt_emit_runtime_state`` on ``tasks_move_task``) must be reported dead."""
     source = (
         "from unittest.mock import patch\n"
         "from specify_cli.cli.commands.agent import tasks_move_task\n"
