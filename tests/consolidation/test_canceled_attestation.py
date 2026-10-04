@@ -13,7 +13,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from click.testing import Result
 
 from specify_cli.consolidation import canceled_attestation as ca
 from specify_cli.status import Lane, StatusEvent, TransitionRequest
@@ -220,62 +219,60 @@ def test_validate_refuses_a_wp_that_is_not_acceptably_canceled_and_says_nothing_
     assert "Nothing was recorded." in message
 
 
-def _invoke_consolidate_dry_run(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, args: list[str]) -> tuple[Result, list[dict[str, object]]]:
-    """Drive the real ``consolidate`` Typer command up to the dry-run forecast seam.
+def test_dry_run_cli_prints_the_attestation_notice_and_still_forecasts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The ONE CLI smoke for the FR-012 dry-run notice (#5653).
 
-    Everything between argument parsing and the forecast (repo/branch/mission
-    resolution, retention cleanup) is stubbed; the forecast itself is captured so
-    the test sees the notice the command prints before delegating to it.
+    Drives the real ``consolidate`` Typer command in a real git repository with
+    one real Mission directory. Only the true downstream boundary is stubbed: the
+    dry-run forecast, captured so the test can see it still runs after the
+    notice. The notice's decision table lives in the unit tests below.
     """
+    import json
+    import subprocess
+
     import typer
     from typer.testing import CliRunner
 
     from specify_cli.cli.commands import consolidate as consolidate_module
-    from specify_cli.core.context_validation import ExecutionContext
 
-    forecasts: list[dict[str, object]] = []
-    stubs: dict[str, object] = {
-        "find_repo_root": lambda: tmp_path,
-        "_enforce_git_preflight": lambda *_a, **_k: None,
-        "load_merge_config": lambda _root: type("Cfg", (), {"strategy": None})(),
-        "_resolve_slug_or_exit": lambda _root, _mission: "m-01TESTMISSION",
-        "_resolved_mission_dir_exists": lambda *_a, **_k: True,
-        "load_state": lambda *_a, **_k: None,
-        "_resolve_target_branch": lambda *_a, **_k: ("main", "explicit"),
-        "_validate_target_branch": lambda *_a, **_k: None,
-        "_enforce_retention_cleanup": lambda *_a, **_k: None,
-        "show_banner": lambda: None,
-        "run_dry_run_forecast": lambda **kwargs: forecasts.append(kwargs),
+    slug = "attest-smoke-01M43DRV"
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args: str) -> None:
+        subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
+
+    git("init", "-q", "-b", "main")
+    git("config", "user.email", "test@example.com")
+    git("config", "user.name", "Test")
+    (repo / ".kittify").mkdir()
+    mission_dir = repo / "kitty-specs" / slug
+    mission_dir.mkdir(parents=True)
+    meta = {
+        "mission_id": "01M43DRVZZZZZZZZZZZZZZZZZZ",
+        "mid8": "01M43DRV",
+        "mission_slug": slug,
+        "slug": slug,
+        "friendly_name": "Attestation smoke",
+        "mission_type": "software-dev",
+        "target_branch": "main",
+        "created_at": "2026-10-04T00:00:00Z",
+        "topology": "single_branch",
     }
-    for name, stub in stubs.items():
-        monkeypatch.setattr(consolidate_module, name, stub)
-    monkeypatch.setattr(
-        "specify_cli.core.context_validation.get_current_context",
-        lambda: type("Ctx", (), {"location": ExecutionContext.MAIN_REPO})(),
-    )
+    (mission_dir / "meta.json").write_text(json.dumps(meta) + "\n", encoding="utf-8")
+    git("add", "-A")
+    git("commit", "-qm", "init")
+    monkeypatch.chdir(repo)
+    forecasts: list[dict[str, object]] = []
+    monkeypatch.setattr(consolidate_module, "run_dry_run_forecast", lambda **kwargs: forecasts.append(kwargs))
     app = typer.Typer()
     app.command()(consolidate_module.consolidate)
-    return CliRunner().invoke(app, args), forecasts
 
-
-def test_dry_run_says_the_attestation_flags_are_not_applied(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """``--dry-run`` must not silently drop the attestation flags (FR-012)."""
-    result, forecasts = _invoke_consolidate_dry_run(
-        monkeypatch, tmp_path, ["--dry-run", "--mission", "m-01TESTMISSION", ca.ATTEST_FLAG, "WP02", ca.ATTEST_REASON_FLAG, "checked"]
-    )
+    result = CliRunner().invoke(app, ["--dry-run", "--mission", slug, ca.ATTEST_FLAG, "WP02", ca.ATTEST_REASON_FLAG, "checked"])
 
     assert result.exit_code == 0, result.output
-    flat = " ".join(result.output.split())
-    assert f"{ca.ATTEST_FLAG} is not applied with --dry-run" in flat
+    assert ca.dry_run_attestation_notice(("WP02",), dry_run=True, json_output=False) in " ".join(result.output.split())
     assert len(forecasts) == 1  # the notice does not replace the forecast
-
-
-def test_dry_run_without_attestation_flags_prints_no_attestation_notice(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    result, forecasts = _invoke_consolidate_dry_run(monkeypatch, tmp_path, ["--dry-run", "--mission", "m-01TESTMISSION"])
-
-    assert result.exit_code == 0, result.output
-    assert "not applied with --dry-run" not in result.output
-    assert len(forecasts) == 1
 
 
 # #5653: the ``consolidate --dry-run`` "attestation not applied" notice is a pure
