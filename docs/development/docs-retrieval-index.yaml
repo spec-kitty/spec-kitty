@@ -2364,6 +2364,7 @@ pages:
     - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "amendment-2026-10-04-the-red-lives-in-the-nightly-never-in-a-pr", text: "Amendment 2026-10-04 — the red lives in the nightly, never in a PR", level: 2}
   - path: "docs/adr/3.x/2026-07-18-1-charter-yaml-authoring-authority-and-extractor-retirement.md"
     title: "ADR: charter.yaml is the authoritative structured source; charter.md is a curated companion; retire the prose→triad extractor"
     divio_type: "none"
@@ -11027,6 +11028,7 @@ pages:
     - {slug: "what-a-red-main-means", text: "What a red main means", level: 2}
     - {slug: "ci-status-is-the-release-authority", text: "CI status is the release authority", level: 2}
     - {slug: "filing-or-accepting-a-p0-add-a-failing-test", text: "Filing or accepting a P0: add a failing test", level: 2}
+    - {slug: "where-the-reproduction-runs-the-nightly-p0-repro-lane", text: "Where the reproduction runs: the nightly `p0-repro` lane", level: 3}
     - {slug: "expensive-qa-and-manual-testing-wait-for-green", text: "Expensive QA and manual testing wait for green", level: 2}
     - {slug: "maintainers-prioritize-red-builds", text: "Maintainers prioritize red builds", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
