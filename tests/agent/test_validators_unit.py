@@ -522,3 +522,39 @@ def test_format_errors_names_lenient_before_mkdir_and_drops_unconditional_claim(
     assert "mkdir -p" in output
     assert output.index("--lenient") < output.index("mkdir -p")
     assert "are required by the active mission" not in output
+
+
+def test_waived_artifact_path_is_not_required(tmp_path: Path) -> None:
+    """#5298: a waived mission-artifact token (``contracts``) is skipped."""
+    repo_root = tmp_path / "repo"
+    (repo_root / "src").mkdir(parents=True)
+    feature_dir = repo_root / "kitty-specs" / "010-mission"
+    feature_dir.mkdir(parents=True)
+    mission = _MissionStub(
+        "Software Dev Kitty",
+        {"workspace": "src/", "deliverables": "contracts/"},
+        optional_artifacts=("contracts/",),
+    )
+
+    result = validate_mission_paths(
+        mission, repo_root, strict=False, feature_dir=feature_dir, waived_artifact_tokens=frozenset({"contracts"})
+    )
+
+    assert result.is_valid, result.warnings
+    assert result.existing_paths == ["src/"]
+
+
+def test_a_build_path_is_never_waived(tmp_path: Path) -> None:
+    """#5298: only ARTIFACT-tagged paths can be waived -- a build path whose token
+    happens to be in the waived set is still required at the repo root."""
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    feature_dir = repo_root / "kitty-specs" / "010-mission"
+    feature_dir.mkdir(parents=True)
+    mission = _MissionStub("Software Dev Kitty", {"tests": "tests/"}, optional_artifacts=("contracts/",))
+
+    result = validate_mission_paths(
+        mission, repo_root, strict=False, feature_dir=feature_dir, waived_artifact_tokens=frozenset({"tests"})
+    )
+
+    assert result.missing_paths == ["tests/"]
