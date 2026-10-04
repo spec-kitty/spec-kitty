@@ -28,6 +28,8 @@
   href: ssh-deploy-keys.md
 - name: Stale Lane Seed After Re-Finalizing Tasks
   href: stale-lane-seed.md
+- name: Recovery After an Upgrade With Live Lanes
+  href: upgrade-with-live-lanes-recovery.md
 - name: --start-branch Coordination Divergence
   href: start-branch-coord-divergence.md
 - name: Sync Daemon Orphan Cleanup

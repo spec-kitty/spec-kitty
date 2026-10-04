@@ -4,7 +4,7 @@ description: 'Durable operational runbooks for Spec Kitty: deployment, CI/CD set
 doc_status: active
 type: reference
 audience: docs/context/audience/internal/maintainer.md
-updated: '2026-08-10'
+updated: '2026-10-04'
 related:
 - docs/configuration/index.md
 - docs/guides/index.md
@@ -17,6 +17,7 @@ related:
 - docs/operations/recovery-index.md
 - docs/operations/ssh-deploy-keys.md
 - docs/operations/sync-daemon-orphan-cleanup.md
+- docs/operations/upgrade-with-live-lanes-recovery.md
 - docs/plans/index.md
 ---
 # Operations
@@ -31,6 +32,7 @@ across missions (unlike the effort-scoped notes that live under
 - [SSH deploy-key setup for CI/CD](ssh-deploy-keys.md) — one-time deploy-key provisioning runbook.
 - [Identity-boundary CI gate](identity-boundary-ci-gate.md) — retired record of the former `drift-detector` required check, deleted with the sync transport.
 - [Recovery guides](recovery-index.md) — task-oriented recovery procedures, including [logged-out on a connected teamspace](logged-out-teamspace.md).
+- [Recovery after an upgrade with live lanes](upgrade-with-live-lanes-recovery.md) — recover when `consolidate`, review or implement refuses on `.kittify/metadata.yaml` after an upgrade mid-Mission.
 - [Sync daemon orphan cleanup](sync-daemon-orphan-cleanup.md) — operator runbook for stale sync daemons.
 - [Internal hosted-readiness mode (pre-launch)](internal-hosted-readiness.md) — the hidden SaaS rollout-gate path for internal dogfooding, not for end users.
 - [How to maintain the issue tracker](how-to-maintain.md) — maintainer runbook for tracker structure, priority levels, issue types, and milestone/release-goal conventions.
