@@ -194,6 +194,7 @@ def test_attestation_lifts_the_unstamped_refusal_only_while_no_stamp_is_overrida
     refused = _claim(built)
 
     assert refused.refusal is not None and "WP01" in refused.refusal and "--attest-canceled-superseded WP01" in refused.refusal
+    assert LANE_A in refused.refusal and LANE_B in refused.refusal, "the refusal names the canceled lane and its carrier"
 
 
 def _add_unstamped_sibling(mission: CoordMission, wp_id: str, *, like: str) -> None:

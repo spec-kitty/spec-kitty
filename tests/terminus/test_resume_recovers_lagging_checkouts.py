@@ -85,8 +85,7 @@ def test_5571_control_a_left_index_lock_refuses_without_advising_commit(tmp_path
     assert not sha_reachable(run.mission.repo, next(iter(run.approved.values()))[0], run.mission.target_branch), "nothing may land on a refusal"
 
 
-@pytest.mark.parametrize("arm", ["kill_mission_worktree"])
-def test_5571_control_a_genuine_edit_on_top_of_the_lag_still_refuses_and_is_preserved(tmp_path: Path, arm: str) -> None:
+def test_5571_control_a_genuine_edit_on_top_of_the_lag_still_refuses_and_is_preserved(tmp_path: Path, arm: str = "kill_mission_worktree") -> None:
     """Lag PLUS a real user edit is not a provably pure lag: the existing refusal stands and the edit survives."""
     run = Interrupted(tmp_path, arm)
     tracked = git_out(run.lagging, "ls-tree", "-r", "--name-only", run.pre_mission).splitlines()[0]
@@ -118,8 +117,7 @@ def test_5571_control_a_genuinely_dirty_coord_worktree_without_any_lag_refuses_w
     assert (coord / tracked).read_text(encoding="utf-8") == "genuine user edit\n"
 
 
-@pytest.mark.parametrize("arm", ["kill_mission_worktree"])
-def test_5571_control_the_revert_option_the_operator_may_take_by_hand_lands_all_code(tmp_path: Path, arm: str) -> None:
+def test_5571_control_the_revert_option_the_operator_may_take_by_hand_lands_all_code(tmp_path: Path, arm: str = "kill_mission_worktree") -> None:
     """The operator who refreshes the lagging checkout to its own HEAD by hand reaches the same landing."""
     run = Interrupted(tmp_path, arm)
     git(run.lagging, "reset", "--hard", "HEAD")

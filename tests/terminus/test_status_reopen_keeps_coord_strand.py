@@ -253,8 +253,7 @@ def test_5572_real_path_reopen_on_the_rolled_back_tree_never_drops_the_strand(tm
     assert after == before, "the refusal must leave the coordination event log and ref byte-identical"
 
 
-@pytest.mark.parametrize("entry", ["resume"])
-def test_5572_reopen_survives_the_strand_repair(tmp_path: Path, entry: str) -> None:
+def test_5572_reopen_survives_the_strand_repair(tmp_path: Path, entry: str = "resume") -> None:
     stranded = _failed_consolidation(tmp_path)
     mission = stranded.mission
     reopen_sha = _reopen(stranded)
