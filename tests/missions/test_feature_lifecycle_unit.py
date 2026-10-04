@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import subprocess
+from dataclasses import asdict
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
 import typer
 
+from specify_cli.cli.commands.consolidate import ConsolidateOptions
+from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.cli.commands.agent.mission import (
     _find_latest_feature_worktree,
     _get_current_branch,
@@ -202,18 +205,15 @@ def test_merge_command_delegates_to_toplevel(mock_locate: MagicMock, mock_get_br
 
     # Verify top-level merge was called
     mock_merge.assert_called_once_with(
-        strategy="merge",
-        delete_branch=True,  # Inverted from keep_branch=False
-        remove_worktree=True,  # Inverted from keep_worktree=False
-        push=False,
-        target_branch="main",
-        dry_run=False,
-        json_output=False,
-        mission="",
-        resume=False,
-        abort=False,
-        context_token=None,
-        keep_workspace=False,
+        **asdict(
+            ConsolidateOptions(
+                strategy=MergeStrategy.MERGE,
+                delete_branch=True,  # Inverted from keep_branch=False
+                remove_worktree=True,  # Inverted from keep_worktree=False
+                target_branch="main",
+                mission="",
+            )
+        )
     )
 
 
@@ -291,18 +291,17 @@ def test_merge_command_passes_all_flags(mock_locate: MagicMock, mock_get_branch:
 
     # Verify all flags passed to top-level merge (with parameter mapping)
     mock_merge.assert_called_once_with(
-        strategy="squash",
-        delete_branch=False,  # Inverted from keep_branch=True
-        remove_worktree=False,  # Inverted from keep_worktree=True
-        push=True,
-        target_branch="develop",  # Parameter name differs
-        dry_run=True,
-        json_output=False,
-        mission="001-test",
-        resume=False,
-        abort=False,
-        context_token=None,
-        keep_workspace=False,
+        **asdict(
+            ConsolidateOptions(
+                strategy=MergeStrategy.SQUASH,
+                delete_branch=False,  # Inverted from keep_branch=True
+                remove_worktree=False,  # Inverted from keep_worktree=True
+                push=True,
+                target_branch="develop",  # Parameter name differs
+                dry_run=True,
+                mission="001-test",
+            )
+        )
     )
 
 

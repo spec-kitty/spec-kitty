@@ -28,8 +28,9 @@ import os
 from kernel._safe_re import re
 import subprocess
 import sys
+from dataclasses import asdict
 from pathlib import Path
-from typing import Annotated, cast
+from typing import Annotated
 
 from specify_cli.cli.console import console
 import typer
@@ -247,22 +248,25 @@ def _delegate_to_top_level_merge(
     delete/remove flags.
     """
     from specify_cli.cli.commands.agent import mission as _mission
+    from specify_cli.cli.commands.consolidate import ConsolidateOptions
 
     try:
-        _mission.top_level_merge(
+        # ``top_level_merge`` is the Typer command called as a plain function, so
+        # an option not passed would arrive as an unresolved ``typer.OptionInfo``
+        # sentinel (#3457). ``ConsolidateOptions`` supplies the real default for
+        # every option this wrapper does not map. Going through the command (not
+        # ``run_consolidate``) keeps its ``require_main_repo`` guard.
+        options = ConsolidateOptions(
             strategy=MergeStrategy(strategy),
             delete_branch=None if keep_branch is None else not keep_branch,
             remove_worktree=None if keep_worktree is None else not keep_worktree,
             push=push,
             target_branch=target,  # Note: parameter name differs
             dry_run=dry_run,
-            json_output=False,
             mission=(resolved_feature or ""),
-            resume=False,  # Agent commands don't support resume
-            abort=False,  # Agent commands don't support abort
-            context_token=cast(str, None),
-            keep_workspace=False,
+            # Agent commands support neither resume nor abort (defaults: False).
         )
+        _mission.top_level_merge(**asdict(options))
     except typer.Exit:
         # Propagate typer.Exit cleanly
         raise

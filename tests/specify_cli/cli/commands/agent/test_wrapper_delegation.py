@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -12,6 +13,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.mission import app
 from specify_cli.cli.commands.agent import workflow
+from specify_cli.cli.commands.consolidate import ConsolidateOptions
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
@@ -151,45 +153,43 @@ def test_agent_mission_merge_preserves_unset_cleanup_choices(
 
     assert result.exit_code == 0, result.output
     mock_top_level_merge.assert_called_once_with(
-        strategy=MergeStrategy.MERGE,
-        delete_branch=None,
-        remove_worktree=None,
-        push=False,
-        target_branch="main",
-        dry_run=True,
-        json_output=False,
-        mission="077-mission-terminology-cleanup",
-        resume=False,
-        abort=False,
-        context_token=None,
-        keep_workspace=False,
+        **asdict(
+            ConsolidateOptions(
+                strategy=MergeStrategy.MERGE,
+                target_branch="main",
+                dry_run=True,
+                mission="077-mission-terminology-cleanup",
+            )
+        )
     )
 
 
-@patch("specify_cli.cli.commands.agent.mission.top_level_merge")
+@patch("specify_cli.cli.commands.consolidate.run_consolidate")
+@patch("specify_cli.core.context_validation.get_current_context")
 @patch("specify_cli.cli.commands.agent.mission.get_feature_target_branch")
 @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
-def test_merge_delegation_kwargs_bind_to_real_merge_signature(
+def test_agent_mission_merge_reaches_consolidate_with_real_option_values(
     mock_locate_project_root: MagicMock,
     mock_get_feature_target_branch: MagicMock,
-    mock_top_level_merge: MagicMock,
+    mock_get_current_context: MagicMock,
+    mock_run_consolidate: MagicMock,
     tmp_path: Path,
 ) -> None:
-    """Producer-conformance: every kwarg the merge wrapper passes MUST bind to the
-    real ``merge()`` signature.
+    """The real Typer ``consolidate`` must receive real values, never ``OptionInfo``.
 
-    The mocked ``test_agent_mission_merge_passes_explicit_wrapper_defaults`` above
-    cannot catch a kwarg the delegate no longer accepts (a ``MagicMock`` swallows
-    any kwarg). This test binds the captured kwargs against the *real* ``merge``
-    signature, so a removed parameter left in the delegation (e.g. the retired
-    ``--feature``) fails here instead of raising ``TypeError`` at runtime.
+    The wrapper delegates to the Typer command as a plain function call, so every
+    option it does not pass would arrive as an unresolved ``typer.OptionInfo``
+    sentinel (#3457) and ``--skip-review-artifact-check``'s note guard would die
+    with ``AttributeError: 'OptionInfo' object has no attribute 'strip'``. This
+    runs the real command (only its body, ``run_consolidate``, is intercepted) and
+    pins the options it hands over: the mapped values plus every other option at
+    its real default.
     """
-    import inspect
-
-    from specify_cli.cli.commands.consolidate import consolidate as real_merge
+    from specify_cli.core.context_validation import ExecutionContext
 
     mock_locate_project_root.return_value = tmp_path
     mock_get_feature_target_branch.return_value = "main"
+    mock_get_current_context.return_value = SimpleNamespace(location=ExecutionContext.MAIN_REPO)
 
     result = runner.invoke(
         app,
@@ -197,9 +197,14 @@ def test_merge_delegation_kwargs_bind_to_real_merge_signature(
     )
 
     assert result.exit_code == 0, result.output
-    captured = mock_top_level_merge.call_args.kwargs
-    # Raises TypeError if the delegation passes a kwarg merge() no longer accepts.
-    inspect.signature(real_merge).bind_partial(**captured)
+    mock_run_consolidate.assert_called_once_with(
+        ConsolidateOptions(
+            strategy=MergeStrategy.MERGE,
+            target_branch="main",
+            dry_run=True,
+            mission="077-mission-terminology-cleanup",
+        )
+    )
 
 
 @patch("specify_cli.cli.commands.agent.workflow.top_level_implement")
