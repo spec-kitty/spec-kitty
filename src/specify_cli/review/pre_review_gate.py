@@ -5,7 +5,7 @@ review-blind-spot facet of #1979; part of #2283). ``move-task --to
 for_review`` (``cli/commands/agent/tasks_move_task.py``) scopes review to a
 WP's ``owned_files`` — a WP that breaks a *consumer* outside its owned set
 would otherwise reach approval unnoticed. This module is the engine half of
-the fix (the CLI hook + config/override wiring lives in ``tasks_move_task.py``):
+the fix (the CLI hook + config/override wiring lives in ``tasks_move_task_gates.py``):
 
 1. **Build a :class:`ScopeResult`** (FR-002/FR-005/FR-006) from a WP's
    changed files via an injected
@@ -786,7 +786,7 @@ def _evaluate_via_scope_source(
     scopesource-gate-followup-01KY6S9P WP04).** After a completed run, the
     head-side identity (:func:`~specify_cli.review.scope_source.scope_source_identity`)
     is compared against the already-loaded ``baseline.source_identity`` (the
-    baseline itself is loaded upstream, by ``tasks_move_task._mt_resolve_gate_baseline``
+    baseline itself is loaded upstream, by ``tasks_move_task_gates._mt_resolve_gate_baseline``
     — this function only COMPARES). A KNOWN (non-``"unknown"``) baseline
     identity that differs from the head's own -> ``SOURCE_MISMATCH`` (warn,
     fail-open by construction — see ``verdict_aggregation``'s member
@@ -853,7 +853,7 @@ def evaluate_with_scope(
     the census-derived auto-scope tier it used to also serve was retired by
     mission ``scopesource-gate-followup-01KY6S9P`` WP04, FR-001) AND the
     FR-004 explicit-override tier
-    (``tasks_move_task._mt_pre_review_gate_with_override_scope``) drive the
+    (``tasks_move_task_gates._mt_pre_review_gate_with_override_scope``) drive the
     EXACT same warn/new-failure/unverified-baseline policy from ONE tested
     body — instead of the override tier hand-mirroring this tail as a
     divergence-prone copy (the pre-fix shape, which left its
@@ -876,7 +876,7 @@ def evaluate_with_scope(
     pytest/JUnit path — see that function's docstring for why its
     empty-scope handling differs. ``None`` (the default, C-002 KEPT LIVE) is
     the FR-004 explicit-override tier's own shape
-    (``tasks_move_task._mt_pre_review_gate_with_override_scope``) — it never
+    (``tasks_move_task_gates._mt_pre_review_gate_with_override_scope``) — it never
     injects a ``scope_source``, by design, since an override IS the test
     scope.
     """

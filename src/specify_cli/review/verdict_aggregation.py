@@ -14,8 +14,8 @@ in ``tests/review/test_verdict_aggregation.py`` (squad finding R-F3,
 ``data-model.md`` :280-285). They are deliberately retained and tested, not dead.
 
 **Precedence (highest first), preserving the incumbent order**
-(``_mt_run_pre_review_gate``, ``tasks_move_task.py``: terminal check at :1270
-BEFORE the block at :1298):
+(``_mt_run_pre_review_gate``, ``tasks_move_task_gates.py``: terminal check
+BEFORE the block):
 
 1. **Terminal refusal/interruption** -- if ANY verdict is
    ``SCOPE_OVERSIZED``/``TIMED_OUT``/``CANCELLED``: hard-stop,

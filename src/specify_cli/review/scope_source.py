@@ -13,7 +13,7 @@ value instead).
 **``changed_files`` is deliberately absent from the port** (FR-001). It is
 the shared canonical merge-base+diff SSOT
 (``core.vcs.git.merge_base_changed_files``, surfaced via
-``tasks_move_task.py``), passed *into* the gate rather than re-derived per
+``tasks_move_task_gates.py``), passed *into* the gate rather than re-derived per
 implementation, so implementations cannot diverge on "which
 files changed". Do not "helpfully" add a ``changed_files`` method here — that
 is the exact drift this port design forbids.
@@ -294,7 +294,7 @@ class DeclaredCommandScopeSource:
         per-run leak rather than complicating this frozen dataclass with
         explicit teardown; the OS temp directory is reclaimed independently
         of this process. Known second caller: the #3821 declaration probe
-        (``tasks_move_task._mt_pre_review_gate_declared``) builds a throwaway
+        (``tasks_move_task_gates._mt_pre_review_gate_declared``) builds a throwaway
         instance whose ``test_command()`` render pays this same cost once per
         ``for_review`` transition in a declared repo — accepted explicitly in
         that probe's docstring rather than re-deriving config semantics

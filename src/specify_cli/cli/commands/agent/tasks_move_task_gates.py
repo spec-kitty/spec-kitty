@@ -19,6 +19,11 @@ lazy in-function ``from specify_cli.cli.commands.agent import tasks as _tasks``
 import, exactly as before the move. ``_MoveTaskState`` is imported for typing
 only, and ``_lane_deliverable_paths`` lazily, so this module never imports
 ``tasks_move_task`` at module scope (no import cycle).
+
+**One name is not re-exported.** The once-per-process latch
+``_pre_review_test_command_deprecation_emitted`` is rebound with ``global`` in
+this module, so a re-exported copy would go stale; read and patch it on
+``tasks_move_task_gates`` itself.
 """
 
 from __future__ import annotations
