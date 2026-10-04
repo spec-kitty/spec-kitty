@@ -133,9 +133,10 @@ def _build_mission(
     *,
     topology: MissionTopology,
     wp02_independent: bool = False,
+    target_branch: str = _WORK_BRANCH,
     **overrides: object,
 ) -> tuple[str, Path]:
-    result = make_mission(repo, slug, topology=topology, target_branch=_WORK_BRANCH, **overrides)
+    result = make_mission(repo, slug, topology=topology, target_branch=target_branch, **overrides)
     feature_dir = result.feature_dir
     mission_slug = result.mission_slug
     _write_two_code_wps(repo, feature_dir, wp02_independent=wp02_independent)
@@ -290,24 +291,39 @@ def _lane_of(feature_dir: Path, wp_id: str) -> str | None:
     return lanes[-1] if lanes else None
 
 
-@pytest.fixture
-def agent_loop_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, str, Path]:
-    """A finalized, analysed single_branch mission with an independent WP02."""
-    repo = _seed_repo(tmp_path, name="repo")
-    mission_slug, feature_dir = _build_mission(repo, "issue-5459-sb", topology=MissionTopology.SINGLE_BRANCH, wp02_independent=True)
-    monkeypatch.chdir(repo)
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
-    (repo / ".gitignore").write_text(".kittify/derived/\n.kittify/runtime/\n.kittify/charter/context-state.json\n", encoding="utf-8")
+def _ready_mission(repo: Path, tmp_path: Path, slug: str, *, target_branch: str = _WORK_BRANCH) -> tuple[str, Path]:
+    """Build, finalize and analyse a single_branch mission with an independent WP02.
+
+    The caller must already have chdir'd into *repo*.
+    """
+    mission_slug, feature_dir = _build_mission(repo, slug, topology=MissionTopology.SINGLE_BRANCH, wp02_independent=True, target_branch=target_branch)
     _assert_setup_ok("finalize-tasks", _finalize(mission_slug))
     _git(repo, "add", "-A")
     if _git(repo, "status", "--porcelain"):
         _git(repo, "commit", "-m", "finalize")
-    analysis = tmp_path / "analysis.md"
+    analysis = tmp_path / f"{slug}-analysis.md"
     analysis.write_text("# Analysis\n\nNo blocking findings.\n", encoding="utf-8")
     _assert_setup_ok(
         "record-analysis",
         runner.invoke(root_app, ["agent", "mission", "record-analysis", "--mission", mission_slug, "--input-file", str(analysis)]),
     )
+    return mission_slug, feature_dir
+
+
+def _commit_all(repo: Path, message: str) -> None:
+    _git(repo, "add", "-A")
+    if _git(repo, "status", "--porcelain"):
+        _git(repo, "commit", "-m", message)
+
+
+@pytest.fixture
+def agent_loop_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, str, Path]:
+    """A finalized, analysed single_branch mission with an independent WP02."""
+    repo = _seed_repo(tmp_path, name="repo")
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
+    (repo / ".gitignore").write_text(".kittify/derived/\n.kittify/runtime/\n.kittify/charter/context-state.json\n", encoding="utf-8")
+    mission_slug, feature_dir = _ready_mission(repo, tmp_path, "issue-5459-sb")
     return repo, mission_slug, feature_dir
 
 
@@ -367,3 +383,28 @@ def test_action_implement_resume_in_dirty_checkout_is_allowed(agent_loop_mission
     (repo / "src" / "wp01.py").write_text("VALUE = 11\n", encoding="utf-8")
     _assert_setup_ok("resume WP01", _action_implement("WP01", slug))
     assert read_claim_base(repo, slug, "WP01") == base
+
+
+@pytest.mark.regression
+def test_issue_5680_finished_mission_on_another_write_branch_does_not_occupy(agent_loop_mission: tuple[Path, str, Path], tmp_path: Path) -> None:
+    """#5680 reproduction through ``spec-kitty agent action implement``.
+
+    The fixture mission writes to the work branch and leaves WP01
+    ``in_progress`` there. The operator cuts ``next-topic`` from that tip and
+    creates a second mission on it. The first mission's status copy on
+    ``next-topic`` is not its live status surface, so it must not occupy the
+    write checkout.
+    """
+    repo, occupant, occupant_dir = agent_loop_mission
+    _assert_setup_ok("action implement occupant WP01", _action_implement("WP01", occupant))
+    _commit_all(repo, "occupant status")
+    _git(repo, "checkout", "-b", "next-topic")
+    claimant, claimant_dir = _ready_mission(repo, tmp_path, "issue-5680-next", target_branch="next-topic")
+    _commit_all(repo, "claimant analysis")
+    assert _lane_of(occupant_dir, "WP01") == "in_progress"
+
+    result = _action_implement("WP01", claimant)
+
+    assert result.exit_code == 0, result.output
+    assert "WRITE_CHECKOUT_OCCUPIED" not in result.output
+    assert _lane_of(claimant_dir, "WP01") == "in_progress"

@@ -70,7 +70,7 @@ def _init_repo(repo: Path) -> None:
     _git(repo, "commit", "-q", "-m", "seed")
 
 
-def _write_meta(feature_dir: Path, mission_slug: str, mission_id: str, *, topology: str = "single_branch") -> None:
+def _write_meta(feature_dir: Path, mission_slug: str, mission_id: str, *, topology: str = "single_branch", target_branch: str = "trunk") -> None:
     feature_dir.mkdir(parents=True, exist_ok=True)
     (feature_dir / "meta.json").write_text(
         json.dumps(
@@ -80,7 +80,7 @@ def _write_meta(feature_dir: Path, mission_slug: str, mission_id: str, *, topolo
                 "slug": mission_slug,
                 "mid8": mission_id[:8].lower(),
                 "mission_type": "software-dev",
-                "target_branch": "trunk",
+                "target_branch": target_branch,
                 "topology": topology,
                 "created_at": "2026-09-28T00:00:00+00:00",
                 "friendly_name": mission_slug,
@@ -135,13 +135,13 @@ def _write_planning_wp(feature_dir: Path, wp_id: str, *, dependencies: list[str]
     (feature_dir / "tasks.md").write_text(f"# Tasks\n\n## {wp_id} Planning\n", encoding="utf-8")
 
 
-def _repo_root_manifest(mission_slug: str, mission_id: str, wp_id: str) -> LanesManifest:
+def _repo_root_manifest(mission_slug: str, mission_id: str, wp_id: str, *, target_branch: str = "trunk") -> LanesManifest:
     return LanesManifest(
         version=1,
         mission_slug=mission_slug,
         mission_id=mission_id,
         mission_branch="",
-        target_branch="trunk",
+        target_branch=target_branch,
         lanes=[
             ExecutionLane(
                 lane_id=PLANNING_LANE_ID,
@@ -190,15 +190,16 @@ def _build_mission(
     *,
     topology: str = "single_branch",
     wp_kind: str = "code_change",
+    target_branch: str = "trunk",
 ) -> Path:
     feature_dir = repo / "kitty-specs" / mission_slug
-    _write_meta(feature_dir, mission_slug, mission_id, topology=topology)
+    _write_meta(feature_dir, mission_slug, mission_id, topology=topology, target_branch=target_branch)
     (feature_dir / "tasks").mkdir(parents=True, exist_ok=True)
     if wp_kind == "code_change":
         _write_code_wp(feature_dir, wp_id)
     else:
         _write_planning_wp(feature_dir, wp_id)
-    write_lanes_json(feature_dir, _repo_root_manifest(mission_slug, mission_id, wp_id))
+    write_lanes_json(feature_dir, _repo_root_manifest(mission_slug, mission_id, wp_id, target_branch=target_branch))
     _seed_canonical_wp_state(repo, mission_slug, wp_id, "planned", actor="system", assignee="Owner", shell_pid="1234", timestamp="2026-09-28T00:30:00Z")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", f"planning: seed {mission_slug}")
@@ -551,6 +552,31 @@ def test_lanes_topology_planning_wp_allows_dirty_checkout(repo: Path) -> None:
     result = _run_implement(repo, mission_slug)
 
     assert result.exit_code == 0, result.output
+
+
+@pytest.mark.regression
+def test_issue_5680_finished_mission_on_another_write_branch_does_not_occupy(repo: Path) -> None:
+    """#5680 reproduction through ``spec-kitty implement``.
+
+    Mission A wrote to ``trunk`` and left WP01 ``in_progress`` there. The
+    operator then cut ``next-topic`` from that tip and created mission B on
+    it. A's status copy on ``next-topic`` is not A's live status surface (A
+    writes to ``trunk``), so it must not occupy the write checkout for B.
+    """
+    occupant = "impl-landed-elsewhere"
+    _build_mission(repo, occupant, "01IMPLLANDEDELSEWHERE001")
+    _seed_canonical_wp_state(repo, occupant, "WP01", "in_progress", actor="claude", assignee="Owner", shell_pid="1234", timestamp="2026-09-28T00:45:00Z")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "status: occupant WP01 in_progress")
+    _git(repo, "checkout", "-q", "-b", "next-topic")
+    claimant = "impl-next-topic"
+    _build_mission(repo, claimant, "01IMPLNEXTTOPIC000000001", target_branch="next-topic")
+    assert _git(repo, "branch", "--show-current") == "next-topic"
+
+    result = _run_implement(repo, claimant)
+
+    assert result.exit_code == 0, result.output
+    assert "WRITE_CHECKOUT_OCCUPIED" not in result.output
 
 
 # ---------------------------------------------------------------------------
