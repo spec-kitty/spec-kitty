@@ -158,12 +158,12 @@ so the substance is never copied into the skill.
   built-in defaults, **not** every available skill, supplied through the existing
   `effective_ids` seam and one kind attribute rather than per-kind branching. Registering a
   pack must not silently add N commands to every tool.
-- `overrides: skill:<id>` replaces a skill (built-in replacement still needs
-  `replaceable-builtins.yaml`); `enhances` may change parameter defaults, triggers, tool
+- `overrides: skill:<id>` replaces a skill. At the MVP, overriding a **built-in** skill is
+  refused; built-in replacement through `replaceable-builtins.yaml` is deferred to slice 3.
+  `enhances` may change parameter defaults, triggers, tool
   targeting, or narrow invocation, but never the body or expansion. Same id in two sibling
   org packs is a hard conflict.
-- Co-maintenance: the pack's `pack_version`, the skill's `version`, per-constituent
-  `content_hash` in the pack manifest, `maintainers`, and review through the pack
+- Co-maintenance: the pack's `pack_version`, the skill's `version`, `maintainers`, and review through the pack
   repository's PRs. A locally edited rendered copy is reported as drift pointing back at the
   pack source, so tweaks become upstream PRs rather than forks.
 
@@ -174,7 +174,7 @@ charter (pure)                                  specify_cli (adapter)
 merged DRG + activated_skills
   └─ prepare_project_skill_activations()  ─►  resolve_project_skill_catalog(project_root)
        (id, rendered name, body, expansion,       ├─ render via command_renderer frontmatter
-        provenance, content_hash)                 │   + User-Input block rewrite
+        provenance, source_hash)                  │   + User-Input block rewrite
                                                   ├─ project skill roots only, never global
                                                   └─ .kittify/skills-manifest.json ownership
 ```
@@ -195,8 +195,12 @@ merged DRG + activated_skills
 - Coverage at MVP: the 16 tools with a project skill root. Amazon Q is wrapper-only and gets
   a research-gap finding; project-local command files for non-skill tools come later.
 - Deactivation re-runs projection and retires manifest-owned entries only.
-- Rendered copies are gitignored in this repository, so `doctor` / `upgrade` flag a pack
-  whose `content_hash` differs from the manifest provenance (staleness, not only tampering).
+- Rendered copies are gitignored in this repository, so `doctor` / `upgrade` compare the
+  freshly prepared `source_hash` (a `sha256:` digest of the skill record, its DRG `requires`,
+  its rendered name and its body) against the `source_hash` in the skills-manifest provenance
+  (staleness, not only tampering of the rendered copy, which is reported separately as
+  drift against the manifest `content_hash`). A manifest entry the current catalog no longer
+  provides (for example after a namespace change) is reported as `orphaned`.
 
 ### Namespaces and trust
 
@@ -204,12 +208,14 @@ merged DRG + activated_skills
   declare a `skill_namespace`; skills render as `<namespace>-<id>`. Two activated skills that
   render to the same name fail before any write; an unowned existing directory with that name
   is preserved and reported.
-- A pack acts only after a maintainer registers it in `charter_packs.org.packs`; remote packs
-  must pin an immutable ref; content hashes are verified at preparation.
-- Activation prints a trust summary over the skill's whole `requires`/`suggests` closure,
-  assets included (assets already ship executables), and requires `--accept` for side effects
-  or remote packs. No `scripts/` and no permission-widening frontmatter (such as
-  `allowed-tools`) for org or project skills.
+- A pack acts only after a maintainer registers it in `charter_packs.org.packs` (built at
+  the MVP). **Deferred to slice 3:** remote packs pinning an immutable ref, and verifying
+  content hashes at preparation.
+- **Deferred to slice 3:** activation printing a trust summary over the skill's whole
+  `requires`/`suggests` closure, assets included (assets already ship executables), and
+  requiring `--accept` for side effects or remote packs. **Built at the MVP:** the validator
+  refuses a `scripts/` directory and permission-widening frontmatter (such as
+  `allowed-tools`) for org and project skills.
 - Bindings (repository, operator) resolve at run time from project config, never baked into
   rendered files; public packs carry no personal identifiers.
 
