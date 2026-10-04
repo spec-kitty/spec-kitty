@@ -360,33 +360,27 @@ def _resolve_status_events(
 def _resolve_take_theirs(
     file_path: Path,
     worktree: Path,
+    *,
+    rule_id: str = RULE_ID_COORDINATION_ARTIFACT,
 ) -> tuple[ConflictClassification | None, str | None]:
     rel_path = _relative_path(file_path, worktree)
     theirs = _git_show_stage(worktree, rel_path, 3)
     if theirs is None:
         ok, message = _remove_sparse(worktree, rel_path)
         if not ok:
-            return None, (
-                f"{RULE_ID_COORDINATION_ARTIFACT}: git rm {rel_path} "
-                f"failed: {message}"
-            )
-        return _managed_classification(file_path, RULE_ID_COORDINATION_ARTIFACT), None
+            return None, f"{rule_id}: git rm {rel_path} failed: {message}"
+        return _managed_classification(file_path, rule_id), None
 
     file_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         file_path.write_text(theirs, encoding="utf-8")
     except OSError as exc:
-        return None, (
-            f"{RULE_ID_COORDINATION_ARTIFACT}: could not write {rel_path}: {exc!r}"
-        )
+        return None, f"{rule_id}: could not write {rel_path}: {exc!r}"
 
     ok, message = _stage_sparse(worktree, rel_path)
     if not ok:
-        return None, (
-            f"{RULE_ID_COORDINATION_ARTIFACT}: git add {rel_path} "
-            f"failed: {message}"
-        )
-    return _managed_classification(file_path, RULE_ID_COORDINATION_ARTIFACT), None
+        return None, f"{rule_id}: git add {rel_path} failed: {message}"
+    return _managed_classification(file_path, rule_id), None
 
 
 def _resolve_status_json(
