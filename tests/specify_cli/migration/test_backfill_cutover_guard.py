@@ -34,10 +34,9 @@ from specify_cli.migration.backfill_runtime_state import verify_backfill
 from specify_cli.migration.runtime_state_cutover import cutover_mission
 from specify_cli.workspace import canonicalize_feature_dir
 
-# Module-level marker so EVERY node (not just the @regression-tagged ones) is
-# collected by a main-push job (#2957 CI-collection-completeness): matches the
-# sibling tests/specify_cli/migration/test_mission_state_identity.py.
-pytestmark = pytest.mark.regression
+# Tier markers only: ``regression`` is applied per test to the two #3049 pins
+# below (tests/regression/README.md), never module-wide.
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 MISSION_SLUG = "demo-mission-01ABCDEF"
 MISSION_ID = "01ABCDEFGHJKMNPQRSTVWXYZ00"

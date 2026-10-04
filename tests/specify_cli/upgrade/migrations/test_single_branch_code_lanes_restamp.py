@@ -27,7 +27,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.regression, pytest.mark.unit]
+pytestmark = [pytest.mark.unit]
 
 _MIGRATION_ID = "4_0_0rc5_single_branch_code_lanes_restamp"
 _TARGET_VERSION = "4.0.0rc5"
@@ -67,7 +67,7 @@ def _single_branch_meta(mission_slug: str) -> dict[str, object]:
 
 
 # ---------------------------------------------------------------------------
-# T010 test 1: registered (RED-FIRST — commit this test alone)
+# T010 test 1: registered (permanent guard; #5100 IC-02)
 # ---------------------------------------------------------------------------
 
 
@@ -262,8 +262,12 @@ def test_restamp_unreadable_lanes_never_writes_meta(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.regression
 def test_archived_single_branch_code_lane_mission_is_not_restamped(tmp_path: Path) -> None:
-    """A completed (merged) single_branch + code-lane mission is skipped, meta untouched."""
+    """A completed (merged) single_branch + code-lane mission is skipped, meta untouched.
+
+    Pinned to PR #5398: the defect is fixed; this is a permanent guard.
+    """
     from specify_cli.migration.backfill_topology import restamp_single_branch_with_code_lanes
 
     kitty_specs = tmp_path / "kitty-specs"
@@ -288,8 +292,12 @@ def test_archived_single_branch_code_lane_mission_is_not_restamped(tmp_path: Pat
     assert meta_path.read_bytes() == meta_before
 
 
+@pytest.mark.regression
 def test_live_single_branch_code_lane_mission_still_restamped(tmp_path: Path) -> None:
-    """Twin control: a LIVE (un-merged, non-terminal) mission is still re-stamped."""
+    """Twin control: a LIVE (un-merged, non-terminal) mission is still re-stamped.
+
+    Pinned to PR #5398: the defect is fixed; this is a permanent guard.
+    """
     from specify_cli.migration.backfill_topology import restamp_single_branch_with_code_lanes
 
     kitty_specs = tmp_path / "kitty-specs"

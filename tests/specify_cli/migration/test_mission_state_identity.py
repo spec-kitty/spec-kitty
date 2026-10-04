@@ -1,7 +1,7 @@
 """Checkout-identity reconciliation for ``doctor mission-state`` (WP04).
 
-FR-004 / FR-009; #3051 / #3541. Red-first (T012): from a foreign lane worktree
-the base behavior is a silent primary canonicalization on ``--fix`` and a
+FR-004 / FR-009; #3051 / #3541. Fixed defect (T012, permanent guard): from a foreign lane worktree
+the pre-fix behavior was a silent primary canonicalization on ``--fix`` and a
 false-green on ``--audit`` (both modes re-anchor to the primary and read it at
 *both* ends). After WP04:
 
@@ -44,7 +44,7 @@ from specify_cli.migration.mission_state import (
     repair_repo,
 )
 
-pytestmark = pytest.mark.regression
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _SLUG = "worktree-root-resolution-check"
 
@@ -77,8 +77,12 @@ def _make_primary_and_lane(tmp_path, *, primary_status: str, lane_status: str):
 # --- T012: --fix fail-closed refusal -----------------------------------------
 
 
+@pytest.mark.regression
 def test_foreign_lane_fix_fails_closed_naming_primary(tmp_path) -> None:
-    """A foreign-lane ``--fix`` refuses, names the primary, leaves it unchanged."""
+    """A foreign-lane ``--fix`` refuses, names the primary, leaves it unchanged.
+
+    Pinned to #3051 / #3541: the defect is fixed; this is a permanent guard.
+    """
     primary, lane = _make_primary_and_lane(
         tmp_path, primary_status='{"v": "primary"}', lane_status='{"v": "lane"}'
     )
@@ -128,8 +132,12 @@ def test_explicit_root_that_is_not_the_invocation_primary_is_ignored(tmp_path) -
 # --- T012: --audit honest disagreement ---------------------------------------
 
 
+@pytest.mark.regression
 def test_foreign_lane_audit_reports_honest_disagreement(tmp_path) -> None:
-    """From a lane, audit reports the invoking-vs-primary mismatch (no false-green)."""
+    """From a lane, audit reports the invoking-vs-primary mismatch (no false-green).
+
+    Pinned to #3051 / #3541: the defect is fixed; this is a permanent guard.
+    """
     primary, lane = _make_primary_and_lane(
         tmp_path, primary_status='{"v": "primary"}', lane_status='{"v": "lane"}'
     )
@@ -279,6 +287,7 @@ def _make_real_primary_with_lane(tmp_path: Path) -> tuple[Path, Path]:
     return primary, lane
 
 
+@pytest.mark.regression
 @pytest.mark.git_repo
 def test_repair_repo_fails_closed_from_foreign_lane_cwd(tmp_path, monkeypatch) -> None:
     """``repair_repo`` itself refuses a foreign-lane invocation (#3567 fold).

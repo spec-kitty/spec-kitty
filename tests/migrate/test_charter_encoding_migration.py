@@ -16,6 +16,7 @@ import json
 import os
 import re
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 from typer.testing import CliRunner
@@ -53,7 +54,7 @@ def _make_utf8_file(path: Path, text: str = "café naïve") -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def _extract_json(output: str) -> dict:
+def _extract_json(output: str) -> dict[str, Any]:
     """Extract the JSON object from mixed CLI output (stdout+stderr in CliRunner).
 
     CliRunner merges stdout and stderr; diagnostic lines may precede the JSON.
@@ -62,7 +63,8 @@ def _extract_json(output: str) -> dict:
     idx = output.find("{")
     if idx == -1:
         raise ValueError(f"No JSON object found in output: {output!r}")
-    return json.loads(output[idx:])
+    payload: dict[str, Any] = json.loads(output[idx:])
+    return payload
 
 
 def _count_provenance_records(provenance_path: Path) -> int:
@@ -407,3 +409,86 @@ def test_json_result_ambiguous_present_when_ambiguous(tmp_path: Path) -> None:
     assert payload["result"] == "ambiguous_present"
     ambiguous_paths = [a["path"] for a in payload["ambiguous"]]
     assert any("charter.yaml" in p for p in ambiguous_paths)
+
+
+# ---------------------------------------------------------------------------
+# #4962 backup-collision contract (ported from the retired subprocess file
+# tests/regressions/test_issue_4962_charter_encoding.py, case 3; #5621)
+# ---------------------------------------------------------------------------
+
+_COLLISION_TEXT = "# Team Charter\n\n" + "Tests must pass before merge.\n" * 10 + "We don’t ship on Fridays — the “freeze” rule. Owner: José Peña, São Paulo.\n"
+_STALE_BACKUP = b"stale backup from an earlier run\n"
+
+
+def test_preexisting_backup_blocks_normalization(tmp_path: Path) -> None:
+    """#4962: a pre-existing ``.bak`` blocks normalization; nothing is overwritten.
+
+    The defect is fixed; this is a permanent guard. Drives the migration
+    command in-process (no subprocess) and pins the defined collision
+    behaviour: the stale backup and the still-cp1252 source stay byte-identical,
+    the collision is reported in the JSON payload, and the exit is non-zero.
+    """
+    charter_file = tmp_path / "kitty-specs" / "001-issue-4962" / "charter" / "charter.md"
+    charter_file.parent.mkdir(parents=True)
+    (tmp_path / ".kittify").mkdir()
+    original_bytes = _COLLISION_TEXT.encode("cp1252")
+    charter_file.write_bytes(original_bytes)
+    backup_file = charter_file.with_name(charter_file.name + ".bak")
+    backup_file.write_bytes(_STALE_BACKUP)
+
+    result = CliRunner().invoke(
+        migrate_app,
+        ["charter-encoding", "--yes", "--json", "--project-root", str(tmp_path)],
+    )
+
+    assert result.exit_code != 0, result.output
+    payload = _extract_json(result.output)
+    assert payload["result"] == "backup_collision_present"
+    assert [Path(r["path"]).name for r in payload["backup_collisions"]] == ["charter.md"]
+    assert payload["normalized"] == []
+    assert backup_file.read_bytes() == _STALE_BACKUP, "a pre-existing .bak must never be silently overwritten"
+    assert charter_file.read_bytes() == original_bytes, "the source file must stay untouched when its backup collides"
+
+
+def test_write_normalized_with_backup_refuses_existing_backup(tmp_path: Path) -> None:
+    """#4962 seam: the writer itself refuses a colliding ``.bak`` (defence in depth).
+
+    The command loop pre-checks for a collision; this pins the writer's own
+    refusal so removing either layer is caught.
+    """
+    from specify_cli.cli.commands.migrate.charter_encoding import (
+        _BackupCollisionError,
+        _write_normalized_with_backup,
+    )
+
+    charter_file = tmp_path / "charter.md"
+    original_bytes = _COLLISION_TEXT.encode("cp1252")
+    charter_file.write_bytes(original_bytes)
+    backup_file = tmp_path / "charter.md.bak"
+    backup_file.write_bytes(_STALE_BACKUP)
+
+    with pytest.raises(_BackupCollisionError):
+        _write_normalized_with_backup(charter_file, _COLLISION_TEXT, original_bytes)
+
+    assert backup_file.read_bytes() == _STALE_BACKUP
+    assert charter_file.read_bytes() == original_bytes
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["charter.md", "charter.md.bak"], "no temp file left behind"
+
+
+def test_write_normalized_with_backup_preserves_original_bytes(tmp_path: Path) -> None:
+    """#4962 seam: the happy path writes a recoverable ``.bak`` and a byte-exact UTF-8 target.
+
+    Operators rely on the ``.bak`` holding the exact original bytes; the target
+    must be byte-exact UTF-8 and no temp file may be left behind.
+    """
+    from specify_cli.cli.commands.migrate.charter_encoding import _write_normalized_with_backup
+
+    charter_file = tmp_path / "charter.md"
+    original_bytes = _COLLISION_TEXT.encode("cp1252")
+    charter_file.write_bytes(original_bytes)
+
+    _write_normalized_with_backup(charter_file, _COLLISION_TEXT, original_bytes)
+
+    assert (tmp_path / "charter.md.bak").read_bytes() == original_bytes
+    assert charter_file.read_bytes() == _COLLISION_TEXT.encode("utf-8")
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["charter.md", "charter.md.bak"], "no temp file left behind"

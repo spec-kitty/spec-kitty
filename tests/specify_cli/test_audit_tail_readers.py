@@ -52,8 +52,6 @@ import pytest
 
 from specify_cli import _run_app_with_error_hook, app
 
-pytestmark = [pytest.mark.regression, pytest.mark.unit]
-
 
 def _invoke(monkeypatch: pytest.MonkeyPatch, argv: list[str], *, json_mode: bool = False) -> int:
     """Run *argv* through the real top-level app + the real global hook.
@@ -105,6 +103,7 @@ def _open_decision_argv(*, actor: str = "alice") -> list[str]:
 
 
 @pytest.mark.regression
+@pytest.mark.integration
 def test_decision_open_corrupt_events_log_presents_typed_error_not_traceback(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -135,6 +134,7 @@ def test_decision_open_corrupt_events_log_presents_typed_error_not_traceback(
 
 
 @pytest.mark.regression
+@pytest.mark.integration
 def test_decision_open_corrupt_events_log_json_envelope_names_the_typed_code(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -165,6 +165,7 @@ def test_decision_open_corrupt_events_log_json_envelope_names_the_typed_code(
     assert payload["details"]["events_path"] == str(events_path)
 
 
+@pytest.mark.unit
 def test_opened_event_exists_returns_false_when_events_log_absent() -> None:
     """D5: an absent ``status.events.jsonl`` still returns ``False`` — never
     routed through the guard (reader-level: the fastest, most direct way to
@@ -207,6 +208,7 @@ def _seed_status_feature(tmp_path: Path) -> Path:
 
 
 @pytest.mark.regression
+@pytest.mark.integration
 def test_status_validate_corrupt_snapshot_presents_typed_error_not_traceback(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -239,6 +241,7 @@ def test_status_validate_corrupt_snapshot_presents_typed_error_not_traceback(
 
 
 @pytest.mark.regression
+@pytest.mark.integration
 def test_status_validate_corrupt_snapshot_json_envelope_names_the_typed_kind(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -271,6 +274,7 @@ def test_status_validate_corrupt_snapshot_json_envelope_names_the_typed_kind(
     assert payload["kind"] == "StatusValidationReadError"
 
 
+@pytest.mark.unit
 def test_validate_materialization_drift_absent_files_returns_findings_not_error() -> None:
     """D5: absent status.json/status.events.jsonl stay outside the guard —
     ``_validate_materialization_files`` handles them with plain findings,
@@ -320,6 +324,7 @@ def _seed_wps_manifest_feature(tmp_path: Path, wps_yaml_content: str) -> Path:
 
 
 @pytest.mark.regression
+@pytest.mark.integration
 def test_finalize_tasks_malformed_wps_yaml_presents_clean_typed_message(
     tmp_path: Path,
 ) -> None:
@@ -356,6 +361,7 @@ def test_finalize_tasks_malformed_wps_yaml_presents_clean_typed_message(
     assert "wps.yaml is present but could not be loaded" in result.output
 
 
+@pytest.mark.unit
 def test_load_wps_manifest_returns_none_when_wps_yaml_absent(tmp_path: Path) -> None:
     """D5: a legacy mission with no ``wps.yaml`` stays ``None`` (prose-based
     ``tasks.md`` fallback) — never routed through the guard."""
@@ -367,6 +373,7 @@ def test_load_wps_manifest_returns_none_when_wps_yaml_absent(tmp_path: Path) -> 
 
 
 @pytest.mark.regression
+@pytest.mark.unit
 def test_load_wps_manifest_non_utf8_bytes_raises_typed_error(tmp_path: Path) -> None:
     """WP07/#4746: non-UTF-8 bytes in ``wps.yaml`` (fully unguarded pre-fix)
     now raise the typed ``WpsManifestReadError``."""
@@ -380,6 +387,7 @@ def test_load_wps_manifest_non_utf8_bytes_raises_typed_error(tmp_path: Path) -> 
         load_wps_manifest(feature_dir)
 
 
+@pytest.mark.unit
 def test_load_wps_manifest_schema_invalid_still_raises_plain_validation_error(
     tmp_path: Path,
 ) -> None:
@@ -418,6 +426,7 @@ def test_load_wps_manifest_schema_invalid_still_raises_plain_validation_error(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 def test_load_state_returns_none_when_state_file_absent(tmp_path: Path) -> None:
     """D5: an absent state.json still returns None for an explicit mission_id."""
     from specify_cli.consolidation.state import load_state
@@ -426,6 +435,7 @@ def test_load_state_returns_none_when_state_file_absent(tmp_path: Path) -> None:
 
 
 @pytest.mark.regression
+@pytest.mark.unit
 def test_load_state_explicit_mission_id_raises_typed_error_on_corrupt_json(
     tmp_path: Path,
 ) -> None:
@@ -445,6 +455,7 @@ def test_load_state_explicit_mission_id_raises_typed_error_on_corrupt_json(
 
 
 @pytest.mark.regression
+@pytest.mark.unit
 def test_load_state_non_utf8_bytes_raises_typed_error(tmp_path: Path) -> None:
     """WP07/#4746: non-UTF-8 bytes were fully unguarded pre-fix (the old
     `except (JSONDecodeError, TypeError, KeyError)` never caught
@@ -460,6 +471,7 @@ def test_load_state_non_utf8_bytes_raises_typed_error(tmp_path: Path) -> None:
 
 
 @pytest.mark.regression
+@pytest.mark.unit
 def test_load_state_scan_all_skips_a_corrupt_mission_and_still_finds_the_valid_one(
     tmp_path: Path,
 ) -> None:
@@ -487,6 +499,7 @@ def test_load_state_scan_all_skips_a_corrupt_mission_and_still_finds_the_valid_o
     assert result.mission_id == "valid-mission"
 
 
+@pytest.mark.unit
 def test_iter_pending_coord_reconcile_markers_skips_a_corrupt_state_file(
     tmp_path: Path,
 ) -> None:
@@ -528,6 +541,7 @@ def test_iter_pending_coord_reconcile_markers_skips_a_corrupt_state_file(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 def test_review_lock_load_returns_none_when_absent(tmp_path: Path) -> None:
     from specify_cli.review.lock import ReviewLock
 
@@ -535,6 +549,7 @@ def test_review_lock_load_returns_none_when_absent(tmp_path: Path) -> None:
 
 
 @pytest.mark.regression
+@pytest.mark.unit
 def test_review_lock_load_raises_typed_error_on_corrupt_json(tmp_path: Path) -> None:
     """WP07/#4746: pre-fix, this silently returned None -- indistinguishable
     from "no active lock", a stale-lock safety gap (see
@@ -551,6 +566,7 @@ def test_review_lock_load_raises_typed_error_on_corrupt_json(tmp_path: Path) -> 
 
 
 @pytest.mark.regression
+@pytest.mark.unit
 def test_review_lock_acquire_fails_closed_on_corrupt_lock_rather_than_silently_overwriting(
     tmp_path: Path,
 ) -> None:
@@ -579,6 +595,7 @@ def test_review_lock_acquire_fails_closed_on_corrupt_lock_rather_than_silently_o
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 def test_review_cycle_artifact_latest_returns_none_when_no_candidates(tmp_path: Path) -> None:
     from specify_cli.review.artifacts import ReviewCycleArtifact
 
@@ -586,6 +603,7 @@ def test_review_cycle_artifact_latest_returns_none_when_no_candidates(tmp_path: 
 
 
 @pytest.mark.regression
+@pytest.mark.unit
 def test_review_cycle_artifact_from_file_non_utf8_raises_typed_error(tmp_path: Path) -> None:
     """WP07/#4746: `from_file`'s `path.read_text` used to catch only
     `OSError`, re-raising a bare `ValueError` -- non-UTF-8 bytes propagated
@@ -600,6 +618,7 @@ def test_review_cycle_artifact_from_file_non_utf8_raises_typed_error(tmp_path: P
         ReviewCycleArtifact.from_file(path)
 
 
+@pytest.mark.unit
 def test_review_cycle_artifact_from_file_malformed_frontmatter_still_raises_value_error(
     tmp_path: Path,
 ) -> None:
@@ -625,6 +644,7 @@ def test_review_cycle_artifact_from_file_malformed_frontmatter_still_raises_valu
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 def test_baseline_load_returns_none_when_absent(tmp_path: Path) -> None:
     from specify_cli.review.baseline import BaselineTestResult
 
@@ -632,6 +652,7 @@ def test_baseline_load_returns_none_when_absent(tmp_path: Path) -> None:
 
 
 @pytest.mark.regression
+@pytest.mark.unit
 def test_baseline_load_non_utf8_bytes_raises_typed_error(tmp_path: Path) -> None:
     """WP07/#4746: non-UTF-8 bytes were fully unguarded pre-fix (only
     `json.JSONDecodeError` was caught, re-raised as `ValueError`)."""
@@ -644,6 +665,7 @@ def test_baseline_load_non_utf8_bytes_raises_typed_error(tmp_path: Path) -> None
         BaselineTestResult.load(artifact)
 
 
+@pytest.mark.unit
 def test_baseline_load_malformed_json_still_raises_value_error_with_original_message_shape(
     tmp_path: Path,
 ) -> None:
@@ -687,6 +709,7 @@ def _seed_requirement_mapping_feature(tmp_path: Path) -> Path:
 
 
 @pytest.mark.regression
+@pytest.mark.unit
 def test_runtime_bridge_corrupt_wps_manifest_gets_a_specific_typed_finding(
     tmp_path: Path,
 ) -> None:
@@ -707,7 +730,7 @@ def test_runtime_bridge_corrupt_wps_manifest_gets_a_specific_typed_finding(
     assert "Requirement mapping preflight failed" in findings[0]
 
 
-@pytest.mark.regression
+@pytest.mark.unit
 def test_runtime_bridge_companion_assertion_other_three_operations_unaffected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Companion assertion (T026, binding amendment): narrowing the
     `load_wps_manifest` catch must NOT change the behavior of the other
@@ -739,6 +762,7 @@ def test_runtime_bridge_companion_assertion_other_three_operations_unaffected(tm
     assert "wps.yaml is corrupt" not in findings[0]
 
 
+@pytest.mark.unit
 def test_load_wps_manifest_findings_returns_none_manifest_when_absent(tmp_path: Path) -> None:
     """D5, at the runtime_bridge seam: an absent wps.yaml still resolves to
     `(None, None)` -- the legacy tasks.md-prose-fallback branch, never a

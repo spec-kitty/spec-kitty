@@ -50,7 +50,7 @@ from specify_cli.status.doctor import check_issue_matrix
 from specify_cli.status.models import Lane
 from specify_cli.tasks.issue_reference_discovery import gating_issue_numbers
 
-pytestmark = [pytest.mark.regression, pytest.mark.fast]
+pytestmark = [pytest.mark.fast]
 
 
 class _RecordingConsole:

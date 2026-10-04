@@ -15,7 +15,7 @@ from the event log via WP01's pure
 the shared wedge predicate
 (``specify_cli.lanes.persistence.is_execution_wedged``) holds.
 
-T011 is the pinned RED-first regression: before this WP's fix, ``repair_repo``
+T011 is the permanent guard for the fixed #4758 defect: before the fix, ``repair_repo``
 never rebuilds ``lanes.json`` at all -- a wedged mission stays wedged even
 after ``--fix``. T012-T014 cover the fail-closed corrupt-log path, the #3311
 never-rewrite guard, NFR-004 idempotence, the ownerless-mission edge case,
@@ -39,7 +39,7 @@ from specify_cli.migration.mission_state import (
 from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.status.emit import emit_status_transition
 
-pytestmark = [pytest.mark.regression, pytest.mark.unit]
+pytestmark = [pytest.mark.unit]
 
 _MISSION_SLUG = "070-wedge-mission"
 
@@ -128,10 +128,11 @@ def _build_wedged_mission(tmp_path: Path, mission_slug: str = _MISSION_SLUG, *, 
 
 
 # ---------------------------------------------------------------------------
-# T011: RED-first regression (pinned #4758)
+# T011: permanent guard for the fixed #4758 defect
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.regression
 def test_repair_rebuilds_lanes_json_for_a_wedged_mission(tmp_path: Path) -> None:
     """#4758: ``doctor mission-state --fix`` un-wedges a mission.
 
