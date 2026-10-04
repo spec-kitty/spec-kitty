@@ -1,0 +1,79 @@
+{
+  "mission_slug": "single-branch-claim-gaps-01M43MVY",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_single_branch_implement_refusals.py::test_mission_writing_to_another_branch_does_not_occupy_the_checkout; tests/lanes/test_checkout_occupancy.py::test_mission_writing_to_another_branch_is_not_an_occupant (red at the T002 commit, green at head)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T15:40:35.359731+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_single_branch_write_checkout_e2e.py::test_mission_writing_to_another_branch_does_not_occupy_the_checkout (agent action implement; red at the T002 commit, green at head)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T15:40:42.162665+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_single_branch_implement_refusals.py::test_another_mission_in_progress_refuses; tests/integration/test_single_branch_write_checkout_e2e.py::test_action_implement_refuses_occupied_checkout; tests/integration/test_single_branch_write_checkout_e2e.py::test_occupied_refusal_remedy_clears_a_live_occupant; tests/lanes/test_checkout_occupancy.py::test_mission_writing_to_the_current_branch_is_an_occupant",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T15:40:48.572123+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_single_branch_implement_refusals.py::test_resuming_the_already_in_progress_wp_is_exempt_from_occupancy_and_dirty; tests/integration/test_single_branch_write_checkout_e2e.py::test_action_implement_resume_in_dirty_checkout_is_allowed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T15:40:55.036360+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_single_branch_implement_refusals.py::test_occupied_refusal_is_isolated_and_carries_error_code_and_remedy; tests/integration/test_single_branch_write_checkout_e2e.py::test_occupied_refusal_remedy_clears_a_live_occupant (runs the printed move-task, then the retry succeeds)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T15:41:01.150389+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_single_branch_write_checkout_e2e.py::test_action_implement_records_claim_base_and_reaches_review (delivered by #5659; research/code-grounding.md section 1)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T15:41:07.179686+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "docs/changelog/CHANGELOG.md [Unreleased] Fixed (#5680); AGENTS.md Execution Workspace Strategy; docs/context/topology.md write-checkout row; check_changelog_style 0 errors; reviewer-renata checked accuracy",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T15:41:13.455219+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

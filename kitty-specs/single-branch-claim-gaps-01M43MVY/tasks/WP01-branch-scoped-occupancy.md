@@ -20,6 +20,9 @@ requirement_refs:
 planning_base_branch: issue-5680-single-branch-claim-gaps
 merge_target_branch: issue-5680-single-branch-claim-gaps
 branch_strategy: Planning artifacts for this mission were generated on issue-5680-single-branch-claim-gaps. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-5680-single-branch-claim-gaps unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-single-branch-claim-gaps-01M43MVY
+base_commit: af4b955d7d69311b554721bf0b0e0bcdd7958697
+created_at: '2026-10-04T14:31:27.703903+00:00'
 subtasks:
 - T001
 - T002

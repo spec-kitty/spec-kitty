@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#5100": {
+      "evidence_ref": "cited as provenance of mission_runtime.single_branch_write_ref (the one write-branch rule); not addressed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5659": {
+      "evidence_ref": "merged prerequisite (#5659, rebase-merged into main 2026-10-04) that delivered the #5663 fix; cited for provenance",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5663": {
+      "evidence_ref": "fixed by #5659; pinned by tests/integration/test_single_branch_write_checkout_e2e.py::test_action_implement_records_claim_base_and_reaches_review (passes at lane head); research/code-grounding.md section 1",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#5680": {
+      "evidence_ref": "40169931 (branch-scoped occupancy) + bda2d4a3 (remedy); repros red at 33540c47 (2 failed, WRITE_CHECKOUT_OCCUPIED), green at head",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,37 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M43SAQZETTPW6FZMND03YQF2",
+  "materialized_at": "2026-10-04T15:43:12.366847+00:00",
+  "mission_number": "",
+  "mission_slug": "single-branch-claim-gaps-01M43MVY",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M43SAQZETTPW6FZMND03YQF2",
+      "last_transition_at": "2026-10-04T15:43:12.366847+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 9088,
+      "shell_pid_created_at": "1791124264.76"
+    }
+  }
+}

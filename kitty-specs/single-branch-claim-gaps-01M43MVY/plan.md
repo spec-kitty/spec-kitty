@@ -43,6 +43,8 @@ keeps today's behaviour.
   authoritative status surface of a single_branch mission. A copy on any other
   branch is a snapshot.
 
+**Amendment (review fold, 2026-10-04):** where this plan says `read_topology`, the code now does one `load_meta_fail_closed` read plus `topology_from_meta`. The check is equivalent, because an unstamped mission never derives `single_branch`. An absent, empty or non-string `target_branch` counts fail-closed, and the scan does not apply `read_target_branch_from_meta`'s primary-branch default.
+
 **Rejected alternatives:**
 
 | Predicate | Why rejected |
