@@ -252,7 +252,7 @@ def _wp_kinds_for_manifest(repo_root: Path, mission_slug: str) -> Mapping[str, A
     ``resolve_workspace_for_wp`` itself classifies a WP as.
 
     #5100 WP04 cycle-2 fix (review issue 2, mirrors
-    ``consolidation/executor.py::_run_has_code_wps``'s identical fix): ONLY
+    ``consolidation/phase_bookkeeping.py::_run_has_code_wps``'s identical fix): ONLY
     an EXPLICIT frontmatter ``execution_mode`` (``mode_source ==
     "frontmatter"``) is trusted as a "code" signal. A WP with no
     ``execution_mode`` normalizes via bare-default inference

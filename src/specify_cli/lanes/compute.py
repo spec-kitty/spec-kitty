@@ -112,7 +112,7 @@ def has_code_wps(manifest: LanesManifest, wp_kinds: Mapping[str, WorkProductKind
 
     Promoted to public by #5100 WP04 (plan fold B3): wired in at
     ``acceptance/gates_core.py`` (the "no code" branch-gate / matrix-presence
-    claims) and ``consolidation/executor.py`` (the runtime-state-cutover and
+    claims) and ``consolidation/phase_bookkeeping.py`` (the runtime-state-cutover and
     mission→target-phase "no code" claims) — mirrors this mission's own WP02
     precedent (``lanes/claim_base.py``'s
     ``_claim_base_ref``/``_clear_claim_base``, privatized then widened back
@@ -153,7 +153,7 @@ def mission_has_code(manifest: LanesManifest, wp_kinds: Mapping[str, WorkProduct
     never needs the wider legacy-inference tolerance ``has_code_lanes``
     already covers for lanes/coord.
 
-    THE single call site both ``consolidation/executor.py::_run_has_code_wps``
+    THE single call site both ``consolidation/phase_bookkeeping.py::_run_has_code_wps``
     and ``acceptance/gates_core.py``'s branch-gate/lane-gate "no code" claims
     delegate to, so the lane-floor-plus-kind rule cannot drift between them.
     """

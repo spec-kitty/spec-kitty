@@ -1075,7 +1075,7 @@ def _deletable_mission_branch(manifest: Any) -> str | None:
 
     A single_branch mission's ``mission_branch`` falls back to ``target_branch``
     (the user's own branch); that branch is never ours to delete or expect gone
-    (mirrors ``consolidation.executor._delete_mission_branch``).
+    (mirrors ``consolidation.phase_teardown._delete_mission_branch``).
     """
     mission_branch = manifest.mission_branch
     if not mission_branch or mission_branch == manifest.target_branch:

@@ -450,7 +450,7 @@ def _post_checkpoint_mission_paths(main_repo: Path, mission_slug: str, checkpoin
     #   * the accept-time gate matrices ``issue-matrix.json`` / ``acceptance-matrix.json``
     #     (``ISSUE_MATRIX`` / ``ACCEPTANCE_MATRIX``): although coord-partition, these are
     #     authored on the PRIMARY checkout by ``accept`` (#2404) and have their OWN
-    #     squash-merge preservation path (``executor._restore_regressed_gate_artifacts``,
+    #     squash-merge preservation path (``phase_advance._restore_regressed_gate_artifacts``,
     #     #2804). The general projection must NOT overwrite an already-accepted target
     #     fill with the coord branch's stale finalize-time placeholder.
     # A ``None`` kind that is NOT ``meta.json`` stays projected (coord bookkeeping).

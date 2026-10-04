@@ -490,7 +490,7 @@ def stamp_accept_cutover(
     """Terminal-lifecycle accept-time stamp (IC-01 / contracts/stamp-seam.md).
 
     A thin, fail-closed wrapper over :func:`cutover_mission` — the SAME single
-    authority :func:`~specify_cli.consolidation.executor._run_birth_cutover` calls at
+    authority :func:`~specify_cli.consolidation.phase_bookkeeping._run_birth_cutover` calls at
     the merge seam (FR-005: no forked writer; this function adds no seeding or
     flip logic of its own). The only behavior layered on top is the
     NFR-003/R6 fail-closed assertion below, so the ``accept`` CLI seam and the

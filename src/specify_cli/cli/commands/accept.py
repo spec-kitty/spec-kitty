@@ -288,7 +288,7 @@ def _stamp_birth_cutover_for_accept(
     """Auto-stamp the birth-cutover into the mission branch at the terminal
     ``accept`` seam (WP02 / FR-001 / FR-004 / FR-005 / FR-006 / NFR-003).
 
-    Mirrors ``consolidation/executor.py::_run_birth_cutover``'s shape (resolve PRIMARY
+    Mirrors ``consolidation/phase_bookkeeping.py::_run_birth_cutover``'s shape (resolve PRIMARY
     + COORD legs -> the single-authority
     :func:`~specify_cli.migration.runtime_state_cutover.cutover_mission`, via
     :func:`~specify_cli.migration.runtime_state_cutover.stamp_accept_cutover`
