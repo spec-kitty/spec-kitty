@@ -90,7 +90,7 @@ tests/architectural/test_builtin_override_policy.py        # switch to effective
 tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py  # CLI acceptance + negatives + hints
 tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py    # honest docstring re-pin
 tests/specify_cli/doctrine/test_pack_validator*.py / assembler tests  # FR-014/015
-docs/adr/4.x/2026-10-05-1-org-packs-ship-their-builtin-override-sanction.md
+docs/adr/4.x/2026-10-05-3-org-packs-ship-their-builtin-override-sanction.md
 docs/guides/how-to/governance/create-an-org-doctrine-pack.md  # new section + troubleshooting
 docs/changelog/CHANGELOG.md   # [Unreleased]
 ```

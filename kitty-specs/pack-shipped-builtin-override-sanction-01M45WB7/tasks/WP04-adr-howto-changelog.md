@@ -20,11 +20,11 @@ history: []
 agent_profile: scribe-sally
 authoritative_surface: docs/
 create_intent:
-- docs/adr/4.x/2026-10-05-1-org-packs-ship-their-builtin-override-sanction.md
+- docs/adr/4.x/2026-10-05-3-org-packs-ship-their-builtin-override-sanction.md
 execution_mode: planning_artifact
 model: ''
 owned_files:
-- docs/adr/4.x/2026-10-05-1-org-packs-ship-their-builtin-override-sanction.md
+- docs/adr/4.x/2026-10-05-3-org-packs-ship-their-builtin-override-sanction.md
 - docs/adr/4.x/index.md
 - docs/guides/how-to/governance/create-an-org-doctrine-pack.md
 - docs/changelog/CHANGELOG.md
@@ -68,7 +68,7 @@ Document the pack-root built-in override sanction. Write an ADR that records the
   - Follow the structure of existing ADRs: frontmatter with `updated:` and Divio type. Use a recent `docs/adr/4.x/2026-10-04-*.md` file as the shape reference.
   - Terminology: "Mission"; "org pack" and "pack root". Avoid new "doctrine pack" prose (#3732).
 
-### Subtask T015: ADR `docs/adr/4.x/2026-10-05-1-org-packs-ship-their-builtin-override-sanction.md`
+### Subtask T015: ADR `docs/adr/4.x/2026-10-05-3-org-packs-ship-their-builtin-override-sanction.md`
 - **Context:** the drift problem (#5767), the rc3 promotion, and the template convention that nothing reads.
 - **Decision:** a pack-root `replaceable-builtins.yaml`, read in place by `doctor doctrine` through one loader in `charter.offering.drg.override_policy`. It is scoped to the contributing pack by registry name, unioned with the consumer allowlist (checked first), and revocable per URN or per pack. Include the decision table.
 - **Alternatives:**

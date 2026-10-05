@@ -111,7 +111,7 @@ work_packages:
   - WP02
   - WP03
   owned_files:
-  - docs/adr/4.x/2026-10-05-1-org-packs-ship-their-builtin-override-sanction.md
+  - docs/adr/4.x/2026-10-05-3-org-packs-ship-their-builtin-override-sanction.md
   - docs/adr/4.x/index.md
   - docs/guides/how-to/governance/create-an-org-doctrine-pack.md
   - docs/changelog/CHANGELOG.md

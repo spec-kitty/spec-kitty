@@ -75,7 +75,7 @@
         "WP04"
       ],
       "write_scope": [
-        "docs/adr/4.x/2026-10-05-1-org-packs-ship-their-builtin-override-sanction.md",
+        "docs/adr/4.x/2026-10-05-3-org-packs-ship-their-builtin-override-sanction.md",
         "docs/adr/4.x/index.md",
         "docs/changelog/CHANGELOG.md",
         "docs/development/docs-retrieval-index.yaml",

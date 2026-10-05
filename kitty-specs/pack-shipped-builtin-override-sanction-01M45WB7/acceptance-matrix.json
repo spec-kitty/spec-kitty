@@ -108,7 +108,7 @@
       "criterion_id": "FR-011",
       "description": "Verify FR-011 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "docs/adr/4.x/2026-10-05-1-org-packs-ship-their-builtin-override-sanction.md; docs/guides/how-to/governance/create-an-org-doctrine-pack.md; docs/changelog/CHANGELOG.md [Unreleased]; WP04 review approved",
+      "evidence": "docs/adr/4.x/2026-10-05-3-org-packs-ship-their-builtin-override-sanction.md; docs/guides/how-to/governance/create-an-org-doctrine-pack.md; docs/changelog/CHANGELOG.md [Unreleased]; WP04 review approved",
       "pass_fail": "pass",
       "verified_by": "claude",
       "verified_at": "2026-10-05T13:57:08.058078+00:00",
