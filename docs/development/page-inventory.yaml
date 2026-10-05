@@ -1202,12 +1202,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/adr/4.x/2026-10-04-3-approval-stamp-bounds-the-approved-claim.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/adr/4.x/2026-10-04-3-upgrade-reports-one-outcome.md
   tag: current
   divio_type: none
@@ -1215,6 +1209,12 @@
   current_target: true
   notes: null
 - path: docs/adr/4.x/2026-10-04-4-upgrade-writes-project-global-state-once.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md
   tag: current
   divio_type: none
   owning_workstream: none

@@ -53,3 +53,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-04 | [a started work package keeps its recorded execution lane on re-finalize](2026-10-04-2-started-work-package-lane-membership-is-frozen.md) |
 | 2026-10-04 | [a completed upgrade run reports one outcome](2026-10-04-3-upgrade-reports-one-outcome.md) |
 | 2026-10-04 | [upgrade writes project-global state once, in the repository root checkout](2026-10-04-4-upgrade-writes-project-global-state-once.md) |
+| 2026-10-04 | [the approval stamp bounds what consolidate treats as approved work](2026-10-04-5-approval-stamp-bounds-the-approved-claim.md) |

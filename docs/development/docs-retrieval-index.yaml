@@ -3444,24 +3444,6 @@ pages:
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
-  - path: "docs/adr/4.x/2026-10-04-2-approval-stamp-bounds-the-approved-claim.md"
-    title: "ADR: the approval stamp bounds what consolidate treats as approved work"
-    divio_type: "none"
-    abstract: "Consolidate refuses a code lane holding a commit made after its work package was approved; an approval with no stamp refuses until re-reviewed or attested."
-    anchors:
-    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
-    - {slug: "decision", text: "Decision", level: 2}
-    - {slug: "what-the-stamp-is", text: "What the stamp is", level: 3}
-    - {slug: "the-lane-check", text: "The lane check", level: 3}
-    - {slug: "where-it-runs", text: "Where it runs", level: 3}
-    - {slug: "attestation", text: "Attestation", level: 3}
-    - {slug: "operator-guidance", text: "Operator guidance", level: 3}
-    - {slug: "mixed-lanes", text: "Mixed lanes", level: 3}
-    - {slug: "reversed-decisions", text: "Reversed decisions", level: 3}
-    - {slug: "evidence", text: "Evidence", level: 3}
-    - {slug: "considered-options", text: "Considered Options", level: 2}
-    - {slug: "consequences", text: "Consequences", level: 2}
-    - {slug: "residuals", text: "Residuals", level: 3}
   - path: "docs/adr/4.x/2026-10-04-2-started-work-package-lane-membership-is-frozen.md"
     title: "ADR: a started work package keeps its recorded execution lane on re-finalize"
     divio_type: "none"
@@ -3494,6 +3476,24 @@ pages:
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
+  - path: "docs/adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md"
+    title: "ADR: the approval stamp bounds what consolidate treats as approved work"
+    divio_type: "none"
+    abstract: "Consolidate refuses a code lane holding a commit made after its work package was approved; an approval with no stamp refuses until re-reviewed or attested."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "what-the-stamp-is", text: "What the stamp is", level: 3}
+    - {slug: "the-lane-check", text: "The lane check", level: 3}
+    - {slug: "where-it-runs", text: "Where it runs", level: 3}
+    - {slug: "attestation", text: "Attestation", level: 3}
+    - {slug: "operator-guidance", text: "Operator guidance", level: 3}
+    - {slug: "mixed-lanes", text: "Mixed lanes", level: 3}
+    - {slug: "reversed-decisions", text: "Reversed decisions", level: 3}
+    - {slug: "evidence", text: "Evidence", level: 3}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "residuals", text: "Residuals", level: 3}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
