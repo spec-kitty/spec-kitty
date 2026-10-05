@@ -60,6 +60,7 @@ from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
 from specify_cli.status.reducer import materialize
+from tests.consolidation.approval_stamps import restamp_log_at_lane_tips
 from tests.terminus import conftest as _harness
 from tests.terminus.conftest import CoordMission
 
@@ -558,6 +559,7 @@ def build_older_version_lanes_project(
     depends_on_lanes: Mapping[str, Sequence[str]] | None = None,
     status_json_divergence: bool = False,
     with_analysis_report: bool = False,
+    approvals_stamped: bool = False,
 ) -> LanesProject:
     """Build a project recorded at an OLDER version with ``lanes`` live lanes.
 
@@ -575,6 +577,13 @@ def build_older_version_lanes_project(
       mission/coordination branch and on every lane branch (WP04 AS-3).
     * ``with_analysis_report`` -- persist a fresh analysis report so
       ``implement`` / ``review`` are not blocked by ``analysis_report_required``.
+    * ``approvals_stamped`` -- record, once the lane commits exist, that review
+      approved each lane's tip (:func:`stamp_approvals`): the order of a live
+      mission, whose approvals predate any later upgrade commit. Left off, the
+      approvals carry no ``lane_head`` and ``consolidate`` refuses them
+      (``APPROVAL_STAMP_MISSING``); a test that commits the broken upgrade state
+      and wants the mission re-approved after it calls :func:`stamp_approvals`
+      itself.
 
     A recorded acceptance is NOT provided: WPs are approved via the status log,
     which is all the terminus-style ``consolidate`` path reads. A test that needs
@@ -594,7 +603,7 @@ def build_older_version_lanes_project(
     events: list[dict[str, object]] = []
     for wp_id in wps:
         (mission.feature_dir / "tasks" / f"{wp_id}-work.md").write_text(
-            f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} work\n---\n# {wp_id}\n",
+            f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} work\nsubtasks: []\n---\n# {wp_id}\n",
             encoding="utf-8",
         )
         events.extend(status_event(mission, wp_id, frm, to) for frm, to in _APPROVE_CHAIN)
@@ -624,7 +633,22 @@ def build_older_version_lanes_project(
         project.coord_worktree = CoordinationWorkspace.resolve(mission.repo, mission.slug, mission.mid8)
     if status_json_divergence:
         _plant_status_json_divergence(project)
+    if approvals_stamped:
+        stamp_approvals(project)
     return project
+
+
+def stamp_approvals(project: LanesProject) -> None:
+    """Record that review approved every lane's CURRENT tip: stamp each ``approved`` event's ``lane_head`` (#5668).
+
+    ``consolidate`` bounds an approved lane to the commit its approval names. Calling this
+    before :func:`commit_broken_upgrade_state` models a mission approved before the pre-fix
+    upgrade committed on its lanes (the usual order: the bound then refuses that commit);
+    calling it after models a mission approved, or re-approved, after the upgrade. The
+    older-version project refuses status commands, so the stamp is written to the log
+    directly, committed on the target (the status surface of a ``lanes`` mission).
+    """
+    restamp_log_at_lane_tips(project.repo, project.feature_dir)
 
 
 def _status_json_path(project: LanesProject) -> str:

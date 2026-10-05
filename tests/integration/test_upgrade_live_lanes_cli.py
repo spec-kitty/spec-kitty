@@ -112,7 +112,7 @@ def _assert_lane_files_on_target(project: LanesProject) -> None:
 
 
 def test_path_a_two_lanes_upgrade_then_consolidate(tmp_path: Path) -> None:
-    project = build_older_version_lanes_project(tmp_path, topology="lanes", lanes=2)
+    project = build_older_version_lanes_project(tmp_path, topology="lanes", lanes=2, approvals_stamped=True)
     upgrade_commits = _upgrade(project)
     _assert_lane_runtime_still_works(project)
 
@@ -126,7 +126,7 @@ def test_path_a_two_lanes_upgrade_then_consolidate(tmp_path: Path) -> None:
 
 
 def test_path_b_one_lane_into_work_upgrade_then_consolidate(tmp_path: Path) -> None:
-    project = build_older_version_lanes_project(tmp_path, topology="lanes", lanes=1, target_branch="work")
+    project = build_older_version_lanes_project(tmp_path, topology="lanes", lanes=1, target_branch="work", approvals_stamped=True)
     upgrade_commits = _upgrade(project)
     _assert_lane_runtime_still_works(project)
 

@@ -15,8 +15,10 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 import subprocess
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
@@ -32,7 +34,9 @@ from tests.integration.target_owned_fixtures import (
     output_names_merge_failed,
     output_names_stale_metadata_refusal,
     output_names_target_content_conflict,
+    stamp_approvals,
 )
+from tests.terminus.canceled_dependency_support import _approve
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.slow]
 
@@ -60,9 +64,24 @@ def _show(repo: Path, ref: str, path: str) -> str | None:
     return result.stdout if result.returncode == 0 else None
 
 
-def _broken_project(tmp_path: Path, *, lanes: int, status_json_divergence: bool = False) -> LanesProject:
-    project = build_older_version_lanes_project(tmp_path, topology="lanes", lanes=lanes, status_json_divergence=status_json_divergence)
+ApprovedWhen = Literal["after_upgrade", "before_upgrade"]
+
+
+def _broken_project(tmp_path: Path, *, lanes: int, status_json_divergence: bool = False, approved: ApprovedWhen | None = "after_upgrade") -> LanesProject:
+    """The WP01 broken-state fixture, with review's approval of each lane recorded before or after the per-lane upgrade commit.
+
+    ``consolidate`` bounds a lane to the commit its approval names, so an approval that
+    predates the upgrade commit leaves that commit beyond it (``approved="before_upgrade"``,
+    the usual order on a live mission); the recovery tests approve after it. A test that
+    commits more onto a lane passes ``approved=None`` and calls :func:`stamp_approvals`
+    once it has, so that commit is reviewed work too.
+    """
+    project = build_older_version_lanes_project(
+        tmp_path, topology="lanes", lanes=lanes, status_json_divergence=status_json_divergence, approvals_stamped=approved == "before_upgrade"
+    )
     commit_broken_upgrade_state(project)
+    if approved == "after_upgrade":
+        stamp_approvals(project)
     return project
 
 
@@ -109,10 +128,45 @@ def _assert_landed(project: LanesProject, result: subprocess.CompletedProcess[st
 # ---------------------------------------------------------------------------
 
 
-def test_as1_two_lanes_with_worktrees_consolidate(tmp_path: Path) -> None:
-    """AS-1 (FR-012): the lane -> mission merge keeps the mission side's metadata."""
-    project = _broken_project(tmp_path, lanes=2)
+def _branch_tips(project: LanesProject) -> dict[str, str]:
+    return {branch: _git_rev(project.repo, branch) for branch in (project.target_branch, project.mission_branch, *project.lane_branches.values())}
+
+
+def _git_rev(repo: Path, ref: str) -> str:
+    return subprocess.run(["git", "-C", str(repo), "rev-parse", ref], capture_output=True, text=True, check=True).stdout.strip()
+
+
+def _reapprove_through_the_printed_recovery(project: LanesProject, refusal: str) -> None:
+    """Run the move-back commands the refusal printed, then approve each work package again through the production status shell."""
+    printed = re.findall(r"^\s+(spec-kitty agent tasks move-task .*)$", refusal, flags=re.MULTILINE)
+    assert len(printed) == len(project.lane_ids), refusal
+    for command in printed:
+        argv = shlex.split(command)
+        moved = project.run(*argv[1:])
+        assert moved.returncode == 0, f"the printed recovery command failed: {command}\n{_output(moved)}"
+    for wp_id in project.lane_wps.values():
+        _approve(project.mission, wp_id, reference=f"review-{wp_id}-after-upgrade")
+
+
+@pytest.mark.parametrize("approved", ["after_upgrade", "before_upgrade"])
+def test_as1_two_lanes_with_worktrees_consolidate(tmp_path: Path, approved: ApprovedWhen) -> None:
+    """AS-1 (FR-012): the lane -> mission merge keeps the mission side's metadata.
+
+    The approved-bound is strict (#5668): a mission approved BEFORE the pre-fix upgrade
+    committed on its lanes holds that commit beyond its approvals, so it is refused with
+    nothing moved until each work package is reviewed again (the recovery the refusal
+    prints); then it consolidates, the target keeping its own metadata.
+    """
+    project = _broken_project(tmp_path, lanes=2, approved=approved)
     target_metadata = metadata_blob(project.repo, project.target_branch)
+    if approved == "before_upgrade":
+        tips = _branch_tips(project)
+        refused = _consolidate(project)
+        refusal = _output(refused)
+        assert refused.returncode != 0, refusal
+        assert "LANE_MOVED_AFTER_APPROVAL" in refusal and "(e.g. '.gitattributes')" in refusal, refusal
+        assert _branch_tips(project) == tips, "the refusal must fire before any branch moves"
+        _reapprove_through_the_printed_recovery(project, refusal)
 
     result = _consolidate(project)
 
@@ -179,8 +233,9 @@ def test_as3_dry_run_no_longer_forecasts_the_metadata_conflict(tmp_path: Path) -
 def test_source_conflict_in_a_broken_mission_is_refused_naming_only_the_source_path(tmp_path: Path) -> None:
     """Story 5 AS-2: a genuine source conflict in the AS-3 fixture is still refused,
     names only the source path, and leaves the target untouched."""
-    project = _broken_project(tmp_path, lanes=1, status_json_divergence=True)
+    project = _broken_project(tmp_path, lanes=1, status_json_divergence=True, approved=None)
     _add_source_conflict(project)
+    stamp_approvals(project)
     target_tip = _show(project.repo, project.target_branch, _SHARED_SOURCE)
 
     result = _consolidate(project)
@@ -194,7 +249,7 @@ def test_source_conflict_in_a_broken_mission_is_refused_naming_only_the_source_p
 
 def test_lanes_that_change_gitattributes_differently_are_still_refused_as_stale(tmp_path: Path) -> None:
     """Two lanes that change ``.gitattributes`` differently are still refused as stale."""
-    project = _broken_project(tmp_path, lanes=2)
+    project = _broken_project(tmp_path, lanes=2, approved=None)
     for index, branch in enumerate(project.lane_branches.values()):
         commit_file_on_branch(
             project.repo,
@@ -203,6 +258,7 @@ def test_lanes_that_change_gitattributes_differently_are_still_refused_as_stale(
             DECISION_INDEX_GITATTRIBUTES_LINE + f"*.lane{index} text\n",
             "chore: lane attributes",
         )
+    stamp_approvals(project)
     project.remove_lane_worktrees()
 
     result = _consolidate(project)
