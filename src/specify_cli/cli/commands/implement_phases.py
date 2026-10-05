@@ -125,7 +125,7 @@ def _validate_base_ref(repo_root: Path, base_ref: str) -> str:
     :func:`implement_support.resolve_base_ref`). Raises typer.Exit(1) with a clear error message
     when the ref resolves neither locally nor on ``origin``.
     """
-    resolved = implement_support.resolve_base_ref(repo_root, base_ref)
+    resolved: tuple[str, str] | None = implement_support.resolve_base_ref(repo_root, base_ref)
     if resolved is None:
         _raise_base_ref_unresolved(base_ref)
     return resolved[1]
@@ -253,6 +253,7 @@ def _resolve_effective_base(repo_root: Path, base: str | None, resolved_workspac
     ``BaseRefUnresolved`` into the single canonical unresolved-base message plus exit 1. This runs
     inside ``implement``'s create ``try``, so ``except typer.Exit`` renders the tracker unchanged.
     """
+    effective_base: str | None
     try:
         effective_base, ignored = implement_support.resolve_effective_base(repo_root, base, resolved_workspace)
     except implement_support.BaseRefUnresolved as exc:

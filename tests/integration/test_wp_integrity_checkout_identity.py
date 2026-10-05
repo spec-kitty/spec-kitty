@@ -21,6 +21,7 @@ the review gate) carry ``write_intent=True``, while the audited read vehicle
 """
 from __future__ import annotations
 
+import inspect
 import json
 import subprocess
 from dataclasses import dataclass
@@ -296,7 +297,13 @@ def test_true_wp_write_sites_carry_write_intent() -> None:
     gate in particular is the case an owned-files-only resolution.py approach
     would have missed.
     """
-    implement_cli = _src("src/specify_cli/cli/commands/implement.py")
+    # implement-degod WP09: the compat CLI's workspace selection moved from
+    # implement() into implement_phases.select_workspace, which implement() calls.
+    from specify_cli.cli.commands import implement as implement_mod
+    from specify_cli.cli.commands import implement_phases
+
+    assert "implement_phases.select_workspace" in inspect.getsource(implement_mod.implement)
+    implement_cli = inspect.getsource(implement_phases.select_workspace)
     agent_workflow = _src("src/specify_cli/cli/commands/agent/workflow.py")
     review_executor = _src("src/specify_cli/cli/commands/agent/workflow_executor.py")
 

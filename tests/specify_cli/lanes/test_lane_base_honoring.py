@@ -249,7 +249,7 @@ def _run_implement_via_seam(
 
     ctx_managers: list[AbstractContextManager[object]] = [
         patch("specify_cli.cli.commands.implement.find_repo_root", return_value=repo),
-        patch("specify_cli.cli.commands.implement.detect_feature_context",
+        patch("specify_cli.cli.commands.implement_phases.detect_feature_context",
               return_value=("1", mission_slug)),
         patch("specify_cli.workspace.context.find_wp_file",
               return_value=feature_dir / "tasks" / f"{wp_id}-task.md"),
@@ -257,7 +257,7 @@ def _run_implement_via_seam(
         patch("specify_cli.workspace.context.resolve_mission_target_branch",
               return_value="main"),
         patch("specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git"),
-        patch("specify_cli.cli.commands.implement._ensure_vcs_in_meta", return_value=VCSBackend.GIT),
+        patch("specify_cli.cli.commands.implement_phases._ensure_vcs_in_meta", return_value=VCSBackend.GIT),
         patch(
             "specify_cli.coordination.planning_commit.resolve_planning_placement",
             return_value=PlanningPlacement(resolved=False, ref=None),

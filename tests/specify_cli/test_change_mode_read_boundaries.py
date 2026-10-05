@@ -133,7 +133,7 @@ def _observe_implement_gate_and_inference(tmp_path: Path, change_mode: str | Non
     bulk-edit inference scan runs. A legacy value must behave like absence: both
     fall through to the inference scan (which ``typer.Exit(1)``s on an
     un-acknowledged triggered spec)."""
-    from specify_cli.cli.commands.implement import _run_bulk_edit_gate_and_inference
+    from specify_cli.cli.commands.implement_phases import _run_bulk_edit_gate_and_inference
 
     feature_dir = tmp_path / f"impl_{_slug(change_mode)}"
     feature_dir.mkdir(parents=True, exist_ok=True)

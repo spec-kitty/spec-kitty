@@ -1026,7 +1026,8 @@ def test_every_implement_patch_target_is_live() -> None:
     # Positive controls: the pre-filter selects the implement test files and the scan finds known sites.
     assert scanned > 0 and hits, "implement scan covered zero patches; the pre-filter or scanner is broken"
     found = {(h[2], h[3]) for h in hits}
-    assert ("implement", "find_repo_root") in found and ("implement", "create_lane_workspace") in found, "scan lost a known implement patch site"
+    # implement-degod WP09: create_lane_workspace's lookup moved to implement_phases (the allocate phase).
+    assert ("implement", "find_repo_root") in found and ("implement_phases", "create_lane_workspace") in found, "scan lost a known implement patch site"
     assert not unresolvable, f"implement patch targets must all resolve statically (no baseline): {unresolvable}"
     assert not [k for k in ALLOWLIST if k[1] in IMPLEMENT.modules], "the implement family takes no allow-list entries"
     dead = _dead_hits(hits, live)

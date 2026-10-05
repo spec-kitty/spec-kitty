@@ -101,6 +101,7 @@ def test_implement_still_blocks_and_no_worktree_alloc_on_invalid_charter_yaml(
     is never invoked -- the still-blocking case must remain untouched.
     """
     from specify_cli.cli.commands import implement as implement_mod
+    from specify_cli.cli.commands import implement_phases
 
     monkeypatch.setattr(implement_mod, "find_repo_root", lambda: tmp_path)
 
@@ -114,7 +115,7 @@ def test_implement_still_blocks_and_no_worktree_alloc_on_invalid_charter_yaml(
         create_calls.append((args, kwargs))
         raise AssertionError("create_lane_workspace must not be invoked when preflight fails")
 
-    monkeypatch.setattr(implement_mod, "create_lane_workspace", _create)
+    monkeypatch.setattr(implement_phases, "create_lane_workspace", _create)
 
     with pytest.raises(typer.Exit) as excinfo:
         _call_implement_unwrapped(
@@ -141,6 +142,7 @@ def test_implement_aborts_before_worktree_allocation_on_failure(
 ) -> None:
     """Preflight failure exits 1 BEFORE ``create_lane_workspace`` is called."""
     from specify_cli.cli.commands import implement as implement_mod
+    from specify_cli.cli.commands import implement_phases
 
     monkeypatch.setattr(implement_mod, "find_repo_root", lambda: tmp_path)
 
@@ -152,7 +154,7 @@ def test_implement_aborts_before_worktree_allocation_on_failure(
             "create_lane_workspace must not be invoked when preflight fails"
         )
 
-    monkeypatch.setattr(implement_mod, "create_lane_workspace", _create)
+    monkeypatch.setattr(implement_phases, "create_lane_workspace", _create)
 
     with (
         patch(
@@ -184,6 +186,7 @@ def test_implement_proceeds_past_preflight_when_passed(
 ) -> None:
     """On success the gate releases control to the downstream stages."""
     from specify_cli.cli.commands import implement as implement_mod
+    from specify_cli.cli.commands import implement_phases
 
     monkeypatch.setattr(implement_mod, "find_repo_root", lambda: tmp_path)
 
@@ -194,7 +197,7 @@ def test_implement_proceeds_past_preflight_when_passed(
 
     # detect_feature_context is the very next call after preflight; reaching
     # it proves the gate let us through.
-    monkeypatch.setattr(implement_mod, "detect_feature_context", _detect)
+    monkeypatch.setattr(implement_phases, "detect_feature_context", _detect)
 
     with (
         patch(

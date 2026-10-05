@@ -9,10 +9,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 import typer
 
-from specify_cli.cli.commands.implement import (
+from specify_cli.cli.commands.implement import implement
+from specify_cli.cli.commands.implement_phases import (
     _ensure_vcs_in_meta,
     detect_feature_context,
-    implement,
 )
 from specify_cli.coordination.planning_commit import PlanningPlacement
 from specify_cli.workspace.context import find_wp_file
@@ -182,7 +182,7 @@ class TestImplementCommand:
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
             patch(
-                "specify_cli.cli.commands.implement.detect_feature_context",
+                "specify_cli.cli.commands.implement_phases.detect_feature_context",
                 return_value=("010", "010-feature"),
             ),
             patch(
@@ -193,10 +193,10 @@ class TestImplementCommand:
                 "specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git",
             ),
             patch(
-                "specify_cli.cli.commands.implement._ensure_vcs_in_meta",
+                "specify_cli.cli.commands.implement_phases._ensure_vcs_in_meta",
             ) as mock_ensure_vcs,
             patch(
-                "specify_cli.cli.commands.implement.create_lane_workspace",
+                "specify_cli.cli.commands.implement_phases.create_lane_workspace",
             ) as mock_create_lane_workspace,
         ):
             mock_ensure_vcs.return_value = MagicMock(value="git")
@@ -238,7 +238,7 @@ class TestImplementCommand:
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
             patch(
-                "specify_cli.cli.commands.implement.detect_feature_context",
+                "specify_cli.cli.commands.implement_phases.detect_feature_context",
                 return_value=("010", "010-feature"),
             ),
             patch(
@@ -280,7 +280,7 @@ class TestImplementCommand:
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
             patch(
-                "specify_cli.cli.commands.implement.detect_feature_context",
+                "specify_cli.cli.commands.implement_phases.detect_feature_context",
                 return_value=("010", "010-feature"),
             ),
             patch(
@@ -291,10 +291,10 @@ class TestImplementCommand:
                 "specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git",
             ),
             patch(
-                "specify_cli.cli.commands.implement._ensure_vcs_in_meta",
+                "specify_cli.cli.commands.implement_phases._ensure_vcs_in_meta",
             ) as mock_ensure_vcs,
             patch(
-                "specify_cli.cli.commands.implement.create_lane_workspace",
+                "specify_cli.cli.commands.implement_phases.create_lane_workspace",
             ) as mock_create_lane_workspace,
         ):
             mock_ensure_vcs.return_value = MagicMock(value="git")
@@ -339,7 +339,7 @@ class TestImplementCommand:
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
             patch(
-                "specify_cli.cli.commands.implement.detect_feature_context",
+                "specify_cli.cli.commands.implement_phases.detect_feature_context",
                 return_value=("010", "010-feature"),
             ),
             patch(
@@ -350,7 +350,7 @@ class TestImplementCommand:
                 "specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git",
             ) as mock_commit_planning,
             patch(
-                "specify_cli.cli.commands.implement.create_lane_workspace",
+                "specify_cli.cli.commands.implement_phases.create_lane_workspace",
             ) as mock_create_lane_workspace,
         ):
             with pytest.raises(typer.Exit):
@@ -393,7 +393,7 @@ class TestImplementCommand:
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
             patch(
-                "specify_cli.cli.commands.implement.detect_feature_context",
+                "specify_cli.cli.commands.implement_phases.detect_feature_context",
                 return_value=("010", "010-feature"),
             ),
             patch(
@@ -412,13 +412,13 @@ class TestImplementCommand:
                 "specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git",
             ) as mock_commit_planning,
             patch(
-                "specify_cli.cli.commands.implement._ensure_vcs_in_meta",
+                "specify_cli.cli.commands.implement_phases._ensure_vcs_in_meta",
             ) as mock_ensure_vcs,
             patch(
-                "specify_cli.cli.commands.implement.resolve_workspace_for_wp",
+                "specify_cli.cli.commands.implement_phases.resolve_workspace_for_wp",
             ) as mock_resolve_workspace,
             patch(
-                "specify_cli.cli.commands.implement.create_lane_workspace",
+                "specify_cli.cli.commands.implement_phases.create_lane_workspace",
             ) as mock_create_lane_workspace,
             patch(
                 "specify_cli.cli.commands.implement_claim.start_implementation_status",
@@ -489,7 +489,7 @@ class TestImplementCommand:
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
             patch(
-                "specify_cli.cli.commands.implement.detect_feature_context",
+                "specify_cli.cli.commands.implement_phases.detect_feature_context",
                 return_value=("010", "010-feature"),
             ),
             patch(
@@ -500,10 +500,10 @@ class TestImplementCommand:
                 "specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git",
             ),
             patch(
-                "specify_cli.cli.commands.implement._ensure_vcs_in_meta",
+                "specify_cli.cli.commands.implement_phases._ensure_vcs_in_meta",
             ) as mock_ensure_vcs,
             patch(
-                "specify_cli.cli.commands.implement.create_lane_workspace",
+                "specify_cli.cli.commands.implement_phases.create_lane_workspace",
             ) as mock_create_lane_workspace,
             patch(
                 "specify_cli.cli.commands.implement_claim.start_implementation_status",
@@ -547,7 +547,7 @@ class TestImplementCommand:
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
             patch(
-                "specify_cli.cli.commands.implement.detect_feature_context",
+                "specify_cli.cli.commands.implement_phases.detect_feature_context",
                 return_value=("010", "010-feature"),
             ),
             patch(
@@ -558,13 +558,13 @@ class TestImplementCommand:
                 "specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git",
             ),
             patch(
-                "specify_cli.cli.commands.implement._ensure_vcs_in_meta",
+                "specify_cli.cli.commands.implement_phases._ensure_vcs_in_meta",
             ) as mock_ensure_vcs,
             patch(
-                "specify_cli.cli.commands.implement.resolve_workspace_for_wp",
+                "specify_cli.cli.commands.implement_phases.resolve_workspace_for_wp",
             ) as mock_resolve_workspace,
             patch(
-                "specify_cli.cli.commands.implement.create_lane_workspace",
+                "specify_cli.cli.commands.implement_phases.create_lane_workspace",
             ) as mock_create_lane_workspace,
         ):
             mock_ensure_vcs.return_value = MagicMock(value="git")
@@ -667,7 +667,7 @@ class TestImplementPrimaryTopologyLanesJson:
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
             patch(
-                "specify_cli.cli.commands.implement.detect_feature_context",
+                "specify_cli.cli.commands.implement_phases.detect_feature_context",
                 return_value=("010", mission_slug),
             ),
             # read-surface-ssot-closeout WP05 / FR-001 / NFR-001: ``feature_dir``
@@ -699,12 +699,12 @@ class TestImplementPrimaryTopologyLanesJson:
                 return_value=MagicMock(),
             ),
             patch(
-                "specify_cli.cli.commands.implement.resolve_workspace_for_wp",
+                "specify_cli.cli.commands.implement_phases.resolve_workspace_for_wp",
                 return_value=fake_workspace,
             ),
             # Fail at workspace creation with a sentinel — not a lanes.json error
             patch(
-                "specify_cli.cli.commands.implement.create_lane_workspace",
+                "specify_cli.cli.commands.implement_phases.create_lane_workspace",
                 side_effect=RuntimeError("__workspace_create_sentinel__"),
             ),
         ):

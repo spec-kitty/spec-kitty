@@ -480,7 +480,7 @@ def _claim_allocation_patched(repo: Path, feature_dir: Path) -> Iterator[MagicMo
             )
         )
         stack.enter_context(
-            patch("specify_cli.cli.commands.implement.create_lane_workspace", create_mock)
+            patch("specify_cli.cli.commands.implement_phases.create_lane_workspace", create_mock)
         )
         stack.enter_context(
             patch(

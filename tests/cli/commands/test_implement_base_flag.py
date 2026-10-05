@@ -15,7 +15,7 @@ from unittest.mock import patch
 import pytest
 import typer
 
-from specify_cli.cli.commands.implement import _validate_base_ref
+from specify_cli.cli.commands.implement_phases import _validate_base_ref
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 
@@ -211,7 +211,7 @@ class TestImplementBaseFlagIntegration:
 
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=repo),
-            patch("specify_cli.cli.commands.implement.detect_feature_context", return_value=("068", "068-test")),
+            patch("specify_cli.cli.commands.implement_phases.detect_feature_context", return_value=("068", "068-test")),
             patch("specify_cli.workspace.context.find_wp_file", return_value=feature_dir / "tasks" / "WP06-task.md"),
             patch("specify_cli.core.dependency_graph.parse_wp_dependencies", return_value=[]),
             patch("specify_cli.workspace.context.resolve_mission_target_branch", return_value="main"),

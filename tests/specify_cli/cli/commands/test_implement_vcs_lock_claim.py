@@ -220,7 +220,7 @@ def _claim_through_guard(
             return_value=tmp_path,
         ),
         patch(
-            "specify_cli.cli.commands.implement.detect_feature_context",
+            "specify_cli.cli.commands.implement_phases.detect_feature_context",
             return_value=(None, feature_dir.name),
         ),
         patch(
@@ -228,7 +228,7 @@ def _claim_through_guard(
             return_value="main",
         ),
         patch(
-            "specify_cli.cli.commands.implement.create_lane_workspace",
+            "specify_cli.cli.commands.implement_phases.create_lane_workspace",
             create_mock,
         ),
         patch(

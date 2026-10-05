@@ -408,14 +408,14 @@ def _claim_through_guard(tmp_path: Path, feature_dir: Path, lane_id: str) -> Ite
     with (
         patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
         patch(
-            "specify_cli.cli.commands.implement.detect_feature_context",
+            "specify_cli.cli.commands.implement_phases.detect_feature_context",
             return_value=(None, feature_dir.name),
         ),
         patch(
             "specify_cli.workspace.context.resolve_mission_target_branch",
             return_value="main",
         ),
-        patch("specify_cli.cli.commands.implement.create_lane_workspace", create_mock),
+        patch("specify_cli.cli.commands.implement_phases.create_lane_workspace", create_mock),
         patch("specify_cli.cli.commands.implement_claim.start_implementation_status", status_mock),
     ):
         yield create_mock

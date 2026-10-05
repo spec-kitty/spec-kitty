@@ -33,7 +33,7 @@ DISPATCH: dict[str, str] = {
     # Record the claim: the status pipeline entry point.
     "start_status": "specify_cli.cli.commands.implement_claim.start_implementation_status",
     # Allocate or reuse the lane workspace.
-    "allocate": "specify_cli.cli.commands.implement.create_lane_workspace",
+    "allocate": "specify_cli.cli.commands.implement_phases.create_lane_workspace",
     # Record the claim: the auto-commit of the claimed->doing change.
     "claim_commit": "specify_cli.cli.commands.implement_claim._commit_wp_claim_status",
     # The ``safe_commit`` the claim commit calls.
@@ -42,9 +42,9 @@ DISPATCH: dict[str, str] = {
     "target_branch": "specify_cli.workspace.context.resolve_mission_target_branch",
     "dependency_gate": "specify_cli.core.dependency_graph.ensure_wp_claim_preconditions",
     "planning_commit": "specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git",
-    "bulk_edit_gate": "specify_cli.cli.commands.implement._run_bulk_edit_gate_and_inference",
-    "resolve_workspace": "specify_cli.cli.commands.implement.resolve_workspace_for_wp",
-    "vcs_lock": "specify_cli.cli.commands.implement._ensure_vcs_in_meta",
+    "bulk_edit_gate": "specify_cli.cli.commands.implement_phases._run_bulk_edit_gate_and_inference",
+    "resolve_workspace": "specify_cli.cli.commands.implement_phases.resolve_workspace_for_wp",
+    "vcs_lock": "specify_cli.cli.commands.implement_phases._ensure_vcs_in_meta",
 }
 
 

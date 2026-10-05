@@ -2659,6 +2659,17 @@ module = ["specify_cli.skills.registry"]
 follow_imports = "normal"
 
 [[tool.mypy.overrides]]
+# implement-degod WP09: ``require_main_repo`` (``def require_main_repo(func: F) -> F``)
+# decorates the ``implement`` Typer command. Under the ``specify_cli.*`` skip above
+# the decorator resolves as ``Any`` and strict mypy reports "Untyped decorator makes
+# function 'implement' untyped". The module imports only the stdlib, typer and rich,
+# so following it cannot drag bootstrap errors into a narrow check -- same shape as
+# the entries above; must stay after the ``specify_cli.*`` skip. Its own body stays
+# in the transitional quarantine below (ignore_errors), unchanged.
+module = ["specify_cli.core.context_validation"]
+follow_imports = "normal"
+
+[[tool.mypy.overrides]]
 # Transitional quarantine for legacy modules that are still being migrated to strict typing.
 module = [
     "specify_cli.agent_utils.status",
@@ -2670,7 +2681,6 @@ module = [
     "specify_cli.cli.commands.agent.tasks",
     "specify_cli.cli.commands.agent.workflow",
     "specify_cli.cli.commands.auth",
-    "specify_cli.cli.commands.implement",
     "specify_cli.cli.commands.init",
     "specify_cli.cli.commands.merge",
     "specify_cli.cli.commands.next_cmd",

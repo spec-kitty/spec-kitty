@@ -249,9 +249,14 @@ class TestWiringIsLive:
     """Prove the OperationalContext symbols are no longer dead code."""
 
     def test_implement_claim_calls_builder_and_guard(self) -> None:
-        from specify_cli.cli.commands.implement import implement
+        # implement-degod WP09: the OperationalContext build moved from implement()
+        # into the build_operational_context phase, which implement() calls -- a
+        # moved anchor, same assertions.
+        from specify_cli.cli.commands import implement as implement_mod
+        from specify_cli.cli.commands.implement_phases import build_operational_context
 
-        src = inspect.getsource(implement)
+        assert "implement_phases.build_operational_context" in inspect.getsource(implement_mod.implement)
+        src = inspect.getsource(build_operational_context)
         assert "build_operational_context_for_claim" in src
         assert "require_active_role" in src
 

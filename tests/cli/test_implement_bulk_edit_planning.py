@@ -138,7 +138,7 @@ def _patched_implement(tmp_path: Path, feature_dir: Path):
     with (
         patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
         patch(
-            "specify_cli.cli.commands.implement.detect_feature_context",
+            "specify_cli.cli.commands.implement_phases.detect_feature_context",
             return_value=(None, feature_dir.name),
         ),
         patch(
@@ -146,8 +146,8 @@ def _patched_implement(tmp_path: Path, feature_dir: Path):
             return_value="main",
         ),
         patch("specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git"),
-        patch("specify_cli.cli.commands.implement._ensure_vcs_in_meta", return_value=MagicMock(value="git")),
-        patch("specify_cli.cli.commands.implement.create_lane_workspace", return_value=_workspace(feature_dir)) as create_workspace,
+        patch("specify_cli.cli.commands.implement_phases._ensure_vcs_in_meta", return_value=MagicMock(value="git")),
+        patch("specify_cli.cli.commands.implement_phases.create_lane_workspace", return_value=_workspace(feature_dir)) as create_workspace,
     ):
         yield create_workspace
 

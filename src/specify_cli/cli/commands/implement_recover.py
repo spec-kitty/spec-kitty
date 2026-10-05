@@ -10,7 +10,7 @@ import typer
 from specify_cli.cli.console import console
 
 from specify_cli.task_utils import TaskCliError, find_repo_root
-from specify_cli.cli.commands.implement_phases import detect_feature_context
+from specify_cli.cli.commands import implement_phases
 
 if TYPE_CHECKING:
     # WP03 / T013: type-only -- ``_run_recover_mode`` and its extracted
@@ -27,7 +27,7 @@ def _recover_resolve_context(mission: str | None, json_output: bool) -> tuple[Pa
     matching the pre-extraction behavior byte-for-byte (T011 branch 1)."""
     try:
         repo_root = find_repo_root()
-        _mission_number, mission_slug = detect_feature_context(mission, repo_root=repo_root)
+        _mission_number, mission_slug = implement_phases.detect_feature_context(mission, repo_root=repo_root)
     except (TaskCliError, typer.Exit) as exc:
         if json_output:
             print(json.dumps({"status": "error", "error": str(exc)}))

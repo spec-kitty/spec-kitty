@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.cli.commands.implement import _validate_base_ref
+from specify_cli.cli.commands.implement_phases import _validate_base_ref
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 

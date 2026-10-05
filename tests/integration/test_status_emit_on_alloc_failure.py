@@ -172,7 +172,7 @@ def _patched_implement(
         patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
         patch("specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort"),
         patch(
-            "specify_cli.cli.commands.implement.detect_feature_context",
+            "specify_cli.cli.commands.implement_phases.detect_feature_context",
             return_value=(feature_slug.split("-")[0], feature_slug),
         ),
         patch(
@@ -180,9 +180,9 @@ def _patched_implement(
             return_value="main",
         ),
         patch("specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git"),
-        patch("specify_cli.cli.commands.implement._ensure_vcs_in_meta") as mock_ensure_vcs,
+        patch("specify_cli.cli.commands.implement_phases._ensure_vcs_in_meta") as mock_ensure_vcs,
         patch(
-            "specify_cli.cli.commands.implement.create_lane_workspace",
+            "specify_cli.cli.commands.implement_phases.create_lane_workspace",
             new=alloc,
         ),
     ):

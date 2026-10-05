@@ -40,8 +40,9 @@ from typing import Any
 import pytest
 import typer
 
-from specify_cli.cli.commands import implement as implement_module
-from specify_cli.cli.commands.implement import _json_safe_output, _run_recover_mode
+from specify_cli.cli.commands import implement_phases, implement_recover
+from specify_cli.cli.commands.implement import _json_safe_output
+from specify_cli.cli.commands.implement_recover import _run_recover_mode
 from specify_cli.cli.console import console
 from specify_cli.lanes import recovery as recovery_module
 from specify_cli.lanes.recovery import RecoveryReport, RecoveryState
@@ -183,9 +184,9 @@ def test_wp_id_resolved_from_positional_arg_when_not_a_kwarg(capsys: pytest.Capt
 
 
 def _patch_context(monkeypatch: pytest.MonkeyPatch, repo_root: Path, mission_slug: str) -> None:
-    monkeypatch.setattr(implement_module, "find_repo_root", lambda: repo_root)
+    monkeypatch.setattr(implement_recover, "find_repo_root", lambda: repo_root)
     monkeypatch.setattr(
-        implement_module,
+        implement_phases,
         "detect_feature_context",
         lambda _mission, repo_root=None: (None, mission_slug),
     )
@@ -211,12 +212,12 @@ class TestRecoverErrorPath:
     def test_json_output_emits_error_payload_and_exits_1(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(implement_module, "find_repo_root", lambda: tmp_path)
+        monkeypatch.setattr(implement_recover, "find_repo_root", lambda: tmp_path)
 
         def _raise(_mission: str | None, repo_root: Path | None = None) -> tuple[str | None, str]:
             raise TaskCliError("mission not found")
 
-        monkeypatch.setattr(implement_module, "detect_feature_context", _raise)
+        monkeypatch.setattr(implement_phases, "detect_feature_context", _raise)
 
         with pytest.raises(typer.Exit) as excinfo:
             _run_recover_mode("WP01", "missing-mission", json_output=True)
@@ -228,12 +229,12 @@ class TestRecoverErrorPath:
     def test_console_output_raises_without_json_payload(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(implement_module, "find_repo_root", lambda: tmp_path)
+        monkeypatch.setattr(implement_recover, "find_repo_root", lambda: tmp_path)
 
         def _raise(_mission: str | None, repo_root: Path | None = None) -> tuple[str | None, str]:
             raise TaskCliError("mission not found")
 
-        monkeypatch.setattr(implement_module, "detect_feature_context", _raise)
+        monkeypatch.setattr(implement_phases, "detect_feature_context", _raise)
 
         with pytest.raises(typer.Exit) as excinfo:
             _run_recover_mode("WP01", "missing-mission", json_output=False)

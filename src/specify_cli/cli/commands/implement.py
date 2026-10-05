@@ -7,57 +7,33 @@ import json
 from collections.abc import Callable
 from io import StringIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, NoReturn
+from typing import Annotated, Any
 
 import typer
 from pydantic import ValidationError
 from specify_cli.cli.console import console
-from rich.panel import Panel
 
 from specify_cli.cli import StepTracker
-from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.context_validation import require_main_repo
-from specify_cli.core.errors import PlacementResolutionRequired
-from specify_cli.core.paths import MissionMetaReadError
-from specify_cli.core.vcs import VCSBackend
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.frontmatter import FrontmatterError
-from specify_cli.git.commit_helpers import (
-    SafeCommitHeadMismatch,
-    SafeCommitPathPolicyError,
-)
 from mission_runtime import (
     MissionArtifactKind,
     placement_seam,
 )
-from specify_cli.lanes import implement_support
-from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.worktree_allocator import (
     DependencyLaneMergeConflictError,
     OrphanedPlanningCommitError,
     PlanningCommitMergeConflictError,
 )
 from specify_cli.task_utils import TaskCliError, find_repo_root
-from specify_cli.core import dependency_graph
-from specify_cli.status import read_events, reduce as reduce_status_events
-from specify_cli.workspace import context as workspace_context
-from specify_cli.workspace.context import resolve_workspace_for_wp
 
-from specify_cli.cli.commands import implement_claim, implement_phases, implement_planning_commit, implement_recover
-from specify_cli.coordination import planning_commit as coordination_planning_commit
-
-if TYPE_CHECKING:
-    # WP03 / T013: type-only -- ``_run_recover_mode`` and its extracted
-    # helpers keep the real import lazy (inside the function body) to match
-    # the module's existing deferred-import discipline; this gives mypy the
-    # shapes without adding a runtime import edge to ``specify_cli.lanes``.
-    from specify_cli.lanes.recovery import RecoveryReport, RecoveryState
+from specify_cli.cli.commands import implement_phases, implement_recover
 
 # WP02 / T008 / S1192: the workspace-ready banner's rich-markup open/close
 # tags, repeated ~8x in ``_print_workspace_ready_banner`` -- hoisted to
-# constants rather than restated at each call site. The distinct
-# ``title="[bold yellow]...[/]"`` uses elsewhere in this module (bulk-edit
-# inference banners) use a different close tag and are left as-is.
+# constants rather than restated at each call site. The bulk-edit inference
+# banners (now in ``implement_phases``) use a different close tag.
 _BANNER_OPEN = "[bold yellow]"
 _BANNER_CLOSE = "[/bold yellow]"
 
@@ -104,7 +80,8 @@ def _json_wrapper_handle_typer_exit(exc: typer.Exit, json_output: bool, capture_
     ``exit_code`` is falsy (0), which is a success exit and never gets a
     payload. The caller re-raises ``exc`` verbatim afterwards; this helper
     never raises."""
-    if json_output and getattr(exc, "exit_code", 1):
+    exit_code: object = getattr(exc, "exit_code", 1)
+    if json_output and exit_code:
         summary = _json_wrapper_summarize_capture(capture_buffer)
         _json_wrapper_emit_error_payload(summary or "implement command failed", wp_id)
 

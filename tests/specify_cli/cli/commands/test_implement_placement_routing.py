@@ -58,7 +58,7 @@ class TestResolveClaimCommitTargetFailClosed:
     """
 
     def test_unresolvable_placement_error_is_structured_and_actionable(self) -> None:
-        from specify_cli.cli.commands.implement import PlacementResolutionRequired
+        from specify_cli.cli.commands.implement_phases import PlacementResolutionRequired
         from specify_cli.coordination.planning_commit import placement_resolution_remedy
 
         error = PlacementResolutionRequired(placement_resolution_remedy("demo-mission"))
@@ -95,9 +95,11 @@ class TestResolveClaimCommitTargetFailClosed:
         """
         import inspect
 
-        from specify_cli.cli.commands.implement import implement
+        # implement-degod WP09: the outer claim-commit try moved from implement()
+        # into the commit_claim phase; the pin follows it.
+        from specify_cli.cli.commands.implement_phases import commit_claim
 
-        source = inspect.getsource(implement)
+        source = inspect.getsource(commit_claim)
         raise_idx = source.index("except PlacementResolutionRequired:")
         # The dedicated clause must appear BEFORE the generic downgrade-to-warning
         # handler in source order (except clauses are evaluated in order). Match
@@ -123,9 +125,11 @@ class TestResolveClaimCommitTargetFailClosed:
         """
         import inspect
 
-        from specify_cli.cli.commands.implement import implement
+        # implement-degod WP09: the outer claim-commit try moved from implement()
+        # into the commit_claim phase; the pin follows it.
+        from specify_cli.cli.commands.implement_phases import commit_claim
 
-        source = inspect.getsource(implement)
+        source = inspect.getsource(commit_claim)
         raise_idx = source.index("except SafeCommitHeadMismatch:")
         warning_idx = source.index('console.print(f"[yellow]Warning:[/yellow] Could not update WP status')
         assert raise_idx < warning_idx
@@ -299,14 +303,14 @@ class TestEnsurePlanningArtifactsRoutesThroughPlacementRef:
         contracts/seam-api.md -- ``coord_branch if coord_branch else
         planning_branch`` (the pre-fix source wrapped the truthy arm in
         ``str(...)``: ``str(coord_branch) if coord_branch else
-        planning_branch``) -- must not appear verbatim in implement.py,
-        under either spelling."""
-        import inspect
-
-        from specify_cli.cli.commands import implement as implement_module
-        from specify_cli.cli.commands import implement_planning_commit
-
-        source = inspect.getsource(implement_module) + inspect.getsource(implement_planning_commit)
+        planning_branch``) -- must not appear verbatim in the implement
+        command family (implement.py and every implement_*.py sibling the
+        code moved to), under either spelling."""
+        commands_dir = Path(__file__).resolve().parents[4] / "src" / "specify_cli" / "cli" / "commands"
+        family = sorted(commands_dir.glob("implement*.py"))
+        assert commands_dir / "implement.py" in family
+        assert commands_dir / "implement_phases.py" in family
+        source = "".join(path.read_text(encoding="utf-8") for path in family)
         assert "coord_branch if coord_branch else planning_branch" not in source
         assert "str(coord_branch) if coord_branch else planning_branch" not in source
 
