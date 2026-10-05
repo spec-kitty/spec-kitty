@@ -77,7 +77,7 @@ The additions are **additive** and share the existing JSONL log + reducer.
 
 No new event type. The `planned→claimed` `StatusEvent` carries `(shell_pid,
 baseline)` in the existing generic `policy_metadata: dict|None`
-(`models.py:234`), already used as an event sidecar by `implement_claim.py::claim_policy_metadata`. The
+(`models.py:234`), already used as an event sidecar by `implement_claim.py::_start_wp_implementation_status` (via `status.claim_policy_metadata`, defined in `status/emit.py`). The
 **reduced snapshot** is where the pair becomes typed — frontmatter never sees
 it.
 
