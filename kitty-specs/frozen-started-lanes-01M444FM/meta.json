@@ -1,0 +1,43 @@
+{
+  "accept_commit": "4b005d6021070c16b40764719eeebe585db9e6aa",
+  "acceptance_history": [
+    {
+      "accept_commit": "d041b676cc49bb296e6c7abe13005c98b5d58409",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-04T22:22:20.241079+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "6f01cbbb65122608e8e81afc16254ecfbdf88ab4"
+    },
+    {
+      "accept_commit": "4b005d6021070c16b40764719eeebe585db9e6aa",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-04T23:42:49.619125+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "8506398794dc293b405afb237c6e416013884f56"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-04T23:42:49.619125+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "8506398794dc293b405afb237c6e416013884f56",
+  "baseline_merge_commit": "fb9027999bb4ede27eaf70d144a4038cad197ab7",
+  "created_at": "2026-10-04T18:58:07.919530+00:00",
+  "flattened": false,
+  "friendly_name": "Frozen lanes for started work packages",
+  "merged_at": "2026-10-04T23:44:40.867393+00:00",
+  "merged_commit": "9cb0740e61cf980cc2559c063341111237f08735",
+  "mid8": "01M444FM",
+  "mission_id": "01M444FM5P6C08EPWQ0ET0JTY5",
+  "mission_number": 216,
+  "mission_slug": "frozen-started-lanes-01M444FM",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Re-finalizing an active lanes mission could silently move an in-progress work package off the lane that holds its committed work, exit 0, and leave the next implement blocked (#5573, a regression of #3311). This mission makes started work packages' lane membership an invariant of the lane manifest: a re-finalize either keeps them where they are or refuses before writing, with an actionable, non-destructive remedy.",
+  "purpose_tldr": "Re-running finalize-tasks never moves a started work package to another lane.",
+  "slug": "frozen-started-lanes-01M444FM",
+  "status_phase": "1",
+  "target_branch": "issue-5573-frozen-started-lanes",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-04T19:40:07.592925+00:00"
+}

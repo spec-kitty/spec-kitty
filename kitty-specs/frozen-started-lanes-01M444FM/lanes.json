@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "mission_slug": "frozen-started-lanes-01M444FM",
+  "mission_id": "01M444FM5P6C08EPWQ0ET0JTY5",
+  "mission_branch": "kitty/mission-frozen-started-lanes-01M444FM",
+  "target_branch": "issue-5573-frozen-started-lanes",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_finalize_planning_pin.py",
+        "tests/integration/test_refinalize_keeps_started_lanes.py",
+        "tests/specify_cli/cli/commands/agent/finalize_runner.py",
+        "tests/specify_cli/cli/commands/agent/test_finalize_provenance_guard.py",
+        "tests/specify_cli/cli/commands/agent/test_issue_3311_finalize_rewrites_active_lanes.py",
+        "tests/specify_cli/cli/commands/agent/test_resolve_status_read_dir.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/lanes/compute.py",
+        "src/specify_cli/lanes/compute_and_persist.py",
+        "src/specify_cli/lanes/frozen_membership.py",
+        "src/specify_cli/lanes/lane_tip.py",
+        "src/specify_cli/lanes/models.py",
+        "tests/lanes/test_frozen_lane_membership.py",
+        "tests/lanes/test_frozen_lane_membership_sweep.py",
+        "tests/lanes/test_lane_identity.py",
+        "tests/lanes/test_lane_tip_listing.py",
+        "tests/status/test_compute_and_persist_core.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize_bootstrap.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize_commit.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize_lanes.py",
+        "tests/integration/test_refinalize_frozen_lane_refusals.py",
+        "tests/specify_cli/cli/commands/agent/test_finalize_frozen_lane_preflight.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "docs/adr/4.x/2026-10-04-2-started-work-package-lane-membership-is-frozen.md",
+        "docs/adr/4.x/index.md",
+        "docs/api/finalize-tasks-internals.md",
+        "docs/architecture/execution-lanes.md",
+        "docs/context/topology.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-04T19:38:21.944440+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "824134a529b9175732ca4c5e0b9929ef7be62df5"
+}

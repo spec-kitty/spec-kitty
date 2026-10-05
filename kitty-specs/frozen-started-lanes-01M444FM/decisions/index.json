@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-04T19:06:50.339649Z",
+      "decision_id": "01M444ZKK397G09XJ1GM3WC29Z",
+      "final_answer": "Preserve by construction; refuse only when unsatisfiable. Source: operator brief (Done-when 1-2: started WPs' membership is an invariant; unstarted WPs may regroup) + grounding D1 (a post-hoc refuse-only diff would refuse #5573's own repro instead of keeping WP02 on lane-b).",
+      "input_key": "started_wp_lane_policy",
+      "mission_id": "01M444FM5P6C08EPWQ0ET0JTY5",
+      "mission_slug": "frozen-started-lanes-01M444FM",
+      "opened_by": "cli",
+      "options": [
+        "Preserve by construction; refuse only when unsatisfiable",
+        "Always refuse any change",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "When a re-finalize would move a started work package, should finalize preserve its lane where possible or always refuse?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T19:07:02.684906Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.preserve-or-refuse",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-04T19:06:53.680074Z",
+      "decision_id": "01M444ZPVGXPXZY365PGJ7K68P",
+      "final_answer": "Defer to #3550 with a follow-up issue. Source: operator brief allows 'folded in or explicitly deferred with reasoning'; grounding D7: canonical canceled projection would activate STALE_CANCELED_DEPENDENCIES on real cancellations and drop started canceled WPs from lanes.json, blinding consolidation's canceled-content axes (reconciliation.py:1552,1646). Supported route meanwhile: cancel without clearing scope.",
+      "input_key": "issue_3432_residual",
+      "mission_id": "01M444FM5P6C08EPWQ0ET0JTY5",
+      "mission_slug": "frozen-started-lanes-01M444FM",
+      "opened_by": "cli",
+      "options": [
+        "Fold in",
+        "Defer to #3550 with follow-up issue",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Fold the #3432 residual (canceled WP with owned_files: []) into this mission or defer it?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T19:07:05.995183Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.issue-3432-residual",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M444FM5P6C08EPWQ0ET0JTY5",
+  "version": 1
+}

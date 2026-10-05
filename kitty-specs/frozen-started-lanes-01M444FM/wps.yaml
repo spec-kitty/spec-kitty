@@ -1,0 +1,132 @@
+work_packages:
+  - id: WP01
+    title: "Tidy-first enablers and the red #5573 reproduction"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/cli/commands/agent/mission_finalize_planning_pin.py"
+      - "tests/specify_cli/cli/commands/agent/finalize_runner.py"
+      - "tests/specify_cli/cli/commands/agent/test_resolve_status_read_dir.py"
+      - "tests/specify_cli/cli/commands/agent/test_finalize_provenance_guard.py"
+      - "tests/specify_cli/cli/commands/agent/test_issue_3311_finalize_rewrites_active_lanes.py"
+      - "tests/integration/test_refinalize_keeps_started_lanes.py"
+    requirement_refs:
+      - C-001
+      - C-007
+      - FR-001
+      - FR-002
+      - FR-005
+      - FR-006
+      - FR-011
+      - SC-001
+    plan_concern_refs:
+      - IC-01
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+    prompt_file: "tasks/WP01-tidy-first-and-red-reproduction.md"
+    agent_profile: "python-pedro"
+    role: "implementer"
+    agent: "claude"
+  - id: WP02
+    title: "Pure invariant: started predicate, frozen membership, lane computation and writer check"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/lanes/frozen_membership.py"
+      - "src/specify_cli/lanes/compute.py"
+      - "src/specify_cli/lanes/compute_and_persist.py"
+      - "src/specify_cli/lanes/lane_tip.py"
+      - "src/specify_cli/lanes/models.py"
+      - "tests/lanes/test_frozen_lane_membership.py"
+      - "tests/lanes/test_frozen_lane_membership_sweep.py"
+      - "tests/lanes/test_lane_identity.py"
+      - "tests/lanes/test_lane_tip_listing.py"
+      - "tests/status/test_compute_and_persist_core.py"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - FR-004
+      - FR-005
+      - FR-008
+      - FR-010
+      - NFR-002
+      - NFR-004
+      - C-002
+      - C-006
+      - SC-002
+    plan_concern_refs:
+      - IC-02
+    subtasks:
+      - T005
+      - T006
+      - T007
+      - T008
+      - T009
+    prompt_file: "tasks/WP02-pure-frozen-membership-invariant.md"
+    agent_profile: "python-pedro"
+    role: "implementer"
+    agent: "claude"
+  - id: WP03
+    title: "Finalize wiring: evidence, preflight, validate-only and refusal rendering"
+    dependencies:
+      - WP01
+      - WP02
+    owned_files:
+      - "src/specify_cli/cli/commands/agent/mission_finalize.py"
+      - "src/specify_cli/cli/commands/agent/mission_finalize_lanes.py"
+      - "src/specify_cli/cli/commands/agent/mission_finalize_commit.py"
+      - "src/specify_cli/cli/commands/agent/mission_finalize_bootstrap.py"
+      - "tests/specify_cli/cli/commands/agent/test_finalize_frozen_lane_preflight.py"
+      - "tests/integration/test_refinalize_frozen_lane_refusals.py"
+    requirement_refs:
+      - FR-005
+      - FR-006
+      - FR-007
+      - FR-009
+      - FR-011
+      - NFR-001
+      - NFR-003
+      - C-003
+      - C-005
+      - SC-001
+      - SC-003
+      - SC-004
+    plan_concern_refs:
+      - IC-03
+    subtasks:
+      - T010
+      - T011
+      - T012
+      - T013
+      - T014
+    prompt_file: "tasks/WP03-finalize-wiring-and-refusal.md"
+    agent_profile: "python-pedro"
+    role: "implementer"
+    agent: "claude"
+  - id: WP04
+    title: "Decision record and operator docs for frozen lane membership"
+    dependencies:
+      - WP02
+      - WP03
+    owned_files:
+      - "docs/adr/4.x/2026-10-04-2-started-work-package-lane-membership-is-frozen.md"
+      - "docs/adr/4.x/index.md"
+      - "docs/architecture/execution-lanes.md"
+      - "docs/api/finalize-tasks-internals.md"
+      - "docs/context/topology.md"
+      - "CHANGELOG.md"
+    requirement_refs:
+      - FR-006
+      - C-008
+    plan_concern_refs:
+      - IC-04
+    subtasks:
+      - T015
+      - T016
+      - T017
+    prompt_file: "tasks/WP04-adr-and-operator-docs.md"
+    agent_profile: "scribe-sally"
+    role: "documentarian"
+    agent: "claude"

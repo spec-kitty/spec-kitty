@@ -1,0 +1,129 @@
+{
+  "mission_slug": "frozen-started-lanes-01M444FM",
+  "mission_number": "216",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_refinalize_keeps_started_lanes.py::test_started_wp_keeps_its_lane_when_a_planned_wp_joins; tests/lanes/test_frozen_lane_membership_sweep.py (260 mission tests green on lane-d)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T22:20:18.687960+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_refinalize_keeps_started_lanes.py::test_lane_follows_the_started_wp_not_lane_id_order; tests/lanes/test_frozen_lane_membership.py tie/mirror/greedy cases",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T22:20:25.788280+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_frozen_lane_membership.py split case (started lane-mates stay together)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T22:20:32.682042+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_frozen_lane_membership.py re-mint/retired reservation cases; tests/lanes/test_frozen_lane_membership_sweep.py asserts minted ids outside reserved set",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T22:20:39.457771+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_refinalize_keeps_started_lanes.py::test_two_started_lanes_forced_together_refuse_before_writing (writer spies + byte identity); tests/integration/test_refinalize_frozen_lane_refusals.py::test_refusal_precedes_every_status_writer; removed/kind-change refusals",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T22:20:45.932176+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "contracts/lane-membership-frozen.md envelope; tests/integration/test_refinalize_frozen_lane_refusals.py::test_collapsed_remedy_round_trip, test_removed_wp_remedy_round_trip, test_console_refusal_names_each_conflict_and_its_remedy; remedy hygiene in tests/specify_cli/cli/commands/agent/test_finalize_frozen_lane_preflight.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T22:20:53.099777+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_refinalize_frozen_lane_refusals.py::test_malformed_status_log_refuses_before_any_write, test_unreadable_status_log_refuses_status_unreadable, test_absent_status_log_proceeds, plus the pre-consolidate fold regression (unmaterialized coordination worktree refuses status_unreadable; coord-present control succeeds)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T23:42:38.740316+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_frozen_lane_membership.py started_wp_ids table (resets/forced/blocked); tests/integration/test_refinalize_frozen_lane_refusals.py::test_wp_rejected_back_to_planned_keeps_its_lane, test_lane_work_tip_alone_freezes_the_lane",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T22:21:06.241790+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_refinalize_frozen_lane_refusals.py::test_validate_only_refuses_like_a_real_run, test_validate_only_preview_reports_the_frozen_lane",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T22:21:13.394721+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_frozen_lane_membership_sweep.py positive control (empty started set == base algorithm) + determinism over shuffled inputs; tests/lanes/test_lane_identity.py merge-tie/split",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T22:21:19.509893+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent (2514 passed), tests/lanes+status+specify_cli/lanes (2406 passed) on lane-c/WP03 review; #3311/#4141/#4945/#5641 suites green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T22:21:26.330330+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "No destructive git/manifest recipe in the new frozen-lane remedy texts",
+      "verification_method": "grep_absence",
+      "verification_command": "git reset|git restore|git checkout -- |rm -rf|--force|delete lanes",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src/specify_cli/lanes/frozen_membership.py src/specify_cli/cli/commands/agent/mission_finalize_lanes.py"
+    }
+  ]
+}
