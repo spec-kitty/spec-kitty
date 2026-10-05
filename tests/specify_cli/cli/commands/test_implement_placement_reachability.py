@@ -717,7 +717,8 @@ def test_unresolved_placement_has_no_coordination_ref_when_none_is_declared(buil
 
 
 def test_unresolved_placement_raises_when_the_seam_cannot_resolve(build: Callable[[str], Built], monkeypatch: pytest.MonkeyPatch) -> None:
-    from mission_runtime import ActionContextError
+    from mission_runtime import ActionContextError, MissionArtifactKind
+    from mission_runtime import placement_seam as real_seam
 
     from specify_cli.coordination import planning_commit
     from specify_cli.core.errors import PlacementResolutionRequired
@@ -725,11 +726,19 @@ def test_unresolved_placement_raises_when_the_seam_cannot_resolve(build: Callabl
     built = build("coord")
     duplicate_wp_prompt(built)
 
-    class _BrokenSeam:
-        def write_target(self, kind: object) -> object:
+    class _WriteTargetUnresolvable:
+        """The real seam, except that it cannot resolve a write target."""
+
+        def __init__(self, repo_root: Path, mission_slug: str) -> None:
+            self._real = real_seam(repo_root, mission_slug)
+
+        def read_dir(self, kind: MissionArtifactKind) -> Path:
+            return self._real.read_dir(kind)
+
+        def write_target(self, kind: MissionArtifactKind) -> object:
             raise ActionContextError("TEST_SEAM_UNRESOLVABLE", "seam cannot resolve")
 
-    monkeypatch.setattr(planning_commit, "placement_seam", lambda *_args, **_kwargs: _BrokenSeam())
+    monkeypatch.setattr(planning_commit, "placement_seam", _WriteTargetUnresolvable)
 
     with pytest.raises(PlacementResolutionRequired) as raised:
         planning_commit.resolve_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")

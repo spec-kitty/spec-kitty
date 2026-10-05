@@ -8,13 +8,23 @@ typed results and errors into console output and ``typer.Exit``.
 from __future__ import annotations
 
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NamedTuple
 
 from kernel.meta_decode import decode_meta
-from mission_runtime import MissionArtifactKind, placement_seam
+from mission_runtime import (
+    ActionContextError,
+    CommitTarget,
+    MissionArtifactKind,
+    placement_seam,
+    resolve_action_context,
+    resolve_topology,
+    routes_through_coordination,
+)
 from specify_cli.coordination.coherence import is_coord_residue_churn, is_self_bookkeeping_churn
 from specify_cli.core.constants import WORKTREES_DIR
+from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.git.commit_helpers import SafeCommitPathPolicyError
 
 
@@ -390,3 +400,132 @@ def guard_planning_commit_partition(files: list[str], *, destination_is_coord: b
             f"seam; coordination-partition kinds must commit to the coordination "
             f"branch, never a primary or lane branch (write-path-integrity FR-002/#2549)."
         )
+
+
+# ---------------------------------------------------------------------------
+# Planning placement (#5232, research R-1 = B2*)
+# ---------------------------------------------------------------------------
+
+
+def placement_resolution_remedy(mission_slug: str) -> str:
+    """The one operator remedy text for :class:`PlacementResolutionRequired` (FR-018).
+
+    Both raise sites use it: :func:`resolve_planning_placement`, when the seam
+    cannot resolve the coordination ref, and the implement planning-commit
+    adapter's protected-planning-branch arm.
+    """
+    return (
+        "Cannot resolve the canonical write placement for this mission's "
+        "WP status claim commit -- refusing to commit to the currently "
+        "checked-out branch (D11 fail-closed). This usually means the "
+        "mission's stored coordination topology could not be resolved "
+        "(e.g. the coordination worktree has not been materialized yet, "
+        "or the `coordination_branch` declared in meta.json is missing/"
+        "torn down in git). Run `spec-kitty doctor coordination "
+        f"--mission {mission_slug} --fix` to repair automatically -- it "
+        "materializes a present branch, or flattens (removes the stale "
+        "key) if the topology was never activated; or remove "
+        "`coordination_branch` from meta.json manually if you know the "
+        "coordination topology was never used, then retry."
+    )
+
+
+@dataclass(frozen=True)
+class PlanningPlacement:
+    """The planning-artifact placement implement-claim commits under.
+
+    ``resolved=True``: the WP action context resolved; ``ref`` is its placement
+    ref (equal to ``write_target(DECISION_LOG)`` in every lifecycle phase where
+    both resolve).
+
+    ``resolved=False``: the WP action context did not resolve
+    (``ActionContextError``); ``ref`` is ``None``.
+
+    ``coordination_ref`` is the coordination ref the planning commit filters
+    against and sends COORD-residue artifacts to, in both cases. It is ``None``
+    when the mission's stored topology does not route through coordination (and,
+    when unresolved, also when no coordination branch is declared).
+    """
+
+    resolved: bool
+    ref: CommitTarget | None
+    coordination_ref: str | None
+
+    def __post_init__(self) -> None:
+        if self.resolved != (self.ref is not None):
+            raise ValueError("PlanningPlacement.ref is set exactly when the placement is resolved")
+
+
+def placement_coord_filter(repo_root: Path, mission_slug: str, placement_ref: CommitTarget | None) -> str | None:
+    """Return the coord-owned-exclusion ref implied by the mission's topology.
+
+    The coord/flattened/primary decision reads the STORED topology via the ONE
+    canonical :func:`routes_through_coordination` predicate -- never a per-ref
+    ``.kind`` (the retired arm) and not independent meta.json/git logic
+    (C-005). Only a genuine *coordination* topology owns the status files on a
+    separate branch and therefore excludes them from the primary-checkout
+    commit; a flattened/primary topology has no primary/coord split, so the
+    primary status files are NOT filtered out. The excluded ref is the
+    context's single ``placement_ref.ref`` (the SAME CommitTarget status
+    events resolve to). Returns ``None`` for flattened/primary topologies.
+    """
+    if placement_ref is None:
+        return None
+    if routes_through_coordination(resolve_topology(repo_root, mission_slug)):
+        return placement_ref.ref
+    return None
+
+
+def _declares_coordination_branch(repo_root: Path, mission_slug: str) -> bool:
+    """Whether the mission declares a coordination branch.
+
+    No seam or topology helper answers "is a coordination branch declared", so
+    this reads the identifier cascade's ``coordination_branch`` as a boolean
+    predicate only. Its value is never used as a ref: the ref comes from the
+    placement seam.
+    """
+    mission_meta = load_primary_anchored_mission_meta(repo_root, mission_slug)
+    declared_branch, _mission_id, _mid8 = extract_mission_identifiers_from_meta(mission_meta, mission_slug)
+    return declared_branch is not None
+
+
+def _unresolved_coordination_ref(repo_root: Path, mission_slug: str) -> str | None:
+    """The seam's coordination ref for a placement whose WP context did not resolve."""
+    if not routes_through_coordination(resolve_topology(repo_root, mission_slug)):
+        return None
+    if not _declares_coordination_branch(repo_root, mission_slug):
+        return None
+    try:
+        return placement_seam(repo_root, mission_slug).write_target(MissionArtifactKind.DECISION_LOG).ref
+    except ActionContextError as exc:
+        raise PlacementResolutionRequired(placement_resolution_remedy(mission_slug)) from exc
+
+
+def resolve_planning_placement(repo_root: Path, *, mission_slug: str, wp_id: str) -> PlanningPlacement:
+    """Resolve the placement implement-claim commits planning artifacts under.
+
+    The WP action context is resolved first, as the pre-commit gate: any error
+    other than ``ActionContextError`` (``MissingLanesError``,
+    ``CorruptLanesError``, ...) propagates unchanged and stops implement before
+    any commit. The context resolve is read-shaped (no write intent), so a
+    checkout-identity refusal does not arise here.
+
+    On ``ActionContextError`` (for example a WP prompt that matches twice) the
+    placement is unresolved, and its coordination ref comes from the placement
+    seam. When the seam itself cannot resolve that ref,
+    :class:`PlacementResolutionRequired` is raised with
+    :func:`placement_resolution_remedy`.
+    """
+    try:
+        context = resolve_action_context(repo_root, action="implement", feature=mission_slug, wp_id=wp_id)
+    except ActionContextError:
+        context = None
+    artifact_placement = context.artifact_placement if context is not None else None
+    if artifact_placement is None:
+        return PlanningPlacement(resolved=False, ref=None, coordination_ref=_unresolved_coordination_ref(repo_root, mission_slug))
+    placement_ref = artifact_placement.placement_ref
+    return PlanningPlacement(
+        resolved=True,
+        ref=placement_ref,
+        coordination_ref=placement_coord_filter(repo_root, mission_slug, placement_ref),
+    )
