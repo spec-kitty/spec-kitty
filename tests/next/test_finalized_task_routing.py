@@ -25,6 +25,7 @@ def _scaffold(
     wps: dict[str, Lane],
     *,
     canceled_reason_source: str | None = None,
+    dependencies: dict[str, list[str]] | None = None,
 ) -> tuple[Path, str]:
     _init_repo(repo)
     (repo / ".kittify").mkdir()
@@ -38,8 +39,9 @@ def _scaffold(
     (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
     write_single_lane_manifest(feature_dir, wp_ids=tuple(wps.keys()))
     for wp_id, lane in wps.items():
+        deps_literal = json.dumps((dependencies or {}).get(wp_id, []))
         (tasks_dir / f"{wp_id}.md").write_text(
-            f"---\nwork_package_id: {wp_id}\ndependencies: []\ntitle: {wp_id}\n---\n# {wp_id}\n",
+            f"---\nwork_package_id: {wp_id}\ndependencies: {deps_literal}\ntitle: {wp_id}\n---\n# {wp_id}\n",
             encoding="utf-8",
         )
         append_event(

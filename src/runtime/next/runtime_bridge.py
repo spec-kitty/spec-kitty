@@ -733,6 +733,20 @@ def _is_wp_iteration_step(step_id: str) -> bool:
     return step_id in _WP_ITERATION_STEPS
 
 
+def _has_claimable_planned_wp(feature_dir: Path, *, status_dir: Path | None = None) -> bool:
+    """True only when a ``planned`` WP is genuinely claimable (#5669).
+
+    Gates the override's ``planned`` arm on the single dependency-aware
+    claimability authority (``discovery.preview_claimable_wp``, C-001) instead of
+    bare lane presence, so a dependency-walled ``planned`` WP never pins the
+    board to ``implement`` while a sibling WP awaits review (#4860 is preserved:
+    a walled WP is never dispatched for ``implement``).
+    """
+    from runtime.next.discovery import preview_claimable_wp
+
+    return preview_claimable_wp(feature_dir, status_dir=status_dir).wp_id is not None
+
+
 def _finalized_task_board_override_step(
     feature_dir: Path,
     progress: dict[str, int | float] | None,
@@ -747,6 +761,11 @@ def _finalized_task_board_override_step(
     A board whose WPs all reach acceptable endings reports ``accept``; ``done``
     remains reserved for a board whose reduced lanes are all done, so an
     operator-canceled WP is never reported as done.
+
+    Only a *claimable* ``planned`` WP reports ``implement``; a dependency-walled
+    one falls through so a pending ``for_review`` WP reports ``review`` (#5669).
+    ``claimed``/``in_progress`` WPs are a genuine resume and always report
+    ``implement``.
     """
     if progress is None:
         return None
@@ -756,7 +775,7 @@ def _finalized_task_board_override_step(
     if not (feature_dir / "tasks.md").is_file() or not (feature_dir / "tasks").is_dir():
         return None
 
-    if _find_first_wp_by_lane(feature_dir, "planned", status_dir=status_dir) is not None:
+    if _has_claimable_planned_wp(feature_dir, status_dir=status_dir):
         return "implement"
     if _find_first_wp_by_lane(feature_dir, "claimed", status_dir=status_dir) is not None:
         return "implement"
