@@ -658,6 +658,98 @@ def test_protected_planning_branch_without_a_resolved_placement_raises(build: Ca
 
 
 # ---------------------------------------------------------------------------
+# Row 8: double faults -- an unresolved WP context on top of another fault (R-1b)
+# ---------------------------------------------------------------------------
+
+STRUCTURAL_REFUSAL = "Uncommitted structural planning-artifact changes"
+DELETED_PLAN = " D kitty-specs/<slug>/plan.md"
+
+
+def _merged_torn_down_with_duplicate_wp(build: Callable[[str], Built]) -> Built:
+    """A merged coord mission whose coordination branch was torn down, plus a duplicate WP prompt."""
+    built = build("coord")
+    project_status_and_mark_merged(built)
+    delete_coordination_branch(built)
+    duplicate_wp_prompt(built)
+    return built
+
+
+def test_d1_torn_down_coordination_branch_and_duplicate_wp_clean_tree(build: Callable[[str], Built]) -> None:
+    """D1: nothing to commit, so the placement fault never surfaces; the claim refuses the duplicate."""
+    built = _merged_torn_down_with_duplicate_wp(build)
+
+    outcome = run_implement(built)
+
+    assert_outcome(
+        outcome,
+        exit_code=1,
+        commits=(),
+        status=(" M kitty-specs/<slug>/meta.json", " M kitty-specs/<slug>/tasks/WP01-demo.md"),
+        present=(DUPLICATE_WP_REFUSAL,),
+        absent=(PLACEMENT_REFUSAL,),
+    )
+
+
+def test_d2_torn_down_coordination_branch_and_duplicate_wp_dirty_tree(build: Callable[[str], Built]) -> None:
+    """D2: the PRIMARY leg commits first, then the COORD leg hits ``CoordinationBranchDeleted``."""
+    built = _merged_torn_down_with_duplicate_wp(build)
+    make_dirty(built)
+
+    outcome = run_implement(built)
+
+    assert_outcome(
+        outcome,
+        exit_code=1,
+        commits=(commit("topic", SPEC),),
+        status=(UNTRACKED_TRACES,),
+        present=(COORD_DELETED,),
+        absent=(PLACEMENT_REFUSAL,),
+    )
+
+
+def test_d3_structural_refusal_wins_over_a_placement_fault(build: Callable[[str], Built]) -> None:
+    """D3: the #1598 structural refusal runs before the coordination filter is asked for (#2464 ordering)."""
+    built = _merged_torn_down_with_duplicate_wp(build)
+    (built.feature_dir / "plan.md").unlink()
+
+    outcome = run_implement(built)
+
+    assert_outcome(outcome, exit_code=1, commits=(), status=(DELETED_PLAN,), present=(STRUCTURAL_REFUSAL,), absent=(PLACEMENT_REFUSAL,))
+
+
+def test_d4_structural_refusal_with_a_duplicate_wp_on_a_healthy_coord_mission(build: Callable[[str], Built]) -> None:
+    """D4 (control for D3): the same structural refusal when the coordination branch is intact."""
+    built = build("coord")
+    duplicate_wp_prompt(built)
+    (built.feature_dir / "plan.md").unlink()
+
+    outcome = run_implement(built)
+
+    assert_outcome(outcome, exit_code=1, commits=(), status=(DELETED_PLAN,), present=(STRUCTURAL_REFUSAL,), absent=(PLACEMENT_REFUSAL,))
+
+
+def test_d5_stale_coordination_key_on_a_lanes_mission_with_a_duplicate_wp(build: Callable[[str], Built]) -> None:
+    """D5: the declared key is used as declared (no topology gate): arm (c) partitions, then the COORD leg fails."""
+    built = build("lanes")
+    stale = f"kitty/mission-{built.slug}"
+    git(built.repo, "branch", "-f", stale)
+    built.set_meta(coordination_branch=stale)
+    duplicate_wp_prompt(built)
+    make_dirty(built)
+
+    outcome = run_implement(built)
+
+    assert_outcome(
+        outcome,
+        exit_code=1,
+        commits=(commit("topic", SPEC),),
+        status=(UNTRACKED_TRACES,),
+        present=(f"Failed to commit planning artifacts to {COORD}",),
+        absent=(LEGACY_LINE,),
+    )
+
+
+# ---------------------------------------------------------------------------
 # resolve_planning_placement (the seam that owns the placement decision)
 # ---------------------------------------------------------------------------
 
