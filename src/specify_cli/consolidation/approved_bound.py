@@ -194,7 +194,8 @@ def content_commits(repo_root: Path, commits: Iterable[str], is_bookkeeping: Cal
     return content
 
 
-def _resolves(repo_root: Path, ref: str) -> bool:
+def resolves_commit(repo_root: Path, ref: str) -> bool:
+    """True iff *ref* names a commit now."""
     try:
         resolve_commit(repo_root, ref)
     except GitProbeError:
@@ -244,16 +245,12 @@ def check_lane(
     lane-base anchors (dependency-lane tips, the target's pre-consolidation tip, the
     other lanes' approval stamps); *claim_base* bounds the lane's own range and must
     predate every commit the run merges (a live mission-branch tip does not). A lane with no commit
-    beyond *claim_base*, or over a *claim_base* that does not resolve (which the claim builder
-    has always read as an empty lane), has nothing to bound and is not refused.
+    beyond *claim_base* has nothing to bound and is not refused. A *claim_base* or lane tip that
+    does not resolve raises :class:`~specify_cli.consolidation.git_probes.GitProbeError`: the
+    check never passes for want of an answer, and every caller turns the error into a refusal.
     """
     lane_tip = tip or branch
-    if not _resolves(repo_root, claim_base) or not commits_in_range(repo_root, claim_base, lane_tip):
-        # Nothing to bound: a lane with no commit beyond the claim base holds nothing that could
-        # land unreviewed, and a claim base that does not resolve is read by the claim builder as
-        # an empty lane (it has always tolerated that). Safe on the ``consolidate`` path because a
-        # missing mission branch is refused earlier ("Missing mission branch"), so the base always
-        # resolves there. Callers must pass a RESOLVED claim base: an unresolved one is not refused.
+    if not commits_in_range(repo_root, claim_base, lane_tip):
         return None
     approved = tuple(sorted(approved_wp_ids))
     stamps = {wp_id: approval_stamp(events, wp_id) for wp_id in approved}
@@ -289,4 +286,5 @@ __all__ = [
     "commits_beyond",
     "content_commits",
     "is_approved_reviewed_attestation",
+    "resolves_commit",
 ]

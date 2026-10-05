@@ -19,6 +19,7 @@ import pytest
 from specify_cli.consolidation import approved_bound as bound
 from specify_cli.consolidation.approved_bound import ATTEST_APPROVED_FLAG, BoundRefusal, BoundRefusalCode, approval_stamp, check_lane
 from specify_cli.consolidation.canceled_attestation import ATTESTATION_KEY
+from specify_cli.consolidation.git_probes import GitProbeError
 from specify_cli.consolidation.reconciliation import ApprovedWpCommitSet, build_approved_wp_set, lane_tips_moved_refusal
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.status import LANE_HEAD_KEY, Lane, StatusEvent
@@ -207,6 +208,23 @@ def test_content_after_approval_refuses_and_names_commits_and_path(repo: _Repo) 
     assert text.startswith("LANE_MOVED_AFTER_APPROVAL: ")
     assert all(sha[:7] in text for sha in reversed(late[-3:])) and late[0][:7] not in text
     assert "and 1 more" in text and "src/late3.py" in text and "WP01" in text and _LANE in text
+
+
+def test_unresolvable_claim_base_fails_closed_instead_of_passing(repo: _Repo) -> None:
+    _approved_lane(repo)
+
+    with pytest.raises(GitProbeError):
+        check_lane(
+            repo.root,
+            events=repo.events,
+            lane_id=_LANE,
+            branch=_BRANCH,
+            approved_wp_ids=("WP01",),
+            canceled_wp_ids=(),
+            claim_base="no-such-base-xyz",
+            anchors=(),
+            is_bookkeeping=_is_bookkeeping,
+        )
 
 
 # ---------------------------------------------------------------------------

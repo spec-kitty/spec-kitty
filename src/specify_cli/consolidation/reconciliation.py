@@ -55,7 +55,7 @@ from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR
 from specify_cli.lanes._git import branch_exists
 from specify_cli.lanes.compute import is_planning_lane, lane_created_branch, lane_fully_canceled
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
-from specify_cli.consolidation.approved_bound import BoundRefusal, BoundRefusalCode, approval_stamp, check_lane, commits_beyond, content_commits
+from specify_cli.consolidation.approved_bound import BoundRefusal, BoundRefusalCode, approval_stamp, check_lane, commits_beyond, content_commits, resolves_commit
 from specify_cli.consolidation.git_probes import (
     GitProbeError,
     blob_id_at,
@@ -1759,15 +1759,7 @@ def _bound_claim_base(repo_root: Path, window_base: str | None, coord_base_ref: 
     branch already carries is not reachable from it. A live mission-branch (or
     coordination) tip is not: on a resume it already holds what the interrupted run merged.
     """
-    return window_base if window_base and _resolves_commit(repo_root, window_base) else coord_base_ref
-
-
-def _resolves_commit(repo_root: Path, ref: str) -> bool:
-    try:
-        resolve_commit(repo_root, ref)
-    except GitProbeError:
-        return False
-    return True
+    return window_base if window_base and resolves_commit(repo_root, window_base) else coord_base_ref
 
 
 def approval_stamp_anchors(events: Sequence[Any], lanes: Sequence[ExecutionLane], work_packages: Mapping[str, Any], excluded: frozenset[str]) -> list[str]:
@@ -1800,6 +1792,11 @@ def _approved_bound_verdict(
     if events is None:
         return _BoundVerdict(refusal=_bound_events_unreadable_text(lanes[0].lane_id))
     claim_base = _bound_claim_base(repo_root, window_base, coord_base_ref)
+    # The one tolerated unresolvable base: the claim builder has always read an unresolvable
+    # coordination base as an empty lane (``test_build_claim_tolerates_unresolvable_lane_probe``;
+    # a fully-canceled lane has no branch, some topologies cut it after this read), so the lane
+    # tips are still recorded and no lane is checked. ``check_lane`` itself never tolerates it.
+    base_resolves = resolves_commit(repo_root, claim_base)
     stamp_anchors = approval_stamp_anchors(events, lanes, work_packages, excluded_canceled_wp_ids)
     is_bookkeeping = functools.partial(_is_bookkeeping, mission_slug=lanes_manifest.mission_slug, planning_prefix=planning_prefix)
     refusals: list[str] = []
@@ -1811,17 +1808,21 @@ def _approved_bound_verdict(
         except GitProbeError:
             continue  # an unresolvable lane tip reads as an empty lane, as the collectors read it (:func:`_lane_tip_commits`)
         approved, canceled = _bound_lane_wp_ids(lane, work_packages, excluded_canceled_wp_ids)
-        found: BoundRefusal | None = check_lane(
-            repo_root,
-            events=events,
-            lane_id=lane.lane_id,
-            branch=branch,
-            approved_wp_ids=approved,
-            canceled_wp_ids=canceled,
-            claim_base=claim_base,
-            anchors=[*_closed_world_anchors(lanes_manifest, lane, window_base, excluded_canceled_wp_ids=excluded_canceled_wp_ids), *stamp_anchors],
-            is_bookkeeping=is_bookkeeping,
-            tip=tip,
+        found: BoundRefusal | None = (
+            check_lane(
+                repo_root,
+                events=events,
+                lane_id=lane.lane_id,
+                branch=branch,
+                approved_wp_ids=approved,
+                canceled_wp_ids=canceled,
+                claim_base=claim_base,
+                anchors=[*_closed_world_anchors(lanes_manifest, lane, window_base, excluded_canceled_wp_ids=excluded_canceled_wp_ids), *stamp_anchors],
+                is_bookkeeping=is_bookkeeping,
+                tip=tip,
+            )
+            if base_resolves
+            else None
         )
         if found is not None:
             refusals.append(found.render())
