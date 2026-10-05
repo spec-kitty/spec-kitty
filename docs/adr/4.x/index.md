@@ -52,3 +52,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-04 | [a Mission waives the contracts/ deliverable with a meta.json declaration](2026-10-04-1-mission-contracts-waiver-in-meta-json.md) |
 | 2026-10-04 | [a started work package keeps its recorded execution lane on re-finalize](2026-10-04-2-started-work-package-lane-membership-is-frozen.md) |
 | 2026-10-04 | [a completed upgrade run reports one outcome](2026-10-04-3-upgrade-reports-one-outcome.md) |
+| 2026-10-04 | [upgrade writes project-global state once, in the repository root checkout](2026-10-04-4-upgrade-writes-project-global-state-once.md) |

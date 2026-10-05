@@ -1709,6 +1709,7 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "testing-contract", text: "Testing contract", level: 2}
     - {slug: "references", text: "References", level: 2}
+    - {slug: "amendment-2026-10-04-5457", text: "Amendment 2026-10-04 (#5457)", level: 2}
   - path: "docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md"
     title: "ADR: Doctrine Layer Merge Semantics — Field-Level Merge with Collision Warnings"
     divio_type: "none"
@@ -2250,6 +2251,7 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "author-checklist", text: "Author Checklist", level: 2}
     - {slug: "references", text: "References", level: 2}
+    - {slug: "amendment-2026-10-04-5457", text: "Amendment 2026-10-04 (#5457)", level: 2}
   - path: "docs/adr/3.x/2026-07-08-1-mission-resolver-port.md"
     title: "ADR: MissionResolver Port — One Walk Trunk, Shell-Side DI, No Shared Container"
     divio_type: "none"
@@ -3463,6 +3465,15 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "enforcement", text: "Enforcement", level: 3}
     - {slug: "follow-ups-not-in-scope", text: "Follow-ups, not in scope", level: 3}
+  - path: "docs/adr/4.x/2026-10-04-4-upgrade-writes-project-global-state-once.md"
+    title: "ADR: upgrade writes project-global state once, in the repository root checkout"
+    divio_type: "none"
+    abstract: "Upgrade writes project-global state once on the repository root checkout; integration merge sites resolve target-owned bookkeeping by one declared rule."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -4767,6 +4778,7 @@ pages:
     anchors:
     - {slug: "why-branch-target-routing-exists", text: "Why branch-target routing exists", level: 2}
     - {slug: "the-three-branch-level-destinations", text: "The three branch-level destinations", level: 2}
+    - {slug: "upgrade-and-project-global-state", text: "Upgrade and project-global state", level: 2}
     - {slug: "the-simple-case-flat-topology-no-lanes-no-coordination", text: "The simple case: flat topology (no lanes, no coordination)", level: 2}
     - {slug: "relationship-to-execution-lanes", text: "Relationship to execution lanes", level: 2}
   - path: "docs/architecture/calibration/README.md"
@@ -10500,7 +10512,7 @@ pages:
     - {slug: "branch-integration-git-merge", text: "Branch Integration / Git Merge", level: 3}
     - {slug: "publish-to-origin-main", text: "Publish to origin/main", level: 3}
     - {slug: "coord-partition", text: "COORD partition", level: 3}
-    - {slug: "primary-owned-bookkeeping", text: "Primary-owned bookkeeping", level: 3}
+    - {slug: "target-owned-bookkeeping", text: "Target-owned bookkeeping", level: 3}
     - {slug: "topology-surface", text: "Topology Surface", level: 3}
     - {slug: "routing", text: "Routing", level: 3}
     - {slug: "the-drain", text: "The drain", level: 3}
@@ -13295,6 +13307,16 @@ pages:
     - {slug: "a-name-you-may-see-and-can-ignore-sync-migrate", text: "A name you may see and can ignore: `sync migrate`", level: 2}
     - {slug: "spec-kitty-home-and-the-drain", text: "`SPEC_KITTY_HOME` and the drain", level: 2}
     - {slug: "related", text: "Related", level: 2}
+  - path: "docs/operations/upgrade-with-live-lanes-recovery.md"
+    title: "Recovery: consolidate, review or implement refuses after an upgrade mid-Mission"
+    divio_type: "how-to"
+    abstract: "Recovery when spec-kitty consolidate, review or implement refuses on .kittify/metadata.yaml after an upgrade run while a Mission had live lanes."
+    anchors:
+    - {slug: "symptoms", text: "Symptoms", level: 2}
+    - {slug: "fix", text: "Fix", level: 2}
+    - {slug: "what-not-to-do", text: "What not to do", level: 2}
+    - {slug: "when-you-will-still-see-a-refusal", text: "When you will still see a refusal", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/plans/3-2-x-milestone-roadmap.md"
     title: "3.2.x Milestone — Roadmap (prior cycle)"
     divio_type: "none"
