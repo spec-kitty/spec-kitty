@@ -26,6 +26,7 @@ from typing import Any
 
 import pytest
 
+from tests.consolidation.approval_stamps import approved_lane_tips, with_lane_head
 from tests.integration.test_merge_lane_planning_data_loss import (
     _commit_file,
     _git,
@@ -36,6 +37,22 @@ from tests.integration.test_merge_lane_planning_data_loss import (
     _write_lanes_manifest,
     _write_wp_file,
 )
+
+
+def _stamp_untracked_approval_at_lane_tips(repo: Path, feature_dir: Path) -> None:
+    """Stamp each `approved` event with its lane tip in an UNTRACKED status log (#5668), no commit.
+
+    The approval seeded before the lane commit exists carries no `lane_head`, which #5668's
+    approved bound refuses. Here the status pair stays UNTRACKED at the root (consolidate seeds
+    it), so stamp in place WITHOUT committing -- unlike the committed-log fixtures that use
+    `restamp_log_at_lane_tips`.
+    """
+    tips = approved_lane_tips(repo, feature_dir)
+    log = feature_dir / "status.events.jsonl"
+    events = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines() if line.strip()]
+    stamped = [with_lane_head(event, tips[str(event["wp_id"])]) if event.get("to_lane") == "approved" and event.get("wp_id") in tips else event for event in events]
+    log.write_text("".join(json.dumps(event, sort_keys=True) + "\n" for event in stamped), encoding="utf-8")
+
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox, pytest.mark.regression]
 
@@ -138,6 +155,7 @@ def _build_fixture(tmp_path: Path) -> _Fixture:
         message=f"feat({_SLUG}): add foo function (WP01)",
     )
     _git(repo, "checkout", "main")
+    _stamp_untracked_approval_at_lane_tips(repo, feature_dir)
     from specify_cli.lanes.worktree_allocator import predict_lane_worktree
 
     lane_worktree, _lane_branch = predict_lane_worktree(repo, _SLUG, "lane-a")
