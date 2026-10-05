@@ -1,0 +1,129 @@
+{
+  "mission_slug": "rollback-anchor-authority-01M45VSA",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_rollback_anchor_p0_repro.py::test_failed_reconciliation_rollback_keeps_a_concurrent_target_commit; tests/terminus/test_rollback_door.py (WP01, reviewer-renata)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator-claude",
+      "verified_at": "2026-10-05T16:02:03.982880+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_single_rollback_authority.py::test_no_restore_of_any_kind_in_the_executor_family_outside_the_authority + self-mutation (WP01)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator-claude",
+      "verified_at": "2026-10-05T16:02:11.000059+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_rollback_authority.py unsettled lifecycle tests (WP02); test_rollback_anchor_kill_window orderly-FAIL (WP03)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator-claude",
+      "verified_at": "2026-10-05T16:02:17.668134+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_rollback_anchor_p0_repro.py::test_second_abort_never_reports_restored_over_an_unrecorded_landing (red on base, green on HEAD)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator-claude",
+      "verified_at": "2026-10-05T16:02:24.528472+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_rollback_anchor_kill_window.py unprovable + refusal_precedes_the_attestations_and_the_heal (WP03)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator-claude",
+      "verified_at": "2026-10-05T16:02:31.327275+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_rollback_anchor_kill_window.py adopts_the_intent x2 (real CLI, os._exit); tests/git/test_ref_advance_intent_sink.py (WP06)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator-claude",
+      "verified_at": "2026-10-05T16:02:37.915196+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_rollback_authority.py three-attempt restore-target carry tests (WP02)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator-claude",
+      "verified_at": "2026-10-05T16:02:44.590429+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_consolidate_abort_rollback.py US3 AS1-AS4 (WP04)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator-claude",
+      "verified_at": "2026-10-05T16:02:51.040595+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_consolidate_abort_rollback.py kept-branch success line tests (WP04)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator-claude",
+      "verified_at": "2026-10-05T16:02:57.289898+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_rollback_anchor_p0_repro.py: no p0_repro marker; 2 passed with and without SPEC_KITTY_RUN_P0_REPRO=1 (WP03 review)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator-claude",
+      "verified_at": "2026-10-05T16:03:03.881091+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_rollback_anchor_kill_window.py::test_a_foreign_commit_between_phases_survives_the_door; wiring nested-recorder tests (WP03)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator-claude",
+      "verified_at": "2026-10-05T16:03:10.357004+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/git/test_restore_branch_ref_resync.py lagging-checkout + index.lock cases (WP06/WP03)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator-claude",
+      "verified_at": "2026-10-05T16:03:17.582457+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

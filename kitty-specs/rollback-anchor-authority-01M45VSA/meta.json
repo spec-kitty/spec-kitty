@@ -1,0 +1,37 @@
+{
+  "accept_commit": "d250023596c65edb6ca65d0e26a3999f0d74fc58",
+  "acceptance_history": [
+    {
+      "accept_commit": "d250023596c65edb6ca65d0e26a3999f0d74fc58",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-05T16:03:25.232646+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "2fd4b89db76c7de554f5417da5980d08ab72e6e5"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-05T16:03:25.232646+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "2fd4b89db76c7de554f5417da5980d08ab72e6e5",
+  "baseline_merge_commit": "a17e6acb647a6d9a03810f7846d2e50d99718cdb",
+  "contracts": "none",
+  "contracts_rationale": "No HTTP/API or event interface changes; the only CLI surface change (--abort --release-branch/--reason) is specified in spec.md FR-008 and data-model.md.",
+  "created_at": "2026-10-05T11:04:44.698023+00:00",
+  "flattened": false,
+  "friendly_name": "Rollback anchor authority (#5686, #5666)",
+  "merged_at": "2026-10-05T16:06:53.065385+00:00",
+  "merged_commit": "508cb9ccf2dc09cf0383d4467f99fe6e814528a4",
+  "mid8": "01M45VSA",
+  "mission_id": "01M45VSAXGGD6FGRZ61NADBN21",
+  "mission_number": 217,
+  "mission_slug": "rollback-anchor-authority-01M45VSA",
+  "mission_type": "software-dev",
+  "purpose_context": "Fixes two P0 consolidate rollback defects: a kill-left landing re-anchored by begin_attempt makes --abort falsely report a full restore (#5686), and the reconciliation-FAIL rollback discards a concurrent target commit by using the live tip as its CAS expectation (#5666).",
+  "purpose_tldr": "Consolidate rollback and --abort anchor on the run's persisted record, never the live tip",
+  "slug": "rollback-anchor-authority-01M45VSA",
+  "status_phase": "1",
+  "target_branch": "issue-5686-rollback-anchor",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-05T11:36:57.849004+00:00"
+}

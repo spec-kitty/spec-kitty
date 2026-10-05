@@ -1,0 +1,20 @@
+---
+affected_files: []
+cycle_number: 1
+mission_slug: rollback-anchor-authority-01M45VSA
+reproduction_command:
+reviewed_at: '2026-10-05T15:42:19Z'
+reviewer_agent: claude
+wp_id: WP05
+---
+
+# WP05 review feedback (cycle 1) — reviewer-renata
+
+**Verdict: changes requested (one required edit).** All other claims were checked against the shipped code (`git diff 22fb3642..HEAD -- src`) and match: the `UNEXPLAINED_BRANCH_MOVE` refusal text and exit 1 (`phase_claim.py:69-97`), `RELEASE_BRANCH_INVALID` with exit 2 for each misuse case (`consolidate.py:475-541`), the `kept ... (released by operator: ...; at <sha>; may contain this consolidation's unverified changes)` and `adopted interrupted advance` wording (`rollback.py:117-118,214`), the success-line wording, `reporting_advance_intents`, `phase_records_branch`, `unsettled_refs`/`advance_intents` with malformed-load semantics, `atomic_write`, the retired `_rollback_target_after_failed_reconciliation` plus the widened AST pin, the PASS-anchor exemption (`executor.py:178`) and `repair_coord_strand` as the only remaining second restore path. No destructive git recipe was added: the existing `reset --hard`/`update-ref` mentions only describe behaviour. The terminology canon holds, and the targeted docs gates pass (277).
+
+**Issue 1 (required): the ADR cites an unfiled follow-up instead of #5784.**
+`docs/adr/3.x/2026-09-19-1-terminus-safety-invariant.md:439` reads
+"moves the branch by hand (follow-up issue to be filed)."
+The orchestrator has filed it as #5784. Change it to "(follow-up #5784)". Also add `#5784` to the out-of-scope follow-ups list in the References line "Follow-up 2026-10-05: #5686, #5666, ...; out-of-scope follow-ups #5372, #5667, #5638, #5048." (around line 492), so the References list matches the residual. After the edit, re-run `scripts/docs/docs_index.py --write` only if a heading changed (none should), then re-run the targeted docs tests.
+
+Anti-pattern checklist: 1 dead code N/A (docs only); 2 synthetic fixture N/A; 3 silent empty return N/A; 4 FR coverage N/A (C-001/C-002 constraints: no destructive recipe, PASS); 5 frozen surface PASS; 6 locked decision PASS (C-002, non-destructive remedies only); 7 shared-file ownership PASS (AGENTS.md and docs-retrieval-index.yaml are leeway edits recorded in the activity log, and no other WP touches them); 8 production fragility N/A.
