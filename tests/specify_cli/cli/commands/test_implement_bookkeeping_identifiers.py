@@ -2,15 +2,15 @@
 ``resolve_bookkeeping_transaction_identifiers`` BEFORE/THROUGH its S3776
 degod extraction.
 
-C-006 (load-bearing): ``tasks_move_task.py`` imports
-``resolve_bookkeeping_transaction_identifiers``, ``feature_dir_file_paths``,
-``planning_artifact_source_dir`` from ``cli/commands/implement.py`` and calls
-the first with only ``[0]`` (``coord_branch``) read at the cross-lane call
-site, while the in-module caller unpacks the full 5-tuple
-``(coord_branch, mission_id, mid8, effective_mission_id, effective_mid8)``.
-These tests pin that positional 5-tuple contract PLUS the value-level
-cascade/fallback/precedence invariants that T008's extraction must preserve
-byte-for-byte (DM-D brownfield / characterization-first discipline).
+C-006 (load-bearing): the three names ``resolve_bookkeeping_transaction_identifiers``,
+``feature_dir_file_paths`` and ``planning_artifact_source_dir`` are one importable set, and the
+resolver returns the positional 5-tuple ``(coord_branch, mission_id, mid8, effective_mission_id,
+effective_mid8)`` -- a consumer that reads only ``[0]`` (``coord_branch``) must keep working. They
+now live in ``coordination/planning_commit.py``; when these tests were written they were imported
+from ``cli/commands/implement.py`` by ``tasks_move_task.py``, which no longer imports them at all.
+These tests pin that positional contract PLUS the value-level cascade/fallback/precedence
+invariants the extraction had to preserve byte-for-byte (DM-D brownfield /
+characterization-first discipline).
 """
 
 from __future__ import annotations
@@ -260,8 +260,7 @@ def test_consumer_contract_five_tuple_positions_match_fixture(tmp_path: Path) ->
 
 
 def test_sibling_symbols_importable_and_callable_alongside_resolver(tmp_path: Path) -> None:
-    """Smoke-check the exact import block ``tasks_move_task.py:1381-1385`` uses
-    still resolves all three names from the same module."""
+    """The three C-006 names still resolve from one module, so a consumer importing the set keeps working."""
     from specify_cli.coordination.planning_commit import (
         feature_dir_file_paths,
         planning_artifact_source_dir,

@@ -82,7 +82,9 @@ def test_no_stale_done_only_dependency() -> None:
 
 # --- #1615: coord-aware resolver must be present ---
 
-def test_resolve_mission_read_path_used_in_implement(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_implement_finalization_gate_reads_the_resolved_coordination_status_surface(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     """#1615: implement's finalized/dependency gate reads the resolved coordination status surface.
 
     Behavioural oracle (it replaces a substring match that a comment satisfied). The primary

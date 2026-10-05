@@ -364,7 +364,7 @@ class TestPlanningArtifactPath:
 class TestImplementModuleImports:
     """The migrated implement module imports cleanly after WP01/WP06."""
 
-    def test_implement_imports_safe_commit_with_new_signature(self) -> None:
+    def test_safe_commit_accepts_destination_ref_and_worktree_root(self) -> None:
         from specify_cli.git import safe_commit
         import inspect
 

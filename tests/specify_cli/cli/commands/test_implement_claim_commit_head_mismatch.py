@@ -13,14 +13,16 @@ Every test drives the real command against a real git fixture; nothing is patche
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 import pytest
 import typer
 
 from specify_cli.cli.commands.implement import _json_safe_output
+from tests._support.ansi import strip_ansi
 from tests.specify_cli.cli.commands._implement_fixtures import (
+    ARGS,
+    COORDINATION_BRANCH,
     MISSION_ID,
     SLUG,
     Mission,
@@ -35,9 +37,6 @@ from tests.specify_cli.cli.commands._implement_fixtures import (
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
-COORDINATION_BRANCH = f"kitty/mission-{SLUG}-{MISSION_ID[:8].lower()}"
-ARGS = ["WP01", "--mission", SLUG, "--actor", "tester"]
-_ANSI = re.compile(r"\x1b\[[0-9;]*m")
 PROTECTED_HINT = (
     "'main' is a protected branch, so the claim's status commit cannot land there either: "
     "rerun with --no-auto-commit to stage the claim's changes and commit them yourself."
@@ -79,7 +78,7 @@ def test_off_target_auto_commit_claim_is_refused_with_a_rendered_error_before_an
     result = implement_cli(*ARGS, "--auto-commit")
 
     assert result.exit_code == 1, result.output
-    text = flat(_ANSI.sub("", result.output))
+    text = flat(strip_ansi(result.output))
     assert "Error:" in text
     for fragment in _mismatch_fragments(off_target_repo):
         assert fragment in text, f"{fragment!r} not in: {text}"
@@ -104,7 +103,7 @@ def test_off_target_auto_commit_claim_is_refused_in_json_mode_with_the_error_env
     payload = json.loads(payload_line)
     assert payload["status"] == "error"
     assert payload["wp_id"] == "WP01"
-    error = flat(_ANSI.sub("", payload["error"]))
+    error = flat(strip_ansi(payload["error"]))
     assert "Error:" in error
     for fragment in _mismatch_fragments(off_target_repo):
         assert fragment in error, f"{fragment!r} not in: {error}"
@@ -123,7 +122,7 @@ def test_a_protected_destination_names_the_no_auto_commit_way_out(off_target_rep
     result = implement_cli(*ARGS, "--auto-commit")
 
     assert result.exit_code == 1, result.output
-    text = flat(_ANSI.sub("", result.output))
+    text = flat(strip_ansi(result.output))
     assert PROTECTED_HINT in text, text
     for fragment in _mismatch_fragments(off_target_repo):
         assert fragment in text, f"{fragment!r} not in: {text}"
@@ -143,7 +142,7 @@ def test_an_unprotected_destination_gets_no_no_auto_commit_hint(tmp_path: Path, 
     result = implement_cli(*ARGS, "--auto-commit")
 
     assert result.exit_code == 1, result.output
-    text = flat(_ANSI.sub("", result.output))
+    text = flat(strip_ansi(result.output))
     assert "HEAD is 'elsewhere', expected 'trunk'." in text
     assert f"Run `git -C {repo} checkout trunk` first." in text
     assert "--no-auto-commit" not in text
@@ -151,13 +150,17 @@ def test_an_unprotected_destination_gets_no_no_auto_commit_hint(tmp_path: Path, 
 
 
 def test_off_target_claim_without_auto_commit_is_not_refused(off_target_repo: Path) -> None:
-    """The refusal is scoped to the auto-commit: ``--no-auto-commit`` commits nothing, so it proceeds."""
-    _seed(off_target_repo)
+    """The refusal is scoped to the auto-commit: ``--no-auto-commit`` commits nothing, so the claim
+    proceeds -- it allocates the lane worktree and records the claim."""
+    mission = _seed(off_target_repo)
 
     result = implement_cli(*ARGS, "--no-auto-commit")
 
     assert result.exit_code == 0, result.output
     assert (off_target_repo / ".worktrees" / f"{SLUG}-lane-a").is_dir()
+    events = [json.loads(line) for line in mission.events_path.read_text(encoding="utf-8").splitlines()]
+    claim = [(event["from_lane"], event["to_lane"]) for event in events if event.get("actor") == "tester"]
+    assert claim == [("planned", "claimed"), ("claimed", "in_progress")]
 
 
 def test_off_target_resume_of_an_in_progress_wp_is_not_refused(off_target_repo: Path) -> None:
@@ -167,11 +170,14 @@ def test_off_target_resume_of_an_in_progress_wp_is_not_refused(off_target_repo: 
     """
     mission = _seed(off_target_repo, states={"WP01": "in_progress"})
     events_before = mission.event_count()
+    head_before = git(off_target_repo, "rev-parse", "HEAD")
 
     result = implement_cli("WP01", "--mission", SLUG, "--actor", "system", "--auto-commit")
 
     assert result.exit_code == 0, result.output
     assert mission.event_count() == events_before
+    # No claim commit was attempted, so the branch did not move either.
+    assert git(off_target_repo, "rev-parse", "HEAD") == head_before
     assert git(off_target_repo, "rev-parse", "--abbrev-ref", "HEAD") == COORDINATION_BRANCH
 
 
@@ -192,7 +198,7 @@ def test_an_unexpected_exception_is_rendered_in_human_mode(capsys: pytest.Captur
 
     assert excinfo.value.exit_code == 1
     assert isinstance(excinfo.value.__cause__, RuntimeError)
-    out = flat(_ANSI.sub("", capsys.readouterr().out))
+    out = flat(strip_ansi(capsys.readouterr().out))
     assert "Error: unexpected failure for WP07; run `fix-it` first" in out
 
 

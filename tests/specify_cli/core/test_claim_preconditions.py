@@ -55,17 +55,17 @@ def test_every_unmet_dependency_is_named_in_declaration_order() -> None:
 
 @pytest.mark.parametrize("dep_lane", ["approved", "done"])
 def test_approved_or_done_dependencies_pass(dep_lane: str) -> None:
-    ensure_wp_claim_preconditions("WP02", ["WP01"], _wps(WP01=dep_lane, WP02="planned"))
+    assert ensure_wp_claim_preconditions("WP02", ["WP01"], _wps(WP01=dep_lane, WP02="planned")) is None
 
 
 def test_no_declared_dependencies_passes_for_a_finalized_wp() -> None:
-    ensure_wp_claim_preconditions("WP02", [], _wps(WP02="planned"))
+    assert ensure_wp_claim_preconditions("WP02", [], _wps(WP02="planned")) is None
 
 
 def test_operator_canceled_dependency_counts_as_satisfied() -> None:
     wps = _wps(WP01={"lane": "canceled", "reason_source": OPERATOR_REASON_SOURCE}, WP02="planned")
 
-    ensure_wp_claim_preconditions("WP02", ["WP01"], wps)
+    assert ensure_wp_claim_preconditions("WP02", ["WP01"], wps) is None
 
 
 def test_synthetic_canceled_dependency_blocks() -> None:
@@ -87,8 +87,8 @@ def test_present_but_falsy_lane_is_not_genesis() -> None:
     would coerce it to genesis. So the unseeded check passes for the WP itself, and a dependency in
     such a state is simply an unresolvable lane (blocked), never an unseeded rejection.
     """
-    ensure_wp_claim_preconditions("WP02", [], {"WP02": {"lane": None}})
-    ensure_wp_claim_preconditions("WP02", [], {"WP02": {"lane": ""}})
+    assert ensure_wp_claim_preconditions("WP02", [], {"WP02": {"lane": None}}) is None
+    assert ensure_wp_claim_preconditions("WP02", [], {"WP02": {"lane": ""}}) is None
 
     with pytest.raises(ValueError, match="dependencies_not_satisfied: WP02 depends on WP01"):
         ensure_wp_claim_preconditions("WP02", ["WP01"], {"WP01": {"lane": None}, "WP02": {"lane": "planned"}})

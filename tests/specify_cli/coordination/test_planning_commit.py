@@ -102,11 +102,11 @@ class TestGuard:
 
     @pytest.mark.parametrize("destination_is_coord", [True, False])
     def test_self_bookkeeping_is_exempt_in_both_directions(self, destination_is_coord: bool) -> None:
-        planning_commit.guard_planning_commit_partition([_META_REL], destination_is_coord=destination_is_coord)
+        assert planning_commit.guard_planning_commit_partition([_META_REL], destination_is_coord=destination_is_coord) is None
 
     def test_matching_partitions_pass(self) -> None:
-        planning_commit.guard_planning_commit_partition([f"kitty-specs/{_SLUG}/status.json"], destination_is_coord=True)
-        planning_commit.guard_planning_commit_partition([f"kitty-specs/{_SLUG}/lanes.json"], destination_is_coord=False)
+        assert planning_commit.guard_planning_commit_partition([f"kitty-specs/{_SLUG}/status.json"], destination_is_coord=True) is None
+        assert planning_commit.guard_planning_commit_partition([f"kitty-specs/{_SLUG}/lanes.json"], destination_is_coord=False) is None
 
 
 class TestDemotionVerdict:

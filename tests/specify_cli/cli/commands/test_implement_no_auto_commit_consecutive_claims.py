@@ -23,6 +23,7 @@ from specify_cli.cli.commands.implement_cores import (
     resolve_planning_artifact_staging,
 )
 from tests.specify_cli.cli.commands._implement_fixtures import (
+    EVENT_ID,
     MISSION_ID,
     SLUG,
     Mission,
@@ -35,6 +36,8 @@ from tests.specify_cli.cli.commands._implement_fixtures import (
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 WPS = ("WP01", "WP02", "WP03")
+#: One lane per WP, named independently of the WP id (a ``WP10`` would collide on its last digit).
+LANE_OF = {wp_id: f"lane-{chr(ord('a') + index)}" for index, wp_id in enumerate(WPS)}
 NOT_COMMITTED = "Planning artifacts not committed:"
 
 
@@ -45,7 +48,7 @@ def _independent_lanes_mission(repo: Path) -> Mission:
         SLUG,
         MISSION_ID,
         wps={wp_id: ("code_change", []) for wp_id in WPS},
-        layout=tuple((f"lane-{wp_id[-1]}", (wp_id,), ()) for wp_id in WPS),
+        layout=tuple((LANE_OF[wp_id], (wp_id,), ()) for wp_id in WPS),
         spec_text="# Spec\n",
     )
 
@@ -79,7 +82,7 @@ def test_n_consecutive_no_auto_commit_claims_need_no_commit_between_them(repo: P
             lanes[event["wp_id"]].append((event["from_lane"], event["to_lane"]))
     assert all(transitions == [("planned", "claimed"), ("claimed", "in_progress")] for transitions in lanes.values()), lanes
     for wp_id in WPS:
-        assert (repo / ".worktrees" / f"{SLUG}-lane-{wp_id[-1]}").is_dir()
+        assert (repo / ".worktrees" / f"{SLUG}-{LANE_OF[wp_id]}").is_dir()
 
 
 def test_the_claims_own_writes_are_staged_as_the_message_says(repo: Path) -> None:
@@ -155,7 +158,7 @@ def test_a_hand_edit_to_the_spec_between_claims_still_blocks(repo: Path) -> None
     text = flat(result.output)
     assert NOT_COMMITTED in text
     assert f"kitty-specs/{SLUG}/spec.md" in text
-    assert not (repo / ".worktrees" / f"{SLUG}-lane-2").exists()
+    assert not (repo / ".worktrees" / f"{SLUG}-{LANE_OF['WP02']}").exists()
 
 
 def test_a_hand_edit_to_a_non_runtime_frontmatter_field_between_claims_still_blocks(repo: Path) -> None:
@@ -190,7 +193,7 @@ def test_an_appended_non_claim_status_event_between_claims_still_blocks(repo: Pa
     mission = _independent_lanes_mission(repo)
     assert _claim("WP01").exit_code == 0
     last = json.loads(mission.events_path.read_text(encoding="utf-8").splitlines()[-1])
-    foreign = {**last, "event_id": "01FOREIGNEVENT0000000000ZZ", "from_lane": "in_progress", "to_lane": "for_review", "actor": "someone"}
+    foreign = {**last, "event_id": EVENT_ID, "from_lane": "in_progress", "to_lane": "for_review", "actor": "someone"}
     with mission.events_path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(foreign, sort_keys=True) + "\n")
 

@@ -15,10 +15,12 @@ from specify_cli.status import emit
 pytestmark = pytest.mark.fast
 
 _BASELINE = "2026-10-05T00:00:00+00:00"
+#: The creation-time probe ``claim_policy_metadata`` calls (patched by target, not by object).
+_CAPTURE_BASELINE = "specify_cli.core.process_liveness.capture_creation_time_baseline"
 
 
 def test_baseline_captured_yields_full_triple(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("specify_cli.core.process_liveness.capture_creation_time_baseline", lambda pid: _BASELINE)
+    monkeypatch.setattr(_CAPTURE_BASELINE, lambda pid: _BASELINE)
 
     assert status.claim_policy_metadata(4242, "claude") == {
         "shell_pid": 4242,
@@ -28,7 +30,7 @@ def test_baseline_captured_yields_full_triple(monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_no_baseline_omits_created_at_instead_of_fabricating(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("specify_cli.core.process_liveness.capture_creation_time_baseline", lambda pid: None)
+    monkeypatch.setattr(_CAPTURE_BASELINE, lambda pid: None)
 
     assert status.claim_policy_metadata(4242, "claude") == {"shell_pid": 4242, "agent": "claude"}
 
@@ -40,7 +42,7 @@ def test_baseline_is_captured_for_the_given_pid(monkeypatch: pytest.MonkeyPatch)
         seen.append(pid)
         return _BASELINE
 
-    monkeypatch.setattr("specify_cli.core.process_liveness.capture_creation_time_baseline", _capture)
+    monkeypatch.setattr(_CAPTURE_BASELINE, _capture)
 
     emit.claim_policy_metadata(77, "codex")
 
@@ -48,7 +50,7 @@ def test_baseline_is_captured_for_the_given_pid(monkeypatch: pytest.MonkeyPatch)
 
 
 def test_full_triple_matches_the_shape_authority(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("specify_cli.core.process_liveness.capture_creation_time_baseline", lambda pid: _BASELINE)
+    monkeypatch.setattr(_CAPTURE_BASELINE, lambda pid: _BASELINE)
 
     assert status.claim_policy_metadata(9, "a") == status.build_claim_policy_metadata(9, _BASELINE, "a")
 

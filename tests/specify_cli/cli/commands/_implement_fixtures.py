@@ -42,6 +42,7 @@ from tests.utils import _seed_canonical_wp_state
 __all__ = [
     "ARGS",
     "COORDINATION_BRANCH",
+    "EVENT_ID",
     "LANE_BRANCH",
     "LANE_WORKTREE",
     "LATE",
@@ -61,6 +62,8 @@ __all__ = [
     "underlying",
 ]
 
+#: A valid Crockford ULID for a test-authored event id (no I, L, O or U; 26 characters).
+EVENT_ID = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
 #: The coordination branch name of the shared ``SLUG`` / ``MISSION_ID`` mission.
 COORDINATION_BRANCH = f"kitty/mission-{SLUG}-{MISSION_ID[:8].lower()}"
 
