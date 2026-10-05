@@ -395,8 +395,10 @@ def _may_not_exit(source: str) -> list[ast.FunctionDef]:
     """The functions of the command module that may never exit.
 
     Any function that takes ``outcome`` or is named ``_finalizer_step*`` (the injected finalizer
-    steps), any presentation function, and every function reachable by name from the tail of
-    ``upgrade()`` after the ``finalize_upgrade`` call. ``upgrade()`` itself is the one exit site.
+    steps), any presentation function, every function called from the tail of ``upgrade()`` after
+    the ``finalize_upgrade`` call, and every function reachable by name from any of those: an exit
+    in a helper a finalizer step calls is an exit of that step. ``upgrade()`` itself is the one
+    exit site.
     """
     functions = _functions(ast.parse(source))
     by_name = {fn.name: fn for fn in functions}
@@ -405,12 +407,14 @@ def _may_not_exit(source: str) -> list[ast.FunctionDef]:
         for fn in functions
         if fn.name != _COMMAND and (_is_presentation(fn) or _OUTCOME_NAME in _parameter_names(fn) or fn.name.startswith(_FINALIZER_STEP_PREFIX))
     }
-    queue = deque(_calls_by_name(_tail_after_finalizer(source) or []))
+    queue = deque(sorted(_calls_by_name(_tail_after_finalizer(source) or []) | selected))
+    walked: set[str] = set()
     while queue:
         name = queue.popleft()
-        if name in by_name and name != _COMMAND and name not in selected:
+        if name in by_name and name != _COMMAND and name not in walked:
+            walked.add(name)
             selected.add(name)
-            queue.extend(_called_names(by_name[name]))
+            queue.extend(sorted(_called_names(by_name[name])))
     return [fn for fn in functions if fn.name in selected]
 
 
@@ -517,7 +521,9 @@ class TestFloor:
     def test_the_functions_that_may_not_exit_include_the_finalizer_steps_and_the_tail_helpers(self, command_source: str) -> None:
         names = may_not_exit_names(command_source)
         assert {"_finalizer_step_commit_churn", "_finalizer_step_offer_repair", "_finalizer_step_surface_repair"} <= names
+        assert "_finalizer_step_provision" in names  # selected by its name alone: it takes no outcome and prints nothing
         assert {"_churn_left_uncommitted_by_config", "_render_text_report", "_build_migration_json_payload"} <= names
+        assert "_dry_run_surface_report" in names  # reached only through a function that must not exit
         assert _COMMAND not in names
 
 
@@ -743,10 +749,22 @@ class TestSelfMutation:
             ("def _quiet_helper(outcome, ctx):\n    raise typer.Exit(3)\n", ""),
             # a function the tail of upgrade() calls after the finalizer
             ("def _churn_left_uncommitted_by_config(dry_run):\n    raise typer.Exit(0)\n", "    _churn_left_uncommitted_by_config(False)\n"),
+            # a helper called by a function that must not exit, itself selected by nothing else
+            ("def _render_y(outcome):\n    _helper()\n\ndef _helper():\n    raise typer.Exit(1)\n", ""),
             # any function at all of the outcome and finalizer modules (checked as a module, not through upgrade())
             ("def finalize_upgrade(steps):\n    raise typer.Exit(0)\n", None),
         ],
-        ids=["system-exit", "sys-exit", "os-exit", "typer-exit", "finalizer-step", "takes-outcome", "called-from-the-tail", "outcome-or-finalizer-module"],
+        ids=[
+            "system-exit",
+            "sys-exit",
+            "os-exit",
+            "typer-exit",
+            "finalizer-step",
+            "takes-outcome",
+            "called-from-the-tail",
+            "called-from-a-function-that-must-not-exit",
+            "outcome-or-finalizer-module",
+        ],
     )
     def test_rule_3_a_function_that_must_not_exit_is_reported_for_any_kind_of_exit(self, definition: str, tail_call: str | None) -> None:
         if tail_call is None:

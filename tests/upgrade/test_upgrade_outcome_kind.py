@@ -293,8 +293,8 @@ def test_each_preserved_file_is_named_relative_to_the_project_and_the_list_is_ca
     assert errors[-1] == _DRIFT_GUIDANCE
     assert outcome.closing_line() == "Upgrade finished, but 23 managed file(s) with local edits were not updated."
     # The guidance names what is true: delete + re-run recreates a file, doctor only shows state, nothing overwrites.
-    assert "--fix" not in _DRIFT_GUIDANCE
-    assert "overwrite" not in _DRIFT_GUIDANCE.lower()
+    assert "--fix" not in errors[-1]
+    assert "overwrite" not in errors[-1].lower()
 
 
 def test_recording_a_second_report_replaces_the_first() -> None:

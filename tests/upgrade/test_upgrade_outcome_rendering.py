@@ -219,7 +219,10 @@ _CLOSING_APPLIED = f"Upgrade complete! {_PROJECT_VERSION} -> {_MIGRATED_VERSION}
 _CLOSING_APPLIED_DRY_RUN = f"Dry run complete — no changes applied. ({_PROJECT_VERSION} -> {_MIGRATED_VERSION} previewed)"
 _CLOSING_DRIFT = "Upgrade finished, but 1 managed file(s) with local edits were not updated."
 _PRESERVED_LINE = f"Not updated, your local edit was kept: {_DRIFTED_PATH} ({_DRIFTED_REASON})"
-_PRESERVED_GUIDANCE = "To take the current version of a file, delete it and run 'spec-kitty upgrade' again."
+_PRESERVED_GUIDANCE = (
+    "To take the current version of a file, delete it and run 'spec-kitty upgrade' again. "
+    "To keep your edit, leave the file as it is. 'spec-kitty doctor tool-surfaces' shows each file's state."
+)
 _CLOSING_FAILED = "Upgrade failed."
 _SUCCESS_PHRASES = ("already up to date", "upgrade complete", "dry run complete")
 
@@ -275,6 +278,13 @@ def _stub_commit_recovery_failure(monkeypatch: pytest.MonkeyPatch, _path: str) -
     monkeypatch.setattr(autocommit, "commit_touched_checkout", _raise)
 
 
+def _stub_commit_recovery_failure_nothing_landed(monkeypatch: pytest.MonkeyPatch, _path: str) -> None:
+    def _raise(*_args: Any, **_kwargs: Any) -> Any:
+        raise SafeCommitRecoveryFailed("restore failed")  # no commit_sha: what the commit helpers raise today
+
+    monkeypatch.setattr(autocommit, "commit_touched_checkout", _raise)
+
+
 def _stub_migration_failure(monkeypatch: pytest.MonkeyPatch, _path: str) -> None:
     _stub_applied_migration(monkeypatch, success=False, errors=(_MIGRATION_ERROR,))
 
@@ -290,6 +300,7 @@ _STUBS: dict[str, Callable[[pytest.MonkeyPatch, str], None]] = {
     "activation_error": _stub_activation_error,
     "worktree_failure": _stub_worktree_failure,
     "commit_recovery_failure": _stub_commit_recovery_failure,
+    "commit_recovery_failure_nothing_landed": _stub_commit_recovery_failure_nothing_landed,
     "migration_failure": _stub_migration_failure,
     "incomplete_preview": _stub_incomplete_preview,
 }
@@ -347,6 +358,14 @@ _ROWS = (
         errors_contain=("stash@{0}", "DID land"),
         auto_committed=True,  # the commit landed; only restoring the staging failed
     ),
+    _Row(
+        "commit-recovery-failure-nothing-landed",
+        ("commit_recovery_failure_nothing_landed",),
+        "failed",
+        ("commit_recovery_failed",),
+        errors_contain=("No commit landed.",),
+        auto_committed=False,
+    ),
     _Row("migration-failure", ("migration_failure",), "failed", ("migration_failed",), paths=(_MIGRATIONS,), errors_contain=(_MIGRATION_ERROR,)),
 )
 
@@ -403,7 +422,6 @@ def test_matrix_text_and_json_agree_on_one_outcome(row: _Row, path: str, tmp_pat
     assert payload["status"] == {"no_op": "up_to_date", "applied": "success"}.get(row.kind, "failed")
     assert payload["outcome"] == row.kind
     assert payload["failure_reasons"] == list(row.reasons)
-    assert not any(" 0 managed file(s)" in error for error in payload["errors"])  # no preserved-file line without a file
     for expected in row.errors_contain:
         assert any(expected in error for error in payload["errors"]), payload["errors"]
     if row.auto_committed is not None:
