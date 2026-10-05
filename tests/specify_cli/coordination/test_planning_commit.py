@@ -10,13 +10,13 @@ exits, so every case is driven directly, with a tiny real git repo only where th
 from __future__ import annotations
 
 import json
-import subprocess
 from pathlib import Path
 
 import pytest
 
 from specify_cli.coordination import commit_router, planning_commit
 from specify_cli.git.commit_helpers import SafeCommitPathPolicyError
+from tests._support.git_cli import git_out
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -32,16 +32,12 @@ _COORD_BRANCH = "kitty/mission-seam-mission-01KSEAMA"
 _DECLARING_META: dict[str, object] = {"mission_slug": _SLUG, "coordination_branch": _COORD_BRANCH, "mission_id": "01KSEAMAAAAAAAAAAAAAAAAAAA"}
 
 
-def _git(repo: Path, *args: str) -> None:
-    subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
-
-
 def _init_repo(repo: Path) -> None:
     repo.mkdir(parents=True, exist_ok=True)
-    _git(repo, "init", "-q", "-b", "work")
-    _git(repo, "config", "user.email", "t@example.com")
-    _git(repo, "config", "user.name", "Test")
-    _git(repo, "config", "commit.gpgsign", "false")
+    git_out(repo, "init", "-q", "-b", "work")
+    git_out(repo, "config", "user.email", "t@example.com")
+    git_out(repo, "config", "user.name", "Test")
+    git_out(repo, "config", "commit.gpgsign", "false")
 
 
 def _write_meta(repo: Path, payload: dict[str, object] | str) -> Path:
@@ -52,8 +48,8 @@ def _write_meta(repo: Path, payload: dict[str, object] | str) -> Path:
 
 
 def _commit_all(repo: Path) -> None:
-    _git(repo, "add", "-A")
-    _git(repo, "commit", "-q", "-m", "baseline")
+    git_out(repo, "add", "-A")
+    git_out(repo, "commit", "-q", "-m", "baseline")
 
 
 class TestPartition:
