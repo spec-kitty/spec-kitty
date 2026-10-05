@@ -74,8 +74,10 @@ SAMPLE_RUNS = 5
 #: clean evaluations (idle and CPU-throttled series, plus a 30-run robustness
 #: campaign) the median is 1.39, 360 calibration ratios lay between 1.21 and 1.65,
 #: and one campaign evaluation exceeded the first limit tried, 1.70 (its value was
-#: not captured). Planted ratios with the committed plant lay between 1.85 and
-#: 2.01. The limit is 1.78: 4 percent below the smallest planted value, 8 percent
+#: not captured). Planted ratios with the first committed plant (12M iterations)
+#: lay between 1.85 and 2.01 locally and reached 1.806 on the CI runner, 1.5 percent
+#: above the limit (#5753); the plant was then enlarged (see ``OWNED_PLANT_ITERATIONS``).
+#: The limit is 1.78: 4 percent below the smallest first-plant value, 8 percent
 #: above the largest calibration value, 28 percent above the median clean ratio
 #: and 18 percent above the largest ratio any nightly run showed (1.51). Figures
 #: and method:
@@ -100,22 +102,52 @@ STARTUP_RATIO_LIMIT = 2.90
 #: largest warm value and a little under half the smallest regressed one.
 WARM_LEAF_RATIO_LIMIT = 6.0
 
-#: Lower and upper bound, as fractions of the start-up floor median, for the
-#: cost of the planted work (planted command median minus clean command
-#: median). An oversized plant would pass under any limit, so the bound makes
-#: "about half the floor" a checked fact on every machine.
-PLANT_MIN_FRACTION_OF_FLOOR = 0.3
-PLANT_MAX_FRACTION_OF_FLOOR = 0.7
+#: Lowest clean ratios seen in any calibration series or CI run. They feed the
+#: detection threshold of each planted-work test: a plant is only detected when
+#: ``clean ratio + cost fraction`` exceeds the limit, so the lower band edge below must
+#: stay above ``limit - lowest clean ratio`` (owned: 0.57; start-up: ``limit / lowest - 1``,
+#: 0.368). Owned: 1.210 (throttled series A, context resolve); CI sample 1 lowest 1.227.
+#: Start-up: 2.120 (throttled calibration); CI sample 1 clean 2.482.
+OWNED_LOWEST_CLEAN_RATIO = 1.21
+STARTUP_LOWEST_CLEAN_RATIO = 2.12
 
-#: Iterations of the planted CPU-bound loop (:func:`write_cpu_plant`), calibrated
-#: so the plant costs about half the start-up floor on the calibration machine
-#: (decision record). The loop is CPU-bound, so it scales with the runner; the
-#: planted-work test checks the realised cost against the two fractions above on
-#: every run.
-OWNED_PLANT_ITERATIONS = 12_000_000
+#: Band, as fractions of the start-up FLOOR median, for the cost of the owned-checkout
+#: plant (planted command median minus clean command median, both interleaved with
+#: the floor). The lower edge keeps the plant meaningful and must clear the
+#: detection threshold (0.57 at the lowest clean ratio): at 0.62 any in-band plant
+#: is detected, since 1.21 + 0.62 = 1.83 > 1.78. The upper edge keeps an oversized
+#: plant from passing under any limit: an in-band plant is still detected at a limit
+#: up to 1.21 + 1.15 = 2.36. Contains the measured cost fractions with margin at
+#: 20M iterations: CI sample 1 0.82 (0.491 at 12M, scaled), local 0.87 to 1.00 (0.52 to
+#: 0.60 at 12M, scaled). CI calibration, sample 1: decision record.
+OWNED_PLANT_MIN_FRACTION_OF_FLOOR = 0.62
+OWNED_PLANT_MAX_FRACTION_OF_FLOOR = 1.15
 
-#: Iterations of the planted loop for the start-up tests.
-STARTUP_PLANT_ITERATIONS = 10_000_000
+#: Band, as fractions of the CLEAN ``--help`` median (not the workload), for the cost
+#: of the start-up plant. The ratio under test is ``--help`` over the workload, so a
+#: plant of fraction ``f`` multiplies the clean ratio by ``1 + f``. Detection needs
+#: ``f > 2.90 / clean ratio - 1``, which is 0.368 at the lowest clean ratio 2.12; the
+#: previous lower edge of 0.30 sat below that. At 0.45, 2.12 * 1.45 = 3.07 > 2.90 for
+#: any in-band plant; an in-band plant is still detected at a limit up to
+#: 2.12 * 1.90 = 4.03. Contains CI sample 1 (0.531 at 15M, from 0.354 at 10M) and the
+#: local readings (0.38 to 0.51 at 10M, so 0.57 to 0.77 at 15M; 0.740 measured) with margin.
+STARTUP_PLANT_MIN_FRACTION_OF_CLEAN = 0.45
+STARTUP_PLANT_MAX_FRACTION_OF_CLEAN = 0.90
+
+#: Iterations of the planted CPU-bound loop (:func:`write_cpu_plant`) for the
+#: owned-checkout test. About 47 ns per iteration, so about 0.94 s of CPU: 0.82 of
+#: the start-up floor on the CI runner (floor 1.141 s) and about 0.9 to 1.0 locally.
+#: Sized so that the planted ratio clears the limit by about 14 percent at the
+#: lowest clean ratio (1.21 + 0.82 = 2.03 against 1.78); it was 12,000,000, which
+#: cleared it by 1.5 percent on the runner (planted 1.806). The loop is CPU-bound,
+#: so it scales with the runner; the test checks the realised cost against the
+#: band above on every run.
+OWNED_PLANT_ITERATIONS = 20_000_000
+
+#: Iterations of the planted loop for the start-up test: about 43 ns per
+#: iteration on the runner, so about 0.64 s, 0.53 of the clean ``--help`` there
+#: (it was 10,000,000, which cost 0.354, just above the old band floor of 0.30).
+STARTUP_PLANT_ITERATIONS = 15_000_000
 
 #: The start-up floor for owned-checkout commands: the cheapest command that
 #: still pays the full CLI import chain.

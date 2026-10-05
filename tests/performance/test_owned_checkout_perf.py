@@ -48,8 +48,8 @@ import pytest
 from tests._perf_helpers import (
     OWNED_CHECKOUT_RATIO_LIMIT,
     OWNED_PLANT_ITERATIONS,
-    PLANT_MAX_FRACTION_OF_FLOOR,
-    PLANT_MIN_FRACTION_OF_FLOOR,
+    OWNED_PLANT_MAX_FRACTION_OF_FLOOR,
+    OWNED_PLANT_MIN_FRACTION_OF_FLOOR,
     STARTUP_FLOOR_ARGV,
     Measurement,
     Sample,
@@ -183,8 +183,8 @@ def test_planted_cpu_work_turns_the_ratio_assertion_red(owned_mission: _OwnedMis
     child's ``PYTHONPATH``; it runs only when ``agent`` is on the command line, so
     the start-up floor is untouched. The loop is CPU-bound, so its cost scales with
     the runner. Its realised cost (planted median minus clean median, interleaved
-    with the floor in the same run) must lie between ``PLANT_MIN_FRACTION_OF_FLOOR``
-    and ``PLANT_MAX_FRACTION_OF_FLOOR`` of the floor median: an oversized plant would
+    with the floor in the same run) must lie between ``OWNED_PLANT_MIN_FRACTION_OF_FLOOR``
+    and ``OWNED_PLANT_MAX_FRACTION_OF_FLOOR`` of the floor median: an oversized plant would
     fail under any limit. The same limit constant as the clean tests then has to
     reject the planted ratio, so widening the limit turns this test red. The
     figures are recorded in the xunit report (``planted_ratio``, ``clean_ratio``,
@@ -210,6 +210,7 @@ def test_planted_cpu_work_turns_the_ratio_assertion_red(owned_mission: _OwnedMis
     record_property("planted_median_seconds", round(measurement.variants["planted"].median, 4))
     where = measurement.describe("planted", OWNED_CHECKOUT_RATIO_LIMIT, title="agent tasks status owned, planted")
     figures = f"clean ratio {measurement.ratio('clean'):.3f}; plant cost {cost_seconds / floor_seconds:.3f} of the floor; {where}"
-    assert_timing_budget(cost_seconds, PLANT_MAX_FRACTION_OF_FLOOR * floor_seconds, name=f"plant cost above {PLANT_MAX_FRACTION_OF_FLOOR} of the floor; {figures}")
-    assert_timing_budget(PLANT_MIN_FRACTION_OF_FLOOR * floor_seconds, cost_seconds, name=f"plant cost below {PLANT_MIN_FRACTION_OF_FLOOR} of the floor; {figures}")
+    upper, lower = OWNED_PLANT_MAX_FRACTION_OF_FLOOR, OWNED_PLANT_MIN_FRACTION_OF_FLOOR
+    assert_timing_budget(cost_seconds, upper * floor_seconds, name=f"plant cost above {upper} of the floor; {figures}")
+    assert_timing_budget(lower * floor_seconds, cost_seconds, name=f"plant cost below {lower} of the floor; {figures}")
     expect_budget_exceeded(measurement.ratio("planted"), OWNED_CHECKOUT_RATIO_LIMIT, name=figures)

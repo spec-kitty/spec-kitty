@@ -37,9 +37,9 @@ from pathlib import Path
 import pytest
 
 from tests._perf_helpers import (
-    PLANT_MAX_FRACTION_OF_FLOOR,
-    PLANT_MIN_FRACTION_OF_FLOOR,
     STARTUP_PLANT_ITERATIONS,
+    STARTUP_PLANT_MAX_FRACTION_OF_CLEAN,
+    STARTUP_PLANT_MIN_FRACTION_OF_CLEAN,
     STARTUP_RATIO_LIMIT,
     Measurement,
     Sample,
@@ -346,7 +346,7 @@ def test_planted_cpu_work_turns_the_startup_ratio_assertion_red(tmp_path: Path, 
 
     The plant is a fixed-iteration loop in a ``sitecustomize.py`` first on the
     child's ``PYTHONPATH``. It costs a measured fraction of the clean ``--help``
-    median (between ``PLANT_MIN_FRACTION_OF_FLOOR`` and ``PLANT_MAX_FRACTION_OF_FLOOR``),
+    median (between ``STARTUP_PLANT_MIN_FRACTION_OF_CLEAN`` and ``STARTUP_PLANT_MAX_FRACTION_OF_CLEAN``),
     so it is a start-up regression of a stated size and not an arbitrary one. The
     figures are recorded in the xunit report before any assertion and the
     did-not-detect failure message carries them too.
@@ -364,9 +364,9 @@ def test_planted_cpu_work_turns_the_startup_ratio_assertion_red(tmp_path: Path, 
     where = measurement.describe("planted", STARTUP_RATIO_LIMIT, title="spec-kitty --help startup, planted")
     figures = f"clean ratio {measurement.ratio('clean'):.3f}; plant cost {cost_seconds / clean_seconds:.3f} of clean --help; {where}"
     assert_timing_budget(
-        cost_seconds, PLANT_MAX_FRACTION_OF_FLOOR * clean_seconds, name=f"plant cost above {PLANT_MAX_FRACTION_OF_FLOOR} of clean --help; {figures}"
+        cost_seconds, STARTUP_PLANT_MAX_FRACTION_OF_CLEAN * clean_seconds, name=f"plant cost above {STARTUP_PLANT_MAX_FRACTION_OF_CLEAN} of clean --help; {figures}"
     )
     assert_timing_budget(
-        PLANT_MIN_FRACTION_OF_FLOOR * clean_seconds, cost_seconds, name=f"plant cost below {PLANT_MIN_FRACTION_OF_FLOOR} of clean --help; {figures}"
+        STARTUP_PLANT_MIN_FRACTION_OF_CLEAN * clean_seconds, cost_seconds, name=f"plant cost below {STARTUP_PLANT_MIN_FRACTION_OF_CLEAN} of clean --help; {figures}"
     )
     expect_budget_exceeded(measurement.ratio("planted"), STARTUP_RATIO_LIMIT, name=figures)

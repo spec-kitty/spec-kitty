@@ -37,9 +37,13 @@ import pytest
 
 from tests._perf_helpers import (
     OWNED_CHECKOUT_RATIO_LIMIT,
-    PLANT_MAX_FRACTION_OF_FLOOR,
-    PLANT_MIN_FRACTION_OF_FLOOR,
+    OWNED_LOWEST_CLEAN_RATIO,
+    OWNED_PLANT_MAX_FRACTION_OF_FLOOR,
+    OWNED_PLANT_MIN_FRACTION_OF_FLOOR,
     SAMPLE_RUNS,
+    STARTUP_LOWEST_CLEAN_RATIO,
+    STARTUP_PLANT_MAX_FRACTION_OF_CLEAN,
+    STARTUP_PLANT_MIN_FRACTION_OF_CLEAN,
     STARTUP_RATIO_LIMIT,
     WARM_LEAF_RATIO_LIMIT,
     Sample,
@@ -242,7 +246,27 @@ def test_the_limits_and_plant_bounds_are_sane_numbers() -> None:
     assert 1.0 < OWNED_CHECKOUT_RATIO_LIMIT < 5.0
     assert STARTUP_RATIO_LIMIT > 1.0
     assert WARM_LEAF_RATIO_LIMIT > 1.0
-    assert 0.0 < PLANT_MIN_FRACTION_OF_FLOOR < PLANT_MAX_FRACTION_OF_FLOOR < 1.0
+    assert 0.0 < OWNED_PLANT_MIN_FRACTION_OF_FLOOR < OWNED_PLANT_MAX_FRACTION_OF_FLOOR
+    assert 0.0 < STARTUP_PLANT_MIN_FRACTION_OF_CLEAN < STARTUP_PLANT_MAX_FRACTION_OF_CLEAN
+
+
+def test_the_owned_plant_band_always_detects_and_still_bounds_the_limit() -> None:
+    """An in-band owned plant is detected at the limit and not at a limit about a third wider (#5753).
+
+    Detection needs ``clean ratio + cost fraction > limit``. The lower edge must
+    clear that at the lowest clean ratio ever seen; the upper edge sets the widest
+    limit an in-band plant would still catch.
+    """
+    assert OWNED_LOWEST_CLEAN_RATIO + OWNED_PLANT_MIN_FRACTION_OF_FLOOR > OWNED_CHECKOUT_RATIO_LIMIT
+    widest_detected_limit = OWNED_LOWEST_CLEAN_RATIO + OWNED_PLANT_MAX_FRACTION_OF_FLOOR
+    assert widest_detected_limit < 1.4 * OWNED_CHECKOUT_RATIO_LIMIT
+
+
+def test_the_startup_plant_band_always_detects_and_still_bounds_the_limit() -> None:
+    """An in-band start-up plant multiplies the clean ratio by ``1 + fraction``; same two edges as the owned band (#5753)."""
+    assert STARTUP_LOWEST_CLEAN_RATIO * (1 + STARTUP_PLANT_MIN_FRACTION_OF_CLEAN) > STARTUP_RATIO_LIMIT
+    widest_detected_limit = STARTUP_LOWEST_CLEAN_RATIO * (1 + STARTUP_PLANT_MAX_FRACTION_OF_CLEAN)
+    assert widest_detected_limit < 1.4 * STARTUP_RATIO_LIMIT
 
 
 # --------------------------------------------------------------------------- FR-007 positive control

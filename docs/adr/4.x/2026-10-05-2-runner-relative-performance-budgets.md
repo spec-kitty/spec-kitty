@@ -44,7 +44,7 @@ The limits are **provisional**. They come from local calibration on one machine 
 1. **Owned-checkout tests assert a ratio.** Each test samples the command and a **start-up floor** interleaved in one run, five spawns of each (the order flips on odd rounds), and asserts `median(command) / median(floor)` through `assert_timing_budget` against `OWNED_CHECKOUT_RATIO_LIMIT = 1.78`. The assertion name carries both medians, the ratio, the limit and the raw samples.
 2. **Start-up tests assert against a fixed interpreter workload.** The bare `--help` test and the warm `context list --json` test divide their median by the median of a fixed interpreter workload (a fresh interpreter that imports 22 standard-library modules and then compiles 12,000 generated functions; no product code), sampled interleaved in the same run, against `STARTUP_RATIO_LIMIT = 2.90` and `WARM_LEAF_RATIO_LIMIT = 6.0`. No absolute number of seconds remains in any of the three files or the helper.
 3. **One authority.** Every limit, every sample count and the measuring helper live in `tests/_perf_helpers.py`. `tests/architectural/test_perf_limit_authority.py` fails when a test file that times a CLI spawn defines its own numeric limit. It has no allowlist, and lives in the architectural tree because no job runs an unmarked test in `tests/performance`.
-4. **Each assertion is proved able to fail.** Two committed planted-work tests write a fixed-iteration CPU-bound loop into a `sitecustomize.py` first on the child's `PYTHONPATH` (test side only, no product hook, chained to any later `sitecustomize`). The owned-checkout plant runs only for an `agent` command, so the floor is untouched. The plant's measured cost (planted median minus clean median, interleaved with the floor) must lie between 0.3 and 0.7 of the floor, and the same limit constant must then reject the planted ratio.
+4. **Each assertion is proved able to fail.** Two committed planted-work tests write a fixed-iteration CPU-bound loop into a `sitecustomize.py` first on the child's `PYTHONPATH` (test side only, no product hook, chained to any later `sitecustomize`). The owned-checkout plant runs only for an `agent` command, so the floor is untouched. The plant's measured cost (planted median minus clean median, interleaved) must lie inside a band, and the same limit constant must then reject the planted ratio. The bands and plant sizes were set at 0.3 to 0.7 of the floor (12,000,000 and 10,000,000 iterations) and re-set from CI data in "CI calibration, sample 1" below: owned 0.62 to 1.15 of the floor at 20,000,000 iterations; start-up 0.45 to 0.90 of the clean `--help` at 15,000,000.
 5. **The previous assertion is a committed positive control.** The six nightly rows above run through the helper as injected timings: the 2.5 s assertion is red on the four rows the nightly reported red and green on the two it reported green; the ratio assertion is green on all six.
 
 ### Floor command: `--version`
@@ -100,7 +100,7 @@ All 360 clean ratios: 1.210 to 1.650. Medians per command lie between 1.357 and 
 | throttled 50% | 11,000,000 | 10 | 1.844 to 1.899 | 1.349 to 1.417 | 0.45 to 0.53 | 2.7 to 6.4 |
 | throttled 50% | 12,000,000 | 15 | 1.853 to 2.008 | 1.286 to 1.455 | 0.53 to 0.60 | 2.4 to 4.9 |
 
-The committed plant is 12,000,000 iterations, about 0.56 of the floor (0.5 s of CPU per 10 million iterations on the calibration machine; the loop runs at about 47 ns per iteration). It started at 10,000,000, went to 11,000,000 and then to 12,000,000: the first count put the realised cost slightly under half the floor, and a robustness campaign (below) showed the clean tail reaching the first limit, so the plant was enlarged to widen the gap to a limit that clears that tail while staying inside the 0.3 to 0.7 band.
+The first committed plant was 12,000,000 iterations (since enlarged, see "CI calibration, sample 1"), about 0.56 of the floor (0.5 s of CPU per 10 million iterations on the calibration machine; the loop runs at about 47 ns per iteration). It started at 10,000,000, went to 11,000,000 and then to 12,000,000: the first count put the realised cost slightly under half the floor, and a robustness campaign (below) showed the clean tail reaching the first limit, so the plant was enlarged to widen the gap to a limit that clears that tail while staying inside the 0.3 to 0.7 band.
 
 **Start-up measures** (30 clean samples per row, 10 planted, 5 regressed):
 
@@ -158,14 +158,47 @@ Five floor and five command spawns per assertion (`SAMPLE_RUNS`). The owned-chec
 - The nightly `performance` job no longer depends on the speed of the runner for these five tests.
 - The measures are real subprocess runs, so a failure names both medians, the ratio, the limit and the raw samples: a nightly red is diagnosable without a re-run.
 - A regression that slows the floor and the command alike (a slower interpreter start, an import in the shared chain) is invisible to the owned-checkout ratio. The start-up tests (`--help` and the warm leaf against the fixed workload) and the git-subprocess count pin cover part of that; a regression confined to the standard-library workload's own cost is covered by neither.
-- The plant loop is CPU-bound with a fixed iteration count. On a Python build where that loop runs much faster or slower relative to import than on the calibration machine, the plant's cost can leave its 0.3 to 0.7 band and the planted test fails loudly instead of passing vacuously; the iteration count would then be recalibrated and recorded here. Staying inside the band is not enough, though: the planted test also goes red (the plant is not detected) when the plant's cost is below roughly the limit minus the clean ratio, about 0.40 to 0.45 of the floor at the current constants (1.78 minus a clean ratio of 1.35 to 1.39). That, not 0.3, is the detection threshold; 0.3 is only the lower edge of the allowed band. The planted tests record `planted_ratio`, `clean_ratio`, `plant_cost_fraction` and the medians as xunit properties before asserting, and the not-detected failure message carries the same figures.
+- The plant loop is CPU-bound with a fixed iteration count. On a Python build where that loop runs much faster or slower relative to import than on the calibration machine, the plant's cost can leave its band (see "CI calibration, sample 1") and the planted test fails loudly instead of passing vacuously; the iteration count would then be recalibrated and recorded here. Staying inside the band is not enough, though, unless the band's lower edge clears the detection threshold: the planted test goes red (the plant is not detected) when the plant's cost is below roughly the limit minus the clean ratio. The first bands did not guarantee that (see "CI calibration, sample 1"). The planted tests record `planted_ratio`, `clean_ratio`, `plant_cost_fraction` and the medians as xunit properties before asserting, and the not-detected failure message carries the same figures.
 - **The calibration is tied to the pinned interpreter.** `.python-version` pins 3.11.15, which the figures above were measured on. The fixed workload costs about 0.43 s on 3.11, 0.53 s on 3.12 and 0.66 s on 3.14 (reviewer measurement), so the start-up ratios shift with the interpreter. A bump of the pin needs a recalibration of every limit and of the plant iteration counts.
 - **Remedy if the owned measure goes red on CI.** The remedy is more samples or a larger plant, not a wider limit.
 
 ### Questions the first nightly runs must answer
 
 1. The largest clean owned-checkout ratio per command, against 1.78 (the `ratio` property of the three owned tests).
-2. The smallest planted ratio and the plant cost fraction (`planted_ratio`, `plant_cost_fraction`), against the limit and the 0.3 to 0.7 band.
+2. The smallest planted ratio and the plant cost fraction (`planted_ratio`, `plant_cost_fraction`), against the limit and the plant bands (owned 0.62 to 1.15 of the floor; start-up 0.45 to 0.90 of the clean `--help`).
 3. The `--help` and warm-leaf ratios against 2.90 and 6.0.
 4. The wall clock of the whole `performance` job against its 35-minute timeout.
 - No retry was added anywhere.
+
+## CI calibration, sample 1 (#5753)
+
+Sample 1 is nightly run 37307043614: GitHub-hosted runner, Python 3.11, `performance` job green. It is the first real runner data for the provisional limits above. The limits are unchanged.
+
+| Measure | Value | Limit or band |
+|---|---|---|
+| Owned clean ratio (`tasks status` / `setup-plan` / `context resolve`) | 1.321 / 1.473 / 1.227 | at most 1.78 |
+| Owned planted test (12,000,000 iterations) | clean 1.315, planted **1.806**, plant cost 0.491 of the floor; floor 1.141 s, clean median 1.501 s, planted median 2.062 s | planted must exceed 1.78: margin 1.5 percent |
+| Start-up clean ratio (`--help`) | 2.482 (command 1.220 s, workload 0.492 s) | at most 2.90 |
+| Start-up planted test (10,000,000 iterations) | clean 2.459, planted 3.329, plant cost **0.354** of the clean `--help`; clean median 1.204 s, planted median 1.630 s, workload 0.490 s | planted must exceed 2.90; band 0.30 to 0.70 |
+| Warm leaf ratio | 2.491 | at most 6.0 |
+
+The clean assertions have room. The two planted tests did not:
+
+- **Owned.** The planted ratio is about the clean ratio plus the plant's cost fraction. The runner's clean ratios ranged 1.23 to 1.47, so a plant costing 0.49 of the floor gives about 1.72 when the clean ratio is low: below 1.78, "planted work not detected", a red nightly without a product change. The plant cost is a fraction of the start-up **floor** median (`--version`), and the old band (0.3 to 0.7) had a lower edge below the detection threshold of 1.78 minus 1.21 = 0.57.
+- **Start-up.** The plant cost is a fraction of the **clean `--help` median** (not of the workload). The ratio under test is `--help` over the workload, so a plant of fraction f multiplies the clean ratio by 1 + f; it is detected when f exceeds 2.90 / (clean ratio) - 1, which is 0.368 at the lowest clean ratio (2.12). The old lower edge 0.30 was below that, and the runner's 0.354 sat just above the edge.
+
+Per the rule in "Consequences", the remedy is a larger plant, not a wider limit. Cost per iteration is linear: 46.7 ns on the runner for the owned plant (0.491 times 1.141 s over 12,000,000), 42.6 ns for the start-up plant (0.354 times 1.204 s over 10,000,000), about 43 to 46 ns locally.
+
+| Test | Iterations (was) | Band (was) | Runner cost fraction | Local cost fraction |
+|---|---|---|---|---|
+| Owned, of the floor | 20,000,000 (12,000,000) | 0.62 to 1.15 (0.30 to 0.70) | 0.82 | 0.87 to 1.00 expected; 0.927 measured |
+| Start-up, of the clean `--help` | 15,000,000 (10,000,000) | 0.45 to 0.90 (0.30 to 0.70) | 0.53 | 0.57 to 0.77 expected; 0.740 measured |
+
+Bands are now per test (`OWNED_PLANT_*_FRACTION_OF_FLOOR`, `STARTUP_PLANT_*_FRACTION_OF_CLEAN` in `tests/_perf_helpers.py`). The two band edges mean:
+
+- **Lower edge: an in-band plant is always detected.** Owned: 1.21 (lowest clean ratio, `OWNED_LOWEST_CLEAN_RATIO`) plus 0.62 is 1.83, above 1.78. Start-up: 2.12 (`STARTUP_LOWEST_CLEAN_RATIO`) times 1.45 is 3.07, above 2.90.
+- **Upper edge: an oversized plant cannot pass under any limit.** An in-band plant is still detected at a limit up to 1.21 plus 1.15 = 2.36 (owned, 33 percent above 1.78) and 2.12 times 1.90 = 4.03 (start-up, 39 percent above 2.90). `tests/architectural/test_perf_limit_authority.py` pins both facts.
+
+Headroom of the planted ratio over the limit at the lowest observed clean ratio: owned 1.21 plus 0.82 (runner cost) = 2.03, 14 percent above 1.78 (it was 1.21 plus 0.49 = 1.70, below); start-up 2.12 times 1.53 = 3.25, 12 percent above 2.90. Local readings after the change, one run each: owned plant cost 0.927, clean 1.491, planted 2.418 (floor 0.934 s); start-up plant cost 0.740, clean 2.170, planted 3.777.
+
+**What remains.** The new plants are unproven on the runner until a nightly runs them. A second sample from the nightly on `main` is to confirm the cost fractions land inside the bands (owned about 0.82, start-up about 0.53) and the planted ratios above the limits. The limits (1.78, 2.90, 6.0) are unchanged and remain provisional on the clean side as before.
