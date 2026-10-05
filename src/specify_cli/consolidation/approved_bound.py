@@ -125,7 +125,7 @@ def _missing_block(group: Sequence[BoundRefusal], mission: str, term: _StampTerm
     for refusal in group:
         for wp_id in refusal.wp_ids:
             suffix = "." if findings else ", so the commit review approved cannot be determined."
-            findings.append(f"{wp_id} on lane {refusal.lane_id} has no {term()}{suffix}")
+            findings.append(f"{wp_id} ({refusal.lane_id}) has no {term()}{suffix}")
     wps = _distinct_wp_ids(group)
     noun = "approval" if len(wps) == 1 else "approvals"
     return [

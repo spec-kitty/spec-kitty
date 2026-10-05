@@ -218,10 +218,10 @@ def test_several_work_packages_render_one_line_each_and_one_recovery_block() -> 
 
     text = render_refusals([missing, moved], "demo-mission")
 
-    assert text.startswith("APPROVAL_STAMP_MISSING: WP01 on lane lane-a has no approval stamp (the lane commit recorded when review approved it)")
+    assert text.startswith("APPROVAL_STAMP_MISSING: WP01 (lane-a) has no approval stamp (the lane commit recorded when review approved it)")
     assert max(map(len, text.splitlines())) < 500 and text.count("approval stamp (the lane commit") == 1
     assert text.count(f"{ATTEST_APPROVED_FLAG} ") == 12 and text.count("spec-kitty consolidate --mission demo-mission ") == 1
-    assert [wp for wp in unstamped if f"{wp} on lane lane-a has no approval stamp" not in text] == []
+    assert [wp for wp in unstamped if f"{wp} (lane-a) has no approval stamp" not in text] == []
     assert "\nLANE_MOVED_AFTER_APPROVAL: branch 'branch-b' (lane-b carries WP13, WP14, WP15) holds content" in text
     assert "see one with `git show ccccccc`" in text
     assert all(f"move-task {wp} --to in_progress --mission demo-mission" in text for wp in (*unstamped, "WP13", "WP14", "WP15"))

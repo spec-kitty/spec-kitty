@@ -1804,10 +1804,11 @@ def _approved_bound_verdict(
     if events is None:
         return _BoundVerdict(refusal=_bound_events_unreadable_text(lanes[0].lane_id))
     claim_base = _bound_claim_base(repo_root, window_base, coord_base_ref)
-    # The one tolerated unresolvable base: the claim builder has always read an unresolvable
-    # coordination base as an empty lane (``test_build_claim_tolerates_unresolvable_lane_probe``;
-    # a fully-canceled lane has no branch, some topologies cut it after this read), so the lane
-    # tips are still recorded and no lane is checked. ``check_lane`` itself never tolerates it.
+    # The one tolerated unresolvable base. Neither CLI entry point reaches it: each passes a resolved
+    # base or raises first. It stays for the direct-call contract that
+    # ``test_build_claim_tolerates_unresolvable_lane_probe`` pins (the claim builder reads an
+    # unresolvable coordination base as an empty lane: the lane tips are recorded and no lane is
+    # checked). ``check_lane`` itself never tolerates it.
     base_resolves = resolves_commit(repo_root, claim_base)
     stamp_anchors = approval_stamp_anchors(events, lanes, work_packages, excluded_canceled_wp_ids)
     is_bookkeeping = functools.partial(_is_bookkeeping, mission_slug=lanes_manifest.mission_slug, planning_prefix=planning_prefix)

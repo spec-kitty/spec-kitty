@@ -89,24 +89,26 @@ The re-check never uses a live branch name as a reference. Lanes are consolidate
 
 - It records a forced operator self-transition in the status log, with `policy_metadata.attestation = "approved_reviewed"`. The lane head at that moment becomes the bound.
 - It is accepted only for a work package in the approved claim whose newest approval is not a stamped review approval: an approval with no stamp, or an earlier attestation (see the repeat rule below).
-- It never lifts `LANE_MOVED_AFTER_APPROVAL`. A commit made after an attestation is refused like any other post-approval commit, and the only way to approve content is review.
+- It never lifts `LANE_MOVED_AFTER_APPROVAL`. A commit made after an attestation is refused like any other post-approval commit, and the only way to approve content is review. No attestation of an approved work package lifts that refusal. The one attestation that can exempt a post-approval commit is the canceled-superseded attestation of the existing closed world, on a lane that mixes an approved and a canceled work package (see Mixed lanes and the residuals).
 - A repeat attestation is accepted, and recorded again, only while the lane has not moved past the earlier one. Otherwise it is refused and nothing is recorded.
 - It is not a review. The hollow-review warning never reads it as the approving review, so it cannot satisfy the independent-review check. It is a forced transition and each attestation adds one to the work package's forced-transition count, which that warning counts, so an attestation can itself bring a work package to the count at which the warning prints.
 
 ### Operator guidance
 
-Each refusal prints one short line per refused lane or work package, then one recovery block. The commands in it carry the Mission slug and run as printed. The text names the approval stamp once, as the lane commit recorded when review approved the work package.
+Each refusal prints one short line per refused lane or work package, then one recovery block. The commands in it carry the Mission slug, and both refusal prints keep each command on one line, so they run as printed. The text names the approval stamp once, as the lane commit recorded when review approved the work package.
 
 - For `LANE_MOVED_AFTER_APPROVAL` the text names up to three late commits and says to see a commit with `git show <sha>`. The recovery is `spec-kitty agent tasks move-task <WP> --to in_progress --mission <slug>` for each work package of the lane, then rework, review and approve again.
 - For `APPROVAL_STAMP_NOT_ON_LANE` the recovery is the same move-back command.
 - For `APPROVAL_STAMP_MISSING` the text prints one `spec-kitty consolidate --mission <slug> --attest-approved-reviewed <WP> ... --attest-reason "<what you checked>"` command that lists every unstamped work package, and the move-back command for each of them.
 - A fix committed to a lane after approval, including a fix folded in after a late review, needs the work package approved again. The refusal does not distinguish a fix from any other late commit.
-- `orchestrator-api consolidate-mission` prints the same text and adds that it has no attestation flag: attestation is done with `spec-kitty consolidate` (CLI only).
+- `orchestrator-api consolidate-mission` prints the same text. For `APPROVAL_STAMP_MISSING` only, it adds that it has no attestation flag: attestation is done with `spec-kitty consolidate` (CLI only). The other two refusals offer no attestation, so they carry no such note.
 - `spec-kitty agent tasks move-task` and `spec-kitty agent status emit` print a one-line warning on stderr when an approval was persisted with no stamp for a work package of a code lane, so the operator learns it at approval time and not at `consolidate`. The status pipeline stays free of git access; the shells read the persisted event.
 
 ### Mixed lanes
 
 The closed-world refusals of ADR 2026-09-29-1 keep their precedence, codes and texts on a mixed lane. When none of them fires, the bound check still applies, with the canceled work package's newest stamped event as a covered point. An unstamped canceled attestation gives no covered point.
+
+A canceled-superseded attestation (`--attest-canceled-superseded`) records a forced operator transition that carries its own lane head. ADR 2026-09-29-1 decided (FR-012) that this stamp exempts lane commits up to it from the closed-world refusal. The bound check takes the same stamp as a covered point, so those commits are not refused by it either. Commits made after that stamp are refused.
 
 ### Reversed decisions
 
@@ -144,8 +146,10 @@ The reproducer from the issue was run after the fix in the same four combination
 
 Each stays open.
 
+- **A canceled-superseded attestation exempts a post-approval commit on a mixed lane.** On a lane that mixes an approved work package and a work package canceled with operator provenance, a content commit made after the approval is refused first by the existing mixed-lane closed-world refusal. An operator who then runs `consolidate --attest-canceled-superseded <canceled WP> --attest-reason "..."` records an attestation whose own lane head exempts lane commits up to it, as ADR 2026-09-29-1 decided, and the approved bound takes that stamp as a covered point, so the commit lands. It never lands silently: it takes a refusal and a recorded, forced, reasoned operator act. The existing semantics of that flag are kept. A follow-up will make the closed-world recovery text say what the attestation accepts.
+
 - **A commit between two approvals on one lane.** A commit made after WP01's approval and before WP02 is claimed sits under WP02's later bound. Closing it needs per-work-package windows on every lane.
-- **Content inside a merge commit.** A merge commit that carries new content of its own is not seen. It is pinned as a strict expected-failure test.
+- **Content inside a merge commit.** A merge commit that carries new content of its own is not seen. It is pinned as a strict expected-failure test. The skip cannot simply be removed: `git show` lists a merge commit's paths that differ from every parent, and the lane auto-rebase resolves source-file conflicts in a merge commit it makes itself, so counting merge commits would refuse a legitimate lane. A sound check has to tell a tool-made resolution from an operator-made one.
 - **A commit made during review.** The stamp is the lane head when the approval was recorded, not the commit the reviewer read.
 - **Planning lanes and `single_branch` missions.** They are not stamped and not bounded.
 - **The width of the bookkeeping definition.** It covers the repository's `.kittify/` tree and any `kitty-specs/<slug>/` path segment. A post-approval commit confined to those paths is not refused. The bound reuses the gate's definition so there is one authority; narrowing it is a separate change to the existing content checks.
