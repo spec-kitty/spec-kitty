@@ -231,7 +231,7 @@ T026 CLAUDE.md (WP06)
 
 ### Implementation Notes
 
-- New ADR `docs/adr/4.x/2026-10-04-2-approval-stamp-bounds-the-approved-claim.md`; forward pointer in the 3.x ADR.
+- New ADR `docs/adr/4.x/2026-10-04-3-approval-stamp-bounds-the-approved-claim.md`; forward pointer in the 3.x ADR.
 
 ### Parallel Opportunities
 

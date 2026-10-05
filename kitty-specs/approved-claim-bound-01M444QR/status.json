@@ -192,7 +192,7 @@
       "last_transition_at": "2026-10-05T00:18:39.597006+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "ADR 2026-10-04-2 with 3.x forward pointer and index, changelog upgrade note and fix entry, AGENTS.md (CLAUDE.md symlink) paragraph; docs freshness errors=0; changelog style and CLI parity tests pass; terminology test has 2 pre-existing source offenders from WP05 (orchestrator_api/consolidation.py lines 76, 430)",
+        "ADR 2026-10-04-3 with 3.x forward pointer and index, changelog upgrade note and fix entry, AGENTS.md (CLAUDE.md symlink) paragraph; docs freshness errors=0; changelog style and CLI parity tests pass; terminology test has 2 pre-existing source offenders from WP05 (orchestrator_api/consolidation.py lines 76, 430)",
         "rework cycle 1: ADR and AGENTS.md state the anchor consequence; corrected claim-time entry, attestation acceptance and hollow-review wording, claim-time row, claim base, gate references",
         "rework cycle 2: corrected the dependency-lane anchor clause in AGENTS.md",
         "Cycle 3: the one required item of review-feedback-2 is applied with the reviewer's exact wording (commit 0068809207, AGENTS.md only, trailer present); the LOW wording item is applied too. Diff checked word by word against the feedback; docs freshness errors=0 and index drift=False reported by the implementer."

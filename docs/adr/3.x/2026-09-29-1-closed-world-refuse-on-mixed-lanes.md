@@ -173,7 +173,7 @@ The count of strict-`xfail` residuals stays at four.
 Decision 1 above says the closed-world check "applies only to mixed lanes; lanes
 that are not mixed are unchanged". That sentence describes the closed-world check
 and stays true of it. It no longer implies that a lane that is not mixed needs no
-bound. ADR [2026-10-04-2](../4.x/2026-10-04-2-approval-stamp-bounds-the-approved-claim.md)
+bound. ADR [2026-10-04-3](../4.x/2026-10-04-3-approval-stamp-bounds-the-approved-claim.md)
 bounds every code lane that has an approved work package by that work package's
 approval stamp, and refuses a commit made after it with
 `LANE_MOVED_AFTER_APPROVAL`. On a mixed lane the refusals decided here keep their
@@ -188,7 +188,7 @@ from the closed-world refusal and a later straggler is still refused. The
 attestation says that a canceled work package's content is absent or
 superseded. It does not say that anyone reviewed the other commits on the lane.
 
-ADR [2026-10-04-2](../4.x/2026-10-04-2-approval-stamp-bounds-the-approved-claim.md)
+ADR [2026-10-04-3](../4.x/2026-10-04-3-approval-stamp-bounds-the-approved-claim.md)
 bounds every code lane by its approved work packages' approval stamps. Its first
 version read the attestation's stamp as a covered point of that bound too, so an
 attestation let a commit made after an approved work package's approval land
@@ -199,13 +199,13 @@ canceled work package, nothing covers a commit for that bound: no commit the
 canceled-work attribution of this ADR assigns to the canceled work package, no
 status move of it, no attestation. Three narrower rules that left the canceled
 work package's own commits out of the bound each let a commit land unreviewed
-(ADR 2026-10-04-2, "Mixed lanes"). A commit made after an approved work
+(ADR 2026-10-04-3, "Mixed lanes"). A commit made after an approved work
 package's approval needs that work package approved again, with or without the
 attestation, whoever made it. The canceled-content checks of this ADR then judge
 the lane the reviewer saw, and still fail the run when canceled work would ship.
 
 Both refusals can apply to the same lane. The claim then names both in its first
-message (ADR 2026-10-04-2, "Operator guidance"), and the operator does both: the
+message (ADR 2026-10-04-3, "Operator guidance"), and the operator does both: the
 attestation lifts the closed-world refusal, and approving the work package again
 lifts the bound. Neither lifts the other, and the order does not matter. The
 decisions above are otherwise unchanged.

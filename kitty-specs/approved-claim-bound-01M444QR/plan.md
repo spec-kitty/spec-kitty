@@ -197,7 +197,7 @@ recorded today, before the claim.
 ### D-7 Corrections made during implementation
 
 The sections above are the plan as written. Implementation and review changed
-four points; the decision record (`docs/adr/4.x/2026-10-04-2-*`) is authoritative.
+four points; the decision record (`docs/adr/4.x/2026-10-04-3-*`) is authoritative.
 
 - **Claim base and anchors.** The check measures from the target tip as it was
   before the run mutated anything (persisted on a resume), not from the

@@ -253,7 +253,7 @@ def test_refusal_codes_lists_each_code_that_leads_a_block_once_in_text_order() -
 
 
 def test_a_later_approval_of_a_lane_that_took_this_lane_in_covers_its_late_commit(repo: _Repo) -> None:
-    """Deliberate (ADR 2026-10-04-2): every bounded lane's approval stamps are anchors, so reviewed content stays reviewed wherever it first appeared.
+    """Deliberate (ADR 2026-10-04-3): every bounded lane's approval stamps are anchors, so reviewed content stays reviewed wherever it first appeared.
 
     Lane-a gets a commit after WP01's approval and lane-b takes lane-a in. While WP02's
     approval predates that merge, lane-a refuses. Once WP02 is approved again, its new

@@ -129,7 +129,7 @@
       "write_scope": [
         "CLAUDE.md",
         "docs/adr/3.x/2026-09-29-1-closed-world-refuse-on-mixed-lanes.md",
-        "docs/adr/4.x/2026-10-04-2-approval-stamp-bounds-the-approved-claim.md",
+        "docs/adr/4.x/2026-10-04-3-approval-stamp-bounds-the-approved-claim.md",
         "docs/adr/4.x/index.md",
         "docs/changelog/CHANGELOG.md"
       ],

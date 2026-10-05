@@ -9,7 +9,7 @@ override flag, and restore the target (spec FR-013, ADR
 ``--attest-canceled-superseded`` attestation exempts only the stragglers up to
 its own ``lane_head`` stamp from the closed world; a later straggler still REFUSEs.
 It covers no commit of the approval-stamp bound (#5720, ADR
-``docs/adr/4.x/2026-10-04-2-approval-stamp-bounds-the-approved-claim.md``): a commit made
+``docs/adr/4.x/2026-10-04-3-approval-stamp-bounds-the-approved-claim.md``): a commit made
 after the approved work package's approval needs that work package approved again.
 
 Driven through the REAL ``spec-kitty consolidate`` CLI

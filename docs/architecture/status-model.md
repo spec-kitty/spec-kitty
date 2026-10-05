@@ -442,7 +442,7 @@ committed afterwards still REFUSEs until the operator checks it and attests
 again. Attesting again is not enough when the straggler was committed after
 an approved WP's approval: that WP must also be approved again, or the lane
 refuses with `LANE_MOVED_AFTER_APPROVAL` (ADR
-[2026-10-04-2](../adr/4.x/2026-10-04-2-approval-stamp-bounds-the-approved-claim.md)). Every explicit `--attest-canceled-superseded` records a fresh
+[2026-10-04-3](../adr/4.x/2026-10-04-3-approval-stamp-bounds-the-approved-claim.md)). Every explicit `--attest-canceled-superseded` records a fresh
 attestation (a new operator act with its own reason and stamp); the latest one
 per WP is the one the gate reads. A FAIL and an
 infrastructure REFUSE still stand. A later governed transition of the WP voids

@@ -25,10 +25,10 @@ history:
 agent_profile: scribe-sally
 authoritative_surface: docs/adr/4.x/
 create_intent:
-- docs/adr/4.x/2026-10-04-2-approval-stamp-bounds-the-approved-claim.md
+- docs/adr/4.x/2026-10-04-3-approval-stamp-bounds-the-approved-claim.md
 execution_mode: code_change
 owned_files:
-- docs/adr/4.x/2026-10-04-2-approval-stamp-bounds-the-approved-claim.md
+- docs/adr/4.x/2026-10-04-3-approval-stamp-bounds-the-approved-claim.md
 - docs/adr/4.x/index.md
 - docs/adr/3.x/2026-09-29-1-closed-world-refuse-on-mixed-lanes.md
 - docs/changelog/CHANGELOG.md
@@ -101,13 +101,13 @@ Rules that bind every work package of this mission:
 
 - **Purpose**: the change reverses two recorded decisions: the claim builder's "approved commit SHAs come from lane-branch git tips (never status rows)" and Decision 1 of ADR `docs/adr/3.x/2026-09-29-1-closed-world-refuse-on-mixed-lanes.md` ("applies only to mixed lanes").
 - **Steps**:
-  1. Read `docs/adr/4.x/index.md` and the newest ADR in that directory for the house format and frontmatter (Divio type, `updated:` date). Confirm `2026-10-04-2` is the next free id; if another ADR took it, use the next.
+  1. Read `docs/adr/4.x/index.md` and the newest ADR in that directory for the house format and frontmatter (Divio type, `updated:` date). Confirm `2026-10-04-3` is the next free id; if another ADR took it, use the next.
   1a. Facts established during implementation that the ADR must state correctly (the plan's wording is older):
      - On a mission with no coordination branch the claim base is the **target tip** (the status placement), not the mission branch; on a coordination topology it is the coordination branch tip.
      - A commit added to a lane while `consolidate` is running was already failed by the existing content checks ("un-attributable") and rolled back. The gate re-check replaces that generic failure with the named refusal, the commit, the work package and the remedy; say this plainly, do not describe it as closing a silent pass.
      - A lane with no commit beyond the claim base is not checked (nothing can land from it), so a `done` work package with no `approved` event on an empty lane is not refused. This differs from the letter of FR-005 and is deliberate.
      - On a mixed lane a canceled work package's newest **stamped** event is a covered point; an unstamped canceled attestation gives none.
-  2. Write `docs/adr/4.x/2026-10-04-2-approval-stamp-bounds-the-approved-claim.md`: context (issue 5668, reproduced in four combinations), decision (the approval stamp is the authority; lane-level bound; refuse at claim time and at the gate; unstamped approvals fail closed with an attestation; mixed lanes keep the closed world first), consequences (upgrade impact for missions approved before 4.0.0rc5; every claim reads the event log once), alternatives rejected (from `kitty-specs/{MS}/research.md` R-1 to R-7), and the named residuals (spec, Known residuals).
+  2. Write `docs/adr/4.x/2026-10-04-3-approval-stamp-bounds-the-approved-claim.md`: context (issue 5668, reproduced in four combinations), decision (the approval stamp is the authority; lane-level bound; refuse at claim time and at the gate; unstamped approvals fail closed with an attestation; mixed lanes keep the closed world first), consequences (upgrade impact for missions approved before 4.0.0rc5; every claim reads the event log once), alternatives rejected (from `kitty-specs/{MS}/research.md` R-1 to R-7), and the named residuals (spec, Known residuals).
   3. Add it to `docs/adr/4.x/index.md`.
   4. In the 3.x ADR add a short dated note pointing forward to the new ADR; do not rewrite its decisions.
   5. Regenerate the docs retrieval index: `.venv/bin/python scripts/docs/docs_index.py --write`, then `.venv/bin/python scripts/docs/check_docs_freshness.py --ci` (errors must be 0). Generated index files are an expected out-of-map edit.

@@ -148,7 +148,7 @@
       "criterion_id": "FR-015",
       "description": "Verify FR-015 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "docs/adr/4.x/2026-10-04-2-approval-stamp-bounds-the-approved-claim.md, docs/changelog/CHANGELOG.md, docs/api/cli-commands.md, docs/api/orchestrator-api.md, AGENTS.md",
+      "evidence": "docs/adr/4.x/2026-10-04-3-approval-stamp-bounds-the-approved-claim.md, docs/changelog/CHANGELOG.md, docs/api/cli-commands.md, docs/api/orchestrator-api.md, AGENTS.md",
       "pass_fail": "pass",
       "verified_by": "orchestrator",
       "verified_at": "2026-10-04T23:58:09.793868+00:00",
