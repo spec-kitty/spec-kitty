@@ -3,7 +3,8 @@
 Pins today's observable behaviour -- exit codes, console text, ``--json`` payloads, side-effect order,
 and the state a refusal leaves behind -- before any source moves.  The suite drives only:
 
-* the ``implement`` command through the root Typer app (``CliRunner``);
+* the ``implement`` Typer command (the function ``agent action implement`` calls), mounted on a
+  one-command Typer app and invoked with ``CliRunner``; see ``implement_cli`` for why not the root app;
 * the ``implement`` function called the way ``agent action implement`` calls it (a plain Python call);
 * real git repositories built in ``tmp_path``.
 
@@ -30,7 +31,8 @@ from typing import Any
 import pytest
 import typer
 from typer.models import ArgumentInfo, OptionInfo
-from typer.testing import CliRunner, Result
+from click.testing import Result
+from typer.testing import CliRunner
 
 from runtime.next import runtime_bridge
 from specify_cli.cli.commands.agent.workflow import top_level_implement
@@ -513,9 +515,11 @@ def test_uncommitted_topology_demotion_of_meta_json_is_refused(repo: Path) -> No
 def test_claiming_from_inside_another_missions_lane_worktree_is_refused(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Planted break (proven red): make the checkout-identity check always return (the claim then proceeds).
 
-    Called on the command function itself (as ``agent action implement`` does).  Through the root
-    ``spec-kitty`` app the "must run from the main repository" location guard fires first for the same
-    invocation; that guard is not part of the claim and is covered by the context-validation tests.
+    Invoked through ``implement_cli`` (``CliRunner``).  In production, a cwd under ``.worktrees/``
+    is refused first by the ``require_main_repo`` location guard on the command function; the suite-wide
+    ``_neutralize_worktree_detection`` conftest stub disables that guard, so this case pins the inner
+    checkout-identity refusal behind it.  The location guard itself is covered by
+    ``tests/agent/test_context_validation_unit.py`` (``real_worktree_detection``).
     """
     lanes_mission(repo)
     other = build_mission(repo, OTHER_SLUG, OTHER_ID)
@@ -935,10 +939,13 @@ def test_allocation_failure_records_no_lifecycle_event(repo: Path, monkeypatch: 
 
 
 def structured_error(name: str) -> Exception:
+    error: Exception
     if name == "path-policy":
-        return SafeCommitPathPolicyError(offending_path=".worktrees/x", worktree_root=Path("/wt"))
+        error = SafeCommitPathPolicyError(offending_path=".worktrees/x", worktree_root=Path("/wt"))
+        return error
     if name == "head-mismatch":
-        return SafeCommitHeadMismatch(destination_ref="trunk", observed_head="other", worktree_root=Path("/wt"))
+        error = SafeCommitHeadMismatch(destination_ref="trunk", observed_head="other", worktree_root=Path("/wt"))
+        return error
     return PlacementResolutionRequired("placement unresolved")
 
 
