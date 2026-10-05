@@ -51,7 +51,7 @@ from .canceled_attestation import ATTEST_REASON_FLAG, ATTESTATION_KEY, Attestati
 from .git_probes import GitProbeError, resolve_commit
 from .reconciliation import (
     _APPROVED_MEMBERSHIP_LANES,
-    _bound_lane_wp_ids,
+    _bound_approved_wp_ids,
     _bound_lanes,
     _closed_world_anchors,
     _is_bookkeeping,
@@ -170,8 +170,10 @@ def _refuse_moved_reattestations(
     unstamped one bounded nothing, so attesting it is the ordinary first attestation). Its
     lane is run through :func:`~specify_cli.consolidation.approved_bound.check_lane` over
     every stamped approval of that lane, so the earlier attestation's ``lane_head`` bounds
-    it exactly as the claim reads it. Any lane refusal (commits after the stamp, or a stamp
-    that is no longer on the lane), or a lane that cannot be read, refuses the request.
+    it exactly as the claim reads it: a commit of a canceled work package of the lane made
+    after the earlier attestation counts like any other (#5720). Any lane refusal (commits
+    after the stamp, or a stamp that is no longer on the lane), or a lane that cannot be
+    read, refuses the request.
     """
     reattested = frozenset(wp_id for wp_id in wp_ids if approval_is_attested(events, wp_id) and approval_stamp(events, wp_id) is not None)
     if not reattested:
@@ -180,7 +182,7 @@ def _refuse_moved_reattestations(
     lanes = _bound_lanes(lanes_manifest, work_packages, excluded_canceled_wp_ids)
     stamp_anchors = approval_stamp_anchors(events, lanes, work_packages, excluded_canceled_wp_ids)
     for lane in lanes:
-        approved, canceled = _bound_lane_wp_ids(lane, work_packages, excluded_canceled_wp_ids)
+        approved = _bound_approved_wp_ids(lane, work_packages, excluded_canceled_wp_ids)
         hit = sorted(reattested.intersection(approved))
         if not hit:
             continue
@@ -192,7 +194,6 @@ def _refuse_moved_reattestations(
                 lane_id=lane.lane_id,
                 branch=branch,
                 approved_wp_ids=[wp_id for wp_id in approved if approval_stamp(events, wp_id) is not None],
-                canceled_wp_ids=canceled,
                 claim_base=resolve_commit(repo_root, lanes_manifest.target_branch),
                 anchors=[*_closed_world_anchors(lanes_manifest, lane, None, excluded_canceled_wp_ids=excluded_canceled_wp_ids), *stamp_anchors],
                 is_bookkeeping=is_bookkeeping,

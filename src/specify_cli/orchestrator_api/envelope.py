@@ -73,7 +73,10 @@ from kernel.clock import now_utc_iso
 # ``preflight_error_code`` carrying ``LANE_MOVED_AFTER_APPROVAL``,
 # ``APPROVAL_STAMP_MISSING`` or ``APPROVAL_STAMP_NOT_ON_LANE``. A call that used
 # to succeed can now refuse, so a minor bump; the key is absent on every other
-# failure and no field is removed or renamed.
+# failure and no field is removed or renamed. The failure ``data`` also carries
+# ``preflight_error_codes`` (#5720): every distinct code the refusal text names,
+# the first one equal to ``preflight_error_code``. Several codes appear when lanes
+# refuse for different reasons in one run. Both keys are absent on every other failure.
 CONTRACT_VERSION = "1.10.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 

@@ -11,9 +11,12 @@ code lane against it (plan D-2):
   the stamp is never replaced by the lane tip;
 * an approval stamp that is not on the lane (a rewritten lane) refuses
   (``APPROVAL_STAMP_NOT_ON_LANE``);
-* a content commit reachable from no covered point (the approval stamps, plus the latest
-  stamp of each canceled work package of a mixed lane), from no anchor and not from the
-  claim base refuses (``LANE_MOVED_AFTER_APPROVAL``). The whole commit range is walked,
+* a content commit reachable from no approval stamp, from no anchor and not from the claim
+  base refuses (``LANE_MOVED_AFTER_APPROVAL``). Nothing a canceled work package of the lane
+  does covers a commit (#5720): this module reads no event of a canceled work package and
+  no attestation, so a commit that work package made after the approval, in its own stamped
+  work window or not, refuses until the approved work package is approved again. The
+  canceled-content checks then judge the lane the reviewer saw. The whole commit range is walked,
   never the first-parent spine: a late commit that arrives through a merge from a branch
   that is not an anchor is found. Merge commits and commits that touch only bookkeeping
   paths are tool-made movement and never count.
@@ -26,6 +29,7 @@ state, no prompt. The claim builder calls it before any branch moves
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -191,6 +195,17 @@ def render_refusals(refusals: Sequence[BoundRefusal], mission_slug: str) -> str:
     return "\n".join(line for code, group in groups.items() for line in blocks[code](group, mission_slug, term))
 
 
+def refusal_codes(text: str) -> list[str]:
+    """Every distinct :class:`BoundRefusalCode` that leads a line of *text*, in order of first appearance.
+
+    :func:`render_refusals` starts each code's block with ``<CODE>: ``. A consumer that
+    keys on codes (``orchestrator-api consolidate-mission``) reads them here, so the code
+    list is exactly what the text names: one entry per distinct code, never a guess.
+    """
+    pattern = "|".join(re.escape(code.value) for code in BoundRefusalCode)
+    return list(dict.fromkeys(re.findall(rf"^({pattern}): ", text, flags=re.MULTILINE)))
+
+
 def is_approved_reviewed_attestation(policy_metadata: Mapping[str, object] | None) -> bool:
     """True iff *policy_metadata* (an event's, parsed or raw) marks an operator attestation of an approval, which is not a review.
 
@@ -271,20 +286,6 @@ def unstamped_approval_warning(event: StatusEvent | None, *, repo_root: Path, mi
     )
 
 
-def _latest_stamp(events: Sequence[StatusEvent], wp_id: str) -> str | None:
-    """The newest stamp *wp_id*'s non-migration events carry, or ``None`` when none carries one.
-
-    The newest STAMPED event, not the newest event: an operator attestation recorded
-    when the probe could not read the lane carries no stamp, and must not hide the stamp
-    the canceled work package's own transitions took.
-    """
-    stamp: str | None = None
-    for event in events:
-        if event.wp_id == wp_id and not is_migration_event(event):
-            stamp = stamp_of(event) or stamp
-    return stamp
-
-
 def commits_beyond(repo_root: Path, tip: str, excluded: Sequence[str]) -> list[str]:
     """Commits reachable from *tip* and from none of *excluded*, newest first.
 
@@ -330,28 +331,6 @@ def resolves_commit(repo_root: Path, ref: str) -> bool:
     return True
 
 
-def _covered_points(
-    repo_root: Path,
-    events: Sequence[StatusEvent],
-    branch: str,
-    approval_stamps: Iterable[str],
-    canceled_wp_ids: Iterable[str],
-) -> list[str]:
-    """The commits whose history is already accounted for: approval stamps and canceled work packages' latest stamps.
-
-    A canceled work package's covered point is dropped when it is not on the lane (the
-    existing closed world owns a mixed lane's canceled work), and a canceled work package
-    with no stamp at all contributes none: its commits are beyond the bound. An approval
-    stamp is validated by the caller.
-    """
-    covered = list(approval_stamps)
-    for wp_id in sorted(canceled_wp_ids):
-        stamp = _latest_stamp(events, wp_id)
-        if stamp is not None and sha_reachable_from(repo_root, stamp, branch):
-            covered.append(stamp)
-    return covered
-
-
 def check_lane(
     repo_root: Path,
     *,
@@ -359,7 +338,6 @@ def check_lane(
     lane_id: str,
     branch: str,
     approved_wp_ids: Iterable[str],
-    canceled_wp_ids: Iterable[str],
     claim_base: str,
     anchors: Iterable[str],
     is_bookkeeping: Callable[[str], bool],
@@ -371,7 +349,9 @@ def check_lane(
     caller that froze the lane tip once reads exactly that commit. *anchors* are the
     lane-base anchors (dependency-lane tips, the target's pre-consolidation tip, the
     other lanes' approval stamps); *claim_base* bounds the lane's own range and must
-    predate every commit the run merges (a live mission-branch tip does not). A lane with no commit
+    predate every commit the run merges (a live mission-branch tip does not).
+    Only *approved_wp_ids* are read from *events*: a canceled work package of the lane
+    covers no commit, whatever it recorded. A lane with no commit
     beyond *claim_base* has nothing to bound and is not refused. A *claim_base* or lane tip that
     does not resolve raises :class:`~specify_cli.consolidation.git_probes.GitProbeError`: the
     check never passes for want of an answer, and every caller turns the error into a refusal.
@@ -387,7 +367,7 @@ def check_lane(
     for wp_id, stamp in stamps.items():
         if stamp is not None and not sha_reachable_from(repo_root, stamp, lane_tip):
             return BoundRefusal(BoundRefusalCode.APPROVAL_STAMP_NOT_ON_LANE, lane_id, branch, (wp_id,), stamp=stamp)
-    covered = _covered_points(repo_root, events, lane_tip, (stamp for stamp in stamps.values() if stamp is not None), canceled_wp_ids)
+    covered = [stamp for stamp in stamps.values() if stamp is not None]
     exempt = lane_exempt_commits(repo_root, claim_base, anchors)
     beyond = [sha for sha in commits_beyond(repo_root, lane_tip, [claim_base, *covered]) if sha not in exempt]
     content = content_commits(repo_root, beyond, is_bookkeeping)
@@ -414,6 +394,7 @@ __all__ = [
     "content_commits",
     "is_approved_reviewed_attestation",
     "move_back_command",
+    "refusal_codes",
     "render_refusals",
     "resolves_commit",
     "unstamped_approval_warning",

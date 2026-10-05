@@ -46,6 +46,7 @@ case) is out of scope for this mission and stays named-open in the docs.
 from __future__ import annotations
 
 import functools
+import logging
 import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
@@ -101,6 +102,8 @@ from specify_cli.consolidation.wp_attribution import (
     resolve_canceled_wp,
 )
 
+logger = logging.getLogger(__name__)
+
 # Lanes that count as "approved" (an acceptable, merge-ready ending) for claim
 # membership. ``done`` is included so a resume that already baked ``done`` for a
 # WP still recognizes it as claimed (never re-derived here — the strings mirror
@@ -130,6 +133,13 @@ _REFUSE_WINDOW_BASE_UNRESOLVED = "the excluded-content window base could not be 
 # shared by the FAIL rendering (:func:`_describe_canceled_content`) and both
 # REFUSE reasons the axis can raise (hoisted per Sonar S1192 — used 4+ times).
 _RECOVERY_TAIL = "then re-run spec-kitty consolidate"
+#: The compound claim refusal (#5720): the first refusal, then the approved-bound refusals the
+#: operator would otherwise meet one run later. The first refusal is never reworded.
+_ALSO_HAS = "This Mission also has:"
+_BOTH_NEEDED = (
+    "Both parts need their own fix, in either order: the recovery in the first part does not approve the new content, "
+    "and approving the work package again does not clear the first part. Re-run spec-kitty consolidate after both."
+)
 #: How the target fails to hold an approved lane's content (:class:`MissingApprovedContent`):
 #: the path is not there at all, or it still holds the pre-consolidation state.
 PresenceGap = Literal["absent", "unchanged"]
@@ -1463,8 +1473,20 @@ def build_approved_wp_set(
         _CanceledLaneQuery(repo_root, feature_dir, lanes_manifest, work_packages, excluded_ids, coord_base_ref, planning_prefix, excluded_window_base, sb_window),
         event_log,
     )
+    bound_verdict = functools.partial(
+        _approved_bound_verdict,
+        repo_root,
+        lanes_manifest,
+        work_packages,
+        excluded_ids,
+        coord_base_ref=coord_base_ref,
+        window_base=excluded_window_base,
+        planning_prefix=planning_prefix,
+        event_log=event_log,
+    )
     if dependency.refusal is not None:
-        return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, dependency.refusal)
+        compound = _compound_refusal(dependency.refusal, bound_verdict, event_log)
+        return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, compound)
     canceled_lane_commits = dependency.unapproved_commits
     canceled_content, attested_wp_ids, mixed_lane_refusal = _resolve_mixed_lane_canceled_content(
         repo_root,
@@ -1480,20 +1502,12 @@ def build_approved_wp_set(
         event_log=event_log,
     )
     if mixed_lane_refusal is not None:
-        return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, mixed_lane_refusal)
+        compound = _compound_refusal(mixed_lane_refusal, bound_verdict, event_log)
+        return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, compound)
 
     # Approved-bound check (#5668): after the mixed-lane resolution (its refusals keep
-    # precedence), before the collectors read the live lane tips.
-    bound = _approved_bound_verdict(
-        repo_root,
-        lanes_manifest,
-        work_packages,
-        excluded_ids,
-        coord_base_ref=coord_base_ref,
-        window_base=excluded_window_base,
-        planning_prefix=planning_prefix,
-        event_log=event_log,
-    )
+    # precedence, and name this check's refusals too, #5720), before the collectors read the live lane tips.
+    bound = bound_verdict()
     if bound.refusal is not None:
         return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, bound.refusal)
 
@@ -1533,6 +1547,37 @@ def build_approved_wp_set(
         canceled_dependency_content=dependency.content,
         bound_lane_tips=bound.lane_tips,
     )
+
+
+def _join_refusals(refusals: Sequence[str]) -> str:
+    """One text for several refusals of one kind, in the order given: every refusal is named, none is reworded.
+
+    One refusal per line: each ends in a sentence of its own, so a ``; `` join would read ``....; mixed lane ...``.
+    The sibling multi-refusal texts further down join with ``; `` and stay as they are.
+    """
+    return "\n".join(refusals)
+
+
+def _compound_refusal(first: str, bound_verdict: Callable[[], _BoundVerdict], event_log: _ClaimEventLog) -> str:
+    """*first* followed by the approved-bound refusals the operator would otherwise meet one run later (#5720).
+
+    *first* is a mixed-lane or canceled-dependency refusal. The approved bound is evaluated
+    as it stands once the operator follows that recovery: a canceled-superseded attestation
+    covers no commit of it. *first* stays alone when the event log cannot be read
+    (the bound cannot be computed, and *first* or the bound's own refusal says so) and when
+    a git probe fails (the bound is reported by the next run, which refuses before any
+    change either way). The log is read at most once per claim, through *event_log*.
+    """
+    if event_log.read() is None:
+        return first
+    try:
+        verdict = bound_verdict()
+    except GitProbeError:
+        logger.debug("the approved bound could not be evaluated for the compound refusal", exc_info=True)
+        return first
+    if verdict.refusal is None:
+        return first
+    return f"{first}\n\n{_ALSO_HAS}\n{verdict.refusal}\n\n{_BOTH_NEEDED}"
 
 
 class _ClaimEventLog:
@@ -1660,7 +1705,10 @@ def _resolve_mixed_lane_canceled_content(
     ``StoreError`` reading them refuses with the ``events_unreadable`` reason
     (NFR-002; never overridable — the attestation lives in that same log).
     Every canceled WP in every mixed lane is handed to
-    :func:`~specify_cli.consolidation.wp_attribution.resolve_canceled_wp`.
+    :func:`~specify_cli.consolidation.wp_attribution.resolve_canceled_wp`, and every
+    one that refuses is named in the returned text (#5720), each refusal unchanged,
+    joined in lane and WP order. An unreadable log refuses alone: nothing else can
+    be computed without it.
 
     FR-012: an operator attestation
     (:func:`~specify_cli.consolidation.canceled_attestation.attestation_stamps`)
@@ -1688,38 +1736,85 @@ def _resolve_mixed_lane_canceled_content(
         return frozenset(), frozenset(), _mixed_lane_unattributable_refusal(lane.lane_id, wp_id, event_log.unreadable(lane.lane_id, wp_id))
 
     stamps = attestation_stamps(events)
-    attested = frozenset(stamps)
-    is_bookkeeping = functools.partial(_is_bookkeeping, mission_slug=lanes_manifest.mission_slug, planning_prefix=planning_prefix)
+    scope = _MixedLaneScope(
+        repo_root=repo_root,
+        lanes_manifest=lanes_manifest,
+        events=events,
+        stamps=stamps,
+        excluded_canceled_wp_ids=excluded_canceled_wp_ids,
+        coord_base_ref=coord_base_ref,
+        target_base=target_base,
+        sb_window=sb_window,
+        is_bookkeeping=functools.partial(_is_bookkeeping, mission_slug=lanes_manifest.mission_slug, planning_prefix=planning_prefix),
+        canceled_lane_commits=canceled_lane_commits,
+    )
     canceled_content: set[CanceledPathState] = set()
+    refusals: list[str] = []
     for lane in mixed_lanes:
-        # #5100: a protected single_branch repo-root lane reads its authored
-        # window ``fork_point..mission_branch`` (same source as the collectors).
-        lane_base, branch = sb_window if sb_window and is_planning_lane(lane) else (coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id))
-        lane_canceled = sorted(wp for wp in lane.wp_ids if wp in excluded_canceled_wp_ids)
-        attestation_anchors = [stamp for wp in lane_canceled if (stamp := stamps.get(wp))]
-        for wp_id in lane_canceled:
-            outcome: AttributionOutcome = resolve_canceled_wp(
-                repo_root,
-                events=events,
-                lane_id=lane.lane_id,
-                lane_wp_ids=lane.wp_ids,
-                canceled_wp_id=wp_id,
-                lane_branch=branch,
-                coord_base_ref=lane_base,
-                is_bookkeeping=is_bookkeeping,
-                closed_world_anchors=[
-                    *_closed_world_anchors(lanes_manifest, lane, target_base, excluded_canceled_wp_ids=excluded_canceled_wp_ids),
-                    *attestation_anchors,
-                ],
-                never_exempt_commits=canceled_lane_commits,
-            )
-            if isinstance(outcome, Attributed):
-                canceled_content |= outcome.canceled_content
-            elif wp_id in attested and outcome.reason in OVERRIDABLE_REASONS:
-                continue  # FR-012: operator-attested — pre-change whole-lane behaviour for this WP.
-            else:
-                return frozenset(), frozenset(), _mixed_lane_unattributable_refusal(lane.lane_id, wp_id, outcome)
-    return frozenset(canceled_content), attested, None
+        lane_content, lane_refusals = _resolve_mixed_lane(scope, lane)
+        canceled_content |= lane_content
+        refusals.extend(lane_refusals)
+    if refusals:
+        # Every canceled WP that refuses is named in this one text (#5720), lanes and WPs in id order.
+        return frozenset(), frozenset(), _join_refusals(refusals)
+    return frozenset(canceled_content), frozenset(stamps), None
+
+
+@dataclass(frozen=True)
+class _MixedLaneScope:
+    """What every mixed lane of one claim shares while its canceled work packages are resolved."""
+
+    repo_root: Path
+    lanes_manifest: LanesManifest
+    events: Sequence[Any]
+    stamps: Mapping[str, str | None]
+    excluded_canceled_wp_ids: frozenset[str]
+    coord_base_ref: str
+    target_base: str | None
+    sb_window: tuple[str, str] | None
+    is_bookkeeping: Callable[[str], bool]
+    canceled_lane_commits: frozenset[str]
+
+
+def _resolve_mixed_lane(scope: _MixedLaneScope, lane: ExecutionLane) -> tuple[set[CanceledPathState], list[str]]:
+    """``(canceled content, refusals)`` of one mixed lane: every canceled WP is resolved, none stops the others (#5720).
+
+    An attested WP whose refusal is overridable (FR-012) falls back to the pre-change
+    whole-lane behaviour and adds no refusal.
+    """
+    # #5100: a protected single_branch repo-root lane reads its authored
+    # window ``fork_point..mission_branch`` (same source as the collectors).
+    lane_base, branch = (
+        scope.sb_window if scope.sb_window and is_planning_lane(lane) else (scope.coord_base_ref, _lane_branch_for(scope.lanes_manifest, lane.lane_id))
+    )
+    lane_canceled = sorted(wp for wp in lane.wp_ids if wp in scope.excluded_canceled_wp_ids)
+    attestation_anchors = [stamp for wp in lane_canceled if (stamp := scope.stamps.get(wp))]
+    anchors = [
+        *_closed_world_anchors(scope.lanes_manifest, lane, scope.target_base, excluded_canceled_wp_ids=scope.excluded_canceled_wp_ids),
+        *attestation_anchors,
+    ]
+    content: set[CanceledPathState] = set()
+    refusals: list[str] = []
+    for wp_id in lane_canceled:
+        outcome: AttributionOutcome = resolve_canceled_wp(
+            scope.repo_root,
+            events=scope.events,
+            lane_id=lane.lane_id,
+            lane_wp_ids=lane.wp_ids,
+            canceled_wp_id=wp_id,
+            lane_branch=branch,
+            coord_base_ref=lane_base,
+            is_bookkeeping=scope.is_bookkeeping,
+            closed_world_anchors=anchors,
+            never_exempt_commits=scope.canceled_lane_commits,
+        )
+        if isinstance(outcome, Attributed):
+            content |= outcome.canceled_content
+        elif wp_id in scope.stamps and outcome.reason in OVERRIDABLE_REASONS:
+            continue  # FR-012: operator-attested — pre-change whole-lane behaviour for this WP.
+        else:
+            refusals.append(_mixed_lane_unattributable_refusal(lane.lane_id, wp_id, outcome))
+    return content, refusals
 
 
 @dataclass(frozen=True)
@@ -1737,14 +1832,13 @@ def _bound_events_unreadable_text(lane_id: str) -> str:
     )
 
 
-def _bound_lane_wp_ids(
+def _bound_approved_wp_ids(
     lane: ExecutionLane,
     work_packages: Mapping[str, Any],
     excluded_canceled_wp_ids: frozenset[str],
-) -> tuple[list[str], list[str]]:
-    """``(approved, canceled)`` work package ids of *lane*: approved membership, not canceled-with-provenance."""
-    approved = [wp for wp in lane.wp_ids if wp not in excluded_canceled_wp_ids and str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES]
-    return approved, [wp for wp in lane.wp_ids if wp in excluded_canceled_wp_ids]
+) -> list[str]:
+    """The work package ids of *lane* whose approval bounds it: approved membership, not canceled-with-provenance."""
+    return [wp for wp in lane.wp_ids if wp not in excluded_canceled_wp_ids and str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES]
 
 
 def _bound_lanes(
@@ -1758,7 +1852,7 @@ def _bound_lanes(
         for lane in lanes_manifest.lanes
         if not is_planning_lane(lane)
         and not lane_fully_canceled(lane, excluded_canceled_wp_ids)
-        and _bound_lane_wp_ids(lane, work_packages, excluded_canceled_wp_ids)[0]
+        and _bound_approved_wp_ids(lane, work_packages, excluded_canceled_wp_ids)
     ]
     return sorted(covered, key=lambda lane: lane.lane_id)
 
@@ -1776,7 +1870,7 @@ def _bound_claim_base(repo_root: Path, window_base: str | None, coord_base_ref: 
 
 def approval_stamp_anchors(events: Sequence[Any], lanes: Sequence[ExecutionLane], work_packages: Mapping[str, Any], excluded: frozenset[str]) -> list[str]:
     """The approval stamps of every bounded lane: reviewed content the tool's own mission-branch merges bring into another lane."""
-    stamps = (approval_stamp(events, wp_id) for lane in lanes for wp_id in _bound_lane_wp_ids(lane, work_packages, excluded)[0])
+    stamps = (approval_stamp(events, wp_id) for lane in lanes for wp_id in _bound_approved_wp_ids(lane, work_packages, excluded))
     return [stamp for stamp in stamps if stamp is not None]
 
 
@@ -1792,6 +1886,9 @@ def _approved_bound_verdict(
     event_log: _ClaimEventLog,
 ) -> _BoundVerdict:
     """Check every covered code lane against its approval stamps (#5668); read the log once via *event_log*.
+
+    A lane that also holds a canceled work package is checked like any other: no commit,
+    status event or attestation of a canceled work package covers a commit (#5720).
 
     The refused lanes render as one text (:func:`~specify_cli.consolidation.approved_bound.render_refusals`),
     a line per lane in lane order. A lane tip is resolved once and both checked and recorded, so the gate re-check asks about
@@ -1820,15 +1917,13 @@ def _approved_bound_verdict(
             tip = resolve_commit(repo_root, branch)
         except GitProbeError:
             continue  # an unresolvable lane tip reads as an empty lane, as the collectors read it (:func:`_lane_tip_commits`)
-        approved, canceled = _bound_lane_wp_ids(lane, work_packages, excluded_canceled_wp_ids)
         found: BoundRefusal | None = (
             check_lane(
                 repo_root,
                 events=events,
                 lane_id=lane.lane_id,
                 branch=branch,
-                approved_wp_ids=approved,
-                canceled_wp_ids=canceled,
+                approved_wp_ids=_bound_approved_wp_ids(lane, work_packages, excluded_canceled_wp_ids),
                 claim_base=claim_base,
                 anchors=[*_closed_world_anchors(lanes_manifest, lane, window_base, excluded_canceled_wp_ids=excluded_canceled_wp_ids), *stamp_anchors],
                 is_bookkeeping=is_bookkeeping,
@@ -2073,6 +2168,8 @@ def _unstamped_carried_refusal(
 ) -> str | None:
     """The up-front REFUSE for a carried fully-canceled lane with an unstamped WP, or ``None`` (#5613).
 
+    Every unstamped WP is named in the one text (#5720), lanes and WPs in id order.
+
     A canceled WP whose closed work window carries no ``lane_head`` stamp has no
     attribution evidence: the claim REFUSEs and names the override, exactly as a
     mixed lane does for ``no_stamp``. That covers a legacy mission (created before
@@ -2098,12 +2195,13 @@ def _unstamped_carried_refusal(
         wp_id = wps_by_lane[lane_id][0]
         return _carried_unattributable_refusal(lane_id, wp_id, carrier_ids, event_log.unreadable(lane_id, wp_id))
     liftable = frozenset(attestation_stamps(events)) if UnattributableReason.NO_STAMP in OVERRIDABLE_REASONS else frozenset()
-    for lane_id, carrier_ids in carried.items():
-        for wp_id in wps_by_lane[lane_id]:
-            if wp_id not in liftable and lacks_lane_head_stamps(events, wp_id):
-                outcome = Unattributable.for_reason(UnattributableReason.NO_STAMP, lane_id, wp_id)
-                return _carried_unattributable_refusal(lane_id, wp_id, carrier_ids, outcome)
-    return None
+    refusals = [
+        _carried_unattributable_refusal(lane_id, wp_id, carrier_ids, Unattributable.for_reason(UnattributableReason.NO_STAMP, lane_id, wp_id))
+        for lane_id, carrier_ids in carried.items()
+        for wp_id in wps_by_lane[lane_id]
+        if wp_id not in liftable and lacks_lane_head_stamps(events, wp_id)
+    ]
+    return _join_refusals(refusals) if refusals else None
 
 
 def _carried_dependency_content(

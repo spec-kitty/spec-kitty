@@ -7,6 +7,7 @@ app by ``commands.py``.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, NoReturn
@@ -77,12 +78,17 @@ class ApprovedBoundRefused(RuntimeError):
 
     A ``RuntimeError``, so ``consolidate_mission`` envelopes it as ``PREFLIGHT_FAILED``
     with the message in ``data["errors"]``. The refusal's own code (the leading
-    ``CODE:`` of its text) travels in ``data["preflight_error_code"]`` so callers key
-    on it instead of the prose; ``None`` for the one refusal that carries no code.
+    ``CODE:`` of its text, the first code the text names) travels in
+    ``data["preflight_error_code"]`` so callers key on it instead of the prose; ``None``
+    for the one refusal that carries no code. ``data["preflight_error_codes"]`` lists every
+    distinct code the text names, first code first (#5720): lanes can refuse for different
+    reasons in one run, and this path never gets a mixed-lane or canceled-dependency
+    refusal, so every code in the list is an approval-stamp code.
     """
 
-    def __init__(self, message: str, *, error_code: str | None) -> None:
+    def __init__(self, message: str, *, error_code: str | None, error_codes: Sequence[str] | None = None) -> None:
         self.error_code = error_code
+        self.error_codes = tuple(error_codes) if error_codes is not None else (() if error_code is None else (error_code,))
         super().__init__(message)
 
 
@@ -408,6 +414,13 @@ def _bound_refusal_code(refusal: str) -> str | None:
         return None
 
 
+def _bound_refusal_codes(refusal: str) -> list[str]:
+    """Every distinct :class:`BoundRefusalCode` the refusal text names, first code first (see :class:`ApprovedBoundRefused`)."""
+    from specify_cli.consolidation.approved_bound import refusal_codes
+
+    return refusal_codes(refusal)
+
+
 def _status_placement_tip(main_repo_root: Path, mission_slug: str) -> str | None:
     """The status placement's tip as a SHA, or ``None`` when it cannot be resolved for any reason.
 
@@ -478,7 +491,11 @@ def _refuse_post_approval_lane_content(main_repo_root: Path, mission_dir: Path, 
     except (StoreError, OSError) as exc:
         raise RuntimeError(f"The approved lanes could not be checked against what review approved ({exc}); no lane was merged.") from exc
     if refusal is not None:
-        raise ApprovedBoundRefused(_orchestrator_refusal_text(refusal), error_code=_bound_refusal_code(refusal))
+        raise ApprovedBoundRefused(
+            _orchestrator_refusal_text(refusal),
+            error_code=_bound_refusal_code(refusal),
+            error_codes=_bound_refusal_codes(refusal),
+        )
 
 
 def _execute_lane_merge(
@@ -816,6 +833,7 @@ def consolidate_mission(
         if isinstance(exc, ApprovedBoundRefused) and exc.error_code is not None:
             # #5668: the lane-check refusal's code, machine-readable and additive.
             failure["preflight_error_code"] = exc.error_code
+            failure["preflight_error_codes"] = list(exc.error_codes)
         _fail(cmd, "PREFLIGHT_FAILED", "Merge failed", failure)
         return
 
