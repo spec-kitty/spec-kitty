@@ -26,6 +26,7 @@ from unittest.mock import patch
 import pytest
 import typer
 from kernel.clock import now_utc_iso
+from mission_runtime import MissionArtifactKind, placement_seam
 
 from specify_cli.coordination.planning_commit import PlanningPlacement
 from specify_cli.coordination.surface_resolver import ResolvedStatusSurface
@@ -37,6 +38,12 @@ from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from specify_cli.workspace.context import ResolvedWorkspace
+from tests.specify_cli.cli.commands.test_implement_characterization import (
+    activate_repo,
+    build_mission,
+    implement_cli,
+    init_repo,
+)
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -88,7 +95,7 @@ def _init_repo(repo: Path) -> None:
 
 MISSION_SLUG = "lane-base-honoring-demo"
 MISSION_ID = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
-COORD_BRANCH = f"kitty/mission-{MISSION_SLUG}"
+COORD_BRANCH = f"kitty/mission-{MISSION_SLUG}-{MISSION_ID[:8].lower()}"
 LEGACY_MISSION_SLUG = "lane-base-honoring-legacy"
 LEGACY_MISSION_BRANCH = f"kitty/mission-{LEGACY_MISSION_SLUG}"
 WP_ID = "WP06"
@@ -194,6 +201,51 @@ def coord_repo_with_divergent_base(tmp_path: Path) -> Path:
     _git(repo, "add", ".")
     _git(repo, "commit", "-q", "-m", "explicit base work (B)")
     _git(repo, "checkout", "-q", "main")
+
+    return repo
+
+
+@pytest.fixture
+def coord_mission_with_divergent_base(tmp_path: Path) -> Path:
+    """The ``coord_repo_with_divergent_base`` shape, seeded the way a finalized
+    mission really is (the characterization suite's ``init_repo`` /
+    ``build_mission``), so the real ``implement`` command accepts it unpatched.
+
+    ``coordination_branch`` descends from unrelated commit ``U``; a divergent
+    ``explicit-base`` branch ``B`` does NOT contain ``U``.
+    """
+    repo = init_repo(tmp_path / "repo", branch="main")
+    build_mission(
+        repo, MISSION_SLUG, MISSION_ID,
+        topology="lanes_with_coord",
+        wps={WP_ID: ("code_change", [])},
+        target="main",
+        meta_extra={"coordination_branch": COORD_BRANCH},
+    )
+    seed_sha = _git_out(repo, "rev-parse", "HEAD")
+
+    # U: unrelated pending work on top of the seed.
+    (repo / "unrelated.txt").write_text("unrelated work\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "unrelated work (U)")
+    u_sha = _git_out(repo, "rev-parse", "HEAD")
+
+    # coordination_branch descends from U (fidelity gate: real coord topology).
+    _git(repo, "branch", COORD_BRANCH, u_sha)
+
+    # explicit-base (B) diverges from the seed -- does NOT contain U.
+    _git(repo, "branch", EXPLICIT_BASE_BRANCH, seed_sha)
+    _git(repo, "checkout", "-q", EXPLICIT_BASE_BRANCH)
+    (repo / "base-work.txt").write_text("explicit base work\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "explicit base work (B)")
+    _git(repo, "checkout", "-q", "main")
+
+    # A real coordination Mission has its coordination surface materialized
+    # and seeded by its first coordination write (finalize-tasks): resolve the
+    # status write location through the one sanctioned accessor, which does
+    # exactly that. The claim then reads and writes status there.
+    placement_seam(repo, MISSION_SLUG).write_dir(MissionArtifactKind.STATUS_STATE)
 
     return repo
 
@@ -321,13 +373,44 @@ def _run_implement_via_seam(
             )
 
 
+def _run_implement_for_real(
+    repo: Path,
+    feature_dir: Path,
+    *,
+    base: str | None,
+    wp_id: str = WP_ID,
+    mission_slug: str = MISSION_SLUG,
+    capture_console: list[str] | None = None,
+) -> None:
+    """Drive the real ``implement`` Typer command against the real repository.
+
+    Uses the characterization suite's plumbing (``activate_repo`` points the
+    command at *repo* and isolates it from the developer's git config;
+    ``implement_cli`` invokes the very ``implement`` function ``agent action
+    implement`` calls). Nothing in the implement command family is patched:
+    the real mission detection, planning-artifact commit, claim status write
+    and lane allocator all run, so a base-honoring regression anywhere along
+    the seam shows up here (C-003). The console text the run printed is
+    appended to *capture_console*, one line per entry.
+    """
+    del feature_dir  # resolved by the command itself from --mission
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        activate_repo(repo, monkeypatch, repo.parent)
+        args = [wp_id, "--mission", mission_slug, "--no-auto-commit"]
+        if base is not None:
+            args += ["--base", base]
+        result = implement_cli(*args)
+    if capture_console is not None:
+        capture_console.extend(result.output.splitlines())
+
+
 class TestAC1SeamLevelRedFirst:
     """AC-1 / FR-001 / FR-002 / C-003: base threads through the real seam."""
 
     def test_explicit_base_replaces_coord_parent_on_no_dep_lane(
-        self, coord_repo_with_divergent_base: Path,
+        self, coord_mission_with_divergent_base: Path,
     ) -> None:
-        repo = coord_repo_with_divergent_base
+        repo = coord_mission_with_divergent_base
         feature_dir = repo / "kitty-specs" / MISSION_SLUG
 
         # Fixture-fidelity gate (post-plan reviewer): the fixture must
@@ -340,7 +423,7 @@ class TestAC1SeamLevelRedFirst:
             "sanity: explicit-base must not already be reachable from main"
         )
 
-        _run_implement_via_seam(repo, feature_dir, base=EXPLICIT_BASE_BRANCH)
+        _run_implement_for_real(repo, feature_dir, base=EXPLICIT_BASE_BRANCH)
 
         lane_branch = f"kitty/mission-{MISSION_SLUG}-lane-a"
         assert _is_ancestor(repo, EXPLICIT_BASE_BRANCH, lane_branch), (
@@ -727,12 +810,12 @@ def test_unhonorable_base_error_to_dict_carries_route_wp_id_base() -> None:
 class TestAC4SuccessLineBothDirections:
     _SUCCESS_PREFIX = "Using explicit base ref:"
 
-    def test_present_on_honored_no_dep_fresh_create(self, coord_repo_with_divergent_base: Path) -> None:
-        repo = coord_repo_with_divergent_base
+    def test_present_on_honored_no_dep_fresh_create(self, coord_mission_with_divergent_base: Path) -> None:
+        repo = coord_mission_with_divergent_base
         feature_dir = repo / "kitty-specs" / MISSION_SLUG
         captured: list[str] = []
 
-        _run_implement_via_seam(
+        _run_implement_for_real(
             repo, feature_dir, base=EXPLICIT_BASE_BRANCH, capture_console=captured,
         )
 
@@ -740,12 +823,12 @@ class TestAC4SuccessLineBothDirections:
             f"expected the success line in captured output: {captured!r}"
         )
 
-    def test_absent_on_base_none(self, coord_repo_with_divergent_base: Path) -> None:
-        repo = coord_repo_with_divergent_base
+    def test_absent_on_base_none(self, coord_mission_with_divergent_base: Path) -> None:
+        repo = coord_mission_with_divergent_base
         feature_dir = repo / "kitty-specs" / MISSION_SLUG
         captured: list[str] = []
 
-        _run_implement_via_seam(repo, feature_dir, base=None, capture_console=captured)
+        _run_implement_for_real(repo, feature_dir, base=None, capture_console=captured)
 
         # Positive control: some other tracker output must have been
         # captured, or an empty capture would vacuously pass the ABSENT
@@ -755,16 +838,16 @@ class TestAC4SuccessLineBothDirections:
             f"success line must not print when base=None: {captured!r}"
         )
 
-    def test_absent_on_error_path(self, coord_repo_with_divergent_base: Path) -> None:
-        repo = coord_repo_with_divergent_base
+    def test_absent_on_error_path(self, coord_mission_with_divergent_base: Path) -> None:
+        repo = coord_mission_with_divergent_base
         feature_dir = repo / "kitty-specs" / MISSION_SLUG
 
         # First call (no base) creates the lane -- now a second call with an
         # explicit base hits the reuse fail-loud guard (FL1).
-        _run_implement_via_seam(repo, feature_dir, base=None)
+        _run_implement_for_real(repo, feature_dir, base=None)
 
         captured: list[str] = []
-        _run_implement_via_seam(
+        _run_implement_for_real(
             repo, feature_dir, base=EXPLICIT_BASE_BRANCH, capture_console=captured,
         )
 
@@ -780,46 +863,20 @@ class TestAC4SuccessLineBothDirections:
 
 
 def test_fr007_planning_lane_base_ignored_with_warning(tmp_path: Path) -> None:
-    repo = tmp_path / "repo"
-    _init_repo(repo)
-    mission_slug = "lane-base-honoring-planning"
-    feature_dir = repo / "kitty-specs" / mission_slug
-    feature_dir.mkdir(parents=True)
-    _write_meta(feature_dir, mission_slug=mission_slug, coordination_branch=None)
-
     from specify_cli.lanes.compute import PLANNING_LANE_ID
 
-    manifest = LanesManifest(
-        version=1, mission_slug=mission_slug, mission_id=MISSION_ID,
-        mission_branch=f"kitty/mission-{mission_slug}", target_branch="main",
-        lanes=[ExecutionLane(
-            lane_id=PLANNING_LANE_ID, wp_ids=("WP01",), write_scope=(),
-            predicted_surfaces=(), depends_on_lanes=(), parallel_group=0,
-        )],
-        computed_at=now_utc_iso(), computed_from="test",
+    repo = init_repo(tmp_path / "repo", branch="main")
+    mission_slug = "lane-base-honoring-planning"
+    mission = build_mission(
+        repo, mission_slug, MISSION_ID,
+        wps={"WP01": ("planning_artifact", [])},
+        target="main",
+        layout=((PLANNING_LANE_ID, ("WP01",), ()),),
     )
-    write_lanes_json(feature_dir, manifest)
-    wp_file = feature_dir / "tasks" / "WP01-task.md"
-    wp_file.parent.mkdir(exist_ok=True)
-    wp_file.write_text(
-        "---\nwork_package_id: WP01\ndependencies: []\nexecution_mode: planning_artifact\n---\n# WP01\n"
-    )
-    seed_event = {
-        "actor": "finalize-tasks", "at": "2026-08-21T10:00:00.000000+00:00",
-        "event_id": "01JT00000000000000000WP01", "evidence": None,
-        "execution_mode": "direct_repo", "force": False, "from_lane": "genesis",
-        "mission_id": MISSION_ID, "mission_slug": mission_slug,
-        "policy_metadata": None, "reason": "canonical bootstrap", "review_ref": None,
-        "to_lane": "planned", "wp_id": "WP01",
-    }
-    (feature_dir / "status.events.jsonl").write_text(
-        json.dumps(seed_event, sort_keys=True) + "\n", encoding="utf-8",
-    )
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-q", "-m", "seed")
+    feature_dir = mission.feature_dir
 
     captured: list[str] = []
-    _run_implement_via_seam(
+    _run_implement_for_real(
         repo, feature_dir, base="main", wp_id="WP01", mission_slug=mission_slug,
         capture_console=captured,
     )
