@@ -187,7 +187,7 @@ def _patch_context(monkeypatch: pytest.MonkeyPatch, repo_root: Path, mission_slu
     monkeypatch.setattr(implement_recover, "find_repo_root", lambda: repo_root)
     monkeypatch.setattr(
         implement_phases,
-        "detect_feature_context",
+        "detect_mission_context",
         lambda _mission, repo_root=None: (None, mission_slug),
     )
 
@@ -217,7 +217,7 @@ class TestRecoverErrorPath:
         def _raise(_mission: str | None, repo_root: Path | None = None) -> tuple[str | None, str]:
             raise TaskCliError("mission not found")
 
-        monkeypatch.setattr(implement_phases, "detect_feature_context", _raise)
+        monkeypatch.setattr(implement_phases, "detect_mission_context", _raise)
 
         with pytest.raises(typer.Exit) as excinfo:
             _run_recover_mode("WP01", "missing-mission", json_output=True)
@@ -234,7 +234,7 @@ class TestRecoverErrorPath:
         def _raise(_mission: str | None, repo_root: Path | None = None) -> tuple[str | None, str]:
             raise TaskCliError("mission not found")
 
-        monkeypatch.setattr(implement_phases, "detect_feature_context", _raise)
+        monkeypatch.setattr(implement_phases, "detect_mission_context", _raise)
 
         with pytest.raises(typer.Exit) as excinfo:
             _run_recover_mode("WP01", "missing-mission", json_output=False)

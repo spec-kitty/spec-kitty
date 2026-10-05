@@ -356,7 +356,7 @@ def implement(
     # SC-003 no-selector guard: exit 2 when --mission is omitted (mirrors
     # all other commands and aligns with the no-selector-error-contract).
     # Guard runs BEFORE --recover so that `implement --recover` with no
-    # --mission also exits 2, not 1 via detect_feature_context.
+    # --mission also exits 2, not 1 via detect_mission_context.
     if mission is None:
         console.print("[red]Error:[/red] --mission <slug> is required")
         raise typer.Exit(2)

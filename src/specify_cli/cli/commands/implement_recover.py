@@ -27,7 +27,7 @@ def _recover_resolve_context(mission: str | None, json_output: bool) -> tuple[Pa
     matching the pre-extraction behavior byte-for-byte (T011 branch 1)."""
     try:
         repo_root = find_repo_root()
-        _mission_number, mission_slug = implement_phases.detect_feature_context(mission, repo_root=repo_root)
+        _mission_number, mission_slug = implement_phases.detect_mission_context(mission, repo_root=repo_root)
     except (TaskCliError, typer.Exit) as exc:
         if json_output:
             print(json.dumps({"status": "error", "error": str(exc)}))

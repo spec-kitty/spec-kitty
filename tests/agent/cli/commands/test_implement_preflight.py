@@ -206,14 +206,14 @@ def test_implement_proceeds_past_preflight_when_passed(
 
     monkeypatch.setattr(implement_mod, "find_repo_root", lambda: tmp_path)
 
-    sentinel = RuntimeError("reached detect_feature_context")
+    sentinel = RuntimeError("reached detect_mission_context")
 
     def _detect(*_args, **_kwargs):
         raise sentinel
 
-    # detect_feature_context is the very next call after preflight; reaching
+    # detect_mission_context is the very next call after preflight; reaching
     # it proves the gate let us through.
-    monkeypatch.setattr(implement_phases, "detect_feature_context", _detect)
+    monkeypatch.setattr(implement_phases, "detect_mission_context", _detect)
 
     with (
         patch(

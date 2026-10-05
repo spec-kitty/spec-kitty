@@ -28,7 +28,7 @@ from specify_cli.cli.commands.implement import (
     _print_workspace_ready_banner,
     _report_workspace_created,
 )
-from specify_cli.cli.commands.implement_phases import ImplementContext, _ensure_vcs_in_meta, detect_feature_context
+from specify_cli.cli.commands.implement_phases import ImplementContext, _ensure_vcs_in_meta, detect_mission_context
 from specify_cli.cli.console import console
 from specify_cli.lanes import implement_support
 from specify_cli.lanes.implement_support import LaneWorkspaceResult
@@ -647,7 +647,7 @@ def test_select_workspace_reads_lanes_json_from_the_lanes_surface_not_the_status
 
 
 # ---------------------------------------------------------------------------
-# detect_feature_context and _ensure_vcs_in_meta (moved from tests/agent/test_implement_command.py, WP10)
+# detect_mission_context and _ensure_vcs_in_meta (moved from tests/agent/test_implement_command.py, WP10)
 # ---------------------------------------------------------------------------
 
 
@@ -671,16 +671,16 @@ def create_meta_json(feature_dir: Path, vcs: str = "git") -> Path:
 
 class TestDetectFeatureContext:
     def test_detect_with_explicit_flag(self) -> None:
-        number, slug = detect_feature_context("010-lane-only-runtime")
+        number, slug = detect_mission_context("010-lane-only-runtime")
         assert number == "010"
         assert slug == "010-lane-only-runtime"
 
     def test_detect_failure_no_flag(self) -> None:
         with pytest.raises(typer.Exit):
-            detect_feature_context(None)
+            detect_mission_context(None)
 
     def test_detect_invalid_format(self) -> None:
-        number, slug = detect_feature_context("lane-only-runtime")
+        number, slug = detect_mission_context("lane-only-runtime")
         assert number is None
         assert slug == "lane-only-runtime"
 

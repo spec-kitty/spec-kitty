@@ -168,7 +168,7 @@ def test_implement_recover_no_mission_exits_2() -> None:
 
     The no-selector guard must fire BEFORE the ``--recover`` path so that
     ``implement --recover`` with no ``--mission`` also exits 2 (not 1 via
-    ``detect_feature_context``).
+    ``detect_mission_context``).
     Authority: SC-003; FR-008; no-selector-error-contract.md.
     """
     result = runner.invoke(app, ["implement", "WP01", "--recover"])

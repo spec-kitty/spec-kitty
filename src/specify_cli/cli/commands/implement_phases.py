@@ -77,7 +77,7 @@ class AllocationResult:
     effective_base: str | None
 
 
-def detect_feature_context(
+def detect_mission_context(
     mission_flag: str | None = None,
     repo_root: Path | None = None,
     *,
@@ -171,7 +171,7 @@ def _detect_wp_context(
 
     if auto_commit is None:
         auto_commit = get_auto_commit_default(repo_root)
-    _mission_number, mission_slug = detect_feature_context(mission, repo_root=repo_root, json_mode=json_mode)
+    _mission_number, mission_slug = detect_mission_context(mission, repo_root=repo_root, json_mode=json_mode)
     # read-surface-ssot-closeout WP05 / FR-001 / NFR-001: route through the
     # kind-aware placement seam instead of the kind-blind
     # ``resolve_feature_dir_for_mission`` (which could return the
