@@ -29,6 +29,7 @@ from specify_cli.consolidation.bookkeeping_projection import (
 )
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.git_probes import (
+    GitProbeError,
     _refresh_primary_checkout_after_merge,
 )
 from specify_cli.consolidation.reconciliation import (
@@ -37,6 +38,7 @@ from specify_cli.consolidation.reconciliation import (
     VerifyResult,
     VerifyStatus,
     build_approved_wp_set,
+    lane_tips_moved_refusal,
     route_terminus,
 )
 from specify_cli.consolidation.state import (
@@ -85,6 +87,30 @@ def _reconciliation_claim_for_gate(run: _MergeRunState) -> ApprovedWpCommitSet:
     return captured
 
 
+def _lane_recheck_verdict(run: _MergeRunState, claim: ApprovedWpCommitSet) -> VerifyResult | None:
+    """Refusal when content reached an approved lane after the claim-time check validated it, else ``None`` (#5668).
+
+    The lane tips and anchor SHAs were captured before this run mutated anything
+    (``phase_claim``); a live branch name would not do, because every lane was merged
+    into the mission branch with a no-ff merge and the live mission branch therefore
+    reaches the very commit this looks for. A probe error is a REFUSE, as the
+    verifier reports one.
+    """
+    approved_by_lane = {lane.lane_id: [wp for wp in lane.wp_ids if wp in claim.approved] for lane in run.lanes_manifest.lanes}
+    try:
+        refusal = lane_tips_moved_refusal(
+            run.main_repo,
+            run.lanes_manifest,
+            validated_tips=run.validated_lane_tips,
+            anchor_shas=run.bound_anchor_shas,
+            planning_prefix=claim.planning_prefix,
+            approved_wp_ids=approved_by_lane,
+        )
+    except GitProbeError as exc:
+        return VerifyResult.refused(f"a git probe failed while re-checking the lane tips against their approval: {exc}")
+    return VerifyResult.refused(refusal) if refusal is not None else None
+
+
 def _record_reconciliation_pass(run: _MergeRunState) -> None:
     """Persist the CAS anchor proving reconciliation PASSed for the target's tip.
 
@@ -126,7 +152,9 @@ def _phase_reconcile_before_teardown(run: _MergeRunState) -> None:
         console.print(_reconciliation_pass_message(run.strategy))
         return
     claim = _reconciliation_claim_for_gate(run)
-    result = MergeOutcomeVerifier(run.main_repo).verify(run.lanes_manifest.target_branch, claim)
+    result = _lane_recheck_verdict(run, claim)
+    if result is None:
+        result = MergeOutcomeVerifier(run.main_repo).verify(run.lanes_manifest.target_branch, claim)
     run.reconciliation_result = result
     if result.is_pass:
         _record_reconciliation_pass(run)
