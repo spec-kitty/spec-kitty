@@ -34,6 +34,21 @@ from specify_cli.workspace.context import ResolvedWorkspace
 from specify_cli.workspace.context import WorkspaceContext
 
 
+def git_stdout(repo_root: Path, args: list[str]) -> str:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        return ""
+    return result.stdout.strip()
+
+
 class WriteCheckoutWrongBranchError(StructuredError):
     """The repo-root write checkout's HEAD is not the WP's expected branch (#5100 T018)."""
 

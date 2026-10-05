@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import contextlib
 import functools
 import json
 import subprocess
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable
 from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, NoReturn
@@ -17,11 +16,9 @@ from specify_cli.cli.console import console
 from rich.panel import Panel
 
 from specify_cli.cli import StepTracker
-from specify_cli.cli.commands._commit_recipes import PROTECTED_PRIMARY_HINT, safe_commit_recipe
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.context_validation import require_main_repo
 from kernel.clock import now_utc_iso
-from kernel.git import GitCommandError
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.core.vcs import VCSBackend
@@ -34,7 +31,6 @@ from specify_cli.git.commit_helpers import (
 )
 from specify_cli.git.protection_policy import ProtectionPolicy
 from mission_runtime import (
-    CommitTarget,
     MissionArtifactKind,
     placement_seam,
     resolve_topology,
@@ -44,7 +40,7 @@ from specify_cli.coordination.coherence import (
     is_status_state_path,
 )
 from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
-from specify_cli.coordination import planning_commit as coordination_planning_commit
+from specify_cli.lanes import implement_support
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import require_lanes_json
 from specify_cli.lanes.worktree_allocator import (
@@ -69,6 +65,7 @@ from specify_cli.workspace.context import resolve_workspace_for_wp
 # them importable at their historical `specify_cli.cli.commands.implement.*`
 # location for external callers/tests and is the "git executor" for the one
 # staging-decision core (_ensure_planning_artifacts_committed_git, T016).
+from specify_cli.cli.commands import implement_planning_commit
 from specify_cli.cli.commands.implement_cores import (  # noqa: F401 -- shim re-export
     _committed_meta_mapping,
     _drop_if,
@@ -94,10 +91,6 @@ if TYPE_CHECKING:
     # shapes without adding a runtime import edge to ``specify_cli.lanes``.
     from specify_cli.lanes.recovery import RecoveryReport, RecoveryState
 
-# WP03 / S1192: the rich-markup error prefix, repeated across the
-# planning-artifact commit helper this WP touches -- hoisted to one constant
-# rather than restated at each ``console.print`` call site.
-_RED_ERROR_PREFIX = "[red]Error:[/red] "
 # WP02 / T008 / S1192: the workspace-ready banner's rich-markup open/close
 # tags, repeated ~8x in ``_print_workspace_ready_banner`` -- hoisted to
 # constants rather than restated at each call site. The distinct
@@ -250,10 +243,10 @@ def _rev_parse_ref(repo_root: Path, ref: str) -> str:
 
     ``--end-of-options`` keeps a leading-dash ref (e.g. ``--git-dir``) from being
     consumed as a rev-parse option (#1917); ``--verify --quiet`` yields an empty
-    stdout + non-zero exit on a missing ref, which :func:`_git_stdout` maps to
+    stdout + non-zero exit on a missing ref, which :func:`implement_support.git_stdout` maps to
     ``""``.
     """
-    return _git_stdout(repo_root, ["rev-parse", "--verify", "--quiet", "--end-of-options", ref])
+    return implement_support.git_stdout(repo_root, ["rev-parse", "--verify", "--quiet", "--end-of-options", ref])
 
 
 def _is_ancestor(repo_root: Path, maybe_ancestor: str, descendant: str) -> bool:
@@ -305,542 +298,6 @@ def _validate_base_ref(repo_root: Path, base_ref: str) -> str:
     if resolved is None:
         _raise_base_ref_unresolved(base_ref)
     return resolved[1]
-
-
-def _git_stdout(repo_root: Path, args: list[str]) -> str:
-    result = subprocess.run(
-        ["git", *args],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode != 0:
-        return ""
-    return result.stdout.strip()
-
-
-def _print_uncommitted_planning_artifacts(files_to_commit: list[str]) -> None:
-    console.print("\n[cyan]Planning artifacts not committed:[/cyan]")
-    for file_path in files_to_commit:
-        console.print(f"  {file_path}")
-
-
-def _print_planning_artifact_commit_instructions(
-    current_branch: str,
-    planning_branch: str,
-    auto_commit: bool,
-    feature_dir: Path,
-    mission_slug: str,
-) -> None:
-    if current_branch != planning_branch:
-        console.print(f"\n[red]Error:[/red] Planning artifacts must be committed on {planning_branch}.")
-        console.print(f"Current branch: {current_branch}")
-        raise typer.Exit(1)
-
-    if auto_commit:
-        return
-
-    console.print("\n[yellow]Auto-commit disabled.[/yellow] Commit planning artifacts first:")
-    # WP03 review (cycle 1, #4) correction: safe-commit does NOT force-add
-    # gitignored paths at the CLI level -- its candidate-changes check and
-    # directory expansion both use ``git status`` without ignored files, so a
-    # gitignored path yields "No requested changes to commit" rather than
-    # being force-staged. Dropping the old `git add -f` step here is still
-    # correct, but for a DIFFERENT reason: migration m_0_12_1 removes
-    # kitty-specs/ from .gitignore, so feature_dir is never ignored and needs
-    # no force-add to be picked up.
-    console.print(f"  {safe_commit_recipe([str(feature_dir)], f'chore: planning artifacts for {mission_slug}', planning_branch)}")
-    console.print(f"  {PROTECTED_PRIMARY_HINT}")
-    raise typer.Exit(1)
-
-
-def _print_structural_planning_refusal(structural: list[_PorcelainEntry]) -> None:
-    """Print the #1598 fail-closed refusal for structural planning-artifact
-    changes (deletions/renames/copies) that cannot be auto-committed to the
-    coordination branch.
-
-    ``BookkeepingTransaction.write_artifact`` is a write-only API that cannot
-    remove an old path from the coordination branch, so silently committing only
-    the additions would leave the branch incoherent (stale deleted/renamed-from
-    artifacts). The claim must refuse; the operator commits the structural change
-    to the coordination branch out-of-band, then re-runs the claim.
-    """
-    console.print(f"\n{_RED_ERROR_PREFIX}Uncommitted structural planning-artifact changes (deletions/renames) cannot be auto-committed to the coordination branch:")
-    for entry in structural:
-        console.print(f"  {entry.xy.strip() or entry.xy} {entry.path}")
-    console.print("\nCommit these structural changes to the coordination branch yourself (e.g. `git rm`/`git mv` + commit), then re-run the claim.")
-
-
-def _refuse_if_meta_json_demotion(
-    repo_root: Path,
-    artifact_source_dir: Path,
-    mission_slug: str,
-    files_to_commit: list[str],
-) -> None:
-    """FR-005 (#4979): REFUSE -- never silently commit -- an uncommitted
-    ``meta.json`` that demotes the mission off its coordination branch.
-
-    Hooks the staging DECISION seam: ``meta.json`` is PRIMARY-partitioned and
-    only matters here when it is itself part of the dirty set already
-    resolved by :func:`resolve_planning_artifact_staging`. This is
-    defense-in-depth alongside the structural-change refusal above -- not a
-    parallel commit gate.
-    """
-    meta_rel_path = coordination_planning_commit.meta_json_repo_relative_path(repo_root, artifact_source_dir)
-    if meta_rel_path is None or meta_rel_path not in files_to_commit:
-        return
-    refusal = coordination_planning_commit.meta_json_demotion_refusal(
-        repo_root,
-        mission_slug,
-        artifact_source_dir / coordination_planning_commit.META_JSON_FILENAME,
-        meta_rel_path,
-    )
-    if refusal is None:
-        return
-    console.print(f"\n{_RED_ERROR_PREFIX}{refusal}")
-    raise typer.Exit(1)
-
-
-@contextlib.contextmanager
-def _refuse_on_unreadable_planning_status(artifact_source_dir: Path) -> Iterator[None]:
-    """Turn a failed ``git status`` probe into an implement refusal (fail closed).
-
-    The staging cores read planning-artifact status through the git port, which
-    raises :class:`~kernel.git.GitCommandError` rather than reading a failed
-    probe as "nothing to commit". This git executor is the boundary that turns
-    it into the same printed ``Error:`` + ``typer.Exit(1)`` shape as the other
-    implement refusals, instead of a traceback.
-    """
-    try:
-        yield
-    except GitCommandError as exc:
-        console.print(f"\n{_RED_ERROR_PREFIX}Could not read git status for the planning artifacts in {artifact_source_dir}, so the claim is refused: {exc}")
-        raise typer.Exit(1) from exc
-
-
-def _ensure_planning_artifacts_committed_git(
-    repo_root: Path,
-    feature_dir: Path,
-    mission_slug: str,
-    wp_id: str,
-    planning_branch: str,
-    *,
-    auto_commit: bool,
-    placement_ref: CommitTarget | None = None,
-) -> None:
-    """Ensure planning artifacts are committed on the feature planning branch.
-
-    ``placement_ref`` (WP06 / T019) is the context's resolved
-    :class:`CommitTarget` — the ONE ref planning artifacts AND status events
-    resolve to (C-PLACE-1). When supplied it drives the coord/flattened/primary
-    placement decision so implement-claim never reconciles a primary↔coord
-    split (#1816). When ``None`` (callers not yet threading the context, C-004
-    strangler) the legacy meta-derived path is used unchanged.
-    """
-    current_branch = _git_stdout(repo_root, ["rev-parse", "--abbrev-ref", "HEAD"])
-    artifact_source_dir = coordination_planning_commit.planning_artifact_source_dir(repo_root, feature_dir, mission_slug)
-
-    # Squad-B1 (#2464): fail closed on structural planning-artifact changes
-    # BEFORE resolving the coordination-branch filter below (which can raise on
-    # a broken topology). This restores the pre-degod ordering so a topology
-    # fault never preempts the tailored structural-refusal message under a
-    # double fault (structural change present AND topology resolution raising).
-    with _refuse_on_unreadable_planning_status(artifact_source_dir):
-        structural = detect_structural_planning_changes(repo_root, artifact_source_dir)
-    if structural:
-        _print_structural_planning_refusal(structural)
-        raise typer.Exit(1)
-
-    # WP06 / T019 / C-PLACE-1: when the context supplies a placement ref, the
-    # coord/flattened/primary decision comes from that single CommitTarget — no
-    # independent meta-derived coord logic (C-005). Otherwise fall back to the
-    # legacy meta-derived coord branch (C-004 strangler).
-    if placement_ref is not None:
-        coord_branch_for_filter = _placement_coord_filter(repo_root, mission_slug, placement_ref)
-    else:
-        coord_branch_for_filter = coordination_planning_commit.resolve_bookkeeping_transaction_identifiers(feature_dir, mission_slug, repo_root)[0]
-
-    # T016: the staging DECISION (structural fail-closed check, #2222
-    # vcs-lock exclusion, dedup, idempotency filtering) is a pure core in
-    # implement_cores.py; this function is the git EXECUTOR -- it turns a
-    # non-empty ``plan.structural`` into the fail-closed print+exit below and
-    # an empty ``plan.files_to_commit`` into a silent no-op return, then does
-    # the actual BookkeepingTransaction I/O.
-    extra_file_paths = coordination_planning_commit.feature_dir_file_paths(repo_root, artifact_source_dir) if coord_branch_for_filter else []
-    # FIX-M2-08: no longer thread ``placement_ref.ref`` in as ``verbatim_ref``.
-    # The "PR #2662 squad fix" this parameter implemented compared EVERY
-    # candidate (PRIMARY and COORD-residue alike) against the coordination
-    # ref -- but ``_commit_planning_artifacts_transaction`` below was later
-    # made partition-aware (write-path-integrity WP02/T008/FR-001, closing
-    # #3371: PRIMARY files commit to ``planning_branch``, only COORD-residue
-    # files commit to the coordination ref). Leaving ``verbatim_ref`` wired
-    # here left the STAGING check comparing PRIMARY planning artifacts
-    # (spec.md/plan.md/tasks.md/lanes.json/the D1-excluded dossier snapshot)
-    # against the coordination branch even though the COMMIT never lands them
-    # there -- exactly the read=HEAD/write=coord divergence #2653 already
-    # named, just reintroduced on the read side. A coordination branch that
-    # has not yet received a mission's planning-artifact history (the normal
-    # case: coord is materialised early, planning artifacts land on primary)
-    # then makes every already-committed primary file look "changed",
-    # inflating ``files_to_commit`` with files that need no commit at all —
-    # confirmed via ``tests/e2e/test_cli_smoke.py::test_full_workflow_sequence``
-    # (spec.md/plan.md/tasks.md/lanes.json all reported "not committed" while
-    # ``git status`` on the primary checkout showed them clean). Passing no
-    # ``verbatim_ref`` restores the partition-aware comparison
-    # (:func:`resolve_precondition_ref`: PRIMARY vs ``HEAD``, COORD-residue vs
-    # the coordination ref) the pinned staging-core tests already assert as
-    # canonical (``test_meta_json_on_coord_mission_resolves_to_head``,
-    # ``test_dirty_spec_md_still_staged_against_head_on_coord_mission``,
-    # INV-5 / #2533 / BLOCKER-2).
-    with _refuse_on_unreadable_planning_status(artifact_source_dir):
-        plan = resolve_planning_artifact_staging(
-            repo_root,
-            artifact_source_dir,
-            coord_branch_for_filter,
-            extra_file_paths,
-            auto_commit=auto_commit,
-        )
-
-    files_to_commit = plan.files_to_commit
-    if not files_to_commit:
-        return
-
-    _refuse_if_meta_json_demotion(repo_root, artifact_source_dir, mission_slug, files_to_commit)
-
-    if plan.status_paths_to_commit:
-        _print_uncommitted_planning_artifacts(files_to_commit)
-        _print_planning_artifact_commit_instructions(
-            current_branch,
-            planning_branch,
-            auto_commit,
-            artifact_source_dir,
-            mission_slug,
-        )
-
-    commit_msg = f"chore: planning artifacts for {mission_slug}\n\nAuto-committed by spec-kitty before creating the lane worktree for {wp_id}"
-
-    _commit_planning_artifacts_transaction(
-        repo_root=repo_root,
-        feature_dir=feature_dir,
-        mission_slug=mission_slug,
-        planning_branch=planning_branch,
-        files_to_commit=files_to_commit,
-        commit_msg=commit_msg,
-        placement_ref=placement_ref,
-    )
-
-
-def _run_planning_artifact_commit(
-    *,
-    repo_root: Path,
-    mission_id: str,
-    mission_slug: str,
-    mid8: str,
-    destination_ref: str,
-    files: list[str],
-    commit_msg: str,
-    commit_to_primary_target: bool = False,
-    enforce_partition: bool = False,
-) -> None:
-    """Execute ONE ``BookkeepingTransaction`` commit of *files* to *destination_ref*.
-
-    Extracted from :func:`_commit_planning_artifacts_transaction` (T007) so
-    the partition-aware caller below can run this once per PRIMARY/COORD-
-    residue group without duplicating the transaction I/O + exception
-    handling.
-
-    ``commit_to_primary_target`` (WP02 / FR-001): threaded to
-    :meth:`BookkeepingTransaction.acquire` so a PRIMARY-partition commit lands on
-    the mission's own ``destination_ref`` (primary target branch) instead of
-    being redirected onto the coordination branch. See ``acquire``'s docstring.
-
-    ``enforce_partition`` (WP02 / FR-002 / T011): apply the Seam-A guard. Set for
-    the coordination-topology partition commits (PRIMARY and COORD groups) and
-    left ``False`` for the flat/legacy single-branch collapse where a mixed batch
-    legitimately shares one branch.
-
-    ``commit_idempotent`` (WP02 / FR-001 / T009): crash-recovery re-drive. If the
-    process dies between the PRIMARY and COORD commits, re-invoking ``implement``
-    re-runs BOTH groups; the group that already committed finds its staged paths
-    byte-identical to HEAD and no-ops instead of hard-failing on an empty
-    changeset. Recovery is per-partition idempotent re-drive, NOT cross-ref
-    atomicity.
-    """
-    from specify_cli.coordination.transaction import BookkeepingTransaction
-
-    if enforce_partition:
-        coordination_planning_commit.guard_planning_commit_partition(files, destination_is_coord=not commit_to_primary_target)
-
-    with BookkeepingTransaction.acquire(
-        repo_root=repo_root,
-        mission_id=mission_id,
-        mission_slug=mission_slug,
-        mid8=mid8,
-        destination_ref=destination_ref,
-        operation=f"planning artifacts for {mission_slug}",
-        commit_to_primary_target=commit_to_primary_target,
-    ) as txn:
-        for path_str in files:
-            repo_path = Path(path_str)
-            source_path = (repo_root / repo_path).resolve()
-            if not source_path.exists():
-                continue
-            txn.write_artifact(repo_path, source_path.read_bytes())
-        try:
-            txn.commit_idempotent(commit_msg)
-        except Exception as exc:  # noqa: BLE001 — surface as exit-1
-            console.print(f"{_RED_ERROR_PREFIX}Failed to commit planning artifacts to {destination_ref}: {exc}")
-            raise typer.Exit(1) from exc
-
-
-def _commit_planning_artifacts_transaction(
-    *,
-    repo_root: Path,
-    feature_dir: Path,
-    mission_slug: str,
-    planning_branch: str,
-    files_to_commit: list[str],
-    commit_msg: str,
-    placement_ref: CommitTarget | None,
-) -> None:
-    """T016 git-executor tail: run the BookkeepingTransaction commit(s).
-
-    Split out of :func:`_ensure_planning_artifacts_committed_git` so that
-    function's own complexity stays scoped to the staging decision it drives;
-    this helper owns only the transaction I/O (identifier resolution,
-    destination-ref selection, ``BookkeepingTransaction`` write+commit,
-    legacy-vs-coordination status prints).
-
-    WP06 T026: route planning-artifact commits through BookkeepingTransaction
-    so the commit lands on the mission's coordination branch (FR-005) and any
-    write of status events is atomically reversible (FR-010). Legacy missions
-    (created pre-WP03) have no ``coordination_branch`` in meta.json; the
-    transaction's built-in legacy fallback (``_is_legacy_mission`` +
-    ``_resolve_legacy_lane_destination`` in ``coordination/transaction.py``)
-    overrides ``destination_ref`` with the actual checked-out lane branch, so
-    the pre-flight policy gate, surgical rollback, and feature-status lock
-    apply uniformly to coordination-branch and legacy missions alike (FR-027).
-
-    WP03 / T011 / D11: no inline ``coord_branch if coord_branch else
-    planning_branch`` grammar (the forbidden pattern named in
-    contracts/seam-api.md's consumer table). When a ``placement_ref`` was
-    threaded (modern, non-legacy missions), it is already the ONE
-    seam-resolved :class:`CommitTarget` planning artifacts AND status events
-    resolve to (C-PLACE-1) -- use its ``.ref`` directly instead of
-    reconstructing the coord/primary choice a second time from
-    ``coord_branch``. Genuinely-legacy missions (no ``placement_ref``) keep
-    the existing meta-derived placeholder -- out of this WP's scope (#2453;
-    the value is never persisted).
-
-    WP02 / T007 / FR-003 / INV-1: pre-fix, the ``elif coord_branch:`` (meta-
-    derived) branch below committed EVERY file in ``files_to_commit`` through
-    ONE transaction to the coordination branch, so a genuinely-dirty PRIMARY
-    artifact would land on coordination, never the primary/target branch.
-    Post-fix, THAT branch partitions ``files_to_commit``
-    (:func:`coordination_planning_commit.partition_files_for_commit`) into a PRIMARY group (committed to
-    ``planning_branch``, the mission's target branch) and a COORD-residue
-    group (committed to the coordination branch) -- two transactions when
-    both groups are non-empty, mirroring
-    ``commit_router._group_files_by_partition``'s own two-group split.
-
-    write-path-integrity WP02 / T008 / FR-001 (SANCTIONED C-004 reversal):
-    the ``if placement_ref is not None:`` branch is NO LONGER a verbatim
-    whole-batch commit. It now partitions ``files_to_commit`` exactly like the
-    meta-derived ``else`` arm -- the PRIMARY group commits to the mission's
-    target branch (honoured via ``commit_to_primary_target=True`` so the
-    transaction does not redirect it onto coord) and the COORD-residue group
-    commits to ``placement_ref.ref`` (the coordination ref). This closes the
-    #3371 P0 where a PRIMARY ``lanes.json`` was committed onto the coordination
-    branch and add/add-conflicted at lane allocation. The prior "one ref for
-    everything" contract (and its pinned test
-    ``test_effective_destination_ref_is_placement_ref_verbatim``) is rewritten
-    (not deleted) to assert BOTH partition refs receive their group (T010).
-
-    #2648 (WP01) narrow-triple fail-close: this function has exactly FOUR
-    ``placement_ref``/``coord_branch``/protection outcomes, and only ONE of
-    them raises --
-
-    - ``placement_ref is not None`` -- partition-aware commit: PRIMARY group to
-      the target branch, COORD-residue group to ``placement_ref.ref`` (T008).
-    - ``placement_ref is None`` and ``not coord_branch`` -- flat/legacy
-      mission, single transaction to ``planning_branch`` (C-004 strangler,
-      unchanged).
-    - ``placement_ref is None`` and ``coord_branch`` truthy and
-      ``is_protected(planning_branch)`` -- the NARROW TRIPLE: raises
-      :class:`PlacementResolutionRequired` with the SAME operator message as
-      the status-commit half (``_resolve_claim_commit_target``,
-      implement_cores.py). A real mission's ``planning_branch`` is never
-      main/master (it is the mission's dedicated feature branch), so this
-      only fires for a degenerate fixture/edge case or a torn-down topology;
-      pre-fix, this arm silently diverted the WHOLE dirty-PRIMARY batch to
-      the coordination branch instead of raising -- a genuinely-dirty
-      PRIMARY artifact would never reach ``planning_branch`` and the operator
-      would get no signal that the write placement is undecidable. Loud
-      fail-close beats a silent wrong-branch commit here (D11).
-    - ``placement_ref is None`` and ``coord_branch`` truthy and
-      ``planning_branch`` is NOT protected -- meta-derived coordination
-      mission, partition-aware split (unchanged: see ``T007`` below).
-
-    Only the narrow triple raises; the other three outcomes still commit.
-    """
-    (
-        coord_branch,
-        mission_id,
-        mid8,
-        effective_mission_id,
-        effective_mid8,
-    ) = coordination_planning_commit.resolve_bookkeeping_transaction_identifiers(feature_dir, mission_slug, repo_root)
-
-    # WP06 / T019 / C-PLACE-1: the placement destination is the context's single
-    # ``placement_ref`` when threaded — one ref for planning artifacts AND status
-    # events. Under a flattened/primary topology there is no coord branch
-    # (``CommitTarget`` is ref-only; the retired ``.kind``/FLATTENED arm is gone),
-    # so ``coord_branch`` collapses to ``None`` and the commit lands on
-    # ``planning_branch`` (== target == coordination); under coordination
-    # topology it is the coord ref. Identity (``mission_id`` / ``mid8``) is
-    # unaffected — only the placement decision moves to the context (C-005).
-    if placement_ref is not None:
-        coord_branch = _placement_coord_filter(repo_root, mission_slug, placement_ref)
-
-    is_legacy = not (coord_branch and mission_id and mid8)
-    if is_legacy:
-        console.print(
-            f"\n[cyan]Auto-committing planning artifacts to {planning_branch}...[/cyan] "
-            f"[dim](legacy path -- mission has no coordination_branch; "
-            f"routed through BookkeepingTransaction for FR-020/FR-027 atomicity)[/dim]"
-        )
-
-    if placement_ref is not None:
-        # write-path-integrity WP02 / T008 / FR-001 (SANCTIONED C-004 reversal):
-        # the seam-resolved ``placement_ref.ref`` is the COORD ref under
-        # coordination topology. Pre-fix this arm committed the WHOLE batch
-        # (PRIMARY ``lanes.json`` / ``spec.md`` included) VERBATIM to that coord
-        # ref -- the #3371 P0 that landed PRIMARY ``lanes.json`` on the
-        # coordination branch and add/add-conflicted at lane allocation. Post-fix
-        # this arm partitions the batch exactly like the meta-derived ``else`` arm
-        # below: the PRIMARY group commits to the mission's target branch
-        # (``_commit_target_ref_for(planning_branch)``, honoured by
-        # ``commit_to_primary_target=True`` so the transaction does not redirect
-        # it to coord), and the COORD-residue group commits to the coordination
-        # ref (``placement_ref.ref``). Only the non-empty group(s) run
-        # (skip-empty caller guard, mirroring the ``else`` arm -- no empty
-        # transaction). The Seam-A guard (``enforce_partition=True``) fails loud on
-        # any partition mis-route on either leg (FR-002 / T011).
-        primary_files, coord_files = coordination_planning_commit.partition_files_for_commit(files_to_commit)
-        if primary_files:
-            _run_planning_artifact_commit(
-                repo_root=repo_root,
-                mission_id=effective_mission_id,
-                mission_slug=mission_slug,
-                mid8=effective_mid8,
-                destination_ref=_commit_target_ref_for(planning_branch),
-                files=primary_files,
-                commit_msg=commit_msg,
-                commit_to_primary_target=True,
-                enforce_partition=True,
-            )
-        if coord_files:
-            _run_planning_artifact_commit(
-                repo_root=repo_root,
-                mission_id=effective_mission_id,
-                mission_slug=mission_slug,
-                mid8=effective_mid8,
-                destination_ref=placement_ref.ref,
-                files=coord_files,
-                commit_msg=commit_msg,
-                enforce_partition=True,
-            )
-    elif not coord_branch:
-        # Flattened/legacy mission: no coordination branch at all -- the
-        # historical single transaction to ``planning_branch``, routed
-        # through the shared ``_commit_target_ref_for`` expression (FR-005 ref
-        # half) so this write-side destination and the read-side idempotency
-        # compare cannot silently diverge (#2650 / WP04).
-        _run_planning_artifact_commit(
-            repo_root=repo_root,
-            mission_id=effective_mission_id,
-            mission_slug=mission_slug,
-            mid8=effective_mid8,
-            destination_ref=_commit_target_ref_for(planning_branch),
-            files=files_to_commit,
-            commit_msg=commit_msg,
-        )
-    elif ProtectionPolicy.resolve_for_mission(repo_root, mission_slug).is_protected(planning_branch):
-        # #2648 (WP01) narrow-triple fail-close: ``placement_ref is None`` AND
-        # the meta-derived ``coord_branch`` is truthy AND
-        # ``is_protected(planning_branch)`` -- EXACTLY the precondition where
-        # the status-commit half (``_resolve_claim_commit_target``,
-        # implement_cores.py) already raises ``PlacementResolutionRequired``.
-        # Pre-fix, this arm silently diverted the WHOLE dirty-PRIMARY batch to
-        # the coordination branch instead of the (protected) target branch --
-        # a genuinely-dirty PRIMARY artifact would never reach
-        # ``planning_branch``. Raising here (rather than falling back to a
-        # coord-only commit) makes both halves of the claim agree: neither
-        # commits partially or silently when the canonical write placement
-        # cannot be resolved for a protected planning branch.
-        # SC-002 / T041: kept byte-identical (given the same mission_slug) to
-        # implement_cores.py::_resolve_claim_commit_target's message -- known
-        # duplication, deliberately not deduped in this WP (no new shared
-        # module); follow-up: dedupe the PlacementResolutionRequired remedy
-        # between implement_cores.py and implement.py.
-        raise PlacementResolutionRequired(
-            "Cannot resolve the canonical write placement for this mission's "
-            "WP status claim commit -- refusing to commit to the currently "
-            "checked-out branch (D11 fail-closed). This usually means the "
-            "mission's stored coordination topology could not be resolved "
-            "(e.g. the coordination worktree has not been materialized yet, "
-            "or the `coordination_branch` declared in meta.json is missing/"
-            "torn down in git). Run `spec-kitty doctor coordination "
-            f"--mission {mission_slug} --fix` to repair automatically -- it "
-            "materializes a present branch, or flattens (removes the stale "
-            "key) if the topology was never activated; or remove "
-            "`coordination_branch` from meta.json manually if you know the "
-            "coordination topology was never used, then retry."
-        )
-    else:
-        # T007: meta-derived coordination mission -- partition-aware commit.
-        # A genuinely-dirty PRIMARY artifact lands on ``planning_branch``
-        # (never coordination); COORD-residue artifacts still land on the
-        # coordination branch. Only the group(s) that are non-empty run.
-        primary_files, coord_files = coordination_planning_commit.partition_files_for_commit(files_to_commit)
-        if primary_files:
-            # FR-005 ref half (#2650 / WP04): the PRIMARY-group destination
-            # is derived from the SAME ``_commit_target_ref_for`` expression the
-            # read-side idempotency compare uses -- one source of the
-            # cli-side PRIMARY ref, not two independently-written literals.
-            # WP02 / FR-001: ``commit_to_primary_target=True`` so the transaction
-            # commits this group to the target branch from the primary checkout
-            # instead of redirecting it onto the coordination branch.
-            _run_planning_artifact_commit(
-                repo_root=repo_root,
-                mission_id=effective_mission_id,
-                mission_slug=mission_slug,
-                mid8=effective_mid8,
-                destination_ref=_commit_target_ref_for(planning_branch),
-                files=primary_files,
-                commit_msg=commit_msg,
-                commit_to_primary_target=True,
-                enforce_partition=True,
-            )
-        if coord_files:
-            _run_planning_artifact_commit(
-                repo_root=repo_root,
-                mission_id=effective_mission_id,
-                mission_slug=mission_slug,
-                mid8=effective_mid8,
-                destination_ref=str(coord_branch),
-                files=coord_files,
-                commit_msg=commit_msg,
-                enforce_partition=True,
-            )
-
-    if is_legacy:
-        console.print(f"[green]✓[/green] Planning artifacts committed to {planning_branch}")
-    else:
-        console.print(f"[green]✓[/green] Planning artifacts committed to coordination branch {coord_branch}")
 
 
 def _ensure_vcs_in_meta(feature_dir: Path, _repo_root: Path) -> VCSBackend:
@@ -1422,25 +879,6 @@ def _refuse_repo_root_checkout_if_unavailable(
     return False
 
 
-def _planning_commit_branch(repo_root: Path, mission_slug: str, target_branch: str) -> str:
-    """The branch planning artifacts must be committed on.
-
-    For a single_branch mission that minted a mission branch (protected target)
-    this is ``meta.mission_branch`` -- never the protected target the operator is
-    deliberately NOT on. Every other mission keeps the resolved target branch.
-    The rule itself is :func:`mission_runtime.single_branch_write_ref` (the one
-    authority every write-branch site shares); this only supplies the values.
-    """
-    from mission_runtime import single_branch_write_ref
-
-    from specify_cli.migration.backfill_topology import stored_topology
-
-    meta = coordination_planning_commit.load_primary_anchored_mission_meta(repo_root, mission_slug)
-    if meta is None:
-        return target_branch
-    return single_branch_write_ref(stored_topology(meta), meta.get("mission_branch"), target_branch)
-
-
 def _print_workspace_ready_banner(result: Any, workspace_path: Path) -> None:
     """Human-readable "workspace ready" banner (repo-root planning vs lane
     worktree), plus the FR-006 lane-test-env export block."""
@@ -1610,12 +1048,12 @@ def implement(
         # legacy meta-derived path (C-004 strangler — never break the lifecycle).
         _placement_ref = _resolve_placement_ref(repo_root, mission_slug=mission_slug, wp_id=wp_id)
 
-        _ensure_planning_artifacts_committed_git(
+        implement_planning_commit._ensure_planning_artifacts_committed_git(
             repo_root=repo_root,
             feature_dir=feature_dir,
             mission_slug=mission_slug,
             wp_id=wp_id,
-            planning_branch=_planning_commit_branch(repo_root, mission_slug, planning_branch),
+            planning_branch=implement_planning_commit._planning_commit_branch(repo_root, mission_slug, planning_branch),
             auto_commit=bool(auto_commit),
             placement_ref=_placement_ref,
         )
