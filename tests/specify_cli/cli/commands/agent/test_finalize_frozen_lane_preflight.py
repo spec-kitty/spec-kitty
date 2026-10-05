@@ -19,6 +19,7 @@ import pytest
 
 from specify_cli.cli.commands.agent import mission_finalize_commit as finalize_commit
 from specify_cli.cli.commands.agent import mission_finalize_lanes as finalize_lanes
+from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
 from specify_cli.lanes.compute import LaneMembershipFrozenError
 from specify_cli.lanes.frozen_membership import REASON_PRECEDENCE, FrozenLaneMembership, MembershipConflictReason, conflict_for, remedy_for
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
@@ -124,8 +125,10 @@ def _assert_status_unreadable(excinfo: pytest.ExceptionInfo[LaneMembershipFrozen
     assert error.error_code == "LANE_MEMBERSHIP_FROZEN"
     assert error.reason == "status_unreadable"
     assert [conflict.reason for conflict in error.conflicts] == ["status_unreadable"]
-    assert error.conflicts[0].remedy == remedy_for("status_unreadable", ())
     assert error.__cause__ is not None, "the refusal must chain the underlying read failure"
+    remedy = error.conflicts[0].remedy
+    assert remedy.startswith(remedy_for("status_unreadable", ())), remedy
+    assert str(error.__cause__) in remedy, "the underlying cause keeps its diagnostic"
 
 
 # ---------------------------------------------------------------------------
@@ -204,6 +207,177 @@ def test_unresolvable_status_surface_refuses_status_unreadable(planning_dir: Pat
 
     _assert_status_unreadable(excinfo)
     assert excinfo.value.__cause__ is failure
+
+
+def _missing_status_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    missing = tmp_path / ".worktrees" / "frozen-preflight-coord" / "kitty-specs" / _SLUG
+    monkeypatch.setattr(
+        "specify_cli.coordination.surface_resolver.resolve_status_surface_with_anchor",
+        lambda _repo_root, _slug: SimpleNamespace(read_dir=missing),
+    )
+    return missing
+
+
+def test_unmaterialized_coordination_worktree_refuses_with_the_canonical_guidance(planning_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#4959: a status dir that does not exist is not an absent log; with no readable branch, the seam's remedy is kept."""
+    _write_previous(planning_dir, _lane("lane-a", "WP01"), _lane("lane-b", "WP02"))
+    missing = _missing_status_dir(tmp_path, monkeypatch)
+    unmaterialized = CoordinationWorktreeUnmaterialized(
+        repo_root=tmp_path,
+        mission_slug=_SLUG,
+        mid8="01M444FM",
+        coordination_branch=f"kitty/mission-{_SLUG}",
+        coord_candidate=missing,
+        primary_candidate=planning_dir,
+    )
+    seam = SimpleNamespace(read_dir=_Recorder(raises=unmaterialized))
+    monkeypatch.setattr("mission_runtime.placement_seam", lambda *_args, **_kwargs: seam)
+    monkeypatch.setattr("specify_cli.status.read_events", _Recorder(raises=AssertionError("an absent surface must not be read as empty")))
+
+    with pytest.raises(LaneMembershipFrozenError) as excinfo:
+        _gather(planning_dir, tmp_path)
+
+    error = excinfo.value
+    assert error.reason == "status_unreadable"
+    assert error.__cause__ is unmaterialized
+    remedy = error.conflicts[0].remedy
+    assert remedy.startswith("Materialize the coordination worktree"), remedy
+    assert unmaterialized.next_step in remedy
+
+
+# ---------------------------------------------------------------------------
+# #5573 fold: an unmaterialized coordination worktree is read from its branch
+# ---------------------------------------------------------------------------
+
+_MID8 = "01M444FM"
+_COORD_BRANCH = f"kitty/mission-{_SLUG}-{_MID8}"
+
+
+def _run_git(repo: Path, *args: str) -> str:
+    import subprocess
+
+    return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=True).stdout.strip()
+
+
+def _status_line(wp_id: str, to_lane: str) -> str:
+    import json
+
+    from specify_cli.status import Lane, StatusEvent
+
+    event = StatusEvent(
+        event_id=f"01J0000000000000000000{wp_id}",
+        mission_slug=_SLUG,
+        wp_id=wp_id,
+        from_lane=Lane.PLANNED,
+        to_lane=Lane(to_lane),
+        at="2026-10-04T00:00:00+00:00",
+        actor="test",
+        force=False,
+        execution_mode="worktree",
+    )
+    return json.dumps(event.to_dict(), sort_keys=True) + "\n"
+
+
+def _coord_repo(tmp_path: Path, log: bytes | None) -> tuple[Path, Path]:
+    """A repository whose local coordination branch carries *log* (``None``: no status log); returns (repo, coord dir)."""
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+    from specify_cli.missions._read_path_resolver import coord_feature_dir
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _run_git(repo, "init", "-q", "-b", "qa-main")
+    _run_git(repo, "config", "user.name", "Test")
+    _run_git(repo, "config", "user.email", "test@example.invalid")
+    (repo / "README.md").write_text("base\n", encoding="utf-8")
+    _run_git(repo, "add", ".")
+    _run_git(repo, "commit", "-qm", "base")
+    coord_dir = coord_feature_dir(repo, _SLUG, _MID8)
+    relative_dir = coord_dir.relative_to(CoordinationWorkspace.worktree_path(repo, _SLUG, _MID8))
+    _run_git(repo, "checkout", "-q", "-b", _COORD_BRANCH)
+    (repo / relative_dir).mkdir(parents=True)
+    (repo / relative_dir / "meta.json").write_text("{}\n", encoding="utf-8")
+    if log is not None:
+        (repo / relative_dir / _EVENTS).write_bytes(log)
+    _run_git(repo, "add", ".")
+    _run_git(repo, "commit", "-qm", "coordination")
+    _run_git(repo, "checkout", "-q", "qa-main")
+    return repo, coord_dir
+
+
+def _unmaterialized(repo: Path, coord_dir: Path, planning_dir: Path, branch: str = _COORD_BRANCH) -> CoordinationWorktreeUnmaterialized:
+    return CoordinationWorktreeUnmaterialized(
+        repo_root=repo,
+        mission_slug=_SLUG,
+        mid8=_MID8,
+        coordination_branch=branch,
+        coord_candidate=coord_dir,
+        primary_candidate=planning_dir,
+    )
+
+
+def _route_to_unmaterialized(monkeypatch: pytest.MonkeyPatch, coord_dir: Path, unmaterialized: CoordinationWorktreeUnmaterialized) -> None:
+    monkeypatch.setattr(
+        "specify_cli.coordination.surface_resolver.resolve_status_surface_with_anchor",
+        lambda _repo_root, _slug: SimpleNamespace(read_dir=coord_dir),
+    )
+    monkeypatch.setattr("mission_runtime.placement_seam", lambda *_args, **_kwargs: SimpleNamespace(read_dir=_Recorder(raises=unmaterialized)))
+
+
+def test_unmaterialized_coordination_worktree_reads_the_committed_branch_log(planning_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, coord_dir = _coord_repo(tmp_path, (_status_line("WP01", "planned") + _status_line("WP02", "claimed")).encode())
+    _write_previous(planning_dir, _lane("lane-a", "WP01"), _lane("lane-b", "WP02"))
+    _route_to_unmaterialized(monkeypatch, coord_dir, _unmaterialized(repo, coord_dir, planning_dir))
+
+    assert finalize_lanes._read_started_wp_ids(repo, _SLUG, owned=None) == frozenset({"WP02"})
+    assert not coord_dir.exists(), "the read must not materialize the coordination worktree"
+
+
+def test_branch_without_a_committed_log_refuses_status_unreadable(planning_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, coord_dir = _coord_repo(tmp_path, None)
+    _route_to_unmaterialized(monkeypatch, coord_dir, _unmaterialized(repo, coord_dir, planning_dir))
+
+    with pytest.raises(LaneMembershipFrozenError) as excinfo:
+        finalize_lanes._read_started_wp_ids(repo, _SLUG, owned=None)
+
+    _assert_status_unreadable(excinfo)
+    assert _COORD_BRANCH in excinfo.value.conflicts[0].remedy
+
+
+@pytest.mark.parametrize("log", [b"{corrupt\n", b"\xff\xfe\n"], ids=["malformed-json", "bad-encoding"])
+def test_malformed_branch_log_refuses_status_unreadable(planning_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, log: bytes) -> None:
+    repo, coord_dir = _coord_repo(tmp_path, log)
+    _route_to_unmaterialized(monkeypatch, coord_dir, _unmaterialized(repo, coord_dir, planning_dir))
+
+    with pytest.raises(LaneMembershipFrozenError) as excinfo:
+        finalize_lanes._read_started_wp_ids(repo, _SLUG, owned=None)
+
+    _assert_status_unreadable(excinfo)
+
+
+def test_branch_that_is_not_a_local_head_refuses_with_the_canonical_guidance(planning_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, coord_dir = _coord_repo(tmp_path, _status_line("WP02", "claimed").encode())
+    unmaterialized = _unmaterialized(repo, coord_dir, planning_dir, branch="kitty/mission-gone")
+    _route_to_unmaterialized(monkeypatch, coord_dir, unmaterialized)
+
+    with pytest.raises(LaneMembershipFrozenError) as excinfo:
+        finalize_lanes._read_started_wp_ids(repo, _SLUG, owned=None)
+
+    assert excinfo.value.reason == "status_unreadable"
+    remedy = excinfo.value.conflicts[0].remedy
+    assert remedy.startswith("Materialize the coordination worktree"), remedy
+    assert unmaterialized.next_step in remedy
+
+
+def test_missing_status_dir_without_a_canonical_refusal_still_refuses(planning_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write_previous(planning_dir, _lane("lane-a", "WP01"))
+    missing = _missing_status_dir(tmp_path, monkeypatch)
+    monkeypatch.setattr("mission_runtime.placement_seam", lambda *_args, **_kwargs: SimpleNamespace(read_dir=lambda _kind: missing))
+
+    with pytest.raises(LaneMembershipFrozenError) as excinfo:
+        _gather(planning_dir, tmp_path)
+
+    _assert_status_unreadable(excinfo)
+    assert str(missing) in excinfo.value.conflicts[0].remedy
 
 
 def test_tip_listing_is_skipped_when_every_code_lane_has_a_started_member(
@@ -290,14 +464,23 @@ def test_empty_evidence_skips_the_dry_run(planning_dir: Path, tmp_path: Path, mo
     assert compute.calls == []
 
 
-def test_missing_lane_inputs_skip_the_dry_run(planning_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    frozen = FrozenLaneMembership(bindings={"WP01": "lane-a"})
+def test_empty_lane_inputs_still_refuse_a_removed_started_wp(planning_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every WP left the lane inputs, but the started WP01 is neither present nor retired: refuse before any write."""
+    _write_previous(planning_dir, _lane("lane-a", "WP01"))
+    monkeypatch.setattr(finalize_lanes, "_gather_frozen_lane_membership", _Recorder(FrozenLaneMembership(bindings={"WP01": "lane-a"})))
+
+    with pytest.raises(LaneMembershipFrozenError) as excinfo:
+        _preflight(planning_dir, tmp_path, {"topology": "lanes"}, lane_wp_manifests={}, lane_wp_dependencies={})
+
+    assert excinfo.value.reason == "started_wp_removed"
+
+
+def test_empty_lane_inputs_with_only_retired_wps_pass(planning_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write_previous(planning_dir, _lane("lane-a", "WP01"))
+    frozen = FrozenLaneMembership(bindings={"WP01": "lane-a"}, retired_wp_ids=frozenset({"WP01"}))
     monkeypatch.setattr(finalize_lanes, "_gather_frozen_lane_membership", _Recorder(frozen))
-    compute = _Recorder(raises=AssertionError("the empty-input guard owns this case"))
-    monkeypatch.setattr("specify_cli.lanes.compute.compute_lanes", compute)
 
     assert _preflight(planning_dir, tmp_path, {"topology": "lanes"}, lane_wp_manifests={}, lane_wp_dependencies={}) == frozen
-    assert compute.calls == []
 
 
 def test_dry_run_threads_previous_lanes_and_frozen_and_writes_nothing(planning_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -404,10 +587,12 @@ def test_console_status_unreadable_has_no_wp_list(monkeypatch: pytest.MonkeyPatc
     printed: list[str] = []
     monkeypatch.setattr(mission_finalize, "console", SimpleNamespace(print=lambda text: printed.append(str(text))))
 
-    finalize_commit._emit_finalize_error_with_revert_note(finalize_lanes._status_unreadable_error(), None, json_output=False)
+    error = finalize_lanes._status_unreadable_error(OSError("disk gone"))
+    finalize_commit._emit_finalize_error_with_revert_note(error, None, json_output=False)
 
     assert "  status_unreadable" in printed
-    assert f"  Remedy: {remedy_for('status_unreadable', ())}" in printed
+    assert f"  Remedy: {error.conflicts[0].remedy}" in printed
+    assert "disk gone" in error.conflicts[0].remedy
 
 
 def test_other_errors_keep_their_envelope(monkeypatch: pytest.MonkeyPatch) -> None:

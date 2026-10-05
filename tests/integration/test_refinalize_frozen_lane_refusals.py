@@ -21,6 +21,9 @@ lane-a = [WP01] (``a.py``) and lane-b = [WP02] (``b.py``).
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -430,3 +433,187 @@ def test_validate_only_preview_reports_the_frozen_lane(tmp_path: Path, monkeypat
     preview = result.payload["validation"]["lanes_preview"]
     assert preview["lane_ids"] == ["lane-b"], preview
     assert _snapshot(mission) == before
+
+
+# ---------------------------------------------------------------------------
+# FR-007 / #4959: an unmaterialized coordination worktree is read from its
+# committed branch, never as "nothing started"
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _CoordMission:
+    mission: _Mission
+    coord_worktree: Path
+    planning_rel: str
+    coordination_branch: str
+
+
+def _cli(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    """Run the real ``spec-kitty`` CLI from this checkout's sources (setup steps only)."""
+    import specify_cli
+
+    env = dict(os.environ, PYTHONPATH=str(Path(specify_cli.__file__).resolve().parents[1]), NO_COLOR="1")
+    result = subprocess.run([sys.executable, "-m", "specify_cli", *args], cwd=repo, env=env, capture_output=True, text=True, timeout=300)
+    assert result.returncode == 0, f"{args}: rc={result.returncode}\n{result.stdout[-3000:]}\n{result.stderr[-2000:]}"
+    return result
+
+
+def _coord_wp(wp_id: str, owned: list[str], dependencies: list[str]) -> str:
+    return (
+        f"---\nwork_package_id: {wp_id}\ntitle: {wp_id}\ndependencies: {json.dumps(dependencies)}\nrequirement_refs: [FR-001]\n"
+        f"subtasks: []\nowned_files: {json.dumps(owned)}\nauthoritative_surface: {owned[0]}\nexecution_mode: code_change\n---\n\n# {wp_id}\n\nDo it.\n"
+    )
+
+
+def _set_up_coord_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, start_wp02: bool = True) -> _CoordMission:
+    """``lanes_with_coord``: lane-a = [WP01], lane-b = [WP02]; with *start_wp02*, WP02 is implemented (status on the coordination branch)."""
+    from mission_runtime import MissionTopology
+    from tests._factories.coord_mission import make_coord_mission
+
+    created = make_coord_mission(tmp_path, MissionTopology.LANES_WITH_COORD, via="cli_topology", slug="coordfrozen")
+    repo = created.repo_root
+    (repo / ".git" / "info" / "exclude").write_text(".worktrees/\n.kittify/derived/\n.kittify/workspaces/\n*.lock\n.kittify/runtime/\n", encoding="utf-8")
+    rel = f"kitty-specs/{created.mission_dir_name}"
+    feature_dir = repo / rel
+    (repo / "src").mkdir(exist_ok=True)
+    for name in ("a", "b"):
+        (repo / "src" / f"{name}.py").write_text(f"{name} = 0\n", encoding="utf-8")
+    _git(repo, "add", "src")
+    _git(repo, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "src")
+    (feature_dir / "spec.md").write_text(
+        "# Spec\n\n## Functional Requirements\n\n| ID | Requirement | Status |\n|----|-------------|--------|\n| FR-001 | It works. | Draft |\n",
+        encoding="utf-8",
+    )
+    (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+    (feature_dir / "tasks").mkdir(exist_ok=True)
+    (feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n## Work Package WP01\n\n**Dependencies**: None\n\nx\n\n## Work Package WP02\n\n**Dependencies**: None\n\ny\n", encoding="utf-8"
+    )
+    (feature_dir / "tasks" / "WP01-a.md").write_text(_coord_wp("WP01", ["src/a.py"], []), encoding="utf-8")
+    (feature_dir / "tasks" / "WP02-b.md").write_text(_coord_wp("WP02", ["src/b.py"], []), encoding="utf-8")
+    _git(repo, "add", rel)
+    _git(repo, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "planning")
+    _cli(repo, "agent", "mission", "finalize-tasks", "--mission", created.mission_dir_name, "--json")
+    analysis = tmp_path / "analysis.md"
+    analysis.write_text(
+        "---\nschema: analysis-findings/v1\nfindings: []\ncounts: {critical: 0, high: 0, medium: 0, low: 0, info: 0}\n---\n\n"
+        "# Specification Analysis Report\n\nNo blocking findings.\n",
+        encoding="utf-8",
+    )
+    _cli(repo, "agent", "mission", "record-analysis", "--mission", created.mission_dir_name, "--input-file", str(analysis))
+    manifest = read_lanes_json(feature_dir)
+    assert manifest is not None
+    assert _topology(manifest) == [("lane-a", ("WP01",)), ("lane-b", ("WP02",))]
+    if start_wp02:
+        _cli(repo, "agent", "action", "implement", "WP02", "--agent", "e2e", "--mission", created.mission_dir_name)
+        lane_b = repo / ".worktrees" / f"{created.mission_dir_name}-lane-b"
+        (lane_b / "src" / "b.py").write_text("b = 42\n", encoding="utf-8")
+        _git(lane_b, "add", "src/b.py")
+        _git(lane_b, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "WP02 work")
+    coord_log = _git(repo, "show", f"{created.coordination_branch}:{rel}/{_EVENTS}")
+    started_on_branch = any(
+        json.loads(line).get("wp_id") == "WP02" and json.loads(line).get("to_lane") == "in_progress" for line in coord_log.splitlines() if line.strip()
+    )
+    assert started_on_branch is start_wp02, coord_log
+    # Tips are per clone and cleared once a lane's WPs finish: without them the
+    # status history on the coordination branch is the only started evidence.
+    for ref in _git(repo, "for-each-ref", "--format=%(refname)", "refs/spec-kitty/lane-tip/").splitlines():
+        _git(repo, "update-ref", "-d", ref)
+    monkeypatch.chdir(repo)
+    return _CoordMission(_Mission(repo, created.mission_dir_name, feature_dir, manifest), created.coord_worktree_path, rel, created.coordination_branch)
+
+
+def _amend_coord_overlap(coord: _CoordMission) -> None:
+    feature_dir = coord.mission.feature_dir
+    (feature_dir / "tasks" / "WP01-a.md").write_text(_coord_wp("WP01", ["src/a.py", "src/b.py"], ["WP02"]), encoding="utf-8")
+    tasks_md = feature_dir / "tasks.md"
+    tasks_md.write_text(
+        tasks_md.read_text(encoding="utf-8").replace("## Work Package WP01\n\n**Dependencies**: None", "## Work Package WP01\n\n**Dependencies**: WP02"),
+        encoding="utf-8",
+    )
+    _git(coord.mission.repo, "add", coord.planning_rel)
+    _git(coord.mission.repo, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "amend")
+
+
+def _spy_preflight_materialization(monkeypatch: pytest.MonkeyPatch, coord_worktree: Path) -> list[bool]:
+    """Record, after each preflight, whether the coordination worktree exists: the preflight must never materialize it."""
+    seen: list[bool] = []
+    original = mission_finalize._preflight_frozen_lane_membership
+
+    def _spy(*args: Any, **kwargs: Any) -> Any:
+        result = original(*args, **kwargs)
+        seen.append(coord_worktree.exists())
+        return result
+
+    for module in list(sys.modules.values()):
+        namespace = getattr(module, "__dict__", None)
+        if isinstance(namespace, dict) and namespace.get("_preflight_frozen_lane_membership") is original:
+            monkeypatch.setattr(module, "_preflight_frozen_lane_membership", _spy)
+    return seen
+
+
+def test_unmaterialized_coordination_worktree_reads_the_committed_log(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The precons breaker's ``wt_removed_tips_deleted``: WP02's started events are read from the coordination branch."""
+    coord = _set_up_coord_mission(tmp_path, monkeypatch)
+    _git(coord.mission.repo, "worktree", "remove", "--force", str(coord.coord_worktree))
+    _amend_coord_overlap(coord)
+    preflight_saw_worktree = _spy_preflight_materialization(monkeypatch, coord.coord_worktree)
+
+    result = _invoke(coord.mission.slug)
+
+    assert result.exit_code == 0, result.output
+    assert preflight_saw_worktree == [False], "the preflight reads the branch read-only; it must not materialize the worktree"
+    after = read_lanes_json(coord.mission.feature_dir)
+    assert after is not None
+    assert _topology(after) == [("lane-b", ("WP02", "WP01"))], _topology(after)
+
+
+def test_unmaterialized_coordination_worktree_with_nothing_started_succeeds(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Parity with the behaviour before #5573: nothing started, so the amendment recomputes freely."""
+    coord = _set_up_coord_mission(tmp_path, monkeypatch, start_wp02=False)
+    _git(coord.mission.repo, "worktree", "remove", "--force", str(coord.coord_worktree))
+    _amend_coord_overlap(coord)
+
+    result = _invoke(coord.mission.slug)
+
+    assert result.exit_code == 0, result.output
+    after = read_lanes_json(coord.mission.feature_dir)
+    assert after is not None
+    assert [(lane_id, sorted(wp_ids)) for lane_id, wp_ids in _topology(after)] == [("lane-a", ["WP01", "WP02"])], _topology(after)
+
+
+def test_remote_only_coordination_branch_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The coordination branch lives only on a remote: the committed log cannot be read, so refuse with the fetch remedy."""
+    coord = _set_up_coord_mission(tmp_path, monkeypatch)
+    repo = coord.mission.repo
+    # The coordination-mission factory already points ``origin`` at a bare remote.
+    _git(repo, "push", "-q", "origin", coord.coordination_branch)
+    _git(repo, "worktree", "remove", "--force", str(coord.coord_worktree))
+    _git(repo, "branch", "-D", coord.coordination_branch)
+    _amend_coord_overlap(coord)
+
+    result = _refuse(coord.mission, monkeypatch)
+
+    assert result.payload.get("reason") == "status_unreadable", result.payload
+    remedy = _conflict(result, "status_unreadable")["remedy"]
+    assert remedy.startswith("Materialize the coordination worktree"), remedy
+    assert f"git fetch origin {coord.coordination_branch}" in remedy, remedy
+    assert not coord.coord_worktree.exists(), "the refusal must not materialize the coordination worktree"
+    after = read_lanes_json(coord.mission.feature_dir)
+    assert after is not None
+    assert _topology(after) == [("lane-a", ("WP01",)), ("lane-b", ("WP02",))]
+
+
+def test_materialized_coordination_worktree_keeps_the_started_lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Positive control: the same scenario with the coordination worktree present succeeds; WP02 keeps lane-b."""
+    coord = _set_up_coord_mission(tmp_path, monkeypatch)
+    assert coord.coord_worktree.is_dir()
+    _amend_coord_overlap(coord)
+
+    result = _invoke(coord.mission.slug)
+
+    assert result.exit_code == 0, result.output
+    after = read_lanes_json(coord.mission.feature_dir)
+    assert after is not None
+    assert _topology(after) == [("lane-b", ("WP02", "WP01"))], _topology(after)

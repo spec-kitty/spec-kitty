@@ -26,44 +26,152 @@ from specify_cli.cli.commands.agent.mission_finalize_seams import logger
 
 if TYPE_CHECKING:
     from specify_cli.cli.commands.agent.mission_finalize_planning_pin import PlanningCommitResolution
+    from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
     from specify_cli.lanes.compute import LaneMembershipFrozenError
     from specify_cli.lanes.frozen_membership import FrozenLaneMembership
 
 
-def _status_unreadable_error() -> LaneMembershipFrozenError:
-    """Build the ``status_unreadable`` refusal (#5573 FR-007); the caller chains the cause."""
+def _cause_detail(cause: BaseException) -> str:
+    """The cause's own message, plus its ``next_step`` when the message does not already carry it."""
+    detail = str(cause) or type(cause).__name__
+    next_step = getattr(cause, "next_step", None)
+    if isinstance(next_step, str) and next_step and next_step not in detail:
+        detail = f"{detail} {next_step}"
+    return detail
+
+
+def _status_unreadable_error(cause: BaseException) -> LaneMembershipFrozenError:
+    """Build the ``status_unreadable`` refusal (#5573 FR-007) for *cause*; the caller chains it.
+
+    The remedy keeps the cause's diagnostic. An unmaterialized coordination
+    worktree (#4959) leads with materializing it, in the canonical
+    :class:`~specify_cli.coordination.surface_resolver.CoordinationWorktreeUnmaterialized`
+    wording, because repairing the status log is not the fix there.
+    """
+    from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
     from specify_cli.lanes.compute import LaneMembershipFrozenError
     from specify_cli.lanes.frozen_membership import MembershipConflict, remedy_for
 
-    conflict = MembershipConflict(reason="status_unreadable", wp_ids=(), recorded_lanes=(), remedy=remedy_for("status_unreadable", ()))
+    if isinstance(cause, CoordinationWorktreeUnmaterialized):
+        remedy = f"Materialize the coordination worktree, then re-run finalize-tasks. {cause.next_step}"
+    else:
+        remedy = f"{remedy_for('status_unreadable', ())} Cause: {_cause_detail(cause)}"
+    conflict = MembershipConflict(reason="status_unreadable", wp_ids=(), recorded_lanes=(), remedy=remedy)
     error: LaneMembershipFrozenError = LaneMembershipFrozenError((conflict,))
     return error
+
+
+def _missing_status_surface_cause(repo_root: Path, mission_slug: str, read_dir: Path, *, owned: OwnedCheckout | None) -> Exception:
+    """Explain why the resolved status dir does not exist, through the canonical fail-closed read (#4959).
+
+    The status-surface resolver composes a coordination path even when that
+    worktree was never materialized; the placement seam's ``read_dir`` is the
+    fail-closed reader that names the state (``CoordinationWorktreeUnmaterialized``,
+    whose ``next_step`` distinguishes a local from a remote-only branch). When
+    the seam raises nothing, the missing directory itself is the cause.
+    """
+    from mission_runtime import placement_seam
+
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+
+    try:
+        placement_seam(owned.repository_root if owned else repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.STATUS_STATE)
+    except StatusReadPathNotFound as exc:
+        # ``specify_cli.missions`` is outside mypy's scope, so name the type here.
+        canonical: Exception = exc
+        return canonical
+    return FileNotFoundError(f"The status surface {read_dir} does not exist, so the status history cannot be read.")
+
+
+def _committed_coordination_log(cause: CoordinationWorktreeUnmaterialized) -> bytes:
+    """Bytes of the status log committed on the LOCAL coordination branch the unmaterialized worktree would check out.
+
+    Read-only (``git ls-tree`` then ``git cat-file``, the same pair
+    :mod:`specify_cli.coordination.status_surface_guard` reads a committed log
+    with); never materializes the worktree. The in-branch path is the
+    canonical coordination mission dir the error carries
+    (``coord_candidate``), relative to the coordination worktree root.
+
+    Raises:
+        LaneMembershipFrozenError: ``status_unreadable`` -- the branch is not a
+            local head (remote-only or gone) or the candidate lies outside the
+            coordination worktree (the remedy keeps the canonical materialize
+            guidance, including its fetch step), the branch carries no
+            committed status log although a lane manifest exists, or git failed.
+    """
+    from kernel.git import GitCommandError, run_git, tree_entry
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+    from specify_cli.status import EVENTS_FILENAME
+
+    worktree_root: Path = CoordinationWorkspace.worktree_path(cause.repo_root, cause.mission_slug, cause.mid8)
+    try:
+        relative = (Path(cause.coord_candidate) / EVENTS_FILENAME).relative_to(worktree_root).as_posix()
+        entry = tree_entry(cause.repo_root, f"refs/heads/{cause.coordination_branch}", relative)
+    except (ValueError, GitCommandError):
+        # The unmaterialized state is the cause: its remedy names the fix.
+        raise _status_unreadable_error(cause) from cause
+    if entry is None:
+        missing = FileNotFoundError(f"The coordination branch {cause.coordination_branch!r} has no committed {relative}, so the status history cannot be read.")
+        raise _status_unreadable_error(missing) from missing
+    try:
+        blob: bytes = run_git(cause.repo_root, "cat-file", "blob", entry.oid).stdout
+    except GitCommandError as exc:
+        raise _status_unreadable_error(exc) from exc
+    return blob
+
+
+def _started_on_coordination_branch(cause: CoordinationWorktreeUnmaterialized) -> frozenset[str]:
+    """The history-started WPs read from the committed coordination status log (#5573, read-only, fail-closed).
+
+    Parsed with the canonical status store parser; a malformed log or bad
+    encoding raises the ``status_unreadable`` refusal.
+    """
+    from specify_cli.lanes.frozen_membership import started_wp_ids
+    from specify_cli.status import StoreError, read_events_from_text
+
+    blob = _committed_coordination_log(cause)
+    try:
+        started: frozenset[str] = started_wp_ids(read_events_from_text(Path(cause.primary_candidate), blob.decode("utf-8")))
+    except (StoreError, UnicodeDecodeError) as exc:
+        raise _status_unreadable_error(exc) from exc
+    return started
 
 
 def _read_started_wp_ids(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None) -> frozenset[str]:
     """Read the history-started WPs from the status log, read-only and fail-closed (#5573 FR-007).
 
-    An absent event log means nothing started. An unresolvable status surface
-    or an unreadable log (malformed line, bad encoding, I/O error) raises the
+    An absent event log in an existing status dir means nothing started. A
+    coordination worktree that is not materialized (#4959) is read from the
+    log committed on its local coordination branch
+    (:func:`_started_on_coordination_branch`), never by materializing it. An
+    unresolvable status surface, any other status dir that does not exist,
+    a coordination branch that cannot be read locally, or an unreadable log
+    (malformed line, bad encoding, I/O error) raises the
     ``status_unreadable`` refusal: with a lane manifest on disk, "unknown"
     must never read as "nothing started". Never calls ``materialize()``.
     """
     from specify_cli.cli.commands.agent import mission_finalize as _mf
 
-    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted, StatusReadPathNotFound
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted, CoordinationWorktreeUnmaterialized, StatusReadPathNotFound
     from specify_cli.lanes.frozen_membership import started_wp_ids
     from specify_cli.status import StoreError, has_event_log, read_events
 
     try:
         read_dir = _mf._resolve_status_read_dir(repo_root, mission_slug, owned=owned)
     except (FileNotFoundError, ValueError, StatusReadPathNotFound, CoordinationBranchDeleted) as exc:
-        raise _status_unreadable_error() from exc
+        raise _status_unreadable_error(exc) from exc
+    if not read_dir.is_dir():
+        # #4959: an absent surface is not an absent log ("nothing started").
+        cause = _missing_status_surface_cause(repo_root, mission_slug, read_dir, owned=owned)
+        if isinstance(cause, CoordinationWorktreeUnmaterialized):
+            return _started_on_coordination_branch(cause)
+        raise _status_unreadable_error(cause) from cause
     try:
         if not has_event_log(read_dir):
             return frozenset()
         started: frozenset[str] = started_wp_ids(read_events(read_dir))
     except (StoreError, UnicodeDecodeError, OSError) as exc:
-        raise _status_unreadable_error() from exc
+        raise _status_unreadable_error(exc) from exc
     return started
 
 
@@ -124,7 +232,8 @@ def _preflight_frozen_lane_membership(
     with it against the previous manifest, so a
     :class:`~specify_cli.lanes.compute.LaneMembershipFrozenError` surfaces
     before any status event or ``lanes.json`` write, ``--validate-only``
-    included. ``SINGLE_BRANCH`` has one repository-root lane and nothing to
+    included. Empty lane inputs still run the check, so a removed started WP
+    refuses here rather than in the lane write. ``SINGLE_BRANCH`` has one repository-root lane and nothing to
     move. Lane-computation failures other than the frozen refusal are left to
     the real lane write, which reports them with their existing text (C-003).
 
@@ -148,7 +257,7 @@ def _preflight_frozen_lane_membership(
         eligible_wp_ids=eligible_wp_ids,
         owned=owned,
     )
-    if frozen.is_empty or not (lane_wp_manifests and lane_wp_dependencies):
+    if frozen.is_empty:
         return frozen
     raw_mission_id = meta.get("mission_id") if meta else None
     raw_mission_branch = meta.get("mission_branch") if meta else None

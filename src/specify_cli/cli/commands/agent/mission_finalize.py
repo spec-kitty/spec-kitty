@@ -223,13 +223,17 @@ from specify_cli.cli.commands.agent.mission_finalize_planning_pin import (
     _validate_only_planning_preview as _validate_only_planning_preview,
 )
 from specify_cli.cli.commands.agent.mission_finalize_lanes import (
+    _cause_detail as _cause_detail,
+    _committed_coordination_log as _committed_coordination_log,
     _compute_and_write_lanes as _compute_and_write_lanes,
     _gather_frozen_lane_membership as _gather_frozen_lane_membership,
+    _missing_status_surface_cause as _missing_status_surface_cause,
     _preflight_frozen_lane_membership as _preflight_frozen_lane_membership,
     _read_started_wp_ids as _read_started_wp_ids,
     _report_parallelization_risk as _report_parallelization_risk,
     _resolve_acceptance_matrix_home as _resolve_acceptance_matrix_home,
     _scaffold_acceptance_matrix_if_lane_based as _scaffold_acceptance_matrix_if_lane_based,
+    _started_on_coordination_branch as _started_on_coordination_branch,
     _status_unreadable_error as _status_unreadable_error,
 )
 from specify_cli.cli.commands.agent.mission_finalize_commit import (

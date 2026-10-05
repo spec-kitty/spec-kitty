@@ -25,6 +25,7 @@ from specify_cli.lanes.compute import (
 from specify_cli.lanes.frozen_membership import (
     FrozenLaneMembership,
     MembershipConflict,
+    MembershipConflictReason,
     assert_frozen_membership_honoured,
     build_frozen_membership,
     remedy_for,
@@ -316,8 +317,8 @@ def test_remedy_for_names_the_work_packages_and_is_non_destructive(reason: str, 
 # ---------------------------------------------------------------------------
 
 
-def _conflict(reason: str, wp_ids: tuple[str, ...], lanes: tuple[str, ...]) -> MembershipConflict:
-    return MembershipConflict(reason=reason, wp_ids=wp_ids, recorded_lanes=lanes, remedy=remedy_for(reason, wp_ids))  # type: ignore[arg-type]
+def _conflict(reason: MembershipConflictReason, wp_ids: tuple[str, ...], lanes: tuple[str, ...]) -> MembershipConflict:
+    return MembershipConflict(reason=reason, wp_ids=wp_ids, recorded_lanes=lanes, remedy=remedy_for(reason, wp_ids))
 
 
 def test_error_reason_and_next_step_follow_precedence() -> None:
