@@ -1,8 +1,9 @@
 """Seam unit tests for the lane-selection decisions in ``lanes/implement_support.py`` (WP07).
 
 Covers the execution-lane lookup, the origin-preferred base-ref resolution (#4969), the
-effective-base decision (planning-lane ignore, unresolved base) and the VCS-lock decision.
-Real tiny git repos for the ref resolution; ``tmp_path`` mission dirs for the rest.
+effective-base decision (planning-lane ignore, unresolved base), the VCS-lock decision and the
+early repository-root write-checkout refusal (FR-005). Real tiny git repos for the ref resolution
+and the refusal; ``tmp_path`` mission dirs for the rest.
 """
 
 from __future__ import annotations
@@ -20,13 +21,18 @@ from specify_cli.lanes import implement_support
 from specify_cli.lanes.implement_support import (
     BaseRefUnresolved,
     MissionMetaMissing,
+    WriteCheckoutWrongBranchError,
     ensure_vcs_locked,
+    refuse_repo_root_checkout_if_unavailable,
     resolve_base_ref,
     resolve_effective_base,
     resolve_execution_lane,
 )
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import MissingLanesError, write_lanes_json
+from specify_cli.workspace.context import resolve_workspace_for_wp
+from tests._support.git_cli import git_out
+from tests.specify_cli.cli.commands._implement_fixtures import MISSION_ID, SLUG, build_mission, init_repo
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -34,23 +40,19 @@ _PLANNING = cast(Any, SimpleNamespace(lane_id="lane-planning"))
 _CODE_LANE = cast(Any, SimpleNamespace(lane_id="lane-a"))
 
 
-def _git(repo: Path, *args: str) -> str:
-    return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, check=True).stdout.strip()
-
-
 def _init_repo(repo: Path) -> None:
     repo.mkdir(parents=True, exist_ok=True)
     subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
-    _git(repo, "config", "user.email", "t@example.com")
-    _git(repo, "config", "user.name", "Test")
+    git_out(repo, "config", "user.email", "t@example.com")
+    git_out(repo, "config", "user.name", "Test")
     _commit(repo, "seed")
 
 
 def _commit(repo: Path, name: str) -> str:
     (repo / f"{name}.txt").write_text(name, encoding="utf-8")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-q", "-m", name)
-    return _git(repo, "rev-parse", "HEAD")
+    git_out(repo, "add", ".")
+    git_out(repo, "commit", "-q", "-m", name)
+    return git_out(repo, "rev-parse", "HEAD")
 
 
 def _manifest(feature_dir: Path) -> None:
@@ -107,7 +109,7 @@ def test_base_ref_unresolvable_returns_none(tmp_path: Path) -> None:
 
 def test_base_ref_local_only_is_kept(tmp_path: Path) -> None:
     _init_repo(tmp_path)
-    sha = _git(tmp_path, "rev-parse", "main")
+    sha = git_out(tmp_path, "rev-parse", "main")
     assert resolve_base_ref(tmp_path, "main") == ("main", sha)
 
 
@@ -116,23 +118,23 @@ def _with_origin(tmp_path: Path) -> tuple[Path, Path]:
     clone = tmp_path / "clone"
     _init_repo(origin)
     subprocess.run(["git", "clone", "-q", str(origin), str(clone)], check=True)
-    _git(clone, "config", "user.email", "t@example.com")
-    _git(clone, "config", "user.name", "Test")
+    git_out(clone, "config", "user.email", "t@example.com")
+    git_out(clone, "config", "user.name", "Test")
     return origin, clone
 
 
 def test_base_ref_prefers_origin_when_local_is_behind(tmp_path: Path) -> None:
     origin, clone = _with_origin(tmp_path)
     new_sha = _commit(origin, "advance")
-    _git(clone, "fetch", "-q", "origin")
+    git_out(clone, "fetch", "-q", "origin")
     assert resolve_base_ref(clone, "main") == ("origin/main", new_sha)
 
 
 def test_base_ref_prefers_origin_when_local_is_absent(tmp_path: Path) -> None:
     origin, clone = _with_origin(tmp_path)
-    _git(origin, "branch", "teammate-lane")
-    _git(clone, "fetch", "-q", "origin")
-    assert resolve_base_ref(clone, "teammate-lane") == ("origin/teammate-lane", _git(origin, "rev-parse", "teammate-lane"))
+    git_out(origin, "branch", "teammate-lane")
+    git_out(clone, "fetch", "-q", "origin")
+    assert resolve_base_ref(clone, "teammate-lane") == ("origin/teammate-lane", git_out(origin, "rev-parse", "teammate-lane"))
 
 
 def test_base_ref_keeps_local_when_ahead_of_origin(tmp_path: Path) -> None:
@@ -214,3 +216,44 @@ def test_vcs_lock_invalid_meta_raises_read_error_and_writes_nothing(tmp_path: Pa
 def test_seam_names_are_public() -> None:
     for name in ("resolve_base_ref", "resolve_effective_base", "resolve_execution_lane", "ensure_vcs_locked", "refuse_repo_root_checkout_if_unavailable"):
         assert callable(getattr(implement_support, name))
+
+
+# ---- refuse_repo_root_checkout_if_unavailable (FR-005) -----------------------------------------
+
+
+def _single_branch_root_lane(tmp_path: Path) -> tuple[Path, Any]:
+    """A committed single_branch mission whose WP01 resolves to the repository-root write checkout."""
+    repo = init_repo(tmp_path / "repo")
+    build_mission(repo, SLUG, MISSION_ID, topology="single_branch")
+    return repo, resolve_workspace_for_wp(repo, SLUG, "WP01")
+
+
+def test_repo_root_refusal_is_skipped_for_a_code_lane(tmp_path: Path) -> None:
+    """A code lane never reaches the write-checkout checks: even a single_branch root on the wrong
+    branch, which the repository-root lane refuses (below), is not inspected."""
+    repo, _workspace = _single_branch_root_lane(tmp_path)
+    git_out(repo, "checkout", "-q", "-b", "elsewhere")
+
+    assert refuse_repo_root_checkout_if_unavailable(repo, SLUG, "WP01", _CODE_LANE) is False
+
+
+def test_repo_root_refusal_reports_the_occupancy_scan_ran_for_a_clean_single_branch_root(tmp_path: Path) -> None:
+    """``True`` is the ``occupancy_verified`` hand-off: ``implement`` threads it into ``create_lane_workspace``
+    so the full-repository occupancy scan runs once per claim."""
+    repo, workspace = _single_branch_root_lane(tmp_path)
+    head = git_out(repo, "rev-parse", "HEAD")
+
+    assert refuse_repo_root_checkout_if_unavailable(repo, SLUG, "WP01", workspace) is True
+    assert git_out(repo, "rev-parse", "HEAD") == head
+    assert git_out(repo, "status", "--porcelain") == ""
+
+
+def test_repo_root_refusal_refuses_a_single_branch_root_on_the_wrong_branch(tmp_path: Path) -> None:
+    repo, workspace = _single_branch_root_lane(tmp_path)
+    git_out(repo, "checkout", "-q", "-b", "elsewhere")
+
+    with pytest.raises(WriteCheckoutWrongBranchError) as excinfo:
+        refuse_repo_root_checkout_if_unavailable(repo, SLUG, "WP01", workspace)
+
+    assert excinfo.value.error_code == "WRITE_CHECKOUT_WRONG_BRANCH"
+    assert "is on branch 'elsewhere'" in str(excinfo.value)

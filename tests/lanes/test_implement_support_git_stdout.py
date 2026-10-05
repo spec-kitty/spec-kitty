@@ -7,28 +7,24 @@ takes an argv list and returns ``""`` on a non-zero exit.
 
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
 import pytest
 
 from specify_cli.lanes import implement_support
+from tests._support.git_cli import git_out
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
-
-
-def _git(repo: Path, *args: str) -> None:
-    subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
+pytestmark = pytest.mark.git_repo
 
 
 @pytest.fixture
 def repo(tmp_path: Path) -> Path:
-    _git(tmp_path, "init", "-q", "-b", "main")
-    _git(tmp_path, "config", "user.email", "t@example.com")
-    _git(tmp_path, "config", "user.name", "T")
+    git_out(tmp_path, "init", "-q", "-b", "main")
+    git_out(tmp_path, "config", "user.email", "t@example.com")
+    git_out(tmp_path, "config", "user.name", "T")
     (tmp_path / "f.txt").write_text("x\n", encoding="utf-8")
-    _git(tmp_path, "add", "f.txt")
-    _git(tmp_path, "commit", "-q", "-m", "init")
+    git_out(tmp_path, "add", "f.txt")
+    git_out(tmp_path, "commit", "-q", "-m", "init")
     return tmp_path
 
 
