@@ -892,4 +892,3 @@ class TestResolvePlanningArtifactStaging:
         # The already-committed, byte-identical primary artifacts correctly
         # drop out too (idempotency guard, INV-5) -- nothing needs staging.
         assert plan.files_to_commit == []
-
