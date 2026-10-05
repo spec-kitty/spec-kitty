@@ -1832,6 +1832,13 @@ def _bound_events_unreadable_text(lane_id: str) -> str:
     )
 
 
+def _bound_claim_base_unresolved_text(claim_base: str) -> str:
+    return (
+        f"the commit the approved lanes are measured from ('{claim_base}') does not resolve, so their approvals cannot be bounded to what was reviewed. "
+        "Recovery: restore that branch or commit, then re-run"
+    )
+
+
 def _bound_approved_wp_ids(
     lane: ExecutionLane,
     work_packages: Mapping[str, Any],
@@ -1901,12 +1908,8 @@ def _approved_bound_verdict(
     if events is None:
         return _BoundVerdict(refusal=_bound_events_unreadable_text(lanes[0].lane_id))
     claim_base = _bound_claim_base(repo_root, window_base, coord_base_ref)
-    # The one tolerated unresolvable base. Neither CLI entry point reaches it: each passes a resolved
-    # base or raises first. It stays for the direct-call contract that
-    # ``test_build_claim_tolerates_unresolvable_lane_probe`` pins (the claim builder reads an
-    # unresolvable coordination base as an empty lane: the lane tips are recorded and no lane is
-    # checked). ``check_lane`` itself never tolerates it.
-    base_resolves = resolves_commit(repo_root, claim_base)
+    if not resolves_commit(repo_root, claim_base):
+        return _BoundVerdict(refusal=_bound_claim_base_unresolved_text(claim_base))
     stamp_anchors = approval_stamp_anchors(events, lanes, work_packages, excluded_canceled_wp_ids)
     is_bookkeeping = functools.partial(_is_bookkeeping, mission_slug=lanes_manifest.mission_slug, planning_prefix=planning_prefix)
     refusals: list[BoundRefusal] = []
@@ -1917,20 +1920,16 @@ def _approved_bound_verdict(
             tip = resolve_commit(repo_root, branch)
         except GitProbeError:
             continue  # an unresolvable lane tip reads as an empty lane, as the collectors read it (:func:`_lane_tip_commits`)
-        found: BoundRefusal | None = (
-            check_lane(
-                repo_root,
-                events=events,
-                lane_id=lane.lane_id,
-                branch=branch,
-                approved_wp_ids=_bound_approved_wp_ids(lane, work_packages, excluded_canceled_wp_ids),
-                claim_base=claim_base,
-                anchors=[*_closed_world_anchors(lanes_manifest, lane, window_base, excluded_canceled_wp_ids=excluded_canceled_wp_ids), *stamp_anchors],
-                is_bookkeeping=is_bookkeeping,
-                tip=tip,
-            )
-            if base_resolves
-            else None
+        found = check_lane(
+            repo_root,
+            events=events,
+            lane_id=lane.lane_id,
+            branch=branch,
+            approved_wp_ids=_bound_approved_wp_ids(lane, work_packages, excluded_canceled_wp_ids),
+            claim_base=claim_base,
+            anchors=[*_closed_world_anchors(lanes_manifest, lane, window_base, excluded_canceled_wp_ids=excluded_canceled_wp_ids), *stamp_anchors],
+            is_bookkeeping=is_bookkeeping,
+            tip=tip,
         )
         if found is not None:
             refusals.append(found)

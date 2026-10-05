@@ -550,21 +550,18 @@ def test_commits_in_range_empty_range_is_not_an_error(tmp_path: Path) -> None:
     assert git_probes.patch_ids_in_range(repo, _TARGET, _TARGET) == set()
 
 
-def test_build_claim_tolerates_unresolvable_lane_probe(tmp_path: Path) -> None:
-    """FOLD-3 scope guard: the fail-closed ``GitProbeError`` signal is for the
-    VERIFIER window scan, NOT the claim builder. Claim building has always
-    tolerated an unresolvable lane-tip range (a fully-canceled lane has no branch;
-    some topologies cut the branch after this read), yielding no commits for that
-    lane rather than turning a legitimate merge into a spurious refusal. This pins
-    that the builder does NOT raise / does NOT emit a refusal on such a probe
-    error (regression guard for the squash-merge flows that rely on it)."""
+def test_build_claim_refuses_an_approved_lane_when_its_claim_base_does_not_resolve(tmp_path: Path) -> None:
+    """The approval bound never passes for want of an answer (#5668).
+
+    ``check_lane`` cannot measure a lane from a base that is not a commit, so the claim
+    builder refuses naming that base instead of recording the lane tips unchecked. (A lane
+    whose own branch is gone is a different case and stays tolerated as an empty lane.)
+    """
     repo, feature_dir, manifest, _coord_base = _build_mission(tmp_path, approved_wps=("WP01",))
-    # An unresolvable coord base makes the lane-tip ``commits_in_range`` error; the
-    # builder must tolerate it (empty lane), never raise or emit a refusal claim.
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref="no-such-base-xyz")
-    assert claim.refusal is None
-    assert claim.surface_resolved is True
-    assert claim.approved == {"WP01": ()}  # lane tolerated as empty, not a refusal
+    assert claim.refusal is not None
+    assert "'no-such-base-xyz'" in claim.refusal and "does not resolve" in claim.refusal
+    assert claim.bound_lane_tips == ()
 
 
 # --------------------------------------------------------------------------- #
