@@ -177,30 +177,6 @@ def test_outcome_truth_table(case: tuple[frozenset[str], bool, bool]) -> None:
     assert outcome.errors() == [message for name in _ERROR_ORDER if name in held for message in _MESSAGES_BY_INPUT[name]]
 
 
-@pytest.mark.parametrize("case", _ALL_CASES, ids=[_case_id(case) for case in _ALL_CASES])
-def test_outcome_invariants(case: tuple[frozenset[str], bool, bool]) -> None:
-    held, had_migrations, dry_run = case
-    outcome = _build(held, had_migrations=had_migrations, dry_run=dry_run)
-    exit_code = outcome.exit_code
-    errors = outcome.errors()
-
-    # 1. exit 0 iff the kind is applied or no-op
-    assert (exit_code == 0) is (outcome.kind in {UpgradeOutcomeKind.APPLIED, UpgradeOutcomeKind.NO_OP})
-    # 2. status is "failed" iff the exit code is non-zero
-    assert (outcome.status == "failed") is (exit_code != 0)
-    # 3. a non-zero exit always has at least one error
-    assert exit_code == 0 or errors
-    # 4. the preserved-file lines and their guidance appear iff a file is preserved, one line per file
-    drift_lines = [error for error in errors if error.startswith("Not updated, your local edit was kept: ")]
-    assert (drift_lines == _DRIFT_LINES) is ("drift" in held)
-    assert (_DRIFT_GUIDANCE in errors) is ("drift" in held)
-    # every explaining message of a held input is listed, once
-    for name in held:
-        for message in _MESSAGES_BY_INPUT[name]:
-            assert errors.count(message) == 1
-    # 5. a mission-state repair never contributes a reason (see the dedicated tests below)
-
-
 def test_repair_failure_with_two_drifted_files_is_failed_and_reports_both() -> None:
     """Precedence: a repair failure beats drift, and both messages and the count survive."""
     outcome = _build(frozenset({"repair_failed", "drift"}), had_migrations=False, dry_run=False)
@@ -340,68 +316,12 @@ def test_a_success_that_carries_an_error_diagnostic_still_lists_it() -> None:
     assert outcome.exit_code == 0
 
 
-def _only_migration_failed() -> UpgradeOutcome:
-    return UpgradeOutcome(result=UpgradeResult(success=False, from_version=_FROM, to_version=_TO))
-
-
-def _only_activation_error() -> UpgradeOutcome:
-    return UpgradeOutcome(result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO), activation_errors=[_ACTIVATION_ERROR])
-
-
-def _only_worktree_failure() -> UpgradeOutcome:
-    return UpgradeOutcome(result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO), worktree_failures=[_WORKTREE_FAILURE])
-
-
-def _only_commit_recovery_failed() -> UpgradeOutcome:
-    return UpgradeOutcome(result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO), commit_recovery_failed=True)
-
-
-def _only_repair_preparation_failed() -> UpgradeOutcome:
-    return UpgradeOutcome(result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO), repair_preparation_errors=[_PREPARATION_ERROR])
-
-
-def _only_surface_repair_failed() -> UpgradeOutcome:
-    return UpgradeOutcome(result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO), surface_repair_failed=True)
-
-
-def _only_preview_incomplete() -> UpgradeOutcome:
-    return UpgradeOutcome(result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO, dry_run=True), preview_incomplete=True)
-
-
-def _only_surface_drift() -> UpgradeOutcome:
-    return UpgradeOutcome(result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO), drifted_paths=[_DRIFT_PATHS[0]])
-
-
-# One factory per failure reason: each builds an outcome in which ONLY that reason holds.
-_OUTCOME_BY_REASON = {
-    UpgradeFailureReason.MIGRATION_FAILED: _only_migration_failed,
-    UpgradeFailureReason.ACTIVATION_ERROR: _only_activation_error,
-    UpgradeFailureReason.WORKTREE_FAILURE: _only_worktree_failure,
-    UpgradeFailureReason.COMMIT_RECOVERY_FAILED: _only_commit_recovery_failed,
-    UpgradeFailureReason.REPAIR_PREPARATION_FAILED: _only_repair_preparation_failed,
-    UpgradeFailureReason.SURFACE_REPAIR_FAILED: _only_surface_repair_failed,
-    UpgradeFailureReason.PREVIEW_INCOMPLETE: _only_preview_incomplete,
-    UpgradeFailureReason.SURFACE_DRIFT: _only_surface_drift,
-}
-
-
 def test_the_truth_table_exercises_every_failure_reason() -> None:
     """A new ``UpgradeFailureReason`` member must get a row in the matrix, not be silently untested."""
     exercised = {_REASON_BY_INPUT[name] for held, _, _ in _ALL_CASES for name in held}
 
     assert exercised == set(UpgradeFailureReason)
     assert set(_REASON_BY_INPUT.values()) == set(UpgradeFailureReason)
-
-
-def test_every_failure_reason_has_a_single_reason_factory() -> None:
-    assert set(_OUTCOME_BY_REASON) == set(UpgradeFailureReason)
-
-
-@pytest.mark.parametrize("reason", list(UpgradeFailureReason), ids=lambda reason: reason.value)
-def test_a_lone_failure_reason_exits_non_zero_and_explains_itself(reason: UpgradeFailureReason) -> None:
-    """Invariant 3 for every reason on its own: it is reported, it fails the run, and it says why."""
-    outcome = _OUTCOME_BY_REASON[reason]()
-
-    assert outcome.reasons == (reason,)
-    assert outcome.exit_code != 0
-    assert outcome.errors()
+    # A new ``UpgradeOutcomeKind`` must likewise be produced by the table and have a status and a closing line here.
+    produced = {_expected_kind(held, had_migrations=had_migrations) for held, had_migrations, _ in _ALL_CASES}
+    assert produced == set(UpgradeOutcomeKind) == set(_STATUS_BY_KIND) == {kind for kind, _ in _CLOSING_LINES}

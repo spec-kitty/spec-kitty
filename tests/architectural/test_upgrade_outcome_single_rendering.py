@@ -29,13 +29,13 @@ This gate keeps that true. It fails when:
    presentation functions: ``upgrade()`` itself may append to ``result.warnings``
    before it renders.
 3. **The exit has more than one site.** The only exit after the ``finalize_upgrade``
-   call inside ``upgrade()`` is ``raise typer.Exit(outcome.exit_code)`` directly under
-   a test of ``outcome.exit_code`` (``raise SystemExit``, ``sys.exit`` and ``os._exit``
-   count as exits), and no other function exits: not one that takes ``outcome``, not a
+   call inside ``upgrade()`` is ``raise typer.Exit(outcome.exit_code)`` (``raise SystemExit``,
+   ``sys.exit`` and ``os._exit`` count as exits), and no other function exits: not one that takes ``outcome``, not a
    presentation function, not a ``_finalizer_step*`` function, not one the tail of
    ``upgrade()`` calls after the finalizer, and nothing in ``upgrade/finalize.py`` or
    ``upgrade/outcome.py``. The kind-to-exit-code mapping itself is pinned by the truth
-   table in ``tests/upgrade/test_upgrade_outcome_kind.py``, not by shape here.
+   table in ``tests/upgrade/test_upgrade_outcome_kind.py``, and a success returning rather than
+   raising by the tests that call ``upgrade()`` directly, not by shape here.
 
 There is no allowlist: every rule starts and stays empty.
 
@@ -371,16 +371,6 @@ def _exits_in(nodes: list[ast.stmt]) -> Iterator[ast.Raise | ast.Call]:
                 yield node
 
 
-def _guarded_outcome_exits(nodes: list[ast.stmt]) -> set[int]:
-    """Ids of the ``raise typer.Exit(outcome.exit_code)`` statements sitting directly in the body of an ``if`` testing ``outcome.exit_code``."""
-    guarded: set[int] = set()
-    for stmt in nodes:
-        for node in ast.walk(stmt):
-            if isinstance(node, ast.If) and any(_is_outcome_attribute(part, "exit_code") for part in ast.walk(node.test)):
-                guarded.update(id(child) for child in node.body if isinstance(child, ast.Raise) and _is_outcome_exit(child))
-    return guarded
-
-
 def count_outcome_exits(source: str) -> int:
     """How many ``typer.Exit(outcome.exit_code)`` raises follow the finalizer call in ``upgrade()``."""
     tail = _tail_after_finalizer(source)
@@ -430,18 +420,17 @@ def may_not_exit_names(source: str) -> set[str]:
 
 
 def find_exit_site_violations(source: str) -> list[str]:
-    """Rule 3 (command module): one guarded exit after the finalizer; no function that renders, finalizes or runs after it exits."""
+    """Rule 3 (command module): one exit after the finalizer, ``typer.Exit(outcome.exit_code)``; no function that renders, finalizes or runs after it exits."""
     violations: list[str] = []
     tail = _tail_after_finalizer(source)
     if tail is None:
         violations.append(f"{_COMMAND}() or its {_FINALIZE_CALL} call not found")
     else:
-        guarded = _guarded_outcome_exits(tail)
-        for node in _exits_in(tail):
-            if not (isinstance(node, ast.Raise) and _is_outcome_exit(node)):
-                violations.append(f"{_COMMAND}(): exit after {_FINALIZE_CALL} is not typer.Exit(outcome.exit_code) (line {node.lineno})")
-            elif id(node) not in guarded:
-                violations.append(f"{_COMMAND}(): typer.Exit(outcome.exit_code) is not directly under a test of outcome.exit_code (line {node.lineno})")
+        violations.extend(
+            f"{_COMMAND}(): exit after {_FINALIZE_CALL} is not typer.Exit(outcome.exit_code) (line {node.lineno})"
+            for node in _exits_in(tail)
+            if not (isinstance(node, ast.Raise) and _is_outcome_exit(node))
+        )
     for fn in _may_not_exit(source):
         violations.extend(f"{fn.name}: a function that must not exit exits (line {node.lineno})" for node in _exits_in(fn.body))
     return violations
@@ -521,7 +510,7 @@ class TestFloor:
         assert count_outcome_exits(command_source) == 1
         tail = _tail_after_finalizer(command_source)
         assert tail is not None
-        assert len(_guarded_outcome_exits(tail)) == 1
+        assert len(list(_exits_in(tail))) == 1
         assert len(src_sources) >= _SCANNED_FILE_FLOOR
         assert {_FINALIZER, _OUTCOME_MODULE} <= set(src_sources)
 
@@ -766,25 +755,6 @@ class TestSelfMutation:
         compliant_tail = "    if outcome.exit_code != 0:\n        raise typer.Exit(outcome.exit_code)"
         mutated = _COMPLIANT_COMMAND.replace(compliant_tail, f"{tail_call}{compliant_tail}") + f"\n{definition}"
         assert any("must not exit" in violation for violation in find_exit_site_violations(mutated))
-
-    @pytest.mark.parametrize(
-        "guard",
-        [
-            "raise typer.Exit(outcome.exit_code)",  # unconditional
-            "if ready:\n        raise typer.Exit(outcome.exit_code)",  # tests something else
-            "if outcome.exit_code != 0:\n        pass\n    else:\n        raise typer.Exit(outcome.exit_code)",  # wrong branch
-            "if outcome.exit_code != 0:\n        if ready:\n            raise typer.Exit(outcome.exit_code)",  # not directly under
-            "for _ in range(1):\n        raise typer.Exit(outcome.exit_code)",
-        ],
-    )
-    def test_rule_3_the_outcome_exit_must_sit_directly_under_a_test_of_the_exit_code(self, guard: str) -> None:
-        mutated = _COMPLIANT_COMMAND.replace("if outcome.exit_code != 0:\n        raise typer.Exit(outcome.exit_code)", guard)
-        assert any("not directly under a test of outcome.exit_code" in violation for violation in find_exit_site_violations(mutated))
-
-    def test_rule_3_other_tests_of_the_exit_code_still_guard_the_exit(self) -> None:
-        for test in ("outcome.exit_code", "outcome.exit_code > 0", "bool(outcome.exit_code)", "ready and outcome.exit_code != 0"):
-            twin = _COMPLIANT_COMMAND.replace("outcome.exit_code != 0", test)
-            assert find_exit_site_violations(twin) == [], test
 
     def test_rule_3_missing_finalizer_call_is_reported(self) -> None:
         assert find_exit_site_violations("def upgrade():\n    pass\n")

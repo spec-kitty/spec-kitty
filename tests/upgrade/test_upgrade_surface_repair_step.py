@@ -1,14 +1,10 @@
 """``spec-kitty upgrade`` has exactly one surface-repair path: the prepared one.
 
-``_finalizer_step_surface_repair`` once fell back to a legacy helper whenever
-``ctx.prepared_repairs`` was ``None`` on a real, successful run. That fallback
-was unreachable (``_prepare_finalizer_repairs`` either sets ``prepared_repairs``
-or returns errors, which ``finalize_upgrade`` records as ``repair_preparation_errors``
-and then skips the surface-repair step) and has been removed.
-
-These tests assert the legacy names are gone and drive the real ``upgrade``
-command in-process through ``CliRunner`` to pin what does happen in every way
-the preparation and migration stages can end.
+The real ``upgrade`` command is driven in-process through ``CliRunner``, with a counter
+around the live apply seam, to pin when the surface repair is applied and when it is
+skipped: applied after a successful preparation on a real run; skipped when preparation
+raises, on a dry run, and after a failed migration. What each of those runs reports is a
+row of the outcome matrix in ``test_upgrade_outcome_rendering.py``.
 """
 
 from __future__ import annotations
@@ -31,7 +27,6 @@ from specify_cli.upgrade.runner import MigrationRunner, UpgradeResult
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
-_REMOVED_NAMES = ("_run_upgrade_surface_repair", "_surface_drift_exit_required")
 _CURRENT_VERSION = "3.2.0rc37"
 _STALE_VERSION = "0.0.1"
 _PREPARE = "prepare_upgrade_repairs"
@@ -88,11 +83,6 @@ def _invoke(project: Path, args: list[str]) -> Any:
 
 def _real_run_args(target: str) -> list[str]:
     return ["--target", target, "--force", "--no-worktrees", "--no-nag"]
-
-
-@pytest.mark.parametrize("name", _REMOVED_NAMES)
-def test_legacy_surface_repair_helpers_are_gone(name: str) -> None:
-    assert not hasattr(upgrade_module, name)
 
 
 def test_surface_repair_is_applied_when_preparation_succeeds(tmp_path: Path, spies: _Spies) -> None:

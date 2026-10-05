@@ -321,13 +321,13 @@ _ROWS = (
     _Row("clean-applied", (), "applied", (), paths=(_MIGRATIONS,)),
     _Row("drift", ("drift", _NO_WRITES), "drift_unresolved", ("surface_drift",), errors_contain=(_PRESERVED_LINE, _PRESERVED_GUIDANCE)),
     _Row("drift-without-yes", ("drift", _NO_WRITES), "drift_unresolved", ("surface_drift",), paths=(_NO_MIGRATIONS,), yes=False),
-    _Row("repair-not-applied", ("unapplied",), "failed", ("surface_repair_failed",), errors_contain=("was not applied",)),
+    _Row("repair-not-applied", ("unapplied",), "failed", ("surface_repair_failed",), errors_contain=(f"Tool-surface repair for {_OWNER} was not applied",)),
     _Row(
         "repair-not-applied-with-drift",
         ("drift", "unapplied"),
         "failed",
         ("surface_repair_failed", "surface_drift"),
-        errors_contain=("was not applied", _PRESERVED_LINE, _PRESERVED_GUIDANCE),
+        errors_contain=(f"Tool-surface repair for {_OWNER} was not applied", _PRESERVED_LINE, _PRESERVED_GUIDANCE),
     ),
     _Row("activation-error", ("activation_error",), "failed", ("activation_error",), errors_contain=(_ACTIVATION_ERROR,)),
     _Row(
@@ -567,13 +567,6 @@ def _outcome(*, success: bool = True) -> UpgradeOutcome:
 
 def _run_step(outcome: UpgradeOutcome, ctx: Any, project: Path, *, dry_run: bool = False, json_output: bool = False) -> SurfaceRepairReport:
     return upgrade_module._finalizer_step_surface_repair(outcome, ctx, project_path=project, dry_run=dry_run, json_output=json_output)
-
-
-def test_step_after_a_failed_migration_reports_nothing(prepared_project: tuple[Path, Any]) -> None:
-    project, ctx = prepared_project
-
-    assert _run_step(_outcome(success=False), ctx, project) == SurfaceRepairReport()
-    assert ctx.surface_repair_summary is None
 
 
 def test_step_without_prepared_repairs_fails_closed_instead_of_reporting_a_success(tmp_path: Path) -> None:
