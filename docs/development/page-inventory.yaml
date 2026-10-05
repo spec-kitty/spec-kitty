@@ -1220,6 +1220,18 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/4.x/2026-10-05-1-bare-slug-coordination-directory-alias.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/4.x/2026-10-05-2-runner-relative-performance-budgets.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/4.x/index.md
   tag: current
   divio_type: explanation

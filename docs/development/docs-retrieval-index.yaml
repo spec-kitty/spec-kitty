@@ -3494,6 +3494,38 @@ pages:
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "residuals", text: "Residuals", level: 3}
+  - path: "docs/adr/4.x/2026-10-05-1-bare-slug-coordination-directory-alias.md"
+    title: "ADR: a bare-slug coordination Mission has one exact directory alias set, and one directory on the target"
+    divio_type: "none"
+    abstract: "A coordination Mission with a bare primary directory owns two directory names; one resolver pairs them from recorded identity, and consolidate folds them into one directory."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "1-one-exact-alias-set-from-recorded-identity-resolved-in-one-place", text: "1. One exact alias set, from recorded identity, resolved in one place", level: 3}
+    - {slug: "2-the-target-ends-with-one-directory", text: "2. The target ends with one directory", level: 3}
+    - {slug: "3-the-reconciliation-gate-exempts-only-coordination-kind-files", text: "3. The reconciliation gate exempts only coordination-kind files", level: 3}
+    - {slug: "4-teardown-reads-identity-from-the-primary-metadata", text: "4. Teardown reads identity from the primary metadata", level: 3}
+    - {slug: "5-a-refused-coordination-seed-commit-stops-consolidate", text: "5. A refused coordination seed commit stops consolidate", level: 3}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "residuals-and-follow-ups", text: "Residuals and follow-ups", level: 3}
+  - path: "docs/adr/4.x/2026-10-05-2-runner-relative-performance-budgets.md"
+    title: "ADR: owned-checkout and start-up performance tests assert runner-relative ratios"
+    divio_type: "none"
+    abstract: "Start-up tests assert the ratio of a command median to a start-up floor or fixed workload sampled in the same run, not an absolute 2.5 s; limits are provisional."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "status-of-the-figures", text: "Status of the figures", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "floor-command-version", text: "Floor command: `--version`", level: 3}
+    - {slug: "throttle-a-cgroup-cpu-quota", text: "Throttle: a cgroup CPU quota", level: 3}
+    - {slug: "calibration-data", text: "Calibration data", level: 3}
+    - {slug: "limits-and-headroom", text: "Limits and headroom", level: 3}
+    - {slug: "robustness-runs", text: "Robustness runs", level: 3}
+    - {slug: "sample-counts-and-suite-cost", text: "Sample counts and suite cost", level: 3}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "questions-the-first-nightly-runs-must-answer", text: "Questions the first nightly runs must answer", level: 3}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
