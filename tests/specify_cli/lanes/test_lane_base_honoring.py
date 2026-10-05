@@ -7,12 +7,11 @@ reads on the coord path. This module proves the fix through the REAL
 ``implement --base`` seam (AC-1, C-003), the allocator directly (AC-2/AC-3,
 NFR-003, FR-010), and the ``for_review`` gate (FR-011).
 
-AC-1 is deliberately driven through ``implement(...)`` -- the Typer command
-function -- rather than the manual ``_resolve_active_lanes_manifest ->
-create_lane_workspace`` chain: on ``upstream/main`` ``create_lane_workspace``
-has no ``base`` parameter, so a manual chain would TypeError (false-red) pre-fix
-and, worse, could stay green post-fix while retaining the smuggle (the exact
-false-negative this P0 exists to prevent). See spec.md C-003 / AC-1.
+AC-1 is deliberately driven through the ``implement`` Typer command (the
+function ``agent action implement`` calls) rather than a hand-assembled
+``create_lane_workspace`` chain: a manual chain could stay green while the
+command itself kept smuggling the base into a field the allocator never reads
+(the exact false-negative this P0 exists to prevent). See spec.md C-003 / AC-1.
 """
 
 from __future__ import annotations
@@ -24,6 +23,7 @@ from unittest.mock import patch
 
 import pytest
 import typer
+from click.testing import Result
 from kernel.clock import now_utc_iso
 from mission_runtime import MissionArtifactKind, placement_seam
 
@@ -32,23 +32,17 @@ from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from specify_cli.workspace.context import ResolvedWorkspace
-from tests.specify_cli.cli.commands.test_implement_characterization import (
+from tests._support.ansi import strip_ansi
+from tests._support.git_cli import git_out
+from tests.specify_cli.cli.commands._implement_fixtures import (
     activate_repo,
     build_mission,
+    flat,
     implement_cli,
     init_repo,
 )
 
-pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
-
-# C-003 / AC-1: ``UnhonorableBaseError`` does not exist pre-fix (unlike
-# ``allocate_lane_worktree``, which does -- only its ``base`` kwarg is new).
-# ``UnhonorableBaseError`` is therefore imported LOCALLY inside each test that
-# needs it (not at module scope), so this module stays collectible against
-# unfixed ``upstream/main``: the mandatory AC-1 red-first proof then fails on
-# WRONG ANCESTRY (symptom-red) at test-body execution, never on a
-# collection-time ImportError (false-red) that would abort every test in the
-# file, including AC-1's.
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------
@@ -56,15 +50,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 # ---------------------------------------------------------------------------
 
 
-def _git(repo: Path, *args: str) -> None:
-    subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
-
-
-def _git_out(repo: Path, *args: str) -> str:
-    result = subprocess.run(
-        ["git", *args], cwd=repo, check=True, capture_output=True, text=True,
-    )
-    return result.stdout.strip()
+def _flat(text: str) -> str:
+    return flat(strip_ansi(text))
 
 
 def _is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool:
@@ -77,10 +64,10 @@ def _is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool:
 
 def _init_repo(repo: Path) -> None:
     repo.mkdir(parents=True, exist_ok=True)
-    _git(repo, "init", "-q", "-b", "main")
-    _git(repo, "config", "user.email", "t@example.com")
-    _git(repo, "config", "user.name", "Test")
-    _git(repo, "config", "commit.gpgsign", "false")
+    git_out(repo, "init", "-q", "-b", "main")
+    git_out(repo, "config", "user.email", "t@example.com")
+    git_out(repo, "config", "user.name", "Test")
+    git_out(repo, "config", "commit.gpgsign", "false")
 
 
 # ---------------------------------------------------------------------------
@@ -94,6 +81,8 @@ LEGACY_MISSION_SLUG = "lane-base-honoring-legacy"
 LEGACY_MISSION_BRANCH = f"kitty/mission-{LEGACY_MISSION_SLUG}"
 WP_ID = "WP06"
 EXPLICIT_BASE_BRANCH = "explicit-base"
+#: The line ``implement --base`` prints once it honoured the operator's base (AC-4).
+_SUCCESS_PREFIX = "Using explicit base ref:"
 
 
 def _make_manifest(
@@ -175,26 +164,26 @@ def coord_repo_with_divergent_base(tmp_path: Path) -> Path:
     )
     (repo / "README.md").write_text("seed\n")
 
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-q", "-m", "seed")
-    seed_sha = _git_out(repo, "rev-parse", "HEAD")
+    git_out(repo, "add", ".")
+    git_out(repo, "commit", "-q", "-m", "seed")
+    seed_sha = git_out(repo, "rev-parse", "HEAD")
 
     # U: unrelated pending work on top of the seed.
     (repo / "unrelated.txt").write_text("unrelated work\n")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-q", "-m", "unrelated work (U)")
-    u_sha = _git_out(repo, "rev-parse", "HEAD")
+    git_out(repo, "add", ".")
+    git_out(repo, "commit", "-q", "-m", "unrelated work (U)")
+    u_sha = git_out(repo, "rev-parse", "HEAD")
 
     # coordination_branch descends from U (fidelity gate: real coord topology).
-    _git(repo, "branch", COORD_BRANCH, u_sha)
+    git_out(repo, "branch", COORD_BRANCH, u_sha)
 
     # explicit-base (B) diverges from the seed -- does NOT contain U.
-    _git(repo, "branch", EXPLICIT_BASE_BRANCH, seed_sha)
-    _git(repo, "checkout", "-q", EXPLICIT_BASE_BRANCH)
+    git_out(repo, "branch", EXPLICIT_BASE_BRANCH, seed_sha)
+    git_out(repo, "checkout", "-q", EXPLICIT_BASE_BRANCH)
     (repo / "base-work.txt").write_text("explicit base work\n")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-q", "-m", "explicit base work (B)")
-    _git(repo, "checkout", "-q", "main")
+    git_out(repo, "add", ".")
+    git_out(repo, "commit", "-q", "-m", "explicit base work (B)")
+    git_out(repo, "checkout", "-q", "main")
 
     return repo
 
@@ -216,24 +205,24 @@ def coord_mission_with_divergent_base(tmp_path: Path) -> Path:
         target="main",
         meta_extra={"coordination_branch": COORD_BRANCH},
     )
-    seed_sha = _git_out(repo, "rev-parse", "HEAD")
+    seed_sha = git_out(repo, "rev-parse", "HEAD")
 
     # U: unrelated pending work on top of the seed.
     (repo / "unrelated.txt").write_text("unrelated work\n")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-q", "-m", "unrelated work (U)")
-    u_sha = _git_out(repo, "rev-parse", "HEAD")
+    git_out(repo, "add", ".")
+    git_out(repo, "commit", "-q", "-m", "unrelated work (U)")
+    u_sha = git_out(repo, "rev-parse", "HEAD")
 
     # coordination_branch descends from U (fidelity gate: real coord topology).
-    _git(repo, "branch", COORD_BRANCH, u_sha)
+    git_out(repo, "branch", COORD_BRANCH, u_sha)
 
     # explicit-base (B) diverges from the seed -- does NOT contain U.
-    _git(repo, "branch", EXPLICIT_BASE_BRANCH, seed_sha)
-    _git(repo, "checkout", "-q", EXPLICIT_BASE_BRANCH)
+    git_out(repo, "branch", EXPLICIT_BASE_BRANCH, seed_sha)
+    git_out(repo, "checkout", "-q", EXPLICIT_BASE_BRANCH)
     (repo / "base-work.txt").write_text("explicit base work\n")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-q", "-m", "explicit base work (B)")
-    _git(repo, "checkout", "-q", "main")
+    git_out(repo, "add", ".")
+    git_out(repo, "commit", "-q", "-m", "explicit base work (B)")
+    git_out(repo, "checkout", "-q", "main")
 
     # A real coordination Mission has its coordination surface materialized
     # and seeded by its first coordination write (finalize-tasks): resolve the
@@ -253,16 +242,16 @@ def legacy_repo(tmp_path: Path) -> Path:
     spec_dir.mkdir(parents=True)
     _write_meta(spec_dir, mission_slug=LEGACY_MISSION_SLUG, coordination_branch=None)
     (spec_dir / "spec.md").write_text("# spec\n")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-q", "-m", "seed")
-    seed_sha = _git_out(repo, "rev-parse", "HEAD")
+    git_out(repo, "add", ".")
+    git_out(repo, "commit", "-q", "-m", "seed")
+    seed_sha = git_out(repo, "rev-parse", "HEAD")
 
-    _git(repo, "branch", EXPLICIT_BASE_BRANCH, seed_sha)
-    _git(repo, "checkout", "-q", EXPLICIT_BASE_BRANCH)
+    git_out(repo, "branch", EXPLICIT_BASE_BRANCH, seed_sha)
+    git_out(repo, "checkout", "-q", EXPLICIT_BASE_BRANCH)
     (repo / "legacy-base-work.txt").write_text("legacy base work\n")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-q", "-m", "legacy base work")
-    _git(repo, "checkout", "-q", "main")
+    git_out(repo, "add", ".")
+    git_out(repo, "commit", "-q", "-m", "legacy base work")
+    git_out(repo, "checkout", "-q", "main")
 
     return repo
 
@@ -274,33 +263,26 @@ def legacy_repo(tmp_path: Path) -> Path:
 
 def _run_implement_for_real(
     repo: Path,
-    feature_dir: Path,
     *,
     base: str | None,
     wp_id: str = WP_ID,
     mission_slug: str = MISSION_SLUG,
-    capture_console: list[str] | None = None,
-) -> None:
-    """Drive the real ``implement`` Typer command against the real repository.
+) -> Result:
+    """Drive the real ``implement`` Typer command against the real repository and return its result.
 
-    Uses the characterization suite's plumbing (``activate_repo`` points the
-    command at *repo* and isolates it from the developer's git config;
-    ``implement_cli`` invokes the very ``implement`` function ``agent action
-    implement`` calls). Nothing in the implement command family is patched:
-    the real mission detection, planning-artifact commit, claim status write
-    and lane allocator all run, so a base-honoring regression anywhere along
-    the seam shows up here (C-003). The console text the run printed is
-    appended to *capture_console*, one line per entry.
+    Uses the shared implement plumbing (``activate_repo`` points the command at *repo* and isolates
+    it from the developer's git config; ``implement_cli`` invokes the very ``implement`` function
+    ``agent action implement`` calls). Nothing in the implement command family is patched: the real
+    mission detection, planning-artifact commit, claim status write and lane allocator all run, so a
+    base-honoring regression anywhere along the seam shows up here (C-003). The caller asserts the
+    exit code: a run that dies for an unrelated reason must not pass as a refusal.
     """
-    del feature_dir  # resolved by the command itself from --mission
     with pytest.MonkeyPatch.context() as monkeypatch:
         activate_repo(repo, monkeypatch, repo.parent)
         args = [wp_id, "--mission", mission_slug, "--no-auto-commit"]
         if base is not None:
             args += ["--base", base]
-        result = implement_cli(*args)
-    if capture_console is not None:
-        capture_console.extend(result.output.splitlines())
+        return implement_cli(*args)
 
 
 class TestAC1SeamLevelRedFirst:
@@ -317,13 +299,14 @@ class TestAC1SeamLevelRedFirst:
         # so a wrong-ancestry RED is provably about base-honoring, not a
         # degraded-to-legacy fixture.
         assert json.loads((feature_dir / "meta.json").read_text())["coordination_branch"] == COORD_BRANCH
-        u_sha = _git_out(repo, "rev-parse", COORD_BRANCH)
+        u_sha = git_out(repo, "rev-parse", COORD_BRANCH)
         assert not _is_ancestor(repo, EXPLICIT_BASE_BRANCH, "main"), (
             "sanity: explicit-base must not already be reachable from main"
         )
 
-        _run_implement_for_real(repo, feature_dir, base=EXPLICIT_BASE_BRANCH)
+        result = _run_implement_for_real(repo, base=EXPLICIT_BASE_BRANCH)
 
+        assert result.exit_code == 0, result.output
         lane_branch = f"kitty/mission-{MISSION_SLUG}-lane-a"
         assert _is_ancestor(repo, EXPLICIT_BASE_BRANCH, lane_branch), (
             f"lane {lane_branch} must descend from the supplied --base "
@@ -349,25 +332,25 @@ def test_nfr003_base_composes_with_recorded_planning_commit(tmp_path: Path) -> N
     feature_dir.mkdir(parents=True)
     _write_meta(feature_dir, mission_slug=MISSION_SLUG, coordination_branch=COORD_BRANCH)
     (repo / "README.md").write_text("seed\n")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-q", "-m", "seed")
-    seed_sha = _git_out(repo, "rev-parse", "HEAD")
-    _git(repo, "branch", COORD_BRANCH, seed_sha)
+    git_out(repo, "add", ".")
+    git_out(repo, "commit", "-q", "-m", "seed")
+    seed_sha = git_out(repo, "rev-parse", "HEAD")
+    git_out(repo, "branch", COORD_BRANCH, seed_sha)
 
     # base B shares the seed as a common ancestor with the planning commit.
-    _git(repo, "branch", EXPLICIT_BASE_BRANCH, seed_sha)
-    _git(repo, "checkout", "-q", EXPLICIT_BASE_BRANCH)
+    git_out(repo, "branch", EXPLICIT_BASE_BRANCH, seed_sha)
+    git_out(repo, "checkout", "-q", EXPLICIT_BASE_BRANCH)
     (repo / "base.txt").write_text("base\n")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-q", "-m", "base work")
-    _git(repo, "checkout", "-q", "main")
+    git_out(repo, "add", ".")
+    git_out(repo, "commit", "-q", "-m", "base work")
+    git_out(repo, "checkout", "-q", "main")
 
-    _git(repo, "checkout", "-q", "-b", "planning-tmp", seed_sha)
+    git_out(repo, "checkout", "-q", "-b", "planning-tmp", seed_sha)
     (repo / "planning.txt").write_text("planning artifact\n")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-q", "-m", "planning commit")
-    planning_sha = _git_out(repo, "rev-parse", "HEAD")
-    _git(repo, "checkout", "-q", "main")
+    git_out(repo, "add", ".")
+    git_out(repo, "commit", "-q", "-m", "planning commit")
+    planning_sha = git_out(repo, "rev-parse", "HEAD")
+    git_out(repo, "checkout", "-q", "main")
     # #4827: merge the planning commit into "main" (target_branch) BEFORE
     # discarding "planning-tmp" -- in real usage the recorded
     # planning_commit_sha is always initially reachable from target_branch
@@ -375,8 +358,8 @@ def test_nfr003_base_composes_with_recorded_planning_commit(tmp_path: Path) -> N
     # island branch here would misclassify it under the #4827 orphan
     # detector this fixture predates, defeating this test's actual base +
     # planning-commit composition assertions.
-    _git(repo, "merge", "-q", "--no-ff", "--no-edit", "planning-tmp")
-    _git(repo, "branch", "-D", "planning-tmp")
+    git_out(repo, "merge", "-q", "--no-ff", "--no-edit", "planning-tmp")
+    git_out(repo, "branch", "-D", "planning-tmp")
 
     manifest = _make_manifest(
         mission_branch=f"kitty/mission-{MISSION_SLUG}", planning_commit_sha=planning_sha,
@@ -412,27 +395,27 @@ def test_fr011_fresh_divergent_base_lane_with_planning_commit_is_not_reuse(
     feature_dir.mkdir(parents=True)
     _write_meta(feature_dir, mission_slug=MISSION_SLUG, coordination_branch=COORD_BRANCH)
     (repo / "README.md").write_text("seed\n")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-q", "-m", "seed")
-    seed_sha = _git_out(repo, "rev-parse", "HEAD")
-    _git(repo, "branch", COORD_BRANCH, seed_sha)
+    git_out(repo, "add", ".")
+    git_out(repo, "commit", "-q", "-m", "seed")
+    seed_sha = git_out(repo, "rev-parse", "HEAD")
+    git_out(repo, "branch", COORD_BRANCH, seed_sha)
 
     # Divergent base B off the seed (does NOT contain the planning commit).
-    _git(repo, "branch", EXPLICIT_BASE_BRANCH, seed_sha)
-    _git(repo, "checkout", "-q", EXPLICIT_BASE_BRANCH)
+    git_out(repo, "branch", EXPLICIT_BASE_BRANCH, seed_sha)
+    git_out(repo, "checkout", "-q", EXPLICIT_BASE_BRANCH)
     (repo / "base.txt").write_text("base work\n")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-q", "-m", "explicit base work (B)")
-    _git(repo, "checkout", "-q", "main")
+    git_out(repo, "add", ".")
+    git_out(repo, "commit", "-q", "-m", "explicit base work (B)")
+    git_out(repo, "checkout", "-q", "main")
 
     # Planning commit off the seed — diverges from B, so its merge onto a
     # B-rooted lane creates "commits beyond B" (the misdetection trigger).
-    _git(repo, "checkout", "-q", "-b", "planning-tmp", seed_sha)
+    git_out(repo, "checkout", "-q", "-b", "planning-tmp", seed_sha)
     (repo / "planning.txt").write_text("planning artifact\n")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-q", "-m", "planning commit")
-    planning_sha = _git_out(repo, "rev-parse", "HEAD")
-    _git(repo, "checkout", "-q", "main")
+    git_out(repo, "add", ".")
+    git_out(repo, "commit", "-q", "-m", "planning commit")
+    planning_sha = git_out(repo, "rev-parse", "HEAD")
+    git_out(repo, "checkout", "-q", "main")
     # #4827: merge the planning commit into "main" (target_branch) BEFORE
     # discarding "planning-tmp" -- in real usage the recorded
     # planning_commit_sha is always initially reachable from target_branch
@@ -440,8 +423,8 @@ def test_fr011_fresh_divergent_base_lane_with_planning_commit_is_not_reuse(
     # island branch here would misclassify it under the #4827 orphan
     # detector this fixture predates, defeating this test's actual base +
     # planning-commit composition assertions.
-    _git(repo, "merge", "-q", "--no-ff", "--no-edit", "planning-tmp")
-    _git(repo, "branch", "-D", "planning-tmp")
+    git_out(repo, "merge", "-q", "--no-ff", "--no-edit", "planning-tmp")
+    git_out(repo, "branch", "-D", "planning-tmp")
 
     manifest = _make_manifest(
         mission_branch=f"kitty/mission-{MISSION_SLUG}", planning_commit_sha=planning_sha,
@@ -484,7 +467,7 @@ def test_fr011_fresh_divergent_base_lane_with_planning_commit_is_not_reuse(
     # ... so the honored-base provenance IS written to the WP frontmatter.
     frontmatter = wp_file.read_text()
     assert "base_commit:" in frontmatter
-    base_b_sha = _git_out(repo, "rev-parse", EXPLICIT_BASE_BRANCH)
+    base_b_sha = git_out(repo, "rev-parse", EXPLICIT_BASE_BRANCH)
     assert base_b_sha in frontmatter
 
 
@@ -505,27 +488,27 @@ def test_fr010_detached_base_fails_loud_pre_create_no_residual(tmp_path: Path) -
     feature_dir.mkdir(parents=True)
     _write_meta(feature_dir, mission_slug=MISSION_SLUG, coordination_branch=COORD_BRANCH)
     (repo / "README.md").write_text("seed\n")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-q", "-m", "seed")
-    seed_sha = _git_out(repo, "rev-parse", "HEAD")
-    _git(repo, "branch", COORD_BRANCH, seed_sha)
+    git_out(repo, "add", ".")
+    git_out(repo, "commit", "-q", "-m", "seed")
+    seed_sha = git_out(repo, "rev-parse", "HEAD")
+    git_out(repo, "branch", COORD_BRANCH, seed_sha)
 
     # base branch: a genuinely UNRELATED root (--root commit, no shared history).
-    _git(repo, "checkout", "-q", "--orphan", "detached-root")
+    git_out(repo, "checkout", "-q", "--orphan", "detached-root")
     (repo / "detached.txt").write_text("detached root\n")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-q", "-m", "detached root commit")
-    detached_sha = _git_out(repo, "rev-parse", "HEAD")
-    _git(repo, "branch", "-f", EXPLICIT_BASE_BRANCH, detached_sha)
-    _git(repo, "checkout", "-q", "main")
+    git_out(repo, "add", ".")
+    git_out(repo, "commit", "-q", "-m", "detached root commit")
+    detached_sha = git_out(repo, "rev-parse", "HEAD")
+    git_out(repo, "branch", "-f", EXPLICIT_BASE_BRANCH, detached_sha)
+    git_out(repo, "checkout", "-q", "main")
 
     # planning commit lives on the seed's history -- unrelated to the detached base.
-    _git(repo, "checkout", "-q", "-b", "planning-tmp", seed_sha)
+    git_out(repo, "checkout", "-q", "-b", "planning-tmp", seed_sha)
     (repo / "planning.txt").write_text("planning artifact\n")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-q", "-m", "planning commit")
-    planning_sha = _git_out(repo, "rev-parse", "HEAD")
-    _git(repo, "checkout", "-q", "main")
+    git_out(repo, "add", ".")
+    git_out(repo, "commit", "-q", "-m", "planning commit")
+    planning_sha = git_out(repo, "rev-parse", "HEAD")
+    git_out(repo, "checkout", "-q", "main")
     # #4827: merge the planning commit into "main" (target_branch) BEFORE
     # discarding "planning-tmp" -- in real usage the recorded
     # planning_commit_sha is always initially reachable from target_branch
@@ -533,8 +516,8 @@ def test_fr010_detached_base_fails_loud_pre_create_no_residual(tmp_path: Path) -
     # island branch here would misclassify it under the #4827 orphan
     # detector this fixture predates, defeating this test's actual base +
     # planning-commit composition assertions.
-    _git(repo, "merge", "-q", "--no-ff", "--no-edit", "planning-tmp")
-    _git(repo, "branch", "-D", "planning-tmp")
+    git_out(repo, "merge", "-q", "--no-ff", "--no-edit", "planning-tmp")
+    git_out(repo, "branch", "-D", "planning-tmp")
 
     manifest = _make_manifest(
         mission_branch=f"kitty/mission-{MISSION_SLUG}", planning_commit_sha=planning_sha,
@@ -646,7 +629,7 @@ class TestAC3FailLoud:
         import shutil
 
         shutil.rmtree(worktree_path)
-        _git(repo, "worktree", "prune")
+        git_out(repo, "worktree", "prune")
 
         with pytest.raises(UnhonorableBaseError) as exc_info:
             allocate_lane_worktree(
@@ -707,55 +690,48 @@ def test_unhonorable_base_error_to_dict_carries_route_wp_id_base() -> None:
 
 
 class TestAC4SuccessLineBothDirections:
-    _SUCCESS_PREFIX = "Using explicit base ref:"
-
     def test_present_on_honored_no_dep_fresh_create(self, coord_mission_with_divergent_base: Path) -> None:
-        repo = coord_mission_with_divergent_base
-        feature_dir = repo / "kitty-specs" / MISSION_SLUG
-        captured: list[str] = []
+        result = _run_implement_for_real(coord_mission_with_divergent_base, base=EXPLICIT_BASE_BRANCH)
 
-        _run_implement_for_real(
-            repo, feature_dir, base=EXPLICIT_BASE_BRANCH, capture_console=captured,
-        )
-
-        assert any(self._SUCCESS_PREFIX in line and EXPLICIT_BASE_BRANCH in line for line in captured), (
+        assert result.exit_code == 0, result.output
+        captured = result.output.splitlines()
+        assert any(_SUCCESS_PREFIX in line and EXPLICIT_BASE_BRANCH in line for line in captured), (
             f"expected the success line in captured output: {captured!r}"
         )
 
     def test_absent_on_base_none(self, coord_mission_with_divergent_base: Path) -> None:
-        repo = coord_mission_with_divergent_base
-        feature_dir = repo / "kitty-specs" / MISSION_SLUG
-        captured: list[str] = []
+        result = _run_implement_for_real(coord_mission_with_divergent_base, base=None)
 
-        _run_implement_for_real(repo, feature_dir, base=None, capture_console=captured)
-
-        # Positive control: some other tracker output must have been
-        # captured, or an empty capture would vacuously pass the ABSENT
-        # assertion below.
+        # Positive control: the claim succeeded and printed its tracker, so the ABSENT assertion
+        # below is not satisfied by an empty or failed run.
+        assert result.exit_code == 0, result.output
+        captured = result.output.splitlines()
         assert captured, "positive control failed: nothing was captured at all"
-        assert not any(self._SUCCESS_PREFIX in line for line in captured), (
+        assert not any(_SUCCESS_PREFIX in line for line in captured), (
             f"success line must not print when base=None: {captured!r}"
         )
 
     def test_absent_on_error_path(self, coord_mission_with_divergent_base: Path) -> None:
+        from specify_cli.lanes.worktree_allocator import UnhonorableBaseError
+
         repo = coord_mission_with_divergent_base
-        feature_dir = repo / "kitty-specs" / MISSION_SLUG
 
         # First call (no base) creates the lane -- now a second call with an
         # explicit base hits the reuse fail-loud guard (FL1).
-        _run_implement_for_real(repo, feature_dir, base=None)
+        first = _run_implement_for_real(repo, base=None)
+        assert first.exit_code == 0, first.output
         # #3471: no commit between the claims -- the first claim's own
         # --no-auto-commit writes no longer block the second, so it reaches
         # the allocator's reuse refusal directly.
 
-        captured: list[str] = []
-        _run_implement_for_real(
-            repo, feature_dir, base=EXPLICIT_BASE_BRANCH, capture_console=captured,
-        )
+        result = _run_implement_for_real(repo, base=EXPLICIT_BASE_BRANCH)
 
-        assert captured, "positive control failed: nothing was captured at all"
-        assert not any(self._SUCCESS_PREFIX in line for line in captured), (
-            f"success line must not print on a fail-loud error path: {captured!r}"
+        # The run fails on the reuse refusal itself, not on anything earlier.
+        assert result.exit_code == 1, result.output
+        refusal = UnhonorableBaseError(route="reuse", wp_id=WP_ID, base=EXPLICIT_BASE_BRANCH)
+        assert str(refusal) in _flat(result.output)
+        assert not any(_SUCCESS_PREFIX in line for line in result.output.splitlines()), (
+            f"success line must not print on a fail-loud error path: {result.output!r}"
         )
 
 
@@ -769,24 +745,20 @@ def test_fr007_planning_lane_base_ignored_with_warning(tmp_path: Path) -> None:
 
     repo = init_repo(tmp_path / "repo", branch="main")
     mission_slug = "lane-base-honoring-planning"
-    mission = build_mission(
+    build_mission(
         repo, mission_slug, MISSION_ID,
         wps={"WP01": ("planning_artifact", [])},
         target="main",
         layout=((PLANNING_LANE_ID, ("WP01",), ()),),
     )
-    feature_dir = mission.feature_dir
+    result = _run_implement_for_real(repo, base="main", wp_id="WP01", mission_slug=mission_slug)
 
-    captured: list[str] = []
-    _run_implement_for_real(
-        repo, feature_dir, base="main", wp_id="WP01", mission_slug=mission_slug,
-        capture_console=captured,
-    )
-
+    assert result.exit_code == 0, result.output
+    captured = result.output.splitlines()
     assert any("ignored" in line and "--base" in line for line in captured), (
         f"expected the FR-007 'ignored' warning: {captured!r}"
     )
-    assert not any("Using explicit base ref:" in line for line in captured)
+    assert not any(_SUCCESS_PREFIX in line for line in captured)
     # No lane worktree was allocated for the planning lane.
     assert not (repo / ".worktrees" / f"{mission_slug}-{PLANNING_LANE_ID}").exists()
 
