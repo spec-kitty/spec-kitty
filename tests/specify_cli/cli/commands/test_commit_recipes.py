@@ -62,10 +62,10 @@ _ALLOWED_GIT_COMMIT_HITS: dict[tuple[str, str], str] = {
         "Ignore git commits and status changes from other agents",
     ): "Banner prose telling the agent to ignore OTHER agents' commits -- not a recipe to run.",
     (
-        "cli/commands/implement.py",
+        "coordination/planning_commit.py",
         "silently demotes",
     ): (
-        "_DEMOTION_REFUSAL_MSG: prose describing a manual meta.json-flatten "
+        "DEMOTION_REFUSAL_MSG: prose describing a manual meta.json-flatten "
         "conflict repair (`git add` + `git commit`, no concrete files/message/"
         "branch spelled out) -- not a copy/paste recipe, and the scenario "
         "(reconciling a demoted coordination_branch) isn't one safe-commit's "

@@ -186,13 +186,13 @@ def _seed_crlf_clean_checkout(tmp_path: Path) -> tuple[Path, Path, str, CommitTa
 
 
 def _staging_plan(repo: Path, feature_dir: Path, target: CommitTarget, *, auto_commit: bool) -> PlanningArtifactStagingPlan:
-    from specify_cli.cli.commands.implement import _feature_dir_file_paths
+    from specify_cli.coordination.planning_commit import feature_dir_file_paths
 
     return resolve_planning_artifact_staging(
         repo,
         feature_dir,
         target.ref,
-        _feature_dir_file_paths(repo, feature_dir),
+        feature_dir_file_paths(repo, feature_dir),
         auto_commit=auto_commit,
     )
 

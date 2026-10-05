@@ -1,11 +1,11 @@
 """Regression tests for the .worktrees/ path-policy rejection gates.
 
-FR-005 / Issue #1887: ``_feature_dir_file_paths`` in ``implement.py`` was
+FR-005 / Issue #1887: ``feature_dir_file_paths`` in ``implement.py`` was
 computing paths relative to the wrong anchor (primary checkout root), causing
 ``.worktrees/<coord>/…`` paths to be staged and committed to ``origin/main``.
 
 Three defensive layers are tested here:
-1. ``_feature_dir_file_paths`` raises ``SafeCommitPathPolicyError`` when
+1. ``feature_dir_file_paths`` raises ``SafeCommitPathPolicyError`` when
    ``feature_dir`` resolves under ``.worktrees/`` relative to ``repo_root``.
 2. ``safe_commit`` raises ``SafeCommitPathPolicyError`` before staging when any
    normalized path starts with ``.worktrees/``.
@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.cli.commands.implement import _feature_dir_file_paths
+from specify_cli.coordination.planning_commit import feature_dir_file_paths
 from specify_cli.git.commit_helpers import SafeCommitPathPolicyError, safe_commit
 from mission_runtime import CommitTarget
 
@@ -55,12 +55,12 @@ def _init_repo(repo: Path, branch: str = "kitty/mission-test-01ABCDEF") -> None:
 
 
 # ---------------------------------------------------------------------------
-# T010-a: _feature_dir_file_paths raises SafeCommitPathPolicyError
+# T010-a: feature_dir_file_paths raises SafeCommitPathPolicyError
 # ---------------------------------------------------------------------------
 
 
 def test_feature_dir_file_paths_rejects_worktrees_dir(tmp_path: Path) -> None:
-    """_feature_dir_file_paths raises SafeCommitPathPolicyError when feature_dir
+    """feature_dir_file_paths raises SafeCommitPathPolicyError when feature_dir
     resolves under .worktrees/ relative to repo_root."""
     repo_root = tmp_path / "repo"
     _init_repo(repo_root)
@@ -73,14 +73,14 @@ def test_feature_dir_file_paths_rejects_worktrees_dir(tmp_path: Path) -> None:
     dummy_file.write_text('{"mission_id": "01ABCDEF"}', encoding="utf-8")
 
     with pytest.raises(SafeCommitPathPolicyError) as exc_info:
-        _feature_dir_file_paths(repo_root, coord_dir)
+        feature_dir_file_paths(repo_root, coord_dir)
 
     assert ".worktrees/" in exc_info.value.offending_path
     assert "coordination worktree" in str(exc_info.value)
 
 
 def test_feature_dir_file_paths_allows_kitty_specs(tmp_path: Path) -> None:
-    """_feature_dir_file_paths succeeds for a normal kitty-specs directory."""
+    """feature_dir_file_paths succeeds for a normal kitty-specs directory."""
     repo_root = tmp_path / "repo"
     _init_repo(repo_root)
 
@@ -88,7 +88,7 @@ def test_feature_dir_file_paths_allows_kitty_specs(tmp_path: Path) -> None:
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text('{"mission_id": "01ABCDEF"}', encoding="utf-8")
 
-    paths = _feature_dir_file_paths(repo_root, feature_dir)
+    paths = feature_dir_file_paths(repo_root, feature_dir)
     assert any("kitty-specs" in p for p in paths)
     assert all(".worktrees" not in p for p in paths)
 

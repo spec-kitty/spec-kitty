@@ -10,8 +10,8 @@ own docstring). Four of the six pass NEITHER a ``topology`` NOR a
 
 - ``cli/commands/agent/tasks_move_task.py::_drop_lane_coord_residue``
 - ``cli/commands/agent/tasks_shared.py::_list_wp_branch_mission_specs_changes``
-- ``cli/commands/implement.py::_partition_files_for_commit`` /
-  ``_guard_planning_commit_partition`` (two call sites, same file)
+- ``cli/commands/implement.py::partition_files_for_commit`` /
+  ``guard_planning_commit_partition`` (two call sites, same file)
 - ``lanes/auto_rebase.py::_is_coordination_owned_artifact``
 
 Two pass ``mission_slug`` but not ``topology``:
@@ -119,16 +119,16 @@ def test_tasks_move_task_keeps_ledger_as_real_work(tmp_path: Path, topology: Mis
 
 @pytest.mark.parametrize("topology", _ALL_TOPOLOGIES)
 def test_implement_partition_files_for_commit_classifies_ledger_primary(tmp_path: Path, topology: MissionTopology) -> None:
-    """``implement.py::_partition_files_for_commit`` (~L905), the truly blind
+    """``implement.py::partition_files_for_commit`` (~L905), the truly blind
     shape (bare path string, no mission_slug, no topology): the ledger joins
     the PRIMARY group, not the COORD-residue group -- for EVERY topology.
     """
-    from specify_cli.cli.commands.implement import _partition_files_for_commit
+    from specify_cli.coordination.planning_commit import partition_files_for_commit
 
     repo_root, mission_dir_name = _mission_for(tmp_path, topology)
     rel = f"kitty-specs/{mission_dir_name}/decisions/index.json"
 
-    primary_files, coord_files = _partition_files_for_commit([rel])
+    primary_files, coord_files = partition_files_for_commit([rel])
 
     assert primary_files == [rel], (topology.value, primary_files, coord_files)
     assert coord_files == []
@@ -136,24 +136,24 @@ def test_implement_partition_files_for_commit_classifies_ledger_primary(tmp_path
 
 @pytest.mark.parametrize("topology", _ALL_TOPOLOGIES)
 def test_implement_guard_refuses_ledger_reaching_coord_seam(tmp_path: Path, topology: MissionTopology) -> None:
-    """``implement.py::_guard_planning_commit_partition`` (~L947), the truly
+    """``implement.py::guard_planning_commit_partition`` (~L947), the truly
     blind shape: a PRIMARY-kind ledger path reaching a COORD-destination
     commit seam is now the FORBIDDEN PRIMARY→coord route (it was the
     permitted same-partition route pre-WP12); reaching a PRIMARY destination
     is the permitted route. Topology-independent by construction (the guard
     takes no Mission context at all), pinned for every topology regardless.
     """
-    from specify_cli.cli.commands.implement import _guard_planning_commit_partition
+    from specify_cli.coordination.planning_commit import guard_planning_commit_partition
     from specify_cli.coordination.commit_router import PrimaryKindReachedCoordStagingError
 
     repo_root, mission_dir_name = _mission_for(tmp_path, topology)
     rel = f"kitty-specs/{mission_dir_name}/decisions/index.json"
 
     with pytest.raises(PrimaryKindReachedCoordStagingError):
-        _guard_planning_commit_partition([rel], destination_is_coord=True)
+        guard_planning_commit_partition([rel], destination_is_coord=True)
 
     # The mirror route (PRIMARY destination) is permitted -- no raise.
-    _guard_planning_commit_partition([rel], destination_is_coord=False)
+    guard_planning_commit_partition([rel], destination_is_coord=False)
 
 
 @pytest.mark.parametrize("topology", _ALL_TOPOLOGIES)

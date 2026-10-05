@@ -44,17 +44,7 @@ from specify_cli.coordination.coherence import (
     is_status_state_path,
 )
 from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
-from specify_cli.coordination.planning_commit import (
-    _META_JSON_FILENAME,
-    _feature_dir_file_paths,
-    _guard_planning_commit_partition,
-    _load_primary_anchored_mission_meta,
-    _meta_json_demotion_refusal,
-    _meta_json_repo_relative_path,
-    _partition_files_for_commit,
-    _planning_artifact_source_dir,
-    _resolve_bookkeeping_transaction_identifiers,
-)
+from specify_cli.coordination import planning_commit as coordination_planning_commit
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import require_lanes_json
 from specify_cli.lanes.worktree_allocator import (
@@ -399,13 +389,13 @@ def _refuse_if_meta_json_demotion(
     defense-in-depth alongside the structural-change refusal above -- not a
     parallel commit gate.
     """
-    meta_rel_path = _meta_json_repo_relative_path(repo_root, artifact_source_dir)
+    meta_rel_path = coordination_planning_commit.meta_json_repo_relative_path(repo_root, artifact_source_dir)
     if meta_rel_path is None or meta_rel_path not in files_to_commit:
         return
-    refusal = _meta_json_demotion_refusal(
+    refusal = coordination_planning_commit.meta_json_demotion_refusal(
         repo_root,
         mission_slug,
-        artifact_source_dir / _META_JSON_FILENAME,
+        artifact_source_dir / coordination_planning_commit.META_JSON_FILENAME,
         meta_rel_path,
     )
     if refusal is None:
@@ -451,7 +441,7 @@ def _ensure_planning_artifacts_committed_git(
     strangler) the legacy meta-derived path is used unchanged.
     """
     current_branch = _git_stdout(repo_root, ["rev-parse", "--abbrev-ref", "HEAD"])
-    artifact_source_dir = _planning_artifact_source_dir(repo_root, feature_dir, mission_slug)
+    artifact_source_dir = coordination_planning_commit.planning_artifact_source_dir(repo_root, feature_dir, mission_slug)
 
     # Squad-B1 (#2464): fail closed on structural planning-artifact changes
     # BEFORE resolving the coordination-branch filter below (which can raise on
@@ -471,7 +461,7 @@ def _ensure_planning_artifacts_committed_git(
     if placement_ref is not None:
         coord_branch_for_filter = _placement_coord_filter(repo_root, mission_slug, placement_ref)
     else:
-        coord_branch_for_filter = _resolve_bookkeeping_transaction_identifiers(feature_dir, mission_slug, repo_root)[0]
+        coord_branch_for_filter = coordination_planning_commit.resolve_bookkeeping_transaction_identifiers(feature_dir, mission_slug, repo_root)[0]
 
     # T016: the staging DECISION (structural fail-closed check, #2222
     # vcs-lock exclusion, dedup, idempotency filtering) is a pure core in
@@ -479,7 +469,7 @@ def _ensure_planning_artifacts_committed_git(
     # non-empty ``plan.structural`` into the fail-closed print+exit below and
     # an empty ``plan.files_to_commit`` into a silent no-op return, then does
     # the actual BookkeepingTransaction I/O.
-    extra_file_paths = _feature_dir_file_paths(repo_root, artifact_source_dir) if coord_branch_for_filter else []
+    extra_file_paths = coordination_planning_commit.feature_dir_file_paths(repo_root, artifact_source_dir) if coord_branch_for_filter else []
     # FIX-M2-08: no longer thread ``placement_ref.ref`` in as ``verbatim_ref``.
     # The "PR #2662 squad fix" this parameter implemented compared EVERY
     # candidate (PRIMARY and COORD-residue alike) against the coordination
@@ -582,7 +572,7 @@ def _run_planning_artifact_commit(
     from specify_cli.coordination.transaction import BookkeepingTransaction
 
     if enforce_partition:
-        _guard_planning_commit_partition(files, destination_is_coord=not commit_to_primary_target)
+        coordination_planning_commit.guard_planning_commit_partition(files, destination_is_coord=not commit_to_primary_target)
 
     with BookkeepingTransaction.acquire(
         repo_root=repo_root,
@@ -650,7 +640,7 @@ def _commit_planning_artifacts_transaction(
     ONE transaction to the coordination branch, so a genuinely-dirty PRIMARY
     artifact would land on coordination, never the primary/target branch.
     Post-fix, THAT branch partitions ``files_to_commit``
-    (:func:`_partition_files_for_commit`) into a PRIMARY group (committed to
+    (:func:`coordination_planning_commit.partition_files_for_commit`) into a PRIMARY group (committed to
     ``planning_branch``, the mission's target branch) and a COORD-residue
     group (committed to the coordination branch) -- two transactions when
     both groups are non-empty, mirroring
@@ -702,7 +692,7 @@ def _commit_planning_artifacts_transaction(
         mid8,
         effective_mission_id,
         effective_mid8,
-    ) = _resolve_bookkeeping_transaction_identifiers(feature_dir, mission_slug, repo_root)
+    ) = coordination_planning_commit.resolve_bookkeeping_transaction_identifiers(feature_dir, mission_slug, repo_root)
 
     # WP06 / T019 / C-PLACE-1: the placement destination is the context's single
     # ``placement_ref`` when threaded — one ref for planning artifacts AND status
@@ -739,7 +729,7 @@ def _commit_planning_artifacts_transaction(
         # (skip-empty caller guard, mirroring the ``else`` arm -- no empty
         # transaction). The Seam-A guard (``enforce_partition=True``) fails loud on
         # any partition mis-route on either leg (FR-002 / T011).
-        primary_files, coord_files = _partition_files_for_commit(files_to_commit)
+        primary_files, coord_files = coordination_planning_commit.partition_files_for_commit(files_to_commit)
         if primary_files:
             _run_planning_artifact_commit(
                 repo_root=repo_root,
@@ -815,7 +805,7 @@ def _commit_planning_artifacts_transaction(
         # A genuinely-dirty PRIMARY artifact lands on ``planning_branch``
         # (never coordination); COORD-residue artifacts still land on the
         # coordination branch. Only the group(s) that are non-empty run.
-        primary_files, coord_files = _partition_files_for_commit(files_to_commit)
+        primary_files, coord_files = coordination_planning_commit.partition_files_for_commit(files_to_commit)
         if primary_files:
             # FR-005 ref half (#2650 / WP04): the PRIMARY-group destination
             # is derived from the SAME ``_commit_target_ref_for`` expression the
@@ -1445,7 +1435,7 @@ def _planning_commit_branch(repo_root: Path, mission_slug: str, target_branch: s
 
     from specify_cli.migration.backfill_topology import stored_topology
 
-    meta = _load_primary_anchored_mission_meta(repo_root, mission_slug)
+    meta = coordination_planning_commit.load_primary_anchored_mission_meta(repo_root, mission_slug)
     if meta is None:
         return target_branch
     return single_branch_write_ref(stored_topology(meta), meta.get("mission_branch"), target_branch)

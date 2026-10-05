@@ -244,7 +244,7 @@ class TestPlanningArtifactCommitDemotionGuard:
 
 
 class TestMetaJsonDemotionRefusalHelper:
-    """Direct unit coverage of the pure predicate (`_meta_json_demotion_refusal`)
+    """Direct unit coverage of the pure predicate (`meta_json_demotion_refusal`)
     and its staging-seam wrapper (`_refuse_if_meta_json_demotion`) for branches
     that do not need a full real commit through `BookkeepingTransaction` to
     exercise (that plumbing is orthogonal to this guard's own logic)."""
@@ -261,7 +261,7 @@ class TestMetaJsonDemotionRefusalHelper:
     def test_already_flat_at_head_is_not_a_demotion(self, tmp_path: Path) -> None:
         """Both HEAD and the working copy lack `coordination_branch` -- not a
         demotion (there is nothing to demote from) -- ALLOW."""
-        from specify_cli.cli.commands.implement import _meta_json_demotion_refusal
+        from specify_cli.coordination.planning_commit import meta_json_demotion_refusal
 
         mission_slug = "already-flat-mission"
         repo, feature_dir = self._seed(tmp_path, mission_slug, _meta_payload(with_coord=False, mission_slug=mission_slug))
@@ -273,10 +273,10 @@ class TestMetaJsonDemotionRefusalHelper:
         edited["source_description"] = "unrelated edit"
         _write_meta(feature_dir, edited)
 
-        assert _meta_json_demotion_refusal(repo, mission_slug, meta_path, rel_path) is None
+        assert meta_json_demotion_refusal(repo, mission_slug, meta_path, rel_path) is None
 
     def test_untracked_meta_json_has_no_baseline_allows(self, tmp_path: Path) -> None:
-        from specify_cli.cli.commands.implement import _meta_json_demotion_refusal
+        from specify_cli.coordination.planning_commit import meta_json_demotion_refusal
 
         mission_slug = "untracked-mission"
         repo = tmp_path / "repo"
@@ -290,10 +290,10 @@ class TestMetaJsonDemotionRefusalHelper:
         meta_path = feature_dir / "meta.json"
         rel_path = f"kitty-specs/{mission_slug}/meta.json"
 
-        assert _meta_json_demotion_refusal(repo, mission_slug, meta_path, rel_path) is None
+        assert meta_json_demotion_refusal(repo, mission_slug, meta_path, rel_path) is None
 
     def test_demotion_returns_actionable_refusal_message(self, tmp_path: Path) -> None:
-        from specify_cli.cli.commands.implement import _meta_json_demotion_refusal
+        from specify_cli.coordination.planning_commit import meta_json_demotion_refusal
 
         mission_slug = "demoted-mission"
         repo, feature_dir = self._seed(tmp_path, mission_slug, _meta_payload(with_coord=True, mission_slug=mission_slug))
@@ -302,7 +302,7 @@ class TestMetaJsonDemotionRefusalHelper:
 
         _write_meta(feature_dir, _meta_payload(with_coord=False, mission_slug=mission_slug))
 
-        message = _meta_json_demotion_refusal(repo, mission_slug, meta_path, rel_path)
+        message = meta_json_demotion_refusal(repo, mission_slug, meta_path, rel_path)
         assert message is not None
         assert mission_slug in message
         assert "coordination_branch" in message

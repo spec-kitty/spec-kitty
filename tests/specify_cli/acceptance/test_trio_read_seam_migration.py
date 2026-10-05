@@ -43,7 +43,7 @@ from specify_cli.cli.commands.agent.workflow import (
 from specify_cli.cli.commands.agent.workflow_executor import (
     implement_resolve_mission_type,
 )
-from specify_cli.cli.commands.implement import _load_primary_anchored_mission_meta
+from specify_cli.coordination.planning_commit import load_primary_anchored_mission_meta
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.missions._read_path_resolver import _compose_primary_feature_dir
 from specify_cli.workspace.context import find_wp_file
@@ -225,9 +225,9 @@ def test_mission_id_for_claim_resolves_identity_from_primary(tmp_path: Path, bui
 
 @_MATERIALIZED_FIXTURES
 def test_load_primary_anchored_mission_meta_resolves_primary(tmp_path: Path, builder: object) -> None:
-    """``implement.py::_load_primary_anchored_mission_meta`` (PRIMARY_METADATA)."""
+    """``implement.py::load_primary_anchored_mission_meta`` (PRIMARY_METADATA)."""
     repo = builder(tmp_path)  # type: ignore[operator]
-    meta = _load_primary_anchored_mission_meta(repo, _HANDLE)
+    meta = load_primary_anchored_mission_meta(repo, _HANDLE)
     assert meta is not None
     assert meta["mission_id"] == _MISSION_ID
 
@@ -286,7 +286,7 @@ def test_mission_id_for_claim_does_not_raise(tmp_path: Path, builder: object) ->
 @_NO_RAISE_FIXTURES
 def test_load_primary_anchored_mission_meta_does_not_raise(tmp_path: Path, builder: object) -> None:
     repo = builder(tmp_path)  # type: ignore[operator]
-    meta = _load_primary_anchored_mission_meta(repo, _HANDLE)
+    meta = load_primary_anchored_mission_meta(repo, _HANDLE)
     assert meta is not None
     assert meta["mission_id"] == _MISSION_ID
 

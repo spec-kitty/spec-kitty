@@ -18,13 +18,13 @@ from specify_cli.core.constants import WORKTREES_DIR
 from specify_cli.git.commit_helpers import SafeCommitPathPolicyError
 
 
-def _load_primary_anchored_mission_meta(repo_root: Path | None, mission_slug: str) -> dict[str, Any] | None:
+def load_primary_anchored_mission_meta(repo_root: Path | None, mission_slug: str) -> dict[str, Any] | None:
     """FR-003 cascade layer 1: read the PRIMARY-checkout ``meta.json``.
 
     ``coordination_branch`` / ``mission_id`` / ``mid8`` live ONLY in the
     PRIMARY-checkout meta.json; the coord worktree's mission dir has none.
     ``feature_dir`` (the caller's fallback, see
-    :func:`_load_fallback_mission_meta`) is topology-aware and prefers the
+    :func:`load_fallback_mission_meta`) is topology-aware and prefers the
     coord worktree once materialized — reading meta there returns empty, so
     every identifier silently fell back to the slug (``mid8`` ->
     ``<slug>0000``), which then names a non-existent coord branch/worktree at
@@ -59,10 +59,10 @@ def _load_primary_anchored_mission_meta(repo_root: Path | None, mission_slug: st
         return None
 
 
-def _load_fallback_mission_meta(feature_dir: Path) -> dict[str, Any] | None:
+def load_fallback_mission_meta(feature_dir: Path) -> dict[str, Any] | None:
     """FR-003 cascade layer 2: read ``meta.json`` off the passed *feature_dir*.
 
-    Only consulted when :func:`_load_primary_anchored_mission_meta` yields
+    Only consulted when :func:`load_primary_anchored_mission_meta` yields
     ``None`` (no ``repo_root``, or the primary meta is missing/corrupt).
     """
     from specify_cli.core.paths import MissionMetaReadError
@@ -74,7 +74,7 @@ def _load_fallback_mission_meta(feature_dir: Path) -> dict[str, Any] | None:
         return None
 
 
-def _extract_mission_identifiers_from_meta(mission_meta: dict[str, Any] | None, mission_slug: str) -> tuple[str | None, str | None, str | None]:
+def extract_mission_identifiers_from_meta(mission_meta: dict[str, Any] | None, mission_slug: str) -> tuple[str | None, str | None, str | None]:
     """Pull ``(coord_branch, mission_id, mid8)`` out of a resolved meta dict.
 
     mid8 precedence: the stored ``meta["mid8"]`` value wins; otherwise the
@@ -100,7 +100,7 @@ def _extract_mission_identifiers_from_meta(mission_meta: dict[str, Any] | None, 
     return coord_branch, mission_id, mid8
 
 
-def _compute_effective_bookkeeping_ids(
+def compute_effective_bookkeeping_ids(
     mission_slug: str,
     mission_id: str | None,
     mid8: str | None,
@@ -127,8 +127,8 @@ def _compute_effective_bookkeeping_ids(
     return effective_mission_id, effective_mid8
 
 
-class _BookkeepingTransactionIdentifiers(NamedTuple):
-    """The identifiers :func:`_resolve_bookkeeping_transaction_identifiers` returns.
+class BookkeepingTransactionIdentifiers(NamedTuple):
+    """The identifiers :func:`resolve_bookkeeping_transaction_identifiers` returns.
 
     A ``NamedTuple`` (PR #2662 squad LOW-3 hardening): it IS a 5-tuple, so the
     frozen C-006 contract holds by construction — the cross-lane
@@ -144,11 +144,11 @@ class _BookkeepingTransactionIdentifiers(NamedTuple):
     effective_mid8: str
 
 
-def _resolve_bookkeeping_transaction_identifiers(
+def resolve_bookkeeping_transaction_identifiers(
     feature_dir: Path,
     mission_slug: str,
     repo_root: Path | None = None,
-) -> _BookkeepingTransactionIdentifiers:
+) -> BookkeepingTransactionIdentifiers:
     """Resolve the ``(coord_branch, mission_id, mid8, effective_mission_id,
     effective_mid8)`` bookkeeping identifiers as a 5-field NamedTuple.
 
@@ -158,16 +158,16 @@ def _resolve_bookkeeping_transaction_identifiers(
     the 5-tuple arity and order MUST NOT change (a NamedTuple keeps both the
     positional and the new named access working).
     """
-    mission_meta = _load_primary_anchored_mission_meta(repo_root, mission_slug)
+    mission_meta = load_primary_anchored_mission_meta(repo_root, mission_slug)
     if mission_meta is None:
-        mission_meta = _load_fallback_mission_meta(feature_dir)
+        mission_meta = load_fallback_mission_meta(feature_dir)
 
-    coord_branch, mission_id, mid8 = _extract_mission_identifiers_from_meta(mission_meta, mission_slug)
-    effective_mission_id, effective_mid8 = _compute_effective_bookkeeping_ids(mission_slug, mission_id, mid8, coord_branch)
-    return _BookkeepingTransactionIdentifiers(coord_branch, mission_id, mid8, effective_mission_id, effective_mid8)
+    coord_branch, mission_id, mid8 = extract_mission_identifiers_from_meta(mission_meta, mission_slug)
+    effective_mission_id, effective_mid8 = compute_effective_bookkeeping_ids(mission_slug, mission_id, mid8, coord_branch)
+    return BookkeepingTransactionIdentifiers(coord_branch, mission_id, mid8, effective_mission_id, effective_mid8)
 
 
-def _feature_dir_file_paths(repo_root: Path, feature_dir: Path) -> list[str]:
+def feature_dir_file_paths(repo_root: Path, feature_dir: Path) -> list[str]:
     # FR-005 / Issue #1887: reject calls where feature_dir resolves under
     # .worktrees/.  Relativizing a coord-worktree path against the primary repo
     # root produces paths like ".worktrees/<slug>/..." which safe_commit then
@@ -203,7 +203,7 @@ def _feature_dir_file_paths(repo_root: Path, feature_dir: Path) -> list[str]:
     return paths
 
 
-def _planning_artifact_source_dir(repo_root: Path, feature_dir: Path, mission_slug: str) -> Path:
+def planning_artifact_source_dir(repo_root: Path, feature_dir: Path, mission_slug: str) -> Path:
     """Return the primary-checkout mission dir for planning-artifact discovery."""
     repo_root_resolved = repo_root.resolve()
     try:
@@ -225,9 +225,9 @@ def _planning_artifact_source_dir(repo_root: Path, feature_dir: Path, mission_sl
     return feature_dir
 
 
-_META_JSON_FILENAME = "meta.json"
+META_JSON_FILENAME = "meta.json"
 
-_DEMOTION_REFUSAL_MSG = (
+DEMOTION_REFUSAL_MSG = (
     "Uncommitted change to {rel_path} silently demotes {mission_slug} off its "
     "coordination branch ('{coordination_branch}' -> absent). Auto-committing this "
     "would carry a whole-team routing change into the planning-artifact commit.\n"
@@ -238,10 +238,10 @@ _DEMOTION_REFUSAL_MSG = (
     "silently for you."
 )
 
-_DEMOTION_CORRUPT_MSG = "{rel_path} ({side}) is not valid JSON. Refusing to auto-commit planning artifacts until it is repaired."
+DEMOTION_CORRUPT_MSG = "{rel_path} ({side}) is not valid JSON. Refusing to auto-commit planning artifacts until it is repaired."
 
 
-def _read_json_at_ref(repo_root: Path, ref: str, rel_path: str) -> tuple[bool, dict[str, Any] | None]:
+def read_json_at_ref(repo_root: Path, ref: str, rel_path: str) -> tuple[bool, dict[str, Any] | None]:
     """Return ``(has_baseline, parsed_or_None)`` for *rel_path* at *ref*.
 
     ``git show <ref>:<rel_path>`` exits non-zero when *rel_path* has no
@@ -268,7 +268,7 @@ def _read_json_at_ref(repo_root: Path, ref: str, rel_path: str) -> tuple[bool, d
     return True, decode_meta(result.stdout, on_malformed="none")
 
 
-def _meta_json_demotion_refusal(
+def meta_json_demotion_refusal(
     repo_root: Path,
     mission_slug: str,
     meta_path: Path,
@@ -285,22 +285,22 @@ def _meta_json_demotion_refusal(
     including a genuinely-flat mission) ALLOWS. A HEAD baseline or working
     copy that fails to parse as JSON fails closed to REFUSE.
     """
-    has_baseline, head_meta = _read_json_at_ref(repo_root, "HEAD", rel_path)
+    has_baseline, head_meta = read_json_at_ref(repo_root, "HEAD", rel_path)
     if not has_baseline:
         return None
     if head_meta is None:
-        return _DEMOTION_CORRUPT_MSG.format(rel_path=rel_path, side="HEAD")
+        return DEMOTION_CORRUPT_MSG.format(rel_path=rel_path, side="HEAD")
     try:
         working_raw = meta_path.read_text(encoding="utf-8")
     except OSError:
-        return _DEMOTION_CORRUPT_MSG.format(rel_path=rel_path, side="working copy")
+        return DEMOTION_CORRUPT_MSG.format(rel_path=rel_path, side="working copy")
     working_meta = decode_meta(working_raw, on_malformed="none")
     if working_meta is None:
-        return _DEMOTION_CORRUPT_MSG.format(rel_path=rel_path, side="working copy")
+        return DEMOTION_CORRUPT_MSG.format(rel_path=rel_path, side="working copy")
     head_branch = head_meta.get("coordination_branch")
     working_branch = working_meta.get("coordination_branch")
     if head_branch and not working_branch:
-        return _DEMOTION_REFUSAL_MSG.format(
+        return DEMOTION_REFUSAL_MSG.format(
             rel_path=rel_path,
             mission_slug=mission_slug,
             coordination_branch=head_branch,
@@ -308,16 +308,16 @@ def _meta_json_demotion_refusal(
     return None
 
 
-def _meta_json_repo_relative_path(repo_root: Path, artifact_source_dir: Path) -> str | None:
+def meta_json_repo_relative_path(repo_root: Path, artifact_source_dir: Path) -> str | None:
     """Return the repo-relative (posix) path of *artifact_source_dir*'s
     ``meta.json``, or ``None`` when it does not resolve under *repo_root*."""
     try:
-        return (artifact_source_dir / _META_JSON_FILENAME).resolve().relative_to(repo_root.resolve()).as_posix()
+        return (artifact_source_dir / META_JSON_FILENAME).resolve().relative_to(repo_root.resolve()).as_posix()
     except ValueError:
         return None
 
 
-def _partition_files_for_commit(files_to_commit: list[str]) -> tuple[list[str], list[str]]:
+def partition_files_for_commit(files_to_commit: list[str]) -> tuple[list[str], list[str]]:
     """Split *files_to_commit* into PRIMARY and COORD-residue groups (T007).
 
     Mirrors ``commit_router._group_files_by_partition``: classifies each
@@ -340,7 +340,7 @@ def _partition_files_for_commit(files_to_commit: list[str]) -> tuple[list[str], 
     return primary_files, coord_files
 
 
-def _guard_planning_commit_partition(files: list[str], *, destination_is_coord: bool) -> None:
+def guard_planning_commit_partition(files: list[str], *, destination_is_coord: bool) -> None:
     """Seam-A guard for the kind-agnostic ``BookkeepingTransaction`` commit (T011).
 
     write-path-integrity WP02 / FR-002 / C-008: the ``commit_for_mission``

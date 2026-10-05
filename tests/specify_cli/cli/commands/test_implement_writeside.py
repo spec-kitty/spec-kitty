@@ -387,10 +387,10 @@ class TestSeamAPartitionGuard:
         """POSITIVE (C-008): a COORD-destination commit carrying the status log
         AND ``meta.json`` must NOT raise -- ``meta.json`` is self-bookkeeping,
         exempted before the ``PRIMARY_METADATA``->coord classification."""
-        from specify_cli.cli.commands.implement import _guard_planning_commit_partition
+        from specify_cli.coordination.planning_commit import guard_planning_commit_partition
 
         # No raise.
-        _guard_planning_commit_partition(
+        guard_planning_commit_partition(
             [self._p("status.events.jsonl"), self._p("meta.json")],
             destination_is_coord=True,
         )
@@ -398,35 +398,35 @@ class TestSeamAPartitionGuard:
     def test_primary_kind_reaching_coord_raises(self) -> None:
         """NEGATIVE (PRIMARY->coord): a PRIMARY ``lanes.json`` on a coord
         destination is the #3371 mis-route -- fail loud."""
-        from specify_cli.cli.commands.implement import _guard_planning_commit_partition
+        from specify_cli.coordination.planning_commit import guard_planning_commit_partition
         from specify_cli.coordination.commit_router import (
             PrimaryKindReachedCoordStagingError,
         )
 
         with pytest.raises(PrimaryKindReachedCoordStagingError):
-            _guard_planning_commit_partition(
+            guard_planning_commit_partition(
                 [self._p("lanes.json")], destination_is_coord=True
             )
 
     def test_coord_kind_reaching_primary_or_lane_raises(self) -> None:
         """NEGATIVE (COORD->primary/lane): a coord-residue status file on a
         PRIMARY/lane destination is the #2549 mis-route -- fail loud."""
-        from specify_cli.cli.commands.implement import _guard_planning_commit_partition
+        from specify_cli.coordination.planning_commit import guard_planning_commit_partition
         from specify_cli.coordination.commit_router import (
             PrimaryKindReachedCoordStagingError,
         )
 
         with pytest.raises(PrimaryKindReachedCoordStagingError):
-            _guard_planning_commit_partition(
+            guard_planning_commit_partition(
                 [self._p("status.events.jsonl")], destination_is_coord=False
             )
 
     def test_primary_commit_with_meta_and_lanes_succeeds(self) -> None:
         """POSITIVE: a PRIMARY-destination commit carrying ``lanes.json`` +
         ``meta.json`` is the correct partition -- no raise."""
-        from specify_cli.cli.commands.implement import _guard_planning_commit_partition
+        from specify_cli.coordination.planning_commit import guard_planning_commit_partition
 
-        _guard_planning_commit_partition(
+        guard_planning_commit_partition(
             [self._p("lanes.json"), self._p("meta.json")],
             destination_is_coord=False,
         )
@@ -495,8 +495,9 @@ class TestPlanningCommitBranch:
     @staticmethod
     def _resolve(monkeypatch: pytest.MonkeyPatch, meta: dict[str, object] | None) -> str:
         from specify_cli.cli.commands import implement as impl
+        from specify_cli.coordination import planning_commit
 
-        monkeypatch.setattr(impl, "_load_primary_anchored_mission_meta", lambda _r, _s: meta)
+        monkeypatch.setattr(planning_commit, "load_primary_anchored_mission_meta", lambda _r, _s: meta)
         return impl._planning_commit_branch(Path("."), "m", "main")
 
     def test_single_branch_mission_branch_wins(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -516,10 +517,11 @@ class TestPlanningCommitBranch:
         import typer
 
         from specify_cli.cli.commands import implement as impl
+        from specify_cli.coordination import planning_commit
 
         mission_branch = "kitty/mission-m-01ABCDEF"
         meta = {"topology": "single_branch", "mission_branch": mission_branch}
-        monkeypatch.setattr(impl, "_load_primary_anchored_mission_meta", lambda _r, _s: meta)
+        monkeypatch.setattr(planning_commit, "load_primary_anchored_mission_meta", lambda _r, _s: meta)
         planning_branch = impl._planning_commit_branch(Path("."), "m", "main")
 
         with impl.console.capture() as capture, pytest.raises(typer.Exit):

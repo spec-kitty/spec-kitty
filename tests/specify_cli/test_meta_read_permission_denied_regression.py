@@ -100,14 +100,14 @@ class TestMetaReadPermissionDeniedRegression:
     def test_implement_load_fallback_mission_meta_tolerates_unreadable_dir(
         self, unreadable_mission_dir: Path
     ) -> None:
-        """``implement.py::_load_fallback_mission_meta`` -- FR-003 cascade layer 2.
+        """``implement.py::load_fallback_mission_meta`` -- FR-003 cascade layer 2.
 
         Previously carried ``except Exception  # meta missing/corrupt is
         legacy`` before the WP07-09 migration narrowed it.
         """
-        from specify_cli.cli.commands.implement import _load_fallback_mission_meta
+        from specify_cli.coordination.planning_commit import load_fallback_mission_meta
 
-        assert _load_fallback_mission_meta(unreadable_mission_dir) is None
+        assert load_fallback_mission_meta(unreadable_mission_dir) is None
 
     def test_normalize_mission_lifecycle_records_error_without_raising(
         self, unreadable_mission_dir: Path

@@ -11,7 +11,7 @@ unified-authority contract in ``contracts/partition-authority-and-warning.md``.
 The three sites:
 
 * Read  -- ``implement_cores.py::resolve_precondition_ref``
-* Write -- ``implement.py::_partition_files_for_commit``
+* Write -- ``implement.py::partition_files_for_commit``
 * Write -- ``coordination/commit_router.py::_group_files_by_partition``
 
 Both cli-side sites (read + write in ``implement.py``/``implement_cores.py``)
@@ -79,10 +79,10 @@ class TestThreeSitesCurrentPartitionDecisions:
     for the representative path set, is a live snapshot in this suite."""
 
     def test_write_side_partition_files_for_commit(self) -> None:
-        """Site 1 (write): ``implement.py::_partition_files_for_commit``."""
-        from specify_cli.cli.commands.implement import _partition_files_for_commit
+        """Site 1 (write): ``implement.py::partition_files_for_commit``."""
+        from specify_cli.coordination.planning_commit import partition_files_for_commit
 
-        primary, coord = _partition_files_for_commit(
+        primary, coord = partition_files_for_commit(
             [_COORD_RESIDUE_PATH, _PRIMARY_PATH, _META_PATH, _UNRECOGNIZED_PATH]
         )
         assert coord == [_COORD_RESIDUE_PATH]
@@ -197,10 +197,10 @@ class TestIntendedUnifiedContractCliSideOnly:
 
     @pytest.mark.parametrize("kind_none_path", [_META_PATH, _UNRECOGNIZED_PATH])
     def test_read_and_write_agree_kind_none_routes_primary(self, kind_none_path: str) -> None:
-        from specify_cli.cli.commands.implement import _partition_files_for_commit
+        from specify_cli.coordination.planning_commit import partition_files_for_commit
         from specify_cli.cli.commands.implement_cores import resolve_precondition_ref
 
         assert resolve_precondition_ref(kind_none_path, _COORD_BRANCH) == "HEAD"
-        primary_files, coord_files = _partition_files_for_commit([kind_none_path])
+        primary_files, coord_files = partition_files_for_commit([kind_none_path])
         assert primary_files == [kind_none_path]
         assert coord_files == []

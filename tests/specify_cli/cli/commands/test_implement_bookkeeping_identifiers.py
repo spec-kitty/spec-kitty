@@ -1,10 +1,10 @@
 """WP02 (#2649) — characterization + consumer-contract tests for
-``_resolve_bookkeeping_transaction_identifiers`` BEFORE/THROUGH its S3776
+``resolve_bookkeeping_transaction_identifiers`` BEFORE/THROUGH its S3776
 degod extraction.
 
 C-006 (load-bearing): ``tasks_move_task.py`` imports
-``_resolve_bookkeeping_transaction_identifiers``, ``_feature_dir_file_paths``,
-``_planning_artifact_source_dir`` from ``cli/commands/implement.py`` and calls
+``resolve_bookkeeping_transaction_identifiers``, ``feature_dir_file_paths``,
+``planning_artifact_source_dir`` from ``cli/commands/implement.py`` and calls
 the first with only ``[0]`` (``coord_branch``) read at the cross-lane call
 site, while the in-module caller unpacks the full 5-tuple
 ``(coord_branch, mission_id, mid8, effective_mission_id, effective_mid8)``.
@@ -21,8 +21,8 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.cli.commands.implement import (
-    _resolve_bookkeeping_transaction_identifiers,
+from specify_cli.coordination.planning_commit import (
+    resolve_bookkeeping_transaction_identifiers,
 )
 from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 
@@ -82,7 +82,7 @@ def test_cascade_prefers_primary_dir_meta_over_passed_feature_dir(tmp_path: Path
         },
     )
 
-    result = _resolve_bookkeeping_transaction_identifiers(coord_feature_dir, slug, tmp_path)
+    result = resolve_bookkeeping_transaction_identifiers(coord_feature_dir, slug, tmp_path)
 
     assert result[0] == "kitty/mission-cascade-primary"
     assert result[1] == "01KPRIMARYAAAAAAAAAAAAAAA"
@@ -105,7 +105,7 @@ def test_cascade_falls_back_to_feature_dir_when_no_primary_meta(tmp_path: Path) 
     )
     # No kitty-specs/<slug>/meta.json exists at tmp_path -- primary read misses.
 
-    result = _resolve_bookkeeping_transaction_identifiers(feature_dir, slug, tmp_path)
+    result = resolve_bookkeeping_transaction_identifiers(feature_dir, slug, tmp_path)
 
     assert result[0] == "kitty/mission-fallback-only"
     assert result[1] == "01KFALLBACKAAAAAAAAAAAAAA"
@@ -132,7 +132,7 @@ def test_ambiguous_primary_handle_raises(tmp_path: Path) -> None:
     feature_dir = tmp_path / "kitty-specs" / "083-alpha"  # irrelevant: raise precedes fallback
 
     with pytest.raises(MissionSelectorAmbiguous):
-        _resolve_bookkeeping_transaction_identifiers(feature_dir, "083", tmp_path)
+        resolve_bookkeeping_transaction_identifiers(feature_dir, "083", tmp_path)
 
 
 # ---------------------------------------------------------------------------
@@ -144,7 +144,7 @@ def test_legacy_slug_fallback_when_mission_id_absent(tmp_path: Path) -> None:
     slug = "legacy-fallback-mission"
     feature_dir = _seed_primary_mission(tmp_path, slug=slug)  # no mission_id
 
-    result = _resolve_bookkeeping_transaction_identifiers(feature_dir, slug, tmp_path)
+    result = resolve_bookkeeping_transaction_identifiers(feature_dir, slug, tmp_path)
 
     assert result[1] is None  # mission_id
     assert result[3] == f"legacy-{slug}"  # effective_mission_id
@@ -155,7 +155,7 @@ def test_legacy_slug_fallback_when_no_meta_at_all(tmp_path: Path) -> None:
     feature_dir = tmp_path / "kitty-specs" / slug
     feature_dir.mkdir(parents=True)  # no meta.json written
 
-    result = _resolve_bookkeeping_transaction_identifiers(feature_dir, slug, tmp_path)
+    result = resolve_bookkeeping_transaction_identifiers(feature_dir, slug, tmp_path)
 
     assert result[0] is None
     assert result[1] is None
@@ -177,7 +177,7 @@ def test_mid8_meta_value_wins_over_derivation(tmp_path: Path) -> None:
         {"mission_slug": slug, "mission_id": mission_id, "mid8": explicit_mid8},
     )
 
-    result = _resolve_bookkeeping_transaction_identifiers(feature_dir, slug, tmp_path)
+    result = resolve_bookkeeping_transaction_identifiers(feature_dir, slug, tmp_path)
 
     assert result[2] == explicit_mid8
     assert result[2] != mission_id[:8]
@@ -189,7 +189,7 @@ def test_mid8_falls_back_to_resolve_mid8_when_meta_mid8_absent(tmp_path: Path) -
     feature_dir = tmp_path / "kitty-specs" / slug
     _write_meta(feature_dir, {"mission_slug": slug, "mission_id": mission_id})
 
-    result = _resolve_bookkeeping_transaction_identifiers(feature_dir, slug, tmp_path)
+    result = resolve_bookkeeping_transaction_identifiers(feature_dir, slug, tmp_path)
 
     assert result[2] == mission_id[:8]
 
@@ -198,7 +198,7 @@ def test_mid8_is_none_when_no_meta_mid8_and_no_mission_id(tmp_path: Path) -> Non
     slug = "mid8-none-mission"
     feature_dir = _seed_primary_mission(tmp_path, slug=slug)
 
-    result = _resolve_bookkeeping_transaction_identifiers(feature_dir, slug, tmp_path)
+    result = resolve_bookkeeping_transaction_identifiers(feature_dir, slug, tmp_path)
 
     assert result[2] is None
 
@@ -213,10 +213,10 @@ def test_consumer_contract_five_tuple_positions_match_fixture(tmp_path: Path) ->
     each POSITIONAL value of the 5-tuple against a known fixture -- a bare
     tuple has no field names, so positions (not ``inspect.signature``) are the
     contract WP07 (Lane B) depends on."""
-    from specify_cli.cli.commands.implement import (
-        _feature_dir_file_paths as consumer_feature_dir_file_paths,
-        _planning_artifact_source_dir as consumer_planning_artifact_source_dir,
-        _resolve_bookkeeping_transaction_identifiers as consumer_resolve_ids,
+    from specify_cli.coordination.planning_commit import (
+        feature_dir_file_paths as consumer_feature_dir_file_paths,
+        planning_artifact_source_dir as consumer_planning_artifact_source_dir,
+        resolve_bookkeeping_transaction_identifiers as consumer_resolve_ids,
     )
 
     slug = "contract-mission"
@@ -258,12 +258,12 @@ def test_consumer_contract_five_tuple_positions_match_fixture(tmp_path: Path) ->
 def test_sibling_symbols_importable_and_callable_alongside_resolver(tmp_path: Path) -> None:
     """Smoke-check the exact import block ``tasks_move_task.py:1381-1385`` uses
     still resolves all three names from the same module."""
-    from specify_cli.cli.commands.implement import (
-        _feature_dir_file_paths,
-        _planning_artifact_source_dir,
-        _resolve_bookkeeping_transaction_identifiers,
+    from specify_cli.coordination.planning_commit import (
+        feature_dir_file_paths,
+        planning_artifact_source_dir,
+        resolve_bookkeeping_transaction_identifiers,
     )
 
-    assert callable(_feature_dir_file_paths)
-    assert callable(_planning_artifact_source_dir)
-    assert callable(_resolve_bookkeeping_transaction_identifiers)
+    assert callable(feature_dir_file_paths)
+    assert callable(planning_artifact_source_dir)
+    assert callable(resolve_bookkeeping_transaction_identifiers)
