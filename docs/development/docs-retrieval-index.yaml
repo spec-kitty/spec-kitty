@@ -10313,6 +10313,7 @@ pages:
     - {slug: "effector", text: "Effector", level: 3}
     - {slug: "communication-artifact", text: "communication artifact", level: 3}
     - {slug: "repository-root-checkout", text: "repository root checkout", level: 3}
+    - {slug: "integrating-worktree", text: "integrating worktree", level: 3}
     - {slug: "owned-checkout", text: "owned checkout", level: 3}
     - {slug: "shadow-clone-isolated-dev-environment", text: "Shadow Clone (Isolated Dev Environment)", level: 3}
   - path: "docs/context/glossary-conventions.md"
@@ -10499,6 +10500,7 @@ pages:
     - {slug: "branch-integration-git-merge", text: "Branch Integration / Git Merge", level: 3}
     - {slug: "publish-to-origin-main", text: "Publish to origin/main", level: 3}
     - {slug: "coord-partition", text: "COORD partition", level: 3}
+    - {slug: "primary-owned-bookkeeping", text: "Primary-owned bookkeeping", level: 3}
     - {slug: "topology-surface", text: "Topology Surface", level: 3}
     - {slug: "routing", text: "Routing", level: 3}
     - {slug: "the-drain", text: "The drain", level: 3}

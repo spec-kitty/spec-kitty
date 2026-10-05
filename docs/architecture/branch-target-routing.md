@@ -2,7 +2,7 @@
 title: Branch-Target Routing
 description: Explanation of which git branch a mission's code, coordination surface, and base-level artifacts land on.
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-05'
 audience: docs/context/audience/internal/system-architect.md
 type: explanation
 related:
@@ -64,10 +64,12 @@ only the three branch-level destinations themselves.*
 ## Upgrade and project-global state
 
 `spec-kitty upgrade` writes project-global state (`.kittify/metadata.yaml`, `.gitattributes`)
-only on the branch checked out in the repository root checkout. It skips every integrating
-worktree: a worktree on a `kitty/mission-…` mission, lane or coordination branch, or on a
-branch that cannot be read. Those branches receive project-global state by integration, so no
-lane or coordination branch carries an upgrade commit. Where a pre-fix upgrade already left
+on the branch checked out in the repository root checkout, and in linked worktrees on
+ordinary branches. It skips every
+[integrating worktree](../context/execution.md#integrating-worktree): a worktree on a
+`kitty/mission-…` mission, lane or coordination branch, or on a branch that cannot be read.
+So an upgrade run from the repository root checkout adds no upgrade commit to a lane, mission
+or coordination branch; a lane keeps its pre-upgrade copy until it is consolidated. Where a pre-fix upgrade already left
 divergent copies, the integration sites resolve the generated `.kittify/metadata.yaml` to a
 fixed side. See [ADR 2026-10-04-4](../adr/4.x/2026-10-04-4-upgrade-writes-project-global-state-once.md)
 and the [recovery runbook](../operations/upgrade-with-live-lanes-recovery.md).

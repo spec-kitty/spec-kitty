@@ -4,7 +4,7 @@ description: "Recovery when spec-kitty consolidate, review or implement refuses 
 doc_status: active
 type: how-to
 audience: docs/context/audience/internal/maintainer.md
-updated: '2026-10-04'
+updated: '2026-10-05'
 related:
 - docs/operations/recovery-index.md
 - docs/operations/stale-lane-seed.md
@@ -40,7 +40,9 @@ Any one of these three refusals:
    spec-kitty consolidate --mission <slug>
    ```
 
-   or the review or implement command that failed. No other step is needed.
+   or the review or implement command that failed. For `.kittify/metadata.yaml` no other step
+   is needed. If the refusal names `.gitattributes`, see
+   [When you will still see a refusal](#when-you-will-still-see-a-refusal).
 
 The lanes and the coordination branch still carry the divergent upgrade commits from the
 earlier run. The fixed CLI resolves them at the next integration without your help:
@@ -48,13 +50,15 @@ earlier run. The fixed CLI resolves them at the next integration without your he
 - the stale check no longer counts `.kittify/metadata.yaml`, nor any overlap whose content is
   identical on the lane and the Mission branch (the duplicated `.gitattributes` line);
 - the merges that `consolidate` and implement perform resolve a conflict confined to
-  `.kittify/metadata.yaml` to the receiving side (the Mission branch, the target, or the
-  dependent lane);
+  `.kittify/metadata.yaml` to the receiving side (the Mission branch, the target, the
+  dependent lane, or the lane that takes in the recorded planning commit);
 - the lane sync after a coordination commit takes the incoming coordination or Mission copy
   (rule `R-PRIMARY-OWNED-BOOKKEEPING`).
 
-Going forward, `spec-kitty upgrade` writes project-global state once, in the repository root
-checkout, and skips lane, Mission and coordination worktrees. A lane keeps its pre-upgrade
+Going forward, `spec-kitty upgrade` run from the repository root checkout skips lane, Mission
+and coordination worktrees. Run it from the repository root checkout, not from inside a lane
+worktree: from inside one it still commits on the lane branch
+([#5747](https://github.com/spec-kitty/spec-kitty/issues/5747)). A lane keeps its pre-upgrade
 `.gitignore` and `.gitattributes` until it integrates.
 
 ## What not to do
@@ -72,7 +76,14 @@ checkout, and skips lane, Mission and coordination worktrees. A lane keeps its p
 The fix covers generated bookkeeping only. A genuine overlap on a file a work package edits,
 such as `.gitattributes` content that differs between lanes, `.gitignore`, `.kittify/config.yaml`
 or source files, still stops `consolidate`, and resolving it by hand is correct. For that
-case the printed stale remedy can be a no-op after the in-run rollback. Follow-up
+case the printed stale remedy can be a no-op after the in-run rollback.
+
+One of these refusals is caused by the earlier upgrade and not by a work package: if the
+target branch's `.gitattributes` was edited after the Mission was cut, the line the earlier
+upgrade appended on the target and on each lane no longer merges cleanly, and `consolidate`
+refuses with `TARGET_BRANCH_CONTENT_CONFLICT` on `.gitattributes`. `.gitattributes` is yours
+to edit, so Spec Kitty does not pick a side. Resolve it by hand on the Mission branch: keep
+the target's version of the file and make sure the upgrade's line appears once. Follow-up
 [#5711](https://github.com/spec-kitty/spec-kitty/issues/5711) tracks the remedy wording.
 
 ## See also

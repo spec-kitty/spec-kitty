@@ -298,6 +298,20 @@ Terms describing tool invocation and semantic safety gates during generation.
 
 ---
 
+### integrating worktree
+
+| | |
+|---|---|
+| **Definition** | A linked git worktree whose checked-out branch is a `kitty/mission-…` mission, lane or coordination branch, as recognized by the branch-naming authority (`parse_mission_slug_from_branch`), or whose branch cannot be read (a detached HEAD counts, to fail safe). Its branch will later be integrated into another branch of the same Mission. `spec-kitty upgrade`, run from the repository root checkout, skips integrating worktrees: it writes, stamps and commits nothing in them (`_is_integrating_worktree`, `src/specify_cli/upgrade/runner.py`; ADR [2026-10-04-4](../adr/4.x/2026-10-04-4-upgrade-writes-project-global-state-once.md)). |
+| **Context** | Execution |
+| **Status** | candidate |
+| **Applicable to** | `4.x` |
+| **Use when** | Describing which worktrees `spec-kitty upgrade` leaves alone, or why a lane still shows a pre-upgrade `.kittify/metadata.yaml`. |
+| **Do NOT use when** | The worktree is on an ordinary branch (a feature or landing branch): upgrade still upgrades and commits there. The concept is the repository-root working copy: use [repository root checkout](#repository-root-checkout), which is never an integrating worktree. The concept is a per-work-package execution checkout in general: use lane worktree, [Lane](./orchestration.md#lane). |
+| **Related terms** | [repository root checkout](#repository-root-checkout), [owned checkout](#owned-checkout), [Lane](./orchestration.md#lane), [Primary-owned bookkeeping](./orchestration.md#primary-owned-bookkeeping) |
+
+---
+
 ### owned checkout
 
 | | |
