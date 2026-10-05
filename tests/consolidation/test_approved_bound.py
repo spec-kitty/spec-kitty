@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.consolidation import approved_bound as bound
-from specify_cli.consolidation.approved_bound import ATTEST_APPROVED_FLAG, BoundRefusal, BoundRefusalCode, approval_stamp, check_lane
+from specify_cli.consolidation.approved_bound import ATTEST_APPROVED_FLAG, BoundRefusal, BoundRefusalCode, approval_stamp, check_lane, render_refusals
 from specify_cli.consolidation.canceled_attestation import ATTESTATION_KEY
 from specify_cli.consolidation.git_probes import GitProbeError
 from specify_cli.consolidation.reconciliation import ApprovedWpCommitSet, build_approved_wp_set, lane_tips_moved_refusal
@@ -177,7 +177,7 @@ def test_missing_stamp_refuses_and_names_the_work_package_and_the_override(repo:
     refusal = repo.check()
 
     assert refusal is not None and refusal.code is BoundRefusalCode.APPROVAL_STAMP_MISSING
-    text = refusal.render()
+    text = refusal.render(_SLUG)
     assert text.startswith("APPROVAL_STAMP_MISSING: ")
     assert "WP01" in text and _LANE in text and f"{ATTEST_APPROVED_FLAG} WP01" in text
 
@@ -192,7 +192,7 @@ def test_stamp_not_on_lane_refuses_and_names_the_stamp(repo: _Repo) -> None:
     refusal = repo.check()
 
     assert refusal is not None and refusal.code is BoundRefusalCode.APPROVAL_STAMP_NOT_ON_LANE
-    text = refusal.render()
+    text = refusal.render(_SLUG)
     assert text.startswith("APPROVAL_STAMP_NOT_ON_LANE: ")
     assert elsewhere[:7] in text and "WP01" in text and _BRANCH in text
 
@@ -204,10 +204,28 @@ def test_content_after_approval_refuses_and_names_commits_and_path(repo: _Repo) 
     refusal = repo.check()
 
     assert refusal is not None and refusal.code is BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL
-    text = refusal.render()
+    text = refusal.render(_SLUG)
     assert text.startswith("LANE_MOVED_AFTER_APPROVAL: ")
     assert all(sha[:7] in text for sha in reversed(late[-3:])) and late[0][:7] not in text
     assert "and 1 more" in text and "src/late3.py" in text and "WP01" in text and _LANE in text
+
+
+def test_several_work_packages_render_one_line_each_and_one_recovery_block() -> None:
+    """Twelve unstamped work packages and a three-package moved lane: short lines, one block, runnable commands, the term defined once."""
+    unstamped = tuple(f"WP{n:02d}" for n in range(1, 13))
+    missing = BoundRefusal(BoundRefusalCode.APPROVAL_STAMP_MISSING, _LANE, _BRANCH, unstamped)
+    moved = BoundRefusal(BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL, "lane-b", "branch-b", ("WP13", "WP14", "WP15"), commits=("c" * 40,), path="src/b.py")
+
+    text = render_refusals([missing, moved], "demo-mission")
+
+    assert text.startswith("APPROVAL_STAMP_MISSING: WP01 on lane lane-a has no approval stamp (the lane commit recorded when review approved it)")
+    assert max(map(len, text.splitlines())) < 500 and text.count("approval stamp (the lane commit") == 1
+    assert text.count(f"{ATTEST_APPROVED_FLAG} ") == 12 and text.count("spec-kitty consolidate --mission demo-mission ") == 1
+    assert [wp for wp in unstamped if f"{wp} on lane lane-a has no approval stamp" not in text] == []
+    assert "\nLANE_MOVED_AFTER_APPROVAL: branch 'branch-b' (lane-b carries WP13, WP14, WP15) holds content" in text
+    assert "see one with `git show ccccccc`" in text
+    assert all(f"move-task {wp} --to in_progress --mission demo-mission" in text for wp in (*unstamped, "WP13", "WP14", "WP15"))
+    assert "<mission>" not in text
 
 
 def test_unresolvable_claim_base_fails_closed_instead_of_passing(repo: _Repo) -> None:
@@ -330,7 +348,7 @@ def test_mixed_lane_counts_the_canceled_work_packages_stamp_as_covered(repo: _Re
     repo.commit("src/after_cancel.py")
     refusal = repo.check(setup)
     assert refusal is not None and refusal.code is BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL
-    assert "src/after_cancel.py" in refusal.render()
+    assert "src/after_cancel.py" in refusal.render(_SLUG)
 
 
 # ---------------------------------------------------------------------------

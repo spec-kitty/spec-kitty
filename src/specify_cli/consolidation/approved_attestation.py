@@ -46,7 +46,7 @@ from specify_cli.lanes.models import LanesManifest
 from specify_cli.status import Lane, StatusEvent, StoreError, TransitionRequest, materialize_snapshot, read_events
 from specify_cli.status_lanes import OPERATOR_REASON_SOURCE
 
-from .approved_bound import APPROVED_REVIEWED, ATTEST_APPROVED_FLAG, approval_is_attested, approval_stamp, check_lane
+from .approved_bound import APPROVED_REVIEWED, ATTEST_APPROVED_FLAG, approval_is_attested, approval_stamp, check_lane, move_back_command
 from .canceled_attestation import ATTEST_REASON_FLAG, ATTESTATION_KEY, AttestationError
 from .git_probes import GitProbeError, resolve_commit
 from .reconciliation import (
@@ -65,7 +65,6 @@ _REASON_PREFIX = "operator attests approved content reviewed: "
 #: Evidence ``review.reference`` prefix: the attestation, not a review, is the reference.
 _REFERENCE_PREFIX = "operator-attestation:"
 _NOTHING_RECORDED = "Nothing was recorded."
-_MOVE_BACK = "spec-kitty agent tasks move-task {wp} --to in_progress --mission <mission>"
 
 
 def validate_approved_attestation_request(
@@ -206,7 +205,7 @@ def _refuse_moved_reattestations(
             raise AttestationError(
                 f"{ATTEST_APPROVED_FLAG} cannot be repeated for {', '.join(hit)}: lane {lane.lane_id} (branch '{branch}') "
                 f"moved past the earlier attestation, so its new content would otherwise read as approved. "
-                f"Move {hit[0]} back for review ({_MOVE_BACK.format(wp=hit[0])}) so the new content is reviewed, "
+                f"Move {hit[0]} back for review ({move_back_command(hit[0], lanes_manifest.mission_slug)}) so the new content is reviewed, "
                 f"approve it again, then re-run spec-kitty consolidate. {_NOTHING_RECORDED}"
             )
 

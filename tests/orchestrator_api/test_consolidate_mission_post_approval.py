@@ -23,6 +23,7 @@ from tests.terminus.post_approval_support import (
     LATE_PATH,
     WP01_PATH,
     add_post_approval_commit,
+    strip_approval_stamps,
     build_post_approval_coord_mission,
     build_post_approval_lanes_mission,
 )
@@ -72,6 +73,19 @@ def test_post_approval_commit_is_refused_before_any_lane_merges(tmp_path: Path, 
     assert ref_shas(mission) == before, f"no branch tip may move. output={output}"
     assert not blob_present_at(mission.repo, _TARGET, LATE_PATH), "the unreviewed file must not be on the target"
     assert not blob_present_at(mission.repo, mission.coord_branch, LATE_PATH), "the unreviewed file must not be on the mission branch"
+
+
+def test_an_unstamped_approval_says_attestation_is_a_cli_only_step(tmp_path: Path) -> None:
+    mission = _build(tmp_path, "lanes")
+    strip_approval_stamps(mission, "WP01")
+
+    result = _consolidate_mission(mission)
+
+    envelope = _envelope(result)
+    data = envelope["data"]
+    assert isinstance(data, dict)
+    assert result.returncode != 0 and data["preflight_error_code"] == "APPROVAL_STAMP_MISSING", envelope
+    assert "consolidate-mission has no attestation flag: attestation is done with `spec-kitty consolidate` (CLI only)" in str(data["errors"])
 
 
 @pytest.mark.parametrize("topology", ["lanes", "coord"])

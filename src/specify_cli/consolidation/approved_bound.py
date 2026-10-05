@@ -44,9 +44,10 @@ ATTEST_APPROVED_FLAG = "--attest-approved-reviewed"
 _APPROVED_LANE = "approved"
 _MAX_NAMED_COMMITS = 3
 _SHORT_SHA = 7
-_RERUN = "then re-run spec-kitty consolidate"
 _ATTEST_REASON = '--attest-reason "<what you checked>"'
-_MOVE_BACK = "spec-kitty agent tasks move-task {wp} --to in_progress --mission <mission>"
+_STAMP_NAME = "approval stamp"
+_STAMP_DEFINITION = f"{_STAMP_NAME} (the lane commit recorded when review approved it)"
+_COMMAND_INDENT = "  "
 
 
 class BoundRefusalCode(StrEnum):
@@ -69,36 +70,122 @@ class BoundRefusal:
     path: str | None = None
     stamp: str | None = None
 
-    def render(self) -> str:
-        """The operator-facing text, led by ``<CODE>: `` like the other claim refusals."""
-        wps = ", ".join(self.wp_ids)
-        head = f"{self.code.value}: "
-        if self.code is BoundRefusalCode.APPROVAL_STAMP_MISSING:
-            first = self.wp_ids[0]
-            return (
-                f"{head}{wps} on lane {self.lane_id} has no recorded approval stamp, so the commit review approved cannot be determined. "
-                f"Recovery: move {wps} back for review ({_MOVE_BACK.format(wp=first)}), approve it again, {_RERUN}; "
-                f"or, after checking by hand that the lane holds only reviewed work, {_RERUN} with {ATTEST_APPROVED_FLAG} {first} {_ATTEST_REASON}"
-            )
-        if self.code is BoundRefusalCode.APPROVAL_STAMP_NOT_ON_LANE:
-            return (
-                f"{head}the approval of {wps} names commit {_short(self.stamp)}, which is not on lane {self.lane_id} (branch '{self.branch}'); "
-                f"the lane was rewritten after review approved it. "
-                f"Recovery: move {wps} back for review ({_MOVE_BACK.format(wp=self.wp_ids[0])}), approve it again, {_RERUN}"
-            )
-        named = ", ".join(_short(sha) for sha in self.commits[:_MAX_NAMED_COMMITS])
-        more = len(self.commits) - _MAX_NAMED_COMMITS
-        if more > 0:
-            named += f" and {more} more"
-        return (
-            f"{head}lane {self.lane_id} (branch '{self.branch}') holds content committed after review approved the lane "
-            f"(work packages {wps} of this lane): {named} (e.g. '{self.path}'). "
-            f"Recovery: move {self.wp_ids[0]} back for review ({_MOVE_BACK.format(wp=self.wp_ids[0])}) so the new content is reviewed, approve it again, {_RERUN}"
-        )
+    def render(self, mission_slug: str) -> str:
+        """The operator-facing text of this one refusal, led by ``<CODE>: `` like the other claim refusals."""
+        return render_refusals([self], mission_slug)
 
 
 def _short(sha: str | None) -> str:
     return (sha or "")[:_SHORT_SHA]
+
+
+def move_back_command(wp_id: str, mission_slug: str) -> str:
+    """The command that sends *wp_id* of *mission_slug* back to ``in_progress`` for rework and re-review."""
+    return f"spec-kitty agent tasks move-task {wp_id} --to in_progress --mission {mission_slug}"
+
+
+def attest_command(wp_ids: Sequence[str], mission_slug: str) -> str:
+    """One ``consolidate`` command attesting every work package of *wp_ids* (``APPROVAL_STAMP_MISSING`` only)."""
+    flags = " ".join(f"{ATTEST_APPROVED_FLAG} {wp_id}" for wp_id in wp_ids)
+    return f"spec-kitty consolidate --mission {mission_slug} {flags} {_ATTEST_REASON}"
+
+
+class _StampTerm:
+    """Names the approval stamp: defined on first use, short after, so a text defines it once."""
+
+    def __init__(self) -> None:
+        self._defined = False
+
+    def __call__(self) -> str:
+        if self._defined:
+            return _STAMP_NAME
+        self._defined = True
+        return _STAMP_DEFINITION
+
+
+def _distinct_wp_ids(group: Sequence[BoundRefusal]) -> list[str]:
+    return list(dict.fromkeys(wp_id for refusal in group for wp_id in refusal.wp_ids))
+
+
+def _send_back_recovery(wp_ids: Sequence[str], mission: str, purpose: str) -> list[str]:
+    """The move-back block shared by the two refusals only a review can lift: one command per work package, then the re-approval."""
+    pronoun = "it" if len(wp_ids) == 1 else "them"
+    return [
+        f"Recovery: send {', '.join(wp_ids)} back for review so {purpose}:",
+        *(f"{_COMMAND_INDENT}{move_back_command(wp_id, mission)}" for wp_id in wp_ids),
+        f"Then approve {pronoun} again and re-run spec-kitty consolidate.",
+    ]
+
+
+def _missing_block(group: Sequence[BoundRefusal], mission: str, term: _StampTerm) -> list[str]:
+    findings: list[str] = []
+    for refusal in group:
+        for wp_id in refusal.wp_ids:
+            suffix = "." if findings else ", so the commit review approved cannot be determined."
+            findings.append(f"{wp_id} on lane {refusal.lane_id} has no {term()}{suffix}")
+    wps = _distinct_wp_ids(group)
+    noun = "approval" if len(wps) == 1 else "approvals"
+    return [
+        f"{BoundRefusalCode.APPROVAL_STAMP_MISSING.value}: {findings[0]}",
+        *findings[1:],
+        f"Recovery, either attest the {noun} after checking by hand that the lane holds only reviewed work:",
+        f"{_COMMAND_INDENT}{attest_command(wps, mission)}",
+        "or send " + (wps[0] if len(wps) == 1 else f"each of {', '.join(wps)}") + " back for review:",
+        *(f"{_COMMAND_INDENT}{move_back_command(wp_id, mission)}" for wp_id in wps),
+        f"and, after approving {'it' if len(wps) == 1 else 'them'} again, re-run spec-kitty consolidate.",
+    ]
+
+
+def _not_on_lane_block(group: Sequence[BoundRefusal], mission: str, term: _StampTerm) -> list[str]:
+    findings = [
+        f"{refusal.wp_ids[0]}'s {term()} is {_short(refusal.stamp)}, which is not on branch '{refusal.branch}' (lane {refusal.lane_id}): "
+        "the lane was rewritten after review approved it."
+        for refusal in group
+    ]
+    return [
+        f"{BoundRefusalCode.APPROVAL_STAMP_NOT_ON_LANE.value}: {findings[0]}",
+        *findings[1:],
+        *_send_back_recovery(_distinct_wp_ids(group), mission, "the rewritten lane is reviewed"),
+    ]
+
+
+def _moved_finding(refusal: BoundRefusal, term: _StampTerm) -> str:
+    named = ", ".join(_short(sha) for sha in refusal.commits[:_MAX_NAMED_COMMITS])
+    more = len(refusal.commits) - _MAX_NAMED_COMMITS
+    if more > 0:
+        named += f" and {more} more"
+    return (
+        f"branch '{refusal.branch}' ({refusal.lane_id} carries {', '.join(refusal.wp_ids)}) holds content committed after its {term()}: "
+        f"{named} (e.g. '{refusal.path}'); see one with `git show {_short(refusal.commits[0])}`."
+    )
+
+
+def _moved_block(group: Sequence[BoundRefusal], mission: str, term: _StampTerm) -> list[str]:
+    findings = [_moved_finding(refusal, term) for refusal in group]
+    return [
+        f"{BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL.value}: {findings[0]}",
+        *findings[1:],
+        *_send_back_recovery(_distinct_wp_ids(group), mission, "the new content is reviewed"),
+    ]
+
+
+def render_refusals(refusals: Sequence[BoundRefusal], mission_slug: str) -> str:
+    """One operator-facing text for *refusals*: a short line per refused lane or work package, then ONE recovery block per code.
+
+    The text starts with ``<CODE>: `` (the orchestrator extracts it) and each further code
+    starts its own block. The approval stamp is defined once. Every printed command carries
+    *mission_slug*, so it runs as printed.
+    """
+    groups: dict[BoundRefusalCode, list[BoundRefusal]] = {}
+    for refusal in refusals:
+        groups.setdefault(refusal.code, []).append(refusal)
+    term = _StampTerm()
+    blocks = {
+        BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL: _moved_block,
+        BoundRefusalCode.APPROVAL_STAMP_MISSING: _missing_block,
+        BoundRefusalCode.APPROVAL_STAMP_NOT_ON_LANE: _not_on_lane_block,
+    }
+    return "\n".join(line for code, group in groups.items() for line in blocks[code](group, mission_slug, term))
 
 
 def is_approved_reviewed_attestation(policy_metadata: Mapping[str, object] | None) -> bool:
@@ -286,5 +373,7 @@ __all__ = [
     "commits_beyond",
     "content_commits",
     "is_approved_reviewed_attestation",
+    "move_back_command",
+    "render_refusals",
     "resolves_commit",
 ]

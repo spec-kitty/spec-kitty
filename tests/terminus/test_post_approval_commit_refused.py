@@ -103,16 +103,17 @@ def _wp_lane(mission: CoordMission, wp_id: str) -> str:
     return str(next(wp["lane"] for wp in payload["work_packages"] if wp["id"] == wp_id))
 
 
-def _printed_move_back_command(code: BoundRefusalCode) -> str:
-    text = BoundRefusal(code, "lane-a", "lane-a", ("WP01",), commits=("a" * 40,), path="src/a.py", stamp="b" * 40).render()
-    printed = re.search(r"\((spec-kitty agent tasks move-task [^)]*)\)", text)
+def _printed_move_back_command(code: BoundRefusalCode, slug: str) -> str:
+    text = BoundRefusal(code, "lane-a", "lane-a", ("WP01",), commits=("a" * 40,), path="src/a.py", stamp="b" * 40).render(slug)
+    printed = re.search(r"^\s+(spec-kitty agent tasks move-task .*)$", text, flags=re.MULTILINE)
     assert printed is not None, text
     return printed.group(1)
 
 
 def test_every_refusal_code_prints_the_same_recovery_command() -> None:
     """One command template for all three codes, so running it once per topology proves the remedy of every code."""
-    assert {_printed_move_back_command(code) for code in BoundRefusalCode} == {"spec-kitty agent tasks move-task WP01 --to in_progress --mission <mission>"}
+    printed = {_printed_move_back_command(code, "demo-mission") for code in BoundRefusalCode}
+    assert printed == {"spec-kitty agent tasks move-task WP01 --to in_progress --mission demo-mission"}
 
 
 @pytest.mark.parametrize("topology", _TOPOLOGIES)
@@ -120,7 +121,7 @@ def test_printed_recovery_command_runs_and_sends_the_work_package_back(tmp_path:
     """The remedy the refusals print is executed as printed, on both topologies (NFR-004)."""
     mission = build_post_approval_mission(tmp_path, topology)
     assert _wp_lane(mission, "WP01") == "approved"
-    argv = shlex.split(_printed_move_back_command(BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL).replace("<mission>", mission.slug))
+    argv = shlex.split(_printed_move_back_command(BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL, mission.slug))
     assert argv[0] == "spec-kitty"
 
     moved = run_terminus(mission, argv[1:])

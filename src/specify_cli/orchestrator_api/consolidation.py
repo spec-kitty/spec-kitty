@@ -438,6 +438,19 @@ def _approved_bound_claim_base(main_repo_root: Path, mission_slug: str, lanes_ma
     return _status_placement_tip(main_repo_root, mission_slug) or resolve_commit(main_repo_root, lanes_manifest.mission_branch)
 
 
+def _orchestrator_refusal_text(refusal: str) -> str:
+    """The lane-check refusal for this command's envelope: ``consolidate-mission`` has no attestation flag.
+
+    The shared text names ``--attest-approved-reviewed`` as one recovery for an unstamped
+    approval; this command cannot take it, so say where attestation is done.
+    """
+    from specify_cli.consolidation.approved_bound import ATTEST_APPROVED_FLAG
+
+    if ATTEST_APPROVED_FLAG not in refusal:
+        return refusal
+    return f"{refusal}\nconsolidate-mission has no attestation flag: attestation is done with `spec-kitty consolidate` (CLI only), not with this command."
+
+
 def _refuse_post_approval_lane_content(main_repo_root: Path, mission_dir: Path, mission_slug: str, lanes_manifest: LanesManifest) -> None:
     """#5668: refuse, before the first lane is consolidated, a lane holding content committed after review approved it.
 
@@ -465,7 +478,7 @@ def _refuse_post_approval_lane_content(main_repo_root: Path, mission_dir: Path, 
     except (StoreError, OSError) as exc:
         raise RuntimeError(f"The approved lanes could not be checked against what review approved ({exc}); no lane was merged.") from exc
     if refusal is not None:
-        raise ApprovedBoundRefused(refusal, error_code=_bound_refusal_code(refusal))
+        raise ApprovedBoundRefused(_orchestrator_refusal_text(refusal), error_code=_bound_refusal_code(refusal))
 
 
 def _execute_lane_merge(

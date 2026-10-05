@@ -81,7 +81,9 @@ def test_unstamped_approval_refuses_then_attestation_consolidates(tmp_path: Path
 
     rc, flat = _consolidate(mission)
     assert rc != 0 and _MISSING in flat, f"an unstamped approval must refuse:\n{flat}"
-    assert "WP01" in flat and f"{ATTEST_APPROVED_FLAG} WP01" in flat and "move-task WP01" in flat, f"both remedies must be named:\n{flat}"
+    attest_command = f"spec-kitty consolidate --mission {mission.slug} {ATTEST_APPROVED_FLAG} WP01 --attest-reason"
+    assert attest_command in flat, f"the attest remedy must be a full command:\n{flat}"
+    assert f"move-task WP01 --to in_progress --mission {mission.slug}" in flat, f"the re-review remedy must be a full command:\n{flat}"
     assert _BANNER not in flat
     assert git_rev(mission.repo, mission.target_branch) == target
 

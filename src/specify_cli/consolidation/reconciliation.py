@@ -55,7 +55,16 @@ from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR
 from specify_cli.lanes._git import branch_exists
 from specify_cli.lanes.compute import is_planning_lane, lane_created_branch, lane_fully_canceled
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
-from specify_cli.consolidation.approved_bound import BoundRefusal, BoundRefusalCode, approval_stamp, check_lane, commits_beyond, content_commits, resolves_commit
+from specify_cli.consolidation.approved_bound import (
+    BoundRefusal,
+    BoundRefusalCode,
+    approval_stamp,
+    check_lane,
+    commits_beyond,
+    content_commits,
+    render_refusals,
+    resolves_commit,
+)
 from specify_cli.consolidation.git_probes import (
     GitProbeError,
     blob_id_at,
@@ -1781,8 +1790,8 @@ def _approved_bound_verdict(
 ) -> _BoundVerdict:
     """Check every covered code lane against its approval stamps (#5668); read the log once via *event_log*.
 
-    Each refused lane renders its own clause, joined with ``"; "`` in lane order. A lane
-    tip is resolved once and both checked and recorded, so the gate re-check asks about
+    The refused lanes render as one text (:func:`~specify_cli.consolidation.approved_bound.render_refusals`),
+    a line per lane in lane order. A lane tip is resolved once and both checked and recorded, so the gate re-check asks about
     exactly the commit this check validated.
     """
     lanes = _bound_lanes(lanes_manifest, work_packages, excluded_canceled_wp_ids)
@@ -1799,7 +1808,7 @@ def _approved_bound_verdict(
     base_resolves = resolves_commit(repo_root, claim_base)
     stamp_anchors = approval_stamp_anchors(events, lanes, work_packages, excluded_canceled_wp_ids)
     is_bookkeeping = functools.partial(_is_bookkeeping, mission_slug=lanes_manifest.mission_slug, planning_prefix=planning_prefix)
-    refusals: list[str] = []
+    refusals: list[BoundRefusal] = []
     tips: list[tuple[str, str]] = []
     for lane in lanes:
         branch = _lane_branch_for(lanes_manifest, lane.lane_id)
@@ -1825,10 +1834,10 @@ def _approved_bound_verdict(
             else None
         )
         if found is not None:
-            refusals.append(found.render())
+            refusals.append(found)
         tips.append((branch, tip))
     if refusals:
-        return _BoundVerdict(refusal="; ".join(refusals))
+        return _BoundVerdict(refusal=render_refusals(refusals, lanes_manifest.mission_slug))
     return _BoundVerdict(lane_tips=tuple(tips))
 
 
@@ -1891,7 +1900,7 @@ def lane_tips_moved_refusal(
     command never names a canceled work package.
     """
     is_bookkeeping = functools.partial(_is_bookkeeping, mission_slug=lanes_manifest.mission_slug, planning_prefix=planning_prefix)
-    refusals: list[str] = []
+    refusals: list[BoundRefusal] = []
     for lane in sorted(lanes_manifest.lanes, key=lambda candidate: candidate.lane_id):
         branch = _lane_branch_for(lanes_manifest, lane.lane_id)
         validated = validated_tips.get(branch)
@@ -1909,9 +1918,9 @@ def lane_tips_moved_refusal(
                     tuple(sorted((approved_wp_ids or {}).get(lane.lane_id) or lane.wp_ids)),
                     commits=tuple(sha for sha, _path in content),
                     path=content[0][1],
-                ).render()
+                )
             )
-    return "; ".join(refusals) if refusals else None
+    return render_refusals(refusals, lanes_manifest.mission_slug) if refusals else None
 
 
 def _dependency_lane_ids(lanes_manifest: LanesManifest, lane: ExecutionLane) -> list[str]:
