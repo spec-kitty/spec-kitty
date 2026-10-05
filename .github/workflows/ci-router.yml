@@ -287,6 +287,39 @@ jobs:
               # belongs in the unmatched catch-all, scripts/ci/gate_selection.py), and this one is data-shaped.
               # The file is the one event_mapping_check parses; the `status` group still routes it to its modules.
               - '**/status/lifecycle_events.py'
+              # The src files the mission-status reference reader (tests/contract/_mission_status_*.py) and its tests import,
+              # spelled the same way and for the same reason: a change to one of them must run `tests (contract tools)`, which is
+              # their only per-PR home. Pinned by tests/ci/test_contracts_workflows.py, which derives the list from the imports.
+              - '**/kernel/clock.py'
+              - '**/kernel/errors.py'
+              - '**/kernel/git/__init__.py'
+              - '**/mission_runtime/__init__.py'
+              - '**/mission_runtime/identity.py'
+              - '**/specify_cli/cli/commands/agent/tasks_move_task.py'
+              - '**/specify_cli/context/__init__.py'
+              - '**/specify_cli/context/mission_resolver.py'
+              - '**/specify_cli/coordination/surface_resolver.py'
+              - '**/specify_cli/core/dependency_graph.py'
+              - '**/specify_cli/core/git_ops.py'
+              - '**/specify_cli/core/vcs/git.py'
+              - '**/specify_cli/frontmatter.py'
+              - '**/specify_cli/lanes/branch_naming.py'
+              - '**/specify_cli/lanes/compute.py'
+              - '**/specify_cli/lanes/persistence.py'
+              - '**/specify_cli/mission_metadata.py'
+              - '**/specify_cli/missions/_read_path_resolver.py'
+              - '**/specify_cli/ownership/validation.py'
+              - '**/specify_cli/policy/commit_guard.py'
+              - '**/specify_cli/review/artifacts.py'
+              - '**/specify_cli/review/cycle.py'
+              - '**/specify_cli/status/aggregate.py'
+              - '**/specify_cli/status/models.py'
+              - '**/specify_cli/status/progress.py'
+              - '**/specify_cli/status/reducer.py'
+              - '**/specify_cli/status/tail_reader.py'
+              - '**/specify_cli/status/wp_metadata.py'
+              - '**/specify_cli/status/wp_view.py'
+              - '**/specify_cli/workspace/context.py'
             # FR-004 probe: matches ANY src change. The `unmatched` step computes
             # `any_src AND NOT (any named src group)` from the filter's own outputs.
             # Never gate a job on `any_src` directly (contract Invariant 1).

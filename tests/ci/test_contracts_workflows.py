@@ -1225,9 +1225,49 @@ def test_the_contract_tools_filter_group_names_the_paths_the_contracts_workflow_
     beyond_contracts = [path for path in EXPECTED_PATHS if path not in ("contracts/**", ".github/CODEOWNERS")]
     # The lifecycle source is spelled without its src/ prefix so the group stays non-src (a src glob would make it a code-shard gate).
     spelled = ["**/status/lifecycle_events.py" if path == "src/specify_cli/status/lifecycle_events.py" else path for path in beyond_contracts]
+    spelled += [glob for glob in group if glob.startswith("**/") and glob != "**/status/lifecycle_events.py"]  # the reader's src imports: their own test pins them
     assert sorted(group) == sorted(spelled), "the router group and the Contracts workflow trigger list must not drift"
     assert not any(glob.startswith("src/") for glob in group), "a src glob would make the group a code-shard gate"
     assert "contracts/**" in filters["corpus"], "contracts/** stays owned by the corpus group"
+
+
+_SRC_ROOT = REPO_ROOT / "src"
+_SRC_PACKAGES = frozenset(entry.name for entry in _SRC_ROOT.iterdir() if entry.is_dir() and not entry.name.startswith((".", "_")))
+
+
+def _src_files_imported_by_the_mission_status_contract_tests() -> set[str]:
+    """The ``src/`` files that the mission-status reference reader and its tests import (``tests/contract/*mission_status*.py``)."""
+    imported: set[str] = set()
+    for module_file in sorted((REPO_ROOT / "tests" / "contract").glob("*mission_status*.py")):
+        for node in ast.walk(ast.parse(module_file.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                names = [node.module, *(f"{node.module}.{alias.name}" for alias in node.names)]
+            elif isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            else:
+                continue
+            for name in names:
+                if name.split(".")[0] not in _SRC_PACKAGES:
+                    continue
+                base = Path("src", *name.split("."))
+                for candidate in (base.with_suffix(".py"), base / "__init__.py"):
+                    if (REPO_ROOT / candidate).is_file():
+                        imported.add(candidate.as_posix())
+    return imported
+
+
+def _group_selects(group: list[str], path: str) -> bool:
+    """True when a ``**/<tail>`` glob of the group names ``path`` (the group spells src files without their ``src/`` prefix)."""
+    return any(glob.startswith("**/") and path.endswith("/" + glob[3:]) for glob in group)
+
+
+def test_the_contract_tools_filter_group_names_every_src_file_the_mission_status_reader_and_its_tests_import() -> None:
+    filters = yaml.safe_load(next(step for step in steps_of(jobs(load(ROUTER_TEXT))["changes"]) if step.get("id") == "filter")["with"]["filters"])
+    group = filters["contract_tools"]
+    imported = _src_files_imported_by_the_mission_status_contract_tests()
+    assert len(imported) > 20, f"the import scan found too little: {sorted(imported)}"
+    missing = sorted(path for path in imported if not _group_selects(group, path))
+    assert missing == [], f"a change to these imported src files selects no `tests (contract tools)` run: {missing}"
 
 
 def test_contracts_yml_no_longer_hosts_the_tool_tests() -> None:
