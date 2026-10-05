@@ -1,4 +1,4 @@
-# WP04 review feedback, cycle 1 (reviewer: claude-reviewer)
+# WP04 review feedback, cycle 1 (reviewer: reviewer)
 
 Verdict: **changes requested**. Lane `kitty/mission-approved-claim-bound-01M444QR-lane-d`, commits `89c69213ec`, `50aa1daf2a`, `7087a11b92`.
 

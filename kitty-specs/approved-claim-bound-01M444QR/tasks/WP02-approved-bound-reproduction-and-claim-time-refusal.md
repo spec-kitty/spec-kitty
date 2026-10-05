@@ -65,7 +65,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 
 - **Profile**: `python-pedro`
 - **Role**: `implementer`
-- **Agent/tool**: `claude`
+- **Agent/tool**: `implementer`
 
 ---
 
@@ -85,7 +85,7 @@ The defect of issue 5668 is closed at claim time.
 - Two public functions in `reconciliation.py` (`approved_bound_refusal`, `lane_tips_moved_refusal`) and two run-state fields exist for the parallel work packages WP03 and WP05 to call; they add nothing to these files.
 - Existing refusals keep their codes, texts and precedence; the #5330 strict xfails keep their state.
 
-Implementation command: `.venv/bin/spec-kitty agent action implement WP02 --agent claude --mission approved-claim-bound-01M444QR`
+Implementation command: `.venv/bin/spec-kitty agent action implement WP02 --agent implementer --mission approved-claim-bound-01M444QR`
 
 ## Context & Constraints
 

@@ -47,7 +47,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 
 - **Profile**: `python-pedro`
 - **Role**: `implementer`
-- **Agent/tool**: `claude`
+- **Agent/tool**: `implementer`
 
 ---
 
@@ -65,7 +65,7 @@ WP03, WP04 and WP05 were built in parallel lanes that never saw each other. This
 - The mission's new tests and the owning suites pass on the integrated base.
 - The issue's own reproducer exits 0 in all four combinations (SC-005).
 
-Implementation command: `.venv/bin/spec-kitty agent action implement WP07 --agent claude --mission approved-claim-bound-01M444QR`
+Implementation command: `.venv/bin/spec-kitty agent action implement WP07 --agent implementer --mission approved-claim-bound-01M444QR`
 
 ## Context & Constraints
 

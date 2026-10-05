@@ -4,11 +4,11 @@ cycle_number: 1
 mission_slug: approved-claim-bound-01M444QR
 reproduction_command:
 reviewed_at: '2026-10-04T22:18:14Z'
-reviewer_agent: claude-reviewer
+reviewer_agent: reviewer
 wp_id: WP04
 ---
 
-# WP04 review feedback, cycle 1 (reviewer: claude-reviewer)
+# WP04 review feedback, cycle 1 (reviewer: reviewer)
 
 Verdict: **changes requested**. Lane `kitty/mission-approved-claim-bound-01M444QR-lane-d`, commits `89c69213ec`, `50aa1daf2a`, `7087a11b92`.
 

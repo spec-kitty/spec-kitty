@@ -50,7 +50,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 
 - **Profile**: `python-pedro`
 - **Role**: `implementer`
-- **Agent/tool**: `claude`
+- **Agent/tool**: `implementer`
 
 ---
 
@@ -68,7 +68,7 @@ Behaviour-preserving preparation (DIRECTIVE_025, tidy-first). No product behavio
 - The shared consolidation test fixtures record approvals **after** the lane commits exist, each with the real lane tip as its `lane_head` stamp. A test can now express "a commit made after approval".
 - `tests/consolidation/` and `tests/terminus/` pass before and after, with the same counts except for the one test deleted in T005.
 
-Implementation command: `.venv/bin/spec-kitty agent action implement WP01 --agent claude --mission approved-claim-bound-01M444QR`
+Implementation command: `.venv/bin/spec-kitty agent action implement WP01 --agent implementer --mission approved-claim-bound-01M444QR`
 
 ## Context & Constraints
 

@@ -46,7 +46,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 
 - **Profile**: `scribe-sally`
 - **Role**: `implementer`
-- **Agent/tool**: `claude`
+- **Agent/tool**: `implementer`
 
 ---
 
@@ -64,7 +64,7 @@ The decision and its operator impact are recorded (spec FR-015).
 - An `[Unreleased]` changelog entry with an upgrade note.
 - The consolidation section of `CLAUDE.md` describes the new rule.
 
-Implementation command: `.venv/bin/spec-kitty agent action implement WP06 --agent claude --mission approved-claim-bound-01M444QR`
+Implementation command: `.venv/bin/spec-kitty agent action implement WP06 --agent implementer --mission approved-claim-bound-01M444QR`
 
 ## Context & Constraints
 

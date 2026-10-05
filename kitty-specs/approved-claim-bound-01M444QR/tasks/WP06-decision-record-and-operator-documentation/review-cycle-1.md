@@ -4,7 +4,7 @@ cycle_number: 1
 mission_slug: approved-claim-bound-01M444QR
 reproduction_command:
 reviewed_at: '2026-10-04T23:48:09Z'
-reviewer_agent: claude-reviewer
+reviewer_agent: reviewer
 wp_id: WP06
 ---
 

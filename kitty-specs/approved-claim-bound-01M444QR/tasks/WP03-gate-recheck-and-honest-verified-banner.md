@@ -46,7 +46,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 
 - **Profile**: `python-pedro`
 - **Role**: `implementer`
-- **Agent/tool**: `claude`
+- **Agent/tool**: `implementer`
 
 ---
 
@@ -64,7 +64,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 - No new restore path: `tests/consolidation/test_single_rollback_authority.py` passes unchanged.
 - The one known hole, content inside a merge commit, is pinned as a strict expected failure.
 
-Implementation command: `.venv/bin/spec-kitty agent action implement WP03 --agent claude --mission approved-claim-bound-01M444QR`
+Implementation command: `.venv/bin/spec-kitty agent action implement WP03 --agent implementer --mission approved-claim-bound-01M444QR`
 
 ## What WP02 delivered (read before the subtasks)
 

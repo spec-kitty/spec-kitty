@@ -43,7 +43,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 
 - **Profile**: `python-pedro`
 - **Role**: `implementer`
-- **Agent/tool**: `claude`
+- **Agent/tool**: `implementer`
 
 ---
 
@@ -60,7 +60,7 @@ No entry point lands a post-approval commit (spec FR-011, SC-006).
 - `orchestrator-api consolidate-mission` on a mission with code lanes evaluates the lane check before its first lane merge and returns its `PREFLIGHT_FAILED` envelope with the refusal code; no lane is merged.
 - `consolidate --resume` refuses a commit added to a not-yet-consolidated lane between the interruption and the resume, and does not refuse the tool's own merges.
 
-Implementation command: `.venv/bin/spec-kitty agent action implement WP05 --agent claude --mission approved-claim-bound-01M444QR`
+Implementation command: `.venv/bin/spec-kitty agent action implement WP05 --agent implementer --mission approved-claim-bound-01M444QR`
 
 ## What WP02 delivered (read before the subtasks)
 

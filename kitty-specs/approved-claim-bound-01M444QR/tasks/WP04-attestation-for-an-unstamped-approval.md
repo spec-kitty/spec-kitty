@@ -51,7 +51,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 
 - **Profile**: `python-pedro`
 - **Role**: `implementer`
-- **Agent/tool**: `claude`
+- **Agent/tool**: `implementer`
 
 ---
 
@@ -70,7 +70,7 @@ An operator can land a mission whose approval carries no stamp, and only that.
 - An attestation for a work package that already has an approval stamp, or that is not in the approved claim, is refused and nothing is recorded.
 - The CLI reference documents the flag.
 
-Implementation command: `.venv/bin/spec-kitty agent action implement WP04 --agent claude --mission approved-claim-bound-01M444QR`
+Implementation command: `.venv/bin/spec-kitty agent action implement WP04 --agent implementer --mission approved-claim-bound-01M444QR`
 
 ## What WP02 delivered (read before the subtasks)
 

@@ -5,7 +5,7 @@ command: /spec-kitty.analyze
 mission_slug: approved-claim-bound-01M444QR
 mission_id: 01M444QR19BY00CKEDYSTTYBKS
 generated_at: '2026-10-04T23:54:09.578018+00:00'
-analyzer_agent: claude
+analyzer_agent: orchestrator
 input_artifacts:
   spec.md:
     path: kitty-specs/approved-claim-bound-01M444QR/spec.md

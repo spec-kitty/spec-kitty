@@ -4,13 +4,13 @@ cycle_number: 1
 mission_slug: approved-claim-bound-01M444QR
 reproduction_command:
 reviewed_at: '2026-10-04T21:17:24Z'
-reviewer_agent: claude-reviewer
+reviewer_agent: reviewer
 wp_id: WP02
 ---
 
 # WP02 review, cycle 1: changes requested
 
-Reviewer: claude-reviewer (profile reviewer-renata). Lane `kitty/mission-approved-claim-bound-01M444QR-lane-b` at `5868e8d9bf`.
+Reviewer: reviewer (profile reviewer-renata). Lane `kitty/mission-approved-claim-bound-01M444QR-lane-b` at `5868e8d9bf`.
 
 The core rule is sound and well built. Red-first is proven (commit `6841d5a824` holds only the two test files; at that commit the four refusing cells fail on `exit 0` with "Reconciliation verified", the two rework controls pass). Suites are green (1918 passed, 1 skipped, 5 xfailed), `ruff`, format, `mypy --strict` and C901 are clean, no existing refusal text changed, the #5330 xfails are untouched.
 
