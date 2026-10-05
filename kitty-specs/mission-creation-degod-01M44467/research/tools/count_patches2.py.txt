@@ -1,0 +1,83 @@
+import ast, sys, collections, pathlib, json
+root = pathlib.Path("/home/user/spec-kitty")
+MOD = "specify_cli.core.mission_creation"
+res = collections.defaultdict(collections.Counter)
+locs = collections.defaultdict(list)
+forms = collections.Counter()
+unresolved=[]
+def consts(tree):
+    c={}
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Assign) and isinstance(n.value, ast.Constant) and isinstance(n.value.value,str):
+            for t in n.targets:
+                if isinstance(t, ast.Name): c[t.id]=n.value.value
+    return c
+def aliases(tree):
+    al=set()
+    for n in ast.walk(tree):
+        if isinstance(n, ast.ImportFrom) and n.module=="specify_cli.core":
+            for a in n.names:
+                if a.name=="mission_creation": al.add(a.asname or a.name)
+        if isinstance(n, ast.Import):
+            for a in n.names:
+                if a.name==MOD and a.asname: al.add(a.asname)
+        if isinstance(n, ast.Assign) and isinstance(n.value, ast.Call):
+            f=n.value.func; nm=getattr(f,'attr',getattr(f,'id',''))
+            if nm=="import_module" and n.value.args and isinstance(n.value.args[0],ast.Constant) and n.value.args[0].value==MOD:
+                for t in n.targets:
+                    if isinstance(t,ast.Name): al.add(t.id)
+    return al
+def strval(node,c):
+    if isinstance(node, ast.Constant) and isinstance(node.value,str): return node.value
+    if isinstance(node, ast.Name) and node.id in c: return c[node.id]
+    if isinstance(node, ast.JoinedStr):
+        out=""
+        for v in node.values:
+            if isinstance(v, ast.Constant): out+=v.value
+            elif isinstance(v, ast.FormattedValue):
+                s=strval(v.value,c)
+                if s is None: return None
+                out+=s
+        return out
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        a=strval(node.left,c); b=strval(node.right,c)
+        if a is not None and b is not None: return a+b
+    return None
+for p in sorted(root.glob("tests/**/*.py")):
+    src=p.read_text()
+    if "mission_creation" not in src: continue
+    tree=ast.parse(src); c=consts(tree); al=aliases(tree)
+    rel=str(p.relative_to(root))
+    for n in ast.walk(tree):
+        if not isinstance(n, ast.Call): continue
+        f=n.func
+        name = f.attr if isinstance(f, ast.Attribute) else (f.id if isinstance(f, ast.Name) else None)
+        if name not in ("setattr","patch","object","delattr","multiple"): continue
+        args=list(n.args)
+        for kw in n.keywords:
+            if kw.arg=="target": args=[kw.value]+args
+        if not args: continue
+        s=strval(args[0],c)
+        if s and s.startswith(MOD+"."):
+            tgt=s[len(MOD)+1:]; forms["string"]+=1
+        elif len(args)>=2 and ((isinstance(args[0],ast.Name) and args[0].id in al) or (isinstance(args[0],ast.Attribute) and args[0].attr=="mission_creation")):
+            tgt=strval(args[1],c) or "<dynamic>"; forms["object"]+=1
+        elif s==MOD and name=="multiple":
+            for kw in n.keywords:
+                res[kw.arg][rel]+=1; locs[kw.arg].append(f"{rel}:{n.lineno}"); forms["multiple"]+=1
+            continue
+        else:
+            # string containing MOD but not resolved?
+            continue
+        res[tgt][rel]+=1; locs[tgt].append(f"{rel}:{n.lineno}")
+tot=0
+for t,cn in sorted(res.items(), key=lambda kv:(-sum(kv[1].values()),kv[0])):
+    s=sum(cn.values()); tot+=s
+    print(f"{t}\t{s}\t{len(cn)} files\t{', '.join(k.split(chr(47))[-1]+':'+str(v) for k,v in cn.items())}")
+print("TOTAL",tot,"distinct targets",len(res),dict(forms))
+files=collections.Counter()
+for t,cn in res.items():
+    for k,v in cn.items(): files[k]+=v
+print("PER FILE:")
+for k,v in files.most_common(): print(v,k)
+json.dump(locs, open(sys.argv[1],"w"), indent=1)

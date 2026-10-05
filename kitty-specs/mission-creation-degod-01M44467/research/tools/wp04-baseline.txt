@@ -1,0 +1,149 @@
+WP04 BASELINE (lane base f0f3daa55, 2026-10-04T20:44:26Z)
+commands: python -m tests._support.patch_census --report --files-from <test-remediation.md covering appendix (42 files)>
+          SPEC_KITTY_PATCH_CENSUS_OUT=... pytest -p tests._support.patch_census <42 files> -n 4 --dist loadfile -q  => 513 passed, 2 skipped
+
+STATIC PATCH CENSUS (reporting tool, not a gate)
+
+family facade sites (bucket a, whole tree): 277
+  files: 33   distinct names: 13
+  forms: {'patch': 246, 'setattr': 31}
+  by name:
+      72  is_worktree_context
+      45  locate_project_root
+      44  is_git_repo
+      42  get_current_branch
+      41  _commit_feature_file
+      11  ULID
+       7  create_mission_core
+       5  preflight_commit
+       4  safe_commit
+       2  _commit_create_scaffold
+       2  now_utc_iso
+       1  _consume_pending_origin_if_present
+       1  subprocess.run
+  by namespace:
+     277  specify_cli.core.mission_creation
+  by file:
+      79  tests/specify_cli/core/test_feature_creation.py
+      46  tests/specify_cli/cli/commands/agent/test_mission_create.py
+      32  tests/agent/test_agent_feature.py
+      19  tests/specify_cli/core/test_mission_creation_specify_started.py
+      11  tests/specify_cli/core/test_mission_creation_fire_once.py
+      10  tests/agent/test_create_feature_branch_unit.py
+       9  tests/specify_cli/core/test_mission_creation_placement.py
+       5  tests/core/test_mission_creation_identity.py
+       5  tests/core/test_mission_creation_topology.py
+       5  tests/integration/test_issue_4863_merge_abort_no_state.py
+       5  tests/specify_cli/cli/commands/agent/test_coord_topology_no_strand.py
+       4  tests/_factories/test_make_mission_parity.py
+       4  tests/contract/test_mission_id_creation_contract.py
+       4  tests/core/test_mission_create_coord_seed_rollback.py
+       4  tests/core/test_mission_creation_unborn_head.py
+       4  tests/integration/test_specify_plan_commit_boundary.py
+       4  tests/specify_cli/cli/commands/agent/test_mission_create_phases.py
+       3  tests/core/test_mission_create_checkout_restore.py
+       3  tests/core/test_mission_creation_decomposition.py
+       3  tests/core/test_mission_creation_fanout_commit_boundary.py
+       2  tests/_factories/coord_mission.py
+       2  tests/core/test_mission_create_protected_single_branch.py
+       2  tests/specify_cli/cli/commands/test_coordination_doctor.py
+       2  tests/specify_cli/cli/commands/test_selector_resolution.py
+       2  tests/specify_cli/orchestrator_api/test_specify_plan_tasks_verbs.py
+    ... 8 more
+whole tree, other buckets: source 236, stdlib 416, unrelated-namespace same-name 946
+
+source-namespace sites (bucket b, 42-file list): 28
+  by namespace:
+       5  charter.activation.mission_type_profiles
+       4  specify_cli.core.git_ops
+       4  specify_cli.lanes.branch_naming
+       4  specify_cli.mission_metadata
+       3  specify_cli.status
+       2  specify_cli.missions._create
+       2  specify_cli.runtime.resolver
+       1  specify_cli.coordination.commit_router
+       1  specify_cli.coordination.teardown
+       1  specify_cli.core.paths
+       1  specify_cli.git.protection_policy
+  by name:
+       5  resolve_mission_type_context
+       4  resolve_mid8
+       4  resolve_primary_branch
+       4  write_meta
+       3  emit_mission_created_local
+       2  ensure_coordination_branch
+       2  resolve_configured_template
+       1  ProtectionPolicy.resolve
+       1  commit_for_mission
+       1  load_meta_fail_closed
+       1  teardown_coordination_topology
+
+stdlib process-global sites (own bucket, outside NFR-004; 42-file list): 12
+      10  check_output
+       2  Path.cwd
+same-name patches on unrelated namespaces (not budgeted; 42-file list): 106
+
+unresolved patch targets (whole tree): 59; that may target the family: 29
+    tests/core/test_mission_create_coord_seed_rollback.py:223  [setattr] monkeypatch.setattr(failure_target, _raise)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:161  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:202  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:238  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:278  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:321  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:430  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:519  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:544  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:631  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:667  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:710  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:758  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:814  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:841  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:887  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:983  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:1058  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:1093  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:1136  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:1169  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:1204  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:1239  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:1289  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:1369  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:1409  [patch] patch(k, v)
+    tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py:1498  [patch] patch(target, value)
+    tests/specify_cli/cli/commands/review/test_issue_matrix_finalize_lint.py:160  [patch] patch(k, v)
+    tests/specify_cli/test_specify_topology_flag.py:538  [patch] patch(target)
+
+RUNTIME PATCH APPLICATIONS
+collected tests: 515   outcomes: {'call:passed': 513, 'call:skipped': 2}
+applications total: 841   by bucket: {'family': 618, 'namespace_other': 159, 'source': 52, 'stdlib': 12}
+tests with patches: 288   max in one test: 50
+  by name:
+     217  locate_project_root
+     210  is_worktree_context
+     115  get_current_branch
+      92  _commit_feature_file
+      89  is_git_repo
+      15  resolve_primary_branch
+      12  ULID
+      10  check_output
+      10  preflight_commit
+       9  create_mission_core
+       9  safe_commit
+       8  ProtectionPolicy.resolve
+       7  write_meta
+       6  resolve_mission_type_context
+       4  emit_mission_created_local
+       4  resolve_mid8
+       3  now_utc_iso
+       3  resolve_configured_template
+       3  tracked_paths
+       2  Path.cwd
+       2  _commit_create_scaffold
+       2  ensure_coordination_branch
+       2  status_entries
+       1  _commit_coord_create_events
+       1  _consume_pending_origin_if_present
+    ... 5 more
+
+plugin on/off proof (tests/core/test_mission_creation_identity.py -n0): off 12 passed; on 12 passed (70 family applications, 10 tests with patches)

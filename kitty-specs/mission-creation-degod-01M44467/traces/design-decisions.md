@@ -1,0 +1,8 @@
+# Design decisions — mission-creation-degod-01M44467
+
+- 2026-10-04 — The façade keeps the orchestrator (`_create_mission_core_impl`) so that the roughly 250 façade patches reached through the orchestrator keep intercepting without routing (architect §3).
+- 2026-10-04 — No patch-count ratchet gate (operator ruling). The count is reported before and after; only liveness and routing are gated, with an empty allowlist.
+- 2026-10-04 — The topology default stays in `cli/commands/agent/mission_create.py` (it already delegates to the pure `coord_topology_reachable`). This mission pins it with tests and does not move it (C-007).
+- 2026-10-04 — #5676 and #5704 are not folded in: both change observable behaviour (decision `01M446WTGDPEAGV4MSRD1CJK75`). The `decide_protected_mint` facts shape is designed so each becomes a one-precondition change.
+- 2026-10-05 — WP09 identity and clock seam: Option B. `mission_creation_identity._mint_mission_id()` is the single mint. `create_mission_core` keeps its public signature and delegates to the private `_create_mission_core_failure_atomic(..., _mission_id=, _created_at=)`, and `_build_create_meta` takes `created_at=None`. Option A (patching an identity-module seam) was rejected because it needed about 7 patch sites on top of the 7 `create_mission_core` CLI stubs, more than the ≤15 family budget.
+- 2026-10-05 — Fake-branch re-pin ruling (WP08 tension, done in WP09): the 8 tests that patched `get_current_branch` to `main` on a real `master` checkout now run on a real `main`. Each new expected value was verified on the unchanged base f0f3daa55 (28/28 pass there and at HEAD), so the re-pins record pre-existing real behaviour, not a refactor artefact.

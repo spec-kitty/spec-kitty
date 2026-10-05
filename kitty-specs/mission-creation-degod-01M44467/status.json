@@ -1,0 +1,319 @@
+{
+  "event_count": 74,
+  "last_event_id": "01M454XGQQVGNB3QFGHHRRJWW9",
+  "materialized_at": "2026-10-05T04:24:56.311735+00:00",
+  "mission_number": "216",
+  "mission_slug": "mission-creation-degod-01M44467",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 9,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M454WG7AC9N9YG761192EVQB",
+      "last_transition_at": "2026-10-05T04:24:23.018217+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Zero-patch golden matrix frozen on f0f3daa55: 41 success + 17 refusal cells (13 SC-001 + 2 malformed-config + 2 failed-create restore) across 4 modules; regen byte-reproducible; 13 planted breaks (one per capture key) all red; ~12-25s wall under -n4; mission_creation.py 85% branch coverage under the golden run; no src change.",
+        "Review passed (reviewer-renata): 58 cells (41 success: flat 15, coord 11, protected/owned 15; 17 refusal: 13 SC-001 named + 2 malformed-config + 2 failed-create restore). Zero patches (only monkeypatch.chdir in cell 10); no coord_mission import; normaliser whitelist-only (TMP, numbered ULID/MID8, TS; only repr=False _token dropped). src diff vs f0f3daa55 empty; serial regen x2 byte-identical; 5 implementer breaks re-run red (status_log 15, meta_key_order 41, head 1, branches 9, error_code 1) plus 4 own breaks red (recreate msg, coord subject, purpose ignored, recreate guard removed -> predict-then-plant cell turns red). -n4 loadfile 12.0s. ruff/format/mypy clean. Non-blocking: commit body/trailer not captured; owned_root_mismatch does not observe the other repo; flat docstring says 13 cells (15).",
+        "Orchestrator reopen before the harness freeze: capture commit bodies (trailers), watch the second repo in owned_root_mismatch, docstring count",
+        "Cycle 2: new_commits pins full %B messages (+paths) so the coord seed trailer is golden (planted trailer-drop break: 14 cells red); owned_root_mismatch watches the other repo (pre/post + working tree); flat docstring 15 cells. Re-captured serially on base f0f3daa55; regen reproducible; 58 passed.",
+        "Review passed (reviewer-renata, cycle 2): all three notes folded. new_commits now pins full %B messages normalised only by the whitelist; planted break (Spec-Kitty-Coordination-Seed trailer dropped at mission_creation.py:1947) -> 14 red, reverted. owned_root_mismatch watches other/repo (pre/post porcelain, branches, missions, new_commits, working_tree under 'watched'). Flat docstring says 15 = 15 cells. src/ diff vs f0f3daa55 empty; zero attribute patches (chdir only); serial -n0 regen reproduces snapshots byte for byte; 58 passed -n 4 --dist loadfile; ruff check, ruff format --check --force-exclude, mypy clean on 5 files."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP01:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 17931,
+      "shell_pid_created_at": "1791149197.66",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M454WM1SZRZQSNZ2FP60AF0C",
+      "last_transition_at": "2026-10-05T04:24:26.938060+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "CLI golden matrix (17 cells, zero patches) + topology fallback pin (11 tests); 8 planted breaks red; fast tier 2275 passed",
+        "Review passed (reviewer-renata, independent opus reviewer): zero patches, whitelist normaliser, reproducible regen, real fallback functions with both Primary Branch inputs; planted breaks A, F and an extra coord_topology_reachable break re-run red; 28 targeted + 37 neighbour tests pass; ruff/format/mypy clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 30301,
+      "shell_pid_created_at": "1791147167.47",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M454WWA87YW8699EG9MSSHWP",
+      "last_transition_at": "2026-10-05T04:24:35.400182+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T010-T013: 12 branch-coverage tests (rows 1-10) + 8 invariant tests (FR-011 1-7, inv 2 split create-level + seam). All 20 planted breaks go red (control copy 20/20 green); patches in handoff. Patched façade names: mission_creation.ULID (row 3), .build_mission_created_payload (row 4), ._commit_create_scaffold (inv 1). Spec drift: FR-011 says tasks README not committed at create; code commits it (inv 5 pins observed).",
+        "Review passed (reviewer-renata, independent opus reviewer): rows 1-10 and invariants 1-7 genuinely exercised, mostly real routes; 3 injected façade names with raising=True, list complete; planted breaks R2, R3, R10, I1, I2a, I2b, I7 re-run red; 20 + 58 tests pass; ruff/format/mypy clean; no src or existing test touched"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 12130,
+      "shell_pid_created_at": "1791147263.0",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M454WQW0173D1WG8NNH7HYQ0",
+      "last_transition_at": "2026-10-05T04:24:30.848815+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Patch census tool: tests/_support/patch_census.py + self-test (45 pass). Baseline 277 facade sites, 618 runtime applications over 42-file covering set (513 passed/2 skipped). ruff/format/mypy clean; make test-fast 2275 passed.",
+        "Cycle 2: B1 alias patch/mock bindings; N1 AST family suspects + literal loop/parametrize resolution (0 family-targeting unresolved; facade 277->279); N2-N5",
+        "Review passed (reviewer-renata, cycle 2): B1 aliased patch/mock bindings fixed (probed from-import-as, mock-as, import-as, patch.object, reassignment; client.patch ignored); N1 AST suspects + literal loop/parametrize resolution, 0 family-targeting unresolved; N2-N5 fixed; facade 279 (+2 genuine parametrized rows at coord_seed_rollback:223); 62 tests pass; ruff/C901/format/mypy clean. Nit: unsorted itertools import (I001, rule not enabled in repo config)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP04:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 32650,
+      "shell_pid_created_at": "1791148512.64",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M454X0NRKDYR950R894WFM4Z",
+      "last_transition_at": "2026-10-05T04:24:39.864096+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Pure decision cores in mission_creation_decisions.py (14 cores) wired in place; probe order pinned by GIT_TRACE test captured on the lane base; one planted break per core reds golden/WP03/e2e tests (see breaks record); frozen set untouched; golden+CLI+WP03 110/110, 42-file covering 513 passed, test-fast 2275 passed, arch gates 126 passed.",
+        "Review passed (reviewer-renata): 14 pure cores wired in place; messages/error classes byte-identical; protected-mint probes gathered lazily in base order (GIT_TRACE probe-order test green at pre-wiring aea6dd089 and HEAD); decisions module pure (runtime imports re, collections.abc, dataclasses, enum, typing, mission_runtime only); no re-encoded authority; 365 passed across decisions/purity/probe-order/golden/CLI-golden/fallback/WP03/arch gates; 3 planted breaks re-run, each red outside the decisions tests; ruff/format/C901/mypy clean. _refuse_target_without_commit deletion accepted (no src/tests importer, so C-006 holds). LOW notes: double protected_mint_applies call in _mint_protected_branch_for_topology is hard to read; fold-4 test shows the differing input point only as a constructed literal."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1789,
+      "shell_pid_created_at": "1791151476.43",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M454X471WSQ0V6P2V3PHSEXN",
+      "last_transition_at": "2026-10-05T04:24:43.489766+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Verbatim split of mission_creation.py into 10 leaves + facade (58/59 defs AST-identical; logger deviation). Routing via _mc for 10 patched + 4 cross-family names; family checks with planted controls; 6 gate re-pins (5 planted-red, yaml census N/A); 0 allowlist entries. Only red: baseline #5705. Pre-existing mypy no-any-return (WP05 decisions under follow_imports=skip) moved to protected_mint:76.",
+        "Review passed (reviewer-renata): exactly-once independently re-proven (59 base names, each once, AST-identical after stripping _mc./lazy import; only deviation logger in commit+events, same logger object); no import cycle (each leaf imported first in a fresh interpreter, facade not loaded); gate re-pins are 1:1 re-points (0 new allowlist entries), planted removals re-run red (walker gate, write-side rederivation, routing de-route); frozen golden set diff empty; no non-owned test edits; scratch intercepts for locate_project_root/is_git_repo/now_utc_iso pass; batch 870 passed, 1 failed = baseline #5705 (_commit_message.py); ruff/format/C901 clean; mypy only protected_mint.py:76 which reproduces at base :508 (WP07 fixes). Non-blocking MEDIUM follow-up (WP08/WP09 or issue): routing check misses module-scope 'import <mod> as a; a.<routed>()' attribute calls, aliased imports of cross-family functions (Rule B), and aliased imports of patched-but-unread names (ROUTED computed without alias resolution). LOW: page-inventory.yaml out-of-map row is required by check_docs_freshness; CHANGELOG shared with later WPs."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP06:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 608,
+      "shell_pid_created_at": "1791154131.52",
+      "subtasks": {
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M454X8H0XGQX2PKP8JNM9HWK",
+      "last_transition_at": "2026-10-05T04:24:47.904293+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP07 seam cleanups: F1 typed return (mypy clean across family), F2 two-guard mint gate, T034 mint called from orchestrator between _build_create_meta and new _write_create_meta, T033 lazy memoised _ProtectionProbe (GIT_TRACE: idempotent unprotected single_branch re-create now resolves protection once; fresh create resolves once after scaffold write), T035 CreateRollbackJournal, T036 no-op (fan-out already after pure created_file_sets), T037 structural checks + controls, F3 routing hardening (aliases, module-alias attrs, aliased foreign/patched imports, sys.modules) + controls. Golden untouched; covering set 513 passed, core+golden+gates 567 passed, test-fast 2275 passed. Finding: malformed_config_protection_shape golden cell does not catch early resolution (preflight_commit raises the same ProtectionConfigError before the write); the probe-order GIT_TRACE/PATH-shim tests do.",
+        "Review passed (reviewer-renata): 4 cleanups + F1/F2/F3 behaviour- and error-timing-neutral. Frozen golden set untouched (empty diff vs c83e29ef2); 544 passed/8 skipped on family/source/decisions/purity/probe-order/golden/CLI golden/fallback/WP03/decomposition/protected_single_branch/gates; mypy 12/12 clean, ruff+format+C901 clean. Re-planted 4 breaks in-tree (early protection resolve, mint without shared probe, meta write before mint, override read before topology guard + journal ignored): all red, reverted. Confirmed golden malformed_config_protection_shape stays green under early resolution (ProtectionConfigError comes from preflight_commit first); the GIT_TRACE/PATH-shim probe-order tests are the net. T036 genuinely a no-op. LOW residual: routing check misses a two-step module rebind (_m = git_ops; _m.is_git_repo)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP07:20261005",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 6648,
+      "shell_pid_created_at": "1791158193.13",
+      "subtasks": {
+        "T033": "done",
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done"
+      }
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M454XCXCECE5DAWQNBQ8H74E",
+      "last_transition_at": "2026-10-05T04:24:52.396102+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP08: façade env patch stack 205->9 static sites (is_worktree_context 73->0, locate_project_root 45->0, is_git_repo 44->0, get_current_branch 43->9). Façade total 285->90; runtime family applications 618->149 over the covering set. Guards are now real git worktree/detach/non-git behaviour tests, each with a base/after planted-break pair. Roots leaf de-routed for 3 names. Routing check now catches two-step module rebinds (planted controls). REPORTED TENSION, NOT FIXED (C-005): 8 get_current_branch sites in feature_creation(2), fire_once(2) and specify_started(4) assert values that hold only under the faked-main fiction (the coord branch is recorded but never created, so the status log sits in feature_dir and created_files has 3 entries). Removing the patch would change their expected values, so they stay annotated and get_current_branch stays routed. Out-of-owned edit: the tests/_support/test_patch_census.py sanity floor went from 270 to 80. Evidence: scratchpad wp08-evidence.md",
+        "Review passed (reviewer-renata): weakening audit 12 removed assert-lines, 0 weakened (6 kept/restructured, 1 C-005 replacement logged, 2 equal routing-name switches, 1 sanity floor, 1 comment, 1 raises inside the replaced intercept); 19 assert-lines added. Re-proved: locate_project_root coverage-context 0 contexts for placement + test_mission_create (positive control agent_feature 2/3); is_git_repo roots-leaf plant 3 red; worktree-guard plant 6 red on real git worktrees; rebind plant 2 controls red; now_utc_iso intercept plant red. Census facade 90, gcb 9 (8 annotated WP09 tension + intercept pin), family-unresolved 0. Freeze set diff empty. Covering(42)+WP03+golden+CLI golden+family/decisions/purity/probe-order+_support+factory consumers: 1183 passed, 12 skipped. ruff/format/mypy clean. LOW non-blocking: evidence lives in scratchpad+status note not WP Activity Log; census sanity floor tied to a moving count; tension fixtures depend on git init.defaultBranch (WP09)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP08:20261005",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1371,
+      "shell_pid_created_at": "1791163418.79",
+      "subtasks": {
+        "T038": "done",
+        "T039": "done",
+        "T040": "done",
+        "T041": "done",
+        "T042": "done"
+      }
+    },
+    "WP09": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M454XGQQVGNB3QFGHHRRJWW9",
+      "last_transition_at": "2026-10-05T04:24:56.311735+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP09: identity Option B (_create_mission_core_failure_atomic _mission_id/_created_at, _mint_mission_id); commit dodges removed, faults via real git hooks/duplicates/registry/PATH; R1 re-pinned on real main (verified on f0f3daa55); R2 known-site invariant; R3 coord-commit row real. Census (HEAD tool, 65-file fixed set): (a) 182->10 (<=15 PASS), (a)+(b) 214->38 (<=40 PASS), runtime 569->77 (-86.5% PASS). Evidence: scratchpad wp09-evidence.md",
+        "Review passed (reviewer-renata): weakening audit clean (all changed asserts kept or C-005 equal/stronger); R1 re-pins pass on unchanged base f0f3daa55 with init.defaultBranch=trunk (28/28); Option B behaviour-neutral, create_mission_core signature unchanged; census re-run: (a) 10<=15, (a)+(b) 38<=40, runtime 670->77 (-88.5%) against a pristine-base re-measure; PB_A/C/E/H pairs + 3 fault removals + R2 scanner plant all red; batch 1278 passed, only #5705 red. MEDIUM: implementer's base census (182/214/569) was taken on a contaminated base tree; true base is 279/311/670. Correct review-evidence.md + PR table before publishing."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP09:20261005",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 9465,
+      "shell_pid_created_at": "1791169096.66",
+      "subtasks": {
+        "T043": "done",
+        "T044": "done",
+        "T045": "done",
+        "T046": "done",
+        "T047": "done",
+        "T048": "done"
+      }
+    }
+  }
+}

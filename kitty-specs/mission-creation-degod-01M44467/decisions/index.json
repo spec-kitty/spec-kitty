@@ -1,0 +1,53 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-04T19:40:04.322524Z",
+      "decision_id": "01M446WEV2JPR2P4NHM1V354B6",
+      "final_answer": "Confirmed as written. Source: the operator's dispatch brief for #5634 (2026-10-04), which states the goal, the done-when list, the doctrine (tidy-first, no behaviour change, no new size/ratchet gates, golden matrix first) and semi-automatic operation (stop only on charter conflict, a real behaviour-change decision, or a gate that cannot stay green honestly). The grounding squad findings are in research/code-grounding.md and research/test-remediation.md.",
+      "input_key": "intent_summary",
+      "mission_id": "01M44467GEHKMST1DP65VEQY2P",
+      "mission_slug": "mission-creation-degod-01M44467",
+      "opened_by": "cli",
+      "options": [
+        "Confirmed as written",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Confirm the intent: a behaviour-preserving split of core/mission_creation.py into pure decision cores plus effect adapters behind a fa\u00e7ade; byte-identical meta.json, branches, worktrees, refusal texts, codes and exit codes; tests moved onto the seams (277 patch sites, target about 23); golden matrix first; no size or ratchet gates?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T19:40:13.549456Z",
+      "resolved_by": null,
+      "slot_key": "specify.intent.confirm-intent-summary",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-04T19:40:16.269313Z",
+      "decision_id": "01M446WTGDPEAGV4MSRD1CJK75",
+      "final_answer": "Keep out: pin current behaviour, shape the seam, follow-ups tracked. The operator brief says to fix #5676 only if it is free within a pure move. It is not: refusing a create on an occupied checkout is an observable behaviour change, and landing it before the #5704 hoist would inherit the orphan-blocks-retry defect. Both stay out, and so does #5707 (bias unification). The golden matrix pins today's behaviour (including the #5704 orphan), and the pure decide_protected_mint core gets a facts shape where the occupancy precondition and the pre-scaffold hoist become small, testable follow-up changes.",
+      "input_key": "behaviour_change_scope",
+      "mission_id": "01M44467GEHKMST1DP65VEQY2P",
+      "mission_slug": "mission-creation-degod-01M44467",
+      "opened_by": "cli",
+      "options": [
+        "Keep out: pin current behaviour, shape the seam, follow-ups tracked",
+        "Fold in #5676 and #5704",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Grounding found behaviour-changing fixes in the protected-mint area: #5676 (occupancy) and #5704 (mint refusal leaves an orphan scaffold). Fold them into this mission or keep them out?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T19:40:23.117178Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.behaviour-change-followups",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M44467GEHKMST1DP65VEQY2P",
+  "version": 1
+}

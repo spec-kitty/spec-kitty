@@ -1,0 +1,58 @@
+import ast, sys
+from pathlib import Path
+from collections import Counter
+MOD="specify_cli.core.mission_creation"
+root=Path(sys.argv[1]) if len(sys.argv)>1 else Path(".")
+hits=[]; unres=[]
+def sval(n,consts):
+    if isinstance(n,ast.Constant) and isinstance(n.value,str): return n.value
+    if isinstance(n,ast.Name): return consts.get(n.id)
+    if isinstance(n,ast.JoinedStr):
+        out=""
+        for v in n.values:
+            if isinstance(v,ast.Constant): out+=v.value
+            elif isinstance(v,ast.FormattedValue):
+                s=sval(v.value,consts)
+                if s is None: return None
+                out+=s
+        return out
+    if isinstance(n,ast.BinOp) and isinstance(n.op,ast.Add):
+        a,b=sval(n.left,consts),sval(n.right,consts)
+        return a+b if a is not None and b is not None else None
+    return None
+for p in sorted((root/"tests").rglob("*.py")):
+    s=p.read_text(errors="ignore")
+    if "mission_creation" not in s: continue
+    t=ast.parse(s)
+    consts={}; aliases=set()
+    for n in ast.walk(t):
+        if isinstance(n,ast.Assign) and len(n.targets)==1 and isinstance(n.targets[0],ast.Name):
+            v=sval(n.value,consts)
+            if v is not None: consts[n.targets[0].id]=v
+            if isinstance(n.value,ast.Call) and "import_module" in ast.unparse(n.value.func) and MOD in ast.unparse(n.value): aliases.add(n.targets[0].id)
+        if isinstance(n,ast.ImportFrom) and n.module=="specify_cli.core":
+            for a in n.names:
+                if a.name=="mission_creation": aliases.add(a.asname or a.name)
+        if isinstance(n,ast.Import):
+            for a in n.names:
+                if a.name==MOD and a.asname: aliases.add(a.asname)
+    for n in ast.walk(t):
+        if not isinstance(n,ast.Call): continue
+        fs=ast.unparse(n.func)
+        if not (fs.endswith("setattr") or fs.endswith("patch") or fs.endswith("patch.object") or fs.endswith("patch.multiple")): continue
+        if not n.args: continue
+        a0=n.args[0]; v=sval(a0,consts)
+        rel=str(p.relative_to(root))
+        if v and v.startswith(MOD+"."):
+            hits.append((rel,n.lineno,v[len(MOD)+1:]))
+        elif isinstance(a0,ast.Name) and a0.id in aliases and len(n.args)>1:
+            nm=sval(n.args[1],consts) or "?"
+            hits.append((rel,n.lineno,nm))
+        elif "mission_creation" in ast.unparse(a0) or (v and "mission_creation" in v):
+            unres.append((rel,n.lineno,ast.unparse(a0)))
+c=Counter(h[2] for h in hits)
+print(len(hits),"patch sites across",len({h[0] for h in hits}),"files;",len(c),"distinct names")
+for k,v in c.most_common(): print(f"  {v:3d} {k}")
+print("unresolved:",unres)
+if "-v" in sys.argv:
+    for h in hits: print(h)

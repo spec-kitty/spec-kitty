@@ -1,0 +1,196 @@
+{
+  "version": 1,
+  "mission_slug": "mission-creation-degod-01M44467",
+  "mission_id": "01M44467GEHKMST1DP65VEQY2P",
+  "mission_branch": "kitty/mission-mission-creation-degod-01M44467",
+  "target_branch": "issue-5634-mission-creation-degod",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/core/_mission_create_golden.py",
+        "tests/core/golden/**",
+        "tests/core/test_mission_creation_golden_coord.py",
+        "tests/core/test_mission_creation_golden_flat.py",
+        "tests/core/test_mission_creation_golden_protected.py",
+        "tests/core/test_mission_creation_golden_refusals.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/specify_cli/cli/commands/agent/golden/**",
+        "tests/specify_cli/cli/commands/agent/test_mission_create_golden_cli.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_create_topology_fallback.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/_support/patch_census.py",
+        "tests/_support/test_patch_census.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09"
+      ],
+      "write_scope": [
+        "docs/api/mission-creation-internals.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/docs-retrieval-index.yaml",
+        "src/specify_cli/core/mission_creation.py",
+        "src/specify_cli/core/mission_creation_commit.py",
+        "src/specify_cli/core/mission_creation_decisions.py",
+        "src/specify_cli/core/mission_creation_duplicates.py",
+        "src/specify_cli/core/mission_creation_errors.py",
+        "src/specify_cli/core/mission_creation_events.py",
+        "src/specify_cli/core/mission_creation_identity.py",
+        "src/specify_cli/core/mission_creation_meta.py",
+        "src/specify_cli/core/mission_creation_protected_mint.py",
+        "src/specify_cli/core/mission_creation_rollback.py",
+        "src/specify_cli/core/mission_creation_roots.py",
+        "src/specify_cli/core/mission_creation_scaffold.py",
+        "tests/_factories/coord_mission.py",
+        "tests/_factories/test_make_mission_parity.py",
+        "tests/_support/mission_creation_source.py",
+        "tests/_support/test_mission_creation_source.py",
+        "tests/agent/test_agent_feature.py",
+        "tests/agent/test_create_feature_branch_unit.py",
+        "tests/architectural/mission_type_reader_allowlist.yaml",
+        "tests/architectural/test_mission_resolver_walker_gate.py",
+        "tests/architectural/test_no_write_side_rederivation.py",
+        "tests/architectural/test_single_mission_surface_resolver.py",
+        "tests/contract/test_mission_id_creation_contract.py",
+        "tests/core/test_adapters.py",
+        "tests/core/test_mission_create_checkout_restore.py",
+        "tests/core/test_mission_create_coord_seed_rollback.py",
+        "tests/core/test_mission_create_coord_status_placement.py",
+        "tests/core/test_mission_create_coord_status_seed.py",
+        "tests/core/test_mission_create_idempotency_guard.py",
+        "tests/core/test_mission_create_protected_single_branch.py",
+        "tests/core/test_mission_create_scaffold_rollback.py",
+        "tests/core/test_mission_creation_branch_coverage.py",
+        "tests/core/test_mission_creation_decisions.py",
+        "tests/core/test_mission_creation_decomposition.py",
+        "tests/core/test_mission_creation_family.py",
+        "tests/core/test_mission_creation_fanout_commit_boundary.py",
+        "tests/core/test_mission_creation_identity.py",
+        "tests/core/test_mission_creation_invariants.py",
+        "tests/core/test_mission_creation_probe_order.py",
+        "tests/core/test_mission_creation_purity.py",
+        "tests/core/test_mission_creation_topology.py",
+        "tests/core/test_mission_creation_unborn_head.py",
+        "tests/core/test_slug_validator_unit.py",
+        "tests/integration/test_issue_4863_merge_abort_no_state.py",
+        "tests/integration/test_placement_partition_golden_path.py",
+        "tests/integration/test_specify_plan_commit_boundary.py",
+        "tests/specify_cli/cli/commands/agent/test_coord_topology_no_strand.py",
+        "tests/specify_cli/cli/commands/agent/test_issue_2684_subtask_completion_event_sourced.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_create.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_create_default_topology_matrix.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_create_json_remediation.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_create_phases.py",
+        "tests/specify_cli/cli/commands/review/test_issue_matrix_partition.py",
+        "tests/specify_cli/cli/commands/test_commit_recipes.py",
+        "tests/specify_cli/cli/commands/test_coordination_doctor.py",
+        "tests/specify_cli/cli/commands/test_selector_resolution.py",
+        "tests/specify_cli/core/test_feature_creation.py",
+        "tests/specify_cli/core/test_mission_creation_fire_once.py",
+        "tests/specify_cli/core/test_mission_creation_placement.py",
+        "tests/specify_cli/core/test_mission_creation_specify_started.py",
+        "tests/specify_cli/orchestrator_api/test_specify_plan_tasks_verbs.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-d"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-04T20:21:32.636319+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "f0f3daa55fcfa79361acc7b3bab3beffa0e64705",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP09",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/core/test_mission_creation_branch_coverage.py' vs 'tests/core/test_mission_creation_branch_coverage.py', 'tests/core/test_mission_creation_invariants.py' vs 'tests/core/test_mission_creation_invariants.py'"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP06",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/core/mission_creation.py' vs 'src/specify_cli/core/mission_creation.py'; WP06 depends on WP05"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP07",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/core/mission_creation.py' vs 'src/specify_cli/core/mission_creation.py', 'src/specify_cli/core/mission_creation_decisions.py' vs 'src/specify_cli/core/mission_creation_decisions.py', 'tests/core/test_mission_creation_decisions.py' vs 'tests/core/test_mission_creation_decisions.py', 'tests/core/test_mission_creation_probe_order.py' vs 'tests/core/test_mission_creation_probe_order.py'"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP08",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/core/mission_creation.py' vs 'src/specify_cli/core/mission_creation.py'"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP09",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/core/mission_creation.py' vs 'src/specify_cli/core/mission_creation.py'"
+      }
+    ],
+    "total_merges": 5,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 5
+    }
+  }
+}

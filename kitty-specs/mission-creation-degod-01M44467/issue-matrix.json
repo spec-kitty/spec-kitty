@@ -1,0 +1,173 @@
+{
+  "rows": {
+    "#12": {
+      "evidence_ref": "context only: Not an issue: WP01 refusal-cell ordinal '#12 protected recreate'",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "WP01-core-golden-matrix.md",
+      "title": "Not an issue: WP01 refusal-cell ordinal '#12 protected recreate'",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3131": {
+      "evidence_ref": "context only: Retention flags never default-written (invariant preserved; pinned by golden retention cells)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "analysis-report.md",
+      "title": "Retention flags never default-written (invariant preserved; pinned by golden retention cells)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3469": {
+      "evidence_ref": "context only: Issue-matrix approval heads-up (process reference only)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "analysis-report.md",
+      "title": "Issue-matrix approval heads-up (process reference only)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4033": {
+      "evidence_ref": "context only: Mission create duplicate guard (invariant preserved; pinned by golden duplicate cells and WP03 rows 7-8)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "analysis-report.md",
+      "title": "Mission create duplicate guard (invariant preserved; pinned by golden duplicate cells and WP03 rows 7-8)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5440": {
+      "evidence_ref": "context only: Coordination status placement P0 (invariant preserved; pinned by golden coordination cells and WP03 invariant 2)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "analysis-report.md",
+      "title": "Coordination status placement P0 (invariant preserved; pinned by golden coordination cells and WP03 invariant 2)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5634": {
+      "evidence_ref": "WP01-WP09 (lane-c): core/mission_creation.py split into a fa\u00e7ade plus 10 leaves and a pure decisions module; golden matrix byte-identical; patch census 279 -> 10 family sites; see research/review-evidence.md",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Investigate & refactor: core/mission_creation.py hotspot",
+      "verdict": "fixed",
+      "wp": "WP09"
+    },
+    "#5635": {
+      "evidence_ref": "context only: sibling implement.py degod mission; no shared helper edited (C-007)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "implement.py degod (sibling mission)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5676": {
+      "evidence_ref": "Follow-up: #5676 stays open (occupancy precondition is a behaviour change, decision 01M446WTGDPEAGV4MSRD1CJK75); decide_protected_mint facts shape prepared for it",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "agent mission create (single_branch, protected main) switches the root checkout away from another mission's in_progress WP",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#5679": {
+      "evidence_ref": "context only: PR #5679 is the precedent split pattern (fa\u00e7ade re-exports + lazy routing), not work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Split mission_finalize.py into finalize-tasks phase modules (precedent PR)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5704": {
+      "evidence_ref": "Follow-up: #5704 stays open (mint-before-scaffold hoist is a behaviour change); current behaviour pinned by the golden refused-mint orphan + retry cell",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "protected single_branch create: a mint refusal leaves a scaffold without meta.json, and the retry is refused MISSION_ALREADY_EXISTS",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#5705": {
+      "evidence_ref": "baseline-red: pre-existing test_commit_recipes failure unrelated to this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "test_commit_recipes red on main: repeated -m help text matches the recipe scan",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5706": {
+      "evidence_ref": "baseline-red: pre-existing fire_once fan-out flake under xdist co-scheduling",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Flaky: test_mission_creation_fire_once fan-out sees 0 calls when co-scheduled",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5707": {
+      "evidence_ref": "Follow-up: #5707 stays open (bias unification is a behaviour change); both Primary Branch inputs pinned by WP02's topology fallback test",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "mission create resolves the primary branch twice with different bias",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#846": {
+      "evidence_ref": "context only: Specify/plan commit boundary (invariant preserved; pinned by WP03 invariant 5)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "analysis-report.md",
+      "title": "Specify/plan commit boundary (invariant preserved; pinned by WP03 invariant 5)",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

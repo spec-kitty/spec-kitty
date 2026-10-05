@@ -1,0 +1,37 @@
+{
+  "accept_commit": "58d6b0eca2bed1b2e2c6bd588ffcab1b4b4578f4",
+  "acceptance_history": [
+    {
+      "accept_commit": "58d6b0eca2bed1b2e2c6bd588ffcab1b4b4578f4",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-05T03:33:43.141802+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "a10eb86211d5cf14577ad19686ba0d506b402496"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-05T03:33:43.141802+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "a10eb86211d5cf14577ad19686ba0d506b402496",
+  "baseline_merge_commit": "3738be1a64eb9aab94e674f3a965acedea4ad17d",
+  "contracts": "none",
+  "contracts_rationale": "Structural, behaviour-preserving refactor of core/mission_creation.py: no new or changed CLI, API, payload or file-format interface. The golden behaviour matrix (spec FR-001/FR-002) pins the existing surface instead.",
+  "created_at": "2026-10-04T18:53:05.741667+00:00",
+  "flattened": false,
+  "friendly_name": "Mission creation degod",
+  "merged_at": "2026-10-05T04:24:21.249814+00:00",
+  "merged_commit": "8fd8bd8ff71d7e6fd2f6b522aca41e1ffd5cc869",
+  "mid8": "01M44467",
+  "mission_id": "01M44467GEHKMST1DP65VEQY2P",
+  "mission_number": 216,
+  "mission_slug": "mission-creation-degod-01M44467",
+  "mission_type": "software-dev",
+  "purpose_context": "core/mission_creation.py is a 2,363-line, high-fix-churn hotspot whose tests string-patch its internals. Splitting it into pure decision cores (topology, protected mint, retention) and effect adapters (git, filesystem) makes later 4.0.0 fixes in this area cheap to make and to pin, with byte-identical behaviour proven by a golden matrix.",
+  "purpose_tldr": "Decompose core/mission_creation.py into pure decision cores and effect adapters, behaviour-preserving (#5634).",
+  "slug": "mission-creation-degod-01M44467",
+  "status_phase": "1",
+  "target_branch": "issue-5634-mission-creation-degod",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-04T20:22:52.217321+00:00"
+}

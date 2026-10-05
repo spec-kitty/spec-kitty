@@ -1,0 +1,119 @@
+{
+  "mission_slug": "mission-creation-degod-01M44467",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_mission_creation_golden_{flat,coord,protected,refusals}.py: 58 zero-patch cells captured on f0f3daa55, freeze commit 3e652523b, 0 diff after WP09; one planted break per capture key red (WP01 section); lane-c run 2026-10-05: 1309 passed, 1 failed (#5705 baseline-red only); research/review-evidence.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T03:32:37.493120+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_mission_create_golden_cli.py: 17 CLI cells incl. derived default topology and the no-origin/HEAD fallback; planted breaks A-H red (WP02 section); lane-c run 2026-10-05: 1309 passed, 1 failed (#5705 baseline-red only); research/review-evidence.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T03:32:23.043229+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "src/specify_cli/core/mission_creation_decisions.py (14 pure cores) + tests/core/test_mission_creation_decisions.py + purity AST check with positive control; one planted break per core red outside the unit tests (WP05 section); lane-c run 2026-10-05: 1309 passed, 1 failed (#5705 baseline-red only); research/review-evidence.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T03:32:31.455310+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "fa\u00e7ade + 10 leaf modules; exactly-once proof 59/59, only the logger binding deviates, independently re-run by the WP06 reviewer; tests/core/test_mission_creation_family.py; lane-c run 2026-10-05: 1309 passed, 1 failed (#5705 baseline-red only); research/review-evidence.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T03:32:55.230953+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "routing set-equality check in tests/core/test_mission_creation_family.py (Rules A-D, alias resolution, two-step rebind), empty allowlist, planted controls red (WP06/WP07/WP08 sections); lane-c run 2026-10-05: 1309 passed, 1 failed (#5705 baseline-red only); research/review-evidence.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T03:33:01.011039+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "6 gates re-pointed with no new allowlist entry; a planted removal per gate is red (WP06 section); lane-c run 2026-10-05: 1309 passed, 1 failed (#5705 baseline-red only); research/review-evidence.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T03:32:43.511404+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "patch census: family static sites 279 -> 10, family+source 311 -> 38, runtime 670 -> 77 (-88.5%) with a per-name disposition table; e2e smoke per behaviour family (WP08/WP09 sections, corrected census); lane-c run 2026-10-05: 1309 passed, 1 failed (#5705 baseline-red only); research/review-evidence.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T03:32:49.280612+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_mission_creation_branch_coverage.py: 10 previously untested branches, each red on its planted break (WP03 section); lane-c run 2026-10-05: 1309 passed, 1 failed (#5705 baseline-red only); research/review-evidence.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T03:33:06.726080+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "protection resolved once and lazily (GIT_TRACE once-proof); mint moved to the orchestrator; one coordination-routed predicate; typed rollback journal; structural checks with controls (WP07 section); lane-c run 2026-10-05: 1309 passed, 1 failed (#5705 baseline-red only); research/review-evidence.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T03:33:12.416367+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_mission_create_topology_fallback.py calls the real _resolve_default_topology_phase/coord_topology_reachable and names both Primary Branch inputs; bias planted break red (WP02 section); lane-c run 2026-10-05: 1309 passed, 1 failed (#5705 baseline-red only); research/review-evidence.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T03:33:24.048115+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_mission_creation_invariants.py (7 invariants, each red on its planted break) + golden status-log/new-commit/trailer dimensions (WP03/WP01 sections); lane-c run 2026-10-05: 1309 passed, 1 failed (#5705 baseline-red only); research/review-evidence.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T03:33:18.217076+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
