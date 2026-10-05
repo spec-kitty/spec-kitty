@@ -105,6 +105,7 @@ _REPAIR_OK_OUTCOMES = frozenset({"applied", "skipped"})
 _WARNINGS_HEADER = "[yellow]Warnings:[/yellow]"
 _ERRORS_HEADER = "[red]Errors:[/red]"
 _MANUAL_REVIEW_HEADER = "[yellow]Manual review required:[/yellow]"
+_REPAIR_NOT_PREPARED_MESSAGE = "Tool-surface repair was not prepared; re-run 'spec-kitty upgrade'."
 _AUTO_COMMITTED_LINE = "[cyan]→ Auto-committed upgrade changes ({count} files)[/cyan]"
 
 
@@ -1151,15 +1152,17 @@ def _finalizer_step_surface_repair(
 
     Gated on ``outcome.result.success`` — surface repair (and its own
     JSON/human output) never runs after a failed migration, mirroring the
-    pre-refactor behavior. Nothing prepared (preparation failed or did not run)
-    means no surface repair was attempted: an empty report.
+    pre-refactor behavior. Preparation either sets ``ctx.prepared_repairs`` or reports an
+    error, and the finalizer skips this step on an error; a real run that reaches here
+    with nothing prepared is a broken invariant and fails closed rather than reporting
+    a repair that was never attempted as a success.
     """
     if not outcome.result.success:
         return SurfaceRepairReport()
     if dry_run:
         return _dry_run_surface_report(project_path, json_output=json_output)
     if ctx.prepared_repairs is None:
-        return SurfaceRepairReport()
+        return SurfaceRepairReport(failed=True, failure_messages=(_REPAIR_NOT_PREPARED_MESSAGE,))
     return _apply_prepared_surface_repairs(outcome, ctx, ctx.prepared_repairs)
 
 

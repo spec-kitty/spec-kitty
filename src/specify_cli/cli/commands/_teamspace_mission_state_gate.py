@@ -243,6 +243,7 @@ def offer_teamspace_mission_state_migration(
             ran=True,
             failed=True,
             message=f"Unexpected repair report summary type: {type(summary)!r}",
+            surface_message=True,  # nothing was printed above: the outcome must list this failure itself
         )
     console.print(
         "[green]Mission-state repair complete[/green] "

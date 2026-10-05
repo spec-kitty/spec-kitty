@@ -564,10 +564,12 @@ def test_step_after_a_failed_migration_reports_nothing(prepared_project: tuple[P
     assert ctx.surface_repair_summary is None
 
 
-def test_step_without_prepared_repairs_reports_nothing(tmp_path: Path) -> None:
+def test_step_without_prepared_repairs_fails_closed_instead_of_reporting_a_success(tmp_path: Path) -> None:
     ctx = upgrade_module._FinalizerRenderContext()
 
-    assert _run_step(_outcome(), ctx, tmp_path) == SurfaceRepairReport()
+    report = _run_step(_outcome(), ctx, tmp_path)
+
+    assert report == SurfaceRepairReport(failed=True, failure_messages=("Tool-surface repair was not prepared; re-run 'spec-kitty upgrade'.",))
 
 
 def test_step_dry_run_with_a_complete_preview_prints_the_notice_and_reports_nothing(prepared_project: tuple[Path, Any], monkeypatch: pytest.MonkeyPatch) -> None:

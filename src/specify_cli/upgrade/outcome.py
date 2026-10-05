@@ -77,6 +77,22 @@ class UpgradeFailureReason(StrEnum):
     SURFACE_DRIFT = "surface_drift"
 
 
+_STATUS_BY_KIND: dict[UpgradeOutcomeKind, str] = {
+    UpgradeOutcomeKind.APPLIED: "success",
+    UpgradeOutcomeKind.NO_OP: "up_to_date",
+    UpgradeOutcomeKind.DRIFT_UNRESOLVED: "failed",
+    UpgradeOutcomeKind.FAILED: "failed",
+}
+"""The JSON ``status`` word of every kind. Indexed directly: a kind without a row raises instead of reading as ``failed``."""
+
+_CLOSING_BY_KIND: dict[UpgradeOutcomeKind, str] = {
+    UpgradeOutcomeKind.NO_OP: _CLOSING_NO_OP,
+    UpgradeOutcomeKind.APPLIED: _CLOSING_APPLIED,
+    UpgradeOutcomeKind.DRIFT_UNRESOLVED: _CLOSING_DRIFT_UNRESOLVED,
+    UpgradeOutcomeKind.FAILED: _CLOSING_FAILED,
+}
+"""The closing-line template of every kind. Indexed directly: a kind without a row raises instead of reading as a success."""
+
 _UNEXPLAINED_FAILURE_MESSAGES: dict[UpgradeFailureReason, str] = {
     UpgradeFailureReason.MIGRATION_FAILED: "The migrations did not complete.",
     UpgradeFailureReason.COMMIT_RECOVERY_FAILED: "The upgrade changes could not be committed cleanly.",
@@ -205,12 +221,7 @@ class UpgradeOutcome:
     @property
     def status(self) -> str:
         """The JSON ``status`` word: ``success``, ``up_to_date`` or ``failed``."""
-        kind = self.kind
-        if kind is UpgradeOutcomeKind.APPLIED:
-            return "success"
-        if kind is UpgradeOutcomeKind.NO_OP:
-            return "up_to_date"
-        return "failed"
+        return _STATUS_BY_KIND[self.kind]
 
     def errors(self) -> list[str]:
         """Every message that explains a non-success, ordered and de-duplicated.
@@ -272,11 +283,5 @@ class UpgradeOutcome:
     def closing_line(self) -> str:
         """The headline a text-mode run ends on (plain text, no markup)."""
         kind = self.kind
-        if kind is UpgradeOutcomeKind.NO_OP:
-            return _CLOSING_NO_OP
-        if kind is UpgradeOutcomeKind.DRIFT_UNRESOLVED:
-            return _CLOSING_DRIFT_UNRESOLVED.format(count=len(self.drifted_paths))
-        if kind is UpgradeOutcomeKind.FAILED:
-            return _CLOSING_FAILED
-        template = _CLOSING_APPLIED_DRY_RUN if self.result.dry_run else _CLOSING_APPLIED
-        return template.format(from_version=self.result.from_version, to_version=self.result.to_version)
+        template = _CLOSING_APPLIED_DRY_RUN if kind is UpgradeOutcomeKind.APPLIED and self.result.dry_run else _CLOSING_BY_KIND[kind]
+        return template.format(from_version=self.result.from_version, to_version=self.result.to_version, count=len(self.drifted_paths))
