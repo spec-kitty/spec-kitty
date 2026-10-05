@@ -1,0 +1,403 @@
+{
+  "event_count": 94,
+  "last_event_id": "01M45JJJZ65RPFYNBGZBRNC19B",
+  "materialized_at": "2026-10-05T08:23:38.214835+00:00",
+  "mission_number": "216",
+  "mission_slug": "implement-degod-01M44488",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 12,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45JH5JY400ANVCVMDJMW3EA",
+      "last_transition_at": "2026-10-05T08:22:51.743049+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Gate generalised to per-family descriptor (tasks unchanged: 900 hits/1 unresolvable; implement: 117 hits in 200 files, 0 dead, 0 unresolvable) with attribute rule + dispatch-map hook; 4 vacuous tests repaired/retired with planted-break proofs; counter 119 -> 117; no src changes. Regression subset 370 passed; gate+importers 345 passed; test_commit_recipes only the known #5699 red.",
+        "Review passed: tasks family byte-identical vs base (900 hits/1 unresolvable/814 live/0 dead); implement family scans 115 hits in 201 files, 0 dead, 0 unresolvable; reviewer-planted dead patch went red; 1615 behavioural oracle red under a planted primary-surface read (patches owner modules only, lazy import intercepts); retirements covered by test_implement_json_error_output_is_clean and test_implement_programmatic_call; counter 119->117 (93 string + 24 object, the reported 97 was a typo); no src change; trailers clean; ruff clean; #5699 set unchanged. Non-blocking: WP02 must expose the map as DISPATCH."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4030,
+      "shell_pid_created_at": "1791147797.24",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45JH9BEBQ5F76CAZG2W5JK5",
+      "last_transition_at": "2026-10-05T08:22:55.598601+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP02: characterization suite (44 cases, ~27s of test time) via the implement command function + real git fixtures; dispatch map _implement_dispatch.DISPATCH (10 entries, 17 patch_collaborator sites); liveness hook un-skipped and green; every case proven red by a planted src break (batches logged); no src changes; known red #5699 only. Counter 117 -> 134 (+17 dispatch).",
+        "Review passed: 44 cases green in 30s; FR-009 grep empty, injections only via patch_collaborator (17) plus one foreign runtime_bridge spy; dispatch-map liveness hook active and green; 3 reviewer plants red (Exit2->1: 2 fail; structural refusal off: 1 fail; DESTROYED_LANE return: 1 fail), reverted; #5699 set unchanged; ruff/format clean; no src change. Non-blocking: module docstring says 'root Typer app' (it is a one-command app) and the checkout-identity docstring misattributes the location guard (require_main_repo is on the function and is stubbed by the global conftest _neutralize_worktree_detection; covered separately by tests/agent/test_context_validation_unit.py)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 23206,
+      "shell_pid_created_at": "1791151174.17",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45JHDK7HAMX4GC4BYG0R1TR",
+      "last_transition_at": "2026-10-05T08:22:59.944063+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Context reads moved to workspace/context (find_wp_file, resolve_lane_state_dir, resolve_mission_target_branch); claim-precondition decision moved to core/dependency_graph as pure ensure_wp_claim_preconditions; seam tests, no-CLI guard (plant proven), widened gates; mypy --strict clean. Only red: known #5699 plus pre-existing order-dependent preflight latch test (red on base too).",
+        "Review passed: both move commits pure (color-moved shows only import lines), adjust commit limited to renames/imports/typing/seam split; lane map and both exception texts byte-identical; characterization suite unedited and green; no existing assertion edited, deleted test_resolve_lanes_dir cases carried verbatim; plants re-run red (trio scan on workspace/context.py, no-CLI guard on dependency_graph.py, liveness hook on 2 dead owner-module dispatch targets); gates 472 passed + #5699 only; subset 577 passed + #5714 (confirmed red on 8cbe74f94 in same order); owning dirs 1535 passed; mypy --strict, ruff, format, C901 clean; counter 134 -> 118 (owner-module re-points, no dynamic targets). Non-blocking nits in report."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 9493,
+      "shell_pid_created_at": "1791154950.45",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45JHHVQ8JBWQ3Z7CZ0EGD2S",
+      "last_transition_at": "2026-10-05T08:23:04.311441+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Planning-commit decisions moved to coordination/planning_commit.py (move + adjust + test commits); no-CLI guard extended (incl. relative imports), gates widened with plants, #5699 failing set unchanged, counter 118->116, characterization unedited",
+        "Review passed: pure move (line-multiset identical bar imports), rename-only adjust, no assertion edits, characterization unedited+green, 2 plants re-run red (no-CLI relative import, root_walk), gates 523 passed incl. e2e smoke, subset 525 passed/1 #5699-only, counter 118->116 verified, mypy/ruff/format/C901 clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 30256,
+      "shell_pid_created_at": "1791157217.6",
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45JHNYTH7RW3SNVSBPVHJVH",
+      "last_transition_at": "2026-10-05T08:23:08.506358+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Planning-commit adapter moved to implement_planning_commit.py; git_stdout to lanes/implement_support; tests/gates re-pointed; no-CLI guard covers implement_support (cli.console carve-out #5715); characterization unedited, 44 green; patch sites 116 unchanged",
+        "Review passed: adapter (10 names) + git_stdout moved byte-identical modulo owner-module qualification (AST-compared); adjust commit is deletions/import-style/docstrings only; characterization unedited (diff vs 8cbe74f94 empty) and green; test diffs are import/patch re-points only, no assertion edits; plants re-run red (no-CLI guard typer + 2nd console import, partition floor <3, terminology --feature option); gate set 556 passed / 1 failed (#5699 only, _commit_message.py); e2e full_workflow_sequence + wp_integrity green; mypy --strict, ruff, format, C901 clean; counter 116->116 verified at base, family widened (no laundering); regression subset 27.6-28.7 s warm (<=30 s); #5715 carve-out acceptable."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261005",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 12356,
+      "shell_pid_created_at": "1791158929.85",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45JHTEGBR8XHR09Y8B8Q52J",
+      "last_transition_at": "2026-10-05T08:23:13.104348+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP06 #5232 B2*: seam-owned PlanningPlacement/resolve_planning_placement in coordination/planning_commit; adapter arms keyed on placement.resolved/coordination_ref (bodies unchanged); placement_ref=None overload and meta-derived [0] placement read removed; remedy defined once (placement_resolution_remedy); _resolve_placement_ref/_resolve_claim_commit_target/_placement_coord_filter deleted. Red-first T025 fc6afbba6 (18 rows green on base, 8 unit red). FR-015: 18/18 rows identical before/after (exit, full console, commits per ref, git status). Plant: coordination_ref=None in unresolved branch -> dup-WP coord row red. Counter 116->111. Profile python-pedro (TDD red-green, DIRECTIVE_010/024/030/034). CHANGELOG line for WP11: The meta-derived planning-placement fallback in implement is replaced by a seam-owned typed placement, with no operator-visible change (#5232).",
+        "Cycle-1 rework: B2** (R-1b). PlanningPlacement(resolved, ref); seam declared_coordination_ref + coordination_filter asked lazily after the structural check; no topology gate/probe/raise on the unresolved path. FR-015 D1-D5 pinned at base outcomes; all 23 behavioural rows identical on fc6afbba6 and HEAD.",
+        "Review passed (cycle 2, R-1b/B2**): all 23 FR-015 behavioural rows identical base fc6afbba6 vs HEAD (full normalized console, commits, git status; only random mid8 differs); D1-D5 pinned at base outcomes; coordination_filter called after #1598 structural check with declared_coordination_ref == old tuple[0] incl. feature_dir fallback; single PlacementResolutionRequired raise (arm b) on the one remedy; plants red (filter None -> 8 reachability rows; typer import -> layering gate); characterization unedited; targeted 1347 passed / 1 failed (#5699 only); ruff/format/C901/mypy --strict clean; counter 111."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP06:20261005",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2546,
+      "shell_pid_created_at": "1791164522.2",
+      "subtasks": {
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45JHYAZP3DKT1VETHKG5DQ2",
+      "last_transition_at": "2026-10-05T08:23:17.087876+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Lane selection seam: base-ref family, resolve_effective_base, resolve_execution_lane, refuse_repo_root_checkout_if_unavailable, ensure_vcs_locked moved into lanes/implement_support.py with typed errors; CLI keeps printing adapters. Seam tests added; test-fast 2271 passed; gates green; mypy strict clean.",
+        "Review passed: move commit a580c74d2 is a pure move (only the self-qualified git_stdout ref and the self-import changed); adjust commit 36021fc99 seam+adapter pairs reproduce the old texts, print order and exit codes (unresolved base caught inline inside the create try, MissionMetaMissing and MissionMetaReadError lines identical, tracker texts identical, lanes_manifest passed unchanged). Characterization suite unedited and green; no existing test edited; inline-catch plant and no-CLI guard plants (typer, cli.helpers) both red then reverted. mypy --strict, ruff, format, C901 clean; counter 111; #5699 failing set unchanged. Non-blocking: test_implement_preflight::test_hook_does_not_abort_on_fully_absent_charter_for_implement fails in the regression subset under xdist loadfile at base 38fbbf43c too (pre-existing once-per-process charter warning ordering); stale _resolve_active_lanes_manifest mention in the test_lane_base_honoring.py docstring."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP07:20261005",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 14251,
+      "shell_pid_created_at": "1791166598.32",
+      "subtasks": {
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done"
+      }
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45JJ2STWHQ80FJDCR679HDB",
+      "last_transition_at": "2026-10-05T08:23:21.658829+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Claim recording moved verbatim into cli/commands/implement_claim.py; claim_commit_paths extracted (#5673 unchanged); one claim_policy_metadata in status facade (both copies deleted); WS#3 allow-list+twin re-pointed; gate lists widened with plants; characterization unedited 44/44; make test-fast 2276 passed; counter 111->111",
+        "Review passed: verbatim move (AST byte-identical for all 7 functions), claim_commit_paths reproduces the old ordered bundle incl. .kittify/config.yaml (#5673 unchanged), shared status.claim_policy_metadata semantically identical to both deleted copies, workflow_executor shadow avoided via facade attribute; characterization suite unedited; test edits are mechanical re-points only; plants re-run red (WS#3 twin, trio, write-side); gates 456 passed; regression subset 524 passed + #5699 only; status/workflow claim tests 1400 passed; mypy strict / ruff / format / C901 clean; counter 111 (no laundering). Non-blocking: _INSCOPE_FILES in test_feature_alias_scope.py is a pre-existing dead list (widening vacuous but harmless); quickstart §2 lists a missing file tests/cli/commands/test_resolve_lanes_dir.py."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP08:20261005",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28430,
+      "shell_pid_created_at": "1791168939.55",
+      "subtasks": {
+        "T035": "done",
+        "T036": "done",
+        "T037": "done",
+        "T038": "done",
+        "T039": "done"
+      }
+    },
+    "WP09": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45JJ6XWFCRSKKCN7APWAVKS",
+      "last_transition_at": "2026-10-05T08:23:25.884617+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP09 ready for review: implement.py 904->438 lines, implement() C901 8; phases in implement_phases.py (477), --recover in implement_recover.py (140); verbatim move commit 2a4eb436f + adjust d07ea9817; implement.py lifted from mypy quarantine (3 modules mypy --strict clean); gates widened with plants; SC-005 seam + phase-order tests; characterization 44/44 unedited; make test-fast 2276 passed; counter 111->111.",
+        "Review passed: implement() side-effect order and exception shapes byte-equivalent to 1f7cbcea7 (phase-by-phase compare incl. _complete_validate_step/_print_explicit_base_ref/_render_create_failure extractions); move commit pure (zebra); test edits mechanical re-points only, no assertion changes; characterization unchanged + 44 green; regression subset+touched tests 715 pass / 1 known #5699 (_commit_message.py only); gates 504 pass; make test-fast 2276 pass; mypy --strict clean on 3 modules, follow_imports override changes nothing on importers (consolidate.py:307 pre-existing both ways); ruff/format clean; implement C901=8; implement.py 438 lines; counter 111->111 (private imports 28->30 from mandated presentation tests); plants re-run red: trio_seam_only (implement_recover), phase-order swap."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP09:20261005",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 22185,
+      "shell_pid_created_at": "1791172022.28",
+      "subtasks": {
+        "T040": "done",
+        "T041": "done",
+        "T042": "done",
+        "T043": "done",
+        "T044": "done"
+      }
+    },
+    "WP10": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45JJAT0RR31PJKJYNCWSQ2P",
+      "last_transition_at": "2026-10-05T08:23:29.856800+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "tests/agent/test_implement_command.py family patch sites 43 -> 0 (counter 111 -> 68); 8 real-git phase tests in test_implement_phases.py replace the MagicMock-graph tests; detect/vcs classes moved; json-error guard kept on a real fixture; characterization unedited and green",
+        "Review passed: move commit pure (helper copy only); TestFindWpFile absorbed by stronger seam tests; every retired TestImplementCommand/#3371 test has a green replacement on real git fixtures with equal-or-stronger assertions (plants re-run red: lanes-surface, declared_deps); json_error test assertions byte-identical; characterization unedited (44 green); counter 68 reproduced (43 family sites removed); regression subset 478 passed + #5699 only; ruff/format/C901 clean. Non-blocking: workspace_context 'worktree:' prefix no longer pinned (plant survives 436 implement tests); coordination-branch planning-commit phase test is weak; CLI claim from a coord branch with protected target exits 1 with no rendered error (issue-log candidate)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP10:20261005",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 19329,
+      "shell_pid_created_at": "1791174169.11",
+      "subtasks": {
+        "T045": "done",
+        "T046": "done",
+        "T047": "done"
+      }
+    },
+    "WP11": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45JJEYGS23VFBQ83K1YW6DM",
+      "last_transition_at": "2026-10-05T08:23:34.096544+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP11: class-A/B implement tests migrated to real fixtures and direct phase calls (counter 68 -> 43, target <=45); WP10 nits N1 (worktree workspace_context pin) and N2 (planning-commit phase proven to run) folded; allocate phase called directly (SC-005); docs re-pointed (eviction design, read-side ledger, implementation mapping, git-operations matrix) and CHANGELOG #5635/#5232/#5673 entry; three rewritten files formatted and dropped from the format-exclude list; test_planning_commit reload-isolation fix. NFR-003: subset 23.8 s, characterization 25.7 s, reachability 46.3 s.",
+        "Rework cycle 1: test_lane_base_honoring seam tests (AC-1/AC-4/FR-007) now drive the real implement command on build_mission missions (coordination surface seeded via placement_seam write_dir); 5 family string patches removed; AC-4 error-path vacuity fixed; implement_cores subprocess.run site kept with reason; eviction-doc wording fixed. Counter 43 -> 38 (string 6 -> 1). Plants P1-P5 each red.",
+        "Review passed (cycle 2): lane-base-honoring tests now drive the real implement command on real missions (5 family string patches gone, assertions byte-identical); counter 38 reproduced (string 1/object 19/dispatch 18, no laundering); plants P1 (drop effective base), P4 (drop FR-007 warning), P5 (premature success line) each red; P5 confirmed hollow without the inter-claim commit, which mirrors the safe-commit remedy; kept implement_cores.subprocess.run site justified (#5576 timeout); characterization unchanged; regression subset 633 passed; gates+commit_recipes 472 passed, 1 failed = #5699 only; ruff/C901 clean; trailers correct."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP11:20261005",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3301,
+      "shell_pid_created_at": "1791182819.79",
+      "subtasks": {
+        "T048": "done",
+        "T049": "done",
+        "T050": "done",
+        "T051": "done"
+      }
+    },
+    "WP12": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45JJJZ65RPFYNBGZBRNC19B",
+      "last_transition_at": "2026-10-05T08:23:38.214835+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Matrix terminal; #5635/#5232 fixed; follow-ups #5733–#5740 filed; #3471 commented",
+        "Matrix rows present; follow-ups #5733-#5740 verified; #3471 tracker correct; folds #5738/#3471 in-mission until post-consolidate"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP12:20261005",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 27587,
+      "shell_pid_created_at": "1791184735.07",
+      "subtasks": {
+        "T052": "done",
+        "T053": "done"
+      }
+    }
+  }
+}

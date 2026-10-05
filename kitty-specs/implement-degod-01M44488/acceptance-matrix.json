@@ -1,0 +1,214 @@
+{
+  "mission_slug": "implement-degod-01M44488",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "inspection",
+      "evidence": "Lane HEAD 98cbec76d: src/specify_cli/cli/commands/implement.py is 438 lines (base 2,304); implement() (C901=8) only calls implement_phases.{detect_context,claim_preflight,commit_planning_artifacts,run_bulk_edit_gate,build_operational_context,select_workspace,allocate,record_claim,commit_claim} + presentation helpers; no planning-commit/dependency-gate/lane-selection/claim-commit decision code; adapters in implement_planning_commit.py/implement_claim.py/implement_recover.py; decisions in core/dependency_graph, coordination/planning_commit, lanes/implement_support, workspace/context. __all__=['implement'].",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T07:40:54.298234+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane HEAD 98cbec76d (kitty/mission-implement-degod-01M44488-lane-a): tests/specify_cli/cli/commands/test_implement_phases.py::test_phases_run_in_the_documented_order (records phase-function call order through public implement) PASS; implement() calls detect_context->claim_preflight->commit_planning_artifacts->run_bulk_edit_gate->build_operational_context->select_workspace->allocate->record_claim->commit_claim, presentation in implement.py; side-effect order pinned by test_implement_characterization.py::test_side_effects_run_in_the_documented_order PASS (44/44).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T07:41:32.783158+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane HEAD 98cbec76d (kitty/mission-implement-degod-01M44488-lane-a): core/dependency_graph.py::ensure_wp_claim_preconditions (pure over snapshot.work_packages, raises WorkPackageStartRejected / ValueError 'dependencies_not_satisfied: ...'); caller implement_phases.claim_preflight does read_events+reduce. tests/specify_cli/core/test_claim_preconditions.py (no git, no CLI, nothing patched) PASS within NFR-003 subset (497 passed).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T07:41:39.310991+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane HEAD 98cbec76d (kitty/mission-implement-degod-01M44488-lane-a): coordination/planning_commit.py holds partition_files_for_commit, guard_planning_commit_partition, meta_json_demotion_refusal, resolve_bookkeeping_transaction_identifiers/compute_effective_bookkeeping_ids, feature_dir_file_paths/planning_artifact_source_dir; no CLI import (tests/coordination/test_commit_router_layering.py::test_seam_module_imports_no_cli_layer). Prints/transaction in cli/commands/implement_planning_commit.py. tests/specify_cli/coordination/test_planning_commit.py (TestPartition/TestGuard/TestDemotionVerdict/TestIdentifierCascade/TestCandidateEnumeration) PASS.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T07:41:46.616242+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane HEAD 98cbec76d (kitty/mission-implement-degod-01M44488-lane-a): lanes/implement_support.py adds resolve_execution_lane, resolve_base_ref/resolve_effective_base (BaseRefUnresolved), refuse_repo_root_checkout_if_unavailable, ensure_vcs_locked (MissionMetaMissing). tests/lanes/test_implement_support_lane_selection.py PASS (lane lookup, origin-preferred base, vcs lock). Note: refuse_repo_root_checkout_if_unavailable has only a callable() seam check; its WRITE_CHECKOUT_* behaviour is pinned by test_single_branch_implement_refusals.py + characterization (PASS).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T07:41:54.450042+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane HEAD 98cbec76d (kitty/mission-implement-degod-01M44488-lane-a): workspace/context.py adds find_wp_file (in __all__ L1404), resolve_mission_target_branch, resolve_lane_state_dir; implement_phases imports them via workspace_context (L189,L289,L312); no production importer of the old implement-module names remains (git grep). tests/specify_cli/workspace/test_context_implement_reads.py PASS.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T07:42:01.940319+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane HEAD 98cbec76d (kitty/mission-implement-degod-01M44488-lane-a): implement_claim.claim_commit_paths pure bundle (tests/specify_cli/cli/commands/test_implement_claim.py::test_claim_commit_paths_* PASS); claim policy metadata single definition status/emit.py:254 claim_policy_metadata used by implement_claim.py:240 and agent/workflow_executor.py (duplicate _claim_policy_metadata deleted); tests/status/test_claim_policy_metadata.py PASS.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T07:42:09.569582+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane HEAD 98cbec76d (kitty/mission-implement-degod-01M44488-lane-a): coordination/planning_commit.py PlanningPlacement(resolved, ref) + resolve_planning_placement + coordination_filter/declared_coordination_ref (degrade computed lazily after #1598 structural check); _ensure_planning_artifacts_committed_git takes placement: PlanningPlacement (no None default, no implement-local meta read). tests/specify_cli/cli/commands/test_implement_placement_reachability.py 33 passed (incl. D1-D5).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T07:42:16.805021+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_implement_characterization.py: 44 passed at lane HEAD (29.6s) AND 44 passed at freeze commit 8cbe74f94 (src identical to base aee10130a); git diff 8cbe74f94 lane-a -- that file is empty; imports only public entry points + _implement_dispatch map (updated by moving WPs, liveness-checked); each case documents its planted break.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T07:42:23.613951+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane HEAD 98cbec76d (kitty/mission-implement-degod-01M44488-lane-a): tests/specify_cli/cli/commands/agent/test_tasks_patch_targets_live.py adds IMPLEMENT family (glob implement*.py, unresolvable baseline 0, dispatch-map liveness, synthetic positive controls); PASS in gate run (539 passed / 2 failed, failures unrelated: #5699 + FR-013 oracle).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T07:42:31.246748+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "count_patch_sites.py (lane tools copy, run from worktree): 119 -> 38 (string 1, object 19, dispatch 18), console couplings 10->6, private imports 46->30; implement.py __all__=['implement'], moved names not re-exported; characterization (44) + e2e TestFullCLIWorkflow::test_full_workflow_sequence PASS as end-to-end families.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T07:42:38.566515+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane HEAD 98cbec76d (kitty/mission-implement-degod-01M44488-lane-a): scans widened to implement_planning_commit/implement_claim/implement_phases/implement_recover/coordination/planning_commit/workspace/context in test_exemption_registry_ratchet, test_no_write_side_rederivation, test_trio_seam_only; no-CLI guard tests/coordination/test_commit_router_layering.py covers workspace.context, core.dependency_graph, coordination.planning_commit, lanes.implement_support (console carve-out pre-existing); no size gate added. Gate files run: all pass except known #5699.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T07:42:45.060862+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Vacuous/brittle tests retired (test_implement_requires_lanes_json, test_implement_command_callable, hasattr safe_commit smoke); #1615 oracle restored on shared builders tests/specify_cli/cli/commands/_implement_fixtures.py (fa7347b98): tests/specify_cli/regression/test_issue_1615_1616_1617_1618.py 22 passed; plant (claim_preflight reads primary dir) \u2192 red",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T08:20:56.603184+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane HEAD 98cbec76d (kitty/mission-implement-degod-01M44488-lane-a): @_json_safe_output @require_main_repo def implement(...) signature/defaults/decorators byte-identical to base aee10130a (awk-extracted diff empty); tests/agent/test_implement_programmatic_call.py (2) PASS; characterization programmatic-call cases PASS.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T07:42:58.398382+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_implement_placement_reachability.py: 33 passed in 47.7s at lane HEAD 98cbec76d (kitty/mission-implement-degod-01M44488-lane-a) - real-git rows per topology/lifecycle (healthy, duplicate WP flat/coord, broken lanes.json, never-created/deleted/torn-down coord branch, consolidated, published, unmaterialized worktree, protected) + double faults D1-D5 + typed-placement API unit tests; outside FR-009 frozen set; planted-break evidence in WP06 log.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T07:43:05.266857+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane HEAD 98cbec76d (kitty/mission-implement-degod-01M44488-lane-a): docs re-pointed (docs/architecture/wp-runtime-state-eviction.md, docs/development/reference/read-side-seam-classification.md, git-operations-matrix.md Source File -> implement_planning_commit.py, docs/architecture/04_implementation_mapping/README.md); CHANGELOG [Unreleased] - 4.0.0rc6 entry covers #5635 + #5232; tests/architectural/test_git_matrix_paths_resolve.py PASS.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T07:43:11.765622+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "Verify FR-017 is satisfied",
+      "proof_type": "inspection",
+      "evidence": "kitty-specs/implement-degod-01M44488/issue-matrix.json (planning checkout): #5635 fixed, #5232 fixed, #5673 deferred-with-followup, #5676/#5669/#3931 not-applicable (out of scope); follow-ups filed and open on GitHub: #5733 (planning commit before late validation), #5734 (misleading not-finalized), #5735 (shared implement app service ADR), #5736 (#5232 single-path end state), #5737 (test remediation), #5738-#5740. Closure of #5635/#5232 happens via the PR (not yet open).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T07:43:19.296622+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Verify FR-018 is satisfied",
+      "proof_type": "inspection",
+      "evidence": "lane HEAD 98cbec76d (kitty/mission-implement-degod-01M44488-lane-a): _resolve_claim_commit_target absent from src (grep, deleted; removed from test_no_write_side_rederivation fold-callee list); PlacementResolutionRequired remedy has one definition coordination/planning_commit.py:409 placement_resolution_remedy, single implement raise site implement_planning_commit.py:466 (base had duplicate raise sites implement.py:1238 + implement_cores.py:820); test_placement_resolution_remedy_text_is_pinned PASS.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T07:43:26.395842+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-1",
+      "description": "FR-009/SC-003: the characterization suite is unedited since its freeze commit 8cbe74f94 on the lane branch (empty git diff)",
+      "verification_method": "custom_command",
+      "verification_command": "git diff --exit-code --quiet 8cbe74f94 kitty/mission-implement-degod-01M44488-lane-a -- tests/specify_cli/cli/commands/test_implement_characterization.py",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: "
+    },
+    {
+      "invariant_id": "NI-2",
+      "description": "FR-008/FR-018/SC-004 (#5232): the meta-derived C-004 planning-placement fallback is gone on the lane branch: no _load_primary_anchored_mission_meta / _resolve_claim_commit_target anywhere in src, and no optional placement_ref=None parameter, 'C-004 strangler' or 'meta-derived path' wording in the implement family. Positive control: the same greps find 15 hits on base aee10130a.",
+      "verification_method": "custom_command",
+      "verification_command": "git grep -nE '_load_primary_anchored_mission_meta|_resolve_claim_commit_target' kitty/mission-implement-degod-01M44488-lane-a -- src; r1=$?; git grep -nE 'placement_ref: CommitTarget [|] None = None|C-004 strangler|meta-derived path' kitty/mission-implement-degod-01M44488-lane-a -- 'src/specify_cli/cli/commands/implement*.py'; r2=$?; test $r1 -eq 1 -a $r2 -eq 1",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: "
+    },
+    {
+      "invariant_id": "NI-3",
+      "description": "C-003 (operator ruling): no new size/ratchet gate. No added test line in the mission diff (aee10130a..lane-a, tests/) asserts a line count (wc -l, line_count/count_lines, max_lines/LINE/LOC ceilings, len(splitlines()) <= NNN). Chosen because SC-001's 800-line target is the most likely thing to be codified as a gate; no new file was added under tests/architectural/.",
+      "verification_method": "custom_command",
+      "verification_command": "git diff aee10130a kitty/mission-implement-degod-01M44488-lane-a -- tests | grep '^+' | grep -qE 'wc -l|line_count|count_lines|max_lines|MAX_LINES|LINE_CEILING|LOC_CEILING|splitlines[(][)][)] *<=? *[0-9]{3}'; test $? -eq 1",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: "
+    }
+  ]
+}

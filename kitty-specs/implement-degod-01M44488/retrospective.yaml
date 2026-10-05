@@ -1,0 +1,214 @@
+schema_version: 1
+mission_id: 01M44488X6R4ZF7VQGS8YVCQZ5
+mission_slug: implement-degod-01M44488
+mission_number: 216
+friendly_name: Implement command degod (tidy-first)
+mission_type: software-dev
+target_branch: issue-5635-implement-degod
+created_at: '2026-10-05T08:26:10.024788+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-05T08:26:10.024788+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-005
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-006
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-007
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-008
+  category: implementation
+  summary: WP09 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-009
+  category: implementation
+  summary: WP10 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-010
+  category: implementation
+  summary: WP12 completed without rejection cycles
+  evidence_refs:
+  - e-017
+not_helpful:
+- id: n-003
+  category: doc
+  summary: analysis-report.md records 1 finding(s)
+  evidence_refs:
+  - e-020
+  details: The analysis-report.md artifact for this mission records 1 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: review_loop
+  summary: WP06 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-018
+  details: WP WP06 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP11 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-019
+  details: WP WP11 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-004
+  category: tooling
+  summary: 'Tracer: WP01'
+  evidence_refs:
+  - e-021
+  details: "- **WP01**: the liveness gate is per-family, with an attribute rule. 115 implement patch hits,\n    0 dead. Counter
+    119 → 117."
+- id: n-005
+  category: tooling
+  summary: 'Tracer: WP02'
+  evidence_refs:
+  - e-021
+  details: "- **WP02**: 44-case characterization suite, frozen at `8cbe74f94`. Counter 117 → 134 (17 dispatch\n    substitutions)."
+- id: n-006
+  category: tooling
+  summary: 'Tracer: WP03'
+  evidence_refs:
+  - e-021
+  details: "- **WP03**: context reads and the claim gate moved into their seams; no-CLI guard added. Counter\n    134 → 118:
+    string patches were re-pointed to the owner module `workspace.context`.\n    `_WRITE_DIR_CONSUMER_MODULES` and the meta
+    census were not widened, because the moved code only\n    reads and has no `load_meta` site.\n  - Reviewers re-ran their
+    own plants on every WP.\n  - Pre-existing reds: #5699 (commit recipes) and #5714 (preflight latch order dependence, filed\n\
+    \    by this mission).\n- 2026-10-04 — A container restart killed the WP03 implementer mid-validation. Its commits survived\n\
+    \  in the lane worktree; a resume dispatch finished validation. Since then the lane branch is pushed\n  to origin after
+    each WP as a backup."
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/implement-degod-01M44488/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/implement-degod-01M44488/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/implement-degod-01M44488/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/implement-degod-01M44488/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/implement-degod-01M44488/tasks/WP01-liveness-gate-and-vacuous-tests.md
+- id: e-006
+  kind: file
+  path: kitty-specs/implement-degod-01M44488/tasks/WP02-characterization-suite.md
+- id: e-007
+  kind: file
+  path: kitty-specs/implement-degod-01M44488/tasks/WP03-context-and-dependency-gate.md
+- id: e-008
+  kind: file
+  path: kitty-specs/implement-degod-01M44488/tasks/WP04-planning-commit-seam.md
+- id: e-009
+  kind: file
+  path: kitty-specs/implement-degod-01M44488/tasks/WP05-planning-commit-adapter.md
+- id: e-010
+  kind: file
+  path: kitty-specs/implement-degod-01M44488/tasks/WP06-seam-owned-placement.md
+- id: e-011
+  kind: file
+  path: kitty-specs/implement-degod-01M44488/tasks/WP07-lane-selection-seam.md
+- id: e-012
+  kind: file
+  path: kitty-specs/implement-degod-01M44488/tasks/WP08-claim-recording-seam.md
+- id: e-013
+  kind: file
+  path: kitty-specs/implement-degod-01M44488/tasks/WP09-thin-command-and-phases.md
+- id: e-014
+  kind: file
+  path: kitty-specs/implement-degod-01M44488/tasks/WP10-migrate-implement-command-tests.md
+- id: e-015
+  kind: file
+  path: kitty-specs/implement-degod-01M44488/tasks/WP11-remaining-migration-docs-measurements.md
+- id: e-016
+  kind: file
+  path: kitty-specs/implement-degod-01M44488/tasks/WP12-issue-matrix-and-follow-ups.md
+- id: e-017
+  kind: file
+  path: kitty-specs/implement-degod-01M44488/status.events.jsonl
+- id: e-018
+  kind: event_range
+  path: kitty-specs/implement-degod-01M44488/status.events.jsonl
+  range: 01M44TF8F852JWQ06X5FXQH4KF
+- id: e-019
+  kind: event_range
+  path: kitty-specs/implement-degod-01M44488/status.events.jsonl
+  range: 01M45ANJ33DJWZ1381VATBRSPZ
+- id: e-020
+  kind: file
+  path: kitty-specs/implement-degod-01M44488/analysis-report.md
+- id: e-021
+  kind: file
+  path: kitty-specs/implement-degod-01M44488/traces/approach.md
+generator_version: '1.0'
+provenance_history: []

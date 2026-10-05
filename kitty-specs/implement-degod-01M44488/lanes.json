@@ -1,0 +1,214 @@
+{
+  "version": 1,
+  "mission_slug": "implement-degod-01M44488",
+  "mission_id": "01M44488X6R4ZF7VQGS8YVCQZ5",
+  "mission_branch": "kitty/mission-implement-degod-01M44488",
+  "target_branch": "issue-5635-implement-degod",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09",
+        "WP10",
+        "WP11"
+      ],
+      "write_scope": [
+        "docs/architecture/04_implementation_mapping/README.md",
+        "docs/architecture/wp-runtime-state-eviction.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/reference/read-side-seam-classification.md",
+        "pyproject.toml",
+        "src/charter/offering/skills/spec-kitty-git-workflow/references/git-operations-matrix.md",
+        "src/specify_cli/cli/commands/agent/workflow_executor.py",
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/cli/commands/implement_claim.py",
+        "src/specify_cli/cli/commands/implement_cores.py",
+        "src/specify_cli/cli/commands/implement_phases.py",
+        "src/specify_cli/cli/commands/implement_planning_commit.py",
+        "src/specify_cli/cli/commands/implement_recover.py",
+        "src/specify_cli/coordination/planning_commit.py",
+        "src/specify_cli/core/dependency_graph.py",
+        "src/specify_cli/lanes/implement_support.py",
+        "src/specify_cli/status/__init__.py",
+        "src/specify_cli/status/emit.py",
+        "src/specify_cli/workspace/context.py",
+        "tests/agent/cli/commands/test_implement_preflight.py",
+        "tests/agent/test_implement_command.py",
+        "tests/agent/test_implement_programmatic_call.py",
+        "tests/agent/test_mission_handle_json_errors.py",
+        "tests/architectural/dead_symbol_allowlist.yaml",
+        "tests/architectural/test_exemption_registry_ratchet.py",
+        "tests/architectural/test_layer_rules.py",
+        "tests/architectural/test_no_write_side_rederivation.py",
+        "tests/architectural/test_trio_seam_only.py",
+        "tests/architectural/test_wp_integrity_partition_call_shape.py",
+        "tests/cli/commands/test_implement_base_flag.py",
+        "tests/cli/commands/test_resolve_lanes_dir.py",
+        "tests/cli/test_implement_bulk_edit_planning.py",
+        "tests/contract/test_feature_alias_scope.py",
+        "tests/contract/test_terminology_guards.py",
+        "tests/coordination/test_commit_router_layering.py",
+        "tests/coordination/test_ledger_topology_less_callers.py",
+        "tests/git/test_guard_capability_regression.py",
+        "tests/git/test_protection_policy_mission_scope.py",
+        "tests/integration/test_issue_3784_coord_tasks_md_primary_bundle_guard.py",
+        "tests/integration/test_status_emit_on_alloc_failure.py",
+        "tests/integration/test_wp_integrity_*.py",
+        "tests/integration/test_wp_integrity_checkout_identity.py",
+        "tests/lanes/test_implement_support_lane_selection.py",
+        "tests/lanes/test_issue_2993_lane_planning_ancestry.py",
+        "tests/release/coverage_breadth_baseline.json",
+        "tests/specify_cli/acceptance/test_trio_read_seam_migration.py",
+        "tests/specify_cli/cli/commands/_implement_dispatch.py",
+        "tests/specify_cli/cli/commands/agent/test_implement_compact_identity_4665.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_patch_targets_live.py",
+        "tests/specify_cli/cli/commands/test_cli_git_paths.py",
+        "tests/specify_cli/cli/commands/test_commit_recipes.py",
+        "tests/specify_cli/cli/commands/test_coordination_remedy_5113.py",
+        "tests/specify_cli/cli/commands/test_implement.py",
+        "tests/specify_cli/cli/commands/test_implement_*.py",
+        "tests/specify_cli/cli/commands/test_implement_base_ref.py",
+        "tests/specify_cli/cli/commands/test_implement_bookkeeping_identifiers.py",
+        "tests/specify_cli/cli/commands/test_implement_characterization.py",
+        "tests/specify_cli/cli/commands/test_implement_claim.py",
+        "tests/specify_cli/cli/commands/test_implement_demotion_guard_4979.py",
+        "tests/specify_cli/cli/commands/test_implement_json_safe_output.py",
+        "tests/specify_cli/cli/commands/test_implement_phases.py",
+        "tests/specify_cli/cli/commands/test_implement_placement_reachability.py",
+        "tests/specify_cli/cli/commands/test_implement_placement_routing.py",
+        "tests/specify_cli/cli/commands/test_implement_runtime_frontmatter_claim.py",
+        "tests/specify_cli/cli/commands/test_implement_vcs_lock_claim.py",
+        "tests/specify_cli/cli/commands/test_issue_610_head_mismatch_not_swallowed.py",
+        "tests/specify_cli/cli/commands/test_meta_bypass_diagnosability.py",
+        "tests/specify_cli/cli/commands/test_precondition_ref_unification.py",
+        "tests/specify_cli/cli/commands/test_single_branch_implement_refusals.py",
+        "tests/specify_cli/cli/commands/test_wp06_sc2_paused_mission_blockers.py",
+        "tests/specify_cli/coordination/test_flat_legacy_none_seam_success_arms.py",
+        "tests/specify_cli/coordination/test_partition_authority_characterization.py",
+        "tests/specify_cli/coordination/test_planning_commit.py",
+        "tests/specify_cli/core/test_claim_preconditions.py",
+        "tests/specify_cli/core/test_dependency_graph_canceled.py",
+        "tests/specify_cli/lanes/test_lane_base_honoring.py",
+        "tests/specify_cli/regression/test_issue_1615_1616_1617_1618.py",
+        "tests/specify_cli/status/test_cutover_byte_stability.py",
+        "tests/specify_cli/test_change_mode_read_boundaries.py",
+        "tests/specify_cli/test_meta_fail_closed_full_census_contract.py",
+        "tests/specify_cli/test_meta_read_permission_denied_regression.py",
+        "tests/specify_cli/test_mid8_contract_sensitive_routing.py",
+        "tests/specify_cli/test_operational_context_wiring.py",
+        "tests/specify_cli/test_specify_topology_flag.py",
+        "tests/specify_cli/test_worktrees_index.py",
+        "tests/specify_cli/workspace/test_context_implement_reads.py",
+        "tests/status/test_claim_policy_metadata.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP12"
+      ],
+      "write_scope": [
+        "kitty-specs/implement-degod-01M44488/issue-matrix.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-04T20:19:31.337655+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP12"
+  ],
+  "planning_commit_sha": "eb63996d1f6960f79976f1719b4ac01a203979de",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP02",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/specify_cli/cli/commands/agent/test_tasks_patch_targets_live.py' vs 'tests/specify_cli/cli/commands/agent/test_tasks_patch_targets_live.py'; WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP03",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/specify_cli/regression/test_issue_1615_1616_1617_1618.py' vs 'tests/specify_cli/regression/test_issue_1615_1616_1617_1618.py', 'tests/agent/test_implement_command.py' vs 'tests/agent/test_implement_command.py'"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP05",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/agent/test_implement_command.py' vs 'tests/agent/test_implement_command.py', 'tests/specify_cli/cli/commands/test_implement.py' vs 'tests/specify_cli/cli/commands/test_implement.py'"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP06",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/agent/test_implement_command.py' vs 'tests/agent/test_implement_command.py'"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP08",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/agent/test_implement_command.py' vs 'tests/agent/test_implement_command.py'"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP09",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/specify_cli/regression/test_issue_1615_1616_1617_1618.py' vs 'tests/specify_cli/regression/test_issue_1615_1616_1617_1618.py', 'tests/agent/test_implement_command.py' vs 'tests/agent/test_implement_command.py'"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP10",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/agent/test_implement_command.py' vs 'tests/agent/test_implement_command.py'"
+      },
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP07",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/specify_cli/cli/commands/_implement_dispatch.py' vs 'tests/specify_cli/cli/commands/_implement_dispatch.py'"
+      },
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP11",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/specify_cli/cli/commands/test_implement_characterization.py' vs 'tests/specify_cli/cli/commands/test_implement_*.py', 'tests/specify_cli/cli/commands/_implement_dispatch.py' vs 'tests/specify_cli/cli/commands/_implement_dispatch.py'"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP04",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/cli/commands/implement.py' vs 'src/specify_cli/cli/commands/implement.py', 'tests/architectural/test_no_write_side_rederivation.py' vs 'tests/architectural/test_no_write_side_rederivation.py', 'tests/specify_cli/test_meta_fail_closed_full_census_contract.py' vs 'tests/specify_cli/test_meta_fail_closed_full_census_contract.py', 'tests/coordination/test_commit_router_layering.py' vs 'tests/coordination/test_commit_router_layering.py'; WP04 depends on WP03"
+      }
+    ],
+    "total_merges": 10,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 10
+    }
+  }
+}

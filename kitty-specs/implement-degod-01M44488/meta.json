@@ -1,0 +1,36 @@
+{
+  "accept_commit": "9e38b958fa51642d21b87684abb8b5ea545d0ce8",
+  "acceptance_history": [
+    {
+      "accept_commit": "9e38b958fa51642d21b87684abb8b5ea545d0ce8",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-10-05T08:21:11.279171+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "4f7ded752db7615649ad87758cca5ad7ddb22636"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-10-05T08:21:11.279171+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "4f7ded752db7615649ad87758cca5ad7ddb22636",
+  "baseline_merge_commit": "93d80f770660e1d87cecbaaa71028012f627e702",
+  "created_at": "2026-10-04T18:54:07.108057+00:00",
+  "flattened": false,
+  "friendly_name": "Implement command degod (tidy-first)",
+  "merged_at": "2026-10-05T08:22:49.282302+00:00",
+  "merged_commit": "10677efd1d0edd248533d5d87d6b8072d11234ca",
+  "mid8": "01M44488",
+  "mission_id": "01M44488X6R4ZF7VQGS8YVCQZ5",
+  "mission_number": 216,
+  "mission_slug": "implement-degod-01M44488",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The implement command file is a 2,300-line hotspot with heavy churn and tests that patch its internals. This mission moves its decisions into the existing workspace, lane, status and dependency seams without changing behaviour, removes the meta-derived coordination fallback (#5232), and moves the tests onto those seams.",
+  "purpose_tldr": "Split the implement command into a thin CLI over seam-owned phases so later fixes in this area are cheap to make and pin with tests.",
+  "slug": "implement-degod-01M44488",
+  "status_phase": "1",
+  "target_branch": "issue-5635-implement-degod",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-04T20:31:40.005500+00:00"
+}
