@@ -1,0 +1,184 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: PLAN-FRESH2-001
+    lens: option-table-fairness
+    severity: 3
+    title: OD-1 says "What X costs, all of it" but omits the ACK-1 costs that only X carries, so the X-narrowly recommendation is weighed on an incomplete ledger
+    evidence:
+      - artifact: "plan.md § Operator decisions, OD-1 Option X cell (cost list items (1) to (5)) versus the ACK-1 block (a), (b), (c) and OD-1 Y cell"
+      - artifact: "plan.md § Operator decisions, ACK-1 (b): a clone that never fetched the tag, and a local make test-full there, see the live module red"
+      - code: "pytest.ini:57 and tests/contract/test_mission_status_payloads.py:29 (neighbours carry fast and corpus; a committed red-by-design test is new to this directory)"
+    claim: >
+      The OD-1 X cost list is introduced as complete ("all of it") and lists registrations, the architectural-heavy battery,
+      the scope reading, two Charter Check rows and lane binding. It does not list the costs ACK-1 attaches to X alone:
+      a committed test that is red by design until the tag, red in every contributor clone or shallow clone without the
+      tag, red under a local make test-full (not marker-filtered), and a retirement duty on a later actor. Those costs
+      appear only under ACK-1, and OD-1 Y's cell states that (a), (b), (c) "fall away" without X's cell saying they arrive.
+      A reader of the OD-1 row alone (the operator, who decides it) sees X priced lower than it is, and the stated
+      recommendation margin ("narrow") is computed on that lower price. The Y cell, by contrast, prices its one
+      weakness (no committed byte-identity test against the tag) explicitly. The table is therefore asymmetric.
+    remediation: >
+      Add a cost item (6) to the X cell naming the ACK-1 consequences (red-by-design live module, red in tag-less clones
+      and under make test-full, retirement duty) and say "ACK-1 is acknowledged together with X". Re-state the
+      recommendation margin with that item included, or flip it if the operator weights it differently.
+
+  - id: PLAN-FRESH2-002
+    lens: option-table-completeness
+    severity: 3
+    title: OD-1 couples two independent decisions (module placement and a committed live baseline test) and offers no option that separates them
+    evidence:
+      - artifact: "plan.md § OD-1 Y cell: 'A variant that keeps a committed live test under Y needs its own corpus-only module ... it is not planned.'"
+      - artifact: "plan.md § Complexity Tracking row 1 and § Departs from the spec item 10"
+    claim: >
+      The table has two columns: four new modules including the live one (X), or no new module and no committed live test
+      (Y). It explicitly rejects the variant "Y plus a live test" but never discusses the converse, "X without the live
+      module": three pure modules (artifacts, detail, 1.1 proof), six registrations instead of eight, no ACK-1 red, with the
+      comparison against the tag run as the W-7 recorded command exactly as Y does. That variant keeps X's stated benefits
+      (focused modules, -n 4 parallelism, outside the 10-minute serial job) and drops the largest X-only cost
+      (a committed red-by-design test). The heavy-battery cost is unchanged by it, so it is not a free lunch, but it is a
+      defensible third point that an operator choosing among "two defensible options" would want to see. Because ACK-1
+      is bundled into OD-1 X, an operator who likes X's layout but not ACK-1 has no option to pick.
+    remediation: >
+      Either add a third column (X-pure: three new modules, no committed live test, W-7 command as evidence) with its cost
+      list, or add one sentence in OD-1 saying the live module can be dropped from X independently and what that changes
+      (no ACK-1, six registrations, FR-017 item 1 evidenced at W-7 only).
+
+  - id: PLAN-FRESH2-003
+    lens: sequencing-and-wrap-up
+    severity: 3
+    title: The wrap-up order has no lane-consolidation step, yet W-1 (scope check over HEAD), W-2 and W-4 presuppose one tree holding every lane's work
+    evidence:
+      - artifact: "plan.md § Wrap-up checklist W-1 to W-7 and § Branch contract wrap-up order (accept, cleanup, squad, compaction, rebase, PR)"
+      - artifact: "quickstart.md § Scope check over the real branch diff: git diff --name-only $BASE..HEAD, python block exits 1 when the changed list is empty"
+      - artifact: "plan.md § Lanes: expected computed outcome (IC-02 in one lane, the rest in a second, IC-09 in lane-planning)"
+      - code: "src/specify_cli/lanes/implement_support.py:684-694 (planning-lane claim at the target branch gets no code-lane ancestry; code reaches the target only through consolidate)"
+    claim: >
+      Under the computed outcome the code lands in two lane branches plus the repository-root checkout. The plan's wrap-up
+      runs accept first, and the scope check at W-1 diffs the merge base against HEAD of the root checkout. Nothing in
+      W-1 to W-7, in the Branch contract or in the quickstart schedules the step that consolidates the lanes onto the
+      Mission branch (the charter and CLAUDE.md name it: lane consolidation to the target). Before that step HEAD holds
+      only the Mission directory, so the quickstart scope script would exit 1 on its own "not changed" guard (loud, not
+      vacuous), W-2 would replay JVM jobs on a tree lacking the contract files, and W-4 would squad a tree without the
+      code. The previous revision had the same gap, but the revision made the scope check a W-1/W-7 deliverable and
+      removed the lane T/R merge points that implicitly covered it, so the gap now bites at a stated step.
+    remediation: >
+      Insert an explicit step before W-1 (or fold it into W-1): consolidate the computed lanes onto the Mission branch
+      with the CLI, record the resulting HEAD, then run the scope check and the gate files on that tree. State that
+      accept versus consolidate order is the tooling's and say which tree each W step reads.
+
+  - id: PLAN-FRESH2-004
+    lens: acceptance-strength
+    severity: 2
+    title: The scope function is fed git diff --name-only, so it cannot enforce the spec's "existing files under contracts/ only the edits of items (2) and (3)"
+    evidence:
+      - artifact: "plan.md § D-P10 (SLICE_ALLOWED = directory prefixes and exact paths; git diff --name-only --no-renames)"
+      - artifact: "spec.md:552 (Scope bullet: for existing files under contracts/ only the edits of items (2) and (3))"
+      - artifact: "quickstart.md § Scope check over the real branch diff (name-only list, status letters used only for kitty-specs/)"
+    claim: >
+      A path list without status letters cannot tell a new file from an edit of an existing one. If SLICE_ALLOWED holds the
+      prefix contracts/mission-status/ (item 1, new files), an edit of an existing v1 schema file passes the scope function.
+      The spec's bullet is about exactly that distinction. The plan covers it indirectly through the byte-identity function
+      (a) and the quickstart "diff -rq" step, but the AC the plan cites for scope (SC-008 / AC-VERSION scope bullet) is then
+      only half implemented by the scope function; the other half rests on a check that needs a baseline (tag or
+      --baseline-root) and on a different command. The planted negatives named for the scope function (a path in neither
+      set) cannot reveal this.
+    remediation: >
+      Feed the scope function name-status entries (A, M, D) and make the allowed data say which statuses a prefix admits
+      (A only under contracts/mission-status/, M only for the named existing files), add a planted M-under-prefix negative,
+      or state in D-P10 that the new-versus-edit half is carried solely by byte identity and cite the test that proves it.
+
+  - id: PLAN-FRESH2-005
+    lens: ownership-and-lifetime
+    severity: 2
+    title: Retirement of the live baseline module is assigned to "the Mission that cuts the 1.1.0 release", which the plan itself says is a maintainer action, so the duty may have no owner
+    evidence:
+      - artifact: "plan.md § ACK-1 (c) Lifetime"
+      - artifact: "plan.md § Dependency on the operator: the 1.0.0 contract release is a maintainer action"
+      - artifact: "spec.md Out of Scope: the release commit that sets 1.1.0 is not produced by this Mission"
+    claim: >
+      ACK-1 (c) says the Mission that cuts the 1.1.0 release (or the next contract-changing Mission) deletes the module,
+      its --deselect entry and its registry row. The same plan treats a release as a maintainer action, not a Mission,
+      so "the 1.1.0 release Mission" may never exist. The corpus-trigger gate fails on a stale registry row only if the
+      module is deleted without its row, not the reverse, so nothing forces the retirement. The module keeps comparing
+      the tree to 1.0.0; at 1.1.0 that is still additive and green, so the lingering test is silent until the next minor
+      change, which is the "next contract-changing Mission" fallback. Charter Standing Order 5 asks that transient
+      scaffolding carry an issue, an owner and an exit date; ACK-1 (c) names none of the three.
+    remediation: >
+      Name an owner and a tracker hook at D-0 (a ledger line or an issue comment on #5625) for the retirement, and say who
+      deletes the three artefacts if no release Mission is opened.
+
+  - id: PLAN-FRESH2-006
+    lens: leak-and-self-reflexivity
+    severity: 2
+    title: This Mission's own planning files contain lines matching the human e-mail pattern, contradicting the Reflexivity claim and the C-004 "leak grep before commit"
+    evidence:
+      - artifact: "plan.md § Reflexivity item 3 ('keeps this directory free of ... leaking text') and Traceability row C-004 ('the leak grep before commit')"
+      - artifact: "plan.md line 26 (OD-4), research.md lines 165 and 166 (R-14), contracts/tool-extension-and-reader.md line 20"
+      - code: "contracts/tools/leak_patterns.py leak_codes(line, HUMAN) returns ('EMAIL',) for these four lines (measured read-only: the at-sign file name example)"
+    claim: >
+      Scanning every file of the Mission directory (reviews/ and the status log excluded) with leak_patterns.leak_codes
+      under HUMAN yields exactly four EMAIL hits, all the benign example file name with an at sign used to explain OD-4.
+      The new reads would redact those lines (redacted: true, not a refusal), so the corpus run stays green, but the plan
+      states as a fact that the directory holds no leaking text and names a leak grep as the C-004 guard. Whoever runs
+      that grep, or the planned independent oracle on this directory once merged, will see hits that the plan says
+      cannot exist. The redacted_files floor is unaffected, but the claim as written is false.
+    remediation: >
+      Either reword the four lines so no at-sign file name appears in running text (describe it as "a name with an at
+      sign" and keep the literal only where the plan needs a scan fixture, built at run time), or amend Reflexivity item 3
+      and C-004 to say the directory holds benign at-sign names that the reads redact.
+
+  - id: PLAN-FRESH2-007
+    lens: cross-reference
+    severity: 1
+    title: plan.md still says the evidence ledger is R-1 to R-12 while research.md now runs to R-15 and the plan cites R-13 and R-14
+    evidence:
+      - artifact: "plan.md header Note ('the evidence, R-1 to R-12') and Project structure comment ('evidence ledger R-1 .. R-12')"
+      - artifact: "research.md headings R-13, R-14, R-15"
+    claim: Stale count after the revision added R-13 to R-15; R-15 is not cited from the plan at all, though the 22/3 red-first split depends on it.
+    remediation: Say "R-1 to R-15" in both places and cite R-15 from the ATDD row and from contracts/tool-extension-and-reader.md A.
+
+  - id: PLAN-FRESH2-008
+    lens: cross-reference
+    severity: 1
+    title: Quickstart minor-version step 5 and the scope-check tail assume the OD-1 X outcome and claim a check that cannot yet have run
+    evidence:
+      - artifact: "quickstart.md § The minor-version proof, step 5 ('the committed live test takes the baseline ...') versus plan OD-1 Y (no committed live test)"
+      - artifact: "quickstart.md § Scope check over the real branch diff, last sentence ('The commands were checked on the planning tree')"
+    claim: >
+      Step 5 states the committed live test unconditionally although under Y there is none. The scope-check closing sentence
+      says the commands were checked on the planning tree; the git half was (I re-ran it: no path outside the Mission
+      directory, zero non-add lines), but the Python half imports tests/contract/test_mission_status_contract_1_1.py, which
+      does not exist yet, so it was not and could not have been run. The block also imports a test module by file path
+      outside pytest; existing modules import helpers as tests.contract._loader, so the block works only from the
+      repository root with the tests package importable, which the text does not say.
+    remediation: >
+      Prefix step 5 with "(OD-1 X)", say which half of the scope block was run, and add "run from the repository root"
+      to the block.
+
+  - id: PLAN-FRESH2-009
+    lens: marker-honesty
+    severity: 1
+    title: The pure detail-reader module is told to keep the fast marker although it drives real git subprocesses
+    evidence:
+      - artifact: "contracts/tool-extension-and-reader.md § C ('the three pure modules ... carry contract, fast, corpus')"
+      - code: "pytest.ini:57 (fast: pure-logic tests with no subprocess/git overhead)"
+    claim: >
+      test_mission_status_detail.py builds real repositories and worktrees (plan D-P4, IC-07). The marker definition says fast
+      means no subprocess or git. The reality module already carries fast while running git init, so precedent exists, but
+      the plan chooses fast on the argument "no tag, no history" and does not note the definition mismatch; the nightly
+      fast-or-unit shard will run these git tests on every night.
+    remediation: Either drop fast from the detail module (it then runs in the router tool job only) or note the deliberate deviation in the module docstring.
+
+  - id: PLAN-FRESH2-010
+    lens: cross-reference
+    severity: 1
+    title: W-2 text says IC-06 to IC-09 change "tests and records only" after IC-05 froze the tree, but under OD-1 X IC-06 and IC-07 edit packs.yml and run before IC-05
+    evidence:
+      - artifact: "plan.md § W-2 row ('after IC-05 froze the contract tree (IC-06 to IC-09 change tests and records only)')"
+      - artifact: "plan.md § IC-05 Sequencing (under X IC-05 comes after IC-07) and § Declared shared-file exceptions (2)"
+    claim: Under the recommended option the order is IC-06, IC-07, IC-05 and two of the three edit a workflow file; the parenthesis is wrong in both respects. W-2 itself runs after all work packages so the schedule is unaffected.
+    remediation: Reword to "after the contract tree is final (no work package after IC-05 touches contracts/)".

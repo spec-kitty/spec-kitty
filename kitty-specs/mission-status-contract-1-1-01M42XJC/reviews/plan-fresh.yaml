@@ -1,0 +1,161 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: PLAN-FRESH-001
+    lens: debugger-debbie (structural assumption vs tooling)
+    severity: 3
+    title: The two-lane model (T and R) and the M1/M2 merges assume lanes follow the dependency graph, but lane computation unions by write-scope overlap
+    evidence:
+      - artifact: "plan.md § Implementation Concern Map (j) > Lane table and Declared shared-file exceptions; tracer-approach.md A-5 ('Lanes follow the dependency graph')"
+      - code: "src/specify_cli/lanes/compute.py:659-668 (docstring: overlapping owned_files union into one lane; dependencies only become lane-level edges)"
+      - code: "src/specify_cli/lanes/compute.py:770-790 (rule 1 union over find_overlap_pairs)"
+    claim: >-
+      The plan declares write scopes 'disjoint across lanes except declared shared-file exceptions' and builds
+      M1/M2 merge points, a single-writer rule and a parallel window on the lane split T={IC-02,IC-03,IC-04} and
+      R={rest}. compute_lanes does not follow dependency edges: it unions every pair of code work packages whose
+      owned_files overlap. IC-03 and IC-05 both own CHANGELOG.md; IC-05, IC-06 and IC-07 all own the two registration
+      files under OD-1 X; IC-04 and IC-05 share the examples module under OD-1 Y. Those overlaps pull IC-03/IC-04
+      and IC-05..IC-08 into one lane, while IC-02 (whose six files nobody else owns) would be alone. IC-09 owns only
+      files under kitty-specs/ and will probably be classified planning_artifact, which compute_lanes sends to
+      lane-planning (the repository root checkout), not lane R. The result the plan calls 'intent' is therefore
+      likely {IC-02} plus one big lane, M1 ('lane T through IC-03 merged into lane R') has no meaning, and the 'one
+      real parallel window' is IC-02 against everything else. Implementation stays correct, but tasks will have to
+      re-derive the structure and the 'binding' dependency column names merges that may not exist.
+    remediation: >-
+      State the expected computed outcome (run or reason about compute_lanes on the planned owned_files) instead of
+      an intent that contradicts it; either accept the overlap-driven lanes and delete M1/M2/'lane T' language, or
+      make IC-05's CHANGELOG edit and the registration writes belong to exactly one WP so the split can hold.
+      Correct tracer A-5. Say which execution mode IC-09 gets.
+  - id: PLAN-FRESH-002
+    lens: debugger-debbie (acceptance coverage)
+    severity: 3
+    title: SC-008 and the AC-VERSION scope bullet are only proven on planted inputs; nothing runs the scope check over the real branch diff
+    evidence:
+      - artifact: "plan.md § D-P10 (scope_problems(changed_paths, allowed)); § Wrap-up checklist W-1 and W-7; § Test strategy row 'AC-VERSION: terminology, scope, ...'"
+      - artifact: "spec.md § AC-VERSION Scope bullet ('a scripted git diff --name-only between the merge base with main and the Mission branch lists only paths in the slice file set ... fails on a planted touched file')"
+    claim: >-
+      The spec's scope criterion has two halves: the real branch diff lists only slice-file-set paths (plus the
+      Mission directory, add-only), and a planted outside path fails. The plan delivers a pure function with planted
+      negatives only. W-1 and W-7 list the named gate files, ruff, cutover-guard, floors and the live test but never
+      feed `git diff --name-only <merge-base>..HEAD` through the function, so SC-008 (nothing under src/, no other
+      contract file touched) has no evidence for the actual PR. A function that is only ever tested on synthetic
+      lists can stay green while the branch violates scope.
+    remediation: >-
+      Add to W-1 and W-7 (and the quickstart) a scripted run of the scope function over the real
+      merge-base diff with the OD-1-selected allowed set, plus the add-only check of the Mission directory against
+      main, recorded as final evidence in the PR body. Alternatively add a committed test that does it when a base ref
+      is available and fails (never skips) otherwise.
+  - id: PLAN-FRESH-003
+    lens: debugger-debbie (stale text vs operator decisions)
+    severity: 3
+    title: Technical Context says OD-2 X is a proposed extension, contradicting the OD-2 recommendation, and OD-2 X's scope cost is never priced
+    evidence:
+      - artifact: "plan.md § Technical Context > Constraints ('with OD-1 X and OD-2 X as the only proposed extensions; the scope check reads them as data')"
+      - artifact: "plan.md § Operator decisions OD-2 (recommendation Y) and § D-P10 ('the data names exactly two more paths ... and no wildcard')"
+    claim: >-
+      The recommendation is OD-2 Y, and the plan is written for Y, yet the Constraints line names OD-2 X as a
+      proposed extension. If the operator does choose OD-2 X, the edit lands in
+      contracts/tools/fixtures/example_check/required_examples.json, a path that is outside the slice file set and
+      outside D-P10's exact two-path allowed set, so the scope function (and SC-008) would go red; unlike OD-1, OD-2's
+      row prices no scope reading, no ACK, and 'Departs from the spec' 5 and the Complexity table do not mention it. The
+      same Constraints line also omits that OD-4 is not an extension at all (it stays inside the set), so the sentence is
+      wrong in both directions.
+    remediation: >-
+      Rewrite the Constraints line to the single true statement (only OD-1 X extends the set, by exactly two paths).
+      Add to OD-2 X the cost the OD-1 row carries: the third path, the scope reading, and the required operator
+      acknowledgement; or drop X as an option.
+  - id: PLAN-FRESH-004
+    lens: debugger-debbie (failure outside the planned job)
+    severity: 3
+    title: The live baseline test fails, never skips, in any clone without the release tag; its marker set and post-merge lifetime are unspecified
+    evidence:
+      - artifact: "plan.md § D-P10 (live test, 'fails while the tag is missing'), § ACK-1, contracts/tool-extension-and-reader.md § C ('pytest.mark.corpus-marked like its neighbours')"
+      - code: ".github/workflows/ci-nightly.yml:646 (pytest -m 'fast or unit' over tests/contract) and the checkout at ci-nightly.yml:627 (no fetch-depth, no tags)"
+      - code: "tests/contract/test_mission_status_reality.py:54 (pytestmark includes pytest.mark.fast and pytest.mark.corpus)"
+      - code: ".github/workflows/ci-router.yml:889-891 (the tool job does use fetch-depth: 0)"
+    claim: >-
+      The plan reasons only about the PR-time tool job, which has full history and tags. After merge the module stays
+      forever. The nightly fast/unit run selects tests/contract on a default shallow checkout without tags, and the
+      reality module that the new modules copy ('like its neighbours') carries the fast marker. If the live module
+      gets fast, it turns the nightly red permanently; the same holds for any contributor or fork clone that did not
+      fetch tags. The plan names no marker set, no behaviour for a shallow or tag-less clone, and no retirement point
+      (the D-P10 'Lifetime' note covers only the version assertion, not the v1.0.0 baseline test, which loses its
+      meaning or needs a new baseline once 1.1.0 or a later minor ships).
+    remediation: >-
+      Fix the marker set explicitly (corpus only, not fast or unit) and have the test run a documented
+      'git fetch tag' recipe in its failure message; state whether a shallow or tag-less clone is an accepted red
+      (operator decision, like ACK-1) and what replaces the test after the next release (rebase the baseline tag, or
+      delete the module in the release Mission). Verify with the nightly selection expression.
+  - id: PLAN-FRESH-005
+    lens: charter conformance
+    severity: 2
+    title: The Charter Check table covers six of the nine Standing Orders and skips SO4, SO8 and SO9
+    evidence:
+      - artifact: "plan.md § Charter Check (rows SO1, 2, 3, 5, 6, 7 only)"
+      - artifact: ".kittify/charter/charter.md § Quality & Tech-Debt Standing Orders (nine practices) and § Tracker Ticket Assignment Rule"
+    claim: >-
+      The charter now lists nine standing orders. The table has no row for SO4 (test remediation: red-first through
+      the pre-existing entry point, never retry-to-green), SO8 (mission hygiene: reviewer and implementer distinct,
+      issue-matrix row, claim and tracker comment naming the Mission, tiered rigour) or SO9 (red-main discipline).
+      SO4 is partly covered by the ATDD row; SO8 is not covered anywhere, and the claim-and-comment duty is a
+      deliverable that no work package or wrap-up step owns. The 'pass' column therefore overstates a complete
+      charter check.
+    remediation: >-
+      Add rows for SO4, SO8 and SO9 (n/a where true) and assign the issue-matrix row, claim and tracker comment
+      to a named wrap-up step, citing the Tracker Ticket Assignment Rule.
+  - id: PLAN-FRESH-006
+    lens: debugger-debbie (unverified claim about code)
+    severity: 2
+    title: D-P4 says every git failure becomes 'unknown', but git_merge_base and get_current_branch can raise OSError or hang and nothing maps that
+    evidence:
+      - artifact: "plan.md § D-P4; data-model.md § changeState steps 1-2"
+      - code: "src/specify_cli/core/vcs/git.py:954-979 (git_merge_base: bare subprocess.run, no timeout, only a non-zero exit is mapped to None)"
+      - code: "src/specify_cli/core/git_ops.py:175-202 (get_current_branch handles CalledProcessError and FileNotFoundError only)"
+    claim: >-
+      The plan maps GitCommandError (from run_git, which wraps timeout and OSError) and ValueError (path parse) to
+      'unknown', and treats a None merge base as 'unknown'. The two other seams the same rule calls do not use run_git.
+      A worktree directory that vanishes between the exists check and the call, or an unavailable git, raises
+      OSError/NotADirectoryError out of git_merge_base; a wedged git has no timeout. The claim 'never an escaping
+      exception' (and a 500 with no code) is not true for steps 1 and the merge-base call, and the stated mutation set
+      does not include a fault there.
+    remediation: >-
+      Extend D-P4 and the data model: catch OSError (and subprocess errors) around git_merge_base and
+      get_current_branch and map them to unknown; add a fault-injection case (monkeypatched OSError) for each; note
+      the missing timeout as an accepted residual or bound it by running the call through the kernel runner.
+  - id: PLAN-FRESH-007
+    lens: debugger-debbie (scope of tool-side edits vs write scope)
+    severity: 2
+    title: The contract notes tell implementers to record changes in tracer-design-decisions.md, but no work package that implements has that file in its write scope
+    evidence:
+      - artifact: "contracts/tool-extension-and-reader.md header and contracts/operations-and-schemas.md header ('record the change in tracer-design-decisions.md'); plan.md § D-P3 fallback"
+      - artifact: "plan.md § IC-02 Write scope ('those six files'), IC-03, IC-04, IC-06, IC-07 (no tracer file), IC-09 write scope (the three tracer files)"
+    claim: >-
+      Any refinement by IC-02, IC-03 or IC-04 (lane T in the plan) and the D-P3 fallback decision by IC-07 must be
+      recorded in tracer-design-decisions.md, yet their stated write scopes exclude it and IC-09 is the only declared
+      tracer writer. Following the notes violates the scope a reviewer checks; following the scope drops the record
+      the charter (SO3) requires, and a lane T append would conflict with lane R appends to the same file.
+    remediation: >-
+      Either add an append-only exception for the three tracer files to every IC's write scope (with the single-writer
+      or merge-order rule), or change the notes to say refinements are reported to the orchestrator, which appends them.
+  - id: PLAN-FRESH-008
+    lens: consistency and stale numbers
+    severity: 1
+    title: Residual stale counts, revision-history wording and one ambiguous measurement
+    evidence:
+      - artifact: "plan.md § Seam table ('the payload helper, the reality check and seven existing test modules edited') versus the Source code tree (six existing test modules besides the reality module)"
+      - artifact: "plan.md § OD-1 ('smaller than the first draft said'), contracts/tool-extension-and-reader.md A ('The first draft's _plant returns one ...')"
+      - artifact: "plan.md § OD-4 X ('values_strict=333, values_human=8137 before and after') versus research.md R-8 ('values_strict rises from 333 to 518')"
+      - code: "src/specify_cli/cli/commands/agent/tasks_move_task.py:838 (_mt_matches_owned_file takes a tuple of patterns) and src/specify_cli/policy/commit_guard.py:141 (a list), versus the single-pattern matches_owned_file(path, pattern) of D-P3"
+    claim: >-
+      The Seam table counts seven edited existing test modules where the tree and IC lists show six
+      (payloads, examples, leak_scan, fixture_builder, enum_pin, run_negative_cases) plus the reality module counted
+      separately. Two planning documents refer to 'the first draft', which is revision history a later reader cannot
+      resolve. OD-4's 'before and after' counts hold only for the scanner edit alone; after the ten strict names land
+      the strict count is 518, so a pinned assertion copied from the OD-4 text would fail. The parity test must wrap
+      the single pattern in a tuple or list for both private copies; the plan does not say so.
+    remediation: >-
+      Fix the count to six (or name the seventh), delete 'first draft' phrasing, state the 518 figure in OD-4, and add
+      one line to D-P3 that the parity test wraps the pattern for the two private signatures.

@@ -1,0 +1,81 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: SPEC-FRESH-001
+    lens: 'code-claim-verification'
+    severity: 3
+    title: 'reviewedAt is promised as an RFC 3339 date-time with offset, but the corpus holds date-only values and the product accepts any non-empty string'
+    evidence:
+      - artifact: "spec.md FR-005 reviewedAt ('RFC 3339 date-time with offset (reviewed_at), or null when the cycle file cannot be parsed'); AD-13; AC-DETAIL reviewCycles bullet"
+      - code: "src/specify_cli/review/artifacts.py:ReviewCycleArtifact.from_file (reviewed_at only checked as a non-empty str; comment says 'ISO 8601 UTC')"
+      - code: "kitty-specs/*/tasks/*/review-cycle-*.md: reviewed_at forms counted on this checkout: 1134 'YYYY-MM-DDTHH:MM:SSZ', 33 with +HH:MM (3 with fractional seconds), 2 date-only 'YYYY-MM-DD'"
+    claim: 'A cycle file that parses fine for the product (so it is not ''cannot be parsed'') can carry a date-only or otherwise non-RFC 3339 reviewed_at (2 such files exist today). The spec gives no outcome for that case. A literal pass-through fails schema validation of the detail for that work package, so the corpus reality check goes red on real data and the read would 500; a silent coercion would invent a time. The null rule is tied only to an unparseable file, and unparseable-file entries carry null members by AD-13, so this is an unstated third state.'
+    remediation: 'State the rule for a parseable file whose reviewed_at is not a valid RFC 3339 date-time with offset (recommended ''null'', the same as the v1 ActorHandle rule for a stored value that is not valid; never coerce a date-only value to midnight). Add a fixture and an AC-DETAIL bullet naming the date-only case, and have the corpus floor count entries where reviewedAt is null for that reason.'
+  - id: SPEC-FRESH-002
+    lens: 'operator-decision-fidelity'
+    severity: 3
+    title: 'AD-10 reinterprets the operator-decided `redacted` member without an acknowledgement flag and leaves it stable'
+    evidence:
+      - artifact: "spec.md CL-3 ('Content is always redacted ([path], [email])'; envelope member `redacted`) versus AD-10 ('redacted is true when at least one substitution changed the content ... The alternative reading, always true, ... this spec rejects it.')"
+      - artifact: "spec.md AD-14 (provisional list names reviewCycles, workspace, ArtifactKind, truncated, ArtifactRefusal.code; `redacted` is not in it) and the AD heading rule 'a decision marked needs operator acknowledgement extends or interprets a binding decision'"
+    claim: 'CL-3 fixes the envelope members and the always-redact behaviour. It does not say what `redacted` means. The spec picks the ''a replacement was made'' reading, and rejects the other reading the operator''s own words support (always redact, so always true). AD-10 is not marked ''needs operator acknowledgement'', unlike AD-5, AD-17, AD-18, AD-20 and AD-21, which do the same kind of interpreting. The member is also stable, not x-provisional (AD-14), and the schema is closed. If the operator meant something else, a semantic change after release is a major bump with no way back. This is a silent change to operator-decided behaviour.'
+    remediation: 'Mark AD-10 ''needs operator acknowledgement'' and record in it that the operator''s wording is ambiguous. Either mark the semantics provisional (x-provisional on `redacted` with an open_decision, and a CHANGELOG Provisional entry), or list the question in Open Questions for the operator before the plan. The AC redaction pair can stay.'
+  - id: SPEC-FRESH-003
+    lens: 'operator-decision-fidelity'
+    severity: 3
+    title: 'Status codes 400, 422 and 500 are author additions on stable response surface; AD-21 wrongly counts 400 and 404 as already fixed'
+    evidence:
+      - artifact: "spec.md AD-21 heading 'Failure statuses beyond 400, 404, 413, 415 (... CL-3 fixes 413 and 415 only)'; AD-9 (400) carries no acknowledgement flag; AD-17 (422) and AD-21 (500) do"
+      - artifact: "spec.md AD-14 provisional list names only the `code` property of ArtifactRefusal; C-001 and FR-017 (a status code added to an existing operation is breaking per RESPONSE_ADDITION_IDS)"
+      - artifact: "issue #5625 comment, decision 3: only 413 and 415 are decided"
+    claim: 'The operator decided 413 and 415. The spec declares 400, 404, 422 and 500 responses on three new operations and says, inside the AD-21 title, that 400 and 404 are fixed, which the comment does not say. 400 (AD-9) is not flagged for acknowledgement at all. AD-14 makes only the `code` enum value provisional, not the declared HTTP statuses. A status response later added to or removed from a released operation is a breaking change (C-001), so a reversal of 422 or 500 after 1.1.0 forces a major version. The ''conservative'' label on AD-17 does not hold for the status surface.'
+    remediation: 'Reword AD-21 to ''beyond 413 and 415''. Add ''needs operator acknowledgement'' to AD-9 for the 400 status. Say plainly in AD-14 or AD-21 that the 400, 422 and 500 responses are stable once released, and either put them to the operator before the plan or state the cost of reversal next to the decision. Alternatively fold 422 into a status the operator fixed.'
+  - id: SPEC-FRESH-004
+    lens: 'internal-consistency'
+    severity: 2
+    title: 'AD-17 rejects masking credentials because it would ''invent a fourth token'', then invents the [secret] token for titles'
+    evidence:
+      - artifact: "spec.md AD-17 (1) 'a partial mask would invent a fourth token' versus AD-17 (2) and FR-015 human text fields replace a credential 'by [secret]'"
+      - artifact: "spec.md CL-3 token set is [path] and [email] only"
+    claim: 'The stated reason for refusing content rather than masking it is that masking needs a new token the operator did not decide. The same decision then adds the token `[secret]` for subtask and dependency titles, FR-019/AC-DETAIL assert it, and the CL-3 token set is exceeded. Either the rationale is wrong or the title rule is unneeded; the author decision is not flagged as an extension for titles.'
+    remediation: 'Drop the ''fourth token'' rationale (the real reason is ''masked credential is evidence of a leak''), state that `[secret]` is an author token for titles only, and cover it in the AD-17 acknowledgement. Or refuse a title containing a credential by the strict-field rule (null/projection error) so no new token is needed.'
+  - id: SPEC-FRESH-005
+    lens: 'code-claim-verification'
+    severity: 2
+    title: 'The dependency title fallback is described as ''trimmed or the work package id when none'' but display_title returns an empty string for a whitespace-only title'
+    evidence:
+      - artifact: "spec.md FR-004 (title with the existing fallback ... 'the title, trimmed, or the work package id when there is none'); AC-DETAIL dependencies bullet compares to display_title; FR-003 'a title is never an empty string'"
+      - code: "src/specify_cli/status/wp_metadata.py:WPMetadata.display_title (returns self.title.strip() whenever title is not None, so a title of spaces gives '')"
+    claim: 'The cited symbol does not do what the spec says for a whitespace-only or empty title. Reusing it as specified gives `title: ""` in a human-text field, against the spec''s own never-empty-string principle for subtask titles, and the AC compares against the same function, so a planted empty title passes the control. The detail''s own rule and the code disagree and the spec states the code''s behaviour wrongly.'
+    remediation: 'State the real behaviour and choose: either the reader falls back to the id when the stripped title is empty (an x-derived rule on top of display_title, with a fixture), or the empty string is accepted and the claim is corrected. Add an AC-DETAIL case for a whitespace-only dependency title.'
+  - id: SPEC-FRESH-006
+    lens: 'scope-and-seams'
+    severity: 2
+    title: 'Leak field classes are assigned by field name in shared tooling; the spec does not say the tooling must change or how the artifact-path carve-out is implemented'
+    evidence:
+      - artifact: "spec.md FR-015 (strict-field list, artifact-path fields exempt per AD-19), FR-017 ('Every change to the contract tree is a new file ... the version bump, or a CHANGELOG entry'), FR-021/FR-023 (leak scan over every payload and example)"
+      - code: "contracts/tools/fixture_builder.py:STRICT_FIELDS (name-keyed list: missionId, wpId, ownedFiles, dependencies, ...; no id, laneId, laneBranch, planningBranch, pattern, feedbackReference, reviewer, kind, mediaType, changeState)"
+      - code: "contracts/tools/leak_scan.py:walk and tests/contract/_mission_status_payloads.py (origin/main):payload_leaks (class chosen by `str(key) in STRICT_FIELDS`; every other string, including an artifact `path`, is scanned as human text)"
+    claim: 'The strict/human/artifact-path split is a design in the spec, but the scanners pick the class by key name from one global list. As written, `laneId`, `pattern`, `feedbackReference`, `reviewer` and the rest would be scanned as human text (weaker, so the leak rules for strict fields are not actually enforced), and an artifact `path` such as `data/home/ann/notes.md` is scanned as human text, not by the AD-19 rule, which no scanner implements. Fixing this means editing contracts/tools or the projector''s scan, a change the spec neither names nor reconciles with FR-017 and the ''no weakening'' wording of FR-015.'
+    remediation: 'Add to FR-015 or FR-021 which scanner(s) are extended (STRICT_FIELDS and the artifact-path rule in both leak_scan.py and payload_leaks), that this is an edit to contracts/tools and the test tree (with a planted negative per strict field and for the artifact-path rule), and that FR-017''s ''only new files'' sentence is about the module''s published files, not the tools. Keep names that must stay human (`title`) out of the strict list.'
+  - id: SPEC-FRESH-007
+    lens: 'traceability'
+    severity: 2
+    title: 'Traceability and acceptance gaps for NFR-005, NFR-007 and several decisions'
+    evidence:
+      - artifact: "spec.md Traceability table rows FR-012 to FR-014 (omit AD-2, AD-5, AD-7) and FR-015/FR-016 (omit AD-12, AD-20, AD-22; FR-001 to FR-008 row omits AD-17 and AD-19)"
+      - artifact: "spec.md NFR-005 (byte-identical reads; reviewCycles independent of coordination worktree), NFR-007 / SC-008 (no file under src/ changes): no AC bullet in AC-DETAIL, AC-LIST, AC-CONTENT or AC-VERSION checks either"
+      - artifact: "spec.md FR-009 and FR-013 (404 not_found for an unknown Mission on listArtifacts and getArtifactContent): AC-LIST and AC-CONTENT never assert it; FR-020 is not in any AC header"
+    claim: 'Requirements with a pass/fail statement have no check that fails. NFR-005 (determinism, including two bundle builds and two reads), the ''no src/ change'' outcome of SC-008 and the unknown-Mission 404 with code `not_found` on the two artifact reads are asserted nowhere in Acceptance Criteria. Several decisions (AD-2, AD-5, AD-7, AD-12, AD-17, AD-19, AD-20, AD-22) that drive FR text are missing from the table rows for the FRs that cite them, so a reviewer cannot trace them.'
+    remediation: 'Add AC bullets: a double-read byte-identity check with and without a coordination worktree; a scripted `git diff --exit-code` on `src/` (planted negative: a touched src file fails); an unknown-Mission 404 `not_found` case for the listing and the content read. Complete the traceability rows with the missing AD ids and add FR-020 to the AC headings.'
+  - id: SPEC-FRESH-008
+    lens: 'spec-hygiene'
+    severity: 1
+    title: 'OQ-3 is listed as an open question although closed, and FR-007 cites ''earlier drafts'''
+    evidence:
+      - artifact: "spec.md Open Questions OQ-3 'Closed: the glob matcher is defined by FR-007 rule 3 and AD-20'; FR-007 closing paragraph 'OQ-3 of earlier drafts (the glob matcher) is closed by rule 3'"
+    claim: 'A closed item sits under ''Open Questions (plan phase; none block the spec)'', and FR-007 refers to revision history (''earlier drafts'') that a reader of the spec does not have. Both are leftovers of the revision and can mislead the plan about what is open.'
+    remediation: 'Delete OQ-3 and the FR-007 sentence (keep the id gap or renumber), or move the closure into a one-line note without history wording.'

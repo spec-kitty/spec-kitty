@@ -1,0 +1,205 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: SPEC-VERIFY-001
+    lens: Falsifiability
+    severity: 4
+    title: "The minor-version proof is not falsifiable: breaking_check exits 0 for any version move and prints no minor classification"
+    evidence:
+      - artifact: "spec.md § FR-017 (a) and (b); § AC-VERSION first two bullets; § SC-002"
+      - code: "contracts/tools/breaking_check.py: compare() (no breaking and version above baseline returns silently; a 1.0.1 or a 2.0.0 candidate passes the same way)"
+      - code: "contracts/tools/breaking_check.py: Report counts line (modules, baselines, breaking, provisional_changes, no_baseline_initial) carries no minor or new-operation figure"
+    claim: >-
+      The spec says the check "reports a minor change (new operations only)". The tool has no such report: on a changed,
+      non-breaking bundle it only requires info.version to be above the baseline's. So exit 0 also holds for 1.0.1 or 2.0.0
+      with the same additions, and nothing in the tool says "only new operations". The empty-diff proof (b) is a "review
+      check" with no automated gate, and strip_provisional means a change inside a provisional element of an existing
+      schema would not even reach the tool's failure path. The planted negatives listed (property added to WorkPackage,
+      new status code) prove the tool's breaking detection, not that this slice is minor.
+    remediation: >-
+      Make AC-VERSION assert, by script, (1) info.version equals exactly 1.1.0 (1.1.0-SNAPSHOT in development),
+      (2) the counts line shows breaking=0 and baselines=1, (3) a scripted file comparison of every existing path, schema,
+      parameter and response file against the baseline tag (git diff --exit-code over those paths) that fails on any byte,
+      with a planted byte change in an existing schema as its negative, and (4) a planted candidate carrying the new
+      operations at 1.0.1 or 2.0.0 that the minor assertion rejects. Name the job or test that runs them.
+  - id: SPEC-VERIFY-002
+    lens: Baseline honesty
+    severity: 4
+    title: "A-4 misstates what CI does before the 1.0.0 release, and no pre-release demonstration of the minor proof is specified"
+    evidence:
+      - artifact: "spec.md § CL-2; § A-4 ('the breaking-change job is expected to say there is no baseline'); § Risks row '1.0.0 contract release'; § AC-VERSION bullet 1"
+      - code: "contracts/tools/breaking_check.py: first_release() (exit 0 only for version 1.0.0 or 1.0.0-SNAPSHOT with a matching CHANGELOG heading; any other version is a NO_BASELINE_NOT_INITIAL finding, exit 1)"
+      - code: "contracts/tools/breaking_check.py: find_baseline() and the --baseline-root option (an explicit baseline directory bypasses tags)"
+      - code: ".github/workflows/contracts.yml: breaking-change job, triggered on pull_request and push to main only"
+      - code: "contracts/mission-status/openapi.yaml:4 (info.version is 1.0.0-SNAPSHOT today); no contract-mission-status-v* tag exists in this checkout"
+    claim: >-
+      At 1.1.0-SNAPSHOT with no release tag the job does not "say there is no baseline"; it fails (exit 1). The spec
+      therefore has a window in which the required job is red by construction, and it blocks the PR (CL-2) without saying
+      whether a draft PR may be opened red, or what the contract slice shows reviewers meanwhile. The spec also never says
+      how the minor proof is demonstrated before the release. The tool already supports --baseline-root, so the proof can be
+      produced today from the v1 module as it stands on main; the spec leaves the only evidence for the headline claim of the
+      Mission to a step it does not own. Also unstated: the tag name the check searches (contract-mission-status-v1.0.0),
+      and that the tag must be cut on a commit whose v1 files are what this slice is diffed against, because the release
+      commit itself edits openapi.yaml's version and the CHANGELOG heading and this branch must then be rebased.
+    remediation: >-
+      Correct A-4 to the real behaviour (red with NO_BASELINE_NOT_INITIAL until the tag exists). Add to FR-017 a
+      pre-release proof: extract the v1 module from main (the base commit of this branch) into a scratch directory and run
+      breaking_check with --baseline-root, recording the output as evidence, then repeat against the released tag after
+      CL-2. State the expected tag name, that a PR is opened only after the tag and a rebase onto it, and that the
+      pre-release red job is the documented, accepted state if a draft PR is opened earlier.
+  - id: SPEC-VERIFY-003
+    lens: Baseline honesty
+    severity: 2
+    title: "Known-red tests on main are not addressed for the jobs this Mission must turn green"
+    evidence:
+      - artifact: "spec.md § FR-023 ('the Contracts workflow jobs ... and the corpus reality job pass'); § NFR-001"
+      - artifact: "SPEC-KITTY-LEDGER.md (known-red tests, #3284) in the workspace parent"
+    claim: >-
+      FR-023 demands that jobs pass but does not require a baseline of the router's contract-tools tests and the corpus
+      job on main before this branch is judged. A red test inherited from main would be attributed to this Mission, or
+      worse the Mission would be tempted to skip or deselect it.
+    remediation: >-
+      Add to FR-023 or the plan a recorded baseline run (make targets, pinned to the base commit) of the contract-tools
+      tests and the corpus job, and the rule that a red already on that baseline is reported as such and never deselected
+      or fixed under this Mission's scope.
+  - id: SPEC-VERIFY-004
+    lens: Environment-dependent verification
+    severity: 4
+    title: "worktreePresent (AD-12) has no test that fails if the repository-root case is reported as a worktree"
+    evidence:
+      - artifact: "spec.md § AD-12; § FR-006 worktreePresent; § FR-016 ('asserted boolean'); § FR-022 (the synthetic list has no worktreePresent case); § AC-DETAIL (workspace bullet only covers changeState)"
+      - code: "src/specify_cli/workspace/context.py: resolve_workspace_for_wp (a planning-artifact work package resolves to the repository root)"
+    claim: >-
+      FR-016 says worktreePresent is false in every corpus run but only asserts it is boolean. Reverting AD-12 (reporting
+      true for the repository root, which always exists) leaves the corpus assertion green, and FR-022 lists no synthetic
+      case for it. The one field whose bug AD-12 exists to prevent is the one field with no falsifying test. US1 scenario 3
+      covers only the absent-worktree case.
+    remediation: >-
+      Add to FR-016 the corpus invariant that every worktreePresent is false (floor: at least one work package examined,
+      as for changeState), and to FR-022 three synthetic cases: a planning-artifact work package (root, expect false), a
+      code work package with a real lane worktree on disk (expect true), a code work package whose lane worktree is absent
+      (expect false). State that reverting AD-12 must turn the first case red.
+  - id: SPEC-VERIFY-005
+    lens: Environment-dependent verification
+    severity: 3
+    title: "The corpus invariant 'every changeState is unknown' depends on the machine running it"
+    evidence:
+      - artifact: "spec.md § FR-016 ('the corpus run has no worktrees, so any other value is a failed run'); § AC-DETAIL workspace bullet; § SC-004"
+    claim: >-
+      The invariant holds in CI because a clean checkout has no lane worktrees. A maintainer checkout (including the one
+      this Mission is built in) has .worktrees/ with live lane branches, so the same test run locally can return changed
+      or unchanged and fail, or an implementer can weaken it to get green. The spec presents an environment fact as a
+      property of the code.
+    remediation: >-
+      Require the reference reader to take the host capability as an explicit input, and the corpus run to pass a
+      "no worktrees" host (git and worktree lookups disabled) rather than discover it, so the invariant is deterministic
+      anywhere. Add a planted case: the same corpus fixture with a real worktree injected must not be asserted unknown.
+  - id: SPEC-VERIFY-006
+    lens: Environment-dependent verification
+    severity: 3
+    title: "FR-022 change-state cases lack revert discipline and leave the git semantics under-specified"
+    evidence:
+      - artifact: "spec.md § FR-007; § FR-022 first bullet; § OQ-3"
+      - code: "src/specify_cli/core/vcs/git.py:1236-1260 (merge_base_changed_files_checked diffs the merge base against the worktree's HEAD, takes a worktree path and a base_ref)"
+      - code: "src/specify_cli/ownership/validation.py:43-50 (is_glob_pattern treats { as a glob character; fnmatch has no brace support and its * crosses /)"
+    claim: >-
+      (1) No requirement that the tests turn red under mutation: mapping None to unchanged, always returning unknown, or
+      diffing against the wrong base. 'A git failure' has no stated injection method (a mock of the checked function
+      would not exercise the real fail-closed path). (2) The spec says the state is derived 'against the lane branch', but
+      the cited function diffs the worktree's HEAD, so a worktree on another branch or detached HEAD gives a confident
+      wrong answer. (3) Uncommitted or staged edits in the worktree are invisible to a committed-range diff, so an owned
+      file being edited reads unchanged; the spec does not say that changed means committed. (4) The base ref (the work
+      package's 'merge target') is not named, and deleted or renamed paths are unaddressed. (5) The glob matcher is left to
+      OQ-3 although is_glob_pattern and fnmatch disagree on braces and on **, so isGlob true with a pattern that never
+      matches yields a silent unchanged.
+    remediation: >-
+      State in FR-007 and FR-022: real git in a temporary repository (never a mock of the checked function; a failure is
+      induced with a real broken ref or a corrupted repository); the expected result when HEAD is not the lane branch
+      (unknown); that uncommitted edits are not counted and the description says so; the base ref source; the diff filter
+      for deletions and renames; and the matcher, with tested patterns for **, braces and a glob that matches nothing. Add
+      a named mutation list the suite must kill (None to unchanged, always unknown, always changed, wrong base).
+  - id: SPEC-VERIFY-007
+    lens: Environment-dependent verification
+    severity: 3
+    title: "Listing readable check is specified as 'first bytes' but must read the whole file up to the cap to match the content read (AD-7)"
+    evidence:
+      - artifact: "spec.md § AD-7 ('inspects the first bytes of every file within the cap'); § FR-011 last sentence ('no file beyond the first bytes needed by the readable determination'); § NFR-002 ('at most the first bytes of each')"
+    claim: >-
+      Invalid UTF-8 or a NUL can sit anywhere in a file of up to 262144 bytes. A listing that sniffs a prefix would mark
+      readable: true for a file whose content read answers 415, breaking the invariant AD-7 sells. The wording invites
+      exactly that implementation, and the NFR-002 bound ('first bytes') contradicts the bound AD-7 itself states (entry
+      cap times byte cap). A prefix cut inside a multi-byte character is a second trap, and the listing and the read must
+      share one decode function, not two implementations of 'is text'.
+    remediation: >-
+      Reword AD-7, FR-011 and NFR-002 to: for a file of at most 262144 bytes the listing reads the whole file and runs the
+      same text check function as the content read (one function, shared), never a prefix; for a larger file it reads
+      nothing beyond the size. Add a FR-022 case with the first invalid byte or NUL at the last byte of a 262144-byte
+      file and one with a multi-byte character straddling any prefix boundary, each asserting readable false, 415 on read.
+  - id: SPEC-VERIFY-008
+    lens: Silent-success
+    severity: 3
+    title: "The 413/415/readable boundary leaves precedence, race and edge-file behaviour unspecified"
+    evidence:
+      - artifact: "spec.md § FR-013 table; § CL-3; § AD-7; § NFR-002 ('262144 bytes plus one byte'); § AC-CONTENT Boundary and Encoding bullets"
+    claim: >-
+      (1) A file both over the cap and not text has two correct-looking answers; the spec never says 413 wins (the only
+      choice consistent with the bounded read), and the corpus floors count 413 and 415 files separately. (2) The 413
+      test is stated on st_size and the read on bytes read; if a file grows between stat and read, which decides, and is
+      sizeBytes the stat or the bytes? (3) A zero-byte file is a legitimate 200 with empty content, in tension with the
+      rule that empty is never success (FR-020); the spec is silent. (4) A leading UTF-8 BOM: kept or stripped, since
+      'content exact' is asserted. (5) A file that is valid UTF-8 only up to the cap (truncated read) must never be
+      reported as 200.
+    remediation: >-
+      Add to FR-013: size is checked before content (413 outranks 415); the decision uses the size of the opened file
+      handle and the read is rejected if it returns more than 262144 bytes; a zero-byte file is 200 with content empty and
+      sizeBytes 0, readable true; a BOM is preserved (strict utf-8 decode, no utf-8-sig); and add the cases (over-cap
+      NUL file, empty file, BOM file, growth race by a fault-injected opener) to FR-022 with their expected status.
+  - id: SPEC-VERIFY-009
+    lens: Silent-success
+    severity: 3
+    title: "'Cannot be read for any other reason' and 'directory cannot be read' have no status, no code and no test mechanism"
+    evidence:
+      - artifact: "spec.md § FR-013 last paragraph ('a Problem (the default response)'); § FR-009; § FR-020 Listing bullet; § AC-LIST 'Unreadable directory'; § AC-CONTENT first corpus bullet ('every readable: false file answers its Problem with the matching code')"
+    claim: >-
+      The refusal table covers 400/404/413/415 only. The permission and I/O case, and the unreadable Mission directory,
+      are 'a Problem' with no HTTP status and no stable code, so the AC cannot assert 'the matching code' for them, and the
+      new-code enum pin (FR-019) cannot include them. The AC also names no way to produce the condition: chmod does not
+      deny a CI runner that is root, and is not portable, so the test either skips (vacuous) or never runs.
+    remediation: >-
+      Give both conditions a status and code in the FR-013 table (for example 500 with artifact_unreadable and
+      mission_directory_unreadable) and declare them on the operations; specify that the synthetic tests induce them with a
+      fault-injected opener or directory reader, not file permissions, and fail (not skip) if the injection did not fire.
+  - id: SPEC-VERIFY-010
+    lens: Falsifiability
+    severity: 3
+    title: "Corpus floors are deferred and the guard only catches an empty set, not a silent partial skip"
+    evidence:
+      - artifact: "spec.md § AC-DETAIL bullet 2 ('floor: all work packages ... counts recorded at plan time'); § AC-LIST bullet 2 ('fails when zero Missions or zero entries'); § FR-021 floors paragraph; § A-5"
+    claim: >-
+      Every guard is zero or a plan-time lower bound. A reader that swallows an exception and skips 40 Missions, or drops
+      the work packages of Missions it cannot parse, passes both. The spec says 'all work packages of all Missions' but
+      defines no independently derived expected count to compare with. The readable invariant (AC-LIST) also has no floor
+      on how many true and how many false entries were compared.
+    remediation: >-
+      Require the check to compute the discovered count independently (Mission directories by glob of meta.json; work
+      packages by the v1 payload set or tasks/WP*.md files) and assert examined == discovered with an explicitly empty skip
+      list, failing on any per-Mission exception rather than recording it. Keep numeric lower bounds as a second guard and
+      add floors for readable true and readable false pairs compared, and for each of the 413 and 415 files by name.
+  - id: SPEC-VERIFY-011
+    lens: Environment-dependent verification
+    severity: 2
+    title: "modifiedAt equality has no stated precision, and the mtime-based fields are uncontrolled in the corpus"
+    evidence:
+      - artifact: "spec.md § FR-010 modifiedAt; § FR-016; § AC-LIST last bullet; § NFR-005"
+    claim: >-
+      The synthetic test sets a file time and asserts equality with an RFC 3339 UTC string, but the fractional-second
+      precision and rounding (truncate or round) are not fixed, so the test is either tolerant (a revert that drops the
+      field's real source can pass) or brittle. In the corpus every mtime is the checkout time, so shape-only there is
+      right, but it also means the corpus can never detect a modifiedAt wired to the wrong file.
+    remediation: >-
+      Fix the format (for example whole seconds, truncated, with a Z suffix, or fixed microseconds) in FR-010, and in the
+      synthetic test set two files to different known times and assert each entry carries its own, so a swapped or constant
+      source fails.

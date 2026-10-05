@@ -1,0 +1,28 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: FR-005, AD-13, AC-DETAIL and the field catalogue now give the class rule (a stored reviewed_at that is not a valid RFC 3339 date-time with offset is null, never coerced), with a fixture, a corpus floor against an independent scan, and is_rfc3339_date_time verified to exist in contracts/tools/schema_formats.py.
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: AD-10 is now marked needs operator acknowledgement, states both readings, makes redacted x-provisional (also in AD-14, FR-012 and the consolidated table with its reversal cost), and the AC redaction pair is kept, with no contradiction left.
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: AD-21 now reads beyond 413 and 415, AD-9 is flagged for acknowledgement, and AD-14, AD-21 and the consolidated table state that the 400/404/422/500 statuses are stable once released with the major-version reversal cost named.
+  - id: SPEC-FRESH-004
+    status: resolved
+    reason: AD-17 no longer invents a [secret] token; credentials are refused in content and withheld in titles (null or the work package id), and FR-015, FR-003, FR-004, AC-DETAIL, FR-022 and FR-023 agree with that single rule.
+  - id: SPEC-FRESH-005
+    status: resolved
+    reason: FR-004 now states display_title's real behaviour (verified in wp_metadata.py to return the stripped, possibly empty, title) and adds an x-derived non-empty-or-id rule, with AC-DETAIL, FR-022 and the field catalogue covering the whitespace-only case.
+  - id: SPEC-FRESH-006
+    status: resolved
+    reason: FR-015 now names the scanner edits (STRICT_FIELDS in fixture_builder.py, an artifact-path class in leak_scan.py walk and in payload_leaks), the planted negative per strict name and path rule, the whole-contracts-root regression condition and the FR-017 files-versus-tools clarification, and the claims match leak_scan.py (strict flag is re-derived per dict key, so title stays human).
+  - id: SPEC-FRESH-007
+    status: resolved
+    reason: AC bullets now cover determinism with and without a coordination worktree, a scripted src/ git diff with a planted negative, and the unknown-Mission not_found 404 on both artifact reads, FR-020 heads the ACs, and the traceability rows were largely completed (a leftover AD-5/AD-2 omission on the FR-012 to FR-014 rows is cosmetic).
+  - id: SPEC-FRESH-008
+    status: resolved
+    reason: OQ-3 is removed from Open Questions and no history wording such as earlier drafts remains in FR-007 or elsewhere in the spec.

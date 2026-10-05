@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-FIT-001
+    verdict: confirmed
+    reason: Plan item 5 and OD-1 declare the two extra paths but D-P10 and the AC-VERSION scope row never state the scope function's allowed set under X, and spec SC-008/scope bullet allow only the slice file set (item 5 limits .github to a new job).
+  - id: PLAN-FIT-006
+    verdict: confirmed
+    reason: data-model step 1 passes manifest target_branch to git_merge_base, whose argv has no end-of-options marker, target_branch is a bare str in lanes/models.py, and only laneBranch is pattern-checked.
+  - id: PLAN-SEQ-003
+    verdict: confirmed
+    reason: Spec FR-017 item 1 calls the committed assertions green before and after release with the breaking-change job the only accepted red, while plan D-P10 puts a live test that fails without the tag in the same module run by tests-contract-tools, and Departs item 10 justifies it only via FR-020.
+  - id: PLAN-SEQ-007
+    verdict: confirmed
+    reason: IC-09 lists no write surface (read, run, record) and names no leak_scan, example_check or run_negative_cases run over the merged lane A and lane B trees, leaving the cross-lane check to an unnamed integration.
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: leak_scan.py scan_text applies the HUMAN patterns to every raw line of every file independent of the structured walk, I ran leak_codes on an at-sign file name and got EMAIL, and the plan changes only _Scanner.walk while the controls deliberately hold at-sign names.
+  - id: PLAN-VERIFY-005
+    verdict: refuted
+    reason: The tool-extension contract plants content-host-path-and-email, credential-in-content, artifact-path kinds under entries (listing) and artifactPath, each with a clean control on the same root through run_self_test, which covers the per-endpoint planted pairs FR-023 asks for.
+  - id: PLAN-VERIFY-009
+    verdict: refuted
+    reason: The finding itself states there is no defect (delta is the Mission's own planning files and the plan uses floors with examined equals discovered), leaving only an optional wording note.

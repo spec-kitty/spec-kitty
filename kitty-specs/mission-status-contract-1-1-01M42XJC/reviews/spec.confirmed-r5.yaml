@@ -1,0 +1,68 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+- id: SPEC-FRESH-002
+  lens: scope-consistency
+  severity: 3
+  title: New enum pins need an edit of contracts/tools/enum_pins.json, which no scope statement allows
+  evidence:
+  - artifact: "spec.md \xA7 FR-019 ('with the new enums (changeState, kind, encoding, the ArtifactRefusal code) pinned'); AC-VERSION enum-pin bullet ('fails on a changed changeState value set')"
+  - artifact: "spec.md \xA7 Out of Scope last bullets, FR-015 ('the three files named above'), SC-008, AC-VERSION no-product-change bullet: contracts/tools changes only in the files FR-015 names"
+  - code: 'contracts/tools/enum_pin_check.py: module docstring (a pin is a deliberate edit of enum_pins.json; an unpinned enum is not checked)'
+  - code: 'contracts/tools/enum_pins.json: lists only LifecycleStatus, StatusLane, Topology'
+  claim: enum_pin_check only checks enums listed in enum_pins.json. Pinning the new enums, and making the enum-pin check fail on a changed changeState set, requires editing that file. FR-015, Out of Scope,
+    SC-008 and the scripted diff of AC-VERSION all say nothing else under contracts/tools changes, and the acknowledgement table's FR-015 row lists only leak_scan.py, fixture_builder.py and negative_cases.json.
+    An implementer must break one of the two statements, or the enum-pin AC is vacuous.
+  remediation: Add contracts/tools/enum_pins.json to the FR-015 file list, the acknowledgement row, Out of Scope, SC-008 and the AC-VERSION scripted-diff allowance (or move the new pins to a pin file the
+    Mission may add).
+  verifier_reason: enum_pins.json is now in the slice file set and every scope statement, but the new pins as specified are not achievable with contracts/tools/enum_pin_check.py, which pins only titled
+    schemas that carry an enum list, so the "encoding constant" (a const) would give ENUM_UNREADABLE and the ArtifactRefusal code (an inline if/then enum, like StreamRefusal) is not pinnable unless the
+    spec requires separate titled enum schemas; the AC "enum-pin check fails on a changed code value set" has no mechanism as written.
+- id: SPEC-FRESH-003
+  lens: scope-consistency
+  severity: 2
+  title: Out of Scope, SC-008 and the AC-VERSION diff allow only version bump and index/path-map edits, but FR-018 edits the existing CHANGELOG.md
+  evidence:
+  - artifact: "spec.md \xA7 Out of Scope ('any change to an existing file under contracts/mission-status/ ... beyond the version bump and index/path-map additions'); SC-008; AC-VERSION no-product-change\
+      \ bullet"
+  - artifact: "spec.md \xA7 FR-017 first paragraph and FR-018 (CHANGELOG entry is an allowed edit)"
+  claim: contracts/mission-status/CHANGELOG.md is an existing file in the module, and FR-018 requires a new entry in it. The three scope statements omit CHANGELOG, so the scripted scope check specified
+    in AC-VERSION fails on the Mission's own required edit. FR-017 names the CHANGELOG correctly; the other three do not.
+  remediation: Add 'the CHANGELOG entry' to the allowed edits in Out of Scope, SC-008 and the AC-VERSION scope bullet.
+  verifier_reason: CHANGELOG is now in the slice file set and all four scope statements defer to it, but the scripted AC-VERSION scope check ("git diff --name-only ... lists only paths in the slice file
+    set") and the claim that the set is "the one statement of every file the Mission may touch" fail on the Mission's own kitty-specs/<mission>/ planning artifacts, which the set does not include (C-003
+    only says add-only).
+- id: SPEC-FRESH-006
+  lens: testability
+  severity: 3
+  title: FR-021 'discovered' work packages are two different sets, and the detail's work-package universe and 404 rule are undefined
+  evidence:
+  - artifact: "spec.md \xA7 FR-021 floors ('work packages: the count of prompt files directly under tasks/ and of the snapshot's work packages ... examined equals discovered'); AC-DETAIL ('for every work\
+      \ package of the corpus'); FR-001 and AC-DETAIL absence bullet ('unknown work package is a 404')"
+  - artifact: "kitty-specs/mission-status-contract-v1-01M3WC5X/spec.md \xA7 D-4 (wpTotal is snapshot-based) and FR-005 (workPackages are the file-backed work packages)"
+  claim: On this checkout 8 of 547 Missions have work packages in the event log with no prompt file (for example 035, 036, 037 and 023), so the prompt-file count and the snapshot count differ. One 'examined'
+    number cannot equal both. The spec also never says whether getWorkPackageDetail answers 200 or 404 for a snapshot-only work package, or for a prompt file with no events, and v1 itself uses two different
+    universes (D-4 versus the file-backed list). An implementer must guess, and the floor assertion either fails or is skipped, which FR-021 forbids.
+  remediation: 'Pick one universe (suggest: the same one v1 getWorkPackage serves, stated by citation), state the 404/200 rule for the snapshot-only and file-only cases, and make ''examined equals discovered''
+    compare against the independent count of that set only. Add a fixture for each divergent case.'
+  verifier_reason: The universe and the 404/200 rules are now stated and floors use an independent distinct-wpId count, but the claim that the universe equals what v1 serves is unverified and contradicted
+    by the product's single WP-file selector (wp_task_files in wp_metadata.py takes any tasks/WP*.md), so the corpus file sync-diagnose-canonical-allowlist-01KS4F8H/tasks/WP01.md is a v1 work package that
+    this spec answers 404 and classes `other`; the spec must either adopt the v1 selector or state the divergence and its consequence for the v1 controls.
+- id: SPEC-FRESH-011
+  lens: correctness
+  severity: 2
+  title: FR-007 glob rule gives a silent false 'unchanged' for '**' that spans zero directories
+  evidence:
+  - artifact: "spec.md \xA7 FR-007 rule 3 ('`**` behaves as `*`'; only a trailing /** or /* gets the prefix rule), AD-20 ('guessing would risk a silent wrong unchanged')"
+  - code: src/specify_cli/bulk_edit/diff_check.py:_glob_match (fnmatch plus a recursive '**' fallback)
+  claim: A pattern such as src/**/x.py does not fnmatch src/x.py (the literal slashes on both sides of '**' require at least one directory), so a changed src/x.py reports 'unchanged'. That is the silent
+    wrong 'unchanged' that AD-20 says it avoids for braces, and the repository already has a matcher with the zero-directory fallback. The mutation list in FR-022 pins the weaker rule, so the wrong answer
+    is locked in by tests.
+  remediation: Either adopt the zero-directory '**/' behaviour of the existing recursive fallback, or classify patterns with '**' anywhere other than a trailing '/**' as 'unknown' like braces; add the case
+    to FR-022.
+  verifier_reason: The zero-directory rule for a single ** is added with tests and mutations, but FR-007 states it as "the semantic of the repository's own matcher", which is false (_fnmatch_recursive maps
+    ** to .* so src/**/x.py and **/x.py do not match src/x.py or x.py), and the "each /**/ replaced" zero-form misses mixed patterns such as a/**/b/**/c against a/b/x/c, so the silent false unchanged remains
+    for patterns with several **.

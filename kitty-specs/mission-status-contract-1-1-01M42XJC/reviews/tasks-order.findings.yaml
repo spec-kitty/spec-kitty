@@ -1,0 +1,105 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: order
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: TASKS-ORDER-001
+    lens: lane-mechanics
+    severity: 3
+    title: W-5 compaction shape has no rule for the planning-phase and status-transition commits (F-27, F-29)
+    evidence:
+      - artifact: "plan.md § The one pull request (compaction shape lists nine code concerns only) and § Wrap-up W-5"
+      - artifact: "tracer-tooling-friction.md F-27 (finalisation message says feature, cannot be reworded) and F-29 (ten commits W-5 must absorb)"
+      - artifact: "git log main..HEAD on the target branch: 61 commits, including nine 'status transition WPnn' commits and two 'Add tasks for feature' commits; implement will append more status commits"
+    claim: >
+      F-29 says W-5 compaction must absorb the finalisation commits and F-27 defers the wording problem to
+      a W-5 orchestrator decision, but neither plan.md nor tasks.md gives W-5 a rule for them. The nine-commit
+      shape covers only code concerns; the Mission directory (spec, plan, tasks, status log, matrices) and the
+      per-WP status commits that implement/review will keep adding sit outside it. The kitty-specs add-only
+      and archive-freeze rules mean status.events.jsonl must survive compaction byte-identical, which a
+      by-path rebuild can break if done carelessly.
+    remediation: >
+      Add to W-5 a tenth, leading commit 'mission planning artifacts and status log' built by path from the
+      final kitty-specs/mission-status-contract-1-1-01M42XJC tree, reworded without the word feature, with the
+      add-only check against the merge base re-run on it and status.events.jsonl compared byte-for-byte
+      before and after. State that the commits named in F-27/F-29 are absorbed there.
+  - id: TASKS-ORDER-002
+    lens: front-loading of risky work
+    severity: 3
+    title: JVM-only contract checks (P-10) are deferred to W-2, after both readers and the corpus are built on the schemas
+    evidence:
+      - artifact: "plan.md § Risks P-10 and § Wrap-up W-2 ('after the contract tree is final (no work package after IC-05 touches contracts/)')"
+      - artifact: "tasks.md § Dispatch order: WP03, WP04 (contract) precede WP05, WP06, WP08 which read and pin the shapes"
+      - artifact: "wps.yaml: WP07 owns only contracts/mission-status/CHANGELOG.md under contracts/; schemas, paths, examples are final at WP04"
+    claim: >
+      The contract tree (schemas, paths, examples) is final once WP04 is approved, yet the first Gradle
+      validation, Java view, TypeScript client smoke and resolver parity run happens at W-2, after WP05 to
+      WP08. A schema defect found there reopens WP03/WP04 and forces rework of the readers, the examples
+      tests and the pinned fixture that were built on the old shape. This is the plan's own highest unknown
+      (P-10) and it is last.
+    remediation: >
+      Add an orchestrator step between WP04 approval and WP05 dispatch: replay the contracts.yml JVM job steps
+      (mechanism a) on the WP04 lane tip, fix defects in WP03/WP04 follow-ups, and rerun a smaller W-2 at wrap-up
+      for the CHANGELOG-only delta. If no JVM machine is available, say so in tasks.md and keep W-2 as is.
+  - id: TASKS-ORDER-003
+    lens: front-loading of risky work
+    severity: 2
+    title: Dispatch order puts WP07 before WP08 although WP08 carries the larger unknowns
+    evidence:
+      - artifact: "tasks.md § Dispatch order step 5 ('WP07, then WP08 ... dispatch order, not a dependency')"
+      - artifact: "wps.yaml: WP08 depends on WP05, WP06 only; WP07 and WP08 share no owned file"
+      - artifact: "tasks/WP08-reality-check-extension.md T044-T049 (floors, byte-level oracle, runtime budget re-plan above 6 minutes); plan.md P-2"
+    claim: >
+      WP08 holds the runtime-budget risk (NFR-001, P-2), the independent oracle and the floor measurements,
+      all of which can force a re-plan. WP07 is mostly CHANGELOG text and a pure proof module. Ordering the
+      easier one first delays discovery of a budget overrun. The justification given (plan puts IC-05 first)
+      does not rest on a dependency.
+    remediation: >
+      Dispatch WP08 before WP07 (both are legal under wps.yaml), or record in tasks.md why WP07 first is
+      preferred (for example the WP07 CHANGELOG finalisation must precede any WP08 floor that cites it).
+  - id: TASKS-ORDER-004
+    lens: each WP leaves the branch green
+    severity: 2
+    title: Registration subtasks sit last in WP05/WP06/WP07 although the text says they ride in the commit that creates the module
+    evidence:
+      - artifact: "tasks/WP05-artifact-reader-foundation.md T023 (creates test_mission_status_artifacts.py as the first commit) and T029 ('in the commit that creates the module', but ordered last)"
+      - artifact: "tasks.md § Chokepoints row packs.yml ('in the commit that creates its module'); plan.md § Lanes exception (2)"
+    claim: >
+      The module is created in the red-first commit T023 and registered in T029, so between them the
+      same-tier-uniqueness and corpus-trigger gates are red on the lane. The WP end state is green, so
+      nothing is lost at WP granularity, but the stated rule and the subtask order contradict, and an
+      implementer or reviewer reading commit by commit sees a red gate that the text promises cannot exist.
+    remediation: >
+      Reword T029 (and the WP06 and WP07 equivalents) to say the registrations are made in the last subtask and
+      folded into the module's commit at W-5, or move them into the red-first commit with a note that the
+      module's own tests are the only intended red.
+  - id: TASKS-ORDER-005
+    lens: parallel markers
+    severity: 1
+    title: The [P] WP01 || WP02 marker is true; the hedge about lane-a depending on lane-b can be replaced by the verified rule
+    evidence:
+      - artifact: "tasks.md § Lane picture last paragraph and tracer-tooling-friction.md F-31 (to be observed at first dispatch)"
+      - code: "src/specify_cli/lanes/implement_support.py:705-717 (_approved_dependency_lane_refs only merges dependency lane tips whose WPs are all approved/done; unapproved lanes are skipped, not waited on)"
+      - code: "src/specify_cli/lanes/implement_support.py:787-795 (check_claim_ancestry requires only planning_commit_sha and the approved dependency lanes' branches)"
+      - artifact: "lanes.json: planning_commit_sha a693f55 is an ancestor of HEAD and its tree already holds all nine WP prompts; kitty/mission-mission-status-contract-1-1-01M42XJC does not exist yet, so lane branches parent off the target branch"
+    claim: >
+      The lane-level depends_on_lanes edge does not gate claiming WP01. WP01 and WP02 have disjoint write
+      scopes (payload helper and reality module versus six tool files) and no WP dependency, so the marker is
+      genuine. The edge only causes lane-b's tip to be merged into lane-a when a later lane-a WP is claimed after
+      WP02 is approved (WP03 onward). The hedge is therefore not needed, and the real condition (WP02 must be
+      approved before WP03 is claimed) is already in wps.yaml.
+    remediation: >
+      Optional: replace the 'to be observed' sentence with the verified rule above; keep the observation at
+      first dispatch as a confirmation only.
+  - id: TASKS-ORDER-006
+    lens: dependency consistency
+    severity: 1
+    title: WP07 prompt still words its WP06 edge as conditional on the X-family
+    evidence:
+      - artifact: "tasks/WP07-version-changelog-proof.md line 70 ('under the X-family, on WP06') and wps.yaml WP07 dependencies [WP04, WP06]"
+    claim: >
+      OD-1 X-pure is decided and binding, so the WP06 edge is unconditional. The conditional wording suggests
+      an optional edge that an implementer might drop. Metadata, prompt frontmatter, tasks.md and lanes.json
+      otherwise agree for all nine WPs and the graph is acyclic.
+    remediation: Reword to 'Depends on WP04 and WP06 (registration chain WP05, WP06, WP07; OD-1 X-pure)'.

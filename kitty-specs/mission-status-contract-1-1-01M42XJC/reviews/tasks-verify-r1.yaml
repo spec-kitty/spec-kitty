@@ -1,0 +1,125 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+- id: TASKS-DECOMP-001
+  status: resolved
+  reason: No-split is a recorded deliberate decision in tasks.md and tracer-design-decisions.md with reasons (re-finalisation churn, single sequential lane, commit-per-subtask slices) and named seams T030-T033
+    vs T034-T037; WP06 figure (900+1000+smoke, 1,900-2,000) matches the prompt; it does not mention the 8-subtask warning band, a nit.
+- id: TASKS-DECOMP-002
+  status: resolved
+  reason: Size corrected to about 2,260 from the subtask figures (250+150 helper, 800, 1000, 60 sum to 2,260) and the decline-to-split reason plus the T024 versus T025-T029 seam are recorded, which is the
+    finding's stated fallback.
+- id: TASKS-DECOMP-003
+  status: resolved
+  reason: 'One rule is now stated in tasks.md, the chokepoint table and WP05/06/07: the registration pair rides in the module-creating red-first commit (T023/T031/T038) with the nine registry gate files
+    required green on it.'
+- id: TASKS-DECOMP-004
+  status: resolved
+  reason: EXTRA_ALLOWED_OD2_X is deleted, the extras constant is EXTRA_ALLOWED_REGISTRATIONS in WP07 and quickstart, and the conditional X-family/ACK-1 prose is gone from the prompts (plan.md keeps its
+    history under a Decided-reading note).
+- id: TASKS-DECOMP-007
+  status: resolved
+  reason: Frontmatter is deliberately unchanged but tasks.md now states WP09 SC rows are recorded-by not built-by and that WP05's C-003 is hygiene-only, which is the finding's stated alternative.
+- id: TASKS-DECOMP-008
+  status: resolved
+  reason: WP03 and WP04 now state once that no committed example holds an at-sign path (scan acceptance proved by WP02 run-time tests and reader tests), the OD-4 X-only wording is removed, and the contract
+    note and plan D-P7 agree.
+- id: TASKS-DECOMP-010
+  status: resolved
+  reason: FLOORS fields moved to WP08 T048 (WP05 T024, plan IC-06/IC-08, contract note and chokepoint table updated) and the fingerprint control stays in WP05 with WP08 referencing it instead of restating
+    it.
+- id: TASKS-DECOMP-011
+  status: resolved
+  reason: WP01 hand-off now says at most the one exempt campsite commit and WP09's hand-off drops red-first wording and states the add-only rule; WP01 Reviewer Guidance carries no red-first demand.
+- id: TASKS-DECOMP-012
+  status: resolved
+  reason: tasks.md now reads WP03 2/1/7/7/13 and WP04 1/0/11/2/8, which I confirmed against the create_intent lists of both prompts (30 and 22).
+- id: TASKS-DECOMP-013
+  status: resolved
+  reason: WP02 Objective is reworded as asked; T004 is kept but re-described as having no deliverable beyond the common hand-off report (ids are tied to wps.yaml), a recorded choice for a nit rather than
+    the merge or drop suggested.
+- id: TASKS-ORDER-001
+  status: resolved
+  reason: plan.md W-5 and tasks.md now give a leading planning-artifacts and status-log commit built by path, with the add-only check re-run and status.events.jsonl compared byte for byte before and after,
+    absorbing the F-27/F-29 commits.
+- id: TASKS-ORDER-002
+  status: resolved
+  reason: Orchestrator step J-1 (JVM replay on the WP04 lane tip before WP05 dispatch, defects fixed in WP03/WP04 follow-ups, W-2 re-run for the CHANGELOG-only delta, no-JVM fallback) is added to tasks.md,
+    plan W-2/P-10 and quickstart.
+- id: TASKS-ORDER-003
+  status: resolved
+  reason: tasks.md dispatch order now recommends WP08 before WP07 with the budget/oracle/floor reasoning, and the WP08 prompt carries the same note; both orders stay legal.
+- id: TASKS-ORDER-004
+  status: resolved
+  reason: 'Subtask order and text now agree: registrations are defined in T029/T037/T042 but committed in the module-creating red-first commit, stated in each WP and the decisions record.'
+- id: TASKS-ORDER-005
+  status: resolved
+  reason: The hedge is replaced by the verified rule citing _approved_dependency_lane_refs and check_claim_ancestry (both exist in implement_support.py), with first dispatch kept as confirmation only.
+- id: TASKS-ORDER-006
+  status: resolved
+  reason: WP07 now says it depends on WP04 and, unconditionally, on WP06 (OD-1 X-pure) and no X-family conditional wording remains in the prompts.
+- id: TASKS-COVER-001
+  status: resolved
+  reason: Every prompt now carries a Decisions-honoured line plus a spec.md pointer; I diffed each line against the tasks.md CL/AD/AC/OQ rows and all nine match exactly with no missing or extra ids.
+- id: TASKS-COVER-002
+  status: resolved
+  reason: Frontmatter is deliberately unchanged, but tasks.md states WP06 builds SC-004 (T034-T036) and WP02 builds SC-005 while WP08/WP09 re-measure, and the WP02 and WP06 DoD/reviewer guidance cite them,
+    which is the finding's alternative.
+- id: TASKS-COVER-003
+  status: resolved
+  reason: tasks.md records under the FR table that FR-008 also depends on the WP05 eligibility function and FR-020 is also built by WP08, giving the reason for the narrowed mapping as the finding allowed.
+- id: TASKS-COVER-004
+  status: resolved
+  reason: The C-003 note is reworded to say WP07 scope data checks it, WP09 holds it and WP05 carries it through hygiene only, so row and note no longer disagree.
+- id: TASKS-COVER-005
+  status: resolved
+  reason: WP04 T019 step 4 now writes the first-in-byte-order duplicate-id rule into the published getWorkPackageDetail path/schema/404 descriptions, validated by a named check, and the OD-3 row lists WP04
+    first.
+- id: TASKS-COVER-006
+  status: resolved
+  reason: Same correction as DECOMP-012 is in tasks.md and matches the create_intent counts (2 path files and 1 parameter for WP03; 1 and 0 for WP04).
+- id: TASKS-COVER-007
+  status: resolved
+  reason: The CL-5 row now includes WP03 with the basis stated (404 refusal code, consistent with OQ-5) and says the AD-5..AD-22 acknowledgement is carried by their own rows.
+- id: TASKS-COVER-008
+  status: resolved
+  reason: The D-0 row carries the held-PR fallback when the tag is still missing after W-4 and the WP07 'under the X-family' wording is gone.
+- id: TASKS-VERIFY-001
+  status: resolved
+  reason: The operator brief is recorded add-only as the explicit request in tracer-design-decisions.md, the 'do NOT run' sentences are replaced in WP05/06/07 and tasks.md, and implementer-runs/reviewer-re-runs/CI-final-word
+    is assigned with hand-off and DoD items.
+- id: TASKS-VERIFY-002
+  status: resolved
+  reason: Verbatim CI blocks are kept as reference (I confirmed them against ci-router.yml) and three runnable legs resolve the shard/label placeholders, use .venv/bin/python with identical pytest args,
+    write junit to <scratch>, and a paragraph reconciles this with the no-bare-uv-run rule.
+- id: TASKS-VERIFY-003
+  status: resolved
+  reason: Each of WP02-WP08 gains a Comparison-base paragraph (planning-base commit and WP01 T001 counts in tracer-approach.md; a red absent at the baseline is an earlier WP's, not bin 1), with WP01 DoD
+    and tasks.md gating WP03 dispatch on the appended table and WP02 recording its own counts.
+- id: TASKS-VERIFY-004
+  status: resolved
+  reason: The ci-router 'tests (contract tools)' command (verified against lines 898-904) is in the validation section of all code WPs in verbatim and runnable form with counts compared to 1,016/37 and
+    the WP01 table.
+- id: TASKS-VERIFY-005
+  status: resolved
+  reason: The registration pair now moves into T023/T031/T038 with the hand-off required to show the nine router and registry gate files green on that commit while the new tests are the only intended red.
+- id: TASKS-VERIFY-006
+  status: resolved
+  reason: WP07 T038 names only the entry-scoped CHANGELOG assertions as red with the version assertion a named green regression control, and per-rule revert checks are required for minor_proof_problems
+    and scope_problems.
+- id: TASKS-VERIFY-007
+  status: resolved
+  reason: T023 and T031 require a skeleton module so each test fails on its own assertion with per-test messages recorded, and reviewers must spot-revert at least one rule per AC row on a scratch copy.
+- id: TASKS-VERIFY-008
+  status: resolved
+  reason: WP05 and WP06 smoke text now requires both counts greater than zero and notes a zero guard is not a threshold.
+- id: TASKS-VERIFY-009
+  status: resolved
+  reason: plan.md gains a Decided-reading note, D-P7 and the AC-CONTENT row state OD-4 as decided, WP04 drops 'OD-4 X only', and the 'X only' convention is restricted to the unchosen OD-1 and OD-2 options.
+- id: TASKS-VERIFY-011
+  status: resolved
+  reason: quickstart.md no longer runs the nonexistent live module and states there is no committed live baseline test; the command list is the three modules.
+- id: TASKS-VERIFY-012
+  status: resolved
+  reason: WP06, quickstart and the tasks.md gate row now say 'expect exit code 5 and no test ids' next to the collect-only check.

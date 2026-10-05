@@ -1,0 +1,21 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: WP07 T038 step 3, the tasks.md WP07 table row and the lane-start wording now say the lane start is the lane-a workspace HEAD at claim time (WP06 tip, or WP08 tip when WP08 is dispatched first), with the SNAPSHOT version set by WP03 as the reason the version control is green; no "WP04 tip" lane-start wording remains in WP07 (the other uses of "WP04 lane tip" refer correctly to step J-1).
+  - id: TASKS-FRESH2-002
+    status: resolved
+    reason: Chosen remedy is the drop-the-carve-out variant, applied class-wide; tasks.md J-1, the quickstart row and plan P-10 (no more "33 of 101", count measured at J-1 time) agree, plan W-2 mechanism (a) already lists the release dry run so it stands unchanged, release_check.py supports a tag-less SNAPSHOT dry run, and only breaking-change --baseline-root waits; the earlier add-only line in tracer-design-decisions.md still says the dry run waits but is explicitly superseded by the final-round entry.
+  - id: TASKS-FRESH2-003
+    status: resolved
+    reason: WP05, WP06 and WP07 carry an identical detached recipe (nohup sh -c with exit-code file, bounded foreground poll under 9 minutes, missing file means not finished, no hand-off before all three exit files exist); I ran the nohup/poll pattern with a multi-line, double-quoted command and it produced the exit file and the NOT-FINISHED fallback logic is correct.
+  - id: TASKS-FRESH2-004
+    status: resolved
+    reason: The tasks.md Gates paragraph now states the four deselected files are covered by the named gate lists or, for test_archive_root_byte_identical.py, only by the CI archive-freeze job, matching the WP05/06/07 prompts.
+checks:
+  ci_battery_blocks: "Scripted: every non-comment line of the architectural-fast and architectural-heavy run blocks in ci-router.yml appears verbatim in WP05, WP06 and WP07 (the fast block matches contiguously; the heavy block differs only by the five comment lines the prompts omit)."
+  wp_front_matter: "WP01 to WP09 front matter is byte-identical to git show a31d99a4a^:<file>."
+  recipe_runnable: "Syntactically runnable as written once <scratch> and the leg command are substituted."
+summary: All four findings resolved with no regression found; battery blocks verbatim, front matters unchanged, recipe runnable.

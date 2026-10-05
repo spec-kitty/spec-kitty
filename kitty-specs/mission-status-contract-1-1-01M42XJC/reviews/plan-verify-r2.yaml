@@ -1,0 +1,28 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: Plan now states the compute_lanes-computed outcome (IC-02 alone, one big lane, IC-09 planning_artifact in lane-planning, OY cycle case), drops lane T/R and M1/M2, and tracer A-8 supersedes A-5; consistent with compute.py rule order and the _are_disjoint predicate.
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: W-1, W-7 and quickstart now run the scope function over the real merge-base name-only diff plus an add-only kitty-specs check, recorded in the PR body.
+  - id: PLAN-FRESH-003
+    status: resolved
+    reason: Constraints line now names exactly OD-1 X (two paths) and OD-2 X (one path) as extensions with OD-4 inside the set, and OD-2 X prices the third path, scope reading and acknowledgement.
+  - id: PLAN-FRESH-004
+    status: resolved
+    reason: Live module is isolated with contract and corpus markers only, verified against the nightly fast-or-unit selection on a tag-less default checkout (ci-nightly.yml), with fetch recipe, collect-only acceptance, shallow-clone check and retirement point.
+  - id: PLAN-FRESH-005
+    status: resolved
+    reason: Charter Check now has SO4, SO8 (with Tracker Ticket Assignment Rule owners at D-0 and W-1) and SO9 rows.
+  - id: PLAN-FRESH-006
+    status: resolved
+    reason: Data model and D-P4 now catch OSError, SubprocessError and ValueError around get_current_branch and git_merge_base (matching git.py and git_ops.py behaviour), add fault-injection cases for each with fired counters, and record the missing timeout as an accepted residual.
+  - id: PLAN-FRESH-007
+    status: resolved
+    reason: Both contract notes and the plan now say work packages report refinements and the orchestrator appends add-only to the tracer files, keeping every write scope disjoint.
+  - id: PLAN-FRESH-008
+    status: resolved
+    reason: Seam table now names seven edited modules matching the list, first-draft wording is gone, OD-4 states 333 versus 518 with a never-copy-a-pinned-count rule, and D-P3 states the tuple/list wrapping for both private copies.

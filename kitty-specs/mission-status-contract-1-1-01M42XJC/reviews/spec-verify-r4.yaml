@@ -1,0 +1,56 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >-
+      FR-017 observable 1 and AC-VERSION now separate the permanent assertion (tree is 1.1.0-SNAPSHOT or exactly 1.1.0, plus the scratch-copy test) from pre-release evidence (SNAPSHOT specifically), so the committed test survives the release commit.
+  - id: SPEC-FRESH-002
+    status: unresolved
+    remaining_severity: 2
+    reason: >-
+      enum_pins.json is now in the slice file set and every scope statement, but the new pins as specified are not achievable with contracts/tools/enum_pin_check.py, which pins only titled schemas that carry an enum list, so the "encoding constant" (a const) would give ENUM_UNREADABLE and the ArtifactRefusal code (an inline if/then enum, like StreamRefusal) is not pinnable unless the spec requires separate titled enum schemas; the AC "enum-pin check fails on a changed code value set" has no mechanism as written.
+  - id: SPEC-FRESH-003
+    status: unresolved
+    remaining_severity: 2
+    reason: >-
+      CHANGELOG is now in the slice file set and all four scope statements defer to it, but the scripted AC-VERSION scope check ("git diff --name-only ... lists only paths in the slice file set") and the claim that the set is "the one statement of every file the Mission may touch" fail on the Mission's own kitty-specs/<mission>/ planning artifacts, which the set does not include (C-003 only says add-only).
+  - id: SPEC-FRESH-004
+    status: resolved
+    reason: >-
+      The class is closed by redefining Eligible file to exclude any malformed path, so listing, content read (400), artifactPath and artifactReferences agree, the "cannot occur" claim is now true by definition, and FR-011, FR-022, AC-LIST and the edge cases carry backslash, over-512, "~" and drive-letter fixtures.
+  - id: SPEC-FRESH-005
+    status: resolved
+    reason: >-
+      Eligible file now requires no symlink at any path component, FR-005 and FR-008 lstat every component, and FR-022 and AC-DETAIL add symlinked tasks/ and tasks/<wp-slug>/ directory fixtures with null artifactPath and artifactReferences.
+  - id: SPEC-FRESH-006
+    status: unresolved
+    remaining_severity: 2
+    reason: >-
+      The universe and the 404/200 rules are now stated and floors use an independent distinct-wpId count, but the claim that the universe equals what v1 serves is unverified and contradicted by the product's single WP-file selector (wp_task_files in wp_metadata.py takes any tasks/WP*.md), so the corpus file sync-diagnose-canonical-allowlist-01KS4F8H/tasks/WP01.md is a v1 work package that this spec answers 404 and classes `other`; the spec must either adopt the v1 selector or state the divergence and its consequence for the v1 controls.
+  - id: SPEC-FRESH-007
+    status: resolved
+    reason: >-
+      NFR-002 now states a rule (sources of its own fields including dependency work package files, status log or snapshot, meta.json, lanes.json, review-cycle files, never an artifact for links) and scopes the counting-opener assertion to artifact links, which removes the exhaustive-list trap.
+  - id: SPEC-FRESH-008
+    status: resolved
+    reason: >-
+      AC-VERSION and FR-019 now declare the terminology scan a new check, a case-insensitive scan test in tests/contract/ over new files, examples and the CHANGELOG entry with x-source and x-derived values skipped and planted negative and positive cases; verified that no existing guard (test_feature_alias_scope.py covers a CLI flag only) does this.
+  - id: SPEC-FRESH-009
+    status: resolved
+    reason: >-
+      AD-9, FR-013 and the AD-21 row now give a missing or repeated path 400 invalid_artifact_path, an ill-formed missionId or wpId 404 (not_found on the artifact reads, v1's codeless 404 on the detail), and an unreadable Mission directory on the content read 500 artifact_unreadable, with AC-CONTENT bullets covering each.
+  - id: SPEC-FRESH-010
+    status: resolved
+    reason: >-
+      The Credential pattern entry lists the kinds (verified against SECRET_PATTERNS in leak_patterns.py: gh[pousr] tokens, github_pat, AKIA/ASIA key ids, PEM private-key header), FR-019 requires them in the 422 and readable descriptions, and a committed test compares the description with SECRET_PATTERNS.
+  - id: SPEC-FRESH-011
+    status: unresolved
+    remaining_severity: 2
+    reason: >-
+      The zero-directory rule for a single ** is added with tests and mutations, but FR-007 states it as "the semantic of the repository's own matcher", which is false (_fnmatch_recursive maps ** to .* so src/**/x.py and **/x.py do not match src/x.py or x.py), and the "each /**/ replaced" zero-form misses mixed patterns such as a/**/b/**/c against a/b/x/c, so the silent false unchanged remains for patterns with several **.
+  - id: SPEC-FRESH-012
+    status: resolved
+    reason: >-
+      Terminology and FR-010 now use WP[0-9]{2,}- matching WpId.yaml (tasks/WP1-x.md is class other) and AC-LIST says a ..-segment, which fixes both the pattern mismatch and the looser wording.

@@ -1,0 +1,43 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: GATES
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: PR-GATES-001
+    lens: CI path-trigger completeness
+    severity: 3
+    title: The new reference-reader tests import ~17 src modules the contract_tools path group does not name, so a src-only PR can break them with no per-PR job running them
+    evidence:
+      - artifact: ".github/workflows/ci-router.yml `contract_tools` filter group (lines ~278-292) lists tests/contract/**, the contracts workflows, uv.lock, pyproject.toml, pytest.ini, tests/conftest.py and `**/status/lifecycle_events.py` only; the `corpus` group owns contracts/** and kitty-specs data"
+      - code: "tests/contract/_mission_status_detail.py:34-48 imports kernel.errors, kernel.git, specify_cli.core.git_ops, core.vcs.git, frontmatter, lanes.branch_naming, lanes.compute, lanes.persistence, missions._read_path_resolver, ownership.validation, review.artifacts, review.cycle, status.wp_metadata, status.wp_view, workspace.context"
+      - code: "tests/contract/_mission_status_artifacts.py:32 (kernel.clock) and tests/contract/_mission_status_payloads.py:40-52 (mission_runtime.identity, coordination.surface_resolver, core.dependency_graph, mission_metadata, status.*)"
+      - artifact: "Module matrix deselects the corpus marker and packs.yml deselects these three modules (diff of .github/workflows/packs.yml), so `tests (contract tools)` is their only per-PR home. Verified: the three new modules (artifacts, contract_1_1, detail) are the first corpus-marked tests in that job that import specify_cli, and they pass under its `uv sync --frozen --no-install-project` environment (run in a scratch venv under TMPDIR: 1769 passed, 37 skipped, same 37 as main: oasdiff and vacuum absent)"
+    claim: A PR that renames or changes the signature of, say, review.cycle.build_review_cycle_pointer, workspace.context.resolve_workspace_for_wp or lanes.persistence.read_lanes_json touches no path in the `corpus` or `contract_tools` groups, so `tests (contract tools)` does not run. The module matrix skips the corpus marker. The contract reference reader breaks at import time (collection error across all three modules) and surfaces only on the next contracts/ or tests/contract PR (innocent author) or the nightly full run. The pre-mission contract_tools group was safe because those tests read no src; this diff changes that without widening the trigger.
+    remediation: Extend the `contract_tools` filter group with the `**/`-spelled globs the existing lifecycle_events entry already uses (so the group stays non-src-backed) for each src module the reference reader imports (lanes/persistence.py, lanes/compute.py, lanes/branch_naming.py, workspace/context.py, review/cycle.py, review/artifacts.py, ownership/validation.py, frontmatter.py, core/git_ops.py, core/vcs/git.py, missions/_read_path_resolver.py, mission_metadata.py, kernel/git.py), and add a line to the existing router comment naming why.
+  - id: PR-GATES-002
+    lens: Maintainer traps - hard-pinned manifest size
+    severity: 2
+    title: test_run_negative_cases pins the exact manifest size (127) and a historical 4+26 split, so any future negative case fails an unrelated leak-kind test
+    evidence:
+      - code: "tests/contract/test_run_negative_cases.py:282-283 `assert len(cases) == 127` and `assert len(leak_cases) == 4 + 26, \"four leak cases existed (101 cases); 26 are added (127)\"`"
+      - artifact: "The committed manifest contracts/tools/negative_cases.json has 127 cases of which 30 are build=leak:*; the only sibling count assertions on main (lines 251, 313-314) are derived from the manifest or a >= floor, never an exact size"
+    claim: Adding or removing any case for any other tool (a layout, lint, breaking-check or parity plant, which the next contract bump will do) turns this test red with a message about leak kinds. The assertion encodes mission history, not a contract. The meaningful pin (every planted kind has its case with the right code) is already carried by the per-kind loops below it.
+    remediation: Delete the two len() assertions and keep the per-kind loops; add `assert set(leak_cases) >= strict | artifact | set(controls)` so a missing kind still fails by name.
+  - id: PR-GATES-003
+    lens: Corpus runtime and timeout budget
+    severity: 2
+    title: The corpus_exam module fixture costs 62 s of setup (82 s on one pinned core) inside the 240 s per-test default timeout, with no explicit marker and a corpus that only grows
+    evidence:
+      - code: "tests/contract/test_mission_status_reality.py:1496 `corpus_exam` fixture; first consumer test_the_new_floors_are_pinned_below_the_measured_corpus at :1510"
+      - artifact: "Measured with .venv: `--durations` reports `62.49s setup` for that test (24 cores); `taskset -c 0` gives `82.10s setup`. pytest.ini sets `timeout = 240` (fixture setup counts toward pytest-timeout) and says a legitimately slow test must carry @pytest.mark.timeout. Whole reality+payloads run: 108 s on this host, against the 10 minute tests-corpus-blocking job limit (fine)"
+    claim: The job-level budget is comfortable, but the first test to request the fixture absorbs the full scan under the shared 240 s default. A cold-cache 2-4 vCPU runner at 2-3x this host's single-core time lands at 130-250 s, and floors guarantee the corpus (and the scan) only grows. The failure mode is a named timeout on whichever test happens to be first, i.e. a flake that reads as a product defect. Margin is about 3x today.
+    remediation: Put `@pytest.mark.timeout(600)` on each test that requests corpus_exam (a fixture cannot carry the marker) and note the measured 62 s in the fixture docstring; alternatively cut the scan by sharing one walk with the existing own-directory pass.
+  - id: PR-GATES-004
+    lens: Maintainer traps - stale doc count
+    severity: 1
+    title: fixture_builder module docstring says 33 kinds; KINDS has 34
+    evidence:
+      - code: "contracts/tools/fixture_builder.py module docstring: \"There are 33 kinds in four groups\" (eight + ten + twelve + three). The artifact-path-reference kind (_REFERENCE_KIND) is a fifth contributor, and tests/contract/test_fixture_builder.py:86 asserts `len(builder.KINDS) == len(expected) == 34`"
+    claim: The documented count and the asserted count disagree by the reference kind, and the docstring names only four groups for five contributing tuples.
+    remediation: Reword to 34 kinds and name the thirteenth artifact-path kind (`artifact-path-reference`, the artifactPath key) in the artifact-path group.

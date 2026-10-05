@@ -1,0 +1,175 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: SPEC-FRESH-001
+    lens: operator-decision-fidelity
+    severity: 3
+    title: "FR-012 redefines sizeBytes, which CL-3 fixes as the on-disk size, and the consolidated acknowledgement list does not carry it"
+    evidence:
+      - artifact: "spec.md § CL-3 ('sizeBytes is the on-disk size')"
+      - artifact: "spec.md § FR-013 last paragraph ('sizeBytes is the opened file's size, and the number of bytes read when the two differ within the cap')"
+      - artifact: "spec.md § FR-012 sizeBytes bullet ('equal to the listing sizeBytes ... barring a concurrent change')"
+    claim: >-
+      The operator decided sizeBytes is the on-disk size. FR-013 adds a second definition: when the
+      opened file's size and the bytes read differ within the cap, sizeBytes is the number of bytes
+      read. That is a content-derived value, not the on-disk size, and it can make the envelope
+      sizeBytes differ from the listing's st_size for the same file. It is an author interpretation
+      of a decided member, it is stated only in the middle of a paragraph of FR-013, it appears in
+      none of FR-012, AC-CONTENT or the consolidated acknowledgement table, and AC-CONTENT asserts
+      only "equal to the on-disk size", so the two rules are untested against each other.
+    remediation: >-
+      Delete the "number of bytes read" clause: sizeBytes is the fstat size of the opened handle
+      (the on-disk size), and a read that returns a different byte count than that size is handled
+      by the existing cap rule (413 above the cap) or is a documented concurrent-change race with no
+      second definition. If the author wants the clause, add a row to the consolidated table and an
+      AC with a planted case.
+  - id: SPEC-FRESH-002
+    lens: internal-consistency
+    severity: 3
+    title: "reviewCycles[].artifactPath is defined by listing membership, which contradicts the eligibility-not-listing principle and forces a full listing into every detail read"
+    evidence:
+      - artifact: "spec.md § FR-005 artifactPath ('when that file is in the listing, otherwise null (for a Mission whose listing is truncated before that file, null)')"
+      - artifact: "spec.md § AD-8 and FR-008 (links derive from eligibility, never from the listing or the cap; 'reads one directory and checks one path, never the whole tree')"
+      - artifact: "spec.md § FR-011 and AD-7 (building the listing reads every returned file in full, up to 1000 x 262144 bytes)"
+    claim: >-
+      FR-008 and AD-8 take pains to make artifactReferences independent of the 1000-entry cap and
+      cheap (one directory, one path). FR-005 gives artifactPath the opposite rule. To compute it a
+      detail read must either build the Mission listing, with its whole-file readable checks (AD-7),
+      or the reference reader must emulate cap membership. A cycle file past the cap is eligible and
+      readable by path yet gets artifactPath null, the exact "link missing for a readable file" case
+      FR-008 forbids for references. This also drags the 262 MB worst case of the listing into the
+      work-package detail read, which NFR-001 and NFR-002 never account for, and is not covered by
+      any AC (AC-DETAIL has no artifactPath bullet).
+    remediation: >-
+      Define artifactPath by eligibility, as FR-008 does: non-null exactly when the cycle file is an
+      eligible file, null only when it is absent or not eligible, independent of the cap and of
+      readable. Add an AC-DETAIL bullet with a planted truncated-listing case, and state in NFR-002
+      that a detail read opens no artifact content.
+  - id: SPEC-FRESH-003
+    lens: operator-decision-fidelity
+    severity: 2
+    title: "Consolidated acknowledgement table omits author decisions that reinterpret CL-3 and CL-1 wording (AD-7 readable semantics, AD-12 worktreePresent)"
+    evidence:
+      - artifact: "spec.md § Decisions awaiting operator acknowledgement (rows AD-5, AD-9, AD-10, AD-14, AD-17, AD-18, AD-20, AD-21 only)"
+      - artifact: "spec.md § CL-3 ('A file over the cap is a 413 Problem, and the listing marks that file readable: false')"
+      - artifact: "spec.md § AD-7 (readable is false for 413, 415, 422 and 500; the listing reads every returned file in full)"
+      - artifact: "spec.md § AD-12 and CL-1 ('workspace (lane, branches, worktree presence)')"
+    claim: >-
+      The table's preamble says each row is an author choice extending or interpreting CL-1 to CL-4,
+      and the plan builds nothing beyond it. Two such choices are missing. AD-7 extends the
+      operator's single readable: false rule (oversize only) to four refusals and, to make that
+      checkable, makes every listing read up to 1000 whole files; that is a behaviour and cost the
+      operator did not decide and that a reversal would change on a released read. AD-12 narrows the
+      operator's "worktree presence" so that a planning-lane work package, whose workspace is the
+      repository checkout, reports false. Neither carries a "needs operator acknowledgement" mark.
+      The 1000-entry cap (AD-8) and the contracts/tools edit (see SPEC-FRESH-005) are likewise
+      author scope not listed, so the list's own claim of covering every extension is false.
+    remediation: >-
+      Add rows for AD-7 (what the operator fixed: 413 marks readable false; what is added: 415, 422,
+      500 and whole-file reads; conservative reading; cost of reversal: readable is a stable member)
+      and AD-12, and a row or note for the AD-8 cap; mark them "needs operator acknowledgement".
+  - id: SPEC-FRESH-004
+    lens: acceptance-criteria-testability
+    severity: 2
+    title: "SC-002 and AC-VERSION require 1.1.0 while the Mission only carries 1.1.0-SNAPSHOT and the 1.1.0 release is out of scope"
+    evidence:
+      - artifact: "spec.md § CL-2 ('The module version during development is 1.1.0-SNAPSHOT')"
+      - artifact: "spec.md § Out of Scope ('the 1.1.0 release itself')"
+      - artifact: "spec.md § FR-017 observable 1, SC-002, AC-VERSION first two bullets ('exits 0 at 1.1.0')"
+      - code: "contracts/tools/breaking_check.py:find_baseline / version rules (a snapshot of a later version is compared as a prerelease)"
+    claim: >-
+      The pull request is opened with info.version at 1.1.0-SNAPSHOT (CL-2, FR-018). The assertion
+      "info.version is exactly 1.1.0 in the release commit", and SC-002's "exits 0 at 1.1.0 against
+      the released 1.0.0", name a commit that this Mission does not produce (the 1.1.0 release is out
+      of scope). As written, AC-VERSION bullet 1 and SC-002 can never be observed by the Mission's
+      own CI or evidence; the only runnable state is the SNAPSHOT. A reviewer cannot tell whether the
+      Mission is done at SNAPSHOT or must also author the release commit, and the planted "1.0.1 or
+      2.0.0 must fail" negative is specified only for the final value.
+    remediation: >-
+      State which version each observable runs at: the breaking check, baseline diff and counts at
+      1.1.0-SNAPSHOT against the tag, and the exact-1.1.0 assertion as a scripted check over a
+      scratch copy with the version rewritten (or by the release dry run), with its planted 1.0.1 and
+      2.0.0 negatives. Reword SC-002 to match.
+  - id: SPEC-FRESH-005
+    lens: scope
+    severity: 2
+    title: "FR-015 edits existing files under contracts/ (leak_scan.py, fixture_builder.py), contradicting Out of Scope and SC-008, and the scope extension is not acknowledged"
+    evidence:
+      - artifact: "spec.md § FR-015 ('This Mission therefore edits ... STRICT_FIELDS in contracts/tools/fixture_builder.py ... _Scanner.walk of leak_scan.py')"
+      - artifact: "spec.md § Out of Scope ('any change to an existing contract file beyond the version bump and index/path-map additions') and SC-008 ('no existing contract file changed except the version bump and index/path-map additions')"
+      - artifact: "spec.md § FR-017 last sentence (carve-out limited to the FR-017 comparison)"
+      - code: "contracts/tools/leak_scan.py:_Scanner.walk"
+      - code: "contracts/tools/fixture_builder.py:STRICT_FIELDS"
+    claim: >-
+      The FR-017 carve-out says the tooling edit is outside the baseline comparison, but SC-008 and
+      the Out of Scope bullet are unqualified and the files edited sit under contracts/, which the
+      repository's code-owners rule covers as a whole. A reader who applies SC-008 literally must
+      reject FR-015. The operator's CL-1 scoped the slice to "new operations and new schemas";
+      changing the shared leak scanner that guards every module is an author scope extension, and it
+      is absent from the acknowledgement table. FR-015 also names the contract-tools tests but not
+      the negative-case registry the existing leak self-test and negative-case job use
+      (contracts/tools/negative_cases.json, run_negative_cases.py), so the planted negatives may be
+      added where CI never runs them.
+    remediation: >-
+      Qualify SC-008 and Out of Scope with "contracts/tools/ and the test tree are edited only as
+      FR-015 states". Add the tooling edit to the acknowledgement table. Say where the new planted
+      negatives are registered (the negative-case registry as well as the pytest files).
+  - id: SPEC-FRESH-006
+    lens: cross-reference
+    severity: 2
+    title: "Broken and dangling references: 'see D-2 below' points at nothing, OQ-3 is missing, FR-013 and FR-014 trace to the wrong AC and SC"
+    evidence:
+      - artifact: "spec.md § Terminology, Artifact ('on the primary planning surface (see D-2 below)'); this spec has AD-2, and D-2 exists only in v1"
+      - artifact: "spec.md § Open Questions (OQ-1, OQ-2, OQ-4, OQ-5, OQ-6; no OQ-3)"
+      - artifact: "spec.md § Traceability (FR-014 row lists AC-CONTENT only; AC-LIST header lists FR-014; FR-013 row maps to SC-006)"
+    claim: >-
+      The Terminology section is declared binding yet its definition of Artifact cites a decision
+      ("D-2 below") that does not exist in this document; the intended AD-2 is a different item
+      (the surface decision). The open-question list skips OQ-3 with no note, so a reader cannot tell
+      whether a question was dropped. The traceability matrix and the AC headers disagree on FR-014
+      (AC-LIST claims it, the matrix does not), and FR-013 (content refusals) is traced to SC-006
+      (read-only fingerprint and runtime) instead of SC-003.
+    remediation: >-
+      Change "see D-2 below" to "AD-2". Renumber the open questions or add "OQ-3: withdrawn".
+      Align the traceability rows with the AC headers (FR-014 to AC-LIST and AC-CONTENT; FR-013 to
+      SC-003).
+  - id: SPEC-FRESH-007
+    lens: internal-consistency
+    severity: 2
+    title: "Prompt-file matching rules disagree between FR-008, FR-010 and AD-18, and none says which work package's prompt"
+    evidence:
+      - artifact: "spec.md § FR-008 ('tasks/WP##-*.md directly under tasks/ ... when more than one file matches, the first in byte order')"
+      - artifact: "spec.md § FR-010 classifier rule 2 ('tasks/WP*.md directly under tasks/')"
+      - artifact: "spec.md § AD-18 and FR-005 ('<wp-slug> is the stem of the work package's prompt file tasks/<wp-slug>.md')"
+    claim: >-
+      FR-010 classes any tasks/WP*.md as work-package-prompt, FR-008 requires the narrower WP##-*.md
+      for the reference, so a file the listing calls a prompt (for example a tasks/WP-notes.md) is
+      never named by artifactReferences, and the invariant "a member is non-null exactly when that
+      file is eligible" is silently about a different set. None of the three says WP## is the wpId
+      of the work package being read; read literally, FR-008 matches the prompt of any work package.
+      AD-18 and FR-005 then derive the review-cycle directory from "the prompt file" in the singular
+      although FR-008 allows several matches, so the directory a cycle is read from depends on an
+      unstated choice among them.
+    remediation: >-
+      Use one prompt pattern in FR-008, FR-010 and AD-18, bound to the work package's own id
+      (files whose name starts with the wpId followed by a hyphen), state the first-in-byte-order
+      rule once and reuse it for the review-cycle directory, and add a fixture with two matching
+      prompts and a stray tasks/WP-notes.md.
+  - id: SPEC-FRESH-008
+    lens: internal-consistency
+    severity: 1
+    title: "AD-9's malformed-path list is narrower than the AD-19 artifact-path rule"
+    evidence:
+      - artifact: "spec.md § AD-9 (400 for empty, over 512, absolute, backslash, NUL, '.' or '..' segment)"
+      - artifact: "spec.md § AD-19 and FR-010 (path must not begin with '/', '~/' or a drive letter)"
+    claim: >-
+      A request path of "~/x" or "C:/x" is not in AD-9's 400 list, so it falls to 404, although the
+      same spec defines such a string as outside the artifact-path rule. An empty segment ("a//b")
+      or a trailing slash is in neither list. The two rules should be one definition, otherwise
+      the FR-022 containment list and the 400 versus 404 split are underdetermined.
+    remediation: >-
+      Define the malformed-path predicate once (AD-19's rule plus the empty-segment and trailing
+      slash cases) and have AD-9 and FR-014 refer to it.

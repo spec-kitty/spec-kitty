@@ -1,0 +1,54 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: HYGIENE
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: PR-HYGIENE-001
+    lens: public-repo hygiene (private-ledger references)
+    severity: 2
+    title: Test code cites a non-public ledger by number (SK-310, SK-348) that a public reader cannot resolve
+    evidence:
+      - code: "tests/contract/_mission_status_artifacts.py:16"
+      - code: "tests/contract/test_mission_status_detail.py:803"
+      - code: "tests/contract/test_mission_status_detail.py:817"
+      - artifact: "main already records SPEC-KITTY-LEDGER.md as a dangling citation (docs/reports/tracer-friction-recon/2026-09-26/coverage-matrix.md row D-20); the ledger is not in the repository"
+    claim: >-
+      Three added lines point to "ledger SK-310" / "SK-348", an operator-private ledger that is not in the repo. A public
+      contributor reading why the artifact reader uses the repository-root kitty-specs directory, or why a stranded
+      review-cycle record is "shown", finds an unresolvable id. This is the class "private-ledger reference" in tests/.
+      Distinct from the known WP09 CHANGELOG/ledger wording items (those are in kitty-specs/, these ship in tests/).
+    remediation: >-
+      Replace each citation with a one-clause description of the behaviour it stands for (for example "the primary
+      planning surface under the repository root checkout, not the coordination-aware read directory") and drop the ids.
+  - id: PR-HYGIENE-002
+    lens: stale docstring, counts
+    severity: 1
+    title: fixture_builder module docstring says 33 kinds in four groups; the module defines 34
+    evidence:
+      - code: "contracts/tools/fixture_builder.py:8"
+      - code: "tests/contract/test_fixture_builder.py:86 (asserts len(builder.KINDS) == 34)"
+      - artifact: "KINDS = 8 original + 10 strict-* + 12 artifact-path-<form> + artifact-path-reference + 3 regression controls = 34, verified by importing the module"
+    claim: >-
+      The docstring counts 33 kinds and "twelve artifact-path-* kinds" in four groups. The module actually yields 13
+      artifact-path-* kinds (twelve forms plus artifact-path-reference) and 34 kinds in total; the test pins 34. The
+      docstring contradicts both the code and the test it is meant to describe.
+    remediation: >-
+      Edit the docstring to say 34 kinds and to name the thirteenth artifact-path kind (artifact-path-reference, which
+      plants the malformed value under the artifactPath key).
+  - id: PR-HYGIENE-003
+    lens: CHANGELOG accuracy (checked, no defect)
+    severity: 1
+    title: "Note only: the CHANGELOG additions were checked against the diff and hold"
+    evidence:
+      - artifact: "contracts/mission-status/CHANGELOG.md Added/Provisional sections vs files added under schemas/, responses/, parameters/, paths/ and openapi.yaml"
+    claim: >-
+      Counts verified: 3 new operations with the stated operationIds; 9 + 9 new schemas as listed; 7 + 2 new responses
+      with the stated statuses; ArtifactKind has 12 values, ArtifactRefusalCode 7, WorkPackageDetailRefusalCode 2,
+      ChangeState 3; 1000-entry cap and 262,144-byte cap match the schemas; every x-provisional schema
+      (ArtifactContent.redacted, ArtifactKind, ArtifactListing.truncated, ArtifactReference, ArtifactRefusal*,
+      ReviewCycle, Workspace, WorkPackageDetailRefusal*) appears in Provisional; no existing schema was modified, so
+      "Changed" needs nothing. No leaks of home paths, usernames, e-mails or tokens in the added lines (the only
+      home-shaped strings are the deliberate "notes/<h>/someone/file.md" artifact-path cases); no Feature terminology
+      outside the terminology-scan tests' own planted inputs. Not a defect; no action.
+    remediation: none (informational; remove this entry if the squad lead prefers an empty list)

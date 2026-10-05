@@ -1,0 +1,23 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: tasks.md J-1 now replays the full plan W-2 mechanism (a) list (incl. lint and negative-tests without skip tags, 33 of 101), names the two steps that wait (breaking-change --baseline-root, release dry run), and quickstart row and plan P-10 match that list; checked against plan.md W-2 and P-10 text.
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: WP05 prompt Context carries an explicit orchestrator-owned J-1 dispatch precondition (with the no-JVM acceptance case), tasks.md J-1 names the rejection-transition plus feedback-file reopen route for approved WP03/WP04, and WP06/WP08 depend on WP05 so the gate is transitive.
+  - id: TASKS-FRESH-003
+    status: resolved
+    reason: Plan IC-08 Sequencing now records that tasks recommends IC-08 before IC-05 (both orders legal) and cites tasks.md step 5, which in turn says the critical path rests on no dependency; the plan's critical-path line stays as the dependency-order statement and no contradiction remains.
+  - id: TASKS-FRESH-004
+    status: resolved
+    reason: WP07 T038 step 3, DoD and tasks.md WP07 row now state both trees (planning base all red, verified 1.0.0-SNAPSHOT there; lane start only CHANGELOG red, version a green control) and which the reviewer extracts; residual nit (severity 1) that T038 calls the lane start the "WP04 tip" although wps.yaml puts WP07 after WP04 and WP06 in lane-a, which does not change any assertion state.
+  - id: TASKS-FRESH-005
+    status: resolved
+    reason: WP05, WP06 and WP07 legs blocks all gained run-from-lane-root, background-with-redirect, record-exit-code, and timeout-is-not-a-verdict text with the CI budgets (heavy 30, fast 10 minutes, verified in ci-router.yml); the cosmetic -p no:cacheprovider omission was declared harmless and stays.
+  - id: TASKS-FRESH-006
+    status: resolved
+    reason: All three prompts now say the legs are the architectural-fast plus architectural-heavy parts as CI runs them and that test_archive_root_byte_identical.py runs in the archive-freeze job (exists at ci-router.yml line 621); no remaining "complete battery" phrase anywhere in the mission directory.
+summary: All six findings resolved in the current artifacts; the claims the fix cites (ci-router job names and timeouts, plan W-2 and P-10 check list, v1 version at the planning base) were verified. One severity-1 nit remains in WP07 T038 (lane start labelled "WP04 tip").

@@ -1,0 +1,28 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+- id: SPEC-FRESH-001
+  status: resolved
+  reason: FR-013 and FR-012 now define sizeBytes only as the fstat size of the opened handle with no content-derived substitute, and AC-CONTENT plants a redacted/decoded-length envelope as a failing case.
+- id: SPEC-FRESH-002
+  status: resolved
+  reason: FR-005 artifactPath is decided by eligibility (one lstat, independent of cap and readable), NFR-002 bars the listing and content opens from detail reads, and AC-DETAIL has the truncated-listing planted case.
+- id: SPEC-FRESH-003
+  status: resolved
+  reason: The acknowledgement table now has rows for AD-7 and AD-12 (plus AD-8 cap, AD-22, AD-13, AD-18, AD-19 and others), each with fixed-versus-added, conservative reading and reversal cost.
+- id: SPEC-FRESH-004
+  status: resolved
+  reason: AC-VERSION, SC-002 and FR-017 now run the breaking check and diff at 1.1.0-SNAPSHOT and the exact-1.1.0 assertion with 1.0.1 and 2.0.0 negatives on a scratch copy, leaving the real release commit to the release dry run.
+- id: SPEC-FRESH-005
+  status: resolved
+  reason: SC-008 and Out of Scope are qualified for contracts/tools and the test tree, the FR-015 row is in the acknowledgement table, and negative_cases.json (run by run_negative_cases.py in the negative-tests job, both present in this checkout) is named as a registry.
+- id: SPEC-FRESH-006
+  status: resolved
+  reason: Terminology now cites AD-2, OQ-3 is recorded as withdrawn, and the traceability rows map FR-013 to SC-003 and FR-014 to both AC-LIST and AC-CONTENT, matching the AC headers.
+- id: SPEC-FRESH-007
+  status: resolved
+  reason: One prompt-file definition in Terminology, bound to the work package's own wpId plus a hyphen with first-in-byte-order, is reused by FR-008, FR-010 and AD-18, and the fixture with two prompts and a stray tasks/WP-notes.md is specified.
+- id: SPEC-FRESH-008
+  status: resolved
+  reason: A single malformed-path predicate in Terminology (including ~/, drive letter, empty segment, trailing slash) is referenced by AD-9, AD-19, FR-010 and FR-014.

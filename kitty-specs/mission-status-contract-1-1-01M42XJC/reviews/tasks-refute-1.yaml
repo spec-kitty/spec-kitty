@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: tasks.md line 116 explicitly leaves the WP06 split undecided, WP06 has 8 subtasks (warning band at prompt.md:256) and about 1,900 lines, so the cited evidence is accurate.
+  - id: TASKS-DECOMP-002
+    verdict: confirmed
+    reason: WP05 per-subtask Files figures (250+150, 800, 1,000, 60) sum to about 2,260 against the stated 1,800, and tasks.md itself names T024 as a natural seam.
+  - id: TASKS-DECOMP-003
+    verdict: confirmed
+    reason: WP05 T029 says registrations land in the commit that creates the module, but T023 creates the module in the red-first commit and T029 is the last subtask, so the ordering is contradictory.
+  - id: TASKS-DECOMP-004
+    verdict: confirmed
+    reason: WP07 line 134 specifies EXTRA_ALLOWED_OD2_X as unused data (OD-2 Y decided) and line 70 retains "under the X-family" conditionals despite OD-1 X-pure being decided.
+  - id: TASKS-DECOMP-005
+    verdict: refuted
+    reason: tasks.md line 158 already flags the lane-a/lane-b dependency for orchestrator verification with a stated fallback, and the baseline-contamination consequence rests on an unverified lane-gating behaviour.
+  - id: TASKS-DECOMP-006
+    verdict: refuted
+    reason: WP09 context states the orchestrator never appends while WP09 runs and T051 requires each entry to name its source, so de-duplication by re-reading the append-only files is workable and the collision claim is speculative.
+  - id: TASKS-DECOMP-007
+    verdict: confirmed
+    reason: wps.yaml lists SC-001..SC-008 and C-003/C-004 for WP09 and tasks.md lists WP09 under every SC while its own note says the column is the work that builds the proof, and WP09 only records evidence.
+  - id: TASKS-DECOMP-008
+    verdict: confirmed
+    reason: WP04 line 211 permits an at-sign path example only if built without typing a literal, which is impossible for a committed YAML example, and cites OD-4 X although OD-4 is decided.

@@ -1,0 +1,144 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: cover
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: TASKS-COVER-001
+    lens: coverage-traceability
+    severity: 3
+    title: AD, CL, OQ and AC rows of the coverage tables are not traceable into the WP prompts
+    evidence:
+      - artifact: "tasks.md § Clarifications and decisions; § Acceptance criteria groups, open questions and operator decisions"
+      - artifact: "tasks/WP01..WP09 (body text, grep per id and WP)"
+    claim: >
+      Mechanical check (script over tasks.md rows joined with each prompt body, 240 id/WP pairs):
+      the FR, NFR, SC and C pairs all appear in the named prompt, but 127 pairs from the CL, AD, OQ and
+      AC rows do not. AC-LIST, AC-DETAIL, AC-CONTENT, AC-VERSION, CL-2..CL-5, OQ-1..OQ-6 and AD-1..AD-12,
+      AD-15..AD-17, AD-20..AD-22 are cited in no prompt at all. Only AD-13, AD-14, AD-18, AD-19, CL-1 and OD-n
+      appear. No prompt references spec.md, although tasks.md says it is reference material for every WP.
+      WP05 (7 subtasks, tasks.md maps AD-1,2,4..12,14,15,17..19,21,22 to it) names no AD id. The rows say
+      "spec Traceability table (requirements that cite it)", which is derived from requirement_refs, not
+      from what the prompt tells the implementer or reviewer to honour. I confirmed the derivation itself
+      is correct (all 21 AD rows and CL-1..CL-4 recompute exactly from the spec Traceability table joined
+      with wps.yaml), so this is a prompt-side gap, not a table error. Decisions such as AD-5 (status
+      pairing), AD-8 (listing cap) and AD-21 (500 source_unreadable) reach the implementer only through
+      data-model.md and the contract notes, which the prompt cites by section, so the reviewer cannot check
+      a WP against its AD list from the prompt.
+    remediation: >
+      Add one line per prompt, "Decisions honoured: AD-n ..., CL-n, OQ-n, AC-x (spec.md, Decisions and
+      Traceability)", taken from the tasks.md rows for that WP, and add spec.md to each Context section.
+      Alternatively state in tasks.md that AD/CL/OQ/AC traceability is by the contract notes only and name,
+      per AD, the data-model or contract-note section that carries it.
+  - id: TASKS-COVER-002
+    lens: plan-mapping-parity
+    severity: 3
+    title: SC-004 and SC-005 omit the WP that builds their proof (WP06, WP02); the plan names IC-07 and IC-02
+    evidence:
+      - artifact: "tasks.md § Success criteria (SC-004 -> WP08, WP09; SC-005 -> WP08, WP09)"
+      - artifact: "plan.md § Traceability (SC-004 IC-07 and IC-08; SC-005 IC-02 and IC-08)"
+      - artifact: "spec.md § SC-004, SC-005; wps.yaml WP02 and WP06 requirement_refs"
+    claim: >
+      SC-004 (changed, unchanged, unknown each produced by the constructed cause in synthetic repositories,
+      listed mutations killed) is delivered by WP06 T034..T036, and SC-005 (planted negative that fails and
+      clean control for each endpoint) by WP02 (25 planted kinds, FR-023 leak half). Neither WP carries the SC
+      in requirement_refs or in its prompt (grep: no SC-004 in WP06, no SC-005 in WP02), while WP08 and WP09 do.
+      The tasks.md note says the WP column of SC rows "is each work package's requirement_refs", which is true
+      but means the owning WP of the proof is not accountable for the criterion. A reviewer of WP06 or WP02
+      is never told the criterion exists.
+    remediation: >
+      Add SC-004 to WP06 and SC-005 to WP02 requirement_refs (wps.yaml and prompt frontmatter) and cite them
+      in the Definition of Done, or add an explicit sentence under the SC table that WP06/WP02 build the proof
+      and WP08/WP09 only re-measure it.
+  - id: TASKS-COVER-003
+    lens: plan-mapping-parity
+    severity: 2
+    title: FR-008 and FR-020 plan mappings lost one WP each (WP05, WP08)
+    evidence:
+      - artifact: "plan.md § Traceability (FR-008: IC-04, IC-06 (eligibility), IC-07; FR-020: D-P8, every check's fail-loud column, IC-08)"
+      - artifact: "tasks.md § Functional requirements (FR-008 -> WP04, WP06; FR-020 -> WP05, WP06, WP07)"
+    claim: >
+      FR-008 (artifactReferences) depends on the eligibility function that WP05 builds (WP06 T033 step 3 says
+      it uses the WP05 eligibility function), and plan IC-06 names eligibility for FR-008; tasks.md and
+      requirement_refs of WP05 omit FR-008. FR-020 (checks that cannot do their job fail) is mapped by the
+      plan to IC-08 (floors, controls, examined equals discovered) but WP08 lacks FR-020 in refs and tasks.md.
+      Implementation is not wrong (the work is in the prompts), but the mapping departs from the plan's table
+      without a stated reason.
+    remediation: >
+      Add FR-008 to WP05 and FR-020 to WP08 requirement_refs and tasks.md rows, or record under the table why
+      the plan's IC mapping is narrowed.
+  - id: TASKS-COVER-004
+    lens: coverage-accuracy
+    severity: 2
+    title: C-003 row names WP05 and WP09 but its own note says WP07 checks it
+    evidence:
+      - artifact: "tasks.md § Constraints (C-003 -> WP05, WP09) and the note below it ('checked by the WP07 scope data')"
+      - artifact: "tasks/WP07 requirement_refs (no C-003); tasks/WP05 requirement_refs (C-003), WP05 owns no file under kitty-specs/"
+      - artifact: "plan.md § Traceability (C-003: Reflexivity items 3 and 7; add-only directory)"
+    claim: >
+      Row and note disagree. WP05 is credited with C-003 although its only text on the point is the
+      common hygiene bullet that every WP carries (and C-004 already covers that); WP07, which per the note
+      carries the scope data and add-only proof, is not listed and has no C-003 ref.
+    remediation: >
+      Move C-003 from WP05 to WP07 (keep WP09), or reword the note to say WP05 holds it through hygiene only.
+  - id: TASKS-COVER-005
+    lens: decided-options
+    severity: 3
+    title: OD-3 "documented in the contract" has no WP that writes it into the contract
+    evidence:
+      - artifact: "plan.md § Operator decisions (OD-3: 'the rule is documented in the contract')"
+      - artifact: "tasks.md § OD-3 row (WP06, WP08 only)"
+      - artifact: "tasks/WP04 (no mention of duplicate ids or byte order); data-model.md row 'Work package of a Mission'"
+    claim: >
+      The decided option says the first-in-byte-order duplicate rule is documented in the contract. The rule
+      appears in plan D-P6, data-model.md and in WP06/WP08 as test behaviour, but no WP04 subtask (the owner of
+      the getWorkPackageDetail path, WorkPackageDetail and the 404 response descriptions) tells the author to
+      state it in the published contract text. A consumer of the module would not learn that an id held by two
+      files is served by the first regular non-symlink file in byte order.
+    remediation: >
+      Add to WP04 T017/T019 a step: the path or schema description for getWorkPackageDetail states the
+      duplicate-id rule (OD-3, D-P6) and add WP04 to the OD-3 row; or record in tasks.md that "the contract" means
+      data-model.md and nothing is to appear in the openapi text.
+  - id: TASKS-COVER-006
+    lens: file-references
+    severity: 1
+    title: New-file breakdown in tasks.md is wrong for WP03 and WP04
+    evidence:
+      - artifact: "tasks.md § File references (WP03: '3 path files, 1 parameter'; WP04: '3 path files, 1 parameter')"
+      - artifact: "tasks/WP03 create_intent: paths 2, parameters 1, schemas 7, responses 7, examples 13 (30); tasks/WP04 create_intent: paths 1, schemas 11, responses 2, examples 8 (22)"
+    claim: >
+      The totals (30, 22) match create_intent, but the WP03 split sums to 31 and the WP04 split to 25, and WP04
+      adds no parameter. Plan says 3 paths and 1 parameter for the whole Mission, which matches 2+1 and 0.
+      All owned paths verified: every existing path exists on the checkout and every missing path is in
+      create_intent (no omissions, no create_intent entry that already exists).
+    remediation: "Edit the two lines: WP03 2 path files, 1 parameter; WP04 1 path file, 0 parameters."
+  - id: TASKS-COVER-007
+    lens: plan-mapping-parity
+    severity: 2
+    title: CL-5 mapping is justified but incomplete and uses a different basis than the other rows
+    evidence:
+      - artifact: "tasks.md § CL-5 (WP02, WP04, WP06) versus OQ-5 row (WP03, WP04)"
+      - artifact: "spec.md § CL-5 (1)-(7), OQ-5, OQ-6, AD-20, FR-015"
+    claim: >
+      The spec Traceability table never cites CL-5, so the author derived it from CL-5 content: (2) OQ-2 ->
+      WP06, (3)-(4) OQ-5/OQ-6 and WorkPackageDetailRefusal -> WP04, (5) glob rule -> WP06, (6) FR-015 ack ->
+      WP02. That justification holds for those WPs. But CL-5 (3) also says all three new operations carry a
+      refusal code on their 404, which is WP03's ArtifactRefusal, and the tasks.md OQ-5 row lists WP03 itself.
+      CL-5 (1)(7) acknowledge AD-5..AD-22, which tasks.md maps to WP03, WP05, WP07, WP08 as well. The row
+      therefore contradicts the OQ-5 row. I judge the author's CL-5 addition justified, not a fabricated row.
+    remediation: "Add WP03 to the CL-5 row (consistent with OQ-5), and state that the acknowledgement of AD-5..AD-22 is carried by their own rows."
+  - id: TASKS-COVER-008
+    lens: wrap-up
+    severity: 1
+    title: tasks.md omits the plan's "hold the PR if the tag is missing" fallback and keeps X-family wording
+    evidence:
+      - artifact: "tasks.md § Shape of the delivery, § Orchestrator-owned steps (D-0, W-6, W-7)"
+      - artifact: "plan.md § W-7 notes ('If the tag is missing when W-4 ends, the PR is held (D-0 fallback)')"
+      - artifact: "tasks/WP07 Context ('under the X-family, on WP06')"
+    claim: >
+      W-1..W-7 order, the tag dependency (needed from W-6 and W-7, asked for at D-0) and the draft-PR-last timing
+      are consistent between plan, tasks.md and the identical wrap-up paragraph in all nine prompts (md5 checked).
+      Two small leftovers: tasks.md does not carry the held-PR fallback when the tag is missing at the end of W-4,
+      and WP07 still reads "under the X-family" although OD-1 is decided as X-pure. No ACK-1 or live-module task
+      leaked into any WP: the only hits are the explicit "ACK-1 is void" and "no live module" statements.
+    remediation: "Add one sentence to the D-0 row of tasks.md on the held-PR fallback; replace 'under the X-family' with 'under X-pure' in WP07."

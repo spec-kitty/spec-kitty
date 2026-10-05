@@ -1,0 +1,329 @@
+{
+  "event_count": 87,
+  "last_event_id": "01M45DHWQF9VVM6BYH8Y2N588W",
+  "materialized_at": "2026-10-05T06:55:52.559955+00:00",
+  "mission_number": "215",
+  "mission_slug": "mission-status-contract-1-1-01M42XJC",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 9,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45DHNS6QEJDXVC35HVHQ68Q",
+      "last_transition_at": "2026-10-05T06:55:45.446891+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Campsite: git_init/commit_all hoisted, 8 call sites replaced; 734 passed before and after",
+        "Review passed: byte-identical hoist, 734 baseline held, revert red"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261004",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1317673,
+      "shell_pid_created_at": "1791117830.52",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45DHHTS4MSYK5XR3D9Q025M",
+      "last_transition_at": "2026-10-05T06:55:41.401192+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Tool extension done: 33 kinds, artifact-path class, scoped text-pass mask; all gates green",
+        "F1 fixed: line_break reason after nul, line-break values unmasked, new plant kind + manifest case",
+        "Re-review passed: line-break leak fixed incl. CR/U+2028/NEL; no weakening; gates green"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20261004",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45DHPTKWFB4TG1217KC0BQ1",
+      "last_transition_at": "2026-10-05T06:55:46.515761+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Artifact reads added: 7 schemas, parameter, 7 responses, 2 paths, 13 examples, 1.1.0-SNAPSHOT, pins; red-first 494f460c0; all gates green",
+        "Independent review approved: additive only, breaking_check 0, ten contract checks green, negative cases 3x green; report c11-wp03-review.md",
+        "ArtifactKind values renamed to snake_case; vacuum lint 0 violations, planted kebab refused; 10 checks, breaking=0, negatives, ruff, tests/contract pass",
+        "Cycle 3 approved: ArtifactKind snake_case rename complete; J-1 JVM replay PASS on lane tip (127/127 negative cases, lint violations=0, breaking=0); report c11-wp03-review-3.md"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP03:20261004",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45DHQSXQ126WZR7QQ9K930G",
+      "last_transition_at": "2026-10-05T06:55:47.517433+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP04 contract slice B: getWorkPackageDetail, 11 schemas, 2 responses, path key, 8 examples, 2 pins (enums=7 values=43); breaking=0 vs 1.0 baseline, all ten contract checks green",
+        "Cycle 2: F1 ReviewCycle pointer segments now match assert_safe_path_segment (differential test), F2 planningBranch maxLength 255; all gates green",
+        "Cycle 2 independent review approved: F1 pointer pattern no wider than validator (28 adversarial cases, differential test proven red on revert), F2 planningBranch maxLength; contract gates green, breaking=0; 2 arch reds pre-existing on base; report c11-wp04-review-2.md"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP04:20261004",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45DHRSPEW9XEPP265MXSG5C",
+      "last_transition_at": "2026-10-05T06:55:48.534525+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Reader foundation and artifact reader: 7 commits (red-first T023 with registration pair, helper foundation, reader seam/content/listing, full matrix with 6 killed mutations); fast + both heavy architectural shards run as CI runs them, only the 2 known pre-existing reds remain",
+        "Independent review approved (no sev>=3): spec-conformant reader, no src/ diff, full arch battery green bar 2 known env reds; sev-2 surviving mutants F1 (credential-before-redaction order) and F2 (nested research.md) go to the wrap-up fold list; report c11-wp05-review.md"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261004",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2020439,
+      "shell_pid_created_at": "1791127840.7",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45DHSSCC5QZBRS008FFR786",
+      "last_transition_at": "2026-10-05T06:55:49.548945+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Detail reader, matcher parity and the git change-state matrix: 8 subtasks, 239 detail tests, 23 killed mutations, full architectural battery run (2 known environmental reds only)",
+        "Independent review approved (no sev>=3): spec-conformant detail reader, no src/ or contracts/ diff, 10 own mutations killed, arch battery green bar 2 known env reds; wording fixes and the 064 anomaly routed; report c11-wp06-review.md"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP06:20261004",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2812394,
+      "shell_pid_created_at": "1791135140.26",
+      "subtasks": {
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45DHTRTBNFMV7T5QPDN6Y11",
+      "last_transition_at": "2026-10-05T06:55:50.554848+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "1.1 CHANGELOG entry final; pure proof module (119 tests: entry checks, minor_proof_problems rules a-c, scope_problems, terminology, credential kinds, refusal pairing, required examples, determinism) with registration pair; full architectural battery run (2 known env reds only); pre-tag acceptance recorded",
+        "Independent review approved (no sev>=3): CHANGELOG matches the real diff, proof module 7/7 own reverts killed, full arch battery green bar 2 known env reds, breaking=0; two sev-2 items to the wrap-up fold list; report c11-wp07-review.md",
+        "Rework per the no-new-version ruling: openapi 1.0.0-SNAPSHOT, merged CHANGELOG, additive_proof_problems, version-equality test, terminology scan narrowed. Gates and full battery green except one pre-existing red (accept-stamp) and one PATH-environment red that passes with the venv CLI first.",
+        "Rework approved: 1.0.0-SNAPSHOT kept, CHANGELOG merged with main's text byte-preserved, additive proof 6/6 reverts killed, breaking=0 against lowered-version main; sev-2 (in-tree proof self-baseline) covered by the W-7 rerun; report c11-wp07-review-2.md"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP07:20261005",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T038": "done",
+        "T039": "done",
+        "T040": "done",
+        "T041": "done",
+        "T042": "done",
+        "T043": "done"
+      }
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45DHVRHV0NX2R65BGH77YY9",
+      "last_transition_at": "2026-10-05T06:55:51.569823+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Reality-check extension: independent scans, byte-level oracle, examined+refused==discovered with an independently derived refused list, floors on the 200 count, pinned anomaly fixture, fixture-repository controls and 6 oracle mutants; no src/ change; local run 776 passed in 95 s",
+        "Cycle 2: credential-before-redaction pinned, floors restored with >= pin, oracle independence guard, non-comparable=0, nested research.md cases",
+        "Cycle 2 approved: credential-before-redaction pinned, plan-time floors restored and pinned, oracle-coupling guard, non-comparable=0; all gates green; report c11-wp08-review-2.md"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP08:20261004",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T044": "done",
+        "T045": "done",
+        "T046": "done",
+        "T047": "done",
+        "T048": "done",
+        "T049": "done"
+      }
+    },
+    "WP09": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M45DHWQF9VVM6BYH8Y2N588W",
+      "last_transition_at": "2026-10-05T06:55:52.559955+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Pre-tag close-out evidence, orchestrator-reported records and tracer assessment appended add-only to the three tracer files (3d40b18ac); hygiene scan zero hits on added lines",
+        "Independent review approved: 20 SHAs verified, 22 figures traced with 0 mismatches, add-only; wording items to the wrap-up fold list; report c11-wp09-review.md"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP09:20261005",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 778911,
+      "shell_pid_created_at": "1791155131.4",
+      "subtasks": {
+        "T050": "done",
+        "T051": "done",
+        "T052": "done"
+      }
+    }
+  }
+}

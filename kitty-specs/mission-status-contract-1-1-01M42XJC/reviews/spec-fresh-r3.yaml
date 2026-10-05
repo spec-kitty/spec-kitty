@@ -1,0 +1,224 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+- id: SPEC-FRESH-001
+  lens: testability
+  severity: 3
+  title: Permanent assertion that the tree carries 1.1.0-SNAPSHOT goes red at the release commit
+  evidence:
+  - artifact: spec.md § FR-017 observable 1 ('It also asserts that the Mission's own tree carries `1.1.0-SNAPSHOT`'),
+      AC-VERSION first bullet, US3 Independent Test
+  - artifact: 'spec.md § FR-017 observable 1 and FR-018: the release commit sets exactly 1.1.0 and is
+      not authored by this Mission'
+  claim: FR-017 puts the version check in the contract-tools tests the router runs, and requires that
+    test to assert the Mission's own tree carries 1.1.0-SNAPSHOT. The same spec says the release commit
+    rewrites info.version to exactly 1.1.0. Once that commit lands, the committed assertion fails on main,
+    so the proof as specified cannot survive the release it exists to enable. AC-VERSION states it as
+    an unconditional acceptance bullet.
+  remediation: Make the SNAPSHOT-state assertion a one-time Mission-review or PR-time check, or have the
+    committed test accept either 1.1.0-SNAPSHOT or 1.1.0 (the exact-1.1.0 scratch-copy test already covers
+    the release state). Say in AC-VERSION which assertions are permanent and which are pre-release evidence.
+- id: SPEC-FRESH-002
+  lens: scope-consistency
+  severity: 3
+  title: New enum pins need an edit of contracts/tools/enum_pins.json, which no scope statement allows
+  evidence:
+  - artifact: spec.md § FR-019 ('with the new enums (changeState, kind, encoding, the ArtifactRefusal
+      code) pinned'); AC-VERSION enum-pin bullet ('fails on a changed changeState value set')
+  - artifact: 'spec.md § Out of Scope last bullets, FR-015 (''the three files named above''), SC-008,
+      AC-VERSION no-product-change bullet: contracts/tools changes only in the files FR-015 names'
+  - code: 'contracts/tools/enum_pin_check.py: module docstring (a pin is a deliberate edit of enum_pins.json;
+      an unpinned enum is not checked)'
+  - code: 'contracts/tools/enum_pins.json: lists only LifecycleStatus, StatusLane, Topology'
+  claim: enum_pin_check only checks enums listed in enum_pins.json. Pinning the new enums, and making
+    the enum-pin check fail on a changed changeState set, requires editing that file. FR-015, Out of Scope,
+    SC-008 and the scripted diff of AC-VERSION all say nothing else under contracts/tools changes, and
+    the acknowledgement table's FR-015 row lists only leak_scan.py, fixture_builder.py and negative_cases.json.
+    An implementer must break one of the two statements, or the enum-pin AC is vacuous.
+  remediation: Add contracts/tools/enum_pins.json to the FR-015 file list, the acknowledgement row, Out
+    of Scope, SC-008 and the AC-VERSION scripted-diff allowance (or move the new pins to a pin file the
+    Mission may add).
+- id: SPEC-FRESH-003
+  lens: scope-consistency
+  severity: 2
+  title: Out of Scope, SC-008 and the AC-VERSION diff allow only version bump and index/path-map edits,
+    but FR-018 edits the existing CHANGELOG.md
+  evidence:
+  - artifact: spec.md § Out of Scope ('any change to an existing file under contracts/mission-status/
+      ... beyond the version bump and index/path-map additions'); SC-008; AC-VERSION no-product-change
+      bullet
+  - artifact: spec.md § FR-017 first paragraph and FR-018 (CHANGELOG entry is an allowed edit)
+  claim: contracts/mission-status/CHANGELOG.md is an existing file in the module, and FR-018 requires
+    a new entry in it. The three scope statements omit CHANGELOG, so the scripted scope check specified
+    in AC-VERSION fails on the Mission's own required edit. FR-017 names the CHANGELOG correctly; the
+    other three do not.
+  remediation: Add 'the CHANGELOG entry' to the allowed edits in Out of Scope, SC-008 and the AC-VERSION
+    scope bullet.
+- id: SPEC-FRESH-004
+  lens: correctness
+  severity: 3
+  title: AD-19's claim that a malformed path cannot occur for an eligible file is false, and the specified
+    outcome breaks the readable invariant
+  evidence:
+  - artifact: spec.md § AD-19 ('A path failing the artifact-path rule cannot occur for an eligible file
+      found by the walk; an implementation that would emit one fails the check rather than dropping the
+      file')
+  - artifact: spec.md § Terminology 'Malformed artifact path' and 'Eligible file'; AD-7 (readable true
+      implies content read succeeds); AC-LIST odd names
+  claim: A regular, non-symlink file whose name contains a backslash, a path over 512 characters, a first-level
+    directory named '~' (path '~/x'), or a name beginning with a drive-letter colon is eligible by the
+    Terminology definition and is found by the walk, yet its path is malformed by the predicate. A content
+    read of that listed path would be 400, which contradicts 'readable true implies 200' (AD-7, AC-LIST
+    invariant). 'Fails the check' is only a test-side outcome; for the service the listing behaviour is
+    undefined (drop, 500, or emit). The Linux file system allows all of these names, so the 'cannot occur'
+    sentence is unsound.
+  remediation: Either make the walk exclude files whose path is malformed (add this to FR-011 and the
+    'Eligible file' definition, so listing, content read and artifactReferences agree) or define the listing
+    outcome (500 artifact_listing_unreadable). Delete the 'cannot occur' sentence and add a synthetic
+    fixture for a backslash name and an over-512 path.
+- id: SPEC-FRESH-005
+  lens: correctness
+  severity: 3
+  title: '''Eligible file'' ignores symlinked parent directories, so artifactPath and artifactReferences
+    can be non-null for a path the content read answers 404'
+  evidence:
+  - artifact: spec.md § Terminology 'Eligible file' (regular file, not itself a symlink, not a root status
+      record) versus AD-6, AD-9, FR-013 table (404 for a path through a symlinked directory) and FR-014
+      (every component lstat-ed)
+  - artifact: spec.md § FR-005 artifactPath ('the lstat of one path'), FR-008 ('non-null exactly when
+      that file is eligible, so a link never points at a file the content read refuses as absent'), AC-DETAIL
+      artifactPath bullet
+  claim: Eligibility is defined on the final file only, and FR-005 builds artifactPath from one lstat
+    of the final path. A cycle file or prompt under a symlinked tasks/ or tasks/<wp-slug>/ directory is
+    a regular file and is eligible by that definition, so the link is non-null, but the content read refuses
+    the path as 404 (a symlink at any component). That falsifies the invariant FR-008 states and the AC
+    'a member naming a path the content read answers 404 for fails'. The AC tests only a symlinked cycle
+    file, not a symlinked directory.
+  remediation: 'Define ''eligible'' as: no component of the path below the Mission directory is a symlink,
+    the final entry is a regular file, and it is not a root status record; state that FR-005 and FR-008
+    lstat every component. Add a fixture with a symlinked tasks/<wp-slug>/ directory to FR-022 and the
+    AC.'
+- id: SPEC-FRESH-006
+  lens: testability
+  severity: 3
+  title: FR-021 'discovered' work packages are two different sets, and the detail's work-package universe
+    and 404 rule are undefined
+  evidence:
+  - artifact: 'spec.md § FR-021 floors (''work packages: the count of prompt files directly under tasks/
+      and of the snapshot''s work packages ... examined equals discovered''); AC-DETAIL (''for every work
+      package of the corpus''); FR-001 and AC-DETAIL absence bullet (''unknown work package is a 404'')'
+  - artifact: kitty-specs/mission-status-contract-v1-01M3WC5X/spec.md § D-4 (wpTotal is snapshot-based)
+      and FR-005 (workPackages are the file-backed work packages)
+  claim: On this checkout 8 of 547 Missions have work packages in the event log with no prompt file (for
+    example 035, 036, 037 and 023), so the prompt-file count and the snapshot count differ. One 'examined'
+    number cannot equal both. The spec also never says whether getWorkPackageDetail answers 200 or 404
+    for a snapshot-only work package, or for a prompt file with no events, and v1 itself uses two different
+    universes (D-4 versus the file-backed list). An implementer must guess, and the floor assertion either
+    fails or is skipped, which FR-021 forbids.
+  remediation: 'Pick one universe (suggest: the same one v1 getWorkPackage serves, stated by citation),
+    state the 404/200 rule for the snapshot-only and file-only cases, and make ''examined equals discovered''
+    compare against the independent count of that set only. Add a fixture for each divergent case.'
+- id: SPEC-FRESH-007
+  lens: correctness
+  severity: 2
+  title: NFR-002's exhaustive list of files a detail read opens omits files the fields need
+  evidence:
+  - artifact: spec.md § NFR-002 ('the only files it opens are the sources of its own fields (tasks.md,
+      lanes.json, the work package file and its review-cycle files)')
+  - artifact: spec.md § FR-004 (dependency title via WPMetadata.display_title and status lane from the
+      snapshot), FR-005 verdict (status events), FR-003 statusLane, AD-12 (worktree and git probes)
+  claim: Dependency titles require reading the dependency work packages' files (plural, not 'the work
+    package file'); statusLane, dependency lane and verdict require the status event log or snapshot;
+    Mission resolution reads meta.json. NFR-002 states these are the only files opened, and the counting-opener
+    test in AC-DETAIL would be written to that list, so a correct implementation fails it or the list
+    is silently widened.
+  remediation: 'Replace the list with a rule: sources of its own fields, including the Mission''s other
+    work package files named in dependencies, the status log or snapshot, meta.json and lanes.json, never
+    an artifact for artifactReferences or artifactPath. Keep the counting-opener assertion scoped to artifact
+    links.'
+- id: SPEC-FRESH-008
+  lens: testability
+  severity: 2
+  title: The 'terminology guard finds no feature' acceptance criterion names no existing guard
+  evidence:
+  - artifact: spec.md § AC-VERSION ('The terminology guard finds no "feature" in the new contract files')
+  - code: 'contracts/tools: no check scans for the word ''feature'' (grep over contracts/tools and contracts/lint
+      finds only forbidden property names)'
+  - artifact: 'project CLAUDE.md Terminology Canon: tests/architectural/test_no_legacy_terminology.py
+      gates two other retired terms and does not check Mission versus feature'
+  claim: No existing guard checks the word 'feature' in contract files, so the AC has nothing to run and
+    cannot fail. It also does not say how citations are handled when a cited symbol or path contains 'feature'
+    (for example a feature_dir parameter name in an x-source).
+  remediation: Replace it with a scripted, case-insensitive scan of the new contract files, examples and
+    CHANGELOG entry, with a planted negative and an allow-list for cited symbol names; name the test or
+    job that runs it.
+- id: SPEC-FRESH-009
+  lens: completeness
+  severity: 2
+  title: Statuses for a missing or duplicated path parameter, an ill-formed missionId or wpId, and an
+    unresolvable Mission directory on the content read are unspecified
+  evidence:
+  - artifact: spec.md § FR-012 (path 'required'), FR-013 table and order of decision (400 only for a malformed
+      path, code invalid_artifact_path), AD-9, FR-020
+  - code: 'contracts/mission-status/paths/missions_missionId_work-packages_wpId.yaml: v1 declares only
+      404 and default, so a bad id there is the codeless default Problem'
+  claim: The 400 row of ArtifactRefusal admits only invalid_artifact_path, but a request with no path
+    parameter, a repeated path parameter, a non-ULID missionId or a malformed wpId has no stated status
+    or code. Returning the framework's codeless 400 from an operation whose 400 schema requires a code
+    violates the contract. FR-009 gives artifact_listing_unreadable for a Mission directory that cannot
+    be read, but the content read has no code for the same state (artifact_unreadable is for an eligible
+    file, FR-020 only says 'a Problem').
+  remediation: 'State: a missing or repeated path is 400 invalid_artifact_path; an ill-formed missionId
+    or wpId follows v1 (default Problem or 404, say which); an unreadable Mission directory on the content
+    read is 500 artifact_listing_unreadable or artifact_unreadable (say which). Add one AC bullet.'
+- id: SPEC-FRESH-010
+  lens: completeness
+  severity: 2
+  title: The credential rule is defined only by a Python tooling list, not stated where a service implementer
+    reads it
+  evidence:
+  - artifact: spec.md § AD-17 (SECRET_PATTERNS in contracts/tools/leak_patterns.py is the authority),
+      FR-013 ('matches a credential pattern'), FR-019
+  - code: contracts/tools/leak_patterns.py:SECRET_PATTERNS
+  claim: A 422 decision, and therefore the listing's readable value, depends on four regular expressions
+    that live only in a test tool. Nothing requires the operation or ArtifactRefusal description to enumerate
+    the credential kinds (GitHub token, AWS access key id, PEM private-key header), so a service built
+    from the contract alone cannot reproduce readable or 422, and a later change to the tool silently
+    changes a released behaviour.
+  remediation: Require the description of the 422 response and of readable to list the credential kinds
+    recognised, and state that a change of that list is a behaviour change (or pin it by a test that compares
+    the description with SECRET_PATTERNS).
+- id: SPEC-FRESH-011
+  lens: correctness
+  severity: 2
+  title: FR-007 glob rule gives a silent false 'unchanged' for '**' that spans zero directories
+  evidence:
+  - artifact: spec.md § FR-007 rule 3 ('`**` behaves as `*`'; only a trailing /** or /* gets the prefix
+      rule), AD-20 ('guessing would risk a silent wrong unchanged')
+  - code: src/specify_cli/bulk_edit/diff_check.py:_glob_match (fnmatch plus a recursive '**' fallback)
+  claim: A pattern such as src/**/x.py does not fnmatch src/x.py (the literal slashes on both sides of
+    '**' require at least one directory), so a changed src/x.py reports 'unchanged'. That is the silent
+    wrong 'unchanged' that AD-20 says it avoids for braces, and the repository already has a matcher with
+    the zero-directory fallback. The mutation list in FR-022 pins the weaker rule, so the wrong answer
+    is locked in by tests.
+  remediation: Either adopt the zero-directory '**/' behaviour of the existing recursive fallback, or
+    classify patterns with '**' anywhere other than a trailing '/**' as 'unknown' like braces; add the
+    case to FR-022.
+- id: SPEC-FRESH-012
+  lens: consistency
+  severity: 1
+  title: Prompt-file pattern allows one digit while WpId needs two, and an AC wording is looser than the
+    malformed-path predicate
+  evidence:
+  - artifact: spec.md § Terminology 'Prompt file' (WP<digits>-..., 'the WpId pattern then -') and FR-010
+      rule 2 (tasks/WP<digits>-*.md)
+  - code: contracts/mission-status/schemas/WpId.yaml:pattern '^WP[0-9]{2,}$'
+  - artifact: spec.md § AC-LIST first bullet ('a path starting with / or containing ..')
+  claim: WpId requires at least two digits, so a file tasks/WP1-x.md is classed work-package-prompt by
+    FR-010 yet can never be any work package's prompt, and it inflates the FR-021 prompt-file count. Separately,
+    AC-LIST fails any path 'containing ..' while the predicate rejects only a '..' segment, so a legitimate
+    name such as v1..v2.md would be rejected by a literal reading.
+  remediation: Write the pattern as WP[0-9]{2,}- in Terminology and FR-010, and reword the AC to 'a ..-segment'.

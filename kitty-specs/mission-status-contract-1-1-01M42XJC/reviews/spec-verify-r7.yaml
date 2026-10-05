@@ -1,0 +1,85 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+profile: "debugger-debbie (squad-delegate mode; falsify, diff and converge applied: every FR-022 case run against both repository matchers, every mutation implemented and diffed against the real matcher)"
+results:
+  - id: SPEC-FRESH-011
+    status: resolved
+    remaining_severity: 0
+    reason: >-
+      FR-007 rule 3 (spec.md line 270) now only states that matching is the repository matcher
+      and has no algorithm of its own; AD-20 (line 109), its table row (line 65), CL-5 (ruling 5)
+      and the FR-022 cases say the same. Grep for stale remnants (zero-directory as a
+      difference, two differences, variants, fnmatchcase, AD-20 difference text, worked
+      examples, "differences from the repository"): none; "zero-directory" survives only as
+      the description of the stated cases. Cited ranges accurate: commit_guard.py 141-149 is
+      _matches_any_glob, tasks_move_task.py 838-847 is _mt_matches_owned_file. Ran both
+      functions with the repo venv python on every case (A = _matches_any_glob on the
+      normalised path, B = _mt_matches_owned_file; expected/A/B), all agree with the spec.
+      src/foo/** vs src/foobar/x.py F/F/F; src/foo/** vs src/foo/x.py T/T/T; plain src/foo vs
+      src/foo/x.py T/T/T; plain src/foo vs src/foobar/x.py F/F/F; [x]/* vs [x]/y T/T/T;
+      *.py vs src/x.py T/T/T; src/*.py vs src/a/x.py T/T/T; src/foo/* vs src/foo/a/b.py T/T/T;
+      a/*/c vs a/c/z T/T/T; src/**/x.py vs src/x.py F/F/F and vs src/a/b/x.py T/T/T; **/x.py vs
+      x.py F/F/F and vs a/x.py T/T/T; a/**/b/**/c vs a/x/b/y/c T/T/T and vs a/b/c F/F/F;
+      src/foo/** vs ./src/foo/x.py T/T/T and vs src\foo\x.py T/T/T (after normalising for A);
+      src/{a,b}.py vs src/a.py F/F/F and vs the literal src/{a,b}.py T/T/T (both would turn
+      the required unknown into a changed). Mutant killability (mutants implemented and
+      diffed against the real matcher on the stated cases): star-no-cross differs on *.py/src/x.py
+      and src/*.py/src/a/x.py; zero-directory ** differs on src/**/x.py/src/x.py, **/x.py/x.py,
+      a/**/b/**/c / a/b/c; dropping the directory-prefix rule differs on [x]/*/[x]/y and plain
+      src/foo/src/foo/x.py (and a/*/c); plain string prefix differs on src/foo/**/src/foobar/x.py
+      and src/foo/src/foobar/x.py; trailing-/*-only prefix differs on a/*/c/a/c/z and on plain
+      src/foo; no-normalisation differs on ./src/foo/x.py and src\foo\x.py. Every FR-022
+      mutation is killed by at least one stated case. The two defects of r6 are closed: the
+      plain-directory difference is gone because the spec now adopts the repository behaviour,
+      and the directory-prefix mutation is killable via [x]/* and plain src/foo.
+  - id: RULING-ACK
+    status: resolved
+    remaining_severity: 0
+    reason: >-
+      AD-15 and AD-16 carry "acknowledged by the operator 2026-10-04" in paragraph (lines 104,
+      105) and table row (lines 58, 59); the FR-015 row (line 64) is marked acknowledged as a
+      scope extension. Line 44 now lists only AD-1 to AD-4 as ordinary design choices, so the
+      range AD-5 to AD-22 and the exceptions list no longer contradict; CL-5 ruling (7) names
+      AD-15 and AD-16 within the range. No "needs operator acknowledgement" or awaiting text.
+  - id: R6-NEW-1
+    status: resolved
+    remaining_severity: 0
+    reason: >-
+      bootstrap.py (collect loop) catches (FrontmatterError, ValidationError), logs "malformed
+      frontmatter", increments result.skipped and continues; the missing work_package_id case is
+      skipped the same way. Terminology (line 29) states the skip for both, says it is not a 500
+      and not the FR-020 file that cannot be read; FR-021 (line 406) says skipped and counts for
+      nothing; FR-022 (line 423) has the WP-notes case plus an unparseable-frontmatter case
+      (not listed, detail 404, count unchanged, no exception, no 500) and the mutation
+      "turns it into a 500 source_unreadable or lets the exception escape", killed by the
+      unparseable case asserting the other work packages still answer 200. One residual wording
+      point is recorded as fresh finding R7-NEW-1 (severity 1).
+  - id: R6-NEW-2
+    status: resolved
+    remaining_severity: 0
+    reason: >-
+      AD-21 (line 110) lists three states and the stable codes artifact_unreadable,
+      artifact_listing_unreadable and, for the detail, source_unreadable in
+      WorkPackageDetailRefusal; the table row (line 66) lists source_unreadable on the detail
+      read; "Two states" wording is gone.
+  - id: R6-NEW-3
+    status: resolved
+    remaining_severity: 0
+    reason: >-
+      The FR-022 brace case (line 415) fixes a change set holding both src/a.py (matches an
+      expansion) and the literal src/{a,b}.py, expected unknown; the mutation (line 416) names
+      that case and says each path would turn unknown into changed. Verified by running the
+      matcher: both paths match (expansion path via no expansion: False; literal: True) so an
+      expanding or a literal-matching mutant each yields changed where unknown is required.
+fresh_findings:
+  - id: R7-NEW-1
+    severity: 1
+    reason: >-
+      FR-020 (line 389) still says a source that "exists but cannot be read or parsed" fails the
+      whole read with a 500 source_unreadable, listing "a Mission or work package file that
+      cannot be read". The Terminology entry carves out a WP*.md whose frontmatter does not parse
+      (skipped, never a 500), but FR-020 itself does not repeat the exception, so a reader of
+      FR-020 alone sees "parsed" and a work package file. Add "other than a WP*.md file whose
+      frontmatter does not parse, which is skipped (Terminology)" to FR-020. Wording only; the
+      test line and mutation in FR-022 already pin the intended behaviour.

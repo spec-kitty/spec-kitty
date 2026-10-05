@@ -1,0 +1,1 @@
+SUB-AGENT RULES (verbatim): read-only; no commits, no push; no git checkout, restore, reset, clean or stash; a denied command means stop and report; no further sub-agents; no pattern kills; set TMPDIR under the scratchpad; nothing left running.

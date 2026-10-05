@@ -1,0 +1,38 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: gh shows PR 5581 MERGED 2026-10-04 and main holds tests/contract/_mission_status_payloads.py (1273 lines, public-readers-only, build_detail already present), so spec FR-021, A-1, AD-15 and the risk row describe a stale premise.
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: _review_cycle_wp_dir is private and its answer depends on a materialized coordination worktree (with a primary fallback), while the projector load_source docstring says public readers only and resolve_read_dir promises a pure function of the tree; the spec defers the seam to OQ-2 without stating the determinism consequence.
+  - id: SPEC-ARCH-004
+    verdict: confirmed
+    reason: Problem.yaml has a free-string code and no examples, the v1 convention pins codes via module schemas such as StreamRefusal (allOf Problem plus enum plus status), and example_check requires every example to be referenced from a schema's examples list, so the FR-019 Problem examples have no home without editing _shared (forbidden by FR-017).
+  - id: SPEC-ARCH-005
+    verdict: refuted
+    reason: The spec already requires every x-derived property to state its rule and inputs in the contract (FR-003, FR-019) and says the service is not built from the reader, so the contract text is the authority; the Terminology wording is the same phrasing the merged v1 projector uses and is not a competing authority.
+  - id: SPEC-ARCH-006
+    verdict: confirmed
+    reason: _resolve_workspace_for_wp_impl calls require_lanes_json (MissingLanesError) and raises ValueError for a WP in no lane, and lane_branch_name requires target_branch and returns it for lane-planning, none of which FR-006/AD-12 states, leaving worktreePresent and laneBranch undefined in those cases.
+  - id: SPEC-ARCH-008
+    verdict: confirmed
+    reason: authored_subtask_roster raises SubtaskRosterResolutionError for a missing subtasks key or missing/ambiguous WP file, while v1's AuthoredGroup.subtasks uses normalize_authored_subtask_roster and never raises; the spec cites the raising function as x-source with no stated outcome and no equality control.
+  - id: SPEC-ARCH-009
+    verdict: refuted
+    reason: WPMetadata.validate_title rejects an empty or whitespace-only title ("title must not be empty"), so display_title cannot return an empty string for a validated model; the sibling-file read-guard point is a plan-level detail.
+  - id: SPEC-ARCH-010
+    verdict: confirmed
+    reason: FR-005/AD-13 do not say what happens with several events carrying the same pointer, and build_review_cycle_pointer raises ReviewCycleError on an unsafe segment while FR-005 says feedbackReference is always non-null, so that outcome is unspecified.
+  - id: SPEC-ARCH-011
+    verdict: refuted
+    reason: FR-017 already names _index.yaml entries, the openapi.yaml path map and the version bump as permitted edits and FR-019 pins the new enums, so the allow-list claim is wrong, and a rebase onto the release commit is implied by CL-2 (branch from main, release before the PR); OQ-1 resolution is not a defect.
+  - id: SPEC-ARCH-012
+    verdict: confirmed
+    reason: Every symbol the spec cites (dependency_readiness_for_wp, is_glob_pattern, merge_base_changed_files_checked, ensure_within_directory, read_lanes_json, AuthoredGroup fields, read_authored_wp_frontmatter, resolve_workspace_for_wp) exists at module or class level and no migration or packaged asset is implied.
+  - id: SPEC-COMPLETE-001
+    verdict: confirmed
+    reason: leak_patterns.leak_codes returns SECRET for GitHub tokens, AWS key ids and PEM headers and the projector's leak scan calls leak_codes over every payload node, yet FR-015, CL-3 and AC-CONTENT define only [path] and [email] and state no outcome for a secret in served content.

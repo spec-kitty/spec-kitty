@@ -1,0 +1,156 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: PLAN-VERIFY-001
+    lens: leak/redaction and planted negatives
+    severity: 4
+    title: The raw-text pass of leak_scan flags an at-sign file name, so the planned artifact-path controls and any example with such a path go red
+    evidence:
+      - artifact: "plan.md § D-P7 (the class replaces the host-path and e-mail scan, edit is in _Scanner.walk only)"
+      - artifact: "contracts/tool-extension-and-reader.md § A fixture_builder (control of every artifact-path kind holds a name with an at sign) and § leak_scan.py"
+      - code: "contracts/tools/leak_scan.py:112-118 (scan_text applies leak_codes(line, HUMAN) to every non-blank line of every file, before and independent of the structured walk)"
+      - code: "contracts/tools/leak_patterns.py:56-59 (EMAIL_PATTERN); run: leak_codes('data/icon@2x.png', human) returns ('EMAIL',)"
+      - code: "contracts/tools/run_negative_cases.py:160-168 (build_leak control keeps Control.clean.yaml and only unlinks the planted file)"
+    claim: >
+      The plan changes only the structured walk (_Scanner.walk). scan_text still runs the human patterns, including the
+      e-mail pattern, over the raw lines of the same YAML, so a control file (or a contract example) holding a path with an
+      at sign is reported as EMAIL in text. Every leak_scan invocation runs run_self_test, so CONTROL_FLAGGED would fire on
+      every run of the tool, in the Contracts workflow, the negative-tests job and the router tool job. The AD-19 premise
+      (an at-sign name is listed and must pass) is therefore not delivered by the planned edit. The same text pass also
+      catches a credential in a path, which contradicts AD-19's accepted-residual statement and the plan wording "instead of
+      ... host-path and e-mail".
+    remediation: >
+      State in D-P7 and in A how scan_text treats the artifact-path keys: either carry the odd names only in reader-level
+      tests (payload_leaks on built outputs, outside the contracts/ tree) and keep at-sign names out of every file under
+      contracts/ including the controls (home/<x>/ segments are safe in the text pass, at signs are not), or give scan_text a
+      per-line exemption for lines the structured pass attributes to a path key. Add a test that a contract example holding
+      an at-sign path passes leak_scan, and say explicitly whether SECRET stays scanned for path values.
+  - id: PLAN-VERIFY-002
+    lens: leak/redaction and planted negatives
+    severity: 3
+    title: The fixture_builder plant shape cannot express the planned artifact-path plants and controls, and the edit list does not say so
+    evidence:
+      - artifact: "contracts/tool-extension-and-reader.md § A (artifact path kinds planted into entries: [{path: <malformed>}], control holds four odd names)"
+      - code: "contracts/tools/fixture_builder.py:116-148 (_plant returns one (field, value, codes); build writes a flat mapping and sets planted[field_name] = value; _control is one fixed dict)"
+      - code: "contracts/tools/leak_scan.py:177-190 (run_self_test uses build and the CONTROL_FILE / PLANTED_FILE subjects)"
+    claim: >
+      The plan says KINDS and _plant gain 25 kinds. A flat field/value plant cannot put a value under entries[].path or under
+      artifactPath at a nested position, and the control cannot differ per kind. Doing it requires changing the _plant return
+      shape, build, BuiltFixture and the control, which also moves test_fixture_builder.py and run_negative_cases.build_leak.
+      The plan scopes none of that and lists the signature as untouched.
+    remediation: >
+      Add to section A the new _plant contract (a document fragment plus a per-kind control fragment), name BuiltFixture and
+      build as edited, and list the exact-KINDS test and a test that the old eight kinds still build byte-identically.
+  - id: PLAN-VERIFY-003
+    lens: test strategy (revert discipline)
+    severity: 3
+    title: Three of the 25 planted kinds are detected by the unchanged scanner, so they are not red-first and prove no new behaviour
+    evidence:
+      - artifact: "contracts/tool-extension-and-reader.md § A (content and title family: content-host-path-and-email, credential-in-content, credential-in-title)"
+      - artifact: "plan.md § Charter Check ATDD-first (red on the planning base)"
+      - code: "contracts/tools/leak_scan.py:112-118 (every line scanned with HUMAN patterns incl. host path, e-mail and SECRET)"
+      - code: "contracts/tools/fixture_builder.py:29-38,116-133 (host-path-human, email, github-token, aws-key, private-key already plant the same codes)"
+    claim: >
+      A key named content or title is already human text, so a host path, an e-mail address or a token there is found today
+      by both passes. The three kinds pass on the planning base and would still pass if the FR-015 edit were reverted, which
+      violates the plan's own rule that every changed behaviour has a test that fails when reverted. They give the
+      per-endpoint planted pair a false appearance of coverage.
+    remediation: >
+      Drop the three kinds from the tool registry, or re-home them as reader-level planted pairs (payload_leaks over a built
+      ArtifactContent with an unredacted body, and a built detail with a credential title), where they fail if the reader
+      stops redacting or withholding. Keep the 10 strict-name kinds (tilde is detected in the strict class only: verified)
+      and the artifact-path kinds (undetected today: verified for absolute, dot segment, empty segment).
+  - id: PLAN-VERIFY-004
+    lens: test strategy (vacuity)
+    severity: 3
+    title: The readable invariant over 15,561 pairs is tautological by construction
+    evidence:
+      - artifact: "plan.md § D-P8 (the listing runs the content-read function over every returned entry, so readable == (content read answers 200) holds by construction, asserted for every pair)"
+      - artifact: "plan.md § Test strategy AC-LIST row 'readable invariant ... 15,561 pairs compared with floors'"
+    claim: >
+      An equality between a function and itself cannot fail unless the code is edited to diverge, so asserting it over every
+      pair adds no oracle. The only independent evidence is the floors (14,000 / the 7 named files) and the synthetic
+      boundary cases; a wrong order of decision, a wrong credential rule or a wrong NUL rule that the reader applies
+      consistently in both places passes the invariant.
+    remediation: >
+      Add an independent byte-level classifier in the reality module (size over cap, NUL, strict UTF-8 decode, credential
+      regex), computed without the reader, and assert the per-file expected status and readable value against both the listing
+      and the content read; keep the by-construction check only as a wiring guard, labelled as such.
+  - id: PLAN-VERIFY-005
+    lens: test strategy (FR-023 per endpoint)
+    severity: 3
+    title: The per-endpoint planted pairs of FR-023 are not mapped one to one in the test strategy
+    evidence:
+      - artifact: "spec.md FR-023 (detail pair; listing: symlink absent and a planted listing example with an absolute path fails the artifact-path scan; content: redacted, refused, and a planted unredacted content example fails the example scan)"
+      - artifact: "plan.md § Test strategy (AC-LIST row says 'planted violations'; AC-CONTENT refusal row scans refusal examples only) and § Reality-check design notes (controls on 'a real payload')"
+    claim: >
+      No row names a planted ArtifactListing example with an absolute path, nor a planted ArtifactContent example with
+      unredacted host-path or e-mail text, each with its clean twin through leak_scan on a scratch contracts tree. The controls
+      paragraph speaks of one real payload, not one per new payload type (detail, listing, content, and both refusal bodies).
+    remediation: >
+      Add rows (home: test_mission_status_examples.py or the proof module) with a scratch copy of the contract tree holding the
+      planted example, expecting ARTIFACT_PATH_MALFORMED or HOST_PATH/EMAIL from leak_scan and schema failure, plus the clean
+      twin; extend the controls note to run the planted-and-control pair on a built detail, listing and content payload.
+  - id: PLAN-VERIFY-006
+    lens: gates
+    severity: 3
+    title: The gate table omits the always-on architectural-fast, layer-rules and import-linter jobs and takes no baseline for them
+    evidence:
+      - artifact: "plan.md § The gate set (e) ('TID251 import-linter | ruff run | Yes (inside ruff)'; architectural directory never swept; baseline = nine named files)"
+      - code: ".github/workflows/ci-router.yml:529-543 (separate import-linter job running ruff --select TID251), :598-610 (layer-rules), :648-672 (architectural-fast runs tests/architectural, not performance, on every PR)"
+      - code: "tests/architectural/_global_state_scan.py (scans every tests/ file for os.chdir, os.environ, sys.path mutation), tests/architectural/test_spec_kitty_home_pin_*.py"
+    claim: >
+      architectural-fast is router-gate input on every pull request and censuses all of tests/ (manual global-state mutation,
+      home pin, dead symbols, ratchets). Real-git synthetic repositories, worktrees and git identity setup in the three new test
+      modules are exactly the shapes those gates inspect. The plan lists neither the job nor a baseline, so the first signal
+      would be CI, after the work packages were approved (the repository has seen a WP approved with an introduced
+      architectural red). The TID251 row also names the wrong job.
+    remediation: >
+      Add the three jobs to the table as applying, name the specific architectural files that read tests/ (global-state, home
+      pin, dead-symbol allowlist) and run those named files at implement start and after each test module; take their baseline
+      in IC-01 next to the other baselines; fix the TID251 row (separate job, same command).
+  - id: PLAN-VERIFY-007
+    lens: gates
+    severity: 3
+    title: OD-1 option X also selects the 30-minute two-shard architectural-heavy battery, which the options table does not price
+    evidence:
+      - artifact: "plan.md § Operator decisions OD-1; § The gate set ('Architectural heavy battery ... CI-owned ... selected only if tests/architectural/** is edited')"
+      - code: ".github/workflows/ci-router.yml:259-268 (ci_config group includes .github/workflows/**) and :722-736 (architectural-heavy fires on ci_config or architectural), matrix 1/2 and 2/2, timeout 30"
+    claim: >
+      Option X edits both tests/architectural/test_ci_corpus_trigger_completeness.py and .github/workflows/packs.yml; either
+      alone selects architectural-heavy on the PR. Option Y edits neither. The plan mentions the first trigger softly, misses
+      the workflow trigger, and gives no baseline or cost for the battery, so the operator decides OD-1 on incomplete evidence
+      and a pre-existing red there would land on this PR unattributed.
+    remediation: >
+      Add to OD-1 the two triggers, the shard count and timeout, and a baseline of the heavy battery on the base (CI run link
+      or a recorded measurement), and state the consequence for the fallback Y (no heavy run).
+  - id: PLAN-VERIFY-008
+    lens: measurement honesty
+    severity: 2
+    title: The tool job runs without the project installed; the matcher parity test imports the CLI layer and was only proven in the full venv
+    evidence:
+      - artifact: "research.md R-3 (imports timed in the checkout venv) and R-6 (scratch environment ran only the payload helper tests, 157)"
+      - code: ".github/workflows/ci-router.yml:897-904 (uv sync --frozen --no-install-project, then pytest tests/contract)"
+      - code: "src/specify_cli/cli/commands/agent/tasks_move_task.py:59-176 (imports typer, mission_runtime, review, upgrade modules)"
+    claim: >
+      The claim that a new module runs in the tool job is evidenced for the payload helper imports, not for importing
+      specify_cli.cli.commands.agent.tasks_move_task, the largest import chain the plan adds to that job.
+    remediation: >
+      In the scratch environment of R-6, import both private matchers and run the 19-case parity table before the plan is
+      closed (or record the result in IC-07 as a first step); fall back to a source-text pin if the import fails there.
+  - id: PLAN-VERIFY-009
+    lens: measurement honesty
+    severity: 1
+    title: Corpus counts drift by five files between measurement and the current tree
+    evidence:
+      - artifact: "plan.md § Scale/Scope and research.md R-2 (15,561 eligible files, 16,622 in all)"
+      - code: "read-only walk of kitty-specs on this checkout: 15,566 eligible, 1,061 root status records (16,627 in all); other figures verified: 548 Missions, 126 largest tree, 80 without lanes.json, 12 without tasks.md, 3,197 files / 3,193 ids / 4 duplicate ids, 2 over-cap, 2 non-UTF-8, 3 NUL"
+    claim: >
+      The five-file delta is this Mission's own planning files (the corpus includes its own directory), which is consistent
+      with the margin rule but means no count may be pinned exactly; the plan already uses floors and examined equals
+      discovered, so no defect, only a note that the figures were measured before the plan files existed.
+    remediation: >
+      Add one sentence to R-2 stating the counts exclude this Mission's planning files, so the wrap-up re-measure expects +N.

@@ -1,0 +1,121 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: PLAN-FRESH3-001
+    lens: "debugger-debbie (contradiction between the new OD-1 notation and explicit X-only statements)"
+    severity: 3
+    title: "IC-05 ordering and registration ownership are stated \"X only\" although X-pure also has IC-05 registrations"
+    evidence:
+      - artifact: "plan.md § Operator decisions, 'Reading OD-1' (a statement about registrations and the lane binding under X holds for X-pure)"
+      - artifact: "plan.md § IC-05 Sequencing ('under OD-1 X only, after IC-07 ... Under Y it depends on IC-04 only') and Affected surfaces ('with OD-1 X two packs.yml deselects and two registry rows')"
+      - artifact: "plan.md § Lanes dependency table ('IC-05 | IC-04; X also IC-07') and 'Declared shared-file exceptions' (2) ('With OD-1 X ... IC-06, then IC-07, then IC-05')"
+      - artifact: "plan.md OD-1 X-pure cell: six registrations 'written by IC-06, IC-07 and IC-05 (once) in one dependency chain'"
+    claim: >
+      The OD-1 table says X-pure has three registrations written by IC-06, IC-07 and IC-05 in one chain, and the
+      reading note says such statements carry over. The work-package sections say the opposite in so many words: the
+      IC-05 to IC-07 dependency is "X only", IC-05 owns "two" registrations only under X, and the shared-file chain is
+      "with OD-1 X". Under the recommended X-pure option a tasks author following the literal sections gives IC-05 a
+      dependency on IC-04 alone while it still appends one --deselect to the single physical line of packs.yml and one
+      registry row. The write-scope overlap forces one lane, but nothing orders IC-05 against IC-06 and IC-07 inside
+      it, which is exactly the concurrent edit of the one-line command that OD-1 item (1) says the chain prevents.
+      The explicit "X only" and "Under Y" wording also leaves X-pure unplaced in the table.
+    remediation: >
+      In the IC-05 section, the dependency table and shared-file exception (2), write "X or X-pure" for the
+      IC-05-after-IC-07 edge and the registration chain (one pair under X-pure, two under X), and keep "Y" as the only
+      case with no edge.
+  - id: PLAN-FRESH3-002
+    lens: "debugger-debbie (three-way fork: counts and applicability swept across the plan)"
+    severity: 2
+    title: "Remaining X-or-Y assumptions after the three-option split, and the plan text is written for a non-recommended option"
+    evidence:
+      - artifact: "plan.md § The one pull request, compaction shape ('(5) ... under OD-1 X, their registrations'; '(7) ... under X, its registrations')"
+      - artifact: "plan.md § Complexity Tracking row 1 ('four --deselect entries and four registry rows ... (OD-1 X)')"
+      - artifact: "plan.md § Risks P-5 and 'Final report notes' (ACK-1 'awaits the operator's acknowledgement', unconditional)"
+      - artifact: "quickstart.md table row architectural-heavy ('plan OD-1 X') and 'Scope check' module sentence ('under OD-1 Y' only)"
+      - artifact: "plan.md § Operator decisions: 'written for the X layout' versus the OD-1 recommendation 'X-pure'"
+    claim: >
+      Several sentences still name only X (or X and Y). The Complexity row records four and four for the option the
+      plan recommends against; the compaction shape omits X-pure's registrations (so the rule that a module's
+      registrations ride in its own commit has no X-pure statement); the final report note says ACK-1 awaits
+      acknowledgement although it is void under X-pure and Y; the quickstart heavy-battery row cites X alone. None
+      changes a decision, but the plan is declared written for X while recommending X-pure, so an operator who takes
+      the recommendation gets a plan whose WP-facing text must be edited by the tasks author, in the place where
+      PLAN-FRESH3-001 already shows it goes wrong.
+    remediation: >
+      Sweep each "X" or "X (four)" statement: say "X or X-pure (X-pure: three)" or "ACK-1, X only". Consider writing
+      the plan text for the recommended option and stating the live module as the X-only addition.
+  - id: PLAN-FRESH3-003
+    lens: "debugger-debbie (W-1 consolidation against the real CLI)"
+    severity: 2
+    title: "W-1 (ii) names the wrong branch as the consolidation target"
+    evidence:
+      - artifact: "plan.md § W-1 (ii) ('lands the lane branches on the Mission branch recorded in meta.json (issue-5625-mission-status-contract-1-1)')"
+      - artifact: "quickstart.md § Lane consolidation ('The target is the local Mission branch recorded in meta.json')"
+      - code: "src/specify_cli/lanes/models.py:123 (mission_branch is the integration branch kitty/mission-{slug})"
+      - code: "src/specify_cli/consolidation/executor.py:640 (prints 'Mission branch: lanes_manifest.mission_branch'); spec-kitty consolidate --help (--strategy is the 'mission to target' step, --target is auto-detected)"
+      - artifact: "meta.json: the key is target_branch (issue-5625-mission-status-contract-1-1); there is no mission_branch key"
+    claim: >
+      consolidate works in two hops: lane branches merge into kitty/mission-<slug> (from lanes.json), then that
+      branch merges into target_branch with the chosen strategy. meta.json records only the second. The plan calls
+      the meta.json branch "the Mission branch" and says the lanes land "on" it, so the dry-run forecast, the
+      recorded HEAD and the tree W-1 (iii) to W-4 read are described against the wrong ref, and the intermediate
+      kitty/mission branch (kept by --keep-branch) is not mentioned. The end state (consolidated HEAD of the primary
+      checkout) is probably still right; the description is not.
+    remediation: >
+      Say: lanes merge into kitty/mission-<slug>, which is then integrated into the target branch recorded in
+      meta.json (the primary checkout's branch); name both and state which one HEAD is.
+  - id: PLAN-FRESH3-004
+    lens: "debugger-debbie (W-1 against W-5 and C-011)"
+    severity: 2
+    title: "The quickstart consolidate command takes the default squash, which flattens the per-work-package red-first commits before the squad and compaction"
+    evidence:
+      - artifact: "quickstart.md § Lane consolidation (spec-kitty consolidate ... --keep-branch, no --strategy)"
+      - artifact: "plan.md § W-1 (ii) ('The strategy (default squash) ... is the orchestrator's choice, recorded in the PR body; W-5 arranges the history either way')"
+      - artifact: "plan.md § Charter Check ATDD-first (first commit of every work package is its failing test; reviewer verifies red then green)"
+      - code: "spec-kitty consolidate --help (--strategy merge|squash|rebase, default squash, applies to the mission-to-target step)"
+    claim: >
+      The plan leaves the strategy open in prose but the runnable command fixes the default. With squash the target
+      branch holds one commit for the whole Mission before W-4 (aggregate squad) and W-5; the per-work-package
+      red-first-then-green history survives only on lane branches, and only if --keep-branch is honoured to the end
+      of W-5. "W-5 arranges the history either way" hides that under squash the nine-commit shape must be rebuilt from
+      one tree by path splitting, which is not the same operation as reordering existing commits.
+    remediation: >
+      State the recommended strategy in W-1 (merge or rebase keeps the work-package commits for W-4 and W-5), put
+      --strategy in the quickstart command, and say what W-5 does under squash.
+  - id: PLAN-FRESH3-005
+    lens: "debugger-debbie (W-1 against the real tooling)"
+    severity: 2
+    title: "The issue-matrix row is specified as a hand-written issue-matrix.md; the tooling's canonical artifact is issue-matrix.json via issue-verdict"
+    evidence:
+      - artifact: "plan.md § W-1 ('write issue-matrix.md in the Mission directory (add-only)') and Standing Order 8 row"
+      - code: "src/specify_cli/tasks/issue_matrix.py:7 ('issue-matrix.json is the single canonical artifact ... no issue-matrix.md render is emitted')"
+      - code: "src/specify_cli/cli/commands/agent/issue_verdict.py:4 (the issue-verdict command sets rows on issue-matrix.json; .md is a legacy read and migrate-on-write)"
+    claim: >
+      W-1 was reworked in this revision but still instructs a hand-written legacy markdown file after accept. The
+      accept and review gates read the structured JSON with a closed verdict vocabulary; a hand-written .md is only
+      a fallback that issue-verdict later migrates. Writing it after accept also risks a second, divergent record if
+      finalisation already scaffolded the JSON.
+    remediation: >
+      Replace with: set one row per issue through spec-kitty agent issue-verdict (closed-set verdicts) on
+      issue-matrix.json, add-only, and check how the file was scaffolded at tasks finalisation.
+  - id: PLAN-FRESH3-006
+    lens: "debugger-debbie (option table fairness, OD-1 Y)"
+    severity: 2
+    title: "Option Y omits that the detail-reader git tests would inherit the module-level fast marker the plan forbids for them"
+    evidence:
+      - artifact: "plan.md § OD-1 Y cell ('What Y costs' lists size and serial run only) and contracts/tool-extension-and-reader.md test map (detail concern: Y home test_mission_status_payloads.py)"
+      - artifact: "plan.md § ACK-1 (b) (the detail module drops fast because pytest.ini defines fast as pure logic with no subprocess or git; 'reality module's fast marker beside its git init is a precedent not copied')"
+      - code: "tests/contract/test_mission_status_payloads.py:29 and test_mission_status_examples.py:35 (pytestmark includes fast)"
+      - code: "pytest.ini:57 (fast: no subprocess/git) and :68 (git_repo)"
+      - artifact: "tracer-tooling-friction.md F-19 (a module-level marker cannot be removed per test)"
+    claim: >
+      Under Y the change-state matrix with real git repositories and worktrees lands in a module marked fast, so it is
+      selected by the nightly fast-or-unit run and breaks the definition of fast the plan applies to X and X-pure.
+      The plan's own rule has no Y answer, and the Y cell does not list it as a cost, so the table understates Y's
+      price and the "nothing else in the plan changes" claim in the test map is not accurate.
+    remediation: >
+      Add the cost to the Y cell (git tests inherit fast, precedent in the reality module, or the module marker must
+      change), or state that Y keeps the existing precedent and say why the rule differs.

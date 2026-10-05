@@ -1,0 +1,534 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: confirmed
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+- id: PLAN-FIT-001
+  lens: spec-fidelity-scope
+  severity: 3
+  title: OD-1 X leaves the spec's scripted scope check (SC-008 / AC-VERSION scope) red on the Mission's
+    own diff
+  evidence:
+  - artifact: "plan.md \xA7 Operator decisions OD-1; \xA7 Departs from the spec item 5; \xA7 D-P10 (pure\
+      \ scope function)"
+  - artifact: spec.md Terminology 'Slice file set' items (4) and (5); NFR-007 / SC-008 scope bullet ('lists
+      only paths in the slice file set ... fails on a planted touched file ... outside the set')
+  - code: .github/workflows/packs.yml:285 (built-in-corpus-suite command)
+  - code: tests/architectural/test_ci_corpus_trigger_completeness.py:109
+  claim: 'Item (4) of the slice file set is the test tree under tests/contract/ and item (5) allows .github/
+    only for a new job. Under the recommended OD-1 X the branch touches packs.yml and a tests/architectural
+    file, both outside the set. The plan declares the departure in prose but never says what the D-P10
+    scope function''s allowed set is under X, nor that SC-008 and the AC-VERSION scope bullet change.
+    As planned, either the scope test fails on this Mission''s own PR evidence, or the allowed set is
+    quietly widened by the implementer, which weakens the one guard that proves NFR-007. The recommendation
+    text also underplays that Y stays entirely inside the set and the spec''s scope proof.
+
+    '
+  remediation: 'State in D-P10 and the Test strategy that the scope function takes the allowed set as
+    data, that under OD-1 X it names exactly the two extra paths (packs.yml, the corpus-trigger registry),
+    and that the planted-outside-path negative uses a path that is in neither set. Add to Departs from
+    the spec: "SC-008 and AC-VERSION scope bullet are read with these two paths added if OD-1 is X". Put
+    this in OD-1''s consequences column so the operator acknowledges it, not only the registrations.
+
+    '
+- id: PLAN-FIT-003
+  lens: reader-seam-rename-names
+  severity: 3
+  title: changed_paths returns GitPath objects and can raise ValueError; the plan maps only GitCommandError
+    and never says to convert to str
+  evidence:
+  - artifact: "data-model.md \xA7 changeState derivation step 2-3; research.md R-4 Decision; plan.md D-P4"
+  - code: src/kernel/git/listing.py:206 (parse_paths_z returns tuple[GitPath, ...]), :172-175 (_path calls
+      GitPath.parse)
+  - code: src/kernel/git/paths.py:21-57 (frozen dataclass with parts; GitPath.parse raises ValueError
+      on an empty, '.' or '..' component or an absolute path)
+  - code: src/kernel/git/runner.py:98-103 (run_git wraps timeout and OSError in GitCommandError)
+  claim: 'R-4 shows the seam''s output as a list of plain strings, but kernel.git.changed_paths returns
+    GitPath dataclass instances, which fnmatch and str.startswith (the matcher''s operations) cannot consume;
+    the reader must convert with as_posix(). Parsing the diff output also raises ValueError (not GitCommandError)
+    on a path git reports in a form GitPath.parse refuses. D-P4 and the data-model say only "a GitCommandError
+    makes every entry unknown", so a ValueError would escape as an unhandled exception (or, in the corpus-free
+    service, a 500 with no code) rather than the stated unknown. The parity test would not catch this,
+    because it feeds strings to the matcher.
+
+    '
+  remediation: 'In data-model step 2 and D-P4 state the conversion (path.as_posix()) and widen the failure
+    mapping to (GitCommandError, ValueError) -> unknown. Add a synthetic case for each: a diff the parser
+    refuses (monkeypatched parser or a crafted path) must give unknown, and the end-to-end changed/unchanged
+    case must run through the real seam, not through strings.
+
+    '
+- id: PLAN-FIT-004
+  lens: reader-seam-wp-file-identity
+  severity: 3
+  title: D-P6 treats the first wp_task_files entry as both the work package's file and its prompt file,
+    but the two are defined differently and wp_task_files is not limited to regular prompt files
+  evidence:
+  - artifact: "plan.md \xA7 D-P6 and OD-3 ('the same file is its prompt file')"
+  - artifact: spec.md Terminology 'Prompt file' (regular, non-symlink, name WP[0-9]{2,}-*.md, wpId is
+      the name up to the first hyphen)
+  - code: 'src/specify_cli/status/wp_metadata.py:732-743 (wp_task_files: any entry whose name starts with
+      ''WP'' and ends ''.md'', symlinks and directories included, no regular-file test)'
+  - code: src/specify_cli/status/bootstrap.py:67-70 (skips only FrontmatterError and ValidationError)
+  claim: 'The corpus shows 3,197 files, 0 symlinks and 0 cases where the name prefix and the frontmatter
+    id disagree (measured over the checkout), so the gap is invisible to the reality run. But the plan''s
+    universe and OD-3 key a work package by frontmatter id and call that file the prompt file, while the
+    spec''s prompt file is keyed by file name and must be regular and non-symlink. For a symlinked WP
+    file, a file such as WP-notes.md carrying a valid id, a name/id mismatch, or a directory named like
+    a WP file (read_authored_wp_frontmatter then raises an OSError, not a skipped class), the plan gives
+    no outcome, and a symlinked file would be read through (frontmatter, titles, owned files exposed)
+    against AD-6''s never-follow rule.
+
+    '
+  remediation: 'Add to D-P6: the authored file is the first regular, non-symlink entry of wp_task_files
+    in byte order for an id; a symlink or directory is skipped like an unparseable file (and counted by
+    an independent scan); the prompt file stays the spec''s name-keyed one and artifactReferences.prompt
+    / review-cycle slug use that, not the frontmatter file. Add synthetic cases: symlinked WP file, id/name
+    mismatch, WP-notes.md with a valid id, directory named WP01.md (each with the stated outcome).
+
+    '
+- id: PLAN-FIT-006
+  lens: reader-seam-git-input
+  severity: 2
+  title: The base ref passed to git comes from lanes.json unvalidated; nothing keeps it from being read
+    as an option
+  evidence:
+  - artifact: "data-model.md \xA7 changeState step 1 (git_merge_base(worktree, 'HEAD', target_branch));\
+      \ \xA7 workspace.laneBranch row (only laneBranch is pattern-checked)"
+  - code: src/specify_cli/core/vcs/git.py:954-975 (git_merge_base builds argv ['git','merge-base',ref_a,ref_b]
+      with no end-of-options marker)
+  - code: src/specify_cli/lanes/models.py:147,209 (target_branch is a bare str read from the manifest)
+  claim: 'laneBranch is projected through a strict branch pattern, but the target_branch handed to git
+    is whatever the manifest holds. A value beginning with ''-'' reaches git merge-base as an option.
+    The reader is the executable specification a read service will be built from, so the plan should not
+    leave the input rule implicit; the spec''s rule 1 only says the base ref must resolve.
+
+    '
+  remediation: 'In data-model step 1 require that target_branch passes the same strict branch pattern
+    as laneBranch (and does not start with ''-''), else every entry is unknown, and add a synthetic case
+    with a manifest holding an option-like target_branch (expect unknown and no git invocation observed
+    through the counting seam).
+
+    '
+- id: PLAN-FIT-007
+  lens: architecture-seam-concurrency
+  severity: 3
+  title: Three lanes each append to the single-line --deselect command in packs.yml; the plan's 'keep
+    the union' resolution is a guaranteed conflict
+  evidence:
+  - artifact: "plan.md \xA7 Concurrency and write scopes, declared shared-file exception (2); IC-05, IC-06,\
+      \ IC-07 affected surfaces"
+  - code: .github/workflows/packs.yml:285 (the whole corpus-suite pytest command, every --deselect, on
+      one physical line)
+  - artifact: "plan.md \xA7 Concurrency, declared shared-file exception (2); IC-05, IC-06, IC-07 each\
+      \ add one deselect and one registry row"
+  - code: .github/workflows/packs.yml:285 (the whole built-in-corpus-suite command, including every --deselect,
+      is one line)
+  - code: tests/architectural/test_ci_corpus_trigger_completeness.py:112 (_CORPUS_MARKED_MODULES, one
+      entry per line, so the registry itself merges cleanly)
+  claim: 'IC-05 (lane B), IC-06 and IC-07 (lane C) each add a --deselect in sorted position of one physical
+    line. Sorted positions differ but git merges by line, so any two lanes that both edit it conflict;
+    the plan relies on the later-merging lane resolving by hand and re-running gates, on a file that is
+    outside the slice. Until both registrations exist a module''s own pytest gates (same-tier uniqueness,
+    corpus trigger) are red in its lane, so ordering matters too.
+
+    '
+  remediation: 'Name a single writer for all three registrations (one commit, for example in IC-05 which
+    owns the earliest module, creating the three names up front or in the lane that merges last) and state
+    it in the shared-file exception; or sequence IC-05/IC-06/IC-07 for packs.yml only. Keep each module''s
+    own gate run as a named step of the concern that creates it.
+
+    '
+  also_reported_as:
+  - PLAN-SEQ-002
+- id: PLAN-SEQ-001
+  lens: Phasing / write-scope disjointness
+  severity: 3
+  title: Lane layout contradicts the dependency graph; three cross-lane dependencies have no carrier
+  evidence:
+  - artifact: "plan.md \xA7 Implementation Concern Map (j), Concurrency and write scopes (Lane A IC-02;\
+      \ Lane B IC-03..05; Lane C IC-01, IC-06, IC-07, IC-08)"
+  - artifact: 'plan.md IC-06 Sequencing: after IC-01 and IC-02 (predicate), needs IC-03; IC-07 needs IC-04;
+      IC-08 after IC-02, IC-03, IC-04, IC-06, IC-07'
+  - artifact: "plan.md \xA7 Concurrency: lane C runs IC-07 and the rest of IC-06 together"
+  claim: 'The plan asserts scopes are disjoint across lanes, but the dependencies cross all three lanes.
+    IC-06 (lane C) imports malformed_artifact_path from leak_scan.py (IC-02, lane A) and validates outputs
+    against schemas (IC-03, lane B); IC-07 (lane C) needs IC-04 (lane B); IC-08 (lane C) needs lanes A
+    and B. A lane worktree branches from the planning base, so lane C cannot see lane A or B work until
+    a merge, and nothing in the plan says when lane A/B are merged into lane C or whether the dependency
+    is expressed as a WP dependency (which the tooling resolves into one lane). Separately, a lane is
+    one worktree worked sequentially, yet lane C is said to run IC-07 and the rest of IC-06 together (two
+    concurrent WPs in one lane worktree, both appending to the same corpus registry and deselect line).
+
+    '
+  remediation: 'State the lane assignment as a table (WP, lane, depends-on, merge point) and make every
+    cross-lane dependency an explicit WP dependency so tasks finalisation places dependent WPs in the
+    carrier lane. Concretely: put IC-02 and IC-03 before IC-06 in a single reader lane, or name a convergence
+    WP/step ("merge lanes A and B into C before IC-06 starts"). Drop the claim that IC-07 and IC-06 run
+    concurrently within one lane, or give IC-07 its own lane with the same convergence rule.
+
+    '
+- id: PLAN-SEQ-003
+  lens: Release dependency (tag / baseline sequencing)
+  severity: 3
+  title: A committed test that fails until an external tag exists turns the tier-1 router job red for
+    the whole mission, against the spec's green-before-and-after wording
+  evidence:
+  - artifact: plan.md D-P10 (live test fails while the tag is missing); Departs from the spec item 10;
+      IC-05 Risks; Gate set row 1.1 proof module
+  - artifact: spec.md FR-017 item 1 (permanent assertions committed in the router tool tests, green before
+      and after the release) and item 5 (the only accepted red is the breaking-change job); A-4
+  - code: .github/workflows/ci-router.yml:882 (tests-contract-tools runs all of tests/contract, fetch-depth
+      0, needs of router-gate)
+  claim: 'The plan puts the tag-dependent live test in test_mission_status_contract_1_1.py, which lives
+    in the same module as the pure proofs and is selected by the same tier-1 job. From IC-05 until the
+    operator cuts the tag, any run of the tool selection is red, so a reviewer cannot tell a pre-existing,
+    accepted red from an introduced one inside the module that carries the version proof. Spec FR-017
+    says the committed assertions are green on both sides of the release and that the accepted red is
+    the Contracts breaking-change job only. Departure 10 notes the difference but treats it as consistent
+    with FR-020 and gives neither the operator nor the squad the choice. The plan''s mitigation is "WP
+    reviews run the pure tests and say so", which is a reviewer convention, not a gate.
+
+    '
+  remediation: 'Isolate the tag-dependent live test in its own module (or a distinct test id selectable
+    by -k) so the module of pure proofs is green pre-tag, and say in the WP acceptance criteria which
+    exact test ids are the only accepted red until the tag. Record the departure from FR-017 items 1 and
+    5 as a named operator acknowledgement (an OD or a Departs entry that cites the spec lines), not only
+    as an FR-020 reading. Give IC-05 a stated reviewer procedure: run the module with the live test deselected,
+    then run it alone and show the expected failure message.
+
+    '
+- id: PLAN-SEQ-004
+  lens: Release dependency (tag / baseline sequencing)
+  severity: 3
+  title: The accepted-red Contracts job can never be observed, and the JVM-only contract checks first
+    run on the draft PR, after compaction
+  evidence:
+  - artifact: 'plan.md Gate set row Contracts workflow gates (''breaking-change is red at 1.1.0-SNAPSHOT
+      until the tag exists (accepted state, CL-2)''); Branch contract (PR not opened before the tag; WPs
+      never push); quickstart.md table (Gradle validation, Java view, TypeScript client smoke, resolver
+      parity, release dry run: CI only)'
+  - code: '.github/workflows/contracts.yml:10-30 (triggers: pull_request and push to main only)'
+  - artifact: spec.md FR-017 item 5, A-4
+  claim: 'The Contracts workflow runs on pull requests and on pushes to main only. The plan opens the
+    PR only after the tag exists and never pushes earlier, so the stated accepted-red state of that workflow
+    is never observed; instead every Contracts job (vacuum lint, JVM validation, Java view, TypeScript
+    client smoke, resolver parity, release dry run, negative-tests with JVM cases skipped, 33 of 101)
+    executes for the first time on the draft PR. Three new operations and 27 new schema and response files
+    have only been exercised through the Python resolver. A failure at that point forces fix commits after
+    the compaction step the wrap-up rule orders before the PR, or a second compaction. The risk table
+    (P-1..P-9) has no row for this, and the PR-readiness bar is stated as if only the live test matters.
+
+    '
+  remediation: 'Add risk P-10 and a pre-PR shake-out step in IC-09 or the wrap-up: after the contract
+    tree is frozen (end of IC-05) the operator or orchestrator runs the Contracts workflow on a pushed
+    non-PR branch ref or a JVM-capable machine (workflow_dispatch is not available because the triggers
+    lack it, so name the mechanism), with the tag in place, before the aggregate squad. Reword the Gate
+    set row to say the red is a local-only expectation and not an observable CI state.
+
+    '
+- id: PLAN-SEQ-005
+  lens: Release dependency / wrap-up ordering
+  severity: 3
+  title: IC-10 and "evidence runs once, on the final tree" are inconsistent with a wrap-up that rebases
+    and compacts after the aggregate squad
+  evidence:
+  - artifact: plan.md Operator decisions, 'Dependency on the operator' (cut before the aggregate review
+      lets the live test and PR evidence run once, on the final tree)
+  - artifact: 'plan.md Branch contract wrap-up order (accept, cleanup, aggregate squad, compaction, rebase,
+      draft PR); Reflexivity item 6 (rebase onto the release commit, re-verify symbols, re-measure floors);
+      IC-10 (floors re-measured on the final tree, live baseline run after the tag; sequencing: after
+      everything and after the release); Point after which the 1.0.0 tag matters'
+  - artifact: research.md R-7 last bullet (expected two-line conflict in info.version and the CHANGELOG
+      heading at the rebase)
+  claim: 'The tree changes after the aggregate squad twice (compaction, then the rebase onto the release
+    commit that edits info.version and the CHANGELOG heading), so evidence recorded before the rebase
+    is not on the final tree, contradicting "run once". IC-10 is a work package yet depends on the operator''s
+    tag and on wrap-up steps that follow all work packages; if the tag is not yet cut when IC-01..IC-09
+    finish, IC-10 stalls the mission with no stated owner or fallback. The plan also never says when the
+    operator is asked to cut the tag: R-7 says only "before the aggregate review", although the release
+    is a maintainer action with unknown lead time and the single external unknown of the mission.
+
+    '
+  remediation: 'Split IC-10 into (a) pre-tag evidence (the --baseline-root run, counts, tracer) as a WP,
+    and (b) post-rebase evidence (live test against the tag, re-measured floors, symbol re-check) as a
+    named wrap-up step after the rebase, owned by the orchestrator; state that the aggregate squad runs
+    before the rebase and that (b) is the only evidence cited as final. Add an explicit dispatch point:
+    ask the operator for the tag at implement start (front-loading the external dependency), with a fallback
+    if it is not cut by the aggregate squad (hold the PR, the pure and baseline-root evidence stand).
+
+    '
+- id: PLAN-SEQ-006
+  lens: Phasing / front-loading risk
+  severity: 3
+  title: The riskiest unknown, the readers over the whole real corpus, is first exercised by the last
+    concern
+  evidence:
+  - artifact: plan.md Critical path (IC-01 to IC-06 to IC-07 to IC-08); IC-08 Risks (runtime, anomaly
+      floors); Departs from the spec items 1 and 14 (duplicates, re-measured counts)
+  - artifact: 'plan.md v1 comparison: v1 plan front-loaded an IC-07a spike (kitty-specs/mission-status-contract-v1-01M3WC5X/plan.md,
+      canonical $ref spike)'
+  claim: 'Planning already found four corpus surprises the spec did not know (duplicate ids, 80 versus
+    77 Missions without lanes.json, 168 unparseable cycle files, 29 status-log-only ids). Corpus-wide
+    behaviour, anomaly floors and the 6-minute budget are first tested in IC-08, behind five other concerns;
+    a reader defect that only the corpus shows lands after the readers, their synthetic tests, and the
+    proof module are written, so the rework falls on IC-06 and IC-07 after they were reviewed approved.
+    The plan states that IC-09/IC-10 verify afterwards, not that any slice reaches the corpus early.
+
+    '
+  remediation: 'Make IC-06 and IC-07 each end with a thin corpus smoke (examined equals discovered over
+    the real tree, no thresholds yet) as part of their acceptance, or move a reality-extension skeleton
+    (counts and the zero-exclusion guard only) ahead of the detail reader. IC-08 then adds floors, controls
+    and the fixture.
+
+    '
+- id: PLAN-SEQ-007
+  lens: Phasing / chokepoints
+  severity: 2
+  title: IC-09 has no write scope, so it cannot be a reviewable work package; IC-02 x IC-03/IC-04 integration
+    has no owner
+  evidence:
+  - artifact: 'plan.md IC-09 (Affected surfaces: none new, read, run, record) and IC-02 Sequencing (the
+      extended scan must pass every existing file and, at integration, every new one)'
+  - artifact: plan.md Concurrency (IC-02 in lane A, IC-03 and IC-04 in lane B)
+  claim: 'A work package with an empty diff has nothing to commit, review or approve in the implement-review
+    loop. Meanwhile the one cross-lane check that matters, that the new strict names and the artifact-path
+    class accept the new contract files and examples written in lane B, is deferred to an unnamed "integration"
+    and IC-09 lists no leak_scan or run_negative_cases command.
+
+    '
+  remediation: 'Fold IC-09 into the wrap-up checklist (or give it the registration write scope per PLAN-SEQ-002).
+    Add to IC-04 (or to the convergence step) an acceptance line that leak_scan.py, example_check.py and
+    run_negative_cases.py run green over the merged lane A and lane B trees.
+
+    '
+- id: PLAN-SEQ-008
+  lens: Phasing / one readable PR
+  severity: 2
+  title: No reading order or size budget for the single PR a human must read in a sitting
+  evidence:
+  - artifact: plan.md Branch contract (one PR); Project structure (about 52 new contract files, 21 examples,
+      2 helpers, 3 test modules, 7 edited test modules); Technical Context (reader and tests of the size
+      of the 1,273-line payload helper)
+  - artifact: plan.md Complexity Tracking (names only registrations, the matcher, the scanner class)
+  claim: 'The wrap-up compacts history but the plan gives no expected diff size, no ordering of the compacted
+    commits, and no rule for what a reviewer can skip (for example the mechanical contract files). The
+    lens question is whether the final diff is readable in one sitting; the plan only asserts one PR.
+
+    '
+  remediation: 'Estimate added lines by group (contract files, readers, tests, tooling) in the plan, and
+    state the compaction shape: for example one commit per concern in dependency order (campsite, tooling,
+    contract A, contract B, proof, readers, corpus extension, evidence) with the PR body stating the reading
+    order and the generated/mechanical groups.
+
+    '
+- id: PLAN-SEQ-011
+  lens: Campsite-clean
+  severity: 1
+  title: Campsite counts are slightly off and the campsite concern writes outside its stated scope
+  evidence:
+  - artifact: plan.md Campsite-clean (g) (commit-everything helper used three times; replace the nine
+      call sites) and IC-01 (write scope exactly two files)
+  - code: tests/contract/test_mission_status_reality.py:304,333,353,461,607,627 (six init statements,
+      with three different argument forms) and :321 (_commit_all definition), :337, :358 (two call sites)
+  claim: '_commit_all has one definition and two call sites, so the replaced call sites are eight, not
+    nine; the six init statements differ in form (a git prefix list, a -C path, a root variable), so they
+    are one literal pair rather than one repeated statement. IC-01 also records the baseline in tracer-approach.md
+    and the PR body, which are outside its stated ''exactly those two files''. None changes the implementation.
+
+    '
+  remediation: 'Correct the counts (six init sites, two _commit_all call sites plus the definition) and
+    state that IC-01 additionally appends to the tracer file, or move that record to the wrap-up.
+
+    '
+- id: PLAN-VERIFY-001
+  lens: leak/redaction and planted negatives
+  severity: 4
+  title: The raw-text pass of leak_scan flags an at-sign file name, so the planned artifact-path controls
+    and any example with such a path go red
+  evidence:
+  - artifact: "plan.md \xA7 D-P7 (the class replaces the host-path and e-mail scan, edit is in _Scanner.walk\
+      \ only)"
+  - artifact: "contracts/tool-extension-and-reader.md \xA7 A fixture_builder (control of every artifact-path\
+      \ kind holds a name with an at sign) and \xA7 leak_scan.py"
+  - code: contracts/tools/leak_scan.py:112-118 (scan_text applies leak_codes(line, HUMAN) to every non-blank
+      line of every file, before and independent of the structured walk)
+  - code: 'contracts/tools/leak_patterns.py:56-59 (EMAIL_PATTERN); run: leak_codes(''data/icon@2x.png'',
+      human) returns (''EMAIL'',)'
+  - code: contracts/tools/run_negative_cases.py:160-168 (build_leak control keeps Control.clean.yaml and
+      only unlinks the planted file)
+  claim: 'The plan changes only the structured walk (_Scanner.walk). scan_text still runs the human patterns,
+    including the e-mail pattern, over the raw lines of the same YAML, so a control file (or a contract
+    example) holding a path with an at sign is reported as EMAIL in text. Every leak_scan invocation runs
+    run_self_test, so CONTROL_FLAGGED would fire on every run of the tool, in the Contracts workflow,
+    the negative-tests job and the router tool job. The AD-19 premise (an at-sign name is listed and must
+    pass) is therefore not delivered by the planned edit. The same text pass also catches a credential
+    in a path, which contradicts AD-19''s accepted-residual statement and the plan wording "instead of
+    ... host-path and e-mail".
+
+    '
+  remediation: 'State in D-P7 and in A how scan_text treats the artifact-path keys: either carry the odd
+    names only in reader-level tests (payload_leaks on built outputs, outside the contracts/ tree) and
+    keep at-sign names out of every file under contracts/ including the controls (home/<x>/ segments are
+    safe in the text pass, at signs are not), or give scan_text a per-line exemption for lines the structured
+    pass attributes to a path key. Add a test that a contract example holding an at-sign path passes leak_scan,
+    and say explicitly whether SECRET stays scanned for path values.
+
+    '
+- id: PLAN-VERIFY-002
+  lens: leak/redaction and planted negatives
+  severity: 3
+  title: The fixture_builder plant shape cannot express the planned artifact-path plants and controls,
+    and the edit list does not say so
+  evidence:
+  - artifact: "contracts/tool-extension-and-reader.md \xA7 A (artifact path kinds planted into entries:\
+      \ [{path: <malformed>}], control holds four odd names)"
+  - code: contracts/tools/fixture_builder.py:116-148 (_plant returns one (field, value, codes); build
+      writes a flat mapping and sets planted[field_name] = value; _control is one fixed dict)
+  - code: contracts/tools/leak_scan.py:177-190 (run_self_test uses build and the CONTROL_FILE / PLANTED_FILE
+      subjects)
+  claim: 'The plan says KINDS and _plant gain 25 kinds. A flat field/value plant cannot put a value under
+    entries[].path or under artifactPath at a nested position, and the control cannot differ per kind.
+    Doing it requires changing the _plant return shape, build, BuiltFixture and the control, which also
+    moves test_fixture_builder.py and run_negative_cases.build_leak. The plan scopes none of that and
+    lists the signature as untouched.
+
+    '
+  remediation: 'Add to section A the new _plant contract (a document fragment plus a per-kind control
+    fragment), name BuiltFixture and build as edited, and list the exact-KINDS test and a test that the
+    old eight kinds still build byte-identically.
+
+    '
+- id: PLAN-VERIFY-003
+  lens: test strategy (revert discipline)
+  severity: 3
+  title: Three of the 25 planted kinds are detected by the unchanged scanner, so they are not red-first
+    and prove no new behaviour
+  evidence:
+  - artifact: "contracts/tool-extension-and-reader.md \xA7 A (content and title family: content-host-path-and-email,\
+      \ credential-in-content, credential-in-title)"
+  - artifact: "plan.md \xA7 Charter Check ATDD-first (red on the planning base)"
+  - code: contracts/tools/leak_scan.py:112-118 (every line scanned with HUMAN patterns incl. host path,
+      e-mail and SECRET)
+  - code: contracts/tools/fixture_builder.py:29-38,116-133 (host-path-human, email, github-token, aws-key,
+      private-key already plant the same codes)
+  claim: 'A key named content or title is already human text, so a host path, an e-mail address or a token
+    there is found today by both passes. The three kinds pass on the planning base and would still pass
+    if the FR-015 edit were reverted, which violates the plan''s own rule that every changed behaviour
+    has a test that fails when reverted. They give the per-endpoint planted pair a false appearance of
+    coverage.
+
+    '
+  remediation: 'Drop the three kinds from the tool registry, or re-home them as reader-level planted pairs
+    (payload_leaks over a built ArtifactContent with an unredacted body, and a built detail with a credential
+    title), where they fail if the reader stops redacting or withholding. Keep the 10 strict-name kinds
+    (tilde is detected in the strict class only: verified) and the artifact-path kinds (undetected today:
+    verified for absolute, dot segment, empty segment).
+
+    '
+- id: PLAN-VERIFY-004
+  lens: test strategy (vacuity)
+  severity: 3
+  title: The readable invariant over 15,561 pairs is tautological by construction
+  evidence:
+  - artifact: "plan.md \xA7 D-P8 (the listing runs the content-read function over every returned entry,\
+      \ so readable == (content read answers 200) holds by construction, asserted for every pair)"
+  - artifact: "plan.md \xA7 Test strategy AC-LIST row 'readable invariant ... 15,561 pairs compared with\
+      \ floors'"
+  claim: 'An equality between a function and itself cannot fail unless the code is edited to diverge,
+    so asserting it over every pair adds no oracle. The only independent evidence is the floors (14,000
+    / the 7 named files) and the synthetic boundary cases; a wrong order of decision, a wrong credential
+    rule or a wrong NUL rule that the reader applies consistently in both places passes the invariant.
+
+    '
+  remediation: 'Add an independent byte-level classifier in the reality module (size over cap, NUL, strict
+    UTF-8 decode, credential regex), computed without the reader, and assert the per-file expected status
+    and readable value against both the listing and the content read; keep the by-construction check only
+    as a wiring guard, labelled as such.
+
+    '
+- id: PLAN-VERIFY-006
+  lens: gates
+  severity: 3
+  title: The gate table omits the always-on architectural-fast, layer-rules and import-linter jobs and
+    takes no baseline for them
+  evidence:
+  - artifact: "plan.md \xA7 The gate set (e) ('TID251 import-linter | ruff run | Yes (inside ruff)'; architectural\
+      \ directory never swept; baseline = nine named files)"
+  - code: .github/workflows/ci-router.yml:529-543 (separate import-linter job running ruff --select TID251),
+      :598-610 (layer-rules), :648-672 (architectural-fast runs tests/architectural, not performance,
+      on every PR)
+  - code: tests/architectural/_global_state_scan.py (scans every tests/ file for os.chdir, os.environ,
+      sys.path mutation), tests/architectural/test_spec_kitty_home_pin_*.py
+  claim: 'architectural-fast is router-gate input on every pull request and censuses all of tests/ (manual
+    global-state mutation, home pin, dead symbols, ratchets). Real-git synthetic repositories, worktrees
+    and git identity setup in the three new test modules are exactly the shapes those gates inspect. The
+    plan lists neither the job nor a baseline, so the first signal would be CI, after the work packages
+    were approved (the repository has seen a WP approved with an introduced architectural red). The TID251
+    row also names the wrong job.
+
+    '
+  remediation: 'Add the three jobs to the table as applying, name the specific architectural files that
+    read tests/ (global-state, home pin, dead-symbol allowlist) and run those named files at implement
+    start and after each test module; take their baseline in IC-01 next to the other baselines; fix the
+    TID251 row (separate job, same command).
+
+    '
+- id: PLAN-VERIFY-007
+  lens: gates
+  severity: 3
+  title: OD-1 option X also selects the 30-minute two-shard architectural-heavy battery, which the options
+    table does not price
+  evidence:
+  - artifact: "plan.md \xA7 Operator decisions OD-1; \xA7 The gate set ('Architectural heavy battery ...\
+      \ CI-owned ... selected only if tests/architectural/** is edited')"
+  - code: .github/workflows/ci-router.yml:259-268 (ci_config group includes .github/workflows/**) and
+      :722-736 (architectural-heavy fires on ci_config or architectural), matrix 1/2 and 2/2, timeout
+      30
+  - artifact: "plan.md \xA7 OD-1 (evidence: 'two registrations'); \xA7 Charter Check, 'Tiered rigour'\
+      \ row ('workflow YAML is not touched'); \xA7 Gate set 'Architectural heavy battery' row"
+  - code: '.github/workflows/ci-router.yml:253 (ci group), :256-268 (architectural group: tests/architectural/**;
+      ci_config group: .github/workflows/**)'
+  - artifact: plan.md OD-1 row; Charter Check Tiered rigour row ('workflow YAML is not touched'); Contracts
+      table (CI workflows Preserved); Gate set row Architectural heavy battery (selected in CI if tests/architectural/**
+      is edited)
+  - code: .github/workflows/packs.yml:285
+  - code: tests/architectural/test_ci_corpus_trigger_completeness.py:112
+  claim: 'Option X edits both tests/architectural/test_ci_corpus_trigger_completeness.py and .github/workflows/packs.yml;
+    either alone selects architectural-heavy on the PR. Option Y edits neither. The plan mentions the
+    first trigger softly, misses the workflow trigger, and gives no baseline or cost for the battery,
+    so the operator decides OD-1 on incomplete evidence and a pre-existing red there would land on this
+    PR unattributed.
+
+    '
+  remediation: 'Add to OD-1 the two triggers, the shard count and timeout, and a baseline of the heavy
+    battery on the base (CI run link or a recorded measurement), and state the consequence for the fallback
+    Y (no heavy run).
+
+    '
+  also_reported_as:
+  - PLAN-FIT-002
+  - PLAN-SEQ-010
+- id: PLAN-VERIFY-008
+  lens: measurement honesty
+  severity: 2
+  title: The tool job runs without the project installed; the matcher parity test imports the CLI layer
+    and was only proven in the full venv
+  evidence:
+  - artifact: research.md R-3 (imports timed in the checkout venv) and R-6 (scratch environment ran only
+      the payload helper tests, 157)
+  - code: .github/workflows/ci-router.yml:897-904 (uv sync --frozen --no-install-project, then pytest
+      tests/contract)
+  - code: src/specify_cli/cli/commands/agent/tasks_move_task.py:59-176 (imports typer, mission_runtime,
+      review, upgrade modules)
+  claim: 'The claim that a new module runs in the tool job is evidenced for the payload helper imports,
+    not for importing specify_cli.cli.commands.agent.tasks_move_task, the largest import chain the plan
+    adds to that job.
+
+    '
+  remediation: 'In the scratch environment of R-6, import both private matchers and run the 19-case parity
+    table before the plan is closed (or record the result in IC-07 as a first step); fall back to a source-text
+    pin if the import fails there.
+
+    '

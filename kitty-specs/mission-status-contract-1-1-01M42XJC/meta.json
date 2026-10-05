@@ -1,0 +1,35 @@
+{
+  "accept_commit": "c51fa9a0816c412f4d4c8358f9ebfc11dcd810ad",
+  "acceptance_history": [
+    {
+      "accept_commit": "c51fa9a0816c412f4d4c8358f9ebfc11dcd810ad",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-05T06:53:21.109369+00:00",
+      "accepted_by": "jeroennouws",
+      "accepted_from_commit": "9e060a7489631cc06ff45a25eda61c4fe9c31305"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-05T06:53:21.109369+00:00",
+  "accepted_by": "jeroennouws",
+  "accepted_from_commit": "9e060a7489631cc06ff45a25eda61c4fe9c31305",
+  "baseline_merge_commit": "39ac7081059c023e33a382b6b54372b9c15386fc",
+  "created_at": "2026-10-04T07:38:02.415602+00:00",
+  "flattened": false,
+  "friendly_name": "mission status contract 1 1",
+  "merged_at": "2026-10-05T06:55:40.419054+00:00",
+  "merged_commit": "3c789d17eb11339e6f1b3d7c91e36d282e682508",
+  "mid8": "01M42XJC",
+  "mission_id": "01M42XJC843HFNE15N1NK9HPQB",
+  "mission_number": 215,
+  "mission_slug": "mission-status-contract-1-1-01M42XJC",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances mission status contract 1 1 on issue-5625-mission-status-contract-1-1 so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "mission status contract 1 1",
+  "slug": "mission-status-contract-1-1-01M42XJC",
+  "status_phase": "1",
+  "target_branch": "issue-5625-mission-status-contract-1-1",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-04T12:43:52.553743+00:00"
+}

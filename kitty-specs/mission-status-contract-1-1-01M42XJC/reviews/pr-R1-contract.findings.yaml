@@ -1,0 +1,43 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: CONTRACT
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: PR-CONTRACT-001
+    lens: path and pointer grammars; silent-success paths
+    severity: 3
+    title: Root status records are excluded by exact-case name, so a case-variant path reads them on a case-insensitive host
+    evidence:
+      - artifact: "data-model.md 'Eligible file': eligible = not the root-level status.events.jsonl or status.json (exact names, root only); spec.md:165 states the case rule for listings only"
+      - artifact: "contracts/mission-status/paths/missions_missionId_artifacts_content.yaml and responses/ArtifactNotFound.yaml: the two root records 'are not artifacts' and are answered 404, with no statement of how names are compared"
+      - code: "tests/contract/_mission_status_artifacts.py:55 and :292 (ROOT_STATUS_FILES membership is a case-sensitive string compare on the request path)"
+      - artifact: "contracts/mission-status/CHANGELOG.md: 'Raw log rows are never forwarded' (the stream guarantee the exclusion protects)"
+    claim: >-
+      ArtifactPath accepts Status.Json or STATUS.EVENTS.JSONL. The eligibility rule compares the request path to the two names byte-for-byte, so such a path is eligible. The contract itself says several behaviours depend on the serving host. On a case-insensitive file system (macOS and Windows defaults) the open resolves to the real status record, and the raw event log is served as an ordinary artifact. Only host paths and e-mail addresses are redacted from it. That breaks the CHANGELOG guarantee that raw log rows are never forwarded and the 404 promise for the two records. The listing is unaffected because it shows real names. Linux CI cannot see this.
+    remediation: >-
+      State in the getArtifactContent description, the ArtifactNotFound response and the ArtifactPath description that the two root record names are matched without regard to case. Change is_eligible in tests/contract/_mission_status_artifacts.py to compare the single-segment path casefolded. Add a planted Status.JSON case to test_mission_status_artifacts.py that expects 404.
+  - id: PR-CONTRACT-002
+    lens: path and pointer grammars
+    severity: 2
+    title: The branch pattern behind Workspace.laneBranch (and the reader's target-branch argv gate) is not a strict ref-name grammar
+    evidence:
+      - code: "contracts/mission-status/schemas/Workspace.yaml laneBranch pattern ^[A-Za-z0-9][A-Za-z0-9._/-]*$"
+      - code: "tests/contract/_mission_status_detail.py:92 and :526 (_usable_target uses the same pattern as the safety gate before a target branch reaches git argv)"
+      - artifact: "data-model.md 'changeState derivation' step 1 calls it 'the strict branch pattern' and relies on it to keep unsafe values out of git"
+    claim: >-
+      The pattern accepts a/../b, a..b, a//b, a/., a/ and main.lock (verified with Python re). git refuses all of these as ref names. The description says a value failing the branch pattern projects to null, which implies the pattern excludes unsafe names. The reader's argv guard reuses it, so a manifest target_branch such as x..y reaches git_merge_base as a range expression rather than being treated as undeterminable. The impact is small because it is a read of a committed lanes.json and nothing has to be escaped, but the word 'strict' overstates the rule.
+    remediation: >-
+      Add lookaheads to the Workspace.laneBranch pattern for the git ref-name rules: (?!.*\.\.)(?!.*//)(?!.*/\.)(?!.*/$)(?!.*\.lock$). Keep the existing character class. Update the reader constant derived from it and add negative cases for those forms to the detail tests.
+  - id: PR-CONTRACT-003
+    lens: examples vs schemas; silent-success paths
+    severity: 2
+    title: WorkPackageDetail.unparseable-cycle nulls artifactPath, contradicting the stated rule that an unparseable file is still an eligible artifact
+    evidence:
+      - artifact: "contracts/mission-status/examples/WorkPackageDetail.unparseable-cycle.yaml: a cycle with reviewedAt, reviewer, verdict, feedbackReference and artifactPath all null"
+      - artifact: "CHANGELOG 1.0.0-SNAPSHOT Added: 'only its reviewedAt and reviewer are null, and its verdict, feedbackReference and artifactPath follow their own rules'; data-model.md: artifactPath is non-null exactly when the cycle file is eligible (no symlink component)"
+      - artifact: "schemas/ReviewCycle.yaml artifactPath description: null only when the file is not an eligible artifact (a path with a symlink component)"
+    claim: >-
+      The example is named 'unparseable cycle' but shows artifactPath null, and feedbackReference null as well. By the contract, an unparseable regular file in a normal directory has a non-null feedbackReference and a non-null artifactPath, and only reviewedAt and reviewer (and verdict when no event cites it) are null. An implementer or a generated-client test reading this example learns that parse failure nulls the pointer and the path. The example validates against the schema but states the wrong derivation. The same case also leaves the pointer and the path unrelated to each other.
+    remediation: >-
+      Rewrite the example's cycle so feedbackReference and artifactPath are the real pointer and path of cycle 3 (with reviewedAt, reviewer and verdict null). Cover the null-feedbackReference and null-artifactPath required cases in a separate example whose description names the refused-segment or symlink cause, and adjust the in-test required-case manifest to match.

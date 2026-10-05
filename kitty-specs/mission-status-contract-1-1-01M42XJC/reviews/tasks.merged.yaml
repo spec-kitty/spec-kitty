@@ -1,0 +1,816 @@
+schema: review-merged/v1
+phase: tasks
+note: concatenated, no dedup judged; overlaps kept with original ids
+findings:
+- id: TASKS-DECOMP-001
+  lens: single-concern and one-sitting reviewability
+  severity: 3
+  title: WP06 mixes three concerns in about 1,900 lines and the split is left undecided
+  evidence:
+  - artifact: "tasks.md \xA7 Shape of the delivery, 'Largest work packages' (split 'is the orchestrator's\
+      \ and the operator's decision, not made here')"
+  - artifact: tasks/WP06-detail-reader.md T032 to T037 (detail module grows to about 900 lines, test module
+      to about 1,000, plus smoke and registrations; 8 subtasks)
+  - code: packs/built-in/missions/mission-steps/software-dev/tasks-packages/prompt.md:256 (8 to 10 subtasks
+      is a warning band)
+  claim: 'WP06 holds (a) the pure-file detail reader (universe, titles, dependencies, review cycles, workspace,
+    artifact references), (b) the matcher with a parity test against two private functions plus the real-git
+    change-state derivation and its fault-injection matrix, and (c) the assembled outcome and registrations.
+    (b) is the only part needing real git, the host capability rule and the D-P3/D-P4 environment risks,
+    and is a distinct review concern. A reviewer must read roughly 1,900 lines of new logic and tests
+    in one sitting. The tasks phase punts the split to dispatch time, so the decomposition itself is unfinished.
+
+    '
+  remediation: 'Decide now. Split into WP06a (T030 to T033 plus the T031 smoke part: universe, titles,
+    dependencies, cycles, workspace, references; creates both modules; carries the registration pair)
+    and WP06b (T034 to T037 minus registrations: matcher, parity test, change-state, the assembly and
+    the git matrix). Both stay in lane-a, so no edge in lanes.json changes except WP06b depending on WP06a;
+    WP07 and WP08 depend on WP06b. Update wps.yaml, tasks.md and the chokepoint table accordingly.
+
+    '
+- id: TASKS-DECOMP-002
+  lens: single-concern and one-sitting reviewability
+  severity: 3
+  title: WP05 size is understated (about 2,260 lines by its own subtask figures) and the shared-helper
+    foundation is a separable concern
+  evidence:
+  - artifact: "tasks.md \xA7 Shape of the delivery: WP05 'about 1,800 lines'"
+  - artifact: 'tasks/WP05-artifact-reader-foundation.md Files lines: T024 250+150, T025 450, T026 grows
+      to 800, T027 grows to 1,000, T028 60'
+  claim: 'The per-subtask figures sum to about 2,260 added lines (400 helper and helper tests, 800 reader,
+    1,000 reader tests, 60 smoke), not 1,800. T024 edits the helper that WP06 and WP08 also build on and
+    has its own tests, so it is a coherent standalone concern (shared payload helper foundation) that
+    the reader work does not need to be reviewed with. Reader plus its tests (1,800) is a defensible single-concern
+    WP; helper plus reader is two.
+
+    '
+  remediation: 'Correct the size figure in tasks.md. Preferably split T024 out as its own WP between WP01
+    and the reader (owns _mission_status_payloads.py and test_mission_status_payloads.py), leaving the
+    reader WP at about 1,860 lines. If the split is declined, record the reason and the measured figure
+    so the reviewer is not surprised.
+
+    '
+- id: TASKS-DECOMP-003
+  lens: ic-fidelity / prompts concrete enough
+  severity: 3
+  title: Registration timing contradicts itself, leaving the red-first commit with red registry gates
+  evidence:
+  - artifact: "tasks.md \xA7 Chokepoints row 3: each appends its registration 'in the commit that creates\
+      \ its module'"
+  - artifact: 'tasks/WP05 T029 Purpose: ''in the commit that creates the module''; Steps 3: same-tier
+      uniqueness and the corpus trigger gate ''red until both registrations exist'''
+  - artifact: tasks/WP05 T023, WP06 T031, WP07 T038 create the corpus-marked module in the first (red-first)
+      commit; registrations are the LAST subtask T029/T037/T042
+  - code: tests/architectural/test_ci_corpus_trigger_completeness.py:275 (a corpus-marked module absent
+      from _CORPUS_MARKED_MODULES fails)
+  claim: 'The module is created in the first subtask but the registration in the last, while the text
+    says they land in the same commit. Following the subtask order leaves every commit between them failing
+    the registry gate. Red-first evidence then mixes the intended red (reader tests) with an unrelated
+    registry red, and the implementer must guess which ordering is wanted.
+
+    '
+  remediation: 'State one rule in WP05, WP06 and WP07: either the registration pair is committed with
+    the module-creating red-first commit (move the T029/T037/T042 steps into T023/T031/T038 and list the
+    registry gates as expected-green there) or it is a separate commit immediately after it, with the
+    expected-red set of the red-first commit named. Align the chokepoint table text.
+
+    '
+- id: TASKS-DECOMP-004
+  lens: no padding or invented scope
+  severity: 3
+  title: WP07 specifies dead data for a decided option and carries stale option labels
+  evidence:
+  - artifact: 'tasks/WP07-version-changelog-proof.md T041: ''EXTRA_ALLOWED_OD2_X ... exists as data and
+      is not used (OD-2 Y decided)''; EXTRA_ALLOWED_OD1_X'
+  - artifact: 'tasks/WP07 Context and T042: ''under the X-family'' conditionals while OD-1 = X-pure is
+      decided'
+  - code: tests/architectural/test_no_dead_symbols.py (named in the WP's own gate list)
+  claim: 'An unused constant for the rejected OD-2 X option is invented scope with no requirement or IC
+    behind it, and the dead-symbol gate the WP itself runs is a plausible failure point. The constant
+    name EXTRA_ALLOWED_OD1_X encodes an option label for a decision already taken as X-pure; hedged ''X-family
+    / Y'' prose remains in WP05, WP06 and WP07.
+
+    '
+  remediation: 'Delete EXTRA_ALLOWED_OD2_X from the prompt. Rename the registration extras to a neutral
+    name (for example EXTRA_ALLOWED_REGISTRATIONS). Strip the ''X-family'', ''under Y'' and ACK-1 conditionals
+    from the prompts; state the decided behaviour once.
+
+    '
+- id: TASKS-DECOMP-005
+  lens: dependency and parallelism soundness
+  severity: 3
+  title: The WP01/WP02 parallel window is probably void, and serialising WP02 first would contaminate
+    WP01's baseline
+  evidence:
+  - artifact: "tasks.md \xA7 Work package index: WP01 '[P] with WP02'; \xA7 Lane picture: 'lane-a depends\
+      \ on lane-b' flagged for verification"
+  - artifact: 'lanes.json: lane-a depends_on_lanes [lane-b], parallel_group 1 (WP01 sits in lane-a); lane-b
+      parallel_group 0'
+  - code: 'src/specify_cli/lanes/models.py:80 (depends_on_lanes: ''Lane IDs that must complete before
+      this lane starts'')'
+  - artifact: 'tasks/WP01 T001: baseline taken on the ''unchanged base before any edit'''
+  claim: 'The tooling defines a lane dependency as must-complete-before-start, and WP01 is in the dependent
+    lane. So WP01 either waits for WP02 (no parallel window) or, if it starts early, the claim rests on
+    an unverified behaviour. If it waits, lane-a includes WP02''s merged tip and T001''s ''Mission baseline''
+    (gate results, counts 577/157) is no longer a baseline of the planning base; WP02 changes leak_scan,
+    fixture_builder and the negative manifest. Every later red is binned against this baseline.
+
+    '
+  remediation: 'Resolve at planning time: either state that WP01 is dispatched first (its lane-a workspace
+    exists before WP02 lands) and WP02 only after WP01 has recorded the baseline, dropping the ''[P]''
+    claim; or have the orchestrator take the Mission baseline at D-0 on the planning base and reduce T001
+    to a re-count of the campsite literal. Note the choice in tasks.md.
+
+    '
+- id: TASKS-DECOMP-006
+  lens: no padding / ownership clarity
+  severity: 3
+  title: WP09 and the orchestrator both append to the same tracer files, with unverifiable de-duplication
+  evidence:
+  - artifact: 'tasks/WP01..WP08 Owned files: ''the orchestrator appends them add-only to the tracer files'''
+  - artifact: 'tasks/WP09 T051: append everything ''that the orchestrator has not already appended'';
+      ''Continue the numbering (F-n, D-n)'''
+  - artifact: 'tasks/WP09 Context: ''The orchestrator appends records between dispatches and never while
+      this WP is in progress'''
+  claim: 'Two writers share three append-only files across time. WP09 cannot determine what was already
+    recorded except by re-reading the files, and the numbering continuation invites collisions or duplicates.
+    Most of WP09 is transcription of hand-off reports it receives from the orchestrator, which the orchestrator
+    could append directly. The AC (entry present, labelled, append-only) is weak: nothing checks completeness
+    against the reports.
+
+    '
+  remediation: 'Pick one writer. Preferably the orchestrator is the only appender during implementation
+    and WP09 is reduced to the close-out assessment plus the pre-tag evidence record (T050 and T052),
+    or fold WP09 into the orchestrator wrap-up. If WP09 stays, make it the sole writer (hand-off reports
+    go to it, nothing is appended earlier) and add an AC: every hand-off record handed over appears once,
+    listed by WP in the hand-off report.
+
+    '
+- id: TASKS-DECOMP-007
+  lens: ic-fidelity
+  severity: 2
+  title: WP09 claims SC-001 to SC-008 and C-003/C-004 coverage that its own work does not build
+  evidence:
+  - artifact: "wps.yaml WP09 requirement_refs SC-001..SC-008, C-003, C-004; tasks.md Coverage \xA7 Success\
+      \ criteria lists WP09 under every SC"
+  - artifact: 'tasks.md note: ''the work package column is the work that builds the proof''; plan IC-09:
+      ''Pre-tag evidence for the PR body'''
+  claim: 'WP09 builds no proof; it records pre-tag figures. Listing it as a covering WP makes the coverage
+    table look doubled and could hide a gap if a builder WP is later dropped. WP05''s C-003 ref has the
+    same shape (it writes nothing under kitty-specs/).
+
+    '
+  remediation: 'Keep SC refs on the builder WPs only (WP03/04/07/08) and leave WP09 with SC-001..SC-008
+    only if the CLI requires a non-empty list, in which case say in tasks.md that those rows are ''recorded
+    by'' not ''built by''. Drop C-003 from WP05.
+
+    '
+- id: TASKS-DECOMP-008
+  lens: prompts concrete enough
+  severity: 2
+  title: WP04 T020 step 2 is self-contradictory about an at-sign path in a contract example
+  evidence:
+  - artifact: 'tasks/WP04 T020 Steps 2: ''an at-sign path example is allowed here under OD-4 X only if
+      built without typing a literal (use a descriptive name ... instead)'''
+  - artifact: 'tasks/WP02 T006/T008: a contract example holding an at-sign path passes the whole scan;
+      WP03 T015 says nothing'
+  claim: 'A committed YAML example cannot be built at run time, so ''allowed only if built without typing
+    a literal'' means never; the parenthetical says use a different name. Meanwhile WP02 proves the scan
+    accepts such an example. The implementer cannot tell whether an at-sign example is wanted, and the
+    odd-name coverage of AD-19 in the shipped examples is undecided.
+
+    '
+  remediation: 'State the rule once, for WP03 and WP04: no committed contract example holds an at-sign
+    path (the scan acceptance is proved by the WP02 run-time-built test and the reader tests); examples
+    may carry a home-segment name, a space and an accented letter. Delete the ''OD-4 X only'' wording;
+    OD-4 is decided.
+
+    '
+- id: TASKS-DECOMP-009
+  lens: ATDD red-first quality
+  severity: 2
+  title: Red-first by a missing import breaks collection of the whole reality module
+  evidence:
+  - artifact: 'tasks/WP05 T023 and WP06 T031: smoke added to test_mission_status_reality.py ''importing
+      a module that does not exist yet'''
+  - code: tests/contract/test_mission_status_reality.py (708 lines; a module-level import error fails
+      collection of every test in it)
+  claim: 'If the import sits at module level, the red commit turns the whole existing reality module (577
+    ids at plan time) into a collection error, so the ''failing ids'' to record are not the new tests
+    and the ''identical counts'' baseline is unusable. The red reason is an ImportError, not a behaviour
+    the smoke asserts.
+
+    '
+  remediation: 'Require the new module to be imported inside the smoke test function (or via importlib
+    in a helper) so only the smoke ids fail, and require the hand-off to list those ids plus an unchanged
+    pass count for the rest of the module.
+
+    '
+- id: TASKS-DECOMP-010
+  lens: no padding / duplicated scope
+  severity: 2
+  title: FLOORS fields and the fingerprint control are specified in two work packages
+  evidence:
+  - artifact: 'tasks/WP05 T024: FLOORS gains the new fields ''with the values of contracts note section
+      D (WP08 re-pins them)''; one planted fingerprint control'
+  - artifact: 'tasks/WP08 T047/T048: writing-reader fingerprint control again; FLOORS values re-measured
+      and re-pinned; plan IC-08 owns ''FLOORS values'''
+  claim: 'WP05 adds about 15 floor fields no WP05 test consumes, and WP08 immediately re-pins them, so
+    the first values are provisional and unused in between. The empty-directory fingerprint control is
+    described in both T024 and T047, inviting two tests for one property.
+
+    '
+  remediation: 'Add the FLOORS fields (names and values) in WP08 where they are consumed (adjust IC-06
+    note in tasks.md), keep the fingerprint control in WP05 only, and have T047 reference it instead of
+    restating it.
+
+    '
+- id: TASKS-DECOMP-011
+  lens: prompts consistent
+  severity: 2
+  title: Shared boilerplate contradicts WP-specific rules in WP01 and WP09
+  evidence:
+  - artifact: 'tasks/WP01 Reviewer Guidance: ''Red-first does not apply'' followed by ''Verify the first
+      commit is the red-first commit and that it is red''; Hand-off report: ''first commit marked as the
+      red-first commit'''
+  - artifact: 'tasks/WP09 Hand-off report: ''you do not write them under kitty-specs/'' while the WP writes
+      exactly those files'
+  claim: 'The generic reviewer and hand-off text was not tailored. A reviewer can fail WP01 for lacking
+    a red commit it is declared exempt from; the WP09 implementer reads a prohibition on its own deliverable.
+
+    '
+  remediation: 'Remove the red-first bullet from WP01''s Reviewer Guidance and the red-first wording from
+    the WP01 and WP09 hand-off sections; replace WP09''s last sentence with the add-only rule.
+
+    '
+- id: TASKS-DECOMP-012
+  lens: ic-fidelity
+  severity: 2
+  title: tasks.md new-file breakdown for WP03 and WP04 does not match their owned_files
+  evidence:
+  - artifact: "tasks.md \xA7 File references: WP03 '30 new files. 3 path files, 1 parameter, 7 schemas,\
+      \ 7 responses, 13 examples' (sums to 31); WP04 '3 path files, 1 parameter, 11 schemas, 2 responses,\
+      \ 8 examples' (sums to 25, not 22)"
+  - artifact: wps.yaml WP03 owns 2 new path files, WP04 owns 1 path file and no parameter; plan totals
+      3 paths, 1 parameter, 18 schemas, 9 responses, 21 examples
+  claim: 'The per-WP breakdown double counts the three path files and the parameter. Totals in the plan
+    (52) and the prompt counts (30, 22) are right; only the category split is wrong.
+
+    '
+  remediation: 'Correct to WP03: 2 path files, 1 parameter, 7 schemas, 7 responses, 13 examples; WP04:
+    1 path file, 0 parameters, 11 schemas, 2 responses, 8 examples.
+
+    '
+- id: TASKS-DECOMP-013
+  lens: no padding
+  severity: 1
+  title: Two no-file subtasks in WP01 (T001 baseline hand-off, T004 write the report) and a wording slip
+    in WP02 Objective
+  evidence:
+  - artifact: 'tasks/WP01 T004: ''Files: None (the report is your final message, not a file)''; T001 ''No
+      file is written'''
+  - artifact: 'tasks/WP02 Objective: ''the four contract-tooling files of FR-015 (here: fixture_builder.py,
+      leak_scan.py, negative_cases.json and their three test modules ...)'''
+  claim: 'T004 restates the hand-off section every prompt already requires, adding a subtask id with no
+    deliverable (the T-ids are marked done by status events). The WP02 sentence says four files and lists
+    three plus three tests.
+
+    '
+  remediation: 'Merge T004 into T003 (or drop it) and fold the campsite verdict into the common hand-off
+    template; reword WP02 Objective to ''the three contract-tooling files and their three test modules''.
+
+    '
+- id: TASKS-ORDER-001
+  lens: lane-mechanics
+  severity: 3
+  title: W-5 compaction shape has no rule for the planning-phase and status-transition commits (F-27,
+    F-29)
+  evidence:
+  - artifact: "plan.md \xA7 The one pull request (compaction shape lists nine code concerns only) and\
+      \ \xA7 Wrap-up W-5"
+  - artifact: tracer-tooling-friction.md F-27 (finalisation message says feature, cannot be reworded)
+      and F-29 (ten commits W-5 must absorb)
+  - artifact: 'git log main..HEAD on the target branch: 61 commits, including nine ''status transition
+      WPnn'' commits and two ''Add tasks for feature'' commits; implement will append more status commits'
+  claim: 'F-29 says W-5 compaction must absorb the finalisation commits and F-27 defers the wording problem
+    to a W-5 orchestrator decision, but neither plan.md nor tasks.md gives W-5 a rule for them. The nine-commit
+    shape covers only code concerns; the Mission directory (spec, plan, tasks, status log, matrices) and
+    the per-WP status commits that implement/review will keep adding sit outside it. The kitty-specs add-only
+    and archive-freeze rules mean status.events.jsonl must survive compaction byte-identical, which a
+    by-path rebuild can break if done carelessly.
+
+    '
+  remediation: 'Add to W-5 a tenth, leading commit ''mission planning artifacts and status log'' built
+    by path from the final kitty-specs/mission-status-contract-1-1-01M42XJC tree, reworded without the
+    word feature, with the add-only check against the merge base re-run on it and status.events.jsonl
+    compared byte-for-byte before and after. State that the commits named in F-27/F-29 are absorbed there.
+
+    '
+- id: TASKS-ORDER-002
+  lens: front-loading of risky work
+  severity: 3
+  title: JVM-only contract checks (P-10) are deferred to W-2, after both readers and the corpus are built
+    on the schemas
+  evidence:
+  - artifact: "plan.md \xA7 Risks P-10 and \xA7 Wrap-up W-2 ('after the contract tree is final (no work\
+      \ package after IC-05 touches contracts/)')"
+  - artifact: "tasks.md \xA7 Dispatch order: WP03, WP04 (contract) precede WP05, WP06, WP08 which read\
+      \ and pin the shapes"
+  - artifact: 'wps.yaml: WP07 owns only contracts/mission-status/CHANGELOG.md under contracts/; schemas,
+      paths, examples are final at WP04'
+  claim: 'The contract tree (schemas, paths, examples) is final once WP04 is approved, yet the first Gradle
+    validation, Java view, TypeScript client smoke and resolver parity run happens at W-2, after WP05
+    to WP08. A schema defect found there reopens WP03/WP04 and forces rework of the readers, the examples
+    tests and the pinned fixture that were built on the old shape. This is the plan''s own highest unknown
+    (P-10) and it is last.
+
+    '
+  remediation: 'Add an orchestrator step between WP04 approval and WP05 dispatch: replay the contracts.yml
+    JVM job steps (mechanism a) on the WP04 lane tip, fix defects in WP03/WP04 follow-ups, and rerun a
+    smaller W-2 at wrap-up for the CHANGELOG-only delta. If no JVM machine is available, say so in tasks.md
+    and keep W-2 as is.
+
+    '
+- id: TASKS-ORDER-003
+  lens: front-loading of risky work
+  severity: 2
+  title: Dispatch order puts WP07 before WP08 although WP08 carries the larger unknowns
+  evidence:
+  - artifact: "tasks.md \xA7 Dispatch order step 5 ('WP07, then WP08 ... dispatch order, not a dependency')"
+  - artifact: 'wps.yaml: WP08 depends on WP05, WP06 only; WP07 and WP08 share no owned file'
+  - artifact: tasks/WP08-reality-check-extension.md T044-T049 (floors, byte-level oracle, runtime budget
+      re-plan above 6 minutes); plan.md P-2
+  claim: 'WP08 holds the runtime-budget risk (NFR-001, P-2), the independent oracle and the floor measurements,
+    all of which can force a re-plan. WP07 is mostly CHANGELOG text and a pure proof module. Ordering
+    the easier one first delays discovery of a budget overrun. The justification given (plan puts IC-05
+    first) does not rest on a dependency.
+
+    '
+  remediation: 'Dispatch WP08 before WP07 (both are legal under wps.yaml), or record in tasks.md why WP07
+    first is preferred (for example the WP07 CHANGELOG finalisation must precede any WP08 floor that cites
+    it).
+
+    '
+- id: TASKS-ORDER-004
+  lens: each WP leaves the branch green
+  severity: 2
+  title: Registration subtasks sit last in WP05/WP06/WP07 although the text says they ride in the commit
+    that creates the module
+  evidence:
+  - artifact: tasks/WP05-artifact-reader-foundation.md T023 (creates test_mission_status_artifacts.py
+      as the first commit) and T029 ('in the commit that creates the module', but ordered last)
+  - artifact: "tasks.md \xA7 Chokepoints row packs.yml ('in the commit that creates its module'); plan.md\
+      \ \xA7 Lanes exception (2)"
+  claim: 'The module is created in the red-first commit T023 and registered in T029, so between them the
+    same-tier-uniqueness and corpus-trigger gates are red on the lane. The WP end state is green, so nothing
+    is lost at WP granularity, but the stated rule and the subtask order contradict, and an implementer
+    or reviewer reading commit by commit sees a red gate that the text promises cannot exist.
+
+    '
+  remediation: 'Reword T029 (and the WP06 and WP07 equivalents) to say the registrations are made in the
+    last subtask and folded into the module''s commit at W-5, or move them into the red-first commit with
+    a note that the module''s own tests are the only intended red.
+
+    '
+- id: TASKS-ORDER-005
+  lens: parallel markers
+  severity: 1
+  title: The [P] WP01 || WP02 marker is true; the hedge about lane-a depending on lane-b can be replaced
+    by the verified rule
+  evidence:
+  - artifact: "tasks.md \xA7 Lane picture last paragraph and tracer-tooling-friction.md F-31 (to be observed\
+      \ at first dispatch)"
+  - code: src/specify_cli/lanes/implement_support.py:705-717 (_approved_dependency_lane_refs only merges
+      dependency lane tips whose WPs are all approved/done; unapproved lanes are skipped, not waited on)
+  - code: src/specify_cli/lanes/implement_support.py:787-795 (check_claim_ancestry requires only planning_commit_sha
+      and the approved dependency lanes' branches)
+  - artifact: 'lanes.json: planning_commit_sha a693f55 is an ancestor of HEAD and its tree already holds
+      all nine WP prompts; kitty/mission-mission-status-contract-1-1-01M42XJC does not exist yet, so lane
+      branches parent off the target branch'
+  claim: 'The lane-level depends_on_lanes edge does not gate claiming WP01. WP01 and WP02 have disjoint
+    write scopes (payload helper and reality module versus six tool files) and no WP dependency, so the
+    marker is genuine. The edge only causes lane-b''s tip to be merged into lane-a when a later lane-a
+    WP is claimed after WP02 is approved (WP03 onward). The hedge is therefore not needed, and the real
+    condition (WP02 must be approved before WP03 is claimed) is already in wps.yaml.
+
+    '
+  remediation: 'Optional: replace the ''to be observed'' sentence with the verified rule above; keep the
+    observation at first dispatch as a confirmation only.
+
+    '
+- id: TASKS-ORDER-006
+  lens: dependency consistency
+  severity: 1
+  title: WP07 prompt still words its WP06 edge as conditional on the X-family
+  evidence:
+  - artifact: tasks/WP07-version-changelog-proof.md line 70 ('under the X-family, on WP06') and wps.yaml
+      WP07 dependencies [WP04, WP06]
+  claim: 'OD-1 X-pure is decided and binding, so the WP06 edge is unconditional. The conditional wording
+    suggests an optional edge that an implementer might drop. Metadata, prompt frontmatter, tasks.md and
+    lanes.json otherwise agree for all nine WPs and the graph is acyclic.
+
+    '
+  remediation: Reword to 'Depends on WP04 and WP06 (registration chain WP05, WP06, WP07; OD-1 X-pure)'.
+- id: TASKS-COVER-001
+  lens: coverage-traceability
+  severity: 3
+  title: AD, CL, OQ and AC rows of the coverage tables are not traceable into the WP prompts
+  evidence:
+  - artifact: "tasks.md \xA7 Clarifications and decisions; \xA7 Acceptance criteria groups, open questions\
+      \ and operator decisions"
+  - artifact: tasks/WP01..WP09 (body text, grep per id and WP)
+  claim: 'Mechanical check (script over tasks.md rows joined with each prompt body, 240 id/WP pairs):
+    the FR, NFR, SC and C pairs all appear in the named prompt, but 127 pairs from the CL, AD, OQ and
+    AC rows do not. AC-LIST, AC-DETAIL, AC-CONTENT, AC-VERSION, CL-2..CL-5, OQ-1..OQ-6 and AD-1..AD-12,
+    AD-15..AD-17, AD-20..AD-22 are cited in no prompt at all. Only AD-13, AD-14, AD-18, AD-19, CL-1 and
+    OD-n appear. No prompt references spec.md, although tasks.md says it is reference material for every
+    WP. WP05 (7 subtasks, tasks.md maps AD-1,2,4..12,14,15,17..19,21,22 to it) names no AD id. The rows
+    say "spec Traceability table (requirements that cite it)", which is derived from requirement_refs,
+    not from what the prompt tells the implementer or reviewer to honour. I confirmed the derivation itself
+    is correct (all 21 AD rows and CL-1..CL-4 recompute exactly from the spec Traceability table joined
+    with wps.yaml), so this is a prompt-side gap, not a table error. Decisions such as AD-5 (status pairing),
+    AD-8 (listing cap) and AD-21 (500 source_unreadable) reach the implementer only through data-model.md
+    and the contract notes, which the prompt cites by section, so the reviewer cannot check a WP against
+    its AD list from the prompt.
+
+    '
+  remediation: 'Add one line per prompt, "Decisions honoured: AD-n ..., CL-n, OQ-n, AC-x (spec.md, Decisions
+    and Traceability)", taken from the tasks.md rows for that WP, and add spec.md to each Context section.
+    Alternatively state in tasks.md that AD/CL/OQ/AC traceability is by the contract notes only and name,
+    per AD, the data-model or contract-note section that carries it.
+
+    '
+- id: TASKS-COVER-002
+  lens: plan-mapping-parity
+  severity: 3
+  title: SC-004 and SC-005 omit the WP that builds their proof (WP06, WP02); the plan names IC-07 and
+    IC-02
+  evidence:
+  - artifact: "tasks.md \xA7 Success criteria (SC-004 -> WP08, WP09; SC-005 -> WP08, WP09)"
+  - artifact: "plan.md \xA7 Traceability (SC-004 IC-07 and IC-08; SC-005 IC-02 and IC-08)"
+  - artifact: "spec.md \xA7 SC-004, SC-005; wps.yaml WP02 and WP06 requirement_refs"
+  claim: 'SC-004 (changed, unchanged, unknown each produced by the constructed cause in synthetic repositories,
+    listed mutations killed) is delivered by WP06 T034..T036, and SC-005 (planted negative that fails
+    and clean control for each endpoint) by WP02 (25 planted kinds, FR-023 leak half). Neither WP carries
+    the SC in requirement_refs or in its prompt (grep: no SC-004 in WP06, no SC-005 in WP02), while WP08
+    and WP09 do. The tasks.md note says the WP column of SC rows "is each work package''s requirement_refs",
+    which is true but means the owning WP of the proof is not accountable for the criterion. A reviewer
+    of WP06 or WP02 is never told the criterion exists.
+
+    '
+  remediation: 'Add SC-004 to WP06 and SC-005 to WP02 requirement_refs (wps.yaml and prompt frontmatter)
+    and cite them in the Definition of Done, or add an explicit sentence under the SC table that WP06/WP02
+    build the proof and WP08/WP09 only re-measure it.
+
+    '
+- id: TASKS-COVER-003
+  lens: plan-mapping-parity
+  severity: 2
+  title: FR-008 and FR-020 plan mappings lost one WP each (WP05, WP08)
+  evidence:
+  - artifact: "plan.md \xA7 Traceability (FR-008: IC-04, IC-06 (eligibility), IC-07; FR-020: D-P8, every\
+      \ check's fail-loud column, IC-08)"
+  - artifact: "tasks.md \xA7 Functional requirements (FR-008 -> WP04, WP06; FR-020 -> WP05, WP06, WP07)"
+  claim: 'FR-008 (artifactReferences) depends on the eligibility function that WP05 builds (WP06 T033
+    step 3 says it uses the WP05 eligibility function), and plan IC-06 names eligibility for FR-008; tasks.md
+    and requirement_refs of WP05 omit FR-008. FR-020 (checks that cannot do their job fail) is mapped
+    by the plan to IC-08 (floors, controls, examined equals discovered) but WP08 lacks FR-020 in refs
+    and tasks.md. Implementation is not wrong (the work is in the prompts), but the mapping departs from
+    the plan''s table without a stated reason.
+
+    '
+  remediation: 'Add FR-008 to WP05 and FR-020 to WP08 requirement_refs and tasks.md rows, or record under
+    the table why the plan''s IC mapping is narrowed.
+
+    '
+- id: TASKS-COVER-004
+  lens: coverage-accuracy
+  severity: 2
+  title: C-003 row names WP05 and WP09 but its own note says WP07 checks it
+  evidence:
+  - artifact: "tasks.md \xA7 Constraints (C-003 -> WP05, WP09) and the note below it ('checked by the\
+      \ WP07 scope data')"
+  - artifact: tasks/WP07 requirement_refs (no C-003); tasks/WP05 requirement_refs (C-003), WP05 owns no
+      file under kitty-specs/
+  - artifact: "plan.md \xA7 Traceability (C-003: Reflexivity items 3 and 7; add-only directory)"
+  claim: 'Row and note disagree. WP05 is credited with C-003 although its only text on the point is the
+    common hygiene bullet that every WP carries (and C-004 already covers that); WP07, which per the note
+    carries the scope data and add-only proof, is not listed and has no C-003 ref.
+
+    '
+  remediation: 'Move C-003 from WP05 to WP07 (keep WP09), or reword the note to say WP05 holds it through
+    hygiene only.
+
+    '
+- id: TASKS-COVER-005
+  lens: decided-options
+  severity: 3
+  title: OD-3 "documented in the contract" has no WP that writes it into the contract
+  evidence:
+  - artifact: "plan.md \xA7 Operator decisions (OD-3: 'the rule is documented in the contract')"
+  - artifact: "tasks.md \xA7 OD-3 row (WP06, WP08 only)"
+  - artifact: tasks/WP04 (no mention of duplicate ids or byte order); data-model.md row 'Work package
+      of a Mission'
+  claim: 'The decided option says the first-in-byte-order duplicate rule is documented in the contract.
+    The rule appears in plan D-P6, data-model.md and in WP06/WP08 as test behaviour, but no WP04 subtask
+    (the owner of the getWorkPackageDetail path, WorkPackageDetail and the 404 response descriptions)
+    tells the author to state it in the published contract text. A consumer of the module would not learn
+    that an id held by two files is served by the first regular non-symlink file in byte order.
+
+    '
+  remediation: 'Add to WP04 T017/T019 a step: the path or schema description for getWorkPackageDetail
+    states the duplicate-id rule (OD-3, D-P6) and add WP04 to the OD-3 row; or record in tasks.md that
+    "the contract" means data-model.md and nothing is to appear in the openapi text.
+
+    '
+- id: TASKS-COVER-006
+  lens: file-references
+  severity: 1
+  title: New-file breakdown in tasks.md is wrong for WP03 and WP04
+  evidence:
+  - artifact: "tasks.md \xA7 File references (WP03: '3 path files, 1 parameter'; WP04: '3 path files,\
+      \ 1 parameter')"
+  - artifact: 'tasks/WP03 create_intent: paths 2, parameters 1, schemas 7, responses 7, examples 13 (30);
+      tasks/WP04 create_intent: paths 1, schemas 11, responses 2, examples 8 (22)'
+  claim: 'The totals (30, 22) match create_intent, but the WP03 split sums to 31 and the WP04 split to
+    25, and WP04 adds no parameter. Plan says 3 paths and 1 parameter for the whole Mission, which matches
+    2+1 and 0. All owned paths verified: every existing path exists on the checkout and every missing
+    path is in create_intent (no omissions, no create_intent entry that already exists).
+
+    '
+  remediation: 'Edit the two lines: WP03 2 path files, 1 parameter; WP04 1 path file, 0 parameters.'
+- id: TASKS-COVER-007
+  lens: plan-mapping-parity
+  severity: 2
+  title: CL-5 mapping is justified but incomplete and uses a different basis than the other rows
+  evidence:
+  - artifact: "tasks.md \xA7 CL-5 (WP02, WP04, WP06) versus OQ-5 row (WP03, WP04)"
+  - artifact: "spec.md \xA7 CL-5 (1)-(7), OQ-5, OQ-6, AD-20, FR-015"
+  claim: 'The spec Traceability table never cites CL-5, so the author derived it from CL-5 content: (2)
+    OQ-2 -> WP06, (3)-(4) OQ-5/OQ-6 and WorkPackageDetailRefusal -> WP04, (5) glob rule -> WP06, (6) FR-015
+    ack -> WP02. That justification holds for those WPs. But CL-5 (3) also says all three new operations
+    carry a refusal code on their 404, which is WP03''s ArtifactRefusal, and the tasks.md OQ-5 row lists
+    WP03 itself. CL-5 (1)(7) acknowledge AD-5..AD-22, which tasks.md maps to WP03, WP05, WP07, WP08 as
+    well. The row therefore contradicts the OQ-5 row. I judge the author''s CL-5 addition justified, not
+    a fabricated row.
+
+    '
+  remediation: Add WP03 to the CL-5 row (consistent with OQ-5), and state that the acknowledgement of
+    AD-5..AD-22 is carried by their own rows.
+- id: TASKS-COVER-008
+  lens: wrap-up
+  severity: 1
+  title: tasks.md omits the plan's "hold the PR if the tag is missing" fallback and keeps X-family wording
+  evidence:
+  - artifact: "tasks.md \xA7 Shape of the delivery, \xA7 Orchestrator-owned steps (D-0, W-6, W-7)"
+  - artifact: "plan.md \xA7 W-7 notes ('If the tag is missing when W-4 ends, the PR is held (D-0 fallback)')"
+  - artifact: tasks/WP07 Context ('under the X-family, on WP06')
+  claim: 'W-1..W-7 order, the tag dependency (needed from W-6 and W-7, asked for at D-0) and the draft-PR-last
+    timing are consistent between plan, tasks.md and the identical wrap-up paragraph in all nine prompts
+    (md5 checked). Two small leftovers: tasks.md does not carry the held-PR fallback when the tag is missing
+    at the end of W-4, and WP07 still reads "under the X-family" although OD-1 is decided as X-pure. No
+    ACK-1 or live-module task leaked into any WP: the only hits are the explicit "ACK-1 is void" and "no
+    live module" statements.
+
+    '
+  remediation: Add one sentence to the D-0 row of tasks.md on the held-PR fallback; replace 'under the
+    X-family' with 'under X-pure' in WP07.
+- id: TASKS-VERIFY-001
+  lens: 'gates: architectural battery / charter reading'
+  severity: 4
+  title: WP05-WP07 forbid running the battery parts that the operator requires the WP to pass; no one
+    is assigned to run them before the PR
+  evidence:
+  - artifact: "tasks.md \xA7 Gates per work package (line 189)"
+  - artifact: "tasks/WP05-artifact-reader-foundation.md \xA7 Validation (battery paragraph before the\
+      \ Red-first rule); same paragraph in WP06 and WP07"
+  - artifact: "plan.md \xA7 Charter Check, NO_FULL_HEAVY_SUITES_IN_MISSION row (line 82) and gate table\
+      \ (line 157)"
+  - code: .kittify/charter/charter.md:183-192 (exception only on an explicit operator request)
+  - code: .github/workflows/ci-router.yml:648-675 and 709-776 (architectural-fast, architectural-heavy)
+  claim: 'Script check: all six command blocks in WP05, WP06 and WP07 (fast, heavy) are character-identical
+    to the run steps of ci-router.yml (comments and the trailing line continuation stripped), so the verbatim
+    requirement holds. But the prompts say ''do NOT run them locally in mission work unless the operator
+    explicitly asks'' and tell the reviewer only to ''confirm the change cannot break either part''. Reading
+    the charter as default-forbidden is correct (it allows an explicit operator request as the one exception).
+    The operator''s requirement that the WP must pass both parts as CI runs them IS that explicit request,
+    so the prompts invert it. Nothing is assigned to run the parts: CI will not run them until the draft
+    PR, which is held until the 1.0.0 tag exists and opens after consolidation, squad and history compaction
+    (plan Branch contract), so a registration-induced red in either part would surface at the latest and
+    most expensive point.'
+  remediation: 'Do not leave this as a silent reading. Ask the operator one question: ''You required WP05-WP07
+    to pass both architectural battery parts as CI runs them; the charter forbids a local sweep unless
+    you ask explicitly. Is that requirement your explicit request, and who runs it (WP implementer, WP
+    reviewer, or the orchestrator once at W-1 after consolidation)?'' Record the answer add-only in tracer-design-decisions.md.
+    If yes, replace the ''do NOT run'' sentence in WP05, WP06 and WP07 and tasks.md line 189 with an instruction
+    to run fast and both heavy legs (1/2 and 2/2) with the concrete commands of TASKS-VERIFY-002 and report
+    passed/failed counts in the hand-off, binned against the WP01 main-CI record. If no, state in tasks.md
+    that the requirement is met only by CI after the PR and add a W-1 orchestrator step to run the two
+    parts once under an operator-authorised exception.'
+- id: TASKS-VERIFY-002
+  lens: 'gates: command runnable as written'
+  severity: 3
+  title: Battery blocks contain unexpanded workflow expressions and conflict with the prompts' own 'never
+    a bare uv run' rule
+  evidence:
+  - artifact: "tasks/WP05-artifact-reader-foundation.md \xA7 battery block 2: '--battery-part ${{ matrix.shard\
+      \ }}' and 'xunit-architectural-heavy-${{ matrix.label }}.xml' (lines 271-272)"
+  - artifact: same files WP06 line 275, WP07 line 241
+  - artifact: "tasks/WP05-artifact-reader-foundation.md \xA7 Validation: 'Use the checkout's own environment\
+      \ (.venv/bin/...), never a bare uv run'"
+  - code: .github/workflows/ci-router.yml:760-773
+  claim: Copy-pasted into a shell, the heavy block passes the literal text ${{ matrix.shard }} to pytest,
+    which fails at plugin option parsing, and the junit path is a literal brace expression. The block
+    also starts with 'uv sync --frozen --all-extras' and 'uv run --frozen python -m pytest', directly
+    contradicting the same section's ban on uv run (it can re-sync the environment shared with the lane).
+    Verbatim-from-CI and runnable-as-written are in conflict and the prompt does not say how to reconcile
+    them.
+  remediation: 'Keep the verbatim blocks as the reference and add three runnable lines per part: (1) fast
+    with --junitxml=<scratch>/xunit-architectural-fast.xml; (2) heavy with --battery-part 1/2 and --junitxml=<scratch>/xunit-heavy-1-of-2.xml;
+    (3) the same with 2/2 and 2-of-2. State that ''uv sync'' is run once by the orchestrator and that
+    the per-leg run uses .venv/bin/python -m pytest with identical arguments (or explicitly exempt these
+    blocks from the no-uv-run rule). Output paths go to <scratch>, not out/reports in the worktree.'
+- id: TASKS-VERIFY-003
+  lens: baseline captured before first change
+  severity: 3
+  title: WP01 baseline is not available to later work packages, and WP01 does not run before WP02, the
+    first code change
+  evidence:
+  - artifact: "tasks.md \xA7 Work package index: WP01 and WP02 both 'Depends on none', [P]"
+  - artifact: 'tasks/WP01-baseline-campsite.md T001 and Hand-off; Context: ''the orchestrator appends
+      it add-only to tracer-approach.md'''
+  - artifact: "tasks/WP02..WP08 \xA7 Baseline rule: 'run on the unchanged lane base ... red on your branch\
+      \ AND green on the base is yours'"
+  - artifact: "plan.md \xA7 Baseline (f): 'To be taken at implement start (IC-01, before its first change)'"
+  claim: The plan says the Mission baseline is taken before the first change, but WP02 (lane-b) can commit
+    in parallel with WP01 and nothing orders T001 first. Later work packages bin reds against their own
+    'lane base', which already contains earlier work packages' commits; a red introduced by WP03 is then
+    red on both branch and lane base and would be binned as pre-existing (bin 1) instead of introduced.
+    Only WP05 refers to the WP01 numbers, and no prompt tells the implementer where to read the appended
+    record.
+  remediation: 'Add to WP01 a done-gate for dispatch: the orchestrator holds WP02 until T001''s table
+    is appended to tracer-approach.md (or WP02 records its own planning-base counts for the same list).
+    In the Baseline rule of WP02-WP08 define the comparison base as the planning-base commit recorded
+    in that table (and require the WP''s own pre-change run to be reconciled against it), and name the
+    tracer-approach.md entry as the source of the counts.'
+- id: TASKS-VERIFY-004
+  lens: 'gates: copy-paste check / full targeted test surface'
+  severity: 3
+  title: The tool-job selection command (tests (contract tools)) appears in no work package, although
+    WP01 says it is in the validation section and the new modules run only there
+  evidence:
+  - artifact: 'tasks/WP01-baseline-campsite.md T001 step 2: ''the tool-job selection ... (commands in
+      the validation section below)''; the validation section lists no such command (grep for ''--ignore=tests/contract''
+      over tasks/ finds nothing)'
+  - artifact: "plan.md \xA7 Baseline (f): 'the tool-job selection 1,016 passed, 37 skipped'"
+  - code: .github/workflows/ci-router.yml:898-904 (pytest -m "corpus and not windows_ci" tests/contract
+      --ignore=... -n 4 --dist loadfile)
+  claim: WP03 and WP04 add 52 files under contracts/ that the corpus-marked tool tests (bundle, breaking
+    check, client smoke, resolver, codeowners, citation) read, and WP02 edits leak_scan.py and fixture_builder.py.
+    The charter asks for the diff's full targeted test surface, but each WP runs only a hand-picked subset
+    of tests/contract; the job that actually runs the new modules and all neighbours is never executed
+    or baselined. T001 as written cannot be followed (the command it cites does not exist).
+  remediation: Add the exact CI command (ci-router.yml lines 898-904, with .venv/bin/python -m pytest)
+    to the validation section of WP01 (baseline), WP03, WP04, WP07 and WP08, record its passed/skipped
+    counts, and compare to 1,016 passed / 37 skipped. It is a directory-scoped contract run, not an architectural
+    sweep, so it is charter-consistent.
+- id: TASKS-VERIFY-005
+  lens: red-first achievable / marker-shard
+  severity: 3
+  title: Registration pair is scheduled after the red-first commit that creates the corpus-marked module
+    (WP05, WP06, WP07), so that commit is red for two reasons
+  evidence:
+  - artifact: tasks/WP05 T023 creates test_mission_status_artifacts.py; the registration subtask says
+      'in the commit that creates the module' but is a later subtask
+  - artifact: tasks/WP06 T031 creates the detail module; T037 'Thin corpus smoke and the registration
+      pair'
+  - artifact: tasks/WP07 T038 creates the proof module; T042 'Registration pair'
+  - artifact: "tasks.md \xA7 Chokepoints: 'each appends its own --deselect entry and registry row in the\
+      \ commit that creates its module'"
+  - code: tests/architectural/test_ci_corpus_trigger_completeness.py:275-278 (module marked corpus but
+      absent from the registry fails)
+  claim: A first commit that adds a corpus-marked module without the packs.yml deselect and the registry
+    row makes test_ci_corpus_trigger_completeness and same-tier uniqueness red as well as the intended
+    test failures. The reviewer's red-then-green check then cannot separate the intended red from a registration
+    red, and tasks.md and the subtask order disagree about when the pair lands.
+  remediation: Make the registration pair part of the red-first commit of WP05, WP06 and WP07 (move it
+    into T023/T031/T038 or state it in them), and require the hand-off to list the nine router and registry
+    gate files green on that commit while the new tests are red.
+- id: TASKS-VERIFY-006
+  lens: red-first achievable
+  severity: 3
+  title: WP07 T038 claims both assertions are red at lane start, but the version assertion is already
+    green; T040/T041 behaviour has no stated red
+  evidence:
+  - artifact: 'tasks/WP07-version-changelog-proof.md T038: ''both fail on the planning base of this WP''s
+      lane start'''
+  - artifact: 'tasks/WP03 T012: openapi.yaml info.version becomes 1.1.0-SNAPSHOT; WP07 depends on WP04
+      in the same lane'
+  - artifact: 'tasks/WP07 T040/T041: minor_proof_problems and scope_problems are defined and tested in
+      the same module'
+  claim: WP03 sets the version before WP07 starts, so the slice-scoped version assertion passes on the
+    lane base; only the CHANGELOG heading test can be red. The reviewer is told to verify the first commit
+    is red, but the stated reason is false for half of it. The pure functions of T040/T041 are authored
+    together with their tests, so nothing says what a revert of them would break.
+  remediation: 'Rewrite T038 to name only the entry-scoped CHANGELOG assertions as red and state that
+    the version assertion is a regression control (like the three content kinds in WP02). For T040/T041
+    state the revert check: each planted mutation test must fail when the function''s corresponding rule
+    is removed; require the reviewer to apply one such revert per rule.'
+- id: TASKS-VERIFY-007
+  lens: red-first achievable / revert discipline
+  severity: 2
+  title: Red-first through a missing module (ModuleNotFoundError at collection) proves nothing per test
+  evidence:
+  - artifact: 'tasks/WP05 T023: ''importing a module that does not exist yet'' ... ''they fail (the reader
+      does not exist)'''
+  - artifact: 'tasks/WP06 T031: same wording'
+  - artifact: "plan.md \xA7 Test strategy per acceptance criterion: 'the test fails when the change is\
+      \ reverted'"
+  claim: A module-level import of a non-existent module fails the whole file at collection, so every test
+    is red for the same non-behavioural reason and a mis-specified or vacuous assertion is indistinguishable
+    from a correct one. The recorded 'failing ids and reason' will be one collection error. The plan's
+    revert rule is the only protection and is not turned into a reviewer step.
+  remediation: In T023/T031 require a skeleton module (functions raising NotImplementedError or returning
+    empty results) in the red-first commit so each test fails on its own assertion, record per-test failure
+    messages, and require the reviewer to spot-revert at least one rule per AC row before approving.
+- id: TASKS-VERIFY-008
+  lens: vacuity by empty set guards
+  severity: 2
+  title: Thin corpus smokes in WP05 and WP06 allow examined == discovered == 0
+  evidence:
+  - artifact: 'tasks/WP05 T-corpus smoke: ''examined equals the independent discovered count; zero exclusions;
+      no thresholds'''
+  - artifact: 'tasks/WP06 T031: ''examined equals the independent count of distinct ids, empty skip list,
+      no thresholds'''
+  - artifact: 'tasks/WP08 T045 step 3: ''fails when either is zero'' (only from WP08)'
+  - artifact: plan.md IC-06 Acceptance (PLAN-SEQ-006)
+  claim: Between WP05 and WP08 the smoke passes vacuously on an empty or sparse tree (both counts zero),
+    including in any checkout where kitty-specs is absent. A zero guard is not a threshold, so the 'no
+    thresholds' wording does not justify omitting it.
+  remediation: Add 'and both counts are greater than zero' to the WP05 and WP06 smoke text (same rule
+    as WP08 T045 step 3).
+- id: TASKS-VERIFY-009
+  lens: plan-wording-fix
+  severity: 3
+  title: '''X only'' convention at plan.md line 572 contradicts the ''OD-4 X only'' / ''OD-2 X only''
+    marks that now describe chosen or rejected options inconsistently'
+  evidence:
+  - artifact: "plan.md \xA7 Final report notes (line 572): 'statements marked \"X only\" are the record\
+      \ of the option not chosen'"
+  - artifact: 'plan.md line 360 (AC-CONTENT/AC-LIST leak half): ''passes leak_scan (OD-4 X only)'''
+  - artifact: 'tasks/WP04-contract-slice-b-detail.md line 211: ''an at-sign path example is allowed here
+      under OD-4 X only'''
+  - artifact: 'plan.md line 291 (D-P7): ''how it treats artifact-path values is operator decision OD-4
+      ... Under the recommended OD-4 X'''
+  - artifact: 'plan.md OD-4 row: decided = scope the text pass = option X'
+  claim: OD-4 X is the chosen option, yet it is tagged 'X only' in the same way as the rejected OD-1 X
+    and OD-2 X. Applying line 572 literally, an implementer would treat the OD-4 at-sign example and its
+    leak-scan pass as the record of an unchosen option and skip it. D-P7 still speaks in the present tense
+    of an open decision ('recommended').
+  remediation: 'Replace ''OD-4 X only'' by ''OD-4 (decided: scoped text pass)'' in plan.md line 360 and
+    WP04 line 211, reword D-P7 to ''OD-4 (decided 2026-10-04): the text pass blanks ...'', and restrict
+    line 572''s convention to OD-1 X (live module) and OD-2 X.'
+- id: TASKS-VERIFY-010
+  lens: plan-wording-fix
+  severity: 2
+  title: Stale live citations of the void ACK-1 and of rejected options remain after 611531c50
+  evidence:
+  - artifact: 'plan.md line 159 (Contracts workflow row): ''local-only expectation ... (ACK-1)'''
+  - artifact: 'plan.md line 174 (gate table): ''Live baseline test (OD-1 X only ...)'' with ''ACK-1 a,
+      b'''
+  - artifact: 'plan.md line 511 risk P-5: ''The live baseline test is red until the 1.0.0 tag exists''
+      kept as an active risk'
+  - artifact: 'plan.md line 565 SC-008 row: ''the third path under OD-2 X'' (OD-2 = Y)'
+  - artifact: 'git show 82bfac375: ''with the OD-1 X-family (X or X-pure)'' written three minutes before
+      the decision commit 611531c50'
+  claim: The decision paragraph tells the reader to translate 'open' and 'recommended', but risk P-5,
+    the Contracts row and the SC-008 row still present void or rejected items as live. The 82bfac375 wording
+    'X or X-pure' is correct under the defined notation but is now an unresolved alternative. No contradiction
+    in behaviour was found (WP counts, six registrations, three modules and two extra scope paths are
+    consistent across plan, tasks.md and WP05-WP07), only wording that could mislead a reviewer.
+  remediation: Mark P-5 'void under X-pure (kept as record)', cite the Contracts-workflow accepted red
+    as spec FR-017 item 5 instead of ACK-1, drop 'the third path under OD-2 X' from the SC-008 row, and
+    say 'OD-1 X-pure' where 82bfac375 says 'X-family (X or X-pure)' for IC-06 and SC-008. These are planning-artifact
+    edits to be made add-only per the Mission directory rule.
+- id: TASKS-VERIFY-011
+  lens: 'gates: stale reference'
+  severity: 2
+  title: quickstart.md still instructs running the non-existent live baseline module
+  evidence:
+  - artifact: 'quickstart.md line 39: pytest ... tests/contract/test_mission_status_baseline_live.py'
+  - artifact: quickstart.md line 44 'third line is the live baseline test'
+  - artifact: tasks/WP01 T001 step 2 points at 'quickstart sections Named gate files'
+  claim: Under OD-1 X-pure that file is never created; following the quickstart yields 'file not found'
+    (exit 4). WP01 and the other prompts send the implementer to quickstart sections.
+  remediation: Delete line 39 and the 'third line' sentence (or mark them 'OD-1 X only, not created')
+    and keep the three-line list consistent with the three modules.
+- id: TASKS-VERIFY-012
+  lens: 'gates: copy-paste check'
+  severity: 1
+  title: Collect-only checks 'must collect nothing' exit non-zero
+  evidence:
+  - artifact: 'tasks/WP06 Targeted test surface: ''--collect-only -q -m "fast or unit" tests/contract/test_mission_status_detail.py
+      (must collect nothing)'''
+  claim: pytest exits 5 when nothing is collected, so the command reads as a failure unless the implementer
+    knows to expect it.
+  remediation: State 'expect exit code 5 and no test ids' next to the command.

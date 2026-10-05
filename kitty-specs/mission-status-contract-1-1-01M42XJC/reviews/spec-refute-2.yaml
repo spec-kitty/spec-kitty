@@ -1,0 +1,38 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 2
+verdicts:
+  - id: SPEC-COMPLETE-002
+    verdict: confirmed
+    reason: AD-7 requires readable:true to imply a successful read yet FR-011 and NFR-002 bound the listing to "first bytes", and a late NUL or invalid UTF-8 byte cannot be seen without reading the whole file within the cap.
+  - id: SPEC-COMPLETE-003
+    verdict: refuted
+    reason: FR-013 and FR-012 serve only listed paths, so a case variant or a path through a symlinked directory names no listed artifact and is 404 by the existing rule, and the listing excludes the status records by real name.
+  - id: SPEC-COMPLETE-004
+    verdict: confirmed
+    reason: FR-016 asserts worktreePresent as a boolean only, FR-022 has no worktreePresent or workspace case, and AC-DETAIL covers only changeState, so the AD-12 bug (true for the repository root) passes every stated check.
+  - id: SPEC-COMPLETE-005
+    verdict: confirmed
+    reason: Reading AC-DETAIL bullet by bullet shows no criterion for dependency titles and statusLane, artifactReferences, verdict matching or cycle ordering, or subtask statusLane, although the traceability row maps FR-001 to FR-008 to it.
+  - id: SPEC-COMPLETE-006
+    verdict: confirmed
+    reason: The SK-348 and SK-310 risk rows cite FR-022 fixtures that FR-022 does not list, and the Edge Cases (coordination-partition cycle, no lanes.json, dangling dependency) have no FR-022 bullet or AC.
+  - id: SPEC-COMPLETE-007
+    verdict: confirmed
+    reason: Code check shows read_lanes_json raises CorruptLanesError for a malformed file, and lane_branch_name returns target_branch for lane-planning and requires it as a keyword, none of which FR-006 states.
+  - id: SPEC-COMPLETE-008
+    verdict: confirmed
+    reason: build_review_cycle_pointer raises ReviewCycleError on invalid segments or file names, while FR-005 says feedbackReference is always non-null and AD-13 says cycle files are never dropped, so the outcome for an invalid name is unspecified.
+  - id: SPEC-COMPLETE-009
+    verdict: confirmed
+    reason: FR-003 permits null title only for absent file or row, while AC-DETAIL fails on an empty-string title and FR-020 adds undecodable tasks.md, leaving the empty-cell and undecodable cases unspecified and untested.
+  - id: SPEC-COMPLETE-010
+    verdict: confirmed
+    reason: FR-013 serves only "listed" paths and AD-8 truncates the listing at 1000, so whether a file beyond the cap is 404 or readable (and what FR-008 reports for it) is not stated, and AC-CONTENT has no truncated-Mission case.
+  - id: SPEC-COMPLETE-011
+    verdict: confirmed
+    reason: merge_base_changed_files_checked takes a worktree path and diffs the worktree HEAD against a base_ref, whereas FR-007 speaks of the lane branch and an unsourced "merge target", leaving the base source, uncommitted changes and detached HEAD unspecified.
+  - id: SPEC-COMPLETE-012
+    verdict: confirmed
+    reason: FR-010 says only "RFC 3339 UTC" with no fractional-second precision, and neither FR-010 nor FR-020 states the outcome for a per-entry stat failure, although AC-LIST and NFR-005 depend on exact equality and determinism.

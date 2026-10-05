@@ -1,0 +1,340 @@
+work_packages:
+  - id: WP01
+    title: "Baseline and campsite (tidy-first)"
+    dependencies: []
+    owned_files:
+      - "tests/contract/_mission_status_payloads.py"
+      - "tests/contract/test_mission_status_reality.py"
+    requirement_refs:
+      - NFR-006
+      - C-004
+    plan_concern_refs:
+      - IC-01
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+    prompt_file: "tasks/WP01-baseline-campsite.md"
+  - id: WP02
+    title: "Tool extension: strict names, artifact-path class, 25 planted kinds"
+    dependencies: []
+    owned_files:
+      - "contracts/tools/fixture_builder.py"
+      - "contracts/tools/leak_scan.py"
+      - "contracts/tools/negative_cases.json"
+      - "tests/contract/test_leak_scan.py"
+      - "tests/contract/test_fixture_builder.py"
+      - "tests/contract/test_run_negative_cases.py"
+    requirement_refs:
+      - FR-015
+      - FR-023
+      - NFR-004
+      - C-004
+      - C-005
+    plan_concern_refs:
+      - IC-02
+    subtasks:
+      - T005
+      - T006
+      - T007
+      - T008
+      - T009
+      - T010
+    prompt_file: "tasks/WP02-tool-extension.md"
+  - id: WP03
+    title: "Contract slice A: listArtifacts and getArtifactContent"
+    dependencies: [WP02]
+    owned_files:
+      - "contracts/mission-status/openapi.yaml"
+      - "contracts/mission-status/CHANGELOG.md"
+      - "contracts/mission-status/schemas/_index.yaml"
+      - "contracts/mission-status/parameters/_index.yaml"
+      - "contracts/mission-status/responses/_index.yaml"
+      - "contracts/mission-status/examples/_index.yaml"
+      - "contracts/tools/enum_pins.json"
+      - "tests/contract/test_mission_status_examples.py"
+      - "tests/contract/test_enum_pin_check.py"
+      - "contracts/mission-status/paths/missions_missionId_artifacts.yaml"
+      - "contracts/mission-status/paths/missions_missionId_artifacts_content.yaml"
+      - "contracts/mission-status/parameters/ArtifactPath.yaml"
+      - "contracts/mission-status/schemas/ArtifactKind.yaml"
+      - "contracts/mission-status/schemas/ArtifactEntry.yaml"
+      - "contracts/mission-status/schemas/ArtifactListing.yaml"
+      - "contracts/mission-status/schemas/ArtifactContent.yaml"
+      - "contracts/mission-status/schemas/ArtifactRefusalCode.yaml"
+      - "contracts/mission-status/schemas/ArtifactRefusal.yaml"
+      - "contracts/mission-status/schemas/ArtifactPath.yaml"
+      - "contracts/mission-status/responses/ArtifactPathRefused.yaml"
+      - "contracts/mission-status/responses/ArtifactNotFound.yaml"
+      - "contracts/mission-status/responses/ArtifactTooLarge.yaml"
+      - "contracts/mission-status/responses/ArtifactNotText.yaml"
+      - "contracts/mission-status/responses/ArtifactSecretRefused.yaml"
+      - "contracts/mission-status/responses/ArtifactUnreadable.yaml"
+      - "contracts/mission-status/responses/ArtifactListingUnreadable.yaml"
+      - "contracts/mission-status/examples/ArtifactListing.populated.yaml"
+      - "contracts/mission-status/examples/ArtifactListing.truncated.yaml"
+      - "contracts/mission-status/examples/ArtifactContent.markdown.yaml"
+      - "contracts/mission-status/examples/ArtifactContent.redacted.yaml"
+      - "contracts/mission-status/examples/ArtifactContent.json.yaml"
+      - "contracts/mission-status/examples/ArtifactContent.empty.yaml"
+      - "contracts/mission-status/examples/ArtifactRefusal.invalid-artifact-path.yaml"
+      - "contracts/mission-status/examples/ArtifactRefusal.not-found.yaml"
+      - "contracts/mission-status/examples/ArtifactRefusal.artifact-too-large.yaml"
+      - "contracts/mission-status/examples/ArtifactRefusal.artifact-not-text.yaml"
+      - "contracts/mission-status/examples/ArtifactRefusal.artifact-secret.yaml"
+      - "contracts/mission-status/examples/ArtifactRefusal.artifact-unreadable.yaml"
+      - "contracts/mission-status/examples/ArtifactRefusal.artifact-listing-unreadable.yaml"
+    requirement_refs:
+      - FR-009
+      - FR-010
+      - FR-011
+      - FR-012
+      - FR-013
+      - FR-017
+      - FR-018
+      - FR-019
+      - C-001
+      - C-002
+      - C-004
+      - SC-001
+    plan_concern_refs:
+      - IC-03
+    subtasks:
+      - T011
+      - T012
+      - T013
+      - T014
+      - T015
+      - T016
+    prompt_file: "tasks/WP03-contract-slice-a-artifacts.md"
+  - id: WP04
+    title: "Contract slice B: getWorkPackageDetail"
+    dependencies: [WP03]
+    owned_files:
+      - "contracts/mission-status/openapi.yaml"
+      - "contracts/mission-status/CHANGELOG.md"
+      - "contracts/mission-status/schemas/_index.yaml"
+      - "contracts/mission-status/parameters/_index.yaml"
+      - "contracts/mission-status/responses/_index.yaml"
+      - "contracts/mission-status/examples/_index.yaml"
+      - "contracts/tools/enum_pins.json"
+      - "tests/contract/test_mission_status_examples.py"
+      - "tests/contract/test_enum_pin_check.py"
+      - "contracts/mission-status/paths/missions_missionId_work-packages_wpId_detail.yaml"
+      - "contracts/mission-status/schemas/WorkPackageDetail.yaml"
+      - "contracts/mission-status/schemas/Subtask.yaml"
+      - "contracts/mission-status/schemas/DependencyRef.yaml"
+      - "contracts/mission-status/schemas/ReviewCycle.yaml"
+      - "contracts/mission-status/schemas/Workspace.yaml"
+      - "contracts/mission-status/schemas/OwnedFile.yaml"
+      - "contracts/mission-status/schemas/ChangeState.yaml"
+      - "contracts/mission-status/schemas/ArtifactReferences.yaml"
+      - "contracts/mission-status/schemas/ArtifactReference.yaml"
+      - "contracts/mission-status/schemas/WorkPackageDetailRefusal.yaml"
+      - "contracts/mission-status/schemas/WorkPackageDetailRefusalCode.yaml"
+      - "contracts/mission-status/responses/WorkPackageDetailNotFound.yaml"
+      - "contracts/mission-status/responses/WorkPackageDetailUnreadable.yaml"
+      - "contracts/mission-status/examples/WorkPackageDetail.populated.yaml"
+      - "contracts/mission-status/examples/WorkPackageDetail.no-cycles.yaml"
+      - "contracts/mission-status/examples/WorkPackageDetail.unknown-change-state.yaml"
+      - "contracts/mission-status/examples/WorkPackageDetail.null-workspace.yaml"
+      - "contracts/mission-status/examples/WorkPackageDetail.planning-lane.yaml"
+      - "contracts/mission-status/examples/WorkPackageDetail.unparseable-cycle.yaml"
+      - "contracts/mission-status/examples/WorkPackageDetailRefusal.not-found.yaml"
+      - "contracts/mission-status/examples/WorkPackageDetailRefusal.source-unreadable.yaml"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - FR-004
+      - FR-005
+      - FR-006
+      - FR-007
+      - FR-008
+      - FR-013
+      - FR-015
+      - FR-018
+      - FR-019
+      - C-001
+      - C-002
+      - C-004
+      - SC-001
+    plan_concern_refs:
+      - IC-04
+    subtasks:
+      - T017
+      - T018
+      - T019
+      - T020
+      - T021
+      - T022
+    prompt_file: "tasks/WP04-contract-slice-b-detail.md"
+  - id: WP05
+    title: "Reader foundation and the artifact reader"
+    dependencies: [WP01, WP02, WP03]
+    owned_files:
+      - "tests/contract/_mission_status_payloads.py"
+      - "tests/contract/_mission_status_artifacts.py"
+      - "tests/contract/test_mission_status_artifacts.py"
+      - "tests/contract/test_mission_status_payloads.py"
+      - "tests/contract/test_mission_status_reality.py"
+      - ".github/workflows/packs.yml"
+      - "tests/architectural/test_ci_corpus_trigger_completeness.py"
+    requirement_refs:
+      - FR-009
+      - FR-010
+      - FR-011
+      - FR-012
+      - FR-013
+      - FR-014
+      - FR-015
+      - FR-016
+      - FR-020
+      - FR-022
+      - NFR-002
+      - NFR-003
+      - NFR-005
+      - NFR-006
+      - C-003
+      - C-004
+      - C-005
+    plan_concern_refs:
+      - IC-06
+    subtasks:
+      - T023
+      - T024
+      - T025
+      - T026
+      - T027
+      - T028
+      - T029
+    prompt_file: "tasks/WP05-artifact-reader-foundation.md"
+  - id: WP06
+    title: "Detail reader, matcher parity and the git change-state matrix"
+    dependencies: [WP04, WP05]
+    owned_files:
+      - "tests/contract/_mission_status_detail.py"
+      - "tests/contract/test_mission_status_detail.py"
+      - "tests/contract/test_mission_status_reality.py"
+      - ".github/workflows/packs.yml"
+      - "tests/architectural/test_ci_corpus_trigger_completeness.py"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - FR-004
+      - FR-005
+      - FR-006
+      - FR-007
+      - FR-008
+      - FR-016
+      - FR-020
+      - FR-022
+      - NFR-002
+      - NFR-005
+      - NFR-006
+      - NFR-007
+      - C-004
+      - C-005
+    plan_concern_refs:
+      - IC-07
+    subtasks:
+      - T030
+      - T031
+      - T032
+      - T033
+      - T034
+      - T035
+      - T036
+      - T037
+    prompt_file: "tasks/WP06-detail-reader.md"
+  - id: WP07
+    title: "Version, CHANGELOG and the pure 1.1 proof module"
+    dependencies: [WP04, WP06]
+    owned_files:
+      - "contracts/mission-status/CHANGELOG.md"
+      - "tests/contract/test_mission_status_contract_1_1.py"
+      - ".github/workflows/packs.yml"
+      - "tests/architectural/test_ci_corpus_trigger_completeness.py"
+    requirement_refs:
+      - FR-017
+      - FR-018
+      - FR-019
+      - FR-020
+      - FR-024
+      - NFR-005
+      - NFR-006
+      - NFR-007
+      - C-001
+      - C-002
+      - C-004
+      - SC-001
+      - SC-002
+      - SC-007
+      - SC-008
+    plan_concern_refs:
+      - IC-05
+    subtasks:
+      - T038
+      - T039
+      - T040
+      - T041
+      - T042
+      - T043
+    prompt_file: "tasks/WP07-version-changelog-proof.md"
+  - id: WP08
+    title: "Reality-check extension: floors, oracle, controls, fixture"
+    dependencies: [WP05, WP06]
+    owned_files:
+      - "tests/contract/test_mission_status_reality.py"
+      - "tests/contract/_mission_status_payloads.py"
+      - "tests/contract/fixtures/mission_status_artifacts_expected.json"
+    requirement_refs:
+      - FR-016
+      - FR-021
+      - FR-023
+      - NFR-001
+      - NFR-003
+      - NFR-004
+      - NFR-006
+      - C-004
+      - SC-003
+      - SC-004
+      - SC-005
+      - SC-006
+    plan_concern_refs:
+      - IC-08
+    subtasks:
+      - T044
+      - T045
+      - T046
+      - T047
+      - T048
+      - T049
+    prompt_file: "tasks/WP08-reality-check-extension.md"
+  - id: WP09
+    title: "Close-out evidence (pre-tag) and tracer assessment"
+    dependencies: [WP07, WP08]
+    owned_files:
+      - "kitty-specs/mission-status-contract-1-1-01M42XJC/tracer-approach.md"
+      - "kitty-specs/mission-status-contract-1-1-01M42XJC/tracer-design-decisions.md"
+      - "kitty-specs/mission-status-contract-1-1-01M42XJC/tracer-tooling-friction.md"
+    requirement_refs:
+      - SC-001
+      - SC-002
+      - SC-003
+      - SC-004
+      - SC-005
+      - SC-006
+      - SC-007
+      - SC-008
+      - C-003
+      - C-004
+    plan_concern_refs:
+      - IC-09
+    subtasks:
+      - T050
+      - T051
+      - T052
+    prompt_file: "tasks/WP09-closeout-evidence-pre-tag.md"

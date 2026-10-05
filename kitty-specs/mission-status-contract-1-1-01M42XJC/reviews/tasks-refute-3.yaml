@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 3
+verdicts:
+- id: TASKS-ORDER-004
+  verdict: confirmed
+  reason: T029 (and WP06 T037, WP07 T042) are ordered last while T029 and plan Lanes exception (2) say the registrations ride in the commit that creating the module, a verified text/order contradiction.
+- id: TASKS-ORDER-005
+  verdict: confirmed
+  reason: tasks.md line 158 still hedges and implement_support.py lines 705-717 confirm unapproved dependency lanes are skipped, so the hedge can be replaced by the verified rule.
+- id: TASKS-ORDER-006
+  verdict: confirmed
+  reason: WP07 Context line says "under the X-family, on WP06" verbatim although OD-1 X-pure is decided and binding.
+- id: TASKS-COVER-001
+  verdict: confirmed
+  reason: Grep of WP05 finds zero AD/CL/OQ references, confirming the prompt-side traceability gap.
+- id: TASKS-COVER-002
+  verdict: confirmed
+  reason: SC-004 and SC-005 are absent from WP06 and WP02 refs and prompts while WP08 and WP09 carry them, as claimed.
+- id: TASKS-COVER-003
+  verdict: confirmed
+  reason: plan.md maps FR-008 to IC-06 and FR-020 to IC-08 but tasks.md rows list FR-008 as WP04, WP06 and FR-020 as WP05, WP06, WP07, so each lost a WP.
+- id: TASKS-COVER-004
+  verdict: confirmed
+  reason: tasks.md row C-003 lists WP05, WP09 while the note below says the WP07 scope data checks it, and WP05 carries C-003 in refs.
+- id: TASKS-COVER-005
+  verdict: confirmed
+  reason: WP04 has no mention of the duplicate-id or byte-order rule and tasks.md OD-3 row lists only WP06, WP08, while plan says the rule is documented in the contract.

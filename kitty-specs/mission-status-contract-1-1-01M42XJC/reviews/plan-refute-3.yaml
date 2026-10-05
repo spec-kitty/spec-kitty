@@ -1,0 +1,23 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 3
+verdicts:
+  - id: PLAN-FIT-004
+    verdict: confirmed
+    reason: wp_task_files (wp_metadata.py:732-743) has no regular-file or symlink test and bootstrap catches only FrontmatterError/ValidationError, while D-P6/OD-3 call the frontmatter-keyed first file the prompt file and give no outcome for symlinked, directory-named or name/id-mismatched WP files, against the spec's name-keyed regular non-symlink prompt file.
+  - id: PLAN-FIT-008
+    verdict: refuted
+    reason: spec.md FR-007 rule 3 itself states the two copies differ on normalisation (the parity test normalises first), so the plan's pinned divergences sharpen rather than depart from the spec and need no departure entry.
+  - id: PLAN-SEQ-005
+    verdict: confirmed
+    reason: The plan has IC-10 re-measure floors on the final tree and run the live baseline after the tag yet places the rebase onto the release commit in wrap-up after all work packages, and it names no owner, dispatch point or fallback for the operator's tag cut (only "before the aggregate review").
+  - id: PLAN-SEQ-009
+    verdict: refuted
+    reason: The OD-2 row already states the tradeoff (X makes the python-checks workflow job also fail on a deleted example, Y keeps the guard in-slice and the plan lists it as a declared departure), so this is a disagreement with a stated recommendation rather than an omission.
+  - id: PLAN-VERIFY-003
+    verdict: confirmed
+    reason: leak_scan.py scans every line and non-strict key (content, title) with the HUMAN patterns today, and existing plants already cover host-path-human, email and token codes under title/reason, so the three content/title kinds pass on the base and are not red-first against the scanner.
+  - id: PLAN-VERIFY-007
+    verdict: confirmed
+    reason: ci-router.yml selects architectural-heavy on ci_config (.github/workflows/**) or architectural (tests/architectural/**), OD-1 X edits packs.yml and an architectural test, yet the plan's Tiered rigour row says workflow YAML is not touched and the gate-set row mentions only the tests/architectural trigger.

@@ -1,0 +1,33 @@
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 2
+verdicts:
+- id: PR-HYGIENE-001
+  verdict: refuted
+  severity: 1
+  reason: "Checked main at the merge base: tests/architectural already cite 'ledger SK-247' in several files, so a ledger-id citation in tests is established practice; the spec and AD-18 also cite SK-348. At most a nit, already the class of the known WP09 ledger-wording fold item."
+- id: PR-READERS-001
+  verdict: confirmed
+  severity: 3
+  reason: "Read test_mission_status_reality.py (v1_control_problems, independent_list_problems, titled-subtask check, DETAIL_MUTANTS): only ids, wpIds and patterns are compared and there is no lane or title mutant, while FR-021 line 402 names the lane agreement control; the unit tests pin lanes only on small fixtures. I did not re-run the 625-pass probe."
+- id: PR-READERS-002
+  verdict: refuted
+  severity: 1
+  reason: "NFR-002 bounds which sources a detail may open (no artifact content) and the WP and cycle files are read by the product's own public readers (read_authored_wp_frontmatter, read_guarded), which is the design; the spec asks for no cap on them and no recorded FR requires fault injection on these two reads. Speculative hardening of a test-tree reference reader."
+- id: PR-READERS-003
+  verdict: confirmed
+  severity: 2
+  reason: "grep of tests/contract finds MAX_TASKS_MD_BYTES and the 4 MiB cap only in the reader (lines 70, 278, 281), so no test exercises the over-cap branch; reverting it to an unbounded read stays green. Small gap, the implementation is right."
+- id: PR-READERS-004
+  verdict: refuted
+  severity: 1
+  reason: "Eligibility by per-component lstat is exactly what the spec prescribes (Eligible file, FR-014) and the lstat already requires S_ISREG, so a FIFO is rejected up front. The finding needs a race swap between lstat and open, a read-only test-tree reference reader on a repository checkout; not a defect against any recorded requirement."
+- id: PR-SECURITY-001
+  verdict: refuted
+  severity: 1
+  reason: "AD-19 (operator-acknowledged) states in terms: 'Credentials and e-mail addresses inside a file name are not detected (accepted residual: the name is repository content)'. The finding contradicts that ruling; plan.md item 18 only says stricter scanning of path values is an option under OD-4, not that the reader must refuse them."
+- id: PR-SECURITY-002
+  verdict: refuted
+  severity: 1
+  reason: "AD-17 and the Terminology entry 'Credential pattern' fix the closed set (GitHub, AWS key id, PEM header) as operator-acknowledged, with SECRET_PATTERNS the authority and 'this spec adds none'; spec line 162 lists hidden files. Not a defect. Fork status: widening the set or adding name-based refusal would amend AD-17 and need an operator ruling, so it is a genuine fork only if the operator wants to reopen it; the current scope is within the acknowledged decision and needs no action now."

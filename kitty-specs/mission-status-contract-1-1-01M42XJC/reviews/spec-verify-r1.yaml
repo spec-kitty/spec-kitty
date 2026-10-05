@@ -1,0 +1,122 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+- id: SPEC-ARCH-001
+  status: resolved
+  reason: 'Premise rewritten as merged: FR-021, A-1, AD-15 and the risk row name the real projector files, conventions and the build_detail name clash, gating is uniform for FR-021/FR-022, and re-measuring
+    floors on the level branch is an explicit orchestrator/plan step.'
+- id: SPEC-ARCH-002
+  status: resolved
+  reason: AD-18 decides the seam in the spec (primary directory only, no private resolver, artifactPath null when unlisted), keeps the src seam as OQ-2 for the operator, and FR-022 tests the stranded and
+    coordination-only cycle cases.
+- id: SPEC-ARCH-004
+  status: resolved
+  reason: New ArtifactRefusal module schema (Problem plus code enum with pinned statuses, examples for all seven codes, new responses files) replaces the shared Problem for artifact refusals; FR-013/FR-019/FR-017
+    keep the shared files untouched and enum-pinned (verified Problem already carries an optional code, StreamRefusal is the precedent).
+- id: SPEC-ARCH-006
+  status: resolved
+  reason: FR-006/AD-12 now cite ResolvedWorkspace.runs_in_checkout_root (verified), name target_branch as the lane_branch_name input, define lane-planning as laneId lane-planning with null laneBranch (matches
+    lane_branch_name returning the target branch), and map MissingLanesError, no-lane ValueError, CorruptLanesError and MissionSelectorAmbiguous, with the FR-020 default covering the rest.
+- id: SPEC-ARCH-008
+  status: resolved
+  reason: FR-003 now takes ids from AuthoredGroup.subtasks via normalize_authored_subtask_roster (verified non-raising), rejects authored_subtask_roster as source, and AC-DETAIL/FR-021 assert equality with
+    WorkPackage.authored.subtasks.
+- id: SPEC-ARCH-010
+  status: resolved
+  reason: FR-005 states the match key (full pointer, trimmed, mission segment included), last-event-wins, null on no match or null pointer, builder refusal handled, with FR-022 synthetic cases and a FR-021
+    floor against an independent verdict count.
+- id: SPEC-ARCH-012
+  status: resolved
+  reason: Confirmation only; NFR-007 and A-6 keep no src/ change and the freeze rule, and the one possible seam is the explicit OQ-2 decision.
+- id: SPEC-COMPLETE-001
+  status: resolved
+  reason: AD-17/FR-015 give the SECRET class a stated outcome (422 artifact_secret for content, [secret] in human text, strict-field handling, forbidden-name residual) marked as needing operator acknowledgement,
+    with ACs and planted fixtures.
+- id: SPEC-COMPLETE-002
+  status: resolved
+  reason: AD-7, FR-011, NFR-001 and NFR-002 now state the whole-file read for entries at or below the cap with the 1000x262144 worst case, and FR-022/AC-LIST add NUL and invalid-sequence last-byte fixtures
+    asserting readable false.
+- id: SPEC-COMPLETE-004
+  status: resolved
+  reason: FR-022 gains a workspace matrix (real lane worktree true, recorded-not-created false, planning-artifact at repo root false and fails if true, no lanes.json, no lane, malformed) and AC-DETAIL plus
+    FR-016 assert the changeState/worktreePresent invariant on every detail.
+- id: SPEC-COMPLETE-005
+  status: resolved
+  reason: AC-DETAIL now has one bullet per group (subtask titles, dependencies, artifactReferences, reviewCycles, pointer check, workspace/changeState, leak scan, absence), each with a fail condition, and
+    the traceability table matches them.
+- id: SPEC-COMPLETE-006
+  status: resolved
+  reason: FR-022 now has explicit topology and edge fixtures (coordination-topology Mission, cycle only in coordination vs stranded in primary, no tasks.md, dangling dependency, missing subtasks key) with
+    stated outcomes.
+- id: SPEC-COMPLETE-007
+  status: resolved
+  reason: FR-006 states absent lanes.json gives null/null, malformed lanes.json fails the read with source_unreadable, names target_branch, and defines lane-planning; FR-022 has a fixture for each.
+- id: SPEC-COMPLETE-008
+  status: resolved
+  reason: FR-005 makes feedbackReference nullable when the pointer builder refuses a segment (entry kept, never fabricated), FR-015/AC-DETAIL agree, and FR-022 plants an invalid segment.
+- id: SPEC-COMPLETE-009
+  status: resolved
+  reason: FR-003 defines the title extraction rule for both row forms, makes empty/whitespace titles null, makes an undecodable tasks.md a source_unreadable failure rather than null, and FR-022/AC-DETAIL
+    add the fixtures including a duplicate id.
+- id: SPEC-COMPLETE-010
+  status: resolved
+  reason: Eligible file is defined as a per-path rule independent of the 1000 cap (Terminology, AD-8, FR-008, FR-012), with AC-CONTENT and AC-DETAIL cases for files and references past the cap.
+- id: SPEC-COMPLETE-011
+  status: resolved
+  reason: FR-007/AD-20 specify worktree, HEAD-on-lane-branch, base ref source (manifest target_branch), committed-only, deleted and renamed handling, detached HEAD as unknown and brace patterns, with the
+    rename-seam limitation of the checked helper honestly escalated to the plan; FR-022 lists the git cases and mutations.
+- id: SPEC-COMPLETE-012
+  status: resolved
+  reason: AD-22 fixes modifiedAt as whole-second truncated UTC with Z, vanished-before-stat is omitted and other stat failure is artifact_listing_unreadable, all with FR-022/AC-LIST fixtures including a
+    sub-second mtime.
+- id: SPEC-COMPLETE-013
+  status: resolved
+  reason: AD-19 decides that odd file names are listed with their real path under a dedicated artifact-path rule instead of the strict patterns, FR-015/FR-010 carry it, and FR-022/AC-LIST plant home-segment
+    and at-sign names.
+- id: SPEC-COMPLETE-014
+  status: resolved
+  reason: The Summary and Out of Scope state authorization is the serving layer and no security scheme is declared, FR-014 forbids cross-Mission reach, and FR-022/AC-CONTENT add the sibling-component case
+    and a no-security-scheme check.
+- id: SPEC-COMPLETE-015
+  status: resolved
+  reason: FR-010 states an ordered first-match classifier (review-cycle before an anchored work-package-prompt) and FR-013 gives the order of decision (413 before 415 before 422) with an oversize non-UTF-8
+    fixture.
+- id: SPEC-COMPLETE-016
+  status: resolved
+  reason: 'AC-DETAIL now requires validate_review_cycle_pointer (verified: three segments, review-cycle-N.md) with planted three-slash and two-segment negatives instead of a prefix test.'
+- id: SPEC-GOV-001
+  status: resolved
+  reason: 'FR-024 is reduced to a cross-reference (covered-route list kept verbatim, #5533 owns the mapping, no README edit, only the two behaviours this Mission introduces go in the CHANGELOG).'
+- id: SPEC-GOV-002
+  status: resolved
+  reason: AD-14 separates operator-fixed from author-chosen shapes, marks reviewCycles, workspace, ArtifactKind, truncated and the refusal code x-provisional, and records the rejected alternative and its
+    cost, flagged for operator acknowledgement.
+- id: SPEC-GOV-005
+  status: resolved
+  reason: 'AD-5 is labelled an author narrowing grounded in v1 D-8, defines the exclusion as exact root-level names, and AC-LIST/FR-022 add the nested status.json fixture; the dashboard-behaviour record
+    is delegated to #5533 with a CHANGELOG note.'
+- id: SPEC-VERIFY-001
+  status: resolved
+  reason: FR-017/AC-VERSION replace the unfalsifiable claim with scripted observables (exact version, counts line baselines=1 breaking=0, byte diff and bundle-minus-additions equality against the baseline)
+    each with a planted negative; tool behaviour claims verified against breaking_check.py.
+- id: SPEC-VERIFY-002
+  status: resolved
+  reason: A-4, CL-2 and FR-017 now state the true behaviour (red NO_BASELINE_NOT_INITIAL before the tag, verified against first_release), add a --baseline-root pre-release demonstration (option verified)
+    and require the PR to be opened only after the release.
+- id: SPEC-VERIFY-005
+  status: resolved
+  reason: FR-016 makes host capability an explicit input of the reference reader, the corpus run passes a no-worktree host so the invariant is deterministic, and a planted real-worktree case proves the
+    assertion is not weakened.
+- id: SPEC-VERIFY-008
+  status: resolved
+  reason: FR-013 fixes the order of decision (opened-handle size then read then 415 then 422), the read-plus-one growth rule, zero-byte 200, BOM preserved, and FR-022/AC-CONTENT add the over-cap NUL, empty,
+    BOM and fault-injected growth cases.
+- id: SPEC-VERIFY-009
+  status: resolved
+  reason: AD-21/FR-013 give both conditions a status and stable code (500 artifact_unreadable and artifact_listing_unreadable) declared on the operations, and FR-022 induces them by fault-injected opener/reader
+    that must fail, not skip, if unfired.
+- id: SPEC-VERIFY-010
+  status: resolved
+  reason: FR-021 requires examined equals discovered via independently computed counts with an empty skip list and no swallowed per-Mission exception, plus numeric floors and floors on readable true/false,
+    413/415 named files, 422 fixture and verdict cycles.

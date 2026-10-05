@@ -1,0 +1,199 @@
+{
+  "version": 1,
+  "mission_slug": "mission-status-contract-1-1-01M42XJC",
+  "mission_id": "01M42XJC843HFNE15N1NK9HPQB",
+  "mission_branch": "kitty/mission-mission-status-contract-1-1-01M42XJC",
+  "target_branch": "issue-5625-mission-status-contract-1-1",
+  "lanes": [
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "contracts/tools/fixture_builder.py",
+        "contracts/tools/leak_scan.py",
+        "contracts/tools/negative_cases.json",
+        "tests/contract/test_fixture_builder.py",
+        "tests/contract/test_leak_scan.py",
+        "tests/contract/test_run_negative_cases.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08"
+      ],
+      "write_scope": [
+        ".github/workflows/packs.yml",
+        "contracts/mission-status/CHANGELOG.md",
+        "contracts/mission-status/examples/ArtifactContent.empty.yaml",
+        "contracts/mission-status/examples/ArtifactContent.json.yaml",
+        "contracts/mission-status/examples/ArtifactContent.markdown.yaml",
+        "contracts/mission-status/examples/ArtifactContent.redacted.yaml",
+        "contracts/mission-status/examples/ArtifactListing.populated.yaml",
+        "contracts/mission-status/examples/ArtifactListing.truncated.yaml",
+        "contracts/mission-status/examples/ArtifactRefusal.artifact-listing-unreadable.yaml",
+        "contracts/mission-status/examples/ArtifactRefusal.artifact-not-text.yaml",
+        "contracts/mission-status/examples/ArtifactRefusal.artifact-secret.yaml",
+        "contracts/mission-status/examples/ArtifactRefusal.artifact-too-large.yaml",
+        "contracts/mission-status/examples/ArtifactRefusal.artifact-unreadable.yaml",
+        "contracts/mission-status/examples/ArtifactRefusal.invalid-artifact-path.yaml",
+        "contracts/mission-status/examples/ArtifactRefusal.not-found.yaml",
+        "contracts/mission-status/examples/WorkPackageDetail.no-cycles.yaml",
+        "contracts/mission-status/examples/WorkPackageDetail.null-workspace.yaml",
+        "contracts/mission-status/examples/WorkPackageDetail.planning-lane.yaml",
+        "contracts/mission-status/examples/WorkPackageDetail.populated.yaml",
+        "contracts/mission-status/examples/WorkPackageDetail.unknown-change-state.yaml",
+        "contracts/mission-status/examples/WorkPackageDetail.unparseable-cycle.yaml",
+        "contracts/mission-status/examples/WorkPackageDetailRefusal.not-found.yaml",
+        "contracts/mission-status/examples/WorkPackageDetailRefusal.source-unreadable.yaml",
+        "contracts/mission-status/examples/_index.yaml",
+        "contracts/mission-status/openapi.yaml",
+        "contracts/mission-status/parameters/ArtifactPath.yaml",
+        "contracts/mission-status/parameters/_index.yaml",
+        "contracts/mission-status/paths/missions_missionId_artifacts.yaml",
+        "contracts/mission-status/paths/missions_missionId_artifacts_content.yaml",
+        "contracts/mission-status/paths/missions_missionId_work-packages_wpId_detail.yaml",
+        "contracts/mission-status/responses/ArtifactListingUnreadable.yaml",
+        "contracts/mission-status/responses/ArtifactNotFound.yaml",
+        "contracts/mission-status/responses/ArtifactNotText.yaml",
+        "contracts/mission-status/responses/ArtifactPathRefused.yaml",
+        "contracts/mission-status/responses/ArtifactSecretRefused.yaml",
+        "contracts/mission-status/responses/ArtifactTooLarge.yaml",
+        "contracts/mission-status/responses/ArtifactUnreadable.yaml",
+        "contracts/mission-status/responses/WorkPackageDetailNotFound.yaml",
+        "contracts/mission-status/responses/WorkPackageDetailUnreadable.yaml",
+        "contracts/mission-status/responses/_index.yaml",
+        "contracts/mission-status/schemas/ArtifactContent.yaml",
+        "contracts/mission-status/schemas/ArtifactEntry.yaml",
+        "contracts/mission-status/schemas/ArtifactKind.yaml",
+        "contracts/mission-status/schemas/ArtifactListing.yaml",
+        "contracts/mission-status/schemas/ArtifactPath.yaml",
+        "contracts/mission-status/schemas/ArtifactReference.yaml",
+        "contracts/mission-status/schemas/ArtifactReferences.yaml",
+        "contracts/mission-status/schemas/ArtifactRefusal.yaml",
+        "contracts/mission-status/schemas/ArtifactRefusalCode.yaml",
+        "contracts/mission-status/schemas/ChangeState.yaml",
+        "contracts/mission-status/schemas/DependencyRef.yaml",
+        "contracts/mission-status/schemas/OwnedFile.yaml",
+        "contracts/mission-status/schemas/ReviewCycle.yaml",
+        "contracts/mission-status/schemas/Subtask.yaml",
+        "contracts/mission-status/schemas/WorkPackageDetail.yaml",
+        "contracts/mission-status/schemas/WorkPackageDetailRefusal.yaml",
+        "contracts/mission-status/schemas/WorkPackageDetailRefusalCode.yaml",
+        "contracts/mission-status/schemas/Workspace.yaml",
+        "contracts/mission-status/schemas/_index.yaml",
+        "contracts/tools/enum_pins.json",
+        "tests/architectural/test_ci_corpus_trigger_completeness.py",
+        "tests/contract/_mission_status_artifacts.py",
+        "tests/contract/_mission_status_detail.py",
+        "tests/contract/_mission_status_payloads.py",
+        "tests/contract/fixtures/mission_status_artifacts_expected.json",
+        "tests/contract/test_enum_pin_check.py",
+        "tests/contract/test_mission_status_artifacts.py",
+        "tests/contract/test_mission_status_contract_1_1.py",
+        "tests/contract/test_mission_status_detail.py",
+        "tests/contract/test_mission_status_examples.py",
+        "tests/contract/test_mission_status_payloads.py",
+        "tests/contract/test_mission_status_reality.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "kitty-specs/mission-status-contract-1-1-01M42XJC/tracer-approach.md",
+        "kitty-specs/mission-status-contract-1-1-01M42XJC/tracer-design-decisions.md",
+        "kitty-specs/mission-status-contract-1-1-01M42XJC/tracer-tooling-friction.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-04T12:08:36.112416+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP09"
+  ],
+  "planning_commit_sha": "a693f55c9274db7e50329c892f5ce3c43564a867",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP05",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/contract/_mission_status_payloads.py' vs 'tests/contract/_mission_status_payloads.py', 'tests/contract/test_mission_status_reality.py' vs 'tests/contract/test_mission_status_reality.py'; WP05 depends on WP01"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP06",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/contract/test_mission_status_reality.py' vs 'tests/contract/test_mission_status_reality.py'"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP08",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/contract/_mission_status_payloads.py' vs 'tests/contract/_mission_status_payloads.py', 'tests/contract/test_mission_status_reality.py' vs 'tests/contract/test_mission_status_reality.py'"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP04",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'contracts/mission-status/openapi.yaml' vs 'contracts/mission-status/openapi.yaml', 'contracts/mission-status/CHANGELOG.md' vs 'contracts/mission-status/CHANGELOG.md', 'contracts/mission-status/schemas/_index.yaml' vs 'contracts/mission-status/schemas/_index.yaml', 'contracts/mission-status/parameters/_index.yaml' vs 'contracts/mission-status/parameters/_index.yaml', 'contracts/mission-status/responses/_index.yaml' vs 'contracts/mission-status/responses/_index.yaml', 'contracts/mission-status/examples/_index.yaml' vs 'contracts/mission-status/examples/_index.yaml', 'contracts/tools/enum_pins.json' vs 'contracts/tools/enum_pins.json', 'tests/contract/test_mission_status_examples.py' vs 'tests/contract/test_mission_status_examples.py', 'tests/contract/test_enum_pin_check.py' vs 'tests/contract/test_enum_pin_check.py'; WP04 depends on WP03"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP07",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'contracts/mission-status/CHANGELOG.md' vs 'contracts/mission-status/CHANGELOG.md'"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP07",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: '.github/workflows/packs.yml' vs '.github/workflows/packs.yml', 'tests/architectural/test_ci_corpus_trigger_completeness.py' vs 'tests/architectural/test_ci_corpus_trigger_completeness.py'"
+      }
+    ],
+    "total_merges": 6,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 6
+    }
+  }
+}

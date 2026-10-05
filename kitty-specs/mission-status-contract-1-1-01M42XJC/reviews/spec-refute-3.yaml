@@ -1,0 +1,38 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 3
+verdicts:
+  - id: SPEC-COMPLETE-013
+    verdict: confirmed
+    reason: STRICT_HOST_PATH_PATTERNS (home|Users segment pair) and EMAIL_PATTERN do match such file names, and FR-015 says only "projection error that fails the check" with no listing or service outcome.
+  - id: SPEC-COMPLETE-014
+    verdict: confirmed
+    reason: The v1 openapi declares no security scheme and the spec never states that authorization is the serving layer's job, although cross-Mission reach via .. is already refused by AD-9/FR-014.
+  - id: SPEC-COMPLETE-015
+    verdict: confirmed
+    reason: Review-cycle files sit at tasks/WP##-slug/review-cycle-N.md so a tasks/WP*.md glob overlaps them, FR-010 gives no precedence, and FR-013 does not order 413 versus 415.
+  - id: SPEC-COMPLETE-016
+    verdict: confirmed
+    reason: AC-DETAIL literally says "matches ^review-cycle:// pointer pattern", a prefix test, while validate_review_cycle_pointer requires exactly three segments and a review-cycle-N.md filename.
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: Issue #5533 is titled "Rehome the removed dashboard's artifact and governance read routes" and the spec itself says "#5533 stays the route-mapping job", yet FR-024 authors a route-by-route map.
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    reason: The operator comment fixes the envelope, owned-file object, cap and codes only, while AD-14 claims the decisions fix every new element and breaking_check treats any added response property as breaking.
+  - id: SPEC-GOV-004
+    verdict: refuted
+    reason: AD-10 sits under "Author decisions (need squad scrutiny)", states the alternative reading and why it was rejected, so it is already surfaced as reviewable rather than presented as operator-decided.
+  - id: SPEC-GOV-005
+    verdict: confirmed
+    reason: FR-011 names status.events.jsonl and status.json without saying root-level only versus any depth, and FR-024 lists invalid UTF-8 as the only changed dossier behaviour, omitting this exclusion.
+  - id: SPEC-GOV-006
+    verdict: refuted
+    reason: The finding concedes 400 is within the author's remit with v1 invalid_page_cursor precedent, and AD-9 sits in the author-decisions section, so the missing one-line extension note is not a defect.
+  - id: SPEC-GOV-007
+    verdict: refuted
+    reason: Each ledger cite in AD-2, Edge Cases and Risks carries its subject inline (surface mismatch, stranded review-cycle record, empty snapshot), which disambiguates the duplicate SK-310 headings.
+  - id: SPEC-GOV-008
+    verdict: refuted
+    reason: Charter standing orders bind plan and implement by their own text and need no restatement in a spec, and FR-023 plus the AC "fails" clauses already specify planted negatives.

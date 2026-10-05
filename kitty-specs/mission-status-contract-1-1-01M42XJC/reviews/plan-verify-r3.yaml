@@ -1,0 +1,34 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: OD-1 X cell now carries cost item (6) listing the ACK-1 costs (red by design, tag-less clones and make test-full, new kind of test, FR-017 departure, retirement duty) and says acknowledging X acknowledges them.
+  - id: PLAN-FRESH2-002
+    status: resolved
+    reason: OD-1 is now a three-option table with X-pure (three pure modules, six registrations, no ACK-1, W-7 recorded command) priced in full and recommended, with Y's cell cross-referencing it.
+  - id: PLAN-FRESH2-003
+    status: resolved
+    reason: W-1 now has an explicit accept, then spec-kitty consolidate (dry-run flag, --keep-branch, no --push, target matches meta.json target_branch, precondition is only WP approved/done per _assert_mission_terminal_ready) step, with a "which tree each step reads" paragraph and the quickstart scope block placed after it.
+  - id: PLAN-FRESH2-004
+    status: resolved
+    reason: D-P10 now feeds the scope function name-status entries with per-rule admitted statuses (A only under contracts/mission-status/, M only for named files, never D) and names planted M-under-prefix, unnamed tools file and D negatives.
+  - id: PLAN-FRESH2-005
+    status: resolved
+    reason: ACK-1 (c) names the issue 5625 as tracker, the Human-in-Charge as owner, an exit condition, a D-0 question and the Op fallback when no release Mission exists.
+  - id: PLAN-FRESH2-006
+    status: resolved
+    reason: "Re-ran leak_codes under HUMAN over the Mission directory excluding reviews/ and the status log: 0 hits, so the Reflexivity and C-004 claims now hold."
+  - id: PLAN-FRESH2-007
+    status: resolved
+    reason: plan.md header and structure comment now say R-1 to R-15, and R-15 is cited from the ATDD row and from contracts/tool-extension-and-reader.md.
+  - id: PLAN-FRESH2-008
+    status: resolved
+    reason: Quickstart step 5 is prefixed OD-1 X only, the closing paragraph states the git half ran and the Python half did not, and the block says to run from the repository root.
+  - id: PLAN-FRESH2-009
+    status: resolved
+    reason: The detail module now drops fast and carries contract, corpus and git_repo (marker verified present in pytest.ini line 68), in both the plan and the contract file.
+  - id: PLAN-FRESH2-010
+    status: resolved
+    reason: W-2 now reads after the contract tree is final (no work package after IC-05 touches contracts), replacing the wrong IC-06 to IC-09 parenthesis.

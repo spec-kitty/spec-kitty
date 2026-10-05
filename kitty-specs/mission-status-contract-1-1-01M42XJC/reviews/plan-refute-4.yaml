@@ -1,0 +1,23 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 4
+verdicts:
+  - id: PLAN-FIT-005
+    verdict: refuted
+    reason: The plan decides (D-P3 and research R-3 reproduce the spec's pattern-as-authored rule, FR-007 rule 3, operator-ruled), measures the corpus (0 and 1 entries) and pins four normalisation cases in the parity test, so it is a recorded decision rather than an open note.
+  - id: PLAN-SEQ-001
+    verdict: confirmed
+    reason: plan.md IC-06 needs IC-02 and IC-03 and IC-07 needs IC-04 across lanes A, B and C with no stated merge point, and the plan has lane C run IC-07 and the rest of IC-06 together inside one lane worktree.
+  - id: PLAN-SEQ-006
+    verdict: confirmed
+    reason: IC-06 and IC-07 have no corpus smoke in their scope or acceptance and the real corpus is first exercised by IC-08 (research R-6 timed only a throwaway script, not the readers).
+  - id: PLAN-SEQ-011
+    verdict: confirmed
+    reason: test_mission_status_reality.py has one _commit_all definition (line 321) and two call sites (337, 358), so the plan's "used three times" and "nine call sites" are off, and IC-01 also records to tracer-approach.md outside its "exactly those two files" scope.
+  - id: PLAN-VERIFY-004
+    verdict: confirmed
+    reason: D-P8 states the listing runs the content-read function so readable equals a 200 content read by construction, and the AC-LIST row's only independent evidence is floors and synthetic cases, with no byte-level classifier over the corpus.
+  - id: PLAN-VERIFY-008
+    verdict: confirmed
+    reason: research R-6 proved only the payload helper tests (157) in the --no-install-project scratch environment, and the import of tasks_move_task was timed only in the checkout venv (R-3), so the claim is real, though low risk since pytest.ini sets pythonpath to src.

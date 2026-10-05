@@ -1,0 +1,126 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: SECURITY
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: PR-SECURITY-001
+    lens: credential handling
+    severity: 3
+    title: A file whose name carries a credential is listed, readable and echoed in the content envelope; the path is never credential-checked by the reader
+    evidence:
+      - artifact: "plan.md item 18 and leak_scan.check_artifact_path say a SECRET in a path value stays detected; _artifact_path_findings in _mission_status_payloads.py treats it as a payload leak"
+      - code: "tests/contract/_mission_status_artifacts.py:183 (malformed), :284 (is_eligible), :344 (_decide_bytes echoes path), :424 (listing entry path)"
+      - artifact: "Reproduced on a scratch Mission directory under TMPDIR: a file named note-<github-token-shaped>.md is listed with readable true and a 200 content read returns body.path with the token"
+    claim: >-
+      Eligibility and malformed() judge only the artifact-path grammar. A file name that matches a SECRET pattern is eligible, appears in
+      ArtifactListing.entries[].path and in ArtifactContent.path (the content itself may be clean, so the 422 never fires). The contract tooling
+      itself calls the same value a leak (check_artifact_path and payload_leaks flag SECRET in a path), so the reader can emit a payload that the
+      contract's own oracle rejects. A downstream implementation following the reader serves the token to every dashboard viewer.
+    remediation: >-
+      In malformed() (the one predicate shared by request check, eligibility, listing and references) add a reason that returns non-None when
+      leak_codes(path, HUMAN) contains SECRET, so such a file is not an eligible artifact (404, absent from the listing).
+  - id: PR-SECURITY-002
+    lens: credential handling
+    severity: 3
+    title: The credential refusal is a closed three-family pattern set; a dotfile such as .env or any generic key/password/bearer secret is served 200
+    evidence:
+      - code: "contracts/tools/leak_patterns.py SECRET_PATTERNS (GitHub token, AWS key id, PEM header only)"
+      - code: "tests/contract/_mission_status_artifacts.py:226 (has_credential), :344 (_decide_bytes order)"
+      - artifact: "spec.md line 162 (hidden files are listed) and AD-17 (credential kinds fixed, operator-acknowledged); reproduced: a .env holding password and api-key assignments lists readable true and a content read returns 200 with the text unredacted"
+    claim: >-
+      The only secrets that block a content read are the three listed families. A Mission directory file with a password assignment, a bearer
+      header, a Slack/Stripe/Google/npm/GitLab token, a JWT or an AWS secret access key (all verified undetected by leak_codes) is served in
+      full. The lookbehind (?<![A-Za-z0-9_]) also lets a GitHub token glued after a word character or underscore (for example an env-var
+      prefix joined with an underscore) pass. This is within the acknowledged AD-17 wording, so it is a residual risk the operator should
+      re-accept knowingly, not a silent defect; the tooling is the shared leak authority for every downstream consumer.
+    remediation: >-
+      Fork for the operator: either (a) accept and record the closed set as a documented residual in the contract README, or (b) extend
+      SECRET_PATTERNS with the common provider prefixes and a generic assignment form, and add a name-based refusal (artifact_secret) for .env,
+      *.pem, id_* and credentials.json; (b) changes AD-17 and needs an operator ruling.
+  - id: PR-SECURITY-003
+    lens: redaction completeness
+    severity: 3
+    title: E-mail pattern is ASCII-only, so internationalised addresses are neither redacted in served text nor caught by the leak scan
+    evidence:
+      - code: "contracts/tools/leak_patterns.py:62 (EMAIL_PATTERN) and :69 (_EMAIL_ANCHORED); redact_emails/email_matches inherit it"
+      - artifact: "Executed: a local part with an accented letter, and a domain with an accented letter, produce no match from EMAIL_PATTERN.search and are returned unchanged by redact_emails; the same inputs yield no EMAIL leak code"
+    claim: >-
+      Local part and domain are [A-Za-z0-9...] only. An address such as an accented first name at a company domain is returned verbatim in
+      ArtifactContent.content, subtask titles and dependency titles (redacted false), and leak_scan reports no EMAIL for it in contracts files.
+      Real contributor addresses are the main PII this redaction exists to remove.
+    remediation: >-
+      Replace the character classes in all three alternatives (EMAIL_PATTERN, _EMAIL_ANCHORED) with Unicode-word classes ([\w.%+-] and [\w-]),
+      keep the existing lookbehind and lookahead structure so it stays linear, and extend the differential test in test_leak_patterns.py with
+      non-ASCII inputs.
+  - id: PR-SECURITY-004
+    lens: redaction completeness
+    severity: 3
+    title: Host-path redaction misses common home-directory shapes and leaves the tail of a path whose user name holds a space
+    evidence:
+      - code: "contracts/tools/leak_patterns.py:47 (HUMAN_HOST_PATH_PATTERNS); tests/contract/_mission_status_artifacts.py:231-241 (_widened, redact)"
+      - artifact: "Executed through redact(): the strings /var/<h>/<user>/x, /mnt/c/Users/<user>/x, /Volumes/<d>/x, /media/<user>/x, /run/user/1000/x and a lowercase drive-letter users path are returned unchanged and give no HOST_PATH code; <home-prefix>/john smith/x becomes [path] smith/x"
+    claim: >-
+      Only /home, /Users, /root, the temp roots and a backslash Windows profile are recognised, and the lookbehind (?<![\w.~-]) means a
+      /Users segment preceded by a path component (WSL /mnt/c/Users) is skipped. /var/home is the real home root on atomic Fedora hosts. The
+      user-name token stops at whitespace, so a profile name with a space leaks its tail. These paths reach ArtifactContent.content and the
+      detail titles with redacted false.
+    remediation: >-
+      Extend HUMAN_HOST_PATH_PATTERNS with the atomic-distro home root, the WSL drive-mount profile root, and the removable-media mount roots and a case-insensitive Users profile
+      form, and in redact() consume a user-name segment up to the next path separator, not up to whitespace, for the home-root patterns.
+  - id: PR-SECURITY-005
+    lens: leak scan false negatives
+    severity: 3
+    title: The artifact-path value class is a free-text channel; a host path or e-mail address inside a path or artifactPath value passes both passes
+    evidence:
+      - code: "contracts/tools/leak_scan.py:129 (malformed_artifact_path), :267 (check_artifact_path), :193 (mask_spans, text-pass masking)"
+      - artifact: "Executed scan_tree on a YAML with path: 'see <absolute home path> and <address>' and a folded artifactPath holding an absolute path after a leading word: zero findings, exit clean"
+    claim: >-
+      malformed_artifact_path only rejects a LEADING slash, tilde or drive letter. Any string up to 512 characters with spaces and an embedded
+      absolute path or e-mail address is a valid artifact path, the text pass blanks the value (mask_spans) and the structured pass returns
+      before the human/email patterns run. Any example, fixture or description-bearing file can therefore smuggle a leak under a key named
+      path or artifactPath. Legitimate relative names never match the human host-path patterns (they need a non-word character before the slash).
+    remediation: >-
+      In _Scanner.check_artifact_path additionally run leak_patterns.HUMAN_HOST_PATH_PATTERNS over the value and report HOST_PATH on a match; the
+      legitimate odd names (home/<x>/ at the start, space, accent, at sign) do not match, and the existing control fixture proves it.
+  - id: PR-SECURITY-006
+    lens: leak scan false negatives
+    severity: 3
+    title: Any file with a NUL byte or invalid UTF-8 is silently skipped by the leak scan, whatever its extension
+    evidence:
+      - code: "contracts/tools/leak_scan.py:113 (read_text returns None), :210 (run skips, not counted, no finding)"
+      - artifact: "Executed scan_tree: a .yaml with a host path plus one NUL byte, a .yaml with a path plus one Latin-1 byte, and a UTF-16 .yaml each give zero findings"
+    claim: >-
+      The docstring says nothing is exempt, yet a text-suffix file (.yaml, .yml, .json, .md) that merely fails to decode is dropped without a
+      finding or a count, so one stray byte appended to a leaking example hides the leak and the floors still pass. The same files would be
+      served as 415 by the reader, so the scan and the contract disagree on what such a file is.
+    remediation: >-
+      In _Scanner.run emit a finding (new code BINARY_TEXT_FILE, detail names the reason) for a file whose suffix is in YAML_SUFFIXES, .json or
+      .md/.txt and whose read_text returns None; keep the silent skip only for other suffixes.
+  - id: PR-SECURITY-007
+    lens: leak scan false negatives
+    severity: 1
+    title: The rewritten docstring claims no directory is exempt, but build, node_modules, .gradle and four cache directories (and any file named build) are skipped
+    evidence:
+      - code: "contracts/tools/leak_scan.py:1-12 (docstring) versus :59-60 (SKIPPED_DIRECTORIES) and :105-110 (list_files tests every path component, files included)"
+      - artifact: "Executed: a YAML with a host path under a build directory, and a file named build, give zero findings (the same file one level up is flagged)"
+    claim: >-
+      The skip list is pre-existing, but this diff rewrote the sentence to the stronger No directory is exempt. A tracked file under a directory
+      named build (shipped in the bundle) escapes the scan.
+    remediation: >-
+      State the skipped names in the docstring and test that no git-tracked file under contracts/ lies under a skipped directory name.
+  - id: PR-SECURITY-008
+    lens: denial of service
+    severity: 2
+    title: The listing walk descends without a depth or count bound and escapes as an uncaught RecursionError instead of a refusal
+    evidence:
+      - code: "tests/contract/_mission_status_artifacts.py:405 (_walk, recursive generator), :435 (list_artifacts) (list_artifacts catches only OSError and sorts every file before cutting to 1000)"
+      - artifact: "Executed list_artifacts on a scratch Mission with a 1500-level nested directory: RecursionError escapes; 400 levels returns 200"
+    claim: >-
+      Nothing prunes the walk, although a path over 512 characters can never be eligible (too_long). A deep or very wide tree in a Mission
+      directory (a user-authored tree, or a clone with a vendored dependency) makes the listing crash or consume memory proportional to the
+      whole tree, where the contract promises a 200 or the artifact_listing_unreadable 500. The reference reader is the model a downstream
+      implementation copies.
+    remediation: >-
+      In _walk stop descending when the relative prefix length reaches MAX_ARTIFACT_PATH_LENGTH (512), since no deeper file is eligible, and
+      iterate with an explicit stack instead of recursion.

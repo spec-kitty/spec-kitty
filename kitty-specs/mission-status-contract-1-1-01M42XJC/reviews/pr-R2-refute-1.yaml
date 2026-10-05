@@ -1,0 +1,40 @@
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 1
+verdicts:
+- id: PR-CONTRACT-001
+  verdict: confirmed
+  severity: 3
+  reason: The contract and spec AD-5 say 'exact root-level file name' with no case rule; is_eligible tests `path in ROOT_STATUS_FILES` byte-for-byte and ArtifactPath accepts Status.json (read code and schema).
+    Not reproducible on this Linux host (needs a case-insensitive FS), but the mechanism is concrete and breaks the 'raw log rows never forwarded' guarantee; no recorded ruling covers it.
+- id: PR-CONTRACT-002
+  verdict: refuted
+  severity: 1
+  reason: Pattern is a character gate by design; the reader's own docstring says any git call failure (GitCommandError etc.) is 'not determined', so an `x..y` target yields unknown, not a wrong result or
+    an injection (leading '-' is separately rejected). At most a wording nit about 'strict'.
+- id: PR-CONTRACT-003
+  verdict: confirmed
+  severity: 2
+  reason: 'Read the example: cycle 3 has feedbackReference and artifactPath both null, while ReviewCycle.yaml and CHANGELOG say an unparseable file still gets its pointer and path (null only for refused
+    segment or symlink). The example teaches the wrong derivation; schema validity is unaffected.'
+- id: PR-GATES-001
+  verdict: confirmed
+  severity: 2
+  reason: 'Read ci-router.yml: contract_tools lists no src paths, `tests (contract tools)` runs only on corpus or contract_tools, and the detail module imports ~15 specify_cli modules (verified lines 34-48);
+    a src change in a grouped module does not run it. Lowered from 3 because it surfaces on nightly or the next contract PR, and the cure needs a ci-router edit outside the OD-1 slice file set (operator
+    decision).'
+- id: PR-GATES-002
+  verdict: confirmed
+  severity: 1
+  reason: test_run_negative_cases.py:282-283 hard-pins len(cases)==127 and 4+26; main had no such exact pin (grep of main version). True but trivial to adjust when a case is added, and the message is explicit;
+    nit.
+- id: PR-GATES-003
+  verdict: refuted
+  severity: 1
+  reason: 'Speculative: finder''s own measurement is 62 s (82 s single core) against a 240 s default, about 3x margin, and the module already uses explicit timeout(120) markers on its slower tests; a flake
+    on a slower runner is not shown. No concrete failure.'
+- id: PR-GATES-004
+  verdict: confirmed
+  severity: 1
+  reason: 'Ran import of contracts.tools.fixture_builder: len(KINDS)==34 while the module docstring says 33 kinds in four groups (artifact-path-reference is the extra). Stale doc count, nit.'

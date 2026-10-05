@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 5
+verdicts:
+  - id: TASKS-VERIFY-006
+    verdict: confirmed
+    reason: WP07 T038 says both assertions fail at lane start, but its version assertion accepts 1.1.0-SNAPSHOT or 1.1.0 and WP03 T012 already set 1.1.0-SNAPSHOT, so only the CHANGELOG test can be red, and T040/T041 state no revert check.
+  - id: TASKS-VERIFY-007
+    verdict: confirmed
+    reason: WP05 T023 and WP06 T031 get red from "importing a module that does not exist yet", which fails the whole file at collection and distinguishes no individual assertion; no skeleton or spot-revert step is required.
+  - id: TASKS-VERIFY-008
+    verdict: confirmed
+    reason: The WP05 and WP06 smoke text (T023, T028, T031) requires only "examined equals discovered" with no greater-than-zero guard, so 0 == 0 passes.
+  - id: TASKS-VERIFY-009
+    verdict: confirmed
+    reason: plan.md line 572 calls "X only" statements the record of the option not chosen, yet line 360 and WP04 line 211 tag the chosen OD-4 X with "X only", and D-P7 still says "recommended".
+  - id: TASKS-VERIFY-010
+    verdict: refuted
+    reason: P-5 and the gate-table row are already marked as OD-1 X only (none under X-pure), the SC-008 "third path under OD-2 X" is an explicit conditional, and the decision paragraph tells the reader to read the tables as decided; the finding itself finds no contradiction in behaviour.
+  - id: TASKS-VERIFY-011
+    verdict: confirmed
+    reason: quickstart.md still lists a pytest command on tests/contract/test_mission_status_baseline_live.py and a "third line is the live baseline test" sentence, though under OD-1 X-pure that file is never created.
+  - id: TASKS-VERIFY-012
+    verdict: confirmed
+    reason: WP06 gives the collect-only command with only "(must collect nothing)" and no exit-5 note, unlike quickstart, so a literal run reads as a failure.

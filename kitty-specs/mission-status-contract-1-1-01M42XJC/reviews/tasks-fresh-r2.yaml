@@ -1,0 +1,64 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: TASKS-FRESH2-001
+    lens: debugger-debbie fresh-eyes (cross-reference accuracy)
+    severity: 2
+    title: WP07 T038 step 3 names the WP04 tip as the WP07 lane start; the lane start is the WP06 tip (WP08 tip in the recommended order)
+    evidence:
+      - artifact: "tasks/WP07-version-changelog-proof.md T038 step 3: 'On the lane start (the WP04 tip, after WP03 set 1.1.0-SNAPSHOT) ...'"
+      - artifact: "wps.yaml: WP07 dependencies [WP04, WP06]; lanes.json: lane-a runs WP01, WP03, WP04, WP05, WP06, WP07, WP08 sequentially"
+      - artifact: "tasks.md Dispatch order step 5: WP08 then WP07 recommended"
+    claim: >
+      WP07 starts after WP06 (and after WP08 when the recommended order is followed), so its lane start carries the WP05, WP06 and possibly WP08
+      commits. The WP04 tip is not a tree the implementer or reviewer can check out as "lane start". The wording invites recording the second
+      run on the wrong tree, and the reviewer's "control claim on the lane start" check has no well-defined tree.
+    remediation: >
+      Replace "the WP04 tip" by "the lane workspace HEAD at claim time (the tip of the preceding work package in lane-a)"; keep "after WP03 set
+      1.1.0-SNAPSHOT" as the reason the version assertion is green there.
+  - id: TASKS-FRESH2-002
+    lens: debugger-debbie fresh-eyes (contradiction with unchanged sections)
+    severity: 2
+    title: J-1 carves the release dry run out of the plan W-2 mechanism (a) list while claiming the list lives in plan W-2 alone; plan W-2 and P-10 were not amended
+    evidence:
+      - artifact: "tasks.md step J-1: 'That list is kept in plan W-2 alone; this step, the quickstart row and plan P-10 refer to it' yet 'Only two steps legitimately wait: breaking-change ... and the release dry run'"
+      - artifact: "plan.md W-2: mechanism (a) lists 'release dry run' and says the JVM replay is first run after WP04; P-10 lists 'release dry run' among the checks replayed after WP04"
+      - code: ".github/workflows/contracts.yml:270-292 job release-dry-run needs only validate-bundle and runs release_check.py without --tag (the tag-bearing runs are the planted fixtures)"
+    claim: >
+      Plan W-2 and P-10 (unchanged) still put the release dry run in the first replay, J-1 and the quickstart row say it waits for the tag or the
+      final CHANGELOG. The workflow job does not need a tag for its main step, so the carve-out is unsupported by the workflow and the "single
+      list" statement is false. Separately, "the 33 of 101 cases" is the planning-base count; WP02 adds cases to negative_cases.json, so at J-1 the
+      figure is stale.
+    remediation: >
+      Either amend plan W-2 and P-10 to state the carve-out (and say why the dry run cannot run at SNAPSHOT with the skeleton heading), or drop the
+      carve-out and run the release dry run at J-1 too. Replace "33 of 101" in J-1 by "the cases tagged jvm, vacuum or oasdiff in the manifest at that time".
+  - id: TASKS-FRESH2-003
+    lens: debugger-debbie fresh-eyes (command runnable as written)
+    severity: 2
+    title: Battery legs must be run in the background and awaited, which stalls a subagent implementer that has no wake-up
+    evidence:
+      - artifact: "tasks/WP05-artifact-reader-foundation.md, WP06, WP07 closing paragraph of the battery section: 'in the background with the output redirected to a scratch file, and wait for the process to exit'"
+      - code: ".github/workflows/ci-router.yml:712 heavy job timeout-minutes: 30; :652 fast job 10"
+    claim: >
+      A work package implementer is a subagent. Background work launched by a subagent is known to strand the agent waiting for a notification that
+      never arrives. The instruction gives no polling recipe, so the likely outcomes are an implementer that ends its run mid-battery or reports a
+      tool timeout as done. Heavy shards of up to 30 minutes are the stated reason, but no foreground-safe alternative (polling the exit-code file) is given.
+    remediation: >
+      Add a concrete recipe: launch with output and an exit-code file (command; echo $? > exitfile), then poll the file with short bounded checks,
+      and treat an absent exit-code file as "not finished", never as a pass. State that the implementer must not hand off before all three exit codes exist.
+  - id: TASKS-FRESH2-004
+    lens: debugger-debbie fresh-eyes (counts and phrasing)
+    severity: 1
+    title: The tasks.md Gates paragraph still says the work packages pass the battery exactly as CI runs it, without the four-file carve-out the prompts now disclose
+    evidence:
+      - artifact: "tasks.md § Gates per work package: 'these work packages must pass both parts exactly as CI runs them'"
+      - artifact: "WP05/06/07 battery paragraph: 'the four deselected files run in their own CI jobs or in the named gate lists'"
+    claim: >
+      The prompts now disclose that four files are deselected and covered elsewhere (one only in CI's archive-freeze job, never locally), while the
+      tasks.md summary of the operator requirement does not. A reader of tasks.md alone believes the whole architectural directory is covered.
+    remediation: >
+      Add one sentence to the tasks.md Gates paragraph: the legs are the two battery parts as CI runs them, the four deselected files are covered by
+      the named gate lists or by the CI archive-freeze job.

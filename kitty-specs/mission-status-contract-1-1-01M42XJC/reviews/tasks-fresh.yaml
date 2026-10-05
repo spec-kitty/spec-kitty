@@ -1,0 +1,89 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: TASKS-FRESH-001
+    lens: debugger-debbie fresh-eyes (cross-reference and runnable-command audit)
+    severity: 3
+    title: Step J-1 replays fewer JVM checks than plan W-2 and P-10 name, so the early replay does not close the risk it claims to
+    evidence:
+      - artifact: "tasks.md § Dispatch order step 3 (J-1): 'Gradle validation, Java view, TypeScript client smoke, resolver parity'"
+      - artifact: "plan.md W-2 mechanism (a) and P-10: also lint, release dry run, and negative-tests without the skip tags (33 of 101 cases need a JVM, vacuum or oasdiff)"
+      - artifact: "quickstart.md architecture table row: 'Gradle validation, Java view, TypeScript client smoke, resolver parity, release dry run' (lint and negative-tests absent there too)"
+    claim: >
+      Plan W-2 and P-10 were rewritten to say the JVM replay of the contract tree first runs after WP04 (J-1), but tasks.md lists only four of the
+      checks; quickstart lists five; plan lists more. The three documents disagree on what J-1 runs. The omitted ones include the JVM-needing
+      negative-tests cases, which exercise WP02's 25 planted kinds and the WP03/WP04 contract files, exactly the things readers are built on.
+      A defect there would again surface only at wrap-up (a second compaction), which J-1 was introduced to avoid.
+    remediation: >
+      Make J-1 in tasks.md say 'the full W-2 mechanism (a) list (plan W-2), except the CHANGELOG-only items re-run later', and align the quickstart row.
+      State which steps (breaking-change with --baseline-root, release dry run) legitimately wait for the tag or the final CHANGELOG.
+  - id: TASKS-FRESH-002
+    lens: debugger-debbie fresh-eyes (dependency and gate consistency)
+    severity: 2
+    title: J-1 is an orchestrator-only gate that wps.yaml does not encode, and the repair path for an already-approved WP is unspecified
+    evidence:
+      - artifact: "wps.yaml: WP05 dependencies [WP01, WP02, WP03] (no WP04)"
+      - artifact: "tasks.md § Dispatch order step 3: 'A defect found there is fixed in a WP03 or WP04 follow-up before any reader is built on the schemas'"
+    claim: >
+      WP05 may be claimed as soon as WP01-WP03 are approved; nothing but prose stops dispatch before WP04 is approved and J-1 has run. Also, a
+      follow-up to an approved WP03/WP04 has no stated mechanism; informally relaying a change to an approved WP nulls review_result and blocks
+      approval (known tooling behaviour), so the route (rejection transition with a feedback file) must be named.
+    remediation: >
+      Add J-1 as an explicit entry in the WP05 prompt's dispatch preconditions (as WP03 has for the WP01 baseline), and name the rejection-based reopen route for a J-1 defect.
+  - id: TASKS-FRESH-003
+    lens: debugger-debbie fresh-eyes (contradiction with unchanged sections)
+    severity: 2
+    title: Plan still says IC-05 (WP07) goes first on the critical path; tasks.md now recommends WP08 before WP07
+    evidence:
+      - artifact: "plan.md IC-08 Sequencing: 'their order is the orchestrator's (IC-05 first, per the critical path)'"
+      - artifact: "plan.md Lanes, Critical path: 'IC-06, IC-07, IC-05, IC-08, IC-09'"
+      - artifact: "tasks.md Dispatch order step 5: 'WP08, then WP07 (recommended)'; tasks.md header text says nothing here contradicts the plan"
+      - artifact: "WP08 prompt: 'WP08 is dispatched before WP07'; WP07 prompt registers after WP06 and says nothing of WP08"
+    claim: >
+      The tasks round edited plan.md in several places but left these two statements, so plan and tasks give opposite dispatch orders and
+      tasks.md's 'nothing here re-derives or contradicts the plan' is no longer true. The choice is legal (no shared file) but the record is inconsistent.
+    remediation: >
+      Add one add-only line to the plan 'Decided reading' note (or IC-08 Sequencing) saying the tasks phase recommends WP08 before WP07, or drop the recommendation.
+  - id: TASKS-FRESH-004
+    lens: debugger-debbie fresh-eyes (red-first evidence method)
+    severity: 2
+    title: WP07 T038 says the version assertion passes 'against the base', but the version bump is made by WP03 and the red-first method extracts the planning base
+    evidence:
+      - artifact: "tasks/WP07 T038 step 3: 'Run against the base: the CHANGELOG assertions fail, the version assertion passes'; Hand-off: 'red on the lane's planning base, the version assertion a named green regression control'"
+      - artifact: "tasks/WP03 T012: openapi.yaml info.version becomes 1.1.0-SNAPSHOT (WP03 owns it)"
+      - artifact: "tasks/WP01 and common red-first rule: verify red by 'git archive <base-commit>' of the planning base"
+    claim: >
+      On the planning base the version is still the v1 value, so the slice-scoped version assertion is RED there, not a green control; it is
+      green only on the WP07 lane start (after WP03). The prompt uses 'base' for two different trees, and a reviewer following the standard
+      extraction method will see an unexpected extra red and may reject, or accept without checking the control claim.
+    remediation: >
+      In T038 and tasks.md (WP07 row) state both trees: red on the planning base for all assertions; at the lane start (WP04 tip) only the CHANGELOG ones are red and the version assertion is the green control. Say which tree the reviewer extracts.
+  - id: TASKS-FRESH-005
+    lens: debugger-debbie fresh-eyes (runnability)
+    severity: 2
+    title: The three battery legs have no working-directory, timeout or background guidance; heavy shards can exceed a foreground command limit
+    evidence:
+      - artifact: "tasks/WP05, WP06, WP07 § Validation, Runnable legs 1-3 (identical blocks)"
+      - code: ".github/workflows/ci-router.yml architectural-heavy: timeout-minutes: 30, full history; architectural-fast timeout-minutes: 10 with -n 4"
+      - code: "scripts/ci/battery_partition_plugin.py is loaded with -p scripts.ci.battery_partition_plugin (importable only with the repository root as cwd; verified: from another directory pytest fails with 'No module named scripts')"
+    claim: >
+      The commands match ci-router.yml argument for argument (checked), but the prompts do not say to run them from the lane workspace root
+      (the plugin import fails elsewhere) nor that a heavy shard can run up to CI's 30-minute budget, which exceeds typical foreground tool limits;
+      an implementer may see a timeout and record a false red or skip. Also the legs omit '-p no:cacheprovider' used by every other command in the prompt (harmless: .pytest_cache is gitignored).
+    remediation: >
+      Add one sentence to the three prompts: run from the lane workspace root, run each leg in the background and wait for exit, record the exit code; a timeout is not a pass or a fail.
+  - id: TASKS-FRESH-006
+    lens: debugger-debbie fresh-eyes (weakened wording)
+    severity: 1
+    title: tasks.md Gates paragraph and WP05/06/07 text say 'the complete battery', but the four deselected files and the archive-freeze job are outside the three legs
+    evidence:
+      - artifact: "tasks/WP05 § Validation: 'The three legs are the complete battery (the shards are disjoint by construction)'"
+      - code: ".github/workflows/ci-router.yml: legs deselect test_no_legacy_terminology, test_layer_rules, test_pyproject_shape, test_archive_root_byte_identical (the last has its own archive-freeze job)"
+    claim: >
+      Three of the four deselected files are run in the named gate lists; test_archive_root_byte_identical.py appears in the prompts only as a
+      --deselect argument (5 hits per prompt, none as a run command). The operator asked for both battery parts as CI runs them, and CI's own parts exclude it, so behaviour is right; only the phrase 'complete battery' over-claims.
+    remediation: >
+      Reword to 'the complete architectural-fast plus architectural-heavy parts (the four deselected files run in their own CI jobs or in the named gate lists above)'.

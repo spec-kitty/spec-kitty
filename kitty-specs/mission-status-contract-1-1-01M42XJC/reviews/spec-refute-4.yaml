@@ -1,0 +1,38 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 4
+verdicts:
+  - id: SPEC-GOV-009
+    verdict: refuted
+    reason: The finding itself concludes AD-16 is correct; it only asks to relocate it, which is a placement preference with no defect in the spec.
+  - id: SPEC-GOV-010
+    verdict: refuted
+    reason: FR-018 says 1.1.0-SNAPSHOT in development and 1.1.0 only in the release commit, and Out of Scope excludes the release itself, so the two are consistent.
+  - id: SPEC-GOV-011
+    verdict: refuted
+    reason: docs/context/topology.md is the glossary-context doc that defines code lane, so citing code lane as a glossary term is supported, and the rest is a preference about glossary bookkeeping.
+  - id: SPEC-GOV-012
+    verdict: refuted
+    reason: CL-2 and A-4 plainly forbid opening the PR before the 1.0.0 release, so AD-15 "reviewed first" cannot mean a PR and is not a contradiction.
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: breaking_check.compare emits no minor or new-operation report and returns silently for any version above the baseline, so FR-017(a) and SC-002 "reports a minor change" cannot be observed or falsified as written.
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: With no contract-mission-status tag upstream or locally, first_release() raises NO_BASELINE_NOT_INITIAL (a failure) for 1.1.0-SNAPSHOT, contradicting A-4's "expected to say there is no baseline", and the spec gives no pre-release proof though --baseline-root supports one.
+  - id: SPEC-VERIFY-003
+    verdict: refuted
+    reason: The finding is speculative about inherited red tests, cites no concrete red job, and the ledger reference (#3284) concerns a mission-prose rule, not these jobs.
+  - id: SPEC-VERIFY-005
+    verdict: confirmed
+    reason: FR-016 pins every changeState as unknown because "the corpus run has no worktrees", an environment fact that fails in any checkout holding this Mission's own lane worktree.
+  - id: SPEC-VERIFY-008
+    verdict: confirmed
+    reason: FR-013 and FR-022 are silent on over-cap versus non-text precedence, zero-byte files (against FR-020's never-empty-as-success) and BOM handling, so correct-looking answers diverge.
+  - id: SPEC-VERIFY-009
+    verdict: confirmed
+    reason: FR-013 assigns no status or code to the permission/I-O case and says the listing shows it readable false, contradicting AD-7 and the FR-009 rule that readable is false exactly for 413 or 415, so AC-CONTENT "matching code" has nothing to assert.
+  - id: SPEC-VERIFY-010
+    verdict: confirmed
+    reason: AC-DETAIL, AC-LIST and A-5 guard only with zero checks and plan-time lower bounds pinned below measurement, so a reader silently skipping many Missions can still pass and no independently derived expected count is required.

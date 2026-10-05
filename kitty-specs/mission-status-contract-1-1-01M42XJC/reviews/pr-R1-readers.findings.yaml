@@ -1,0 +1,71 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: READERS
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: PR-READERS-001
+    lens: oracle independence / vacuous assertions
+    severity: 3
+    title: Corpus oracle never compares detail subtask or dependency status lanes or titles, so FR-021's lane control is absent and a nulling mutant passes
+    evidence:
+      - artifact: "spec.md FR-021 first bullet: subtask and dependency status lanes must agree with the status snapshot read through the reducer v1 uses"
+      - code: "tests/contract/test_mission_status_reality.py:1218-1240 (v1_control_problems and independent_list_problems compare only subtasks[].id, dependencies[].wpId, ownedFiles[].pattern)"
+      - code: "tests/contract/test_mission_status_reality.py:1317-1321 (a title is only checked to be non-null AND its id appears in some tasks.md row; statusLane and dependency title/statusLane are never read)"
+      - artifact: "Probe on a copy of the plugin path (TMPDIR, checkout untouched): a pytest plugin that wraps detail.subtask_entries to set every title and statusLane to None and detail.dependency_entries to set every title to the id and every statusLane to None; the whole reality module then reports 625 passed, 0 failed"
+    claim: >
+      The corpus examination, which is the independent oracle, covers ids, patterns and cycles but not the member values with the most reader
+      logic (the tasks.md section walk, title cleaning, lane lookup). A reader that returns null titles and null lanes for every subtask and
+      dependency is green against the whole corpus and the planted fixture repository. Only the unit tests in test_mission_status_detail.py
+      on small fixtures pin those values, so the real-corpus control that FR-021 names does not exist, and DETAIL_MUTANTS (dependencies
+      dropped, subtasks reversed, cycles dropped) contain no lane or title mutant.
+    remediation: >
+      In _examine_work_package add the FR-021 lane control: compute, from the Mission's materialized snapshot read in the test (not through the reader), the
+      expected lane of every subtask and dependency id and assert body subtasks[].statusLane and dependencies[].statusLane equal it; add one
+      DETAIL_MUTANTS entry that nulls both lanes and require it to turn examine_details red.
+  - id: PR-READERS-002
+    lens: bounded reads / seam discipline
+    severity: 2
+    title: Work package file and review-cycle reads are unbounded and bypass the injectable file-system seam
+    evidence:
+      - artifact: "spec.md NFR-002 (none read for more than its own parse needs) and FR-022 (open, directory walk and stat go through an injectable seam so faults are injected, never induced)"
+      - code: "tests/contract/_mission_status_detail.py:155-157 (read_authored_wp_frontmatter(path) for every tasks/WP*.md of the Mission, no size check, not through ctx.fs)"
+      - code: "tests/contract/_mission_status_detail.py:434-436 and :320-325 (ReviewCycleArtifact.from_file(path) via kernel.guarded_read.read_guarded: a whole-file read, no cap, then a ruamel load)"
+      - code: "tests/contract/_mission_status_detail.py:270-283 (tasks.md alone is capped at 4 MiB and read through ctx.fs, which shows the intent)"
+    claim: >
+      A Mission whose WP file or review-cycle file is very large (or YAML-alias heavy) is read and parsed in full on every detail request, while
+      tasks.md and artifact content are bounded. The reads also cannot be reached by the FileSystem fault-injection seam, so a read failure
+      of these two sources is not testable the way FR-022 requires. The reader is the reference a service port copies.
+    remediation: >
+      Before calling the path-based readers in index_work_packages and review_cycles, take ctx.fs.lstat(path).st_size and apply one shared cap
+      constant (the tasks.md one): over the cap is SourceUnreadableError for a work package file and an unparseable (null-member) entry for a cycle file; add a
+      test for each branch using a FileSystem whose lstat reports an oversized size.
+  - id: PR-READERS-003
+    lens: bounded reads / vacuous assertions (tests that pass with the change reverted)
+    severity: 2
+    title: The 4 MiB tasks.md cap in read_tasks_md is pinned by no test; removing it leaves the suite green
+    evidence:
+      - code: "tests/contract/_mission_status_detail.py:70 and :280-281 (MAX_TASKS_MD_BYTES, len(data) > cap raises SourceUnreadableError)"
+      - artifact: "grep of tests/contract for MAX_TASKS_MD_BYTES, an oversize tasks.md or a 4 MiB fixture: no hit outside the reader"
+      - artifact: "Probe (plugin under TMPDIR setting detail.MAX_TASKS_MD_BYTES to 64 MiB): test_mission_status_detail.py 239 passed; lowering it to 10 bytes fails 12 tests, so the plugin is effective and only the upper bound is unpinned"
+    claim: >
+      The only bounded-read guard of the detail reader's own sources has an unexercised refusal branch. A revert to an unbounded read passes every test, so the
+      NFR-002 bound the code claims is decoration.
+    remediation: >
+      Add one test in test_mission_status_detail.py that supplies a FileSystem whose open_binary returns a handle serving MAX_TASKS_MD_BYTES + 1 bytes and asserts the detail
+      answers 500 source_unreadable, plus the exact-cap case answering 200 (no real 4 MiB file needed).
+  - id: PR-READERS-004
+    lens: bounded reads / TOCTOU
+    severity: 2
+    title: Eligibility is an lstat walk followed by a plain open; the opened handle is never checked to be the file that was vetted
+    evidence:
+      - code: "tests/contract/_mission_status_artifacts.py:288-305 (is_eligible, lstat per component)"
+      - code: "tests/contract/_mission_status_artifacts.py:325-345 (read_file: open_binary(path) with no O_NOFOLLOW or O_NONBLOCK, then fstat used only for st_size)"
+      - code: "tests/contract/_mission_status_detail.py:275-278 (read_tasks_md has the same shape)"
+    claim: >
+      Between the lstat of the last component and open, the entry can be swapped for a symlink (the open follows it, so a file outside the Mission directory is served
+      after passing eligibility) or for a FIFO (open blocks forever). The docstring promises to fstat the open handle, but only the size is taken from it, never the type or identity.
+      As a test-side reference this is low impact, but the reader is the specified behaviour a service is built from and the contract's rule is "no component is a symlink".
+    remediation: >
+      In read_file (and read_tasks_md) after open, require stat.S_ISREG(handle.fstat().st_mode) and that (st_dev, st_ino) equal the lstat result of the vetted path, else
+      answer ARTIFACT_UNREADABLE; cover with a FileSystem whose lstat and fstat disagree.

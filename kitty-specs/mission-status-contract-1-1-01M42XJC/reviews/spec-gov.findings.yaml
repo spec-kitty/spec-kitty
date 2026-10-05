@@ -1,0 +1,114 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: SPEC-GOV-001
+    lens: Scope
+    severity: 3
+    title: "FR-024 builds the removed-dashboard route map that the operator assigned to #5533"
+    evidence:
+      - artifact: "spec.md § FR-024 and § Clarifications (Removed-dashboard routes covered: '#5533 stays the route-mapping job')"
+      - artifact: "issue #5625 comment 'Scope decisions before design': 'the dossier overview and the snapshot export are not part of it; #5533 mapping records what happens to them'"
+    claim: "The operator listed the covered routes and stated that #5533's mapping owns what happens to routes. FR-024 (High-adjacent, [build]) makes this Mission author a route-by-route replacement map, including route-to-kind-to-path rules and a statement that the dossier overview and snapshot export are \"recorded as not covered\". That is #5533 territory, and FR-024 also adds a README edit coupled to #5582 (A-2). Two missions would then record the same map and can diverge."
+    remediation: "Reduce FR-024 to a one-line cross-reference. Keep the covered-route list from the operator comment verbatim and state that #5533 owns the mapping. Keep only the single behavioural change this Mission itself makes (invalid UTF-8 now 415) as a CHANGELOG or plan note. Drop the README coupling or leave it to the plan if #5582 has landed."
+  - id: SPEC-GOV-002
+    lens: Author-decision audit
+    severity: 3
+    title: "AD-14 justifies \"nothing is provisional\" with an operator decision that fixes only part of the new shape"
+    evidence:
+      - artifact: "spec.md § AD-14 ('The operator's decisions fix every new element'), § FR-019, § FR-017"
+      - artifact: "issue #5625 comment: operator fixed the envelope members, the owned-file object, the 256 KiB cap and the 413/415 codes; it names subtask titles, dependency titles and lanes, review cycles, workspace and artifact references only as topics"
+      - code: "contracts/tools/breaking_check.py:90 (RESPONSE_ADDITION_IDS, response-key-added): adding a property to a closed response is a breaking change"
+    claim: "The operator fixed the content envelope and owned-file object, not the member shapes of subtasks, dependencies, reviewCycles, workspace, artifactReferences, the listing entry, the closed `ArtifactKind` vocabulary or the `truncated` member. Those are author inventions (AD-8, AD-12, AD-13, FR-005, FR-010). Because every response is closed, any member the first consumer later needs forces a major version. AD-14 claims operator authority it does not have and leaves the author-chosen shapes unprotected."
+    remediation: "Restate AD-14 so it distinguishes operator-fixed elements (envelope, owned file, caps, codes) from author-chosen ones. Either mark the author-chosen groups (`reviewCycles`, `workspace`, `kind` vocabulary, listing `truncated`) `x-provisional`, or record explicitly that the squad weighed and rejected this and that the cost is a major bump for any later member."
+  - id: SPEC-GOV-003
+    lens: Author-decision audit
+    severity: 3
+    title: "AD-7 \"first bytes\" cannot establish the readable invariant it promises, and contradicts FR-011/NFR-002"
+    evidence:
+      - artifact: "spec.md § AD-7 ('inspects the first bytes of every file within the cap (bounded by the entry cap times the byte cap)')"
+      - artifact: "spec.md § FR-011 ('opens no file beyond the first bytes needed'), § NFR-002 ('at most the first bytes of each'), § FR-013 (415 for any invalid UTF-8 or NUL byte anywhere)"
+    claim: "A NUL byte or an invalid UTF-8 sequence can sit anywhere in a file up to 256 KiB. Deciding that `readable: true` implies a 200 requires scanning the whole file, up to 262144 bytes per entry, as the AD-7 bound (entry cap times byte cap, 256 MB at the cap) implies. FR-011 and NFR-002 say only the first bytes are touched. The three statements cannot all hold. A first-bytes implementation passes the stated tests only on small fixtures and breaks the AD-7 invariant (and the corpus equality assertion) on a file with a late NUL byte. The operator decision says only that over-cap files are `readable: false`; extending `readable` to 415 is the author's AD-7, so its cost needs to be stated consistently."
+    remediation: "Rewrite FR-011 and NFR-002 to say the listing reads each in-cap file in full (at most 262144 bytes plus one, per file) to decide `readable`, and state the worst-case cost against NFR-001. Remove \"first bytes\". Add a fixture with a NUL byte and with invalid UTF-8 placed after the first 4 KiB."
+  - id: SPEC-GOV-004
+    lens: Author-decision audit
+    severity: 3
+    title: "AD-10 gives `redacted` a meaning the operator's \"always redacted\" wording may not intend"
+    evidence:
+      - artifact: "spec.md § CL-3 ('Content is always redacted'), § AD-10"
+      - artifact: "issue #5625 comment decision 3: envelope member `redacted`, 'Content is always redacted ([path], [email])'"
+    claim: "The operator listed `redacted` as an envelope member and said content is always redacted. Two readings exist: the field is the constant `true`, or it reports whether a substitution occurred. AD-10 picks the second and calls the first useless. That may be right, but it settles the meaning of an operator-specified field and AC-CONTENT makes `redacted: false` on clean files a hard assertion. If the operator meant the constant, the contract is wrong in a way a closed schema cannot fix in a minor release."
+    remediation: "Keep AD-10 but move the question out of the \"decided\" tone. Record it as an interpretation of CL-3 needing explicit operator acknowledgement (in the plan or the PR description) before the schema is written. State the one-line schema description that makes the semantics unambiguous to consumers."
+  - id: SPEC-GOV-005
+    lens: Author-decision audit
+    severity: 2
+    title: "AD-5 narrows the operator's \"artifact listing\"; its scope (root only or any depth) is unstated"
+    evidence:
+      - artifact: "spec.md § AD-5, § FR-011, § Out of Scope ('Reading from the coordination status surface, the event log or status.json')"
+      - artifact: "issue #5625 comment: 'an artifact listing', 'the artifact part of /api/dossier/*'"
+    claim: "The operator did not exclude status records. AD-5 does, on the authority of v1 D-8 (raw event rows are never forwarded), and uses it to explain away nine of eleven oversize files. The rationale is sound and consistent with v1, but it changes what the operator's listing contains and is not flagged as a departure from the dossier behaviour in FR-024. The text also does not say whether the exclusion applies only to `status.events.jsonl` and `status.json` at the Mission root or at any depth (a nested file of the same name, or other status files such as `status.json` copies in subdirectories)."
+    remediation: "State in AD-5 that this is an author narrowing grounded in v1 D-8, name the dossier behaviour it changes (once confirmed), and define the match as exact root-level file names. Add a fixture with a nested `status.json` (listed) beside the root one (excluded)."
+  - id: SPEC-GOV-006
+    lens: Author-decision audit
+    severity: 2
+    title: "AD-9 adds a 400 status to the operator's 404/413/415 set without saying it is an extension"
+    evidence:
+      - artifact: "spec.md § AD-9, § FR-013, § FR-019"
+      - artifact: "issue #5625 comment decision 3 names 404, 413 and 415 only"
+      - code: "contracts/mission-status/paths/missions.yaml:22 (v1 already declares 400 as the shared Problem for invalid_page_cursor)"
+    claim: "A 400 for a malformed `path` is within the author's remit and has v1 precedent, so this is not a contradiction. But the spec presents the status set as complete and does not state that it extends the operator's set, nor why a malformed path is not simply a 404 (the operator's set would answer it). The extension affects response declarations in the new operation only (no existing operation changes)."
+    remediation: "In AD-9 add one sentence: \"400 extends the operator's 404/413/415 set; it is declared on `getArtifactContent` only; v1 precedent is `invalid_page_cursor`.\" Alternatively fold malformed paths into 404 and drop the code."
+  - id: SPEC-GOV-007
+    lens: Ledger
+    severity: 2
+    title: "Ledger citations point at a document outside the public repository, and SK-310 names two entries"
+    evidence:
+      - artifact: "spec.md § AD-2, § Edge Cases, § Risks (SK-309, SK-310, SK-348)"
+      - artifact: "SPEC-KITTY-LEDGER.md carries two headings numbered SK-310 (plan completion guard reads the coordination surface; finalize-tasks does not re-sync owned_files) and its numbering is documented as unreliable"
+    claim: "All three cited entries exist and the spec's reading of each matches (SK-310 surface mismatch, SK-348 stranded review-cycle record, SK-309 empty snapshot from ignored events). But the ledger lives outside this repository, so a public reader cannot resolve the numbers, and SK-310 resolves to two different entries, only one of which is meant."
+    remediation: "Gloss each cite with its one-line subject at first use (\"SK-310, the plan completion guard reading the coordination status surface\"), and say the numbers refer to the maintainers' defect ledger. The Risks row already does this partly; make AD-2 and Edge Cases match."
+  - id: SPEC-GOV-008
+    lens: Directive
+    severity: 2
+    title: "Spec is silent on charter standing orders 2 and 3 (campsite, tracer files) and on red-first for the new checks"
+    evidence:
+      - artifact: "spec.md § FR-021 to FR-023, § Constraints"
+      - artifact: ".kittify/charter/charter.md Quality & Tech-Debt Standing Orders 2, 3, 4"
+    claim: "The Mission edits contract tooling (CHANGELOG, index files) and extends a test projector. Standing Order 2 requires campsite-cleaning touched surfaces first, Order 3 seeds the tracer files at planning, and Order 4 requires red-first through the pre-existing entry point. FR-023 gives planted negatives, which supports red-first in spirit, but nothing says the checks are written failing before the contract change. None of the three is acknowledged, so the plan has no hook for them."
+    remediation: "Add one Constraint line: the plan seeds the three tracer files, names a campsite step for the contract tooling and projector files it edits (or records none is needed), and orders each new check red-first against the planted negative before the schema it guards."
+  - id: SPEC-GOV-009
+    lens: Directive
+    severity: 1
+    title: "AD-16 is a charter interpretation filed under author decisions; the argument holds"
+    evidence:
+      - artifact: "spec.md § AD-16"
+      - artifact: ".kittify/charter/charter.md Standing Order 7 ('no version numbers in scope'), Governance by Workflow Action (Specify / Plan)"
+    claim: "The charter forbids assigning version numbers in scope. 1.1.0 and 1.1.0-SNAPSHOT are fixed by operator decisions CL-1/CL-2 and are the contract module's own `info.version`, so AD-16 is correct. It is not a decision the spec makes, and a reviewer should not have to scrutinise it as one."
+    remediation: "Move AD-16 to Clarifications as a note under CL-1/CL-2, citing the charter rule and the operator source."
+  - id: SPEC-GOV-010
+    lens: Scope
+    severity: 2
+    title: "FR-018 and Out of Scope disagree on whether 1.1.0 is produced by this Mission"
+    evidence:
+      - artifact: "spec.md § FR-018 ('1.1.0 in the release commit'), § Out of Scope ('and the 1.1.0 release itself'), § AD-15"
+    claim: "FR-018 requires `info.version` to be `1.1.0` in the release commit and a 1.1.0 CHANGELOG heading. Out of Scope excludes the 1.1.0 release itself. A reader cannot tell whether the Mission's final commit carries `1.1.0` or `1.1.0-SNAPSHOT`."
+    remediation: "State that the Mission's PR carries `1.1.0-SNAPSHOT` (matching CL-2) and that flipping to `1.1.0` belongs to the release commit made by the maintainer. Align FR-018 and Out of Scope."
+  - id: SPEC-GOV-011
+    lens: Terminology
+    severity: 2
+    title: "New terms are not recorded for glossary/Contextive sync, and `workspace` and code lane sources are imprecise"
+    evidence:
+      - artifact: "spec.md § Terminology, § FR-006, § Key Entities"
+      - code: "docs/context/topology.md (defines code lane); .kittify/glossaries/spec_kitty_core.yaml (term `workspace`: Git worktree directory)"
+    claim: "The spec calls \"code lane\" a glossary term. It is defined in the topology context doc, and `spec-kitty glossary list` shows no `code lane` entry, only `lane` (lifecycle state) and `workspace` (a Git worktree directory). The new `workspace` object holds code-lane ids, branches and a presence flag, a wider sense than the glossary's. The spec also introduces \"Artifact\" (with a closed kind vocabulary) and \"Reference reader\" with no statement whether they are added to the glossary or Contextive."
+    remediation: "Cite `docs/context/topology.md` as the source of code lane, say the `workspace` object follows the glossary meaning plus lane identity (or rename the description to avoid the clash), and add an explicit line: the new terms are either added to the glossary/Contextive in this Mission or stay local to the spec, with the reason."
+  - id: SPEC-GOV-012
+    lens: Scope
+    severity: 2
+    title: "AD-15 \"contract slice can be reviewed first\" sits awkwardly with CL-2 \"release before the PR is opened\""
+    evidence:
+      - artifact: "spec.md § AD-15, § CL-2, § A-4"
+    claim: "CL-2 says the 1.0.0 release precedes opening the PR; AD-15 says the contract slice can be reviewed ahead of the reality-check extension. Read together it is unclear whether \"reviewed first\" means an early draft PR (contradicting CL-2 until the release exists) or a local/squad review. A reader could open a PR early and fail the breaking check by design."
+    remediation: "Say in AD-15 that early review means the adversarial squad and local review only, and that no PR is opened until the 1.0.0 release exists and the reality-check extension has landed or been explicitly split by the operator."

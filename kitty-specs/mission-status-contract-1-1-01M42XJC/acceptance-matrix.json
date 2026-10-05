@@ -1,0 +1,249 @@
+{
+  "mission_slug": "mission-status-contract-1-1-01M42XJC",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_detail.py + test_mission_status_examples.py (2829 passed on lane-a 57cef4dca); reviews c11-wp04-review-2, c11-wp06-review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:52:20.168396+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_examples.py, tests/contract/test_mission_status_detail.py (closed shape, identity, examples validate); review c11-wp04-review-2",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:52:33.061436+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_detail.py subtask title tests; tests/contract/test_mission_status_reality.py detail controls; review c11-wp06-review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:52:35.383261+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_detail.py dependency title and lane tests; tests/contract/test_mission_status_reality.py detail controls; review c11-wp06-review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:52:37.187507+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_detail.py review-cycle tests (ordering, pointer, verdict, reviewedAt); tests/contract/test_mission_status_reality.py cycle checks; review c11-wp06-review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:52:38.988169+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_detail.py workspace and lane tests; tests/contract/test_mission_status_reality.py detail controls; review c11-wp06-review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:52:40.792756+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_detail.py owned-file change-state matrix and matcher parity tests; review c11-wp06-review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:52:42.593825+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_detail.py and tests/contract/test_mission_status_artifacts.py artifact-reference tests (no content opened); review c11-wp06-review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:52:44.383528+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_artifacts.py listing tests (sorted, bounds, unknown mission, unreadable directory); tests/contract/test_mission_status_examples.py; review c11-wp05-review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:52:46.180243+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_artifacts.py classifier, odd names, modifiedAt tests; review c11-wp05-review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:52:47.965891+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_artifacts.py root-only exclusion and 1000-file bound tests; review c11-wp05-review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:52:49.725960+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_artifacts.py envelope, redaction pair, unknown mission tests; tests/contract/test_leak_scan.py; review c11-wp05-review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:52:51.503957+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_artifacts.py cap boundary 262144/262145, encoding, credentials, refusal bodies; tests/contract/test_mission_status_examples.py refusal examples; review c11-wp05-review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:52:53.292981+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_artifacts.py containment (symlinks, traversal), read-only tests; tests/contract/test_mission_status_reality.py fingerprint test; review c11-wp05-review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:52:55.192050+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_leak_scan.py, tests/contract/test_mission_status_artifacts.py, tests/contract/test_leak_patterns.py leak scans and planted negatives; negative-tests 127/127; review c11-wp02-review-2",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:52:56.966172+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_artifacts.py, tests/contract/test_mission_status_detail.py environment-dependent fields; tests/contract/test_mission_status_reality.py oracle controls; review c11-wp08-review-2",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:52:58.739680+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "Verify FR-017 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_contract_1_1.py additive proof tests; breaking_check --baseline-root over main tree breaking=0 (c11-wrapup-gates.out; W-2 replay repeats it)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:53:00.507970+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Verify FR-018 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_contract_1_1.py CHANGELOG entry tests (five headings, four deferred gaps, version unchanged); review c11-wp07-review-2",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:53:02.293173+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-019",
+      "description": "Verify FR-019 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_examples.py, tests/contract/test_mission_status_contract_1_1.py citation, example, closed-schema, Problem response tests; example_check, citation_check, enum_pin_check exit 0",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:53:04.078360+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-020",
+      "description": "Verify FR-020 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_artifacts.py, tests/contract/test_mission_status_detail.py, tests/contract/test_mission_status_contract_1_1.py unknown-is-explicit and loud-failure tests; tests/contract/test_mission_status_reality.py wiring guard; reviews c11-wp05/06/07",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:53:06.306581+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-021",
+      "description": "Verify FR-021 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_reality.py reality-check extension floors, oracle, controls; review c11-wp08-review-2",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:53:08.091283+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-022",
+      "description": "Verify FR-022 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_artifacts.py, tests/contract/test_mission_status_detail.py, tests/contract/test_mission_status_payloads.py synthetic-repository tests; review c11-wp05-review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:53:09.905717+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-023",
+      "description": "Verify FR-023 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "contracts/tools/negative_cases.json 127 planted cases (127/127 pass in c11-wrapup-gates.out), tests/contract/test_run_negative_cases.py; review c11-wp02-review-2",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:53:11.693761+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-024",
+      "description": "Verify FR-024 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_status_contract_1_1.py route-family and 5533 cross-reference tests (grep, not a map); review c11-wp07-review-2",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T06:53:13.476036+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

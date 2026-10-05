@@ -1,0 +1,123 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: SPEC-ARCH-001
+    lens: Reflexivity / premise currency
+    severity: 3
+    title: "Spec says #5581 and the projector are not on main; both have merged, so FR-021, A-1, AD-15 and the risk row describe a state that no longer exists"
+    evidence:
+      - artifact: "spec.md § FR-021, A-1, AD-15, Risks table row '#5581 reality check and projector', Summary last paragraph"
+      - code: "tests/contract/_mission_status_payloads.py (1273 lines) and tests/contract/test_mission_status_reality.py exist on upstream main since the merge of PR #5581 (2026-10-04); neither file is in this workspace, which is based on an older main"
+    claim: "The spec treats the reality check and projector as a future dependency that gates FR-021 and makes the Mission 'not complete' until they land. They are already merged. The extension is therefore an edit to existing files with existing conventions (public readers only, a pure function of the checked-out tree, load_source/resolve_read_dir, a work_package_trap read guard, tree_fingerprint, floors pinned in tests/contract/fixtures/mission_status_expected.json, a build_detail already named for MissionDetail), none of which the spec names or honours. FR-022 also exercises 'the reference reader', which only exists inside that projector, yet is not marked as gated, so the gating labels are inconsistent."
+    remediation: "Rebase the workspace on current main before plan. Rewrite FR-021/A-1/AD-15/Risks to name the real files and conventions the extension must follow (and the name clash: the existing build_detail builds MissionDetail, so the new builder needs a distinct name, for example build_work_package_detail). Drop the 'gated' wording or make it uniform for FR-021 and FR-022. Re-measure the corpus floors on the rebased tree."
+  - id: SPEC-ARCH-002
+    lens: Layering / private seams
+    severity: 3
+    title: "A-6/OQ-2 leaves review-cycle discovery to a private, environment-dependent resolver, which contradicts the projector's public-readers-only, pure-function-of-the-tree rule and NFR-005 determinism"
+    evidence:
+      - artifact: "spec.md § FR-005, Edge Cases (coordination partition / SK-348), A-6, OQ-2, NFR-005, FR-021"
+      - code: "src/specify_cli/review/cycle.py:176 _review_cycle_wp_dir (private; reads the coordination worktree on a materialized coordination Mission, falls back to the primary directory only when the coordination directory holds no cycle files)"
+      - code: "src/specify_cli/cli/commands/agent/workflow_cores.py:411 and workflow_executor.py:1118 already import the private name (a fourth reach would be added)"
+      - code: "tests/contract/_mission_status_payloads.py load_source docstring: 'through public readers only'; resolve_read_dir falls back to the Mission's own directory 'so the payload is a pure function of the checked-out tree'"
+    claim: "No public function lists a work package's review-cycle files (resolve_review_cycle_pointer needs a pointer, so it cannot enumerate). The only enumerator is _review_cycle_wp_dir, whose answer depends on whether a coordination worktree is materialized on the host. That makes reviewCycles (and the ~1300-file corpus floor) host-dependent, breaks the projector's stated purity, and sends the reference reader (the 'executable statement of the rules', which a separate service must also implement) through a private seam. artifactPath is also silently null for a cycle found in the coordination partition because AD-2 lists the primary surface only, which the spec never states."
+    remediation: "Decide the seam in the spec, not the plan. Option A: the reader enumerates tasks/<wp-slug>/review-cycle-N.md under the Mission's own (primary) directory only, document that a cycle that exists only on a coordination surface is not listed, and test the stranded-record case (SK-348) against that rule. Option B: add one public listing seam in src/ and amend NFR-007/SC-008 with its justification. Either way state that artifactPath is null for a cycle outside the listing, and that the reading is deterministic across hosts."
+  - id: SPEC-ARCH-003
+    lens: Contracts / breaking_check
+    severity: 3
+    title: "AC-VERSION/FR-017 require the breaking check to 'report a minor change (new operations only)', but breaking_check.py has no minor-change classification or report"
+    evidence:
+      - artifact: "spec.md § FR-017 (a), AC-VERSION first bullet, User Story 3, SC-002"
+      - code: "contracts/tools/breaking_check.py:compare (lines ~424-460): only emits BREAKING_WITHOUT_MAJOR, BUNDLE_CHANGED_VERSION_SAME, VERSION_DECREASED, NO_BASELINE_NOT_INITIAL; its output is PROVISIONAL_CHANGE notes plus the counts line 'modules= baselines= breaking= provisional_changes= no_baseline_initial= preview_ref='"
+    claim: "The tool never says 'minor' and never lists 'only new operations'. A pass is exit 0 with breaking=0 baselines=1; a no-op bundle with a bumped version also passes. The acceptance criterion is therefore not observable from the tool as written, and 'new operations only' is checked by nothing except the separate file diff."
+    remediation: "Reword the AC to what the tool can show: exit 0, counts line baselines=1 breaking=0, plus a mechanical check (a test over oasdiff changelog or a path-key diff) that every added path key is new and no existing path/schema/parameter/response file differs from the tag. Keep the two planted negatives (response property on WorkPackage, new status code on an existing operation): both do fail today as BREAKING_WITHOUT_MAJOR because the major stays 1."
+  - id: SPEC-ARCH-004
+    lens: Contracts / Problem schema
+    severity: 3
+    title: "Refusal codes cannot be pinned or exemplified on the shared Problem; v1 convention is a module-specific refusal schema, and editing _shared is forbidden by FR-017"
+    evidence:
+      - artifact: "spec.md § FR-013, FR-017, FR-019 ('all as the shared Problem', 'Problem examples for 400, 404, 413 and 415'), AC-CONTENT"
+      - code: "contracts/_shared/schemas/Problem.yaml: code is a free string, status only min 400/max 599, no examples"
+      - code: "contracts/mission-status/schemas/StreamRefusal.yaml and PageCursorRefusal.yaml: allOf Problem + const/enum code + status pin + examples, served through module responses/ files"
+    claim: "With the shared Problem as the response schema, the contract states no code, no code-to-status pairing and no enum, so 'a refusal carries the code matching its cause' and the enum-pin check are test-only. Examples for the four refusals have no home: Problem.yaml is a _shared file (an existing schema file, off-limits under FR-017 and the _shared admission rule), and examples live inside the schema file. The v1 refusals were closed with a module schema precisely for this."
+    remediation: "Add a new module schema (for example ArtifactRefusal) built as allOf Problem + required code enum {invalid_artifact_path, not_found, artifact_too_large, artifact_not_text} with the status pairing 400/404/413/415 and the four examples, plus a new responses/ file; the new operations reference it for 400/404/413/415 and keep default as the shared Problem. Existing getWorkPackage stays untouched. Add the code enum to the enum pins and state the OQ for artifact 404 versus Mission 404 code consistency (v1's 404 carries no code)."
+  - id: SPEC-ARCH-005
+    lens: Canonical source / single authority
+    severity: 3
+    title: "The reference reader is called 'the executable statement of the rules' while the contract descriptions and x-derived rules are the stated source, and the rules are prose-only for the parts no product reader has"
+    evidence:
+      - artifact: "spec.md § Terminology 'Reference reader', FR-003 (tasks.md title rule), FR-010 (kind classifier), FR-015, AD-11, Out of Scope 'the read service'"
+      - code: "src/specify_cli/core/subtask_rows.py:178 iter_wp_section_subtask_rows yields (id, checked) only; no title reader exists in src/"
+    claim: "The title parsing (two row formats, first row wins), the artifact kind classifier, the media-type table and the readable determination have no product implementation. The spec lets the Python test helper be their executable form and the separate Java service must reimplement them from the contract. Two authorities (a Python helper and the contract text) will drift, against charter Standing Order 6 (single canonical authority)."
+    remediation: "State that contracts/ (descriptions and x-derived rules, with the regex for both tasks.md row formats and the classifier table written out) is the authority and the reader is a conformance implementation of it. Add shared conformance fixtures (input tree to expected JSON) that both the Python reader and the future service run, or at minimum require that every x-derived rule be complete enough to implement without reading the reader."
+  - id: SPEC-ARCH-006
+    lens: Field-source fidelity (workspace)
+    severity: 3
+    title: "FR-006 and AD-12 cite resolve_workspace_for_wp, which raises for exactly the cases the spec calls normal (no lanes.json, WP in no lane); lane_branch_name and lane-planning are mis-described"
+    evidence:
+      - artifact: "spec.md § FR-006, AD-12, AD-4, Edge Cases (77 Missions without lanes.json), FR-007 ('no code lane')"
+      - code: "src/specify_cli/workspace/context.py:1197-1203 _resolve_workspace_for_wp_impl: require_lanes_json raises MissingLanesError when lanes.json is absent for a code_change WP; raises ValueError when the WP is in no lane"
+      - code: "src/specify_cli/workspace/context.py:210-239 ResolvedWorkspace has runs_in_checkout_root, resolution_kind, worktree_path, branch_name, lane_id"
+      - code: "src/specify_cli/lanes/branch_naming.py:533 lane_branch_name requires keyword target_branch and returns target_branch itself for lane-planning"
+      - code: "src/specify_cli/lanes/persistence.py:138 read_lanes_json raises CorruptLanesError on a malformed file"
+    claim: "FR-006 says only the topology materialisation raises; the cited resolver raises too, so worktreePresent for a Mission with no lanes.json or an unassigned WP is undefined (a failed read, not the documented false). FR-006 omits the target_branch input of lane_branch_name and does not say that for lane-planning (planning-artifact and single_branch lanes) laneId is non-null while laneBranch is the target branch (for example the primary branch), which is not a lane branch. FR-007's 'no code lane' then has no definition for laneId=lane-planning. A corrupt lanes.json is not covered by 'null when no lanes.json'."
+    remediation: "Specify that resolver exceptions (MissingLanesError, ValueError, CorruptLanesError, MissionSelectorAmbiguous) map to worktreePresent false / laneId null (or a Problem for CorruptLanesError, state which), cite ResolvedWorkspace.runs_in_checkout_root for the AD-12 test instead of re-deriving it, name lanes.json target_branch as the lane_branch_name input, and define laneBranch for lane-planning (null, since it is no lane branch) and make FR-007 key 'unknown' on that definition."
+  - id: SPEC-ARCH-007
+    lens: Field-source fidelity (ownedFiles.changeState)
+    severity: 3
+    title: "merge_base_changed_files_checked diffs the worktree's HEAD, per lane not per work package, with an unnamed base ref; the spec's changeState semantics do not match"
+    evidence:
+      - artifact: "spec.md § FR-007, CL-4, FR-016, FR-022"
+      - code: "src/specify_cli/core/vcs/git.py:1236-1260 merge_base_changed_files_checked(worktree, base_ref): merge-base of HEAD and base_ref, then diff merge_base..HEAD; returns None on any failure"
+    claim: "The function answers 'what changed on whatever HEAD the given worktree has checked out', not 'on the lane branch'; it needs a worktree path (the spec says a work package without a worktree is unknown, which is consistent, but a lane worktree whose HEAD is not the lane tip, or an already-consolidated lane whose worktree is gone, yields unknown or a wrong answer). A lane holds several work packages, so a file owned by WP02 shows changed because WP01 edited it. The spec never names which ref is base_ref (the WP merge_target_branch frontmatter, lanes.json target_branch, or a dependency lane's tip), so the synthetic test cannot be written exactly. Uncommitted edits are invisible."
+    remediation: "Name the base_ref source and the worktree source (the lane worktree path from ResolvedWorkspace, only when it is a lane worktree). State in the schema description that changed means 'changed in the lane that holds this WP since the merge base', not 'changed by this WP', and that committed work only is seen. Add a synthetic case with two WPs in one lane and one for a missing/removed worktree. Consider limiting to unknown whenever the lane holds more than one WP if per-WP attribution is wanted."
+  - id: SPEC-ARCH-008
+    lens: Field-source fidelity (subtasks)
+    severity: 3
+    title: "authored_subtask_roster raises for a missing 'subtasks' key, a missing or ambiguous WP file; the v1 authored roster (AuthoredGroup.subtasks) never raises, so the two can disagree"
+    evidence:
+      - artifact: "spec.md § FR-003, field catalogue row subtasks[].id, FR-004 control 'dependency ids equal WorkPackage.dependencies', AC-DETAIL"
+      - code: "src/specify_cli/core/subtask_rows.py:285-322 authored_subtask_roster raises SubtaskRosterResolutionError (key missing, file missing, ambiguous, unreadable)"
+      - code: "src/specify_cli/status/wp_view.py:198-211 _authored_group builds AuthoredGroup.subtasks from normalize_authored_subtask_roster(metadata.subtasks) and yields an empty group when metadata is None"
+    claim: "The spec cites the raising function as the x-source of subtasks[].id but says only an empty roster is []; a work package whose frontmatter has no subtasks key (legacy planning files) would raise, with no stated outcome (FR-020 has no null for this field). v1's WorkPackage.authored.subtasks derives from AuthoredGroup, so the detail's ids may differ from the ids v1 returns for the same work package, and the equality controls the spec lists cover dependencies and ownedFiles but not subtasks."
+    remediation: "Cite AuthoredGroup.subtasks (and normalize_authored_subtask_roster) as the x-source, the same source as v1, and add an equality control subtasks[].id == WorkPackage.authored.subtasks in AC-DETAIL. If authored_subtask_roster is kept, state that a raise yields [] and which condition fails the read."
+  - id: SPEC-ARCH-009
+    lens: Field-source fidelity (dependency titles)
+    severity: 2
+    title: "FR-004 describes WPMetadata.display_title as falling back to the id when the title is empty; it falls back only when the title is None"
+    evidence:
+      - artifact: "spec.md § FR-004 ('the title, trimmed, or the work package id when there is none'), FR-015 ('the field stays non-null')"
+      - code: "src/specify_cli/status/wp_metadata.py:430-439 display_title returns self.title.strip() for any non-None title, so '' or '   ' returns ''"
+    claim: "A whitespace-only or empty authored title yields an empty-string title, contradicting 'never filled with an empty string' (AD-4) and v1's title minLength 1. Also the reference reader must read each dependency's WP file (not just the current one), which the work_package_trap pattern of the v1 projector would flag; the spec does not say so."
+    remediation: "Define the rule as: trimmed title if non-empty, otherwise the work package id; state that the rule is 'x-derived on display_title' rather than a pure x-source. Note that the detail builder reads sibling WP files and adjust the read-guard accordingly."
+  - id: SPEC-ARCH-010
+    lens: Field-source fidelity (reviewCycles)
+    severity: 2
+    title: "Verdict-by-pointer matching is underspecified (key, multiple matches, renamed Missions) and build_review_cycle_pointer can raise"
+    evidence:
+      - artifact: "spec.md § FR-005 verdict and feedbackReference, AD-13"
+      - code: "src/specify_cli/status/models.py:285-295 ReviewResult.reference is 'Approval ref or feedback:// URI', so a reference is not always a review-cycle pointer"
+      - code: "src/specify_cli/review/cycle.py:446-453 build_review_cycle_pointer validates each segment and raises ReviewCycleError on an unsafe slug or filename"
+    claim: "The spec does not say what string is compared (full pointer equality, or the wp-slug and file name only), what happens when several events carry the same pointer (a re-moved WP) or when the event's mission segment differs from the directory's (renamed Missions), nor how the reader behaves when pointer construction raises, although feedbackReference is 'always a non-null string matching the pattern'. The corpus yield of non-null verdicts is therefore unpredictable and untested."
+    remediation: "State the match key, last-event-wins by event order (or error), and that a segment that fails validation yields a Problem for the read (or a documented fallback). Add a corpus floor on the number of cycles with a non-null verdict and a synthetic case with two matching events."
+  - id: SPEC-ARCH-011
+    lens: Contracts / sequencing
+    severity: 2
+    title: "The 1.0.0 release sequencing (CL-2) does not account for tag reachability or the release commit editing the same lines the slice edits"
+    evidence:
+      - artifact: "spec.md § CL-2, A-4, FR-017 (b), FR-018, AC-VERSION"
+      - code: "contracts/tools/breaking_check.py:find_baseline uses git tag --merged <ref>; first_release accepts only 1.0.0 or 1.0.0-SNAPSHOT without a tag"
+      - code: "contracts/mission-status/openapi.yaml info.version is 1.0.0-SNAPSHOT and contracts/mission-status/CHANGELOG.md has the heading '## 1.0.0-SNAPSHOT'; no contract-mission-status-v* tag exists today"
+    claim: "The baseline tag must be an ancestor of the commit checked, so the branch must be rebased onto the release commit; that commit rewrites info.version and the CHANGELOG heading that this slice also edits (1.1.0-SNAPSHOT). The spec says only 'before the pull request is opened'. FR-017 (b) lists path/schema/parameter/response files but the slice also edits openapi.yaml and three _index.yaml files (and contracts/tools/enum_pins.json for the new pins), none of which the allow-list names."
+    remediation: "State that the branch is rebased onto the release commit before the check is run, that the CHANGELOG heading rename is resolved there, and enumerate the edited existing files (openapi.yaml, the four _index.yaml files, enum_pins.json) as the only permitted changes to existing files. Record that OQ-1 is answered: structure_check reads headings only and requires Added/Changed/Removed/Provisional to exist anywhere in the file plus a heading for info.version, so a fifth 'Deferred' heading is accepted."
+  - id: SPEC-ARCH-012
+    lens: Migrations / locality
+    severity: 1
+    title: "Confirmation: no migration is implied, and no src/ change is required by the cited seams except the OQ-2 decision"
+    evidence:
+      - artifact: "spec.md § NFR-007, Out of Scope, A-6"
+      - code: "pyproject.toml wheel packages do not include contracts/ ; citation_check.py resolves x-source symbols from the syntax tree (annotated class fields such as AuthoredGroup.owned_files and class-level defs such as WPMetadata.display_title resolve)"
+    claim: "All cited symbols exist at module or class level and resolve under the citation grammar; no upgrade migration, packaged asset or kitty-specs edit is implied. The one exception is SPEC-ARCH-002, which could add a src/ seam. The frozen kitty-specs archive is respected (the slice reads it, add-only records)."
+    remediation: "None required; keep NFR-007 and note in the plan that the migration question was checked and is closed."

@@ -1,0 +1,281 @@
+dropped_in_merge:
+  PR-HYGIENE-002: dup of PR-GATES-004
+  PR-HYGIENE-003: informational note, not a finding
+findings:
+- id: PR-CONTRACT-001
+  lens: path and pointer grammars; silent-success paths
+  severity: 3
+  title: Root status records are excluded by exact-case name, so a case-variant path reads them on a case-insensitive host
+  evidence:
+  - artifact: 'data-model.md ''Eligible file'': eligible = not the root-level status.events.jsonl or status.json (exact names, root only); spec.md:165 states the case rule for listings only'
+  - artifact: 'contracts/mission-status/paths/missions_missionId_artifacts_content.yaml and responses/ArtifactNotFound.yaml: the two root records ''are not artifacts'' and are answered 404, with no statement
+      of how names are compared'
+  - code: tests/contract/_mission_status_artifacts.py:55 and :292 (ROOT_STATUS_FILES membership is a case-sensitive string compare on the request path)
+  - artifact: 'contracts/mission-status/CHANGELOG.md: ''Raw log rows are never forwarded'' (the stream guarantee the exclusion protects)'
+  claim: ArtifactPath accepts Status.Json or STATUS.EVENTS.JSONL. The eligibility rule compares the request path to the two names byte-for-byte, so such a path is eligible. The contract itself says several
+    behaviours depend on the serving host. On a case-insensitive file system (macOS and Windows defaults) the open resolves to the real status record, and the raw event log is served as an ordinary artifact.
+    Only host paths and e-mail addresses are redacted from it. That breaks the CHANGELOG guarantee that raw log rows are never forwarded and the 404 promise for the two records. The listing is unaffected
+    because it shows real names. Linux CI cannot see this.
+  remediation: State in the getArtifactContent description, the ArtifactNotFound response and the ArtifactPath description that the two root record names are matched without regard to case. Change is_eligible
+    in tests/contract/_mission_status_artifacts.py to compare the single-segment path casefolded. Add a planted Status.JSON case to test_mission_status_artifacts.py that expects 404.
+- id: PR-CONTRACT-002
+  lens: path and pointer grammars
+  severity: 2
+  title: The branch pattern behind Workspace.laneBranch (and the reader's target-branch argv gate) is not a strict ref-name grammar
+  evidence:
+  - code: contracts/mission-status/schemas/Workspace.yaml laneBranch pattern ^[A-Za-z0-9][A-Za-z0-9._/-]*$
+  - code: tests/contract/_mission_status_detail.py:92 and :526 (_usable_target uses the same pattern as the safety gate before a target branch reaches git argv)
+  - artifact: data-model.md 'changeState derivation' step 1 calls it 'the strict branch pattern' and relies on it to keep unsafe values out of git
+  claim: The pattern accepts a/../b, a..b, a//b, a/., a/ and main.lock (verified with Python re). git refuses all of these as ref names. The description says a value failing the branch pattern projects
+    to null, which implies the pattern excludes unsafe names. The reader's argv guard reuses it, so a manifest target_branch such as x..y reaches git_merge_base as a range expression rather than being treated
+    as undeterminable. The impact is small because it is a read of a committed lanes.json and nothing has to be escaped, but the word 'strict' overstates the rule.
+  remediation: 'Add lookaheads to the Workspace.laneBranch pattern for the git ref-name rules: (?!.*\.\.)(?!.*//)(?!.*/\.)(?!.*/$)(?!.*\.lock$). Keep the existing character class. Update the reader constant
+    derived from it and add negative cases for those forms to the detail tests.'
+- id: PR-CONTRACT-003
+  lens: examples vs schemas; silent-success paths
+  severity: 2
+  title: WorkPackageDetail.unparseable-cycle nulls artifactPath, contradicting the stated rule that an unparseable file is still an eligible artifact
+  evidence:
+  - artifact: 'contracts/mission-status/examples/WorkPackageDetail.unparseable-cycle.yaml: a cycle with reviewedAt, reviewer, verdict, feedbackReference and artifactPath all null'
+  - artifact: 'CHANGELOG 1.0.0-SNAPSHOT Added: ''only its reviewedAt and reviewer are null, and its verdict, feedbackReference and artifactPath follow their own rules''; data-model.md: artifactPath is non-null
+      exactly when the cycle file is eligible (no symlink component)'
+  - artifact: 'schemas/ReviewCycle.yaml artifactPath description: null only when the file is not an eligible artifact (a path with a symlink component)'
+  claim: The example is named 'unparseable cycle' but shows artifactPath null, and feedbackReference null as well. By the contract, an unparseable regular file in a normal directory has a non-null feedbackReference
+    and a non-null artifactPath, and only reviewedAt and reviewer (and verdict when no event cites it) are null. An implementer or a generated-client test reading this example learns that parse failure
+    nulls the pointer and the path. The example validates against the schema but states the wrong derivation. The same case also leaves the pointer and the path unrelated to each other.
+  remediation: Rewrite the example's cycle so feedbackReference and artifactPath are the real pointer and path of cycle 3 (with reviewedAt, reviewer and verdict null). Cover the null-feedbackReference and
+    null-artifactPath required cases in a separate example whose description names the refused-segment or symlink cause, and adjust the in-test required-case manifest to match.
+- id: PR-GATES-001
+  lens: CI path-trigger completeness
+  severity: 3
+  title: The new reference-reader tests import ~17 src modules the contract_tools path group does not name, so a src-only PR can break them with no per-PR job running them
+  evidence:
+  - artifact: .github/workflows/ci-router.yml `contract_tools` filter group (lines ~278-292) lists tests/contract/**, the contracts workflows, uv.lock, pyproject.toml, pytest.ini, tests/conftest.py and
+      `**/status/lifecycle_events.py` only; the `corpus` group owns contracts/** and kitty-specs data
+  - code: tests/contract/_mission_status_detail.py:34-48 imports kernel.errors, kernel.git, specify_cli.core.git_ops, core.vcs.git, frontmatter, lanes.branch_naming, lanes.compute, lanes.persistence, missions._read_path_resolver,
+      ownership.validation, review.artifacts, review.cycle, status.wp_metadata, status.wp_view, workspace.context
+  - code: tests/contract/_mission_status_artifacts.py:32 (kernel.clock) and tests/contract/_mission_status_payloads.py:40-52 (mission_runtime.identity, coordination.surface_resolver, core.dependency_graph,
+      mission_metadata, status.*)
+  - artifact: 'Module matrix deselects the corpus marker and packs.yml deselects these three modules (diff of .github/workflows/packs.yml), so `tests (contract tools)` is their only per-PR home. Verified:
+      the three new modules (artifacts, contract_1_1, detail) are the first corpus-marked tests in that job that import specify_cli, and they pass under its `uv sync --frozen --no-install-project` environment
+      (run in a scratch venv under TMPDIR: 1769 passed, 37 skipped, same 37 as main: oasdiff and vacuum absent)'
+  claim: A PR that renames or changes the signature of, say, review.cycle.build_review_cycle_pointer, workspace.context.resolve_workspace_for_wp or lanes.persistence.read_lanes_json touches no path in the
+    `corpus` or `contract_tools` groups, so `tests (contract tools)` does not run. The module matrix skips the corpus marker. The contract reference reader breaks at import time (collection error across
+    all three modules) and surfaces only on the next contracts/ or tests/contract PR (innocent author) or the nightly full run. The pre-mission contract_tools group was safe because those tests read no
+    src; this diff changes that without widening the trigger.
+  remediation: Extend the `contract_tools` filter group with the `**/`-spelled globs the existing lifecycle_events entry already uses (so the group stays non-src-backed) for each src module the reference
+    reader imports (lanes/persistence.py, lanes/compute.py, lanes/branch_naming.py, workspace/context.py, review/cycle.py, review/artifacts.py, ownership/validation.py, frontmatter.py, core/git_ops.py,
+    core/vcs/git.py, missions/_read_path_resolver.py, mission_metadata.py, kernel/git.py), and add a line to the existing router comment naming why.
+- id: PR-GATES-002
+  lens: Maintainer traps - hard-pinned manifest size
+  severity: 2
+  title: test_run_negative_cases pins the exact manifest size (127) and a historical 4+26 split, so any future negative case fails an unrelated leak-kind test
+  evidence:
+  - code: tests/contract/test_run_negative_cases.py:282-283 `assert len(cases) == 127` and `assert len(leak_cases) == 4 + 26, "four leak cases existed (101 cases); 26 are added (127)"`
+  - artifact: The committed manifest contracts/tools/negative_cases.json has 127 cases of which 30 are build=leak:*; the only sibling count assertions on main (lines 251, 313-314) are derived from the manifest
+      or a >= floor, never an exact size
+  claim: Adding or removing any case for any other tool (a layout, lint, breaking-check or parity plant, which the next contract bump will do) turns this test red with a message about leak kinds. The assertion
+    encodes mission history, not a contract. The meaningful pin (every planted kind has its case with the right code) is already carried by the per-kind loops below it.
+  remediation: Delete the two len() assertions and keep the per-kind loops; add `assert set(leak_cases) >= strict | artifact | set(controls)` so a missing kind still fails by name.
+- id: PR-GATES-003
+  lens: Corpus runtime and timeout budget
+  severity: 2
+  title: The corpus_exam module fixture costs 62 s of setup (82 s on one pinned core) inside the 240 s per-test default timeout, with no explicit marker and a corpus that only grows
+  evidence:
+  - code: tests/contract/test_mission_status_reality.py:1496 `corpus_exam` fixture; first consumer test_the_new_floors_are_pinned_below_the_measured_corpus at :1510
+  - artifact: 'Measured with .venv: `--durations` reports `62.49s setup` for that test (24 cores); `taskset -c 0` gives `82.10s setup`. pytest.ini sets `timeout = 240` (fixture setup counts toward pytest-timeout)
+      and says a legitimately slow test must carry @pytest.mark.timeout. Whole reality+payloads run: 108 s on this host, against the 10 minute tests-corpus-blocking job limit (fine)'
+  claim: The job-level budget is comfortable, but the first test to request the fixture absorbs the full scan under the shared 240 s default. A cold-cache 2-4 vCPU runner at 2-3x this host's single-core
+    time lands at 130-250 s, and floors guarantee the corpus (and the scan) only grows. The failure mode is a named timeout on whichever test happens to be first, i.e. a flake that reads as a product defect.
+    Margin is about 3x today.
+  remediation: Put `@pytest.mark.timeout(600)` on each test that requests corpus_exam (a fixture cannot carry the marker) and note the measured 62 s in the fixture docstring; alternatively cut the scan
+    by sharing one walk with the existing own-directory pass.
+- id: PR-GATES-004
+  lens: Maintainer traps - stale doc count
+  severity: 1
+  title: fixture_builder module docstring says 33 kinds; KINDS has 34
+  evidence:
+  - code: 'contracts/tools/fixture_builder.py module docstring: "There are 33 kinds in four groups" (eight + ten + twelve + three). The artifact-path-reference kind (_REFERENCE_KIND) is a fifth contributor,
+      and tests/contract/test_fixture_builder.py:86 asserts `len(builder.KINDS) == len(expected) == 34`'
+  claim: The documented count and the asserted count disagree by the reference kind, and the docstring names only four groups for five contributing tuples.
+  remediation: Reword to 34 kinds and name the thirteenth artifact-path kind (`artifact-path-reference`, the artifactPath key) in the artifact-path group.
+- id: PR-HYGIENE-001
+  lens: public-repo hygiene (private-ledger references)
+  severity: 2
+  title: Test code cites a non-public ledger by number (SK-310, SK-348) that a public reader cannot resolve
+  evidence:
+  - code: tests/contract/_mission_status_artifacts.py:16
+  - code: tests/contract/test_mission_status_detail.py:803
+  - code: tests/contract/test_mission_status_detail.py:817
+  - artifact: main already records SPEC-KITTY-LEDGER.md as a dangling citation (docs/reports/tracer-friction-recon/2026-09-26/coverage-matrix.md row D-20); the ledger is not in the repository
+  claim: Three added lines point to "ledger SK-310" / "SK-348", an operator-private ledger that is not in the repo. A public contributor reading why the artifact reader uses the repository-root kitty-specs
+    directory, or why a stranded review-cycle record is "shown", finds an unresolvable id. This is the class "private-ledger reference" in tests/. Distinct from the known WP09 CHANGELOG/ledger wording items
+    (those are in kitty-specs/, these ship in tests/).
+  remediation: Replace each citation with a one-clause description of the behaviour it stands for (for example "the primary planning surface under the repository root checkout, not the coordination-aware
+    read directory") and drop the ids.
+- id: PR-READERS-001
+  lens: oracle independence / vacuous assertions
+  severity: 3
+  title: Corpus oracle never compares detail subtask or dependency status lanes or titles, so FR-021's lane control is absent and a nulling mutant passes
+  evidence:
+  - artifact: 'spec.md FR-021 first bullet: subtask and dependency status lanes must agree with the status snapshot read through the reducer v1 uses'
+  - code: tests/contract/test_mission_status_reality.py:1218-1240 (v1_control_problems and independent_list_problems compare only subtasks[].id, dependencies[].wpId, ownedFiles[].pattern)
+  - code: tests/contract/test_mission_status_reality.py:1317-1321 (a title is only checked to be non-null AND its id appears in some tasks.md row; statusLane and dependency title/statusLane are never read)
+  - artifact: 'Probe on a copy of the plugin path (TMPDIR, checkout untouched): a pytest plugin that wraps detail.subtask_entries to set every title and statusLane to None and detail.dependency_entries
+      to set every title to the id and every statusLane to None; the whole reality module then reports 625 passed, 0 failed'
+  claim: 'The corpus examination, which is the independent oracle, covers ids, patterns and cycles but not the member values with the most reader logic (the tasks.md section walk, title cleaning, lane lookup).
+    A reader that returns null titles and null lanes for every subtask and dependency is green against the whole corpus and the planted fixture repository. Only the unit tests in test_mission_status_detail.py
+    on small fixtures pin those values, so the real-corpus control that FR-021 names does not exist, and DETAIL_MUTANTS (dependencies dropped, subtasks reversed, cycles dropped) contain no lane or title
+    mutant.
+
+    '
+  remediation: 'In _examine_work_package add the FR-021 lane control: compute, from the Mission''s materialized snapshot read in the test (not through the reader), the expected lane of every subtask and
+    dependency id and assert body subtasks[].statusLane and dependencies[].statusLane equal it; add one DETAIL_MUTANTS entry that nulls both lanes and require it to turn examine_details red.
+
+    '
+- id: PR-READERS-002
+  lens: bounded reads / seam discipline
+  severity: 2
+  title: Work package file and review-cycle reads are unbounded and bypass the injectable file-system seam
+  evidence:
+  - artifact: spec.md NFR-002 (none read for more than its own parse needs) and FR-022 (open, directory walk and stat go through an injectable seam so faults are injected, never induced)
+  - code: tests/contract/_mission_status_detail.py:155-157 (read_authored_wp_frontmatter(path) for every tasks/WP*.md of the Mission, no size check, not through ctx.fs)
+  - code: 'tests/contract/_mission_status_detail.py:434-436 and :320-325 (ReviewCycleArtifact.from_file(path) via kernel.guarded_read.read_guarded: a whole-file read, no cap, then a ruamel load)'
+  - code: tests/contract/_mission_status_detail.py:270-283 (tasks.md alone is capped at 4 MiB and read through ctx.fs, which shows the intent)
+  claim: 'A Mission whose WP file or review-cycle file is very large (or YAML-alias heavy) is read and parsed in full on every detail request, while tasks.md and artifact content are bounded. The reads
+    also cannot be reached by the FileSystem fault-injection seam, so a read failure of these two sources is not testable the way FR-022 requires. The reader is the reference a service port copies.
+
+    '
+  remediation: 'Before calling the path-based readers in index_work_packages and review_cycles, take ctx.fs.lstat(path).st_size and apply one shared cap constant (the tasks.md one): over the cap is SourceUnreadableError
+    for a work package file and an unparseable (null-member) entry for a cycle file; add a test for each branch using a FileSystem whose lstat reports an oversized size.
+
+    '
+- id: PR-READERS-003
+  lens: bounded reads / vacuous assertions (tests that pass with the change reverted)
+  severity: 2
+  title: The 4 MiB tasks.md cap in read_tasks_md is pinned by no test; removing it leaves the suite green
+  evidence:
+  - code: tests/contract/_mission_status_detail.py:70 and :280-281 (MAX_TASKS_MD_BYTES, len(data) > cap raises SourceUnreadableError)
+  - artifact: 'grep of tests/contract for MAX_TASKS_MD_BYTES, an oversize tasks.md or a 4 MiB fixture: no hit outside the reader'
+  - artifact: 'Probe (plugin under TMPDIR setting detail.MAX_TASKS_MD_BYTES to 64 MiB): test_mission_status_detail.py 239 passed; lowering it to 10 bytes fails 12 tests, so the plugin is effective and only
+      the upper bound is unpinned'
+  claim: 'The only bounded-read guard of the detail reader''s own sources has an unexercised refusal branch. A revert to an unbounded read passes every test, so the NFR-002 bound the code claims is decoration.
+
+    '
+  remediation: 'Add one test in test_mission_status_detail.py that supplies a FileSystem whose open_binary returns a handle serving MAX_TASKS_MD_BYTES + 1 bytes and asserts the detail answers 500 source_unreadable,
+    plus the exact-cap case answering 200 (no real 4 MiB file needed).
+
+    '
+- id: PR-READERS-004
+  lens: bounded reads / TOCTOU
+  severity: 2
+  title: Eligibility is an lstat walk followed by a plain open; the opened handle is never checked to be the file that was vetted
+  evidence:
+  - code: tests/contract/_mission_status_artifacts.py:288-305 (is_eligible, lstat per component)
+  - code: 'tests/contract/_mission_status_artifacts.py:325-345 (read_file: open_binary(path) with no O_NOFOLLOW or O_NONBLOCK, then fstat used only for st_size)'
+  - code: tests/contract/_mission_status_detail.py:275-278 (read_tasks_md has the same shape)
+  claim: 'Between the lstat of the last component and open, the entry can be swapped for a symlink (the open follows it, so a file outside the Mission directory is served after passing eligibility) or for
+    a FIFO (open blocks forever). The docstring promises to fstat the open handle, but only the size is taken from it, never the type or identity. As a test-side reference this is low impact, but the reader
+    is the specified behaviour a service is built from and the contract''s rule is "no component is a symlink".
+
+    '
+  remediation: 'In read_file (and read_tasks_md) after open, require stat.S_ISREG(handle.fstat().st_mode) and that (st_dev, st_ino) equal the lstat result of the vetted path, else answer ARTIFACT_UNREADABLE;
+    cover with a FileSystem whose lstat and fstat disagree.
+
+    '
+- id: PR-SECURITY-001
+  lens: credential handling
+  severity: 3
+  title: A file whose name carries a credential is listed, readable and echoed in the content envelope; the path is never credential-checked by the reader
+  evidence:
+  - artifact: plan.md item 18 and leak_scan.check_artifact_path say a SECRET in a path value stays detected; _artifact_path_findings in _mission_status_payloads.py treats it as a payload leak
+  - code: tests/contract/_mission_status_artifacts.py:183 (malformed), :284 (is_eligible), :344 (_decide_bytes echoes path), :424 (listing entry path)
+  - artifact: 'Reproduced on a scratch Mission directory under TMPDIR: a file named note-<github-token-shaped>.md is listed with readable true and a 200 content read returns body.path with the token'
+  claim: Eligibility and malformed() judge only the artifact-path grammar. A file name that matches a SECRET pattern is eligible, appears in ArtifactListing.entries[].path and in ArtifactContent.path (the
+    content itself may be clean, so the 422 never fires). The contract tooling itself calls the same value a leak (check_artifact_path and payload_leaks flag SECRET in a path), so the reader can emit a
+    payload that the contract's own oracle rejects. A downstream implementation following the reader serves the token to every dashboard viewer.
+  remediation: In malformed() (the one predicate shared by request check, eligibility, listing and references) add a reason that returns non-None when leak_codes(path, HUMAN) contains SECRET, so such a
+    file is not an eligible artifact (404, absent from the listing).
+- id: PR-SECURITY-002
+  lens: credential handling
+  severity: 3
+  title: The credential refusal is a closed three-family pattern set; a dotfile such as .env or any generic key/password/bearer secret is served 200
+  evidence:
+  - code: contracts/tools/leak_patterns.py SECRET_PATTERNS (GitHub token, AWS key id, PEM header only)
+  - code: tests/contract/_mission_status_artifacts.py:226 (has_credential), :344 (_decide_bytes order)
+  - artifact: 'spec.md line 162 (hidden files are listed) and AD-17 (credential kinds fixed, operator-acknowledged); reproduced: a .env holding password and api-key assignments lists readable true and a
+      content read returns 200 with the text unredacted'
+  claim: The only secrets that block a content read are the three listed families. A Mission directory file with a password assignment, a bearer header, a Slack/Stripe/Google/npm/GitLab token, a JWT or
+    an AWS secret access key (all verified undetected by leak_codes) is served in full. The lookbehind (?<![A-Za-z0-9_]) also lets a GitHub token glued after a word character or underscore (for example
+    an env-var prefix joined with an underscore) pass. This is within the acknowledged AD-17 wording, so it is a residual risk the operator should re-accept knowingly, not a silent defect; the tooling is
+    the shared leak authority for every downstream consumer.
+  remediation: 'Fork for the operator: either (a) accept and record the closed set as a documented residual in the contract README, or (b) extend SECRET_PATTERNS with the common provider prefixes and a
+    generic assignment form, and add a name-based refusal (artifact_secret) for .env, *.pem, id_* and credentials.json; (b) changes AD-17 and needs an operator ruling.'
+- id: PR-SECURITY-003
+  lens: redaction completeness
+  severity: 3
+  title: E-mail pattern is ASCII-only, so internationalised addresses are neither redacted in served text nor caught by the leak scan
+  evidence:
+  - code: contracts/tools/leak_patterns.py:62 (EMAIL_PATTERN) and :69 (_EMAIL_ANCHORED); redact_emails/email_matches inherit it
+  - artifact: 'Executed: a local part with an accented letter, and a domain with an accented letter, produce no match from EMAIL_PATTERN.search and are returned unchanged by redact_emails; the same inputs
+      yield no EMAIL leak code'
+  claim: Local part and domain are [A-Za-z0-9...] only. An address such as an accented first name at a company domain is returned verbatim in ArtifactContent.content, subtask titles and dependency titles
+    (redacted false), and leak_scan reports no EMAIL for it in contracts files. Real contributor addresses are the main PII this redaction exists to remove.
+  remediation: Replace the character classes in all three alternatives (EMAIL_PATTERN, _EMAIL_ANCHORED) with Unicode-word classes ([\w.%+-] and [\w-]), keep the existing lookbehind and lookahead structure
+    so it stays linear, and extend the differential test in test_leak_patterns.py with non-ASCII inputs.
+- id: PR-SECURITY-004
+  lens: redaction completeness
+  severity: 3
+  title: Host-path redaction misses common home-directory shapes and leaves the tail of a path whose user name holds a space
+  evidence:
+  - code: contracts/tools/leak_patterns.py:47 (HUMAN_HOST_PATH_PATTERNS); tests/contract/_mission_status_artifacts.py:231-241 (_widened, redact)
+  - artifact: 'Executed through redact(): the strings /var/<h>/<user>/x, /mnt/c/Users/<user>/x, /Volumes/<d>/x, /media/<user>/x, /run/user/1000/x and a lowercase drive-letter users path are returned unchanged
+      and give no HOST_PATH code; <home-prefix>/john smith/x becomes [path] smith/x'
+  claim: Only /home, /Users, /root, the temp roots and a backslash Windows profile are recognised, and the lookbehind (?<![\w.~-]) means a /Users segment preceded by a path component (WSL /mnt/c/Users)
+    is skipped. /var/home is the real home root on atomic Fedora hosts. The user-name token stops at whitespace, so a profile name with a space leaks its tail. These paths reach ArtifactContent.content
+    and the detail titles with redacted false.
+  remediation: Extend HUMAN_HOST_PATH_PATTERNS with the atomic-distro home root, the WSL drive-mount profile root, and the removable-media mount roots and a case-insensitive Users profile form, and in redact() consume a user-name segment
+    up to the next path separator, not up to whitespace, for the home-root patterns.
+- id: PR-SECURITY-005
+  lens: leak scan false negatives
+  severity: 3
+  title: The artifact-path value class is a free-text channel; a host path or e-mail address inside a path or artifactPath value passes both passes
+  evidence:
+  - code: contracts/tools/leak_scan.py:129 (malformed_artifact_path), :267 (check_artifact_path), :193 (mask_spans, text-pass masking)
+  - artifact: 'Executed scan_tree on a YAML with path: ''see <absolute home path> and <address>'' and a folded artifactPath holding an absolute path after a leading word: zero findings, exit clean'
+  claim: malformed_artifact_path only rejects a LEADING slash, tilde or drive letter. Any string up to 512 characters with spaces and an embedded absolute path or e-mail address is a valid artifact path,
+    the text pass blanks the value (mask_spans) and the structured pass returns before the human/email patterns run. Any example, fixture or description-bearing file can therefore smuggle a leak under a
+    key named path or artifactPath. Legitimate relative names never match the human host-path patterns (they need a non-word character before the slash).
+  remediation: In _Scanner.check_artifact_path additionally run leak_patterns.HUMAN_HOST_PATH_PATTERNS over the value and report HOST_PATH on a match; the legitimate odd names (home/<x>/ at the start, space,
+    accent, at sign) do not match, and the existing control fixture proves it.
+- id: PR-SECURITY-006
+  lens: leak scan false negatives
+  severity: 3
+  title: Any file with a NUL byte or invalid UTF-8 is silently skipped by the leak scan, whatever its extension
+  evidence:
+  - code: contracts/tools/leak_scan.py:113 (read_text returns None), :210 (run skips, not counted, no finding)
+  - artifact: 'Executed scan_tree: a .yaml with a host path plus one NUL byte, a .yaml with a path plus one Latin-1 byte, and a UTF-16 .yaml each give zero findings'
+  claim: The docstring says nothing is exempt, yet a text-suffix file (.yaml, .yml, .json, .md) that merely fails to decode is dropped without a finding or a count, so one stray byte appended to a leaking
+    example hides the leak and the floors still pass. The same files would be served as 415 by the reader, so the scan and the contract disagree on what such a file is.
+  remediation: In _Scanner.run emit a finding (new code BINARY_TEXT_FILE, detail names the reason) for a file whose suffix is in YAML_SUFFIXES, .json or .md/.txt and whose read_text returns None; keep the
+    silent skip only for other suffixes.
+- id: PR-SECURITY-007
+  lens: leak scan false negatives
+  severity: 1
+  title: The rewritten docstring claims no directory is exempt, but build, node_modules, .gradle and four cache directories (and any file named build) are skipped
+  evidence:
+  - code: contracts/tools/leak_scan.py:1-12 (docstring) versus :59-60 (SKIPPED_DIRECTORIES) and :105-110 (list_files tests every path component, files included)
+  - artifact: 'Executed: a YAML with a host path under a build directory, and a file named build, give zero findings (the same file one level up is flagged)'
+  claim: The skip list is pre-existing, but this diff rewrote the sentence to the stronger No directory is exempt. A tracked file under a directory named build (shipped in the bundle) escapes the scan.
+  remediation: State the skipped names in the docstring and test that no git-tracked file under contracts/ lies under a skipped directory name.
+- id: PR-SECURITY-008
+  lens: denial of service
+  severity: 2
+  title: The listing walk descends without a depth or count bound and escapes as an uncaught RecursionError instead of a refusal
+  evidence:
+  - code: tests/contract/_mission_status_artifacts.py:405 (_walk, recursive generator), :435 (list_artifacts) (list_artifacts catches only OSError and sorts every file before cutting to 1000)
+  - artifact: 'Executed list_artifacts on a scratch Mission with a 1500-level nested directory: RecursionError escapes; 400 levels returns 200'
+  claim: Nothing prunes the walk, although a path over 512 characters can never be eligible (too_long). A deep or very wide tree in a Mission directory (a user-authored tree, or a clone with a vendored
+    dependency) makes the listing crash or consume memory proportional to the whole tree, where the contract promises a 200 or the artifact_listing_unreadable 500. The reference reader is the model a downstream
+    implementation copies.
+  remediation: In _walk stop descending when the relative prefix length reaches MAX_ARTIFACT_PATH_LENGTH (512), since no deeper file is eligible, and iterate with an explicit stack instead of recursion.

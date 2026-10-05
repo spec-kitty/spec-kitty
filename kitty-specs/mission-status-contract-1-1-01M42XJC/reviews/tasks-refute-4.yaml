@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 4
+verdicts:
+  - id: TASKS-COVER-006
+    verdict: confirmed
+    reason: tasks.md File references lists WP03 as 3 paths+1 parameter (sums to 31 vs stated 30) and WP04 as 3 paths+1 parameter (sums to 25 vs stated 22), contradicting the create_intent lists.
+  - id: TASKS-COVER-007
+    verdict: confirmed
+    reason: The tasks.md CL-5 row (line 283) lists WP02, WP04, WP06 while the OQ-5 row (line 321) lists WP03, WP04, so WP03 is missing from CL-5 despite CL-5 (3) covering its refusal code.
+  - id: TASKS-COVER-008
+    verdict: confirmed
+    reason: WP07 line 70 still says "under the X-family", and tasks.md has no sentence on holding the PR when the tag is missing at the end of W-4.
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: WP05-WP07 (e.g. WP05 line 243) say do NOT run the battery parts unless the operator explicitly asks and give the reviewer only a "confirm it cannot break" read, while the charter allows the run on explicit operator request and no step assigns anyone to run both parts before the late draft PR.
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: WP05 lines 248-271 contain "uv sync"/"uv run" and the literal ${{ matrix.shard }} while line 201 of the same file bans a bare uv run, so the verbatim block is neither runnable as written nor reconciled with that rule.
+  - id: TASKS-VERIFY-003
+    verdict: confirmed
+    reason: WP01 and WP02 are both parallel with no dependency, WP02-WP08 baseline rules compare only against an unchanged lane base and name no recorded WP01 table, so nothing orders T001 before the first code change (the claim that a later WP's own red is red on its lane base is overstated, but the ordering and source-pointer gaps are real).
+  - id: TASKS-VERIFY-004
+    verdict: confirmed
+    reason: WP01 T001 step 2 cites the tool-job selection command as being in its validation section but grep finds no "--ignore=tests/contract" or full CI command in any prompt, only per-module marker commands.
+  - id: TASKS-VERIFY-005
+    verdict: confirmed
+    reason: T029 (WP05) says the registration pair belongs in the commit that creates the module, but T023 is the earlier red-first commit that creates the corpus-marked module, so the subtask order and the first-commit rule conflict (same structure in WP06 T031/T037 and WP07 T038/T042).

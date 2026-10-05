@@ -1,0 +1,151 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fit
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: PLAN-FIT-001
+    lens: spec-fidelity-scope
+    severity: 3
+    title: OD-1 X leaves the spec's scripted scope check (SC-008 / AC-VERSION scope) red on the Mission's own diff
+    evidence:
+      - artifact: "plan.md § Operator decisions OD-1; § Departs from the spec item 5; § D-P10 (pure scope function)"
+      - artifact: "spec.md Terminology 'Slice file set' items (4) and (5); NFR-007 / SC-008 scope bullet ('lists only paths in the slice file set ... fails on a planted touched file ... outside the set')"
+      - code: ".github/workflows/packs.yml:285 (built-in-corpus-suite command)"
+      - code: "tests/architectural/test_ci_corpus_trigger_completeness.py:109"
+    claim: >
+      Item (4) of the slice file set is the test tree under tests/contract/ and item (5) allows .github/ only for a new job.
+      Under the recommended OD-1 X the branch touches packs.yml and a tests/architectural file, both outside the set. The plan declares the
+      departure in prose but never says what the D-P10 scope function's allowed set is under X, nor that SC-008 and the AC-VERSION scope
+      bullet change. As planned, either the scope test fails on this Mission's own PR evidence, or the allowed set is quietly widened by
+      the implementer, which weakens the one guard that proves NFR-007. The recommendation text also underplays that Y stays entirely
+      inside the set and the spec's scope proof.
+    remediation: >
+      State in D-P10 and the Test strategy that the scope function takes the allowed set as data, that under OD-1 X it names exactly the two
+      extra paths (packs.yml, the corpus-trigger registry), and that the planted-outside-path negative uses a path that is in neither set.
+      Add to Departs from the spec: "SC-008 and AC-VERSION scope bullet are read with these two paths added if OD-1 is X". Put this in OD-1's
+      consequences column so the operator acknowledges it, not only the registrations.
+  - id: PLAN-FIT-002
+    lens: spec-fidelity-evidence
+    severity: 3
+    title: OD-1 evidence omits that X (and any packs.yml edit) pulls the architectural-heavy battery into this PR; Charter Check says workflow YAML is not touched
+    evidence:
+      - artifact: "plan.md § OD-1 (evidence: 'two registrations'); § Charter Check, 'Tiered rigour' row ('workflow YAML is not touched'); § Gate set 'Architectural heavy battery' row"
+      - code: ".github/workflows/ci-router.yml:253 (ci group), :256-268 (architectural group: tests/architectural/**; ci_config group: .github/workflows/**)"
+    claim: >
+      Both X edits fall in router groups that select the architectural-heavy battery (tests/architectural/** and .github/workflows/**, the
+      latter via ci_config). The gate table mentions this only for the architectural file ("selected in CI only if tests/architectural/**
+      is edited") and not for the packs.yml edit. The OD-1 table itself lists only the two one-line edits as the cost of X, so the operator
+      chooses without the real price: a heavy battery that carries the known-red baseline (charter: pre-existing failures reported before
+      acceptance) into a PR whose slice is otherwise contract-and-test only. The Charter Check row 'workflow YAML is not touched' is false
+      under the recommended option.
+    remediation: >
+      Add the heavy-battery selection (both groups) and the baseline-red exposure to OD-1's Option X cost, correct the Charter Check row to
+      be conditional on OD-1, and have IC-01's baseline step record the architectural-heavy baseline for the files X would select. Keep
+      the recommendation if the cost is acceptable, but state it.
+  - id: PLAN-FIT-003
+    lens: reader-seam-rename-names
+    severity: 3
+    title: changed_paths returns GitPath objects and can raise ValueError; the plan maps only GitCommandError and never says to convert to str
+    evidence:
+      - artifact: "data-model.md § changeState derivation step 2-3; research.md R-4 Decision; plan.md D-P4"
+      - code: "src/kernel/git/listing.py:206 (parse_paths_z returns tuple[GitPath, ...]), :172-175 (_path calls GitPath.parse)"
+      - code: "src/kernel/git/paths.py:21-57 (frozen dataclass with parts; GitPath.parse raises ValueError on an empty, '.' or '..' component or an absolute path)"
+      - code: "src/kernel/git/runner.py:98-103 (run_git wraps timeout and OSError in GitCommandError)"
+    claim: >
+      R-4 shows the seam's output as a list of plain strings, but kernel.git.changed_paths returns GitPath dataclass instances, which
+      fnmatch and str.startswith (the matcher's operations) cannot consume; the reader must convert with as_posix(). Parsing the diff output also
+      raises ValueError (not GitCommandError) on a path git reports in a form GitPath.parse refuses. D-P4 and the data-model say only
+      "a GitCommandError makes every entry unknown", so a ValueError would escape as an unhandled exception (or, in the corpus-free service,
+      a 500 with no code) rather than the stated unknown. The parity test would not catch this, because it feeds strings to the matcher.
+    remediation: >
+      In data-model step 2 and D-P4 state the conversion (path.as_posix()) and widen the failure mapping to (GitCommandError, ValueError)
+      -> unknown. Add a synthetic case for each: a diff the parser refuses (monkeypatched parser or a crafted path) must give unknown, and
+      the end-to-end changed/unchanged case must run through the real seam, not through strings.
+  - id: PLAN-FIT-004
+    lens: reader-seam-wp-file-identity
+    severity: 3
+    title: D-P6 treats the first wp_task_files entry as both the work package's file and its prompt file, but the two are defined differently and wp_task_files is not limited to regular prompt files
+    evidence:
+      - artifact: "plan.md § D-P6 and OD-3 ('the same file is its prompt file')"
+      - artifact: "spec.md Terminology 'Prompt file' (regular, non-symlink, name WP[0-9]{2,}-*.md, wpId is the name up to the first hyphen)"
+      - code: "src/specify_cli/status/wp_metadata.py:732-743 (wp_task_files: any entry whose name starts with 'WP' and ends '.md', symlinks and directories included, no regular-file test)"
+      - code: "src/specify_cli/status/bootstrap.py:67-70 (skips only FrontmatterError and ValidationError)"
+    claim: >
+      The corpus shows 3,197 files, 0 symlinks and 0 cases where the name prefix and the frontmatter id disagree (measured over the checkout), so the
+      gap is invisible to the reality run. But the plan's universe and OD-3 key a work package by frontmatter id and call that file the
+      prompt file, while the spec's prompt file is keyed by file name and must be regular and non-symlink. For a symlinked WP file, a file such as
+      WP-notes.md carrying a valid id, a name/id mismatch, or a directory named like a WP file (read_authored_wp_frontmatter then raises an
+      OSError, not a skipped class), the plan gives no outcome, and a symlinked file would be read through (frontmatter, titles, owned files
+      exposed) against AD-6's never-follow rule.
+    remediation: >
+      Add to D-P6: the authored file is the first regular, non-symlink entry of wp_task_files in byte order for an id; a symlink or
+      directory is skipped like an unparseable file (and counted by an independent scan); the prompt file stays the spec's name-keyed one
+      and artifactReferences.prompt / review-cycle slug use that, not the frontmatter file. Add synthetic cases: symlinked WP file,
+      id/name mismatch, WP-notes.md with a valid id, directory named WP01.md (each with the stated outcome).
+  - id: PLAN-FIT-005
+    lens: reader-seam-matcher
+    severity: 2
+    title: Pattern normalisation divergence from move-task is left as a squad note although it can yield a silent wrong 'unchanged', the very risk the spec refuses for braces
+    evidence:
+      - artifact: "plan.md § D-P3 (squad note); research.md R-3 'The exact difference' and 'Corpus effect'"
+      - artifact: "spec.md FR-007 rule 3 (the '{' paragraph: guessing would risk a silent wrong unchanged)"
+      - code: "src/specify_cli/cli/commands/agent/tasks_move_task.py:831-835 (_mt_owned_file_patterns normalises each pattern with replace and removeprefix before matching)"
+      - code: "src/specify_cli/policy/commit_guard.py:76,104 (commit guard matches patterns as authored)"
+    claim: >
+      The two repository callers disagree on patterns: move-task normalises '\' and a leading './' in the pattern, the commit guard does not. The
+      reader uses the pattern as authored, so for a pattern such as './src/foo/**' it reports unchanged where move-task counts the path as
+      owned. The plan records this only as a squad note and measures the corpus (0 and 1 entries), but the corpus never reaches this branch
+      (every corpus changeState is unknown), so the measurement does not bear on a live service. The spec resolved the brace case by
+      returning unknown precisely to avoid a silent wrong unchanged; the same reasoning applies here and the plan does not apply it.
+    remediation: >
+      Decide in the plan, not in a note: either treat a pattern that starts with './' or contains a backslash as not matchable (unknown, like
+      braces) and say so in the field description, or normalise the pattern and declare the departure from 'pattern as authored'. Add the
+      chosen cases to the parity test and to the FR-022 matrix.
+  - id: PLAN-FIT-006
+    lens: reader-seam-git-input
+    severity: 2
+    title: The base ref passed to git comes from lanes.json unvalidated; nothing keeps it from being read as an option
+    evidence:
+      - artifact: "data-model.md § changeState step 1 (git_merge_base(worktree, 'HEAD', target_branch)); § workspace.laneBranch row (only laneBranch is pattern-checked)"
+      - code: "src/specify_cli/core/vcs/git.py:954-975 (git_merge_base builds argv ['git','merge-base',ref_a,ref_b] with no end-of-options marker)"
+      - code: "src/specify_cli/lanes/models.py:147,209 (target_branch is a bare str read from the manifest)"
+    claim: >
+      laneBranch is projected through a strict branch pattern, but the target_branch handed to git is whatever the manifest holds. A value
+      beginning with '-' reaches git merge-base as an option. The reader is the executable specification a read service will be built from, so
+      the plan should not leave the input rule implicit; the spec's rule 1 only says the base ref must resolve.
+    remediation: >
+      In data-model step 1 require that target_branch passes the same strict branch pattern as laneBranch (and does not start with '-'),
+      else every entry is unknown, and add a synthetic case with a manifest holding an option-like target_branch (expect unknown and no git
+      invocation observed through the counting seam).
+  - id: PLAN-FIT-007
+    lens: architecture-seam-concurrency
+    severity: 2
+    title: Three lanes each append to the single-line --deselect command in packs.yml; the plan's 'keep the union' resolution is a guaranteed conflict
+    evidence:
+      - artifact: "plan.md § Concurrency and write scopes, declared shared-file exception (2); IC-05, IC-06, IC-07 affected surfaces"
+      - code: ".github/workflows/packs.yml:285 (the whole corpus-suite pytest command, every --deselect, on one physical line)"
+    claim: >
+      IC-05 (lane B), IC-06 and IC-07 (lane C) each add a --deselect in sorted position of one physical line. Sorted positions differ but git
+      merges by line, so any two lanes that both edit it conflict; the plan relies on the later-merging lane resolving by hand and re-running
+      gates, on a file that is outside the slice. Until both registrations exist a module's own pytest gates (same-tier uniqueness,
+      corpus trigger) are red in its lane, so ordering matters too.
+    remediation: >
+      Name a single writer for all three registrations (one commit, for example in IC-05 which owns the earliest module, creating the
+      three names up front or in the lane that merges last) and state it in the shared-file exception; or sequence IC-05/IC-06/IC-07 for
+      packs.yml only. Keep each module's own gate run as a named step of the concern that creates it.
+  - id: PLAN-FIT-008
+    lens: spec-fidelity-declared-departures
+    severity: 1
+    title: The spec statement 'the two copies agree' is contradicted by R-3 but is not listed under Departs from the spec
+    evidence:
+      - artifact: "plan.md § D-P3, § Departs from the spec (15 items)"
+      - artifact: "spec.md FR-007 rule 3 ('the two copies agree'; the parity test normalises the path first)"
+      - artifact: "research.md R-3 'The exact difference' (the path normalisation differs; pinned divergences)"
+    claim: >
+      The plan's parity test pins two divergent path cases that the spec's wording excludes (the spec has the test normalise first and then
+      require equality). The sharpening is real and sound, but it changes what the parity test asserts and is not in the departure list,
+      against the plan's own claim that every departure is declared.
+    remediation: >
+      Add a departure item: "the two repository copies differ on path normalisation (R-3); the parity test pins both behaviours and
+      requires equality only after normalising".

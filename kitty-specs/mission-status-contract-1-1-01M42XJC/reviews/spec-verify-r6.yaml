@@ -1,0 +1,122 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+profile: "debugger-debbie (squad-delegate mode; falsify, diff and converge applied: each glob claim falsified by an independent implementation and a differential against the repository matcher)"
+results:
+  - id: SPEC-FRESH-011
+    status: unresolved
+    remaining_severity: 3
+    reason: >-
+      The contradiction is gone and the cited lines are accurate. FR-007 rule 3 now has one
+      definition (wildcard rule (i) plus directory-prefix rule (ii)); "*" crosses "/" in (i) and
+      in the worked examples; AD-20, the table row, CL-4 and the AC lines agree with it; no
+      statement of "one path segment" remains. commit_guard.py:141-149 (_matches_any_glob) and
+      tasks_move_task.py:838-847 (_mt_matches_owned_file) are the cited bodies, they are
+      identical in logic (fnmatch.fnmatch, then prefix = pattern.replace("/**","").replace("/*","").rstrip("/"),
+      then startswith(prefix + "/")), and the spec describes them correctly. I implemented the
+      stated definition independently (scratchpad m.py) and ran every worked example and every
+      FR-022 glob case: all 15 expectations are true (src/**/x.py vs src/x.py and src/a/b/x.py;
+      **/x.py vs x.py and a/x.py; a/**/b/**/c vs a/b/c, a/b/x/c, a/x/y/b/z/c true and a/x/c
+      false; *.py vs src/x.py; src/*.py vs src/a/x.py; src/foo/* vs src/foo/a/b.py; src/foo/**
+      vs src/foobar/x.py false and vs src/foo/x.py true; a/*/c vs a/c/z false). Differences (a)
+      and (b) are accurate (repository gives False for src/**/x.py vs src/x.py; repository gives
+      True for a/*/c vs a/c/z, spec gives False). Mutations killed by a stated test: star-no-cross
+      (*.py vs src/x.py), no zero-dir deletion (leading, middle, and a/b/c), first-occurrence-only
+      (a/b/c), plain-string prefix (src/foo/** vs src/foobar/x.py), middle /* prefix (a/*/c vs
+      a/c/z). Two defects remain, both in this item. (1) The "Two differences, both deliberate"
+      statement (FR-007 rule 3, AD-20, CL-5) is not complete: there is a third. The repository
+      treats a non-glob pattern without a trailing slash as a directory prefix (its prefix step
+      strips nothing, so pattern "src/foo" matches "src/foo/x.py"; I ran it: repository True,
+      spec False), while the spec's non-glob rule is "equals it, or, when the pattern ends with
+      /, starts with it". Directory-like owned_files entries without a slash exist in the corpus
+      (for example tests/specify_cli/skills/__snapshots__ and
+      src/doctrine/skills/spec-kitty-charter-doctrine), so the spec's own warning about a silent
+      false "unchanged" applies, and "Equal to the repository ... case sensitivity" plus "two
+      differences" is a false statement of equivalence. Either state it as difference (c) with a
+      test, or adopt the repository behaviour. (2) The FR-022 mutation "dropping the
+      directory-prefix rule" cannot be killed by any stated case: with rule (i) alone, src/foo/**
+      and src/foo/* already match src/foo/x.py and src/foo/a/b.py because the star crosses "/"
+      (verified: 0 of the stated cases differ; a grid of 60000 random pattern/path pairs differs
+      only when the directory contains literal glob characters such as "[x]/*" against "[x]/y").
+      The "each applied by a test, which must then fail" requirement is unsatisfiable as written
+      for this mutation; the implementer must either invent a literal-bracket case or the
+      mutation must be dropped or reworded.
+  - id: GAP-WPNOTES
+    status: resolved
+    reason: >-
+      bootstrap.py (collect loop, about lines 67-84) iterates wp_task_files(tasks_dir), reads
+      each file, and for a file whose meta.work_package_id is falsy logs "Skipping %s: missing or
+      invalid work_package_id", increments result.skipped and continues without raising; the
+      spec quotes that message accurately. wp_task_files (wp_metadata.py:732-743) is exactly
+      startswith("WP") and endswith(".md"), case-sensitive, sorted, [] when the directory is
+      absent, as the Terminology claims. Terminology states the skip, FR-021 repeats it ("a
+      selected file without a valid work_package_id is skipped and counts for nothing"), FR-022
+      has the test (stray tasks/WP-notes.md: not listed, detail 404, independent count unchanged,
+      no exception) and the killing mutation (reader lists it as a work package with a null id),
+      and the count definition (distinct work_package_id values of the selected files) is the
+      same in Terminology, FR-021 and AC-DETAIL.
+  - id: RULING-ACK
+    status: unresolved
+    remaining_severity: 2
+    reason: >-
+      Sixteen of the eighteen are marked. AD-5 to AD-14 and AD-17 to AD-22 each carry
+      "acknowledged by the operator 2026-10-04" in both the paragraph and the table row, and no
+      "needs operator acknowledgement" or awaiting text remains anywhere (grep clean). AD-15 and
+      AD-16 lie inside the range AD-5 to AD-22 that line 44 ("The operator acknowledged AD-5
+      through AD-22 as written"), line 62 ("the ruling names AD-5 to AD-22 only") and CL-5 (1)
+      name, yet they carry no mark in paragraph or table, and line 44 lists "AD-1, AD-2, AD-3,
+      AD-4, AD-15, AD-16" as ordinary design choices still open to squad scrutiny. The range
+      and the exception contradict each other. Either mark AD-15 and AD-16 acknowledged, or
+      reword the ruling as "AD-5 to AD-14 and AD-17 to AD-22" everywhere it appears.
+  - id: RULING-OQ2
+    status: resolved
+    reason: >-
+      OQ-2 is closed as "keep AD-18" in the open-questions list (line 608), the CL-5 ruling, AD-18
+      ("the operator resolved it on 2026-10-04 by keeping this decision ... so no seam is
+      added"), the AD-18 table row ("OQ-2 is resolved: this option is kept"), NFR-007 ("OQ-2 was
+      resolved on 2026-10-04: no seam for the review cycles") and A-6. No sentence still treats
+      OQ-2 as open; "Open for the plan phase: OQ-1 and OQ-4" is consistent.
+  - id: RULING-OQ5
+    status: resolved
+    reason: >-
+      All three new operations carry a refusal code on their 404 consistently: FR-001
+      (getWorkPackageDetail 404 not_found as WorkPackageDetailRefusal), FR-013 closing paragraph,
+      FR-009/AD-9/AD-21 (listArtifacts and getArtifactContent not_found in ArtifactRefusal), FR-019,
+      AC-DETAIL absence bullet, AC-LIST and AC-CONTENT unknown-Mission bullets, SC-001, key
+      entities, and the dated CL-5 entry. v1's getWorkPackage is untouched everywhere ("its 404
+      stays the codeless shared Problem", FR-001; FR-013; "the 404 of v1's getWorkPackage is not
+      edited"); no sentence contradicts it. CL-5 exists, is dated 2026-10-04, and says "OQ-1 and
+      OQ-4 stay open for the plan phase".
+  - id: RULING-OQ6
+    status: resolved
+    reason: >-
+      source_unreadable and not_found are pinned through the module refusal schema
+      WorkPackageDetailRefusal with the titled enum WorkPackageDetailRefusalCode, consistently in
+      FR-001, FR-013, FR-015 (d) (enum_pins.json), FR-019 (examples per code and the pin list),
+      FR-020, AC-DETAIL (enum-pin fails on a changed value set), AC-VERSION (pin list), AD-14
+      (code property provisional), SC-001 and the key entities, each with the status pinned by the
+      code (404 and 500).
+fresh_findings:
+  - id: R6-NEW-1
+    severity: 2
+    reason: >-
+      A work package file that wp_task_files selects but whose frontmatter does not parse
+      (bootstrap skips on FrontmatterError or ValidationError, with the same skipped counter) is
+      not covered. The spec skips only a file with "no valid work_package_id" (Terminology, FR-021)
+      while FR-020 makes "a Mission or work package file that cannot be read" a 500
+      source_unreadable. A malformed-frontmatter WP*.md therefore has two readings (skipped like
+      bootstrap, or a 500 for the whole detail and a count mismatch in FR-021). State which, and add
+      the case to FR-022 beside WP-notes.
+  - id: R6-NEW-2
+    severity: 1
+    reason: >-
+      AD-21 and its table row enumerate the 500 codes as artifact_unreadable and
+      artifact_listing_unreadable and say "Two states had no status or code", but the round also
+      gives getWorkPackageDetail a 500 source_unreadable (FR-001, FR-020). The detail's 500 is an
+      author-added status stable once released (AD-14) yet AD-21 does not list it.
+  - id: R6-NEW-3
+    severity: 1
+    reason: >-
+      FR-022's mutation "expanding or literally matching a brace" is killed by the single case
+      "a pattern with a brace (unknown)" only if the fixture's changed set contains both a path
+      matching an expansion and a path literally containing the braces; the case does not say so.

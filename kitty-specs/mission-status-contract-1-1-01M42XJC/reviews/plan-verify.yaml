@@ -1,0 +1,67 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+- id: PLAN-FIT-001
+  status: resolved
+  reason: D-P10 and OD-1 consequence (3) and Departs item 5 now state the data-driven allowed set, the two extra paths, a planted path in neither set and a Y-rejection case.
+- id: PLAN-FIT-003
+  status: resolved
+  reason: D-P4 and data-model step 2 state as_posix conversion and map GitCommandError and ValueError to unknown, with real-seam and parse-failure cases in the AC-DETAIL row (GitPath.as_posix verified in
+    the tree).
+- id: PLAN-FIT-004
+  status: resolved
+  reason: Data-model and Departs 16 define the authored file as first regular non-symlink entry, skip symlinks and directories, keep the prompt file name-keyed, and the test plan counts them independently.
+- id: PLAN-FIT-006
+  status: resolved
+  reason: Data-model step 1 and D-P4 require target_branch to pass the strict pattern and not start with a dash, else unknown with no git call, and the AC-DETAIL row has the option-like case.
+- id: PLAN-FIT-007
+  status: resolved
+  reason: Lane R is the single writer of all registrations, sequential in one worktree, declared in shared-file exception (2); IC-05 and IC-06/07 each append in the creating commit.
+- id: PLAN-SEQ-001
+  status: resolved
+  reason: A lane table with dependencies and named merge points M1 and M2 replaces the three-lane layout, makes the dependency column binding, and drops the concurrent IC-06/IC-07 claim.
+- id: PLAN-SEQ-003
+  status: resolved
+  reason: The live test has its own module (or distinct -k ids under Y), the only accepted red is named in IC-05 acceptance with a reviewer procedure, and Departs 10 records the FR-017 departure as ACK-1.
+- id: PLAN-SEQ-004
+  status: resolved
+  reason: The Gate row now says the red is local-only (contracts.yml triggers verified as pull_request and push to main), P-10 is added, and W-2 names a JVM shake-out mechanism before the aggregate squad.
+- id: PLAN-SEQ-005
+  status: resolved
+  reason: 'IC-10 is gone: pre-tag evidence is IC-09, final evidence is W-7 after the W-6 rebase, D-0 asks for the tag at implement start with a hold-the-PR fallback.'
+- id: PLAN-SEQ-006
+  status: resolved
+  reason: IC-06 and IC-07 now each carry a named thin corpus-smoke acceptance (examined equals independent count, no thresholds) and IC-08 adds floors and controls.
+- id: PLAN-SEQ-007
+  status: resolved
+  reason: IC-09 now has a write scope (the three tracer files) and the IC-02 x IC-03/IC-04 integration check is a named acceptance of IC-04 plus W-1.
+- id: PLAN-SEQ-008
+  status: resolved
+  reason: The plan now has a size table by group (about 7,900 lines, 3,100 mechanical), a nine-commit compaction shape, a PR reading order, skippable groups and a 10,000-line escalation rule.
+- id: PLAN-SEQ-011
+  status: resolved
+  reason: Counts corrected to six init statements and two _commit_all call sites (matches the tree), and IC-01 write scope now lists the tracer file append.
+- id: PLAN-VERIFY-001
+  status: resolved
+  reason: OD-4 is raised with option X (masked text pass, SECRET never blanked) and Y (no at-sign path under contracts/), the plan states the text pass behaviour, and research R-14 records the run; the
+    operator choice stays open.
+- id: PLAN-VERIFY-002
+  status: resolved
+  reason: Section A now defines the Plant(fragment, control_fragment, field, codes) shape, the edited build and BuiltFixture handling, the moved tests, and a byte-identity test for the eight old kinds.
+- id: PLAN-VERIFY-003
+  status: resolved
+  reason: The three content/title kinds are relabelled regression controls (22 red-first), not counted as red-first, and the red-first pair is re-homed to reader-level payload_leaks tests.
+- id: PLAN-VERIFY-004
+  status: resolved
+  reason: IC-08 and the AC-LIST row now use an independent byte-level oracle computed from raw bytes, with the by-construction equality kept only as a labelled wiring guard.
+- id: PLAN-VERIFY-006
+  status: resolved
+  reason: The gate set now lists architectural-fast, layer-rules and the separate import-linter job, names the scanning files, takes baselines at IC-01 and fixes the TID251 row (jobs confirmed in ci-router.yml).
+- id: PLAN-VERIFY-007
+  status: resolved
+  reason: OD-1 now names both triggers (ci_config via packs.yml, architectural via the registry), the two shards, 30-minute timeout, a recorded main baseline (R-13) and states Y avoids the battery; P-11
+    added.
+- id: PLAN-VERIFY-008
+  status: resolved
+  reason: D-P3 and research R-13 record the scratch --no-install-project run importing both private matchers and the 19-case table, and IC-07 re-runs it as its first task with a fallback.

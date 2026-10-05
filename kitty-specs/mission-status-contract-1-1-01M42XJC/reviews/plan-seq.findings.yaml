@@ -1,0 +1,179 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: seq
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: PLAN-SEQ-001
+    lens: Phasing / write-scope disjointness
+    severity: 3
+    title: Lane layout contradicts the dependency graph; three cross-lane dependencies have no carrier
+    evidence:
+      - artifact: "plan.md § Implementation Concern Map (j), Concurrency and write scopes (Lane A IC-02; Lane B IC-03..05; Lane C IC-01, IC-06, IC-07, IC-08)"
+      - artifact: "plan.md IC-06 Sequencing: after IC-01 and IC-02 (predicate), needs IC-03; IC-07 needs IC-04; IC-08 after IC-02, IC-03, IC-04, IC-06, IC-07"
+      - artifact: "plan.md § Concurrency: lane C runs IC-07 and the rest of IC-06 together"
+    claim: >
+      The plan asserts scopes are disjoint across lanes, but the dependencies cross all three lanes. IC-06 (lane C) imports
+      malformed_artifact_path from leak_scan.py (IC-02, lane A) and validates outputs against schemas (IC-03, lane B); IC-07 (lane C) needs IC-04 (lane B);
+      IC-08 (lane C) needs lanes A and B. A lane worktree branches from the planning base, so lane C cannot see lane A or B
+      work until a merge, and nothing in the plan says when lane A/B are merged into lane C or whether the dependency is
+      expressed as a WP dependency (which the tooling resolves into one lane). Separately, a lane is one worktree worked
+      sequentially, yet lane C is said to run IC-07 and the rest of IC-06 together (two concurrent WPs in one lane worktree,
+      both appending to the same corpus registry and deselect line).
+    remediation: >
+      State the lane assignment as a table (WP, lane, depends-on, merge point) and make every cross-lane dependency an
+      explicit WP dependency so tasks finalisation places dependent WPs in the carrier lane. Concretely: put IC-02 and IC-03 before
+      IC-06 in a single reader lane, or name a convergence WP/step ("merge lanes A and B into C before IC-06 starts"). Drop
+      the claim that IC-07 and IC-06 run concurrently within one lane, or give IC-07 its own lane with the same convergence rule.
+  - id: PLAN-SEQ-002
+    lens: Write scopes / chokepoints
+    severity: 3
+    title: Three lanes each append to the single physical line of the packs.yml corpus-suite command, so the declared "union" rule guarantees textual conflicts
+    evidence:
+      - artifact: "plan.md § Concurrency, declared shared-file exception (2); IC-05, IC-06, IC-07 each add one deselect and one registry row"
+      - code: ".github/workflows/packs.yml:285 (the whole built-in-corpus-suite command, including every --deselect, is one line)"
+      - code: "tests/architectural/test_ci_corpus_trigger_completeness.py:112 (_CORPUS_MARKED_MODULES, one entry per line, so the registry itself merges cleanly)"
+    claim: >
+      Exception (2) lets IC-05 (lane B) and IC-06/IC-07 (lane C) each append a deselect "in sorted position in the same commit" and says
+      the later lane "keeps the union". Git merges by line, and the command is one 2,000-character line, so any two of these edits conflict
+      regardless of sorted position. The plan classes this as a handled exception, but it is a certain hand-resolved conflict in a shared workflow file,
+      and a mis-resolution drops a deselect and makes the advisory packs corpus suite run the module a second time (red in test_same_tier_uniqueness).
+    remediation: >
+      Make exactly one WP the single writer of both registrations for all three new modules (for example the first WP that creates any new test module registers
+      all three paths; deselecting a not-yet-existing path is harmless, but verify the registry row test accepts it, otherwise create the three modules as empty marked stubs in
+      that WP), or move the registrations into IC-09 and give IC-09 that write scope. Remove the "later lane keeps the union" rule.
+  - id: PLAN-SEQ-003
+    lens: Release dependency (tag / baseline sequencing)
+    severity: 3
+    title: A committed test that fails until an external tag exists turns the tier-1 router job red for the whole mission, against the spec's green-before-and-after wording
+    evidence:
+      - artifact: "plan.md D-P10 (live test fails while the tag is missing); Departs from the spec item 10; IC-05 Risks; Gate set row 1.1 proof module"
+      - artifact: "spec.md FR-017 item 1 (permanent assertions committed in the router tool tests, green before and after the release) and item 5 (the only accepted red is the breaking-change job); A-4"
+      - code: ".github/workflows/ci-router.yml:882 (tests-contract-tools runs all of tests/contract, fetch-depth 0, needs of router-gate)"
+    claim: >
+      The plan puts the tag-dependent live test in test_mission_status_contract_1_1.py, which lives in the same module as the pure proofs and is
+      selected by the same tier-1 job. From IC-05 until the operator cuts the tag, any run of the tool selection is red, so a reviewer cannot tell a
+      pre-existing, accepted red from an introduced one inside the module that carries the version proof. Spec FR-017 says the committed assertions are green on both
+      sides of the release and that the accepted red is the Contracts breaking-change job only. Departure 10 notes the difference but treats it as consistent with FR-020 and gives
+      neither the operator nor the squad the choice. The plan's mitigation is "WP reviews run the pure tests and say so", which is a reviewer convention, not a gate.
+    remediation: >
+      Isolate the tag-dependent live test in its own module (or a distinct test id selectable by -k) so the module of pure proofs is green pre-tag, and say in the
+      WP acceptance criteria which exact test ids are the only accepted red until the tag. Record the departure from FR-017 items 1 and 5 as a named operator
+      acknowledgement (an OD or a Departs entry that cites the spec lines), not only as an FR-020 reading. Give IC-05 a stated reviewer procedure: run the module with the live test deselected, then run it alone and show the expected failure message.
+  - id: PLAN-SEQ-004
+    lens: Release dependency (tag / baseline sequencing)
+    severity: 3
+    title: The accepted-red Contracts job can never be observed, and the JVM-only contract checks first run on the draft PR, after compaction
+    evidence:
+      - artifact: "plan.md Gate set row Contracts workflow gates ('breaking-change is red at 1.1.0-SNAPSHOT until the tag exists (accepted state, CL-2)'); Branch contract (PR not opened before the tag; WPs never push); quickstart.md table (Gradle validation, Java view, TypeScript client smoke, resolver parity, release dry run: CI only)"
+      - code: ".github/workflows/contracts.yml:10-30 (triggers: pull_request and push to main only)"
+      - artifact: "spec.md FR-017 item 5, A-4"
+    claim: >
+      The Contracts workflow runs on pull requests and on pushes to main only. The plan opens the PR only after the tag exists and never pushes
+      earlier, so the stated accepted-red state of that workflow is never observed; instead every Contracts job (vacuum lint, JVM validation, Java view,
+      TypeScript client smoke, resolver parity, release dry run, negative-tests with JVM cases skipped, 33 of 101) executes for the first time on the draft PR. Three new operations and 27 new
+      schema and response files have only been exercised through the Python resolver. A failure at that point forces fix commits after the compaction step
+      the wrap-up rule orders before the PR, or a second compaction. The risk table (P-1..P-9) has no row for this, and the PR-readiness bar is stated as if only the live test matters.
+    remediation: >
+      Add risk P-10 and a pre-PR shake-out step in IC-09 or the wrap-up: after the contract tree is frozen (end of IC-05) the operator or orchestrator
+      runs the Contracts workflow on a pushed non-PR branch ref or a JVM-capable machine (workflow_dispatch is not available because the triggers lack it, so name the mechanism),
+      with the tag in place, before the aggregate squad. Reword the Gate set row to say the red is a local-only expectation and not an observable CI state.
+  - id: PLAN-SEQ-005
+    lens: Release dependency / wrap-up ordering
+    severity: 3
+    title: IC-10 and "evidence runs once, on the final tree" are inconsistent with a wrap-up that rebases and compacts after the aggregate squad
+    evidence:
+      - artifact: "plan.md Operator decisions, 'Dependency on the operator' (cut before the aggregate review lets the live test and PR evidence run once, on the final tree)"
+      - artifact: "plan.md Branch contract wrap-up order (accept, cleanup, aggregate squad, compaction, rebase, draft PR); Reflexivity item 6 (rebase onto the release commit, re-verify symbols, re-measure floors); IC-10 (floors re-measured on the final tree, live baseline run after the tag; sequencing: after everything and after the release); Point after which the 1.0.0 tag matters"
+      - artifact: "research.md R-7 last bullet (expected two-line conflict in info.version and the CHANGELOG heading at the rebase)"
+    claim: >
+      The tree changes after the aggregate squad twice (compaction, then the rebase onto the release commit that edits info.version and the CHANGELOG heading),
+      so evidence recorded before the rebase is not on the final tree, contradicting "run once". IC-10 is a work package yet depends on the operator's tag and on wrap-up
+      steps that follow all work packages; if the tag is not yet cut when IC-01..IC-09 finish, IC-10 stalls the mission with no stated owner or fallback. The plan also never says when the operator is
+      asked to cut the tag: R-7 says only "before the aggregate review", although the release is a maintainer action with unknown lead time and the single
+      external unknown of the mission.
+    remediation: >
+      Split IC-10 into (a) pre-tag evidence (the --baseline-root run, counts, tracer) as a WP, and (b) post-rebase evidence (live test against the tag, re-measured
+      floors, symbol re-check) as a named wrap-up step after the rebase, owned by the orchestrator; state that the aggregate squad runs before the rebase and that (b)
+      is the only evidence cited as final. Add an explicit dispatch point: ask the operator for the tag at implement start (front-loading the external dependency), with a fallback
+      if it is not cut by the aggregate squad (hold the PR, the pure and baseline-root evidence stand).
+  - id: PLAN-SEQ-006
+    lens: Phasing / front-loading risk
+    severity: 3
+    title: The riskiest unknown, the readers over the whole real corpus, is first exercised by the last concern
+    evidence:
+      - artifact: "plan.md Critical path (IC-01 to IC-06 to IC-07 to IC-08); IC-08 Risks (runtime, anomaly floors); Departs from the spec items 1 and 14 (duplicates, re-measured counts)"
+      - artifact: "plan.md v1 comparison: v1 plan front-loaded an IC-07a spike (kitty-specs/mission-status-contract-v1-01M3WC5X/plan.md, canonical $ref spike)"
+    claim: >
+      Planning already found four corpus surprises the spec did not know (duplicate ids, 80 versus 77 Missions without lanes.json, 168 unparseable cycle files, 29 status-log-only ids).
+      Corpus-wide behaviour, anomaly floors and the 6-minute budget are first tested in IC-08, behind five other concerns; a reader defect that only the corpus shows lands after the
+      readers, their synthetic tests, and the proof module are written, so the rework falls on IC-06 and IC-07 after they were reviewed approved. The plan states that IC-09/IC-10 verify afterwards, not that any slice reaches the corpus early.
+    remediation: >
+      Make IC-06 and IC-07 each end with a thin corpus smoke (examined equals discovered over the real tree, no thresholds yet) as part of their acceptance, or move a
+      reality-extension skeleton (counts and the zero-exclusion guard only) ahead of the detail reader. IC-08 then adds floors, controls and the fixture.
+  - id: PLAN-SEQ-007
+    lens: Phasing / chokepoints
+    severity: 2
+    title: IC-09 has no write scope, so it cannot be a reviewable work package; IC-02 x IC-03/IC-04 integration has no owner
+    evidence:
+      - artifact: "plan.md IC-09 (Affected surfaces: none new, read, run, record) and IC-02 Sequencing (the extended scan must pass every existing file and, at integration, every new one)"
+      - artifact: "plan.md Concurrency (IC-02 in lane A, IC-03 and IC-04 in lane B)"
+    claim: >
+      A work package with an empty diff has nothing to commit, review or approve in the implement-review loop. Meanwhile the one cross-lane check that matters, that the new strict names and the artifact-path class accept the new contract files and
+      examples written in lane B, is deferred to an unnamed "integration" and IC-09 lists no leak_scan or run_negative_cases command.
+    remediation: >
+      Fold IC-09 into the wrap-up checklist (or give it the registration write scope per PLAN-SEQ-002). Add to IC-04 (or to the convergence step) an acceptance line that leak_scan.py, example_check.py and run_negative_cases.py run green over the merged lane A and lane B trees.
+  - id: PLAN-SEQ-008
+    lens: Phasing / one readable PR
+    severity: 2
+    title: No reading order or size budget for the single PR a human must read in a sitting
+    evidence:
+      - artifact: "plan.md Branch contract (one PR); Project structure (about 52 new contract files, 21 examples, 2 helpers, 3 test modules, 7 edited test modules); Technical Context (reader and tests of the size of the 1,273-line payload helper)"
+      - artifact: "plan.md Complexity Tracking (names only registrations, the matcher, the scanner class)"
+    claim: >
+      The wrap-up compacts history but the plan gives no expected diff size, no ordering of the compacted commits, and no rule for what a reviewer can skip (for example the mechanical contract files). The lens question
+      is whether the final diff is readable in one sitting; the plan only asserts one PR.
+    remediation: >
+      Estimate added lines by group (contract files, readers, tests, tooling) in the plan, and state the compaction shape: for example one commit per concern in dependency order (campsite, tooling, contract A, contract B, proof, readers, corpus extension, evidence) with the PR body stating the reading order and the generated/mechanical groups.
+  - id: PLAN-SEQ-009
+    lens: Decision forks (OD-2)
+    severity: 3
+    title: OD-2 recommendation Y creates a second authority for required examples and omits the v1 precedent
+    evidence:
+      - artifact: "plan.md Operator decisions OD-2 (Option Y keeps the guard in the in-test cases)"
+      - code: "contracts/tools/fixtures/example_check/required_examples.json (19 mission-status entries, one per resource and refusal)"
+      - code: "contracts/tools/example_check.py:15-27 (REQUIRED_EXAMPLE_MISSING is the tool's own check; the manifest is the declared home)"
+      - artifact: ".kittify/charter/charter.md Governing Principles: single canonical authority"
+    claim: >
+      The existing manifest is the canonical home of 'this example must exist'; the tool exists to enforce it, and every v1 resource is registered there. OD-2 presents the two options as
+      equally non-vacuous and only costs X as an extra fixture edit. It leaves out that Y splits the authority (some required examples in the manifest, the new ones in a test table, which the
+      new operations then cannot be found missing by the Contracts workflow python-checks job, whose run needs no pytest by design per the workflow header) and that the manifest
+      edit is a pure data edit on an existing file with a dedicated test (test_example_check.py REAL_MANIFEST). The recommendation therefore follows from file-set convenience, not from the evidence.
+    remediation: >
+      Rewrite the option table to name the v1 precedent and the single-authority cost of Y, and the Contracts workflow gap it opens (no pytest runs there). Either recommend X and add
+      the manifest to the slice-file-set acknowledgement together with OD-1 (one operator question, one acknowledgement), or justify Y with a stated reason that outweighs the principle.
+  - id: PLAN-SEQ-010
+    lens: Decision forks (OD-1) / charter check consistency
+    severity: 2
+    title: OD-1 option table omits the costs of X that the plan itself records elsewhere, and the Charter Check still says workflow YAML is not touched
+    evidence:
+      - artifact: "plan.md OD-1 row; Charter Check Tiered rigour row ('workflow YAML is not touched'); Contracts table (CI workflows Preserved); Gate set row Architectural heavy battery (selected in CI if tests/architectural/** is edited)"
+      - code: ".github/workflows/packs.yml:285"
+      - code: "tests/architectural/test_ci_corpus_trigger_completeness.py:112"
+    claim: >
+      With X, a tracked workflow and a tests/architectural file are edited; the latter selects the architectural-heavy CI battery on the PR, and the former is a shared
+      chokepoint (PLAN-SEQ-002). The option table lists neither; the Charter Check rows are written for Y and are false under the recommended X. Option Y is also described only as 'one 2,000-line file'; the three target modules today
+      are 795, 1,065 and 708 lines, so the readability argument rests on an unmeasured estimate.
+    remediation: >
+      Add to the OD-1 table the architectural-heavy selection, the packs.yml chokepoint and the conflict rule, state the expected Y line counts, and make the Charter Check and Contracts rows conditional on the OD-1 outcome.
+  - id: PLAN-SEQ-011
+    lens: Campsite-clean
+    severity: 1
+    title: Campsite counts are slightly off and the campsite concern writes outside its stated scope
+    evidence:
+      - artifact: "plan.md Campsite-clean (g) (commit-everything helper used three times; replace the nine call sites) and IC-01 (write scope exactly two files)"
+      - code: "tests/contract/test_mission_status_reality.py:304,333,353,461,607,627 (six init statements, with three different argument forms) and :321 (_commit_all definition), :337, :358 (two call sites)"
+    claim: >
+      _commit_all has one definition and two call sites, so the replaced call sites are eight, not nine; the six init statements differ in form (a git prefix list, a -C path, a root variable), so they are one literal pair rather than one repeated statement. IC-01 also records the baseline in tracer-approach.md and the PR body, which are outside its stated 'exactly those two files'. None changes the implementation.
+    remediation: >
+      Correct the counts (six init sites, two _commit_all call sites plus the definition) and state that IC-01 additionally appends to the tracer file, or move that record to the wrap-up.

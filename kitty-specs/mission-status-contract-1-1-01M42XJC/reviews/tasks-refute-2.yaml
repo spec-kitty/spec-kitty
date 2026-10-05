@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 2
+verdicts:
+  - id: TASKS-DECOMP-009
+    verdict: refuted
+    reason: The prompts (WP05 T023, WP06 T031) never say the smoke imports the new module at module level, so the collection-error premise is a conditional hypothesis the artifacts do not support.
+  - id: TASKS-DECOMP-010
+    verdict: confirmed
+    reason: WP05 T024 adds FLOORS fields with provisional values that WP08 T048 re-pins, and both T024 and WP08 T047 describe the same empty-directory fingerprint control.
+  - id: TASKS-DECOMP-011
+    verdict: confirmed
+    reason: WP01 says red-first does not apply yet its reviewer bullet and hand-off require a red-first commit, and the WP09 hand-off says not to write under kitty-specs/ while WP09 owns exactly those files.
+  - id: TASKS-DECOMP-012
+    verdict: confirmed
+    reason: tasks.md lists 3 path files and 1 parameter for WP03 (sums to 31, not 30) and 3 path files and 1 parameter for WP04, while wps.yaml owned_files show WP03 with 2 new path files plus 1 new parameter and WP04 with 1 path file and no new parameter.
+  - id: TASKS-DECOMP-013
+    verdict: confirmed
+    reason: WP01 T004 states Files None and only restates the hand-off section, and the WP02 Objective says four contract-tooling files while listing three.
+  - id: TASKS-ORDER-001
+    verdict: confirmed
+    reason: plan.md W-5 compaction shape lists nine code concerns plus tracer files only, with no rule for the planning artifacts, status-transition commits or byte-identical status.events.jsonl that F-27 and F-29 say W-5 must absorb.
+  - id: TASKS-ORDER-002
+    verdict: confirmed
+    reason: plan W-2 and P-10 run the JVM checks only after WP05 to WP08 although wps.yaml shows WP07 owns only contracts CHANGELOG.md, so the contract tree is final at WP04 and a defect would force rework of the readers and tests built on it.
+  - id: TASKS-ORDER-003
+    verdict: confirmed
+    reason: tasks.md dispatches WP07 before WP08 with the stated reason that this is only dispatch order (no shared file, no dependency), while WP08 carries the NFR-001 runtime-budget re-plan risk.

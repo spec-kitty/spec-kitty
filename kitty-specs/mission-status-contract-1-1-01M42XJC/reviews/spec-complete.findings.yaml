@@ -1,0 +1,192 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: complete
+mission: mission-status-contract-1-1-01M42XJC
+findings:
+  - id: SPEC-COMPLETE-001
+    lens: Secrets/leaks
+    severity: 4
+    title: >-
+      Redaction covers only paths and e-mails; the single leak authority also recognises secrets and forbidden property names
+    evidence:
+      - artifact: "spec.md § FR-015, CL-3, AD-10, NFR-004, AC-CONTENT"
+      - code: "contracts/tools/leak_patterns.py: SECRET_PATTERNS, CODE_CREDENTIAL, FORBIDDEN_PROPERTY_NAMES, leak_codes()"
+    claim: >-
+      FR-015 names the leak_patterns.py module as "the single authority" and says the slice adds none and weakens none, but it only defines two replacement tokens ([path], [email]). The same module returns a third code (SECRET) for GitHub tokens, AWS key ids and PEM private-key headers, and lists forbidden property names (feedback_path, record_path, worktree_path and others). The spec gives no mechanism for a secret in artifact content (no token, no refusal), so a content read serves it verbatim while the corpus leak scan over envelope content (which uses leak_codes) either fails the run or, if the scan is narrowed to path and e-mail, passes a credential through. Forbidden property names inside served JSON/YAML/JSONL content (the D-14 class "property that carries local identity") are not addressed either. AC-CONTENT and NFR-004 say "zero host paths and e-mail addresses", so the secret class has no AC and no planted negative (FR-023). This is a credential hazard in a public-repo corpus.
+    remediation: >-
+      Add to FR-015 and AC-CONTENT a stated outcome for the SECRET class in content and in human-text fields (for example a third fixed token [secret] with the same substring rule, or a refusal Problem), and state what happens to a forbidden property name appearing as a key in served JSON/YAML content (redact its value, or document the accepted residual). CL-3 only fixes [path] and [email] for the envelope, so if a new token is needed record it as an author decision for operator confirmation rather than silently adding it. Add a planted secret per endpoint to FR-023 and a floor/negative to AC-CONTENT; say the leak scan runs all three codes.
+  - id: SPEC-COMPLETE-002
+    lens: Testability
+    severity: 4
+    title: >-
+      The readable invariant contradicts the first-bytes bound in FR-011 and NFR-002
+    evidence:
+      - artifact: "spec.md § AD-7, FR-011 (last sentence), NFR-002, AC-LIST readable invariant, FR-013"
+    claim: >-
+      AD-7 says readable:true implies the content read succeeds, and inspects "the first bytes of every file within the cap". A NUL byte or an invalid UTF-8 sequence can sit anywhere in a file of up to 262144 bytes, so only a full read of every file within the cap can make the invariant true. FR-011 says the listing "opens no file beyond the first bytes needed" and NFR-002 says "at most the first bytes of each". Those bounds read as a prefix, which makes the AC-LIST invariant (checked for every entry in the corpus, SC-003 100 percent) fail on any file whose defect is late, or forces the implementer to guess. AD-7's own bound (entry cap times byte cap) is 256 MiB per listing, which NFR-002 and NFR-001 do not reflect.
+    remediation: >-
+      State exactly what the listing reads: the whole file for every file with st_size at or below 262144 and nothing for larger files. Reword FR-011/NFR-002 to that bound, put the 1000 x 262144 worst case into NFR-001/NFR-002, and add a fixture to FR-022/AC-LIST with the NUL byte and the invalid sequence at the last byte of a 262144-byte file, asserting readable:false and a 415.
+  - id: SPEC-COMPLETE-003
+    lens: Permissions
+    severity: 4
+    title: >-
+      Status-record exclusion is not defined for case-insensitive hosts, nested names or symlinked parent directories
+    evidence:
+      - artifact: "spec.md § AD-5, AD-6, AD-9, FR-011, FR-014, FR-022 containment list, Edge Cases (case-insensitive)"
+      - code: "src/specify_cli/core/utils.py:125 ensure_within_directory (resolves symlinks, then relative_to)"
+    claim: >-
+      (1) The exclusion of status.events.jsonl and status.json is stated by name only. On a case-insensitive host (the desktop app is a consumer; the Edge Case says artifacts differing by case are listed with real names, no normalisation) a request for STATUS.JSON or Status.Events.jsonl opens the very file AD-5 forbids, unless the comparison is on the resolved real name. (2) It is not stated whether the exclusion applies at the Mission root only or at any depth. (3) FR-014 names ensure_within_directory as the reference rule, but that helper resolves symlinks and only checks the final result; AD-6 requires that no symlink is followed, including a symlinked directory component (research/ pointing elsewhere), and FR-014 never says per-component lstat or O_NOFOLLOW is the mechanism. A check-then-open race between validation and open is also not addressed. (4) The AC for containment ("every case in FR-022's list") has no case for a status record read by exact name, by case variant, or through a symlinked parent, because FR-022's containment bullet omits them.
+    remediation: >-
+      In FR-011/FR-014 state the exclusion as: the final path component, compared case-insensitively on every host, at the Mission root (and say whether nested names are also excluded); state that each component of the path is lstat-checked and none may be a symlink, with the open done without following links. Add to FR-022 and AC-CONTENT: status.events.jsonl and status.json by exact name and by case variant (404), a path through a symlinked directory inside the Mission, and a regular file hard-linked to an outside file (document the outcome). Each must assert no target content in the response.
+  - id: SPEC-COMPLETE-004
+    lens: Coverage / Testability
+    severity: 4
+    title: >-
+      AD-12 (worktreePresent true only for a lane worktree) has no test that can fail; corpus asserts boolean shape only
+    evidence:
+      - artifact: "spec.md § AD-12, FR-006, FR-016, FR-022, AC-DETAIL workspace bullet, SC-004"
+      - code: "src/specify_cli/workspace/context.py resolve_workspace_for_wp (per AD-12 resolves planning WPs to the repository root)"
+    claim: >-
+      AD-12 exists to stop worktreePresent being true for the repository root. FR-016 asserts it in the corpus only as a boolean, and FR-022's synthetic list never mentions worktreePresent or workspace.laneId/laneBranch/planningBranch. An implementation that returns true for every planning-artifact work package (the exact bug AD-12 names) passes every stated check, as does one that never returns true. The AC-DETAIL workspace bullet covers only changeState. No AC covers the null workspace values required by User Story 1 scenario 3 beyond a corpus floor, and none covers the happy path (a lane worktree that exists gives true).
+    remediation: >-
+      Add to FR-022 and AC-DETAIL a synthetic matrix: a work package in a real lane worktree (true), a lane worktree recorded but not created (false), a planning-artifact work package resolving to the repository root (false, fails if true), no lanes.json (laneId and laneBranch null), a work package in no lane. State the invariant that changeState is never changed or unchanged when worktreePresent is false, and assert it.
+  - id: SPEC-COMPLETE-005
+    lens: Coverage
+    severity: 4
+    title: >-
+      Several FRs and decisions have no acceptance criterion although the traceability table claims coverage
+    evidence:
+      - artifact: "spec.md § Traceability row FR-001 to FR-008 -> AC-DETAIL; AC-DETAIL bullets; FR-004, FR-005, FR-008, AD-13, FR-003 statusLane"
+    claim: >-
+      The row "FR-001 to FR-008 -> AC-DETAIL" overstates coverage. Reading AC-DETAIL bullet by bullet: FR-004 titles and statusLane (and the dangling-dependency case, and statusLane null rather than planned) have only the wpId equality check; FR-008 artifactReferences (non-null only when listed, null when absent) is not mentioned anywhere in the ACs; FR-005 verdict matching by pointer, verdict null, cycle ordering and the unparseable-cycle entry (AD-13) have no AC, only feedbackReference is checked; FR-003 subtask statusLane null versus planned and duplicate-id first-row-wins have none; FR-024 maps to "review of plan/README", which is not a testable observable. The FR-021 corpus controls compare only ids and patterns, so a wrong dependency title or a wrong verdict passes every AC.
+    remediation: >-
+      Add AC-DETAIL bullets, each with a fail condition: (a) dependency title/statusLane against the status snapshot and the title fallback, plus a dangling dependency listed with id as title and statusLane null; (b) artifactReferences prompt/spec non-null iff the path is in the listing, null otherwise, including on a truncated listing; (c) verdict equals the status event matched by pointer, null when none, and a planted event for the wrong cycle; ascending cycleNumber; an unparseable cycle file kept as an entry with nulls and a cycle number from its file name; (d) subtask statusLane null for an id with no recorded state; duplicate id resolves to the first row. Give FR-024 an observable (a table in the plan listing every removed route, checked by a grep in the review).
+  - id: SPEC-COMPLETE-006
+    lens: Coverage
+    severity: 3
+    title: >-
+      Risks table promises fixtures that FR-022 and the ACs do not contain
+    evidence:
+      - artifact: "spec.md § Risks and Dependencies rows SK-348 and SK-310; FR-022; Edge Cases (review-cycle file in coordination partition, dependency naming no work package, no lanes.json)"
+    claim: >-
+      The SK-348 row says "test a Mission with the record in each place (FR-022)" and the SK-310 row says "fixture with a coordination-topology Mission". FR-022's bullet list has neither. The Edge Cases (cycle in the coordination partition or stranded in primary, work package in no lane, no lanes.json, dependency naming no work package, tasks.md absent) are likewise not in FR-022 or any AC. The traceability is therefore dishonest for exactly the topology cases the ledger entries warn about, and zero-found-is-[] could mask a resolver that misses the coordination place.
+    remediation: >-
+      Add the two topology fixtures and each Edge Case as explicit FR-022 bullets, with the outcome and the way each fails (for example a cycle file only in the coordination partition must appear, not give []; plan.md must be found on a coordination-topology Mission).
+  - id: SPEC-COMPLETE-007
+    lens: Silent-success at the edges
+    severity: 3
+    title: >-
+      A corrupt lanes.json and the planning lane have no stated outcome
+    evidence:
+      - artifact: "spec.md § FR-006, FR-007, Edge Cases (no lanes.json), AD-4"
+      - code: "src/specify_cli/lanes/persistence.py:138 read_lanes_json (returns None only when absent, raises CorruptLanesError when present but malformed)"
+      - code: "src/specify_cli/lanes/branch_naming.py:533 lane_branch_name (requires keyword target_branch; returns target_branch for lane-planning)"
+    claim: >-
+      The spec defines null for "no lanes.json" only. The real reader distinguishes absence (None) from a corrupt file (raises), precisely to prevent silent fallback; the spec does not say whether a corrupt lanes.json yields null laneId (silent success on a broken Mission) or a Problem. Second, lane_branch_name needs a target_branch argument the spec never names as an input, and for the lane-planning lane it returns the target branch itself (for example the integration branch), so FR-006's rule "laneBranch is the lane branch name when laneId is non-null" would report the primary branch as a lane branch for every single_branch or planning work package; FR-007 covers changeState for "no code lane" but FR-006 does not say laneId/laneBranch for the planning lane.
+    remediation: >-
+      State in FR-006: absent lanes.json gives null/null; unparseable lanes.json is a Problem (or an explicit documented null with the cause visible), consistent with AD-4 and FR-020; name target_branch (from the lanes manifest or meta.json) as an input; for lane-planning state laneId and laneBranch values explicitly (recommended: laneId is lane-planning, laneBranch null because no lane branch exists). Add a fixture for each.
+  - id: SPEC-COMPLETE-008
+    lens: Terminology consistency / Silent-success
+    severity: 3
+    title: >-
+      feedbackReference is "always non-null" but its builder raises on invalid segments
+    evidence:
+      - artifact: "spec.md § FR-005 feedbackReference, FR-015 strict fields, AD-13"
+      - code: "src/specify_cli/review/cycle.py:446 build_review_cycle_pointer (validates segments and the review-cycle-N.md filename, raises ReviewCycleError)"
+    claim: >-
+      FR-005 says feedbackReference is always a non-null string matching the pointer pattern; FR-015 makes it a strict field whose failure is a projection error for non-nullable fields. The builder raises when the mission slug, work-package slug or file name fails validation, and AD-13 says a cycle file is never dropped. The three statements conflict for a cycle file with an unusual name or work-package directory: entry dropped, whole detail fails, or fabricated pointer are all possible readings.
+    remediation: >-
+      State the outcome: either the pointer is built from the validated file path and an entry whose pointer cannot be built is still listed with feedbackReference null (and make the schema nullable), or the detail read is a Problem. Add a planted cycle file with an invalid name to FR-022.
+  - id: SPEC-COMPLETE-009
+    lens: Silent-success at the edges
+    severity: 3
+    title: >-
+      Subtask title null conflates three causes, and an empty title cell is unspecified (and contradicts AC-DETAIL)
+    evidence:
+      - artifact: "spec.md § FR-003, FR-020 first bullet, AC-DETAIL subtask titles bullet, User Story 1 scenario 1"
+    claim: >-
+      title is null when tasks.md is absent, has no row for the id, or (FR-020) cannot be decoded; a consumer cannot tell a Mission without tasks.md from a decode failure, and no AC or FR-022 bullet exercises an undecodable tasks.md. FR-003 does not say what a row with an empty title cell gives, while AC-DETAIL says the check fails when a title is an empty string; FR-003 permits null only for absent file or absent row, so the two disagree. The title extraction rule for the checkbox form (priority tags, bold, WP references) is also left unstated, and the fixture in the AC has only one clean row of each kind.
+    remediation: >-
+      State that an empty or whitespace-only title is null, and that an undecodable tasks.md gives null titles and is tested with a planted undecodable file (or make it a Problem if the consumer must see it). Define the extraction rule for both row forms in the x-derived rule and add fixtures with a tag/bold checkbox row, an empty-title table row and a duplicate id.
+  - id: SPEC-COMPLETE-010
+    lens: Permissions / Testability
+    severity: 3
+    title: >-
+      Listed is the access rule for content, but a truncated listing and the bounded-read NFR make it undefined past 1000 files
+    evidence:
+      - artifact: "spec.md § FR-013 (404 for a path naming no listed artifact), FR-012, FR-008, AD-8, NFR-002, Edge Cases (more than 1000 files)"
+    claim: >-
+      Content is served for "listed" paths, but on a Mission with more than 1000 files the 1001st and later files are not listed. Whether they are 404, or readable because they satisfy the rules, is not said; if the content read must enumerate and sort the tree to know whether a path is within the first 1000, it violates NFR-002 ("touches at most 256 KiB of one file") and costs a full walk per read. The same ambiguity makes FR-008 produce null for a prompt or spec that exists but fell past the cap, which is silent degradation (null as absent). AC-LIST truncation covers only the listing response.
+    remediation: >-
+      Define eligibility by rule (regular file, not a symlink, not an excluded status record, inside the Mission directory), independent of the 1000 cap, and say a file beyond the cap is readable by path (or explicitly 404, and then state the cost). Define artifactReferences against the full tree, or state it is null and say that a truncated listing makes it unreliable. Add the truncated-Mission case to AC-CONTENT and the artifactReferences ACs.
+  - id: SPEC-COMPLETE-011
+    lens: Silent-success at the edges
+    severity: 3
+    title: >-
+      changeState derivation is under-specified against the real git helper (HEAD of the worktree, committed changes only, source of the base)
+    evidence:
+      - artifact: "spec.md § FR-007, CL-4, FR-022 change state bullet, A-7"
+      - code: "src/specify_cli/core/vcs/git.py:1236 merge_base_changed_files_checked(worktree, base_ref) composes merge-base of HEAD and base_ref, then diff names"
+    claim: >-
+      FR-007 says the change set is the files changed on the lane branch since its merge base with the work package's merge target. The helper takes a worktree path and diffs that worktree's HEAD, not a branch ref, and takes a base ref the spec never sources (the WP's mergeTargetBranch, the lanes manifest target, or the planning branch). It sees committed changes only, so uncommitted work in the worktree is unchanged; deletions and renames are not discussed; a worktree whose HEAD is not the lane branch (detached, rebased) is not discussed. The spec does not state the invariant that changeState is unknown whenever worktreePresent is false, which would follow from the helper's input.
+    remediation: >-
+      State the inputs in the x-derived rule: the worktree resolved for the work package, HEAD of that worktree, the base ref and its source; state that uncommitted changes do not count (or that a dirty tree gives unknown) and that deleted and renamed paths are included or excluded; require unknown when HEAD is detached or not the recorded lane branch. Add these to the FR-022 git cases.
+  - id: SPEC-COMPLETE-012
+    lens: Silent-success at the edges
+    severity: 3
+    title: >-
+      modifiedAt has no precision, no stat-failure outcome and no determinism rule
+    evidence:
+      - artifact: "spec.md § FR-010 modifiedAt, FR-016, AC-LIST modifiedAt bullet, NFR-005"
+    claim: >-
+      modifiedAt is "RFC 3339 UTC" but the fractional-second precision is not fixed. The AC-LIST equality test against a file's set mtime and NFR-005 byte-identical listings both depend on that precision (nanosecond float rounding differs across hosts and file systems). What happens when stat fails for one entry (file vanished mid-walk, permission) is not stated: dropping the entry, null (the schema says required), or a Problem. The mtime is also meaningless for a checked-out clone; the description is to say so, but nothing says a corpus consumer must not use it for ordering.
+    remediation: >-
+      Fix the format (for example whole seconds, Z suffix, truncation not rounding) and test equality at that precision; state that a file that vanishes between walk and stat is omitted, and that any other stat failure is a Problem for the listing (consistent with FR-020), with a fixture.
+  - id: SPEC-COMPLETE-013
+    lens: Secrets/leaks / Terminology
+    severity: 3
+    title: >-
+      A file name that fails the strict path rules or contains an e-mail has no stated outcome in the listing and content read
+    evidence:
+      - artifact: "spec.md § FR-015 (strict fields include artifact path; non-nullable failure is a projection error), FR-010 path, AD-9, FR-023 listing negative"
+      - code: "contracts/tools/leak_patterns.py STRICT_HOST_PATH_PATTERNS, EMAIL_PATTERN"
+    claim: >-
+      Artifact path is a strict, non-nullable field whose failure is "a projection error that fails the check". The strict patterns match any segment pair like home/<x>/ or Users/<x>/ in the path, and the e-mail pattern applies to every string, so a legitimate file such as data/Users/alice/notes.md or a name containing user@host.tld fails projection. For the service that means the whole listing fails (one odd file hides the Mission's artifacts) or the entry is dropped silently; the corpus has no such name today (checked) so no AC would ever notice. FR-023's listing negative plants a symlink, not a leaking name.
+    remediation: >-
+      Decide the outcome and write it into FR-010/FR-011: for example such a file is listed with its real path but the strict check is not applied to artifact path, or it is omitted and counted in a new field, or the listing is a Problem. Add a planted leaking file name to FR-023 and FR-022 with the stated outcome, and say the content read of that path is consistent with it.
+  - id: SPEC-COMPLETE-014
+    lens: Permissions
+    severity: 2
+    title: >-
+      The spec never states who may reach the three reads or that authorization is out of the contract
+    evidence:
+      - artifact: "spec.md § FR-001, FR-009, FR-012, Out of Scope"
+      - code: "contracts/mission-status/openapi.yaml (no security scheme declared)"
+    claim: >-
+      The permission model is implicit: the v1 contract declares no security scheme, and these reads expose file contents, host-dependent state (worktreePresent) and modification times. The spec says what is refused (traversal, symlink, status records) but not that access control belongs to the serving layer, that the contract declares none, nor that a path or missionId from one Mission can never reach another Mission's files.
+    remediation: >-
+      Add one sentence to Summary or Out of Scope: authentication and authorization are the service's responsibility, the contract declares no security scheme as in v1, and the cross-Mission reach is refused by FR-014; add a FR-022 case that a path naming another Mission's file (via a sibling path component) is refused.
+  - id: SPEC-COMPLETE-015
+    lens: Terminology consistency
+    severity: 2
+    title: >-
+      Kind classifier overlaps (tasks/WP*.md versus review-cycle files) and 413 versus 415 precedence are unstated
+    evidence:
+      - artifact: "spec.md § FR-010 kind list, FR-013, AC-CONTENT, AC-LIST kinds bullet"
+    claim: >-
+      Review-cycle files live under tasks/WP##-slug/review-cycle-N.md in the corpus (checked), and the kind rule `tasks/WP*.md` read as a glob matches them, as would `contracts/` and `checklists/` files with other names; FR-010 claims "exactly one kind" without precedence order. Separately, a file that is both over the cap and not text has two legal refusal codes; AC-CONTENT requires "the matching code" and FR-013 gives no precedence, though NFR-002 implies 413 (size is checked before reading).
+    remediation: >-
+      State the classifier as an ordered list with first match winning (review-cycle before work-package-prompt, with the prompt pattern anchored to tasks/WP*.md with no further separators), and state in FR-013 that 413 is decided from st_size before any bytes are read and therefore wins over 415. Add a fixture of an oversize non-UTF-8 file.
+  - id: SPEC-COMPLETE-016
+    lens: Testability
+    severity: 1
+    title: >-
+      AC-DETAIL pointer check names a pattern only by prefix
+    evidence:
+      - artifact: "spec.md § AC-DETAIL reviewCycles bullet"
+      - code: "src/specify_cli/review/cycle.py:463 validate_review_cycle_pointer"
+    claim: >-
+      The bullet says every feedbackReference "matches ^review-cycle:// pointer pattern". A prefix match is satisfied by a path-bearing value such as review-cycle:///abs/path, which defeats the purpose.
+    remediation: >-
+      Say the check uses validate_review_cycle_pointer or the full schema pattern (three segments, review-cycle-N.md filename), and add a planted malformed-pointer negative.

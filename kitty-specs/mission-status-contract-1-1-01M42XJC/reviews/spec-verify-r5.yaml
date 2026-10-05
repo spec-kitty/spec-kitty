@@ -1,0 +1,17 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: FR-015 (d) and Terminology now give each pinned value set its own titled enum schema (ChangeState, ArtifactKind, ArtifactRefusalCode referenced by ArtifactRefusal), state that encoding is a const guarded by schema validation, and AC-CONTENT/AC-VERSION assert the pin failure only on the titled enums, which matches how enum_pin_check reads a pin by title plus enum list.
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: The slice file set now excludes the Mission's own kitty-specs directory from the scripted diff and checks it only against C-003, and Out of Scope, SC-008, AC-VERSION and the traceability table all defer to that one statement without contradiction.
+  - id: SPEC-FRESH-006
+    status: resolved
+    reason: The universe now adopts the product selector wp_task_files (verified in wp_metadata.py as startswith WP and endswith .md), states the 200/404 rule for snapshot-only, file-only and non-prompt files such as WP01.md, and FR-021/AC-DETAIL/FR-010/FR-022 agree with it.
+  - id: SPEC-FRESH-011
+    status: unresolved
+    remaining_severity: 3
+    reason: The false claim about the repository matcher is fixed and the segment algorithm handles several ** correctly, but FR-007 rule 3 still says "*" matches any characters including "/" while its general rule matches every non-** segment by fnmatch against exactly one path segment (so *.py would not match src/x.py, unlike the repository matcher), leaving two contradictory definitions and a possible silent false unchanged; the FR-022 mutation list pins both.

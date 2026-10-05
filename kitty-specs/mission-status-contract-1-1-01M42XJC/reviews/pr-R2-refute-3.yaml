@@ -1,0 +1,30 @@
+schema: review-refute/v1
+complete: false
+phase: pr
+batch: 3
+verdicts:
+- id: PR-SECURITY-003
+  verdict: refuted
+  severity: 1
+  reason: "data-model.md Redaction says redaction uses the leak_patterns.py patterns and that this Mission adds and weakens none; spec risk table accepts v1-pattern limits. The ASCII-only EMAIL_PATTERN is pre-existing from #5558 and changing it is outside this mission's ruling. Read leak_patterns.py and the spec/data-model rulings; the ASCII classes are as claimed but ruled."
+- id: PR-SECURITY-004
+  verdict: refuted
+  severity: 1
+  reason: "Same data-model ruling: served redaction uses the existing HUMAN_HOST_PATH_PATTERNS with the recorded non-space widening, accepted as in v1 (spec risk table; tracer ruling on the widening). Extra roots (/var/home, WSL) would be a new pattern set the mission explicitly does not add. Checked patterns at leak_patterns.py:46-52 and the data-model text."
+- id: PR-SECURITY-005
+  verdict: refuted
+  severity: 1
+  reason: "AD-19 and OD-4 deliberately make an artifact path its own leak class: the name is repository content, judged only by the artifact-path rule, with credentials and e-mail in a file name an accepted residual. leak_scan.py check_artifact_path matches that design (it still checks secrets). A host path embedded in a name is the same accepted class."
+- id: PR-SECURITY-006
+  verdict: refuted
+  severity: 1
+  reason: "read_text (NUL or non-UTF-8 returns None) is pre-existing and unchanged by this diff (git diff c84cc3d04..HEAD shows no change to it); it is the documented binary-file skip, and a .yaml/.json that does not decode also fails the contract lint and parse jobs, so it cannot hide in a green tree. Not a defect introduced or ruled open here."
+- id: PR-SECURITY-007
+  verdict: confirmed
+  severity: 1
+  reason: "The rewritten docstring in leak_scan.py says 'No directory is exempt' while line 59 skips .git, build, node_modules, .gradle and four caches (list_files tests every path component). The skip list is pre-existing but the stronger sentence is this diff's; a docstring nit only, fix by naming the skipped directories."
+- id: PR-SECURITY-008
+  verdict: confirmed
+  severity: 1
+  reason: "_walk in the test reference reader is unbounded recursion and list_artifacts catches only OSError, so a nesting past the interpreter limit raises RecursionError instead of the 500 artifact_listing_unreadable; paths over 512 are ineligible so pruning is valid. Confirmed by code reading (I did not rerun the 1500-level script). Downgraded from 2: it is test-support code and the depth needed is contrived."
+complete: true

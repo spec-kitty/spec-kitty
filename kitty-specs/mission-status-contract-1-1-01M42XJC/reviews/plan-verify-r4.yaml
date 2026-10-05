@@ -1,0 +1,23 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH3-001
+    status: resolved
+    reason: "IC-05 sequencing, the Lanes table row, shared-file exception (2) and the OD-1 reading note now say X-family (X or X-pure) with one pair under X-pure and two under X, and Y alone has no IC-05-after-IC-07 edge; the OD-1 counts (3 modules/6 registrations X-pure, 4/8 X) agree in every place that states them."
+  - id: PLAN-FRESH3-002
+    status: unresolved
+    remaining_severity: 2
+    reason: "The sweep fixed Complexity, compaction shape, P-5, final report note, quickstart and the plan-written-for-X-pure framing, but two X-only sentences remain: plan.md IC-06 Affected surfaces ('with OD-1 X one deselect and one registry row', although IC-06 writes a pair under X-pure) and the SC-001..SC-008 traceability row ('read with the two extra paths under OD-1 X', omitting X-pure); both should say X-family."
+  - id: PLAN-FRESH3-003
+    status: resolved
+    reason: "W-1 (ii) and the quickstart now describe two hops (lane branches into kitty/mission-<slug> from lanes.json, then into target_branch from meta.json) and say HEAD is the target-branch tip; this matches LanesManifest.mission_branch, meta.json (target_branch only) and consolidate --help."
+  - id: PLAN-FRESH3-004
+    status: resolved
+    reason: "Quickstart commands now pass --strategy rebase, the plan recommends rebase (merge second) and explains why squash flattens red-first commits and what W-5 must do under squash; consolidate --help confirms --strategy merge|squash|rebase, default squash."
+  - id: PLAN-FRESH3-005
+    status: resolved
+    reason: "W-1 now directs one row per issue through spec-kitty agent issue-verdict on issue-matrix.json with the closed verdict set, add-only, after checking the finalisation scaffold; issue_matrix.py, mission_finalize.py and issue-verdict --help confirm the JSON is canonical and scaffolded with 'unknown' placeholders."
+  - id: PLAN-FRESH3-006
+    status: resolved
+    reason: "The OD-1 Y cell now lists as cost (0) that the detail git tests inherit the payloads module fast marker (or the marker changes), cites the reality-module precedent and F-19; pytest.ini defines fast as no subprocess/git and git_repo for real repositories, so the claim is accurate."

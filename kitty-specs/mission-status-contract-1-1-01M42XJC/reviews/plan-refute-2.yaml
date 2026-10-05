@@ -1,0 +1,23 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 2
+verdicts:
+  - id: PLAN-FIT-003
+    verdict: confirmed
+    reason: changed_paths returns tuple[GitPath, ...] and GitPath.parse can raise ValueError, while data-model step 2 and research R-4 map only GitCommandError and never state an as_posix conversion.
+  - id: PLAN-FIT-007
+    verdict: confirmed
+    reason: the whole corpus-suite pytest command with its --deselect entries is one physical line in packs.yml and plan.md concurrency exception (2) has three lanes each append and "keep the union", which is a line-level merge conflict.
+  - id: PLAN-SEQ-004
+    verdict: confirmed
+    reason: contracts.yml triggers only on pull_request and push to main (no workflow_dispatch trigger) while the plan opens the PR only after the tag, so the Contracts jobs first run on the draft PR after compaction and no risk row covers it.
+  - id: PLAN-SEQ-008
+    verdict: confirmed
+    reason: the plan has no diff-size estimate, commit ordering or reading-order rule for the single PR beyond asserting one PR (low-severity gap, confirmed by absence in plan.md).
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: fixture_builder._plant returns a flat (field, value, codes) triple and build writes a flat mapping with one fixed _control, so nested entries[].path plants with per-kind odd-name controls need a changed shape that the plan section A does not scope.
+  - id: PLAN-VERIFY-006
+    verdict: confirmed
+    reason: ci-router.yml has an always-on architectural-fast job running tests/architectural (minus four deselected files) and a separate import-linter job, but plan gate table lists neither the fast job nor a baseline and mislabels TID251 as running inside the ruff job.
