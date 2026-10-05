@@ -19,7 +19,8 @@ value instead of minting a new one.
 Re-pinned for #5457: upgrade no longer writes in an *integrating* worktree (a
 ``kitty/mission-...`` mission, lane or coordination branch) at all, so the
 alignment arm is exercised on NON-integrating worktrees, where it still
-applies; the lane / coordination case is pinned as "untouched" below.
+applies; the lane / coordination case is pinned as "untouched" in
+``tests/upgrade/test_upgrade_integrating_worktrees.py``.
 """
 
 from __future__ import annotations
@@ -274,27 +275,3 @@ def test_two_worktrees_aligned_to_stamped_main_are_byte_identical(
     text_b = (wt_b / ".kittify" / "metadata.yaml").read_text(encoding="utf-8-sig")
 
     assert text_a == text_b, "two sibling worktrees aligned to the same stamped main must be byte-identical (raw file content), not just parsed-dict equal"
-
-
-def test_lane_and_coordination_worktrees_are_untouched_while_sibling_aligns(
-    tmp_path: Path,
-) -> None:
-    """#5457: the lane and coordination branches the #4972 wedge was about no
-    longer receive any version bump or commit; they get the root checkout's
-    metadata through integration. A non-integrating sibling in the same run
-    still aligns to main's stamp (#4972 kept)."""
-    root = tmp_path / "repo"
-    _init_repo(root)
-    lane = _add_lagging_worktree(root, "m-01M5457B-lane-a", "kitty/mission-m-01M5457B-lane-a")
-    coord = _add_lagging_worktree(root, "m-01M5457B-coord", "kitty/mission-m-01M5457B")
-    sibling = _add_lagging_worktree(root, "m-sibling", f"{NON_INTEGRATING_PREFIX}m-sibling")
-    before = {wt: (_git_out(wt, "rev-parse", "HEAD"), (wt / ".kittify" / "metadata.yaml").read_bytes()) for wt in (lane, coord)}
-
-    result = MigrationRunner(root)._upgrade_worktrees(_TARGET_VERSION, [], dry_run=False, auto_commit=True)
-
-    assert result["errors"] == []
-    for wt, (head, metadata) in before.items():
-        assert _git_out(wt, "rev-parse", "HEAD") == head, wt
-        assert (wt / ".kittify" / "metadata.yaml").read_bytes() == metadata, wt
-        assert _dirty(wt) == [], wt
-    assert _load_metadata_yaml(sibling / ".kittify")["spec_kitty"]["last_upgraded_at"] == _MAIN_STAMP

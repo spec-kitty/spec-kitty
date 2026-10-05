@@ -30,7 +30,7 @@ from specify_cli.lanes.consolidation import (
 )
 from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
 
-pytestmark = [pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 METADATA = ".kittify/metadata.yaml"
 SOURCE = "src/x.py"

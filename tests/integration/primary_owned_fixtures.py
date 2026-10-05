@@ -110,6 +110,11 @@ _STATUS_JSON = "status.json"
 #: ``spec_kitty.schema_version`` a real upgrade stamps into ``metadata.yaml``
 #: (``runner._stamp_schema_version(..., REQUIRED_SCHEMA_VERSION)``).
 _STAMPED_SCHEMA_VERSION = REQUIRED_SCHEMA_VERSION
+#: The ``spec_kitty.schema_version`` of the OLDER-version fixture's initial
+#: metadata, which every lane and coordination worktree forks from. Upgrade
+#: skips those worktrees, so each keeps this value: a lane command that gated
+#: on the lane's own schema version would refuse.
+_OLDER_SCHEMA_VERSION = (REQUIRED_SCHEMA_VERSION or 0) - 1
 
 
 @dataclass
@@ -196,13 +201,6 @@ class LanesProject:
         self.extra_worktrees.append(path)
         return path
 
-    def record_analysis_report(self) -> None:
-        """Persist a fresh analysis report on the target (and mission branches)."""
-        _write_analysis_report(self.mission)
-        _commit_paths(self.repo, ["kitty-specs"], "chore: record analysis report")
-        for branch in self.branches():
-            _fast_forward_via_merge(self.repo, branch, self.target_branch)
-
 
 # ---------------------------------------------------------------------------
 # Low-level git helpers
@@ -234,14 +232,6 @@ def _checkout_of(repo: Path, branch: str) -> Path | None:
         elif line == f"branch refs/heads/{branch}":
             return current
     return None
-
-
-def _fast_forward_via_merge(repo: Path, branch: str, source: str) -> None:
-    """Bring ``branch`` up to ``source`` inside the checkout that holds it."""
-    checkout = _checkout_of(repo, branch)
-    if checkout is None:
-        raise AssertionError(f"{branch} is not checked out anywhere")
-    _git(checkout, "merge", "-q", "--no-edit", source)
 
 
 def commit_file_on_branch(repo: Path, branch: str, path: str, content: str, message: str) -> str:
@@ -438,7 +428,7 @@ def _older_metadata_yaml() -> str:
         "spec_kitty:\n"
         f"  version: {OLDER_VERSION}\n"
         f"  initialized_at: '{_INITIALIZED_AT}'\n"
-        f"  schema_version: {_STAMPED_SCHEMA_VERSION}\n"
+        f"  schema_version: {_OLDER_SCHEMA_VERSION}\n"
         "environment:\n"
         "  python_version: '3.12'\n"
         "  platform: linux\n"
@@ -729,9 +719,8 @@ def commit_broken_upgrade_state(project: LanesProject, *, branches: Sequence[str
 class UpgradeObservation:
     """Facts about one ``spec-kitty upgrade --yes`` run (no verdict attached).
 
-    The self-test pins the pre-fix facts; WP02 asserts the inverse invariant
-    from the same facts, so this record states what happened and never whether
-    the defect is present.
+    Consumers assert the invariant they care about from these facts, so this
+    record states what happened and never whether the defect is present.
     """
 
     returncode: int
@@ -742,10 +731,6 @@ class UpgradeObservation:
     #: branch -> upgrade auto-commits on that branch after the run.
     upgrade_commits_by_branch: dict[str, list[str]]
     target_upgrade_commits: list[str]
-
-    @property
-    def branches_with_divergent_metadata(self) -> list[str]:
-        return [b for b, blob in self.metadata_by_branch.items() if blob != self.root_metadata]
 
     @property
     def branches_with_upgrade_commit(self) -> list[str]:

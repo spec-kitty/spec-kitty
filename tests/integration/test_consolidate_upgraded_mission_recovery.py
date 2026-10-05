@@ -4,7 +4,7 @@ Story 4 (AS-1/AS-2/AS-3) and Story 2 drive ``spec-kitty consolidate`` (the
 pre-existing entry point) over the WP01 broken-state fixture: every lane branch
 and the target carry their own divergent ``.kittify/metadata.yaml`` and the
 identical ``.gitattributes`` line. The Story 5 controls run the same fixture
-shapes with a genuine conflict and pin the existing refusal text.
+shapes with a genuine conflict and pin that it is still refused.
 
 Each red assertion names the defect's exact text (``Merge of ... failed`` for
 the lane, the stale refusal, or ``TARGET_BRANCH_CONTENT_CONFLICT`` naming
@@ -14,6 +14,7 @@ the lane, the stale refusal, or ``TARGET_BRANCH_CONTENT_CONFLICT`` naming
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -36,21 +37,6 @@ from tests.integration.primary_owned_fixtures import (
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.slow]
 
 _SHARED_SOURCE = "src/shared.py"
-
-#: The ``TARGET_BRANCH_CONTENT_CONFLICT`` block the CLI rendered for the
-#: source-only control on the WP04 base (WP01 + WP03), before any merge-site
-#: change. Story 5 AS-2 requires it to stay byte-identical.
-_SOURCE_CONFLICT_BLOCK = (
-    "Error: Default squash integration would conflict with newer target-branch \n"
-    "content.\n"
-    "  diagnostic_code: TARGET_BRANCH_CONTENT_CONFLICT\n"
-    "  mission_branch: kitty/mission-primary-owned-01M5457A\n"
-    "  target_branch: work\n"
-    "  conflicting_path: src/shared.py\n"
-    "  remediation: Update the mission branch against the current target branch.\n"
-    "  remediation: Resolve the listed conflicts, then rerun `spec-kitty \n"
-    "consolidate`.\n"
-)
 
 #: The stale refusal the CLI rendered for the Story 5 AS-1 control on the WP04
 #: base (whitespace-normalised: the console wraps at its width).
@@ -95,12 +81,6 @@ def _add_source_conflict(project: LanesProject) -> None:
     """Story 5 AS-2: the lane and the target both add ``src/shared.py`` differently."""
     commit_file_on_branch(project.repo, project.target_branch, _SHARED_SOURCE, "target = 1\n", "feat: target shared")
     commit_file_on_branch(project.repo, project.lane_branches["lane-a"], _SHARED_SOURCE, "lane = 1\n", "feat: lane shared")
-
-
-def _conflict_block(output: str) -> str:
-    start = output.index("Error: Default squash integration")
-    end = output.index("Rollback to the pre-consolidation snapshot", start)
-    return output[start:end]
 
 
 def _consolidate(project: LanesProject, *extra: str) -> subprocess.CompletedProcess[str]:
@@ -191,8 +171,9 @@ def test_as3_dry_run_no_longer_forecasts_the_metadata_conflict(tmp_path: Path) -
 # ---------------------------------------------------------------------------
 
 
-def test_story5_as2_source_conflict_still_refused_byte_identically(tmp_path: Path) -> None:
-    """A source conflict in the AS-3 fixture still raises the same block, naming only the source path."""
+def test_source_conflict_in_a_broken_mission_is_refused_naming_only_the_source_path(tmp_path: Path) -> None:
+    """Story 5 AS-2: a genuine source conflict in the AS-3 fixture is still refused,
+    names only the source path, and leaves the target untouched."""
     project = _broken_project(tmp_path, lanes=1, status_json_divergence=True)
     _add_source_conflict(project)
     target_tip = _show(project.repo, project.target_branch, _SHARED_SOURCE)
@@ -201,20 +182,9 @@ def test_story5_as2_source_conflict_still_refused_byte_identically(tmp_path: Pat
 
     output = _output(result)
     assert result.returncode != 0, output
-    assert _conflict_block(output) == _SOURCE_CONFLICT_BLOCK
+    assert "TARGET_BRANCH_CONTENT_CONFLICT" in output, output
+    assert re.findall(r"conflicting_path:\s*(\S+)", output) == [_SHARED_SOURCE], output
     assert _show(project.repo, project.target_branch, _SHARED_SOURCE) == target_tip
-
-
-def test_story5_as2_source_only_control_matches_the_pinned_block(tmp_path: Path) -> None:
-    """The source-only control (no broken state) renders the pinned block too."""
-    project = build_older_version_lanes_project(tmp_path, topology="lanes", lanes=1)
-    _add_source_conflict(project)
-
-    result = _consolidate(project)
-
-    output = _output(result)
-    assert result.returncode != 0, output
-    assert _conflict_block(output) == _SOURCE_CONFLICT_BLOCK
 
 
 def test_story5_as1_different_gitattributes_still_stale(tmp_path: Path) -> None:

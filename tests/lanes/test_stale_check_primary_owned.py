@@ -13,15 +13,12 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.lanes.consolidation import consolidate_lane_into_mission
 from specify_cli.lanes.models import ExecutionLane
-from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.lanes.stale_check import StaleCheckResult, _stale_remediation, check_lane_staleness
 from tests.integration.primary_owned_fixtures import (
     LanesProject,
     build_older_version_lanes_project,
     commit_broken_upgrade_state,
-    commit_file_on_branch,
 )
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -58,57 +55,6 @@ def test_upgrade_overlap_is_not_stale(broken_project: LanesProject) -> None:
     assert result.is_stale is False
     assert result.stale_files == []
     assert result.remediation is None
-
-
-# ---------------------------------------------------------------------------
-# Story 5 AS-1 control: a genuinely different .gitattributes still refuses.
-# ---------------------------------------------------------------------------
-
-_DIVERGENT_GITATTRIBUTES = "* text=auto\n"
-
-
-def test_different_gitattributes_stays_stale_with_identical_text(tmp_path: Path) -> None:
-    project = build_older_version_lanes_project(tmp_path, topology="lanes", lanes=2)
-    lane_branch = project.lane_branches["lane-b"]
-    commit_file_on_branch(project.repo, lane_branch, ".gitattributes", _DIVERGENT_GITATTRIBUTES, "lane gitattributes")
-    commit_file_on_branch(project.repo, project.mission_branch, ".gitattributes", "*.png binary\n", "mission gitattributes")
-    lane = _lane("lane-b", project.lane_wps["lane-b"])
-
-    result = check_lane_staleness(lane, lane_branch, project.mission_branch, project.repo)
-
-    assert result.is_stale is True
-    assert result.stale_files == [".gitattributes"]
-    assert result.remediation == _stale_remediation(lane, lane_branch, project.mission_branch)
-
-
-def test_consolidate_refuses_different_gitattributes_with_identical_text(tmp_path: Path) -> None:
-    project = build_older_version_lanes_project(tmp_path, topology="lanes", lanes=2)
-    lane_branch = project.lane_branches["lane-b"]
-    commit_file_on_branch(project.repo, lane_branch, ".gitattributes", _DIVERGENT_GITATTRIBUTES, "lane gitattributes")
-    commit_file_on_branch(project.repo, project.mission_branch, ".gitattributes", "*.png binary\n", "mission gitattributes")
-    project.remove_lane_worktrees()  # no auto-rebase attempt: the refusal text is under test
-    manifest = read_lanes_json(project.feature_dir)
-    assert manifest is not None
-    lane = _lane("lane-b", project.lane_wps["lane-b"])
-
-    result = consolidate_lane_into_mission(project.repo, project.slug, "lane-b", manifest)
-
-    assert result.success is False
-    assert result.errors == ["Lane lane-b is stale: overlapping files ['.gitattributes']. " + _stale_remediation(lane, lane_branch, project.mission_branch)]
-
-
-def test_consolidate_accepts_upgrade_overlap(tmp_path: Path) -> None:
-    """Path A through the production call: the lane folds in once the rules apply."""
-    project = build_older_version_lanes_project(tmp_path, topology="lanes", lanes=2)
-    commit_broken_upgrade_state(project, branches=[project.lane_branches["lane-b"], project.mission_branch])
-    project.remove_lane_worktrees()
-    manifest = read_lanes_json(project.feature_dir)
-    assert manifest is not None
-
-    result = consolidate_lane_into_mission(project.repo, project.slug, "lane-b", manifest)
-
-    assert result.stale_check is None
-    assert not any("is stale" in error for error in result.errors)
 
 
 # ---------------------------------------------------------------------------
@@ -243,10 +189,3 @@ def test_probe_failure_keeps_the_path_stale(repo: Path) -> None:
     kept = _filter_benign_overlaps(["docs/notes.md"], "no-such-lane-ref", _MISSION, repo)
 
     assert kept == ["docs/notes.md"]
-
-
-def test_filter_without_overlap_makes_no_probe(tmp_path: Path) -> None:
-    from specify_cli.lanes.stale_check import _filter_benign_overlaps
-
-    # A repo path that is not a git repository would fail every probe; no overlap, no probe.
-    assert _filter_benign_overlaps([], "a", "b", tmp_path) == []

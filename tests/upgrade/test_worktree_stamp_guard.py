@@ -210,30 +210,6 @@ def test_successful_worktree_migration_still_advances_schema_version(tmp_path: P
         MigrationRegistry.clear()
 
 
-def test_integrating_worktree_is_skipped_not_stamped(tmp_path: Path) -> None:
-    """#5457: a lane worktree (``kitty/mission-...``) is skipped outright: no
-    migration runs there, no schema stamp, no failure; the non-integrating
-    sibling in the same run is still stamped."""
-    root = tmp_path / "repo"
-    _init_repo(root)
-    lane = _add_worktree(root, "lane-z", "kitty/mission-lane-z")
-    sibling = _add_worktree(root, "lane-y", f"{NON_INTEGRATING_PREFIX}lane-y")
-    lane_metadata = (lane / ".kittify" / "metadata.yaml").read_bytes()
-
-    try:
-        _register_stub_migration("test_5457_stub_succeeding", succeeds=True)
-
-        result = MigrationRunner(root).upgrade(_TARGET_VERSION, dry_run=False, include_worktrees=True)
-
-        assert result.worktree_failures == []
-        assert not any("lane-z" in message for message in [*result.errors, *result.warnings])
-        assert (lane / ".kittify" / "metadata.yaml").read_bytes() == lane_metadata
-        assert _wt_schema_version(lane / ".kittify") == _STALE_SCHEMA_VERSION
-        assert _wt_schema_version(sibling / ".kittify") == REQUIRED_SCHEMA_VERSION
-    finally:
-        MigrationRegistry.clear()
-
-
 def test_failed_worktree_migration_is_surfaced_in_worktree_failures(tmp_path: Path) -> None:
     """T025 (FR-012): a fatal worktree failure must appear in the structured
     ``UpgradeResult.worktree_failures`` channel -- not just be folded silently
