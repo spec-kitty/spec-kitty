@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "mission_slug": "glossary-pack-mirror-three-terms-01M45SNF",
+  "mission_id": "01M45SNFBRAYZRX99K89B7C2RJ",
+  "mission_branch": "issue-5761-glossary-pack-terms",
+  "target_branch": "issue-5761-glossary-pack-terms",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".kittify/glossaries/spec_kitty_core.yaml",
+        "packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml",
+        "packs/built-in/pack-manifest.yaml"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-05T10:36:02.585606+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "abeb384d1e8881fbec1b3a9d26bf594776d36d21"
+}

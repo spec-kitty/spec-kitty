@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-05T10:31:42.697673Z",
+      "decision_id": "01M45SX3B9KFGTERK13FEX0651",
+      "final_answer": "All three in built-in. Answered from the operator's stored task brief for this scheduled run (no live user): it expects all three to be operator-facing, and the code-grounding note (research/code-grounding.md section 3) confirms each names consumer-visible upgrade/consolidation behavior.",
+      "input_key": "pack_tier_terms",
+      "mission_id": "01M45SNFBRAYZRX99K89B7C2RJ",
+      "mission_slug": "glossary-pack-mirror-three-terms-01M45SNF",
+      "opened_by": "cli",
+      "options": [
+        "All three in built-in",
+        "Only tool-surface drift and integrating worktree",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which of the three terms belong in the shipped built-in glossary pack (vs packs/internal or left out)?",
+      "rationale": null,
+      "resolved_at": "2026-10-05T10:31:51.313090Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.pack-tier",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M45SNFBRAYZRX99K89B7C2RJ",
+  "version": 1
+}
