@@ -307,6 +307,7 @@ class _Row:
     yes: bool = True
     errors_contain: tuple[str, ...] = ()
     config_yaml: str = ""
+    auto_committed: bool | None = None  # None: not asserted for this row
 
     @property
     def exit_code(self) -> int:
@@ -338,7 +339,14 @@ _ROWS = (
         errors_contain=("'charter:' pointer names", "which does not exist"),
     ),
     _Row("worktree-failure", ("worktree_failure",), "failed", ("worktree_failure",), errors_contain=(_WORKTREE_FAILURE,)),
-    _Row("commit-recovery-failure", ("commit_recovery_failure",), "failed", ("commit_recovery_failed",), errors_contain=("stash@{0}",)),
+    _Row(
+        "commit-recovery-failure",
+        ("commit_recovery_failure",),
+        "failed",
+        ("commit_recovery_failed",),
+        errors_contain=("stash@{0}", "DID land"),
+        auto_committed=True,  # the commit landed; only restoring the staging failed
+    ),
     _Row("migration-failure", ("migration_failure",), "failed", ("migration_failed",), paths=(_MIGRATIONS,), errors_contain=(_MIGRATION_ERROR,)),
 )
 
@@ -398,6 +406,10 @@ def test_matrix_text_and_json_agree_on_one_outcome(row: _Row, path: str, tmp_pat
     assert not any(" 0 managed file(s)" in error for error in payload["errors"])  # no preserved-file line without a file
     for expected in row.errors_contain:
         assert any(expected in error for error in payload["errors"]), payload["errors"]
+    if row.auto_committed is not None:
+        assert payload["auto_committed"] is row.auto_committed
+        assert ("→ Auto-committed upgrade changes" in text.output) is row.auto_committed
+        assert "(0 files)" not in text.output  # a commit whose files are unknown is not a commit of zero files
     # Text: the closing line is the outcome's, and it is the last thing printed on a failure.
     closing = _expected_closing(row, path)
     assert closing in text.output

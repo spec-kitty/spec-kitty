@@ -107,6 +107,7 @@ _ERRORS_HEADER = "[red]Errors:[/red]"
 _MANUAL_REVIEW_HEADER = "[yellow]Manual review required:[/yellow]"
 _REPAIR_NOT_PREPARED_MESSAGE = "Tool-surface repair was not prepared; re-run 'spec-kitty upgrade'."
 _AUTO_COMMITTED_LINE = "[cyan]→ Auto-committed upgrade changes ({count} files)[/cyan]"
+_AUTO_COMMITTED_UNLISTED_LINE = "[cyan]→ Auto-committed upgrade changes[/cyan]"
 
 
 def _collect_manual_review_paths(migration_results: dict[str, object]) -> list[str]:
@@ -907,7 +908,7 @@ def _print_closing_line(outcome: UpgradeOutcome) -> None:
 def _print_commit_line(outcome: UpgradeOutcome, *, auto_commit_paths: list[str], left_uncommitted: bool) -> None:
     """Report whether the upgrade churn was committed or deliberately left uncommitted."""
     if outcome.committed:
-        console.print(_AUTO_COMMITTED_LINE.format(count=len(auto_commit_paths)))
+        console.print(_AUTO_COMMITTED_LINE.format(count=len(auto_commit_paths)) if auto_commit_paths else _AUTO_COMMITTED_UNLISTED_LINE)
     elif left_uncommitted:
         console.print(_LEFT_UNCOMMITTED_MESSAGE)
 
@@ -1198,7 +1199,9 @@ def _finalizer_step_commit_churn(
     must flip the exit code non-zero and name the orphaned stash ref + landed
     SHA, not a silent "please commit manually" that hides both. It is recorded
     as its own failure reason (``commit_recovery_failed``), not as a failed
-    migration: the migrations themselves completed.
+    migration: the migrations themselves completed. The commit itself may have
+    landed (``exc.commit_sha``), and then the outcome reports it as committed;
+    the files it held are unknown here, so ``commit_paths`` stays empty.
     """
     try:
         committed, paths, warning = autocommit.commit_touched_checkout(
@@ -1211,7 +1214,7 @@ def _finalizer_step_commit_churn(
         ctx.commit_paths = []
         outcome.commit_recovery_failed = True
         outcome.result.errors.append(_render_safe_commit_recovery_failed(exc))
-        return False
+        return bool(exc.commit_sha)  # the commit may have landed even though restoring the staging failed
     ctx.commit_paths = paths
     ctx.commit_warning = warning
     return committed

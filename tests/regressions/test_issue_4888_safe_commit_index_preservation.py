@@ -347,7 +347,7 @@ def test_upgrade_finalizer_step_flips_exit_code_non_zero_on_recovery_failure(
         baseline_changed_paths=None,
     )
 
-    assert committed is False
+    assert committed is True, "the injected failure carries the landed commit's SHA, so the commit is reported as made"
     # A commit-recovery failure is its own reason, not a failed migration: the migrations completed.
     assert outcome.result.success is True
     assert outcome.commit_recovery_failed is True
