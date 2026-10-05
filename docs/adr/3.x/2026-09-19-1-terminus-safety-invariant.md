@@ -494,7 +494,11 @@ live tip the record cannot explain.
     that is a design decision left open.
   - A foreign commit that lands on a step's own branch inside that step's window (the
     status-surface branch during the operator attestations, the `coord_ref` during the heal)
-    and is still the tip at the claim is taken as this process's own move.
+    and is still the tip at the claim is taken as this process's own move. In a mission with no
+    coordination topology (`single_branch` / `lanes`) the status-surface branch *is* the target,
+    so this window can fold a concurrent foreign commit on the target itself into the run's own
+    move; it requires both an explicit `--attest-*` and a writer landing inside one `safe_commit`
+    window.
   - A `git pull` (or any other commit) on an unsettled target after a hard kill makes the next
     re-run or `--resume` refuse with `UNEXPLAINED_BRANCH_MOVE` until the operator releases or
     moves that commit.
