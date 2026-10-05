@@ -2328,6 +2328,474 @@
           "contracts/tools/fixtures/breaking_check/baseline"
         ]
       }
+    },
+    {
+      "id": "leak-scan-strict-id",
+      "tool": "leak_scan.py",
+      "build": "leak:strict-id",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "HOST_PATH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-strict-laneId",
+      "tool": "leak_scan.py",
+      "build": "leak:strict-laneId",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "HOST_PATH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-strict-laneBranch",
+      "tool": "leak_scan.py",
+      "build": "leak:strict-laneBranch",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "HOST_PATH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-strict-planningBranch",
+      "tool": "leak_scan.py",
+      "build": "leak:strict-planningBranch",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "HOST_PATH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-strict-pattern",
+      "tool": "leak_scan.py",
+      "build": "leak:strict-pattern",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "HOST_PATH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-strict-feedbackReference",
+      "tool": "leak_scan.py",
+      "build": "leak:strict-feedbackReference",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "HOST_PATH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-strict-reviewer",
+      "tool": "leak_scan.py",
+      "build": "leak:strict-reviewer",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "HOST_PATH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-strict-kind",
+      "tool": "leak_scan.py",
+      "build": "leak:strict-kind",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "HOST_PATH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-strict-mediaType",
+      "tool": "leak_scan.py",
+      "build": "leak:strict-mediaType",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "HOST_PATH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-strict-changeState",
+      "tool": "leak_scan.py",
+      "build": "leak:strict-changeState",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "HOST_PATH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-artifact-path-empty",
+      "tool": "leak_scan.py",
+      "build": "leak:artifact-path-empty",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "ARTIFACT_PATH_MALFORMED"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-artifact-path-too-long",
+      "tool": "leak_scan.py",
+      "build": "leak:artifact-path-too-long",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "ARTIFACT_PATH_MALFORMED"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-artifact-path-absolute",
+      "tool": "leak_scan.py",
+      "build": "leak:artifact-path-absolute",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "ARTIFACT_PATH_MALFORMED"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-artifact-path-tilde",
+      "tool": "leak_scan.py",
+      "build": "leak:artifact-path-tilde",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "ARTIFACT_PATH_MALFORMED"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-artifact-path-drive-letter",
+      "tool": "leak_scan.py",
+      "build": "leak:artifact-path-drive-letter",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "ARTIFACT_PATH_MALFORMED"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-artifact-path-backslash",
+      "tool": "leak_scan.py",
+      "build": "leak:artifact-path-backslash",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "ARTIFACT_PATH_MALFORMED"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-artifact-path-nul",
+      "tool": "leak_scan.py",
+      "build": "leak:artifact-path-nul",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "ARTIFACT_PATH_MALFORMED"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-artifact-path-line-break",
+      "tool": "leak_scan.py",
+      "build": "leak:artifact-path-line-break",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "ARTIFACT_PATH_MALFORMED"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-artifact-path-empty-segment",
+      "tool": "leak_scan.py",
+      "build": "leak:artifact-path-empty-segment",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "ARTIFACT_PATH_MALFORMED"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-artifact-path-trailing-slash",
+      "tool": "leak_scan.py",
+      "build": "leak:artifact-path-trailing-slash",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "ARTIFACT_PATH_MALFORMED"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-artifact-path-dot-segment",
+      "tool": "leak_scan.py",
+      "build": "leak:artifact-path-dot-segment",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "ARTIFACT_PATH_MALFORMED"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-artifact-path-dotdot-segment",
+      "tool": "leak_scan.py",
+      "build": "leak:artifact-path-dotdot-segment",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "ARTIFACT_PATH_MALFORMED"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-artifact-path-reference",
+      "tool": "leak_scan.py",
+      "build": "leak:artifact-path-reference",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "ARTIFACT_PATH_MALFORMED"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-content-host-path-and-email",
+      "tool": "leak_scan.py",
+      "build": "leak:content-host-path-and-email",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "HOST_PATH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-credential-in-content",
+      "tool": "leak_scan.py",
+      "build": "leak:credential-in-content",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "SECRET"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-credential-in-title",
+      "tool": "leak_scan.py",
+      "build": "leak:credential-in-title",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "SECRET"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
     }
   ]
 }

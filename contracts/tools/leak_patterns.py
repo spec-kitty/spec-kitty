@@ -21,6 +21,7 @@ Library only: standard library, no pytest, nothing from ``tests/`` or ``scripts/
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from typing import Any
 
 STRICT = "strict"
@@ -53,10 +54,56 @@ HUMAN_HOST_PATH_PATTERNS: tuple[re.Pattern[str], ...] = (
 # (a bare ``localhost`` or build-host name). The dotless form is deliberately narrow so that
 # ``name@<build id>``, ``owner/repo@ref``, ``@scope/pkg`` and ``HEAD@{1}`` are not read as
 # addresses: it needs a left boundary and an all-letter host (a digit makes it an id, not a host).
+# Both alternatives start only at the start of a token, so a long token without an at sign is
+# scanned once and not once per character (the unanchored form took quadratic time).
+# DETECTION ONLY: this pattern answers whether an address is present (``.search``). It does not give every
+# span the old unanchored form gave (a second address glued onto a match is missed), so never use it
+# for ``.sub``, ``.subn``, ``.finditer`` or ``.findall``: use ``email_matches`` or ``redact_emails``.
 EMAIL_PATTERN: re.Pattern[str] = re.compile(
+    r"(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+"
+    r"|(?<![\w.%+/@-])[A-Za-z0-9._%+-]+@[A-Za-z][A-Za-z-]*(?![\w@-]|\.[A-Za-z0-9])"
+)
+
+# The same address grammar without the leading lookbehind. It is only ever applied anchored, at the
+# position where the previous match ended (see ``email_matches``); unanchored it is quadratic.
+_EMAIL_ANCHORED: re.Pattern[str] = re.compile(
     r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+"
     r"|(?<![\w.%+/@-])[A-Za-z0-9._%+-]+@[A-Za-z][A-Za-z-]*(?![\w@-]|\.[A-Za-z0-9])"
 )
+
+
+def email_matches(text: str) -> Iterator[re.Match[str]]:
+    """Every address in ``text``, with the spans the unanchored quadratic pattern found, in linear time.
+
+    ``EMAIL_PATTERN`` starts only at the start of a token. The unanchored form could also start
+    inside a token, but only where the previous match had just ended (a local-part character glued
+    onto the end of an address); that one position is tried anchored here. A start elsewhere inside
+    a token fails whenever the start of the token fails, so no other span is lost.
+    """
+    position = 0
+    while position <= len(text):
+        found = _EMAIL_ANCHORED.match(text, position) if position else None
+        if found is None:
+            found = EMAIL_PATTERN.search(text, position)
+        if found is None:
+            return
+        yield found
+        position = found.end()
+
+
+def redact_emails(text: str, token: str) -> tuple[str, int]:
+    """``text`` with every address replaced by ``token``, and how many were replaced."""
+    parts: list[str] = []
+    last = 0
+    count = 0
+    for found in email_matches(text):
+        parts.append(text[last : found.start()])
+        parts.append(token)
+        last = found.end()
+        count += 1
+    parts.append(text[last:])
+    return "".join(parts), count
+
 
 # Secrets and tokens: a GitHub token (classic gh[pousr]_ or fine-grained), an AWS access key id
 # (long-lived AKIA or temporary ASIA) and the header line of a PEM private key. The sources are

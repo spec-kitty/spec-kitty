@@ -444,7 +444,7 @@ class Projector:
             text, replaced = widened.subn(_PATH_TOKEN, text)
             if replaced:
                 self.redactions.append((self.mission, field_name, "path"))
-        text, replaced = self.leak.EMAIL_PATTERN.subn(_EMAIL_TOKEN, text)
+        text, replaced = self.leak.redact_emails(text, _EMAIL_TOKEN)
         if replaced:
             self.redactions.append((self.mission, field_name, "email"))
         if self.leak.leak_codes(text, self.leak.HUMAN):

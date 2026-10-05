@@ -253,6 +253,43 @@ def test_the_manifest_has_one_case_per_script_and_tool_each_with_a_control_and_a
         assert case["plant"]["code"] and case["control"]["args"], case["id"]
 
 
+def test_the_manifest_holds_one_leak_scan_case_per_planted_kind_with_its_code() -> None:
+    cases = _manifest()
+    leak_cases = {case["build"].removeprefix("leak:"): case for case in cases if case.get("build", "").startswith("leak:")}
+    strict = {
+        f"strict-{name}"
+        for name in ("id", "laneId", "laneBranch", "planningBranch", "pattern", "feedbackReference", "reviewer", "kind", "mediaType", "changeState")
+    }
+    artifact = {
+        f"artifact-path-{name}"
+        for name in (
+            "empty",
+            "too-long",
+            "absolute",
+            "tilde",
+            "drive-letter",
+            "backslash",
+            "nul",
+            "line-break",
+            "empty-segment",
+            "trailing-slash",
+            "dot-segment",
+            "dotdot-segment",
+            "reference",
+        )
+    }
+    controls = {"content-host-path-and-email": "HOST_PATH", "credential-in-content": "SECRET", "credential-in-title": "SECRET"}
+    assert set(leak_cases) >= strict | artifact | set(controls), "a planted kind has no case"
+    for kind in strict:
+        assert leak_cases[kind]["plant"]["code"] == "HOST_PATH", kind
+    for kind in artifact:
+        assert leak_cases[kind]["plant"]["code"] == "ARTIFACT_PATH_MALFORMED", kind
+    for kind, code in controls.items():
+        assert leak_cases[kind]["plant"]["code"] == code, kind
+    for kind, case in leak_cases.items():
+        assert case["id"] == f"leak-scan-{kind}" and case["tool"] == "leak_scan.py" and case["control"]["args"] == ["--root", "{root}"], kind
+
+
 def test_the_dangling_reference_client_smoke_case_explains_why_it_expects_resolve_failed() -> None:
     (case,) = (case for case in _manifest() if case["id"] == "client-smoke-unresolvable-module")
 
