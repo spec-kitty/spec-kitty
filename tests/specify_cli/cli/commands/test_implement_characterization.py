@@ -11,8 +11,13 @@ and the state a refusal leaves behind -- before any source moves.  The suite dri
 No assertion names a module-internal helper.  The few failures a real fixture cannot produce are
 injected by logical name through ``patch_collaborator`` from ``_implement_dispatch.py``.
 
-FROZEN (SC-003): after this work package the file must not change.  When a later work package moves a
-collaborator, only the ``DISPATCH`` values in ``_implement_dispatch.py`` change.
+This suite was byte-frozen during the implement de-god (mission implement-degod) as a behaviour-
+neutrality proof: 2,000+ lines could leave ``implement.py`` for the phase and seam modules and be
+shown to change nothing observable.  That proof is spent once the de-god lands, so the freeze is
+lifted and this is now a living characterization/contract suite -- a deliberate behaviour or message
+change lands here red-first, as an explicit diff to the golden (for example correcting the
+``Workspace allocation failed:`` framing on the pre-allocation HEAD-mismatch refusal).  When a later
+work package moves a collaborator, only the ``DISPATCH`` values in ``_implement_dispatch.py`` change.
 
 Each case records, in its docstring, the planted break that proves it red.
 """
