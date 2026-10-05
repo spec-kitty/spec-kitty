@@ -9,3 +9,6 @@
   numbers or `src/` paths, because the built-in pack's provenance counts are a
   shrink-only ratchet. "feature or landing branch" becomes "topic or landing
   branch" in shipped text (same meaning).
+- 2026-10-05 (implement): inner double quotes in the definitions became single
+  quotes; the docs glossary page's line parser strips the outer quotes of a
+  seed scalar but never unescapes `\"`, so the page would have shown backslashes.

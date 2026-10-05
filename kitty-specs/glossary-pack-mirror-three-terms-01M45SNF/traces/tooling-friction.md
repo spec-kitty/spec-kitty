@@ -15,3 +15,9 @@ glossary parity gates.
   with the retired "feature" word in its message and without the operator's
   trailer; research.md / data-model.md / quickstart.md / meta.json are left
   for the agent to commit.
+- 2026-10-05 (implement): `tests/architectural/test_glossary_pack_parity.py`
+  takes ~105 s on a cold run (collection), 1 s warm.
+- 2026-10-05 (implement): `generate_contextive_glossaries.py check` is red on
+  the base already (three stale `src/specify_cli/.contextive/*.yml`, one
+  missing `src/specify_cli/merge/.contextive.yml`); not caused by this mission,
+  which edits no `docs/context/` file.
