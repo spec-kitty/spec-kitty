@@ -29,7 +29,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.consolidation.reconciliation import MergeOutcomeVerifier, VerifyStatus, build_approved_wp_set
+from specify_cli.consolidation.reconciliation import MergeOutcomeVerifier, VerifyResult, VerifyStatus, build_approved_wp_set
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
@@ -80,6 +80,17 @@ def _build_five_wp_mixed_lane(tmp_path: Path, *, slug: str, wp05_canceled: bool)
     chain (``wp05_canceled=False``, the baseline with NO canceled WP for the
     mixed-lane axis to resolve -- same commit/event volume either way, so
     the timing delta isolates the canceled-content axis's own cost).
+
+    Every ``in_review -> approved`` event is recorded only AFTER all 50
+    commits have landed, so each approval stamp (``policy_metadata.
+    lane_head``) is the final lane tip. Since #5720 the approval-stamp bound
+    (``approved_bound.check_lane``) refuses a lane with ANY content committed
+    after its approval stamps -- including a canceled WP's -- at claim time,
+    before the canceled-content axis runs. Stamping approvals at the tip
+    keeps that bound satisfied so the benchmark still times the per-WP
+    attribution path it is named for. (Only the approval stamps move; each
+    WP's work-window stamps -- claimed / in_progress / for_review /
+    canceled -- stay where that WP's own work ended.)
     """
     repo = tmp_path / "repo"
     repo.mkdir(parents=True)
@@ -123,6 +134,7 @@ def _build_five_wp_mixed_lane(tmp_path: Path, *, slug: str, wp05_canceled: bool)
     _git(repo, "checkout", "-q", lane_branch)
 
     events: list[dict[str, object]] = []
+    approving: list[tuple[int, str]] = []  # (wp_index, wp_id) approved once the whole lane is committed
     seq = 0
     for wp_index, wp_id in enumerate(_WP_IDS):
         is_last = wp_index == len(_WP_IDS) - 1
@@ -147,8 +159,12 @@ def _build_five_wp_mixed_lane(tmp_path: Path, *, slug: str, wp05_canceled: bool)
             events.append(_event(seq, wp_id, "in_progress", "for_review", slug=slug, at=f"2026-01-0{wp_index + 1}T00:02:00+00:00", stamp=_rev(repo)))
             seq += 1
             events.append(_event(seq, wp_id, "for_review", "in_review", slug=slug, at=f"2026-01-0{wp_index + 1}T00:03:00+00:00", stamp=None))
-            seq += 1
-            events.append(_event(seq, wp_id, "in_review", "approved", slug=slug, at=f"2026-01-0{wp_index + 1}T00:04:00+00:00", stamp=_rev(repo)))
+            approving.append((wp_index, wp_id))
+
+    lane_tip = _rev(repo)
+    for wp_index, wp_id in approving:
+        seq += 1
+        events.append(_event(seq, wp_id, "in_review", "approved", slug=slug, at=f"2026-01-0{wp_index + 1}T00:04:00+00:00", stamp=lane_tip))
 
     _git(repo, "checkout", "-q", _TARGET)
     events_path = feature_dir / "status.events.jsonl"
@@ -175,7 +191,7 @@ def _timed_claim_and_verify(
     coord_base: str,
     target_ref: str,
     excluded_wp_ids: frozenset[str],
-) -> tuple[float, VerifyStatus]:
+) -> tuple[float, VerifyResult]:
     start = time.perf_counter()
     claim = build_approved_wp_set(
         repo,
@@ -187,7 +203,7 @@ def _timed_claim_and_verify(
     )
     result = MergeOutcomeVerifier(repo).verify(target_ref, replace(claim, verify_reachability=False))
     elapsed = time.perf_counter() - start
-    return elapsed, result.status
+    return elapsed, result
 
 
 def _min_of_n_timed_runs(
@@ -199,7 +215,7 @@ def _min_of_n_timed_runs(
     excluded_wp_ids: frozenset[str],
     *,
     n: int = _TIMED_RUNS,
-) -> tuple[float, VerifyStatus]:
+) -> tuple[float, VerifyResult]:
     """Discard one warm-up call (cold-start cost: git subprocess spawn,
     module import inside ``build_approved_wp_set``), then take the MIN of
     *n* timed runs -- less exposed to a single scheduling hiccup than one
@@ -210,10 +226,10 @@ def _min_of_n_timed_runs(
     """
     _timed_claim_and_verify(repo, feature_dir, manifest, coord_base, target_ref, excluded_wp_ids)  # warm-up, discarded
     samples = [_timed_claim_and_verify(repo, feature_dir, manifest, coord_base, target_ref, excluded_wp_ids) for _ in range(n)]
-    statuses = {status for _elapsed, status in samples}
+    statuses = {result.status for _elapsed, result in samples}
     assert len(statuses) == 1, f"verdict must be stable across {n} timed runs, got {statuses}"
-    best_elapsed = min(elapsed for elapsed, _status in samples)
-    return best_elapsed, statuses.pop()
+    best_elapsed = min(elapsed for elapsed, _result in samples)
+    return best_elapsed, samples[-1][1]
 
 
 def test_canceled_content_axis_overhead_within_budget(tmp_path: Path) -> None:
@@ -231,19 +247,24 @@ def test_canceled_content_axis_overhead_within_budget(tmp_path: Path) -> None:
         tmp_path / "mixed", slug="bench-mixed", wp05_canceled=True
     )
     mixed_target = _squash_target(mixed_repo, _TARGET, mixed_lane_branch)
-    mixed_elapsed, mixed_status = _min_of_n_timed_runs(mixed_repo, mixed_feature_dir, mixed_manifest, mixed_coord_base, mixed_target, frozenset({"WP05"}))
-    assert mixed_status == VerifyStatus.FAIL, (
-        f"the mixed lane's unsuperseded canceled WP05 content must FAIL, got {mixed_status} (an early REFUSE/short-circuit would make the timing meaningless)"
+    mixed_elapsed, mixed_result = _min_of_n_timed_runs(mixed_repo, mixed_feature_dir, mixed_manifest, mixed_coord_base, mixed_target, frozenset({"WP05"}))
+    assert mixed_result.status == VerifyStatus.FAIL, (
+        f"the mixed lane's unsuperseded canceled WP05 content must FAIL, got {mixed_result.status}: {mixed_result.refusal_reason} "
+        "(an early REFUSE/short-circuit -- e.g. the #5720 approval-stamp bound -- would make the timing meaningless)"
+    )
+    # FAIL alone is not enough: it must be the canceled-content axis (the path under timing) failing.
+    assert mixed_result.divergence is not None and mixed_result.divergence.canceled_content, (
+        f"the FAIL must come from the canceled-content axis, got divergence {mixed_result.divergence}"
     )
 
     baseline_repo, baseline_feature_dir, baseline_manifest, baseline_coord_base, baseline_lane_branch = _build_five_wp_mixed_lane(
         tmp_path / "baseline", slug="bench-baseline", wp05_canceled=False
     )
     baseline_target = _squash_target(baseline_repo, _TARGET, baseline_lane_branch)
-    baseline_elapsed, baseline_status = _min_of_n_timed_runs(
+    baseline_elapsed, baseline_result = _min_of_n_timed_runs(
         baseline_repo, baseline_feature_dir, baseline_manifest, baseline_coord_base, baseline_target, frozenset()
     )
-    assert baseline_status == VerifyStatus.PASS, f"the no-canceled-WP baseline must PASS, got {baseline_status}"
+    assert baseline_result.status == VerifyStatus.PASS, f"the no-canceled-WP baseline must PASS, got {baseline_result.status}: {baseline_result.refusal_reason}"
 
     delta = mixed_elapsed - baseline_elapsed
     print(f"\nNFR-001 benchmark (min of {_TIMED_RUNS} runs): mixed={mixed_elapsed:.4f}s baseline={baseline_elapsed:.4f}s delta={delta:.4f}s")
