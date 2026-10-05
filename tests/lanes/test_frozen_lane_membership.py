@@ -25,9 +25,9 @@ from specify_cli.lanes.compute import (
 from specify_cli.lanes.frozen_membership import (
     FrozenLaneMembership,
     MembershipConflict,
-    MembershipConflictReason,
     assert_frozen_membership_honoured,
     build_frozen_membership,
+    conflict_for,
     remedy_for,
     started_wp_ids,
 )
@@ -317,14 +317,10 @@ def test_remedy_for_names_the_work_packages_and_is_non_destructive(reason: str, 
 # ---------------------------------------------------------------------------
 
 
-def _conflict(reason: MembershipConflictReason, wp_ids: tuple[str, ...], lanes: tuple[str, ...]) -> MembershipConflict:
-    return MembershipConflict(reason=reason, wp_ids=wp_ids, recorded_lanes=lanes, remedy=remedy_for(reason, wp_ids))
-
-
 def test_error_reason_and_next_step_follow_precedence() -> None:
-    kind = _conflict("started_wp_kind_changed", ("WP03",), ("lane-c",))
-    collapsed = _conflict("started_lanes_collapsed", ("WP01", "WP02"), ("lane-a", "lane-b"))
-    removed = _conflict("started_wp_removed", ("WP04",), ("lane-d",))
+    kind = conflict_for("started_wp_kind_changed", {"WP03": "lane-c"})
+    collapsed = conflict_for("started_lanes_collapsed", {"WP01": "lane-a", "WP02": "lane-b"})
+    removed = conflict_for("started_wp_removed", {"WP04": "lane-d"})
     error = LaneMembershipFrozenError((kind, collapsed, removed))
     assert isinstance(error, LaneComputationError)
     assert error.error_code == "LANE_MEMBERSHIP_FROZEN"
@@ -339,14 +335,14 @@ def test_error_reason_and_next_step_follow_precedence() -> None:
 
 
 def test_status_unreadable_message_claims_no_lane_change() -> None:
-    error = LaneMembershipFrozenError((_conflict("status_unreadable", (), ()),))
+    error = LaneMembershipFrozenError((conflict_for("status_unreadable", {}),))
     assert error.error_code == "LANE_MEMBERSHIP_FROZEN"
     assert error.reason == "status_unreadable"
     assert str(error) == "Cannot re-finalize: the status log is unreadable, so started work cannot be determined."
 
 
 def test_error_dedupes_identical_remedies() -> None:
-    first = _conflict("started_wp_removed", ("WP01",), ("lane-a",))
+    first = conflict_for("started_wp_removed", {"WP01": "lane-a"})
     error = LaneMembershipFrozenError((first, first))
     assert error.next_step == first.remedy
 

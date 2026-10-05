@@ -50,13 +50,12 @@ def _status_unreadable_error(cause: BaseException) -> LaneMembershipFrozenError:
     """
     from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
     from specify_cli.lanes.compute import LaneMembershipFrozenError
-    from specify_cli.lanes.frozen_membership import MembershipConflict, remedy_for
+    from specify_cli.lanes.frozen_membership import status_unreadable_conflict
 
     if isinstance(cause, CoordinationWorktreeUnmaterialized):
-        remedy = f"Materialize the coordination worktree, then re-run finalize-tasks. {cause.next_step}"
+        conflict = status_unreadable_conflict(cause.next_step, lead="Materialize the coordination worktree, then re-run finalize-tasks.")
     else:
-        remedy = f"{remedy_for('status_unreadable', ())} Cause: {_cause_detail(cause)}"
-    conflict = MembershipConflict(reason="status_unreadable", wp_ids=(), recorded_lanes=(), remedy=remedy)
+        conflict = status_unreadable_conflict(_cause_detail(cause))
     error: LaneMembershipFrozenError = LaneMembershipFrozenError((conflict,))
     return error
 
@@ -74,7 +73,7 @@ def _missing_status_surface_cause(repo_root: Path, mission_slug: str, read_dir: 
     """
     from mission_runtime import placement_seam
 
-    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+    from specify_cli.coordination.surface_resolver import StatusReadPathNotFound
 
     try:
         placement_seam(owned.repository_root if owned else repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.STATUS_STATE)

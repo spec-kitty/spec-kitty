@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Final, Literal, get_args
 
 from mission_runtime import MissionTopology
 
@@ -40,14 +40,21 @@ if TYPE_CHECKING:
     from specify_cli.status import StatusEvent
 
 __all__ = [
+    "REASON_PRECEDENCE",
+    "STARTED_LANES_COLLAPSED",
+    "STARTED_WP_KIND_CHANGED",
+    "STARTED_WP_REMOVED",
+    "STATUS_UNREADABLE",
     "FrozenLaneMembership",
     "MembershipConflict",
     "assert_frozen_membership_honoured",
     "build_frozen_membership",
-    "remedy_for",
+    "conflict_for",
     "started_wp_ids",
+    "status_unreadable_conflict",
 ]
 
+#: The one declaration of the conflict-reason vocabulary, in precedence order.
 MembershipConflictReason = Literal[
     "started_lanes_collapsed",
     "started_wp_removed",
@@ -55,14 +62,16 @@ MembershipConflictReason = Literal[
     "status_unreadable",
 ]
 
+#: The reasons by name, so no other site spells a reason string out.
+STARTED_LANES_COLLAPSED: Final = "started_lanes_collapsed"
+STARTED_WP_REMOVED: Final = "started_wp_removed"
+STARTED_WP_KIND_CHANGED: Final = "started_wp_kind_changed"
+STATUS_UNREADABLE: Final = "status_unreadable"
+
 #: Precedence of conflict reasons: the error's top-level ``reason`` is the first
-#: one present, and its ``next_step`` lists remedies in this order.
-REASON_PRECEDENCE: tuple[MembershipConflictReason, ...] = (
-    "started_lanes_collapsed",
-    "started_wp_removed",
-    "started_wp_kind_changed",
-    "status_unreadable",
-)
+#: one present, and its ``next_step`` lists remedies in this order. It is the
+#: declared order of :data:`MembershipConflictReason`.
+REASON_PRECEDENCE: tuple[MembershipConflictReason, ...] = get_args(MembershipConflictReason)
 
 #: The lanes that mean "real work began". A positive set, so ``planned``,
 #: ``blocked``, ``canceled`` and the ``genesis`` / ``uninitialized`` sentinels
@@ -84,16 +93,16 @@ _REMEDY_STATUS_UNREADABLE = (
     "`spec-kitty agent status doctor` checks status hygiene), then re-run finalize-tasks."
 )
 _CLAUSES: dict[MembershipConflictReason, str] = {
-    "started_lanes_collapsed": "{named} would be merged into one lane",
-    "started_wp_removed": "{named} would be dropped from the plan",
-    "started_wp_kind_changed": "{named} would cross the lane-planning boundary",
-    "status_unreadable": "the status log is unreadable, so started work cannot be determined",
+    STARTED_LANES_COLLAPSED: "{named} would be merged into one lane",
+    STARTED_WP_REMOVED: "{named} would be dropped from the plan",
+    STARTED_WP_KIND_CHANGED: "{named} would cross the lane-planning boundary",
+    STATUS_UNREADABLE: "the status log is unreadable, so started work cannot be determined",
 }
 _REMEDIES: dict[MembershipConflictReason, str] = {
-    "started_lanes_collapsed": _REMEDY_COLLAPSED,
-    "started_wp_removed": _REMEDY_REMOVED,
-    "started_wp_kind_changed": _REMEDY_KIND_CHANGED,
-    "status_unreadable": _REMEDY_STATUS_UNREADABLE,
+    STARTED_LANES_COLLAPSED: _REMEDY_COLLAPSED,
+    STARTED_WP_REMOVED: _REMEDY_REMOVED,
+    STARTED_WP_KIND_CHANGED: _REMEDY_KIND_CHANGED,
+    STATUS_UNREADABLE: _REMEDY_STATUS_UNREADABLE,
 }
 
 
@@ -133,8 +142,7 @@ class MembershipConflict:
 
     def describe(self) -> str:
         """Return the human clause naming each WP with its recorded lane."""
-        pairs = self.pairs or tuple(zip(self.wp_ids, self.recorded_lanes, strict=False))
-        named = _join_wp_ids(tuple(f"{wp} ({lane})" for wp, lane in pairs)) if pairs else _join_wp_ids(self.wp_ids)
+        named = _join_wp_ids(tuple(f"{wp} ({lane})" for wp, lane in self.pairs)) if self.pairs else _join_wp_ids(self.wp_ids)
         return _CLAUSES[self.reason].format(named=named)
 
     def to_dict(self) -> dict[str, object]:
@@ -157,6 +165,18 @@ def conflict_for(reason: MembershipConflictReason, bindings: Mapping[str, str]) 
         remedy=remedy_for(reason, wp_ids),
         pairs=tuple((wp, bindings[wp]) for wp in wp_ids),
     )
+
+
+def status_unreadable_conflict(detail: str, *, lead: str | None = None) -> MembershipConflict:
+    """Build the ``status_unreadable`` conflict: no work package is named, because none could be determined.
+
+    The remedy is the standard repair-the-status-log text followed by
+    ``Cause: <detail>``. A *lead* replaces that standard text (and the
+    ``Cause:`` label) when repairing the status log is not the fix, so the
+    remedy reads ``<lead> <detail>``.
+    """
+    remedy = f"{lead} {detail}" if lead else f"{remedy_for(STATUS_UNREADABLE, ())} Cause: {detail}"
+    return MembershipConflict(reason=STATUS_UNREADABLE, wp_ids=(), recorded_lanes=(), remedy=remedy)
 
 
 class _FrozenBindings(Mapping[str, str]):
@@ -332,7 +352,7 @@ def assert_frozen_membership_honoured(
 
     Raises:
         LaneMembershipFrozenError: a bound WP appears in *manifest* on a lane
-            other than its recorded one (reason ``started_lanes_collapsed``).
+            other than its recorded one (reason :data:`STARTED_LANES_COLLAPSED`).
     """
     if frozen is None or topology is MissionTopology.SINGLE_BRANCH:
         return
@@ -341,4 +361,4 @@ def assert_frozen_membership_honoured(
     actual = {wp: lane.lane_id for lane in manifest.lanes for wp in lane.wp_ids}
     moved = {wp: lane_id for wp, lane_id in frozen.bindings.items() if wp in actual and actual[wp] != lane_id}
     if moved:
-        raise LaneMembershipFrozenError(tuple(conflict_for("started_lanes_collapsed", {wp: lane_id}) for wp, lane_id in sorted(moved.items())))
+        raise LaneMembershipFrozenError(tuple(conflict_for(STARTED_LANES_COLLAPSED, {wp: lane_id}) for wp, lane_id in sorted(moved.items())))

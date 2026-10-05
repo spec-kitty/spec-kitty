@@ -31,6 +31,10 @@ from specify_cli.lanes.branch_naming import (
 )
 from specify_cli.lanes.frozen_membership import (
     REASON_PRECEDENCE,
+    STARTED_LANES_COLLAPSED,
+    STARTED_WP_KIND_CHANGED,
+    STARTED_WP_REMOVED,
+    STATUS_UNREADABLE,
     FrozenLaneMembership,
     MembershipConflict,
     conflict_for,
@@ -262,7 +266,7 @@ class LaneMembershipFrozenError(LaneComputationError):
         self.reason: str = ordered[0].reason
         self.next_step: str = "\n".join(dict.fromkeys(conflict.remedy for conflict in ordered))
         clauses = "; ".join(conflict.describe() for conflict in ordered)
-        prefix = _UNREADABLE_MESSAGE_PREFIX if self.reason == "status_unreadable" else _FROZEN_MESSAGE_PREFIX
+        prefix = _UNREADABLE_MESSAGE_PREFIX if self.reason == STATUS_UNREADABLE else _FROZEN_MESSAGE_PREFIX
         super().__init__(f"{prefix}{clauses}.")
 
 
@@ -582,7 +586,7 @@ def _pin_frozen_groups(
         bound = {wp: frozen.bindings[wp] for wp in group if frozen.bindings.get(wp, PLANNING_LANE_ID) != PLANNING_LANE_ID}
         pins = set(bound.values())
         if len(pins) > 1:
-            conflicts.append(conflict_for("started_lanes_collapsed", bound))
+            conflicts.append(conflict_for(STARTED_LANES_COLLAPSED, bound))
         elif pins:
             pinned = pins.pop()
             assigned[index] = pinned
@@ -708,9 +712,9 @@ def _frozen_membership_conflicts(
             kind_changed[wp] = lane_id
     conflicts: list[MembershipConflict] = []
     if removed:
-        conflicts.append(conflict_for("started_wp_removed", removed))
+        conflicts.append(conflict_for(STARTED_WP_REMOVED, removed))
     if kind_changed:
-        conflicts.append(conflict_for("started_wp_kind_changed", kind_changed))
+        conflicts.append(conflict_for(STARTED_WP_KIND_CHANGED, kind_changed))
     return conflicts
 
 
