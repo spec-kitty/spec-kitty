@@ -125,3 +125,33 @@ def test_claim_refusal_after_recorded_attestations_names_them(monkeypatch: pytes
     printed = _claim_refusal_output(monkeypatch, ("WP03", "WP04"))
     assert "No branch, worktree or status record was changed" not in printed
     assert "No branch or worktree was changed by this run; only the operator attestation(s) for WP03, WP04 were recorded." in printed
+
+
+def test_claim_refusal_prints_commands_unwrapped_and_paths_unparsed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5668: a captured console must not split a recovery command, and a ``[/slug]`` path must not be read as markup."""
+    import io
+
+    import typer
+    from rich.console import Console
+
+    from specify_cli.consolidation.approved_bound import BoundRefusal, BoundRefusalCode
+
+    out = io.StringIO()
+    setattr_executor_family(monkeypatch, "console", Console(file=out, width=80, force_terminal=False))
+    slug = "a-rather-long-mission-slug-for-the-recovery-command-01M444QR"
+    refusal = BoundRefusal(
+        code=BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL,
+        lane_id="lane-a",
+        branch="kitty/mission-x-lane-a",
+        wp_ids=("WP01",),
+        commits=("a" * 40,),
+        path="src/[/slug]/x.py",
+    ).render(slug)
+
+    with pytest.raises(typer.Exit):
+        phase_claim._exit_on_claim_integrity_refusal(refusal)
+
+    printed = out.getvalue()
+    assert f"spec-kitty agent tasks move-task WP01 --to in_progress --mission {slug}\n" in printed
+    assert "src/[/slug]/x.py" in printed
+    assert "\nNo branch, worktree or status record was changed by this run." in printed

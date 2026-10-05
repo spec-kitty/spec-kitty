@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import NoReturn
 
 import typer
+from rich.markup import escape
 
 from specify_cli.cli.console import console
 from specify_cli.core.git_ops import run_command
@@ -557,10 +558,14 @@ def _exit_on_claim_integrity_refusal(refusal: str, *, attested: tuple[str, ...] 
     header the teardown gate prints (#5359), so operators and tooling see one
     REFUSE vocabulary whether the claim refuses early or the gate refuses late.
     """
+    # A multi-line refusal ends on a recovery line: the footer starts its own line. The text is escaped (a path may
+    # hold ``[id]``) and printed unwrapped, so a recovery command stays on one copyable line.
+    footer_separator = "\n" if "\n" in refusal else " "
     console.print(
-        f"\n[red]Error:[/red] Reconciliation refused (fail-closed) at claim time, before any change: {refusal.rstrip('.')}. "
-        f"{_claim_refusal_change_sentence(attested)} Fix the cause, then re-run; "
-        f"if an earlier attempt left partial state, run `{_CONSOLIDATE_ABORT_COMMAND}` first."
+        f"\n[red]Error:[/red] Reconciliation refused (fail-closed) at claim time, before any change: {escape(refusal.rstrip('.'))}."
+        f"{footer_separator}{_claim_refusal_change_sentence(attested)} Fix the cause, then re-run; "
+        f"if an earlier attempt left partial state, run `{_CONSOLIDATE_ABORT_COMMAND}` first.",
+        soft_wrap=True,
     )
     raise typer.Exit(1)
 

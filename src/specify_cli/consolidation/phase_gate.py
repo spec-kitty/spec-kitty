@@ -161,7 +161,7 @@ def _phase_reconcile_before_teardown(run: _MergeRunState) -> None:
         _assert_squash_projected_content_landed(run)
         console.print(_reconciliation_pass_message(run.strategy))
         return
-    console.print(f"\n[red]Error:[/red] {result.recovery_guidance()}")
+    console.print(f"\n[red]Error:[/red] {escape(result.recovery_guidance())}", soft_wrap=True)
     # terminus-merge-integrity (S-D) / FR-010 (mixed-lane-authorship-soundness
     # operator decision 01M3MAB8FTDKKVVTXPREK75AEP, "Rollback on REFUSE only"):
     # the mission→target advance already landed before this gate (it is homed
