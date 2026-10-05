@@ -3526,6 +3526,8 @@ pages:
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "questions-the-first-nightly-runs-must-answer", text: "Questions the first nightly runs must answer", level: 3}
+    - {slug: "ci-calibration-sample-1-5753", text: "CI calibration, sample 1 (#5753)", level: 2}
+    - {slug: "ci-calibration-sample-2-5753", text: "CI calibration, sample 2 (#5753)", level: 2}
   - path: "docs/adr/4.x/2026-10-05-3-org-packs-ship-their-builtin-override-sanction.md"
     title: "ADR: org packs ship their own built-in override sanction"
     divio_type: "none"
