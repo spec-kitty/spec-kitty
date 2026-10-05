@@ -35,6 +35,13 @@ from specify_cli.workspace.context import WorkspaceContext
 
 
 def git_stdout(repo_root: Path, args: list[str]) -> str:
+    """Run ``git <args>`` in *repo_root* and return stripped stdout, or ``""`` on a non-zero exit.
+
+    The public leaf the ``implement`` planning-commit adapter and the base-ref code import. It is
+    deliberately NOT merged with :func:`specify_cli.lanes.lifecycle_sync._git_stdout`, whose contract
+    differs: that twin takes variadic ``*args``, tolerates an absent ``cwd`` and returns ``None``
+    (not ``""``) when the read fails.
+    """
     result = subprocess.run(
         ["git", *args],
         cwd=repo_root,

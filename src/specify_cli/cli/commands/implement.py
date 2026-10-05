@@ -59,30 +59,12 @@ from specify_cli.status import read_events, reduce as reduce_status_events
 from specify_cli.workspace import context as workspace_context
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
-# WP03 / T019: re-export shim -- bare import (NOT added to __all__, see the
-# bottom of this file). implement_cores.py houses the pure git-porcelain/diff
-# and placement decision cores (git injected as a port); this module keeps
-# them importable at their historical `specify_cli.cli.commands.implement.*`
-# location for external callers/tests and is the "git executor" for the one
-# staging-decision core (_ensure_planning_artifacts_committed_git, T016).
+# implement_cores.py houses the pure git-porcelain/diff and placement decision cores (git
+# injected as a port). Production code here reads ``_resolve_placement_ref`` through the one name
+# below; every other former shim re-export was deleted (implement-degod WP05) and callers import
+# ``implement_cores`` directly.
 from specify_cli.cli.commands import implement_planning_commit
-from specify_cli.cli.commands.implement_cores import (  # noqa: F401 -- shim re-export
-    _committed_meta_mapping,
-    _drop_if,
-    _feature_dir_status_entries,
-    detect_structural_planning_changes,
-    _files_changed_vs_ref,
-    _is_runtime_frontmatter_only_wp_diff,
-    _is_self_write_only_diff,
-    _parse_wp_frontmatter,
-    _placement_coord_filter,
-    _PorcelainEntry,
-    _commit_target_ref_for,
-    _resolve_claim_commit_target,
-    _resolve_placement_ref,
-    _status_paths_for_commit,
-    resolve_planning_artifact_staging,
-)
+from specify_cli.cli.commands.implement_cores import _resolve_placement_ref
 
 if TYPE_CHECKING:
     # WP03 / T013: type-only -- ``_run_recover_mode`` and its extracted

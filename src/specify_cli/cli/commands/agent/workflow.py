@@ -469,7 +469,7 @@ def _commit_primary_partition_group(
     coord-staging-partition (#4905): the SECOND sanctioned
     ``commit_to_primary_target=True`` caller of ``BookkeepingTransaction.
     acquire`` (``coordination/transaction.py:248``'s docstring names the
-    first: ``implement.py::_run_planning_artifact_commit``), so a
+    first: ``implement_planning_commit.py::_run_planning_artifact_commit``), so a
     ``WORK_PACKAGE_TASK`` (or other PRIMARY-partition) path lands on the
     mission's own PRIMARY target branch instead of being redirected onto the
     coordination branch. Resolves the destination via the same placement

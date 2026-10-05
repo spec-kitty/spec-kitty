@@ -536,7 +536,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         This is the fix for the #3371 P0 where a PRIMARY ``lanes.json`` was
         silently redirected onto the coordination branch and add/add-
         conflicted at lane allocation. Only the planning PRIMARY-partition
-        caller (``implement.py::_run_planning_artifact_commit``) sets it;
+        caller (``implement_planning_commit.py::_run_planning_artifact_commit``) sets it;
         every other caller keeps the default, so no status/coord write path
         changes behaviour.
 

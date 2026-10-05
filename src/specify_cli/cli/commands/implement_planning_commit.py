@@ -18,6 +18,10 @@ from mission_runtime import (
 )
 from specify_cli.coordination import planning_commit as coordination_planning_commit
 from specify_cli.cli.commands import implement_cores
+
+# Bare name on purpose: ``test_wp_integrity_partition_call_shape`` recognises the flat/legacy
+# primary-target arm by a ``Name`` call to this helper (a pure function, never patched).
+from specify_cli.cli.commands.implement_cores import _commit_target_ref_for
 from specify_cli.lanes import implement_support
 
 
@@ -427,7 +431,7 @@ def _commit_planning_artifacts_transaction(
         # coordination branch and add/add-conflicted at lane allocation. Post-fix
         # this arm partitions the batch exactly like the meta-derived ``else`` arm
         # below: the PRIMARY group commits to the mission's target branch
-        # (``implement_cores._commit_target_ref_for(planning_branch)``, honoured by
+        # (``_commit_target_ref_for(planning_branch)``, honoured by
         # ``commit_to_primary_target=True`` so the transaction does not redirect
         # it to coord), and the COORD-residue group commits to the coordination
         # ref (``placement_ref.ref``). Only the non-empty group(s) run
@@ -441,7 +445,7 @@ def _commit_planning_artifacts_transaction(
                 mission_id=effective_mission_id,
                 mission_slug=mission_slug,
                 mid8=effective_mid8,
-                destination_ref=implement_cores._commit_target_ref_for(planning_branch),
+                destination_ref=_commit_target_ref_for(planning_branch),
                 files=primary_files,
                 commit_msg=commit_msg,
                 commit_to_primary_target=True,
@@ -469,7 +473,7 @@ def _commit_planning_artifacts_transaction(
             mission_id=effective_mission_id,
             mission_slug=mission_slug,
             mid8=effective_mid8,
-            destination_ref=implement_cores._commit_target_ref_for(planning_branch),
+            destination_ref=_commit_target_ref_for(planning_branch),
             files=files_to_commit,
             commit_msg=commit_msg,
         )
@@ -524,7 +528,7 @@ def _commit_planning_artifacts_transaction(
                 mission_id=effective_mission_id,
                 mission_slug=mission_slug,
                 mid8=effective_mid8,
-                destination_ref=implement_cores._commit_target_ref_for(planning_branch),
+                destination_ref=_commit_target_ref_for(planning_branch),
                 files=primary_files,
                 commit_msg=commit_msg,
                 commit_to_primary_target=True,

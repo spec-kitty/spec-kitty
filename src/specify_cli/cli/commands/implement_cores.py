@@ -381,7 +381,7 @@ def _commit_target_ref_for(planning_branch: str | None) -> str:
 
     Pre-unification, the read side (:func:`resolve_precondition_ref`) hard-
     coded the git-rev shorthand ``"HEAD"`` inline and the write side
-    (``implement.py::_commit_planning_artifacts_transaction``'s PRIMARY-group
+    (``implement_planning_commit.py::_commit_planning_artifacts_transaction``'s PRIMARY-group
     destination) hard-coded the mission's ``planning_branch`` name inline --
     two independently-written literals that happened to agree only because
     every real claim runs from a checkout whose ``HEAD`` IS ``planning_branch``.
