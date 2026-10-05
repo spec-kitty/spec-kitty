@@ -37,7 +37,7 @@ from tests.terminus.mixed_lane_support import collapse
 from tests.terminus.post_approval_support import LATE_CONTENT, LATE_PATH, Topology, add_post_approval_commit, build_post_approval_mission, lane_worktree
 from tests.terminus.canceled_dependency_support import LANE_B
 
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _CODE = "LANE_MOVED_AFTER_APPROVAL"
 

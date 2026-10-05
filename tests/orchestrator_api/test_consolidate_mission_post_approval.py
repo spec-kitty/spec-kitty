@@ -116,3 +116,91 @@ def test_a_placement_failure_of_any_kind_falls_back_to_the_mission_branch_base(t
     monkeypatch.setattr(mission_runtime, "resolve_placement_only", _boom)
 
     assert _approved_bound_claim_base(mission.repo, mission.slug, manifest) == ref_shas(mission)["coord"]
+
+
+# ---------------------------------------------------------------------------
+# in-process: the refusal helper and its text (the subprocess cells above collect no coverage)
+# ---------------------------------------------------------------------------
+
+
+def _refuse(mission: CoordMission) -> None:
+    from specify_cli.lanes.persistence import read_lanes_json
+    from specify_cli.orchestrator_api.consolidation import _refuse_post_approval_lane_content
+
+    manifest = read_lanes_json(mission.feature_dir)
+    assert manifest is not None
+    _refuse_post_approval_lane_content(mission.repo, mission.feature_dir, mission.slug, manifest)
+
+
+def test_the_refusal_helper_passes_an_untouched_mission_and_names_a_late_commit_with_its_code(tmp_path: Path) -> None:
+    from specify_cli.orchestrator_api.consolidation import ApprovedBoundRefused
+
+    mission = _build(tmp_path, "lanes")
+    _refuse(mission)
+
+    late = add_post_approval_commit(mission)
+    with pytest.raises(ApprovedBoundRefused) as refused:
+        _refuse(mission)
+
+    assert refused.value.error_code == _REFUSAL_CODE
+    assert str(refused.value).startswith(f"{_REFUSAL_CODE}: ") and late[:7] in str(refused.value)
+    assert "no attestation flag" not in str(refused.value), "only an unstamped approval, which has a CLI attestation, carries the note"
+
+
+def test_the_refusal_helper_adds_the_cli_only_sentence_for_an_unstamped_approval(tmp_path: Path) -> None:
+    from specify_cli.orchestrator_api.consolidation import ApprovedBoundRefused
+
+    mission = _build(tmp_path, "lanes")
+    strip_approval_stamps(mission, "WP01")
+
+    with pytest.raises(ApprovedBoundRefused) as refused:
+        _refuse(mission)
+
+    assert refused.value.error_code == "APPROVAL_STAMP_MISSING"
+    assert str(refused.value).endswith(
+        "consolidate-mission has no attestation flag: attestation is done with `spec-kitty consolidate` (CLI only), not with this command."
+    )
+
+
+@pytest.mark.parametrize(("text", "code"), [("LANE_MOVED_AFTER_APPROVAL: x", "LANE_MOVED_AFTER_APPROVAL"), ("SOMETHING_ELSE: x", None), ("no colon at all", None)])
+@pytest.mark.unit
+def test_the_refusal_code_is_the_leading_known_code_or_none(text: str, code: str | None) -> None:
+    from specify_cli.orchestrator_api.consolidation import _bound_refusal_code
+
+    assert _bound_refusal_code(text) == code
+
+
+def test_an_unreadable_event_log_refuses_without_a_code_and_an_unreadable_snapshot_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Both stop the check from answering, so both refuse before any lane merges; only the first is a lane-check text (and carries no code)."""
+    from specify_cli.orchestrator_api.consolidation import ApprovedBoundRefused
+    from specify_cli.status import StoreError
+
+    def _unreadable(*_args: object, **_kwargs: object) -> object:
+        raise StoreError("status.events.jsonl is unreadable")
+
+    mission = _build(tmp_path, "lanes")
+    monkeypatch.setattr("specify_cli.status.read_events", _unreadable)
+    with pytest.raises(ApprovedBoundRefused, match=r"the status event log could not be read") as refused:
+        _refuse(mission)
+    assert refused.value.error_code is None
+
+    monkeypatch.setattr("specify_cli.status.materialize_snapshot", _unreadable)
+    with pytest.raises(RuntimeError, match=r"could not be checked against what review approved \(.*unreadable.*\); no lane was merged\."):
+        _refuse(mission)
+
+
+def test_a_claim_base_that_does_not_resolve_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No coordination tip and a mission branch that is gone: the base cannot be named, so the check raises instead of reading "nothing to refuse"."""
+    from dataclasses import replace
+
+    from specify_cli.consolidation.git_probes import GitProbeError
+    from specify_cli.lanes.persistence import read_lanes_json
+    from specify_cli.orchestrator_api import consolidation
+
+    mission = _build(tmp_path, "lanes")
+    manifest = read_lanes_json(mission.feature_dir)
+    assert manifest is not None
+    monkeypatch.setattr(consolidation, "_status_placement_tip", lambda *_args, **_kwargs: None)
+
+    with pytest.raises(GitProbeError):
+        consolidation._approved_bound_claim_base(mission.repo, mission.slug, replace(manifest, mission_branch="kitty/mission-no-such-branch"))

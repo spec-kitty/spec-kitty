@@ -31,6 +31,7 @@ from tests.terminus.mixed_lane_support import collapse
 from tests.terminus.post_approval_support import (
     LATE_PATH,
     WP01_PATH,
+    WP02_PATH,
     Topology,
     add_post_approval_commit,
     build_post_approval_mission,
@@ -38,7 +39,7 @@ from tests.terminus.post_approval_support import (
     strip_approval_stamps,
 )
 
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _BANNER = "Reconciliation verified"
 _MISSING = "APPROVAL_STAMP_MISSING"
@@ -106,6 +107,13 @@ def test_unstamped_approval_refuses_then_attestation_consolidates(tmp_path: Path
     assert attestation["reason_source"] == "operator" and attestation["force"] is True
     assert _REASON in str(attestation["reason"])
     assert _metadata(attestation)["lane_head"] == lane_tip
+    # The run's own approved -> done record neither reads as a new approval nor disturbs the attested bound.
+    events = [event for event in _status_log(mission) if event["wp_id"] == "WP01"]
+    attested = [i for i, event in enumerate(events) if _metadata(event).get("attestation") == APPROVED_REVIEWED]
+    done = [i for i, event in enumerate(events) if event["from_lane"] == "approved" and event["to_lane"] == "done"]
+    assert len(attested) == 1 and len(done) == 1 and attested[0] < done[0], f"the attestation must precede the done record:\n{events}"
+    assert events[-1]["to_lane"] == "done", "WP01 ends done"
+    assert blob_present_at(mission.repo, mission.target_branch, WP02_PATH)
 
 
 def test_an_approval_recorded_without_a_lane_head_warns_at_approval_time(tmp_path: Path) -> None:

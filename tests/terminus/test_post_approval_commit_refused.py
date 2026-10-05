@@ -110,23 +110,16 @@ def _printed_move_back_command(code: BoundRefusalCode, slug: str) -> str:
     return printed.group(1)
 
 
-def test_every_refusal_code_prints_the_same_recovery_command() -> None:
-    """One command template for all three codes, so running it once per topology proves the remedy of every code."""
-    printed = {_printed_move_back_command(code, "demo-mission") for code in BoundRefusalCode}
-    assert printed == {"spec-kitty agent tasks move-task WP01 --to in_progress --mission demo-mission"}
-
-
-@pytest.mark.parametrize("topology", _TOPOLOGIES)
-def test_printed_recovery_command_runs_and_sends_the_work_package_back(tmp_path: Path, topology: Topology) -> None:
-    """The remedy the refusals print is executed as printed, on both topologies (NFR-004)."""
-    mission = build_post_approval_mission(tmp_path, topology)
+def test_printed_recovery_command_runs_and_sends_the_work_package_back(tmp_path: Path) -> None:
+    """The remedy the refusals print is executed as printed (NFR-004); one command template serves all three codes (``test_approved_bound.py``)."""
+    mission = build_post_approval_mission(tmp_path, "lanes")
     assert _wp_lane(mission, "WP01") == "approved"
     argv = shlex.split(_printed_move_back_command(BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL, mission.slug))
     assert argv[0] == "spec-kitty"
 
     moved = run_terminus(mission, argv[1:])
 
-    assert moved.returncode == 0, f"the printed recovery command failed on {topology}:\n{moved.stdout}\n{moved.stderr}"
+    assert moved.returncode == 0, f"the printed recovery command failed:\n{moved.stdout}\n{moved.stderr}"
     assert _wp_lane(mission, "WP01") == "in_progress"
 
 

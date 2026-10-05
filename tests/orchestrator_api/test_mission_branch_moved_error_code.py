@@ -108,3 +108,18 @@ def test_any_other_merge_failure_carries_no_teardown_code(moved: tuple[Path, str
     assert envelope["error_code"] == "PREFLIGHT_FAILED"
     assert envelope["data"]["errors"] == ["lane merge failed"]
     assert "teardown_error_code" not in envelope["data"]
+
+
+@pytest.mark.parametrize(("error_code", "expected"), [("LANE_MOVED_AFTER_APPROVAL", "LANE_MOVED_AFTER_APPROVAL"), (None, None)])
+def test_an_approved_bound_refusal_carries_its_code_beside_the_unchanged_envelope(
+    moved: tuple[Path, str, str], capsys: pytest.CaptureFixture[str], error_code: str | None, expected: str | None
+) -> None:
+    """#5668: ``data.preflight_error_code`` is additive; a refusal with no code leaves the key out."""
+    repo, _approved, _late = moved
+    refusal = consolidation.ApprovedBoundRefused("a lane holds work review did not approve", error_code=error_code)
+
+    envelope = _run_consolidate_mission(repo, refusal, capsys)
+
+    assert envelope["error_code"] == "PREFLIGHT_FAILED" and envelope["data"]["errors"] == ["a lane holds work review did not approve"]
+    assert envelope["data"].get("preflight_error_code") == expected
+    assert ("preflight_error_code" in envelope["data"]) is (expected is not None)

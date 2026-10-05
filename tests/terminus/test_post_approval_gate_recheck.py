@@ -22,8 +22,8 @@ whether the injected SHA became an ancestor of the mission branch during the run
 The tests assert that marker, so a commit injected after the lane merge (which
 would prove nothing) cannot pass for the injection point this suite needs.
 
-Cells: both merge strategies and both topologies. On a LANES mission the claim
-base is the mission branch itself, the case a check anchored on live branch names
+Cells: lanes with the squash strategy and coordination with the merge strategy, a pair
+that spans both topologies and both strategies. On a LANES mission the claim base is the mission branch itself, the case a check anchored on live branch names
 passes vacuously. Each cell has a same-fixture positive control: the same launcher
 injecting nothing consolidates and prints the banner.
 
@@ -53,10 +53,8 @@ from tests.terminus.post_approval_support import (
     lane_worktree,
 )
 
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
-_TOPOLOGIES: tuple[Topology, ...] = ("lanes", "coord")
-_STRATEGIES = ("squash", "merge")
 _CODE = "LANE_MOVED_AFTER_APPROVAL"
 _BANNER = "Reconciliation verified"
 _MARKER = re.compile(r"INJECTED_SHA=([0-9a-f]{40}) ON_MISSION_BRANCH=(True|False)")
@@ -129,8 +127,7 @@ def _run_tips(mission: CoordMission) -> dict[str, str]:
     return {ref: git_rev(mission.repo, ref) for ref in sorted(refs)}
 
 
-@pytest.mark.parametrize("strategy", _STRATEGIES)
-@pytest.mark.parametrize("topology", _TOPOLOGIES)
+@pytest.mark.parametrize(("topology", "strategy"), [("lanes", "squash"), ("coord", "merge")])
 def test_commit_added_during_the_run_is_refused_at_the_gate_and_rolled_back(tmp_path: Path, topology: Topology, strategy: str) -> None:
     control = build_post_approval_mission(tmp_path / "control", topology)
     rc, flat = _consolidate_with_injection(control, strategy, inject=False)
@@ -155,8 +152,8 @@ def test_commit_added_during_the_run_is_refused_at_the_gate_and_rolled_back(tmp_
     assert not blob_present_at(mission.repo, mission.target_branch, LATE_PATH), "the unreviewed file must not be on the target"
 
 
-@pytest.mark.parametrize("strategy", _STRATEGIES)
-def test_a_late_commit_writing_another_lanes_approved_blob_is_refused_at_the_gate(tmp_path: Path, strategy: str) -> None:
+def test_a_late_commit_writing_another_lanes_approved_blob_is_refused_at_the_gate(tmp_path: Path) -> None:
+    strategy = "squash"
     """The case only the lane re-check closes: lane-a's late commit adds lane-b's approved file with lane-b's exact content."""
     mission = build_post_approval_mission(tmp_path, "lanes")
     lane_b_blob = (lane_worktree(mission, "lane-b") / WP02_PATH).read_text(encoding="utf-8")

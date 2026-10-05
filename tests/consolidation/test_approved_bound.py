@@ -13,6 +13,7 @@ import subprocess
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -226,6 +227,9 @@ def test_several_work_packages_render_one_line_each_and_one_recovery_block() -> 
     assert "see one with `git show ccccccc`" in text
     assert all(f"move-task {wp} --to in_progress --mission demo-mission" in text for wp in (*unstamped, "WP13", "WP14", "WP15"))
     assert "<mission>" not in text
+    for code in BoundRefusalCode:  # one command template for all three codes: running it once proves the remedy of every code
+        single = BoundRefusal(code, _LANE, _BRANCH, ("WP01",), commits=("a" * 40,), path="src/a.py", stamp="b" * 40).render("demo-mission")
+        assert "\n  spec-kitty agent tasks move-task WP01 --to in_progress --mission demo-mission\n" in single
 
 
 def test_a_later_approval_of_a_lane_that_took_this_lane_in_covers_its_late_commit(repo: _Repo) -> None:
@@ -568,3 +572,102 @@ def test_gate_recheck_names_only_the_approved_work_packages_when_given_them(repo
 
     assert refusal is not None
     assert "move-task WP01 " in refusal and "WP02" not in refusal
+
+
+def test_gate_recheck_turns_a_git_probe_error_into_a_refusal_and_passes_an_unmoved_lane(repo: _Repo, monkeypatch: pytest.MonkeyPatch) -> None:
+    from types import SimpleNamespace
+
+    from specify_cli.consolidation import phase_gate
+    from specify_cli.consolidation.reconciliation import VerifyStatus
+
+    manifest = _two_lane_manifest(repo)
+    run: Any = SimpleNamespace(main_repo=repo.root, lanes_manifest=manifest, validated_lane_tips={}, bound_anchor_shas=())
+    claim = ApprovedWpCommitSet(approved={"WP01": ("a" * 40,)}, planning_prefix=_BOOKKEEPING_PREFIX.rstrip("/"))
+
+    assert phase_gate._lane_recheck_verdict(run, claim) is None
+
+    def _probe_failed(*_args: object, **_kwargs: object) -> str:
+        raise GitProbeError("rev-list failed")
+
+    monkeypatch.setattr(phase_gate, "lane_tips_moved_refusal", _probe_failed)
+    verdict = phase_gate._lane_recheck_verdict(run, claim)
+
+    assert verdict is not None and verdict.status is VerifyStatus.REFUSE
+    assert verdict.refusal_reason == "a git probe failed while re-checking the lane tips against their approval: rev-list failed"
+
+
+def test_bound_anchor_shas_leave_out_a_reference_that_does_not_resolve(repo: _Repo) -> None:
+    from types import SimpleNamespace
+
+    from specify_cli.consolidation import phase_claim
+
+    manifest = _two_lane_manifest(repo)
+    target = repo.tip("main")
+    run: Any = SimpleNamespace(main_repo=repo.root, lanes_manifest=manifest, target_expected_old_sha=target)
+
+    anchors = phase_claim._bound_anchor_shas(run, "no-such-coordination-base")
+
+    assert anchors == (target,), "the unresolvable mission branch and coordination base are left out, the target is not repeated"
+
+
+def test_commits_beyond_needs_an_excluded_ref(repo: _Repo) -> None:
+    with pytest.raises(ValueError, match="needs at least one excluded ref"):
+        bound.commits_beyond(repo.root, "HEAD", [])
+
+
+@pytest.mark.parametrize(
+    ("to_lane", "stamp", "wp_id", "expected"),
+    [
+        pytest.param(
+            Lane.APPROVED, None, "WP01", "WP01's approval; `spec-kitty consolidate` will refuse it (APPROVAL_STAMP_MISSING)", id="unstamped-code-lane-approval"
+        ),
+        pytest.param(Lane.APPROVED, "a" * 40, "WP01", None, id="stamped-approval"),
+        pytest.param(Lane.IN_PROGRESS, None, "WP01", None, id="not-an-approval"),
+        pytest.param(Lane.APPROVED, None, "WP99", None, id="work-package-on-no-lane"),
+    ],
+)
+def test_unstamped_approval_warning_names_only_an_unstamped_code_lane_approval(
+    tmp_path: Path, to_lane: Lane, stamp: str | None, wp_id: str, expected: str | None
+) -> None:
+    mission = build_lanes_mission(tmp_path)
+    holder = _Repo(Path("."))
+    holder.event(wp_id, to_lane, stamp)
+
+    warning = bound.unstamped_approval_warning(holder.events[0], repo_root=mission.repo, mission_slug=mission.slug)
+
+    assert (warning is not None and expected is not None and expected in warning) or (warning is None and expected is None)
+
+
+def test_unstamped_approval_warning_is_silent_when_the_lane_map_cannot_be_read_and_without_an_event(tmp_path: Path) -> None:
+    holder = _Repo(Path("."))
+    holder.event("WP01", Lane.APPROVED, None)
+
+    assert bound.unstamped_approval_warning(holder.events[0], repo_root=tmp_path / "no-repo", mission_slug="no-mission") is None
+    assert bound.unstamped_approval_warning(None, repo_root=tmp_path, mission_slug="no-mission") is None
+
+
+def test_the_public_entry_reads_a_lane_whose_branch_is_gone_as_empty_and_names_a_late_commit(tmp_path: Path) -> None:
+    """``approved_bound_refusal`` is what ``consolidate-mission`` calls: a vanished lane branch is not a refusal, a late commit is."""
+    from specify_cli.consolidation.reconciliation import approved_bound_refusal
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    mission = build_lanes_mission(tmp_path)
+    manifest = read_lanes_json(mission.feature_dir)
+    assert manifest is not None
+    lane = mission.lane_branches["WP01"]
+    git = _Repo(mission.repo)
+    base = git.tip(mission.target_branch)
+
+    def refusal() -> str | None:
+        text: str | None = approved_bound_refusal(mission.repo, mission.feature_dir, manifest, coord_base_ref=mission.coord_branch, excluded_window_base=base)
+        return text
+
+    assert refusal() is None
+    git.git("checkout", "-q", lane)
+    late = git.commit("src/late.py")
+    git.git("checkout", "-q", mission.target_branch)
+    text = refusal()
+    assert text is not None and text.startswith("LANE_MOVED_AFTER_APPROVAL: ") and late[:7] in text
+
+    git.git("branch", "-D", lane)
+    assert refusal() is None

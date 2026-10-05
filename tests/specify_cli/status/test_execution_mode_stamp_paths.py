@@ -271,17 +271,28 @@ def test_move_task_stamps_execution_mode(tmp_path: Path, monkeypatch: pytest.Mon
     assert _last_execution_mode(feature_dir, "WP01") == expected
 
 
+def _status_emit(repo: Path, mission_slug: str, *, to: str) -> object:
+    from specify_cli.cli.commands.agent.status import app
+
+    return runner.invoke(
+        app,
+        ["emit", "WP01", "--to", to, "--mission", mission_slug, "--actor", "claude", "--force", "--reason", "approve in test"],
+        catch_exceptions=False,
+    )
+
+
+@pytest.mark.parametrize("shell", ["move-task", "status-emit"])
 @pytest.mark.parametrize(("topology", "warned"), [("lanes", True), ("single_branch", False)])
-def test_move_task_to_approved_warns_when_a_code_lane_approval_has_no_lane_head(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, topology: str, warned: bool
+def test_approving_shells_warn_when_a_code_lane_approval_has_no_lane_head(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, shell: str, topology: str, warned: bool
 ) -> None:
     """#5668: the lane has no checkout here, so no lane head is recorded; only a code lane's approval is warned about."""
-    repo, mission_slug, _ = _build_mission(tmp_path, f"approve-{topology}", topology=topology)
+    repo, mission_slug, _ = _build_mission(tmp_path, f"approve-{shell}-{topology}", topology=topology)
     _seed_canonical_wp_state(repo, mission_slug, "WP01", "for_review", actor="claude", assignee="Owner", shell_pid="1234", timestamp="2026-09-28T01:00:00Z")
     monkeypatch.chdir(repo)
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo))
 
-    result = _move_task(repo, mission_slug, to="approved")
+    result = (_move_task if shell == "move-task" else _status_emit)(repo, mission_slug, to="approved")
 
     assert result.exit_code == 0, result.output
     assert ("no lane head could be recorded for WP01's approval" in result.output) is warned
