@@ -12,6 +12,7 @@ import json
 import re
 import sys
 from collections.abc import Iterator
+from dataclasses import replace
 from pathlib import Path
 from types import FrameType
 from typing import Any
@@ -29,6 +30,7 @@ from specify_cli.cli.commands.implement import (
 )
 from specify_cli.cli.commands.implement_phases import ImplementContext, _ensure_vcs_in_meta, detect_feature_context
 from specify_cli.cli.console import console
+from specify_cli.lanes import implement_support
 from specify_cli.lanes.implement_support import LaneWorkspaceResult
 from specify_cli.workspace.context import ResolvedWorkspace
 from tests.specify_cli.cli.commands.test_implement_characterization import (
@@ -39,6 +41,7 @@ from tests.specify_cli.cli.commands.test_implement_characterization import (
     SLUG,
     activate_repo,
     build_mission,
+    git,
     implement_cli,
     init_repo,
 )
@@ -409,6 +412,183 @@ def test_report_workspace_created(tmp_path: Path, overrides: dict[str, Any], ste
     lines = _lines(capture.get())
     assert step_line in _flat(capture.get())
     assert lines[-len(branch_lines) :] == branch_lines
+
+
+# ---------------------------------------------------------------------------
+# Claim behaviours migrated from tests/agent/test_implement_command.py (WP10).
+# Each one used to stub five to nine collaborators; here the phases run on a real git fixture.
+# ---------------------------------------------------------------------------
+
+
+def _calls_of(code: Any, run: Any) -> tuple[Any, list[dict[str, Any]]]:
+    """Run *run* and return its result plus the arguments of every call to *code* (observed, not spied)."""
+    seen: list[dict[str, Any]] = []
+
+    def _observe(frame: FrameType, event: str, _arg: Any) -> None:
+        if event == "call" and frame.f_code is code:
+            seen.append(dict(frame.f_locals))
+
+    previous = sys.getprofile()
+    sys.setprofile(_observe)
+    try:
+        result = run()
+    finally:
+        sys.setprofile(previous)
+    return result, seen
+
+
+def _claim_events(feature_dir: Path, actor: str) -> list[dict[str, Any]]:
+    lines = (feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
+    return [event for event in map(json.loads, lines) if "kind" not in event and event.get("actor") == actor]
+
+
+def test_the_declared_dependencies_reach_the_workspace_allocation(repo: Path) -> None:
+    """The WP's ``dependencies`` frontmatter is threaded from ``detect_context`` into ``create_lane_workspace``.
+
+    Planted break (proven red): pass ``declared_deps=[]`` to ``create_lane_workspace`` in ``allocate``.
+    """
+    build_mission(
+        repo,
+        SLUG,
+        MISSION_ID,
+        wps={"WP01": ("code_change", []), "WP02": ("code_change", ["WP01"])},
+        states={"WP01": "approved"},
+    )
+
+    ctx = implement_phases.detect_context(SLUG, "WP02", repo, None, json_mode=False)
+    assert ctx.declared_deps == ["WP01"]
+
+    result, calls = _calls_of(implement_support.create_lane_workspace.__code__, lambda: implement_cli("WP02", "--mission", SLUG, "--actor", "tester"))
+
+    assert result.exit_code == 0, result.output
+    assert [(call["wp_id"], call["declared_deps"]) for call in calls] == [("WP02", ["WP01"])]
+
+
+def test_claim_preflight_refuses_an_unready_dependency_before_anything_is_written(repo: Path) -> None:
+    """The dependency gate is part of ``claim_preflight``, which runs before the planning commit and the allocation."""
+    mission = build_mission(
+        repo,
+        SLUG,
+        MISSION_ID,
+        wps={"WP01": ("code_change", []), "WP02": ("code_change", ["WP01"])},
+        states={"WP01": "for_review"},
+    )
+    ctx = implement_phases.detect_context(SLUG, "WP02", repo, True, json_mode=False)
+    head = git(repo, "rev-parse", "HEAD")
+
+    with pytest.raises(ValueError, match="dependencies_not_satisfied: WP02 depends on WP01; all dependencies must be approved or done"):
+        implement_phases.claim_preflight(ctx, "WP02")
+
+    assert git(repo, "rev-parse", "HEAD") == head
+    assert not (repo / ".worktrees").exists()
+    assert "vcs" not in mission.meta()
+
+
+COORDINATION_BRANCH = f"kitty/mission-{SLUG}-{MISSION_ID[:8].lower()}"
+
+
+@pytest.fixture()
+def coordination_branch_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A mission targeting the protected ``main``, with an unprotected coordination branch checked out."""
+    root = init_repo(tmp_path / "repo", "main")
+    activate_repo(root, monkeypatch, tmp_path)
+    monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
+    build_mission(root, SLUG, MISSION_ID, target="main")
+    git(root, "checkout", "-q", "-b", COORDINATION_BRANCH)
+    return root
+
+
+def test_claim_preflight_allows_auto_commit_from_a_coordination_branch_when_the_target_is_protected(coordination_branch_repo: Path) -> None:
+    """The protection decision reads the branch the status commit lands on (the checkout), not the target.
+
+    Planted break (proven red): make ``_status_commit_destination_branch`` return the fallback (target) branch.
+    """
+    repo = coordination_branch_repo
+    ctx = implement_phases.detect_context(SLUG, "WP01", repo, True, json_mode=False)
+
+    assert implement_phases.claim_preflight(ctx, "WP01").planning_branch == "main"
+
+    git(repo, "checkout", "-q", "main")
+    with pytest.raises(ValueError, match="Refusing to start implementation status on protected branch 'main'"):
+        implement_phases.claim_preflight(ctx, "WP01")
+
+
+def test_the_planning_commit_phase_follows_an_allowed_coordination_branch_preflight(coordination_branch_repo: Path) -> None:
+    """Once the preflight allows the claim, the planning-artifact commit phase runs to completion.
+
+    The CLI smoke for this family is the characterization refusal on a protected ``main``. With the
+    planning artifacts already committed the phase has nothing to commit and refuses nothing.
+    """
+    repo = coordination_branch_repo
+    ctx = implement_phases.detect_context(SLUG, "WP01", repo, True, json_mode=False)
+    preflight = implement_phases.claim_preflight(ctx, "WP01")
+    head = git(repo, "rev-parse", "HEAD")
+
+    implement_phases.commit_planning_artifacts(ctx, "WP01", preflight)
+
+    assert git(repo, "rev-parse", "HEAD") == head
+    assert git(repo, "rev-parse", "--abbrev-ref", "HEAD") == COORDINATION_BRANCH
+
+
+def test_claim_events_carry_the_transport_execution_mode_not_the_wp_mode(repo: Path) -> None:
+    """The status claim uses the resolved workspace's transport mode (``worktree``), not the WP's ``code_change``.
+
+    Planted break (proven red): pass ``selection.resolved_workspace.execution_mode`` as the status execution mode.
+    """
+    mission = build_mission(repo, SLUG, MISSION_ID)
+
+    result = implement_cli(*ARGS, "--no-auto-commit")
+
+    assert result.exit_code == 0, result.output
+    events = _claim_events(mission.feature_dir, "tester")
+    assert [(event["to_lane"], event["execution_mode"]) for event in events] == [("claimed", "worktree"), ("in_progress", "worktree")]
+
+
+def test_a_planning_artifact_wp_is_selected_without_a_lanes_manifest(repo: Path) -> None:
+    """A planning-artifact WP resolves to the repository-root planning workspace; ``lanes.json`` is never required.
+
+    Planted break (proven red): drop the ``is_repo_root_lane`` early return in ``resolve_execution_lane``.
+    """
+    build_mission(repo, SLUG, MISSION_ID, wps={"WP01": ("planning_artifact", [])}, write_lanes=False)
+    ctx = implement_phases.detect_context(SLUG, "WP01", repo, False, json_mode=False)
+    preflight = implement_phases.claim_preflight(ctx, "WP01")
+
+    selection = implement_phases.select_workspace(ctx, "WP01", preflight)
+
+    assert selection.lanes_manifest is None
+    assert selection.lane is None
+    assert selection.resolved_workspace.execution_mode == "planning_artifact"
+
+
+def test_a_planning_artifact_wp_claims_without_a_lanes_manifest(repo: Path) -> None:
+    """CLI smoke for the planning-lane family: the claim allocates the repository-root workspace."""
+    build_mission(repo, SLUG, MISSION_ID, wps={"WP01": ("planning_artifact", [])}, write_lanes=False)
+
+    result, calls = _calls_of(implement_support.create_lane_workspace.__code__, lambda: implement_cli(*ARGS))
+
+    assert result.exit_code == 0, result.output
+    assert [(call["lanes_manifest"], call["resolved_workspace"].execution_mode) for call in calls] == [(None, "planning_artifact")]
+    assert not (repo / ".worktrees").exists()
+
+
+def test_select_workspace_reads_lanes_json_from_the_lanes_surface_not_the_status_surface(repo: Path, tmp_path: Path) -> None:
+    """#3371: ``lanes.json`` is PRIMARY-partition state; a coord-owned status surface never hides it.
+
+    ``claim_preflight`` resolves the lanes surface to the primary mission dir, and ``select_workspace``
+    reads the manifest from that surface even when the status surface is a directory without one.
+    """
+    mission = build_mission(repo, SLUG, MISSION_ID)
+    ctx = implement_phases.detect_context(SLUG, "WP01", repo, False, json_mode=False)
+    preflight = implement_phases.claim_preflight(ctx, "WP01")
+    assert preflight.lanes_feature_dir == mission.feature_dir
+
+    coord_dir = tmp_path / "coord" / "kitty-specs" / SLUG
+    coord_dir.mkdir(parents=True)
+    selection = implement_phases.select_workspace(ctx, "WP01", replace(preflight, status_feature_dir=coord_dir))
+
+    assert selection.lane is not None
+    assert selection.lane.lane_id == "lane-a"
+    assert selection.lanes_manifest is not None
 
 
 # ---------------------------------------------------------------------------
