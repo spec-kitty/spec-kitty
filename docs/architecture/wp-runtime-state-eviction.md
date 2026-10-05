@@ -2,7 +2,7 @@
 title: WP Runtime-State Eviction — Architecture Design
 description: 'Architecture design for evicting runtime-mutable state from tasks/WP##.md into the append-only event log via a non-transition annotation event class; ADR 2026-07-16-1.'
 doc_status: proposal
-updated: '2026-10-04'
+updated: '2026-10-05'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md
@@ -34,7 +34,7 @@ of the evicted mutations are **non-transition** — they carry no lane change:
 
 | Mutation | When | Today's home |
 |---|---|---|
-| `shell_pid` refresh on **resume** | every `implement` / `agent action`, incl. resume of an already `in_progress` WP | `implement.py:1730`, `workflow_executor.py:669` |
+| `shell_pid` refresh on **resume** | every `implement` / `agent action`, incl. resume of an already `in_progress` WP | `implement_claim.py::_start_wp_implementation_status`, `workflow_executor.py:669` |
 | **subtask mark** (`- [x] T###`) | mid-`in_progress` | `tasks_materialization.py:260,304`; uncheck in `tasks.md` at `tasks_move_task.py:1662` |
 | **activity-log note** | mid-work, any time | 6 writers incl. `orchestrator_api/wp_lifecycle.py::append_history` |
 
@@ -77,7 +77,7 @@ The additions are **additive** and share the existing JSONL log + reducer.
 
 No new event type. The `planned→claimed` `StatusEvent` carries `(shell_pid,
 baseline)` in the existing generic `policy_metadata: dict|None`
-(`models.py:234`), already used as an event sidecar at `implement.py:1328`. The
+(`models.py:234`), already used as an event sidecar by `implement_claim.py::claim_policy_metadata`. The
 **reduced snapshot** is where the pair becomes typed — frontmatter never sees
 it.
 

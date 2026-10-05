@@ -2,7 +2,7 @@
 title: Implementation Mapping (living)
 description: 'Living implementation mapping (C4 level 4): where each architecture concept lives in the source tree today. A derived view of the enforced module map.'
 doc_status: active
-updated: '2026-10-01'
+updated: '2026-10-05'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/00_landscape/README.md
@@ -213,7 +213,7 @@ Orchestration lifecycle event triggers:
 | Component (from C4 Level 3) | Module(s) | Key Files |
 |---|---|---|
 | **Command Router** | `cli/` | `cli/__init__.py`, command group registration |
-| **Workflow Command Set** | `cli/commands/` | `specify.py`, `plan.py`, `tasks.py`, `implement.py`, `review.py`, `merge.py`. Canon terminology: `--mission-type` is the flag for mission-type selection (renamed from `--mission` in 5 type-selection commands, 2026-03-25; old `--mission` alias raises hard error). `--mission` remains the slug selector on all other commands. `--feature` is a hidden deprecated alias everywhere. |
+| **Workflow Command Set** | `cli/commands/` | `specify.py`, `plan.py`, `tasks.py`, `implement.py`, `review.py`, `merge.py`. `implement.py` is a thin Typer shell over the ordered phases in `implement_phases.py`; the claim recording lives in `implement_claim.py`, the planning-artifact commit in `implement_planning_commit.py` (pure cores in `implement_cores.py`), `--recover` in `implement_recover.py`, and the git-free decisions behind seams in `lanes/implement_support.py`, `coordination/planning_commit.py`, `workspace/context.py` and `core/dependency_graph.py` (#5635). Canon terminology: `--mission-type` is the flag for mission-type selection (renamed from `--mission` in 5 type-selection commands, 2026-03-25; old `--mission` alias raises hard error). `--mission` remains the slug selector on all other commands. `--feature` is a hidden deprecated alias everywhere. |
 | **Status Mutation Command Set** | `cli/commands/` | `status.py`, lane transition commands |
 | **Governance Command Set** | `cli/commands/` | `charter.py` |
 | **Next Loop Coordinator** | `src/runtime/next/` | `_internal_runtime/engine.py` + `planner.py` — per-agent action sequencing (the `src/specify_cli/next/` shim was deleted in `93dcbd7548`, 2026-07-03) |

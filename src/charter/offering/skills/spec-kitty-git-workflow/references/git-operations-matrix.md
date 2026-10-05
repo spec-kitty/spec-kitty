@@ -9,7 +9,7 @@ command agents are expected to run.
 |---|---|---|---|
 | `git branch <mission-branch> <target-branch>` | First lane allocation for a feature | `lanes/worktree_allocator.py` | `_ensure_mission_branch()` |
 | `git worktree add -b <lane-branch> <path> <mission-branch>` | `spec-kitty implement WP##` when lane worktree missing | `lanes/worktree_allocator.py` | `_create_lane_worktree()` |
-| `safe_commit(paths=["kitty-specs/<mission>/"])` | Before worktree creation (auto-commit) | `cli/commands/implement.py`, `git/commit_helpers.py` | `BookkeepingTransaction` / `safe_commit()` |
+| `safe_commit(paths=["kitty-specs/<mission>/"])` | Before worktree creation (auto-commit) | `cli/commands/implement_planning_commit.py`, `git/commit_helpers.py` | `BookkeepingTransaction` / `safe_commit()` |
 | `git stash` | Lane transition safe-commit | `git/commit_helpers.py` | `safe_commit()` |
 | `git add <wp-file>` | Lane transition safe-commit | `git/commit_helpers.py` | `safe_commit()` |
 | `git commit -m "chore: Start WP##..."` | Lane transition safe-commit | `git/commit_helpers.py` | `safe_commit()` |

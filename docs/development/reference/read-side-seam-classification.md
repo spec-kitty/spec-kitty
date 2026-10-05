@@ -2,7 +2,7 @@
 title: Read-side placement-seam classification ledger
 description: "Per-site verdicts (migrate-fail-loud / stay-lenient / sanction-infra) for every production call site that bypasses PlacementSeam.read_dir(kind)."
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-05'
 audience: docs/context/audience/internal/system-architect.md
 type: reference
 related:
@@ -600,9 +600,9 @@ specify_cli/cli/commands/agent/workflow.py :: _mission_id_for_claim
 specify_cli/cli/commands/agent/workflow_executor.py :: implement_sparse_checkout_preflight
 specify_cli/cli/commands/agent/workflow_executor.py :: implement_resolve_mission_type
 specify_cli/cli/commands/agent/workflow_executor.py :: review_finalize_and_print
-specify_cli/cli/commands/implement.py :: find_wp_file
-specify_cli/cli/commands/implement.py :: _load_primary_anchored_mission_meta
-specify_cli/cli/commands/implement.py :: _planning_artifact_source_dir
+specify_cli/workspace/context.py :: find_wp_file   (moved from cli/commands/implement.py, #5635)
+specify_cli/cli/commands/implement.py :: _load_primary_anchored_mission_meta   (retired: replaced by the seam-owned placement in coordination/planning_commit.py, #5232)
+specify_cli/coordination/planning_commit.py :: planning_artifact_source_dir   (moved from cli/commands/implement.py::_planning_artifact_source_dir, #5635)
 specify_cli/cli/commands/implement.py :: _build_implement_json_payload
 specify_cli/cli/commands/mission_type.py :: close_cmd
 specify_cli/cli/commands/mission_type.py :: _resolve_mission_handle
