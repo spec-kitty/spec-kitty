@@ -19,7 +19,11 @@ checkout's ``reset --hard``:
   killed process leaves its global merge lock behind, which the operator removes as
   the error instructs);
 * ``lock``  -- a real ``index.lock`` file makes the real ``reset --hard`` fail
-  (arm 2, no kill; the operator removes the lock before resuming).
+  (arm 2, no kill; the operator removes the lock before resuming). Re-pinned by
+  rollback-anchor-authority WP03: the surviving process's rollback door now restores
+  the advanced mission branch truthfully (a checkout already at the restore target
+  is not reset, so the lock cannot block the restore), so this arm leaves no lag; the
+  resume after the operator removes the lock still lands all code.
 
 Where the lag lives: the coordination worktree (arms 1 and 2) or a worktree that has
 the mission branch checked out on a LANES-topology mission (arm 3).
@@ -74,7 +78,12 @@ def test_5571_resume_recovers_a_pure_lag_in_place_and_lands_all_code(tmp_path: P
 
 
 def test_5571_control_a_left_index_lock_refuses_without_advising_commit(tmp_path: Path) -> None:
-    """The real ``index.lock`` the interrupted reset left is NOT cleared: resume refuses, naming the lock, never 'Commit'."""
+    """The real ``index.lock`` the interrupted reset left is NOT cleared: resume refuses, naming the lock, never 'Commit'.
+
+    Since WP03 the refusal comes from the resumed run's own lane merge (its resync
+    fails on the live lock and its door restores the branch again), not from a
+    lagging-checkout preflight; the assertions are unchanged.
+    """
     run = Interrupted(tmp_path, "lock_coord")
 
     rc, flat = run.resume(clear_index_lock=False)

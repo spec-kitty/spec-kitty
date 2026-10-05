@@ -1,25 +1,27 @@
 """WP07 (mixed-lane-authorship-soundness-01M3M7Y0) — every REFUSE restores the
 target (FR-010, operator decision ``01M3MAB8FTDKKVVTXPREK75AEP``: "Rollback on
-REFUSE only").
+REFUSE only"), re-pinned to the single rollback door for #5666.
 
 ``_phase_reconcile_before_teardown`` runs the S-D reconciliation gate strictly
 AFTER ``_phase_commit_and_assert`` — the mission->target advance has already
-landed by the time the gate evaluates. A ``FAIL`` (proven tree divergence)
-already rolled the target back to its pre-mutation tip via the existing
-compare-and-swap helper (:func:`_rollback_target_after_failed_reconciliation`).
-A ``REFUSE`` (fail-closed claim integrity — the claim could not even be
-evaluated) historically skipped that restore, leaving the already-advanced
-target stranded on a state the gate never verified. This suite drives the real
-gate (not just the CAS helper in isolation, which
-``TestRollbackTargetAfterFailedReconciliation`` in
-``test_merge_state_authority.py`` already covers) end to end for every verdict
-axis: REFUSE restores, FAIL restores (unchanged), PASS never rolls back, a
-REFUSE whose target moved elsewhere warns instead of overwriting (CAS
-fail-safe), and a REFUSE with an unknown pre-mutation tip is a no-op.
+landed by the time the gate evaluates, so a FAIL and a REFUSE must both roll the
+target back. Since #5666 the gate itself moves nothing: it raises
+``typer.Exit(1)`` and the driver's single rollback door (#5385,
+``executor._report_rollback`` -> ``rollback_to_snapshot``) restores the target,
+compare-and-swapping against the post tip THIS run recorded. The retired gate
+helper used the LIVE tip as its expected value, so it discarded any commit
+another actor landed on top of the landing.
+
+Each case below pins both halves: the real gate leaves the target where it is,
+and the door, given the snapshot and the recorded post tip a real run persists,
+restores it, keeps a foreign commit (NOT restored, moved by another actor) or
+says nothing was rolled back when no snapshot exists.
 
 Real fixtures throughout (on-disk git repo in ``tmp_path``, real git refs) —
 no mocking of git itself; only ``MergeOutcomeVerifier.verify`` is patched to
-force the verdict under test, mirroring how the WP prompt drives the gate.
+force the verdict under test. The end-to-end door runs live in
+``tests/terminus/test_rollback_door.py`` and
+``tests/consolidation/test_rollback_anchor_p0_repro.py``.
 """
 
 from __future__ import annotations
@@ -31,6 +33,7 @@ import pytest
 import typer
 
 from specify_cli.consolidation import executor as ex
+from specify_cli.consolidation.rollback import begin_attempt, capture_pre_mutation_snapshot, record_post_mutation_tips
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.reconciliation import (
     ApprovedWpCommitSet,
@@ -66,6 +69,7 @@ def _init_repo(root: Path, *, default_branch: str = "main") -> Path:
     _git(root, "config", "user.name", "T")
     _git(root, "config", "commit.gpgsign", "false")
     (root / "README.md").write_text("init\n", encoding="utf-8")
+    (root / ".gitignore").write_text(".kittify/runtime/\n", encoding="utf-8")  # merge state is never tracked
     _git(root, "add", ".")
     _git(root, "commit", "-qm", "init")
     return root
@@ -156,52 +160,60 @@ def _force_verdict(monkeypatch: pytest.MonkeyPatch, result: VerifyResult) -> Non
     )
 
 
+def _claim_snapshot(repo: Path, run: ex._MergeRunState) -> None:
+    """What the claim persists before the first mutation: the snapshot and the attempt's restore targets."""
+    capture_pre_mutation_snapshot(repo, run.state, run.lanes_manifest, coord_ref=None)
+    begin_attempt(repo, run.state)
+
+
+def _land(repo: Path, run: ex._MergeRunState) -> str:
+    """This run's landing on ``main``, recorded as its post tip exactly as the phase recorder does."""
+    advanced = _commit_on(repo, "main", "mutated.py", "landed before the gate ran\n")
+    record_post_mutation_tips(repo, run.state)
+    return advanced
+
+
+def _door(run: ex._MergeRunState, capsys: pytest.CaptureFixture[str]) -> str:
+    """Run the single rollback door's body and return its flattened report."""
+    capsys.readouterr()
+    ex._report_rollback(run, anchor_before=None)
+    return " ".join(capsys.readouterr().out.split())
+
+
+def _gate_refuses(run: ex._MergeRunState) -> None:
+    with pytest.raises(typer.Exit) as exc_info:
+        ex._phase_reconcile_before_teardown(run)
+    assert exc_info.value.exit_code == 1
+
+
+_REFUSED = VerifyResult.refused("claim surface unresolved")
+_FAILED = VerifyResult.failed(Divergence(missing_approved=(("WP01", "a" * 40),)))
+
+
 # ---------------------------------------------------------------------------
-# T033 (red-first) / T035 — every verdict axis through the real gate
+# Every verdict axis: the gate moves nothing, the door restores
 # ---------------------------------------------------------------------------
 
 
 class TestRefuseRestoresTarget:
-    def test_refuse_restores_the_target_to_its_pre_mutation_tip(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """T033: a REFUSE must restore the target exactly as a FAIL does.
-
-        RED on the base: the pre-fix gate only rolled back on FAIL, so
-        ``_rev(repo, "main") == pre_sha`` fails here (the target stays
-        advanced) even though ``typer.Exit(1)`` is still raised.
-        """
+    @pytest.mark.parametrize("verdict", [_REFUSED, _FAILED], ids=["refuse", "fail"])
+    def test_gate_moves_nothing_and_the_door_restores_the_pre_mutation_tip(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], verdict: VerifyResult
+    ) -> None:
+        """T033 / #5666: a REFUSE restores the target exactly as a FAIL does, through the door only."""
         repo = _init_repo(tmp_path / "repo", default_branch="main")
         pre_sha = _rev(repo, "main")
-        advanced = _commit_on(repo, "main", "mutated.py", "landed before the gate ran\n")
-        assert advanced != pre_sha
         run = _build_run(repo, target="main", pre_sha=pre_sha)
-        _force_verdict(monkeypatch, VerifyResult.refused("claim surface unresolved"))
+        _claim_snapshot(repo, run)
+        advanced = _land(repo, run)
+        _force_verdict(monkeypatch, verdict)
 
-        with pytest.raises(typer.Exit) as exc_info:
-            ex._phase_reconcile_before_teardown(run)
+        _gate_refuses(run)
+        assert _rev(repo, "main") == advanced, "#5666: the gate itself must move no ref; the door restores"
 
-        assert exc_info.value.exit_code == 1
-        assert _rev(repo, "main") == pre_sha
-
-    def test_fail_restores_the_target_unchanged_behaviour(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """FAIL already rolled back pre-fix; this is a same-shape regression
-        guard exercised through the real gate (the CAS helper itself is
-        directly covered by
-        ``TestRollbackTargetAfterFailedReconciliation`` in
-        ``test_merge_state_authority.py``)."""
-        repo = _init_repo(tmp_path / "repo", default_branch="main")
-        pre_sha = _rev(repo, "main")
-        _commit_on(repo, "main", "mutated.py", "landed before the gate ran\n")
-        run = _build_run(repo, target="main", pre_sha=pre_sha)
-        _force_verdict(
-            monkeypatch,
-            VerifyResult.failed(Divergence(missing_approved=(("WP01", "a" * 40),))),
-        )
-
-        with pytest.raises(typer.Exit) as exc_info:
-            ex._phase_reconcile_before_teardown(run)
-
-        assert exc_info.value.exit_code == 1
-        assert _rev(repo, "main") == pre_sha
+        report = _door(run, capsys)
+        assert _rev(repo, "main") == pre_sha, f"the door must restore the target. report={report}"
+        assert f"restored main {advanced[:7]} -> {pre_sha[:7]}" in report, report
 
     def test_pass_never_rolls_back(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         repo = _init_repo(tmp_path / "repo", default_branch="main")
@@ -215,49 +227,37 @@ class TestRefuseRestoresTarget:
 
         assert _rev(repo, "main") == advanced
 
-    def test_refuse_when_target_moved_elsewhere_warns_not_overwrites(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """CAS fail-safe: if the target advanced PAST the point the CAS
-        restore observed as current (a third party moved it again), the
-        restore must not clobber that newer tip — it warns instead."""
+    def test_refuse_when_target_moved_elsewhere_keeps_the_foreign_commit(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """#5666 per-PR guard: a commit another actor landed after this run's recorded post tip survives."""
         repo = _init_repo(tmp_path / "repo", default_branch="main")
         pre_sha = _rev(repo, "main")
-        advanced = _commit_on(repo, "main", "mutated.py", "landed before the gate ran\n")
         run = _build_run(repo, target="main", pre_sha=pre_sha)
-        _force_verdict(monkeypatch, VerifyResult.refused("claim surface unresolved"))
+        _claim_snapshot(repo, run)
+        advanced = _land(repo, run)
+        foreign = _commit_on(repo, "main", "teammate.py", "a teammate landed on top\n")
+        _force_verdict(monkeypatch, _REFUSED)
 
-        # Simulate the ref moving AGAIN between the rollback helper's own
-        # ``current_sha`` read (== ``advanced``) and its CAS write, by racing a
-        # further commit onto the target right before the real restore call —
-        # the real restore's own CAS then observes a stale expected-current
-        # value and fails safe rather than overwriting the newer tip.
-        real_restore = phase_gate.restore_branch_ref
-        raced_sha: str | None = None
+        _gate_refuses(run)
+        assert _rev(repo, "main") == foreign, "#5666: the gate must not reset the target over the foreign commit"
 
-        def _racing_restore(repo_arg, branch, new_sha, *, expected_current_sha):
-            nonlocal raced_sha
-            raced_sha = _commit_on(repo_arg, branch, "raced.py", "moved again after the read\n")
-            return real_restore(repo_arg, branch, new_sha, expected_current_sha=expected_current_sha)
+        report = _door(run, capsys)
+        assert _rev(repo, "main") == foreign, f"the door must keep the foreign commit. report={report}"
+        assert "NOT restored main" in report and "moved by another actor" in report, report
+        assert advanced[:7] in report, f"the report must name this run's recorded post tip as the expected value. report={report}"
 
-        monkeypatch.setattr(phase_gate, "restore_branch_ref", _racing_restore)
-
-        with pytest.raises(typer.Exit) as exc_info:
-            ex._phase_reconcile_before_teardown(run)
-
-        assert exc_info.value.exit_code == 1
-        assert raced_sha is not None
-        # The CAS-guarded restore must fail safe and leave the raced (newest)
-        # tip in place rather than force-overwrite it back to pre_sha.
-        assert _rev(repo, "main") == raced_sha
-        assert _rev(repo, "main") not in (pre_sha, advanced)
-
-    def test_refuse_with_unknown_pre_mutation_tip_is_a_noop(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_refuse_with_unknown_pre_mutation_tip_rolls_nothing_back(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """No snapshot recorded: the gate moves nothing and the door says nothing was rolled back."""
         repo = _init_repo(tmp_path / "repo", default_branch="main")
         advanced = _commit_on(repo, "main", "mutated.py", "landed before the gate ran\n")
         run = _build_run(repo, target="main", pre_sha=None)
-        _force_verdict(monkeypatch, VerifyResult.refused("claim surface unresolved"))
+        _force_verdict(monkeypatch, _REFUSED)
 
-        with pytest.raises(typer.Exit) as exc_info:
-            ex._phase_reconcile_before_teardown(run)
+        _gate_refuses(run)
+        report = _door(run, capsys)
 
-        assert exc_info.value.exit_code == 1
         assert _rev(repo, "main") == advanced
+        assert "Nothing was rolled back" in report, report

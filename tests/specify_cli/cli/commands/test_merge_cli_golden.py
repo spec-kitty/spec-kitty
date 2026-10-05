@@ -86,6 +86,9 @@ EXPECTED_PARSER_LONG_FLAGS = frozenset(
         # #5668: operator-attested override for an approval that recorded no lane head.
         "--attest-approved-reviewed",
         "--attest-reason",
+        # #5687 (FR-008): operator release of a NOT-restored branch on --abort.
+        "--release-branch",
+        "--release-reason",
     }
 )
 

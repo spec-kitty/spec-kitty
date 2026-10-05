@@ -326,6 +326,14 @@ class _MergeRunState:
     # recomputes both in its own claim phase.
     validated_lane_tips: dict[str, str] = field(default_factory=dict)
     bound_anchor_shas: tuple[str, ...] = ()
+    # rollback-anchor-authority (#5686, FR-005): the run-movable branches THIS
+    # process moved itself before the claim (the operator attestations, the
+    # coord-strand heal), each with its tips immediately before and after those
+    # steps (``rollback.own_moves_across``). The claim hands it to
+    # ``rollback.begin_attempt(own_moves=...)``, which judges a branch by its
+    # pre-move tip only while its claim-time tip is still the post-step tip. Any
+    # other movement (another actor) gets the ordinary classification.
+    own_pre_claim_moves: dict[str, rollback.OwnMove] = field(default_factory=dict)
 
 
 _P = ParamSpec("_P")
@@ -347,6 +355,16 @@ def _records_post_mutation_tips(phase: Callable[Concatenate[_MergeRunState, _P],
     captured before the phase runs, so a foreign commit that landed between
     phases is never attributed to this run. Lane branches are never recorded.
 
+    Taint (FR-011, #5686): the tips the record EXPECTED at phase entry are
+    captured with the entry tips, per recorder instance, and a branch is recorded
+    only when its entry tip was that expected tip
+    (:func:`rollback.phase_records_branch`). A phase that commits on top of a
+    foreign commit that landed between phases therefore never records that tip.
+    A nested recorder (e.g. ``coord_strand._restore_and_guard_coord_coherence``)
+    keeps its own entry expectations, so it never taints the outer phase. Every
+    branch that moved during the phase has its advance-intent chain cleared,
+    recorded or rejected.
+
     Two exceptions on the raising path (review cycle 1):
 
     * A ``RefAdvanceError``/``RefRestoreError`` means a compare-and-swap detected
@@ -364,14 +382,15 @@ def _records_post_mutation_tips(phase: Callable[Concatenate[_MergeRunState, _P],
     @functools.wraps(phase)
     def recorded(run: _MergeRunState, *args: _P.args, **kwargs: _P.kwargs) -> None:
         entry_tips = rollback.movable_branch_tips(run.main_repo, run.state)
+        expected = rollback.expected_tips(run.state)
         try:
             phase(run, *args, **kwargs)
         except BaseException as exc:
             if _moved_by_this_run(exc):
                 with contextlib.suppress(Exception):
-                    rollback.record_post_mutation_tips(run.main_repo, run.state, entry_tips=entry_tips)
+                    rollback.record_post_mutation_tips(run.main_repo, run.state, entry_tips=entry_tips, expected_tips=expected)
             raise
-        rollback.record_post_mutation_tips(run.main_repo, run.state, entry_tips=entry_tips)
+        rollback.record_post_mutation_tips(run.main_repo, run.state, entry_tips=entry_tips, expected_tips=expected)
 
     return cast("Callable[Concatenate[_MergeRunState, _P], None]", recorded)
 
@@ -393,6 +412,19 @@ class _CoordCheckpoint:
     sha: str
 
 
+def _status_surface_ref(main_repo: Path, mission_slug: str) -> str | None:
+    """The branch status commits (``done`` bookkeeping, operator attestations) land on; ``None`` when unresolvable.
+
+    The canonical write target ``resolve_placement_only(..., kind=STATUS_STATE)``:
+    the coordination branch under a coordination topology, the target otherwise.
+    """
+    try:
+        ref: str = resolve_placement_only(main_repo, mission_slug, kind=MissionArtifactKind.STATUS_STATE).ref
+    except Exception:  # noqa: BLE001 — unresolvable placement: callers treat it as "no status surface"
+        return None
+    return ref
+
+
 def _capture_coord_checkpoint(run: _MergeRunState) -> _CoordCheckpoint | None:
     """Resolve + capture the coordination branch's CURRENT ref + tip SHA.
 
@@ -404,9 +436,8 @@ def _capture_coord_checkpoint(run: _MergeRunState) -> _CoordCheckpoint | None:
     non-coord topology, or a legacy mission) — every checkpoint built from
     ``None`` is a proven no-op wherever it is later consumed.
     """
-    try:
-        coord_ref = resolve_placement_only(run.main_repo, run.mission_slug, kind=MissionArtifactKind.STATUS_STATE).ref
-    except Exception:  # noqa: BLE001 — unresolvable placement: skip the coherent revert
+    coord_ref = _status_surface_ref(run.main_repo, run.mission_slug)
+    if coord_ref is None:
         return None
     ret, sha, _err = run_command(
         ["git", "rev-parse", coord_ref],

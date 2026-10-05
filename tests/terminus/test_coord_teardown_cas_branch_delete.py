@@ -248,8 +248,11 @@ def test_5570_a_foreign_target_commit_is_never_stamped_verified(tmp_path: Path) 
     """The PASS anchor follows only the commit THIS run made, never whatever the target tip is by then.
 
     A foreign commit lands on the target right after our retrospective bookkeeping commit. The
-    anchor must stay at the verified tip, so the advised ``--resume`` runs the full claim again
-    (refusing, fail-closed) instead of skipping reconciliation over the unverified foreign commit.
+    anchor must stay at the verified tip, so the advised ``--resume`` never skips reconciliation
+    over the unverified foreign commit: it refuses, fail-closed. Re-pinned by
+    rollback-anchor-authority WP03 (#5686, FR-005): the coordination branch's late commit is a
+    move the record cannot explain, so the resume now refuses before the claim with
+    ``UNEXPLAINED_BRANCH_MOVE`` (previously the claim's ``Reconciliation refused``).
     """
     mission = build_coord_mission(tmp_path, wps=("WP01",), mid8="01M5570D")
     refused = _consolidate_with_late_commit(mission, foreign_on_retro=True)
@@ -265,7 +268,7 @@ def test_5570_a_foreign_target_commit_is_never_stamped_verified(tmp_path: Path) 
     output = f"stdout:\n{resumed.stdout}\nstderr:\n{resumed.stderr}"
 
     assert resumed.returncode != 0, f"#5570: resume skipped full reconciliation over a foreign target commit\n{output}"
-    assert "Reconciliation refused" in _flat(resumed), output
+    assert "Error code: UNEXPLAINED_BRANCH_MOVE." in _flat(resumed) and mission.coord_branch in _flat(resumed), output
     assert mission.rev(mission.target_branch) == foreign_sha, "the foreign commit must stay on the target"
     assert _branch_exists(mission, mission.coord_branch), "the coordination branch must be kept while the claim cannot be verified"
 

@@ -65,7 +65,7 @@ from specify_cli.core.constants import KITTIFY_DIR
 from mission_runtime import MissionArtifactKind, placement_seam
 import json
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple, NoReturn
 
 import typer
 from rich.markup import escape
@@ -237,7 +237,14 @@ from specify_cli.consolidation.push_preflight import (
     _enforce_target_branch_sync_preflight,
     _target_branch_sync_payload,
 )
-from specify_cli.consolidation.rollback import rollback_to_snapshot
+from specify_cli.consolidation.rollback import (
+    BranchOutcomeKind,
+    RollbackReport,
+    movable_branch_tips,
+    release_branch,
+    rollback_to_snapshot,
+    run_movable_branches,
+)
 from specify_cli.consolidation.state import (
     abort_git_merge,
     acquire_merge_lock,
@@ -246,6 +253,7 @@ from specify_cli.consolidation.state import (
     load_state,
     read_merge_lock_owner,
     release_merge_lock_if_owned,
+    save_state,
 )
 from specify_cli.consolidation.workspace import get_merge_workspace_path
 from specify_cli.coordination.teardown import ProjectionTeardownAbort
@@ -457,21 +465,94 @@ def _abort_hold_global_lock_or_exit(repo_root: Path, state: ConsolidationState) 
         raise typer.Exit(1)
 
 
-def _abort_restore_or_keep_record(repo_root: Path, state: ConsolidationState) -> bool:
+@dataclass(frozen=True)
+class _ReleaseRequest:
+    """``--release-branch`` / ``--release-reason`` after the flag-shape check (#5687 / FR-008)."""
+
+    branches: tuple[str, ...] = ()
+    reason: str = ""
+
+
+_NO_RELEASE = _ReleaseRequest()
+_RELEASE_INVALID_CODE = "Error code: RELEASE_BRANCH_INVALID."
+_SHORT_SHA = 7
+
+
+def _refuse_release(message: str) -> NoReturn:
+    """Refuse an operator release (exit 2); called before anything is written."""
+    console.print(f"[red]Error:[/red] {escape(message)} Nothing was changed. {_RELEASE_INVALID_CODE}")
+    raise typer.Exit(2)
+
+
+def _validated_release_flags(branches: object, reason: object, *, abort: bool) -> _ReleaseRequest:
+    """CLI-boundary check of the release flags' shape, BEFORE any work runs (exit 2 on misuse).
+
+    Like :func:`_validated_attestation_flags`, an unresolved ``typer.Option``
+    sentinel (a direct Python call) counts as "not supplied".
+    """
+    names = branches if isinstance(branches, (list, tuple)) else ()
+    text = reason.strip() if isinstance(reason, str) else ""
+    requested = tuple(dict.fromkeys(b.strip() for b in names if isinstance(b, str) and b.strip()))
+    if not requested:
+        if text:
+            console.print("[yellow]Note:[/yellow] --release-reason has no effect without --release-branch.")
+        return _NO_RELEASE
+    if not abort:
+        _refuse_release("--release-branch only applies to `spec-kitty consolidate --abort`.")
+    if not text:
+        _refuse_release('--release-branch requires --release-reason "<why the branch is kept>" so the release records why.')
+    return _ReleaseRequest(branches=requested, reason=text)
+
+
+def _check_release_targets(state: ConsolidationState | None, release: _ReleaseRequest) -> None:
+    """Refuse a release naming anything but a snapshotted run-movable branch of the record (never a lane)."""
+    if not release.branches:
+        return
+    movable = run_movable_branches(state) if state is not None else []
+    invalid = [b for b in release.branches if b not in movable]
+    if invalid:
+        allowed = ", ".join(movable) or "none"
+        _refuse_release(
+            f"--release-branch names {', '.join(invalid)}, which this consolidation record cannot release "
+            f"(releasable: the record's target, mission or coordination branch: {allowed})."
+        )
+
+
+def _record_releases(repo_root: Path, state: ConsolidationState, release: _ReleaseRequest) -> None:
+    """Bind each release to the branch's live tip, read under the abort's lock, and persist it BEFORE the rollback.
+
+    Saving first keeps the release bound to that SHA even when the abort then
+    fails part-way: a later move of the branch voids it (US3 AS4).
+    """
+    if not release.branches:
+        return
+    tips = movable_branch_tips(repo_root, state)
+    bound = {branch: tips.get(branch) for branch in release.branches}
+    unresolved = [branch for branch, live in bound.items() if live is None]
+    if unresolved:
+        _refuse_release(f"--release-branch names {', '.join(unresolved)}, which does not resolve to a commit.")
+    for branch, live in bound.items():
+        if live is not None:  # always true past the refusal; narrows the type
+            release_branch(state, branch, live, release.reason)
+    save_state(state, repo_root)
+
+
+def _abort_restore_or_keep_record(repo_root: Path, state: ConsolidationState) -> tuple[bool, RollbackReport | None]:
     """Restore the pre-mutation snapshot BEFORE the record is cleared (#5318 / FR-005).
 
-    Returns ``True`` when the caller may proceed with the cleanup (fully restored,
-    or an older record with no snapshot, which keeps today's behaviour), ``False``
-    when the record must be kept because a branch could not be restored or a
-    verified landing was kept (FR-011). Restoration is the single rollback
-    authority's job; this helper only decides what ``--abort`` does with its report.
+    Returns ``(proceed, report)``. ``proceed`` is ``True`` when the caller may
+    clean up (fully restored, or an older record with no snapshot, which keeps
+    today's behaviour; the report is then ``None``), ``False`` when the record
+    must be kept because a branch could not be restored or a verified landing
+    was kept (FR-011). Restoration is the single rollback authority's job; this
+    helper only decides what ``--abort`` does with its report.
     """
     if not state.pre_mutation_refs:
         console.print(_ABORT_NO_SNAPSHOT_NOTICE)
-        return True
+        return True, None
     report = rollback_to_snapshot(repo_root, state, target_branch=state.target_branch)
     console.print(report.render(), markup=False, highlight=False)
-    return bool(report.fully_restored)
+    return bool(report.fully_restored), report
 
 
 def _abort_exit_keeping_record(repo_root: Path, state: ConsolidationState) -> None:
@@ -496,17 +577,49 @@ def _abort_merge_workspace(repo_root: Path, state: ConsolidationState) -> bool:
     return workspace_path.exists() and bool(abort_git_merge(workspace_path))
 
 
-def _abort_success_line(resolved: str | None, *, restored: bool, resume_seeded: bool = False) -> str:
-    if restored:
-        commits = "snapshot commits (snapshot taken when this record was resumed)" if resume_seeded else "pre-consolidation commits"
-        return f"[green]Aborted[/green] consolidation for {resolved}. Branches restored to their {commits}; state and workspace cleaned up."
-    return f"[green]Aborted[/green] merge for {resolved}. State and workspace cleaned up."
+def _kept_by_operator_text(report: RollbackReport | None) -> str:
+    """``<b> (kept at <sha> by operator release)`` for every released branch (FR-009); empty when none.
+
+    No markup escaping is needed: a git ref name cannot contain ``[``.
+    """
+    outcomes = report.outcomes if report is not None else ()
+    kept = [f"{o.branch} (kept at {o.observed_sha[:_SHORT_SHA]} by operator release)" for o in outcomes if o.kind is BranchOutcomeKind.KEPT_BY_OPERATOR]
+    return ", ".join(kept)
 
 
-def _abort_lock_restore_clear(repo_root: Path, resolved: str | None, state_entry: tuple[str | None, ConsolidationState]) -> tuple[bool, bool]:
-    """Lock -> scratch merge workspace -> restore -> clear/teardown (post-tasks finding 7).
+def _abort_success_line(resolved: str | None, *, restored: bool, resume_seeded: bool = False, report: RollbackReport | None = None) -> str:
+    """The abort's closing line; says "restored" only for restored branches and names every kept one (FR-009)."""
+    if not restored:
+        return f"[green]Aborted[/green] merge for {resolved}. State and workspace cleaned up."
+    commits = "snapshot commits (snapshot taken when this record was resumed)" if resume_seeded else "pre-consolidation commits"
+    # F5: a restore to an ADR-A2 restore target is not a restore to the snapshot.
+    restored_to = "the record's restore targets" if report is not None and report.restored_off_snapshot else f"their {commits}"
+    kept = _kept_by_operator_text(report)
+    if not kept:
+        return f"[green]Aborted[/green] consolidation for {resolved}. Branches restored to {restored_to}; state and workspace cleaned up."
+    if report is not None and any(o.kind is BranchOutcomeKind.RESTORED for o in report.outcomes):
+        return f"[green]Aborted[/green] consolidation for {resolved}. Branches restored to {restored_to}, except {kept}; state and workspace cleaned up."
+    return f"[green]Aborted[/green] consolidation for {resolved}. No branch was restored; {kept}; state and workspace cleaned up."
 
-    Returns ``(git_merge_aborted, cleared)``.
+
+class _AbortResult(NamedTuple):
+    """What ``--abort``'s locked phase did: the scoped git-merge abort, the record clear and the rollback report."""
+
+    git_merge_aborted: bool
+    cleared: bool
+    report: RollbackReport | None
+
+
+def _abort_lock_restore_clear(
+    repo_root: Path,
+    resolved: str | None,
+    state_entry: tuple[str | None, ConsolidationState],
+    release: _ReleaseRequest = _NO_RELEASE,
+) -> _AbortResult:
+    """Lock -> operator releases -> scratch merge workspace -> restore -> clear/teardown (post-tasks finding 7).
+
+    Returns ``(git_merge_aborted, cleared, report)``. Operator releases (#5687) are
+    bound to the live tips read under the lock and saved before anything else changes.
 
     Exits 1 (record kept) when the restore is incomplete. Any exception releases the lock this
     abort took (owner-gated) before propagating, so a failed abort never leaves ``__global_merge__``
@@ -515,11 +628,13 @@ def _abort_lock_restore_clear(repo_root: Path, resolved: str | None, state_entry
     active_state = state_entry[1]
     _abort_hold_global_lock_or_exit(repo_root, active_state)
     try:
+        _record_releases(repo_root, active_state, release)
         git_merge_aborted = _abort_merge_workspace(repo_root, active_state)
         # The merge workspace is spec-kitty-owned scratch (state.json survives its cleanup). Clean it
         # BEFORE the restore so a snapshotted branch checked out mid-merge cannot make the restore refuse.
         _cleanup_merge_workspaces_for_state(repo_root, mission_slug=resolved, state_entry=state_entry)
-        if not _abort_restore_or_keep_record(repo_root, active_state):
+        proceed, report = _abort_restore_or_keep_record(repo_root, active_state)
+        if not proceed:
             _abort_exit_keeping_record(repo_root, active_state)
         cleared = _clear_merge_state_for_mission(repo_root, resolved)
         if state_entry[0]:
@@ -529,10 +644,10 @@ def _abort_lock_restore_clear(repo_root: Path, resolved: str | None, state_entry
     except BaseException:
         release_merge_lock_if_owned(_GLOBAL_MERGE_LOCK, repo_root, owner_token=active_state.mission_id)
         raise
-    return git_merge_aborted, cleared
+    return _AbortResult(git_merge_aborted, cleared, report)
 
 
-def _dispatch_abort(repo_root: Path, mission: str | None) -> None:
+def _dispatch_abort(repo_root: Path, mission: str | None, release: _ReleaseRequest = _NO_RELEASE) -> None:
     """Handle ``merge --abort``: clear state, locks, legacy files, git merge, coord."""
     from contextlib import suppress
 
@@ -542,12 +657,15 @@ def _dispatch_abort(repo_root: Path, mission: str | None) -> None:
         state_entry = _load_merge_state_entry_for_mission(repo_root, None)
     if state_entry is not None and resolved is None:
         resolved = state_entry[1].mission_slug
+    _check_release_targets(state_entry[1] if state_entry is not None else None, release)
 
     if state_entry is not None:
         active_state = state_entry[1]
-        git_merge_aborted, cleared = _abort_lock_restore_clear(repo_root, resolved, state_entry)
+        git_merge_aborted, cleared, report = _abort_lock_restore_clear(repo_root, resolved, state_entry, release)
         if cleared:
-            console.print(_abort_success_line(resolved, restored=bool(active_state.pre_mutation_refs), resume_seeded=bool(active_state.resume_seeded_refs)))
+            console.print(
+                _abort_success_line(resolved, restored=bool(active_state.pre_mutation_refs), resume_seeded=bool(active_state.resume_seeded_refs), report=report)
+            )
         else:
             console.print(f"[yellow]No active merge state found for {resolved}.[/yellow] Workspace cleaned up.")
         if git_merge_aborted:
@@ -860,6 +978,8 @@ class ConsolidateOptions:
     attest_canceled_superseded: list[str] | None = None
     attest_approved_reviewed: list[str] | None = None
     attest_reason: str | None = None
+    release_branch: list[str] | None = None
+    release_reason: str | None = None
 
 
 @require_main_repo
@@ -957,6 +1077,21 @@ def consolidate(
         "--attest-reason",
         help="What you checked, recorded with --attest-canceled-superseded or --attest-approved-reviewed (required with either); one reason serves every attestation of the run.",
     ),
+    release_branch: list[str] | None = typer.Option(
+        None,
+        "--release-branch",
+        help=(
+            "With --abort (repeatable): keep this branch at its current commit instead of refusing "
+            "because it cannot be restored. The branch keeps all of its current commits, including "
+            "this consolidation's unverified changes; review them afterwards. Only the record's "
+            "target, mission or coordination branch can be released. Requires --release-reason."
+        ),
+    ),
+    release_reason: str | None = typer.Option(
+        None,
+        "--release-reason",
+        help="Why the released branches are kept, printed in the --abort report (required with --release-branch).",
+    ),
 ) -> None:
     """Consolidate a lane-based mission into its target branch.
 
@@ -988,6 +1123,8 @@ def consolidate(
             attest_canceled_superseded=attest_canceled_superseded,
             attest_reason=attest_reason,
             attest_approved_reviewed=attest_approved_reviewed,
+            release_branch=release_branch,
+            release_reason=release_reason,
         )
     )
 
@@ -1022,6 +1159,7 @@ def run_consolidate(options: ConsolidateOptions) -> None:
     del context_token, keep_workspace
     attested_wps = _validated_attestation_flags(attest_canceled_superseded, attest_reason, options.attest_approved_reviewed)
     approved_attested_wps = _validated_approved_attestation_flags(options.attest_approved_reviewed, attest_reason)
+    release = _validated_release_flags(options.release_branch, options.release_reason, abort=abort)
 
     # #2959 escape hatch — a skip is never silent: refuse it without a reason
     # BEFORE any merge work runs, so the evidence record always carries a note.
@@ -1045,7 +1183,7 @@ def run_consolidate(options: ConsolidateOptions) -> None:
         raise typer.Exit(1) from exc
 
     if abort:
-        _dispatch_abort(repo_root, mission)
+        _dispatch_abort(repo_root, mission, release)
         return
 
     # WP04 (terminus-integrity-followups, FR-003/H1): the persisted strategy of

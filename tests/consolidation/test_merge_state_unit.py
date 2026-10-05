@@ -252,6 +252,29 @@ class TestStatePersistence:
         assert loaded.completed_wps == ["WP01"]
         assert loaded.current_wp == "WP02"
 
+    def test_save_state_never_leaves_a_partial_record(self, tmp_path):
+        """NFR-001: a failed save keeps the previous record intact (temp file + rename).
+
+        A value that cannot be serialized makes the write fail part-way. An
+        in-place ``open(..., "w")`` writer truncates the record first, so the
+        previous one is lost; the atomic writer leaves it untouched and leaves
+        no temp file behind.
+        """
+        state = ConsolidationState(mission_id=MISSION_ID, mission_slug="test-feature", target_branch="main", wp_order=["WP01"])
+        state.pre_mutation_refs = {"main": "a" * 40}
+        save_state(state, tmp_path)
+        state_path = get_state_path(tmp_path, MISSION_ID)
+        before = state_path.read_text(encoding="utf-8")
+
+        state.pending_coord_reconcile = {"unserializable": object()}
+        with pytest.raises(TypeError):
+            save_state(state, tmp_path)
+
+        assert state_path.read_text(encoding="utf-8") == before
+        loaded = load_state(tmp_path, MISSION_ID)
+        assert loaded is not None and loaded.pre_mutation_refs == {"main": "a" * 40}
+        assert sorted(p.name for p in state_path.parent.iterdir()) == [state_path.name]
+
     def test_save_and_load_state_persists_skip_lanes(self, tmp_path):
         """terminus-safety-invariant-01M2XFT7 FOLD-F2 (T021/FR-012): a
         genuinely-lanes.json-absent direct-on-target mission's

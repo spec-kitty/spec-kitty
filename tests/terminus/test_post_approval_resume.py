@@ -32,7 +32,7 @@ import pytest
 from tests.terminus.approved_content_support import _DRIVER, InterruptedConsolidate
 from tests.terminus.conftest import _cli_env
 from tests.terminus.conftest import _git as git
-from tests.terminus.conftest import blob_present_at
+from tests.terminus.conftest import blob_present_at, run_terminus
 from tests.terminus.mixed_lane_support import collapse
 from tests.terminus.post_approval_support import LATE_CONTENT, LATE_PATH, Topology, add_post_approval_commit, build_post_approval_mission, lane_worktree
 from tests.terminus.canceled_dependency_support import LANE_B
@@ -122,9 +122,16 @@ def test_resume_refuses_a_commit_added_to_a_lane_not_yet_consolidated(tmp_path: 
     assert rc != 0, f"a commit added after approval must be refused on --resume ({topology}):\n{flat}"
     assert _CODE in flat, f"expected {_CODE}:\n{flat}"
     assert f"That attempt already moved {run.mission.coord_branch}." in flat, f"the killed attempt moved the mission branch, so the refusal must say so:\n{flat}"
-    assert "will report" in flat and "as NOT restored" in flat, f"the killed attempt recorded no post tip, so the refusal must not promise a restore:\n{flat}"
+    # Re-pinned (rollback-anchor-authority P2): the killed lane merge persisted an advance intent, so `--abort`
+    # adopts it and restores the mission branch; the text uses the rollback's own predicate and lists nothing as unrestorable.
+    assert "will report" not in flat and "as NOT restored" not in flat, f"an intent-proven advance is restorable, so the refusal must not deny it:\n{flat}"
     assert not blob_present_at(run.mission.repo, run.mission.target_branch, LATE_PATH), "the unreviewed file must not be on the target"
     assert run.mission.rev(run.mission.target_branch) == run.pre_target, "the refusal must not move the target"
+    # Positive half of the re-pin: `--abort` really restores the intent-proven mission-branch advance.
+    aborted = run_terminus(run.mission, ["consolidate", "--abort", "--mission", run.mission.slug])
+    aborted_flat = collapse(aborted.stdout + "\n" + aborted.stderr)
+    assert aborted.returncode == 0, f"--abort must restore the intent-proven advance ({topology}):\n{aborted_flat}"
+    assert run.mission.rev(run.mission.coord_branch) == run.pre_mission, f"the mission branch is back at its pre-run tip:\n{aborted_flat}"
 
 
 @pytest.mark.parametrize("topology", ["coord", "lanes"])

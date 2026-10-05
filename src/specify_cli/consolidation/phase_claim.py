@@ -12,7 +12,7 @@ Moved from ``consolidation/executor.py`` by epic #2026 with no logic change.
 from __future__ import annotations
 
 import contextlib
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NoReturn
@@ -63,6 +63,45 @@ from specify_cli.consolidation.run_state import (
     _capture_coord_checkpoint,
     _stored_topology_for,
 )
+
+
+#: rollback-anchor-authority (#5686, FR-005): a re-run or ``--resume`` found a
+#: run-movable branch at a tip the record cannot explain.
+UNEXPLAINED_BRANCH_MOVE = "UNEXPLAINED_BRANCH_MOVE"
+
+
+def _exit_unexplained_branch_move(rows: Sequence[tuple[str, str, str]]) -> NoReturn:
+    """Refuse (exit 1) over ``(branch, restore target, live tip)`` rows the record cannot explain.
+
+    Shared by the executor's read-only pre-check (before the operator
+    attestations and the coord-strand heal) and the claim's ``begin_attempt``,
+    so both refuse with identical text. Only non-destructive remedies (C-002), in
+    order: inspect, move the branch yourself, or release it (which keeps every
+    listed commit).
+    """
+    console.print(
+        "\n[red]Error:[/red] Refusing to continue this consolidation: the merge record cannot explain where these branches are now "
+        "(neither their restore target nor a tip this consolidation recorded or provably wrote):",
+        soft_wrap=True,
+    )
+    for branch, target, live in rows:
+        console.print(f"  {branch}: restore target {target}, live {live}", markup=False, soft_wrap=True)
+    console.print("Nothing was changed and the merge record is kept. To continue:", markup=False, soft_wrap=True)
+    for branch, target, live in rows:
+        console.print(f"  - inspect the unexplained commits on {branch}: git log {target}..{live}", markup=False, soft_wrap=True)
+    console.print(
+        "  - if these commits should not stay, move the branch yourself; spec-kitty never moves a commit it cannot prove is its own.",
+        markup=False,
+        soft_wrap=True,
+    )
+    console.print(
+        f'  - to keep them, release the branch and clear the record: {_CONSOLIDATE_ABORT_COMMAND} --release-branch <branch> --release-reason "<why>" '
+        "(warning: a release keeps every commit listed above on the branch).",
+        markup=False,
+        soft_wrap=True,
+    )
+    console.print(f"Error code: {UNEXPLAINED_BRANCH_MOVE}.", markup=False, soft_wrap=True)
+    raise typer.Exit(1)
 
 
 def _assert_mission_terminal_ready(run: _MergeRunState) -> None:
@@ -527,6 +566,19 @@ def _bound_anchor_shas(run: _MergeRunState, coord_base: str) -> tuple[str, ...]:
     return tuple(shas)
 
 
+def _verified_landing_exempt_branches(state: ConsolidationState, coord_ref: str | None) -> frozenset[str]:
+    """The rows a reconciliation PASS that still holds for the live target exempts from ``UNEXPLAINED_BRANCH_MOVE`` (F1).
+
+    Only the TARGET and the COORDINATION branch: the verified landing is never
+    rolled back (FR-011), and a late coordination commit is landed by
+    ``_land_late_coordination_commits`` and guarded by the teardown's
+    compare-and-swap gate (#5570). The mission branch is NOT exempt: the teardown
+    deletes a mission branch without a coordination topology against its live
+    tip, so an unexplained commit there would be deleted at exit 0.
+    """
+    return frozenset(b for b in (state.target_branch, coord_ref or state.pre_mutation_coord_ref) if b)
+
+
 def _capture_snapshot_and_begin_attempt(run: _MergeRunState) -> None:
     """Capture the pre-mutation snapshot ONCE and begin this attempt (T013).
 
@@ -534,28 +586,48 @@ def _capture_snapshot_and_begin_attempt(run: _MergeRunState) -> None:
     every attempt, fresh or resumed, computes its own per-branch restore targets
     and resets its post-mutation tips. A candidate branch that does not resolve is
     not snapshotted -- warn so the operator knows a rollback will not cover it.
+
+    ``run.own_pre_claim_moves`` (#5686) lets ``begin_attempt`` judge this
+    process's own pre-claim moves (the coord-strand heal, the operator
+    attestations) by their pre-move tip, while the branch is still where those
+    steps left it. A branch it still cannot explain
+    refuses with ``UNEXPLAINED_BRANCH_MOVE``, exactly like the executor's
+    pre-check; the record is then unchanged. A resume whose reconciliation PASS
+    still holds for the live target tip exempts only the target and coordination
+    rows (:func:`_verified_landing_exempt_branches`), as in the pre-check.
     """
     coord_ref = run.coord_checkpoint.ref if run.coord_checkpoint is not None else None
     rollback.capture_pre_mutation_snapshot(run.main_repo, run.state, run.lanes_manifest, coord_ref=coord_ref, is_resume=run.is_resume)
     for branch in rollback.missing_snapshot_branches(run.main_repo, run.lanes_manifest, coord_ref=coord_ref):
         console.print(f"[yellow]Warning:[/yellow] branch {branch!r} does not exist and is not snapshotted; a rollback will not cover it.")
-    rollback.begin_attempt(run.main_repo, run.state)
+    unexplained = rollback.begin_attempt(run.main_repo, run.state, own_moves=run.own_pre_claim_moves)
+    # A verified landing (#5021) is never rolled back (FR-011): its resume finishes the
+    # teardown. The exemption covers only the target and coordination rows (F1).
+    if unexplained and _resume_reconciliation_already_passed(run):
+        exempt = _verified_landing_exempt_branches(run.state, coord_ref)
+        unexplained = [branch for branch in unexplained if branch not in exempt]
+    if unexplained:
+        live = rollback.movable_branch_tips(run.main_repo, run.state)
+        restore_to = {**run.state.pre_mutation_refs, **run.state.restore_targets}
+        _exit_unexplained_branch_move([(branch, restore_to[branch], live.get(branch) or "") for branch in unexplained])
 
 
 @dataclass(frozen=True)
 class _EarlierMoves:
     """What an earlier attempt of this consolidation did to the run-movable branches, read from the persisted snapshot (#5668).
 
-    ``moved`` is every branch whose live tip differs from its pre-run tip; ``unrestorable`` is the
-    subset ``consolidate --abort`` will report as NOT restored (no recorded post-mutation tip, or the
-    branch moved past it); ``unknown`` could not be resolved at all, so nothing is claimed about them.
+    ``moved`` is every branch whose live tip differs from the record's restore target; ``unrestorable``
+    is the subset ``consolidate --abort`` will report as NOT restored, judged by the rollback's own
+    predicate (:func:`rollback.rollback_would_restore`: neither the recorded post tip nor a tip a
+    persisted advance intent proves); ``unknown`` could not be resolved at all, so nothing is claimed
+    about them. ``restore_to`` is each branch's restore target.
     """
 
     target_branch: str = ""
     moved: tuple[str, ...] = ()
     unrestorable: tuple[str, ...] = ()
     unknown: tuple[str, ...] = ()
-    pre_run: dict[str, str] = field(default_factory=dict)
+    restore_to: dict[str, str] = field(default_factory=dict)
 
     @property
     def touched(self) -> bool:
@@ -571,21 +643,23 @@ def _claim_refusal_change_sentence(attested: tuple[str, ...]) -> str:
 
 
 def _branches_moved_by_earlier_attempts(run: _MergeRunState) -> _EarlierMoves:
-    """Which run-movable branches an earlier attempt moved, judged against the persisted pre-run snapshot; nothing on a fresh run (#5668).
+    """Which run-movable branches an earlier attempt moved, judged against the record's restore targets; nothing on a fresh run (#5668).
 
-    Post-mutation tips are written when a phase exits, never on a kill, so they cannot tell
-    that an interrupted phase advanced the target. A branch is moved when its live tip is not
-    its ``pre_mutation_refs`` entry, whether or not a post tip was recorded for it.
+    Post-mutation tips are written when a phase exits, never on a kill, so a kill-left
+    advance is restorable only when a persisted advance intent proves it. A branch is moved
+    when its live tip is not its restore target, and unrestorable when the rollback could not
+    restore it from there (:func:`rollback.rollback_would_restore`).
     """
     target = run.lanes_manifest.target_branch
     if not run.is_resume:
         return _EarlierMoves(target_branch=target)
     state = run.state
     tips = rollback.movable_branch_tips(run.main_repo, state)
+    restore_to = {branch: rollback.record_restore_target(state, branch) for branch in tips}
     unknown = [branch for branch, live in tips.items() if live is None]
-    moved = [branch for branch, live in tips.items() if live is not None and live != state.pre_mutation_refs[branch]]
-    unrestorable = [branch for branch in moved if state.post_mutation_refs.get(branch) != tips[branch]]
-    return _EarlierMoves(target, tuple(sorted(moved)), tuple(sorted(unrestorable)), tuple(sorted(unknown)), dict(state.pre_mutation_refs))
+    moved = {branch: live for branch, live in tips.items() if live is not None and live != restore_to[branch]}
+    unrestorable = [branch for branch, live in moved.items() if not rollback.rollback_would_restore(state, branch, live)]
+    return _EarlierMoves(target, tuple(sorted(moved)), tuple(sorted(unrestorable)), tuple(sorted(unknown)), restore_to)
 
 
 def _earlier_moves_sentences(moves: _EarlierMoves) -> str:
@@ -593,10 +667,10 @@ def _earlier_moves_sentences(moves: _EarlierMoves) -> str:
     holds = f" (the local target '{moves.target_branch}' currently holds content from it)" if moves.target_branch in moves.moved else ""
     text = f" That attempt already moved {', '.join(moves.moved)}{holds}." if moves.moved else ""
     if moves.unrestorable:
-        was = ", ".join(f"{b} (at {moves.pre_run[b]} before the run)" for b in moves.unrestorable)
+        was = ", ".join(f"{b} (restore target {moves.restore_to[b]})" for b in moves.unrestorable)
         text += f" `{_CONSOLIDATE_ABORT_COMMAND}` will report {was} as NOT restored: the attempt was interrupted before it recorded where it stopped."
         if moves.target_branch in moves.unrestorable:
-            text += f" Restore the local target '{moves.target_branch}' to {moves.pre_run[moves.target_branch]} yourself before re-running."
+            text += f" Restore the local target '{moves.target_branch}' to {moves.restore_to[moves.target_branch]} yourself before re-running."
     if moves.unknown:
         text += f" The current tip of {', '.join(moves.unknown)} could not be resolved, so whether that attempt moved it is unknown."
     return text

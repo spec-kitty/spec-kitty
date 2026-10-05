@@ -10,10 +10,10 @@ landing verified by an EARLIER attempt is kept.
 
 Driven through the REAL ``spec-kitty consolidate`` CLI over real git, asserting
 real ``git rev-parse`` SHAs and ``state.json`` bytes (NFR-004). Vacuous-oracle
-guard (#5344 class): the gate FAIL path already restored the TARGET before the
-single rollback authority existed, so the load-bearing assertions are the
-coordination/mission-branch and state ones, plus the reflog proof that the branch
-really moved during the run and was moved BACK by the restore.
+guard (#5344 class): the load-bearing assertions are the coordination/mission-branch
+and state ones, plus the reflog proof that the branch really moved during the run and
+was moved BACK by the restore. Since #5666 the door (not the gate) also restores the
+TARGET, so the report names it restored.
 
 Provenance: #5318 (gate FAIL, coord + LANES topology), #5332 (projection refusal),
 #5359 (gate REFUSE restores the target itself).
@@ -32,7 +32,6 @@ the authority, and a verified landing no longer refused. Guards:
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 import pytest
@@ -88,8 +87,11 @@ def test_gate_fail_restores_target_and_coordination_branch(tmp_path: Path) -> No
     post, pre = pairs[0]
     assert post != pre and pre == before["coord"][:7], f"restore line must go post->pre-run SHA: {pairs}"
     assert_report_is_truthful(output)
-    assert re.search(rf"unchanged\s+{re.escape(mission.target_branch)}\s+\(already at {before['target'][:7]}\)", output), (
-        f"the report must show the target's idempotent 'unchanged (already at <pre>)' line. output={output}"
+    # #5666: the gate no longer restores the target itself; the single rollback
+    # door does, so the report names the target RESTORED (post -> pre-run SHA).
+    target_pairs = restored_pairs(output, mission.target_branch)
+    assert target_pairs and target_pairs[0][1] == before["target"][:7] and target_pairs[0][0] != target_pairs[0][1], (
+        f"the report must show the door restoring the target post -> pre-run SHA. output={output}"
     )
 
 

@@ -155,3 +155,106 @@ def test_resync_failure_after_the_ref_moved_raises_ref_resync_error(advanced: di
 
     assert isinstance(raised.value, RefAdvanceError)
     assert _git(repo, "rev-parse", "feat") == base, "the CAS succeeded: the ref moved"
+
+
+@pytest.fixture
+def lagging(advanced: dict[str, object]) -> dict[str, object]:
+    """The state a kill leaves between ``update-ref`` and the resync (FR-012).
+
+    The linked worktree has ``feat`` checked out with index and worktree at
+    ``A`` (the old tip), while ``refs/heads/feat`` was moved to ``C`` by a raw
+    ``update-ref``: HEAD = C, index = worktree = A.
+    """
+    repo = Path(str(advanced["repo"]))
+    landed_at = str(advanced["feat_tip"])
+    moved_to = str(advanced["base"])
+    _git(repo, "update-ref", "refs/heads/feat", moved_to)
+    return {**advanced, "restore_to": landed_at, "moved_to": moved_to}
+
+
+def test_restore_accepts_a_checkout_already_at_the_restore_target(lagging: dict[str, object]) -> None:
+    repo, linked = Path(str(lagging["repo"])), Path(str(lagging["linked"]))
+    restore_to, moved_to = str(lagging["restore_to"]), str(lagging["moved_to"])
+    assert _git(linked, "status", "--porcelain", "--untracked-files=no") != "", "precondition: the checkout lags its HEAD"
+
+    restore_branch_ref(repo, "feat", restore_to, expected_current_sha=moved_to, resync_checkouts=True)
+
+    assert _git(repo, "rev-parse", "feat") == restore_to
+    _assert_consistent(linked, restore_to)
+
+
+def test_lagging_checkout_with_a_tracked_edit_still_refuses(lagging: dict[str, object]) -> None:
+    repo, linked = Path(str(lagging["repo"])), Path(str(lagging["linked"]))
+    restore_to, moved_to = str(lagging["restore_to"]), str(lagging["moved_to"])
+    (linked / "more.txt").write_text("operator edit\n")
+
+    with pytest.raises(RefAdvanceDirtyWorktreeError):
+        restore_branch_ref(repo, "feat", restore_to, expected_current_sha=moved_to, resync_checkouts=True)
+
+    assert _git(repo, "rev-parse", "feat") == moved_to
+    assert (linked / "more.txt").read_text() == "operator edit\n"
+
+
+def test_lagging_checkout_with_a_staged_edit_still_refuses(lagging: dict[str, object]) -> None:
+    repo, linked = Path(str(lagging["repo"])), Path(str(lagging["linked"]))
+    restore_to, moved_to = str(lagging["restore_to"]), str(lagging["moved_to"])
+    (linked / "more.txt").write_text("staged edit\n")
+    _git(linked, "add", "more.txt")
+    (linked / "more.txt").write_text("more\n")  # worktree back at the target; only the index differs
+
+    with pytest.raises(RefAdvanceDirtyWorktreeError):
+        restore_branch_ref(repo, "feat", restore_to, expected_current_sha=moved_to, resync_checkouts=True)
+
+    assert _git(repo, "rev-parse", "feat") == moved_to
+
+
+def test_advance_does_not_accept_a_checkout_already_at_the_target(lagging: dict[str, object]) -> None:
+    """The acceptance is restore-only: ``advance_branch_ref`` still refuses a lagging checkout."""
+    from specify_cli.git.ref_advance import advance_branch_ref
+
+    repo = Path(str(lagging["repo"]))
+    restore_to, moved_to = str(lagging["restore_to"]), str(lagging["moved_to"])
+
+    with pytest.raises(RefAdvanceDirtyWorktreeError):
+        advance_branch_ref(repo, "feat", restore_to)
+
+    assert _git(repo, "rev-parse", "feat") == moved_to
+
+
+def _index_lock(checkout: Path) -> Path:
+    return Path(_git(checkout, "rev-parse", "--absolute-git-dir")) / "index.lock"
+
+
+def test_restore_over_a_lagging_checkout_never_resets_it_even_with_a_live_index_lock(lagging: dict[str, object]) -> None:
+    """WP03 (orchestrator ruling): a checkout already at the restore target needs no reset once the CAS moves its HEAD.
+
+    A planted ``index.lock`` (the #5571 lock arm) would make any ``reset --hard``
+    fail; the restore succeeds, the ref moves, the checkout is consistent and the
+    lock is left exactly as found.
+    """
+    repo, linked = Path(str(lagging["repo"])), Path(str(lagging["linked"]))
+    restore_to, moved_to = str(lagging["restore_to"]), str(lagging["moved_to"])
+    lock = _index_lock(linked)
+    lock.write_text("held by another process\n")
+
+    restore_branch_ref(repo, "feat", restore_to, expected_current_sha=moved_to, resync_checkouts=True)
+
+    assert _git(repo, "rev-parse", "feat") == restore_to, "the CAS moved the ref"
+    _assert_consistent(linked, restore_to)
+    assert lock.read_text() == "held by another process\n", "the index.lock is untouched"
+
+
+def test_restore_still_resets_a_checkout_that_needs_it_while_a_lock_blocks_it(advanced: dict[str, object]) -> None:
+    """Positive control: a checkout at the OLD tip still needs a reset, so a live index.lock still fails the resync."""
+    from specify_cli.git.ref_advance import RefResyncError
+
+    repo, linked, base = advanced["repo"], advanced["linked"], str(advanced["base"])
+    assert isinstance(repo, Path) and isinstance(linked, Path)
+    _index_lock(linked).write_text("")
+
+    with pytest.raises(RefResyncError):
+        restore_branch_ref(repo, "feat", base, expected_current_sha=str(advanced["feat_tip"]), resync_checkouts=True)
+
+    _index_lock(linked).unlink()
+    restore_branch_ref(repo, "develop", base, expected_current_sha=str(advanced["develop_tip"]), resync_checkouts=True)
+    _assert_consistent(repo, base)

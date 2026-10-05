@@ -14,6 +14,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+from kernel.atomic import atomic_write
 from kernel.clock import now_utc_iso
 from kernel.errors import GuardedReadError
 from kernel.guarded_read import read_guarded
@@ -25,6 +26,7 @@ __all__ = [
     "ConsolidationStateReadError",
     "ConsolidationState",
     "STRAND_SHAS_KEY",
+    "UNSETTLED_ALL",
     "marker_strand_shas",
     "reconciliation_passed_for_tip",
     "save_state",
@@ -86,7 +88,7 @@ class MergeLockError(Exception):
         )
 
 
-_REF_MAP_FIELDS = ("pre_mutation_refs", "post_mutation_refs", "restore_targets")
+_REF_MAP_FIELDS = ("pre_mutation_refs", "post_mutation_refs", "restore_targets", "released_refs", "release_reasons")
 
 
 def _str_map_or_empty(value: object) -> dict[str, str]:
@@ -104,6 +106,30 @@ def _str_list_or_empty(value: object) -> list[str]:
     if isinstance(value, list) and all(isinstance(item, str) for item in value):
         return list(value)
     return []
+
+
+#: ``unsettled_refs`` sentinel: a malformed list loads as "every run-movable
+#: branch is unsettled" (fail closed); the rollback authority expands it.
+UNSETTLED_ALL = "*"
+
+
+def _unsettled_or_all(value: object) -> list[str]:
+    """Return ``value`` when it is a ``list[str]``; otherwise ``[UNSETTLED_ALL]`` (fail closed)."""
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return list(value)
+    return [UNSETTLED_ALL]
+
+
+def _intent_chains_or_empty(value: object) -> dict[str, list[str]]:
+    """Return ``value`` when every entry is a ``str -> list[str]`` chain of >= 2 SHAs; otherwise ``{}`` (no proof)."""
+    if not isinstance(value, dict):
+        return {}
+    chains: dict[str, list[str]] = {}
+    for branch, chain in value.items():
+        if not (isinstance(branch, str) and isinstance(chain, list) and len(chain) >= 2 and all(isinstance(sha, str) for sha in chain)):
+            return {}
+        chains[branch] = list(chain)
+    return chains
 
 
 #: Key under which a ``pending_coord_reconcile`` marker records the SHAs of the
@@ -241,6 +267,26 @@ class ConsolidationState:
     # report words them as "snapshot taken when this record was resumed".
     # Absent in older records -> ``[]``.
     resume_seeded_refs: list[str] = field(default_factory=list)
+    # rollback-anchor-authority (#5686): run-movable branches this record's run
+    # may have left with unrestored, unverified moves. ``rollback.begin_attempt``
+    # marks every run-movable branch; a RESTORED / ALREADY_AT_SNAPSHOT /
+    # KEPT_BY_OPERATOR rollback outcome (or, for the target, a reconciliation
+    # PASS) settles it. A move on an unsettled branch that the record cannot
+    # explain is never re-anchored. Absent in older records -> ``[]`` (nothing
+    # unsettled); a malformed value loads as ``[UNSETTLED_ALL]`` (fail closed:
+    # every run-movable branch unsettled).
+    unsettled_refs: list[str] = field(default_factory=list)
+    # #5686 FR-006: per-branch advance intent chains ``[base, new1, new2, ...]``,
+    # persisted before each compare-and-swap advance inside the span
+    # (``rollback.note_advance_intent``). A live tip in the chain counts as this
+    # run's post tip only when the base is the tip the record expected. Absent or
+    # malformed -> ``{}`` (fail closed: no proof).
+    advance_intents: dict[str, list[str]] = field(default_factory=dict)
+    # #5686 FR-008: ``consolidate --abort --release-branch`` releases. Branch ->
+    # live SHA at release time (the release binds to it) and branch -> operator
+    # reason. Absent or malformed -> ``{}``.
+    released_refs: dict[str, str] = field(default_factory=dict)
+    release_reasons: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -263,6 +309,10 @@ class ConsolidationState:
         for name in _REF_LIST_FIELDS:
             if name in filtered:
                 filtered[name] = _str_list_or_empty(filtered[name])
+        if "unsettled_refs" in filtered:
+            filtered["unsettled_refs"] = _unsettled_or_all(filtered["unsettled_refs"])
+        if "advance_intents" in filtered:
+            filtered["advance_intents"] = _intent_chains_or_empty(filtered["advance_intents"])
         return cls(**filtered)
 
     @property
@@ -320,11 +370,10 @@ def save_state(state: ConsolidationState, repo_root: Path) -> None:
         repo_root: Repository root path
     """
     state_path = get_state_path(repo_root, state.mission_id)
-    state_path.parent.mkdir(parents=True, exist_ok=True)
     state.updated_at = now_utc_iso()
-
-    with open(state_path, "w", encoding="utf-8") as f:
-        json.dump(state.to_dict(), f, indent=2)
+    # NFR-001: serialize first, then temp file + rename, so a kill or a
+    # serialization error leaves either the previous or the new record intact.
+    atomic_write(state_path, json.dumps(state.to_dict(), indent=2), mkdir=True)
 
 
 def load_state(repo_root: Path, mission_id: str | None = None) -> ConsolidationState | None:

@@ -7,7 +7,11 @@ Non-vacuous architectural pin (DIRECTIVE_043 / Standing Order #5) that keeps the
    least ``_CALLER_FLOOR`` of them are discovered (a scanner that finds nothing
    proves nothing).
 2. ``restore_branch_ref(..., resync_checkouts=True)`` is called only from
-   ``consolidation/rollback.py`` (the authority owns the resyncing restore).
+   ``consolidation/rollback.py`` (the authority owns the resyncing restore), and
+   (#5666) no ``restore_branch_ref`` call of ANY kind exists in the consolidation
+   executor family outside ``consolidation/rollback.py``: the reconciliation gate
+   once restored the target itself, with a non-resyncing CAS against the live tip,
+   which the resync-only scan could not see.
 3. #5385 (ADR 2026-09-19-1 A3): every driver call to a post-mutation span phase
    (``_SPAN_PHASES``, from ``_phase_merge_lanes`` through the gate) sits inside the
    body of ONE ``try`` whose ``BaseException`` handler calls ``_report_rollback``,
@@ -17,7 +21,9 @@ Non-vacuous architectural pin (DIRECTIVE_043 / Standing Order #5) that keeps the
    replaces the older gate-only rule.
 4. No per-phase ``git revert`` survives in ``consolidation/executor.py`` (no
    ``"revert"`` constant in an argv list or call args), and none of the retired
-   rollback helpers (``_RETIRED_NAMES``) is defined or referenced anywhere in src.
+   rollback helpers (``_RETIRED_NAMES``, including the #5666 FAIL-path restore
+   ``_rollback_target_after_failed_reconciliation``) is defined or referenced
+   anywhere in src.
 5. ``_heal_pending_coord_reconcile`` (a forward ``git revert``) is called only from
    the driver's resume-start site, never from a restore primitive in the span.
 6. #5668: ``consolidate_lane_into_mission`` is called only from the two landing paths, each of
@@ -84,6 +90,8 @@ _RETIRED_NAMES: frozenset[str] = frozenset(
         "_revert_orphan_target_bake_commit",
         "_capture_pre_mutation_coord_checkpoint",
         "pre_bake_target_baseline_sha",
+        # #5666: the gate's own FAIL/REFUSE restore (CAS against the live tip).
+        "_rollback_target_after_failed_reconciliation",
     }
 )
 
@@ -238,6 +246,11 @@ def _all_src_files() -> list[tuple[str, str]]:
     return [(p.relative_to(_SRC_ROOT).as_posix(), p.read_text(encoding="utf-8")) for p in sorted(_SRC_ROOT.rglob("*.py"))]
 
 
+def scan_restores(source: str, module: str) -> list[_Call]:
+    """Every ``restore_branch_ref(...)`` call in *source*, resyncing or not."""
+    return [call for call, _node in _calls_named(source, module, "restore_branch_ref")]
+
+
 def _is_allowed(call: _Call) -> bool:
     return (call.module, call.function) in _ALLOWED_CALLERS or (call.module, None) in _ALLOWED_CALLERS
 
@@ -270,6 +283,15 @@ def test_resyncing_restore_lives_only_in_the_authority() -> None:
     assert hits, "non-vacuity: the authority itself must call restore_branch_ref(resync_checkouts=True)"
     stray = [c for c in hits if c.module != _ROLLBACK]
     assert not stray, f"restore_branch_ref(resync_checkouts=True) outside consolidation/rollback.py: {stray}"
+
+
+def test_no_restore_of_any_kind_in_the_executor_family_outside_the_authority() -> None:
+    """#5666: only the authority restores a branch; no phase module restores one itself."""
+    modules = (*_EXECUTOR_FAMILY, _ROLLBACK)
+    hits = [c for module in modules for c in scan_restores((_SRC_ROOT / module).read_text(encoding="utf-8"), module)]
+    assert any(c.module == _ROLLBACK for c in hits), f"non-vacuity: the authority's own restore_branch_ref call must be found; hits={hits}"
+    stray = [c for c in hits if c.module != _ROLLBACK]
+    assert not stray, f"restore_branch_ref called in the consolidation executor family outside consolidation/rollback.py: {stray}"
 
 
 def test_every_span_phase_call_sits_inside_the_one_rollback_door() -> None:
@@ -414,6 +436,22 @@ def test_scanner_flags_a_stray_resyncing_restore() -> None:
     assert scan_resyncing_restores(synthetic, "specify_cli/other.py") == [_Call("specify_cli/other.py", "sneaky")]
     benign = "def fine(repo):\n    restore_branch_ref(repo, 'b', 'sha', expected_current_sha='x')\n"
     assert scan_resyncing_restores(benign, "specify_cli/other.py") == []
+
+
+def test_scanner_flags_a_non_resyncing_restore_in_a_phase_module() -> None:
+    """#5666 shape: a plain CAS restore in a phase module is flagged, though the resync-only scan misses it."""
+    phase_gate = "specify_cli/consolidation/phase_gate.py"
+    synthetic = "def _undo(run, b, x):\n    restore_branch_ref(run.main_repo, b, run.pre_sha, expected_current_sha=x)\n"
+    assert scan_resyncing_restores(synthetic, phase_gate) == [], "precondition: the resync-only scan cannot see it"
+    assert scan_restores(synthetic, phase_gate) == [_Call(phase_gate, "_undo")]
+    via_module = "def _undo(run):\n    ref_advance.restore_branch_ref(run.main_repo, 'main', 'a', expected_current_sha='b')\n"
+    assert scan_restores(via_module, phase_gate) == [_Call(phase_gate, "_undo")]
+    assert scan_restores("def fine(run):\n    advance_branch_ref(run.main_repo, 'main', 'a')\n", phase_gate) == []
+
+
+def test_scanner_flags_a_retired_fail_path_restore() -> None:
+    synthetic = "def _phase_reconcile_before_teardown(run):\n    _rollback_target_after_failed_reconciliation(run)\n"
+    assert scan_retired_names(synthetic) == {"_rollback_target_after_failed_reconciliation"}
 
 
 def test_scanner_flags_a_second_rollback_door_in_the_consolidate_cli() -> None:

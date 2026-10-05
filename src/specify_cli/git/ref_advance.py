@@ -29,13 +29,24 @@ clobbering the concurrent writer's commit (FR-003). It never falls back to a
 call sites, but that serialization is no longer what makes the advance safe —
 the ``__global_merge__`` lock is unlinkable by ``merge --abort`` (#4996), so
 resting correctness on it was the latent hazard this CAS closes.
+
+Advance intents (FR-006, C-006): inside a :func:`reporting_advance_intents`
+block, :func:`advance_branch_ref` and :func:`advance_branch_ref_for_commit`
+report ``(branch, old_sha, new_sha)`` to the installed sink after every
+precondition check and strictly BEFORE the compare-and-swap write. ``old_sha``
+is the CAS old value handed to git. A raising sink fails the advance closed (the
+ref does not move). A reported intent is not proof of a move: git may still
+refuse the CAS. :func:`restore_branch_ref` never reports. The sink is injected,
+so this module never imports the consolidation layer that persists it.
 """
 
 from __future__ import annotations
 
 import enum
 import subprocess
-from collections.abc import Callable, Collection
+from collections.abc import Callable, Collection, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -63,6 +74,36 @@ _UNBORN: str = "<unborn>"
 # The all-zero OID: ``git update-ref <ref> <new> <zero>`` asserts the ref does
 # not already exist, the CAS form of creating an unborn ref.
 _ZERO_OID: str = "0" * 40
+
+#: Receives ``(branch, old_sha, new_sha)`` for an advance about to be written.
+AdvanceIntentSink = Callable[[str, str, str], None]
+
+_ADVANCE_INTENT_SINK: ContextVar[AdvanceIntentSink | None] = ContextVar("_advance_intent_sink", default=None)
+
+
+@contextmanager
+def reporting_advance_intents(sink: AdvanceIntentSink) -> Iterator[None]:
+    """Install *sink* to receive every branch advance this context is about to write.
+
+    :func:`advance_branch_ref` and :func:`advance_branch_ref_for_commit` call
+    ``sink(branch, old_sha, new_sha)`` after their precondition checks and
+    immediately before the compare-and-swap ``update-ref``; ``old_sha`` is the
+    CAS old value passed to git (the zero OID for an unborn ref). If the sink
+    raises, the exception propagates and the ref is not moved. The previous
+    sink (or none) is reinstated on exit, including when the block raises.
+    """
+    token = _ADVANCE_INTENT_SINK.set(sink)
+    try:
+        yield
+    finally:
+        _ADVANCE_INTENT_SINK.reset(token)
+
+
+def _report_advance_intent(branch: str, old_sha: str, new_sha: str) -> None:
+    """Hand an imminent advance to the installed sink, if any (a raise fails the advance closed)."""
+    sink = _ADVANCE_INTENT_SINK.get()
+    if sink is not None:
+        sink(branch, old_sha, new_sha)
 
 
 def _cas_expected_old(expected_old_sha: str | None, observed_old_sha: str) -> str:
@@ -539,6 +580,19 @@ def worktrees_with_branch_checked_out(repo_root: Path, branch: str, *, env: dict
     return [entry.path for entry in _list_worktrees(repo_root, env) if not entry.detached and entry.branch == ref]
 
 
+def _checkout_content_equals(worktree: Path, sha: str, env: dict[str, str] | None) -> bool:
+    """True when the index AND the tracked working tree of *worktree* both equal the tree of *sha*.
+
+    ``git diff --quiet`` exits 0 only on no difference; a difference (1) or any
+    git error answers ``False`` (never proven equal).
+    """
+    unstaged = _run_git(worktree, ["diff", "--quiet", sha, "--"], env=env)
+    if unstaged.returncode != 0:
+        return False
+    staged = _run_git(worktree, ["diff", "--cached", "--quiet", sha, "--"], env=env)
+    return staged.returncode == 0
+
+
 def _checkouts_ready_for(
     repo_root: Path,
     branch: str,
@@ -547,23 +601,33 @@ def _checkouts_ready_for(
     is_residue: Callable[[str], bool] | None,
     *,
     old_sha: str,
+    accept_at_target: bool = False,
 ) -> list[Path]:
     """List worktrees with ``branch`` checked out, refusing if any is dirty.
 
     Runs strictly BEFORE the ref moves so a refusal is atomic (nothing
     advanced, nothing reset). Shared by :func:`advance_branch_ref` and
     :func:`restore_branch_ref` (``resync_checkouts=True``).
+
+    ``accept_at_target`` (restore only, FR-012): a checkout whose index and
+    tracked working tree already equal ``new_sha`` is the state a kill leaves
+    between ``update-ref`` and the resync (HEAD moved, content did not). Its
+    tracked verdicts are differences against the moved HEAD, not local work, so
+    they are skipped; untracked/ignored obstructions still refuse.
     """
     checkouts = worktrees_with_branch_checked_out(repo_root, branch, env=env)
     target_paths = _target_tree_paths(repo_root, new_sha, env)
     for worktree in checkouts:
-        dirty = _dirty_entries(
+        verdicts = _dirty_verdicts(
             worktree,
             env,
             new_sha=new_sha,
             target_paths=target_paths,
             is_residue=is_residue,
         )
+        if accept_at_target and verdicts and _checkout_content_equals(worktree, new_sha, env):
+            verdicts = [verdict for verdict in verdicts if verdict[0] is not _DirtyReason.TRACKED]
+        dirty = [line for _, line in verdicts]
         if dirty:
             raise RefAdvanceDirtyWorktreeError(
                 worktree_path=worktree.resolve(),
@@ -680,6 +744,7 @@ def advance_branch_ref(
     checkouts = _checkouts_ready_for(repo_root, branch, new_sha, env, is_residue, old_sha=old_sha)
 
     expected_old = _cas_expected_old(expected_old_sha, old_sha)
+    _report_advance_intent(branch, expected_old, new_sha)
     result = _update_branch_ref_cas(repo_root, ref, new_sha, expected_old, env=env)
     if result.returncode != 0:
         raise RefAdvanceError(
@@ -723,7 +788,14 @@ def restore_branch_ref(
     mutated; ``is_residue`` excludes toolchain churn exactly as in
     :func:`advance_branch_ref`), the ref then moves under the same
     compare-and-swap, and each checkout is hard-reset to the restored ref via
-    the shared :func:`_resync_checkouts` (HEAD == index == worktree).
+    the shared :func:`_resync_checkouts` (HEAD == index == worktree). A
+    checkout whose index and worktree already equal ``restored_sha`` (a kill
+    between ``update-ref`` and the resync left it behind its HEAD) is accepted
+    rather than refused; untracked obstructions still refuse (FR-012). Such a
+    checkout is not reset: once the CAS moves the ref its HEAD == index ==
+    worktree already, so a live ``index.lock`` there never fails the restore.
+
+    Never reports an advance intent: a restore is not an advance.
     """
     ref = f"refs/heads/{branch}"
     checkouts: list[Path] = []
@@ -735,14 +807,19 @@ def restore_branch_ref(
             env,
             is_residue,
             old_sha=expected_current_sha,
+            accept_at_target=True,
         )
+    # A checkout whose index and worktree already equal the restore target needs no
+    # reset: its HEAD is a symref to the branch, so the CAS alone makes it consistent
+    # (and a reset could only fail, e.g. on a live ``index.lock``, #5571 lock arm).
+    needs_reset = [worktree for worktree in checkouts if not _checkout_content_equals(worktree, restored_sha, env)]
     result = _update_branch_ref_cas(repo_root, ref, restored_sha, expected_current_sha, env=env)
     if result.returncode != 0:
         raise RefRestoreError(
             f"Failed to restore {branch!r} from {expected_current_sha[:12]} to {restored_sha[:12]}: {result.stderr.strip() or result.stdout.strip()}"
         )
     _resync_checkouts(
-        checkouts,
+        needs_reset,
         branch,
         env,
         context=f"Restored {branch} ({expected_current_sha[:12]} -> {restored_sha[:12]})",
@@ -829,6 +906,7 @@ def advance_branch_ref_for_commit(
             f"{checkouts[0].path.resolve()}, not the worktree safe_commit reconciles at {resolved_worktree}."
         )
 
+    _report_advance_intent(branch, expected_old_sha, new_sha)
     updated = _update_branch_ref_cas(
         repo_root,
         ref,

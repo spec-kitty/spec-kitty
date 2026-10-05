@@ -17,11 +17,20 @@ branch, and re-raises the original error.
 Real git throughout: the only patch is the failure injection, a wrapper
 that calls the ORIGINAL phase (so its real mutation happens and its post tips are
 recorded) and then raises.
+
+#5666: a reconciliation FAIL is restored by this door too; the gate itself
+moves nothing. The door compare-and-swaps against the post tip this run
+recorded, so a commit another actor lands on the target after the landing is
+kept and reported NOT restored, while with no foreign commit (the US1 AS3
+positive control) the target is fully restored and the repository root checkout
+is clean. Both run on the LANES and the coordination topology fixtures.
 """
 
 from __future__ import annotations
 
 import json
+import re
+import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
@@ -29,8 +38,9 @@ import pytest
 import typer
 
 from specify_cli.consolidation import executor
+from specify_cli.consolidation.reconciliation import Divergence, MergeOutcomeVerifier, VerifyResult
 from specify_cli.consolidation.state import get_state_path
-from tests.terminus.conftest import CoordMission, blob_present_at, run_terminus
+from tests.terminus.conftest import CoordMission, blob_present_at, build_coord_mission, run_terminus
 from tests.terminus.lanes_fixture import build_lanes_mission
 from tests.terminus.rollback_harness import flat, ref_shas, reflog_shas
 
@@ -196,3 +206,183 @@ def test_protected_main_lanes_mission_never_leaves_main_advanced(tmp_path: Path)
     assert result.returncode != 0, f"the protected-target done write must fail the run. output={output}"
     assert ref_shas(mission)["target"] == before["target"], f"#5385: main left advanced. output={output}"
     assert not blob_present_at(mission.repo, mission.target_branch, "src/pkg/wp01.py"), "squashed content must not stay on main"
+
+
+# --------------------------------------------------------------------------- #
+# #5666: a reconciliation FAIL restores through the door only
+# --------------------------------------------------------------------------- #
+
+
+def _build(topology: str, tmp_path: Path, mid8: str) -> CoordMission:
+    if topology == "lanes":
+        return build_lanes_mission(tmp_path, wps=("WP01", "WP02"), target_branch="develop", mid8=mid8)
+    return build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8=mid8)
+
+
+def _force_gate_fail(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The real gate runs, but its verifier returns a proven FAIL (the verdict under test)."""
+    failed = VerifyResult.failed(Divergence(missing_approved=(("WP01", "a" * 40),)))
+    monkeypatch.setattr(MergeOutcomeVerifier, "verify", lambda self, target_ref, claim: failed)
+
+
+def _porcelain(repo: Path) -> list[str]:
+    """``git status --porcelain`` lines, minus the kept consolidation record (``.kittify/`` is untracked in these fixtures)."""
+    out = subprocess.run(["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True, check=True).stdout
+    return [line for line in out.splitlines() if line != "?? .kittify/"]
+
+
+def _commit_on_target(mission: CoordMission, name: str) -> str:
+    """A teammate's commit on the target, made in the repository root checkout."""
+    checked_out = subprocess.run(["git", "symbolic-ref", "--short", "HEAD"], cwd=mission.repo, capture_output=True, text=True, check=True)
+    assert checked_out.stdout.strip() == mission.target_branch, "precondition: the root checkout is on the target"
+    (mission.repo / name).write_text("teammate work\n", encoding="utf-8")
+    subprocess.run(["git", "add", name], cwd=mission.repo, check=True)
+    subprocess.run(["git", "commit", "-qm", f"teammate: {name}"], cwd=mission.repo, check=True)
+    return subprocess.run(["git", "rev-parse", "HEAD"], cwd=mission.repo, capture_output=True, text=True, check=True).stdout.strip()
+
+
+_TOPOLOGIES = ("lanes", "coord")
+
+
+@pytest.mark.parametrize("topology", _TOPOLOGIES)
+def test_gate_fail_without_a_foreign_commit_fully_restores_through_the_door(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], topology: str
+) -> None:
+    """US1 AS3 positive control: no foreign commit, a gate FAIL, a full restore and a clean root checkout."""
+    mission = _build(topology, tmp_path, f"01M5666{topology[0].upper()}")
+    before = ref_shas(mission)
+    target_reflog = len(reflog_shas(mission, mission.target_branch))
+    _force_gate_fail(monkeypatch)
+
+    with pytest.raises(typer.Exit) as excinfo:
+        _consolidate(mission, monkeypatch)
+
+    assert excinfo.value.exit_code == 1
+    output = " ".join(capsys.readouterr().out.split())
+    assert "Reconciliation FAILED" in output, f"precondition: the gate must FAIL. output={output}"
+    assert _REPORT_HEADER in output, f"the door's rollback report must be printed. output={output}"
+    assert re.search(rf"restored {re.escape(mission.target_branch)} [0-9a-f]{{7}} -> {before['target'][:7]}", output), (
+        f"the door, not the gate, must restore the target. output={output}"
+    )
+    report = output[output.index(_REPORT_HEADER) :]
+    assert "NOT restored" not in report, f"a FAIL with no foreign commit must restore fully. report={report}"
+    after = ref_shas(mission)
+    assert after["target"] == before["target"], f"target not restored. output={output}"
+    assert after["coord"] == before["coord"], f"mission/coordination branch not restored. output={output}"
+    _assert_moved_and_restored(mission, mission.target_branch, before["target"], target_reflog)
+    assert _porcelain(mission.repo) == [], f"the repository root checkout must be clean after the restore: {_porcelain(mission.repo)!r}"
+    assert not blob_present_at(mission.repo, mission.target_branch, "src/pkg/wp01.py"), "the landed content must be gone from the target"
+
+
+@pytest.mark.parametrize("topology", _TOPOLOGIES)
+def test_gate_fail_keeps_a_concurrent_target_commit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], topology: str) -> None:
+    """#5666 end to end: the real gate FAILs on a teammate's un-attributable commit, which the door keeps."""
+    mission = _build(topology, tmp_path, f"01M5666{'XY'[_TOPOLOGIES.index(topology)]}")
+    before = ref_shas(mission)
+    original_gate = executor._phase_reconcile_before_teardown
+    foreign: list[str] = []
+
+    def gate_after_a_teammate_commit(run: executor._MergeRunState) -> None:
+        foreign.append(_commit_on_target(mission, "teammate.txt"))
+        original_gate(run)
+
+    monkeypatch.setattr(executor, "_phase_reconcile_before_teardown", gate_after_a_teammate_commit)
+
+    with pytest.raises(typer.Exit) as excinfo:
+        _consolidate(mission, monkeypatch)
+
+    assert excinfo.value.exit_code == 1
+    output = " ".join(capsys.readouterr().out.split())
+    assert "Reconciliation FAILED" in output and "teammate.txt" in output, f"precondition: the real gate FAILs on the foreign path. output={output}"
+    assert foreign and ref_shas(mission)["target"] == foreign[0], f"#5666: the teammate commit must stay the target tip. output={output}"
+    assert re.search(rf"NOT restored {re.escape(mission.target_branch)} .*moved by another actor", output), output
+    assert (mission.repo / "teammate.txt").is_file(), "the teammate's file must survive in the repository root checkout"
+    assert ref_shas(mission)["coord"] == before["coord"], f"the mission/coordination branch is still restored. output={output}"
+
+
+@pytest.mark.parametrize("topology", _TOPOLOGIES)
+def test_a_commit_landing_during_verification_refuses_and_is_never_anchored(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], topology: str
+) -> None:
+    """F3 (a): a PASS over a target that moved during ``verify()`` is a REFUSE; the door keeps the commit and no anchor is written."""
+    mission = _build(topology, tmp_path, f"01M5686{'VW'[_TOPOLOGIES.index(topology)]}")
+    pre_run_target = ref_shas(mission)["target"]
+    foreign: list[str] = []
+
+    def verify_while_a_teammate_commits(self: MergeOutcomeVerifier, target_ref: str, claim: object) -> VerifyResult:
+        foreign.append(_commit_on_target(mission, "during-verify.txt"))
+        return VerifyResult.passed()
+
+    monkeypatch.setattr(MergeOutcomeVerifier, "verify", verify_while_a_teammate_commits)
+
+    with pytest.raises(typer.Exit) as excinfo:
+        _consolidate(mission, monkeypatch)
+
+    assert excinfo.value.exit_code == 1
+    output = " ".join(capsys.readouterr().out.split())
+    assert "moved while reconciliation was verifying" in output, output
+    assert foreign and ref_shas(mission)["target"] == foreign[0], f"the commit that landed during verification must be kept. output={output}"
+    assert re.search(rf"NOT restored {re.escape(mission.target_branch)} .*moved by another actor", output), output
+    record = _record(mission)
+    assert record is not None and record.get("reconciliation_passed_target_sha") is None, "a moved target is never anchored as verified"
+    # Fold review: honest, non-destructive next steps (C-002); a plain resume cannot succeed here.
+    assert f"git log {pre_run_target}..{foreign[0]}" in output, output
+    assert f'spec-kitty consolidate --abort --release-branch {mission.target_branch} --release-reason "<why>"' in output, output
+    assert "will refuse with UNEXPLAINED_BRANCH_MOVE" in output, output
+    assert "then re-run `spec-kitty consolidate --resume`" not in output, output
+    assert not any(recipe in output for recipe in ("reset --hard", "branch -f", "update-ref", "push --force")), output
+
+    with pytest.raises(typer.Exit) as resumed:
+        _consolidate(mission, monkeypatch)
+    resume_output = " ".join(capsys.readouterr().out.split())
+    assert resumed.value.exit_code == 1 and "Error code: UNEXPLAINED_BRANCH_MOVE." in resume_output, resume_output
+    assert ref_shas(mission)["target"] == foreign[0], "the refused resume moves nothing"
+
+
+def test_the_pass_anchor_is_persisted_only_after_the_projection_proof(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """F3 (b): while the squash projection proof runs, no PASS anchor is on disk; a projection refusal leaves none behind."""
+    from specify_cli.consolidation import phase_gate
+
+    mission = _build("coord", tmp_path, "01M5686A")
+    anchors_seen: list[object] = []
+
+    def refusing_projection_proof(run: executor._MergeRunState) -> None:
+        record = _record(mission)
+        anchors_seen.append(None if record is None else record.get("reconciliation_passed_target_sha"))
+        raise typer.Exit(1)
+
+    monkeypatch.setattr(phase_gate, "_assert_squash_projected_content_landed", refusing_projection_proof)
+
+    with pytest.raises(typer.Exit):
+        _consolidate(mission, monkeypatch)
+
+    assert anchors_seen == [None], f"the anchor must not be persisted before the projection proof passed: {anchors_seen}"
+    record = _record(mission)
+    assert record is None or record.get("reconciliation_passed_target_sha") is None
+
+
+def test_a_commit_landing_during_the_projection_proof_refuses_and_is_never_anchored(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """P3: the moved-target check runs again right before the PASS anchor, so a move during the projection proof is caught too."""
+    from specify_cli.consolidation import phase_gate
+
+    mission = _build("lanes", tmp_path, "01M5686Q")
+    real_proof = phase_gate._assert_squash_projected_content_landed
+    foreign: list[str] = []
+
+    def proof_then_a_teammate_commit(run: executor._MergeRunState) -> None:
+        real_proof(run)
+        foreign.append(_commit_on_target(mission, "during-projection.txt"))
+
+    monkeypatch.setattr(phase_gate, "_assert_squash_projected_content_landed", proof_then_a_teammate_commit)
+
+    with pytest.raises(typer.Exit) as excinfo:
+        _consolidate(mission, monkeypatch)
+
+    output = " ".join(capsys.readouterr().out.split())
+    assert excinfo.value.exit_code == 1 and "moved while reconciliation was verifying" in output, output
+    assert foreign and ref_shas(mission)["target"] == foreign[0], f"the commit that landed during the projection proof is kept. output={output}"
+    assert re.search(rf"NOT restored {re.escape(mission.target_branch)} .*moved by another actor", output), output
+    record = _record(mission)
+    assert record is not None and record.get("reconciliation_passed_target_sha") is None, "a moved target is never anchored as verified"

@@ -184,11 +184,11 @@ def _claim_refusal_output(monkeypatch: pytest.MonkeyPatch, attested: tuple[str, 
             [
                 "Run `spec-kitty consolidate --abort` to restore the branches it recorded.",
                 f"That attempt already moved {_MISSION}, {_TARGET} (the local target '{_TARGET}' currently holds content from it).",
-                f"`spec-kitty consolidate --abort` will report {_TARGET} (at {{pre}} before the run) as NOT restored: the attempt was interrupted before it",
+                f"`spec-kitty consolidate --abort` will report {_TARGET} (restore target {{pre}}) as NOT restored: the attempt was interrupted before it",
                 "recorded where it stopped.",
                 f"Restore the local target '{_TARGET}' to {{pre}} yourself before re-running.",
             ],
-            ["before any change", "No branch, worktree or status record was changed", f"{_MISSION} (at"],
+            ["before any change", "No branch, worktree or status record was changed", f"{_MISSION} (restore target"],
             id="resume_target_moved_but_killed_before_a_post_tip_was_recorded",
         ),
         pytest.param(
@@ -268,3 +268,46 @@ def test_claim_refusal_prints_commands_unwrapped_and_paths_unparsed(monkeypatch:
     assert f"spec-kitty agent tasks move-task WP01 --to in_progress --mission {slug}\n" in printed
     assert "src/[/slug]/x.py" in printed
     assert "\nNo branch, worktree or status record was changed by this run." in printed
+
+
+def _intent_proven(run: _MergeRunState, branch: str, pre: str) -> str:
+    """Persist an advance-intent chain proving this run wrote ``branch``'s live tip (a kill before the phase recorder)."""
+    live = _git_out(run.main_repo, "rev-parse", branch)
+    run.state.advance_intents[branch] = [pre, live]
+    return live
+
+
+def test_claim_refusal_does_not_list_an_intent_proven_landing_as_unrestorable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """P2: ``--abort`` adopts a provable kill-left advance (the rollback's own predicate), so the text must not call it NOT restored."""
+    run, pre = _earlier_attempt(tmp_path, is_resume=True, moved=(_TARGET, _MISSION), recorded=(_MISSION,), vanished=())
+    _intent_proven(run, _TARGET, pre)
+
+    printed = _claim_refusal_output(monkeypatch, (), run=run)
+
+    assert f"That attempt already moved {_MISSION}, {_TARGET}" in printed
+    assert "NOT restored" not in printed and "yourself" not in printed, printed
+
+
+def test_claim_refusal_names_the_records_restore_target(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """P2: an unrecorded move is still listed, against the record's restore target (not the snapshot)."""
+    run, pre = _earlier_attempt(tmp_path, is_resume=True, moved=(_MISSION,), recorded=(_MISSION,), vanished=())
+    anchor = _git_out(run.main_repo, "commit-tree", "-p", pre, "-m", "operator", f"{pre}^{{tree}}")
+    landed = _git_out(run.main_repo, "commit-tree", "-p", anchor, "-m", "landing", f"{pre}^{{tree}}")
+    _git_out(run.main_repo, "update-ref", f"refs/heads/{_TARGET}", landed)
+    run.state.restore_targets = {_TARGET: anchor}
+
+    printed = _claim_refusal_output(monkeypatch, (), run=run)
+
+    assert f"will report {_TARGET} (restore target {anchor}) as NOT restored" in printed, printed
+    assert f"Restore the local target '{_TARGET}' to {anchor} yourself" in printed, printed
+    assert pre not in printed, "the snapshot is not the restore target here"
+
+
+def test_claim_refusal_does_not_list_a_branch_back_at_its_restore_target(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """P2: a branch at its restore target (an A2 re-anchor away from the snapshot) is not moved by an earlier attempt."""
+    run, pre = _earlier_attempt(tmp_path, is_resume=True, moved=(_TARGET,), recorded=(), vanished=())
+    run.state.restore_targets = {_TARGET: _git_out(run.main_repo, "rev-parse", _TARGET)}
+
+    printed = _claim_refusal_output(monkeypatch, (), run=run)
+
+    assert "already moved" not in printed and "NOT restored" not in printed, printed

@@ -41,8 +41,10 @@ helpers it calls. Module map:
 
 from __future__ import annotations
 
+import functools
+from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import typer
 
@@ -56,6 +58,7 @@ from specify_cli.core.paths import (
     get_main_repo_root,
     resolve_merge_retention,
 )
+from specify_cli.git.ref_advance import reporting_advance_intents
 from specify_cli.git.sparse_checkout import require_no_sparse_checkout
 
 from specify_cli.lanes.persistence import read_lanes_json
@@ -81,7 +84,10 @@ from specify_cli.consolidation.push_preflight import _enforce_target_branch_sync
 from specify_cli.consolidation.resolve import _load_or_create_merge_state
 from specify_cli.consolidation.state import (
     MergeLockError,
+    ConsolidationState,
     acquire_merge_lock,
+    load_state,
+    reconciliation_passed_for_tip,
     release_merge_lock,
     save_state,
 )
@@ -116,7 +122,9 @@ from specify_cli.consolidation.phase_bookkeeping import (
 from specify_cli.consolidation.phase_claim import (
     _capture_reconciliation_claim,
     _clear_fresh_record_on_pre_mutation_exit,
+    _exit_unexplained_branch_move,
     _persist_executed_strategy,
+    _verified_landing_exempt_branches,
     _phase_gates_and_state,
 )
 from specify_cli.consolidation.phase_finalize import (
@@ -136,7 +144,93 @@ from specify_cli.consolidation.resume_recovery import (
 from specify_cli.consolidation.run_state import (
     _MergeRunState,
     _resume_reconciliation_already_passed,
+    _status_surface_ref,
 )
+
+
+def _pending_heal_branch(state: ConsolidationState) -> str | None:
+    """The coordination branch a ``pending_coord_reconcile`` marker names; the resume-start heal owns it."""
+    marker = state.pending_coord_reconcile
+    return str(marker["coord_ref"]) if marker and marker.get("coord_ref") else None
+
+
+def _refuse_unexplained_branch_moves(main_repo: Path, canonical_id: str) -> dict[str, str]:
+    """Read-only FR-005 pre-check; returns the run-movable branches' tips at its end.
+
+    The returned tips are the "before" tips of the operator attestations that run
+    right after it (:func:`_own_moves_after_step`); they never make a later move
+    this process's own by themselves.
+
+    Runs before the operator attestations and the coord-strand heal, so a re-run
+    or ``--resume`` facing a move its record cannot explain refuses with
+    ``UNEXPLAINED_BRANCH_MOVE`` before anything could move a branch. Nothing is
+    written: the record is loaded read-only and never saved. No record, or a
+    record without a snapshot (zero progress), has nothing to check (``{}``).
+
+    The branch a ``pending_coord_reconcile`` marker names is left to the heal
+    (orchestrator ruling, WP03): it is settled after a heal that clears the
+    marker, and otherwise ``begin_attempt`` refuses it at the claim.
+
+    A record whose reconciliation PASS still holds for the live target tip (a
+    verified landing, mid-teardown; #5021 / #5570) exempts only the target and
+    coordination rows (F1, :func:`_verified_landing_exempt_branches`): the
+    rollback authority never rolls such a landing back (FR-011), and a late
+    coordination commit is landed and compare-and-swap guarded by the teardown.
+    An unexplained mission-branch move still refuses, because the teardown would
+    delete that branch against its live tip.
+    """
+    state = load_state(main_repo, canonical_id)
+    if state is None or not state.pre_mutation_refs:
+        return {}
+    healed = _pending_heal_branch(state)
+    rows = [row for row in rollback.unexplained_branches(main_repo, state) if row[0] != healed]
+    if rows and reconciliation_passed_for_tip(state, _resolve_ref_sha(main_repo, state.target_branch) or ""):
+        exempt = _verified_landing_exempt_branches(state, None)
+        rows = [row for row in rows if row[0] not in exempt]
+    if rows:
+        _exit_unexplained_branch_move(rows)
+    return {branch: tip for branch, tip in rollback.movable_branch_tips(main_repo, state).items() if tip is not None}
+
+
+def _settle_healed_coordination_branch(run: _MergeRunState, marker: Mapping[str, Any] | None) -> None:
+    """Orchestrator ruling (WP03): a heal that cleared its marker settles the coordination branch it names.
+
+    The heal (``repair_coord_strand``) reverted this run's stranded ``done``
+    forward, so nothing of this run remains unrestored on that branch. Settling
+    it, and dropping it from this process's own pre-claim moves, lets
+    ``begin_attempt`` classify it as a settled branch: it re-anchors to the live
+    tip (ADR A2) and keeps the other actor's commit. A heal that could not clear the marker leaves the branch
+    unsettled, and the claim refuses it (``UNEXPLAINED_BRANCH_MOVE``).
+    """
+    if not marker or run.state.pending_coord_reconcile is not None:
+        return
+    branch = str(marker["coord_ref"])
+    rollback.settle_branch(run.main_repo, run.state, branch)
+    run.own_pre_claim_moves.pop(branch, None)
+
+
+def _own_moves_after_step(
+    main_repo: Path,
+    own_moves: Mapping[str, rollback.OwnMove],
+    before: Mapping[str, str | None],
+    *,
+    writes: Iterable[str | None],
+) -> dict[str, rollback.OwnMove]:
+    """Fold one pre-claim step into this process's own moves: only a branch the step writes whose tip changed since ``before``."""
+    branches = [branch for branch in writes if branch is not None and branch in before]
+    if not branches:
+        return dict(own_moves)
+    return rollback.own_moves_across(own_moves, before, rollback.branch_tips(main_repo, branches), writes=branches)
+
+
+def _tips_before_heal(run: _MergeRunState, marker: Mapping[str, Any] | None) -> dict[str, str | None]:
+    """The run-movable tips immediately before the resume-start heal; ``{}`` when no heal runs or nothing is snapshotted."""
+    return rollback.movable_branch_tips(run.main_repo, run.state) if marker and run.state.pre_mutation_refs else {}
+
+
+def _note_advance_intent(run: _MergeRunState, branch: str, old_sha: str, new_sha: str) -> None:
+    """The door span's advance-intent sink (FR-006): persist before the CAS write; a failure fails the advance closed."""
+    rollback.note_advance_intent(run.main_repo, run.state, branch, old_sha, new_sha)
 
 
 def _record_operator_attestations(
@@ -300,6 +394,9 @@ def _run_lane_based_consolidation_locked(
     excluded_canceled_wp_ids = frozenset(acceptably_canceled_wp_ids(main_repo, mission_slug))
     all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids if wp not in excluded_canceled_wp_ids]
     planning_artifact_only = is_planning_artifact_only(lanes_manifest) and not lands_mission_branch(main_repo, lanes_manifest)
+    # #5686 (FR-005): refuse a move the record cannot explain BEFORE anything this
+    # process does could move a branch (the attestations below, the resume heal).
+    start_tips = _refuse_unexplained_branch_moves(main_repo, canonical_id)
     # FR-012: record any operator attestation BEFORE the claim is captured, so
     # the reconciliation gate reads it from the event log it already reads.
     recorded_attestations = _record_operator_attestations(
@@ -312,6 +409,8 @@ def _run_lane_based_consolidation_locked(
         feature_dir=feature_dir,
         lanes_manifest=lanes_manifest,
     )
+    # P1: only the status-surface branch the attestations write, and only when its tip changed across them, is this process's own move.
+    own_pre_claim_moves = _own_moves_after_step(main_repo, {}, start_tips if recorded_attestations else {}, writes=(_status_surface_ref(main_repo, mission_slug),))
 
     # INV (ordering preserved from the pre-refactor monolith): the review-artifact
     # consistency gate runs BEFORE merge-state is loaded/created, so a rejected
@@ -369,6 +468,7 @@ def _run_lane_based_consolidation_locked(
         is_resume=is_resume,
         skip_lanes=skip_lanes,
         recorded_attestations=recorded_attestations,
+        own_pre_claim_moves=own_pre_claim_moves,
     )
 
     # FR-006: at resume startup, heal any coord strand a prior attempt left
@@ -376,7 +476,13 @@ def _run_lane_based_consolidation_locked(
     # Placed BEFORE the frozen phase list (not a phase-driver wrapper — INV-5),
     # so it is never part of ``expected_order``.
     if run.is_resume:
+        pending_marker = run.state.pending_coord_reconcile
+        before_heal = _tips_before_heal(run, pending_marker)
         _heal_pending_coord_reconcile(run)
+        # P1: the heal's own move counts only while the branch stays where the heal left it.
+        heal_ref = str(pending_marker["coord_ref"]) if pending_marker else None
+        run.own_pre_claim_moves = _own_moves_after_step(run.main_repo, run.own_pre_claim_moves, before_heal, writes=(heal_ref,))
+        _settle_healed_coordination_branch(run, pending_marker)
 
     with _clear_fresh_record_on_pre_mutation_exit(run):
         # terminus-integrity-followups WP05 (T020, FR-003, F14): mirror the C-1 target
@@ -426,37 +532,44 @@ def _run_lane_based_consolidation_locked(
     # whole span, so the interim variant is removed and the done-and-project phase
     # calls the base ``_phase_record_done_and_project`` inside this try.
     anchor_before = run.state.reconciliation_passed_target_sha
-    try:
-        if not _resume_reconciliation_already_passed(run):
-            _phase_merge_lanes(run)
-            _phase_baseline_and_surface(run)
-            _phase_bake_and_pre_target_done(run)
-            _capture_pre_target_gate_artifacts(run)
-            _phase_mission_to_target(run)
-            _switch_write_checkout_after_single_branch_landing(run)
-            _phase_capture_and_baseline(run)
-            _phase_record_done_and_project(run)
-            _phase_porcelain_invariant(run)
-            _phase_commit_and_assert(run)
-        else:
-            # Skipped ``_phase_baseline_and_surface`` above never set
-            # ``run.target_baseline_sha`` (default ``"HEAD~1"``, a stale window for
-            # a target that has not moved in THIS run) — ``_phase_dossier_and_stale``
-            # still runs unconditionally below and would otherwise scan an
-            # arbitrary/wrong window. Nothing new landed in this run, so the correct
-            # stale-assertion baseline IS the target's current tip (an empty window).
-            run.target_baseline_sha = _resolve_ref_sha(run.main_repo, run.lanes_manifest.target_branch) or run.target_baseline_sha
-        # terminus-merge-integrity WP06 (S-D): the tree-authoritative reconciliation
-        # gate runs strictly BEFORE any teardown/push; teardown executes only after
-        # verify == PASS.
-        _phase_reconcile_before_teardown(run)
-    except typer.Exit as exc:
-        if exc.exit_code:
+    # #5686 (FR-006): every advance inside the span persists its intent first, so a
+    # kill between the compare-and-swap write and the phase recorder stays provable.
+    with reporting_advance_intents(functools.partial(_note_advance_intent, run)):
+        try:
+            if not _resume_reconciliation_already_passed(run):
+                _phase_merge_lanes(run)
+                _phase_baseline_and_surface(run)
+                _phase_bake_and_pre_target_done(run)
+                _capture_pre_target_gate_artifacts(run)
+                _phase_mission_to_target(run)
+                _switch_write_checkout_after_single_branch_landing(run)
+                _phase_capture_and_baseline(run)
+                _phase_record_done_and_project(run)
+                _phase_porcelain_invariant(run)
+                _phase_commit_and_assert(run)
+            else:
+                # Skipped ``_phase_baseline_and_surface`` above never set
+                # ``run.target_baseline_sha`` (default ``"HEAD~1"``, a stale window for
+                # a target that has not moved in THIS run) — ``_phase_dossier_and_stale``
+                # still runs unconditionally below and would otherwise scan an
+                # arbitrary/wrong window. Nothing new landed in this run, so the correct
+                # stale-assertion baseline IS the target's current tip (an empty window).
+                run.target_baseline_sha = _resolve_ref_sha(run.main_repo, run.lanes_manifest.target_branch) or run.target_baseline_sha
+            # terminus-merge-integrity WP06 (S-D): the tree-authoritative reconciliation
+            # gate runs strictly BEFORE any teardown/push; teardown executes only after
+            # verify == PASS.
+            _phase_reconcile_before_teardown(run)
+        except typer.Exit as exc:
+            if exc.exit_code:
+                _report_rollback(run, anchor_before=anchor_before)
+            raise
+        except BaseException:
             _report_rollback(run, anchor_before=anchor_before)
-        raise
-    except BaseException:
-        _report_rollback(run, anchor_before=anchor_before)
-        raise
+            raise
+    # #5686 (FR-003, post-tasks squad HIGH): the reconciliation PASS and the squash
+    # projection proof both succeeded (or an earlier attempt's PASS still holds for
+    # this tip), so the target is settled; never before the whole span completed.
+    rollback.settle_branch(run.main_repo, run.state, run.lanes_manifest.target_branch)
     _phase_dossier_and_stale(run)
     _phase_push(run)
     _phase_cleanup_worktrees_and_branches(run)
@@ -470,11 +583,13 @@ def _report_rollback(run: _MergeRunState, *, anchor_before: str | None) -> None:
     exception or an interrupt anywhere from ``_phase_merge_lanes`` through the gate.
 
     ``anchor_before`` is ``reconciliation_passed_target_sha`` as it stood BEFORE
-    the span ran. On a fresh PASS the gate persists THIS run's own PASS anchor
-    before the projection proof refuses; left in place, the authority would read
-    it as a landing verified by an EARLIER reconciliation (FR-011) and refuse to
-    roll back. Restore the pre-span value first; an anchor from an earlier attempt
-    is unchanged by the span and therefore still keeps that verified landing.
+    the span ran. Since F3 the gate persists THIS run's own PASS anchor only as
+    its last step, after the projection proof passed, so a gate refusal leaves
+    none; the reset stays as a backstop for any exit after that write (a failed
+    save, an interrupt): left in place, the authority would read it as a landing
+    verified by an EARLIER reconciliation (FR-011) and refuse to roll back. An
+    anchor from an earlier attempt is unchanged by the span and therefore still
+    keeps that verified landing.
 
     Never raises: the caller re-raises the ORIGINAL error, so a failing anchor
     reset or rollback prints one line naming the branches to inspect instead of

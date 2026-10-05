@@ -1,9 +1,11 @@
 """Reconciliation gate: verify the landed target before any teardown (S-D, FR-001/FR-002).
 
-Builds the strategy-appropriate claim, runs :class:`MergeOutcomeVerifier`, records
-the PASS anchor, runs the SQUASH projected-content proof, and on FAIL/REFUSE
-restores the target to its pre-mutation tip (FR-010) and exits non-zero. The
-resume short-circuit for an already-verified landing (#5021) lives here too.
+Builds the strategy-appropriate claim, runs :class:`MergeOutcomeVerifier`, refuses a
+PASS over a target that moved during verification, runs the SQUASH
+projected-content proof, then records the PASS anchor (the verified tip), and on FAIL/REFUSE
+exits non-zero WITHOUT moving any ref: the driver's single rollback door (#5385)
+restores the target (FR-010, #5666). The resume short-circuit for an
+already-verified landing (#5021) lives here too.
 
 Moved from ``consolidation/executor.py`` by epic #2026 with no logic change.
 """
@@ -17,26 +19,17 @@ from rich.markup import escape
 
 from specify_cli.cli.console import console
 from kernel.git import GitCommandError
-from specify_cli.git.ref_advance import (
-    RefRestoreError,
-    restore_branch_ref,
-)
-
 from specify_cli.consolidation.bookkeeping_projection import (
     _post_checkpoint_mission_paths,
     _resolve_ref_sha,
     projected_content_matches_target,
 )
 from specify_cli.consolidation.config import MergeStrategy
-from specify_cli.consolidation.git_probes import (
-    GitProbeError,
-    _refresh_primary_checkout_after_merge,
-)
+from specify_cli.consolidation.git_probes import GitProbeError
 from specify_cli.consolidation.reconciliation import (
     ApprovedWpCommitSet,
     MergeOutcomeVerifier,
     VerifyResult,
-    VerifyStatus,
     build_approved_wp_set,
     lane_tips_moved_refusal,
     route_terminus,
@@ -45,6 +38,7 @@ from specify_cli.consolidation.state import (
     save_state,
 )
 from specify_cli.consolidation.run_state import (
+    _CONSOLIDATE_ABORT_COMMAND,
     _MergeRunState,
     _NOTHING_TORN_DOWN,
     _resume_reconciliation_already_passed,
@@ -111,20 +105,61 @@ def _lane_recheck_verdict(run: _MergeRunState, claim: ApprovedWpCommitSet) -> Ve
     return VerifyResult.refused(refusal) if refusal is not None else None
 
 
-def _record_reconciliation_pass(run: _MergeRunState) -> None:
-    """Persist the CAS anchor proving reconciliation PASSed for the target's tip.
+def _record_reconciliation_pass(run: _MergeRunState, verified_sha: str | None) -> None:
+    """Persist the CAS anchor proving reconciliation PASSed for ``verified_sha``.
 
-    Enables :func:`_resume_reconciliation_already_passed` to recognize a
+    ``verified_sha`` is the target tip read BEFORE ``verify()`` ran (F3), never a
+    fresh read after it, and the caller persists it only once the squash
+    projection proof passed too. Enables
+    :func:`_resume_reconciliation_already_passed` to recognize a
     completed-but-mid-teardown resume without re-running the content axis
     against a possibly torn-down lane's now-partial ``authored_blobs`` claim
-    (#5021 r1). A no-op when the target ref cannot be resolved (nothing safe to
-    anchor).
+    (#5021 r1). A no-op when the target ref could not be resolved (nothing safe
+    to anchor).
     """
-    target_sha = _resolve_ref_sha(run.main_repo, run.lanes_manifest.target_branch)
-    if not target_sha:
+    if not verified_sha:
         return
-    run.state.reconciliation_passed_target_sha = target_sha
+    run.state.reconciliation_passed_target_sha = verified_sha
     save_state(run.state, run.main_repo)
+
+
+def _refuse_target_moved_during_verification(run: _MergeRunState, verified_sha: str | None) -> None:
+    """F3: a PASS over a target that moved while ``verify()`` ran proves nothing about the live tip; refuse.
+
+    The ``typer.Exit(1)`` lands in the driver's rollback door, which keeps the
+    commit that landed meanwhile (the target is reported NOT restored) and
+    restores the other branches; no PASS anchor is written.
+    """
+    live = _resolve_ref_sha(run.main_repo, run.lanes_manifest.target_branch)
+    if live == verified_sha:
+        return
+    target = run.lanes_manifest.target_branch
+    run.reconciliation_result = VerifyResult.refused(f"target {target} moved while reconciliation was verifying it")
+    console.print(
+        f"\n[red]Error:[/red] Reconciliation refused (fail-closed): the target {escape(target)} moved while reconciliation "
+        f"was verifying it ({(verified_sha or 'unresolved')[:10]} -> {(live or 'unresolved')[:10]}), so the PASS does not cover "
+        f"its current tip. {_NOTHING_TORN_DOWN}."
+    )
+    _print_moved_target_next_steps(run, target, live)
+    raise typer.Exit(1)
+
+
+def _print_moved_target_next_steps(run: _MergeRunState, target: str, live: str | None) -> None:
+    """Non-destructive next steps after a target moved during verification (C-002).
+
+    The door leaves the target NOT restored and unsettled at a tip the record
+    cannot explain, so a plain ``--resume`` refuses with ``UNEXPLAINED_BRANCH_MOVE``
+    until the operator releases or moves that commit.
+    """
+    restore_target = run.state.restore_targets.get(target, run.state.pre_mutation_refs.get(target, ""))
+    lines = (
+        "To continue:",
+        f"  - inspect the new commit on {target}: git log {restore_target}..{live or target}",
+        f'  - keep it and clear the record: {_CONSOLIDATE_ABORT_COMMAND} --release-branch {target} --release-reason "<why>"',
+        "  - a `spec-kitty consolidate --resume` will refuse with UNEXPLAINED_BRANCH_MOVE until that commit is released or moved.",
+    )
+    for line in lines:
+        console.print(line, markup=False, soft_wrap=True)
 
 
 def _phase_reconcile_before_teardown(run: _MergeRunState) -> None:
@@ -132,10 +167,10 @@ def _phase_reconcile_before_teardown(run: _MergeRunState) -> None:
 
     terminus-merge-integrity WP06 (FR-001/FR-002; NFR-005). Runs strictly between
     ``_phase_commit_and_assert`` and cleanup. On FAIL/REFUSE it refuses (non-zero
-    exit) with recovery guidance, tears down NOTHING, and restores the target ref to
-    its pre-mutation tip with a compare-and-swap (FR-010); on PASS it continues to
-    cleanup. The success message is scoped to
-    **approved-WP commit reachability** (NOT verdict integrity — #4941 out of
+    exit) with recovery guidance, tears down NOTHING and moves NO ref: the
+    ``typer.Exit(1)`` it raises lands in the driver's single rollback door, which
+    restores the target (FR-010, #5666); on PASS it continues to cleanup. The
+    success message is scoped to **approved-WP commit reachability** (NOT verdict integrity — #4941 out of
     scope, FR-013; #4990 closed the rejection-after-approval case).
     """
     # NFR-005: this executor path is the ``merge`` terminus entry point; routing
@@ -152,32 +187,37 @@ def _phase_reconcile_before_teardown(run: _MergeRunState) -> None:
         console.print(_reconciliation_pass_message(run.strategy))
         return
     claim = _reconciliation_claim_for_gate(run)
+    # F3: the anchor is exactly the tip verify() judged, read before it ran.
+    verified_sha = _resolve_ref_sha(run.main_repo, run.lanes_manifest.target_branch)
     result = _lane_recheck_verdict(run, claim)
     if result is None:
         result = MergeOutcomeVerifier(run.main_repo).verify(run.lanes_manifest.target_branch, claim)
     run.reconciliation_result = result
     if result.is_pass:
-        _record_reconciliation_pass(run)
+        _refuse_target_moved_during_verification(run, verified_sha)
         _assert_squash_projected_content_landed(run)
+        # P3: checked again right before the anchor, so a move during the
+        # projection proof is never anchored as verified either.
+        _refuse_target_moved_during_verification(run, verified_sha)
+        # F3: persisted only after the projection proof passed, so a projection
+        # refusal never leaves this run's PASS anchor on disk.
+        _record_reconciliation_pass(run, verified_sha)
         console.print(_reconciliation_pass_message(run.strategy))
         return
     console.print(f"\n[red]Error:[/red] {escape(result.recovery_guidance())}", soft_wrap=True)
-    # terminus-merge-integrity (S-D) / FR-010 (mixed-lane-authorship-soundness
-    # operator decision 01M3MAB8FTDKKVVTXPREK75AEP, "Rollback on REFUSE only"):
-    # the mission→target advance already landed before this gate (it is homed
-    # post-``_phase_commit_and_assert``), so EVERY non-PASS verdict leaves the
-    # target sitting on a state this gate did not just prove sound. A FAIL is a
-    # proven tree divergence — a removed/canceled commit rode a carrier lane onto
-    # the target, or approved work is missing. A REFUSE is a fail-closed claim
-    # that could not even be evaluated — the target is equally unverified, not
-    # "known good", so there is exactly as much to revert. Roll the target ref
-    # back to its PRE-mutation tip (captured at transaction start) on both so the
-    # epic invariant holds: after a non-zero exit, the target is at its
-    # pre-mutation tip. NO teardown runs (branches/worktrees are retained for
-    # inspection — the ordering guarantee), and the revert is a CAS restore that
-    # fails safe if the ref moved since (warns, never overwrites a newer tip).
-    if result.status in (VerifyStatus.FAIL, VerifyStatus.REFUSE):
-        _rollback_target_after_failed_reconciliation(run)
+    # FR-010 (operator decision 01M3MAB8FTDKKVVTXPREK75AEP, "Rollback on REFUSE
+    # only") still holds: the mission->target advance already landed before this
+    # gate, so EVERY non-PASS verdict (a proven FAIL or a fail-closed REFUSE)
+    # leaves the target on a state this gate did not prove sound, and the target
+    # must be rolled back. The gate itself moves nothing (#5666). The
+    # ``typer.Exit(1)`` below lands inside the driver's single rollback door
+    # (#5385, ``executor._run_lane_based_consolidation_locked``), whose
+    # ``rollback_to_snapshot`` compare-and-swaps each branch against the post tip
+    # THIS run recorded. A commit another actor landed on top of the landing is
+    # therefore kept and reported NOT restored, never discarded; with no foreign
+    # commit the target is restored to its pre-consolidation snapshot and its
+    # checkouts are resynced. NO teardown runs (branches/worktrees are retained
+    # for inspection: the ordering guarantee).
     raise typer.Exit(1)
 
 
@@ -204,57 +244,12 @@ def _reconciliation_pass_message(strategy: MergeStrategy) -> str:
     return "  [green]✓[/green] Reconciliation verified: approved-WP commit reachability on the target (no excluded commit reachable)."
 
 
-def _rollback_target_after_failed_reconciliation(run: _MergeRunState) -> None:
-    """Revert the target ref to its pre-mutation tip after a non-PASS reconciliation
-    verdict (FAIL or REFUSE — FR-010, "Rollback on REFUSE only").
-
-    Restores ``target_branch`` to ``run.target_expected_old_sha`` (the tip read at
-    transaction start, before any lane/mission→target advance) with a
-    compare-and-swap, then refreshes the primary checkout so its working tree
-    matches the reverted ref. The name is kept (not ``..._failed_or_refused_...``)
-    because tests import it directly by this name (e.g.
-    ``test_merge_state_authority.py::TestRollbackTargetAfterFailedReconciliation``
-    and ``test_refuse_restores_target.py``) — the helper itself never
-    distinguished FAIL from REFUSE; only its caller's gating condition did. Best-effort and non-fatal:
-    the command is already exiting non-zero with recovery guidance; a rollback
-    hiccup is warned, never masked. No-op when the pre-mutation tip is unknown
-    (nothing safe to restore).
-    """
-    pre_merge_sha = run.target_expected_old_sha
-    if not pre_merge_sha:
-        return
-    target_branch = run.lanes_manifest.target_branch
-    current_sha = _resolve_ref_sha(run.main_repo, target_branch)
-    # ``_resolve_ref_sha`` returns "" (never ``None``) for an unresolvable ref, so
-    # the guard tests falsiness (#5001 pre-merge FOLD-5: the pre-fix ``is None``
-    # arm was dead code — "" fell through to a restore with expected_current_sha=""
-    # that git rejects). An empty/unresolvable current tip, or one already at the
-    # pre-merge tip, means there is nothing safe to undo.
-    if not current_sha or current_sha == pre_merge_sha:
-        return
-    try:
-        restore_branch_ref(
-            run.main_repo,
-            target_branch,
-            pre_merge_sha,
-            expected_current_sha=current_sha,
-        )
-    except RefRestoreError as exc:
-        console.print(
-            f"[yellow]Warning:[/yellow] could not revert {target_branch!r} to its "
-            f"pre-merge tip after the reconciliation FAIL/REFUSE: {exc}. Inspect the "
-            "target branch by hand before retrying."
-        )
-        return
-    _refresh_primary_checkout_after_merge(run.main_repo, target_branch)
-
-
 def _squash_projected_paths_or_refuse(run: _MergeRunState, checkpoint_sha: str, coord_ref: str) -> tuple[str, ...]:
     """Return the projected bookkeeping paths the squash content proof must check.
 
-    Guard (FR-013): an unreadable coord window must never escape as a traceback
-    AFTER the reconciliation PASS anchor was saved — that would skip the
-    caller's rollback and leave a PASS anchor a later ``--abort`` trusts. A
+    Guard (FR-013): an unreadable coord window must never escape as a raw
+    traceback past the gate's refusal vocabulary (the PASS anchor is persisted
+    only after this proof passes, F3, so none is left behind either way). A
     :class:`~kernel.git.GitCommandError` is converted into the same refusal
     (message + ``typer.Exit(1)``) as a content-proof REFUSE, so the caller's
     ``_report_rollback`` runs exactly as it does for that REFUSE.

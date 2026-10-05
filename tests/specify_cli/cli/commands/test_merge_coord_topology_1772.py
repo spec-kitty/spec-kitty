@@ -328,7 +328,6 @@ def _real_merge_external_mocks(*, real_baseline_recording: bool = False):
         ("specify_cli.consolidation.phase_claim._warn_or_confirm_hollow_reviews", {}),
         ("specify_cli.consolidation.phase_advance._bake_mission_number_into_mission_branch", {"return_value": None}),
         ("specify_cli.consolidation.phase_bookkeeping._refresh_primary_checkout_after_merge", {}),
-        ("specify_cli.consolidation.phase_gate._refresh_primary_checkout_after_merge", {}),
         # Post-merge working-tree invariant fires on test-only files; the merge
         # has already run through real git by the time this would raise.
         ("specify_cli.consolidation.phase_bookkeeping._classify_porcelain_lines", {"return_value": ([], 0)}),

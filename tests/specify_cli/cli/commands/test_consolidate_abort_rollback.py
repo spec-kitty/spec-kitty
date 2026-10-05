@@ -7,6 +7,8 @@ captured. The end-to-end behaviour over the real CLI lives in
 
 from __future__ import annotations
 
+import dataclasses
+import json
 import subprocess
 from pathlib import Path
 
@@ -77,7 +79,7 @@ def _advance_both(repo: Path) -> None:
 
 def _run_helper(repo: Path, state: ConsolidationState) -> tuple[bool, str]:
     with consolidate.console.capture() as capture:
-        proceed = consolidate._abort_restore_or_keep_record(repo, state)
+        proceed, _report = consolidate._abort_restore_or_keep_record(repo, state)
     return proceed, " ".join(capture.get().split())
 
 
@@ -233,7 +235,7 @@ def test_no_snapshot_with_a_live_foreign_lock_proceeds_and_leaves_that_lock(repo
     _plant_live_other_mission(repo)
 
     with consolidate.console.capture() as capture:
-        git_merge_aborted, cleared = consolidate._abort_lock_restore_clear(repo, "abort-unit", (None, state))
+        git_merge_aborted, cleared, _report = consolidate._abort_lock_restore_clear(repo, "abort-unit", (None, state))
 
     assert git_merge_aborted is False
     assert cleared is True
@@ -260,6 +262,17 @@ def test_abort_success_line_does_not_call_a_resume_seeded_snapshot_pre_consolida
     assert "pre-consolidation" in consolidate._abort_success_line("m", restored=True)
     seeded = consolidate._abort_success_line("m", restored=True, resume_seeded=True)
     assert "pre-consolidation" not in seeded and "snapshot taken when this record was resumed" in seeded
+
+
+def test_abort_success_line_names_the_record_restore_targets_when_a_restore_left_the_snapshot() -> None:
+    """F5: a restore to an ADR-A2 restore target is not a restore to the pre-consolidation commits."""
+    from specify_cli.consolidation.rollback import BranchOutcome, BranchOutcomeKind, RollbackReport
+
+    off = BranchOutcome("develop", BranchOutcomeKind.RESTORED, "a" * 40, "c" * 40, "c" * 40, restored_to_sha="b" * 40)
+    line = consolidate._abort_success_line("m", restored=True, report=RollbackReport(outcomes=(off,)))
+    assert "Branches restored to the record's restore targets" in line and "pre-consolidation" not in line
+    on = dataclasses.replace(off, restored_to_sha="a" * 40)
+    assert "Branches restored to their pre-consolidation commits" in consolidate._abort_success_line("m", restored=True, report=RollbackReport(outcomes=(on,)))
 
 
 def test_abort_with_a_snapshot_refuses_while_a_live_foreign_merge_holds_the_lock(repo: Path) -> None:
@@ -302,3 +315,189 @@ def test_abort_keeps_the_record_and_releases_the_lock_when_the_restore_is_incomp
     assert (repo / ".kittify" / "runtime" / "merge" / _MISSION_ID / "state.json").exists(), "the record must be kept"
     assert not is_merge_locked(_LOCK, repo), "the lock this abort took must be released"
     assert _git(repo, "rev-parse", _MISSION_BRANCH) == moved
+
+
+# ---------------------------------------------------------------------------
+# #5687 / FR-008 / FR-009: operator release on ``--abort`` (US3 AS1-AS4).
+#
+# Driven through ``run_consolidate`` (the command body), with only the repo
+# discovery and the banner stubbed; git, the record and the rollback authority
+# are real.
+
+_RELEASE_INVALID = "Error code: RELEASE_BRANCH_INVALID."
+
+
+def _state_file(repo: Path) -> Path:
+    return repo / ".kittify" / "runtime" / "merge" / _MISSION_ID / "state.json"
+
+
+def _tips(repo: Path, branches: list[str]) -> dict[str, str]:
+    return {b: _git(repo, "rev-parse", b) for b in branches}
+
+
+def _cli(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    abort: bool = True,
+    release: tuple[str, ...] = (),
+    reason: str | None = None,
+) -> tuple[int, str]:
+    """Run the consolidate command body; return ``(exit_code, flattened output)``."""
+    monkeypatch.setattr(consolidate, "find_repo_root", lambda: repo)
+    monkeypatch.setattr(consolidate, "show_banner", lambda: None)
+    options = consolidate.ConsolidateOptions(abort=abort)
+    if release or reason is not None:  # a plain --abort builds the options exactly as before (positive control)
+        options = dataclasses.replace(options, release_branch=list(release) or None, release_reason=reason)
+    code = 0
+    with consolidate.console.capture() as capture:
+        try:
+            consolidate.run_consolidate(options)
+        except typer.Exit as exc:
+            code = int(exc.exit_code or 0)
+    return code, " ".join(capture.get().split())
+
+
+def _target_moved_by_teammate(repo: Path) -> tuple[ConsolidationState, str]:
+    """The run advanced both branches and recorded its post tips; then a teammate committed on ``main``."""
+    state = _state(repo)
+    _advance_both(repo)
+    record_post_mutation_tips(repo, state)
+    return state, _commit(repo, "main", "teammate")
+
+
+def test_as1_plain_abort_deadlocks_on_a_foreign_commit_and_keeps_the_record(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Positive control on the AS1 fixture: without a release, ``--abort`` refuses (exit 1) and keeps the record."""
+    _state_obj, foreign = _target_moved_by_teammate(repo)
+
+    code, output = _cli(repo, monkeypatch)
+
+    assert code == 1, output
+    assert "NOT restored main" in output
+    assert _state_file(repo).exists()
+    assert _git(repo, "rev-parse", "main") == foreign
+
+
+def test_as1_release_keeps_the_target_and_clears_the_record(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    state, foreign = _target_moved_by_teammate(repo)
+    mission_snapshot = state.pre_mutation_refs[_MISSION_BRANCH]
+
+    code, output = _cli(repo, monkeypatch, release=("main",), reason="keep teammate")
+
+    assert code == 0, output
+    assert _git(repo, "rev-parse", "main") == foreign, "the released branch stays at its live tip"
+    assert _git(repo, "rev-parse", _MISSION_BRANCH) == mission_snapshot, "every other branch is restored"
+    assert "kept main" in output and "released by operator: keep teammate" in output
+    assert f"except main (kept at {foreign[:7]} by operator release)" in output
+    assert "restored main" not in output
+    assert not _state_file(repo).exists(), "the record clears once every other branch is restored"
+
+
+def test_as1_release_after_a_failed_abort_never_claims_a_restore(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The deadlocked record from the positive control clears with a release; the line says nothing was restored."""
+    _state_obj, foreign = _target_moved_by_teammate(repo)
+    assert _cli(repo, monkeypatch)[0] == 1  # restores the mission branch, keeps the record
+
+    code, output = _cli(repo, monkeypatch, release=("main",), reason="keep teammate")
+
+    assert code == 0, output
+    assert _git(repo, "rev-parse", "main") == foreign
+    assert "Branches restored" not in output
+    assert f"main (kept at {foreign[:7]} by operator release)" in output
+    assert not _state_file(repo).exists()
+
+
+@pytest.mark.parametrize(
+    ("abort", "release", "reason"),
+    [
+        pytest.param(False, ("main",), "why", id="without-abort"),
+        pytest.param(True, ("main",), None, id="missing-reason"),
+        pytest.param(True, ("main",), "   ", id="blank-reason"),
+        pytest.param(True, ("kitty/mission-abort-unit-lane-a",), "why", id="lane-branch"),
+        pytest.param(True, ("no-such-branch",), "why", id="unknown-branch"),
+    ],
+)
+def test_as2_invalid_release_refuses_and_changes_nothing(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, abort: bool, release: tuple[str, ...], reason: str | None
+) -> None:
+    lane = "kitty/mission-abort-unit-lane-a"
+    _git(repo, "branch", lane, "main")
+    state, _foreign = _target_moved_by_teammate(repo)
+    state.pre_mutation_refs[lane] = _git(repo, "rev-parse", lane)
+    state.snapshot_lane_branches = [lane]
+    save_state(state, repo)
+    branches = [*state.pre_mutation_refs]
+    before_record = _state_file(repo).read_bytes()
+    before_tips = _tips(repo, branches)
+
+    code, output = _cli(repo, monkeypatch, abort=abort, release=release, reason=reason)
+
+    assert code == 2, output
+    assert output.endswith(_RELEASE_INVALID), output
+    assert _state_file(repo).read_bytes() == before_record, "the record must be unchanged"
+    assert _tips(repo, branches) == before_tips, "no branch may move"
+    assert not is_merge_locked(_LOCK, repo)
+
+
+def test_as2_a_release_of_a_branch_that_does_not_resolve_refuses(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    state, _foreign = _target_moved_by_teammate(repo)
+    _git(repo, "branch", "-D", _MISSION_BRANCH)
+    before_record = _state_file(repo).read_bytes()
+
+    code, output = _cli(repo, monkeypatch, release=(_MISSION_BRANCH,), reason="why")
+
+    assert code == 2, output
+    assert output.endswith(_RELEASE_INVALID), output
+    assert _state_file(repo).read_bytes() == before_record
+    assert not is_merge_locked(_LOCK, repo), "the refusal must release the lock the abort took"
+
+
+def test_as3_releasing_a_restorable_branch_restores_it(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    state = _state(repo)
+    snapshot = dict(state.pre_mutation_refs)
+    _advance_both(repo)
+    record_post_mutation_tips(repo, state)
+
+    code, output = _cli(repo, monkeypatch, release=("main",), reason="not needed")
+
+    assert code == 0, output
+    assert _tips(repo, list(snapshot)) == snapshot
+    assert "restored main" in output
+    assert "kept" not in output and "released by operator" not in output
+    assert not _state_file(repo).exists()
+
+
+def test_as4_a_release_binds_to_the_sha_it_was_given_at(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A release persists before the rollback, bound to the live SHA; a later move voids it."""
+    _state_obj, foreign = _target_moved_by_teammate(repo)
+    _commit(repo, _MISSION_BRANCH, "another actor")  # keeps this abort from clearing the record
+
+    code, output = _cli(repo, monkeypatch, release=("main",), reason="keep teammate")
+
+    assert code == 1, output
+    assert "kept main" in output
+    record = json.loads(_state_file(repo).read_text())
+    assert record["released_refs"] == {"main": foreign}
+    assert record["release_reasons"] == {"main": "keep teammate"}
+
+    moved = _commit(repo, "main", "after the release")
+    code, output = _cli(repo, monkeypatch)
+
+    assert code == 1, output
+    assert "NOT restored main" in output and "kept main" not in output
+    assert _git(repo, "rev-parse", "main") == moved
+    assert _state_file(repo).exists()
+
+
+def test_release_help_explains_what_is_kept_without_a_destructive_recipe() -> None:
+    import click
+
+    app = typer.Typer(add_completion=False)
+    app.command()(consolidate.consolidate)
+    command = typer.main.get_command(app)
+    helps = {opt: (param.help or "") for param in command.params if isinstance(param, click.Option) for opt in param.opts}
+
+    release_help = helps["--release-branch"]
+    assert "--abort" in release_help and "unverified" in release_help
+    for text in (release_help, helps["--release-reason"]):
+        assert "reset --hard" not in text and "push --force" not in text and "branch -D" not in text

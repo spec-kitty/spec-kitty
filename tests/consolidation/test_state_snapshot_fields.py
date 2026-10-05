@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.consolidation.state import (
+    UNSETTLED_ALL,
     ConsolidationState,
     load_state,
     reconciliation_passed_for_tip,
@@ -110,3 +111,67 @@ def test_defaults_are_independent_dicts() -> None:
 )
 def test_reconciliation_passed_for_tip_truth_table(passed: str | None, current: str, expected: bool) -> None:
     assert reconciliation_passed_for_tip(_state(reconciliation_passed_target_sha=passed), current) is expected
+
+
+# ------------------------------------------------- rollback-anchor-authority (#5686)
+
+_NEW_MAP_FIELDS = ("released_refs", "release_reasons")
+
+
+def test_anchor_authority_fields_round_trip_through_disk(tmp_path: Path) -> None:
+    state = _state()
+    state.unsettled_refs = ["develop", "kitty/mission-x"]
+    state.advance_intents = {"develop": ["a1", "b2", "c3"]}
+    state.released_refs = {"develop": "c3"}
+    state.release_reasons = {"develop": "keep teammate commit"}
+    save_state(state, tmp_path)
+    loaded = load_state(tmp_path, "M1")
+    assert loaded is not None
+    assert loaded.unsettled_refs == ["develop", "kitty/mission-x"]
+    assert loaded.advance_intents == {"develop": ["a1", "b2", "c3"]}
+    assert loaded.released_refs == {"develop": "c3"}
+    assert loaded.release_reasons == {"develop": "keep teammate commit"}
+
+
+def test_older_record_without_the_anchor_fields_loads_safe_defaults() -> None:
+    """NFR-004: nothing unsettled, no intents, no releases."""
+    legacy = _state().to_dict()
+    for name in ("unsettled_refs", "advance_intents", *_NEW_MAP_FIELDS):
+        del legacy[name]
+    loaded = ConsolidationState.from_dict(legacy)
+    assert loaded.unsettled_refs == []
+    assert loaded.advance_intents == {}
+    assert loaded.released_refs == {} and loaded.release_reasons == {}
+
+
+@pytest.mark.parametrize("bad", [None, "develop", ["develop", 3], {"develop": "x"}, True])
+def test_malformed_unsettled_list_fails_closed_to_every_branch(bad: object) -> None:
+    """A malformed ``unsettled_refs`` loads as the sentinel meaning every run-movable branch is unsettled."""
+    data = _state().to_dict()
+    data["unsettled_refs"] = bad
+    assert ConsolidationState.from_dict(data).unsettled_refs == [UNSETTLED_ALL]
+
+
+def test_wellformed_empty_unsettled_list_stays_empty() -> None:
+    data = _state().to_dict()
+    data["unsettled_refs"] = []
+    assert ConsolidationState.from_dict(data).unsettled_refs == []
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [None, "x", ["a", "b"], {"develop": "a1"}, {"develop": ["a1"]}, {"develop": ["a1", 2]}, {1: ["a", "b"]}, {"develop": ["a", "b"], "main": ["c"]}],
+)
+def test_malformed_advance_intents_load_as_no_proof(bad: object) -> None:
+    """A malformed intent map loads as ``{}``: no chain, so nothing is adopted (fail closed)."""
+    data = _state().to_dict()
+    data["advance_intents"] = bad
+    assert ConsolidationState.from_dict(data).advance_intents == {}
+
+
+@pytest.mark.parametrize("name", _NEW_MAP_FIELDS)
+@pytest.mark.parametrize("bad", [None, "abc", ["a"], {"k": 1}, {1: "x"}])
+def test_malformed_release_maps_load_as_empty(name: str, bad: object) -> None:
+    data = _state().to_dict()
+    data[name] = bad
+    assert getattr(ConsolidationState.from_dict(data), name) == {}
