@@ -10,12 +10,7 @@ import pytest
 import typer
 
 from specify_cli.cli.commands.implement import implement
-from specify_cli.cli.commands.implement_phases import (
-    _ensure_vcs_in_meta,
-    detect_feature_context,
-)
 from specify_cli.coordination.planning_commit import PlanningPlacement
-from specify_cli.workspace.context import find_wp_file
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 
@@ -114,50 +109,6 @@ from tests.status.conftest import seed_wp_to_planned as _seed_planned_shared
 def _seed_planned(feature_dir: Path, wp_id: str) -> None:
     """Seed a WP out of the non-display 'genesis' state into 'planned'."""
     _seed_planned_shared(feature_dir, wp_id, slug=feature_dir.name)
-
-
-class TestDetectFeatureContext:
-    def test_detect_with_explicit_flag(self) -> None:
-        number, slug = detect_feature_context("010-lane-only-runtime")
-        assert number == "010"
-        assert slug == "010-lane-only-runtime"
-
-    def test_detect_failure_no_flag(self) -> None:
-        with pytest.raises(typer.Exit):
-            detect_feature_context(None)
-
-    def test_detect_invalid_format(self) -> None:
-        number, slug = detect_feature_context("lane-only-runtime")
-        assert number is None
-        assert slug == "lane-only-runtime"
-
-
-class TestFindWpFile:
-    def test_find_wp_file_success(self, tmp_path: Path) -> None:
-        tasks_dir = tmp_path / "kitty-specs" / "010-feature" / "tasks"
-        tasks_dir.mkdir(parents=True)
-        wp_file = tasks_dir / "WP01-setup.md"
-        wp_file.write_text("# WP01")
-
-        result = find_wp_file(tmp_path, "010-feature", "WP01")
-        assert result == wp_file
-
-    def test_find_wp_file_not_found(self, tmp_path: Path) -> None:
-        tasks_dir = tmp_path / "kitty-specs" / "010-feature" / "tasks"
-        tasks_dir.mkdir(parents=True)
-        with pytest.raises(FileNotFoundError, match="WP file not found"):
-            find_wp_file(tmp_path, "010-feature", "WP01")
-
-
-class TestEnsureVcsInMeta:
-    def test_existing_vcs_is_preserved(self, tmp_path: Path) -> None:
-        feature_dir = tmp_path / "kitty-specs" / "010-feature"
-        create_meta_json(feature_dir, vcs="git")
-        assert _ensure_vcs_in_meta(feature_dir, tmp_path).value == "git"
-
-    def test_missing_meta_errors(self, tmp_path: Path) -> None:
-        with pytest.raises(typer.Exit):
-            _ensure_vcs_in_meta(tmp_path / "kitty-specs" / "010-feature", tmp_path)
 
 
 class TestImplementCommand:

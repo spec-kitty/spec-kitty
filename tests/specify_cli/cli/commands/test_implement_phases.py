@@ -27,7 +27,7 @@ from specify_cli.cli.commands.implement import (
     _print_workspace_ready_banner,
     _report_workspace_created,
 )
-from specify_cli.cli.commands.implement_phases import ImplementContext
+from specify_cli.cli.commands.implement_phases import ImplementContext, _ensure_vcs_in_meta, detect_feature_context
 from specify_cli.cli.console import console
 from specify_cli.lanes.implement_support import LaneWorkspaceResult
 from specify_cli.workspace.context import ResolvedWorkspace
@@ -409,3 +409,53 @@ def test_report_workspace_created(tmp_path: Path, overrides: dict[str, Any], ste
     lines = _lines(capture.get())
     assert step_line in _flat(capture.get())
     assert lines[-len(branch_lines) :] == branch_lines
+
+
+# ---------------------------------------------------------------------------
+# detect_feature_context and _ensure_vcs_in_meta (moved from tests/agent/test_implement_command.py, WP10)
+# ---------------------------------------------------------------------------
+
+
+def create_meta_json(feature_dir: Path, vcs: str = "git") -> Path:
+    meta_path = feature_dir / "meta.json"
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    meta_content = {
+        "feature_number": feature_dir.name.split("-")[0],
+        "mission_slug": feature_dir.name,
+        "created_at": "2026-01-17T00:00:00Z",
+        "friendly_name": feature_dir.name,
+        "mission_type": "software-dev",
+        "slug": feature_dir.name,
+        "target_branch": "main",
+    }
+    if vcs:
+        meta_content["vcs"] = vcs
+    meta_path.write_text(json.dumps(meta_content, indent=2))
+    return meta_path
+
+
+class TestDetectFeatureContext:
+    def test_detect_with_explicit_flag(self) -> None:
+        number, slug = detect_feature_context("010-lane-only-runtime")
+        assert number == "010"
+        assert slug == "010-lane-only-runtime"
+
+    def test_detect_failure_no_flag(self) -> None:
+        with pytest.raises(typer.Exit):
+            detect_feature_context(None)
+
+    def test_detect_invalid_format(self) -> None:
+        number, slug = detect_feature_context("lane-only-runtime")
+        assert number is None
+        assert slug == "lane-only-runtime"
+
+
+class TestEnsureVcsInMeta:
+    def test_existing_vcs_is_preserved(self, tmp_path: Path) -> None:
+        feature_dir = tmp_path / "kitty-specs" / "010-feature"
+        create_meta_json(feature_dir, vcs="git")
+        assert _ensure_vcs_in_meta(feature_dir, tmp_path).value == "git"
+
+    def test_missing_meta_errors(self, tmp_path: Path) -> None:
+        with pytest.raises(typer.Exit):
+            _ensure_vcs_in_meta(tmp_path / "kitty-specs" / "010-feature", tmp_path)
