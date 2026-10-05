@@ -2,7 +2,7 @@
 title: Execution Lanes
 description: "Spec Kitty's lane-based execution model: finalize-tasks computes lanes.json from dependencies and file ownership, giving each lane one worktree and branch to preserve parallelism."
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-05'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/branch-target-routing.md
@@ -178,16 +178,16 @@ Re-running `spec-kitty agent mission finalize-tasks --mission <handle>` on a Mis
 
 1. A group that contains started work packages takes their recorded lane id.
 2. Every other group that shares at least one member with an unused prior lane reads back the one it shares the most members with. A tie goes to the lowest prior lane id.
-3. A group that shares no member with any unused prior lane gets the next free lane id. Lane ids that held started work are never handed to a new group.
+3. A group that shares no member with any unused prior lane gets the next free lane id. Lane ids that held started work are never handed to a new group, for as long as a started work package is bound to the lane or its lane branch has a recorded lane work tip.
 
 Started work packages recorded in the same lane are kept in one group even when their ownership no longer overlaps. An unstarted work package can still move: if an amendment makes a planned WP01 overlap an in-progress WP02, WP01 joins WP02's lane.
 
-**When finalize refuses.** If an amendment cannot keep every started work package on its recorded lane, `finalize-tasks` refuses with `LANE_MEMBERSHIP_FROZEN` before it writes anything (no status event, no `lanes.json`, work package files restored). The cases are:
+**When finalize refuses.** If an amendment cannot keep every started work package on its recorded lane, `finalize-tasks` refuses with `LANE_MEMBERSHIP_FROZEN` before its first status write (no status event, no `lanes.json`, no commit; work package files it edited earlier in the run are restored). The cases are:
 
 - the amendment would put started work packages from two lanes into one lane;
 - a started work package's task file was removed without canceling it;
 - a started work package changed `execution_mode`, so it would cross the `lane-planning` boundary;
-- the status log cannot be read.
+- the status log or the recorded lane work tips cannot be read.
 
 `--validate-only` reports the same refusal, and its lane preview now shows the lane ids a real run would write. `single_branch` Missions are not affected: their one repo-root lane has nothing to move. The JSON envelope and the remedy for each case are in [finalize-tasks internals §5](../api/finalize-tasks-internals.md#5-started-work-packages-keep-their-lane-lane_membership_frozen).
 

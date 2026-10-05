@@ -1,9 +1,9 @@
 ---
 title: 'ADR: a started work package keeps its recorded execution lane on re-finalize'
-description: 'Lane computation keeps started work packages on their recorded lane by construction and refuses unsatisfiable amendments with LANE_MEMBERSHIP_FROZEN before any write.'
+description: 'Lane computation keeps started work packages on their recorded lane by construction and refuses unsatisfiable amendments with LANE_MEMBERSHIP_FROZEN before a status or lane write.'
 status: Accepted
 date: '2026-10-04'
-updated: '2026-10-04'
+updated: '2026-10-05'
 ---
 
 **Status:** Accepted
@@ -33,17 +33,18 @@ A started work package owns commits on its lane branch and its lane work tip (`r
 The recorded lane membership of started work packages is a **constraint input** to lane computation, honoured by construction. It is not a check applied after the heuristic has decided.
 
 - **"Started" is history-based.** A work package is started when its status history has ever recorded a move into `claimed`, `in_progress`, `for_review`, `in_review`, `approved` or `done` (`specify_cli.lanes.frozen_membership.started_wp_ids`). A later reset to `planned`, or a cancellation, does not unstart it. A move from `planned` straight to `blocked` or `canceled` does not start it.
-- **Lane-work-tip fallback.** A prior code lane with no history-started member whose branch has a recorded lane work tip counts as wholly started. The planning lane (`lane-planning`) is never frozen by a tip.
+- **Lane-work-tip fallback.** A prior code lane with no history-started member whose branch has a recorded lane work tip counts as wholly started. The planning lane (`lane-planning`) is never frozen by a tip. The tips are listed on every re-finalize, and a listing git cannot produce refuses with `status_unreadable`.
+- **Reserved lane ids.** A lane id is reserved while a started work package is bound to it, and for as long as its lane branch has a recorded lane work tip. The second rule keeps the id reserved on later re-finalizes, after a retired work package's lane has left `lanes.json`: its branch and commits still exist, so a new work package must not be given that id.
 - **Preserve by construction** (`specify_cli.lanes.compute`, which stays pure: no git, no `meta.json`). Started work packages that shared a recorded lane are kept in one group (collapse rule `frozen_lane_membership`). A group holding started work packages takes their recorded lane id before any overlap read-back. An unpinned group that shares at least one member with an unused prior lane reads back the one it shares the most members with; a tie goes to the lowest prior lane id. A group that shares no member with any unused prior lane mints the next free id, skipping every lane id that held started work.
 - **Refuse only what cannot be satisfied**, with one code, `LANE_MEMBERSHIP_FROZEN` (`LaneMembershipFrozenError`), and one `reason` per case:
   - `started_lanes_collapsed`: one computed group holds started work packages recorded in two or more lanes;
   - `started_wp_removed`: a started work package is missing from the plan and the cancellation projection did not retire it;
   - `started_wp_kind_changed`: a started work package's `execution_mode` now puts it on the other side of `lane-planning`;
   - `status_unreadable`: a lane manifest exists, but the status surface cannot be resolved, its directory does not exist and is not an unmaterialized coordination worktree whose branch can be read locally, or its log cannot be read.
-- **Refuse before any write.** finalize runs the check as a read-only preflight after its ownership gates and before its first status write. `--validate-only` runs it too. Nothing is written on refusal, and every remedy is non-destructive.
+- **Refuse before the first status write.** finalize runs the check as a read-only preflight after its ownership gates and before its first status write. `--validate-only` runs it too. A refusal writes no status event, no `lanes.json` and no commit. The ownership gates run earlier and may already have edited work package files and `tasks.md`; finalize's existing write-scope restore puts those back. Every remedy is non-destructive.
 - **Fail closed on status.** A status directory that exists but holds no event log means nothing started. When the coordination worktree of a `lanes_with_coord` or `coord` Mission is not materialized, the preflight reads the status log committed on the local coordination branch, read-only, and never materializes the worktree. It refuses when that branch is not a local head (the remedy materializes the worktree, fetching the branch first when it exists only on a remote), when the branch carries no committed log, or when the log is malformed. Any other missing status directory, an unresolvable surface or an unreadable log refuses, with the cause appended to the remedy. Unknown never reads as "nothing started".
-- **Cycles surface before any write.** Keeping started lane-mates together can close a lane dependency cycle that the unfrozen inputs would not have. The preflight raises that `LaneDependencyCycleError` (`LANE_DEPENDENCY_CYCLE`, unchanged text) before the first status write, so `--validate-only` and a real run refuse identically.
-- **Defence in depth.** The lane writer (`compute_and_write_lanes`) re-checks the invariant before it writes `lanes.json`.
+- **Cycles surface before the first status write.** Keeping started lane-mates together can close a lane dependency cycle that the unfrozen inputs would not have. The preflight raises that `LaneDependencyCycleError` (`LANE_DEPENDENCY_CYCLE`, unchanged text) before the first status write, so `--validate-only` and a real run refuse identically.
+- **Defence in depth.** The lane writer (`compute_and_write_lanes`) re-checks the invariant before it writes `lanes.json`, against the same evidence the preflight read. It also refuses to recompute over a manifest that has code lanes when the caller supplied no frozen membership at all, so a future caller cannot bypass the freeze by omission; a caller that means "nothing has started" says so with `FrozenLaneMembership.empty()`.
 - `single_branch` Missions are exempt: their one repo-root lane has nothing to move.
 
 ## Considered Options
@@ -60,7 +61,14 @@ The recorded lane membership of started work packages is a **constraint input** 
 - The `--validate-only` lane preview now reads back the previous `lanes.json` and honours the frozen membership, so its lane ids match what a real run writes.
 - The `collapse_report` gains the additive rule value `frozen_lane_membership`. It is not counted in `independent_wps_collapsed`: it restates lane-mates that already shared a lane.
 - A corrupt line in the planning-side status log is still refused earlier, by finalize's existing work-package read, with its existing store error. `status_unreadable` is what the preflight reports when its own read fails, for example an unresolvable coordination status surface.
-- The planning-pin probe ("has execution begun?") is not yet the history-based predicate; the two answer different questions.
+- The planning-pin probe ("has execution begun?") is not yet the history-based predicate. The two can disagree: for a work package that worked and was then reset to `planned`, the probe reads "not begun" while this decision freezes its lane (#5702).
+
+### Known limits
+
+- **Work started in another clone.** The status read uses the local coordination branch and never fetches. A work package started in another clone looks unstarted until that clone's coordination commits are fetched. The lane-work-tip fallback still freezes a lane that has recorded work in this clone.
+- **No status log and no lane work tip.** A status directory with no event log, on a Mission whose lanes recorded no tip, means nothing is frozen.
+- **No `lanes.json`.** Without a previous manifest there is no recorded lane to keep, so nothing is frozen even when lane branches and tips exist. Rebuilding a lost manifest is #5703.
+- **A claim made during the run.** The evidence is read once, at the preflight. A work package claimed between the preflight and the `lanes.json` write is not frozen by that run; the writer's re-check uses the same evidence and is not a guard against concurrent claims.
 
 ## Related
 

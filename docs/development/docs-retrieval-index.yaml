@@ -3443,12 +3443,13 @@ pages:
   - path: "docs/adr/4.x/2026-10-04-2-started-work-package-lane-membership-is-frozen.md"
     title: "ADR: a started work package keeps its recorded execution lane on re-finalize"
     divio_type: "none"
-    abstract: "Lane computation keeps started work packages on their recorded lane by construction and refuses unsatisfiable amendments with LANE_MEMBERSHIP_FROZEN before any write."
+    abstract: "Lane computation keeps started work packages on their recorded lane by construction and refuses unsatisfiable amendments with LANE_MEMBERSHIP_FROZEN before a status or lane write."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "known-limits", text: "Known limits", level: 3}
     - {slug: "related", text: "Related", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"

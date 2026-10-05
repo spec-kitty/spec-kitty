@@ -2,7 +2,7 @@
 title: 'Context: Topology'
 description: 'Topology glossary: the four topologies, write checkout, repo-root and code lanes, protected target, mission branch, lane work tip, absorbed lane, started work package.'
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-05'
 related:
 - docs/context/orchestration.md
 - docs/context/execution.md
@@ -146,7 +146,7 @@ Terms describing the shape a mission is given at creation and where its work run
 
 | | |
 |---|---|
-| **Definition** | The error code (`LaneMembershipFrozenError`, `src/specify_cli/lanes/compute.py`) with which `spec-kitty agent mission finalize-tasks` refuses a re-finalize that cannot keep every [started work package](#started-work-package) on its recorded execution lane. Its `reason` is one of `started_lanes_collapsed` (started work packages from two lanes would share one), `started_wp_removed` (a started work package's task file was removed without canceling it), `started_wp_kind_changed` (its `execution_mode` would move it across `lane-planning`) or `status_unreadable` (a `lanes.json` exists but the status surface or log cannot be read). It is raised by a read-only preflight before the first status write, `--validate-only` included, and exits 1 with nothing written. The JSON envelope and the non-destructive remedy for each reason are in [finalize-tasks internals §5](../api/finalize-tasks-internals.md#5-started-work-packages-keep-their-lane-lane_membership_frozen). |
+| **Definition** | The error code (`LaneMembershipFrozenError`, `src/specify_cli/lanes/compute.py`) with which `spec-kitty agent mission finalize-tasks` refuses a re-finalize that cannot keep every [started work package](#started-work-package) on its recorded execution lane. Its `reason` is one of `started_lanes_collapsed` (started work packages from two lanes would share one), `started_wp_removed` (a started work package's task file was removed without canceling it), `started_wp_kind_changed` (its `execution_mode` would move it across `lane-planning`) or `status_unreadable` (a `lanes.json` exists but the status surface or log cannot be read). It is raised by a read-only preflight before the first status write, `--validate-only` included, and exits 1 with no status event, `lanes.json` or commit written; edits finalize made to work package files earlier in the run are restored. The JSON envelope and the non-destructive remedy for each reason are in [finalize-tasks internals §5](../api/finalize-tasks-internals.md#5-started-work-packages-keep-their-lane-lane_membership_frozen). |
 | **Context** | Topology |
 | **Status** | canonical |
 | **Applicable to** | `4.x` |

@@ -2,7 +2,7 @@
 title: finalize-tasks internals reference
 description: 'finalize-tasks internals: empty owned_files, lane-depth cycle safety, the planning-pin refresh (override and automatic), and the LANE_MEMBERSHIP_FROZEN refusal.'
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-05'
 ---
 # `finalize-tasks` internals reference
 
@@ -143,7 +143,7 @@ The explicit flag and its refusals are unchanged. Code: `PlanningCommitResolutio
 
 A re-finalize (any run on a Mission that already has a `lanes.json`) keeps every
 [started work package](../context/topology.md#started-work-package) on its recorded
-lane, or refuses before writing anything (#5573). Design and rationale: ADR
+lane, or refuses before its first status write (#5573). Design and rationale: ADR
 [4.x `2026-10-04-2`](../adr/4.x/2026-10-04-2-started-work-package-lane-membership-is-frozen.md);
 the lane-id rule is explained in
 [Execution Lanes](../architecture/execution-lanes.md#re-finalizing-an-active-mission).
@@ -166,15 +166,19 @@ the frozen membership and dry-runs `compute_lanes` with it against the previous
 - Any other lane-computation failure is left to the real lane write, which reports it
   with its existing text.
 - The lane writer (`compute_and_write_lanes`) re-checks the invariant with
-  `assert_frozen_membership_honoured` before it writes `lanes.json`.
+  `assert_frozen_membership_honoured` before it writes `lanes.json`. It also raises
+  `LaneComputationError` when it is asked to recompute over a manifest that has code
+  lanes with `frozen=None` (no evidence gathered). A caller that means "nothing has
+  started" passes `FrozenLaneMembership.empty()`. `single_branch` and a first finalize
+  are exempt.
 
 ### Evidence
 
 | Evidence | Source | Notes |
 |---|---|---|
 | Started work packages | The status event log, read from the resolved status surface (`_resolve_status_read_dir`: the placement seam for an owned checkout, otherwise the coordination-aware status surface) | History-based (`started_wp_ids`): any event into `claimed`, `in_progress`, `for_review`, `in_review`, `approved` or `done`. A status directory that exists but holds no event log means nothing started. When the status directory does not exist because the coordination worktree is not materialized (`CoordinationWorktreeUnmaterialized`), the log committed on the local coordination branch is read instead (`_started_on_coordination_branch`: `git ls-tree` + `git cat-file` on `refs/heads/<coordination branch>`, parsed with `read_events_from_text`). That read refuses (`status_unreadable`) when the branch is not a local head, carries no committed log, or the log is malformed. Any other missing status directory refuses: an absent surface is not an absent log. Never calls `materialize()` and never materializes the worktree. The read uses the local coordination branch only and never fetches, so a WP started in another clone whose coordination commits were not fetched can look unstarted; the lane-work-tip fallback still freezes a lane with recorded work in this clone. This is an accepted, documented limit. |
-| Lane work tips (fallback) | `recorded_tip_branches`: one `git for-each-ref refs/spec-kitty/lane-tip/` call | Read only when a prior code lane has no history-started member; such a lane with a recorded tip counts as wholly started. A git failure yields no fallback evidence. `lane-planning` is never tip-frozen. |
-| Retired work packages | The cancellation projection (present work packages minus lane inputs) | A missing started work package that was retired is leaving, not moving: no conflict, and its lane id stays reserved. |
+| Lane work tips (fallback) | `recorded_tip_branches`: one `git for-each-ref refs/spec-kitty/lane-tip/` call | Read on every re-finalize. A prior code lane with no history-started member and a recorded tip counts as wholly started. Every lane id of this Mission whose lane branch has a recorded tip stays reserved, including a lane that `lanes.json` no longer lists. A listing git cannot produce (`LaneTipListingError`) refuses with `status_unreadable`; it is never read as "no tips". `lane-planning` is never tip-frozen. |
+| Retired work packages | The cancellation projection (present work packages minus lane inputs) | A missing started work package that was retired is leaving, not moving: no conflict. Its lane id stays reserved for that run through its binding, and on later runs for as long as its lane branch has a recorded tip. |
 
 ### `--validate-only`
 
@@ -186,9 +190,9 @@ positionally.
 
 ### Refusal envelope
 
-Exit code `1`. Nothing is written: no status event, no `lanes.json`, no commit, and
-finalize's write-scope restore leaves work package files, `tasks.md` and `meta.json`
-byte-identical. With `--json`:
+Exit code `1`. No status event, no `lanes.json` and no commit is written. The ownership
+gates run before the preflight and may already have edited work package files and
+`tasks.md`; finalize's write-scope restore puts those and `meta.json` back byte-identical. With `--json`:
 
 ```json
 {
