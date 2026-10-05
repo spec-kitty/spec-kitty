@@ -1,10 +1,11 @@
 """Purity gate for ``specify_cli.core.mission_creation_decisions``.
 
 The decisions module is the only pure module of the mission-creation family.
-This AST scan fails on any runtime import of an I/O-bearing
-module, or use of a ``pathlib.Path`` I/O method, clock or ULID. Imports under
-``if TYPE_CHECKING:`` are allowed (type-only). A planted source proves the scan
-is not vacuous.
+This AST scan is an allow-list: any runtime import outside ``_ALLOWED_IMPORTS``,
+at module scope or inside a function body, is a finding, as is a bare ``open`` /
+``__import__`` call, a ``pathlib.Path`` I/O method, a clock or a ULID. Imports
+under ``if TYPE_CHECKING:`` are allowed (type-only). Planted sources prove the
+scan is not vacuous.
 """
 
 from __future__ import annotations
@@ -18,26 +19,56 @@ import specify_cli.core.mission_creation_decisions as decisions
 
 pytestmark = [pytest.mark.fast, pytest.mark.unit]
 
-#: Modules (and their submodules) the pure module must never import at runtime.
-_BANNED_MODULES = (
-    "subprocess",
-    "os",
-    "shutil",
-    "time",
-    "ulid",
-    "kernel.clock",
-    "kernel.git",
-    "specify_cli.core.git_ops",
-    "specify_cli.git",
+#: Runtime imports the pure module may make: module -> allowed imported names
+#: (``None`` allows any name from a standard-library module).
+_ALLOWED_IMPORTS: dict[str, frozenset[str] | None] = {
+    "__future__": None,
+    "re": None,
+    "collections.abc": None,
+    "dataclasses": None,
+    "enum": None,
+    "typing": None,
+    "mission_runtime": frozenset({"MissionTopology"}),
+}
+#: ``pathlib.Path`` I/O and filesystem-probe methods, plus ``Path.open``.
+_BANNED_ATTRIBUTES = frozenset(
+    {
+        "read_text",
+        "write_text",
+        "exists",
+        "iterdir",
+        "glob",
+        "rglob",
+        "mkdir",
+        "unlink",
+        "open",
+        "is_file",
+        "is_dir",
+        "stat",
+        "resolve",
+        "read_bytes",
+        "write_bytes",
+        "touch",
+        "rename",
+        "rmdir",
+    }
 )
-#: ``pathlib.Path`` I/O methods.
-_BANNED_ATTRIBUTES = frozenset({"read_text", "write_text", "exists", "iterdir", "glob", "rglob", "mkdir", "unlink", "open"})
 #: ``datetime.now`` / ``datetime.utcnow`` and friends.
 _BANNED_CALLS = frozenset({"now", "utcnow", "today"})
+#: Builtins that reach the filesystem or the import system by name.
+_BANNED_BUILTINS = frozenset({"open", "__import__"})
 
 
-def _is_banned(module: str) -> bool:
-    return any(module == banned or module.startswith(f"{banned}.") for banned in _BANNED_MODULES)
+def _import_findings(node: ast.Import | ast.ImportFrom) -> list[str]:
+    """Findings for one runtime import statement that is not on the allow-list."""
+    if isinstance(node, ast.Import):
+        return [f"{node.lineno}: import {alias.name}" for alias in node.names if alias.name not in _ALLOWED_IMPORTS or _ALLOWED_IMPORTS[alias.name] is not None]
+    module = node.module or ""
+    if node.level == 0 and module in _ALLOWED_IMPORTS:
+        allowed = _ALLOWED_IMPORTS[module]
+        if allowed is None or all(alias.name in allowed for alias in node.names):
+            return []
+    return [f"{node.lineno}: from {'.' * node.level}{module} import ..."]
 
 
 def _type_checking_nodes(tree: ast.Module) -> set[int]:
@@ -58,17 +89,15 @@ def purity_findings(source: str) -> list[str]:
     for node in ast.walk(tree):
         if id(node) in guarded:
             continue
-        if isinstance(node, ast.Import):
-            findings.extend(f"{node.lineno}: import {alias.name}" for alias in node.names if _is_banned(alias.name))
-        elif isinstance(node, ast.ImportFrom):
-            module = node.module or ""
-            if _is_banned(module):
-                findings.append(f"{node.lineno}: from {module} import ...")
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            findings.extend(_import_findings(node))
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in _BANNED_BUILTINS:
+            findings.append(f"{node.lineno}: {node.func.id}()")
         elif isinstance(node, ast.Attribute) and node.attr in _BANNED_ATTRIBUTES:
             findings.append(f"{node.lineno}: .{node.attr}")
         elif isinstance(node, ast.Attribute) and node.attr in _BANNED_CALLS:
             findings.append(f"{node.lineno}: .{node.attr}()")
-    return findings
+    return sorted(findings, key=lambda finding: int(finding.split(":", 1)[0]))
 
 
 def test_decisions_module_is_pure() -> None:
@@ -77,27 +106,51 @@ def test_decisions_module_is_pure() -> None:
 
 
 def test_planted_impurity_is_flagged() -> None:
-    """Positive control: the scan is not vacuous."""
-    planted = 'import subprocess\nfrom pathlib import Path\nPath("x").read_text()\n'
-    assert purity_findings(planted) == ["1: import subprocess", "3: .read_text"]
+    """Positive control: the scan is not vacuous, for imports and for calls."""
+    planted = (
+        "import subprocess\n"
+        "import logging\n"
+        "from pathlib import Path\n"
+        'Path("x").read_text()\n'
+        "def read(p):\n"
+        "    return open(p).read()\n"
+        "def probe(p):\n"
+        "    return p.is_file()\n"
+    )
+    assert purity_findings(planted) == [
+        "1: import subprocess",
+        "2: import logging",
+        "3: from pathlib import ...",
+        "4: .read_text",
+        "6: open()",
+        "8: .is_file",
+    ]
 
 
 def test_planted_banned_from_imports_and_clock_are_flagged() -> None:
-    planted = "from specify_cli.git.commit_helpers import SafeCommitError\nfrom kernel.clock import now_utc_iso\nimport datetime\ndatetime.datetime.now()\n"
+    planted = (
+        "from specify_cli.git.commit_helpers import SafeCommitError\n"
+        "from kernel.clock import now_utc_iso\n"
+        "from specify_cli.core import mission_creation as _mc\n"
+        "from mission_runtime import placement_seam\n"
+        "import datetime\n"
+        "datetime.datetime.now()\n"
+    )
     assert purity_findings(planted) == [
         "1: from specify_cli.git.commit_helpers import ...",
         "2: from kernel.clock import ...",
-        "4: .now()",
+        "3: from specify_cli.core import ...",
+        "4: from mission_runtime import ...",
+        "5: import datetime",
+        "6: .now()",
     ]
+
+
+def test_allow_listed_imports_are_not_flagged() -> None:
+    planted = "from __future__ import annotations\nimport re\nfrom enum import Enum\nfrom mission_runtime import MissionTopology\n"
+    assert purity_findings(planted) == []
 
 
 def test_type_checking_imports_are_allowed() -> None:
     planted = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from specify_cli.git.protection_policy import ProtectionPolicy\n"
     assert purity_findings(planted) == []
-
-
-def test_decisions_module_does_not_import_the_adapter() -> None:
-    """No import cycle: the pure module never imports ``mission_creation``."""
-    tree = ast.parse(Path(decisions.__file__).read_text(encoding="utf-8"))
-    imported = {node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)}
-    assert "specify_cli.core.mission_creation" not in imported
