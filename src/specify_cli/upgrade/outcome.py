@@ -63,6 +63,7 @@ class UpgradeFailureReason(StrEnum):
     ACTIVATION_ERROR = "activation_error"
     WORKTREE_FAILURE = "worktree_failure"
     COMMIT_RECOVERY_FAILED = "commit_recovery_failed"
+    REPAIR_PREPARATION_FAILED = "repair_preparation_failed"
     SURFACE_REPAIR_FAILED = "surface_repair_failed"
     PREVIEW_INCOMPLETE = "preview_incomplete"
     SURFACE_DRIFT = "surface_drift"
@@ -125,6 +126,7 @@ class UpgradeOutcome:
     manual_review_paths: list[Path] = field(default_factory=list)
     worktree_failures: list[str] = field(default_factory=list)
     activation_errors: list[str] = field(default_factory=list)
+    repair_preparation_errors: list[str] = field(default_factory=list)
     repair: RepairOutcome = field(default_factory=RepairOutcome)
     committed: bool = False
     exit_code: int = 0
@@ -150,6 +152,7 @@ class UpgradeOutcome:
             (UpgradeFailureReason.ACTIVATION_ERROR, bool(self.activation_errors)),
             (UpgradeFailureReason.WORKTREE_FAILURE, bool(self.worktree_failures)),
             (UpgradeFailureReason.COMMIT_RECOVERY_FAILED, self.commit_recovery_failed),
+            (UpgradeFailureReason.REPAIR_PREPARATION_FAILED, bool(self.repair_preparation_errors)),
             (UpgradeFailureReason.SURFACE_REPAIR_FAILED, self.surface_repair_failed),
             (UpgradeFailureReason.PREVIEW_INCOMPLETE, self.preview_incomplete),
             (UpgradeFailureReason.SURFACE_DRIFT, bool(self.drifted_paths)),
@@ -184,8 +187,8 @@ class UpgradeOutcome:
     def errors(self) -> list[str]:
         """Every message that explains a non-success, ordered and de-duplicated.
 
-        Order: migration errors, activation errors, worktree failures, surface-repair
-        failure messages, then the drift message when any file is drifted (its count
+        Order: migration errors, activation errors, worktree failures, repair-preparation
+        errors, surface-repair failure messages, then the drift message when any file is drifted (its count
         is ``len(drifted_paths)``). A surface-repair or preview reason that left no
         message of its own gets its generic line even when other messages exist;
         any other reason gets one only when the list would otherwise be empty, so a
@@ -195,6 +198,7 @@ class UpgradeOutcome:
             *self.result.errors,
             *self.activation_errors,
             *self.worktree_failures,
+            *self.repair_preparation_errors,
             *self.surface_repair_messages,
         ]
         if not self.surface_repair_messages:

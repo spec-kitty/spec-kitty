@@ -3,7 +3,7 @@
 ``_finalizer_step_surface_repair`` once fell back to a legacy helper whenever
 ``ctx.prepared_repairs`` was ``None`` on a real, successful run. That fallback
 was unreachable (``_prepare_finalizer_repairs`` either sets ``prepared_repairs``
-or returns errors, which ``finalize_upgrade`` records as ``activation_errors``
+or returns errors, which ``finalize_upgrade`` records as ``repair_preparation_errors``
 and then skips the surface-repair step) and has been removed.
 
 These tests assert the legacy names are gone and drive the real ``upgrade``
@@ -14,6 +14,7 @@ the preparation and migration stages can end.
 from __future__ import annotations
 
 import contextlib
+import json
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -120,9 +121,12 @@ def test_surface_repair_is_skipped_when_preparation_raises(tmp_path: Path, monke
 
     monkeypatch.setattr(assessment, _PREPARE, _raise)
 
-    result = _invoke(project, _real_run_args(_CURRENT_VERSION))
+    result = _invoke(project, [*_real_run_args(_CURRENT_VERSION), "--json"])
 
-    assert result.exit_code == 1, result.output  # preparation errors become activation errors
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["failure_reasons"] == ["repair_preparation_failed"]  # not an activation error: no provisioning ran
+    assert payload["errors"] == [str(error)]
     assert spies.apply_calls == 0  # surface repair skipped
 
 

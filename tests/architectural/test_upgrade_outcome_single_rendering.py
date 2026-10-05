@@ -96,6 +96,7 @@ _MESSAGE_ATTRIBUTES = frozenset(
         "errors",
         "warnings",
         "activation_errors",
+        "repair_preparation_errors",
         "worktree_failures",
         "drifted_paths",
         "surface_repair_messages",

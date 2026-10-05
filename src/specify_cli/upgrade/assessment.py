@@ -175,9 +175,13 @@ def prepare_upgrade_repairs(project_path: Path, *, consent: ApplyConsent) -> Pre
 
 @contextmanager
 def preflight_upgrade_repairs(prepared: PreparedUpgradeRepairs) -> Iterator[tuple[Diagnostic, ...]]:
-    """Hold the concrete paired guard through provisioning and surface apply."""
+    """Hold the concrete paired guard through provisioning and surface apply.
+
+    Yields the diagnostics that block the run (errors only: warnings never block).
+    """
     if not prepared.complete:
-        yield prepared.diagnostics or (Diagnostic("incomplete_assessment", "upgrade", "error", "Required repair assessment is incomplete"),)
+        blocking = tuple(d for d in prepared.diagnostics if d.severity == "error")
+        yield blocking or (Diagnostic("incomplete_assessment", "upgrade", "error", "Required repair assessment is incomplete"),)
         return
     provider = ManagedSkillsProvider()
     with ExitStack() as stack:

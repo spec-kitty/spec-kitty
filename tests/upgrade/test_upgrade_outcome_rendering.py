@@ -330,7 +330,7 @@ _ROWS = (
         "dangling-charter-pointer",
         (),
         "failed",
-        ("activation_error",),
+        ("repair_preparation_failed",),
         config_yaml=_DANGLING_CHARTER_CONFIG,
         errors_contain=("'charter:' pointer names", "which does not exist"),
     ),
@@ -638,6 +638,20 @@ def test_step_keeps_an_error_diagnostic_in_the_result_errors_instead_of_synthesi
     assert report.failed is True
     assert report.failure_messages == ()
     assert outcome.result.errors == ["disk full"]
+
+
+def test_preflight_of_an_incomplete_assessment_reports_its_errors_and_never_its_warnings(prepared_project: tuple[Path, Any]) -> None:
+    """Pack-skill findings are warnings that never block: an incomplete assessment must not print them as errors."""
+    from specify_cli.tool_surface.operations import Diagnostic
+
+    _, ctx = prepared_project
+    assert ctx.prepared_repairs is not None
+    warning = Diagnostic("pack_skill_drifted", ".claude/skills/x/SKILL.md", "warning", "Installed pack skill differs from its source")
+    error = Diagnostic("command_owner_conflict", "command_skills", "error", "Expected one whole-root command preparation")
+    incomplete = replace(ctx.prepared_repairs, diagnostics=(warning, error))
+
+    with upgrade_module._finalizer_repair_preflight(incomplete, ("an earlier preparation error",)) as errors:
+        assert errors == ("an earlier preparation error", error.message)
 
 
 # ---------------------------------------------------------------------------

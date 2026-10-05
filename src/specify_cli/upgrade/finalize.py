@@ -37,6 +37,8 @@ def finalize_upgrade(
     """Sequence the shared post-migration tail and derive the exit code once.
 
     Ordered steps (C4/D-4):
+      0. ``repair_preflight`` — the repair preparation and preflight errors feed
+         ``outcome.repair_preparation_errors``; when any exist, steps 1-3 are skipped.
       1. ``provision_activations()`` — mission-type activation provisioning
          (+ any dry-run notice the callable itself prints, D-11). Its
          returned error strings feed ``outcome.activation_errors``.
@@ -59,13 +61,13 @@ def finalize_upgrade(
     # Keep owner locks around only the two dependent write phases, never Git
     # commits or the independently consented mission-state repair prompt.
     with repair_preflight if repair_preflight is not None else nullcontext(()) as errors:
-        outcome.activation_errors = list(errors)
-        if not outcome.activation_errors:
+        outcome.repair_preparation_errors = list(errors)
+        if not outcome.repair_preparation_errors:
             outcome.activation_errors = list(provision_activations())
-        if not outcome.activation_errors:
+        if not outcome.repair_preparation_errors and not outcome.activation_errors:
             outcome.record_surface_repair(run_surface_repair())
 
-    if should_commit and not outcome.activation_errors:
+    if should_commit and not outcome.repair_preparation_errors and not outcome.activation_errors:
         outcome.committed = bool(commit_churn())
 
     outcome.repair = _run_repair_isolated(offer_repair)

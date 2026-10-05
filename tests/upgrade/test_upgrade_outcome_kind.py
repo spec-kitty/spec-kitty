@@ -35,14 +35,15 @@ _DRIFT_MESSAGE = "Unresolved tool-surface drift in 2 file(s); run 'spec-kitty do
 _MIGRATION_ERROR = "migration boom"
 _COMMIT_ERROR = "auto-commit recovery boom"
 _ACTIVATION_ERROR = "activation boom"
+_PREPARATION_ERROR = "Owner effect conflict at /proj/.claude"
 _WORKTREE_FAILURE = "lane-a: schema stamp failed"
 _REPAIR_MESSAGE = "Tool-surface repair for agent_profiles was not applied (failed); re-run 'spec-kitty upgrade'."
 _PREVIEW_NOTICE = "Supporting repair preview incomplete: owner assessment incomplete."
 
 # The contract's order of ``errors()``: migration-run errors (which include a commit-recovery
 # failure appended after them), activation errors, worktree failures, repair messages, drift.
-_ERROR_ORDER = ("migration_failed", "commit_recovery", "activation", "worktree", "repair_failed", "preview_incomplete", "drift")
-_FAILURE_INPUTS = ("migration_failed", "activation", "worktree", "commit_recovery", "repair_failed", "preview_incomplete", "drift")
+_ERROR_ORDER = ("migration_failed", "commit_recovery", "activation", "worktree", "repair_preparation", "repair_failed", "preview_incomplete", "drift")
+_FAILURE_INPUTS = ("migration_failed", "activation", "worktree", "commit_recovery", "repair_preparation", "repair_failed", "preview_incomplete", "drift")
 
 # Closing lines by (kind, dry_run), spelled out here rather than imported.
 _CLOSING_LINES = {
@@ -66,6 +67,7 @@ _REASON_BY_INPUT = {
     "activation": UpgradeFailureReason.ACTIVATION_ERROR,
     "worktree": UpgradeFailureReason.WORKTREE_FAILURE,
     "commit_recovery": UpgradeFailureReason.COMMIT_RECOVERY_FAILED,
+    "repair_preparation": UpgradeFailureReason.REPAIR_PREPARATION_FAILED,
     "repair_failed": UpgradeFailureReason.SURFACE_REPAIR_FAILED,
     "preview_incomplete": UpgradeFailureReason.PREVIEW_INCOMPLETE,
     "drift": UpgradeFailureReason.SURFACE_DRIFT,
@@ -75,6 +77,7 @@ _MESSAGE_BY_INPUT = {
     "activation": _ACTIVATION_ERROR,
     "worktree": _WORKTREE_FAILURE,
     "commit_recovery": _COMMIT_ERROR,
+    "repair_preparation": _PREPARATION_ERROR,
     "repair_failed": _REPAIR_MESSAGE,
     "preview_incomplete": _PREVIEW_NOTICE,
     "drift": _DRIFT_MESSAGE,
@@ -83,10 +86,12 @@ _MESSAGE_BY_INPUT = {
 
 def _reachable(held: frozenset[str], *, dry_run: bool) -> bool:
     """Whether the finalizer can produce this combination (it skips steps after an earlier failure)."""
-    if held & {"repair_failed", "preview_incomplete", "drift"} and held & {"migration_failed", "activation"}:
-        return False  # the surface-repair step never runs after a failed migration or activation error
-    if "commit_recovery" in held and (dry_run or "activation" in held):
-        return False  # the commit step does not run on a dry run or after an activation error
+    if held & {"repair_failed", "preview_incomplete", "drift"} and held & {"migration_failed", "activation", "repair_preparation"}:
+        return False  # the surface-repair step never runs after a failed migration, a preparation failure or an activation error
+    if "repair_preparation" in held and (dry_run or held & {"migration_failed", "activation"}):
+        return False  # repairs are prepared only on a real run after a successful migration, and a preparation failure skips activation
+    if "commit_recovery" in held and (dry_run or held & {"activation", "repair_preparation"}):
+        return False  # the commit step does not run on a dry run, after an activation error or a preparation failure
     if "preview_incomplete" in held and not dry_run:
         return False  # only a dry run previews
     return not (held & {"repair_failed", "drift"} and dry_run)  # a dry run never applies a repair
@@ -114,6 +119,8 @@ def _build(held: frozenset[str], *, had_migrations: bool, dry_run: bool) -> Upgr
         outcome.activation_errors = [_ACTIVATION_ERROR]
     if "worktree" in held:
         outcome.worktree_failures = [_WORKTREE_FAILURE]
+    if "repair_preparation" in held:
+        outcome.repair_preparation_errors = [_PREPARATION_ERROR]
     messages = tuple(_MESSAGE_BY_INPUT[name] for name in ("repair_failed", "preview_incomplete") if name in held)
     outcome.record_surface_repair(
         SurfaceRepairReport(
@@ -321,6 +328,10 @@ def _only_commit_recovery_failed() -> UpgradeOutcome:
     return UpgradeOutcome(result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO), commit_recovery_failed=True)
 
 
+def _only_repair_preparation_failed() -> UpgradeOutcome:
+    return UpgradeOutcome(result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO), repair_preparation_errors=[_PREPARATION_ERROR])
+
+
 def _only_surface_repair_failed() -> UpgradeOutcome:
     return UpgradeOutcome(result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO), surface_repair_failed=True)
 
@@ -339,6 +350,7 @@ _OUTCOME_BY_REASON = {
     UpgradeFailureReason.ACTIVATION_ERROR: _only_activation_error,
     UpgradeFailureReason.WORKTREE_FAILURE: _only_worktree_failure,
     UpgradeFailureReason.COMMIT_RECOVERY_FAILED: _only_commit_recovery_failed,
+    UpgradeFailureReason.REPAIR_PREPARATION_FAILED: _only_repair_preparation_failed,
     UpgradeFailureReason.SURFACE_REPAIR_FAILED: _only_surface_repair_failed,
     UpgradeFailureReason.PREVIEW_INCOMPLETE: _only_preview_incomplete,
     UpgradeFailureReason.SURFACE_DRIFT: _only_surface_drift,
