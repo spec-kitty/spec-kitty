@@ -4226,6 +4226,15 @@ pages:
     - {slug: "what-init-does-not-do", text: "What `init` does not do", level: 2}
     - {slug: "examples", text: "Examples", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/api/mission-creation-internals.md"
+    title: "mission-creation internals reference"
+    divio_type: "none"
+    abstract: "mission-creation internals: the mission_creation module family, the patch-routing rule, and where to add a create-time decision."
+    anchors:
+    - {slug: "module-map", text: "Module map", level: 2}
+    - {slug: "the-routing-rule", text: "The routing rule", level: 2}
+    - {slug: "fixing-a-create-s-identity", text: "Fixing a create's identity", level: 2}
+    - {slug: "where-to-add-a-create-time-decision", text: "Where to add a create-time decision", level: 2}
   - path: "docs/api/missions.md"
     title: "Mission Types Reference"
     divio_type: "none"
