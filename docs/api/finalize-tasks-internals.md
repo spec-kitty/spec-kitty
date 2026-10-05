@@ -255,10 +255,11 @@ surface of a coordination Mission cannot be resolved (for example a deleted
 coordination branch), the coordination worktree is not materialized and its branch is
 not a local head, the committed log is missing or malformed, or the log cannot be
 read. Each `status_unreadable` remedy carries its cause: the remote-only case leads
-with materializing the worktree (after fetching the branch), every other case appends
-` Cause: ` and the underlying message. Its message reads `Cannot re-finalize: the
-status log is unreadable, so started work cannot be determined.`: it does not claim
-that a lane would change. Code: `_read_started_wp_ids`,
+with materializing the worktree (after fetching the branch), an unreadable lane-tip
+listing leads with fixing the git error, and every other case appends ` Cause: ` and
+the underlying message. Its message reads `Cannot re-finalize: the status log or the
+recorded lane work tips cannot be read, so started work cannot be determined.`: it
+does not claim that a lane would change. Code: `_read_started_wp_ids`,
 `_started_on_coordination_branch` and `_status_unreadable_error` in
 `mission_finalize_lanes.py`.
 

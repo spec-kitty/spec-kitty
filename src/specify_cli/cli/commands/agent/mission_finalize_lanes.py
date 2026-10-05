@@ -46,14 +46,19 @@ def _status_unreadable_error(cause: BaseException) -> LaneMembershipFrozenError:
     The remedy keeps the cause's diagnostic. An unmaterialized coordination
     worktree (#4959) leads with materializing it, in the canonical
     :class:`~specify_cli.coordination.surface_resolver.CoordinationWorktreeUnmaterialized`
-    wording, because repairing the status log is not the fix there.
+    wording, and an unreadable lane-tip listing leads with the git error,
+    because repairing the status log is not the fix in either case.
     """
     from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
     from specify_cli.lanes.compute import LaneMembershipFrozenError
     from specify_cli.lanes.frozen_membership import status_unreadable_conflict
+    from specify_cli.lanes.lane_tip import LaneTipListingError
 
     if isinstance(cause, CoordinationWorktreeUnmaterialized):
         conflict = status_unreadable_conflict(cause.next_step, lead="Materialize the coordination worktree, then re-run finalize-tasks.")
+    elif isinstance(cause, LaneTipListingError):
+        lead = "Fix the git error that stops the recorded lane work tips from being listed, then re-run finalize-tasks. Cause:"
+        conflict = status_unreadable_conflict(_cause_detail(cause), lead=lead)
     else:
         conflict = status_unreadable_conflict(_cause_detail(cause))
     error: LaneMembershipFrozenError = LaneMembershipFrozenError((conflict,))

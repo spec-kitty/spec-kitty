@@ -96,7 +96,7 @@ _CLAUSES: dict[MembershipConflictReason, str] = {
     STARTED_LANES_COLLAPSED: "{named} would be merged into one lane",
     STARTED_WP_REMOVED: "{named} would be dropped from the plan",
     STARTED_WP_KIND_CHANGED: "{named} would cross the lane-planning boundary",
-    STATUS_UNREADABLE: "the status log is unreadable, so started work cannot be determined",
+    STATUS_UNREADABLE: "the status log or the recorded lane work tips cannot be read, so started work cannot be determined",
 }
 _REMEDIES: dict[MembershipConflictReason, str] = {
     STARTED_LANES_COLLAPSED: _REMEDY_COLLAPSED,

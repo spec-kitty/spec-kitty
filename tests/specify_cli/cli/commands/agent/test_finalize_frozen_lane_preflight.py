@@ -401,8 +401,12 @@ def test_unreadable_tip_listing_refuses_status_unreadable(planning_dir: Path, tm
     with pytest.raises(LaneMembershipFrozenError) as excinfo:
         _gather(planning_dir, tmp_path)
 
-    _assert_status_unreadable(excinfo)
-    assert excinfo.value.__cause__ is failure
+    error = excinfo.value
+    assert error.reason == "status_unreadable"
+    assert error.__cause__ is failure
+    remedy = error.conflicts[0].remedy
+    assert "lane work tips" in remedy and str(failure) in remedy
+    assert "Repair the status log" not in remedy, "a git listing failure is not a status-log problem"
 
 
 # ---------------------------------------------------------------------------

@@ -327,7 +327,7 @@ def test_status_unreadable_message_claims_no_lane_change() -> None:
     error = LaneMembershipFrozenError((conflict_for("status_unreadable", {}),))
     assert error.error_code == "LANE_MEMBERSHIP_FROZEN"
     assert error.reason == "status_unreadable"
-    assert str(error) == "Cannot re-finalize: the status log is unreadable, so started work cannot be determined."
+    assert str(error) == "Cannot re-finalize: the status log or the recorded lane work tips cannot be read, so started work cannot be determined."
 
 
 def test_error_dedupes_identical_remedies() -> None:
