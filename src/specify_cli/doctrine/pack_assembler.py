@@ -15,11 +15,15 @@ Conflict semantics:
   artifact-type directory.
 * DRG-edge conflict: same ``(source, target, relation)`` declared by two
   input packs' graph fragments.
+* Sanction conflict: same URN listed in two input packs' pack-root
+  ``replaceable-builtins.yaml`` with different reasons (FR-015). The assembled
+  pack carries the union of the inputs' sanctions.
 
 When conflicts are present and ``force=False``, the assembler refuses to
 write anything and returns ``ok=False``.  With ``force=True``, last-pack-
 wins for artifact IDs (an advisory is recorded for each override) and
-duplicate DRG edges are dropped (kept once).
+duplicate DRG edges are dropped (kept once); the same holds for a sanction
+reason conflict (last pack's reason wins).
 """
 
 from __future__ import annotations
@@ -33,6 +37,15 @@ from typing import TYPE_CHECKING, Any
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
+
+from charter.offering.drg.override_policy import (
+    PACK_POLICY_FILENAME,
+    OverridePolicyError,
+    ReplaceableBuiltin,
+    dump_pack_sanction,
+    load_pack_sanction,
+    pack_sanction_present,
+)
 
 from .pack_validator import validate_pack
 from .snapshot import write_pack_manifest
@@ -237,6 +250,58 @@ def _detect_drg_conflicts(
     return conflicts, fragments_by_pack
 
 
+#: ``ConflictItem.artifact_type`` used for a sanction reason conflict.
+_SANCTION_CONFLICT_TYPE = "replaceable_builtins"
+
+
+def _detect_sanction_conflicts(
+    input_packs: list[Path],
+) -> tuple[list[ConflictItem], dict[str, str] | None, list[str]]:
+    """Union the input packs' sanction files and report reason conflicts (FR-015).
+
+    Returns ``(conflicts, merged, errors)``. ``merged`` maps URN to reason (the
+    last pack's reason wins) and is ``None`` when no input ships a sanction file.
+    A malformed input yields an error and no merge, so the caller aborts before
+    any write. Parsing is delegated to ``load_pack_sanction``.
+    """
+    merged: dict[str, str] = {}
+    owners: dict[str, list[tuple[str, str]]] = {}
+    errors: list[str] = []
+    any_file = False
+    for pack in input_packs:
+        if not pack_sanction_present(pack):
+            continue
+        any_file = True
+        try:
+            policy = load_pack_sanction(pack.name, pack)
+        except OverridePolicyError as exc:
+            errors.append(str(exc))
+            continue
+        for entry in policy.entries:
+            merged[entry.urn] = entry.reason
+            owners.setdefault(entry.urn, []).append((pack.name, entry.reason))
+    if errors:
+        return [], None, errors
+    conflicts = [
+        ConflictItem(
+            artifact_type=_SANCTION_CONFLICT_TYPE,
+            artifact_id=urn,
+            conflicting_packs=[name for name, _ in declared],
+        )
+        for urn, declared in sorted(owners.items())
+        if len({reason for _, reason in declared}) > 1
+    ]
+    return conflicts, (merged if any_file else None), []
+
+
+def _write_pack_sanctions(output_dir: Path, merged: dict[str, str] | None) -> None:
+    """Write the unioned sanction to ``<output>/replaceable-builtins.yaml``."""
+    if merged is None:
+        return
+    entries = [ReplaceableBuiltin(urn=urn, reason=merged[urn]) for urn in sorted(merged)]
+    (output_dir / PACK_POLICY_FILENAME).write_text(dump_pack_sanction(entries), encoding="utf-8")
+
+
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
@@ -283,7 +348,14 @@ def assemble_pack(
 
     artifact_conflicts, last_owner = _detect_artifact_conflicts(input_packs)
     drg_conflicts, fragments_by_pack = _detect_drg_conflicts(input_packs)
-    all_conflicts = artifact_conflicts + drg_conflicts
+    sanction_conflicts, merged_sanctions, sanction_errors = _detect_sanction_conflicts(
+        input_packs
+    )
+    if sanction_errors:
+        result = AssemblyResult(ok=False, errors=sanction_errors)
+        _maybe_write_conflicts(conflicts_out, result)
+        return result
+    all_conflicts = artifact_conflicts + drg_conflicts + sanction_conflicts
 
     if all_conflicts and not force:
         result = AssemblyResult(ok=False, conflicts=all_conflicts)
@@ -330,6 +402,9 @@ def assemble_pack(
 
     # Merge org-charter.yaml (T045 — best-effort).
     _merge_org_charters_to_output(input_packs, output_dir)
+
+    # FR-015: carry the union of the inputs' sanctions (before validation).
+    _write_pack_sanctions(output_dir, merged_sanctions)
 
     # Validate assembled output.
     # The assembler never writes a pack-root *.graph.yaml (_copy_drg_fragments
@@ -510,7 +585,8 @@ def _document_dict(graph: DRGGraph) -> dict[str, Any]:
     """
     from charter.offering.drg.migration.extractor import graph_document_to_dict
 
-    return graph_document_to_dict(graph)
+    document: dict[str, Any] = graph_document_to_dict(graph)
+    return document
 
 
 def _copy_drg_fragments(

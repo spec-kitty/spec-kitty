@@ -2054,8 +2054,12 @@ _Project health diagnostics_
 
  Override governance (FR-010 / FR-012): when org packs are configured, any
  ``org:``-provenance override of a built-in DRG node that is NOT sanctioned
- by ``.kittify/doctrine/replaceable-builtins.yaml`` is reported as an
+ by ``.kittify/doctrine/replaceable-builtins.yaml`` or by the overriding
+ pack's own pack-root ``replaceable-builtins.yaml`` is reported as an
  ``unsanctioned_overrides`` finding and flips the report unhealthy (RC=1).
+ A pack sanction applies only to overrides that same pack contributes, and
+ the consumer file can withdraw it with ``revoked_pack_sanctions``. Sanctioned
+ overrides and their source are listed as ``sanctioned_overrides``.
  Project-tier (``.kittify/doctrine/``) overrides of built-ins are
  intentionally **ungoverned** — project doctrine is the trusted operator tier
  and is not gated by the consumer-facing allowlist; only org-tier overrides

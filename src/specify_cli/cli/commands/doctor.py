@@ -17,12 +17,14 @@ from __future__ import annotations
 
 import json
 import sys  # noqa: F401 — re-exported patch target: tests monkeypatch ``doctor.sys.stdin`` (#2059)
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import TYPE_CHECKING, Annotated
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
+
 
 from specify_cli.core.paths import locate_project_root
 from specify_cli.paths import get_runtime_root, render_runtime_path
@@ -86,6 +88,8 @@ from ._doctrine_collect import (  # noqa: E402
     _collect_doctrine_collisions,
     _run_cross_grain_check,
     _run_operating_procedures_check,
+    _sanction_entry_snippet,
+    _sanction_file_labels,
 )
 from ._doctrine_collect import (  # noqa: E402
     _build_pack_entries as _build_pack_entries,
@@ -390,7 +394,8 @@ def _print_state_warnings(report: object) -> None:
 
 def _resolve_project_root_or_exit(json_output: bool, *, exit_code: int) -> Path:
     """Preserve the doctor's resolver binding while delegating the shared guard."""
-    return _doctor_shared.resolve_project_root_or_exit(locate_project_root, json_output, exit_code=exit_code)
+    root: Path = _doctor_shared.resolve_project_root_or_exit(locate_project_root, json_output, exit_code=exit_code)
+    return root
 
 
 @app.command(name="state-roots")
@@ -1086,8 +1091,12 @@ def doctrine_check(
 
     Override governance (FR-010 / FR-012): when org packs are configured, any
     ``org:``-provenance override of a built-in DRG node that is NOT sanctioned
-    by ``.kittify/doctrine/replaceable-builtins.yaml`` is reported as an
+    by ``.kittify/doctrine/replaceable-builtins.yaml`` or by the overriding
+    pack's own pack-root ``replaceable-builtins.yaml`` is reported as an
     ``unsanctioned_overrides`` finding and flips the report unhealthy (RC=1).
+    A pack sanction applies only to overrides that same pack contributes, and
+    the consumer file can withdraw it with ``revoked_pack_sanctions``. Sanctioned
+    overrides and their source are listed as ``sanctioned_overrides``.
     Project-tier (``.kittify/doctrine/``) overrides of built-ins are
     intentionally **ungoverned** — project doctrine is the trusted operator tier
     and is not gated by the consumer-facing allowlist; only org-tier overrides
@@ -1163,11 +1172,100 @@ def doctrine_check(
     )
     # WP08 (FR-010): surface unsanctioned built-in overrides loudly (the JSON
     # surface already carries them via the ``org_drg`` passthrough).
+    _render_sanctioned_override_findings(report)
+    _render_override_policy_errors(report)
     _render_unsanctioned_override_findings(report)
     # WP05 (#2666): surface FR-013 built-in cross-grain collisions loudly (the
     # JSON surface already carries them via the ``org_drg`` passthrough).
     _render_cross_grain_findings(report)
     raise typer.Exit(exit_code)
+
+
+def _org_drg_list(report: DoctrineHealthReport, key: str) -> list[object]:
+    """Return ``org_drg[key]`` when it is a list (possibly empty), else ``[]``."""
+    org_drg = report.org_drg
+    value = org_drg.get(key) if isinstance(org_drg, dict) else None
+    return value if isinstance(value, list) else []
+
+
+def _render_sanctioned_override_findings(report: DoctrineHealthReport) -> None:
+    """Render the informational ``Sanctioned built-in override(s)`` block (FR-008).
+
+    Shown whenever ``org_drg['sanctioned_overrides']`` is non-empty, green runs
+    included, so a delegated sanction is always auditable. Every interpolated
+    value is escaped for the console markup renderer (NFR-005).
+    """
+    findings = [f for f in _org_drg_list(report, "sanctioned_overrides") if isinstance(f, dict)]
+    if not findings:
+        return
+    console.print(f"\n[dim]Sanctioned built-in override(s) — {len(findings)} allowed[/dim]")
+    for finding in findings:
+        source = "consumer allowlist" if finding.get("source") == "consumer" else f"pack {finding.get('pack')}"
+        reason = f": {finding.get('reason')}" if finding.get("reason") else ""
+        line = f"  • {finding.get('urn')} ({finding.get('kind')}) sanctioned by {source}{reason}"
+        console.print(f"[dim]{escape(line)}[/dim]", soft_wrap=True)
+
+
+def _render_override_policy_errors(report: DoctrineHealthReport) -> None:
+    """Render malformed sanction files and invalid revocations (FR-006 / FR-007).
+
+    Pack sanction errors come from ``org_drg['pack_sanction_errors']``; consumer
+    allowlist and revocation errors are the ``org_drg['errors']`` entries labelled
+    with the consumer allowlist path.
+    """
+    messages = [str(m) for m in _org_drg_list(report, "pack_sanction_errors")]
+    prefix, _, _ = _sanction_file_labels()
+    messages.extend(str(m) for m in _org_drg_list(report, "errors") if str(m).startswith(prefix))
+    if not messages:
+        return
+    console.print(f"\n[bold red]Override sanction file error(s)[/bold red] — {len(messages)}\n")
+    for message in messages:
+        console.print(f"  • [red]{escape(message)}[/red]", soft_wrap=True)
+
+
+def _legacy_entry_lines(finding: dict[str, object], legacy: dict[str, object]) -> list[str] | None:
+    """``replaceable_builtins`` snippet lines for *finding*, or ``None`` when unusable.
+
+    A directive override needs a non-empty reason; a template entry without one
+    would not work when pasted, so no entry is offered for it.
+    """
+    return _sanction_entry_snippet(str(finding.get("urn")), str(legacy.get("reason") or ""))
+
+
+def _legacy_move_target(template_path: PurePath) -> PurePath:
+    """Pack-root destination for a legacy template, derived with path semantics.
+
+    Strips the trailing ``templates/setup/replaceable-builtins.yaml`` parts rather
+    than a POSIX string suffix, so Windows separators work. A path that does not
+    end in the legacy layout keeps its own directory.
+    """
+    _, pack_file, legacy_relpath = _sanction_file_labels()
+    legacy_parts = tuple(legacy_relpath.split("/"))
+    root: PurePath = template_path.parents[2] if template_path.parts[-len(legacy_parts) :] == legacy_parts else template_path.parent
+    target: PurePath = root.joinpath(pack_file)
+    return target
+
+
+def _render_legacy_template_hint(finding: dict[str, object], legacy: dict[str, object]) -> None:
+    """Print the pack-author move and the consumer allowlist entry (FR-009).
+
+    Never a whole-file copy: the entry is appended to the consumer allowlist, so
+    it cannot drift into a stale duplicate of the pack's template.
+    """
+    consumer_file, _, legacy_relpath = _sanction_file_labels()
+    path = str(legacy.get("path") or legacy_relpath)
+    target = _legacy_move_target(Path(path))
+    console.print(
+        f"    [dim]pack author: move {escape(path)} to {escape(str(target))} (a template is not a sanction)[/dim]",
+        soft_wrap=True,
+    )
+    lines = _legacy_entry_lines(finding, legacy)
+    if lines is None:
+        console.print("    [dim]the template entry has no reason; a reason is required for a directive override[/dim]")
+        return
+    console.print(f"    [dim]consumer: add to {escape(consumer_file)}[/dim]", soft_wrap=True)
+    for line in lines:
+        console.print(f"      {escape(line)}", soft_wrap=True, highlight=False)
 
 
 def _render_unsanctioned_override_findings(report: DoctrineHealthReport) -> None:
@@ -1176,18 +1274,26 @@ def _render_unsanctioned_override_findings(report: DoctrineHealthReport) -> None
     Reads the dedicated ``org_drg['unsanctioned_overrides']`` key (assembled in
     ``_doctrine_collect``) — narrowed with ``isinstance`` so no ``# type: ignore``
     is needed — rather than re-deriving the merged blob in ``org_drg['errors']``.
-    A no-op when there are no findings (e.g. no org packs configured).
+    A no-op when there are no findings (e.g. no org packs configured). Findings
+    that carry a ``legacy_template`` get an actionable per-finding hint (FR-009).
     """
-    org_drg = report.org_drg
-    findings = org_drg.get("unsanctioned_overrides") if isinstance(org_drg, dict) else None
-    if not isinstance(findings, list) or not findings:
+    findings = _org_drg_list(report, "unsanctioned_overrides")
+    if not findings:
         return
     console.print(f"\n[bold red]Unsanctioned built-in override(s)[/bold red] — {len(findings)} not allowlisted\n")
     for finding in findings:
         if not isinstance(finding, dict):
             continue
-        console.print(f"  • [red]{finding.get('urn')}[/red] ({finding.get('kind')}): {finding.get('why')}")
-    console.print("  [dim]Add the URN to .kittify/doctrine/replaceable-builtins.yaml (with a reason for directives) or remove the org override.[/dim]")
+        console.print(f"  • [red]{escape(str(finding.get('urn')))}[/red] ({escape(str(finding.get('kind')))}): {escape(str(finding.get('why')))}")
+        legacy = finding.get("legacy_template")
+        if isinstance(legacy, dict):
+            _render_legacy_template_hint(finding, legacy)
+    consumer_file, pack_file, _ = _sanction_file_labels()
+    console.print(
+        f"  [dim]Add the URN to {escape(consumer_file)} (with a reason for directives), have the overriding pack ship it in "
+        f"its pack-root {pack_file}, or remove the org override.[/dim]",
+        soft_wrap=True,
+    )
     console.print("  [dim]Only org-tier overrides are adjudicated; project-tier (.kittify/doctrine/) overrides are intentionally ungoverned (FR-012).[/dim]")
 
 

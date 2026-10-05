@@ -44,7 +44,8 @@ Issue ``category`` values surfaced via ``ValidationIssue.category``:
 ``schema_invalid``, ``duplicate_id``, ``drg_dangling_edge``, ``drg_kind_drift``,
 ``duplicate_drg_edge``, ``same_id_collision``, ``unknown_target``,
 ``intent_conflict``, ``asset_path_escape``, ``asset_mime_invalid``,
-``profile_skipped``, ``org_pack_missing``, ``unreadable_file``, plus
+``profile_skipped``, ``org_pack_missing``, ``unreadable_file``,
+``pack_sanction``, plus
 structural categories for the ``pack`` and ``org-charter`` artifact types.
 
 The exported entry points are intentionally small:
@@ -89,6 +90,13 @@ __all__ = [
 
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.merge import _EndpointResolutionError, _resolve_edge_endpoint
+from charter.offering.drg.override_policy import (
+    PACK_POLICY_FILENAME,
+    OverridePolicyError,
+    load_pack_sanction,
+    pack_sanction_present,
+    sanction_reason_missing,
+)
 from charter.offering.drg.org_pack_loader import (
     ORG_PLURAL_TO_SINGULAR_KIND,
     OrgPackMissingError,
@@ -500,6 +508,15 @@ def validate_pack(pack_dir: Path, *, check_drg_root: bool = True) -> ValidationR
         errors.extend(frag_errors)
         advisories.extend(frag_advisories)
 
+    # FR-014 (#5767): a pack-root replaceable-builtins.yaml is parsed by the
+    # single sanction parser so a broken file never ships.
+    if pack_sanction_present(pack_dir):
+        sanction_errors, sanction_advisories = _validate_pack_sanction(
+            pack_dir, _built_in_node_urns()
+        )
+        errors.extend(sanction_errors)
+        advisories.extend(sanction_advisories)
+
     # T044: validate optional org-charter.yaml (best-effort — module may be
     # absent in early-mission states before WP09 ships).
     advisories_or_errors = _validate_org_charter(
@@ -591,6 +608,93 @@ def _validate_org_governance_profiles(pack_dir: Path) -> list[ValidationIssue]:
     except (OrgPackSchemaError, OSError) as exc:
         return [_org_load_finding(exc, fallback_file=pack_dir)]
     return []
+
+
+def _built_in_node_urns() -> frozenset[str]:
+    """Return every built-in DRG node URN (empty when the graph is unavailable)."""
+    from charter.offering.drg.loader import DRGLoadError, load_built_in_graph
+
+    try:
+        return frozenset(node.urn for node in load_built_in_graph().nodes)
+    except (ModuleNotFoundError, DRGLoadError, OSError):
+        return frozenset()
+
+
+def _pack_node_urns(pack_dir: Path) -> frozenset[str] | None:
+    """Return the URNs of the nodes the pack contributes, or ``None`` if unloadable.
+
+    Goes through :func:`load_org_pack` (the runtime authority), so nodes minted
+    from artifact files count as well as nodes declared in ``drg/fragment.yaml``.
+    A load failure is already reported by :func:`_validate_org_fragment`.
+    """
+    try:
+        fragment = load_org_pack(
+            pack_name=pack_dir.name, pack_root=pack_dir, layer_index=1
+        )
+    except (OrgPackMissingError, OrgPackParseError, OrgPackSchemaError, OSError):
+        return None
+    return frozenset(
+        f"{ORG_PLURAL_TO_SINGULAR_KIND.get(node.kind, node.kind)}:{node.id}"
+        for node in fragment.nodes
+    )
+
+
+def _sanction_issue(
+    severity: str, file: Path, urn: str | None, message: str
+) -> ValidationIssue:
+    return ValidationIssue(
+        severity=severity,
+        artifact_type="pack",
+        artifact_id=urn,
+        file=str(file),
+        message=message,
+        category="pack_sanction",
+    )
+
+
+def _validate_pack_sanction(
+    pack_dir: Path, built_in_urns: frozenset[str]
+) -> tuple[list[ValidationIssue], list[ValidationIssue]]:
+    """Validate ``<pack>/replaceable-builtins.yaml`` (FR-014).
+
+    Errors: any parse/shape failure reported by the single sanction parser, and a
+    ``directive:`` entry with an empty reason. Advisory: an entry naming a URN
+    that is not a built-in this pack overrides (inert, never an error). The
+    advisory is skipped when the pack's own nodes cannot be loaded.
+    """
+    sanction_file = pack_dir / PACK_POLICY_FILENAME
+    try:
+        policy = load_pack_sanction(pack_dir.name, pack_dir)
+    except OverridePolicyError as exc:
+        return [_sanction_issue("error", sanction_file, None, str(exc))], []
+
+    errors: list[ValidationIssue] = []
+    advisories: list[ValidationIssue] = []
+    pack_urns = _pack_node_urns(pack_dir)
+    for entry in policy.entries:
+        if sanction_reason_missing(entry.urn, entry.reason):
+            errors.append(
+                _sanction_issue(
+                    "error",
+                    sanction_file,
+                    entry.urn,
+                    f"{PACK_POLICY_FILENAME}: directive override '{entry.urn}' "
+                    "requires a non-empty reason",
+                )
+            )
+        elif pack_urns is not None and not (
+            entry.urn in built_in_urns and entry.urn in pack_urns
+        ):
+            advisories.append(
+                _sanction_issue(
+                    "advisory",
+                    sanction_file,
+                    entry.urn,
+                    f"{PACK_POLICY_FILENAME}: '{entry.urn}' is not a built-in "
+                    "this pack overrides; the entry is inert",
+                )
+            )
+    return errors, advisories
 
 
 def _org_load_finding(exc: Exception, fallback_file: Path) -> ValidationIssue:

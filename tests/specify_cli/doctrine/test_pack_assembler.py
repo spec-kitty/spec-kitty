@@ -408,3 +408,134 @@ class TestRenderAssemblyResult:
         out = capsys.readouterr().out
         assert "Conflict" in out
         assert "--force" in out
+
+
+# ---------------------------------------------------------------------------
+# Sanction union (FR-015, #5767)
+# ---------------------------------------------------------------------------
+
+_SANCTION_FILE = "replaceable-builtins.yaml"
+_SANCTION_TYPE = "replaceable_builtins"
+
+
+def _write_sanction(pack: Path, *entries: tuple[str, str]) -> None:
+    lines = ["replaceable_builtins:"]
+    for urn, reason in entries:
+        lines.append(f"  - urn: {urn}")
+        lines.append(f"    reason: {json.dumps(reason)}")
+    (pack / _SANCTION_FILE).write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _read_sanction(output: Path) -> list[dict[str, str]]:
+    import yaml
+
+    data = yaml.safe_load((output / _SANCTION_FILE).read_text(encoding="utf-8"))
+    return list(data["replaceable_builtins"])
+
+
+class TestAssembleSanctionUnion:
+    def test_disjoint_sanctions_are_unioned_and_sorted(self, tmp_path: Path) -> None:
+        a = _make_pack(tmp_path, "alpha", directives=["A-001"])
+        b = _make_pack(tmp_path, "bravo", directives=["B-001"])
+        _write_sanction(a, ("tactic:zeta", "Z"))
+        _write_sanction(b, ("tactic:alpha-tactic", "A"))
+        output = tmp_path / "out"
+
+        result = assemble_pack([a, b], output)
+
+        assert result.ok is True, result.errors
+        assert _read_sanction(output) == [
+            {"urn": "tactic:alpha-tactic", "reason": "A"},
+            {"urn": "tactic:zeta", "reason": "Z"},
+        ]
+
+    def test_same_urn_same_reason_appears_once(self, tmp_path: Path) -> None:
+        a = _make_pack(tmp_path, "alpha", directives=["A-001"])
+        b = _make_pack(tmp_path, "bravo", directives=["B-001"])
+        _write_sanction(a, ("tactic:shared", "Same."))
+        _write_sanction(b, ("tactic:shared", "Same."))
+        output = tmp_path / "out"
+
+        result = assemble_pack([a, b], output)
+
+        assert result.ok is True, result.errors
+        assert result.conflicts == []
+        assert _read_sanction(output) == [{"urn": "tactic:shared", "reason": "Same."}]
+
+    def test_same_urn_different_reason_is_a_conflict_without_force(
+        self, tmp_path: Path
+    ) -> None:
+        a = _make_pack(tmp_path, "alpha", directives=["A-001"])
+        b = _make_pack(tmp_path, "bravo", directives=["B-001"])
+        _write_sanction(a, ("tactic:shared", "First."))
+        _write_sanction(b, ("tactic:shared", "Second."))
+        output = tmp_path / "out"
+        conflicts_out = tmp_path / "conflicts.json"
+
+        result = assemble_pack([a, b], output, conflicts_out=conflicts_out)
+
+        assert result.ok is False
+        [conflict] = [c for c in result.conflicts if c.artifact_type == _SANCTION_TYPE]
+        assert conflict.artifact_id == "tactic:shared"
+        assert conflict.conflicting_packs == ["alpha", "bravo"]
+        assert not output.exists(), "nothing may be written on a sanction conflict"
+        reported = json.loads(conflicts_out.read_text(encoding="utf-8"))
+        assert [c["artifact_type"] for c in reported] == [_SANCTION_TYPE]
+
+    def test_same_urn_different_reason_last_pack_wins_with_force(
+        self, tmp_path: Path
+    ) -> None:
+        a = _make_pack(tmp_path, "alpha", directives=["A-001"])
+        b = _make_pack(tmp_path, "bravo", directives=["B-001"])
+        _write_sanction(a, ("tactic:shared", "First."))
+        _write_sanction(b, ("tactic:shared", "Second."))
+        output = tmp_path / "out"
+
+        result = assemble_pack([a, b], output, force=True)
+
+        assert result.ok is True, result.errors
+        assert _read_sanction(output) == [{"urn": "tactic:shared", "reason": "Second."}]
+        assert any(c.artifact_type == _SANCTION_TYPE for c in result.conflicts)
+
+    def test_no_input_sanction_writes_no_output_file(self, tmp_path: Path) -> None:
+        a = _make_pack(tmp_path, "alpha", directives=["A-001"])
+        output = tmp_path / "out"
+
+        result = assemble_pack([a], output)
+
+        assert result.ok is True, result.errors
+        assert not (output / _SANCTION_FILE).exists()
+
+    def test_single_input_sanction_is_carried(self, tmp_path: Path) -> None:
+        a = _make_pack(tmp_path, "alpha", directives=["A-001"])
+        b = _make_pack(tmp_path, "bravo", directives=["B-001"])
+        _write_sanction(b, ("tactic:only", "Only."))
+        output = tmp_path / "out"
+
+        assert assemble_pack([a, b], output).ok is True
+        assert _read_sanction(output) == [{"urn": "tactic:only", "reason": "Only."}]
+
+    def test_malformed_input_sanction_aborts_before_any_write(
+        self, tmp_path: Path
+    ) -> None:
+        a = _make_pack(tmp_path, "alpha", directives=["A-001"])
+        b = _make_pack(tmp_path, "bravo", directives=["B-001"])
+        (b / _SANCTION_FILE).write_text("replaceable_builtins: [oops\n", encoding="utf-8")
+        output = tmp_path / "out"
+
+        result = assemble_pack([a, b], output, force=True)
+
+        assert result.ok is False
+        assert any("bravo" in err and _SANCTION_FILE in err for err in result.errors)
+        assert not output.exists(), "output must not be created for a malformed input"
+
+    def test_malformed_sanction_with_force_still_aborts(self, tmp_path: Path) -> None:
+        a = _make_pack(tmp_path, "alpha", directives=["A-001"])
+        (a / _SANCTION_FILE).write_text("- just\n- a list\n", encoding="utf-8")
+        output = tmp_path / "out"
+
+        result = assemble_pack([a], output, force=True)
+
+        assert result.ok is False
+        assert result.errors
+        assert not output.exists()

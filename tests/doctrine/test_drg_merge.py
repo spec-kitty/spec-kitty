@@ -664,15 +664,15 @@ class TestReplaceableBuiltinsPolicy:
         )
 
     def test_absent_file_forbids_every_override(self, tmp_path: Path) -> None:
-        from charter.offering.drg.override_policy import load_replaceable_builtins
+        from charter.offering.drg.override_policy import load_effective_override_policy
 
-        policy = load_replaceable_builtins(tmp_path)
+        policy = load_effective_override_policy(tmp_path, {}).consumer
         assert policy.entries == ()
         assert policy.is_allowed("directive:anything") is False
         assert policy.reason_for("directive:anything") is None
 
     def test_unlisted_urn_forbidden_listed_allowed(self, tmp_path: Path) -> None:
-        from charter.offering.drg.override_policy import load_replaceable_builtins
+        from charter.offering.drg.override_policy import load_effective_override_policy
 
         self._write_policy(
             tmp_path,
@@ -680,7 +680,7 @@ class TestReplaceableBuiltinsPolicy:
             "  - urn: directive:risk-appetite\n"
             "    reason: Our org sets a different risk posture.\n",
         )
-        policy = load_replaceable_builtins(tmp_path)
+        policy = load_effective_override_policy(tmp_path, {}).consumer
         assert policy.is_allowed("directive:risk-appetite") is True
         assert policy.reason_for("directive:risk-appetite") == (
             "Our org sets a different risk posture."
@@ -691,13 +691,13 @@ class TestReplaceableBuiltinsPolicy:
     def test_directive_override_requires_reason(self, tmp_path: Path) -> None:
         """A built-in *directive* override additionally requires a non-empty
         reason — the governance predicate the architectural test enforces."""
-        from charter.offering.drg.override_policy import load_replaceable_builtins
+        from charter.offering.drg.override_policy import load_effective_override_policy
 
         self._write_policy(
             tmp_path,
             "replaceable_builtins:\n  - urn: directive:no-reason\n",
         )
-        policy = load_replaceable_builtins(tmp_path)
+        policy = load_effective_override_policy(tmp_path, {}).consumer
         assert policy.is_allowed("directive:no-reason") is True
         # The reason is empty -> a directive override would FAIL the per-repo
         # governance test even though the URN is listed.
@@ -717,20 +717,22 @@ class TestReplaceableBuiltinsPolicy:
     def test_malformed_policy_fails_closed_loud(
         self, tmp_path: Path, body: str
     ) -> None:
-        from charter.offering.drg.override_policy import (
-            OverridePolicyError,
-            load_replaceable_builtins,
-        )
+        from charter.offering.drg.override_policy import load_effective_override_policy
 
         self._write_policy(tmp_path, body)
-        with pytest.raises(OverridePolicyError):
-            load_replaceable_builtins(tmp_path)
+        effective = load_effective_override_policy(tmp_path, {})
+        # The malformed file is reported (never silent), and the consumer
+        # allowlist collapses to empty so every override stays forbidden.
+        assert effective.consumer_error is not None
+        assert "replaceable-builtins.yaml" in effective.consumer_error
+        assert effective.consumer.entries == ()
+        assert effective.consumer.is_allowed("directive:x") is False
 
     def test_empty_file_is_empty_policy(self, tmp_path: Path) -> None:
-        from charter.offering.drg.override_policy import load_replaceable_builtins
+        from charter.offering.drg.override_policy import load_effective_override_policy
 
         self._write_policy(tmp_path, "")
-        policy = load_replaceable_builtins(tmp_path)
+        policy = load_effective_override_policy(tmp_path, {}).consumer
         assert policy.entries == ()
 
     def test_null_entries_and_null_reason_normalise_to_empty(
@@ -738,16 +740,16 @@ class TestReplaceableBuiltinsPolicy:
     ) -> None:
         """A ``null`` ``replaceable_builtins`` value and a ``null`` reason both
         normalise to empty (fail-closed-friendly, not an error)."""
-        from charter.offering.drg.override_policy import load_replaceable_builtins
+        from charter.offering.drg.override_policy import load_effective_override_policy
 
         self._write_policy(tmp_path, "replaceable_builtins:\n")
-        assert load_replaceable_builtins(tmp_path).entries == ()
+        assert load_effective_override_policy(tmp_path, {}).consumer.entries == ()
 
         self._write_policy(
             tmp_path,
             "replaceable_builtins:\n  - urn: tactic:x\n    reason: ~\n",
         )
-        policy = load_replaceable_builtins(tmp_path)
+        policy = load_effective_override_policy(tmp_path, {}).consumer
         assert policy.reason_for("tactic:x") == ""
 
 

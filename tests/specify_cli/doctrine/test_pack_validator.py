@@ -1432,3 +1432,214 @@ class TestDrgRootGraphMissing:
             if issue.category == "drg_root_graph_missing"
         ]
         assert root_missing, result.errors
+
+
+# ---------------------------------------------------------------------------
+# Pack-root sanction file (FR-014, #5767)
+# ---------------------------------------------------------------------------
+
+_SANCTION_FILE = "replaceable-builtins.yaml"
+_BUILT_IN_TACTIC = "acceptance-test-first"
+_BUILT_IN_DIRECTIVE = "DIRECTIVE_003"
+
+
+def _write_override_fragment(pack_dir: Path, *nodes: tuple[str, str]) -> None:
+    """Write a ``drg/fragment.yaml`` declaring ``(kind_plural, id)`` nodes."""
+    drg = pack_dir / "drg"
+    drg.mkdir(parents=True, exist_ok=True)
+    body = "".join(
+        f"  - id: {node_id}\n    kind: {kind}\n    title: Org variant\n"
+        for kind, node_id in nodes
+    )
+    (drg / "fragment.yaml").write_text(f"nodes:\n{body}edges: []\n", encoding="utf-8")
+
+
+def _write_sanction(pack_dir: Path, text: str) -> None:
+    (pack_dir / _SANCTION_FILE).write_text(textwrap.dedent(text), encoding="utf-8")
+
+
+def _sanction_issues(result: ValidationResult) -> tuple[list, list]:
+    errors = [i for i in result.errors if i.category == "pack_sanction"]
+    advisories = [i for i in result.advisories if i.category == "pack_sanction"]
+    return errors, advisories
+
+
+@pytest.mark.unit
+class TestPackSanctionValidation:
+    def test_valid_sanction_for_overridden_builtin_is_clean(self, tmp_path: Path) -> None:
+        _write_override_fragment(tmp_path, ("tactics", _BUILT_IN_TACTIC))
+        _write_sanction(
+            tmp_path,
+            f"""\
+            replaceable_builtins:
+              - urn: tactic:{_BUILT_IN_TACTIC}
+                reason: Ours is stricter.
+            """,
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok, [i.message for i in result.errors]
+        assert _sanction_issues(result) == ([], [])
+
+    def test_malformed_sanction_is_an_error_naming_the_file(self, tmp_path: Path) -> None:
+        _write_override_fragment(tmp_path, ("tactics", _BUILT_IN_TACTIC))
+        _write_sanction(tmp_path, "replaceable_builtins: [unterminated\n")
+
+        result = validate_pack(tmp_path)
+
+        errors, _ = _sanction_issues(result)
+        assert not result.ok
+        assert len(errors) == 1
+        assert _SANCTION_FILE in errors[0].message
+
+    def test_consumer_only_revocation_key_is_an_error(self, tmp_path: Path) -> None:
+        _write_sanction(
+            tmp_path,
+            """\
+            revoked_pack_sanctions:
+              - urn: tactic:x
+            """,
+        )
+
+        errors, _ = _sanction_issues(validate_pack(tmp_path))
+
+        assert len(errors) == 1
+
+    def test_directive_without_reason_is_an_error(self, tmp_path: Path) -> None:
+        _write_override_fragment(tmp_path, ("directives", _BUILT_IN_DIRECTIVE))
+        _write_sanction(
+            tmp_path,
+            f"""\
+            replaceable_builtins:
+              - urn: directive:{_BUILT_IN_DIRECTIVE}
+                reason: ""
+            """,
+        )
+
+        errors, advisories = _sanction_issues(validate_pack(tmp_path))
+
+        assert len(errors) == 1
+        assert f"directive:{_BUILT_IN_DIRECTIVE}" in errors[0].message
+        assert advisories == []
+
+    def test_non_directive_without_reason_is_accepted(self, tmp_path: Path) -> None:
+        _write_override_fragment(tmp_path, ("tactics", _BUILT_IN_TACTIC))
+        _write_sanction(
+            tmp_path,
+            f"""\
+            replaceable_builtins:
+              - urn: tactic:{_BUILT_IN_TACTIC}
+            """,
+        )
+
+        assert _sanction_issues(validate_pack(tmp_path)) == ([], [])
+
+    def test_entry_the_pack_does_not_override_is_an_advisory_only(
+        self, tmp_path: Path
+    ) -> None:
+        _write_override_fragment(tmp_path, ("tactics", _BUILT_IN_TACTIC))
+        _write_sanction(
+            tmp_path,
+            """\
+            replaceable_builtins:
+              - urn: tactic:not-in-this-pack
+                reason: Inert.
+              - urn: tactic:acceptance-criteria-non-vacuity
+                reason: Built-in, but this pack declares no node for it.
+            """,
+        )
+
+        result = validate_pack(tmp_path)
+
+        errors, advisories = _sanction_issues(result)
+        assert result.ok
+        assert errors == []
+        assert len(advisories) == 2
+        assert all(a.severity == "advisory" for a in advisories)
+
+    def test_pack_own_non_builtin_node_entry_is_an_advisory(self, tmp_path: Path) -> None:
+        _write_override_fragment(tmp_path, ("tactics", "org-only-tactic"))
+        _write_sanction(
+            tmp_path,
+            """\
+            replaceable_builtins:
+              - urn: tactic:org-only-tactic
+                reason: Not a built-in.
+            """,
+        )
+
+        errors, advisories = _sanction_issues(validate_pack(tmp_path))
+
+        assert errors == []
+        assert len(advisories) == 1
+
+    def test_artifact_file_node_counts_as_pack_node(self, tmp_path: Path) -> None:
+        _write_override_fragment(tmp_path)
+        _write_directive(tmp_path, artifact_id=_BUILT_IN_DIRECTIVE)
+        _write_sanction(
+            tmp_path,
+            f"""\
+            replaceable_builtins:
+              - urn: directive:{_BUILT_IN_DIRECTIVE}
+                reason: Replaced by file-backed artifact.
+            """,
+        )
+
+        assert _sanction_issues(validate_pack(tmp_path)) == ([], [])
+
+    def test_pack_without_sanction_file_is_unchanged(self, tmp_path: Path) -> None:
+        _write_override_fragment(tmp_path, ("tactics", _BUILT_IN_TACTIC))
+
+        result = validate_pack(tmp_path)
+
+        assert _sanction_issues(result) == ([], [])
+
+
+@pytest.mark.unit
+class TestPackSanctionSymlinkPresence:
+    """A symlinked sanction file counts as present, as the runtime parser sees it."""
+
+    @pytest.fixture(autouse=True)
+    def _require_symlinks(self, tmp_path: Path) -> None:
+        probe = tmp_path / "probe-link"
+        try:
+            probe.symlink_to(tmp_path / "probe-target")
+        except (OSError, NotImplementedError, AttributeError):
+            pytest.skip("symlinks unsupported on this platform")
+        probe.unlink()
+
+    def test_dangling_symlink_is_a_pack_sanction_error(self, tmp_path: Path) -> None:
+        pack = tmp_path / "mypack"
+        pack.mkdir()
+        (pack / _SANCTION_FILE).symlink_to(tmp_path / "nonexistent.yaml")
+
+        errors, _ = _sanction_issues(validate_pack(pack))
+
+        assert len(errors) == 1
+        assert _SANCTION_FILE in errors[0].message
+
+    def test_symlink_escaping_pack_root_is_a_pack_sanction_error(
+        self, tmp_path: Path
+    ) -> None:
+        outside = tmp_path / "outside.yaml"
+        outside.write_text("replaceable_builtins: []\n", encoding="utf-8")
+        pack = tmp_path / "mypack"
+        pack.mkdir()
+        (pack / _SANCTION_FILE).symlink_to(outside)
+
+        errors, _ = _sanction_issues(validate_pack(pack))
+
+        assert len(errors) == 1
+        assert _SANCTION_FILE in errors[0].message
+
+
+def test_built_in_node_urns_is_empty_when_the_built_in_graph_cannot_load(monkeypatch: pytest.MonkeyPatch) -> None:
+    from charter.offering.drg import loader
+    from specify_cli.doctrine.pack_validator import _built_in_node_urns
+
+    def failing() -> object:
+        raise loader.DRGLoadError("broken built-in graph")
+
+    monkeypatch.setattr(loader, "load_built_in_graph", failing)
+    assert _built_in_node_urns() == frozenset()

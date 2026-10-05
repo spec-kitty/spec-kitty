@@ -19,11 +19,12 @@ from __future__ import annotations
 import logging
 import re
 import warnings
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from charter.bundle import CHARTER_YAML
-
 from ._profile_health_render import _SELECTION_KIND_PLURALS
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,12 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from charter.drg import DRGGraph, OrgDRGConflictError
     from charter.glossary_packs import GlossaryPack
+    from charter.offering.drg.org_pack_loader import OrgDRGFragment
+    from charter.offering.drg.override_policy import (
+        EffectiveOverridePolicy,
+        OverriddenBuiltin,
+        OverrideAdjudication,
+    )
 
     from ._doctrine_health import (
         DoctrineHealthReport,
@@ -763,7 +770,7 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
         return result
 
     try:
-        _run_post_merge_org_checks(result, merged, built_in, repo_root)
+        _run_post_merge_org_checks(result, merged, built_in, repo_root, fragments)
     except Exception as exc:  # noqa: BLE001 — doctor must not crash on a bad pack
         # Same principle, its own attribution: the merge succeeded, so blaming
         # this on the merge would send the operator to the wrong artefact.
@@ -806,6 +813,7 @@ def _run_post_merge_org_checks(
     merged: DRGGraph,
     built_in: DRGGraph,
     repo_root: Path,
+    fragments: Sequence[OrgDRGFragment] = (),
 ) -> None:
     """Run the checks that need an assembled graph, and record their findings.
 
@@ -832,19 +840,10 @@ def _run_post_merge_org_checks(
         _append_org_errors(result, dangling)
 
     built_in_urns = frozenset(node.urn for node in built_in.nodes)
-    unsanctioned = _adjudicate_org_overrides(merged, built_in_urns, repo_root)
-    if unsanctioned:
-        # Dedicated key for precise rendering (human/JSON) AND an entry in
-        # ``errors`` so the honest ``DoctrineHealthReport.healthy`` predicate
-        # flips the report unhealthy (RC=1) without a parallel health path.
-        result["unsanctioned_overrides"] = unsanctioned
-        _append_org_errors(
-            result,
-            [
-                f"unsanctioned built-in override: {f['urn']} ({f['kind']}) — {f['why']}"
-                for f in unsanctioned
-            ],
-        )
+    # Known limit: when the merge itself hard-fails or crashes this function is
+    # never reached, so no ``pack_sanction_errors`` are reported then. The report
+    # is unhealthy anyway (the merge failure is in ``errors``).
+    _record_override_findings(result, merged, built_in_urns, repo_root, fragments)
 
 
 def _append_org_errors(result: dict[str, object], messages: list[str]) -> None:
@@ -860,35 +859,150 @@ def _append_org_errors(result: dict[str, object], messages: list[str]) -> None:
     result["errors"] = errors
 
 
-def _adjudicate_org_overrides(
+@dataclass(frozen=True)
+class _OverrideVerdicts:
+    """Everything one adjudication pass learned, for recording and rendering."""
+
+    effective: EffectiveOverridePolicy
+    pack_roots: dict[str, Path]
+    overrides: list[OverriddenBuiltin]
+    adjudication: OverrideAdjudication
+
+
+def _adjudicate_with_policy(
     merged: DRGGraph,
     built_in_urns: frozenset[str],
     repo_root: Path,
-) -> list[dict[str, str]]:
-    """Adjudicate org overrides of built-in DRG nodes against the repo allowlist.
+    fragments: Iterable[OrgDRGFragment],
+) -> _OverrideVerdicts:
+    """Load the effective policy ONCE and adjudicate every org override with it.
 
-    Pure governance helper extracted from :func:`_collect_org_layer_data` to keep
-    that collector at complexity ≤ 15 (NFR-003). It reuses the WP07-promoted
-    predicates over an ALREADY-MERGED graph and runs no merge of its own
-    (C-006). Only ``org:``-provenance overrides are adjudicated; project-tier
-    (``.kittify/doctrine/``) overrides are intentionally ungoverned (FR-012).
-
-    Returns a JSON-serialisable list of ``{"urn", "kind", "why"}`` findings —
-    empty when every override is sanctioned by
-    ``.kittify/doctrine/replaceable-builtins.yaml`` (or none exist).
+    The sole route to a verdict: policy loading, scoping, revocation and the
+    decision table all live in :mod:`charter.offering.drg.override_policy`
+    (C-003). The policy is loaded even when no override exists, so a malformed
+    pack or consumer file is reported eagerly (FR-006).
     """
-    from charter.offering.drg.override_policy import (  # noqa: PLC0415
-        find_overridden_builtin_urns,
-        find_unsanctioned_overrides,
-        load_replaceable_builtins,
+    # Lazy: override_policy is a door-less doctrine internal reached only from
+    # this module (tests/architectural/test_runtime_charter_doctrine_boundary.py).
+    from charter.offering.drg.override_policy import (
+        adjudicate_overrides,
+        configured_pack_names,
+        find_overridden_builtins,
+        load_effective_override_policy,
+        pack_roots_from_fragments,
     )
 
-    targets = find_overridden_builtin_urns(merged, built_in_urns)
-    if not targets:
-        return []
-    policy = load_replaceable_builtins(repo_root)
-    findings = find_unsanctioned_overrides(targets, policy)
-    return [{"urn": f.urn, "kind": f.kind, "why": f.why} for f in findings]
+    pack_roots = pack_roots_from_fragments(fragments, repo_root)
+    effective = load_effective_override_policy(repo_root, pack_roots, configured_pack_names=configured_pack_names(repo_root, pack_roots))
+    overrides = find_overridden_builtins(merged, built_in_urns)
+    return _OverrideVerdicts(effective, pack_roots, overrides, adjudicate_overrides(overrides, effective))
+
+
+def _unsanctioned_findings(verdicts: _OverrideVerdicts) -> list[dict[str, object]]:
+    """Render unsanctioned verdicts as JSON findings, with the legacy-template hint.
+
+    The legacy ``templates/setup/replaceable-builtins.yaml`` is probed only for
+    unsanctioned overrides and only in the owning pack's root (NFR-001); it is an
+    advisory hint, never a sanction.
+    """
+    from charter.offering.drg.override_policy import (
+        LEGACY_TEMPLATE_RELPATH,
+        legacy_template_entries,
+    )
+
+    pack_of = {override.urn: override.pack for override in verdicts.overrides}
+    urns_by_pack: dict[str, list[str]] = {}
+    for finding in verdicts.adjudication.unsanctioned:
+        urns_by_pack.setdefault(pack_of.get(finding.urn, ""), []).append(finding.urn)
+    legacy: dict[str, tuple[Path, str]] = {}
+    for pack, urns in urns_by_pack.items():
+        pack_root = verdicts.pack_roots.get(pack)
+        if pack_root is None:
+            continue
+        for urn, reason in legacy_template_entries(pack_root, urns).items():
+            legacy[urn] = (pack_root / LEGACY_TEMPLATE_RELPATH, reason)
+
+    findings: list[dict[str, object]] = []
+    for item in verdicts.adjudication.unsanctioned:
+        entry: dict[str, object] = {"urn": item.urn, "kind": item.kind, "why": item.why}
+        if item.urn in legacy:
+            path, reason = legacy[item.urn]
+            entry["legacy_template"] = {"path": str(path), "reason": reason}
+        findings.append(entry)
+    return findings
+
+
+def _sanction_file_labels() -> tuple[str, str, str]:
+    """``(consumer allowlist path, pack-root file name, legacy template path)``.
+
+    ``doctor`` renders these in its hints; they come from the policy module so the
+    renderer never restates the file layout, and ``doctor`` itself never imports
+    the door-less ``override_policy`` internal.
+    """
+    from charter.offering.drg.override_policy import (
+        LEGACY_TEMPLATE_RELPATH,
+        PACK_POLICY_FILENAME,
+        POLICY_RELPATH,
+    )
+
+    return str(POLICY_RELPATH), PACK_POLICY_FILENAME, LEGACY_TEMPLATE_RELPATH
+
+
+def _sanction_entry_snippet(urn: str, reason: str) -> list[str] | None:
+    """Pasteable ``replaceable_builtins`` lines for one entry, or ``None`` when unusable.
+
+    A directive needs a non-empty reason, so an entry without one would not
+    sanction anything once pasted; ``None`` tells the renderer to say so instead.
+    """
+    from charter.offering.drg.override_policy import (
+        ReplaceableBuiltin,
+        render_sanction_entries,
+        sanction_reason_missing,
+    )
+
+    if sanction_reason_missing(urn, reason):
+        return None
+    snippet: str = render_sanction_entries([ReplaceableBuiltin(urn=urn, reason=reason)])
+    return snippet.rstrip("\n").splitlines()
+
+
+def _record_override_findings(
+    result: dict[str, object],
+    merged: DRGGraph,
+    built_in_urns: frozenset[str],
+    repo_root: Path,
+    fragments: Iterable[OrgDRGFragment],
+) -> None:
+    """Record sanctioned/unsanctioned overrides and policy-file errors on *result*.
+
+    Writes under ``org_drg`` (never a new top-level ``profile_health`` key), each
+    key only when non-empty: ``unsanctioned_overrides``, ``sanctioned_overrides``
+    and ``pack_sanction_errors``. Every error — including a malformed consumer
+    allowlist and an unknown revocation target — is appended to ``errors``, the
+    channel ``DoctrineHealthReport.healthy`` reads, so each flips RC to 1.
+    """
+    verdicts = _adjudicate_with_policy(merged, built_in_urns, repo_root, fragments)
+    effective = verdicts.effective
+    errors: list[str] = list(effective.pack_errors)
+    if effective.pack_errors:
+        result["pack_sanction_errors"] = list(effective.pack_errors)
+    if effective.consumer_error is not None:
+        errors.append(effective.consumer_error)
+    errors.extend(effective.revocation_errors)
+    if verdicts.adjudication.sanctioned:
+        result["sanctioned_overrides"] = [
+            {"urn": s.urn, "kind": s.kind, "pack": s.pack, "source": s.source, "reason": s.reason}
+            for s in verdicts.adjudication.sanctioned
+        ]
+    unsanctioned = _unsanctioned_findings(verdicts)
+    if unsanctioned:
+        # Dedicated key for precise rendering (human/JSON) AND an entry in
+        # ``errors`` so the honest ``DoctrineHealthReport.healthy`` predicate
+        # flips the report unhealthy (RC=1) without a parallel health path.
+        result["unsanctioned_overrides"] = unsanctioned
+        errors.extend(f"unsanctioned built-in override: {f['urn']} ({f['kind']}) — {f['why']}" for f in unsanctioned)
+    if errors:
+        _append_org_errors(result, errors)
 
 
 class _RawRepositorySource(Protocol):
