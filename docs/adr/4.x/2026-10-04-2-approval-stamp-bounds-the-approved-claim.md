@@ -1,6 +1,6 @@
 ---
 title: 'ADR: the approval stamp bounds what consolidate treats as approved work'
-description: 'Consolidate refuses a code lane that holds a commit made after its work package was approved, reading the approval stamp as the one reference for what review saw, and refuses an approval that has no stamp until it is re-reviewed or attested.'
+description: 'Consolidate refuses a code lane holding a commit made after its work package was approved; an approval with no stamp refuses until re-reviewed or attested.'
 status: Accepted
 date: '2026-10-04'
 updated: '2026-10-05'
@@ -52,7 +52,7 @@ Commits reachable from the claim base or from an anchor are not examined. Merge 
 
 The walk covers the full commit range, not the first-parent spine. A late commit that arrives through a merge from a branch that is not an anchor is found.
 
-The claim base is the target branch's tip as it was before the run mutated anything; on a resume it is the persisted value. When that value does not resolve, the claim base is the coordination base. Anchors are:
+The claim base is the target branch's tip as it was before the run mutated anything; on a resume it is the persisted value. When that value does not resolve, the claim base is the coordination base. `check_lane` itself raises when the claim base or the lane tip does not resolve, and every caller turns that into a refusal; only the claim builder keeps its older tolerance of an unresolvable coordination base, which reads as an empty lane. Anchors are:
 
 - the dependency-lane tips of lanes that are not fully canceled;
 - the target's pre-consolidation tip;
@@ -93,7 +93,16 @@ The re-check never uses a live branch name as a reference. Lanes are consolidate
 - A repeat attestation is accepted, and recorded again, only while the lane has not moved past the earlier one. Otherwise it is refused and nothing is recorded.
 - It is not a review. The hollow-review warning never reads it as the approving review, so it cannot satisfy the independent-review check. It is a forced transition and each attestation adds one to the work package's forced-transition count, which that warning counts, so an attestation can itself bring a work package to the count at which the warning prints.
 
-The recovery command printed with the two refusals that a commit or a rewrite causes is `spec-kitty agent tasks move-task <WP> --to in_progress --mission <mission>`. After that the operator reworks the work package, sends it back to review and approves it again.
+### Operator guidance
+
+Each refusal prints one short line per refused lane or work package, then one recovery block. The commands in it carry the Mission slug and run as printed. The text names the approval stamp once, as the lane commit recorded when review approved the work package.
+
+- For `LANE_MOVED_AFTER_APPROVAL` the text names up to three late commits and says to see a commit with `git show <sha>`. The recovery is `spec-kitty agent tasks move-task <WP> --to in_progress --mission <slug>` for each work package of the lane, then rework, review and approve again.
+- For `APPROVAL_STAMP_NOT_ON_LANE` the recovery is the same move-back command.
+- For `APPROVAL_STAMP_MISSING` the text prints one `spec-kitty consolidate --mission <slug> --attest-approved-reviewed <WP> ... --attest-reason "<what you checked>"` command that lists every unstamped work package, and the move-back command for each of them.
+- A fix committed to a lane after approval, including a fix folded in after a late review, needs the work package approved again. The refusal does not distinguish a fix from any other late commit.
+- `orchestrator-api consolidate-mission` prints the same text and adds that it has no attestation flag: attestation is done with `spec-kitty consolidate` (CLI only).
+- `spec-kitty agent tasks move-task` and `spec-kitty agent status emit` print a one-line warning on stderr when an approval was persisted with no stamp for a work package of a code lane, so the operator learns it at approval time and not at `consolidate`. The status pipeline stays free of git access; the shells read the persisted event.
 
 ### Mixed lanes
 
@@ -141,4 +150,7 @@ Each stays open.
 - **Planning lanes and `single_branch` missions.** They are not stamped and not bounded.
 - **The width of the bookkeeping definition.** It covers the repository's `.kittify/` tree and any `kitty-specs/<slug>/` path segment. A post-approval commit confined to those paths is not refused. The bound reuses the gate's definition so there is one authority; narrowing it is a separate change to the existing content checks.
 - **`consolidate --dry-run`.** It does not report the new refusals.
+- **`orchestrator-api consolidate-mission` has only the up-front check.** A commit hand-merged into the mission branch with the lane reset to its stamp, or a commit that lands between its check and its lane consolidation, is not caught there. `consolidate` fails both.
+- **A forced re-approval restamps the lane.** An `approved -> approved` transition forced by anyone records a new approval stamp at the current lane head. The bound is as strong as the review model: the transition is a recorded forced event, and no warning is printed for it today.
+- **An approval recorded while the lane branch is missing has no stamp.** It can then be attested, which leaves two recorded operator acts in the log.
 - **A repeat attestation on a resume.** If the target already advanced, the repeat attestation measures from the live target tip. The claim check still refuses afterwards.

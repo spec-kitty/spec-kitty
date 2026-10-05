@@ -3446,7 +3446,7 @@ pages:
   - path: "docs/adr/4.x/2026-10-04-2-approval-stamp-bounds-the-approved-claim.md"
     title: "ADR: the approval stamp bounds what consolidate treats as approved work"
     divio_type: "none"
-    abstract: "Consolidate refuses a code lane that holds a commit made after its work package was approved, reading the approval stamp as the one reference for what review saw, and refuses an approval that has no stamp until it is re-reviewed or attested."
+    abstract: "Consolidate refuses a code lane holding a commit made after its work package was approved; an approval with no stamp refuses until re-reviewed or attested."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -3454,6 +3454,7 @@ pages:
     - {slug: "the-lane-check", text: "The lane check", level: 3}
     - {slug: "where-it-runs", text: "Where it runs", level: 3}
     - {slug: "attestation", text: "Attestation", level: 3}
+    - {slug: "operator-guidance", text: "Operator guidance", level: 3}
     - {slug: "mixed-lanes", text: "Mixed lanes", level: 3}
     - {slug: "reversed-decisions", text: "Reversed decisions", level: 3}
     - {slug: "evidence", text: "Evidence", level: 3}

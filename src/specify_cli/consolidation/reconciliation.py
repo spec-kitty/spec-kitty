@@ -19,7 +19,9 @@ authority the wrong bookkeeping cannot fake.
 Claim integrity (D3+, non-negotiable):
 
 * approved commit SHAs come from **lane-branch git tips**, never status rows —
-  forbids the vacuous ``_assert_merged_wps_done_on_target`` pattern;
+  forbids the vacuous ``_assert_merged_wps_done_on_target`` pattern — bounded by the
+  approval stamps (#5668): a lane tip holding content beyond what review approved
+  refuses before any collector reads it (:func:`_approved_bound_verdict`);
 * WP membership (approved vs canceled) is read through the **Lamport** reduction
   wrapper (:func:`specify_cli.status.reducer.materialize_snapshot`), never LWW
   ``reduce_parsed`` — so a wall-clock-later approval cannot green-wash a
@@ -503,7 +505,8 @@ class ApprovedWpCommitSet:
     """The claim the verifier trusts — derived once per terminus transaction.
 
     ``approved`` maps each claimed WP id to its approved commit SHAs, read from
-    **lane-branch git tips** (never status rows). ``excluded_shas`` /
+    **lane-branch git tips** (never status rows) after the approved-bound check
+    (#5668) found each lane within what its approval stamps name. ``excluded_shas`` /
     ``excluded_patch_ids`` are the canceled/removed commits that must NOT be
     reachable from the target. ``manifest_wp_ids`` is the full set the manifest
     lists (the empty-vs-manifest fail-closed cross-check). ``excluded_window_base``
@@ -1404,7 +1407,7 @@ def build_approved_wp_set(
       edit);
     * approved commit SHAs still come from **lane-branch git tips** relative to
       *coord_base_ref* (never status rows), but the approved-bound check in front of the
-      collectors (:func:`approved_bound_refusal`, #5668) refuses a lane whose tip holds
+      collectors (:func:`_approved_bound_verdict`, #5668) refuses a lane whose tip holds
       content beyond what the approval stamps name, so the live tip equals the approved
       content up to tool-made merges and bookkeeping commits;
     * fail-closed: an unmaterializable coord surface, or a claim that is empty
@@ -1853,12 +1856,13 @@ def approved_bound_refusal(
 ) -> str | None:
     """Refusal text when a code lane holds content beyond what review approved, else ``None`` (#5668).
 
-    The claim builder's approved-bound check as a public entry point for the other
-    callers (``orchestrator-api consolidate-mission``, the resume path): the Lamport
+    The claim builder's approved-bound check as a public entry point for the one other
+    caller, ``orchestrator-api consolidate-mission`` (``consolidate`` runs the same check
+    inside :func:`build_approved_wp_set`, on a fresh run and on ``--resume``): the Lamport
     snapshot gives membership exactly as :func:`build_approved_wp_set` reads it, the
     status events come from *event_log* (one read per claim; a caller that passes none
-    gets its own), and the three refusal codes are rendered as
-    :class:`~specify_cli.consolidation.approved_bound.BoundRefusal` does. A snapshot
+    gets its own), and the refusal codes are rendered by
+    :func:`~specify_cli.consolidation.approved_bound.render_refusals`. A snapshot
     that cannot be materialized raises, as it does for the claim builder's own caller.
     """
     from specify_cli.status import materialize_snapshot
