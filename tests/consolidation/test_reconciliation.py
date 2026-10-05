@@ -2733,8 +2733,41 @@ def test_mixed_lane_fully_canceled_single_wp_lane_is_not_mixed(tmp_path: Path) -
 # --------------------------------------------------------------------------- #
 # Byte-identical pin (Objectives & Success Criteria) -- no issue-5018-class
 # regression surface: every pre-existing collector-derived field stays
-# EXACTLY what the unmodified collectors compute, for a mixed-lane input.
+# EXACTLY what the unmodified collectors compute, for both a non-mixed and a
+# mixed-lane input.
 # --------------------------------------------------------------------------- #
+
+
+def test_claim_fields_are_byte_identical_to_unmodified_collectors_non_mixed(tmp_path: Path) -> None:
+    from specify_cli.consolidation.reconciliation import (
+        _collect_approved_shas,
+        _collect_authored,
+        _collect_excluded,
+    )
+    from specify_cli.status import materialize_snapshot
+
+    repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01", "WP02"))
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base)
+
+    snapshot = materialize_snapshot(feature_dir)
+    work_packages = snapshot.work_packages or {}
+    expected_approved = _collect_approved_shas(repo, manifest, work_packages, coord_base)
+    expected_authored_shas, expected_authored_patch_ids, expected_authored_blobs, expected_authored_deletions, expected_multi_lane_paths, *_ = _collect_authored(
+        repo, manifest, work_packages, coord_base, canceled_lane_commits=frozenset()
+    )
+    expected_excluded_shas, expected_excluded_patch_ids = _collect_excluded(
+        repo, manifest, coord_base, frozenset(), authored_shas=expected_authored_shas, authored_patch_ids=expected_authored_patch_ids
+    )
+
+    assert claim.approved == expected_approved
+    assert claim.authored_shas == expected_authored_shas
+    assert claim.authored_patch_ids == expected_authored_patch_ids
+    assert claim.authored_blobs == expected_authored_blobs
+    assert claim.authored_deletions == expected_authored_deletions
+    assert claim.multi_lane_paths == expected_multi_lane_paths
+    assert claim.excluded_shas == expected_excluded_shas
+    assert claim.excluded_patch_ids == expected_excluded_patch_ids
+    assert claim.canceled_content == frozenset()  # non-mixed mission: always empty
 
 
 def test_claim_fields_are_byte_identical_to_unmodified_collectors_mixed_lane(tmp_path: Path) -> None:

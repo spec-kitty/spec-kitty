@@ -307,8 +307,9 @@ def commits_beyond(repo_root: Path, tip: str, excluded: Sequence[str]) -> list[s
 def content_commits(repo_root: Path, commits: Iterable[str], is_bookkeeping: Callable[[str], bool]) -> list[tuple[str, str]]:
     """The ``(sha, first content path)`` of every commit that is real content.
 
-    Merge commits are tool-made movement (a dependency, mission-branch or target sync)
-    and a commit that touches only bookkeeping paths is housekeeping; neither counts.
+    Merge commits are tool-made movement (a dependency, mission-branch or target sync, or a
+    lane auto-rebase that resolved a conflict itself) and a commit that touches only
+    bookkeeping paths is housekeeping; neither counts.
     """
     content: list[tuple[str, str]] = []
     for sha in commits:

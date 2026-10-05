@@ -329,9 +329,31 @@ def _second_wp_approved_later(repo: _Repo) -> _Setup:
     return _Setup(approved=("WP01", "WP02"))
 
 
+def _conflict_resolved_merge(repo: _Repo) -> _Setup:
+    """The auto-rebase case: the tool merges an anchor that edits the same file and resolves the conflict itself.
+
+    ``git show`` lists such a merge commit as changing the resolved path, so counting merge commits as content would
+    refuse a lane whose only post-approval movement is the tool's own resolution.
+    """
+    repo.git("checkout", "-q", "main")
+    repo.branch_from("lane-dep", "base")
+    repo.commit("src/shared.py")
+    dep_tip = repo.tip("lane-dep")
+    repo.git("checkout", "-q", _BRANCH)
+    repo.commit("src/shared.py")
+    _approved_lane(repo)
+    conflicted = subprocess.run(["git", "-C", str(repo.root), "merge", "--no-ff", "-qm", "merge lane-dep", "lane-dep"], capture_output=True, text=True)
+    assert conflicted.returncode != 0, "the fixture must produce a conflict"
+    (repo.root / "src/shared.py").write_text("resolved by the tool\n", encoding="utf-8")
+    repo.git("add", "src/shared.py")
+    repo.git("commit", "-qm", "auto-rebase(lane=lane-a): 1 conflicts resolved by classifier rules")
+    assert "src/shared.py" in repo.git("show", "--name-only", "--format=", "HEAD").split()
+    return _Setup(anchors=(dep_tip,))
+
+
 @pytest.mark.parametrize(
     "scenario",
-    [_dependency_lane_merge, _mission_branch_merge, _target_merge, _bookkeeping_only_commit, _second_wp_approved_later],
+    [_dependency_lane_merge, _mission_branch_merge, _target_merge, _conflict_resolved_merge, _bookkeeping_only_commit, _second_wp_approved_later],
     ids=lambda fn: fn.__name__.strip("_"),
 )
 def test_tool_made_movement_passes_and_one_content_commit_still_refuses(repo: _Repo, scenario: _Scenario) -> None:
@@ -416,6 +438,32 @@ def test_claim_refuses_a_rewritten_lane(tmp_path: Path) -> None:
     claim = _claim(mission)
 
     assert claim.refusal is not None and claim.refusal.startswith("APPROVAL_STAMP_NOT_ON_LANE: ")
+
+
+def test_claim_measures_a_lane_from_the_target_tip_when_the_mission_branch_already_carries_its_late_commit(tmp_path: Path) -> None:
+    """The interrupted-run case: the mission branch holds a post-approval lane commit, the target's pre-mutation tip does not."""
+    mission = build_lanes_mission(tmp_path)
+    lane = mission.lane_branches["WP01"]
+    git = _Repo(mission.repo)
+    git.git("checkout", "-q", lane)
+    late = git.commit("src/late.py")
+    git.git("checkout", "-q", mission.target_branch)
+    git.git("update-ref", f"refs/heads/{mission.coord_branch}", late)
+
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    manifest = read_lanes_json(mission.feature_dir)
+    assert manifest is not None
+    claim = build_approved_wp_set(
+        mission.repo,
+        mission.feature_dir,
+        manifest,
+        coord_base_ref=mission.coord_branch,
+        excluded_window_base=git.tip(mission.target_branch),
+    )
+
+    assert claim.refusal is not None and claim.refusal.startswith("LANE_MOVED_AFTER_APPROVAL: ")
+    assert late[:7] in claim.refusal
 
 
 def test_claim_refuses_when_the_event_log_cannot_be_read(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

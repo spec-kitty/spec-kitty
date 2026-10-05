@@ -8,10 +8,12 @@ histories. A merge commit CAN carry content, though: one whose tree adds a file 
 neither parent has (an "evil merge"). The check does not see that file, so a lane
 approved at one tip and then given such a merge commit still consolidates.
 
-The shape is out of scope for mission approved-claim-bound (spec, Known residuals): a
-sound check needs a per-commit tree comparison against both parents, which is a larger
-change than the commit-set check this mission adds, and it would also have to tell a
-tool-made merge from an operator-made one. This test pins the ideal behaviour (the
+The shape is out of scope for mission approved-claim-bound (spec, Known residuals). Dropping
+the merge skip would not close it cleanly: ``git show`` lists a merge commit's paths that differ
+from every parent, so it would see this file, but it would also see a source file the lane
+auto-rebase resolved after approval (``test_approved_bound.py::_conflict_resolved_merge`` pins
+that the tool's own resolution passes), and refuse a legitimate mission. A sound check has to
+tell a tool-made resolution from an operator-made one. This test pins the ideal behaviour (the
 refusal ``LANE_MOVED_AFTER_APPROVAL``) as a strict expected failure, so the day the
 check learns to see it the test turns red and the marker is removed.
 """
