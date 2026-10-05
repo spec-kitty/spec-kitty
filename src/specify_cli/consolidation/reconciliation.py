@@ -55,7 +55,7 @@ from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR
 from specify_cli.lanes._git import branch_exists
 from specify_cli.lanes.compute import is_planning_lane, lane_created_branch, lane_fully_canceled
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
-from specify_cli.consolidation.approved_bound import BoundRefusal, BoundRefusalCode, check_lane, commits_beyond, content_commits
+from specify_cli.consolidation.approved_bound import BoundRefusal, BoundRefusalCode, approval_stamp, check_lane, commits_beyond, content_commits
 from specify_cli.consolidation.git_probes import (
     GitProbeError,
     blob_id_at,
@@ -1751,15 +1751,29 @@ def _bound_lanes(
     return sorted(covered, key=lambda lane: lane.lane_id)
 
 
-def _mission_branch_anchor(repo_root: Path, lanes_manifest: LanesManifest) -> list[str]:
-    """The mission branch as a SHA now, as an anchor: only the tool advances it.
+def _bound_claim_base(repo_root: Path, window_base: str | None, coord_base_ref: str) -> str:
+    """What a lane's own range is measured from: the target's pre-mutation tip when it resolves, else *coord_base_ref*.
 
-    Unresolved yields no anchor, which exempts less and so can only refuse more.
+    The target's pre-mutation tip (persisted on a resume, the live tip on a fresh run)
+    predates every commit this run merges, so a post-approval commit that the mission
+    branch already carries is not reachable from it. A live mission-branch (or
+    coordination) tip is not: on a resume it already holds what the interrupted run merged.
     """
+    return window_base if window_base and _resolves_commit(repo_root, window_base) else coord_base_ref
+
+
+def _resolves_commit(repo_root: Path, ref: str) -> bool:
     try:
-        return [resolve_commit(repo_root, lanes_manifest.mission_branch)]
+        resolve_commit(repo_root, ref)
     except GitProbeError:
-        return []
+        return False
+    return True
+
+
+def approval_stamp_anchors(events: Sequence[Any], lanes: Sequence[ExecutionLane], work_packages: Mapping[str, Any], excluded: frozenset[str]) -> list[str]:
+    """The approval stamps of every bounded lane: reviewed content the tool's own mission-branch merges bring into another lane."""
+    stamps = (approval_stamp(events, wp_id) for lane in lanes for wp_id in _bound_lane_wp_ids(lane, work_packages, excluded)[0])
+    return [stamp for stamp in stamps if stamp is not None]
 
 
 def _approved_bound_verdict(
@@ -1785,7 +1799,8 @@ def _approved_bound_verdict(
     events = event_log.read()
     if events is None:
         return _BoundVerdict(refusal=_bound_events_unreadable_text(lanes[0].lane_id))
-    mission_anchor = _mission_branch_anchor(repo_root, lanes_manifest)
+    claim_base = _bound_claim_base(repo_root, window_base, coord_base_ref)
+    stamp_anchors = approval_stamp_anchors(events, lanes, work_packages, excluded_canceled_wp_ids)
     is_bookkeeping = functools.partial(_is_bookkeeping, mission_slug=lanes_manifest.mission_slug, planning_prefix=planning_prefix)
     refusals: list[str] = []
     tips: list[tuple[str, str]] = []
@@ -1803,8 +1818,8 @@ def _approved_bound_verdict(
             branch=branch,
             approved_wp_ids=approved,
             canceled_wp_ids=canceled,
-            claim_base=coord_base_ref,
-            anchors=[*_closed_world_anchors(lanes_manifest, lane, window_base, excluded_canceled_wp_ids=excluded_canceled_wp_ids), *mission_anchor],
+            claim_base=claim_base,
+            anchors=[*_closed_world_anchors(lanes_manifest, lane, window_base, excluded_canceled_wp_ids=excluded_canceled_wp_ids), *stamp_anchors],
             is_bookkeeping=is_bookkeeping,
             tip=tip,
         )

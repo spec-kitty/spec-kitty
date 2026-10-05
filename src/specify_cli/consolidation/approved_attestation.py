@@ -22,7 +22,8 @@ refuses, a later review approval replaces it, and the run's own ``approved -> do
 
 An earlier attestation is not a review approval, and it bounds the lane exactly like one.
 Attesting a work package whose newest approval is an earlier attestation is therefore
-accepted only while its lane holds nothing beyond that attestation's ``lane_head``: the
+accepted only while its lane has not moved past that attestation's ``lane_head`` (no content
+commit beyond it, and the stamp still on the lane): the
 lane is checked through :func:`~specify_cli.consolidation.approved_bound.check_lane`, the
 check the claim itself runs. When it holds, the attestation is **re-recorded** as a fresh
 operator act with its own reason (like ``--attest-canceled-superseded``), so a run that
@@ -56,6 +57,7 @@ from .reconciliation import (
     _is_bookkeeping,
     _lane_branch_for,
     _planning_prefix,
+    approval_stamp_anchors,
 )
 
 #: Prefix of the recorded ``reason`` so the status log says what the operator attested.
@@ -78,7 +80,9 @@ def validate_approved_attestation_request(
     *claim_lanes* maps each work package of the approved claim to its current lane
     (``approved`` or ``done``). The reason is required and non-blank; every work package
     must be in the claim; a work package whose newest approval is a review approval that
-    carries a stamp is refused. An earlier attestation (stamped or not) is accepted.
+    carries a stamp is refused. An earlier attestation (stamped or not) passes this
+    validation; whether a STAMPED one may be repeated depends on its lane, which
+    :func:`plan_approved_attestations` checks.
     """
     requested = tuple(dict.fromkeys(wp_ids))
     if not requested:
@@ -174,7 +178,9 @@ def _refuse_moved_reattestations(
     if not reattested:
         return
     is_bookkeeping = functools.partial(_is_bookkeeping, mission_slug=lanes_manifest.mission_slug, planning_prefix=_planning_prefix(repo_root, feature_dir))
-    for lane in _bound_lanes(lanes_manifest, work_packages, excluded_canceled_wp_ids):
+    lanes = _bound_lanes(lanes_manifest, work_packages, excluded_canceled_wp_ids)
+    stamp_anchors = approval_stamp_anchors(events, lanes, work_packages, excluded_canceled_wp_ids)
+    for lane in lanes:
         approved, canceled = _bound_lane_wp_ids(lane, work_packages, excluded_canceled_wp_ids)
         hit = sorted(reattested.intersection(approved))
         if not hit:
@@ -188,8 +194,8 @@ def _refuse_moved_reattestations(
                 branch=branch,
                 approved_wp_ids=[wp_id for wp_id in approved if approval_stamp(events, wp_id) is not None],
                 canceled_wp_ids=canceled,
-                claim_base=resolve_commit(repo_root, lanes_manifest.mission_branch),
-                anchors=_closed_world_anchors(lanes_manifest, lane, None, excluded_canceled_wp_ids=excluded_canceled_wp_ids),
+                claim_base=resolve_commit(repo_root, lanes_manifest.target_branch),
+                anchors=[*_closed_world_anchors(lanes_manifest, lane, None, excluded_canceled_wp_ids=excluded_canceled_wp_ids), *stamp_anchors],
                 is_bookkeeping=is_bookkeeping,
             )
         except GitProbeError as exc:
@@ -199,7 +205,7 @@ def _refuse_moved_reattestations(
         if refusal is not None:
             raise AttestationError(
                 f"{ATTEST_APPROVED_FLAG} cannot be repeated for {', '.join(hit)}: lane {lane.lane_id} (branch '{branch}') "
-                f"holds content committed after the earlier attestation, which would otherwise read as approved. "
+                f"moved past the earlier attestation, so its new content would otherwise read as approved. "
                 f"Move {hit[0]} back for review ({_MOVE_BACK.format(wp=hit[0])}) so the new content is reviewed, "
                 f"approve it again, then re-run spec-kitty consolidate. {_NOTHING_RECORDED}"
             )

@@ -27,6 +27,7 @@ import pytest
 
 from specify_cli.consolidation.approved_bound import BoundRefusal, BoundRefusalCode
 from tests.terminus.conftest import CoordMission, blob_present_at, git_rev, run_terminus
+from tests.terminus.conftest import _git as git
 from tests.terminus.mixed_lane_support import collapse
 from tests.terminus.post_approval_support import (
     LATE_PATH,
@@ -35,6 +36,7 @@ from tests.terminus.post_approval_support import (
     WP01_PATH,
     add_post_approval_commit,
     build_post_approval_mission,
+    lane_worktree,
     rework_and_reapprove,
 )
 
@@ -101,19 +103,47 @@ def _wp_lane(mission: CoordMission, wp_id: str) -> str:
     return str(next(wp["lane"] for wp in payload["work_packages"] if wp["id"] == wp_id))
 
 
-@pytest.mark.parametrize("code", [BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL, BoundRefusalCode.APPROVAL_STAMP_MISSING, BoundRefusalCode.APPROVAL_STAMP_NOT_ON_LANE])
-@pytest.mark.parametrize("topology", _TOPOLOGIES)
-def test_printed_recovery_command_runs_and_sends_the_work_package_back(tmp_path: Path, topology: Topology, code: BoundRefusalCode) -> None:
-    """The remedy every refusal prints is executed as printed, on both topologies (NFR-004)."""
-    mission = build_post_approval_mission(tmp_path, topology)
-    assert _wp_lane(mission, "WP01") == "approved"
+def _printed_move_back_command(code: BoundRefusalCode) -> str:
     text = BoundRefusal(code, "lane-a", "lane-a", ("WP01",), commits=("a" * 40,), path="src/a.py", stamp="b" * 40).render()
     printed = re.search(r"\((spec-kitty agent tasks move-task [^)]*)\)", text)
     assert printed is not None, text
-    argv = shlex.split(printed.group(1).replace("<mission>", mission.slug))
+    return printed.group(1)
+
+
+def test_every_refusal_code_prints_the_same_recovery_command() -> None:
+    """One command template for all three codes, so running it once per topology proves the remedy of every code."""
+    assert {_printed_move_back_command(code) for code in BoundRefusalCode} == {"spec-kitty agent tasks move-task WP01 --to in_progress --mission <mission>"}
+
+
+@pytest.mark.parametrize("topology", _TOPOLOGIES)
+def test_printed_recovery_command_runs_and_sends_the_work_package_back(tmp_path: Path, topology: Topology) -> None:
+    """The remedy the refusals print is executed as printed, on both topologies (NFR-004)."""
+    mission = build_post_approval_mission(tmp_path, topology)
+    assert _wp_lane(mission, "WP01") == "approved"
+    argv = shlex.split(_printed_move_back_command(BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL).replace("<mission>", mission.slug))
     assert argv[0] == "spec-kitty"
 
     moved = run_terminus(mission, argv[1:])
 
     assert moved.returncode == 0, f"the printed recovery command failed on {topology}:\n{moved.stdout}\n{moved.stderr}"
     assert _wp_lane(mission, "WP01") == "in_progress"
+
+
+def test_the_mission_branch_merged_into_a_stale_lane_is_not_a_late_commit(tmp_path: Path) -> None:
+    """The tool's own sync of a stale lane stays exempt: it brings in another lane's REVIEWED commits, found through that lane's approval stamp.
+
+    Lane-a is merged into the mission branch, then the mission branch into lane-b (the
+    shape a resumed run leaves). Lane-b then holds lane-a's content commits beyond its own
+    stamp; none of them is a post-approval commit.
+    """
+    mission = build_post_approval_mission(tmp_path, "lanes")
+    scratch = tmp_path / "mission-scratch"
+    git(mission.repo, "worktree", "add", "-q", str(scratch), mission.coord_branch)
+    git(scratch, "merge", "-q", "--no-ff", "--no-edit", mission.lane_branch("WP01"))
+    git(lane_worktree(mission, "lane-b"), "merge", "-q", "--no-edit", mission.coord_branch)
+    git(mission.repo, "worktree", "remove", "--force", str(scratch))
+
+    rc, flat = _consolidate(mission)
+
+    assert rc == 0, f"a mission-branch merge into a stale lane is tool-made movement:\n{flat}"
+    assert blob_present_at(mission.repo, mission.target_branch, WP01_PATH)

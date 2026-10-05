@@ -3,8 +3,13 @@
 The claim-time check (WP02) refuses a lane whose content went past its approval
 stamp before the run started. It cannot see a commit added to the lane after the
 claim was captured and before the lane is merged into the mission branch: that
-commit rides the lane merge to the target and, without a second look at the gate,
-the run exits 0 and prints "Reconciliation verified".
+commit rides the lane merge to the target. For the plain late file of the first
+test the older content checks (blob attribution, closed world) already fail the
+run at the gate; only the named refusal is new. The second test pins the case they
+miss: on a LANES mission a late commit on lane-a that writes lane-b's approved file
+with lane-b's identical blob. Both lanes then attribute the blob to approved
+authorship, the merge is clean, and without the lane re-check the run exits 0 and
+prints "Reconciliation verified" under both strategies.
 
 Injection mechanism (deterministic, no timing): the consolidation runs as a real
 subprocess through the production CLI entry point, started by a tiny launcher
@@ -43,6 +48,7 @@ from tests.terminus.post_approval_support import (
     LATE_PATH,
     Topology,
     WP01_PATH,
+    WP02_PATH,
     build_post_approval_mission,
     lane_worktree,
 )
@@ -98,13 +104,13 @@ main()
 """
 
 
-def _consolidate_with_injection(mission: CoordMission, strategy: str, *, inject: bool) -> tuple[int, str]:
+def _consolidate_with_injection(mission: CoordMission, strategy: str, *, inject: bool, path: str = LATE_PATH, content: str = LATE_CONTENT) -> tuple[int, str]:
     launcher = mission.home / "inject_during_consolidate.py"
     launcher.write_text(_LAUNCHER, encoding="utf-8")
     lane_a = lane_worktree(mission, "lane-a")
     args = ["consolidate", "--mission", mission.slug, "--yes", "--strategy", strategy]
     result = subprocess.run(
-        [sys.executable, str(launcher), str(lane_a), LATE_PATH, LATE_CONTENT, "inject" if inject else "none", *args],
+        [sys.executable, str(launcher), str(lane_a), path, content, "inject" if inject else "none", *args],
         cwd=str(mission.repo),
         env=_cli_env(mission.home),
         capture_output=True,
@@ -147,3 +153,20 @@ def test_commit_added_during_the_run_is_refused_at_the_gate_and_rolled_back(tmp_
     assert _BANNER not in flat
     assert _run_tips(mission) == pre, "the rollback authority must put every moved branch back"
     assert not blob_present_at(mission.repo, mission.target_branch, LATE_PATH), "the unreviewed file must not be on the target"
+
+
+@pytest.mark.parametrize("strategy", _STRATEGIES)
+def test_a_late_commit_writing_another_lanes_approved_blob_is_refused_at_the_gate(tmp_path: Path, strategy: str) -> None:
+    """The case only the lane re-check closes: lane-a's late commit adds lane-b's approved file with lane-b's exact content."""
+    mission = build_post_approval_mission(tmp_path, "lanes")
+    lane_b_blob = (lane_worktree(mission, "lane-b") / WP02_PATH).read_text(encoding="utf-8")
+    pre = _run_tips(mission)
+
+    rc, flat = _consolidate_with_injection(mission, strategy, inject=True, path=WP02_PATH, content=lane_b_blob)
+
+    marker = _MARKER.search(flat)
+    assert marker is not None and marker.group(2) == "True", f"the duplicate-blob commit must have been merged into the mission branch before the gate:\n{flat}"
+    assert rc != 0, f"a late commit duplicating an approved blob must be refused at the gate, got exit 0 ({strategy}):\n{flat}"
+    assert _CODE in flat and marker.group(1)[:7] in flat, f"the refusal must name the late commit:\n{flat}"
+    assert _BANNER not in flat
+    assert _run_tips(mission) == pre, "the rollback authority must put every moved branch back"

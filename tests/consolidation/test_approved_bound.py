@@ -315,18 +315,6 @@ def test_mixed_lane_counts_the_canceled_work_packages_stamp_as_covered(repo: _Re
     assert "src/after_cancel.py" in refusal.render()
 
 
-def test_a_canceled_work_package_with_no_stamp_has_no_covered_point(repo: _Repo) -> None:
-    """No stamp on the canceled work package: its commits are beyond the bound, the lane is refused, never skipped."""
-    _approved_lane(repo)
-    repo.commit("src/wp02.py")
-    repo.event("WP02", Lane.CANCELED, None, actor="operator", metadata={ATTESTATION_KEY: "canceled_superseded"})
-
-    refusal = repo.check(_Setup(canceled=("WP02",)))
-
-    assert refusal is not None and refusal.code is BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL
-    assert "src/wp02.py" in refusal.render()
-
-
 # ---------------------------------------------------------------------------
 # through the production claim builder
 # ---------------------------------------------------------------------------

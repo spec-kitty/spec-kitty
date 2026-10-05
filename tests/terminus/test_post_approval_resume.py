@@ -128,7 +128,7 @@ def test_resume_refuses_a_commit_added_to_a_lane_not_yet_consolidated(tmp_path: 
 @pytest.mark.parametrize("topology", ["coord", "lanes"])
 def test_resume_refuses_a_commit_the_interrupted_lane_merge_already_carried_into_the_mission_branch(tmp_path: Path, topology: Topology) -> None:
     run = _InterruptedPostApproval(tmp_path, topology, inject_before_lane_merge=True)
-    assert blob_present_at(run.mission.repo, run.mission.coord_branch, LATE_PATH), "fixture precondition: the lane merge carried the late file into the mission branch"
+    assert blob_present_at(run.mission.repo, run.mission.coord_branch, LATE_PATH), "fixture precondition: the lane merge carried the late file"
 
     rc, flat = run.resume()
 

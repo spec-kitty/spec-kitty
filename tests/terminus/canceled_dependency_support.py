@@ -207,12 +207,14 @@ def strip_lane_head_stamps(mission: CoordMission, wp_id: str) -> None:
             continue
         rewritten: list[str] = []
         for line in log.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue  # a log copy that is empty must stay empty: a second call must not find a blank line
             event = json.loads(line)
             if event.get("wp_id") == wp_id:
                 metadata = event.get("policy_metadata") or {}
                 metadata.pop("lane_head", None)
                 event["policy_metadata"] = metadata or None
             rewritten.append(json.dumps(event, sort_keys=True))
-        log.write_text("\n".join(rewritten) + "\n", encoding="utf-8")
+        log.write_text("".join(f"{line}\n" for line in rewritten), encoding="utf-8")
         _git(log.parent, "add", str(log))
         _git(log.parent, "commit", "-qm", f"test: strip lane_head stamps of {wp_id}", "--allow-empty")

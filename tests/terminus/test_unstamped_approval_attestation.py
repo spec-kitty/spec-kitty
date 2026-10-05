@@ -58,19 +58,6 @@ def _status_log(mission: CoordMission) -> list[dict[str, object]]:
     return [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-def _strip_stamps(mission: CoordMission, *wp_ids: str) -> None:
-    """Legacy approvals for several work packages: ``strip_approval_stamps`` cannot be called twice (it rejects the blank line it leaves in an empty log copy)."""
-    log = resolve_status_surface(mission.repo, mission.slug)
-    events = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines() if line.strip()]
-    for event in events:
-        if event["wp_id"] in wp_ids:
-            metadata = {key: value for key, value in _metadata(event).items() if key != "lane_head"}
-            event["policy_metadata"] = metadata or None
-    log.write_text("".join(json.dumps(event, sort_keys=True) + "\n" for event in events), encoding="utf-8")
-    run_git(log.parent, "add", str(log))
-    run_git(log.parent, "commit", "-qm", f"test: strip lane_head stamps of {', '.join(wp_ids)}")
-
-
 def _is_approval_of(line: str, wp_id: str) -> bool:
     event = json.loads(line)
     return bool(event["wp_id"] == wp_id and event["to_lane"] == "approved")
@@ -136,8 +123,13 @@ def test_commit_after_the_attestation_is_refused(tmp_path: Path) -> None:
     assert rc != 0 and "LANE_MOVED_AFTER_APPROVAL" in flat and late[:7] in flat, f"a commit after the attestation must refuse:\n{flat}"
 
 
-def test_repeating_the_attestation_after_a_late_commit_is_refused(tmp_path: Path) -> None:
-    """Attest, commit unreviewed content, attest again: the repeat must not read as approving the new content."""
+@pytest.mark.parametrize("lane_merged_into_mission", [False, True])
+def test_repeating_the_attestation_after_a_late_commit_is_refused(tmp_path: Path, lane_merged_into_mission: bool) -> None:
+    """Attest, commit unreviewed content, attest again: the repeat must not read as approving the new content.
+
+    Also when the lane (late commit included) was merged into the mission branch in between:
+    the mission branch reaching the late commit must not exempt it.
+    """
     mission = build_post_approval_mission(tmp_path, "lanes")
     strip_approval_stamps(mission, "WP01")
     record_approved_reviewed_attestation(
@@ -150,13 +142,18 @@ def test_repeating_the_attestation_after_a_late_commit_is_refused(tmp_path: Path
         actor="landing-test-operator",
     )
     add_post_approval_commit(mission, LANE_A)
+    if lane_merged_into_mission:
+        scratch = tmp_path / "mission-scratch"
+        run_git(mission.repo, "worktree", "add", "-q", str(scratch), mission.coord_branch)
+        run_git(scratch, "merge", "-q", "--no-ff", "--no-edit", mission.lane_branches["WP01"])
+        run_git(mission.repo, "worktree", "remove", "--force", str(scratch))
     log_before = _status_log(mission)
     target = git_rev(mission.repo, mission.target_branch)
 
     rc, flat = _consolidate(mission, *_attest("WP01"))
 
     assert rc == 1 and "cannot be repeated for WP01" in flat, f"a repeated attestation must refuse once the lane moved:\n{flat}"
-    assert "holds content committed after the earlier attestation" in flat and "Nothing was recorded." in flat, flat
+    assert "moved past the earlier attestation" in flat and "Nothing was recorded." in flat, flat
     assert _status_log(mission) == log_before, "a refused repeat records nothing"
     assert git_rev(mission.repo, mission.target_branch) == target
     assert not blob_present_at(mission.repo, mission.target_branch, LATE_PATH)
@@ -205,7 +202,8 @@ def test_forced_done_without_an_approval_refuses_as_unstamped(tmp_path: Path) ->
 def test_an_earlier_attestation_is_re_recorded_by_the_repeated_command(tmp_path: Path) -> None:
     """A run that attested WP01 and then refused for WP02 is repeatable: the second run attests both."""
     mission = build_post_approval_mission(tmp_path, "lanes")
-    _strip_stamps(mission, "WP01", "WP02")
+    strip_approval_stamps(mission, "WP01")
+    strip_approval_stamps(mission, "WP02")
 
     rc, flat = _consolidate(mission, *_attest("WP01"))
     assert rc != 0 and _MISSING in flat and "WP02" in flat, f"WP02 is still unstamped:\n{flat}"
