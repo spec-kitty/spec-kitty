@@ -436,6 +436,68 @@ def test_validate_only_preview_reports_the_frozen_lane(tmp_path: Path, monkeypat
 
 
 # ---------------------------------------------------------------------------
+# A lane cycle caused by keeping started lane-mates together
+# ---------------------------------------------------------------------------
+
+
+def _set_wp(mission: _Mission, wp_id: str, owned: list[str], dependencies: list[str]) -> None:
+    """Set *wp_id*'s owned files and dependencies in its frontmatter and in ``tasks.md``."""
+    meta, body = read_frontmatter(_wp_file(mission, wp_id))
+    meta["owned_files"] = owned
+    meta["authoritative_surface"] = owned[0]
+    meta["dependencies"] = dependencies
+    write_frontmatter(_wp_file(mission, wp_id), meta, body)
+    tasks_md = mission.feature_dir / "tasks.md"
+    lines = tasks_md.read_text(encoding="utf-8").split("\n")
+    heading = next(index for index, line in enumerate(lines) if line.startswith(f"## Work Package {wp_id}"))
+    end = next((index for index in range(heading + 1, len(lines)) if lines[index].startswith("## Work Package")), len(lines))
+    section = [line for line in lines[heading + 1 : end] if not line.startswith("**Dependencies**")]
+    if dependencies:
+        section = ["", f"**Dependencies**: {', '.join(dependencies)}", *section]
+    tasks_md.write_text("\n".join([*lines[: heading + 1], *section, *lines[end:]]), encoding="utf-8")
+
+
+def _set_up_frozen_lane_cycle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> _Mission:
+    """WP01 and WP03 started together on lane-a; the amendment chains WP01 -> WP02 (lane-b) -> WP03.
+
+    Without the freeze the three WPs get three acyclic lanes; keeping WP01 and
+    WP03 together makes lane-a -> lane-b -> lane-a.
+    """
+    mission = _setup_mission(tmp_path, monkeypatch)
+    _start(mission, "WP01", commit_work=True, in_progress=True)
+    _write_wp(mission.feature_dir, "WP03", ["c.py", "a.py"], "FR-001", ["WP01"])
+    tasks_md = mission.feature_dir / "tasks.md"
+    wp03_section = "\n## Work Package WP03: Third\n\nRequirement refs: FR-001\n\n**Dependencies**: WP01\n"
+    tasks_md.write_text(tasks_md.read_text(encoding="utf-8") + wp03_section, encoding="utf-8")
+    _commit_amendment(mission)
+    joined = _invoke(mission.slug)
+    assert joined.exit_code == 0, joined.output
+    manifest = read_lanes_json(mission.feature_dir)
+    assert manifest is not None
+    assert ("lane-a", ("WP01", "WP03")) in _topology(manifest), _topology(manifest)
+    # WP01 is not approved yet, so WP03's claim is forced past the dependency gate.
+    allocate_lane_worktree(mission.repo, mission.slug, "WP03", manifest)
+    emit_status_transition(mission.feature_dir, mission.slug, "WP03", "claimed", "test", force=True, reason="started beside WP01 on lane-a")
+    _set_wp(mission, "WP02", ["b.py"], ["WP01"])
+    _set_wp(mission, "WP03", ["c.py"], ["WP02"])
+    _commit_amendment(mission)
+    return mission
+
+
+@pytest.mark.parametrize("extra", [(), ("--validate-only",)], ids=["real-run", "validate-only"])
+def test_freeze_induced_lane_cycle_refuses_before_any_status_write(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, extra: tuple[str, ...]) -> None:
+    mission = _set_up_frozen_lane_cycle(tmp_path, monkeypatch)
+    calls = _spy_status_writers(monkeypatch)
+
+    result = _refuse(mission, monkeypatch, *extra, frozen=False)
+
+    assert calls == [], f"the cycle must surface before any status writer runs; ran: {calls}"
+    assert result.payload.get("error_code") == "LANE_DEPENDENCY_CYCLE", result.payload
+    assert result.payload.get("cycle_path") == ["lane-a", "lane-b", "lane-a"], result.payload
+    assert str(result.payload.get("error", "")).startswith("Execution-lane dependency cycle detected: "), result.payload
+
+
+# ---------------------------------------------------------------------------
 # FR-007 / #4959: an unmaterialized coordination worktree is read from its
 # committed branch, never as "nothing started"
 # ---------------------------------------------------------------------------

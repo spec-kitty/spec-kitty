@@ -522,6 +522,26 @@ def test_dry_run_frozen_refusal_propagates(planning_dir: Path, tmp_path: Path, m
     assert excinfo.value.reason == "started_lanes_collapsed"
 
 
+def test_dry_run_freeze_induced_cycle_propagates(planning_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keeping WP01 and WP03 together on lane-a closes lane-a -> lane-b -> lane-a; refuse before any status write."""
+    from specify_cli.lanes.compute import LaneDependencyCycleError
+
+    _write_previous(planning_dir, _lane("lane-a", "WP01", "WP03"))
+    monkeypatch.setattr(finalize_lanes, "_gather_frozen_lane_membership", _Recorder(FrozenLaneMembership(bindings={"WP01": "lane-a", "WP03": "lane-a"})))
+
+    with pytest.raises(LaneDependencyCycleError) as excinfo:
+        _preflight(
+            planning_dir,
+            tmp_path,
+            {"topology": "lanes"},
+            lane_wp_manifests={"WP01": _code("a.py"), "WP02": _code("b.py"), "WP03": _code("c.py")},
+            lane_wp_dependencies={"WP01": [], "WP02": ["WP01"], "WP03": ["WP02"]},
+        )
+
+    assert excinfo.value.error_code == "LANE_DEPENDENCY_CYCLE"
+    assert excinfo.value.cycle_path == ("lane-a", "lane-b", "lane-a")
+
+
 def test_dry_run_defers_other_lane_failures_to_the_lane_write(planning_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.lanes.compute import LaneComputationError
 

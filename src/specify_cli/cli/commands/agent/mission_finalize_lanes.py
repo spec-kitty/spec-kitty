@@ -232,16 +232,20 @@ def _preflight_frozen_lane_membership(
     with it against the previous manifest, so a
     :class:`~specify_cli.lanes.compute.LaneMembershipFrozenError` surfaces
     before any status event or ``lanes.json`` write, ``--validate-only``
-    included. Empty lane inputs still run the check, so a removed started WP
-    refuses here rather than in the lane write. ``SINGLE_BRANCH`` has one repository-root lane and nothing to
-    move. Lane-computation failures other than the frozen refusal are left to
-    the real lane write, which reports them with their existing text (C-003).
+    included. A :class:`~specify_cli.lanes.compute.LaneDependencyCycleError`
+    surfaces here too, with its existing ``LANE_DEPENDENCY_CYCLE`` text:
+    keeping started lane-mates together can close a lane cycle that the
+    unfrozen inputs would not have. Empty lane inputs still run the check, so a
+    removed started WP refuses here rather than in the lane write.
+    ``SINGLE_BRANCH`` has one repository-root lane and nothing to move. Other
+    lane-computation failures are left to the real lane write, which reports
+    them with their existing text (C-003).
 
     Returns:
         The membership to thread into the real lane write.
     """
     from specify_cli.lanes.branch_naming import InvalidMissionIdentity
-    from specify_cli.lanes.compute import LaneComputationError, LaneMembershipFrozenError, compute_lanes
+    from specify_cli.lanes.compute import LaneComputationError, LaneDependencyCycleError, LaneMembershipFrozenError, compute_lanes
     from specify_cli.lanes.frozen_membership import FrozenLaneMembership
     from specify_cli.lanes.persistence import read_lanes_json
     from specify_cli.migration.backfill_topology import topology_from_meta
@@ -274,7 +278,9 @@ def _preflight_frozen_lane_membership(
             mission_branch=raw_mission_branch if isinstance(raw_mission_branch, str) else None,
             frozen=frozen,
         )
-    except LaneMembershipFrozenError:
+    except (LaneMembershipFrozenError, LaneDependencyCycleError):
+        # A cycle can come from keeping started lane-mates together; the real
+        # lane write would raise it after the status writes, so refuse here.
         raise
     except (LaneComputationError, InvalidMissionIdentity) as exc:
         # Deferred, not swallowed: the real lane write recomputes from the same
