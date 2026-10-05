@@ -23,7 +23,9 @@ Section B runs the REAL claim phases against a real git repository (real claim
 events, nothing in the implement command family patched) across N sequential
 lanes and asserts the post-cutover invariant directly: every ``WP##.md`` prompt
 file is **byte-identical** before and after its claim (0 runtime bytes written),
-so the claim itself never dirties a prompt file.
+so the claim itself never dirties a prompt file -- and, since #3471 exempts each
+claim's own status append from the next claim's planning-artifact guard, no
+inter-allocation commit is ever needed.
 """
 
 from __future__ import annotations
@@ -289,9 +291,11 @@ def test_sequential_n_lane_claims_write_zero_wp_file_bytes(tmp_path: Path, monke
     Post-cutover the claim no longer self-writes ``shell_pid`` into
     ``tasks/WP##.md`` (the dual-write mirror was removed): the claim rides the
     event log only. This test runs the REAL claim phases (``claim_preflight``,
-    ``record_claim``, ``commit_claim``) for N WPs in sequence against a real git
-    repository, with no ``git commit`` between iterations, and asserts that every
-    claim landed in the event log while every prompt file stayed byte-identical.
+    ``commit_planning_artifacts``, ``record_claim``, ``commit_claim``) for N WPs in
+    sequence against a real git repository, with no ``git commit`` between
+    iterations, and asserts that every claim passed the planning-artifact guard
+    (#3471: no inter-allocation commit is ever needed) and landed in the event log
+    while every prompt file stayed byte-identical.
     (The workspace allocation's own ``base_branch``/``base_commit`` stamp is a
     separate, workspace-creation write and is not part of the claim.)
     """
@@ -311,7 +315,9 @@ def test_sequential_n_lane_claims_write_zero_wp_file_bytes(tmp_path: Path, monke
 
     for wp_id, lane_id in zip(wp_ids, lane_ids, strict=True):
         ctx = implement_phases.detect_context(SLUG, wp_id, repo, False, json_mode=False)
-        implement_phases.claim_preflight(ctx, wp_id)
+        preflight = implement_phases.claim_preflight(ctx, wp_id)
+        # #3471: the previous claims' uncommitted status appends do not block this one.
+        implement_phases.commit_planning_artifacts(ctx, wp_id, preflight)
         status = implement_phases.record_claim(ctx, wp_id, "tester", _lane_allocation(repo, lane_id), "worktree")
         implement_phases.commit_claim(ctx, wp_id, status)
 

@@ -14,6 +14,7 @@ from typing import Any
 import typer
 from specify_cli.cli.console import console
 
+from kernel.git import GitCommandError, run_git
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import (
@@ -142,22 +143,43 @@ def claim_commit_paths(
     wp_file: Path,
     status_artifacts: Iterable[Path],
     routes_through_coord: bool,
+    include_config: bool = True,
 ) -> list[Path]:
     """Return the exact ordered bundle the claim commit stages.
 
     Order: the WP file, the primary-surface status artifacts, ``meta.json`` when
     it exists, then ``.kittify/config.yaml`` when it exists. Pure apart from the
     two ``exists()`` probes. #5673 (``config.yaml`` is bundled although the claim
-    never changes it) is a one-line change here.
+    never changes it) is a one-line change here. ``include_config=False`` leaves
+    ``config.yaml`` out: the ``--no-auto-commit`` staging never stages a file the
+    claim did not write.
     """
     paths = [wp_file.resolve(), *_primary_surface_status_paths(status_artifacts, routes_through_coord=routes_through_coord)]
     meta_file = feature_dir / "meta.json"
     config_file = repo_root / ".kittify" / "config.yaml"
     if meta_file.exists():
         paths.append(meta_file.resolve())
-    if config_file.exists():
+    if include_config and config_file.exists():
         paths.append(config_file.resolve())
     return paths
+
+
+def _stage_claim_writes(repo_root: Path, wp_id: str, paths: Iterable[Path]) -> None:
+    """``--no-auto-commit``: stage the claim's own writes, so "staged only" is true (#3471).
+
+    Stages the claim-commit bundle (less ``config.yaml``) in the repository root
+    checkout and commits nothing. A failed ``git add`` is reported, never hidden:
+    the message then says the changes were left unstaged.
+    """
+    resolved_root = repo_root.resolve()
+    rel_paths = [path.relative_to(resolved_root).as_posix() for path in paths if path.is_relative_to(resolved_root) and path.exists()]
+    try:
+        run_git(repo_root, "add", "--", *rel_paths)
+    except GitCommandError as exc:
+        console.print(f"[yellow]Warning:[/yellow] Could not stage the claim's changes: {exc}")
+        console.print(f"[cyan]→ {wp_id} moved to 'doing' (auto-commit disabled, changes left unstaged)[/cyan]")
+        return
+    console.print(f"[cyan]→ {wp_id} moved to 'doing' (auto-commit disabled, changes staged only)[/cyan]")
 
 
 def _commit_wp_claim_status(
@@ -181,11 +203,22 @@ def _commit_wp_claim_status(
     """
     if status_result is None or not status_result.status_changed:
         return
-    if not auto_commit:
-        console.print(f"[cyan]→ {wp_id} moved to 'doing' (auto-commit disabled, changes staged only)[/cyan]")
-        return
-
     from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
+
+    if not auto_commit:
+        _stage_claim_writes(
+            repo_root,
+            wp_id,
+            claim_commit_paths(
+                repo_root=repo_root,
+                feature_dir=feature_dir,
+                wp_file=wp_file,
+                status_artifacts=_collect_status_artifacts(feature_dir),
+                routes_through_coord=routes_through_coordination(resolve_topology(repo_root, mission_slug)),
+                include_config=False,
+            ),
+        )
+        return
 
     commit_msg = f"chore: {wp_id} claimed for implementation"
     # #2155 (FR-002 / T011) + #3784: bundle ONLY primary-surface artifacts

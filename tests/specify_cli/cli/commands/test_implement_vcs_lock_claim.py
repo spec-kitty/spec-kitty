@@ -17,8 +17,13 @@ The guard tests call the planning-artifact commit phase of the claim
 (``implement_phases.commit_planning_artifacts``) directly against a real git
 repository, so the REAL guard runs and nothing in the implement command family
 is patched; the first claim's residue is established by the production writer
-``set_vcs_lock`` (the exact bytes the first claim leaves), which isolates the
-variable under test from unrelated first-claim side effects.
+``set_vcs_lock`` (the exact bytes the first claim leaves in ``meta.json``), which
+isolates the variable under test from the first claim's other writes. Those other
+writes (the allocator's WP frontmatter stamp and, without a coordination branch,
+the claim's status append) no longer block the next claim either (#3471); the
+real-command proof that back-to-back ``--no-auto-commit`` claims need no commit
+between them is
+``test_implement_no_auto_commit_consecutive_claims.py::test_n_consecutive_no_auto_commit_claims_need_no_commit_between_them``.
 """
 
 from __future__ import annotations

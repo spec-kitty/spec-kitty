@@ -21,6 +21,7 @@ contract (T019 / FR-009).
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
@@ -36,7 +37,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from specify_cli.frontmatter import WP_RUNTIME_FIELDS
-from specify_cli.status import is_dossier_snapshot
+from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME, is_dossier_snapshot, materialize_snapshot, materialize_to_json
 from specify_cli.task_utils.support import split_frontmatter
 
 _META_JSON_FILENAME = "meta.json"
@@ -51,6 +52,18 @@ _MISSING_META_VALUE = object()
 # and registered it as the justified-survivor row's literal (see
 # ``tests/architectural/tool_artifact_enrolment/registry/_is_self_write_only_diff.md``).
 _WP_SELF_WRITE_FILENAME_RE = re.compile(r"^WP\d{2}(?:[-_.].+)?\.md$", re.IGNORECASE)
+
+# #3471: the allocator stamps ``created_at`` into a WP's frontmatter together
+# with ``base_commit`` on a fresh lane (``implement_support.create_lane_workspace``).
+# It is the claim's own write only inside that stamp: a ``created_at`` change
+# without a ``base_commit`` change is an operator edit and still blocks.
+_ALLOCATOR_STAMP_FIELD = "created_at"
+_ALLOCATOR_STAMP_ANCHOR = "base_commit"
+
+# #3471: the status transitions a claim appends (``start_implementation_status``).
+# On a topology without a coordination branch the claim leaves them, and the
+# snapshot materialized from them, uncommitted under ``--no-auto-commit``.
+_CLAIM_TRANSITIONS = frozenset({("planned", "claimed"), ("claimed", "in_progress")})
 
 
 # ---------------------------------------------------------------------------
@@ -478,7 +491,8 @@ def _is_runtime_frontmatter_only_wp_diff(
     AND (3) every frontmatter key whose value differs is a member of
     :data:`~specify_cli.frontmatter.WP_RUNTIME_FIELDS` (K-1/NFR-005: the body
     check alone is not enough -- a non-runtime frontmatter key change must
-    also still block).
+    also still block). The allocator's ``created_at`` stamp counts too, but
+    only alongside a ``base_commit`` change (#3471).
     """
     if committed_front is None or working_front is None:
         return False
@@ -489,7 +503,56 @@ def _is_runtime_frontmatter_only_wp_diff(
         for key in set(committed_front) | set(working_front)
         if committed_front.get(key, _MISSING_META_VALUE) != working_front.get(key, _MISSING_META_VALUE)
     }
-    return bool(changed_keys) and changed_keys <= WP_RUNTIME_FIELDS
+    if _ALLOCATOR_STAMP_FIELD in changed_keys and _ALLOCATOR_STAMP_ANCHOR not in changed_keys:
+        return False
+    return bool(changed_keys) and changed_keys <= WP_RUNTIME_FIELDS | {_ALLOCATOR_STAMP_FIELD}
+
+
+def _is_claim_append_only_event_log(committed: str, working: str) -> bool:
+    """Pure decision (#3471): is *working* the *committed* event log plus
+    nothing but claim transitions (:data:`_CLAIM_TRANSITIONS`)?
+
+    Fails closed: a rewritten prefix, a non-JSON line, or any other appended
+    event (a ``move-task``, a review verdict, a hand edit) is not a claim
+    self-write and keeps the log in the "not committed" set.
+    """
+    if working == committed or not working.startswith(committed) or (committed and not committed.endswith("\n")):
+        return False
+    for line in working[len(committed) :].splitlines():
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            return False
+        if not isinstance(event, dict) or (event.get("from_lane"), event.get("to_lane")) not in _CLAIM_TRANSITIONS:
+            return False
+    return True
+
+
+def _is_claim_status_self_write(
+    repo_root: Path,
+    repo_rel: str,
+    ref: str | None,
+    working_text: str,
+    *,
+    git: GitPort = DEFAULT_GIT_PORT,
+) -> bool:
+    """#3471: is this status-log / snapshot diff only the claim's own write?
+
+    The event log qualifies when it is the committed log plus claim transitions
+    only. The snapshot qualifies when its working bytes are exactly what that
+    log materializes to (a hand edit never is) and the log itself qualifies.
+    """
+    rel = Path(repo_rel)
+    if rel.name == SNAPSHOT_FILENAME:
+        if working_text != materialize_to_json(materialize_snapshot((repo_root / rel.parent).resolve())):
+            return False
+        return _is_self_write_only_diff(repo_root, (rel.parent / EVENTS_FILENAME).as_posix(), ref, git=git)
+    committed_blob = git.show_blob(repo_root, resolve_precondition_ref(repo_rel, ref), repo_rel)
+    if committed_blob is None:
+        return False
+    return _is_claim_append_only_event_log(committed_blob.decode("utf-8", errors="replace"), working_text)
 
 
 def _is_self_write_only_diff(
@@ -500,8 +563,9 @@ def _is_self_write_only_diff(
     git: GitPort = DEFAULT_GIT_PORT,
 ) -> bool:
     """True iff *repo_rel*'s only diff vs *ref* is the runtime's OWN claim-time
-    self-write -- a vcs-lock-only ``meta.json`` change (#2222 / C-003) or a
-    runtime-frontmatter-only ``tasks/WP##.md`` change (#2570.1).
+    self-write -- a vcs-lock-only ``meta.json`` change (#2222 / C-003), a
+    runtime-frontmatter-only ``tasks/WP##.md`` change (#2570.1), or a claim's
+    own status-log append and the snapshot materialized from it (#3471).
 
     WP14 (IC-07d) structural merge of the retired ``_drop_vcs_lock_only_meta``
     / ``_drop_runtime_frontmatter_only_wp`` twins: identical shape (a single
@@ -544,12 +608,18 @@ def _is_self_write_only_diff(
         working = _decode_meta_fail_closed(raw, source_id=str(source))
         committed = _committed_meta_mapping(repo_root, repo_rel, ref, git=git)
         return is_vcs_lock_only_change(committed, working)
-    if not _WP_SELF_WRITE_FILENAME_RE.match(name):
+    # The status log/snapshot pair is classified by the owner (STATUS_STATE kind).
+    is_claim_status = is_status_state_path(repo_rel)
+    if not (is_claim_status or _WP_SELF_WRITE_FILENAME_RE.match(name)):
         return False
+    # One working-tree read for both text legs (the trio gate pins this token to one site).
+    working_text = source.read_text(encoding="utf-8-sig")
+    if is_claim_status:
+        return _is_claim_status_self_write(repo_root, repo_rel, ref, working_text, git=git)
     committed_blob = git.show_blob(repo_root, resolve_precondition_ref(repo_rel, ref), repo_rel)
     if committed_blob is None:
         return False
-    working_front, working_body, working_padding = _parse_wp_frontmatter(source.read_text(encoding="utf-8-sig"))
+    working_front, working_body, working_padding = _parse_wp_frontmatter(working_text)
     committed_front, committed_body, committed_padding = _parse_wp_frontmatter(
         committed_blob.decode("utf-8", errors="replace")
     )
