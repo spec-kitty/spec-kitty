@@ -444,6 +444,7 @@ def test_minted_mission_branch_not_classified_by_recovery_or_doctor(tmp_path: Pa
         (MissionTopology.SINGLE_BRANCH, False, "main", True),
         (MissionTopology.SINGLE_BRANCH, False, "feature-x", False),
         (MissionTopology.SINGLE_BRANCH, True, "main", False),
+        (MissionTopology.SINGLE_BRANCH, None, "main", True),  # an unset override reads as False: fail closed
         (MissionTopology.COORD, False, "main", False),
         (MissionTopology.LANES, False, "main", False),
     ],
@@ -451,7 +452,7 @@ def test_minted_mission_branch_not_classified_by_recovery_or_doctor(tmp_path: Pa
 def test_protected_mint_applies_only_to_a_protected_single_branch_mint(
     tmp_path: Path,
     topology: MissionTopology,
-    commit_to_target: bool,
+    commit_to_target: bool | None,
     target: str,
     expected: bool,
 ) -> None:

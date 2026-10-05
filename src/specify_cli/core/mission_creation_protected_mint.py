@@ -12,7 +12,7 @@ from __future__ import annotations
 import subprocess
 from dataclasses import replace
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import Any, NoReturn, assert_never
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from mission_runtime import (
@@ -126,12 +126,15 @@ def _protected_mint_applies(
     the mint's MISSION_BRANCH_EXISTS. Every other shape keeps origin/main's
     idempotent resume (the #4033 guard already refuses a LIVE duplicate).
     """
-    applies = protected_mint_applies(topology, commit_to_target, None)
+    # ``bool()`` keeps an unset override fail-closed (falsy, as before the split):
+    # ``None`` would otherwise read as "override not gathered" and never decide.
+    override = bool(commit_to_target)
+    applies = protected_mint_applies(topology, override, None)
     if applies is None:
         # Protection is resolved only when it decides (a malformed protection
         # config raises only on this path, as it always did).
         probe = protection if protection is not None else _ProtectionProbe(write_root)
-        applies = protected_mint_applies(topology, commit_to_target, probe.is_protected(target_branch))
+        applies = protected_mint_applies(topology, override, probe.is_protected(target_branch))
     return applies is True
 
 
@@ -181,6 +184,8 @@ def _mint_protected_single_branch_mission_branch(
             _raise_refusal(decision)
         case Mint(branch_name=branch_name):
             _check_out_minted_branch(write_root, branch_name, target_branch=target_branch, meta=meta)
+        case _:
+            assert_never(decision)  # fail closed: an unknown decision must never read as "no mint"
 
 
 def _check_out_minted_branch(write_root: Path, branch_name: str, *, target_branch: str, meta: dict[str, Any]) -> None:
