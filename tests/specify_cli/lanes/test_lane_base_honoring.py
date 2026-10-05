@@ -76,7 +76,11 @@ def _init_repo(repo: Path) -> None:
 
 MISSION_SLUG = "lane-base-honoring-demo"
 MISSION_ID = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
-COORD_BRANCH = f"kitty/mission-{MISSION_SLUG}-{MISSION_ID[:8].lower()}"
+# Canonical mid8 is the ULID prefix verbatim (uppercase), exactly what ``resolve_mid8`` returns in
+# production.  The shared ``build_mission`` helper lowercases ``meta.mid8``; a lowercase branch here
+# would diverge from the uppercase mid8 the coordination worktree materialiser derives.
+MISSION_MID8 = MISSION_ID[:8]
+COORD_BRANCH = f"kitty/mission-{MISSION_SLUG}-{MISSION_MID8}"
 LEGACY_MISSION_SLUG = "lane-base-honoring-legacy"
 LEGACY_MISSION_BRANCH = f"kitty/mission-{LEGACY_MISSION_SLUG}"
 WP_ID = "WP06"
@@ -203,7 +207,7 @@ def coord_mission_with_divergent_base(tmp_path: Path) -> Path:
         topology="lanes_with_coord",
         wps={WP_ID: ("code_change", [])},
         target="main",
-        meta_extra={"coordination_branch": COORD_BRANCH},
+        meta_extra={"coordination_branch": COORD_BRANCH, "mid8": MISSION_MID8},
     )
     seed_sha = git_out(repo, "rev-parse", "HEAD")
 
