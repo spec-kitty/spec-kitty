@@ -38,6 +38,7 @@ from tests.core._mission_create_golden import (
     SUMMARY_VARIANT,
     assert_golden,
     await_fresh_mid8_bucket,
+    await_mid8_bucket_after,
     build_repo,
     commit_spec,
     git,
@@ -83,8 +84,8 @@ def test_abandoned_prior_recreate(tmp_path: Path) -> None:
     await_fresh_mid8_bucket()
     first = create_mission_core(repo, slug, topology=MissionTopology.LANES, allow_worktree_context=True)
     first_mid8 = first.meta["mid8"]
-    # A fresh bucket guarantees the second create mints a different mid8.
-    assert await_fresh_mid8_bucket() != first_mid8
+    # Wait out the first create's bucket so the second create mints a different mid8.
+    await_mid8_bucket_after(first_mid8)
     observed = run_cell(repo, tmp_path, _create(repo, slug, MissionTopology.LANES), slugs=[slug])
     assert_golden(_FAMILY, "lanes/abandoned_prior_recreate", observed)
 
@@ -96,7 +97,7 @@ def test_same_slug_other_type(tmp_path: Path) -> None:
     await_fresh_mid8_bucket()
     first = create_mission_core(repo, slug, topology=MissionTopology.LANES, mission="research", allow_worktree_context=True)
     commit_spec(repo, first.feature_dir)
-    assert await_fresh_mid8_bucket() != first.meta["mid8"]
+    await_mid8_bucket_after(first.meta["mid8"])
     observed = run_cell(repo, tmp_path, _create(repo, slug, MissionTopology.LANES), slugs=[slug])
     assert_golden(_FAMILY, "lanes/same_slug_other_type", observed)
 

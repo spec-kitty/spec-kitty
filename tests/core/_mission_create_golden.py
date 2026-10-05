@@ -204,6 +204,27 @@ def await_fresh_mid8_bucket() -> str:
         time.sleep((_MID8_BUCKET_MS - offset) / 1000)
 
 
+def await_mid8_bucket_after(prior_mid8: str, *, timeout_s: float = 5.0) -> str:
+    """Wait until the current mid8 bucket differs from *prior_mid8*; return it.
+
+    Unlike a second :func:`await_fresh_mid8_bucket`, this cannot hand back the
+    bucket a create just used: a warm create takes about 100 ms, so a fresh
+    "bucket just started" await issued straight after it can return the very
+    same bucket. Time is monotonic, so once the bucket differs from the prior
+    one, every later ``ULID()`` also differs from it.
+    """
+    deadline = time.monotonic() + timeout_s
+    while True:
+        probe = ULID()
+        current = str(probe)[:8]
+        if current != prior_mid8:
+            return current
+        if time.monotonic() >= deadline:
+            raise TimeoutError(f"mid8 bucket {prior_mid8!r} did not roll over within {timeout_s} s")
+        remaining_ms = _MID8_BUCKET_MS - probe.milliseconds % _MID8_BUCKET_MS
+        time.sleep(remaining_ms / 1000)
+
+
 def still_in_bucket(predicted_mid8: str) -> bool:
     """True while a fresh ``ULID()`` still carries *predicted_mid8*.
 
