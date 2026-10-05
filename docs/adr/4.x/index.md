@@ -53,10 +53,6 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-04 | [a started work package keeps its recorded execution lane on re-finalize](2026-10-04-2-started-work-package-lane-membership-is-frozen.md) |
 | 2026-10-04 | [a completed upgrade run reports one outcome](2026-10-04-3-upgrade-reports-one-outcome.md) |
 | 2026-10-04 | [upgrade writes project-global state once, in the repository root checkout](2026-10-04-4-upgrade-writes-project-global-state-once.md) |
-<<<<<<< HEAD
 | 2026-10-04 | [the approval stamp bounds what consolidate treats as approved work](2026-10-04-5-approval-stamp-bounds-the-approved-claim.md) |
-||||||| 14d653bb95
-=======
 | 2026-10-05 | [a bare-slug coordination Mission has one exact directory alias set, and one directory on the target](2026-10-05-1-bare-slug-coordination-directory-alias.md) |
 | 2026-10-05 | [owned-checkout and start-up performance tests assert runner-relative ratios](2026-10-05-2-runner-relative-performance-budgets.md) |
->>>>>>> skupstream/issue-5611-5419-nightly-green

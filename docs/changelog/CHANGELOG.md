@@ -23,13 +23,7 @@ this section at publish._
 ### Upgrade Notes
 
 - **The rc5 note that four `spec-kitty consolidate` fixes "do not fully hold" is superseded** (#5569, #5570, #5571, #5572). All four shapes it named are fixed in this release (see Fixed). The workarounds it listed are no longer needed.
-<<<<<<< HEAD
-- **Known issue: `spec-kitty consolidate` can refuse a coordination Mission whose directory name does not end in its `mid8`** (#5651). If such a Mission targets a protected branch, `consolidate` stops with `MERGE_UNSAFE_WORKTREE_DIRTY` and lists its own `status.events.jsonl` and `status.json` as untracked files in the coordination worktree. Missions created by `spec-kitty agent mission create` end in their `mid8` and are not affected. A fix is pending a design decision.
 - **A Mission approved by a release before 4.0.0rc5 stops at `spec-kitty consolidate` until each approved work package is re-reviewed or attested** (#5668). Approvals recorded by those releases carry no approval stamp (the lane head at the moment of approval), so `consolidate` refuses with `APPROVAL_STAMP_MISSING` and names the work package. Either move the work package back for review and approve it again, or check the lane by hand and run `spec-kitty consolidate --attest-approved-reviewed <WP> --attest-reason "<what you checked>"`. A commit made after an attestation is still refused. See ADR [2026-10-04-5](../adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md). A Mission on whose lanes an upgrade from before the #5457 fix committed after approval refuses with `LANE_MOVED_AFTER_APPROVAL`; approve its work packages again (attestation does not lift this one).
-||||||| 14d653bb95
-- **Known issue: `spec-kitty consolidate` can refuse a coordination Mission whose directory name does not end in its `mid8`** (#5651). If such a Mission targets a protected branch, `consolidate` stops with `MERGE_UNSAFE_WORKTREE_DIRTY` and lists its own `status.events.jsonl` and `status.json` as untracked files in the coordination worktree. Missions created by `spec-kitty agent mission create` end in their `mid8` and are not affected. A fix is pending a design decision.
-=======
->>>>>>> skupstream/issue-5611-5419-nightly-green
 
 ### Added
 
@@ -102,12 +96,8 @@ this section at publish._
 - Regression-slice test cleanup (#5656, #5618, #5619, #5620, #5621, #5622). No product behavior changes. The per-PR `regression` test slice now holds only issue-pinned end-to-end guards of fixed bugs, which cuts it from 725 tests in 143 files to about 424 in 108 files. Slow end-to-end replays whose contract a cheaper seam test already holds are trimmed to one smoke test per behavior, and permission-denied tests now give the same verdict when the suite runs as root.
 - `orchestrator_api/commands.py` is split into per-concern modules behind an unchanged `orchestrator-api` contract (#5628). No product behavior changes.
 - Charter command tests no longer fail when the test run starts in a linked git worktree, such as a mission lane worktree (#5317, #5601, #5660). About 20 tests were refused there by the charter write guard and passed from a repository root checkout. One shared `charter_cwd_isolation` fixture replaces the per-file copies and moves the process working directory into the test's temporary project. A suite-wide check now fails any test that reaches the write guard with its working directory inside the checkout, in every checkout. The stale release pinning inventory is regenerated. No product behavior changes.
-<<<<<<< HEAD
 - The transitive dependencies `pyjwt` (2.13.0 to 2.15.1) and `urllib3` (2.7.0 to 2.8.0) are bumped in `uv.lock` to clear 16 Dependabot alerts, one of them critical (a PyJWT asymmetric-PEM detection bypass); `pyjwt[crypto]` is pulled in by `mcp` and `urllib3` by `requests`, spec-kitty calls neither directly, and no product behavior changes.
-||||||| 14d653bb95
-=======
 - **The performance tests compare against a start-up floor measured in the same run, and the commit-recipe gate runs on every pull request** (#5419, #5614, #5708). No product behavior changes. The three owned-checkout tests assert the ratio of their median to a `--version` floor sampled in the same run; the `--help` and warm `context list --json` tests assert a ratio to a fixed interpreter workload. The absolute 2.5 s and 5.0 s limits are gone; the new limits are provisional until checked on the CI runner (#5753). A clock-free test pins how many git subprocesses the three commands spawn; it runs in the `cli` shard for changes to those commands. The commit-recipe gate moved to `tests/architectural/test_commit_recipe_strings.py`, which runs on every `src/specify_cli` change. It flags a `git commit` command-line shape, not the bare substring; its allowlist went from 14 entries to 2 (#5752).
->>>>>>> skupstream/issue-5611-5419-nightly-green
 
 ## [4.0.0rc5] - 2026-10-02
 
