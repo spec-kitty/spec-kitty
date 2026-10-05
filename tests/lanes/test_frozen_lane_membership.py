@@ -24,7 +24,6 @@ from specify_cli.lanes.compute import (
 )
 from specify_cli.lanes.frozen_membership import (
     FrozenLaneMembership,
-    MembershipConflict,
     assert_frozen_membership_honoured,
     build_frozen_membership,
     conflict_for,
@@ -127,14 +126,10 @@ def _comparable(manifest: LanesManifest) -> dict[str, object]:
 @pytest.mark.parametrize(
     ("history", "expected"),
     [
-        pytest.param(["planned", "claimed"], {"WP01"}, id="claimed"),
-        pytest.param(["planned", "blocked"], set(), id="blocked-from-planned-not-started"),
-        pytest.param(["planned", "canceled"], set(), id="canceled-from-planned-not-started"),
         pytest.param(["planned", "claimed", "in_progress", "planned"], {"WP01"}, id="reset-to-planned-stays-started"),
         pytest.param(["planned", "in_progress"], {"WP01"}, id="forced-planned-to-in-progress"),
         pytest.param(["planned", "blocked", "in_progress"], {"WP01"}, id="blocked-then-in-progress"),
-        pytest.param(["approved", "done"], {"WP01"}, id="done"),
-        pytest.param(["genesis", "planned"], set(), id="genesis-seed-not-started"),
+        pytest.param(["planned", "claimed", "in_progress", "canceled"], {"WP01"}, id="cancel-after-work-stays-started"),
         pytest.param([], set(), id="no-events"),
     ],
 )
@@ -144,11 +139,16 @@ def test_started_wp_ids_table(history: list[str], expected: set[str]) -> None:
 
 
 _WORK_LANES = {Lane.CLAIMED, Lane.IN_PROGRESS, Lane.FOR_REVIEW, Lane.IN_REVIEW, Lane.APPROVED, Lane.DONE}
+_NOT_STARTED_LANES = {Lane.PLANNED, Lane.BLOCKED, Lane.CANCELED, Lane.GENESIS, Lane.UNINITIALIZED}
 
 
 @pytest.mark.parametrize("lane", list(Lane), ids=lambda lane: str(lane))
 def test_started_set_is_exactly_the_work_lanes(lane: Lane) -> None:
-    """Every Lane member is classified; a new lane is not-started until named."""
+    """Every Lane member is classified as work or not-started; a new lane fails here until someone names it."""
+    assert _WORK_LANES.isdisjoint(_NOT_STARTED_LANES)
+    assert set(Lane) == _WORK_LANES | _NOT_STARTED_LANES, (
+        "classify every Lane member as work (frozen) or not-started; an unclassified lane would silently under-freeze"
+    )
     event = StatusEvent(
         event_id="01EVENTSINGLE",
         mission_slug=_SLUG,
@@ -163,28 +163,9 @@ def test_started_set_is_exactly_the_work_lanes(lane: Lane) -> None:
     assert started_wp_ids([event]) == (frozenset({"WP01"}) if lane in _WORK_LANES else frozenset())
 
 
-def test_started_wp_ids_cancel_after_work_stays_started() -> None:
-    events = _events("WP01", "planned", "claimed", "in_progress", "canceled")
-    events += _events("WP02", "planned", "canceled")
-    assert started_wp_ids(events) == frozenset({"WP01"})
-
-
-def test_started_wp_ids_ignores_uninitialized_sentinel() -> None:
-    events = _events("WP01", "genesis", "uninitialized")
-    assert started_wp_ids(events) == frozenset()
-
-
 # ---------------------------------------------------------------------------
 # T005: FrozenLaneMembership value object
 # ---------------------------------------------------------------------------
-
-
-def test_empty_membership() -> None:
-    empty = FrozenLaneMembership.empty()
-    assert empty.is_empty
-    assert dict(empty.bindings) == {}
-    assert empty.retired_wp_ids == frozenset()
-    assert empty.reserved_lane_ids == frozenset()
 
 
 def test_membership_is_immutable_and_hashable() -> None:
@@ -198,10 +179,14 @@ def test_membership_is_immutable_and_hashable() -> None:
     assert frozen == _frozen({"WP01": "lane-a"}, retired={"WP09"})
     assert not frozen.is_empty
     assert frozen.reserved_lane_ids == frozenset({"lane-a"})
-
-
-def test_retired_only_membership_is_not_empty() -> None:
+    # The empty value constrains nothing; any one of bindings, retired ids or reserved ids makes it non-empty.
+    empty = FrozenLaneMembership.empty()
+    assert empty.is_empty
+    assert dict(empty.bindings) == {}
+    assert empty.retired_wp_ids == frozenset()
+    assert empty.reserved_lane_ids == frozenset()
     assert not _frozen({}, retired={"WP01"}).is_empty
+    assert not FrozenLaneMembership(reserved_ids=frozenset({"lane-c"})).is_empty
 
 
 # ---------------------------------------------------------------------------
@@ -279,37 +264,41 @@ def test_build_retired_is_present_minus_eligible() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_conflict_to_dict_shape() -> None:
-    conflict = MembershipConflict(
-        reason="started_lanes_collapsed",
-        wp_ids=("WP01", "WP02"),
-        recorded_lanes=("lane-a", "lane-b"),
-        remedy=remedy_for("started_lanes_collapsed", ("WP01", "WP02")),
-    )
-    assert conflict.to_dict() == {
-        "reason": "started_lanes_collapsed",
-        "wp_ids": ["WP01", "WP02"],
-        "recorded_lanes": ["lane-a", "lane-b"],
-        "remedy": conflict.remedy,
-    }
+_FORBIDDEN_IN_REMEDIES = (
+    "lanes.json",
+    "--force",
+    "git reset",
+    "git restore",
+    "git checkout",
+    "worktree remove",
+    "branch -D",
+    "reset",
+    "restore",
+    "rm ",
+    "delete",
+)
 
 
 @pytest.mark.parametrize(
     ("reason", "must_mention"),
     [
-        ("started_lanes_collapsed", "Remove the overlap that forces WP01 and WP02 into one lane"),
-        ("started_wp_removed", "spec-kitty agent tasks move-task WP01 --to canceled"),
-        ("started_wp_kind_changed", "execution_mode"),
-        ("status_unreadable", "spec-kitty agent status validate"),
+        ("started_lanes_collapsed", ("Remove the overlap that forces WP01 and WP02 into one lane",)),
+        ("started_wp_removed", ("spec-kitty agent tasks move-task WP01 --to canceled", "--mission", "without clearing")),
+        ("started_wp_kind_changed", ("execution_mode",)),
+        ("status_unreadable", ("spec-kitty agent status validate",)),
     ],
 )
-def test_remedy_for_names_the_work_packages_and_is_non_destructive(reason: str, must_mention: str) -> None:
+def test_remedy_for_names_the_work_packages_and_is_non_destructive(reason: str, must_mention: tuple[str, ...]) -> None:
     wp_ids = ("WP01", "WP02") if reason == "started_lanes_collapsed" else ("WP01",)
     remedy = remedy_for(reason, wp_ids)  # type: ignore[arg-type]  # parametrized literal
-    assert must_mention in remedy
+    for expected in must_mention:
+        assert expected in remedy
     assert "finalize-tasks" in remedy
-    for forbidden in ("lanes.json", "--force", "git reset", "git restore", "git checkout", "worktree remove", "branch -D"):
-        assert forbidden not in remedy
+    # Every work-package shape (none, one, several) renders a non-empty, non-destructive remedy.
+    for shape in ((), ("WP02",), ("WP01", "WP02")):
+        shaped = remedy_for(reason, shape)  # type: ignore[arg-type]  # parametrized literal
+        assert shaped.strip()
+        assert [token for token in _FORBIDDEN_IN_REMEDIES if token in shaped] == []
 
 
 # ---------------------------------------------------------------------------
@@ -610,16 +599,6 @@ def test_assert_honoured_passes_for_none_empty_and_matching() -> None:
     assert_frozen_membership_honoured(manifest, None)
     assert_frozen_membership_honoured(manifest, FrozenLaneMembership.empty())
     assert_frozen_membership_honoured(manifest, _frozen({"WP01": "lane-a", "WP09": "lane-z"}))
-
-
-def test_assert_honoured_raises_when_a_binding_is_violated() -> None:
-    manifest = _lanes_manifest(_lane("lane-a", "WP01", "WP02"))
-    with pytest.raises(LaneMembershipFrozenError) as excinfo:
-        assert_frozen_membership_honoured(manifest, _frozen({"WP02": "lane-b"}))
-    assert excinfo.value.reason == "started_lanes_collapsed"
-    conflict = excinfo.value.conflicts[0]
-    assert conflict.wp_ids == ("WP02",)
-    assert conflict.recorded_lanes == ("lane-b",)
 
 
 def test_assert_honoured_ignores_single_branch_manifests() -> None:

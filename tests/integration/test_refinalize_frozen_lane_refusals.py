@@ -33,6 +33,7 @@ import pytest
 
 from specify_cli.cli.commands.agent import mission_finalize
 from specify_cli.frontmatter import read_frontmatter, write_frontmatter
+from specify_cli.lanes.frozen_membership import remedy_for
 from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from specify_cli.status import emit_status_transition
@@ -154,23 +155,10 @@ def test_console_refusal_names_each_conflict_and_its_remedy(tmp_path: Path, monk
     assert result.exit_code == 1, result.output
     assert "Cannot re-finalize: started work packages would change lane." in result.output
     assert "started_lanes_collapsed: WP01 (lane-a), WP02 (lane-b)" in result.output
-    assert "Remedy: Remove the overlap that forces WP01 and WP02 into one lane" in result.output
-
-
-def test_removed_started_wp_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    mission = setup_mission(tmp_path, monkeypatch)
-    start_wp(mission, "WP02", commit_work=True, in_progress=True)
-    _remove_wp02(mission)
-    commit_amendment(mission)
-
-    result = _refuse(mission, monkeypatch)
-
-    assert result.payload.get("reason") == "started_wp_removed"
-    conflict = _conflict(result, "started_wp_removed")
-    assert conflict["wp_ids"] == ["WP02"]
-    assert conflict["recorded_lanes"] == ["lane-b"]
-    assert "move-task WP02 --to canceled --mission" in conflict["remedy"]
-    assert "without clearing" in conflict["remedy"]
+    # The console wraps long lines: compare the flattened text so the whole error and the whole remedy are pinned.
+    flat = " ".join(result.output.split())
+    assert "Error: Cannot re-finalize: started work packages would change lane. " in flat
+    assert f"Remedy: {remedy_for('started_lanes_collapsed', ['WP01', 'WP02'])}" in flat
 
 
 def test_started_wp_changing_kind_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -296,7 +284,14 @@ def test_removed_wp_remedy_round_trip(tmp_path: Path, monkeypatch: pytest.Monkey
     started = start_wp(mission, "WP02", commit_work=True, in_progress=True)
     saved = _remove_wp02(mission)
     commit_amendment(mission)
-    _refuse(mission, monkeypatch)
+    refused = _refuse(mission, monkeypatch)
+
+    assert refused.payload.get("reason") == "started_wp_removed"
+    conflict = _conflict(refused, "started_wp_removed")
+    assert conflict["wp_ids"] == ["WP02"]
+    assert conflict["recorded_lanes"] == ["lane-b"]
+    assert "move-task WP02 --to canceled --mission" in conflict["remedy"]
+    assert "without clearing" in conflict["remedy"]
 
     for path, data in saved.items():
         path.write_bytes(data)

@@ -288,6 +288,7 @@ class TestComputeAndWriteLanesFrozenMembership:
         frozen = FrozenLaneMembership(bindings={"WP02": "lane-z"}, retired_wp_ids=frozenset())
         with pytest.raises(LaneMembershipFrozenError) as excinfo:
             self._write(tmp_path, manifests, frozen=frozen)
+        assert excinfo.value.reason == "started_lanes_collapsed"
         assert excinfo.value.conflicts[0].wp_ids == ("WP02",)
         assert excinfo.value.conflicts[0].recorded_lanes == ("lane-z",)
         assert lanes_path.read_bytes() == before
