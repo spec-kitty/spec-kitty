@@ -1552,6 +1552,17 @@ def build_approved_wp_set(
         return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, bound.refusal)
 
     approved = _collect_approved_shas(repo_root, lanes_manifest, work_packages, coord_base_ref, sb_window)
+    presence = _presence_scope(
+        repo_root,
+        lanes_manifest,
+        excluded_ids,
+        base=_bound_claim_base(repo_root, excluded_window_base, coord_base_ref),
+        coord_base_ref=coord_base_ref,
+        events=event_log.read(),
+    )
+    presence_refusal = _presence_range_unreadable_refusal(lanes_manifest, work_packages, presence, coord_base_ref)
+    if presence_refusal is not None:
+        return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, presence_refusal)
     # Authored (WP1/WP2 shared prerequisite): computed BEFORE the excluded axis so
     # #5018's commit-level narrowing (below) can subtract it. Collectors stay pure
     # (WP2 note) — no shared mutable state, just a value threaded as a parameter.
@@ -1562,14 +1573,7 @@ def build_approved_wp_set(
         coord_base_ref,
         sb_window,
         canceled_lane_commits=canceled_lane_commits,
-        presence=_presence_scope(
-            repo_root,
-            lanes_manifest,
-            excluded_ids,
-            base=_bound_claim_base(repo_root, excluded_window_base, coord_base_ref),
-            coord_base_ref=coord_base_ref,
-            events=event_log.read(),
-        ),
+        presence=presence,
     )
     excluded_shas, excluded_patch_ids = _collect_excluded(
         repo_root,
@@ -3013,6 +3017,31 @@ def _presence_scope(
     return _PresenceScope(base=base, carried=carried, lane_bases=lane_bases, canceled=canceled)
 
 
+def _presence_range_unreadable_refusal(
+    lanes_manifest: LanesManifest,
+    work_packages: Mapping[str, Mapping[str, object]],
+    presence: _PresenceScope,
+    coord_base_ref: str,
+) -> str | None:
+    """The refusal text when an approved code lane would be measured from a mission-branch range that cannot be read, else ``None``.
+
+    Fail-closed, like the squash blob axis (#5013: a git-probe error REFUSEs, it never
+    passes vacuously): measuring the lane from *coord_base_ref* instead would restore the
+    reading #5788 exists to prevent, so a release that dropped approved code over an
+    unreadable range would ship. A claim with no approved code lane measures nothing
+    here and is not refused.
+    """
+    if presence.carried is not None:
+        return None
+    if not any(_lane_is_approved(lane, work_packages) and not is_planning_lane(lane) for lane in lanes_manifest.lanes):
+        return None
+    return (
+        f"the commits between '{presence.base}' and the mission branch ('{coord_base_ref}') could not be read, "
+        "so the approved lanes' code cannot be checked for presence on the target. "
+        "Recovery: restore or repair that branch, then re-run"
+    )
+
+
 def _commits_before(repo_root: Path, base: str, lane_base: str | None) -> frozenset[str] | None:
     """The commits after *base* that *lane_base* reaches (they predate the lane's own work), or ``None`` when unknown."""
     if lane_base is None:
@@ -3023,7 +3052,7 @@ def _commits_before(repo_root: Path, base: str, lane_base: str | None) -> frozen
         return None
 
 
-def _presence_spine(repo_root: Path, presence: _PresenceScope, lane_id: str, branch: str) -> list[str] | None:
+def _presence_spine(repo_root: Path, presence: _PresenceScope, lane_id: str, branch: str) -> list[str]:
     """*lane*'s presence spine: ``base..lane`` first-parent, less what the mission branch carried from before the lane's own base.
 
     A commit the mission branch carries is the lane's own only when the lane's own
@@ -3031,11 +3060,12 @@ def _presence_spine(repo_root: Path, presence: _PresenceScope, lane_id: str, bra
     an earlier attempt merged it (#5788). A mission-branch commit made outside every
     lane before the lane was cut is reached by that base and is never the lane's
     content (M1). With no readable lane base every carried commit is dropped, the
-    pre-#5788 reading. ``None`` when the mission-branch range cannot be read: the
-    caller keeps the authorship walk.
+    pre-#5788 reading. Raises :class:`GitProbeError` when the mission-branch range
+    cannot be read: the claim refuses first (:func:`_presence_range_unreadable_refusal`),
+    and this never falls back to the authorship walk, the reading #5788 prevents.
     """
     if presence.carried is None:
-        return None
+        raise GitProbeError(f"the commits after '{presence.base}' that the mission branch carries could not be read")
     before = _commits_before(repo_root, presence.base, presence.lane_bases.get(lane_id))
     dropped = presence.carried if before is None else presence.carried & before
     return [sha for sha in _lane_first_parent_spine(repo_root, presence.base, branch) if sha not in dropped]
@@ -3058,9 +3088,9 @@ def _presence_lane_content(
     drops nothing more (the common case: the mission branch carries none of the
     lane's commits), so no second diff walk is paid then (L2).
     """
-    spine = _presence_spine(repo_root, presence, lane.lane_id, walk.branch) if presence is not None else None
-    if spine is None or presence is None:
+    if presence is None:
         return _lane_content(repo_root, lanes_manifest, lane, work_packages, walk.spine, walk.blobs, walk.deletions)
+    spine = _presence_spine(repo_root, presence, lane.lane_id, walk.branch)
     canceled = canceled_lane_commits | presence.canceled
     authored = [sha for sha in spine if sha not in canceled]
     if spine == walk.spine and authored == [sha for sha in walk.spine if sha not in canceled_lane_commits]:

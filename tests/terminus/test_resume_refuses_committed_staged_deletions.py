@@ -185,6 +185,39 @@ def test_5571_released_deletion_commit_reaches_the_presence_axis(tmp_path: Path,
     assert not blob_present_at(mission.repo, mission.target_branch, WP_PATHS["WP02"]), "nothing of the failed landing stays"
 
 
+def test_5571_released_deletion_commit_over_an_unreadable_mission_branch_range_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """#5792 fold: the same dropped-WP01 release, but the presence axis cannot read the mission branch's range.
+
+    The axis must fail closed like the squash blob axis (#5013), never fall back to
+    the authorship walk from the mission-branch tip, which finds nothing to be missing
+    and lets the mission ship without WP01's code. The claim REFUSEs naming the range,
+    and the door leaves the target at its pre-run tip.
+    """
+    from specify_cli.consolidation import reconciliation as rec
+    from specify_cli.consolidation.git_probes import GitProbeError, commits_in_range
+
+    run, _ = _released_then_fresh(tmp_path, "01M55717", drop_wp01=True)
+    mission = run.mission
+
+    def _unreadable_mission_range(repo_root: Path, base: str, head: str) -> list[str]:
+        if base == run.pre_target and "-lane-" not in head:  # the presence axis' one read of base..mission-branch
+            raise GitProbeError(f"cannot read {base}..{head}")
+        return list(commits_in_range(repo_root, base, head))
+
+    monkeypatch.setattr(rec, "commits_in_range", _unreadable_mission_range)
+
+    with pytest.raises(typer.Exit) as excinfo:
+        _consolidate_fresh(mission, monkeypatch)
+
+    output = " ".join(capsys.readouterr().out.split())
+    assert excinfo.value.exit_code == 1, output
+    assert "could not be read" in output and "Recovery: restore or repair that branch" in output, f"the refusal must name the unreadable range:\n{output}"
+    assert mission.rev(mission.target_branch) == run.pre_target, "the door restores the target"
+    assert not blob_present_at(mission.repo, mission.target_branch, WP_PATHS["WP02"]), "nothing of the refused landing stays"
+
+
 def test_5571_control_a_released_branch_keeping_the_code_is_not_reported_missing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

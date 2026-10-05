@@ -18,6 +18,7 @@ import pytest
 
 from kernel.clock import now_utc_iso
 from specify_cli.consolidation import reconciliation as rec
+from specify_cli.consolidation.git_probes import GitProbeError
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 
 pytestmark = pytest.mark.git_repo
@@ -105,14 +106,27 @@ def test_presence_spine_with_an_unreadable_lane_base_drops_every_carried_commit(
     assert rec._presence_spine(Path(repo["root"]), _scope(repo, stamp="0" * 40), "lane-a", str(repo["lane_branch"])) == []
 
 
-def test_presence_spine_is_none_when_the_mission_branch_range_is_unreadable(repo: dict[str, str | Path]) -> None:
-    assert rec._presence_spine(Path(repo["root"]), _scope(repo, stamp=str(repo["m1"]), carried=False), "lane-a", str(repo["lane_branch"])) is None
+def test_presence_spine_refuses_to_fall_back_when_the_mission_branch_range_is_unreadable(repo: dict[str, str | Path]) -> None:
+    """Fail closed (#5792): an unreadable range never reads as 'the mission branch carries nothing' (the pre-#5788 authorship walk)."""
+    scope = _scope(repo, stamp=str(repo["m1"]), carried=False)
+    with pytest.raises(GitProbeError):
+        rec._presence_spine(Path(repo["root"]), scope, "lane-a", str(repo["lane_branch"]))
+    with pytest.raises(GitProbeError):
+        rec._presence_lane_content(Path(repo["root"]), _MANIFEST, _LANE, _APPROVED, _empty_walk(repo), scope, frozenset())
 
 
-def test_presence_scope_reads_no_carried_range_for_an_unresolvable_mission_branch(repo: dict[str, str | Path]) -> None:
-    scope = rec._presence_scope(Path(repo["root"]), _MANIFEST, frozenset(), base=str(repo["c0"]), coord_base_ref="no-such-branch", events=None)
-    assert scope.carried is None
-    assert scope.lane_bases == {}
+def test_unreadable_mission_branch_range_refuses_the_claim_only_when_an_approved_code_lane_needs_it(repo: dict[str, str | Path]) -> None:
+    unreadable = rec._presence_scope(Path(repo["root"]), _MANIFEST, frozenset(), base=str(repo["c0"]), coord_base_ref="no-such-branch", events=None)
+    assert unreadable.carried is None, "an unreadable range is None, never an empty set"
+    assert rec._presence_scope(Path(repo["root"]), _MANIFEST, frozenset(), base=str(repo["c0"]), coord_base_ref=str(repo["m2"]), events=None).carried
+
+    refusal = rec._presence_range_unreadable_refusal(_MANIFEST, _APPROVED, unreadable, "no-such-branch")
+    assert refusal is not None and "no-such-branch" in refusal and "Recovery: restore or repair that branch" in refusal
+    not_approved = {"WP01": {"lane": "planned"}}
+    assert rec._presence_range_unreadable_refusal(_MANIFEST, not_approved, unreadable, "no-such-branch") is None, "no approved code lane: nothing to measure"
+    readable = _scope(repo, stamp=None)
+    assert readable.carried is not None
+    assert rec._presence_range_unreadable_refusal(_MANIFEST, _APPROVED, readable, str(repo["m2"])) is None
 
 
 def _empty_walk(repo: dict[str, str | Path]) -> rec._LaneWalk:
