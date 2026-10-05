@@ -10,6 +10,7 @@ amendment edit the lane-identity guards share.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import patch
 
@@ -32,18 +33,15 @@ def run_finalize(
     """
     from specify_cli.cli.commands.agent.mission import finalize_tasks
 
-    ctx_patches = {target: patch(target, value) for target, value in patches.items()}
-    for active in ctx_patches.values():
-        active.start()
-    try:
-        finalize_tasks(feature=mission_slug, json_output=True, validate_only=validate_only)
-    except typer.Exit as exc:
-        return exc.exit_code
-    except SystemExit as exc:
-        return int(exc.code or 0)
-    finally:
-        for active in ctx_patches.values():
-            active.stop()
+    with ExitStack() as stack:
+        for target, value in patches.items():
+            stack.enter_context(patch(target, value))
+        try:
+            finalize_tasks(feature=mission_slug, json_output=True, validate_only=validate_only)
+        except typer.Exit as exc:
+            return exc.exit_code
+        except SystemExit as exc:
+            return int(exc.code or 0)
     return 0
 
 

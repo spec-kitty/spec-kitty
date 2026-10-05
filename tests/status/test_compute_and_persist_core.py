@@ -214,11 +214,11 @@ class TestComputeAndWriteLanesDeterminism:
 class TestComputeAndWriteLanesFrozenMembership:
     """#5573 T007: the writer threads ``frozen`` through and re-asserts it before writing."""
 
-    def _write(self, tmp_path: Path, wp_manifests: dict[str, OwnershipManifest], **kwargs: object) -> tuple[Path, LanesManifest]:
+    def _write(self, tmp_path: Path, wp_manifests: dict[str, OwnershipManifest], *, frozen: FrozenLaneMembership | None = None) -> tuple[Path, LanesManifest]:
         repo_root = tmp_path
         feature_dir = tmp_path / "kitty-specs" / "test-mission"
         wp_frontmatters = {wp: WPMetadata(work_package_id=wp, title=wp) for wp in wp_manifests}
-        return compute_and_write_lanes(
+        written: tuple[Path, LanesManifest] = compute_and_write_lanes(
             feature_dir,
             repo_root,
             "test-mission",
@@ -230,8 +230,9 @@ class TestComputeAndWriteLanesFrozenMembership:
             planning_commit_sha=None,
             mission_id=None,
             topology=MissionTopology.LANES,
-            **kwargs,  # type: ignore[arg-type]  # forwarding the keyword under test
+            frozen=frozen,
         )
+        return written
 
     def _first_finalize(self, tmp_path: Path) -> tuple[dict[str, OwnershipManifest], Path]:
         _make_repo_with_owned_files(tmp_path)
