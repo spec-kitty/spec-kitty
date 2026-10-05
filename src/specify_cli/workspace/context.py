@@ -1237,7 +1237,7 @@ def resolve_lane_base_ref(
     must not fail closed on a missing origin ref.
 
     The origin-ref probe mirrors the ``git rev-parse --verify`` ref-resolution
-    semantics of ``implement._validate_base_ref`` (WP03) via the canonical
+    semantics of ``lanes.implement_support.resolve_base_ref`` (WP03) via the canonical
     :func:`specify_cli.lanes._git.ref_exists` helper, so the two base-resolution
     sites agree on what "the origin lane exists" means. The returned value is the
     fully-qualified ``refs/remotes/origin/<lane_branch>`` ref, unambiguous
@@ -1394,8 +1394,8 @@ def resolve_lane_state_dir(repo_root: Path, mission_slug: str) -> Path:
 
     Distinct from :func:`specify_cli.lanes.persistence.resolve_lanes_dir`
     (hence the name), which is a path-join helper (``feature_dir / lanes.json``);
-    this function resolves
-    the *feature_dir* itself from the artifact's canonical partition.
+    this function resolves the *feature_dir* itself from the artifact's
+    canonical partition.
     """
     return placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.LANE_STATE)
 

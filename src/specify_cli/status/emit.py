@@ -320,7 +320,7 @@ def _derive_from_lane(feature_dir: Path, wp_id: str, *, snapshot: StatusSnapshot
 def _declared_dependencies(planning_feature_dir: Path, wp_id: str, *, owned: OwnedCheckout | None = None) -> tuple[str, ...]:
     """The ``dependencies`` a WP prompt file declares on the PRIMARY planning surface.
 
-    WP files are authored on the primary checkout (``cli/commands/implement.py::
+    WP files are authored on the primary checkout (``workspace/context.py::
     find_wp_file``), never on the coordination write surface. Resolve that
     planning surface even when a flat caller supplies a coord write dir.
     A WP without a prompt file declares nothing.
