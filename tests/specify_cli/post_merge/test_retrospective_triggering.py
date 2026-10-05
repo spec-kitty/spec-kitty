@@ -367,18 +367,37 @@ class TestRetrospectiveCommit:
         # File remains uncommitted (skipped), but the operator was told.
         assert "retrospective.yaml" in _porcelain(tmp_path)
 
-    def test_commit_failure_is_fail_open_with_remediation(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """safe_commit RAISES → fail-open: no re-raise, the WARNING carries the
-        manual ``git add && git commit`` remediation, and the artifacts are left
-        dirty (never lost). Guards the terminus's 'must never abort merge/close'
-        contract at the commit boundary."""
+    def _failed_commit_warning(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+        *,
+        target_branch: str | None = None,
+        provenance_kind: str | None = None,
+        meta_updates: dict[str, Any] | None = None,
+    ) -> tuple[str, Path]:
+        """Run the postcondition with a commit that raises; return the warning text and the feature dir.
+
+        Fail-open: nothing is raised and the artifacts are left dirty (never lost).
+        """
         import logging
 
         monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
         _init_repo(tmp_path)
         feature_dir = _make_feature_dir(tmp_path)
+        updates = dict(meta_updates or {})
+        if target_branch is not None:
+            updates["target_branch"] = target_branch
+        if updates:
+            meta_path = feature_dir / "meta.json"
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            for key, value in updates.items():
+                if value is None:
+                    meta.pop(key, None)
+                else:
+                    meta[key] = value
+            meta_path.write_text(json.dumps(meta), encoding="utf-8")
         _git(tmp_path, "add", "-A")
         _git(tmp_path, "commit", "-m", "seed mission dir")
 
@@ -388,6 +407,7 @@ class TestRetrospectiveCommit:
                 '{"event": "RetrospectiveCaptured"}\n', encoding="utf-8"
             )
 
+        extra: dict[str, Any] = {} if provenance_kind is None else {"provenance_kind": provenance_kind}
         with (
             _patch_resolver(feature_dir),
             _patch_invoke(side_effect=_fake_capture),
@@ -397,16 +417,100 @@ class TestRetrospectiveCommit:
             ),
             caplog.at_level(logging.WARNING),
         ):
-            # Fail-open: must NOT raise even though the commit blew up.
-            run_retrospective_postcondition(mission_slug=MISSION_SLUG, repo_root=tmp_path)
+            run_retrospective_postcondition(mission_slug=MISSION_SLUG, repo_root=tmp_path, **extra)
 
-        # Artifacts are left dirty (never silently dropped).
         dirty = _porcelain(tmp_path)
         assert "retrospective.yaml" in dirty, dirty
-        # The WARNING surfaces the exact manual remediation command.
-        joined = " ".join(rec.getMessage() for rec in caplog.records)
+        return " ".join(rec.getMessage() for rec in caplog.records), feature_dir
+
+    @staticmethod
+    def _assert_no_recipe_that_can_be_refused(joined: str) -> None:
+        # Not a raw git recipe, not a safe-commit recipe (refused on a protected
+        # target), and never the protected-branch env-var bypass.
+        for forbidden in (
+            "git -C",
+            "git add",
+            "git commit",
+            "safe-commit",
+            "--to-branch",
+            "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS",
+        ):
+            assert forbidden not in joined, (forbidden, joined)
+
+    @pytest.mark.parametrize("target_branch", [None, "main", "topic"])
+    def test_commit_failure_is_fail_open_with_rerun_guidance(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+        target_branch: str | None,
+    ) -> None:
+        """The commit RAISES -> fail-open: no re-raise, the artifacts stay dirty, and the
+        WARNING names them and the idempotent re-run that heals them (#2280).
+
+        The guidance does not depend on the mission's target branch (a protected
+        ``main`` or a topic branch): it is the same ``mission close`` re-run.
+        """
+        joined, feature_dir = self._failed_commit_warning(tmp_path, monkeypatch, caplog, target_branch=target_branch)
+
         assert "could NOT be committed" in joined, joined
-        assert "git -C" in joined and " add " in joined and "commit -m" in joined, joined
+        assert str(feature_dir / "retrospective.yaml") in joined, joined
+        assert str(feature_dir / "status.events.jsonl") in joined, joined
+        assert f"`spec-kitty mission close --mission {MISSION_SLUG}`" in joined, joined
+        assert "project root" in joined, joined
+        assert "--discard" not in joined, joined
+        self._assert_no_recipe_that_can_be_refused(joined)
+
+    @pytest.mark.parametrize(
+        "meta_updates",
+        [{"mission_id": None}, {"mission_id": "01HXYZ"}],
+        ids=["no-mission-id", "mission-id-shorter-than-a-mid8"],
+    )
+    def test_mission_without_a_recorded_identity_is_not_told_to_rerun_close(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+        meta_updates: dict[str, Any],
+    ) -> None:
+        """``mission close`` skips the retrospective persist leg when the Mission has no
+        mid8, so for such a (legacy) Mission the re-run heals nothing. The warning says
+        so and names the remedy that was verified end to end: mint the identity with
+        ``migrate backfill-identity`` and then re-run ``mission close``."""
+        joined, feature_dir = self._failed_commit_warning(tmp_path, monkeypatch, caplog, meta_updates=meta_updates)
+
+        assert "could NOT be committed" in joined, joined
+        assert str(feature_dir / "retrospective.yaml") in joined, joined
+        assert "no recorded identity" in joined, joined
+        backfill = f"`spec-kitty migrate backfill-identity --mission {MISSION_SLUG}`"
+        rerun = f"`spec-kitty mission close --mission {MISSION_SLUG}`"
+        assert joined.index(backfill) < joined.index(rerun), joined
+        self._assert_no_recipe_that_can_be_refused(joined)
+
+    def test_mission_with_only_a_mid8_still_gets_the_plain_rerun(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """``mission close`` derives the mid8 from ``mid8`` too, so that is an identity."""
+        joined, _ = self._failed_commit_warning(
+            tmp_path, monkeypatch, caplog, meta_updates={"mission_id": None, "mid8": "01HXYZ00"}
+        )
+
+        assert f"`spec-kitty mission close --mission {MISSION_SLUG}`" in joined, joined
+        assert "no recorded identity" not in joined, joined
+        assert "backfill-identity" not in joined, joined
+
+    def test_discard_leg_points_at_the_discard_rerun(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """An abandoned mission cannot be closed without ``--discard`` (it was never
+        merged), so the abandoned-provenance leg names the discard re-run."""
+        joined, _ = self._failed_commit_warning(
+            tmp_path, monkeypatch, caplog, provenance_kind="runtime_abandoned"
+        )
+
+        assert f"`spec-kitty mission close --mission {MISSION_SLUG} --discard --force`" in joined, joined
+        assert "project root" in joined, joined
+        self._assert_no_recipe_that_can_be_refused(joined)
 
     def test_idempotency_heals_a_previously_failed_commit(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

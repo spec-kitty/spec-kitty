@@ -2423,6 +2423,121 @@ def test_partition_for_mission_path_matches_group_files_by_partition(tmp_path: P
 
 
 # ---------------------------------------------------------------------------
+# #5651 (nightly-suites-green WP02): a coordination Mission whose PRIMARY
+# directory is the bare slug while its coordination directory is the composed
+# ``<slug>-<mid8>`` name.  The seed commit passes the bare slug and the
+# composed-directory status files; they must group to the COORD partition and
+# commit on the coordination branch even though the primary branch is protected.
+# ---------------------------------------------------------------------------
+
+_BARE_SLUG_MID8 = "01M5651A"
+_BARE_SLUG = "bare-slug-coord"
+
+
+def _git_out(repo: Path, *args: str) -> str:
+    return subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True).stdout.strip()
+
+
+def _bare_slug_coord_mission(tmp_path: Path, mid8: str = _BARE_SLUG_MID8) -> tuple[Path, Path, tuple[Path, Path], str]:
+    """A real coordination Mission: bare primary directory, composed coordination directory.
+
+    Returns ``(repo, coordination worktree, (status log, status snapshot), coordination branch)``.
+    The two status files exist only in the coordination worktree and are untracked, exactly
+    what the consolidate-time seed leaves behind before its commit. ``mid8`` is the recorded
+    identity verbatim: nothing normalises its case or shape before the composed names are built.
+    """
+    import json
+
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+    from tests.terminus.conftest import _init_fixture_repo
+
+    mission = _init_fixture_repo(tmp_path, mid8=_BARE_SLUG_MID8, slug=_BARE_SLUG, target_branch="main")
+    repo = mission.repo
+    coord_branch = CoordinationWorkspace.branch_name(_BARE_SLUG, mid8)
+    meta = {
+        "mission_slug": _BARE_SLUG,
+        "mission_id": (mid8 + "0" * 26)[:26],
+        "mid8": mid8,
+        "target_branch": "main",
+        "coordination_branch": coord_branch,
+        "topology": "coord",
+    }
+    mission.feature_dir.mkdir(parents=True)
+    (mission.feature_dir / "meta.json").write_text(json.dumps(meta, sort_keys=True) + "\n", encoding="utf-8")
+    _git_out(repo, "add", "kitty-specs")
+    _git_out(repo, "commit", "-qm", "bootstrap bare-slug coord mission")
+    _git_out(repo, "branch", coord_branch)
+    coord = CoordinationWorkspace.resolve(repo, _BARE_SLUG, mid8)
+
+    composed_dir = coord / "kitty-specs" / f"{_BARE_SLUG}-{mid8}"
+    composed_dir.mkdir(parents=True)
+    log = composed_dir / "status.events.jsonl"
+    snapshot = composed_dir / "status.json"
+    log.write_text('{"event": 1}\n', encoding="utf-8")
+    snapshot.write_text("{}\n", encoding="utf-8")
+    return repo, coord, (log, snapshot), coord_branch
+
+
+@pytest.mark.git_repo
+def test_seed_style_commit_for_a_bare_slug_mission_lands_the_composed_status_files_on_the_coordination_branch(tmp_path: Path) -> None:
+    """#5651 layer 1: the composed-directory status files are COORD for a bare-slug Mission.
+
+    Same call shape as ``coord_seed._commit_seed``: the bare slug, the two composed-directory
+    status files, ``kind=STATUS_STATE``, a policy that protects the primary branch.  Before the
+    directory alias set the files grouped to the PRIMARY partition, the commit was refused on
+    ``main`` (``no_op_wrong_surface``) and the files stayed untracked.
+    """
+    from specify_cli.coordination.commit_router import commit_for_mission
+
+    repo, coord, files, coord_branch = _bare_slug_coord_mission(tmp_path)
+    main_before = _git_out(repo, "rev-parse", "main")
+
+    result = commit_for_mission(
+        repo,
+        _BARE_SLUG,
+        files,
+        f"chore({_BARE_SLUG}): seed coordination surface",
+        _make_policy(protected=True),
+        kind=MissionArtifactKind.STATUS_STATE,
+    )
+
+    assert result.status == "committed", result
+    assert _git_out(repo, "rev-parse", "main") == main_before
+    tracked = _git_out(repo, "ls-tree", "-r", "--name-only", coord_branch).splitlines()
+    composed = f"kitty-specs/{_BARE_SLUG}-{_BARE_SLUG_MID8}"
+    assert f"{composed}/status.events.jsonl" in tracked
+    assert f"{composed}/status.json" in tracked
+    assert _git_out(coord, "status", "--porcelain", "--untracked-files=all") == ""
+
+
+@pytest.mark.git_repo
+@pytest.mark.parametrize("mid8", ["01m5651a", "01COORD0"], ids=["lowercase", "non-crockford"])
+def test_seed_style_commit_follows_a_recorded_mid8_verbatim_whatever_its_case_or_alphabet(tmp_path: Path, mid8: str) -> None:
+    """The seed names the coordination directory from the recorded ``mid8`` as written (#5651).
+
+    Nothing normalises the recorded identity before the composed directory is created, so the
+    alias set must follow it byte for byte; otherwise the seed commit is misrouted again.
+    """
+    from specify_cli.coordination.commit_router import commit_for_mission
+
+    repo, coord, files, coord_branch = _bare_slug_coord_mission(tmp_path, mid8)
+
+    result = commit_for_mission(
+        repo,
+        _BARE_SLUG,
+        files,
+        f"chore({_BARE_SLUG}): seed coordination surface",
+        _make_policy(protected=True),
+        kind=MissionArtifactKind.STATUS_STATE,
+    )
+
+    assert result.status == "committed", result
+    tracked = _git_out(repo, "ls-tree", "-r", "--name-only", coord_branch).splitlines()
+    assert f"kitty-specs/{_BARE_SLUG}-{mid8}/status.events.jsonl" in tracked
+    assert _git_out(coord, "status", "--porcelain", "--untracked-files=all") == ""
+
+
+# ---------------------------------------------------------------------------
 # Review cycle 1 N5: ``_dirty_paths_in_checkout`` must correctly match a
 # porcelain entry whose path git C-quotes (a space, or a non-ASCII byte
 # under the default ``core.quotePath=true``) and a rename entry (``old ->

@@ -43,27 +43,22 @@ pays (and could never catch a regression in) the
 from __future__ import annotations
 
 import os
-import subprocess
-import sys
 import tempfile
-import time
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
-from tests._perf_helpers import assert_timing_budget
+from tests._perf_helpers import (
+    WARM_LEAF_RATIO_LIMIT,
+    assert_timing_budget,
+    cli_argv,
+    fixed_workload_argv,
+    measure_interleaved,
+    spawn_timed,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-
-#: Generous vs the observed warm (cache-hit) baseline for a leaf command on a
-#: loaded dev box (~0.85 s), tight vs the ~11 s a from-scratch full render
-#: costs when a fresh ``SPEC_KITTY_HOME`` has never populated the freshness
-#: stamp -- exactly the pathology this guard exists to catch if it comes
-#: back on a WARM (second) invocation instead of only the first. Mirrors
-#: ``_HELP_BUDGET_SECONDS``'s stated design intent from the ``#4409``
-#: precedent: absorb CI contention without being vacuous against the
-#: regression.
-_LEAF_COMMAND_BUDGET_SECONDS = 5.0
 
 # A real leaf command that runs through `main_callback()`'s full
 # non-fast-pathed path -- never `next`, `live-work hook`, or `doctor skills`
@@ -96,19 +91,13 @@ def _leaf_command_env(tmp_home: Path) -> dict[str, str]:
     return env
 
 
-def _run_leaf_command(env: dict[str, str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [sys.executable, "-m", "specify_cli.__init__", *_LEAF_COMMAND],
-        cwd=cwd,
-        env=env,
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
+#: Exit codes the leaf command may return: ``context list --json`` from a tmp cwd
+#: with no project markers resolves to the ``not_in_project`` error (exit 1).
+_LEAF_EXIT_CODES = (0, 1)
 
 
 @pytest.mark.performance
-def test_repeated_leaf_command_invocation_stays_inside_its_startup_budget() -> None:
+def test_repeated_leaf_command_invocation_stays_inside_its_startup_budget(record_property: Callable[[str, object], None]) -> None:
     """The wall-clock half: a WARM repeated invocation must not re-pay the render.
 
     WP04's freshness short-circuit exists precisely so that, after the first
@@ -117,31 +106,35 @@ def test_repeated_leaf_command_invocation_stays_inside_its_startup_budget() -> N
     the SAME home returns without rebuilding an ``AssetPreparation`` at all.
     Reintroducing unconditional rendering (dropping WP04's early return, or
     dropping WP05's lazy command-module imports) makes every invocation pay
-    a real cost again -- this test's whole point is to distinguish "the
-    second call is fast" from "the second call is slow", so it deliberately
-    invokes the leaf command TWICE against one isolated, never-real home and
-    only times the second (warm) call. `context list --json` runs from an
-    isolated tmp cwd with no project markers, so it always resolves to the
-    same ``not_in_project`` JSON error (exit 1) regardless of where this
-    suite happens to run -- the timing target is `main_callback`'s startup
-    cost, not the subcommand's own body.
+    a real cost again: a from-scratch render costs about 11 s against about
+    a second for a warm call, a factor of about ten. This test invokes the
+    leaf command once against one isolated, never-real home (the warm-up,
+    unmeasured), then measures the warm calls as a median interleaved with a
+    fixed interpreter workload and holds the ratio to ``WARM_LEAF_RATIO_LIMIT``
+    in ``tests/_perf_helpers.py``. No absolute number of seconds is asserted
+    (#5419, #5614): a slow runner slows the warm call and the workload alike.
+    `context list --json` runs from an isolated tmp cwd with no project
+    markers, so it always resolves to the same ``not_in_project`` JSON error
+    (exit 1) regardless of where this suite happens to run -- the timing
+    target is `main_callback`'s startup cost, not the subcommand's own body.
     """
     with tempfile.TemporaryDirectory() as tmp_home_str:
         tmp_home = Path(tmp_home_str)
         env = _leaf_command_env(tmp_home)
+        leaf = cli_argv(*_LEAF_COMMAND, module="specify_cli.__init__")
 
-        warmup = _run_leaf_command(env, tmp_home)
-        warmup_ok = warmup.returncode in (0, 1)
+        warmup = spawn_timed(leaf, cwd=tmp_home, env=env, accepted_returncodes=_LEAF_EXIT_CODES, timeout=60)
+        measurement = measure_interleaved(
+            lambda: spawn_timed(leaf, cwd=tmp_home, env=env, accepted_returncodes=_LEAF_EXIT_CODES, timeout=60),
+            lambda: spawn_timed(fixed_workload_argv(), cwd=tmp_home, env=env, timeout=60),
+        )
 
-        started = time.monotonic()
-        completed = _run_leaf_command(env, tmp_home)
-        elapsed = time.monotonic() - started
-
-    completed_ok = completed.returncode in (0, 1)
-    measured = elapsed if (warmup_ok and completed_ok) else float("inf")
-    name = "spec-kitty context list --json (warm, repeated-invocation) startup"
-    if not warmup_ok:
-        name = f"{name}; warm-up exit={warmup.returncode}; stderr={warmup.stderr[-2000:]}"
-    elif not completed_ok:
-        name = f"{name}; exit={completed.returncode}; stderr={completed.stderr[-2000:]}"
-    assert_timing_budget(measured, _LEAF_COMMAND_BUDGET_SECONDS, name=name)
+    title = "spec-kitty context list --json (warm, repeated-invocation) startup / fixed interpreter workload"
+    name = measurement.describe("command", WARM_LEAF_RATIO_LIMIT, title=title)
+    if not warmup.ok:
+        name = f"{name}; warm-up {warmup.detail}"
+    ratio = measurement.ratio("command") if warmup.ok else float("inf")
+    record_property("ratio", round(ratio, 4))
+    record_property("workload_median_seconds", round(measurement.floor.median, 4))
+    record_property("command_median_seconds", round(measurement.variants["command"].median, 4))
+    assert_timing_budget(ratio, WARM_LEAF_RATIO_LIMIT, name=name)

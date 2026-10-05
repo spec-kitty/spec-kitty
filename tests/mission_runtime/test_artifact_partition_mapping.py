@@ -322,3 +322,56 @@ def test_write_meta_routing_anti_mutant_catches_reverted_sentinel(
         "vacuous against a regression that reintroduces commit_target=None"
     )
     assert not (primary_dir / "meta.json").exists()
+
+
+# ---------------------------------------------------------------------------
+# #5651 -- the pure classifiers accept an optional collection of Mission
+# directory names (a bare primary directory plus its composed coordination
+# directory) and stay byte-identical when it is omitted.
+# ---------------------------------------------------------------------------
+
+_BARE = "bare-mission"
+_COMPOSED = f"{_BARE}-01ABCDEF"
+_BOTH_NAMES = frozenset({_BARE, _COMPOSED})
+_COMPOSED_STATUS = f"kitty-specs/{_COMPOSED}/status.json"
+_COMPOSED_LOG = f"kitty-specs/{_COMPOSED}/status.events.jsonl"
+_COMPOSED_SPEC = f"kitty-specs/{_COMPOSED}/spec.md"
+
+
+@pytest.mark.parametrize("path", [_COMPOSED_STATUS, _COMPOSED_LOG])
+def test_status_state_path_recognises_the_composed_name_when_it_is_in_the_collection(path: str) -> None:
+    assert is_status_state_path(path, mission_slug=_BARE, mission_dir_names=_BOTH_NAMES) is True
+
+
+def test_status_state_path_without_the_collection_keeps_the_single_name_verdict() -> None:
+    assert is_status_state_path(_COMPOSED_STATUS, mission_slug=_BARE) is False
+    assert is_status_state_path(f"kitty-specs/{_BARE}/status.json", mission_slug=_BARE) is True
+
+
+def test_status_state_path_ignores_a_directory_name_outside_the_collection() -> None:
+    assert is_status_state_path(f"kitty-specs/{_BARE}-01ZZZZZZ/status.json", mission_slug=_BARE, mission_dir_names=_BOTH_NAMES) is False
+
+
+def test_status_state_path_still_recognises_the_primary_name_inside_the_collection() -> None:
+    assert is_status_state_path(f"kitty-specs/{_BARE}/status.json", mission_slug=_BARE, mission_dir_names=_BOTH_NAMES) is True
+
+
+@pytest.mark.parametrize("path", [_COMPOSED_STATUS, _COMPOSED_LOG])
+def test_coord_residue_churn_recognises_the_composed_name_when_it_is_in_the_collection(path: str) -> None:
+    assert is_coord_residue_churn(path, mission_slug=_BARE, mission_dir_names=_BOTH_NAMES) is True
+    assert is_coord_residue_churn(path, mission_slug=_BARE) is False
+
+
+def test_coord_residue_churn_does_not_treat_a_planning_file_under_the_composed_name_as_residue() -> None:
+    assert is_coord_residue_churn(_COMPOSED_SPEC, mission_slug=_BARE, mission_dir_names=_BOTH_NAMES) is False
+    assert is_coord_residue_churn(_COMPOSED_SPEC, mission_slug=_BARE) is False
+
+
+def test_coord_residue_churn_ignores_a_directory_name_outside_the_collection() -> None:
+    other = "kitty-specs/other-mission-01ABCDEF/status.json"
+    assert is_coord_residue_churn(other, mission_slug=_BARE, mission_dir_names=_BOTH_NAMES) is False
+
+
+def test_an_empty_collection_recognises_nothing() -> None:
+    assert is_coord_residue_churn(f"kitty-specs/{_BARE}/status.json", mission_slug=_BARE, mission_dir_names=frozenset()) is False
+    assert is_status_state_path(f"kitty-specs/{_BARE}/status.json", mission_slug=_BARE, mission_dir_names=frozenset()) is False

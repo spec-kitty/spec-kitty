@@ -513,7 +513,7 @@ def test_resolve_run_status_dir_returns_the_write_location_path(tmp_path: Path) 
 
     class _Seam:
         def write_dir(self, kind: object) -> object:
-            return SimpleNamespace(path=tmp_path / "kitty-specs" / "m")
+            return SimpleNamespace(path=tmp_path / "kitty-specs" / "m", seed=None)
 
     seam: Any = _Seam()
     assert ex._resolve_run_status_dir(seam) == tmp_path / "kitty-specs" / "m"

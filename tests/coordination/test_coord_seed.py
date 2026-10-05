@@ -574,6 +574,10 @@ def test_refused_seed_commit_then_retried(tmp_path: Path, monkeypatch: pytest.Mo
     assert first.seed is not None
     assert first.seed.coord_commit is None
     assert first.seed.warnings
+    assert first.seed.commit_refused, "a refused seed commit must be reported as a structured reason"
+    assert "status='error'" in first.seed.commit_refused
+    assert "reason='protected'" in first.seed.commit_refused
+    assert first.seed.uncommitted_paths == _expected_uncommitted(coord, "issue-matrix.json", _STATUS_LOG)
     assert any("not applied" in record.message for record in caplog.records)
     assert probe_coord_state(coord.repo_root, coord.mission_dir_name, coord.mid8, coordination_branch=coord.coordination_branch) is CoordState.MATERIALIZED
     assert not _trailer_mission_ids(coord)
@@ -586,6 +590,8 @@ def test_refused_seed_commit_then_retried(tmp_path: Path, monkeypatch: pytest.Mo
     second = establish_coord_write_location(coord.repo_root, coord.mission_dir_name, MissionArtifactKind.STATUS_STATE, owned=None)
     assert second.seed is not None
     assert second.seed.coord_commit is not None
+    assert second.seed.commit_refused is None
+    assert second.seed.uncommitted_paths == ()
     assert _trailer_mission_ids(coord)
     # The retry carried nothing, yet its successful commit restores the root copy.
     assert second.seed.carried == ()
@@ -623,6 +629,8 @@ def test_refused_seed_commit_keeps_the_root_copy(tmp_path: Path, monkeypatch: py
     assert location.seed.coord_commit is None
     assert location.seed.restored_root == ()
     assert location.seed.warnings
+    assert location.seed.commit_refused
+    assert location.seed.uncommitted_paths
     assert root_log.read_bytes() == root_bytes
     assert untracked_path.exists()
     assert (location.path / _STATUS_LOG).exists()
@@ -643,6 +651,72 @@ def test_refused_seed_commit_retry_is_config_independent(tmp_path: Path, monkeyp
     monkeypatch.setattr(cs, "_commit_seed", real_commit_seed)
     location = establish_coord_write_location(coord.repo_root, coord.mission_dir_name, MissionArtifactKind.STATUS_STATE, owned=None)
     assert location.seed is not None and location.seed.coord_commit is not None, location
+    assert location.seed.commit_refused is None
+    assert location.seed.uncommitted_paths == ()
+
+
+def _expected_uncommitted(coord: CoordMission, *relpaths: str) -> tuple[str, ...]:
+    """Repository-relative (coordination checkout) paths, sorted, as the seed reports them."""
+    prefix = f"kitty-specs/{coord.mission_dir_name}/"
+    return tuple(sorted(f"{prefix}{relpath}" for relpath in relpaths))
+
+
+def test_unchanged_seed_commit_leaves_the_refusal_fields_at_their_defaults(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An ``unchanged`` commit result is not a refusal: both fields keep their defaults."""
+    from specify_cli.coordination import coord_seed as cs
+
+    class _UnchangedCommit:
+        status = "unchanged"
+        reason = None
+        commit_hash = None
+
+    coord = make_prefix_coord_mission(tmp_path, MissionTopology.COORD, worktree="empty")
+    monkeypatch.setattr(cs, "_commit_seed", lambda req, paths: _UnchangedCommit())
+
+    location = establish_coord_write_location(coord.repo_root, coord.mission_dir_name, MissionArtifactKind.STATUS_STATE, owned=None)
+
+    assert location.seed is not None
+    assert location.seed.coord_commit is None
+    assert location.seed.commit_refused is None
+    assert location.seed.uncommitted_paths == ()
+
+
+class _RefusedCommitWithoutReason:
+    status = "no_op_wrong_surface"
+    reason = None
+    commit_hash = None
+
+
+def test_refusal_reason_omits_the_reason_clause_when_the_router_gave_none(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.coordination import coord_seed as cs
+
+    coord = make_prefix_coord_mission(tmp_path, MissionTopology.COORD, worktree="empty")
+    monkeypatch.setattr(cs, "_commit_seed", lambda req, paths: _RefusedCommitWithoutReason())
+
+    location = establish_coord_write_location(coord.repo_root, coord.mission_dir_name, MissionArtifactKind.STATUS_STATE, owned=None)
+
+    assert location.seed is not None
+    assert location.seed.commit_refused == "status='no_op_wrong_surface'"
+    assert location.seed.warnings == (
+        "seed commit not applied (status='no_op_wrong_surface'); the mission dir is present but uncommitted. The next coordination write retries the commit.",
+    )
+
+
+def test_a_twice_refused_seed_commit_still_names_the_uncommitted_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """On the retry ``carried`` is empty (root is already a prefix of the coordination copy), yet the files are still uncommitted."""
+    from specify_cli.coordination import coord_seed as cs
+
+    coord = make_prefix_coord_mission(tmp_path, MissionTopology.COORD, worktree="empty")
+    monkeypatch.setattr(cs, "_commit_seed", lambda req, paths: _RefusedCommit())
+
+    first = establish_coord_write_location(coord.repo_root, coord.mission_dir_name, MissionArtifactKind.STATUS_STATE, owned=None)
+    second = establish_coord_write_location(coord.repo_root, coord.mission_dir_name, MissionArtifactKind.STATUS_STATE, owned=None)
+
+    assert first.seed is not None and second.seed is not None
+    assert first.seed.uncommitted_paths, "fixture invariant: the first refusal names the seeded files"
+    assert second.seed.carried == (), "fixture invariant: a retry carries nothing"
+    assert second.seed.commit_refused
+    assert second.seed.uncommitted_paths == first.seed.uncommitted_paths
 
 
 # ---------------------------------------------------------------------------

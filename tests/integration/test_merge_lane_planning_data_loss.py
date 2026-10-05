@@ -30,7 +30,9 @@ from __future__ import annotations
 
 import contextlib
 import json
+import shutil
 import subprocess
+from collections.abc import Mapping
 from kernel.clock import now_utc_iso
 from kernel.git import StatusEntry
 from pathlib import Path
@@ -39,7 +41,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import typer
 
-from tests.consolidation.approval_stamps import restamp_log_at_lane_tips
+from tests.consolidation.approval_stamps import approved_lane_tips, restamp_log_at_lane_tips, with_lane_head
 from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
@@ -409,7 +411,6 @@ def _real_merge_external_mocks(repo_root: Path):
         patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done"),
         patch("specify_cli.consolidation.done_bookkeeping._assert_merged_wps_reached_done"),
         patch_executor_family("commit_merge_bookkeeping"),
-        patch("specify_cli.post_merge.stale_assertions.run_check"),
         patch("specify_cli.consolidation.phase_finalize.run_check"),
         # Preflight / gates / policy / sparse-checkout — out of scope for
         # this data-loss regression
@@ -432,14 +433,13 @@ def _real_merge_external_mocks(repo_root: Path):
         gate_eval = MagicMock()
         gate_eval.overall_pass = True
         gate_eval.gates = []
-        ms[7].return_value = gate_eval
+        ms[6].return_value = gate_eval
         policy = MagicMock()
         policy.merge_gates = []
-        ms[8].return_value = policy
+        ms[7].return_value = policy
         stale_report = MagicMock()
         stale_report.findings = []
         ms[3].return_value = stale_report
-        ms[4].return_value = stale_report
         yield {
             "mark_done": ms[0],
             "assert_done": ms[1],
@@ -1458,6 +1458,29 @@ def _restamp_coord_worktree(repo: Path, slug: str, feature_dir: Path) -> None:
     restamp_log_at_lane_tips(coord, coord / feature_dir.relative_to(repo))
 
 
+def _stamp_composed_log_at_lane_tips(repo: Path, primary_dir: Path, checkout: Path, composed_rel: Path) -> None:
+    """Stamp a bare-slug Mission's COMPOSED coordination log at the lane tips (#5668), if present.
+
+    The composed directory carries only a status pair (no ``lanes.json``), so the
+    lane tips come from the PRIMARY manifest; the stamped log is committed in
+    *checkout* (the target tree or the coordination worktree). A no-op when the
+    composed log is absent or already carries the stamp.
+    """
+    log = checkout / composed_rel / "status.events.jsonl"
+    if not log.exists():
+        return
+    tips = approved_lane_tips(repo, primary_dir)
+    original = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines() if line.strip()]
+    events = [
+        with_lane_head(event, tips[str(event["wp_id"])]) if event.get("to_lane") == "approved" and event.get("wp_id") in tips else event for event in original
+    ]
+    if events == original:
+        return
+    log.write_text("".join(json.dumps(event, sort_keys=True) + "\n" for event in events), encoding="utf-8")
+    _git(checkout, "add", "-f", str(composed_rel / "status.events.jsonl"))
+    _git(checkout, "commit", "-qm", "test: stamp the composed coordination log at lane tips (#5668)")
+
+
 def _write_coord_retaining_meta(feature_dir: Path, slug: str) -> None:
     """meta.json for a COORD-topology mission that retains BOTH branches and worktrees."""
     feature_dir.mkdir(parents=True, exist_ok=True)
@@ -1746,7 +1769,9 @@ class TestRetentionConstraintSurvivesCleanup:
         to a delete — it resolves to retaining (fail-closed), with a
         malformed-value warning, exactly like an explicit ``true``."""
         slug = _RETENTION_SLUG + "-malformed"
-        mission_branch = f"kitty/mission-{slug}"
+        # The declared coordination branch must be the name the product composes from the
+        # recorded identity; the uncomposed name was never consolidatable without the mocks.
+        mission_branch = f"kitty/mission-{slug}-{_RETENTION_MID8}"
         _init_git_repo(tmp_path)
 
         feature_dir = tmp_path / "kitty-specs" / slug
@@ -1900,41 +1925,37 @@ _BARE_SLUG = "retention-override"
 _COMPOSED_BRANCH = f"kitty/mission-{_BARE_SLUG}-{_RETENTION_MID8}"
 
 
-@pytest.mark.regression
-def test_bare_slug_coord_mission_consolidates_onto_a_protected_target(tmp_path: Path) -> None:
-    """A bare-slug coordination Mission must consolidate onto a protected target (open regression, #5651).
+def _build_bare_slug_coord_mission(
+    repo: Path,
+    *,
+    alias_dir_file: str | None = None,
+    alias_pair_on_target: bool = False,
+    primary_dir_files: Mapping[str, str] | None = None,
+    alias_dir_files: Mapping[str, str] | None = None,
+) -> tuple[str, str, frozenset[str]]:
+    """Build the #5651 fixture: a coordination Mission with a BARE primary directory.
 
-    OPEN, red on purpose: a reproduction pinned to
-    https://github.com/spec-kitty/spec-kitty/issues/5651. It stays in this
-    integration module so the nightly integration lane keeps showing it; it is
-    ``regression``-marked so the fast tier leaves it out.
-
-    Contract: consolidating a coordination Mission whose primary directory is
-    the BARE slug (``kitty-specs/<slug>``, no ``-<mid8>`` suffix) while its
-    coordination branch is the composed ``kitty/mission-<slug>-<mid8>`` lands on
-    the protected target with exit 0. ``coordination/transaction.py::
-    _canonical_coord_mission_slug`` documents that shape as genuine.
-
-    Root cause: the executor seeds the composed ``<slug>-<mid8>`` coordination
-    directory, but ``partition_for_mission_path`` classifies by the
-    ``kitty-specs/<segment>`` name and does not recognise it. The seed regroups
-    to PRIMARY, is refused on a protected ``main`` and stays untracked in the
-    coordination worktree, and the preflight stops with
-    ``MERGE_UNSAFE_WORKTREE_DIRTY``. Regression from ``5b5699e50``.
-
-    Desired outcome: exit 0, with the seed on the coordination partition and
-    attributed as bookkeeping. A partition-only fix is not enough, because the
-    reconciliation gate's ``_is_bookkeeping`` is anchored on the same bare
-    segment. The Mission here does not retain its worktrees, so the default
-    cleanup removes the coordination worktree, which is the step the preflight
-    refuses. Exit rule: this test goes green when #5651 is fixed; drop the
-    marker then.
+    The primary directory is ``kitty-specs/<slug>`` while the coordination
+    branch and coordination directory use the composed ``<slug>-<mid8>`` name.
+    The target is the protected ``main``, one approved code work package sits on
+    ``lane-a``. Returns ``(slug, mission_branch, ids of the events already in
+    the primary log before the run)``. ``alias_dir_file`` names one extra file
+    committed on the mission branch under the composed directory (default none).
+    ``alias_pair_on_target`` commits a copy of the primary status pair under the
+    composed directory on the target BEFORE the mission branch is cut, so both the
+    target and the mission branch carry it (default: only ``alias_dir_file`` does).
+    ``primary_dir_files`` maps relative paths to content committed under the PRIMARY
+    directory on the target before the mission branch is cut; the coordination seed
+    carries every coordination-kind one of them (traces, matrices, review cycles) into
+    the composed directory. ``alias_dir_files`` maps relative paths to content committed
+    on the mission branch under the composed directory, as a coordination write made
+    after the seed would (default none).
     """
     slug = _BARE_SLUG
     mission_branch = _COMPOSED_BRANCH
-    _init_git_repo(tmp_path)
+    _init_git_repo(repo)
 
-    feature_dir = tmp_path / "kitty-specs" / slug
+    feature_dir = repo / "kitty-specs" / slug
     (feature_dir / "tasks").mkdir(parents=True)
     _write_coord_retaining_meta(feature_dir, slug)
     meta_path = feature_dir / "meta.json"
@@ -1955,47 +1976,431 @@ def test_bare_slug_coord_mission_consolidates_onto_a_protected_target(tmp_path: 
     )
     _write_wp_file(feature_dir, "WP01")
     _seed_wp_approved(feature_dir, slug, "WP01")
-    _git(tmp_path, "add", ".")
-    _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap bare-slug coord mission")
+    pre_run_event_ids = _event_ids(feature_dir / "status.events.jsonl")
+    for relpath, content in (primary_dir_files or {}).items():
+        (feature_dir / relpath).parent.mkdir(parents=True, exist_ok=True)
+        (feature_dir / relpath).write_text(content, encoding="utf-8")
+    if alias_pair_on_target:
+        alias_dir = repo / "kitty-specs" / f"{slug}-{_RETENTION_MID8}"
+        alias_dir.mkdir(parents=True)
+        for status_name in ("status.events.jsonl", "status.json"):
+            shutil.copy2(feature_dir / status_name, alias_dir / status_name)
+    # A project initialised by spec-kitty ignores the tool's own state
+    # directories; without these rules the clean-checkout assertion below would
+    # trip over the tool's runtime, derived-view and workspace records.
+    (repo / ".gitignore").write_text(".kittify/runtime/\n.kittify/derived/\n.kittify/workspaces/\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", f"chore({slug}): bootstrap bare-slug coord mission")
 
-    _git(tmp_path, "branch", mission_branch, "main")
+    _git(repo, "branch", mission_branch, "main")
     from specify_cli.coordination.workspace import CoordinationWorkspace
 
     _git(
-        tmp_path,
+        repo,
         "worktree",
         "add",
         "-q",
-        str(CoordinationWorkspace.worktree_path(tmp_path, slug, _RETENTION_MID8)),
+        str(CoordinationWorkspace.worktree_path(repo, slug, _RETENTION_MID8)),
         mission_branch,
     )
+    composed_files = dict(alias_dir_files or {})
+    if alias_dir_file is not None:
+        composed_files[alias_dir_file] = "not a status file\n"
+    if composed_files:
+        coord_worktree = CoordinationWorkspace.worktree_path(repo, slug, _RETENTION_MID8)
+        composed_dir = coord_worktree / "kitty-specs" / f"{slug}-{_RETENTION_MID8}"
+        for relpath, content in composed_files.items():
+            (composed_dir / relpath).parent.mkdir(parents=True, exist_ok=True)
+            (composed_dir / relpath).write_text(content, encoding="utf-8")
+        # A coordination branch seeded by an earlier attempt already carries the status pair.
+        for status_name in ("status.events.jsonl", "status.json"):
+            shutil.copy2(feature_dir / status_name, composed_dir / status_name)
+        _git(coord_worktree, "add", "-f", ".")
+        _git(coord_worktree, "commit", "-qm", "chore: a planning file under the composed name")
     lane_a_branch = f"kitty/mission-{slug}-lane-a"
-    _git(tmp_path, "branch", lane_a_branch, "main")
+    _git(repo, "branch", lane_a_branch, "main")
     _commit_file(
-        tmp_path,
+        repo,
         branch=lane_a_branch,
         relpath="src/retention_repro_override.py",
         content="def bar():\n    return 2\n",
         message=f"feat({slug}): add bar function (WP01)",
     )
-    _git(tmp_path, "checkout", "main")
-    restamp_log_at_lane_tips(tmp_path, feature_dir)
-    _restamp_coord_worktree(tmp_path, slug, feature_dir)
+    _git(repo, "checkout", "main")
+    restamp_log_at_lane_tips(repo, feature_dir)
+    _restamp_coord_worktree(repo, slug, feature_dir)
+    # A bare-slug Mission's coordination writes resolve to the COMPOSED directory,
+    # so #5668's approved bound reads the approval stamp from a composed-name log
+    # -- not the inherited bare one restamped above. Stamp every composed log this
+    # fixture seeded (on the target tree via ``alias_pair_on_target`` /
+    # ``primary_dir_files``, and in the coordination worktree via ``composed_files``)
+    # at the lane tips, exactly as a real post-#5668 Mission records. The lane tips
+    # come from the PRIMARY manifest (the composed dirs carry only a status pair).
+    composed_rel = Path("kitty-specs") / f"{slug}-{_RETENTION_MID8}"
+    _stamp_composed_log_at_lane_tips(repo, feature_dir, repo, composed_rel)
+    _stamp_composed_log_at_lane_tips(
+        repo,
+        feature_dir,
+        CoordinationWorkspace.worktree_path(repo, slug, _RETENTION_MID8),
+        composed_rel,
+    )
 
     from specify_cli.lanes.worktree_allocator import predict_lane_worktree
 
-    lane_worktree, _lane_branch = predict_lane_worktree(tmp_path, slug, "lane-a")
-    _git(tmp_path, "worktree", "add", str(lane_worktree), lane_a_branch)
+    lane_worktree, _lane_branch = predict_lane_worktree(repo, slug, "lane-a")
+    _git(repo, "worktree", "add", str(lane_worktree), lane_a_branch)
+    return slug, mission_branch, pre_run_event_ids
 
-    with (
-        _real_merge_external_mocks(tmp_path),
-        patch("specify_cli.consolidation.phase_bookkeeping._assert_merged_wps_done_on_target"),
-        patch("specify_cli.consolidation.phase_bookkeeping._assert_baseline_merge_commit_on_target"),
-    ):
-        result = _invoke_merge_cli(
-            tmp_path,
-            ["--mission", slug, "--yes", "--allow-sparse-checkout"],
-        )
+
+def _event_ids(events_path: Path) -> frozenset[str]:
+    return frozenset(
+        json.loads(line)["event_id"]
+        for line in events_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    )
+
+
+def _assert_bare_slug_end_state(
+    repo: Path,
+    slug: str,
+    mission_branch: str,
+    pre_run_event_ids: frozenset[str],
+) -> None:
+    """The consolidated bare-slug Mission leaves ONE directory, the whole log, a clean tree."""
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+
+    mission_dirs = sorted(
+        entry
+        for entry in _git(repo, "ls-tree", "--name-only", "main", "kitty-specs/").stdout.splitlines()
+        if entry.strip()
+    )
+    assert mission_dirs == [f"kitty-specs/{slug}"], (
+        f"#5651: the target must hold exactly one Mission directory, the primary one; got {mission_dirs}"
+    )
+    composed_paths = [
+        path
+        for path in _git(repo, "ls-tree", "-r", "--name-only", "main").stdout.splitlines()
+        if path.startswith(f"kitty-specs/{slug}-")
+    ]
+    assert composed_paths == [], f"#5651: nothing may remain under the composed name on the target: {composed_paths}"
+
+    log_text = _git(repo, "show", f"main:kitty-specs/{slug}/status.events.jsonl").stdout
+    events = [json.loads(line) for line in log_text.splitlines() if line.strip()]
+    event_ids = [event["event_id"] for event in events]
+    assert len(event_ids) == len(set(event_ids)), "#5651: the event log must not repeat an event id"
+    assert pre_run_event_ids <= set(event_ids), (
+        f"#5651: events recorded before the run were lost: {sorted(pre_run_event_ids - set(event_ids))}"
+    )
+    done_events = [event for event in events if event.get("wp_id") == "WP01" and event.get("to_lane") == "done"]
+    assert len(done_events) == 1, f"#5651: the log must hold exactly one WP01 done event; got {done_events}"
+    assert done_events[0]["event_id"] not in pre_run_event_ids
+
+    assert not _branch_exists(repo, mission_branch), "#5651: the coordination branch must be deleted"
+    coord_worktree = CoordinationWorkspace.worktree_path(repo, slug, _RETENTION_MID8)
+    assert not coord_worktree.exists(), "#5651: the coordination worktree must be removed"
+    porcelain = _git(repo, "status", "--porcelain").stdout
+    assert porcelain == "", f"#5651: the root checkout must be clean after consolidation; got {porcelain!r}"
+
+
+def _consolidate_bare_slug_mission(tmp_path: Path, *strategy_args: str) -> None:
+    """Build the #5651 fixture, run the REAL consolidation CLI over it, assert the end state.
+
+    Nothing in the repository is patched: the preflight, the gates, the policy
+    load, the sparse-checkout check, the stale-assertion check, the mission-number
+    bake, the ``done`` marking, the bookkeeping commit, the durability asserts and
+    the post-merge working-tree invariant all run for real.
+    """
+    slug, mission_branch, pre_run_event_ids = _build_bare_slug_coord_mission(tmp_path)
+
+    result = _invoke_merge_cli(
+        tmp_path,
+        ["--mission", slug, "--yes", "--allow-sparse-checkout", *strategy_args],
+    )
 
     exit_code = getattr(result, "exit_code", None)
     assert exit_code == 0, f"#5651: consolidate must succeed (output: {getattr(result, 'output', None)!r}, exception: {getattr(result, 'exception', None)!r})"
+    _assert_bare_slug_end_state(tmp_path, slug, mission_branch, pre_run_event_ids)
+
+
+@pytest.mark.regression
+def test_bare_slug_coord_mission_consolidates_onto_a_protected_target(tmp_path: Path) -> None:
+    """A bare-slug coordination Mission consolidates onto a protected target and ends with ONE directory (#5651).
+
+    Pins the fix of https://github.com/spec-kitty/spec-kitty/issues/5651 (tracked
+    by #5611). A coordination Mission whose primary directory is the BARE slug
+    (``kitty-specs/<slug>``) while its coordination branch and coordination
+    directory carry the composed ``<slug>-<mid8>`` name could not consolidate
+    onto a protected ``main``: the consolidation exited non-zero and left the
+    coordination worktree behind. Three layers were broken and are fixed:
+
+    1. the seed commit classified the composed directory's status files to the
+       PRIMARY partition, which a protected branch refuses (partition classifier);
+    2. the reconciliation gate then refused the composed directory's status files
+       as un-attributable content (the fold below, which removes them);
+    3. teardown read ``meta.json`` from the status directory, found no ``mid8``
+       and never destroyed the coordination worktree (teardown identity).
+
+    Contract: exit 0; exactly ONE Mission directory on the target ref, the
+    primary one; its ``status.events.jsonl`` holds the complete event set, the
+    events recorded before the run plus the run's own ``done`` event, asserted by
+    event identity and transition; nothing is left under the composed name; the
+    coordination branch and worktree are gone; ``git status --porcelain`` of the
+    root checkout is empty.
+
+    No product code is patched. With the bookkeeping door, the ``done`` marking
+    or the durability asserts mocked, this test would pass with two status homes
+    and no ``done`` event, so it runs the real consolidation end to end. The
+    fixture's data is the fixture of the reproduction, unchanged.
+
+    Mutation notes (revert one change, this test goes red): the partition
+    classifier fails the seed commit; the teardown identity leaves the
+    coordination worktree behind; skipping the fold leaves a second Mission
+    directory. The reconciliation gate no longer rolls that back: with its
+    status-pair leg in place, a skipped fold under squash would ship two
+    directories at exit 0, and it is this test's one-directory assertion that
+    catches it.
+    """
+    _consolidate_bare_slug_mission(tmp_path)
+
+
+@pytest.mark.regression
+def test_bare_slug_coord_mission_consolidates_under_the_merge_strategy(tmp_path: Path) -> None:
+    """The bare-slug reproduction under ``--strategy merge`` ends in the same one-directory state (#5651).
+
+    Under the merge strategy the reconciliation gate judges every lane and
+    bookkeeping commit separately, so the composed directory's status commits
+    (the seed, the ``done`` transition written to the composed log, and the
+    removal commit) are each checked as content. Same fixture, same real
+    consolidation, same end-state assertions as the squash reproduction; no
+    product code is patched.
+    """
+    _consolidate_bare_slug_mission(tmp_path, "--strategy", "merge")
+
+
+@pytest.mark.regression
+def test_bare_slug_coord_mission_consolidates_again_after_the_bookkeeping_commit_failed(tmp_path: Path) -> None:
+    """A failed bookkeeping commit leaves the one-directory fold repeatable (#5651).
+
+    The fold unlinks the composed directory's status pair BEFORE the bookkeeping
+    commit that records the removal. If that commit fails, the run's snapshots put
+    the pair back and the consolidation rolls back; the next run must then reach
+    the same end state as an undisturbed one. The ONLY patch is the injected
+    failure of the bookkeeping door, on its first call.
+    """
+    slug, mission_branch, pre_run_event_ids = _build_bare_slug_coord_mission(tmp_path)
+    args = ["--mission", slug, "--yes", "--allow-sparse-checkout"]
+
+    with (
+        patch_executor_family("commit_merge_bookkeeping", side_effect=RuntimeError("injected: bookkeeping door failed")),
+        pytest.raises(RuntimeError, match="injected"),
+    ):
+        _invoke_merge_cli(tmp_path, args)
+
+    assert _branch_exists(tmp_path, mission_branch), "the failed run must not have torn the coordination branch down"
+    resumed = _invoke_merge_cli(tmp_path, args)
+
+    exit_code = getattr(resumed, "exit_code", None)
+    assert exit_code == 0, f"#5651: the repeated consolidation must succeed (output: {getattr(resumed, 'output', None)!r})"
+    _assert_bare_slug_end_state(tmp_path, slug, mission_branch, pre_run_event_ids)
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize("strategy_args", [[], ["--strategy", "merge"]], ids=["squash", "merge"])
+def test_bare_slug_coord_mission_with_another_file_under_the_composed_name_is_refused_and_rolled_back(tmp_path: Path, strategy_args: list[str]) -> None:
+    """Only the composed directory's status pair is folded or exempted; any other file there fails the gate (#5651, FR-004).
+
+    A planning file committed under ``kitty-specs/<slug>-<mid8>/`` rides the mission
+    branch onto the target. It is neither removed by the fold nor treated as
+    bookkeeping, so the reconciliation gate refuses it, rolls the target back and
+    keeps the coordination branch. No product code is patched.
+    """
+    slug, mission_branch, _pre_run_event_ids = _build_bare_slug_coord_mission(tmp_path, alias_dir_file="notes.md")
+    target_before = _git(tmp_path, "rev-parse", "main").stdout.strip()
+
+    result = _invoke_merge_cli(tmp_path, ["--mission", slug, "--yes", "--allow-sparse-checkout", *strategy_args])
+
+    assert getattr(result, "exit_code", None) == 1, getattr(result, "output", None)
+    output = getattr(result, "output", "")
+    assert "Reconciliation FAILED" in output, output
+    assert _git(tmp_path, "rev-parse", "main").stdout.strip() == target_before, "the target must be rolled back"
+    assert _branch_exists(tmp_path, mission_branch), "nothing may be torn down"
+
+
+@pytest.mark.regression
+def test_bare_slug_coord_mission_whose_composed_log_holds_a_foreign_event_is_refused_and_rolled_back(tmp_path: Path) -> None:
+    """A composed log with an event the primary Mission directory's event log lacks is a rendered refusal, not a traceback (#5750).
+
+    The target carries the composed directory's status pair and then gains an
+    event at the head of the composed log that the mission branch never saw; the
+    squash keeps it, but the run's union only brings the coordination log into the
+    primary log. The one-directory fold cannot prove that event preserved, so it
+    must refuse: the message names the Mission, the composed directory and the
+    missing event id, ends with its error code, the exit is non-zero, nothing is
+    deleted and the rollback runs. No product code is patched.
+    """
+    from specify_cli.consolidation.bookkeeping_projection import AliasStatusEventsNotPreserved
+
+    slug, mission_branch, _pre_run_event_ids = _build_bare_slug_coord_mission(tmp_path, alias_pair_on_target=True)
+    composed_log = tmp_path / "kitty-specs" / f"{slug}-{_RETENTION_MID8}" / "status.events.jsonl"
+    foreign = json.loads(composed_log.read_text(encoding="utf-8").splitlines()[0])
+    foreign["event_id"] = "01KX0000000FOREIGNEVENT0001"
+    # Head-of-file, so the target's change and the run's own appended ``done`` event merge cleanly.
+    composed_log.write_text(json.dumps(foreign, sort_keys=True) + "\n" + composed_log.read_text(encoding="utf-8"), encoding="utf-8")
+    _git(tmp_path, "add", "-f", str(composed_log))
+    _git(tmp_path, "commit", "-m", "chore: the target gains an event in the composed log")
+    target_before = _git(tmp_path, "rev-parse", "main").stdout.strip()
+
+    result = _invoke_merge_cli(tmp_path, ["--mission", slug, "--yes", "--allow-sparse-checkout"])
+
+    output = getattr(result, "output", "")
+    assert getattr(result, "exit_code", None) == 1, output
+    assert not isinstance(getattr(result, "exception", None), AliasStatusEventsNotPreserved), "the refusal must be rendered, not raised"
+    assert slug in output, output
+    assert f"kitty-specs/{slug}-{_RETENTION_MID8}" in output.replace("\n", ""), output
+    assert "01KX0000000FOREIGNEVENT0001" in output, output
+    assert "Error code: ALIAS_STATUS_EVENTS_NOT_PRESERVED." in " ".join(output.split()), output  # rich wraps long lines
+    assert _git(tmp_path, "rev-parse", "main").stdout.strip() == target_before, "the target must be rolled back"
+    assert _branch_exists(tmp_path, mission_branch), "nothing may be torn down"
+    assert composed_log.exists(), "the composed directory's status files must not be deleted"
+
+
+@pytest.mark.regression
+def test_mission_declaring_an_uncomposed_coordination_branch_is_refused_truthfully_with_its_code(tmp_path: Path) -> None:
+    """A declared coordination branch without the ``-<mid8>`` the product composes is a rendered refusal (#5750).
+
+    The pre-re-pin shape of the retention fixtures: ``meta.json`` declares
+    ``coordination_branch = kitty/mission-<slug>`` while the product composes
+    ``kitty/mission-<slug>-<mid8>``. The coordination write location cannot be
+    resolved, which used to escape ``consolidate`` as a traceback. It must stop
+    before any branch moves, name the branch the worktree is on and the branch the
+    product expects, name the seeded files left untracked in the coordination
+    worktree and say they are kept, and end with its error code. It prints no
+    recovery command: the one that works (rename the branch, correct
+    ``coordination_branch`` and the manifest's ``mission_branch``, commit both on the
+    target) was not proven safe to print blind (#5750). No product code is patched.
+    """
+    from specify_cli.coordination.commit_router import CoordWorktreeResolutionError
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+    from specify_cli.lanes.worktree_allocator import predict_lane_worktree
+
+    slug = _RETENTION_SLUG + "-uncomposed"
+    declared = f"kitty/mission-{slug}"
+    expected = f"kitty/mission-{slug}-{_RETENTION_MID8}"
+    _init_git_repo(tmp_path)
+    feature_dir = tmp_path / "kitty-specs" / slug
+    (feature_dir / "tasks").mkdir(parents=True)
+    _write_coord_retaining_meta(feature_dir, slug)
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta.update({"coordination_branch": declared, "mission_branch": declared})
+    meta.pop("retain_branches")
+    meta.pop("retain_worktrees")
+    meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _write_lanes_manifest(feature_dir, slug, code_wp_ids=["WP01"], planning_wp_ids=[], mission_branch=declared)
+    _write_wp_file(feature_dir, "WP01")
+    _seed_wp_approved(feature_dir, slug, "WP01")
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap uncomposed-branch mission")
+    _git(tmp_path, "branch", declared, "main")
+    _git(tmp_path, "worktree", "add", "-q", str(CoordinationWorkspace.worktree_path(tmp_path, slug, _RETENTION_MID8)), declared)
+    lane_a_branch = f"kitty/mission-{slug}-lane-a"
+    _git(tmp_path, "branch", lane_a_branch, "main")
+    _commit_file(tmp_path, branch=lane_a_branch, relpath="src/uncomposed_repro.py", content="def qux():\n    return 4\n", message=f"feat({slug}): add qux (WP01)")
+    _git(tmp_path, "checkout", "main")
+    lane_worktree, _lane_branch = predict_lane_worktree(tmp_path, slug, "lane-a")
+    _git(tmp_path, "worktree", "add", str(lane_worktree), lane_a_branch)
+    refs_before = _git(tmp_path, "for-each-ref", "--format=%(refname) %(objectname)").stdout
+
+    result = _invoke_merge_cli(tmp_path, ["--mission", slug, "--yes", "--allow-sparse-checkout"])
+
+    output = getattr(result, "output", "")
+    assert getattr(result, "exit_code", None) == 1, output
+    assert not isinstance(getattr(result, "exception", None), CoordWorktreeResolutionError), "the refusal must be rendered, not raised"
+    flat = " ".join(output.split())
+    assert declared in flat, output
+    assert expected in flat, output
+    assert flat.endswith("Error code: COORDINATION_WORKTREE_BRANCH_MISMATCH."), output
+    assert "before any state change" not in flat, "the seed wrote files already: no clean-no-op notice"
+    assert "correct coordination_branch" not in flat, "an unproven recovery must not be printed"
+    assert _git(tmp_path, "for-each-ref", "--format=%(refname) %(objectname)").stdout == refs_before, "no branch may move"
+    # The seed wrote its status files into the coordination worktree before the write location failed:
+    # the refusal names them, says they are kept, and they are still there, untracked.
+    coord_worktree = CoordinationWorkspace.worktree_path(tmp_path, slug, _RETENTION_MID8)
+    seeded = f"kitty-specs/{slug}-{_RETENTION_MID8}/status.events.jsonl"
+    assert (coord_worktree / seeded).exists()
+    assert f"?? kitty-specs/{slug}-{_RETENTION_MID8}/" in _git(coord_worktree, "status", "--porcelain").stdout
+    assert seeded in flat and "are kept" in flat, output
+
+
+_KILL_AT_BOOKKEEPING_COMMIT_DRIVER = """
+import contextlib, os, sys
+from unittest import mock
+
+import typer
+from typer.testing import CliRunner
+
+import specify_cli.consolidation.phase_bookkeeping as phase_bookkeeping
+from specify_cli.cli.commands.consolidate import consolidate
+
+app = typer.Typer()
+app.command()(consolidate)
+# The injected failure is a hard process kill at the bookkeeping door: no rollback, no
+# snapshot restore, no cleanup runs, exactly the state a SIGKILL between the fold's unlink
+# and its commit leaves behind.
+with contextlib.chdir(sys.argv[1]), mock.patch.object(phase_bookkeeping, "commit_merge_bookkeeping", side_effect=lambda *a, **k: os._exit(137)):
+    CliRunner().invoke(app, sys.argv[2:], catch_exceptions=False)
+"""
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize(
+    "primary_dir_files",
+    [None, {"traces/mission-trace.md": "a trace\n", "traces/nested/step.md": "a nested trace\n", "issue-matrix.json": "{}\n"}],
+    ids=["status-pair-only", "every-coordination-kind"],
+)
+def test_a_run_killed_inside_the_fold_gets_advice_that_leads_to_a_successful_consolidation(tmp_path: Path, primary_dir_files: dict[str, str] | None) -> None:
+    """After a kill between the fold's unlink and its commit, the refusal says what actually recovers (#5748).
+
+    The killed process leaves the composed directory's coordination files (the status pair,
+    and every trace or matrix the seed carried) deleted in the
+    root checkout while the target already holds the landed Mission. A re-run, with or
+    without ``--resume``, refuses with ``MERGE_UNSAFE_PRIMARY_DIRTY`` over exactly those
+    deletions. "Commit, stash, or revert" does not lead to a successful resume here;
+    ``consolidate --abort`` followed by a fresh run does. The refusal must say that, and
+    following it must end in the one-directory state. The kill is a hard process exit
+    injected at the bookkeeping door of a subprocess; the refusal, the abort and the
+    fresh run are the real consolidation.
+    """
+    import os
+    import subprocess
+    import sys
+
+    slug, mission_branch, pre_run_event_ids = _build_bare_slug_coord_mission(tmp_path, primary_dir_files=primary_dir_files)
+    args = ["--mission", slug, "--yes", "--allow-sparse-checkout"]
+    src_dir = Path(__file__).resolve().parents[2] / "src"
+    killed = subprocess.run(
+        [sys.executable, "-c", _KILL_AT_BOOKKEEPING_COMMIT_DRIVER, str(tmp_path), *args],
+        env={**os.environ, "PYTHONPATH": str(src_dir)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert killed.returncode == 137, killed.stderr
+    composed = f"kitty-specs/{slug}-{_RETENTION_MID8}"
+    assert not (tmp_path / composed / "status.events.jsonl").exists(), "the fold's unlink must have happened before the kill"
+
+    for extra in ([], ["--resume"]):
+        refused = _invoke_merge_cli(tmp_path, [*args, *extra])
+        output = getattr(refused, "output", "")
+        assert getattr(refused, "exit_code", None) == 1, output
+        assert "MERGE_UNSAFE_PRIMARY_DIRTY" in output, output
+        flat = " ".join(output.split())
+        assert composed in flat, output
+        assert "spec-kitty consolidate --abort" in flat, output
+        assert "Commit, stash, or revert" not in flat, output
+
+    aborted = _invoke_merge_cli(tmp_path, ["--mission", slug, "--abort"])
+    assert getattr(aborted, "exit_code", None) == 0, getattr(aborted, "output", None)
+    fresh = _invoke_merge_cli(tmp_path, args)
+    assert getattr(fresh, "exit_code", None) == 0, getattr(fresh, "output", None)
+    _assert_bare_slug_end_state(tmp_path, slug, mission_branch, pre_run_event_ids)

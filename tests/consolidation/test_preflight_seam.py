@@ -15,6 +15,7 @@ import json
 from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -22,10 +23,11 @@ import typer
 
 from specify_cli.consolidation import preflight
 from specify_cli.consolidation._constants import HollowReviewWarnings
-from specify_cli.consolidation.state import ConsolidationState
+from specify_cli.consolidation.state import ConsolidationState, get_state_path
 from specify_cli.status import REVIEWER_SELF_APPROVAL
 from specify_cli.status.lifecycle_events import emit_reviewer_self_approval
 from specify_cli.consolidation import entry_preflight
+from mission_runtime import Establishment, SeedReport, TopologySurface, WriteLocation
 
 pytestmark = pytest.mark.fast
 
@@ -824,3 +826,357 @@ def test_consolidate_command_renders_an_escaped_policy_refusal(monkeypatch: pyte
     out = " ".join(capsys.readouterr().out.split())
     assert "Bookkeeping policy refused consolidation: PROTECTED_BRANCH_REFUSED: main is protected." in out
     assert "Use a non-protected branch." in out
+
+
+# ---------------------------------------------------------------------------
+# FR-006 / #5651: a refused coordination seed commit stops the run with its real cause
+# ---------------------------------------------------------------------------
+
+
+class _StubSeam:
+    """A placement seam whose ``write_dir`` returns a real ``WriteLocation`` (no in-repo product code is replaced)."""
+
+    def __init__(self, location: WriteLocation, *, repo_root: Path, primary_dir: Path) -> None:
+        self._location = location
+        self.repo_root = repo_root
+        self.mission_slug = "m"
+        self._primary_dir = primary_dir
+
+    def write_dir(self, kind: object) -> WriteLocation:
+        return self._location
+
+    def read_dir(self, kind: object) -> Path:
+        return self._primary_dir
+
+
+_SEED_MISSION_ID = "01KX0000000SEEDUNIT00001"
+
+
+def _location(tmp_path: Path, seed: SeedReport | None) -> WriteLocation:
+    return WriteLocation(
+        path=tmp_path / "coord" / "kitty-specs" / "m",
+        surface_root=tmp_path / "coord",
+        surface=TopologySurface.COORD,
+        coord_state_before=None,
+        establishment=Establishment.SEEDED,
+        seed=seed,
+    )
+
+
+def _seam(tmp_path: Path, seed: SeedReport | None, *, merge_record: bool = False) -> Any:
+    primary = tmp_path / "kitty-specs" / "m"
+    primary.mkdir(parents=True, exist_ok=True)
+    (primary / "meta.json").write_text(json.dumps({"mission_id": _SEED_MISSION_ID, "mission_slug": "m"}), encoding="utf-8")
+    if merge_record:
+        state_path = get_state_path(tmp_path, _SEED_MISSION_ID)
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        state_path.write_text("{}", encoding="utf-8")
+    return _StubSeam(_location(tmp_path, seed), repo_root=tmp_path, primary_dir=primary)
+
+
+_REFUSED_SEED = SeedReport(
+    carried=(),  # a retry carries nothing: the file names must come from ``uncommitted_paths``
+    commit_refused="status='error', reason='hook [failed]'",
+    uncommitted_paths=("kitty-specs/m/status.events.jsonl", "kitty-specs/m/status.json"),
+    warnings=("seed commit not applied (status='error'); the mission dir is present but uncommitted.",),
+)
+
+
+def test_resolve_run_status_dir_returns_the_path_when_no_seed_ran(tmp_path: Path) -> None:
+    assert entry_preflight._resolve_run_status_dir(_seam(tmp_path, None)) == tmp_path / "coord" / "kitty-specs" / "m"
+
+
+def test_resolve_run_status_dir_returns_the_path_when_the_seed_commit_was_applied(tmp_path: Path) -> None:
+    seed = SeedReport(carried=("status.json",), coord_commit="abc123", warnings=("a conflicting copy was kept",))
+    assert entry_preflight._resolve_run_status_dir(_seam(tmp_path, seed)) == tmp_path / "coord" / "kitty-specs" / "m"
+
+
+def test_resolve_run_status_dir_refuses_a_refused_seed_commit_naming_the_kept_files(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    with pytest.raises(typer.Exit) as excinfo:
+        entry_preflight._resolve_run_status_dir(_seam(tmp_path, _REFUSED_SEED))
+
+    assert excinfo.value.exit_code == 1
+    out = " ".join(capsys.readouterr().out.split())
+    assert out.endswith("Error code: COORD_SEED_COMMIT_REFUSED.")
+    assert "kitty-specs/m/status.events.jsonl" in out and "kitty-specs/m/status.json" in out
+    assert "hook [failed]" in out  # the structured reason is shown literally, not parsed as markup
+    assert str(tmp_path / "coord") in out
+    assert "files are kept" in out and "re-run spec-kitty consolidate" in out
+    assert "Consolidation refused before any branch moved." in out
+    assert "--abort" not in out
+    assert "before any state change" not in out
+    assert "Commit, stash, or revert" not in out
+
+
+def test_resolve_run_status_dir_with_an_earlier_merge_record_does_not_claim_no_branch_ever_moved(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    """An earlier attempt may have moved branches: scope the claim to THIS run and point at ``--abort``."""
+    with pytest.raises(typer.Exit) as excinfo:
+        entry_preflight._resolve_run_status_dir(_seam(tmp_path, _REFUSED_SEED, merge_record=True))
+
+    assert excinfo.value.exit_code == 1
+    out = " ".join(capsys.readouterr().out.split())
+    assert out.endswith("Error code: COORD_SEED_COMMIT_REFUSED.")
+    assert "this run moved no branch, but an earlier attempt may have" in out
+    assert "spec-kitty consolidate --abort" in out
+    assert "before any branch moved" not in out
+    assert "kitty-specs/m/status.json" in out and "files are kept" in out
+
+
+def test_resolve_run_status_dir_reads_an_unreadable_identity_as_a_possible_earlier_record(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    """An unreadable ``meta.json`` leaves the record unknown: only the wording that is true either way is used."""
+    seam = _seam(tmp_path, _REFUSED_SEED)
+    (tmp_path / "kitty-specs" / "m" / "meta.json").write_text("{not json", encoding="utf-8")
+
+    with pytest.raises(typer.Exit) as excinfo:
+        entry_preflight._resolve_run_status_dir(seam)
+
+    assert excinfo.value.exit_code == 1
+    out = " ".join(capsys.readouterr().out.split())
+    assert "this run moved no branch, but an earlier attempt may have" in out
+    assert out.endswith("Error code: COORD_SEED_COMMIT_REFUSED.")
+
+
+class _MismatchSeam(_StubSeam):
+    """A seam whose coordination write location cannot be resolved: the raised error is the one the router really raises."""
+
+    def __init__(self, error: Exception, *, repo_root: Path, primary_dir: Path) -> None:
+        super().__init__(_location(repo_root, None), repo_root=repo_root, primary_dir=primary_dir)
+        self._error = error
+
+    def write_dir(self, kind: object) -> WriteLocation:
+        raise self._error
+
+
+def _mismatch_seam(tmp_path: Path, *, wrapped: bool, merge_record: bool = False) -> Any:
+    """A real coordination worktree on the declared branch, seeded files untracked in it, and the failure the product raises."""
+    from specify_cli.coordination.commit_router import CoordWorktreeResolutionError
+    from specify_cli.coordination.workspace import CoordinationWorkspaceBranchMismatch
+
+    base = _seam(tmp_path, None, merge_record=merge_record)
+    worktree = tmp_path / "coord"
+    seeded = worktree / "kitty-specs" / "m-01KX0000"
+    seeded.mkdir(parents=True)
+    (seeded / "status.events.jsonl").write_text("{}\n", encoding="utf-8")
+    (seeded / "status.json").write_text("{}\n", encoding="utf-8")
+    mismatch = CoordinationWorkspaceBranchMismatch(worktree_path=worktree, expected_ref="kitty/mission-m-01KX0000", actual_ref="refs/heads/kitty/mission-m")
+    error: Exception = mismatch
+    if wrapped:
+        try:
+            raise CoordWorktreeResolutionError("wrapped") from mismatch
+        except CoordWorktreeResolutionError as raised:
+            error = raised
+    return _MismatchSeam(error, repo_root=base.repo_root, primary_dir=base._primary_dir)
+
+
+def _git_init(path: Path) -> None:
+    import subprocess
+
+    path.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init", "-q", str(path)], check=True, capture_output=True)
+
+
+@pytest.mark.parametrize("wrapped", [True, False])
+def test_resolve_run_status_dir_refuses_an_uncomposed_coordination_branch_truthfully(capsys: pytest.CaptureFixture[str], tmp_path: Path, wrapped: bool) -> None:
+    """Both branches named, the seeded files named and kept, the code last, and no false "no state change" notice (#5750)."""
+    _git_init(tmp_path / "coord")
+    seam = _mismatch_seam(tmp_path, wrapped=wrapped)
+
+    with pytest.raises(typer.Exit) as excinfo:
+        entry_preflight._resolve_run_status_dir(seam)
+
+    assert excinfo.value.exit_code == 1
+    out = " ".join(capsys.readouterr().out.split())
+    assert "'kitty/mission-m'" in out and "'kitty/mission-m-01KX0000'" in out
+    assert "kitty-specs/m-01KX0000/status.events.jsonl" in out and "kitty-specs/m-01KX0000/status.json" in out
+    assert str(tmp_path / "coord") in out
+    assert "are uncommitted in that worktree and are kept (nothing was removed)" in out
+    assert "Consolidation refused before any branch moved." in out
+    assert out.endswith("Error code: COORDINATION_WORKTREE_BRANCH_MISMATCH.")
+    assert "before any state change" not in out
+    assert "correct coordination_branch" not in out  # a recovery that was not proven end to end is not printed
+
+
+def test_resolve_run_status_dir_with_an_uncomposed_branch_and_an_earlier_merge_record_points_at_abort(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    _git_init(tmp_path / "coord")
+
+    with pytest.raises(typer.Exit):
+        entry_preflight._resolve_run_status_dir(_mismatch_seam(tmp_path, wrapped=True, merge_record=True))
+
+    out = " ".join(capsys.readouterr().out.split())
+    assert "this run moved no branch, but an earlier attempt may have" in out
+    assert "spec-kitty consolidate --abort" in out
+    assert out.endswith("Error code: COORDINATION_WORKTREE_BRANCH_MISMATCH.")
+
+
+def test_resolve_run_status_dir_names_no_files_when_the_worktree_cannot_be_probed(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    """A worktree git cannot read still gets the truthful refusal: no list, no claim about files."""
+    seam = _mismatch_seam(tmp_path, wrapped=False)  # ``coord`` is not a git repository
+
+    with pytest.raises(typer.Exit):
+        entry_preflight._resolve_run_status_dir(seam)
+
+    out = " ".join(capsys.readouterr().out.split())
+    assert "are kept" not in out and "uncommitted" not in out
+    assert out.endswith("Error code: COORDINATION_WORKTREE_BRANCH_MISMATCH.")
+
+
+def test_resolve_run_status_dir_lets_any_other_coordination_resolution_failure_propagate(tmp_path: Path) -> None:
+    """Only the branch mismatch is rendered here; every other resolve failure keeps its previous behaviour."""
+    from specify_cli.coordination.commit_router import CoordWorktreeResolutionError
+
+    failure = CoordWorktreeResolutionError("no mission_id")
+    base = _seam(tmp_path, None)
+    seam = _MismatchSeam(failure, repo_root=base.repo_root, primary_dir=base._primary_dir)
+
+    with pytest.raises(CoordWorktreeResolutionError) as excinfo:
+        entry_preflight._resolve_run_status_dir(seam)
+
+    assert excinfo.value is failure
+
+
+_FOLD_SLUG = "fold-mission"
+_FOLD_COMPOSED = f"{_FOLD_SLUG}-01KX0000"
+_FOLD_EVENTS = f" D kitty-specs/{_FOLD_COMPOSED}/status.events.jsonl"
+_FOLD_STATUS = f" D kitty-specs/{_FOLD_COMPOSED}/status.json"
+
+
+def _fold_mission(repo: Path, *, mission_id: str | None = "01KX0000000000000000000000") -> None:
+    primary = repo / "kitty-specs" / _FOLD_SLUG
+    primary.mkdir(parents=True)
+    meta = {"mission_slug": _FOLD_SLUG, **({"mission_id": mission_id} if mission_id else {})}
+    (primary / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+
+_FOLD_TRACE = f" D kitty-specs/{_FOLD_COMPOSED}/traces/mission-trace.md"
+_FOLD_NESTED = f" D kitty-specs/{_FOLD_COMPOSED}/traces/a/b/step.md"
+_FOLD_MATRIX = f"D  kitty-specs/{_FOLD_COMPOSED}/issue-matrix.json"
+_FOLD_CYCLE = f" D kitty-specs/{_FOLD_COMPOSED}/tasks/WP01-x/review-cycle-1.md"
+
+
+@pytest.mark.parametrize(
+    "entries",
+    [
+        [_FOLD_EVENTS, _FOLD_STATUS],
+        [_FOLD_STATUS, _FOLD_EVENTS],
+        ["D  " + _FOLD_EVENTS[3:], _FOLD_STATUS],
+        [_FOLD_EVENTS, _FOLD_STATUS, _FOLD_TRACE, _FOLD_NESTED, _FOLD_MATRIX, _FOLD_CYCLE],
+        [_FOLD_TRACE, _FOLD_NESTED],
+        [_FOLD_EVENTS],
+        [_FOLD_CYCLE],
+    ],
+    ids=["pair", "pair-reversed", "pair-staged", "every-kind", "traces-only", "one-status-file", "review-cycle-only"],
+)
+def test_interrupted_fold_guidance_recognises_deletions_of_coordination_kind_files_under_the_composed_directory(tmp_path: Path, entries: list[str]) -> None:
+    """The fold unlinks coordination-kind files one by one, so a kill leaves any non-empty set of their deletions."""
+    _fold_mission(tmp_path)
+
+    lines = preflight.interrupted_alias_fold_guidance(entries, main_repo=tmp_path, mission_slug=_FOLD_SLUG)
+
+    assert lines is not None, entries
+    text = "\n".join(lines)
+    assert f"kitty-specs/{_FOLD_COMPOSED}" in text
+    assert "coordination files" in text
+    assert "spec-kitty consolidate --abort" in text
+
+
+@pytest.mark.parametrize(
+    "entries",
+    [
+        [_FOLD_EVENTS, _FOLD_STATUS, " M README.md"],
+        [_FOLD_EVENTS, f" M kitty-specs/{_FOLD_COMPOSED}/status.json"],
+        [_FOLD_EVENTS, f" M kitty-specs/{_FOLD_COMPOSED}/traces/mission-trace.md"],
+        [_FOLD_EVENTS, " D kitty-specs/fold-mission/status.json"],
+        [_FOLD_TRACE, " D kitty-specs/fold-mission/traces/mission-trace.md"],
+        [_FOLD_EVENTS, f" D kitty-specs/{_FOLD_COMPOSED}/notes.md"],
+        [_FOLD_EVENTS, f" D kitty-specs/{_FOLD_COMPOSED}/spec.md"],
+        [_FOLD_TRACE, f" D kitty-specs/{_FOLD_COMPOSED}/src/x.py"],
+        [_FOLD_EVENTS, f" D kitty-specs/{_FOLD_COMPOSED}-other/traces/t.md"],
+        [_FOLD_EVENTS, f" D x/kitty-specs/{_FOLD_COMPOSED}/traces/t.md"],
+        [f"?? kitty-specs/{_FOLD_COMPOSED}/traces/t.md"],
+        [],
+    ],
+    ids=[
+        "extra-entry",
+        "modified-status",
+        "modified-trace",
+        "primary-directory",
+        "primary-directory-trace",
+        "other-file",
+        "planning-file",
+        "source-file",
+        "other-composed-name",
+        "not-root-anchored",
+        "untracked",
+        "empty",
+    ],
+)
+def test_interrupted_fold_guidance_keeps_the_stock_remedy_for_any_other_dirt(tmp_path: Path, entries: list[str]) -> None:
+    _fold_mission(tmp_path)
+
+    assert preflight.interrupted_alias_fold_guidance(entries, main_repo=tmp_path, mission_slug=_FOLD_SLUG) is None
+
+
+def test_interrupted_fold_guidance_needs_a_recorded_identity_to_name_a_composed_directory(tmp_path: Path) -> None:
+    _fold_mission(tmp_path, mission_id=None)
+
+    assert preflight.interrupted_alias_fold_guidance([_FOLD_EVENTS, _FOLD_STATUS], main_repo=tmp_path, mission_slug=_FOLD_SLUG) is None
+
+
+def _fold_refusal(entries: list[str], *, error_code: str | None = None) -> Any:
+    from specify_cli.git.destructive_guard import MERGE_UNSAFE_PRIMARY_DIRTY, DestructiveOpRefused
+
+    return DestructiveOpRefused(
+        error_code=error_code or MERGE_UNSAFE_PRIMARY_DIRTY,
+        remediation="Commit, stash, or revert the local changes.",
+        dirty_entries=entries,
+    )
+
+
+def test_report_interrupted_alias_fold_prints_the_guidance_and_replaces_the_generic_remedy(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    """The positive path (#5748): the refusal keeps its entries, loses "commit, stash, or revert", and points at abort then a fresh run."""
+    from specify_cli.consolidation import resume_recovery
+
+    _fold_mission(tmp_path)
+
+    reported = resume_recovery._report_interrupted_alias_fold(_fold_refusal([_FOLD_EVENTS, _FOLD_STATUS]), tmp_path, _FOLD_SLUG)
+
+    assert reported is True
+    out = " ".join(capsys.readouterr().out.split())
+    assert "MERGE_UNSAFE_PRIMARY_DIRTY" in out
+    assert _FOLD_EVENTS.strip() in out and _FOLD_STATUS.strip() in out
+    assert "Recovery guidance (an earlier run was interrupted inside the one-directory fold)" in out
+    assert f"kitty-specs/{_FOLD_COMPOSED}" in out
+    assert "spec-kitty consolidate --abort" in out
+    assert "Commit, stash, or revert the local changes." not in out
+
+
+def test_report_interrupted_alias_fold_declines_every_other_refusal(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    from specify_cli.consolidation import resume_recovery
+
+    _fold_mission(tmp_path)
+    fold_entries = [_FOLD_EVENTS, _FOLD_STATUS]
+
+    assert resume_recovery._report_interrupted_alias_fold(_fold_refusal(fold_entries), tmp_path, None) is False  # no Mission to name
+    assert resume_recovery._report_interrupted_alias_fold(_fold_refusal(fold_entries, error_code="MERGE_UNSAFE_OTHER"), tmp_path, _FOLD_SLUG) is False
+    not_exactly_the_deletions = _fold_refusal([_FOLD_EVENTS, " M src/other.py"])
+    assert resume_recovery._report_interrupted_alias_fold(not_exactly_the_deletions, tmp_path, _FOLD_SLUG) is False
+    assert capsys.readouterr().out == ""
+
+
+def test_pre_mutation_refusal_for_an_interrupted_fold_prints_the_fold_guidance_not_the_note(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    """Through the real refusal reporter: no lag guidance applies, so the fold guidance replaces the generic note (#5748)."""
+    from specify_cli.consolidation import resume_recovery
+
+    _fold_mission(tmp_path)
+
+    resume_recovery._report_pre_mutation_refusal(
+        _fold_refusal([_FOLD_EVENTS, _FOLD_STATUS]),
+        tmp_path,
+        mission_branch="kitty/mission-fold-mission-01KX0000",
+        mission_slug=_FOLD_SLUG,
+    )
+
+    out = " ".join(capsys.readouterr().out.split())
+    assert "an earlier run was interrupted inside the one-directory fold" in out
+    assert "spec-kitty consolidate --abort" in out
+    assert "Merge aborted before any state change" not in out

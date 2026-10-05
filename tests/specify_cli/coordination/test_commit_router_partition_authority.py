@@ -346,3 +346,123 @@ class TestCommitForMissionEndToEndPrimaryCallerRefsNotInverted:
             "invert for a PRIMARY caller (squad RISK-4)"
         )
         assert result.status == "committed"
+
+
+# ---------------------------------------------------------------------------
+# #5651 -- the directory alias set: a bare-slug coordination Mission's composed
+# ``<slug>-<mid8>`` status files are COORD; nothing else about the composed name is.
+# ---------------------------------------------------------------------------
+
+_ALIAS_SLUG = "alias-demo"
+_ALIAS_MID8 = "01M5651A"
+_ALIAS_COMPOSED = f"{_ALIAS_SLUG}-{_ALIAS_MID8}"
+_ALIAS_STEM = "alias-stem"
+
+
+def _write_meta(repo: Path, dir_name: str, meta: dict[str, object]) -> None:
+    import json
+
+    directory = repo / "kitty-specs" / dir_name
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+
+@pytest.fixture
+def bare_slug_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """One bare-slug coordination Mission whose recorded identity proves its ``mid8``."""
+    monkeypatch.setattr(commit_router, "resolve_placement_only", _fake_resolve_placement_only)
+    _write_meta(tmp_path, _ALIAS_SLUG, {"mission_id": _ALIAS_MID8 + "0" * 18, "mid8": _ALIAS_MID8})
+    # Look-alike neighbours on disk: a prefix-matching lookup would pair these with the bare slug.
+    for neighbour in (f"{_ALIAS_SLUG}-01ZZZZZZ", f"{_ALIAS_COMPOSED}-x"):
+        _write_meta(tmp_path, neighbour, {"mission_slug": neighbour})
+    # A Mission named ``<stem>-abcdefgh`` that records no identity at all.
+    _write_meta(tmp_path, f"{_ALIAS_STEM}-abcdefgh", {"mission_slug": f"{_ALIAS_STEM}-abcdefgh"})
+    return tmp_path
+
+
+def _partition_of(repo: Path, slug: str, rel_path: str) -> str:
+    """The partition the router's grouping puts ``rel_path`` in, under a PRIMARY caller kind."""
+    path = Path(rel_path)
+    groups = commit_router._group_files_by_partition(repo, (path,), slug, kind=_PRIMARY_CALLER_KIND)
+    ((group_kind, group_files),) = groups
+    assert group_files == (path,)
+    return "primary" if is_primary_artifact_kind(group_kind) else "coordination"
+
+
+@pytest.mark.parametrize("status_file", ["status.json", "status.events.jsonl"])
+def test_composed_status_files_group_to_coord_for_a_bare_slug_mission(bare_slug_repo: Path, status_file: str) -> None:
+    assert _partition_of(bare_slug_repo, _ALIAS_SLUG, f"kitty-specs/{_ALIAS_COMPOSED}/{status_file}") == "coordination"
+
+
+@pytest.mark.parametrize(
+    "rel_path",
+    [
+        pytest.param(f"kitty-specs/{_ALIAS_SLUG}-01ZZZZZZ/status.json", id="different-mid8"),
+        pytest.param(f"kitty-specs/{_ALIAS_COMPOSED}-x/status.json", id="suffixed-composed-name"),
+        pytest.param(f"kitty-specs/other-demo-{_ALIAS_MID8}/status.json", id="other-slug-same-mid8"),
+        pytest.param(f"kitty-specs/{_ALIAS_COMPOSED}/spec.md", id="composed-dir-planning-file"),
+        pytest.param(f"kitty-specs/{_ALIAS_COMPOSED}/src/x.py", id="composed-dir-code-file"),
+    ],
+)
+def test_nothing_but_the_exact_composed_status_files_leaves_the_primary_partition(bare_slug_repo: Path, rel_path: str) -> None:
+    assert _partition_of(bare_slug_repo, _ALIAS_SLUG, rel_path) == "primary"
+
+
+def test_a_slug_tail_that_looks_like_a_mid8_is_not_an_alias_without_recorded_identity(bare_slug_repo: Path) -> None:
+    """``alias-stem-abcdefgh`` records no identity, so querying the bare ``alias-stem`` proves nothing."""
+    assert _partition_of(bare_slug_repo, _ALIAS_STEM, f"kitty-specs/{_ALIAS_STEM}-abcdefgh/status.json") == "primary"
+
+
+def test_the_alias_does_not_move_the_bare_directorys_own_verdicts(bare_slug_repo: Path) -> None:
+    assert _partition_of(bare_slug_repo, _ALIAS_SLUG, f"kitty-specs/{_ALIAS_SLUG}/status.json") == "coordination"
+    assert _partition_of(bare_slug_repo, _ALIAS_SLUG, f"kitty-specs/{_ALIAS_SLUG}/spec.md") == "primary"
+
+
+def test_the_alias_set_is_resolved_once_per_grouping_call(bare_slug_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    real = commit_router.mission_dir_aliases
+    calls: list[str] = []
+
+    def _counting(repo_root: Path, mission_slug: str) -> frozenset[str]:
+        calls.append(mission_slug)
+        return real(repo_root, mission_slug)
+
+    monkeypatch.setattr(commit_router, "mission_dir_aliases", _counting)
+    files = tuple(Path(f"kitty-specs/{_ALIAS_COMPOSED}/{name}") for name in ("status.json", "status.events.jsonl", "spec.md"))
+
+    commit_router._group_files_by_partition(bare_slug_repo, files, _ALIAS_SLUG, kind=_COORD_CALLER_KIND)
+
+    assert calls == [_ALIAS_SLUG]
+
+
+def test_an_empty_batch_reads_no_metadata(bare_slug_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def _must_not_run(repo_root: Path, mission_slug: str) -> frozenset[str]:
+        raise AssertionError("an empty batch must not read metadata")
+
+    monkeypatch.setattr(commit_router, "mission_dir_aliases", _must_not_run)
+
+    assert commit_router._group_files_by_partition(bare_slug_repo, (), _ALIAS_SLUG, kind=_COORD_CALLER_KIND) == []
+
+
+def test_the_representative_kind_of_a_split_batch_is_classified_under_the_composed_name(bare_slug_repo: Path) -> None:
+    """The coordination bucket's ref-resolution kind comes from the composed-directory file itself."""
+    spec = Path(f"kitty-specs/{_ALIAS_SLUG}/spec.md")
+    matrix = Path(f"kitty-specs/{_ALIAS_COMPOSED}/acceptance-matrix.json")
+
+    groups = commit_router._group_files_by_partition(bare_slug_repo, (spec, matrix), _ALIAS_SLUG, kind=_PRIMARY_CALLER_KIND)
+
+    assert dict(groups) == {
+        _PRIMARY_CALLER_KIND: (spec,),
+        MissionArtifactKind.ACCEPTANCE_MATRIX: (matrix,),
+    }
+
+
+def test_partition_for_mission_path_without_names_keeps_the_single_name_verdict(tmp_path: Path) -> None:
+    composed_status = Path(f"kitty-specs/{_ALIAS_COMPOSED}/status.json")
+
+    assert commit_router.partition_for_mission_path(tmp_path, _ALIAS_SLUG, composed_status) == "primary"
+    assert (
+        commit_router.partition_for_mission_path(
+            tmp_path, _ALIAS_SLUG, composed_status, mission_dir_names=frozenset({_ALIAS_SLUG, _ALIAS_COMPOSED})
+        )
+        == "coordination"
+    )

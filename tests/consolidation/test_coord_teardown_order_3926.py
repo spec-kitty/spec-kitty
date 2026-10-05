@@ -181,3 +181,35 @@ def test_a_leg_that_does_not_come_down_raises_instead_of_flattening(coord_repo_w
         "#3926: the marker was flattened while the branch and worktree both survived — the inverted #3086 shape INV-2 forbids"
     )
     assert _branch_exists(repo, _MISSION_BRANCH)
+
+
+def test_teardown_reads_identity_from_the_primary_metadata_not_the_status_dir(
+    coord_repo_with_live_worktree: Path,
+) -> None:
+    """#5651 layer 3: a status-only directory carries no ``meta.json``.
+
+    A coordination Mission whose primary directory is the bare slug resolves
+    its status directory to the composed ``<slug>-<mid8>`` directory inside the
+    coordination worktree, which holds status files only. The teardown must
+    learn ``mid8`` from ``target_feature_dir`` (the primary metadata), not from
+    that status directory, or the coordination worktree is never destroyed.
+    """
+    repo = coord_repo_with_live_worktree
+    coord_path = repo / ".worktrees" / coord_dir_name(_SLUG, mid8=_MID8)
+    status_dir = coord_path / "kitty-specs" / f"{_SLUG}-{_MID8}"
+    status_dir.mkdir(parents=True)
+    (status_dir / "status.events.jsonl").write_text("")
+    # A committed status file keeps the coordination worktree clean, as it is
+    # when merge reaches teardown, so the dirty-worktree guard is not what
+    # decides this test.
+    _git(coord_path, "add", "--", ".")
+    _git(coord_path, "commit", "-m", "status")
+    assert not (status_dir / "meta.json").exists(), "fixture invalid: the status dir must hold no meta.json"
+
+    run = _run_state(repo)
+    run.feature_dir = status_dir  # the status directory; target_feature_dir keeps the primary meta.json
+
+    phase_teardown._teardown_coordination_triple(run)
+
+    assert not _branch_exists(repo, _MISSION_BRANCH), "the coordination branch survived: mid8 was read from a directory without meta.json"
+    assert not coord_path.exists(), "the coordination worktree was stranded: mid8 was read from a directory without meta.json"

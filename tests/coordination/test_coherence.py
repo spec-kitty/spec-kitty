@@ -23,6 +23,7 @@ import specify_cli.status  # noqa: F401  # import-order guard (see module docstr
 from specify_cli.coordination.coherence import (
     CoordRepairOutcome,
     coord_incoherent_done_wps,
+    is_coordination_kind_file,
     repair_coord_strand,
 )
 from specify_cli.consolidation.state import (
@@ -550,3 +551,53 @@ def test_pending_coord_reconcile_round_trips_and_old_files_rehydrate_to_none(tmp
     loaded = load_state(repo, old.mission_id)
     assert loaded is not None
     assert loaded.pending_coord_reconcile is None
+
+
+# ---------------------------------------------------------------------------
+# is_coordination_kind_file: the ONE "does the coordination seed carry this file" predicate (#5651)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "relpath",
+    [
+        "status.events.jsonl",
+        "status.json",
+        "decisions.events.jsonl",
+        "acceptance-matrix.json",
+        "issue-matrix.json",
+        "issue-matrix.md",
+        "traces/mission-trace.md",
+        "traces/a/b/c.md",
+        "tasks/WP01-x/review-cycle-1.md",
+    ],
+)
+def test_is_coordination_kind_file_accepts_every_coordination_kind(relpath: str) -> None:
+    assert is_coordination_kind_file(relpath)
+
+
+@pytest.mark.parametrize(
+    "relpath",
+    [
+        "spec.md",
+        "plan.md",
+        "tasks.md",
+        "meta.json",
+        "lanes.json",
+        "research.md",
+        "quickstart.md",
+        "retrospective.yaml",
+        "analysis-report.md",
+        "tasks/WP01.md",
+        "tasks/WP01-x/baseline-tests.json",
+        "decisions/index.json",
+        "contracts/api.md",
+        "checklists/review.md",
+        "notes.md",
+        "src/x.py",
+        "sub/status.json",
+        "",
+    ],
+)
+def test_is_coordination_kind_file_rejects_primary_kinds_and_unclassified_files(relpath: str) -> None:
+    assert not is_coordination_kind_file(relpath)

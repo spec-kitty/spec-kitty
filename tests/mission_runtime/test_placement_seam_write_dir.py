@@ -139,6 +139,10 @@ def test_write_dir_coord_kind_on_prefix_empty_mission_is_coordination_surface(tm
     assert location.path == coord.coord_mission_dir
     assert location.path.exists()
     assert location.establishment == Establishment.SEEDED
+    assert location.seed is not None
+    assert location.seed.coord_commit is not None
+    assert location.seed.commit_refused is None
+    assert location.seed.uncommitted_paths == ()
 
 
 def test_read_dir_keeps_root_fallback_on_empty(tmp_path: Path) -> None:

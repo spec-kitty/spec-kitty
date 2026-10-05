@@ -29,8 +29,12 @@ CLI entry point and split-brain coord fixture.
 from __future__ import annotations
 
 import json
+import logging
+import re
+import shlex
 import subprocess
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -210,3 +214,102 @@ def test_close_discard_retrospective_provenance_is_abandoned(coord_mission: Path
     assert kind == _ABANDONED_PROVENANCE_KIND, (
         f"issue #3716 defect 2: the discard leg must stamp the abandonment provenance kind {_ABANDONED_PROVENANCE_KIND!r}; got {kind!r}."
     )
+
+
+@pytest.mark.regression
+def test_close_discard_commit_failure_points_at_the_idempotent_rerun(coord_mission: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The warning names a command that works, never a raw git recipe (#5078).
+
+    When the flatten's bookkeeping commit fails, ``meta.json`` is left
+    uncommitted. The re-run of the SAME ``mission close --discard --force``
+    heals it (a ``safe-commit`` recipe would be refused on a protected target),
+    so that is what the warning must point at -- and the re-run must really
+    leave the tree clean.
+    """
+    repo = coord_mission
+    monkeypatch.chdir(repo)
+
+    with patch("specify_cli.git.bookkeeping_commit.commit_merge_bookkeeping", side_effect=RuntimeError("boom")):
+        result = runner.invoke(mission_type.app, ["close", "--mission", SLUG, "--discard", "--force"], env={"PWD": str(repo)})
+    assert result.exit_code == 0, result.output
+    assert f"kitty-specs/{SLUG}/meta.json" in _porcelain_paths(repo)
+
+    flat = " ".join(result.output.split())  # rich wraps long lines
+    assert f"`spec-kitty mission close --mission {SLUG} --discard --force`" in flat, flat
+    assert "project root" in flat, flat
+    for forbidden in ("git -C", "git add", "git commit", "safe-commit", "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"):
+        assert forbidden not in flat, (forbidden, flat)
+
+    _run_discard(repo)  # the printed command, run from the project root
+    assert _porcelain_paths(repo) == []
+
+
+_REFUSING_HOOK = "#!/bin/sh\necho 'commit refused by test hook' >&2\nexit 1\n"
+
+
+def _retarget_to_topic_branch(repo: Path) -> None:
+    """Make ``topic`` the Mission's non-protected target; ``main`` stays the primary branch."""
+    _git(repo, "update-ref", "refs/remotes/origin/main", "main")
+    _git(repo, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+    _git(repo, "checkout", "-q", "-b", "topic")
+    for name in ("meta.json", "lanes.json"):
+        path = repo / "kitty-specs" / SLUG / name
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["target_branch"] = "topic"
+        path.write_text(json.dumps(data), encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "target the topic branch")
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize("target", ["main", "topic"], ids=["protected-main", "non-protected-topic"])
+def test_printed_close_command_heals_a_failed_retrospective_commit(
+    coord_mission: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, target: str
+) -> None:
+    """The command the retrospective warning prints really commits the leftovers (#2280, #5078).
+
+    Real path, nothing in-repo is mocked: a merged coordination Mission is closed
+    while a ``pre-commit`` hook refuses every commit, so the fail-open retrospective
+    commit leaves ``retrospective.yaml`` and the event-log append dirty and logs
+    its warning. The command is lifted from that warning and run from the project
+    root once the hook is gone. If the printed command ever stops healing, this
+    fails.
+    """
+    repo = coord_mission
+    if target == "topic":
+        _retarget_to_topic_branch(repo)
+    meta_path = repo / "kitty-specs" / SLUG / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["merged_at"] = "2026-01-02T00:00:00+00:00"
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "mark the mission merged")
+    monkeypatch.chdir(repo)
+
+    hook = repo / ".git" / "hooks" / "pre-commit"
+    hook.write_text(_REFUSING_HOOK, encoding="utf-8")
+    hook.chmod(0o755)
+    with caplog.at_level(logging.WARNING):
+        first = runner.invoke(mission_type.app, ["close", "--mission", SLUG], env={"PWD": str(repo)})
+    assert first.exit_code == 0, first.output
+    dirty = _porcelain_paths(repo)
+    assert f"kitty-specs/{SLUG}/retrospective.yaml" in dirty, dirty
+
+    warning = " ".join(rec.getMessage() for rec in caplog.records if "could NOT be committed" in rec.getMessage())
+    assert warning, [rec.getMessage() for rec in caplog.records]
+    printed = re.findall(r"`(spec-kitty [^`]+)`", warning)
+    assert len(printed) == 1, warning
+    guidance = warning.split("From the project root", 1)[1]  # the failure text above it quotes git itself
+    for forbidden in ("git -C", "git add", "git commit", "safe-commit", "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"):
+        assert forbidden not in guidance, (forbidden, guidance)
+
+    hook.unlink()
+    tokens = shlex.split(printed[0])
+    assert tokens[:3] == ["spec-kitty", "mission", "close"], printed
+    rerun = runner.invoke(mission_type.app, tokens[2:], env={"PWD": str(repo)})
+    assert rerun.exit_code == 0, rerun.output
+
+    assert _porcelain_paths(repo) == []
+    tracked = _git(repo, "ls-files", f"kitty-specs/{SLUG}/retrospective.yaml").stdout.split()
+    assert tracked == [f"kitty-specs/{SLUG}/retrospective.yaml"]
+    assert "capture mission retrospective" in _git(repo, "log", "--format=%s", "-3").stdout

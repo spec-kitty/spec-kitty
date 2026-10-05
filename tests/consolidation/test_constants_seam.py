@@ -39,3 +39,24 @@ def test_status_filenames_are_external_contract_pins() -> None:
     tautological byte-identical sweep (T002)."""
     assert _constants._STATUS_EVENTS_FILENAME == "status.events.jsonl"
     assert _constants._STATUS_FILENAME == "status.json"
+
+
+def test_coord_seed_commit_refused_code_is_an_operator_visible_contract() -> None:
+    """FR-006 / #5651: the code operators and tests match on is pinned, and it renders as the message suffix."""
+    assert _constants.COORD_SEED_COMMIT_REFUSED == "COORD_SEED_COMMIT_REFUSED"
+    assert _constants.COORD_SEED_COMMIT_REFUSED_SUFFIX == " Error code: COORD_SEED_COMMIT_REFUSED."
+
+
+def test_alias_status_events_not_preserved_code_is_an_operator_visible_contract() -> None:
+    """#5750: the code of the fold's event-preservation refusal is pinned, and it renders as the message suffix."""
+    assert _constants.ALIAS_STATUS_EVENTS_NOT_PRESERVED == "ALIAS_STATUS_EVENTS_NOT_PRESERVED"
+    assert _constants.ALIAS_STATUS_EVENTS_NOT_PRESERVED_SUFFIX == " Error code: ALIAS_STATUS_EVENTS_NOT_PRESERVED."
+
+
+def test_coordination_worktree_branch_mismatch_code_is_the_error_codes_of_the_mismatch_it_renders() -> None:
+    """#5750: the refusal for an uncomposed coordination branch carries the code the mismatch error already has, in one spelling."""
+    from specify_cli.coordination.workspace import CoordinationWorkspaceBranchMismatch
+
+    assert _constants.COORDINATION_WORKTREE_BRANCH_MISMATCH == "COORDINATION_WORKTREE_BRANCH_MISMATCH"
+    assert CoordinationWorkspaceBranchMismatch.error_code == _constants.COORDINATION_WORKTREE_BRANCH_MISMATCH
+    assert _constants.COORDINATION_WORKTREE_BRANCH_MISMATCH_SUFFIX == " Error code: COORDINATION_WORKTREE_BRANCH_MISMATCH."

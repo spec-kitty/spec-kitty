@@ -102,7 +102,16 @@ def _file_on_branch(repo: Path, branch: str, relpath: str) -> bool:
 
 MISSION_SLUG = "coord-topology-1772"
 MISSION_ID = "01CRDTOPO000000000000001772"
-COORD_BRANCH = f"kitty/mission-{MISSION_SLUG}"
+# The product composes a coordination branch as ``kitty/mission-<slug>-<mid8>`` and
+# every coordination write resolves the worktree under that name, whatever
+# ``meta.json`` declares. On ``upstream/main`` a coordination status write already
+# refused a worktree on the uncomposed ``kitty/mission-<slug>`` with
+# ``CoordinationWorkspaceBranchMismatch``, no mint or migration path writes that
+# shape (``coordination_branch_name`` always composes), and 0 of 51 coordination
+# Missions in this repository declare it. A bare-slug Mission's seeded status files
+# now group to the coordination partition, so the fixture must declare the composed
+# branch like a real Mission (#5750).
+COORD_BRANCH = f"kitty/mission-{MISSION_SLUG}-{MISSION_ID[:8]}"
 
 
 def _write_meta(feature_dir: Path) -> None:

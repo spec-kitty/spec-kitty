@@ -3315,3 +3315,258 @@ def test_two_canceled_work_packages_cannot_hide_a_commit_made_after_the_approval
     refusal = _claim_refusal(repo, feature_dir, three_wp_lane, coord_base, frozenset({"WP02", "WP03"}))
 
     assert refusal.startswith(_MOVED) and first[:7] in refusal, refusal
+
+
+# --------------------------------------------------------------------------- #
+# Bare-slug coordination Mission: the composed directory's coordination files (#5651)
+# --------------------------------------------------------------------------- #
+#
+# A coordination Mission whose primary directory is the bare slug seeds its
+# coordination-kind files (the status pair, traces, matrices, the decision log,
+# review cycles) under the composed ``<slug>-<mid8>`` directory. Its claim's
+# ``planning_prefix`` is the NESTED coordination-worktree path whose last segment is
+# that composed name. Only a coordination-kind file anywhere under the root-anchored
+# ``kitty-specs/<that name>/`` is bookkeeping; anything else there (a planning file,
+# source, an unclassified file), and any other Mission's directory, stays content.
+
+_ALIAS = f"{_MISSION_SLUG}-01KX0000"
+_ALIAS_LOWER = f"{_MISSION_SLUG}-01kx0000"
+
+
+def _nested_prefix(alias: str) -> str:
+    return f".worktrees/{alias}-coord/kitty-specs/{alias}"
+
+
+def _is_bookkeeping(path: str, planning_prefix: str | None) -> bool:
+    from specify_cli.consolidation.reconciliation import _is_bookkeeping as is_bookkeeping
+
+    return is_bookkeeping(path, _MISSION_SLUG, planning_prefix)
+
+
+@pytest.mark.parametrize("alias", [_ALIAS, _ALIAS_LOWER])
+@pytest.mark.parametrize("filename", ["status.events.jsonl", "status.json"])
+def test_is_bookkeeping_accepts_the_composed_directory_status_pair(alias: str, filename: str) -> None:
+    assert _is_bookkeeping(f"kitty-specs/{alias}/{filename}", _nested_prefix(alias))
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        f"kitty-specs/{_ALIAS}/spec.md",
+        f"kitty-specs/{_ALIAS}/src/x.py",
+        f"kitty-specs/{_ALIAS}/sub/status.json",
+        f"kitty-specs/{_MISSION_SLUG}-other-01KX0000/status.json",
+        f"kitty-specs/{_MISSION_SLUG}-01KX0001/status.json",
+        f"kitty-specs/{_ALIAS_LOWER}/status.json",
+        f"x/kitty-specs/{_ALIAS}/status.json",
+        f"kitty-specs/{_ALIAS}",
+    ],
+)
+def test_is_bookkeeping_keeps_everything_else_under_or_beside_the_composed_name_as_content(path: str) -> None:
+    assert not _is_bookkeeping(path, _nested_prefix(_ALIAS))
+
+
+@pytest.mark.parametrize("prefix", [None, "", f"/kitty-specs/{_ALIAS}", f"{_nested_prefix(_ALIAS)}/more"])
+def test_is_bookkeeping_applies_the_composed_leg_only_to_a_nested_alias_prefix(prefix: str | None) -> None:
+    """A missing or malformed prefix leaves every verdict as it was: the pair is content."""
+    assert not _is_bookkeeping(f"kitty-specs/{_ALIAS}/status.json", prefix)
+
+
+@pytest.mark.parametrize("filename", ["status.json", "spec.md"])
+def test_is_bookkeeping_root_form_prefix_keeps_its_existing_exact_prefix_verdict(filename: str) -> None:
+    """With a ROOT-form prefix the composed leg is not applied; the older exact-prefix leg decides, as before."""
+    assert _is_bookkeeping(f"kitty-specs/{_ALIAS}/{filename}", f"kitty-specs/{_ALIAS}")
+    assert not _is_bookkeeping(f"kitty-specs/{_ALIAS_LOWER}/{filename}", f"kitty-specs/{_ALIAS}")
+
+
+def test_is_bookkeeping_composed_leg_does_not_apply_when_the_prefix_names_the_primary_directory() -> None:
+    nested_primary = f".worktrees/{_MISSION_SLUG}-coord/kitty-specs/{_MISSION_SLUG}"
+
+    assert not _is_bookkeeping(f"kitty-specs/{_ALIAS}/status.json", nested_primary)
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        f"kitty-specs/{_MISSION_SLUG}/spec.md",
+        f"kitty-specs/{_MISSION_SLUG}/status.json",
+        f"kitty-specs/{_MISSION_SLUG}/sub/anything.md",
+        ".kittify/runtime/x.json",
+    ],
+)
+def test_is_bookkeeping_primary_name_verdicts_are_unchanged(path: str) -> None:
+    assert _is_bookkeeping(path, _nested_prefix(_ALIAS))
+    assert _is_bookkeeping(path, None)
+
+
+@pytest.mark.parametrize("path", ["src/x.py", "kitty-specs/other-mission/status.json", "README.md"])
+def test_is_bookkeeping_content_verdicts_are_unchanged(path: str) -> None:
+    assert not _is_bookkeeping(path, _nested_prefix(_ALIAS))
+
+
+_COORDINATION_KIND_RELPATHS = [
+    "traces/mission-trace.md",
+    "traces/nested/deeper/trace.md",
+    "tasks/WP01-x/review-cycle-1.md",
+    "acceptance-matrix.json",
+    "issue-matrix.json",
+    "issue-matrix.md",
+    "decisions.events.jsonl",
+]
+
+
+@pytest.mark.parametrize("relpath", _COORDINATION_KIND_RELPATHS)
+def test_is_bookkeeping_accepts_every_coordination_kind_file_under_the_composed_directory(relpath: str) -> None:
+    assert _is_bookkeeping(f"kitty-specs/{_ALIAS}/{relpath}", _nested_prefix(_ALIAS))
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        f"kitty-specs/{_ALIAS}/tasks/WP01.md",
+        f"kitty-specs/{_ALIAS}/tasks/WP01-x/baseline-tests.json",
+        f"kitty-specs/{_ALIAS}/plan.md",
+        f"kitty-specs/{_ALIAS}/meta.json",
+        f"kitty-specs/{_ALIAS}/contracts/api.md",
+        f"kitty-specs/{_ALIAS}/notes.md",
+        f"kitty-specs/{_ALIAS}/src/x.py",
+        f"x/kitty-specs/{_ALIAS}/traces/t.md",
+        f"x/y/kitty-specs/{_ALIAS}/tasks/WP01-x/review-cycle-1.md",
+        "kitty-specs/other-mission-01KX0000/traces/t.md",
+        f"kitty-specs/{_MISSION_SLUG}-01KX0001/traces/t.md",
+        f"kitty-specs/{_ALIAS_LOWER}/traces/t.md",
+    ],
+    ids=lambda path: path.replace("/", "_"),
+)
+def test_is_bookkeeping_keeps_non_coordination_kinds_and_foreign_names_as_content(path: str) -> None:
+    """Negative controls of the generalised leg: planning kinds, source, unclassified files, non-anchored and foreign names stay content."""
+    assert not _is_bookkeeping(path, _nested_prefix(_ALIAS))
+
+
+@pytest.mark.parametrize("prefix", [None, "", f"/kitty-specs/{_ALIAS}", f"{_nested_prefix(_ALIAS)}/more"])
+def test_is_bookkeeping_applies_the_composed_leg_to_coordination_kinds_only_for_a_nested_alias_prefix(prefix: str | None) -> None:
+    assert not _is_bookkeeping(f"kitty-specs/{_ALIAS}/traces/t.md", prefix)
+
+
+def test_is_bookkeeping_root_form_prefix_does_not_exempt_the_composed_traces_directory() -> None:
+    assert not _is_bookkeeping(f"kitty-specs/{_ALIAS_LOWER}/traces/t.md", f"kitty-specs/{_ALIAS}")
+
+
+def test_is_bookkeeping_a_canonical_mission_gets_no_composed_leg() -> None:
+    """A prefix naming the primary directory never applies the composed leg, so a coordination file under another name stays content."""
+    nested_primary = f".worktrees/{_MISSION_SLUG}-coord/kitty-specs/{_MISSION_SLUG}"
+
+    assert not _is_bookkeeping(f"kitty-specs/{_ALIAS}/traces/t.md", nested_primary)
+    assert _is_bookkeeping(f"kitty-specs/{_MISSION_SLUG}/traces/t.md", nested_primary)  # the older primary-name rule, unchanged
+
+
+def _alias_window(tmp_path: Path, landed: dict[str, str]) -> tuple[Path, str, str]:
+    """An approved lane merged onto the target, after the ``landed`` files committed straight on it."""
+    repo = _init_repo(tmp_path)
+    base = _rev(repo, _TARGET)
+    approved_sha = _lane_commit(repo, base, "lane-a", "src/wp01.py", "APPROVED\n")
+    for relpath, body in landed.items():
+        path = repo / relpath
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body, encoding="utf-8")
+    if landed:
+        _git(repo, "add", ".")
+        _git(repo, "commit", "-qm", "chore: land files")
+    _git(repo, "merge", "-q", "--no-edit", "lane-a")
+    return repo, base, approved_sha
+
+
+def _merge_strategy_claim(repo: Path, base: str, approved_sha: str, alias: str) -> ApprovedWpCommitSet:
+    return ApprovedWpCommitSet(
+        approved={"WP01": (approved_sha,)},
+        manifest_wp_ids=frozenset({"WP01"}),
+        enforce_closed_world=True,
+        authored_shas=frozenset({approved_sha}),
+        authored_patch_ids=frozenset({git_probes.patch_id_of(repo, approved_sha)}),
+        excluded_window_base=base,
+        mission_slug=_MISSION_SLUG,
+        planning_prefix=_nested_prefix(alias),
+    )
+
+
+def _squash_alias_claim(repo: Path, base: str, approved_sha: str, alias: str) -> ApprovedWpCommitSet:
+    return _squash_claim(
+        approved={"WP01": (approved_sha,)},
+        authored_blobs=frozenset({("src/wp01.py", git_probes.blob_id_at(repo, _TARGET, "src/wp01.py"))}),
+        window_base=base,
+        manifest_wp_ids=frozenset({"WP01"}),
+        planning_prefix=_nested_prefix(alias),
+    )
+
+
+_PAIR_BODY = '{"event_id": "A"}\n'
+
+
+@pytest.mark.parametrize("alias", [_ALIAS, _ALIAS_LOWER])
+def test_gate_passes_the_composed_status_pair_under_the_merge_strategy(tmp_path: Path, alias: str) -> None:
+    repo, base, approved_sha = _alias_window(tmp_path, {f"kitty-specs/{alias}/status.events.jsonl": _PAIR_BODY, f"kitty-specs/{alias}/status.json": "{}\n"})
+
+    result = MergeOutcomeVerifier(repo).verify(_TARGET, _merge_strategy_claim(repo, base, approved_sha, alias))
+
+    assert result.is_pass, result
+
+
+@pytest.mark.parametrize("alias", [_ALIAS, _ALIAS_LOWER])
+def test_gate_passes_the_composed_status_pair_under_squash(tmp_path: Path, alias: str) -> None:
+    repo, base, approved_sha = _alias_window(tmp_path, {f"kitty-specs/{alias}/status.events.jsonl": _PAIR_BODY, f"kitty-specs/{alias}/status.json": "{}\n"})
+
+    result = MergeOutcomeVerifier(repo).verify(_TARGET, _squash_alias_claim(repo, base, approved_sha, alias))
+
+    assert result.is_pass, result
+
+
+@pytest.mark.parametrize("filename", ["spec.md", "notes/plan.md", "src/x.py"])
+def test_gate_fails_other_files_under_the_composed_name(tmp_path: Path, filename: str) -> None:
+    repo, base, approved_sha = _alias_window(tmp_path, {f"kitty-specs/{_ALIAS}/status.json": "{}\n", f"kitty-specs/{_ALIAS}/{filename}": "content\n"})
+
+    merge_result = MergeOutcomeVerifier(repo).verify(_TARGET, _merge_strategy_claim(repo, base, approved_sha, _ALIAS))
+    squash_result = MergeOutcomeVerifier(repo).verify(_TARGET, _squash_alias_claim(repo, base, approved_sha, _ALIAS))
+
+    assert merge_result.status is VerifyStatus.FAIL, merge_result
+    assert squash_result.status is VerifyStatus.FAIL, squash_result
+
+
+@pytest.mark.parametrize("foreign", [f"{_MISSION_SLUG}-01KX0001", "other-mission-01KX0000", "other-mission"])
+def test_gate_fails_status_files_of_a_different_mission_directory(tmp_path: Path, foreign: str) -> None:
+    """User Story 1, scenario 4: a status pair under a directory of ANOTHER Mission is content.
+
+    The claim is a bare-slug one: its ``planning_prefix`` ends in the composed
+    name of THIS Mission, so only that name's pair is exempt.
+    """
+    repo, base, approved_sha = _alias_window(tmp_path, {f"kitty-specs/{foreign}/status.events.jsonl": _PAIR_BODY, f"kitty-specs/{foreign}/status.json": "{}\n"})
+
+    merge_result = MergeOutcomeVerifier(repo).verify(_TARGET, _merge_strategy_claim(repo, base, approved_sha, _ALIAS))
+    squash_result = MergeOutcomeVerifier(repo).verify(_TARGET, _squash_alias_claim(repo, base, approved_sha, _ALIAS))
+
+    assert merge_result.status is VerifyStatus.FAIL, merge_result
+    assert squash_result.status is VerifyStatus.FAIL, squash_result
+
+
+@pytest.mark.parametrize("relpath", ["traces/mission-trace.md", "tasks/WP01-x/review-cycle-1.md", "issue-matrix.json"])
+def test_gate_passes_coordination_kind_files_under_the_composed_name_under_both_strategies(tmp_path: Path, relpath: str) -> None:
+    repo, base, approved_sha = _alias_window(
+        tmp_path,
+        {f"kitty-specs/{_ALIAS}/status.json": "{}\n", f"kitty-specs/{_ALIAS}/{relpath}": "content\n"},
+    )
+
+    merge_result = MergeOutcomeVerifier(repo).verify(_TARGET, _merge_strategy_claim(repo, base, approved_sha, _ALIAS))
+    squash_result = MergeOutcomeVerifier(repo).verify(_TARGET, _squash_alias_claim(repo, base, approved_sha, _ALIAS))
+
+    assert merge_result.is_pass, merge_result
+    assert squash_result.is_pass, squash_result
+
+
+@pytest.mark.parametrize("relpath", ["spec.md", "notes/plan.md", "src/x.py", "tasks/WP01.md"])
+def test_gate_still_fails_a_planning_or_unclassified_file_beside_a_composed_trace(tmp_path: Path, relpath: str) -> None:
+    repo, base, approved_sha = _alias_window(
+        tmp_path,
+        {f"kitty-specs/{_ALIAS}/traces/t.md": "trace\n", f"kitty-specs/{_ALIAS}/{relpath}": "content\n"},
+    )
+
+    assert MergeOutcomeVerifier(repo).verify(_TARGET, _merge_strategy_claim(repo, base, approved_sha, _ALIAS)).status is VerifyStatus.FAIL
+    assert MergeOutcomeVerifier(repo).verify(_TARGET, _squash_alias_claim(repo, base, approved_sha, _ALIAS)).status is VerifyStatus.FAIL

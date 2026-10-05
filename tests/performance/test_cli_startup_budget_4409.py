@@ -17,23 +17,46 @@ wall-clock budgets are environment-sensitive, and a shared runner under load
 should not turn a green change red. The structural half of the guard (no
 module-scope ``jsonschema`` import anywhere in ``src/``) is cheap and
 deterministic, so that half runs everywhere.
+
+The wall-clock half carries no absolute number of seconds (#5419, #5614): it
+asserts the ratio of the ``--help`` median to the median of a fixed interpreter
+workload (a fresh interpreter that imports a fixed list of standard-library
+modules and then compiles a fixed amount of generated source), both sampled interleaved in the same run, against
+``STARTUP_RATIO_LIMIT`` in ``tests/_perf_helpers.py``. A runner that is slower
+by some factor slows both by about that factor; the ~1.8 s ``jsonschema``
+format-checker tax this test exists for does not slow the workload.
 """
 
 from __future__ import annotations
 
 import ast
-import subprocess
-import sys
-import time
+import os
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
-from tests._perf_helpers import CLI_COLD_START_BUDGET_SECONDS, assert_timing_budget
+from tests._perf_helpers import (
+    PLANT_MAX_FRACTION_OF_FLOOR,
+    PLANT_MIN_FRACTION_OF_FLOOR,
+    STARTUP_PLANT_ITERATIONS,
+    STARTUP_RATIO_LIMIT,
+    Measurement,
+    Sample,
+    assert_timing_budget,
+    cli_argv,
+    expect_budget_exceeded,
+    fixed_workload_argv,
+    measure_group,
+    measure_interleaved,
+    spawn_timed,
+    with_plant,
+    write_cpu_plant,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-_HELP_BUDGET_SECONDS = CLI_COLD_START_BUDGET_SECONDS
+_HELP_MODULE = "specify_cli.__init__"
 
 
 def _is_type_checking_guard(node: ast.AST) -> bool:
@@ -280,21 +303,70 @@ def test_unrelated_import_module_attribute_call_is_not_flagged() -> None:
     assert _module_scope_jsonschema_imports('obj.import_module("something_else")\n') == []
 
 
-@pytest.mark.performance
-def test_help_stays_inside_its_startup_budget() -> None:
-    """The wall-clock half: nightly-only, measured through the real entry point."""
-    started = time.monotonic()
-    completed = subprocess.run(
-        [sys.executable, "-m", "specify_cli.__init__", "--help"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    elapsed = time.monotonic() - started
+def _startup_env() -> dict[str, str]:
+    """This checkout's own ``src/`` first, so the measured CLI is the one under test."""
+    return {**os.environ, "PYTHONPATH": str(REPO_ROOT / "src")}
 
-    measured = elapsed if completed.returncode == 0 else float("inf")
-    name = "spec-kitty --help startup"
-    if completed.returncode != 0:
-        name = f"{name}; exit={completed.returncode}; stderr={completed.stderr[-2000:]}"
-    assert_timing_budget(measured, _HELP_BUDGET_SECONDS, name=name)
+
+def _help_sample(plant: Path | None = None) -> Callable[[], Sample]:
+    env = _startup_env() if plant is None else with_plant(_startup_env(), plant)
+    argv = cli_argv("--help", module=_HELP_MODULE)
+    return lambda: spawn_timed(argv, cwd=REPO_ROOT, env=env)
+
+
+def _workload_sample() -> Callable[[], Sample]:
+    argv, env = fixed_workload_argv(), _startup_env()
+    return lambda: spawn_timed(argv, cwd=REPO_ROOT, env=env)
+
+
+def _assert_startup_ratio(measurement: Measurement, label: str, title: str, record_property: Callable[[str, object], None] | None = None) -> None:
+    if record_property is not None:
+        # Recorded in the xunit report on PASS too, so a nightly run can be read for calibration.
+        record_property("ratio", round(measurement.ratio(label), 4))
+        record_property("workload_median_seconds", round(measurement.floor.median, 4))
+        record_property("command_median_seconds", round(measurement.variants[label].median, 4))
+    name = measurement.describe(label, STARTUP_RATIO_LIMIT, title=title)
+    assert_timing_budget(measurement.ratio(label), STARTUP_RATIO_LIMIT, name=name)
+
+
+@pytest.mark.performance
+def test_help_stays_inside_its_startup_budget(record_property: Callable[[str, object], None]) -> None:
+    """The wall-clock half: nightly-only, measured through the real entry point.
+
+    ``--help`` is sampled interleaved with a fixed interpreter workload and the
+    ratio of the two medians is held to ``STARTUP_RATIO_LIMIT``.
+    """
+    measurement = measure_interleaved(_help_sample(), _workload_sample())
+    _assert_startup_ratio(measurement, "command", "spec-kitty --help startup / fixed interpreter workload", record_property)
+
+
+@pytest.mark.performance
+def test_planted_cpu_work_turns_the_startup_ratio_assertion_red(tmp_path: Path, record_property: Callable[[str, object], None]) -> None:
+    """FR-010: CPU-bound work planted into ``--help`` start-up, test side only, must fail the ratio.
+
+    The plant is a fixed-iteration loop in a ``sitecustomize.py`` first on the
+    child's ``PYTHONPATH``. It costs a measured fraction of the clean ``--help``
+    median (between ``PLANT_MIN_FRACTION_OF_FLOOR`` and ``PLANT_MAX_FRACTION_OF_FLOOR``),
+    so it is a start-up regression of a stated size and not an arbitrary one. The
+    figures are recorded in the xunit report before any assertion and the
+    did-not-detect failure message carries them too.
+    """
+    plant = write_cpu_plant(tmp_path / "plant", STARTUP_PLANT_ITERATIONS)
+    measurement = measure_group(_workload_sample(), {"clean": _help_sample(), "planted": _help_sample(plant)})
+    clean_seconds = measurement.variants["clean"].median
+    cost_seconds = measurement.cost("planted", "clean")
+    record_property("planted_ratio", round(measurement.ratio("planted"), 4))
+    record_property("clean_ratio", round(measurement.ratio("clean"), 4))
+    record_property("plant_cost_fraction", round(cost_seconds / clean_seconds, 4))
+    record_property("workload_median_seconds", round(measurement.floor.median, 4))
+    record_property("clean_median_seconds", round(clean_seconds, 4))
+    record_property("planted_median_seconds", round(measurement.variants["planted"].median, 4))
+    where = measurement.describe("planted", STARTUP_RATIO_LIMIT, title="spec-kitty --help startup, planted")
+    figures = f"clean ratio {measurement.ratio('clean'):.3f}; plant cost {cost_seconds / clean_seconds:.3f} of clean --help; {where}"
+    assert_timing_budget(
+        cost_seconds, PLANT_MAX_FRACTION_OF_FLOOR * clean_seconds, name=f"plant cost above {PLANT_MAX_FRACTION_OF_FLOOR} of clean --help; {figures}"
+    )
+    assert_timing_budget(
+        PLANT_MIN_FRACTION_OF_FLOOR * clean_seconds, cost_seconds, name=f"plant cost below {PLANT_MIN_FRACTION_OF_FLOOR} of clean --help; {figures}"
+    )
+    expect_budget_exceeded(measurement.ratio("planted"), STARTUP_RATIO_LIMIT, name=figures)
