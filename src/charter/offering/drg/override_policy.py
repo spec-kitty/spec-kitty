@@ -93,25 +93,56 @@ class OverridePolicyError(ValueError):
     """
 
 
-def _parse_entry(raw: Any, index: int) -> ReplaceableBuiltin:
+def _parse_entry(raw: Any, index: int, *, source_label: str) -> ReplaceableBuiltin:
     if not isinstance(raw, dict):
         raise OverridePolicyError(
-            f"{POLICY_RELPATH}: entry #{index} must be a mapping with a "
+            f"{source_label}: entry #{index} must be a mapping with a "
             f"'urn' key, got {type(raw).__name__}"
         )
     urn = raw.get("urn")
     if not isinstance(urn, str) or not urn:
         raise OverridePolicyError(
-            f"{POLICY_RELPATH}: entry #{index} is missing a non-empty 'urn'"
+            f"{source_label}: entry #{index} is missing a non-empty 'urn'"
         )
     reason = raw.get("reason", "")
     if reason is None:
         reason = ""
     if not isinstance(reason, str):
         raise OverridePolicyError(
-            f"{POLICY_RELPATH}: entry #{index} ('{urn}') has a non-string 'reason'"
+            f"{source_label}: entry #{index} ('{urn}') has a non-string 'reason'"
         )
     return ReplaceableBuiltin(urn=urn, reason=reason)
+
+
+def _parse_policy_document(
+    data: object, *, source_label: str
+) -> ReplaceableBuiltinsPolicy:
+    """Build a policy from an already-parsed YAML document (source-agnostic).
+
+    *source_label* prefixes every error message so the same grammar can report
+    against whichever file it was read from.
+    """
+    if data is None:
+        return ReplaceableBuiltinsPolicy(entries=())
+    if not isinstance(data, dict):
+        raise OverridePolicyError(
+            f"{source_label}: top-level document must be a mapping with a "
+            f"'{_TOP_LEVEL_KEY}' list"
+        )
+
+    raw_entries = data.get(_TOP_LEVEL_KEY, [])
+    if raw_entries is None:
+        raw_entries = []
+    if not isinstance(raw_entries, list):
+        raise OverridePolicyError(
+            f"{source_label}: '{_TOP_LEVEL_KEY}' must be a list"
+        )
+
+    entries = tuple(
+        _parse_entry(raw, index, source_label=source_label)
+        for index, raw in enumerate(raw_entries)
+    )
+    return ReplaceableBuiltinsPolicy(entries=entries)
 
 
 def load_replaceable_builtins(repo_root: Path) -> ReplaceableBuiltinsPolicy:
@@ -133,26 +164,7 @@ def load_replaceable_builtins(repo_root: Path) -> ReplaceableBuiltinsPolicy:
             f"{POLICY_RELPATH}: YAML parse error: {exc}"
         ) from exc
 
-    if data is None:
-        return ReplaceableBuiltinsPolicy(entries=())
-    if not isinstance(data, dict):
-        raise OverridePolicyError(
-            f"{POLICY_RELPATH}: top-level document must be a mapping with a "
-            f"'{_TOP_LEVEL_KEY}' list"
-        )
-
-    raw_entries = data.get(_TOP_LEVEL_KEY, [])
-    if raw_entries is None:
-        raw_entries = []
-    if not isinstance(raw_entries, list):
-        raise OverridePolicyError(
-            f"{POLICY_RELPATH}: '{_TOP_LEVEL_KEY}' must be a list"
-        )
-
-    entries = tuple(
-        _parse_entry(raw, index) for index, raw in enumerate(raw_entries)
-    )
-    return ReplaceableBuiltinsPolicy(entries=entries)
+    return _parse_policy_document(data, source_label=str(POLICY_RELPATH))
 
 
 # ---------------------------------------------------------------------------

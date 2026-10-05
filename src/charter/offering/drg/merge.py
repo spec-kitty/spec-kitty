@@ -1205,9 +1205,10 @@ def merge_three_layers(
     built_in:
         The built-in DRG. Treated as the source of truth for invariants.
     org_fragments:
-        Loaded org-tier fragments in declaration order. Earlier fragments take
-        precedence over later ones for org-vs-org collisions (but a built-in
-        node always wins regardless).
+        Loaded org-tier fragments in declaration order. For a same-kind
+        collision at a built-in URN the org node substitutes in place, and the
+        last org pack that declares it wins (``_resolve_builtin_collision``).
+        A kind-drift collision with a built-in node is a hard failure.
     project:
         Optional project-tier DRG (``.kittify/doctrine/graph.yaml`` loaded and
         merged elsewhere). When ``None``, the merge collapses to the
