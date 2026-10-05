@@ -527,15 +527,16 @@ def test_repair_rejects_path_traversal(tmp_path: Path) -> None:
 
 
 def test_find_source_file_rejects_escaping_source_file(tmp_path: Path) -> None:
-    """A ``source_file`` that escapes the skill dir is refused, not read (#56).
+    """A ``source_file`` that escapes the skill dir is refused, not read (Sonar S2083).
 
-    This is the *source* vector (the canonical file hashed for drift detection),
-    distinct from the ``installed_path`` write vector the two tests above cover.
-    ``_find_source_file``'s docstring always promised containment, but before the
-    ``ensure_within_directory`` guard (Sonar ``pythonsecurity:S2083``) it read
-    whatever ``skill_dir / source_file`` resolved to — including a file outside
-    the skill dir reached through ``..``. A readable file above the skill dir
-    must now yield ``None`` even though it exists.
+    This is the *source* read vector (the canonical file hashed for drift
+    detection), distinct from the ``installed_path`` write vector the two tests
+    above cover. The containment is pre-existing and unchanged by this PR:
+    ``_find_source_file`` delegates to ``skill_path_observations``, which computes
+    ``candidate.relative_to(skill_dir)`` and raises ``ValueError`` on any
+    ``..``/``.`` segment or an absolute ``source_file`` (caught here → ``None``).
+    This test pins that previously-untested source-read vector: a readable file
+    above the skill dir must yield ``None`` even though it exists.
     """
     from specify_cli.skills.verifier import _find_source_file
 
