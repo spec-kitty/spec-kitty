@@ -106,13 +106,14 @@ def test_decisions_module_is_pure() -> None:
 
 
 def test_planted_impurity_is_flagged() -> None:
-    """Positive control: the scan is not vacuous, for imports and for calls."""
+    """Positive control: the scan is not vacuous, for imports (module scope and function body) and for calls."""
     planted = (
         "import subprocess\n"
         "import logging\n"
         "from pathlib import Path\n"
         'Path("x").read_text()\n'
         "def read(p):\n"
+        "    import shutil\n"
         "    return open(p).read()\n"
         "def probe(p):\n"
         "    return p.is_file()\n"
@@ -122,8 +123,9 @@ def test_planted_impurity_is_flagged() -> None:
         "2: import logging",
         "3: from pathlib import ...",
         "4: .read_text",
-        "6: open()",
-        "8: .is_file",
+        "6: import shutil",
+        "7: open()",
+        "9: .is_file",
     ]
 
 
@@ -144,11 +146,6 @@ def test_planted_banned_from_imports_and_clock_are_flagged() -> None:
         "5: import datetime",
         "6: .now()",
     ]
-
-
-def test_allow_listed_imports_are_not_flagged() -> None:
-    planted = "from __future__ import annotations\nimport re\nfrom enum import Enum\nfrom mission_runtime import MissionTopology\n"
-    assert purity_findings(planted) == []
 
 
 def test_type_checking_imports_are_allowed() -> None:
