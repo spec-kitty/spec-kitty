@@ -75,6 +75,11 @@ def _diverge_target_status_json(project: LanesProject) -> None:
         json.dumps({"side": "target"}, sort_keys=True) + "\n",
         "chore: status snapshot (target side)",
     )
+    # Precondition: the fixture's ``status_json_divergence`` knob really planted a different
+    # snapshot on the lane, or the "mixed conflict" these tests claim would be vacuous.
+    status_path = f"kitty-specs/{project.slug}/status.json"
+    lane_branch = next(iter(project.lane_branches.values()))
+    assert _show(project.repo, lane_branch, status_path) != _show(project.repo, project.target_branch, status_path)
 
 
 def _add_source_conflict(project: LanesProject) -> None:
@@ -167,7 +172,7 @@ def test_as3_dry_run_no_longer_forecasts_the_metadata_conflict(tmp_path: Path) -
 
 
 # ---------------------------------------------------------------------------
-# Story 5: genuine conflicts are still refused, byte-identically
+# Genuine conflicts are still refused
 # ---------------------------------------------------------------------------
 
 
@@ -187,7 +192,7 @@ def test_source_conflict_in_a_broken_mission_is_refused_naming_only_the_source_p
     assert _show(project.repo, project.target_branch, _SHARED_SOURCE) == target_tip
 
 
-def test_story5_as1_different_gitattributes_still_stale(tmp_path: Path) -> None:
+def test_lanes_that_change_gitattributes_differently_are_still_refused_as_stale(tmp_path: Path) -> None:
     """Two lanes that change ``.gitattributes`` differently are still refused as stale."""
     project = _broken_project(tmp_path, lanes=2)
     for index, branch in enumerate(project.lane_branches.values()):

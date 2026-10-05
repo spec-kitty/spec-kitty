@@ -61,23 +61,41 @@ def _sync(project: fx.LanesProject) -> AutoRebaseReport | None:
     return report
 
 
-def _fail_git_show_of_stage_three(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Make ``git show :3:<path>`` fail spuriously (exit 128); every other git call runs for real."""
+def _is_show_of_stage_three(cmd: list[Any]) -> bool:
+    return cmd[:2] == ["git", "show"] and str(cmd[2]).startswith(":3:")
+
+
+def _is_stage_listing_of_metadata(cmd: list[Any]) -> bool:
+    parts = [str(part) for part in cmd]
+    return "ls-files" in parts and "--stage" in parts and fx.METADATA_PATH in parts
+
+
+_GIT_FAULTS = {"show-stage-3": _is_show_of_stage_three, "list-stages": _is_stage_listing_of_metadata}
+
+
+def _fail_git_call(monkeypatch: pytest.MonkeyPatch, fault: str) -> None:
+    """Make the git call *fault* names fail spuriously (exit 128); every other git call runs for real."""
     real_run = subprocess.run
+    matches = _GIT_FAULTS[fault]
 
     def fake_run(cmd: Any, *args: Any, **kwargs: Any) -> Any:
-        if isinstance(cmd, list) and cmd[:2] == ["git", "show"] and str(cmd[2]).startswith(":3:"):
-            return subprocess.CompletedProcess(cmd, 128, stdout="", stderr="fatal: simulated failure")
+        if isinstance(cmd, (list, tuple)) and matches(list(cmd)):
+            empty = "" if kwargs.get("text") else b""
+            return subprocess.CompletedProcess(cmd, 128, stdout=empty, stderr=empty)
         return real_run(cmd, *args, **kwargs)
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
 
-@pytest.mark.parametrize("stage_three_unreadable", [False, True], ids=["takes-theirs", "spurious-stage-read-failure-deletes-nothing"])
+@pytest.mark.parametrize(
+    "git_fault",
+    [None, "show-stage-3", "list-stages"],
+    ids=["takes-theirs", "spurious-stage-read-failure-deletes-nothing", "unreadable-stage-set-deletes-nothing"],
+)
 def test_lane_sync_takes_coordination_metadata_under_target_owned_rule(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    stage_three_unreadable: bool,
+    git_fault: str | None,
 ) -> None:
     # Arrange
     project = _broken_coord_project(tmp_path)
@@ -90,14 +108,14 @@ def test_lane_sync_takes_coordination_metadata_under_target_owned_rule(
     # Assumption: the lane worktree is a sparse checkout (product allocator).
     assert _git_out(lane_worktree, "config", "--bool", "core.sparseCheckout").strip() == "true"
 
-    if stage_three_unreadable:
-        # Reading stage 3 failing for a reason other than "the stage is absent"
-        # must halt the sync, never be read as "theirs deleted it" and delete
-        # the lane's metadata.
+    if git_fault is not None:
+        # Reading stage 3, or the stage set itself, failing for a reason other
+        # than "the stage is absent" must halt the sync, never be read as
+        # "theirs deleted it" and delete the lane's metadata.
         own_metadata = fx.metadata_blob(project.repo, lane_branch)
         pre_sync_head = _git_out(lane_worktree, "rev-parse", "HEAD").strip()
         with monkeypatch.context() as stage_failure:
-            _fail_git_show_of_stage_three(stage_failure)
+            _fail_git_call(stage_failure, git_fault)
             with pytest.raises(LaneAutoRebaseSyncError) as exc_info:
                 _sync(project)
         assert exc_info.value.to_dict()["error_code"] == LANE_AUTO_REBASE_FAILED

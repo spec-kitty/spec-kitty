@@ -92,7 +92,9 @@ def _assert_lane_runtime_still_works(project: LanesProject) -> None:
     lane_worktree = next(iter(project.lane_worktrees.values()))
     lane_schema = yaml.safe_load((lane_worktree / fx.METADATA_PATH).read_text(encoding="utf-8"))["spec_kitty"]["schema_version"]
     assert lane_schema < (REQUIRED_SCHEMA_VERSION or 0), "the lane copy must still lag the CLI's schema version, or this check is vacuous"
-    result = _run_in(project, lane_worktree, "agent", "tasks", "status", "--mission", project.slug)
+    # ``list-tasks`` is not on the schema gate's safe list (``compat/safety.py``), so it would be
+    # blocked if the gate read the lane's own stale copy; ``tasks status`` is exempt and proves nothing.
+    result = _run_in(project, lane_worktree, "agent", "tasks", "list-tasks", "--mission", project.slug)
     assert result.returncode == 0, _out(result)
 
 
