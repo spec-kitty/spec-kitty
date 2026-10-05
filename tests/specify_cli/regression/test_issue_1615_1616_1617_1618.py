@@ -100,7 +100,7 @@ def test_resolve_mission_read_path_used_in_implement(tmp_path: Path, monkeypatch
     from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
     from specify_cli.cli.commands.implement import implement
     from specify_cli.coordination.surface_resolver import ResolvedStatusSurface
-    from tests.agent.test_implement_command import _seed_planned, create_meta_json
+    from tests.specify_cli.cli.commands._implement_fixtures import create_meta_json, seed_planned
 
     monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
     monkeypatch.setattr(
@@ -131,7 +131,7 @@ def test_resolve_mission_read_path_used_in_implement(tmp_path: Path, monkeypatch
     )
     coord_surface = tmp_path / ".worktrees" / "010-feature-coord" / "kitty-specs" / "010-feature"
     coord_surface.mkdir(parents=True)
-    _seed_planned(coord_surface, "WP01")  # finalized on the coordination surface only
+    seed_planned(coord_surface, "WP01")  # finalized on the coordination surface only
 
     monkeypatch.chdir(tmp_path)
     with (
