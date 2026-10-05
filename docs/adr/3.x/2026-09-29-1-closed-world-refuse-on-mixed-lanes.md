@@ -167,3 +167,15 @@ mission where no approved lane carries such a commit
   never content that would ship.
 
 The count of strict-`xfail` residuals stays at four.
+
+## Follow-up 2026-10-05: every code lane is now bounded by its approval stamp (#5668)
+
+Decision 1 above says the closed-world check "applies only to mixed lanes; lanes
+that are not mixed are unchanged". That sentence describes the closed-world check
+and stays true of it. It no longer implies that a lane that is not mixed needs no
+bound. ADR [2026-10-04-2](../4.x/2026-10-04-2-approval-stamp-bounds-the-approved-claim.md)
+bounds every code lane that has an approved work package by that work package's
+approval stamp, and refuses a commit made after it with
+`LANE_MOVED_AFTER_APPROVAL`. On a mixed lane the refusals decided here keep their
+precedence, codes and texts, and the new check runs when none of them fires. The
+decisions above are unchanged.

@@ -3300,6 +3300,7 @@ pages:
     - {slug: "references", text: "References", level: 2}
     - {slug: "amendment-2026-10-03-fully-canceled-dependency-lanes-5569", text: "Amendment 2026-10-03 — fully-canceled dependency lanes (#5569)", level: 2}
     - {slug: "follow-up-2026-10-04-superseded-exemption-unstamped-refuse-and-a-stable-code-5613", text: "Follow-up 2026-10-04 — superseded exemption, unstamped REFUSE and a stable code (#5613)", level: 2}
+    - {slug: "follow-up-2026-10-05-every-code-lane-is-now-bounded-by-its-approval-stamp-5668", text: "Follow-up 2026-10-05: every code lane is now bounded by its approval stamp (#5668)", level: 2}
   - path: "docs/adr/3.x/2026-09-29-1-requirement-id-grammar-single-authority.md"
     title: "ADR: one requirement-ID grammar, one authority"
     divio_type: "none"
@@ -3442,6 +3443,23 @@ pages:
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
+  - path: "docs/adr/4.x/2026-10-04-2-approval-stamp-bounds-the-approved-claim.md"
+    title: "ADR: the approval stamp bounds what consolidate treats as approved work"
+    divio_type: "none"
+    abstract: "Consolidate refuses a code lane that holds a commit made after its work package was approved, reading the approval stamp as the one reference for what review saw, and refuses an approval that has no stamp until it is re-reviewed or attested."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "what-the-stamp-is", text: "What the stamp is", level: 3}
+    - {slug: "the-lane-check", text: "The lane check", level: 3}
+    - {slug: "where-it-runs", text: "Where it runs", level: 3}
+    - {slug: "attestation", text: "Attestation", level: 3}
+    - {slug: "mixed-lanes", text: "Mixed lanes", level: 3}
+    - {slug: "reversed-decisions", text: "Reversed decisions", level: 3}
+    - {slug: "evidence", text: "Evidence", level: 3}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "residuals", text: "Residuals", level: 3}
   - path: "docs/adr/4.x/2026-10-04-2-started-work-package-lane-membership-is-frozen.md"
     title: "ADR: a started work package keeps its recorded execution lane on re-finalize"
     divio_type: "none"
@@ -4358,6 +4376,7 @@ pages:
     - {slug: "send-rejected-review-back-to-rework", text: "Send rejected review back to rework", level: 3}
     - {slug: "worktree-expectations", text: "Worktree Expectations", level: 2}
     - {slug: "error-codes", text: "Error Codes", level: 2}
+    - {slug: "consolidate-mission-data-preflight-error-code", text: "`consolidate-mission`: `data.preflight_error_code`", level: 3}
     - {slug: "consolidate-mission-data-teardown-error-code", text: "`consolidate-mission`: `data.teardown_error_code`", level: 3}
     - {slug: "provider-rules", text: "Provider Rules", level: 2}
     - {slug: "migration-notes", text: "Migration Notes", level: 2}
