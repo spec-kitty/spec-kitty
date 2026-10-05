@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-from contextlib import AbstractContextManager
 from pathlib import Path
 from unittest.mock import patch
 
@@ -28,12 +27,7 @@ import typer
 from kernel.clock import now_utc_iso
 from mission_runtime import MissionArtifactKind, placement_seam
 
-from specify_cli.coordination.planning_commit import PlanningPlacement
-from specify_cli.coordination.surface_resolver import ResolvedStatusSurface
-from specify_cli.core.vcs import VCSBackend
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
-from specify_cli.status import Lane
-from specify_cli.status.work_package_lifecycle import WorkPackageStartResult
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
@@ -276,101 +270,6 @@ def legacy_repo(tmp_path: Path) -> Path:
 # ---------------------------------------------------------------------------
 # AC-1 -- red-first, through the REAL implement(--base) seam (C-003)
 # ---------------------------------------------------------------------------
-
-
-def _run_implement_via_seam(
-    repo: Path,
-    feature_dir: Path,
-    *,
-    base: str | None,
-    wp_id: str = WP_ID,
-    mission_slug: str = MISSION_SLUG,
-    capture_console: list[str] | None = None,
-) -> None:
-    """Drive the real ``implement(...)`` Typer command function.
-
-    Mirrors ``tests/cli/commands/test_implement_base_flag.py``'s
-    established mocking breadth for the CLI-plumbing concerns orthogonal to
-    base-honoring (feature/context detection, planning-artifact commit,
-    charter preflight, SaaS/sync fan-out). Crucially this does NOT mock
-    ``create_lane_workspace`` -- the real allocator runs, which is the whole
-    point of the seam-level proof (C-003).
-    """
-    from specify_cli.cli.commands.implement import implement
-    import specify_cli.cli.commands.implement as impl_mod
-
-    ctx_managers: list[AbstractContextManager[object]] = [
-        patch("specify_cli.cli.commands.implement.find_repo_root", return_value=repo),
-        patch("specify_cli.cli.commands.implement_phases.detect_feature_context",
-              return_value=("1", mission_slug)),
-        patch("specify_cli.workspace.context.find_wp_file",
-              return_value=feature_dir / "tasks" / f"{wp_id}-task.md"),
-        patch("specify_cli.core.dependency_graph.parse_wp_dependencies", return_value=[]),
-        patch("specify_cli.workspace.context.resolve_mission_target_branch",
-              return_value="main"),
-        patch("specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git"),
-        patch("specify_cli.cli.commands.implement_phases._ensure_vcs_in_meta", return_value=VCSBackend.GIT),
-        patch(
-            "specify_cli.coordination.planning_commit.resolve_planning_placement",
-            return_value=PlanningPlacement(resolved=False, ref=None),
-        ),
-        patch(
-            "specify_cli.coordination.surface_resolver.resolve_status_surface_with_anchor",
-            return_value=ResolvedStatusSurface(
-                surface_path=feature_dir / "status.events.jsonl", primary_anchor=feature_dir,
-            ),
-        ),
-        patch(
-            "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
-            lambda *_args, **_kwargs: None,
-        ),
-        # #3571 test isolation: the status-transition write side
-        # (start_implementation_status -> emit_status_transition_transactional)
-        # resolves its OWN coord/primary status surface independently of the
-        # ``resolve_status_surface_with_anchor`` patch above (that binding is
-        # local to a different module) and would try to materialize a REAL
-        # coordination worktree -- orthogonal to what this suite tests
-        # (base-honoring in lane ALLOCATION, not status transitions). Faked
-        # as a no-op ("already there") result so ``_commit_wp_claim_status``
-        # skips (status_changed=False) without touching git.
-        patch(
-            "specify_cli.cli.commands.implement_claim.start_implementation_status",
-            return_value=WorkPackageStartResult(
-                wp_id=wp_id, from_lane=Lane.IN_PROGRESS, to_lane=Lane.IN_PROGRESS,
-                actor="test", events=(), no_op=True,
-            ),
-        ),
-        patch("specify_cli.status.emit._saas_fan_out"),
-        patch("specify_cli.core.agent_config.get_auto_commit_default", return_value=False),
-        patch("specify_cli.core.context_validation.require_main_repo", lambda f: f),
-    ]
-
-    if capture_console is not None:
-        original_print = impl_mod.console.print
-
-        def _capturing_print(*args: object, **kwargs: object) -> None:
-            capture_console.append(str(args[0]) if args else "")
-            original_print(*args, **kwargs)
-
-        ctx_managers.append(
-            patch.object(impl_mod.console, "print", side_effect=_capturing_print)
-        )
-
-    import contextlib
-    from contextlib import ExitStack
-
-    with ExitStack() as stack:
-        for ctx in ctx_managers:
-            stack.enter_context(ctx)
-        with contextlib.suppress(typer.Exit, SystemExit):
-            implement(
-                wp_id=wp_id,
-                mission=mission_slug,
-                auto_commit=False,
-                json_output=False,
-                recover=False,
-                base=base,
-            )
 
 
 def _run_implement_for_real(
