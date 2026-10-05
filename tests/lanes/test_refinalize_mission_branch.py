@@ -26,6 +26,7 @@ from specify_cli.lanes.compute_and_persist import (
     _preserved_mission_branch,
     compute_and_write_lanes,
 )
+from specify_cli.lanes.frozen_membership import FrozenLaneMembership
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
@@ -91,6 +92,7 @@ def _finalize(
         planning_commit_sha=None,
         mission_id=mission_id,
         topology=MissionTopology.LANES,
+        frozen=FrozenLaneMembership.empty(),
     )
     return manifest
 

@@ -23,7 +23,7 @@ from specify_cli.lanes.compute_and_persist import (
     LaneGlobValidationError,
     compute_and_write_lanes,
 )
-from specify_cli.lanes.compute import LaneMembershipFrozenError
+from specify_cli.lanes.compute import LaneComputationError, LaneMembershipFrozenError
 from specify_cli.lanes.frozen_membership import FrozenLaneMembership
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.lanes.persistence import read_lanes_json
@@ -205,6 +205,7 @@ class TestComputeAndWriteLanesDeterminism:
             planning_commit_sha="abc123",
             mission_id="01ARZ3NDEKTSV4RRFFQ69G5FAV",
             topology=MissionTopology.LANES,
+            frozen=FrozenLaneMembership.empty(),
         )
         second_bytes = second_path.read_bytes()
 
@@ -264,6 +265,18 @@ class TestComputeAndWriteLanesFrozenMembership:
             self._write(tmp_path, manifests, frozen=frozen)
         assert excinfo.value.reason == "started_lanes_collapsed"
         assert lanes_path.read_bytes() == before
+
+    def test_recompute_over_a_code_lane_manifest_without_freeze_evidence_refuses(self, tmp_path: Path) -> None:
+        """``frozen=None`` means "nobody gathered evidence", not "nothing frozen": the #5573 move must not come back."""
+        manifests, lanes_path = self._first_finalize(tmp_path)
+        before = lanes_path.read_bytes()
+        manifests["WP01"] = _wp_manifest(("src/wp01/**", "src/wp02/**"), "src/wp01/")
+        with pytest.raises(LaneComputationError, match="freeze evidence") as excinfo:
+            self._write(tmp_path, manifests)
+        assert not isinstance(excinfo.value, LaneMembershipFrozenError)
+        assert lanes_path.read_bytes() == before
+        # Gathered evidence that happens to freeze nothing is a decision, and is accepted.
+        self._write(tmp_path, manifests, frozen=FrozenLaneMembership.empty())
 
     def test_post_check_refuses_a_manifest_that_violates_bindings(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Defence in depth: even if compute_lanes regressed, the writer refuses before writing."""

@@ -101,6 +101,38 @@ def _preserved_mission_branch(previous: LanesManifest | None, computed: str, *, 
     return computed
 
 
+def _require_freeze_evidence(
+    previous_lanes: LanesManifest | None,
+    frozen: FrozenLaneMembership | None,
+    *,
+    topology: MissionTopology,
+    mission_slug: str,
+) -> None:
+    """Refuse a recompute over an existing code-lane manifest when no freeze evidence was supplied (#5573).
+
+    ``frozen=None`` is "nobody gathered the evidence", which is not the same as
+    "nothing is frozen" (:meth:`FrozenLaneMembership.empty`): recomputing over
+    recorded lanes blind to which work packages started can move started work,
+    and the writer's own re-check would then pass vacuously. ``SINGLE_BRANCH``
+    has no lane to move, and a first finalize or a planning-only manifest has
+    no code lane to strand.
+
+    Raises:
+        LaneComputationError: the recompute would overwrite a manifest that has
+            a code lane, for a topology the freeze applies to, with
+            ``frozen=None``. Nothing has been written.
+    """
+    if previous_lanes is None or frozen is not None or topology is MissionTopology.SINGLE_BRANCH:
+        return
+    if has_code_lanes(previous_lanes):
+        raise LaneComputationError(
+            f"cannot recompute lanes for mission {mission_slug!r}: its existing lanes.json has code lanes "
+            "and no freeze evidence was supplied, so started work packages could be moved to another lane. "
+            "Gather the freeze evidence (the finalize-tasks preflight does) and pass it as `frozen`; "
+            "pass FrozenLaneMembership.empty() only to state that nothing has started."
+        )
+
+
 def compute_and_write_lanes(
     planning_dir: Path,
     repo_root: Path,
@@ -165,7 +197,10 @@ def compute_and_write_lanes(
             to :func:`~specify_cli.lanes.compute.compute_lanes` and re-checked
             by :func:`~specify_cli.lanes.frozen_membership.assert_frozen_membership_honoured`
             just before ``lanes.json`` is written (defence in depth). ``None``
-            keeps the historical behaviour.
+            means no evidence was gathered and is refused when it would
+            overwrite a manifest that has a code lane (a first finalize and
+            ``SINGLE_BRANCH`` are exempt); a caller that means "nothing is
+            frozen" passes :meth:`FrozenLaneMembership.empty`.
 
     Returns:
         A ``(lanes_path, lanes_manifest)`` tuple.
@@ -181,6 +216,9 @@ def compute_and_write_lanes(
             (data-model.md), never re-stamped after #5100. No ``lanes.json``
             write happens; the pre-existing manifest on disk is left
             untouched (contracts/single-branch-execution.md, "Finalize").
+        LaneComputationError: *frozen* is ``None`` while the existing
+            ``lanes.json`` has a code lane (see :func:`_require_freeze_evidence`).
+            No ``lanes.json`` is written.
         LaneMembershipFrozenError: *frozen* cannot be honoured (a started work
             package would change lane). No ``lanes.json`` is written; the
             pre-existing manifest on disk is left byte-identical.
@@ -199,6 +237,7 @@ def compute_and_write_lanes(
     # branch). A first finalize (no prior manifest) passes ``None`` and mints
     # fresh positional ids exactly as before.
     previous_lanes = read_lanes_json(planning_dir)
+    _require_freeze_evidence(previous_lanes, frozen, topology=topology, mission_slug=mission_slug)
     try:
         lanes_manifest = compute_lanes(
             dependency_graph=wp_dependencies,

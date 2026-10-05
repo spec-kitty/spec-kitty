@@ -30,6 +30,7 @@ import pytest
 from mission_runtime import MissionTopology, TopologyManifestMismatch
 
 from specify_cli.lanes.compute_and_persist import compute_and_write_lanes
+from specify_cli.lanes.frozen_membership import FrozenLaneMembership
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
@@ -167,6 +168,7 @@ def test_control_lanes_topology_finalize_write_is_unaffected(tmp_path: Path) -> 
         planning_commit_sha=None,
         mission_id=_MISSION_ID,
         topology=MissionTopology.LANES,
+        frozen=FrozenLaneMembership.empty(),
     )
 
     assert lanes_path == feature_dir / "lanes.json"
