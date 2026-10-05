@@ -1,0 +1,5 @@
+type: about:blank
+title: The artifacts could not be listed
+status: 500
+code: artifact_listing_unreadable
+detail: The Mission directory could not be listed.

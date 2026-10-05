@@ -1,0 +1,5 @@
+type: about:blank
+title: A source of the work package could not be read
+status: 500
+code: source_unreadable
+detail: A file the detail is built from could not be read.

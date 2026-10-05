@@ -1,4 +1,17 @@
 files:
+  - ArtifactContent.empty.yaml
+  - ArtifactContent.json.yaml
+  - ArtifactContent.markdown.yaml
+  - ArtifactContent.redacted.yaml
+  - ArtifactListing.populated.yaml
+  - ArtifactListing.truncated.yaml
+  - ArtifactRefusal.artifact-listing-unreadable.yaml
+  - ArtifactRefusal.artifact-not-text.yaml
+  - ArtifactRefusal.artifact-secret.yaml
+  - ArtifactRefusal.artifact-too-large.yaml
+  - ArtifactRefusal.artifact-unreadable.yaml
+  - ArtifactRefusal.invalid-artifact-path.yaml
+  - ArtifactRefusal.not-found.yaml
   - LogTruncatedEvent.content-mismatch.yaml
   - LogTruncatedEvent.size-shrink.yaml
   - MissionDetail.early.yaml
@@ -33,3 +46,12 @@ files:
   - WorkPackage.populated.yaml
   - WorkPackage.provisional.yaml
   - WorkPackage.with-prompt.yaml
+  - WorkPackageDetail.populated.yaml
+  - WorkPackageDetail.no-cycles.yaml
+  - WorkPackageDetail.unknown-change-state.yaml
+  - WorkPackageDetail.null-workspace.yaml
+  - WorkPackageDetail.planning-lane.yaml
+  - WorkPackageDetail.unparseable-cycle.yaml
+  - WorkPackageDetail.cycle-without-path.yaml
+  - WorkPackageDetailRefusal.not-found.yaml
+  - WorkPackageDetailRefusal.source-unreadable.yaml

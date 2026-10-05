@@ -1,0 +1,7 @@
+path: contracts/schema.json
+kind: contract
+mediaType: application/json
+encoding: utf-8
+sizeBytes: 28
+redacted: false
+content: "{\"name\": \"example\", \"v\": 1}\n"

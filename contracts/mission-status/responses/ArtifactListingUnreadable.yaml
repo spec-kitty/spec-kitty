@@ -1,0 +1,8 @@
+description: >-
+  The listing of the artifacts could not be built, refused with 500 and never answered as a
+  shorter list. The body is a problem details object whose code is
+  artifact_listing_unreadable.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/ArtifactRefusal.yaml

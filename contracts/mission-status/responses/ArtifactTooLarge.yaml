@@ -1,0 +1,7 @@
+description: >-
+  The artifact is larger than 262,144 bytes, refused with 413 without reading it. The body is
+  a problem details object whose code is artifact_too_large.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/ArtifactRefusal.yaml

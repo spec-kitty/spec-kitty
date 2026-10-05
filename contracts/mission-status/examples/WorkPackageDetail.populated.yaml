@@ -1,0 +1,51 @@
+missionId: 01JZCB3C4D5E6F7G8H9JKMNPQT
+wpId: WP04
+subtasks:
+  - id: T017
+    title: Red-first tests for the detail
+    statusLane: done
+  - id: T018
+    title: The eleven detail schemas
+    statusLane: in_progress
+  - id: T019
+    title: The detail path file and responses
+    statusLane: planned
+dependencies:
+  - wpId: WP03
+    title: Contract slice A, the artifact reads
+    statusLane: approved
+reviewCycles:
+  - cycleNumber: 1
+    reviewedAt: '2026-09-21T09:15:00+00:00'
+    reviewer: reviewer-renata
+    verdict: changes_requested
+    feedbackReference: review-cycle://example-mission-01JZCB3C/WP04-contract-slice-b/review-cycle-1.md
+    artifactPath: tasks/WP04-contract-slice-b/review-cycle-1.md
+  - cycleNumber: 2
+    reviewedAt: '2026-09-22T14:40:00+02:00'
+    reviewer: reviewer-renata
+    verdict: approved
+    feedbackReference: review-cycle://example-mission-01JZCB3C/WP04-contract-slice-b/review-cycle-2.md
+    artifactPath: tasks/WP04-contract-slice-b/review-cycle-2.md
+workspace:
+  laneId: lane-a
+  laneBranch: kitty/mission-example-01JZCB3C-lane-a
+  planningBranch: main
+  worktreePresent: true
+ownedFiles:
+  - pattern: contracts/example/schemas/Detail.yaml
+    isGlob: false
+    changeState: changed
+  - pattern: tests/example/test_detail.py
+    isGlob: false
+    changeState: unchanged
+  - pattern: contracts/example/examples/*.yaml
+    isGlob: true
+    changeState: changed
+artifactReferences:
+  prompt:
+    path: tasks/WP04-contract-slice-b.md
+    kind: work_package_prompt
+  spec:
+    path: spec.md
+    kind: spec

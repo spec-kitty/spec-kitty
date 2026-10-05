@@ -1,0 +1,5 @@
+type: about:blank
+title: The artifact is too large
+status: 413
+code: artifact_too_large
+detail: The file is larger than 262144 bytes.

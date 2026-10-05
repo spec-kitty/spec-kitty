@@ -1,0 +1,8 @@
+description: >-
+  A source of the detail could not be read, refused with 500 and never answered as a partial detail:
+  a malformed lanes.json, an ambiguous Mission selector, an undecodable task list or an unreadable
+  work package file. The body is a problem details object whose code is source_unreadable.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/WorkPackageDetailRefusal.yaml

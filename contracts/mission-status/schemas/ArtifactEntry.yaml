@@ -1,0 +1,67 @@
+title: ArtifactEntry
+description: >-
+  One artifact in a listing: an eligible file of the Mission directory. The entry names the
+  file, its class and its size, and says whether a read of its content would be answered 200.
+type: object
+additionalProperties: false
+required: [path, kind, sizeBytes, modifiedAt, readable]
+properties:
+  path:
+    $ref: ArtifactPath.yaml
+    description: The path of the file, relative to the Mission directory.
+    x-derived:
+      rule: The path of one eligible file found by the walk of the Mission directory.
+      inputs:
+        - path: contracts/tools/leak_scan.py
+          symbol: malformed_artifact_path
+  kind:
+    $ref: ArtifactKind.yaml
+    description: The class of the file, decided from its path.
+    x-derived:
+      rule: The class given by the ordered path classifier, applied to the path.
+      inputs:
+        - path
+  sizeBytes:
+    type: integer
+    minimum: 0
+    description: The size of the file in bytes, as the file system reports it for the file itself.
+    x-derived:
+      rule: The size in bytes of the file at the path, read from the file system without opening the content.
+      inputs:
+        - path
+  modifiedAt:
+    type: string
+    format: date-time
+    pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
+    description: >-
+      When the file was last modified, as an RFC 3339 date-time in UTC with the suffix Z and whole
+      seconds. It is the modification time of the file on the serving host, so it depends on that
+      host: a fresh checkout or a copy of the Mission gives a different value.
+    x-derived:
+      rule: The modification time of the file at the path, truncated to whole seconds and written in UTC.
+      inputs:
+        - path
+  readable:
+    type: boolean
+    description: >-
+      True when a read of the content of this file would be answered 200. False when it would be
+      refused: the file is larger than 262,144 bytes (413), is not text, that is it holds a NUL
+      byte or is not valid UTF-8 (415), holds a credential (422) or cannot be read (500). The
+      credentials that make a file unreadable are a GitHub token (the prefixes ghp, gho, ghu,
+      ghs and ghr, and the fine-grained prefix github_pat), an AWS access key id (the prefixes
+      AKIA and ASIA) and the header line of a PEM private key. A file larger than the cap is
+      decided from its size alone and is never opened.
+    x-derived:
+      rule: >-
+        True exactly when the content read of the file ends in 200: not over the size cap, valid
+        UTF-8 text without a NUL byte, and no match of a credential pattern in the decoded text.
+      inputs:
+        - sizeBytes
+        - path: contracts/tools/leak_patterns.py
+          symbol: SECRET_PATTERNS
+examples:
+  - path: spec.md
+    kind: spec
+    sizeBytes: 5120
+    modifiedAt: '2026-09-22T10:30:00Z'
+    readable: true

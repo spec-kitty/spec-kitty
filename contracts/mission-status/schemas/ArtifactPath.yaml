@@ -1,0 +1,26 @@
+title: ArtifactPath
+description: >-
+  The path of one artifact, relative to the Mission directory and written with forward slashes.
+  It is never an absolute location: it does not start with a slash, a tilde and a slash, or a
+  drive letter and a colon, it holds no backslash, no NUL character and no line break (a line
+  feed, carriage return, vertical tab, form feed, one of the three information separators, the
+  next-line character, or a line or paragraph separator), it has no empty segment and no
+  trailing slash, and no segment is a single or double dot. A name with a space, an accented
+  letter, an at sign, a leading dot or a directory segment named home is a valid path. The
+  pattern restates the artifact-path rule of the service, which decides the same way on every
+  string; a request path the rule refuses is answered 400.
+type: string
+minLength: 1
+maxLength: 512
+pattern: '^(?![\s\S]*[\n\r\x0B\x0C\x1C-\x1E\x85\u2028\u2029])(?!~/)(?![A-Za-z]:)(?!\.\.?(?:/|$))[^/\\\x00]+(?:/(?!\.\.?(?:/|$))[^/\\\x00]+)*$'
+x-derived:
+  rule: >-
+    The path of an eligible file below the Mission directory on the primary planning surface,
+    in forward-slash form, accepted by the artifact-path rule.
+  inputs:
+    - path: contracts/tools/leak_scan.py
+      symbol: malformed_artifact_path
+examples:
+  - tasks/WP01-example.md
+  - spec.md
+  - notes/with space.md

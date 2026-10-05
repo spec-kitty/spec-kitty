@@ -1,0 +1,9 @@
+description: >-
+  The path of the artifact request was refused with 400: it is missing, repeated or malformed
+  (empty, longer than 512 characters, absolute, with a backslash, a NUL character or a line
+  break, with an empty, single-dot or double-dot segment). The body is a problem details
+  object whose code is invalid_artifact_path.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/ArtifactRefusal.yaml

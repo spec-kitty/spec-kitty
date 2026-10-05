@@ -1,0 +1,63 @@
+missionId: 01JZCB3C4D5E6F7G8H9JKMNPQT
+entries:
+  - path: analysis-report.md
+    kind: analysis_report
+    sizeBytes: 4210
+    modifiedAt: '2026-09-22T11:05:00Z'
+    readable: true
+  - path: checklists/requirements.md
+    kind: checklist
+    sizeBytes: 1388
+    modifiedAt: '2026-09-22T10:41:00Z'
+    readable: true
+  - path: contracts/api.yaml
+    kind: contract
+    sizeBytes: 9876
+    modifiedAt: '2026-09-22T10:52:00Z'
+    readable: true
+  - path: data-model.md
+    kind: data_model
+    sizeBytes: 3302
+    modifiedAt: '2026-09-22T10:50:00Z'
+    readable: true
+  - path: notes/big-export.json
+    kind: other
+    sizeBytes: 300000
+    modifiedAt: '2026-09-23T08:00:00Z'
+    readable: false
+  - path: notes/with space.md
+    kind: other
+    sizeBytes: 212
+    modifiedAt: '2026-09-23T08:10:00Z'
+    readable: true
+  - path: plan.md
+    kind: plan
+    sizeBytes: 7420
+    modifiedAt: '2026-09-22T10:48:00Z'
+    readable: true
+  - path: research.md
+    kind: research
+    sizeBytes: 6150
+    modifiedAt: '2026-09-22T10:44:00Z'
+    readable: true
+  - path: spec.md
+    kind: spec
+    sizeBytes: 5120
+    modifiedAt: '2026-09-22T10:35:00Z'
+    readable: true
+  - path: tasks.md
+    kind: tasks
+    sizeBytes: 8890
+    modifiedAt: '2026-09-22T10:58:00Z'
+    readable: true
+  - path: tasks/WP01-example.md
+    kind: work_package_prompt
+    sizeBytes: 2750
+    modifiedAt: '2026-09-22T11:00:00Z'
+    readable: true
+  - path: tasks/WP01-example/review-cycle-1.md
+    kind: review_cycle
+    sizeBytes: 960
+    modifiedAt: '2026-09-24T09:15:00Z'
+    readable: true
+truncated: false

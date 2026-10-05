@@ -149,7 +149,7 @@ def test_the_real_pin_file_pins_the_three_vocabularies() -> None:
 def test_the_real_mission_status_module_passes_against_the_default_pin_file() -> None:
     result = _run("--root", str(CONTRACTS), "--module", "mission-status")
     assert result.returncode == 0, result.stdout
-    assert result.stdout.splitlines()[-1] == "counts: enums=3 values=19"
+    assert result.stdout.splitlines()[-1] == "counts: enums=7 values=43"
 
 
 @pytest.fixture

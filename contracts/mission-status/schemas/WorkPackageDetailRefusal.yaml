@@ -1,0 +1,52 @@
+title: WorkPackageDetailRefusal
+description: >-
+  The problem details body of a refused work package detail read. It is a Problem whose code is one
+  of two values, and the status follows from the code: 404 for not_found and 500 for
+  source_unreadable. The body carries no file content, no host path and no Mission directory.
+  Consumers branch on code, never on title.
+type: object
+allOf:
+  - $ref: ../../_shared/schemas/Problem.yaml
+  - if:
+      required:
+        - code
+      properties:
+        code:
+          const: not_found
+    then:
+      required:
+        - status
+      properties:
+        status:
+          const: 404
+  - if:
+      required:
+        - code
+      properties:
+        code:
+          const: source_unreadable
+    then:
+      required:
+        - status
+      properties:
+        status:
+          const: 500
+  - type: object
+    required:
+      - code
+    properties:
+      code:
+        $ref: WorkPackageDetailRefusalCode.yaml
+        description: The reason of the refusal. The status is fixed by it, 404 for not_found and 500 for source_unreadable.
+        x-derived:
+          rule: The reason that ended the read of the detail.
+          inputs:
+            - path: src/specify_cli/lanes/persistence.py
+              symbol: read_lanes_json
+        x-provisional:
+          open_decision: >-
+            The two codes and the status each one takes are a proposal of this contract and are not
+            yet named by the service.
+examples:
+  - $ref: ../examples/WorkPackageDetailRefusal.not-found.yaml
+  - $ref: ../examples/WorkPackageDetailRefusal.source-unreadable.yaml

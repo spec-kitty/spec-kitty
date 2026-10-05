@@ -1,0 +1,90 @@
+title: ReviewCycle
+description: >-
+  One review cycle of the work package, read from its review-cycle file on the primary planning
+  surface. A cycle held only on a coordination surface is not shown, so `[]` means
+  that none was found on the primary planning surface, not that none ever happened. A file the
+  product cannot parse is still an entry: its number comes from its file name, `reviewedAt` and
+  `reviewer` are null, and `verdict`, `feedbackReference` and `artifactPath` follow their own
+  rules.
+type: object
+additionalProperties: false
+required: [cycleNumber, reviewedAt, reviewer, verdict, feedbackReference, artifactPath]
+properties:
+  cycleNumber:
+    type: integer
+    minimum: 1
+    description: The number of the cycle, taken from the file name review-cycle-N.md. Cycles are listed in ascending order.
+    x-source:
+      path: src/specify_cli/review/cycle.py
+      symbol: _REVIEW_CYCLE_FILE_RE
+  reviewedAt:
+    type:
+      - string
+      - 'null'
+    format: date-time
+    description: >-
+      When the review was recorded, as an RFC 3339 date-time with an offset, or null when the file
+      holds no valid one. A date without a time is null, never midnight.
+    x-source:
+      path: src/specify_cli/review/artifacts.py
+      symbol: ReviewCycleArtifact
+  reviewer:
+    $ref: ActorHandle.yaml
+    description: The handle of the reviewer the cycle file names, or null when it names none or the value is not a valid handle.
+    x-source:
+      path: src/specify_cli/review/artifacts.py
+      symbol: ReviewCycleArtifact
+  verdict:
+    oneOf:
+      - $ref: ReviewVerdict.yaml
+      - type: 'null'
+    description: >-
+      The verdict of the last status event of this work package whose review reference is this
+      cycle's pointer, or null when no event names it. The cycle file itself is never the authority.
+    x-derived:
+      rule: >-
+        The review result verdict of the last status event of the work package whose trimmed
+        review reference equals the cycle's full feedbackReference; null when there is none.
+      inputs:
+        - feedbackReference
+        - path: src/specify_cli/status/models.py
+          symbol: ReviewResult
+  feedbackReference:
+    type:
+      - string
+      - 'null'
+    pattern: '^review-cycle://(?![A-Za-z0-9._-]*\.\.)[A-Za-z0-9][A-Za-z0-9._-]*/(?![A-Za-z0-9._-]*\.\.)[A-Za-z0-9][A-Za-z0-9._-]*/review-cycle-[1-9][0-9]*\.md$'
+    description: >-
+      The canonical review-cycle pointer for the cycle, built from the Mission directory name, the
+      work package directory name and the file name; null when a segment is refused. Each directory name is a
+      single ASCII path segment that starts with a letter or digit and holds no `..`, as the product validator requires. It is never
+      an event's feedback path.
+    x-source:
+      path: src/specify_cli/review/cycle.py
+      symbol: build_review_cycle_pointer
+  artifactPath:
+    oneOf:
+      - $ref: ArtifactPath.yaml
+      - type: 'null'
+    description: >-
+      The path of the cycle file relative to the Mission directory, for use with getArtifactContent,
+      or null when the file is not an eligible artifact (a path with a symlink component).
+    x-derived:
+      rule: >-
+        The path of the review-cycle file under tasks/ when no component of it is a symlink,
+        whatever the cap of the artifact listing; null otherwise.
+      inputs:
+        - path: contracts/tools/leak_scan.py
+          symbol: malformed_artifact_path
+        - cycleNumber
+x-provisional:
+  open_decision: >-
+    The shape of a review cycle, and whether coordination surfaces are read, are a proposal of this
+    contract and not yet named by the service.
+examples:
+  - cycleNumber: 1
+    reviewedAt: '2026-09-21T09:15:00+00:00'
+    reviewer: reviewer-renata
+    verdict: changes_requested
+    feedbackReference: review-cycle://example-mission-01JZCB3C/WP02-example/review-cycle-1.md
+    artifactPath: tasks/WP02-example/review-cycle-1.md

@@ -1,0 +1,23 @@
+# A cycle file that is a symlink (or lies below one) is not an eligible artifact: its pointer and path are null.
+missionId: 01JZCB3C4D5E6F7G8H9JKMNPQT
+wpId: WP03
+subtasks: []
+dependencies: []
+reviewCycles:
+  - cycleNumber: 2
+    reviewedAt: null
+    reviewer: null
+    verdict: null
+    feedbackReference: null
+    artifactPath: null
+workspace:
+  laneId: lane-a
+  laneBranch: kitty/mission-example-01JZCB3C-lane-a
+  planningBranch: main
+  worktreePresent: false
+ownedFiles: []
+artifactReferences:
+  prompt:
+    path: tasks/WP03-example.md
+    kind: work_package_prompt
+  spec: null

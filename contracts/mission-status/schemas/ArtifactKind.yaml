@@ -1,0 +1,40 @@
+title: ArtifactKind
+description: >-
+  The class of an artifact, decided from its path by one ordered rule where the first match wins.
+  1. review_cycle: tasks/<directory>/review-cycle-<N>.md with N a positive integer written
+  without a leading zero. 2. work_package_prompt: tasks/WP<digits>-<name>.md directly under
+  tasks/, with at least two digits. 3. spec, plan, tasks, data_model, quickstart,
+  analysis_report: the root files spec.md, plan.md, tasks.md, data-model.md, quickstart.md and
+  analysis-report.md. 4. research: the root file research.md and every file under research/.
+  5. contract: every file under contracts/. 6. checklist: every file under checklists/.
+  7. other: every other file. The class never reads the file.
+type: string
+enum:
+  - review_cycle
+  - work_package_prompt
+  - spec
+  - plan
+  - tasks
+  - data_model
+  - quickstart
+  - analysis_report
+  - research
+  - contract
+  - checklist
+  - other
+x-derived:
+  rule: >-
+    The first matching rule of the ordered path classifier: review cycle file name, work package
+    prompt file name, a fixed root file name, research, contracts, checklists, then other.
+  inputs:
+    - path: src/specify_cli/review/cycle.py
+      symbol: _REVIEW_CYCLE_FILE_RE
+    - path: src/specify_cli/status/wp_metadata.py
+      symbol: wp_task_files
+x-provisional:
+  open_decision: >-
+    The twelve classes and the order of the classifier are a proposal of this contract: a class
+    may be added or merged before the vocabulary is frozen.
+examples:
+  - review_cycle
+  - other

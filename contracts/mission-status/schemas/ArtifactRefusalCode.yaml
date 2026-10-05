@@ -1,0 +1,30 @@
+title: ArtifactRefusalCode
+description: >-
+  Why a read of the artifacts was refused. invalid_artifact_path: the path is missing, repeated
+  or malformed (400). not_found: the Mission or the file does not exist, or the file is not an
+  eligible artifact (404). artifact_too_large: the file is larger than 262,144 bytes (413).
+  artifact_not_text: the file holds a NUL byte or is not valid UTF-8 (415). artifact_secret: the
+  file holds a credential (422). artifact_unreadable: the file or the Mission directory could not
+  be read (500). artifact_listing_unreadable: the listing could not be built (500). A consumer
+  branches on the code, never on the title.
+type: string
+enum:
+  - invalid_artifact_path
+  - not_found
+  - artifact_too_large
+  - artifact_not_text
+  - artifact_secret
+  - artifact_unreadable
+  - artifact_listing_unreadable
+x-derived:
+  rule: The reason of the refusal in the fixed order of decision of the content read, plus the one reason of the listing.
+  inputs:
+    - path: contracts/tools/leak_patterns.py
+      symbol: SECRET_PATTERNS
+x-provisional:
+  open_decision: >-
+    The seven codes and the status each one takes are a proposal of this contract; no code of
+    the service names them yet.
+examples:
+  - not_found
+  - artifact_secret

@@ -1,0 +1,47 @@
+title: Subtask
+description: >-
+  One subtask of a work package: the identifier the planning file lists, its title from the
+  Mission's task list, and its resolved status lane.
+type: object
+additionalProperties: false
+required: [id, title, statusLane]
+properties:
+  id:
+    $ref: RelativeReference.yaml
+    description: The subtask identifier as authored, for example T017. The roster keeps its authored order.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: AuthoredGroup
+  title:
+    type:
+      - string
+      - 'null'
+    minLength: 1
+    description: >-
+      The human title of the subtask, or null when the task list gives none. Human text. A host
+      path inside it is replaced by `[path]` and an e-mail address by `[email]`; a title that
+      holds a credential is withheld and read as null.
+    x-derived:
+      rule: >-
+        Read from the work package's section of tasks.md. A checkbox row belongs to the work
+        package whose section it lies in. A table row belongs to the work package a WP token
+        after its title cell names, and, when its cells name none, to the section it lies in. A
+        table row gives the trimmed second cell; a checkbox row gives the text after the identifier. A leading [P] tag is dropped,
+        one pair of ** markers is stripped, the result is trimmed, and an empty result is null.
+        The first row wins for a repeated identifier.
+      inputs:
+        - path: src/specify_cli/core/subtask_rows.py
+          symbol: iter_wp_section_subtask_rows
+        - id
+  statusLane:
+    oneOf:
+      - $ref: StatusLane.yaml
+      - type: 'null'
+    description: The resolved status lane of the subtask, or null when no state is recorded for it. It is never planned by default.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: ResolvedGroup
+examples:
+  - id: T017
+    title: Red-first tests for the detail
+    statusLane: done

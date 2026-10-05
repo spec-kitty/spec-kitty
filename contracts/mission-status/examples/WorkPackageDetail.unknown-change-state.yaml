@@ -1,0 +1,27 @@
+missionId: 01JZCB3C4D5E6F7G8H9JKMNPQT
+wpId: WP05
+subtasks: []
+dependencies: []
+reviewCycles: []
+workspace:
+  laneId: lane-b
+  laneBranch: kitty/mission-example-01JZCB3C-lane-b
+  planningBranch: main
+  worktreePresent: false
+ownedFiles:
+  - pattern: src/example/module.py
+    isGlob: false
+    changeState: unknown
+  - pattern: src/example/{alpha,beta}/handler.py
+    isGlob: true
+    changeState: unknown
+  - pattern: tests/example/**
+    isGlob: true
+    changeState: unknown
+artifactReferences:
+  prompt:
+    path: tasks/WP05-example.md
+    kind: work_package_prompt
+  spec:
+    path: spec.md
+    kind: spec

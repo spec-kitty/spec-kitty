@@ -1,0 +1,10 @@
+name: path
+in: query
+required: true
+description: >-
+  The path of the artifact to read, relative to the Mission directory and written with forward
+  slashes (for example tasks/WP01-example.md). It is sent once, percent-encoded as any query
+  value, and decoded once at the HTTP layer: the service judges the decoded value, never a
+  value that was decoded twice. A missing, repeated or malformed path is answered 400.
+schema:
+  $ref: ../schemas/ArtifactPath.yaml

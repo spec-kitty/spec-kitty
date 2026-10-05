@@ -35,6 +35,39 @@ pushed by a maintainer. Until then the breaking-change job has no baseline and r
   `Last-Event-ID` header and the SSE `id`), `StreamRefusal` (a `Problem` whose `code` is
   `negative`, `out_of_range`, `misaligned`, `content_mismatch` or `cursor_without_mission`) and
   the query parameters `missionId` and `streamCursor` of `GET /events`.
+- `GET /missions/{missionId}/artifacts` (`listArtifacts`): the eligible files of one Mission directory
+  as a flat list sorted by path in byte order, at most 1000 entries, with `truncated` set when more
+  existed. Each entry (`ArtifactEntry`) names the `path`, the `kind`, the `sizeBytes`, the
+  `modifiedAt` and whether the content is `readable`.
+- `GET /missions/{missionId}/artifacts/content` (`getArtifactContent`): the decoded and redacted text
+  of one artifact (`ArtifactContent`), selected by the required query parameter `path`
+  (`ArtifactPath`). Content that is invalid UTF-8, and content that holds a NUL byte, is a 415, not a
+  replacement text.
+- The two root status records of a Mission directory, `status.events.jsonl` and `status.json`, are
+  not artifacts: they are not listed and are answered 404.
+- The schemas `ArtifactPath`, `ArtifactKind` (twelve values, in snake_case: `review_cycle`,
+  `work_package_prompt`, `spec`, `plan`, `tasks`, `data_model`, `quickstart`, `analysis_report`,
+  `research`, `contract`, `checklist` and `other`), `ArtifactEntry`, `ArtifactListing`,
+  `ArtifactContent`, `ArtifactRefusalCode` (seven values) and `ArtifactRefusal`, the parameter
+  `ArtifactPath`, and the seven responses `ArtifactPathRefused` (400), `ArtifactNotFound` (404),
+  `ArtifactTooLarge` (413), `ArtifactNotText` (415), `ArtifactSecretRefused` (422),
+  `ArtifactUnreadable` (500) and `ArtifactListingUnreadable` (500).
+- `GET /missions/{missionId}/work-packages/{wpId}/detail` (`getWorkPackageDetail`): the detail of one
+  work package (`WorkPackageDetail`): its subtasks and dependencies with titles and status lanes, its
+  review cycles, its workspace, the files it owns with their change state, and pointers to its prompt
+  file and the Mission's specification. Every array is present and may be empty. A review-cycle file
+  the product cannot parse is still a cycle: only its `reviewedAt` and `reviewer` are null, and its
+  `verdict`, `feedbackReference` and `artifactPath` follow their own rules. A work package id held
+  by two files is served by the first regular, non-symlink file in byte order of the file name, and the
+  prompt file is the first qualifying `tasks/WP[0-9]{2,}-*.md` file in byte order.
+- The schemas `WorkPackageDetail`, `Subtask`, `DependencyRef`, `ReviewCycle`, `Workspace`, `OwnedFile`,
+  `ChangeState` (`changed`, `unchanged`, `unknown`), `ArtifactReferences`, `ArtifactReference`,
+  `WorkPackageDetailRefusalCode` (two values) and `WorkPackageDetailRefusal`, and the responses
+  `WorkPackageDetailNotFound` (404) and `WorkPackageDetailUnreadable` (500).
+- Coverage of the removed dashboard's routes (#5533): the artifact reads cover `/api/artifact/*`,
+  `/api/research/*`, `/api/contracts/*`, `/api/checklists/*` and the artifact part of `/api/dossier/*`.
+  The dossier overview and the snapshot export are not covered. The route-by-route mapping is the work of
+  #5533 and is not recorded here.
 
 ### Changed
 
@@ -113,3 +146,25 @@ pushed by a maintainer. Until then the breaking-change job has no baseline and r
 - `StreamCursorString` is a deliberately stricter rule than the code: `validate_resume_cursor`
   accepts an offset without an invariant, the contract requires both. This is provisional and an
   open decision on #5528.
+- `ArtifactKind` (the schema, and the `kind` property of `ArtifactEntry` and `ArtifactContent` that
+  carries it): the twelve classes and the order of the classifier are a proposal.
+- `ArtifactRefusalCode` (the schema) and the `code` of `ArtifactRefusal`: the seven codes and the
+  status each takes are a proposal.
+- `truncated` of `ArtifactListing`: the cap of 1000 entries may be replaced by paging.
+- `redacted` of `ArtifactContent`: the flag and the markers `[path]` and `[email]` are a proposal.
+- `reviewCycles` of `WorkPackageDetail` and the schema `ReviewCycle`: the shape of a review cycle and
+  the reading of the primary planning surface only are a proposal.
+- `workspace` of `WorkPackageDetail` and the schema `Workspace`: the four members are a proposal.
+- `WorkPackageDetailRefusalCode` (the schema) and `WorkPackageDetailRefusal` (the schema, with its
+  `code`): the two codes and the status each takes are a proposal.
+- `kind` of `ArtifactReference`: it carries the provisional `ArtifactKind`.
+
+### Deferred to the next major version
+
+Four gaps are decided out of this release. Each would add a property to an existing, closed response, which the
+breaking-change check treats as breaking once the contract is released, so each waits for the next major version.
+
+- The per-Mission staleness on `MissionOverview`: a new property of an existing, closed response.
+- An actor on `WorkPackageSummary`: a new property of an existing, closed response.
+- The project branch: a new property of an existing, closed response.
+- The lane weights behind `weightedPercentage`: new properties of an existing, closed response.

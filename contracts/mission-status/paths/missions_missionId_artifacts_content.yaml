@@ -1,0 +1,40 @@
+get:
+  operationId: getArtifactContent
+  summary: Read the text content of one artifact.
+  description: >-
+    Returns the decoded and redacted text of one artifact selected by the required query
+    parameter path. The path is decoded once at the HTTP layer and judged as decoded. The
+    order of decision is fixed: 400 for a missing, repeated or malformed path, 404 for an unknown
+    Mission or a path that names no eligible artifact, 413 for a file larger than 262,144 bytes
+    (it is not read), 500 when the file or the Mission directory cannot be read, 415 for a file
+    that holds a NUL byte or is not valid UTF-8, and 422 for a file that holds a credential. A
+    symlink is never followed, neither as the file nor as a directory on the way to it, and
+    the two root status records of the Mission, status.events.jsonl and status.json (matched
+    without regard to case), are not artifacts. The body of a 200 carries host paths and e-mail addresses as [path] and [email];
+    the size cap is measured on the raw bytes before redaction.
+  tags:
+    - Missions
+  parameters:
+    - $ref: ../parameters/MissionId.yaml
+    - $ref: ../parameters/ArtifactPath.yaml
+  responses:
+    '200':
+      description: The text content of the artifact.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/ArtifactContent.yaml
+    '400':
+      $ref: ../responses/ArtifactPathRefused.yaml
+    '404':
+      $ref: ../responses/ArtifactNotFound.yaml
+    '413':
+      $ref: ../responses/ArtifactTooLarge.yaml
+    '415':
+      $ref: ../responses/ArtifactNotText.yaml
+    '422':
+      $ref: ../responses/ArtifactSecretRefused.yaml
+    '500':
+      $ref: ../responses/ArtifactUnreadable.yaml
+    default:
+      $ref: ../../_shared/responses/Problem.yaml

@@ -1,0 +1,8 @@
+description: >-
+  The Mission or the artifact does not exist, or the path names no eligible artifact (a
+  directory, a symlink, a path through a symlink, or a root status record, whose name is matched without regard to case), refused with 404.
+  The body is a problem details object whose code is not_found.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/ArtifactRefusal.yaml

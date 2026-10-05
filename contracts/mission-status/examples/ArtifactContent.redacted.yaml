@@ -1,0 +1,7 @@
+path: notes/handoff.md
+kind: other
+mediaType: text/markdown
+encoding: utf-8
+sizeBytes: 81
+redacted: true
+content: "Work happened in [path] and the question went to [email].\n\nNothing else is open.\n"

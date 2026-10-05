@@ -1,9 +1,20 @@
 files:
   - Actor.yaml
   - ActorHandle.yaml
+  - ArtifactContent.yaml
+  - ArtifactEntry.yaml
+  - ArtifactKind.yaml
+  - ArtifactListing.yaml
+  - ArtifactPath.yaml
+  - ArtifactReference.yaml
+  - ArtifactReferences.yaml
+  - ArtifactRefusal.yaml
+  - ArtifactRefusalCode.yaml
   - Assignment.yaml
   - Authored.yaml
   - Cancellation.yaml
+  - ChangeState.yaml
+  - DependencyRef.yaml
   - HistoryEntry.yaml
   - LifecycleStatus.yaml
   - LogTruncatedEvent.yaml
@@ -15,11 +26,13 @@ files:
   - MissionOverviewPage.yaml
   - MissionPhase.yaml
   - MissionProgress.yaml
+  - OwnedFile.yaml
   - PageCursorRefusal.yaml
   - Project.yaml
   - Readiness.yaml
   - RelativeReference.yaml
   - Review.yaml
+  - ReviewCycle.yaml
   - ReviewOverride.yaml
   - ReviewResult.yaml
   - ReviewVerdict.yaml
@@ -30,8 +43,13 @@ files:
   - StreamCursor.yaml
   - StreamCursorString.yaml
   - StreamRefusal.yaml
+  - Subtask.yaml
   - SubtaskProgress.yaml
   - Topology.yaml
   - WorkPackage.yaml
+  - WorkPackageDetail.yaml
+  - WorkPackageDetailRefusal.yaml
+  - WorkPackageDetailRefusalCode.yaml
   - WorkPackageSummary.yaml
+  - Workspace.yaml
   - WpId.yaml

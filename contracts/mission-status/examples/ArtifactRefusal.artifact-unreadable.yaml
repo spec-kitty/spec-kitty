@@ -1,0 +1,5 @@
+type: about:blank
+title: The artifact could not be read
+status: 500
+code: artifact_unreadable
+detail: The file could not be read.

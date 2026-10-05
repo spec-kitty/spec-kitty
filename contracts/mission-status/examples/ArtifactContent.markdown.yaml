@@ -1,0 +1,7 @@
+path: spec.md
+kind: spec
+mediaType: text/markdown
+encoding: utf-8
+sizeBytes: 64
+redacted: false
+content: "# Example Mission\n\nA short specification of an example Mission.\n"

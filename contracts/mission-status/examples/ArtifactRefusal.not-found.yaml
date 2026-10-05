@@ -1,0 +1,5 @@
+type: about:blank
+title: The artifact was not found
+status: 404
+code: not_found
+detail: No eligible artifact has this path in the Mission.

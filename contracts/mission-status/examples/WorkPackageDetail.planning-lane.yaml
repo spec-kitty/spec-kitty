@@ -1,0 +1,24 @@
+missionId: 01JZCB3C4D5E6F7G8H9JKMNPQT
+wpId: WP06
+subtasks:
+  - id: T030
+    title: Write the research note
+    statusLane: done
+dependencies: []
+reviewCycles: []
+workspace:
+  laneId: lane-planning
+  laneBranch: null
+  planningBranch: main
+  worktreePresent: false
+ownedFiles:
+  - pattern: research/notes.md
+    isGlob: false
+    changeState: unknown
+artifactReferences:
+  prompt:
+    path: tasks/WP06-research.md
+    kind: work_package_prompt
+  spec:
+    path: spec.md
+    kind: spec

@@ -1,0 +1,110 @@
+title: ArtifactRefusal
+description: >-
+  The problem details body of a refused artifact read. It is a Problem whose code is one of seven
+  values, and the status follows from the code: 400 for invalid_artifact_path, 404 for not_found,
+  413 for artifact_too_large, 415 for artifact_not_text, 422 for artifact_secret, and 500 for
+  artifact_unreadable and artifact_listing_unreadable. The body carries no file content, no host
+  path and no Mission directory. Consumers branch on code, never on title.
+type: object
+allOf:
+  - $ref: ../../_shared/schemas/Problem.yaml
+  - if:
+      required:
+        - code
+      properties:
+        code:
+          const: invalid_artifact_path
+    then:
+      required:
+        - status
+      properties:
+        status:
+          const: 400
+  - if:
+      required:
+        - code
+      properties:
+        code:
+          const: not_found
+    then:
+      required:
+        - status
+      properties:
+        status:
+          const: 404
+  - if:
+      required:
+        - code
+      properties:
+        code:
+          const: artifact_too_large
+    then:
+      required:
+        - status
+      properties:
+        status:
+          const: 413
+  - if:
+      required:
+        - code
+      properties:
+        code:
+          const: artifact_not_text
+    then:
+      required:
+        - status
+      properties:
+        status:
+          const: 415
+  - if:
+      required:
+        - code
+      properties:
+        code:
+          const: artifact_secret
+    then:
+      required:
+        - status
+      properties:
+        status:
+          const: 422
+  - if:
+      required:
+        - code
+      properties:
+        code:
+          enum:
+            - artifact_unreadable
+            - artifact_listing_unreadable
+    then:
+      required:
+        - status
+      properties:
+        status:
+          const: 500
+  - type: object
+    required:
+      - code
+    properties:
+      code:
+        $ref: ArtifactRefusalCode.yaml
+        description: >-
+          The reason of the refusal. The status is fixed by it: 400, 404, 413, 415, 422, 500 and
+          500 in the order of the values.
+        x-derived:
+          rule: The reason that ended the read, in the fixed order of decision of the content read.
+          inputs:
+            - path: contracts/tools/leak_scan.py
+              symbol: malformed_artifact_path
+        x-provisional:
+          open_decision: >-
+            The seven codes and the status each one takes are a proposal of this contract and are
+            not yet named by the service.
+examples:
+  - $ref: ../examples/ArtifactRefusal.invalid-artifact-path.yaml
+  - $ref: ../examples/ArtifactRefusal.not-found.yaml
+  - $ref: ../examples/ArtifactRefusal.artifact-too-large.yaml
+  - $ref: ../examples/ArtifactRefusal.artifact-not-text.yaml
+  - $ref: ../examples/ArtifactRefusal.artifact-secret.yaml
+  - $ref: ../examples/ArtifactRefusal.artifact-unreadable.yaml
+  - $ref: ../examples/ArtifactRefusal.artifact-listing-unreadable.yaml

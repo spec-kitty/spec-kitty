@@ -1,0 +1,66 @@
+title: Workspace
+description: >-
+  Where the work package runs: its code lane (the lane worktree and lane branch of the Mission's
+  lanes.json, not a status lane), the branch the plan was made on, and whether the lane worktree
+  exists on the serving host. The members are null when the Mission has no lanes.json or the work
+  package is in no lane.
+type: object
+additionalProperties: false
+required: [laneId, laneBranch, planningBranch, worktreePresent]
+properties:
+  laneId:
+    type:
+      - string
+      - 'null'
+    minLength: 1
+    maxLength: 64
+    pattern: '^[A-Za-z0-9][A-Za-z0-9._-]*$'
+    description: >-
+      The code lane of the work package, for example lane-a; lane-planning for a planning-artifact
+      or single-branch work package. Null when the Mission has no lanes.json or the work package is
+      in no lane. This is the code lane, never a status lane.
+    x-source:
+      path: src/specify_cli/lanes/models.py
+      symbol: LanesManifest
+  laneBranch:
+    type:
+      - string
+      - 'null'
+    minLength: 1
+    maxLength: 255
+    pattern: '^[A-Za-z0-9][A-Za-z0-9._/-]*$'
+    description: >-
+      The branch of the code lane. Null for lane-planning, which has no lane branch, and when laneId
+      is null. A value that fails the branch pattern is null.
+    x-source:
+      path: src/specify_cli/lanes/branch_naming.py
+      symbol: lane_branch_name
+  planningBranch:
+    type:
+      - string
+      - 'null'
+    minLength: 1
+    maxLength: 255
+    description: The branch the planning file records as the planning base of the work package, or null when it records none.
+    x-source:
+      path: src/specify_cli/status/wp_metadata.py
+      symbol: WPMetadata
+  worktreePresent:
+    type: boolean
+    description: >-
+      True only when the work package runs in its own lane worktree and that worktree exists on the
+      serving host. It depends on that host: a host without worktrees, or one that has not created
+      the lane worktree, reports false. A work package that runs in the repository checkout root
+      reports false.
+    x-source:
+      path: src/specify_cli/workspace/context.py
+      symbol: ResolvedWorkspace
+x-provisional:
+  open_decision: >-
+    The four members of the workspace are a proposal of this contract and not yet named by the
+    service.
+examples:
+  - laneId: lane-a
+    laneBranch: kitty/mission-example-01JZCB3C-lane-a
+    planningBranch: main
+    worktreePresent: true

@@ -1,0 +1,84 @@
+title: ArtifactContent
+description: >-
+  The text content of one artifact. The content is decoded as strict UTF-8 (a leading byte order
+  mark stays, replacement characters are never used) and then redacted: every host path becomes
+  [path] and every e-mail address becomes [email]. A file that holds a NUL byte or invalid UTF-8
+  is refused 415, one larger than 262,144 bytes 413, one that holds a credential 422; a refusal
+  never carries content.
+type: object
+additionalProperties: false
+required: [path, kind, mediaType, encoding, sizeBytes, redacted, content]
+properties:
+  path:
+    $ref: ArtifactPath.yaml
+    description: The path of the file, relative to the Mission directory, as it was requested.
+    x-derived:
+      rule: The decoded path of the request, accepted by the artifact-path rule.
+      inputs:
+        - path: contracts/tools/leak_scan.py
+          symbol: malformed_artifact_path
+  kind:
+    $ref: ArtifactKind.yaml
+    description: The class of the file, decided from its path.
+    x-derived:
+      rule: The class given by the ordered path classifier, applied to the path.
+      inputs:
+        - path
+  mediaType:
+    type: string
+    minLength: 1
+    description: >-
+      The media type, decided from the extension of the file and never from its content: md
+      text/markdown, json application/json, yaml and yml application/yaml, jsonl
+      application/x-ndjson, csv text/csv, any other extension text/plain.
+    x-derived:
+      rule: A fixed table from the file extension of the path to a media type; the content is never sniffed.
+      inputs:
+        - path
+  encoding:
+    type: string
+    const: utf-8
+    description: The text encoding of content. It is always utf-8.
+    x-derived:
+      rule: The constant utf-8; a file that does not decode as strict UTF-8 is refused 415 instead.
+      inputs:
+        - content
+  sizeBytes:
+    type: integer
+    minimum: 0
+    description: >-
+      The size of the file in bytes as measured on the open file, before redaction. It is 0 for an
+      empty file and is never derived from the length of content.
+    x-derived:
+      rule: The size in bytes of the file as reported for the open handle, measured before redaction.
+      inputs:
+        - path
+  redacted:
+    type: boolean
+    description: True when at least one host path or e-mail address in the decoded text was replaced, so content differs from the file.
+    x-derived:
+      rule: True exactly when the redaction changed the decoded text.
+      inputs:
+        - content
+        - path: contracts/tools/leak_patterns.py
+          symbol: leak_codes
+    x-provisional:
+      open_decision: >-
+        Whether a client needs this flag, and the exact replacement markers [path] and [email], are
+        a proposal of this contract.
+  content:
+    type: string
+    description: >-
+      The decoded text of the file with host paths and e-mail addresses replaced. It is the empty
+      string for an empty file.
+    x-derived:
+      rule: The strictly decoded text of the file, after the credential check, with every host path replaced by [path] and every e-mail address by [email].
+      inputs:
+        - path
+        - path: contracts/tools/leak_patterns.py
+          symbol: leak_codes
+examples:
+  - $ref: ../examples/ArtifactContent.markdown.yaml
+  - $ref: ../examples/ArtifactContent.redacted.yaml
+  - $ref: ../examples/ArtifactContent.json.yaml
+  - $ref: ../examples/ArtifactContent.empty.yaml

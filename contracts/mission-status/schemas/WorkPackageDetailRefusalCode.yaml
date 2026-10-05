@@ -1,0 +1,23 @@
+title: WorkPackageDetailRefusalCode
+description: >-
+  Why a read of a work package detail was refused. not_found: the Mission or the work package does
+  not exist, the identifier is ill-formed, or the identifier is known only to the status log (404).
+  source_unreadable: a source of the detail could not be read, for example a malformed lanes.json,
+  an ambiguous Mission selector, an undecodable task list or an unreadable work package file (500).
+  A consumer branches on the code, never on the title.
+type: string
+enum:
+  - not_found
+  - source_unreadable
+x-derived:
+  rule: The reason that ended the read of the detail; a missing resource is not_found and a source that fails to read is source_unreadable.
+  inputs:
+    - path: src/specify_cli/lanes/persistence.py
+      symbol: read_lanes_json
+x-provisional:
+  open_decision: >-
+    The two codes and the status each one takes are a proposal of this contract; no code of the
+    service names them yet.
+examples:
+  - not_found
+  - source_unreadable

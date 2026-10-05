@@ -1,3 +1,12 @@
 files:
+  - ArtifactListingUnreadable.yaml
+  - ArtifactNotFound.yaml
+  - ArtifactNotText.yaml
+  - ArtifactPathRefused.yaml
+  - ArtifactSecretRefused.yaml
+  - ArtifactTooLarge.yaml
+  - ArtifactUnreadable.yaml
   - PageCursorRefused.yaml
   - StreamRefused.yaml
+  - WorkPackageDetailNotFound.yaml
+  - WorkPackageDetailUnreadable.yaml

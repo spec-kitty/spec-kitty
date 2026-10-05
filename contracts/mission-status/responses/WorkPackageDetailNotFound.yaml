@@ -1,0 +1,9 @@
+description: >-
+  The Mission or the work package does not exist, the identifier is ill-formed, or the identifier is
+  known only to the status log, refused with 404. A work package id held by two files is served by the
+  first regular, non-symlink file in byte order of the file name; a file that is a symlink or a
+  directory is skipped. The body is a problem details object whose code is not_found.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/WorkPackageDetailRefusal.yaml

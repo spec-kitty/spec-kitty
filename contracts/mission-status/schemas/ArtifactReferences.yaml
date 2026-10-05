@@ -1,0 +1,40 @@
+title: ArtifactReferences
+description: >-
+  The two artifacts a work package detail points to: the work package's prompt file and the
+  Mission's specification. Each is null when the file does not exist or is not an eligible artifact.
+type: object
+additionalProperties: false
+required: [prompt, spec]
+properties:
+  prompt:
+    oneOf:
+      - $ref: ArtifactReference.yaml
+      - type: 'null'
+    description: >-
+      The prompt file of the work package, or null when it has none or it is not eligible. A work
+      package id held by two files has as prompt file the first qualifying tasks/WP[0-9]{2,}-*.md
+      file in byte order of the file name.
+    x-derived:
+      rule: >-
+        The first regular, non-symlink file tasks/WP<digits>-<name>.md whose name starts with the work
+        package identifier and a hyphen, in byte order of the file name; null when there is none.
+      inputs:
+        - path: src/specify_cli/status/wp_metadata.py
+          symbol: wp_task_files
+  spec:
+    oneOf:
+      - $ref: ArtifactReference.yaml
+      - type: 'null'
+    description: The specification of the Mission, spec.md, or null when the file does not exist or is not an eligible artifact.
+    x-derived:
+      rule: spec.md at the root of the Mission directory when it is a regular file and no component of its path is a symlink; null otherwise.
+      inputs:
+        - path: contracts/tools/leak_scan.py
+          symbol: malformed_artifact_path
+examples:
+  - prompt:
+      path: tasks/WP04-example.md
+      kind: work_package_prompt
+    spec:
+      path: spec.md
+      kind: spec

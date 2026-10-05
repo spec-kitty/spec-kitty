@@ -1,0 +1,7 @@
+description: >-
+  The artifact or the Mission directory could not be read, refused with 500. The body is a
+  problem details object whose code is artifact_unreadable.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/ArtifactRefusal.yaml

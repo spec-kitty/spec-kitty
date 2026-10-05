@@ -1,0 +1,7 @@
+description: >-
+  The artifact is not text, refused with 415: it holds a NUL byte or is not valid UTF-8. The
+  body is a problem details object whose code is artifact_not_text.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/ArtifactRefusal.yaml

@@ -1,0 +1,45 @@
+title: OwnedFile
+description: >-
+  One file or pattern the work package owns, as the planning file wrote it, with whether the
+  work package's code lane changed it. changeState depends on the serving host.
+type: object
+additionalProperties: false
+required: [pattern, isGlob, changeState]
+properties:
+  pattern:
+    $ref: RelativeReference.yaml
+    description: The owned file or pattern exactly as authored, repository-relative.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: AuthoredGroup
+  isGlob:
+    type: boolean
+    description: True when the pattern holds a glob character, so that it names a set of files and not one file.
+    x-source:
+      path: src/specify_cli/ownership/validation.py
+      symbol: is_glob_pattern
+  changeState:
+    $ref: ChangeState.yaml
+    description: >-
+      Whether the commits of the work package's code lane touched a file this pattern matches.
+      The value depends on the serving host: a host without git or without the lane worktree
+      answers unknown for every entry, and a brace pattern is always unknown.
+    x-derived:
+      rule: >-
+        Determined only when the host has git and worktrees, the work package has a code lane
+        whose worktree is present and on the recorded lane branch, the target branch passes the
+        strict branch pattern and the merge base is found. The committed paths between the merge
+        base and HEAD (a rename lists both names) are matched against the pattern as authored;
+        a path matches when fnmatch accepts it or when it lies under the pattern's directory
+        prefix. changed when one matches, unchanged when none does, unknown in every other case.
+      inputs:
+        - path: src/specify_cli/core/vcs/git.py
+          symbol: git_merge_base
+        - path: src/kernel/git/listing.py
+          symbol: changed_paths
+        - path: src/specify_cli/ownership/validation.py
+          symbol: is_glob_pattern
+examples:
+  - pattern: contracts/mission-status/schemas/*.yaml
+    isGlob: true
+    changeState: changed

@@ -1,0 +1,41 @@
+title: DependencyRef
+description: >-
+  One work package this work package depends on: its identifier, its title and its current
+  status lane.
+type: object
+additionalProperties: false
+required: [wpId, title, statusLane]
+properties:
+  wpId:
+    $ref: WpId.yaml
+    description: The identifier of the work package depended on, as authored.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: AuthoredGroup
+  title:
+    type: string
+    minLength: 1
+    description: >-
+      The title of the work package depended on. It is never empty: the identifier stands in when
+      the dependency has no title or its title holds a credential. Human text. A host path inside
+      it is replaced by `[path]` and an e-mail address by `[email]`.
+    x-derived:
+      rule: >-
+        The display title of the dependency's planning file with surrounding whitespace removed when
+        that is non-empty; otherwise the identifier.
+      inputs:
+        - path: src/specify_cli/status/wp_metadata.py
+          symbol: WPMetadata
+        - wpId
+  statusLane:
+    oneOf:
+      - $ref: StatusLane.yaml
+      - type: 'null'
+    description: The status lane of the dependency in the status snapshot, or null when it has no events or no work package.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: ResolvedGroup
+examples:
+  - wpId: WP03
+    title: Contract slice A
+    statusLane: approved

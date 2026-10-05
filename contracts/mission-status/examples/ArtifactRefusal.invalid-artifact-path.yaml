@@ -1,0 +1,5 @@
+type: about:blank
+title: The artifact path was refused
+status: 400
+code: invalid_artifact_path
+detail: The path is not a relative path of forward-slash segments.

@@ -1,0 +1,96 @@
+title: WorkPackageDetail
+description: >-
+  The detail of one work package, selected by the Mission's missionId and the work package's wpId. It is
+  closed and self-contained: it repeats nothing of the work package resource and embeds none of it.
+  Every array is present and may be empty. A work package id held by two files is served by the first
+  regular, non-symlink file in byte order of the file name, and the prompt file of the work package
+  is the first qualifying tasks/WP[0-9]{2,}-*.md file in byte order. Members that depend on the serving
+  host (workspace.worktreePresent and the change state of each owned file) say so in their descriptions.
+type: object
+additionalProperties: false
+required:
+  - missionId
+  - wpId
+  - subtasks
+  - dependencies
+  - reviewCycles
+  - workspace
+  - ownedFiles
+  - artifactReferences
+properties:
+  missionId:
+    $ref: MissionId.yaml
+    description: The canonical machine identity of the Mission the work package belongs to.
+    x-source:
+      path: src/specify_cli/mission_metadata.py
+      symbol: MissionIdentity
+  wpId:
+    $ref: WpId.yaml
+    description: The identifier of the work package inside its Mission.
+    x-source:
+      path: src/specify_cli/status/wp_metadata.py
+      symbol: WPMetadata
+  subtasks:
+    type: array
+    items:
+      $ref: Subtask.yaml
+    description: The subtasks of the work package in their authored order, each with its title and resolved status lane. Empty when none are listed.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: AuthoredGroup
+  dependencies:
+    type: array
+    items:
+      $ref: DependencyRef.yaml
+    description: The work packages this one depends on, in their authored order, each with its title and status lane. Empty when there are none.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: AuthoredGroup
+  reviewCycles:
+    type: array
+    items:
+      $ref: ReviewCycle.yaml
+    description: >-
+      The review cycles found on the primary planning surface, ascending by cycleNumber. A cycle held
+      only on a coordination surface is not shown, so an empty list means none was found there.
+    x-source:
+      path: src/specify_cli/review/artifacts.py
+      symbol: ReviewCycleArtifact
+    x-provisional:
+      open_decision: >-
+        The review cycle list is a proposal of this contract and not yet named by the service.
+  workspace:
+    $ref: Workspace.yaml
+    description: Where the work package runs, with its code lane, its branches and whether its lane worktree exists on the serving host.
+    x-source:
+      path: src/specify_cli/workspace/context.py
+      symbol: ResolvedWorkspace
+    x-provisional:
+      open_decision: >-
+        The workspace object is a proposal of this contract and not yet named by the service.
+  ownedFiles:
+    type: array
+    items:
+      $ref: OwnedFile.yaml
+    description: The files and patterns the work package owns, in their authored order, each with its change state on the serving host. Empty when none are declared.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: AuthoredGroup
+  artifactReferences:
+    $ref: ArtifactReferences.yaml
+    description: Pointers to the prompt file of the work package and to the Mission's specification, each null when absent or not an eligible artifact.
+    x-derived:
+      rule: The prompt file and spec.md when each is an eligible artifact, found with one read of the tasks directory and a check of each path component; no file is opened.
+      inputs:
+        - path: src/specify_cli/status/wp_metadata.py
+          symbol: wp_task_files
+        - path: contracts/tools/leak_scan.py
+          symbol: malformed_artifact_path
+examples:
+  - $ref: ../examples/WorkPackageDetail.populated.yaml
+  - $ref: ../examples/WorkPackageDetail.no-cycles.yaml
+  - $ref: ../examples/WorkPackageDetail.unknown-change-state.yaml
+  - $ref: ../examples/WorkPackageDetail.null-workspace.yaml
+  - $ref: ../examples/WorkPackageDetail.planning-lane.yaml
+  - $ref: ../examples/WorkPackageDetail.unparseable-cycle.yaml
+  - $ref: ../examples/WorkPackageDetail.cycle-without-path.yaml

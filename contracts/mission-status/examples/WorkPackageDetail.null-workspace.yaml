@@ -1,0 +1,14 @@
+missionId: 01JZCB3C4D5E6F7G8H9JKMNPQT
+wpId: WP01
+subtasks: []
+dependencies: []
+reviewCycles: []
+workspace:
+  laneId: null
+  laneBranch: null
+  planningBranch: null
+  worktreePresent: false
+ownedFiles: []
+artifactReferences:
+  prompt: null
+  spec: null

@@ -1,0 +1,27 @@
+get:
+  operationId: listArtifacts
+  summary: List the artifacts of one Mission.
+  description: >-
+    Returns the eligible files of the Mission directory as a flat list sorted by path in byte
+    order, at most 1000 entries, with truncated set when more existed. Each entry names the
+    path, the class (kind), the size, the modification time and whether a read of its content
+    would be answered 200. The two root status records of the Mission, status.events.jsonl and
+    status.json, are not artifacts and are not listed; a symlink is never followed. The Mission
+    is selected by its missionId only. The modification time depends on the serving host.
+  tags:
+    - Missions
+  parameters:
+    - $ref: ../parameters/MissionId.yaml
+  responses:
+    '200':
+      description: The artifacts of the Mission.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/ArtifactListing.yaml
+    '404':
+      $ref: ../responses/ArtifactNotFound.yaml
+    '500':
+      $ref: ../responses/ArtifactListingUnreadable.yaml
+    default:
+      $ref: ../../_shared/responses/Problem.yaml

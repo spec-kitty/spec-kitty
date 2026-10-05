@@ -1,0 +1,22 @@
+missionId: 01JZCB3C4D5E6F7G8H9JKMNPQT
+wpId: WP03
+subtasks: []
+dependencies: []
+reviewCycles:
+  - cycleNumber: 3
+    reviewedAt: null
+    reviewer: null
+    verdict: null
+    feedbackReference: review-cycle://example-mission-01JZCB3C/WP03-example/review-cycle-3.md
+    artifactPath: tasks/WP03-example/review-cycle-3.md
+workspace:
+  laneId: lane-a
+  laneBranch: kitty/mission-example-01JZCB3C-lane-a
+  planningBranch: main
+  worktreePresent: false
+ownedFiles: []
+artifactReferences:
+  prompt:
+    path: tasks/WP03-example.md
+    kind: work_package_prompt
+  spec: null

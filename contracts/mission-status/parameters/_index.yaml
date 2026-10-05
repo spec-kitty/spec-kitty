@@ -1,4 +1,5 @@
 files:
+  - ArtifactPath.yaml
   - EventsMissionId.yaml
   - EventsStreamCursor.yaml
   - IncludePrompt.yaml

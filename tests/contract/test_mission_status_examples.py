@@ -38,7 +38,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 CONTRACTS = REPO_ROOT / "contracts"
 MODULE = CONTRACTS / "mission-status"
 TOOLS = CONTRACTS / "tools"
-MIN_EXAMPLES = 8
+MIN_EXAMPLES = 47
 PLANTED_FILE = "Planted.malformed.yaml"
 PLANTED_SCHEMA = "MissionOverview"
 MALFORMED_TIMESTAMP = "2026-13-45T25:61:00Z"
@@ -62,6 +62,7 @@ def _load_tool(name: str) -> ModuleType:
 resolver = _load_tool("contract_resolver")
 schema_formats = _load_tool("schema_formats")
 leak_patterns = _load_tool("leak_patterns")
+leak_scan = load_tool(_MP, TOOLS / "leak_scan.py", "leak_scan_under_test", syspath=TOOLS)
 
 
 def _read(path: Path) -> Any:
@@ -444,6 +445,9 @@ EXPECTED_PATH_KEYS = {
     "/missions",
     "/missions/{missionId}",
     "/missions/{missionId}/work-packages/{wpId}",
+    "/missions/{missionId}/artifacts",
+    "/missions/{missionId}/artifacts/content",
+    "/missions/{missionId}/work-packages/{wpId}/detail",
     EVENTS_PATH,
 }
 
@@ -630,7 +634,7 @@ def test_the_changelog_lists_each_contract_owned_stream_part_as_provisional() ->
         assert needle in section, f"the Provisional section does not mention {needle!r}"
 
 
-def test_all_five_paths_are_mapped_each_to_a_brace_free_file() -> None:
+def test_every_path_is_mapped_each_to_a_brace_free_file() -> None:
     root = _read(MODULE / "openapi.yaml")
     assert set(root["paths"]) == EXPECTED_PATH_KEYS
     for key, item in root["paths"].items():
@@ -793,3 +797,592 @@ def test_the_transition_event_names_the_status_event_fields_it_leaves_out() -> N
     text = _description("StatusTransitionEvent")
     for field in ("reason", "reason_source", "review_ref", "evidence", "review_result", "policy_metadata", "execution_mode", "mission_slug"):
         assert field in text, f"the transition event does not name the left-out field {field!r}"
+
+
+# --------------------------------------------------------------------------------------
+# WP03: the artifact reads, listArtifacts and getArtifactContent (FR-009 to FR-013, FR-017 to FR-019)
+# --------------------------------------------------------------------------------------
+
+ARTIFACT_VERSION = "1.0.0-SNAPSHOT"
+ARTIFACT_LISTING_PATH = "/missions/{missionId}/artifacts"
+ARTIFACT_CONTENT_PATH = "/missions/{missionId}/artifacts/content"
+ARTIFACT_LISTING_SCHEMA = "ArtifactListing"
+ARTIFACT_CONTENT_SCHEMA = "ArtifactContent"
+ARTIFACT_REFUSAL_SCHEMA = "ArtifactRefusal"
+ARTIFACT_PATH_SCHEMA = "ArtifactPath"
+ARTIFACT_KINDS = [
+    "review_cycle",
+    "work_package_prompt",
+    "spec",
+    "plan",
+    "tasks",
+    "data_model",
+    "quickstart",
+    "analysis_report",
+    "research",
+    "contract",
+    "checklist",
+    "other",
+]
+# the pinned status of each refusal code, in the order of the enum
+ARTIFACT_REFUSAL_STATUS = {
+    "invalid_artifact_path": 400,
+    "not_found": 404,
+    "artifact_too_large": 413,
+    "artifact_not_text": 415,
+    "artifact_secret": 422,
+    "artifact_unreadable": 500,
+    "artifact_listing_unreadable": 500,
+}
+ARTIFACT_LISTING_MAX_ITEMS = 1000
+ARTIFACT_CREDENTIAL_WORDS = ("ghp", "gho", "ghu", "ghs", "ghr", "github_pat", "AKIA", "ASIA", "PEM")
+NUL = chr(0)
+BACKSLASH = chr(92)
+# (path, malformed): the table of the three-way agreement (the leak scan predicate, a literal restatement of the spec
+# predicate and the ArtifactPath schema pattern); restated here as data, a test module never imports another one
+ARTIFACT_PATH_CASES: list[tuple[str, bool]] = [
+    ("a.md", False),
+    ("dir/a.md", False),
+    ("home/someone/notes.md", False),
+    ("with space.md", False),
+    ("caf" + chr(233) + ".md", False),
+    ("icon" + chr(64) + "2x.png", False),
+    ("~", False),
+    ("~user/a.md", False),
+    (".hidden", False),
+    ("a..b", False),
+    ("...", False),
+    ("a/.../b", False),
+    ("1:a", False),
+    ("dir/C:x", False),
+    ("x" * 512, False),
+    ("", True),
+    ("x" * 513, True),
+    ("/a", True),
+    ("/", True),
+    ("~/a", True),
+    ("~/", True),
+    ("C:/a", True),
+    ("z:", True),
+    ("a" + BACKSLASH + "b", True),
+    ("a" + NUL + "b", True),
+    ("a" + chr(10) + "b", True),
+    ("a" + chr(13) + "b", True),
+    ("a" + chr(11) + "b", True),
+    ("a" + chr(12) + "b", True),
+    ("a" + chr(28) + "b", True),
+    ("a" + chr(29) + "b", True),
+    ("a" + chr(30) + "b", True),
+    ("a" + chr(133) + "b", True),
+    ("a" + chr(0x2028) + "b", True),
+    ("a" + chr(0x2029) + "b", True),
+    ("a" + chr(10), True),
+    ("a" + chr(13) + chr(10), True),
+    ("a/" + chr(10), True),
+    ("a//b", True),
+    ("a/", True),
+    ("a/b/", True),
+    ("./a", True),
+    (".", True),
+    ("a/./b", True),
+    ("..", True),
+    ("a/../b", True),
+    ("../a", True),
+]
+
+
+def _spec_path_malformed(path: str) -> bool:
+    """A literal restatement of the spec predicate (data model, ArtifactPath), independent of the tool and of the pattern."""
+    if path == "" or len(path) > 512:
+        return True
+    if path.startswith(("/", "~/")):
+        return True
+    if len(path) >= 2 and path[1] == ":" and path[0].isascii() and path[0].isalpha():
+        return True
+    if BACKSLASH in path or NUL in path or any(character.splitlines() != [character] for character in path):
+        return True
+    return path.endswith("/") or any(segment in ("", ".", "..") for segment in path.split("/"))
+
+
+def _artifact_operation(path: str) -> dict[str, Any]:
+    item = _read(MODULE / "openapi.yaml")["paths"][path]
+    return _read(MODULE / item["$ref"])["get"]
+
+
+def test_the_module_stays_at_the_unreleased_1_0_0_snapshot_version() -> None:
+    assert _read(MODULE / "openapi.yaml")["info"]["version"] == ARTIFACT_VERSION
+
+
+def test_the_two_artifact_operations_are_mapped_and_tagged_with_the_existing_tag() -> None:
+    root = _read(MODULE / "openapi.yaml")
+    assert [tag["name"] for tag in root["tags"]] == ["Project", "Missions", "Events"]
+    listing = _artifact_operation(ARTIFACT_LISTING_PATH)
+    content = _artifact_operation(ARTIFACT_CONTENT_PATH)
+    assert listing["operationId"] == "listArtifacts" and content["operationId"] == "getArtifactContent"
+    assert listing["tags"] == ["Missions"] == content["tags"]
+    assert set(listing["responses"]) == {"200", "404", "500", "default"}
+    assert set(content["responses"]) == {"200", "400", "404", "413", "415", "422", "500", "default"}
+    assert "security" not in listing and "security" not in content
+
+
+def test_every_artifact_refusal_response_carries_the_artifact_refusal_schema() -> None:
+    expected = {
+        "ArtifactPathRefused": "400",
+        "ArtifactNotFound": "404",
+        "ArtifactTooLarge": "413",
+        "ArtifactNotText": "415",
+        "ArtifactSecretRefused": "422",
+        "ArtifactUnreadable": "500",
+        "ArtifactListingUnreadable": "500",
+    }
+    mounted: dict[str, str] = {}
+    for path in (ARTIFACT_LISTING_PATH, ARTIFACT_CONTENT_PATH):
+        for status, response in _artifact_operation(path)["responses"].items():
+            ref = response.get("$ref", "")
+            if ref.startswith("../responses/Artifact"):
+                mounted[ref.removeprefix("../responses/").removesuffix(".yaml")] = status
+    assert mounted == expected, mounted
+    for name in expected:
+        body = _read(MODULE / "responses" / f"{name}.yaml")
+        assert body["content"]["application/problem+json"]["schema"]["$ref"] == f"../schemas/{ARTIFACT_REFUSAL_SCHEMA}.yaml", name
+
+
+def test_the_artifact_path_parameter_is_the_required_query_parameter_path() -> None:
+    parameter = _read(MODULE / "parameters" / "ArtifactPath.yaml")
+    assert (parameter["name"], parameter["in"], parameter["required"]) == ("path", "query", True)
+    assert parameter["schema"]["$ref"] == f"../schemas/{ARTIFACT_PATH_SCHEMA}.yaml"
+
+
+def test_the_artifact_enums_hold_their_pinned_values() -> None:
+    assert _read(MODULE / "schemas" / "ArtifactKind.yaml")["enum"] == ARTIFACT_KINDS
+    assert _read(MODULE / "schemas" / "ArtifactRefusalCode.yaml")["enum"] == list(ARTIFACT_REFUSAL_STATUS)
+
+
+def test_the_artifact_listing_holds_at_most_a_thousand_entries() -> None:
+    listing = _read(MODULE / "schemas" / f"{ARTIFACT_LISTING_SCHEMA}.yaml")
+    assert listing["properties"]["entries"]["maxItems"] == ARTIFACT_LISTING_MAX_ITEMS
+
+
+def test_the_artifact_content_encoding_is_the_constant_utf_8() -> None:
+    content = _read(MODULE / "schemas" / f"{ARTIFACT_CONTENT_SCHEMA}.yaml")
+    assert content["properties"]["encoding"]["const"] == "utf-8"
+
+
+def test_the_readable_and_422_descriptions_name_the_credential_kinds() -> None:
+    entry = _description("ArtifactEntry", "properties", "readable")
+    refusal = " ".join(_read(MODULE / "responses" / "ArtifactSecretRefused.yaml")["description"].split())
+    for text in (entry, refusal):
+        for word in ARTIFACT_CREDENTIAL_WORDS:
+            assert word in text, f"{word!r} is missing from: {text}"
+
+
+def test_every_artifact_refusal_code_has_a_validating_example_with_its_pinned_status() -> None:
+    instances = _instances_of(ARTIFACT_REFUSAL_SCHEMA)
+    assert len(instances) >= len(ARTIFACT_REFUSAL_STATUS), sorted(instances)
+    seen = {instance["code"]: instance["status"] for instance in instances.values()}
+    assert seen == ARTIFACT_REFUSAL_STATUS, seen
+
+
+def test_the_artifact_examples_cover_both_values_of_the_provisional_flags() -> None:
+    listings = _instances_of(ARTIFACT_LISTING_SCHEMA)
+    contents = _instances_of(ARTIFACT_CONTENT_SCHEMA)
+    assert listings and contents, (sorted(listings), sorted(contents))
+    _first(listings, lambda listing: listing["truncated"] is True)
+    _first(listings, lambda listing: listing["truncated"] is False)
+    readable = {entry["readable"] for listing in listings.values() for entry in listing["entries"]}
+    assert readable == {True, False}, readable
+    assert {content["redacted"] for content in contents.values()} == {True, False}
+    kinds = {entry["kind"] for listing in listings.values() for entry in listing["entries"]}
+    assert len(kinds) >= 3, f"the listing examples cover only the kinds {sorted(kinds)}"
+    assert any(content["mediaType"] == "application/json" for content in contents.values())
+    _first(contents, lambda content: content["content"] == "" and content["sizeBytes"] == 0)
+
+
+def test_the_truncated_listing_example_is_short_and_says_so() -> None:
+    name, listing = _first(_instances_of(ARTIFACT_LISTING_SCHEMA), lambda listing: listing["truncated"] is True)
+    assert len(listing["entries"]) < ARTIFACT_LISTING_MAX_ITEMS, name
+    assert "1000" in (MODULE / "examples" / name).read_text(encoding="utf-8"), f"{name} does not state the real truncation size"
+
+
+def test_the_artifact_examples_carry_no_absolute_path_or_unredacted_leak() -> None:
+    paths: list[str] = []
+    for listing in _instances_of(ARTIFACT_LISTING_SCHEMA).values():
+        paths.extend(entry["path"] for entry in listing["entries"])
+    paths.extend(content["path"] for content in _instances_of(ARTIFACT_CONTENT_SCHEMA).values())
+    assert paths, "no artifact path occurs in any example"
+    assert not [path for path in paths if _spec_path_malformed(path)], paths
+
+
+@pytest.mark.parametrize(("path", "malformed"), ARTIFACT_PATH_CASES, ids=[str(index) for index in range(len(ARTIFACT_PATH_CASES))])
+def test_the_artifact_path_schema_agrees_with_the_spec_predicate_through_both_paths(path: str, malformed: bool) -> None:
+    assert _spec_path_malformed(path) is malformed, repr(path)
+    resolver_errors, library_errors = _both_paths(MODULE, ARTIFACT_PATH_SCHEMA, path)
+    assert bool(resolver_errors) is malformed, f"resolver path {resolver_errors} for {path!r}"
+    assert bool(library_errors) is malformed, f"library path {library_errors} for {path!r}"
+
+
+def test_the_artifact_path_agreement_table_has_the_three_way_floor_and_both_classes() -> None:
+    assert len(ARTIFACT_PATH_CASES) >= 30
+    assert {malformed for _, malformed in ARTIFACT_PATH_CASES} == {True, False}
+    assert sum(1 for path, _ in ARTIFACT_PATH_CASES if any(c.splitlines() != [c] for c in path)) >= 10
+
+
+def test_the_artifact_path_leak_scan_predicate_agrees_with_the_table() -> None:
+    for path, malformed in ARTIFACT_PATH_CASES:
+        assert (leak_scan.malformed_artifact_path(path) is not None) is malformed, repr(path)
+
+
+PLANTED_COPY_NAMES = [
+    "listing-extra-property",
+    "entry-extra-property",
+    "listing-missing-truncated",
+    "entry-missing-readable",
+    "entry-absolute-path",
+    "content-extra-property",
+    "content-missing-redacted",
+    "content-absolute-path",
+    "content-other-encoding",
+    "refusal-missing-code",
+    "refusal-wrong-status",
+    "refusal-unknown-code",
+]
+
+
+def _planted_copies() -> dict[str, tuple[str, Any]]:
+    """name -> (schema title, planted instance): a copy of a real example with one property wrong."""
+    listing = next(iter(_instances_of(ARTIFACT_LISTING_SCHEMA).values()))
+    content = next(iter(_instances_of(ARTIFACT_CONTENT_SCHEMA).values()))
+    refusal = next(iter(_instances_of(ARTIFACT_REFUSAL_SCHEMA).values()))
+    extra_entry = {**listing, "entries": [{**listing["entries"][0], "absolutePath": "x"}]}
+    missing_entry = {**listing, "entries": [{key: value for key, value in listing["entries"][0].items() if key != "readable"}]}
+    absolute_entry = {**listing, "entries": [{**listing["entries"][0], "path": "/" + listing["entries"][0]["path"]}]}
+    return {
+        "listing-extra-property": (ARTIFACT_LISTING_SCHEMA, {**listing, "extra": True}),
+        "entry-extra-property": (ARTIFACT_LISTING_SCHEMA, extra_entry),
+        "listing-missing-truncated": (ARTIFACT_LISTING_SCHEMA, {key: value for key, value in listing.items() if key != "truncated"}),
+        "entry-missing-readable": (ARTIFACT_LISTING_SCHEMA, missing_entry),
+        "entry-absolute-path": (ARTIFACT_LISTING_SCHEMA, absolute_entry),
+        "content-extra-property": (ARTIFACT_CONTENT_SCHEMA, {**content, "extra": True}),
+        "content-missing-redacted": (ARTIFACT_CONTENT_SCHEMA, {key: value for key, value in content.items() if key != "redacted"}),
+        "content-absolute-path": (ARTIFACT_CONTENT_SCHEMA, {**content, "path": "/etc/hosts"}),
+        "content-other-encoding": (ARTIFACT_CONTENT_SCHEMA, {**content, "encoding": "latin-1"}),
+        "refusal-missing-code": (ARTIFACT_REFUSAL_SCHEMA, {key: value for key, value in refusal.items() if key != "code"}),
+        "refusal-wrong-status": (ARTIFACT_REFUSAL_SCHEMA, {**refusal, "status": 418}),
+        "refusal-unknown-code": (ARTIFACT_REFUSAL_SCHEMA, {**refusal, "code": "teapot"}),
+    }
+
+
+@pytest.mark.parametrize("name", PLANTED_COPY_NAMES)
+def test_a_planted_artifact_example_is_rejected_through_both_paths(name: str) -> None:
+    planted = _planted_copies()
+    assert sorted(planted) == sorted(PLANTED_COPY_NAMES)
+    schema, instance = planted[name]
+    resolver_errors, library_errors = _both_paths(MODULE, schema, instance)
+    assert resolver_errors, f"the resolver path accepted the planted copy {name}"
+    assert library_errors, f"the library path accepted the planted copy {name}"
+
+
+def test_a_refusal_is_valid_exactly_with_the_status_pinned_to_its_code_through_both_paths() -> None:
+    for code, pinned in ARTIFACT_REFUSAL_STATUS.items():
+        for status in sorted(set(ARTIFACT_REFUSAL_STATUS.values())):
+            instance = {"type": "about:blank", "title": "refused", "status": status, "code": code, "detail": "x"}
+            resolver_errors, library_errors = _both_paths(MODULE, ARTIFACT_REFUSAL_SCHEMA, instance)
+            assert bool(resolver_errors) is (status != pinned), f"resolver path: {code} with {status}: {resolver_errors}"
+            assert bool(library_errors) is (status != pinned), f"library path: {code} with {status}: {library_errors}"
+
+
+# --------------------------------------------------------------------------------------
+# WP04: the work package detail read, getWorkPackageDetail (FR-001 to FR-008, FR-013, FR-015, FR-018, FR-019)
+# --------------------------------------------------------------------------------------
+
+DETAIL_PATH = "/missions/{missionId}/work-packages/{wpId}/detail"
+WP_DETAIL_SCHEMA = "WorkPackageDetail"
+WP_DETAIL_REFUSAL_SCHEMA = "WorkPackageDetailRefusal"
+WP_DETAIL_REFUSAL_STATUS = {"not_found": 404, "source_unreadable": 500}
+CHANGE_STATES = ["changed", "unchanged", "unknown"]
+DETAIL_REQUIRED = [
+    "missionId",
+    "wpId",
+    "subtasks",
+    "dependencies",
+    "reviewCycles",
+    "workspace",
+    "ownedFiles",
+    "artifactReferences",
+]
+DETAIL_SCHEMA_FILES = [
+    "WorkPackageDetail",
+    "Subtask",
+    "DependencyRef",
+    "ReviewCycle",
+    "Workspace",
+    "OwnedFile",
+    "ChangeState",
+    "ArtifactReferences",
+    "ArtifactReference",
+    "WorkPackageDetailRefusal",
+    "WorkPackageDetailRefusalCode",
+]
+DETAIL_CLOSED_SCHEMAS = [name for name in DETAIL_SCHEMA_FILES if name not in ("ChangeState", "WorkPackageDetailRefusal", "WorkPackageDetailRefusalCode")]
+DUPLICATE_ID_WORDS = ("first", "regular", "symlink", "byte order", "WP[0-9]{2,}-*.md")
+
+
+def _detail_operation() -> dict[str, Any]:
+    return _artifact_operation(DETAIL_PATH)
+
+
+def _detail_examples() -> dict[str, dict[str, Any]]:
+    return _instances_of(WP_DETAIL_SCHEMA)
+
+
+def test_the_detail_operation_is_mapped_tagged_and_pairs_each_status_with_its_response() -> None:
+    operation = _detail_operation()
+    assert operation["operationId"] == "getWorkPackageDetail"
+    assert operation["tags"] == ["Missions"]
+    assert "security" not in operation
+    assert set(operation["responses"]) == {"200", "404", "500", "default"}
+    assert operation["responses"]["404"]["$ref"] == "../responses/WorkPackageDetailNotFound.yaml"
+    assert operation["responses"]["500"]["$ref"] == "../responses/WorkPackageDetailUnreadable.yaml"
+    assert operation["responses"]["200"]["content"]["application/json"]["schema"]["$ref"] == f"../schemas/{WP_DETAIL_SCHEMA}.yaml"
+    parameters = [parameter["$ref"] for parameter in operation["parameters"]]
+    assert parameters == ["../parameters/MissionId.yaml", "../parameters/WpId.yaml"]
+    for name in ("WorkPackageDetailNotFound", "WorkPackageDetailUnreadable"):
+        body = _read(MODULE / "responses" / f"{name}.yaml")
+        assert body["content"]["application/problem+json"]["schema"]["$ref"] == f"../schemas/{WP_DETAIL_REFUSAL_SCHEMA}.yaml", name
+
+
+def test_the_detail_path_description_states_the_duplicate_id_rule() -> None:
+    text = " ".join(str(_detail_operation()["description"]).split())
+    for word in DUPLICATE_ID_WORDS:
+        assert word in text, f"{word!r} is missing from the published description: {text}"
+
+
+def test_the_detail_enums_hold_their_pinned_values() -> None:
+    assert _read(MODULE / "schemas" / "ChangeState.yaml")["enum"] == CHANGE_STATES
+    assert _read(MODULE / "schemas" / "WorkPackageDetailRefusalCode.yaml")["enum"] == list(WP_DETAIL_REFUSAL_STATUS)
+
+
+def test_the_eleven_detail_schemas_exist_titled_by_their_file_and_the_closed_ones_are_closed() -> None:
+    for name in DETAIL_SCHEMA_FILES:
+        assert (MODULE / "schemas" / f"{name}.yaml").is_file(), name
+        assert _read(MODULE / "schemas" / f"{name}.yaml")["title"] == name
+    for name in DETAIL_CLOSED_SCHEMAS:
+        assert _read(MODULE / "schemas" / f"{name}.yaml")["additionalProperties"] is False, name
+
+
+def test_the_detail_requires_every_array_and_embeds_no_work_package() -> None:
+    schema = _read(MODULE / "schemas" / f"{WP_DETAIL_SCHEMA}.yaml")
+    assert sorted(schema["required"]) == sorted(DETAIL_REQUIRED)
+    assert sorted(schema["properties"]) == sorted(DETAIL_REQUIRED)
+    assert "WorkPackage.yaml" not in str(schema) and "WorkPackageSummary.yaml" not in str(schema)
+
+
+def test_the_detail_examples_cover_the_required_cases() -> None:
+    details = _detail_examples()
+    assert len(details) >= 6, sorted(details)
+    states = {owned["changeState"] for detail in details.values() for owned in detail["ownedFiles"]}
+    assert states == set(CHANGE_STATES), states
+    cycles = [cycle for detail in details.values() for cycle in detail["reviewCycles"]]
+    assert any(cycle["feedbackReference"] is None for cycle in cycles)
+    assert any(cycle["reviewedAt"] is None for cycle in cycles)
+    assert {cycle["verdict"] for cycle in cycles} >= {"approved", "changes_requested", None}
+    _first(details, lambda detail: detail["reviewCycles"] == [])
+    _first(details, lambda detail: all(value is None for key, value in detail["workspace"].items() if key != "worktreePresent"))
+    _first(details, lambda detail: detail["workspace"]["laneId"] == "lane-planning" and detail["workspace"]["laneBranch"] is None)
+    _first(details, lambda detail: detail["workspace"]["worktreePresent"] is False and any(o["changeState"] == "unknown" for o in detail["ownedFiles"]))
+    _first(details, lambda detail: any("{" in owned["pattern"] for owned in detail["ownedFiles"]))
+    _first(details, lambda detail: any(owned["isGlob"] for owned in detail["ownedFiles"]))
+    _first(details, lambda detail: detail["artifactReferences"]["prompt"] is None and detail["artifactReferences"]["spec"] is None)
+    _first(details, lambda detail: detail["artifactReferences"]["prompt"] is not None and detail["artifactReferences"]["spec"] is not None)
+    _first(details, lambda detail: any(subtask["title"] is None for subtask in detail["subtasks"]))
+    _first(details, lambda detail: any(dependency["statusLane"] is None for dependency in detail["dependencies"]))
+
+
+def test_a_change_state_is_determined_only_when_a_worktree_is_present() -> None:
+    for name, detail in _detail_examples().items():
+        if not detail["workspace"]["worktreePresent"]:
+            assert all(owned["changeState"] == "unknown" for owned in detail["ownedFiles"]), name
+
+
+def test_every_detail_refusal_code_has_a_validating_example_with_its_pinned_status() -> None:
+    instances = _instances_of(WP_DETAIL_REFUSAL_SCHEMA)
+    seen = {instance["code"]: instance["status"] for instance in instances.values()}
+    assert seen == WP_DETAIL_REFUSAL_STATUS, seen
+
+
+def test_a_detail_refusal_is_valid_exactly_with_the_status_pinned_to_its_code_through_both_paths() -> None:
+    for code, pinned in WP_DETAIL_REFUSAL_STATUS.items():
+        for status in (400, 404, 500):
+            instance = {"type": "about:blank", "title": "refused", "status": status, "code": code, "detail": "x"}
+            resolver_errors, library_errors = _both_paths(MODULE, WP_DETAIL_REFUSAL_SCHEMA, instance)
+            assert bool(resolver_errors) is (status != pinned), f"resolver path: {code} with {status}: {resolver_errors}"
+            assert bool(library_errors) is (status != pinned), f"library path: {code} with {status}: {library_errors}"
+
+
+def test_the_detail_descriptions_state_the_host_dependence_and_the_derivation() -> None:
+    worktree = _description("Workspace", "properties", "worktreePresent")
+    owned = _description("OwnedFile", "properties", "changeState")
+    change_state = " ".join(str(_read(MODULE / "schemas" / "ChangeState.yaml")["description"]).split())
+    cycle = " ".join(str(_read(MODULE / "schemas" / "ReviewCycle.yaml")["description"]).split())
+    for text in (worktree, owned, change_state):
+        assert "host" in text, text
+    assert "coordination" in cycle and "[]" in cycle, cycle
+    derived = _read(MODULE / "schemas" / "OwnedFile.yaml")["properties"]["changeState"]["x-derived"]
+    names = {entry["symbol"] for entry in derived["inputs"] if isinstance(entry, dict)}
+    assert {"git_merge_base", "changed_paths", "is_glob_pattern"} <= names, names
+
+
+def _detail_planted_copies() -> dict[str, tuple[str, Any]]:
+    detail = _first(_detail_examples(), lambda d: d["reviewCycles"] and d["subtasks"] and d["dependencies"] and d["ownedFiles"])[1]
+    refusal = next(iter(_instances_of(WP_DETAIL_REFUSAL_SCHEMA).values()))
+
+    def without(key: str) -> dict[str, Any]:
+        return {name: value for name, value in detail.items() if name != key}
+
+    return {
+        "detail-extra-property": (WP_DETAIL_SCHEMA, {**detail, "extra": True}),
+        "detail-embeds-prompt-markdown": (WP_DETAIL_SCHEMA, {**detail, "promptMarkdown": "x"}),
+        "detail-missing-review-cycles": (WP_DETAIL_SCHEMA, without("reviewCycles")),
+        "detail-missing-workspace": (WP_DETAIL_SCHEMA, without("workspace")),
+        "detail-null-array": (WP_DETAIL_SCHEMA, {**detail, "ownedFiles": None}),
+        "subtask-extra-property": (WP_DETAIL_SCHEMA, {**detail, "subtasks": [{**detail["subtasks"][0], "extra": 1}]}),
+        "subtask-empty-title": (WP_DETAIL_SCHEMA, {**detail, "subtasks": [{**detail["subtasks"][0], "title": ""}]}),
+        "dependency-null-title": (WP_DETAIL_SCHEMA, {**detail, "dependencies": [{**detail["dependencies"][0], "title": None}]}),
+        "dependency-bad-lane": (WP_DETAIL_SCHEMA, {**detail, "dependencies": [{**detail["dependencies"][0], "statusLane": "weighing"}]}),
+        "cycle-zero-number": (WP_DETAIL_SCHEMA, {**detail, "reviewCycles": [{**detail["reviewCycles"][0], "cycleNumber": 0}]}),
+        "cycle-date-only": (WP_DETAIL_SCHEMA, {**detail, "reviewCycles": [{**detail["reviewCycles"][0], "reviewedAt": "2026-09-22"}]}),
+        "cycle-bad-verdict": (WP_DETAIL_SCHEMA, {**detail, "reviewCycles": [{**detail["reviewCycles"][0], "verdict": "maybe"}]}),
+        "cycle-foreign-pointer": (WP_DETAIL_SCHEMA, {**detail, "reviewCycles": [{**detail["reviewCycles"][0], "feedbackReference": "feedback://x/y/z"}]}),
+        "cycle-absolute-artifact-path": (WP_DETAIL_SCHEMA, {**detail, "reviewCycles": [{**detail["reviewCycles"][0], "artifactPath": "/a.md"}]}),
+        "cycle-pointer-parent-segment": (
+            WP_DETAIL_SCHEMA,
+            {**detail, "reviewCycles": [{**detail["reviewCycles"][0], "feedbackReference": "review-cycle://../x/review-cycle-1.md"}]},
+        ),
+        "cycle-pointer-dot-leading-segment": (
+            WP_DETAIL_SCHEMA,
+            {**detail, "reviewCycles": [{**detail["reviewCycles"][0], "feedbackReference": "review-cycle://a/.hid/review-cycle-1.md"}]},
+        ),
+        "cycle-pointer-double-dot-segment": (
+            WP_DETAIL_SCHEMA,
+            {**detail, "reviewCycles": [{**detail["reviewCycles"][0], "feedbackReference": "review-cycle://a..b/x/review-cycle-1.md"}]},
+        ),
+        "cycle-pointer-non-ascii-segment": (
+            WP_DETAIL_SCHEMA,
+            {**detail, "reviewCycles": [{**detail["reviewCycles"][0], "feedbackReference": "review-cycle://\u00e9/x/review-cycle-1.md"}]},
+        ),
+        "workspace-overlong-planning-branch": (WP_DETAIL_SCHEMA, {**detail, "workspace": {**detail["workspace"], "planningBranch": "b" * 256}}),
+        "workspace-extra-property": (WP_DETAIL_SCHEMA, {**detail, "workspace": {**detail["workspace"], "path": "x"}}),
+        "workspace-missing-worktree-present": (WP_DETAIL_SCHEMA, {**detail, "workspace": {k: v for k, v in detail["workspace"].items() if k != "worktreePresent"}}),
+        "workspace-option-like-branch": (WP_DETAIL_SCHEMA, {**detail, "workspace": {**detail["workspace"], "laneBranch": "--upload-pack=x"}}),
+        "owned-unknown-change-state": (WP_DETAIL_SCHEMA, {**detail, "ownedFiles": [{**detail["ownedFiles"][0], "changeState": "modified"}]}),
+        "owned-absolute-pattern": (WP_DETAIL_SCHEMA, {**detail, "ownedFiles": [{**detail["ownedFiles"][0], "pattern": "/etc/*"}]}),
+        "references-missing-spec": (WP_DETAIL_SCHEMA, {**detail, "artifactReferences": {"prompt": None}}),
+        "reference-absolute-path": (
+            WP_DETAIL_SCHEMA,
+            {**detail, "artifactReferences": {**detail["artifactReferences"], "spec": {"path": "/spec.md", "kind": "spec"}}},
+        ),
+        "reference-unknown-kind": (
+            WP_DETAIL_SCHEMA,
+            {**detail, "artifactReferences": {**detail["artifactReferences"], "spec": {"path": "spec.md", "kind": "novel"}}},
+        ),
+        "refusal-missing-code": (WP_DETAIL_REFUSAL_SCHEMA, {k: v for k, v in refusal.items() if k != "code"}),
+        "refusal-unknown-code": (WP_DETAIL_REFUSAL_SCHEMA, {**refusal, "code": "artifact_secret"}),
+    }
+
+
+DETAIL_PLANTED_NAMES = [
+    "detail-extra-property",
+    "detail-embeds-prompt-markdown",
+    "detail-missing-review-cycles",
+    "detail-missing-workspace",
+    "detail-null-array",
+    "subtask-extra-property",
+    "subtask-empty-title",
+    "dependency-null-title",
+    "dependency-bad-lane",
+    "cycle-zero-number",
+    "cycle-date-only",
+    "cycle-bad-verdict",
+    "cycle-foreign-pointer",
+    "cycle-absolute-artifact-path",
+    "cycle-pointer-parent-segment",
+    "cycle-pointer-dot-leading-segment",
+    "cycle-pointer-double-dot-segment",
+    "cycle-pointer-non-ascii-segment",
+    "workspace-overlong-planning-branch",
+    "workspace-extra-property",
+    "workspace-missing-worktree-present",
+    "workspace-option-like-branch",
+    "owned-unknown-change-state",
+    "owned-absolute-pattern",
+    "references-missing-spec",
+    "reference-absolute-path",
+    "reference-unknown-kind",
+    "refusal-missing-code",
+    "refusal-unknown-code",
+]
+
+
+@pytest.mark.parametrize("name", DETAIL_PLANTED_NAMES)
+def test_a_planted_detail_example_is_rejected_through_both_paths(name: str) -> None:
+    planted = _detail_planted_copies()
+    assert sorted(planted) == sorted(DETAIL_PLANTED_NAMES)
+    schema, instance = planted[name]
+    resolver_errors, library_errors = _both_paths(MODULE, schema, instance)
+    assert resolver_errors, f"the resolver path accepted the planted copy {name}"
+    assert library_errors, f"the library path accepted the planted copy {name}"
+
+
+def test_the_detail_schemas_name_the_provisional_elements() -> None:
+    texts = {name: str(_read(MODULE / "schemas" / f"{name}.yaml")) for name in DETAIL_SCHEMA_FILES}
+    for name in ("ReviewCycle", "Workspace", "WorkPackageDetailRefusalCode", "WorkPackageDetailRefusal"):
+        assert "x-provisional" in texts[name], name
+    assert "x-provisional" in str(_read(MODULE / "schemas" / f"{WP_DETAIL_SCHEMA}.yaml")["properties"]["reviewCycles"])
+    assert "x-provisional" in str(_read(MODULE / "schemas" / f"{WP_DETAIL_SCHEMA}.yaml")["properties"]["workspace"])
+    assert "x-provisional" in str(_read(MODULE / "schemas" / "ArtifactReference.yaml")["properties"]["kind"])
+
+
+def test_the_review_cycle_pointer_pattern_is_no_wider_than_the_product_validator() -> None:
+    import re
+
+    from specify_cli.review.cycle import ReviewCycleError, validate_review_cycle_pointer
+
+    pattern = re.compile(str(_read(MODULE / "schemas" / "ReviewCycle.yaml")["properties"]["feedbackReference"]["pattern"]))
+
+    def accepted_by_validator(pointer: str) -> bool:
+        try:
+            validate_review_cycle_pointer(pointer)
+        except ReviewCycleError:
+            return False
+        return True
+
+    fixtures = [cycle["feedbackReference"] for detail in _detail_examples().values() for cycle in detail["reviewCycles"] if cycle["feedbackReference"] is not None]
+    assert fixtures
+    corpus = [
+        *fixtures,
+        "review-cycle://m/w/review-cycle-1.md",
+        "review-cycle://mission-01JZCB3C/WP04-contract-slice-b-detail/review-cycle-12.md",
+        "review-cycle://a.b/c_d/review-cycle-3.md",
+        "review-cycle://../x/review-cycle-1.md",
+        "review-cycle://a/../review-cycle-1.md",
+        "review-cycle://a/.hid/review-cycle-1.md",
+        "review-cycle://.a/x/review-cycle-1.md",
+        "review-cycle://a..b/x/review-cycle-1.md",
+        "review-cycle://a/b../review-cycle-1.md",
+        "review-cycle://\u00e9/x/review-cycle-1.md",
+        "review-cycle://-a/x/review-cycle-1.md",
+        "review-cycle://a/x/review-cycle-0.md",
+        "review-cycle://a/x/review-cycle-01.md",
+        "review-cycle://a/x/y/review-cycle-1.md",
+        "review-cycle://a b/x/review-cycle-1.md",
+        "review-cycle://a/x/review-cycle-1.md\n",
+        "feedback://a/x/review-cycle-1.md",
+    ]
+    for pointer in corpus:
+        matches = pattern.search(pointer) is not None
+        valid = accepted_by_validator(pointer)
+        if pointer in fixtures:
+            assert valid and matches, pointer
+        # The schema may never accept what the validator refuses; it need not refuse more.
+        assert not matches or valid, f"the schema accepts {pointer!r}, which the validator refuses"
+        assert matches == valid, f"the schema and the validator disagree on {pointer!r}"

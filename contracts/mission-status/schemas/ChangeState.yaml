@@ -1,0 +1,33 @@
+title: ChangeState
+description: >-
+  Whether the commits of the work package's code lane touched a file the work package owns.
+  changed: some committed change on the lane since it left the target branch matches the
+  pattern. unchanged: the state was determined and none matches. unknown: it could not be
+  determined. The state depends on the serving host: it is determined only when the host has
+  git and worktrees, the work package has a code lane with its worktree present, that worktree
+  is on the recorded lane branch and its merge base with the target branch is found. On any
+  other host, or when a git call fails, or for a brace pattern that cannot be matched, every
+  entry is unknown, and unknown is never read as unchanged. Only committed changes count:
+  uncommitted, staged and untracked paths never appear.
+type: string
+enum:
+  - changed
+  - unchanged
+  - unknown
+x-derived:
+  rule: >-
+    Determined only with git and worktrees on the host, a code lane (not lane-planning) whose
+    worktree is present and on the recorded lane branch, a target branch that passes the strict
+    branch pattern and a merge base that was found. The change set is the committed paths between
+    the merge base and HEAD, renames listed under both names. changed when some path matches the
+    pattern, unchanged when none does, unknown otherwise.
+  inputs:
+    - path: src/specify_cli/core/vcs/git.py
+      symbol: git_merge_base
+    - path: src/kernel/git/listing.py
+      symbol: changed_paths
+    - path: src/specify_cli/ownership/validation.py
+      symbol: is_glob_pattern
+examples:
+  - changed
+  - unknown

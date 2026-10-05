@@ -2,6 +2,10 @@
   "mission-status": {
     "LifecycleStatus": ["active", "planned", "done", "draft", "discarded"],
     "StatusLane": ["planned", "claimed", "in_progress", "for_review", "in_review", "approved", "done", "blocked", "canceled"],
-    "Topology": ["lanes", "single_branch", "coord", "lanes_with_coord", "unknown"]
+    "Topology": ["lanes", "single_branch", "coord", "lanes_with_coord", "unknown"],
+    "ArtifactKind": ["review_cycle", "work_package_prompt", "spec", "plan", "tasks", "data_model", "quickstart", "analysis_report", "research", "contract", "checklist", "other"],
+    "ArtifactRefusalCode": ["invalid_artifact_path", "not_found", "artifact_too_large", "artifact_not_text", "artifact_secret", "artifact_unreadable", "artifact_listing_unreadable"],
+    "ChangeState": ["changed", "unchanged", "unknown"],
+    "WorkPackageDetailRefusalCode": ["not_found", "source_unreadable"]
   }
 }

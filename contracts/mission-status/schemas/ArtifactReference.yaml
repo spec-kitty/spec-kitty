@@ -1,0 +1,32 @@
+title: ArtifactReference
+description: >-
+  A pointer to one artifact of the Mission: its path, for use with getArtifactContent, and its
+  class. Nothing of the file is opened to build it.
+type: object
+additionalProperties: false
+required: [path, kind]
+properties:
+  path:
+    $ref: ArtifactPath.yaml
+    description: The path of the artifact relative to the Mission directory.
+    x-derived:
+      rule: The path of the eligible file, found by reading the tasks directory and checking each component of the path without opening the file.
+      inputs:
+        - path: src/specify_cli/status/wp_metadata.py
+          symbol: wp_task_files
+        - path: contracts/tools/leak_scan.py
+          symbol: malformed_artifact_path
+  kind:
+    $ref: ArtifactKind.yaml
+    description: The class of the artifact, decided from its path by the same ordered classifier as in the listing.
+    x-derived:
+      rule: The class given by the ordered path classifier, applied to the path.
+      inputs:
+        - path
+    x-provisional:
+      open_decision: >-
+        The twelve classes and the order of the classifier are a proposal of this contract: a class
+        may be added or merged before the vocabulary is frozen.
+examples:
+  - path: spec.md
+    kind: spec

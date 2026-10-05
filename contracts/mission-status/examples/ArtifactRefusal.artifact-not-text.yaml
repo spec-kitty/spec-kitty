@@ -1,0 +1,5 @@
+type: about:blank
+title: The artifact is not text
+status: 415
+code: artifact_not_text
+detail: The file holds a NUL byte or is not valid UTF-8.

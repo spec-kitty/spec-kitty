@@ -1,0 +1,48 @@
+title: ArtifactListing
+description: >-
+  The artifacts of one Mission: a flat list of its eligible files, sorted by path in the byte
+  order of the UTF-8 encoding. At most 1000 entries are returned; truncated says whether more
+  existed. The two root status records of the Mission, status.events.jsonl and status.json, are
+  not artifacts and are never listed, and a symlink is never followed or listed.
+type: object
+additionalProperties: false
+required: [missionId, entries, truncated]
+properties:
+  missionId:
+    $ref: MissionId.yaml
+    description: The canonical machine identity of the Mission the listing belongs to.
+    x-source:
+      path: src/specify_cli/mission_metadata.py
+      symbol: MissionIdentity
+  entries:
+    type: array
+    maxItems: 1000
+    items:
+      $ref: ArtifactEntry.yaml
+    description: >-
+      The eligible files of the Mission directory, sorted by path in byte order, at most 1000.
+      The list is empty for a Mission with no eligible file.
+    x-derived:
+      rule: >-
+        Every eligible file below the Mission directory on the primary planning surface, sorted
+        by path in byte order, the first 1000 kept. A file that disappears during the walk is
+        omitted.
+      inputs:
+        - path: contracts/tools/leak_scan.py
+          symbol: malformed_artifact_path
+        - path: src/specify_cli/status/wp_metadata.py
+          symbol: wp_task_files
+  truncated:
+    type: boolean
+    description: True when more than 1000 eligible files existed and the list holds the first 1000 of them.
+    x-derived:
+      rule: True exactly when the number of eligible files found by the walk is greater than 1000.
+      inputs:
+        - entries
+    x-provisional:
+      open_decision: >-
+        Whether a listing is capped at 1000 entries or is paged is open, so this flag is a proposal
+        that a later minor version may replace by a page cursor.
+examples:
+  - $ref: ../examples/ArtifactListing.populated.yaml
+  - $ref: ../examples/ArtifactListing.truncated.yaml

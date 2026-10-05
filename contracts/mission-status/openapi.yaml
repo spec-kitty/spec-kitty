@@ -25,5 +25,11 @@ paths:
     $ref: paths/missions_missionId.yaml
   /missions/{missionId}/work-packages/{wpId}:
     $ref: paths/missions_missionId_work-packages_wpId.yaml
+  /missions/{missionId}/work-packages/{wpId}/detail:
+    $ref: paths/missions_missionId_work-packages_wpId_detail.yaml
+  /missions/{missionId}/artifacts:
+    $ref: paths/missions_missionId_artifacts.yaml
+  /missions/{missionId}/artifacts/content:
+    $ref: paths/missions_missionId_artifacts_content.yaml
   /events:
     $ref: paths/events.yaml

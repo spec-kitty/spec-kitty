@@ -1,0 +1,31 @@
+get:
+  operationId: getWorkPackageDetail
+  summary: Get the detail of one work package of a Mission.
+  description: >-
+    Returns the detail of one work package: its subtasks with titles and status lanes, its dependencies
+    with titles and status lanes, its review cycles, its workspace (code lane, branches and whether the
+    lane worktree exists), the files it owns with their change state, and pointers to its prompt file and
+    to the Mission's specification. Every array is present and may be empty. The Mission is selected by its
+    missionId only. A work package id held by two files is served by the first regular, non-symlink file
+    in byte order of the file name, and the work package's prompt file is the first qualifying
+    tasks/WP[0-9]{2,}-*.md file in byte order; a file that is a symlink or a directory is skipped. The
+    workspace worktreePresent flag and the change state of each owned file depend on the serving host.
+    Review cycles are read from the primary planning surface only.
+  tags:
+    - Missions
+  parameters:
+    - $ref: ../parameters/MissionId.yaml
+    - $ref: ../parameters/WpId.yaml
+  responses:
+    '200':
+      description: The detail of the work package.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/WorkPackageDetail.yaml
+    '404':
+      $ref: ../responses/WorkPackageDetailNotFound.yaml
+    '500':
+      $ref: ../responses/WorkPackageDetailUnreadable.yaml
+    default:
+      $ref: ../../_shared/responses/Problem.yaml

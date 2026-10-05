@@ -1,0 +1,19 @@
+# A real truncated listing holds exactly 1000 entries; this short list stands in for it.
+missionId: 01JZCB3C4D5E6F7G8H9JKMNPQT
+entries:
+  - path: notes/a-000.md
+    kind: other
+    sizeBytes: 10
+    modifiedAt: '2026-09-23T08:00:00Z'
+    readable: true
+  - path: notes/a-001.md
+    kind: other
+    sizeBytes: 11
+    modifiedAt: '2026-09-23T08:00:00Z'
+    readable: true
+  - path: notes/a-002.md
+    kind: other
+    sizeBytes: 12
+    modifiedAt: '2026-09-23T08:00:00Z'
+    readable: true
+truncated: true

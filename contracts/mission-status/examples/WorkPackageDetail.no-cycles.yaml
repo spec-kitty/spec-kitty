@@ -1,0 +1,27 @@
+missionId: 01JZCB3C4D5E6F7G8H9JKMNPQT
+wpId: WP02
+subtasks:
+  - id: T005
+    title: null
+    statusLane: planned
+dependencies:
+  - wpId: WP01
+    title: WP01
+    statusLane: null
+reviewCycles: []
+workspace:
+  laneId: lane-a
+  laneBranch: kitty/mission-example-01JZCB3C-lane-a
+  planningBranch: main
+  worktreePresent: false
+ownedFiles:
+  - pattern: src/example/module.py
+    isGlob: false
+    changeState: unknown
+artifactReferences:
+  prompt:
+    path: tasks/WP02-example.md
+    kind: work_package_prompt
+  spec:
+    path: spec.md
+    kind: spec
