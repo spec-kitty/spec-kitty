@@ -547,6 +547,28 @@ def test_the_planning_commit_phase_follows_an_allowed_coordination_branch_prefli
     assert git(repo, "rev-parse", "HEAD") == head
 
 
+def test_allocate_locks_the_vcs_and_creates_the_lane_worktree(repo: Path) -> None:
+    """The ``allocate`` phase, called directly with real phase values: it locks the VCS in
+    ``meta.json``, allocates the lane worktree on the lane branch and reports no effective base.
+
+    Planted break (proven red): skip the ``create_lane_workspace`` call in ``allocate``.
+    """
+    mission = build_mission(repo, SLUG, MISSION_ID)
+    ctx = implement_phases.detect_context(SLUG, "WP01", repo, False, json_mode=False)
+    preflight = implement_phases.claim_preflight(ctx, "WP01")
+    selection = implement_phases.select_workspace(ctx, "WP01", preflight)
+
+    allocation = implement_phases.allocate(ctx, "WP01", selection, None)
+
+    assert allocation.effective_base is None
+    assert allocation.result.workspace_path == repo / LANE_WORKTREE
+    assert allocation.result.branch_name == LANE_BRANCH
+    assert allocation.result.lane_id == "lane-a"
+    assert (repo / LANE_WORKTREE).is_dir()
+    assert git(repo / LANE_WORKTREE, "rev-parse", "--abbrev-ref", "HEAD") == LANE_BRANCH
+    assert mission.meta()["vcs"] == "git"
+
+
 def test_a_lane_claim_records_a_worktree_workspace_context(repo: Path) -> None:
     """The claim hands the status pipeline ``workspace_context="worktree:<lane worktree path>"`` for a lane WP.
 
