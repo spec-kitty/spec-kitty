@@ -117,11 +117,14 @@ STARTUP_LOWEST_CLEAN_RATIO = 2.12
 #: detection threshold (0.57 at the lowest clean ratio): at 0.62 any in-band plant
 #: is detected, since 1.21 + 0.62 = 1.83 > 1.78. The upper edge keeps an oversized
 #: plant from passing under any limit: an in-band plant is still detected at a limit
-#: up to 1.21 + 1.15 = 2.36. Contains the measured cost fractions with margin at
-#: 20M iterations: CI sample 1 0.82 (0.491 at 12M, scaled), local 0.87 to 1.00 (0.52 to
-#: 0.60 at 12M, scaled). CI calibration, sample 1: decision record.
+#: up to 1.21 + 1.30 = 2.51. Contains the measured cost fractions with margin at
+#: 20M iterations: CI sample 1 0.82 (0.491 at 12M, scaled), CI sample 2 0.98 (0.5875 at
+#: 12M, scaled; a different runner instance), local 0.87 to 1.00 (0.52 to 0.60 at 12M,
+#: scaled). The upper edge sits 33 percent above the highest scaled runner value
+#: because the fraction varies by 20 percent between runner instances. CI calibration,
+#: samples 1 and 2: decision record.
 OWNED_PLANT_MIN_FRACTION_OF_FLOOR = 0.62
-OWNED_PLANT_MAX_FRACTION_OF_FLOOR = 1.15
+OWNED_PLANT_MAX_FRACTION_OF_FLOOR = 1.30
 
 #: Band, as fractions of the CLEAN ``--help`` median (not the workload), for the cost
 #: of the start-up plant. The ratio under test is ``--help`` over the workload, so a
@@ -129,10 +132,13 @@ OWNED_PLANT_MAX_FRACTION_OF_FLOOR = 1.15
 #: ``f > 2.90 / clean ratio - 1``, which is 0.368 at the lowest clean ratio 2.12; the
 #: previous lower edge of 0.30 sat below that. At 0.45, 2.12 * 1.45 = 3.07 > 2.90 for
 #: any in-band plant; an in-band plant is still detected at a limit up to
-#: 2.12 * 1.90 = 4.03. Contains CI sample 1 (0.531 at 15M, from 0.354 at 10M) and the
-#: local readings (0.38 to 0.51 at 10M, so 0.57 to 0.77 at 15M; 0.740 measured) with margin.
+#: 2.12 * 2.10 = 4.45. Contains CI sample 1 (0.531 at 15M, from 0.354 at 10M), CI sample 2
+#: (0.80 at 15M, from 0.5345 at 10M; a different runner instance) and the local readings
+#: (0.38 to 0.51 at 10M, so 0.57 to 0.77 at 15M; 0.740 measured) with margin. The upper
+#: edge sits 37 percent above the highest scaled runner value because the fraction varies
+#: by 50 percent between runner instances.
 STARTUP_PLANT_MIN_FRACTION_OF_CLEAN = 0.45
-STARTUP_PLANT_MAX_FRACTION_OF_CLEAN = 0.90
+STARTUP_PLANT_MAX_FRACTION_OF_CLEAN = 1.10
 
 #: Iterations of the planted CPU-bound loop (:func:`write_cpu_plant`) for the
 #: owned-checkout test. About 47 ns per iteration, so about 0.94 s of CPU: 0.82 of

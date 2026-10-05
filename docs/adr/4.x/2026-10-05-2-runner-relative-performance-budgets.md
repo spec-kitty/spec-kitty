@@ -44,7 +44,7 @@ The limits are **provisional**. They come from local calibration on one machine 
 1. **Owned-checkout tests assert a ratio.** Each test samples the command and a **start-up floor** interleaved in one run, five spawns of each (the order flips on odd rounds), and asserts `median(command) / median(floor)` through `assert_timing_budget` against `OWNED_CHECKOUT_RATIO_LIMIT = 1.78`. The assertion name carries both medians, the ratio, the limit and the raw samples.
 2. **Start-up tests assert against a fixed interpreter workload.** The bare `--help` test and the warm `context list --json` test divide their median by the median of a fixed interpreter workload (a fresh interpreter that imports 22 standard-library modules and then compiles 12,000 generated functions; no product code), sampled interleaved in the same run, against `STARTUP_RATIO_LIMIT = 2.90` and `WARM_LEAF_RATIO_LIMIT = 6.0`. No absolute number of seconds remains in any of the three files or the helper.
 3. **One authority.** Every limit, every sample count and the measuring helper live in `tests/_perf_helpers.py`. `tests/architectural/test_perf_limit_authority.py` fails when a test file that times a CLI spawn defines its own numeric limit. It has no allowlist, and lives in the architectural tree because no job runs an unmarked test in `tests/performance`.
-4. **Each assertion is proved able to fail.** Two committed planted-work tests write a fixed-iteration CPU-bound loop into a `sitecustomize.py` first on the child's `PYTHONPATH` (test side only, no product hook, chained to any later `sitecustomize`). The owned-checkout plant runs only for an `agent` command, so the floor is untouched. The plant's measured cost (planted median minus clean median, interleaved) must lie inside a band, and the same limit constant must then reject the planted ratio. The bands and plant sizes were set at 0.3 to 0.7 of the floor (12,000,000 and 10,000,000 iterations) and re-set from CI data in "CI calibration, sample 1" below: owned 0.62 to 1.15 of the floor at 20,000,000 iterations; start-up 0.45 to 0.90 of the clean `--help` at 15,000,000.
+4. **Each assertion is proved able to fail.** Two committed planted-work tests write a fixed-iteration CPU-bound loop into a `sitecustomize.py` first on the child's `PYTHONPATH` (test side only, no product hook, chained to any later `sitecustomize`). The owned-checkout plant runs only for an `agent` command, so the floor is untouched. The plant's measured cost (planted median minus clean median, interleaved) must lie inside a band, and the same limit constant must then reject the planted ratio. The bands and plant sizes were set at 0.3 to 0.7 of the floor (12,000,000 and 10,000,000 iterations) and re-set from CI data in "CI calibration, sample 1" below: owned 0.62 to 1.30 of the floor at 20,000,000 iterations; start-up 0.45 to 1.10 of the clean `--help` at 15,000,000 (upper edges widened after "CI calibration, sample 2").
 5. **The previous assertion is a committed positive control.** The six nightly rows above run through the helper as injected timings: the 2.5 s assertion is red on the four rows the nightly reported red and green on the two it reported green; the ratio assertion is green on all six.
 
 ### Floor command: `--version`
@@ -191,8 +191,8 @@ Per the rule in "Consequences", the remedy is a larger plant, not a wider limit.
 
 | Test | Iterations (was) | Band (was) | Runner cost fraction | Local cost fraction |
 |---|---|---|---|---|
-| Owned, of the floor | 20,000,000 (12,000,000) | 0.62 to 1.15 (0.30 to 0.70) | 0.82 | 0.87 to 1.00 expected; 0.927 measured |
-| Start-up, of the clean `--help` | 15,000,000 (10,000,000) | 0.45 to 0.90 (0.30 to 0.70) | 0.53 | 0.57 to 0.77 expected; 0.740 measured |
+| Owned, of the floor | 20,000,000 (12,000,000) | 0.62 to 1.15, widened to 1.30 in sample 2 (0.30 to 0.70) | 0.82 | 0.87 to 1.00 expected; 0.927 measured |
+| Start-up, of the clean `--help` | 15,000,000 (10,000,000) | 0.45 to 0.90, widened to 1.10 in sample 2 (0.30 to 0.70) | 0.53 | 0.57 to 0.77 expected; 0.740 measured |
 
 Bands are now per test (`OWNED_PLANT_*_FRACTION_OF_FLOOR`, `STARTUP_PLANT_*_FRACTION_OF_CLEAN` in `tests/_perf_helpers.py`). The two band edges mean:
 
@@ -202,3 +202,23 @@ Bands are now per test (`OWNED_PLANT_*_FRACTION_OF_FLOOR`, `STARTUP_PLANT_*_FRAC
 Headroom of the planted ratio over the limit at the lowest observed clean ratio: owned 1.21 plus 0.82 (runner cost) = 2.03, 14 percent above 1.78 (it was 1.21 plus 0.49 = 1.70, below); start-up 2.12 times 1.53 = 3.25, 12 percent above 2.90. Local readings after the change, one run each: owned plant cost 0.927, clean 1.491, planted 2.418 (floor 0.934 s); start-up plant cost 0.740, clean 2.170, planted 3.777.
 
 **What remains.** The new plants are unproven on the runner until a nightly runs them. A second sample from the nightly on `main` is to confirm the cost fractions land inside the bands (owned about 0.82, start-up about 0.53) and the planted ratios above the limits. The limits (1.78, 2.90, 6.0) are unchanged and remain provisional on the clean side as before.
+
+## CI calibration, sample 2 (#5753)
+
+Sample 2 is nightly run 37352245083 on `main` at 3e47f5a4cb: GitHub-hosted runner, with the old plants (12,000,000 iterations owned, 10,000,000 start-up). It ran on a different runner instance than sample 1. The limits are unchanged.
+
+| Measure | Value | Limit or band |
+|---|---|---|
+| Owned clean ratio (three commands) | 1.363 / 1.397 / 1.376 | at most 1.78 |
+| Owned planted test (12,000,000 iterations) | clean 1.353, planted 1.940, plant cost fraction **0.5875** (sample 1: 0.491) | planted must exceed 1.78 |
+| Start-up clean ratio (`--help`) | 2.288 | at most 2.90 |
+| Warm leaf ratio | 2.418 | at most 6.0 |
+| Start-up planted test (10,000,000 iterations) | clean 2.308, planted 3.542, plant cost fraction **0.5345** (sample 1: 0.354) | planted must exceed 2.90 |
+
+The clean ratios in both samples sit well inside the limits: owned at most 1.47 against 1.78, start-up at most 2.48 against 2.90, warm leaf at most 2.49 against 6.0.
+
+The plant cost fraction varies a lot between runner instances: owned 0.49 to 0.59, start-up 0.35 to 0.53 at the old sizes, a spread of 20 percent and 50 percent. Scaled linearly to the current plant sizes (owned 20,000,000 is times 1.667, start-up 15,000,000 is times 1.5), the runner would give owned 0.82 to 0.98 and start-up 0.53 to 0.80; local readings are owned 0.87 to 1.00 (0.95 measured) and start-up 0.57 to 0.77 (0.71 and 0.74 measured). The upper edges set after sample 1 (1.15 and 0.90) left only 12 to 17 percent above the highest scaled runner value, too little for that spread.
+
+Decision: raise only the two upper edges, to `OWNED_PLANT_MAX_FRACTION_OF_FLOOR = 1.30` (33 percent above 0.98) and `STARTUP_PLANT_MAX_FRACTION_OF_CLEAN = 1.10` (37 percent above 0.80). Iteration counts, lower edges (0.62 and 0.45) and the three ratio limits are unchanged. An in-band plant is now detected at a limit up to 1.21 plus 1.30 = 2.51 (owned, 41 percent above 1.78) and 2.12 times 2.10 = 4.45 (start-up, 53 percent above 2.90). The width test in `tests/architectural/test_perf_limit_authority.py` therefore pins "at most 1.6 times the limit" instead of 1.4 times. The band still bounds an oversized plant: a plant that costs much more than intended leaves the band and fails loudly.
+
+**What remains.** The new plant sizes themselves are still unproven on the runner: both samples ran the old sizes and the new fractions are scaled, not measured. A third sample from a nightly that runs the new plants is to confirm the realised fractions land inside the bands and the planted ratios above the limits.
