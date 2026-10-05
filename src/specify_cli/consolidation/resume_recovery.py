@@ -162,6 +162,7 @@ def _coord_worktree_for_refusal(
 
 
 _LAG_GUIDANCE_HEADING = "[yellow]Resume recovery guidance (behind-own-HEAD / interrupted reset detected):[/yellow]"
+_FOLD_GUIDANCE_HEADING = "[yellow]Recovery guidance (an earlier run was interrupted inside the one-directory fold):[/yellow]"
 _MERGE_ABORTED_NOTE = "[yellow]Merge aborted before any state change.[/yellow] Resolve the reported condition, then re-run [bold]spec-kitty consolidate[/bold]."
 
 
@@ -207,6 +208,30 @@ def _lag_guidance(checkout: _LagCheckout, *, mission_branch: str, base_sha: str 
     return None
 
 
+def _report_interrupted_alias_fold(exc: DestructiveOpRefused, main_repo: Path, mission_slug: str | None) -> bool:
+    """Print the abort-and-restart guidance when ``exc`` is the state an interrupted fold leaves (#5748); say whether it did.
+
+    Only a ``MERGE_UNSAFE_PRIMARY_DIRTY`` refusal can be that state (the fold unlinks the
+    composed directory's coordination files in the repository root checkout), and only
+    deletions of exactly those files qualify
+    (:func:`~specify_cli.consolidation.preflight.interrupted_alias_fold_guidance`); the
+    refusal keeps its code and entries, and its generic "commit, stash, or revert" remedy
+    line is replaced by a pointer to the guidance, as for a lagging checkout.
+    """
+    if mission_slug is None or exc.error_code != MERGE_UNSAFE_PRIMARY_DIRTY:
+        return False
+    from specify_cli.consolidation.preflight import interrupted_alias_fold_guidance
+
+    lines = interrupted_alias_fold_guidance(exc.dirty_entries, main_repo=main_repo, mission_slug=mission_slug)
+    if lines is None:
+        return False
+    console.print(f"[red]Error:[/red] {_refusal_deferring_to_guidance(exc)}")
+    console.print(_FOLD_GUIDANCE_HEADING)
+    for line in lines:
+        console.print(f"  • {line}", markup=False)
+    return True
+
+
 def _report_pre_mutation_refusal(
     exc: DestructiveOpRefused,
     main_repo: Path,
@@ -214,6 +239,7 @@ def _report_pre_mutation_refusal(
     mission_branch: str,
     base_sha: str | None = None,
     coord_worktree: Path | None = None,
+    mission_slug: str | None = None,
 ) -> None:
     """Print the pre-mutation refusal, upgrading a behind-own-HEAD remedy (WP05 / #4982/#4997/#5571/#5613).
 
@@ -258,6 +284,8 @@ def _report_pre_mutation_refusal(
     """
     checkout = _lag_checkout_for_refusal(exc, main_repo, coord_worktree, mission_branch=mission_branch)
     guidance = _lag_guidance(checkout, mission_branch=mission_branch, base_sha=base_sha) if checkout is not None else None
+    if guidance is None and _report_interrupted_alias_fold(exc, main_repo, mission_slug):
+        return
     if guidance is None:
         console.print(f"[red]Error:[/red] {exc}")
         console.print(_MERGE_ABORTED_NOTE)
@@ -412,6 +440,7 @@ def _pre_mutation_safety_preflight_with_recovery(
             mission_branch=lanes_manifest.mission_branch,
             base_sha=base_sha,
             coord_worktree=coord_worktree,
+            mission_slug=mission_slug,
         )
         return typer.Exit(1)
 

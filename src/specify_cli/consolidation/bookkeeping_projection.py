@@ -13,19 +13,28 @@ One-way import: this module never imports the command shim.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
 from kernel.git import changed_paths as git_changed_paths
-from kernel.git import run_git
+from kernel.git import run_git, tracked_paths
 from mission_runtime import MissionArtifactKind, kind_for_mission_file, placement_seam
 
+from specify_cli.coordination.coherence import is_coordination_kind_file
 from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
 from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
 from specify_cli.core.git_ops import run_command
 from specify_cli.core.paths import assert_safe_path_segment, get_main_repo_root
 from specify_cli.core.utils import ensure_within_any, ensure_within_directory
-from specify_cli.consolidation._constants import _STATUS_EVENTS_FILENAME, _STATUS_FILENAME
+from specify_cli.consolidation._constants import (
+    _STATUS_EVENTS_FILENAME,
+    _STATUS_FILENAME,
+    ALIAS_FILE_NOT_PRESERVED,
+    ALIAS_FILE_NOT_PRESERVED_SUFFIX,
+    ALIAS_STATUS_EVENTS_NOT_PRESERVED,
+    ALIAS_STATUS_EVENTS_NOT_PRESERVED_SUFFIX,
+)
 from specify_cli.consolidation.git_probes import (
     GitProbeError,
     _read_git_blob_bytes,
@@ -92,6 +101,244 @@ def _target_bookkeeping_status_paths(
         safe_target_feature_dir / _STATUS_EVENTS_FILENAME,
         safe_target_feature_dir / _STATUS_FILENAME,
     )
+
+
+class AliasFoldRefusal(RuntimeError):
+    """Base of the refusals of the one-directory fold of a bare-slug coordination Mission (#5651, #5750).
+
+    Raised before anything under the composed directory is deleted, so a refusal always means "nothing
+    was removed". ``spec-kitty consolidate`` renders it through :meth:`refusal_text` (the subclass's own
+    ``error_code``, exit 1) after the rollback door ran.
+    """
+
+    error_code: str
+
+    def refusal_text(self, mission_slug: str) -> str:
+        """The operator-facing refusal: the Mission, the composed directory, what is wrong, the code."""
+        raise NotImplementedError
+
+
+class AliasStatusEventsNotPreserved(AliasFoldRefusal):
+    """A coordination-directory status log holds an event the primary Mission directory's event log lacks.
+
+    Raised by :func:`assert_alias_events_preserved` before the alias files
+    are removed from the target tree, so nothing is deleted when the proof fails.
+    Code ``ALIAS_STATUS_EVENTS_NOT_PRESERVED``.
+    """
+
+    error_code = ALIAS_STATUS_EVENTS_NOT_PRESERVED
+
+    def __init__(self, detail: str, *, composed_dir: Path, missing_event_ids: tuple[str, ...] = ()) -> None:
+        super().__init__(detail)
+        self.detail = detail
+        self.composed_dir = composed_dir
+        self.missing_event_ids = missing_event_ids
+
+    def refusal_text(self, mission_slug: str) -> str:
+        """The operator-facing refusal: the Mission, the composed directory, what is missing, the code."""
+        reason = (
+            f"its status log holds event(s) the primary Mission directory's event log lacks: {', '.join(self.missing_event_ids)}."
+            if self.missing_event_ids
+            else f"its events cannot be proven present in the primary Mission directory's event log ({self.detail})."
+        )
+        return (
+            f"Mission {mission_slug}: the composed coordination directory {KITTY_SPECS_DIR}/{self.composed_dir.name} was not removed, "
+            f"because {reason} Nothing was deleted and the run was rolled back. "
+            "Reconcile the two status event logs so every event of the composed log is also in the primary log, "
+            f"then re-run spec-kitty consolidate.{ALIAS_STATUS_EVENTS_NOT_PRESERVED_SUFFIX}"
+        )
+
+
+class AliasFileNotPreserved(AliasFoldRefusal):
+    """A coordination-kind file of the composed directory is not proven redundant with the primary Mission directory (#5651).
+
+    Raised by :func:`assert_alias_files_preserved` before any file is removed. ``relpaths`` are the
+    unproven files, relative to the composed directory, sorted. Code ``ALIAS_FILE_NOT_PRESERVED``.
+    """
+
+    error_code = ALIAS_FILE_NOT_PRESERVED
+
+    def __init__(self, *, composed_dir: Path, primary_dir: Path, relpaths: tuple[str, ...]) -> None:
+        super().__init__(f"{composed_dir}: not proven redundant with {primary_dir}: {', '.join(relpaths)}")
+        self.composed_dir = composed_dir
+        self.primary_dir = primary_dir
+        self.relpaths = relpaths
+
+    def refusal_text(self, mission_slug: str) -> str:
+        """The operator-facing refusal: the Mission, the composed directory, every unproven file, the code."""
+        return (
+            f"Mission {mission_slug}: the composed coordination directory {KITTY_SPECS_DIR}/{self.composed_dir.name} was not removed, "
+            f"because {len(self.relpaths)} coordination file(s) in it are not also held, with the same content, by the primary Mission directory "
+            f"{KITTY_SPECS_DIR}/{self.primary_dir.name}: {', '.join(self.relpaths)}. Nothing was deleted and the run was rolled back. "
+            "A coordination file written under the composed name during the Mission is not carried into the primary Mission directory, "
+            f"so this Mission cannot be consolidated as it stands.{ALIAS_FILE_NOT_PRESERVED_SUFFIX}"
+        )
+
+
+@dataclass(frozen=True)
+class AliasFiles:
+    """The coordination-kind files the one-directory fold may remove from the composed directory (#5651).
+
+    ``directory`` is the composed ``kitty-specs/<slug>-<mid8>`` directory on the target checkout,
+    ``primary_directory`` the Mission's primary one, and ``files`` the tracked files under
+    ``directory`` that exist on disk and are coordination kinds, sorted.
+    """
+
+    directory: Path
+    primary_directory: Path
+    files: tuple[Path, ...]
+
+
+def coordination_alias_files(
+    *,
+    main_repo: Path,
+    mission_slug: str,
+    status_feature_dir: Path,
+) -> AliasFiles | None:
+    """Return the composed coordination directory's coordination-kind files on the target checkout.
+
+    A bare-slug Mission keeps its primary directory at ``kitty-specs/<slug>`` while
+    the coordination seed writes every coordination-kind file of that directory
+    (:func:`~specify_cli.coordination.coherence.is_coordination_kind_file`: the status
+    pair, traces, matrices, the decision log, review cycles) under the composed
+    ``kitty-specs/<slug>-<mid8>`` name. Those files ride the mission branch onto the
+    target, beside the primary directory. This returns the tracked ones that exist on
+    ``main_repo`` so the final bookkeeping commit can remove them; it returns ``None`` when
+    ``status_feature_dir`` is not a coordination worktree path, when its directory name already
+    is the primary directory name (a canonical Mission has no second home), or when no such file
+    is tracked. A file that is not a coordination kind (a planning file, source, an unclassified
+    file) and an untracked file are never returned: they stay where they are.
+    """
+    if not is_under_worktrees_segment(status_feature_dir):
+        return None
+    primary_directory = placement_seam(main_repo, _validate_mission_slug_path_segment(mission_slug)).read_dir(_TARGET_SURFACE_KIND)
+    alias_name = status_feature_dir.name
+    if alias_name == primary_directory.name:
+        return None
+    alias_dir = ensure_within_directory(main_repo / KITTY_SPECS_DIR / assert_safe_path_segment(alias_name), main_repo)
+    prefix = f"{KITTY_SPECS_DIR}/{alias_dir.name}/"
+    files = sorted(
+        path
+        for tracked in tracked_paths(main_repo, pathspecs=(prefix,))
+        if str(tracked).startswith(prefix) and is_coordination_kind_file(str(tracked)[len(prefix) :])
+        for path in (main_repo / str(tracked),)
+        if path.is_file() or path.is_symlink()
+    )
+    return AliasFiles(directory=alias_dir, primary_directory=primary_directory, files=tuple(files)) if files else None
+
+
+def _event_ids_in_log(events_path: Path, *, composed_dir: Path) -> set[str]:
+    """Return every ``event_id`` in a status event log; fail closed on any line it cannot read."""
+    event_ids: set[str] = set()
+    for line_number, line in enumerate(events_path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.strip():
+            continue
+        try:
+            event_id = json.loads(line)["event_id"]
+        except (ValueError, KeyError, TypeError) as exc:
+            raise AliasStatusEventsNotPreserved(
+                f"{events_path}:{line_number} is not an event with an event_id; its events cannot be proven present.", composed_dir=composed_dir
+            ) from exc
+        if not isinstance(event_id, str):
+            raise AliasStatusEventsNotPreserved(
+                f"{events_path}:{line_number} has a non-string event_id; its events cannot be proven present.", composed_dir=composed_dir
+            )
+        event_ids.add(event_id)
+    return event_ids
+
+
+def assert_alias_events_preserved(*, alias_events_path: Path, primary_events_path: Path) -> None:
+    """Prove every event of the composed log is present in the unioned primary log.
+
+    Raises :class:`AliasStatusEventsNotPreserved` naming the missing event ids
+    (or the unreadable line) so the caller deletes nothing.
+    """
+    composed_dir = alias_events_path.parent
+    missing = _event_ids_in_log(alias_events_path, composed_dir=composed_dir) - _event_ids_in_log(primary_events_path, composed_dir=composed_dir)
+    if missing:
+        raise AliasStatusEventsNotPreserved(
+            f"{alias_events_path} holds event(s) absent from {primary_events_path}: {sorted(missing)}. Refusing to remove the composed directory's status files.",
+            composed_dir=composed_dir,
+            missing_event_ids=tuple(sorted(missing)),
+        )
+
+
+def _alias_file_unproven(alias: AliasFiles, path: Path, *, main_repo: Path, pre_mutation_sha: str | None) -> bool:
+    """True when the bytes of *path* (a non-log coordination file of the composed directory) are not proven redundant.
+
+    Redundant means the primary Mission directory already holds the same bytes at the same
+    relative path: in the target checkout now, or in the primary directory at the run's
+    pre-mutation target tip (*pre_mutation_sha*). The second leg is what makes the product's own
+    seed provable: the seed COPIES a root-checkout file into the composed directory when the
+    coordination branch lacks it, so an untouched seed copy equals the primary directory's file
+    as the run found it, even if the primary copy has since been rewritten. A coordination write
+    made under the composed name after the seed (a new trace, an appended matrix) equals neither,
+    and is left for the operator: the fold never decides which copy wins. A symbolic link, whose
+    bytes are those of another file, is never proven.
+    """
+    if path.is_symlink():
+        return True
+    relpath = path.relative_to(alias.directory).as_posix()
+    content = path.read_bytes()
+    primary_file = alias.primary_directory / relpath
+    if primary_file.is_file() and not primary_file.is_symlink() and primary_file.read_bytes() == content:
+        return False
+    if pre_mutation_sha:
+        # Typed local: the probe's return is ``Any`` under ``follow_imports = skip``.
+        primary_blob: bytes | None = _read_git_blob_bytes(main_repo, pre_mutation_sha, f"{KITTY_SPECS_DIR}/{alias.primary_directory.name}/{relpath}")
+        return primary_blob != content
+    return True
+
+
+def assert_alias_files_preserved(
+    alias: AliasFiles,
+    *,
+    main_repo: Path,
+    pre_mutation_sha: str | None,
+) -> None:
+    """Prove every non-log file of *alias* redundant with the primary Mission directory, or raise before anything is deleted.
+
+    Per file, failing closed:
+
+    * ``status.events.jsonl``: skipped here; the caller proves it by event id with
+      :func:`assert_alias_events_preserved` (against the unioned primary log) first, unless it is a
+      symbolic link, which is never proven;
+    * ``status.json``: a snapshot derived from that log and rematerialised into the primary
+      directory, no proof;
+    * any other coordination-kind file: its bytes equal the primary directory's file at the same
+      relative path, now or at *pre_mutation_sha* (see :func:`_alias_file_unproven`).
+
+    The unproven files are collected and raised together as one :class:`AliasFileNotPreserved`,
+    so the operator sees every file at once and the fold deletes none.
+    """
+    unproven: list[str] = []
+    for path in alias.files:
+        relpath = path.relative_to(alias.directory).as_posix()
+        if relpath == _STATUS_FILENAME or (relpath == _STATUS_EVENTS_FILENAME and not path.is_symlink()):
+            continue
+        if _alias_file_unproven(alias, path, main_repo=main_repo, pre_mutation_sha=pre_mutation_sha):
+            unproven.append(relpath)
+    if unproven:
+        raise AliasFileNotPreserved(composed_dir=alias.directory, primary_dir=alias.primary_directory, relpaths=tuple(sorted(unproven)))
+
+
+def remove_alias_files(alias: AliasFiles) -> None:
+    """Unlink every file of *alias*, then the directories that unlinking left empty, up to the composed directory itself.
+
+    Only files the caller proved redundant are passed in, and only a directory that is empty is
+    removed (``rmdir``, never a recursive delete), so an untracked file, or a file that is not a
+    coordination kind, keeps its directory. Git does not track an empty directory; removing them
+    keeps the root checkout free of a stray one.
+    """
+    for path in alias.files:
+        path.unlink()
+        for directory in path.parents:
+            if directory == alias.directory.parent:
+                break
+            try:
+                directory.rmdir()
+            except OSError:
+                break
 
 
 def _read_optional_bytes(path: Path) -> bytes | None:
@@ -589,7 +836,9 @@ def _projected_path_content_matches(
         )
     except GitProbeError:
         return False
-    return target_bytes == expected_bytes
+    # Typed local: the probe's return is ``Any`` under ``follow_imports = skip``.
+    matches: bool = target_bytes == expected_bytes
+    return matches
 
 
 def projected_content_matches_target(
@@ -631,6 +880,14 @@ def projected_content_matches_target(
 
 
 __all__ = [
+    "AliasFiles",
+    "AliasFileNotPreserved",
+    "AliasFoldRefusal",
+    "AliasStatusEventsNotPreserved",
+    "assert_alias_events_preserved",
+    "assert_alias_files_preserved",
+    "coordination_alias_files",
+    "remove_alias_files",
     "_validate_mission_slug_path_segment",
     "_target_bookkeeping_status_paths",
     "_read_optional_bytes",

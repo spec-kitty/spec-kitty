@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import typer
+from rich.markup import escape
 
 if TYPE_CHECKING:
     from specify_cli.lanes.models import LanesManifest
@@ -24,12 +25,15 @@ from specify_cli.cli.console import console
 from specify_cli.coordination.coherence import (
     is_toolchain_generated_churn,
 )
+from specify_cli.coordination.commit_router import CoordWorktreeResolutionError
 from specify_cli.coordination.coord_seed import CoordSeedForkRefused
 from specify_cli.coordination.surface_resolver import (
     CoordinationBranchDeleted,
     CoordinationWorktreeUnmaterialized,
 )
+from specify_cli.coordination.workspace import CoordinationWorkspaceBranchMismatch
 from kernel.clock import now_utc_iso
+from kernel.git import GitCommandError, status_entries
 from specify_cli.core.paths import (
     MissionMetaReadError,
     resolve_merge_target_branch,
@@ -41,6 +45,7 @@ from specify_cli.git.destructive_guard import (
     assert_worktree_clean,
 )
 from specify_cli.git.ref_advance import worktrees_with_branch_checked_out
+from specify_cli.consolidation._constants import COORD_SEED_COMMIT_REFUSED_SUFFIX, COORDINATION_WORKTREE_BRANCH_MISMATCH_SUFFIX
 from specify_cli.consolidation.git_probes import (
     _has_branch_ref,
     _lane_already_integrated,
@@ -62,6 +67,7 @@ from mission_runtime import (
     ActionContextError,
     MissionArtifactKind,
     PlacementSeam,
+    SeedReport,
 )
 from specify_cli.consolidation.run_state import (
     _created_lane_worktree,
@@ -430,6 +436,97 @@ def _abort_before_state_change(exc: Exception, hint: str) -> typer.Exit:
     return typer.Exit(1)
 
 
+def _merge_record_may_exist(seam: PlacementSeam) -> bool:
+    """Whether an earlier consolidation attempt left a merge record for this Mission.
+
+    Keyed like the executor's own record (``canonical_id``: the ``mission_id``,
+    else the slug). When the identity cannot be read the answer is unknown, so it
+    reads ``True``: the "an earlier attempt may have moved a branch" wording is
+    then the only one that is true in both cases.
+    """
+    try:
+        identity = resolve_mission_identity(seam.read_dir(MissionArtifactKind.PRIMARY_METADATA))
+    except MissionMetaReadError:
+        return True
+    canonical_id = identity.mission_id if identity.mission_id is not None else seam.mission_slug
+    return bool(get_state_path(seam.repo_root, canonical_id).exists())
+
+
+def _branch_mismatch_cause(exc: Exception) -> CoordinationWorkspaceBranchMismatch | None:
+    """The branch mismatch behind a coordination-resolution failure: *exc* itself or the cause the commit router wraps; else ``None``."""
+    cause = exc if isinstance(exc, CoordinationWorkspaceBranchMismatch) else exc.__cause__
+    return cause if isinstance(cause, CoordinationWorkspaceBranchMismatch) else None
+
+
+def _untracked_mission_paths(worktree: Path) -> tuple[str, ...]:
+    """The untracked files under ``kitty-specs/`` of the coordination worktree; ``()`` when git cannot read it.
+
+    These are the files the seed wrote before the write location failed to resolve.
+    """
+    try:
+        entries = status_entries(worktree, pathspecs=("kitty-specs",), untracked="all")
+    except (GitCommandError, OSError):
+        return ()
+    return tuple(str(entry.path) for entry in entries if entry.xy == "??")
+
+
+def _refuse_on_uncomposed_coordination_branch(mismatch: CoordinationWorkspaceBranchMismatch, *, merge_record_exists: bool) -> typer.Exit:
+    """Render the refusal for a coordination worktree on a branch the product does not compose; return the ``Exit(1)`` to raise (#5750).
+
+    The Mission's declared coordination branch differs from the one composed from
+    its identity, so no coordination write can resolve the worktree. Unlike
+    :func:`_abort_before_state_change` this does NOT claim that no state changed:
+    the seed already wrote its status files, uncommitted, into the coordination
+    worktree. They are named when git can list them, and said to be kept. No
+    command is printed: renaming the branch and correcting ``meta.json`` and
+    ``lanes.json`` recovers only when the corrected files are committed on the
+    target, which is not a recovery to print blind (decision record, #5750).
+    """
+    declared = escape(mismatch.actual_ref.removeprefix("refs/heads/"))
+    expected = escape(mismatch.expected_ref.removeprefix("refs/heads/"))
+    seeded = _untracked_mission_paths(mismatch.worktree_path)
+    kept = (
+        "These seeded files are uncommitted in that worktree and are kept (nothing was removed):\n" + "\n".join(f"  - {escape(path)}" for path in seeded) + "\n"
+        if seeded
+        else ""
+    )
+    console.print(
+        f"[red]Error:[/red] The Mission's declared coordination branch is not the one the product composes. "
+        f"The coordination worktree {escape(str(mismatch.worktree_path))} is on '{declared}', but the product composes '{expected}' from the Mission's identity, "
+        "so it cannot write the Mission's coordination status.\n"
+        f"{kept}"
+        f"{escape(_protected_refusal_footer(merge_record_exists))} "
+        f"Re-running does not change this.{COORDINATION_WORKTREE_BRANCH_MISMATCH_SUFFIX}"
+    )
+    return typer.Exit(1)
+
+
+def _refuse_on_unapplied_seed_commit(seed: SeedReport, coord_worktree: Path, *, merge_record_exists: bool) -> typer.Exit:
+    """Render the refusal of a coordination seed commit that was not applied; return the ``Exit(1)`` to raise (FR-006).
+
+    Unlike :func:`_abort_before_state_change`, this does NOT claim that no state
+    changed: the seeded status files exist, uncommitted, in the coordination
+    worktree. It says what is true instead: the files are kept (nothing was
+    removed), re-running retries the commit, and, through the shared
+    :func:`_protected_refusal_footer` wording, whether any branch moved: none did
+    before this run, or, when an earlier merge record exists, none in THIS run but
+    an earlier attempt may have (``consolidate --abort`` restores it). The files
+    are named from ``seed.uncommitted_paths``, which a retry fills too, whereas
+    ``seed.carried`` is empty on a retry.
+    """
+    files = "\n".join(f"  - {escape(path)}" for path in seed.uncommitted_paths)
+    console.print(
+        f"[red]Error:[/red] The coordination seed commit was refused ({escape(seed.commit_refused or '')}).\n"
+        f"These seeded files are uncommitted in the coordination worktree {escape(str(coord_worktree))}:\n"
+        f"{files}\n"
+        "Nothing was removed: the files are kept. "
+        f"{escape(_protected_refusal_footer(merge_record_exists))} "
+        "Fix the cause of the refusal (for example a rejecting git hook), then re-run "
+        f"[bold]spec-kitty consolidate[/bold] to retry the commit.{COORD_SEED_COMMIT_REFUSED_SUFFIX}"
+    )
+    return typer.Exit(1)
+
+
 def _resolve_run_status_dir(seam: PlacementSeam) -> Path:
     """The Mission dir the run's status writes and reads land in (ruling Q4, FR-003).
 
@@ -447,9 +544,16 @@ def _resolve_run_status_dir(seam: PlacementSeam) -> Path:
     Fail closed, but NOT with a traceback, for every write-location refusal:
     nothing has been mutated, so each one is a clean no-op abort that renders
     the exception's own remediation (its ``next_step``, already in ``str(exc)``).
+
+    A seed commit that was REFUSED (``SeedReport.commit_refused``) is the one
+    exception to "nothing has been mutated": the seeded files stay, uncommitted,
+    in the coordination worktree. It stops here too, with
+    ``COORD_SEED_COMMIT_REFUSED`` and exit 1, before any branch moves, instead of
+    carrying on into the misleading dirty-worktree remedy or a teardown over the
+    uncommitted files (FR-006). The files are kept; a re-run retries the commit.
     """
     try:
-        return seam.write_dir(MissionArtifactKind.STATUS_STATE).path
+        location = seam.write_dir(MissionArtifactKind.STATUS_STATE)
     except CoordinationBranchDeleted as exc:
         raise _abort_before_state_change(
             exc,
@@ -469,8 +573,16 @@ def _resolve_run_status_dir(seam: PlacementSeam) -> Path:
             exc,
             "Inspect the diverged event logs with [bold]spec-kitty doctor decisions[/bold], then re-run [bold]spec-kitty consolidate[/bold].",
         ) from exc
+    except (CoordWorktreeResolutionError, CoordinationWorkspaceBranchMismatch) as exc:
+        mismatch = _branch_mismatch_cause(exc)
+        if mismatch is None:
+            raise  # any other resolution failure keeps the behaviour it had before #5750
+        raise _refuse_on_uncomposed_coordination_branch(mismatch, merge_record_exists=_merge_record_may_exist(seam)) from exc
     except FeatureStatusLockTimeoutError as exc:
         raise _abort_before_state_change(
             exc,
             "Wait for the other status writer to finish, then re-run [bold]spec-kitty consolidate[/bold].",
         ) from exc
+    if location.seed is not None and location.seed.commit_refused is not None:
+        raise _refuse_on_unapplied_seed_commit(location.seed, location.surface_root, merge_record_exists=_merge_record_may_exist(seam))
+    return location.path

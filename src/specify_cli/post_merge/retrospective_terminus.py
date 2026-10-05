@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Literal
 
 from kernel.git import GitCommandError, status_entries
 from specify_cli.core.constants import RETROSPECTIVE_FILENAME
-from specify_cli.mission_metadata import load_meta_or_empty
+from specify_cli.mission_metadata import load_meta_or_empty, recorded_mid8
 from specify_cli.status import BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS
 
 if TYPE_CHECKING:
@@ -162,6 +162,7 @@ def run_retrospective_postcondition(
         mission_slug=mission_slug,
         feature_dir=feature_dir,
         repo_root=repo_root,
+        provenance_kind=provenance_kind,
     )
 
 
@@ -262,11 +263,51 @@ def _paths_with_uncommitted_changes(repo_root: Path, paths: list[Path]) -> tuple
     return tuple(dirty)
 
 
+def _has_recorded_identity(feature_dir: Path) -> bool:
+    """Whether ``mission close`` can derive a mid8 for this Mission.
+
+    ``mission close`` skips the retrospective persist leg for a Mission without
+    one, so a re-run cannot commit anything for it. The rule is the one
+    ``mission close`` itself applies: :func:`recorded_mid8`.
+    """
+    return bool(recorded_mid8(load_meta_or_empty(feature_dir)))
+
+
+def _rerun_command(mission_slug: str, provenance_kind: ProvenanceKind) -> str:
+    """The idempotent command that re-runs this postcondition and heals a failed commit (#2280).
+
+    ``mission close`` reaches the terminus again, finds the artefacts dirty and
+    commits them with the same capability as the automatic path. A raw git or a
+    ``safe-commit`` recipe is not offered: the latter is refused on a protected
+    target. An abandoned mission was never merged, so it is re-run with
+    ``--discard --force``.
+    """
+    command = f"spec-kitty mission close --mission {mission_slug}"
+    if provenance_kind == "runtime_abandoned":
+        command += " --discard --force"
+    return command
+
+
+def _recovery_guidance(mission_slug: str, feature_dir: Path, provenance_kind: ProvenanceKind) -> str:
+    """The sentence telling the operator how to get the leftover artefacts committed."""
+    if _has_recorded_identity(feature_dir):
+        return f"re-run `{_rerun_command(mission_slug, provenance_kind)}` to commit them."
+    # A legacy Mission: ``mission close`` cannot reach the retrospective for it. Minting
+    # the identity first makes the re-run work; the backfill's own meta.json write stays
+    # uncommitted (verified in a scratch repo).
+    return (
+        "this Mission has no recorded identity (no mission_id in meta.json), so `mission close` cannot commit them yet. "
+        f"Run `spec-kitty migrate backfill-identity --mission {mission_slug}`, then "
+        f"`{_rerun_command(mission_slug, provenance_kind)}`; the backfill leaves meta.json modified, so commit that too."
+    )
+
+
 def _commit_captured_retrospective(
     *,
     mission_slug: str,
     feature_dir: Path,
     repo_root: Path,
+    provenance_kind: ProvenanceKind = "runtime_post_completion",
 ) -> str | None:
     """Commit the just-captured retrospective + its event-log append.
 
@@ -316,19 +357,18 @@ def _commit_captured_retrospective(
             branch=degrade_ref,
         )
         logger.debug("committed retrospective bookkeeping for mission %s", mission_slug)
-        return result.sha
+        sha: str | None = result.sha
+        return sha
     except Exception as exc:  # noqa: BLE001 — fail-open: report but never abort merge/close
-        joined = " ".join(str(p) for p in paths)
         logger.warning(
             "retrospective for mission %s was captured but could NOT be committed: %s. "
-            "The durable event log has an uncommitted append. Commit it manually: "
-            "git -C %s add %s && git -C %s commit -m 'chore(%s): capture mission retrospective'",
+            "These files have uncommitted changes: %s. "
+            "From the project root (%s), %s",
             mission_slug,
             exc,
+            " ".join(str(p) for p in paths),
             repo_root,
-            joined,
-            repo_root,
-            mission_slug,
+            _recovery_guidance(mission_slug, feature_dir, provenance_kind),
         )
         return None
 

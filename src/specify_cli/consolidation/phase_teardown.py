@@ -390,7 +390,11 @@ def _teardown_coord_worktree(run: _MergeRunState) -> str | None:
     # FR-007 route: ``route-unwrapped`` census site -- a corrupt meta.json
     # surfaces the typed ``MissionMetaReadError`` (never a raw
     # ``ValueError``) and PROPAGATES, exactly as the raw read did before.
-    _meta_for_teardown = _load_meta(run.feature_dir)
+    # Identity (``mid8``) lives in the PRIMARY metadata, so read it from
+    # ``target_feature_dir``: ``run.feature_dir`` is the status directory, which
+    # under a bare-slug coordination Mission is a composed ``<slug>-<mid8>``
+    # directory holding status files only and no ``meta.json`` (#5651).
+    _meta_for_teardown = _load_meta(run.target_feature_dir)
     _mid8_for_teardown = str(_meta_for_teardown.get("mid8", "")).strip() if isinstance(_meta_for_teardown, dict) else ""
     # WP10 integration (S-B / FR-004 / T034): when the merge captured a
     # coordination checkpoint AND ran the reconciliation gate, build the

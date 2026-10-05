@@ -47,7 +47,6 @@ from mission_runtime import (
     TopologySurface,
     WriteLocation,
     is_primary_artifact_kind,
-    kind_for_mission_file,
     routes_through_coordination,
     placement_seam,
 )
@@ -234,13 +233,11 @@ def _lock_root(request: _SeedRequest) -> Path:
     return request.owned.owned_root if request.owned is not None else request.repo_root
 
 
-def _kind_of_relpath(relpath: str) -> MissionArtifactKind | None:
-    return kind_for_mission_file(f"{KITTY_SPECS_DIR}/_mission_/{relpath}")
-
-
 def _is_coord_relpath(relpath: str) -> bool:
-    kind = _kind_of_relpath(relpath)
-    return kind is not None and not is_primary_artifact_kind(kind)
+    """Whether the seed carries *relpath*: the one coordination-kind predicate the fold and the gate share (#5651)."""
+    from specify_cli.coordination.coherence import is_coordination_kind_file
+
+    return is_coordination_kind_file(relpath)
 
 
 def _walk_root_coord_relpaths(root_mission_dir: Path) -> tuple[str, ...]:
@@ -364,9 +361,10 @@ def _event_ids_or_raise(
     location_hint: str,
 ) -> tuple[str, ...]:
     try:
-        return event_ids_of(lines)
+        event_ids: tuple[str, ...] = event_ids_of(lines)
     except (MalformedEventLogLineError, DuplicateEventIdError) as exc:
         _raise_event_log_error(request, filename=filename, side=side, location_hint=location_hint, exc=exc)
+    return event_ids
 
 
 def _merge_stream(request: _SeedRequest, filename: str) -> _StreamMerge | CoordSeedForkRefused | None:
@@ -634,6 +632,8 @@ def _commit_and_restore(
     """
     warnings = list(merge.warnings)
     coord_commit: str | None = None
+    commit_refused: str | None = None
+    uncommitted_paths: tuple[str, ...] = ()
     # Which root copies to restore (I-SEED-8) depends on the commit outcome:
     #   committed -- the coordination copy is durable, so restore what THIS attempt
     #                carried AND every path it just committed. A RETRY of a refused
@@ -655,9 +655,10 @@ def _commit_and_restore(
         elif result.status != _STATUS_UNCHANGED:
             restore_relpaths = ()
             reason = f", reason={result.reason!r}" if result.reason else ""
+            commit_refused = f"status={result.status!r}{reason}"
+            uncommitted_paths = tuple((final_dir / relpath).relative_to(request.coord_worktree).as_posix() for relpath in commit_relpaths)
             warnings.append(
-                f"seed commit not applied (status={result.status!r}{reason}); the mission "
-                "dir is present but uncommitted. The next coordination write retries the commit."
+                f"seed commit not applied ({commit_refused}); the mission dir is present but uncommitted. The next coordination write retries the commit."
             )
     restored_root = _restore_root_files(request, restore_relpaths)
     if merge.carried or warnings or restored_from_branch:
@@ -675,6 +676,8 @@ def _commit_and_restore(
         restored_root=restored_root,
         restored_from_branch=restored_from_branch,
         coord_commit=coord_commit,
+        commit_refused=commit_refused,
+        uncommitted_paths=uncommitted_paths,
         warnings=tuple(warnings),
     )
 

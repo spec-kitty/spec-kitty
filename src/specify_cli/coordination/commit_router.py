@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 import shutil
 import subprocess
-from collections.abc import Iterator, Mapping
+from collections.abc import Collection, Iterator, Mapping
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, replace
 from enum import Enum
@@ -45,10 +45,11 @@ from mission_runtime import (
     routes_through_coordination,
 )
 from specify_cli.coordination import commit_outcome
-from specify_cli.coordination.coherence import is_coord_residue_churn
+from specify_cli.coordination.coherence import is_coord_residue_churn, kind_across_mission_dir_names
 from specify_cli.coordination.commit_outcome import PathFate, SurfaceOutcome
 from specify_cli.coordination.surface_authority import Refuse, resolve_surface_authority
 from specify_cli.git import safe_commit
+from specify_cli.missions._read_path_resolver import mission_dir_aliases
 from specify_cli.status import FeatureStatusLockTimeoutError
 
 if TYPE_CHECKING:
@@ -905,6 +906,7 @@ def _representative_kind_for_bucket(
     *,
     expect_primary: bool,
     fallback: MissionArtifactKind,
+    mission_dir_names: Collection[str] | None = None,
 ) -> MissionArtifactKind:
     """Best-effort concrete kind for a partition bucket, for ref resolution only.
 
@@ -923,9 +925,12 @@ def _representative_kind_for_bucket(
     without ever touching MEMBERSHIP (that is decided exclusively by
     :func:`~specify_cli.coordination.coherence.is_coord_residue_churn` in
     :func:`_group_files_by_partition`, never by this helper).
+
+    ``mission_dir_names`` is the Mission's directory-name set when the caller
+    resolved one; each file is classified against all of it.
     """
     for file in files:
-        kind_f = kind_for_mission_file(file, mission_slug=mission_slug)
+        kind_f = kind_across_mission_dir_names(file, mission_slug=mission_slug, mission_dir_names=mission_dir_names)
         if kind_f is not None and is_primary_artifact_kind(kind_f) == expect_primary:
             return kind_f
     return fallback
@@ -937,6 +942,7 @@ def partition_for_mission_path(
     path: Path,
     *,
     owned: OwnedCheckout | None = None,
+    mission_dir_names: Collection[str] | None = None,
 ) -> Literal["primary", "coordination"]:
     """The per-path partition verdict :func:`_group_files_by_partition` uses (WP05 T025, P-M5).
 
@@ -952,8 +958,13 @@ def partition_for_mission_path(
     copy); their verdicts can never drift apart.
 
     ``repo_root`` / ``owned`` are accepted for interface symmetry with this
-    module's other kind-aware public helpers, but are not consulted: the
-    underlying residue classifier,
+    module's other kind-aware public helpers, but are not consulted: this
+    function reads nothing from disk. ``mission_dir_names`` is the optional
+    exact set of directory names the caller resolved for the Mission (see
+    :func:`~specify_cli.missions._read_path_resolver.mission_dir_aliases`);
+    :func:`_group_files_by_partition` resolves it once per commit and passes it
+    in. Omitted, the verdict is keyed on ``mission_slug`` alone, byte for byte as
+    before. The underlying residue classifier,
     :func:`~specify_cli.coordination.coherence.is_coord_residue_churn`, is
     deliberately called the SAME topology-blind way
     :func:`_group_files_by_partition` has always called it (no ``topology``
@@ -965,7 +976,8 @@ def partition_for_mission_path(
     documented requirement.
     """
     del repo_root, owned  # interface symmetry only (see docstring)
-    return "coordination" if is_coord_residue_churn(path, mission_slug=mission_slug) else "primary"
+    residue = is_coord_residue_churn(path, mission_slug=mission_slug, mission_dir_names=mission_dir_names)
+    return "coordination" if residue else "primary"
 
 
 def _group_files_by_partition(
@@ -1025,15 +1037,23 @@ def _group_files_by_partition(
       resolve to the SAME ref (the coordless-topology collapse above).
     - Two groups when the batch is genuinely mixed AND the two partitions'
       refs diverge (the #2404 defect shape).
+
+    The Mission's directory-name set
+    (:func:`~specify_cli.missions._read_path_resolver.mission_dir_aliases`) is
+    resolved ONCE per call, after the empty-batch return, and threaded into
+    every per-file verdict and the representative-kind choice: one
+    ``meta.json`` read per commit with files, none for an empty batch. An
+    unreadable ``meta.json`` means "no alias" and adds no failure mode.
     """
     if not files:
         return []
 
+    mission_dir_names = mission_dir_aliases(repo_root, mission_slug)
     caller_is_primary = is_primary_artifact_kind(kind)
     primary_files: list[Path] = []
     coord_files: list[Path] = []
     for file in files:
-        if partition_for_mission_path(repo_root, mission_slug, file) == "coordination":
+        if partition_for_mission_path(repo_root, mission_slug, file, mission_dir_names=mission_dir_names) == "coordination":
             coord_files.append(file)
         else:
             primary_files.append(file)
@@ -1045,8 +1065,16 @@ def _group_files_by_partition(
         # the pre-#2650 single-group call.
         return [(kind, files)]
 
-    primary_kind = kind if caller_is_primary else _representative_kind_for_bucket(primary_files, mission_slug, expect_primary=True, fallback=_FALLBACK_PRIMARY_KIND)
-    coord_kind = kind if not caller_is_primary else _representative_kind_for_bucket(coord_files, mission_slug, expect_primary=False, fallback=_FALLBACK_COORD_KIND)
+    primary_kind = (
+        kind
+        if caller_is_primary
+        else _representative_kind_for_bucket(primary_files, mission_slug, expect_primary=True, fallback=_FALLBACK_PRIMARY_KIND, mission_dir_names=mission_dir_names)
+    )
+    coord_kind = (
+        kind
+        if not caller_is_primary
+        else _representative_kind_for_bucket(coord_files, mission_slug, expect_primary=False, fallback=_FALLBACK_COORD_KIND, mission_dir_names=mission_dir_names)
+    )
 
     if primary_files and coord_files:
         primary_ref = resolve_placement_only(repo_root, mission_slug, kind=primary_kind).ref

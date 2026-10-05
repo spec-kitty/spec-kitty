@@ -58,6 +58,37 @@ COORD_MOVED_AFTER_LANDING_SUFFIX = f" Error code: {COORD_MOVED_AFTER_LANDING}."
 # be completed afterwards. Every other teardown refusal keeps exit 1.
 COORD_MOVED_AFTER_LANDING_EXIT_CODE = 75
 
+# Stable code of the FR-006 / #5651 refusal: the coordination seed commit was refused
+# (a rejecting git hook, a protection policy, a transient git failure), so the seeded
+# status files sit uncommitted in the coordination worktree. ``spec-kitty consolidate``
+# stops before any branch moves with exit 1. Nothing is deleted: the files are kept and
+# the next run retries the commit (I-SEED-10). Rendered as a SUFFIX, like the code above.
+COORD_SEED_COMMIT_REFUSED = "COORD_SEED_COMMIT_REFUSED"
+COORD_SEED_COMMIT_REFUSED_SUFFIX = f" Error code: {COORD_SEED_COMMIT_REFUSED}."
+
+# Stable code of the #5750 refusal: the one-directory fold of a bare-slug coordination
+# Mission found an event in the composed ``<slug>-<mid8>`` directory's status log that
+# the primary Mission directory's event log lacks (or a log it cannot read), so it removed nothing.
+# ``spec-kitty consolidate`` rolls the run back and exits 1. Rendered as a SUFFIX, like
+# the codes above.
+ALIAS_STATUS_EVENTS_NOT_PRESERVED = "ALIAS_STATUS_EVENTS_NOT_PRESERVED"
+ALIAS_STATUS_EVENTS_NOT_PRESERVED_SUFFIX = f" Error code: {ALIAS_STATUS_EVENTS_NOT_PRESERVED}."
+
+# Stable code of the sibling refusal (#5651): the one-directory fold found a coordination-kind
+# file in the composed directory (a trace, a matrix, the decision log, a review cycle) that it
+# cannot prove the primary Mission directory also holds, with the same content, so it removed
+# nothing. ``spec-kitty consolidate`` rolls the run back and exits 1. Rendered as a SUFFIX.
+ALIAS_FILE_NOT_PRESERVED = "ALIAS_FILE_NOT_PRESERVED"
+ALIAS_FILE_NOT_PRESERVED_SUFFIX = f" Error code: {ALIAS_FILE_NOT_PRESERVED}."
+
+# Stable code of the #5750 refusal for a Mission whose declared coordination branch is not
+# the one the product composes (``kitty/mission-<slug>-<mid8>``): the coordination worktree
+# is on the declared branch, so no coordination status write can resolve it. It is the code
+# ``CoordinationWorkspaceBranchMismatch.error_code`` already carries, spelled once here for
+# the ``spec-kitty consolidate`` rendering (exit 1). Rendered as a SUFFIX, like the codes above.
+COORDINATION_WORKTREE_BRANCH_MISMATCH = "COORDINATION_WORKTREE_BRANCH_MISMATCH"
+COORDINATION_WORKTREE_BRANCH_MISMATCH_SUFFIX = f" Error code: {COORDINATION_WORKTREE_BRANCH_MISMATCH}."
+
 # Canonical status-surface filenames.
 _STATUS_EVENTS_FILENAME = "status.events.jsonl"
 _STATUS_FILENAME = "status.json"

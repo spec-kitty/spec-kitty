@@ -68,6 +68,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import typer
+from rich.markup import escape
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.cli.console import console
@@ -178,6 +179,7 @@ from specify_cli.consolidation.run_state import CoordinationTeardownError
 # ``coordination.atomic_write``. Only the surviving trust + projection symbols are
 # re-exported through this shim.
 from specify_cli.consolidation.bookkeeping_projection import (
+    AliasFoldRefusal,
     _assert_status_path_within_target_surface,
     _assert_status_surface_path_is_trusted,
     _project_status_bookkeeping_to_target,
@@ -733,6 +735,14 @@ def _run_real_merge(
         # (``exc.exit_code``, 75); every other teardown refusal stays 1.
         console.print(f"[red]Error:[/red] coordination teardown incomplete: {exc}")
         raise typer.Exit(exc.exit_code) from exc
+    except AliasFoldRefusal as exc:
+        # #5750 / #5651: the one-directory fold of a bare-slug coordination Mission could not prove
+        # every event of the composed directory's log present in the primary Mission directory's event log,
+        # or a coordination file of that directory redundant with the primary Mission directory's copy.
+        # The rollback door already ran and nothing was deleted: render the refusal with
+        # its code instead of a traceback.
+        console.print(f"[red]Error:[/red] {escape(exc.refusal_text(resolved_mission))}")
+        raise typer.Exit(1) from exc
     except ProjectionTeardownAbort as exc:
         # #5637: the coordination tip moved between the projection capture and the
         # teardown gate. Nothing was torn down; render the

@@ -1229,7 +1229,12 @@ def _is_bookkeeping(path: str, mission_slug: str | None, planning_prefix: str | 
     * a repo-ROOT ``.kittify/`` prefix — encoding-provenance,
       mission-state-audit, and other toolchain-owned state;
     * a repo-ROOT ``kitty-ops/<ULID>.jsonl`` Op-record orphan
-      (:data:`_KITTY_OPS_ROOT_RECORD`).
+      (:data:`_KITTY_OPS_ROOT_RECORD`);
+    * for a bare-slug coordination claim only (a NESTED *planning_prefix*), the
+      coordination-kind files (status pair, traces, matrices, decision log, review
+      cycles) anywhere under the composed directory ``kitty-specs/<alias>/``
+      *planning_prefix* ends in
+      (:func:`_is_nested_alias_coordination_file`, #5651).
 
     Any other path — including one that merely shares a bookkeeping
     basename — is real content, subject to the closed-world attribution
@@ -1270,7 +1275,41 @@ def _is_bookkeeping(path: str, mission_slug: str | None, planning_prefix: str | 
         return True
     if normalized == KITTIFY_DIR or normalized.startswith(KITTIFY_DIR + "/"):
         return True
+    if _is_nested_alias_coordination_file(normalized, mission_slug, planning_prefix):
+        return True
     return bool(_KITTY_OPS_ROOT_RECORD.match(normalized))
+
+
+def _is_nested_alias_coordination_file(path: str, mission_slug: str | None, planning_prefix: str | None) -> bool:
+    """True when *path* is a coordination-kind file of the composed directory a bare-slug coordination claim names.
+
+    A bare-slug coordination Mission keeps its primary directory at
+    ``kitty-specs/<slug>`` while the coordination seed writes its coordination
+    records (the status pair, traces, matrices, the decision log, review cycles)
+    under the composed ``kitty-specs/<slug>-<mid8>`` directory (#5651). The claim's
+    *planning_prefix* is then the NESTED coordination-worktree path whose last
+    segment is that composed name, and the name is read from it, never rebuilt from
+    the slug. Only a root-anchored path ``kitty-specs/<alias>/<file>``, at any depth
+    below the directory, whose file is a coordination kind
+    (:func:`~specify_cli.coordination.coherence.is_coordination_kind_file`, the predicate
+    the seed itself uses to decide what to carry) qualifies; a planning file, source, an
+    unclassified file and any other directory stay content. A root-form or absent prefix,
+    or one that already names the primary directory, never applies this rule.
+    """
+    if not planning_prefix:
+        return False
+    prefix_parts = planning_prefix.rstrip("/").split("/")
+    # <something>/kitty-specs/<alias>: nested, so the older exact-prefix rule cannot see it.
+    if len(prefix_parts) < 3 or prefix_parts[-2] != KITTY_SPECS_DIR or not all(prefix_parts[:-2]):
+        return False
+    alias = prefix_parts[-1]
+    parts = path.split("/")
+    if alias == mission_slug or len(parts) < 3 or parts[0] != KITTY_SPECS_DIR or parts[1] != alias:
+        return False
+    # Function-local: this module imports nothing from the coordination package at its top.
+    from specify_cli.coordination.coherence import is_coordination_kind_file
+
+    return is_coordination_kind_file("/".join(parts[2:]))
 
 
 def is_legitimate_three_way_resolution(

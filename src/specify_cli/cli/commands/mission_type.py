@@ -23,8 +23,7 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root, load_meta_fail_closed
 from specify_cli.core.utils import safe_is_dir
 from specify_cli.git.remote_probes import RemoteLookup, remote_branch_lookup
-from specify_cli.lanes.branch_naming import resolve_mid8
-from specify_cli.mission_metadata import load_meta
+from specify_cli.mission_metadata import load_meta, recorded_mid8
 from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 from dataclasses import dataclass
 from pathlib import Path
@@ -670,16 +669,7 @@ def close_cmd(
 
 def _read_mission_mid8(meta_path: Path) -> str:
     meta = load_meta(meta_path.parent, allow_missing=True, on_malformed="none")
-    if not isinstance(meta, dict):
-        return ""
-    mid8_value = str(meta.get("mid8") or "").strip()
-    if mid8_value:
-        return mid8_value
-    mission_id_meta = str(meta.get("mission_id") or "").strip()
-    # No slug in scope here; the canonical resolver derives ``mission_id[:8]``
-    # from the declared id alone. The >= 8 guard preserves the ``else ""``
-    # contract (resolve_mid8 also declines to "" below 8 chars).
-    return resolve_mid8("", mission_id=mission_id_meta) if len(mission_id_meta) >= 8 else ""
+    return recorded_mid8(meta) if isinstance(meta, dict) else ""
 
 
 def _discard_mission(
@@ -1035,11 +1025,15 @@ def _commit_flattened_meta(repo_root: Path, feature_dir: Path, mission_slug: str
             branch=target_branch,
         )
     except Exception as exc:  # noqa: BLE001 — fail-open: warn, never abort discard
+        # Print only a command that provably recovers: re-running the same discard
+        # from the project root commits the leftover changes (it is idempotent). A
+        # ``safe-commit`` recipe would be refused on a protected target.
         console.print(
             f"[yellow]Warning:[/yellow] discard of {mission_slug} flattened "
-            f"meta.json but could not commit it ({exc}). Commit it manually: "
-            f"git -C {repo_root} add {meta_path} && git -C {repo_root} commit "
-            f"-m 'chore({mission_slug}): flatten discarded mission metadata'"
+            f"meta.json but could not commit it ({exc}). meta.json is left uncommitted. "
+            f"From the project root, re-run "
+            f"`spec-kitty mission close --mission {mission_slug} --discard --force` "
+            f"to commit it."
         )
 
 

@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import re
 import subprocess
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -33,17 +33,21 @@ from kernel.paths import to_posix
 from mission_runtime import (
     MissionArtifactKind,
     MissionTopology,
+    is_primary_artifact_kind,
     kind_for_mission_file,
     kind_is_coordination_residue,
 )
+from specify_cli.core.constants import KITTY_SPECS_DIR
 
 __all__ = [
     "CoordRepairOutcome",
     "coord_incoherent_done_wps",
     "is_coord_residue_churn",
+    "is_coordination_kind_file",
     "is_self_bookkeeping_churn",
     "is_status_state_path",
     "is_toolchain_generated_churn",
+    "kind_across_mission_dir_names",
     "repair_coord_strand",
     "status_log_commits_in_range",
 ]
@@ -158,11 +162,35 @@ def is_self_bookkeeping_churn(path: str | Path) -> bool:
     return bool(kitty_ops_op_record.search(normalized))
 
 
+def kind_across_mission_dir_names(
+    path: str | Path,
+    *,
+    mission_slug: str | None,
+    mission_dir_names: Collection[str] | None,
+) -> MissionArtifactKind | None:
+    """Classify ``path`` against every directory name the caller proved belongs to the Mission.
+
+    ``mission_dir_names=None`` is the historical single call keyed on ``mission_slug``.  A
+    collection applies the same exact-name classification once per name and returns the first
+    recognised kind, so a Mission whose coordination directory carries a different name than
+    its primary one is recognised under either.  Pure: the names are the caller's evidence
+    (see ``missions._read_path_resolver.mission_dir_aliases``); nothing here reads a file.
+    """
+    if mission_dir_names is None:
+        return kind_for_mission_file(path, mission_slug=mission_slug)
+    for name in mission_dir_names:
+        kind = kind_for_mission_file(path, mission_slug=name)
+        if kind is not None:
+            return kind
+    return None
+
+
 def is_coord_residue_churn(
     path: str | Path,
     *,
     mission_slug: str | None = None,
     topology: MissionTopology | None = None,
+    mission_dir_names: Collection[str] | None = None,
 ) -> bool:
     """Return True for coord-partition residue: the retired IC-07b leg (WP12).
 
@@ -247,15 +275,27 @@ def is_coord_residue_churn(
     this retirement must NOT make (C6). :func:`is_toolchain_generated_churn`
     composes this leg with the self-bookkeeping leg for callers that want the
     full union in one call.
+
+    ``mission_dir_names`` (optional, keyword-only) is the exact set of directory
+    names a caller has proved belong to the Mission (a bare primary directory
+    plus its composed ``<slug>-<mid8>`` coordination directory, #5651). When
+    given, the path is classified under each name and the first recognised kind
+    wins; ``mission_slug`` is not consulted then. ``None`` keeps the historical
+    single-name classification, byte for byte.
     """
-    kind = kind_for_mission_file(path, mission_slug=mission_slug)
+    kind = kind_across_mission_dir_names(path, mission_slug=mission_slug, mission_dir_names=mission_dir_names)
     if kind is None:
         return False
     effective_topology = MissionTopology.COORD if topology is None else topology
     return kind_is_coordination_residue(kind, effective_topology)
 
 
-def is_status_state_path(path: str | Path, *, mission_slug: str | None = None) -> bool:
+def is_status_state_path(
+    path: str | Path,
+    *,
+    mission_slug: str | None = None,
+    mission_dir_names: Collection[str] | None = None,
+) -> bool:
     """Return True iff *path* classifies as the STATUS_STATE kind (WP13 / IC-07c).
 
     Narrow ON PURPOSE — deliberately NOT :func:`is_coord_residue_churn` (which
@@ -271,8 +311,36 @@ def is_status_state_path(path: str | Path, *, mission_slug: str | None = None) -
     by ``tests/architectural/test_trio_seam_only.py``) can classify by kind
     without importing the forbidden ``mission_runtime.kind_for_mission_file``
     primitive directly — this predicate is the blessed, owner-module wrapper.
+
+    ``mission_dir_names`` carries the same meaning as on
+    :func:`is_coord_residue_churn`: an optional exact set of Mission directory
+    names, each tried in turn; ``None`` keeps the single-name classification.
     """
-    return kind_for_mission_file(path, mission_slug=mission_slug) is MissionArtifactKind.STATUS_STATE
+    kind = kind_across_mission_dir_names(path, mission_slug=mission_slug, mission_dir_names=mission_dir_names)
+    return kind is MissionArtifactKind.STATUS_STATE
+
+
+def is_coordination_kind_file(relpath: str | Path) -> bool:
+    """Return True iff *relpath*, relative to a Mission directory, is a coordination-kind file.
+
+    The ONE answer to "is this a COORD-partition record" for a file inside a Mission
+    directory, by the kind authority: it classifies to a known
+    :class:`~mission_runtime.MissionArtifactKind` that is NOT a primary-partition kind
+    (:func:`~mission_runtime.is_primary_artifact_kind`). Today that is the status pair,
+    the decision log, the two gate matrices, tracer files under ``traces/`` and
+    ``tasks/<wp>/review-cycle-*.md``. A planning or identity file, a file the classifier
+    does not know and the empty path are not.
+
+    Three consumers share it so they cannot drift: the coordination seed decides with it which
+    root-checkout files to carry onto the coordination surface
+    (``coord_seed._is_coord_relpath``), the one-directory fold of a bare-slug coordination
+    Mission decides which files under the composed directory it may remove
+    (``consolidation.bookkeeping_projection.coordination_alias_files``), and the
+    reconciliation gate decides which of them are bookkeeping
+    (``consolidation.reconciliation._is_nested_alias_coordination_file``). Pure: nothing is read.
+    """
+    kind = kind_for_mission_file(f"{KITTY_SPECS_DIR}/_mission_/{to_posix(relpath)}")
+    return kind is not None and not is_primary_artifact_kind(kind)
 
 
 def is_toolchain_generated_churn(

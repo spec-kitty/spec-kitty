@@ -24,6 +24,8 @@ from kernel.git_topology import GitTopologyError, git_common_dir
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.cli.console import console
+from specify_cli.coordination.coherence import is_coordination_kind_file
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.env import is_interactive
 from specify_cli.core.git_ops import run_command
 from specify_cli.core.git_preflight import (
@@ -45,6 +47,7 @@ from specify_cli.post_merge.review_artifact_consistency import (
     review_artifact_finding_diagnostic,
     run_review_artifact_consistency_preflight,
 )
+from specify_cli.missions._read_path_resolver import mission_dir_aliases
 from specify_cli.status import REVIEWER_SELF_APPROVAL
 
 if TYPE_CHECKING:
@@ -727,6 +730,7 @@ def _warn_or_confirm_hollow_reviews(
 # is fast-forward/reset-to-HEAD recovery, never the merge-reverting commit.
 
 _RESUME_HINT = "Then re-run: spec-kitty consolidate --resume"
+_ABORT_COMMAND = "spec-kitty consolidate --abort"
 
 
 class ResumeRemedyKind(Enum):
@@ -920,6 +924,60 @@ def _resume_edit_patch_path(checkout: Path) -> Path:
     except GitTopologyError:
         directory = resolved.parent
     return directory / f"spec-kitty-resume-edit-{checkout.name}-{digest}.patch"
+
+
+#: The two ``XY`` codes ``git status`` prints for a tracked file deleted in the working tree (`` D``) or staged for deletion (``D ``).
+_DELETION_CODES = (" D", "D ")
+
+
+def _is_deleted_coordination_file(entry: str, *, composed_prefix: str) -> bool:
+    """True when *entry* (a rendered ``XY path`` line) deletes a coordination-kind file under *composed_prefix*.
+
+    ``StatusEntry.display`` renders ``<X><Y> <path>`` and says never to parse it back for data; this reads
+    it only to RECOGNISE a state, and any entry it cannot read with certainty (a rename, a quoted
+    or escaped path) is not recognised, which keeps the stock remedy.
+    """
+    if entry[:2] not in _DELETION_CODES or entry[2:3] != " ":
+        return False
+    path = entry[3:]
+    return path.startswith(composed_prefix) and is_coordination_kind_file(path[len(composed_prefix) :])
+
+
+def interrupted_alias_fold_guidance(dirty_entries: list[str], *, main_repo: Path, mission_slug: str) -> list[str] | None:
+    """Advice for a root checkout that an interrupted one-directory fold left dirty (#5748), else ``None``.
+
+    The fold of a bare-slug coordination Mission (``bookkeeping_projection.coordination_alias_files``,
+    run by ``phase_bookkeeping._fold_alias_directory``) unlinks the composed ``<slug>-<mid8>``
+    directory's coordination-kind files (the status pair, traces, matrices, the decision log, review
+    cycles) one by one and then commits the removal. A run killed between the two leaves a non-empty
+    set of exactly those deletions in the repository root checkout; the landed Mission is
+    already on the target. Recording, stashing or restoring them does not let ``--resume``
+    complete, whereas rolling the interrupted run back with ``consolidate --abort`` and starting
+    fresh does.
+
+    Recognition is exact. The composed name comes from
+    :func:`~specify_cli.missions._read_path_resolver.mission_dir_aliases` (the Mission's recorded
+    identity, never a guess from the slug), and every entry of the refusal's ``dirty_entries`` must be
+    the deletion, unstaged or staged, of a file under that directory that the coordination seed
+    carries (:func:`~specify_cli.coordination.coherence.is_coordination_kind_file`, the predicate the
+    fold itself uses). Anything else (a modified or untracked file, a deleted planning file or source, a
+    different directory, a Mission with no composed directory, no entry at all) is genuine local work
+    and keeps the stock remedy: ``None``.
+    """
+    composed = mission_dir_aliases(main_repo, mission_slug) - {mission_slug}
+    if len(composed) != 1:
+        return None
+    (composed_name,) = composed
+    composed_prefix = f"{KITTY_SPECS_DIR}/{composed_name}/"
+    if not dirty_entries or not all(_is_deleted_coordination_file(entry, composed_prefix=composed_prefix) for entry in dirty_entries):
+        return None
+    return [
+        f"An earlier consolidation of {mission_slug} was interrupted while folding the composed directory {KITTY_SPECS_DIR}/{composed_name} "
+        "into the primary Mission directory: some of its coordination files are deleted in this checkout, but the commit that records the removal was never made.",
+        "Committing, stashing or restoring these deletions does not let a resume complete.",
+        f"Roll the interrupted run back: {_ABORT_COMMAND}",
+        "Then start the consolidation fresh: spec-kitty consolidate",
+    ]
 
 
 def lag_with_edit_guidance(checkout: Path, *, label: str, base_sha: str) -> list[str]:

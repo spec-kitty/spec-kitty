@@ -11,6 +11,7 @@ Moved from ``consolidation/executor.py`` by epic #2026 with no logic change.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
 
@@ -47,9 +48,16 @@ from specify_cli.consolidation.baseline import (
     record_baseline_merge_commit as _record_baseline_merge_commit,
 )
 from specify_cli.consolidation.bookkeeping_projection import (
+    AliasFileNotPreserved,
+    AliasFiles,
+    AliasStatusEventsNotPreserved,
     _project_status_bookkeeping_to_target,
     _resolve_ref_sha,
     _target_bookkeeping_status_paths,
+    assert_alias_events_preserved,
+    assert_alias_files_preserved,
+    coordination_alias_files,
+    remove_alias_files,
 )
 from specify_cli.consolidation.done_bookkeeping import (
     _assert_merged_wps_done_on_target,
@@ -79,6 +87,12 @@ from specify_cli.consolidation.run_state import (
     _capture_merge_snapshots,
     _records_post_mutation_tips,
 )
+
+# ``specify_cli.*`` imports are followed with ``follow_imports = "skip"``, so the imported tip
+# recorder reads as ``Any`` and would leave every phase it decorates untyped. Declaring its
+# signature once keeps the decorated phases typed.
+_PhaseStep = Callable[[_MergeRunState], None]
+_record_post_mutation_tips: Callable[[_PhaseStep], _PhaseStep] = _records_post_mutation_tips
 
 
 def _run_has_code_wps(run: _MergeRunState) -> bool:
@@ -172,7 +186,7 @@ def _resolve_expected_mission_number(run: _MergeRunState) -> int | None:
     if target_current is not None:
         return target_current
     if run.assigned_mission_number is not None:
-        return run.assigned_mission_number
+        return int(run.assigned_mission_number)
     from_ref: int | None = _read_mission_number_from_ref(run.main_repo, lanes_manifest.mission_branch, run.mission_slug)
     return from_ref
 
@@ -286,7 +300,7 @@ def _phase_capture_and_baseline(run: _MergeRunState) -> None:
         raise typer.Exit(1) from exc
 
 
-@_records_post_mutation_tips
+@_record_post_mutation_tips
 def _phase_record_done_and_project(run: _MergeRunState) -> None:
     """Mark WPs done (post-target path) and project status bookkeeping to target."""
     lanes_manifest = run.lanes_manifest
@@ -598,7 +612,61 @@ def _phase_porcelain_invariant(run: _MergeRunState) -> None:
     raise typer.Exit(1)
 
 
-@_records_post_mutation_tips
+def _prove_alias_files_redundant(run: _MergeRunState, alias: AliasFiles) -> None:
+    """Prove every file of *alias* redundant with the primary Mission directory, or raise (nothing is touched).
+
+    The status log first: every event id of the composed log is in the unioned primary log
+    (:func:`assert_alias_events_preserved`). Then every other coordination-kind file by its bytes
+    (:func:`assert_alias_files_preserved`), against the primary directory's copy in the target
+    checkout or at the run's pre-mutation target tip.
+    """
+    assert run.target_events_path is not None
+    events_log = alias.directory / _STATUS_EVENTS_FILENAME
+    if events_log in alias.files:
+        assert_alias_events_preserved(alias_events_path=events_log, primary_events_path=run.target_events_path)
+    assert_alias_files_preserved(
+        alias,
+        main_repo=run.main_repo,
+        pre_mutation_sha=run.state.pre_mutation_refs.get(run.lanes_manifest.target_branch),
+    )
+
+
+def _fold_alias_directory(run: _MergeRunState) -> list[Path]:
+    """Remove the composed coordination directory's coordination-kind files from the target tree (#5651, FR-019).
+
+    A bare-slug coordination Mission ends with ONE Mission directory on the
+    target, the primary one. The coordination seed carries every coordination-kind
+    file of that directory (the status pair, traces, matrices, the decision log, review
+    cycles) into the composed ``<slug>-<mid8>`` directory, and they ride the squash onto the
+    target. The status events were unioned into the primary log earlier in this run. Here,
+    after proving EVERY such file redundant (:func:`_prove_alias_files_redundant`: the status
+    log by event id, any other file by its bytes against the primary directory's copy now or at
+    the run's pre-mutation target tip), the files are unlinked together with the directories
+    that leaves empty, and returned so the caller commits the removal in the bookkeeping commit
+    that already exists. Returns ``[]`` for a Mission whose status directory is its primary
+    directory. A file that is not a coordination kind is never touched, so the gate still fails
+    on it. Fails closed and all or nothing: if any file cannot be proven, the snapshots are
+    restored, nothing is unlinked and the refusal propagates.
+    """
+    assert run.target_events_path is not None
+    alias = coordination_alias_files(
+        main_repo=run.main_repo,
+        mission_slug=run.mission_slug,
+        status_feature_dir=run.feature_dir,
+    )
+    if alias is None:
+        return []
+    run.final_bookkeeping_snapshots.update(_capture_merge_snapshots(run.main_repo, *alias.files))
+    try:
+        _prove_alias_files_redundant(run, alias)
+    except (AliasStatusEventsNotPreserved, AliasFileNotPreserved) as exc:
+        _restore_and_guard_coord_coherence(run, run.final_bookkeeping_snapshots, error=exc)
+        raise
+    remove_alias_files(alias)
+    return list(alias.files)
+
+
+@_record_post_mutation_tips
 def _phase_commit_and_assert(run: _MergeRunState) -> None:
     """INV-5: bookkeeping safe_commit → done-on-target assert → baseline assert (post-commit)."""
     lanes_manifest = run.lanes_manifest
@@ -619,22 +687,24 @@ def _phase_commit_and_assert(run: _MergeRunState) -> None:
     files_to_commit = list(dict.fromkeys(files_to_commit))
     # Drop any candidate that genuinely does not exist on disk (e.g. a mission
     # whose ``status.json`` was never materialized): ``safe_commit`` stages
-    # every requested path with ``git add --force`` and hard-fails if one is
-    # missing, whereas ``_paths_have_status_changes`` (the gate just below)
-    # tolerates a nonexistent path (``git status --porcelain`` reports nothing
-    # for it). Before the birth-cutover phase, this list's non-optional
-    # members (``target_events_path``/``target_status_path``) were the only
-    # ones ever unconditionally present and a delta-free mission never
+    # every requested path with ``git add --force`` and fails when a path is
+    # neither on disk nor tracked, whereas ``_paths_have_status_changes`` (the
+    # gate just below) tolerates a nonexistent path (``git status --porcelain``
+    # reports nothing for it). Before the birth-cutover phase, this list's
+    # non-optional members (``target_events_path``/``target_status_path``) were
+    # the only ones ever unconditionally present and a delta-free mission never
     # triggered the commit at all, so this latent existence mismatch was never
     # exercised; the birth-cutover's own genuine delta (a seed event / the
     # ``status_phase`` flip) can now be the ONLY change in an otherwise
     # status.json-less mission, surfacing it.
-    # NOTE (PR #2920 review F5): this filter is write/update-only — it drops a
-    # path that is absent on disk (a never-materialized status.json). It is NOT
-    # deletion-safe: were a future bookkeeping step to need a path REMOVED, the
-    # filter would silently skip the deletion instead of committing it. None of
-    # the current members are ever deleted during merge, so this is inert today.
+    # NOTE (PR #2920 review F5): this filter is write/update-only -- it drops a
+    # path that is absent on disk, so it cannot carry a deletion. The one
+    # deletion this phase makes, the composed coordination directory's
+    # coordination-kind files (#5651), is therefore appended AFTER the filter on
+    # purpose: those files are tracked on the target, so ``safe_commit`` stages
+    # their removal.
     files_to_commit = [path for path in files_to_commit if path.exists()]
+    files_to_commit.extend(_fold_alias_directory(run))
 
     has_bookkeeping_changes = _paths_have_status_changes(run.main_repo, files_to_commit)
     if has_bookkeeping_changes:

@@ -27,6 +27,7 @@ from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import safe_mission_slug
 from kernel.clock import now_utc_iso
 from kernel.meta_decode import MetaDecodeError, decode_meta
+from mission_runtime import resolve_mid8
 
 # Hoisted S1192 literals (campsite #1970) -- the meta.json filename and the two
 # decode encodings appear across this module and the legacy contracts it absorbs.
@@ -477,6 +478,21 @@ def load_meta_or_empty(feature_dir: Path) -> dict[str, Any]:
     # on_malformed="empty" never yields None; ``or {}`` narrows ``| None`` for
     # the type checker (value-preserving: ``{} or {}`` is ``{}``).
     return result or {}
+
+
+def recorded_mid8(meta: Mapping[str, object]) -> str:
+    """The mid8 a Mission's ``meta.json`` records, or ``""``: ``mid8`` first, else ``mission_id``'s first eight characters.
+
+    The ONE rule ``spec-kitty mission close`` applies to find the identity it composes names
+    from, and the one the retrospective postcondition asks before it tells an operator that a
+    re-run of ``mission close`` can commit anything (#5751). Whitespace is stripped; a
+    ``mission_id`` shorter than eight characters records no mid8, and no slug is consulted.
+    """
+    mid8 = str(meta.get("mid8") or "").strip()
+    if mid8:
+        return mid8
+    mission_id = str(meta.get("mission_id") or "").strip()
+    return resolve_mid8("", mission_id=mission_id) if len(mission_id) >= 8 else ""
 
 
 def validate_meta(meta: dict[str, Any]) -> list[str]:

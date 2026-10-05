@@ -70,12 +70,13 @@ from mission_runtime import (
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.git.remote_probes import RemoteLookup, remote_branch_lookup
-from specify_cli.lanes.branch_naming import mid8_from_slug, resolve_mid8
+from specify_cli.lanes.branch_naming import mid8_from_slug
 from specify_cli.missions._read_path_resolver import (
     CoordState,
     StatusReadPathNotFound,
     _canonicalize_primary_read_handle,
     _compose_primary_feature_dir,
+    _declared_mid8,
     candidate_feature_dir_for_mission,
     coord_feature_dir,
     probe_coord_state,
@@ -1065,16 +1066,11 @@ def resolve_declared_mid8(meta: dict[str, object], mission_slug: str) -> str:
     Returns:
         The 8-char mid8 when any tier resolves it, else ``""``.
     """
-    raw_mid8 = meta.get("mid8")
-    if raw_mid8:
-        return str(raw_mid8)
-    raw_mission_id = meta.get("mission_id")
-    declared_mission_id = str(raw_mission_id) if raw_mission_id else None
-    # Authoritative resolution: derive from the declared mission_id; declines a
-    # coincidental slug tail when no declared identity confirms it.
-    resolved: str = resolve_mid8(mission_slug, mission_id=declared_mission_id)
-    if resolved:
-        return resolved
+    # Tiers 1-2 are the declared-only core the directory-alias authority shares
+    # (``missions._read_path_resolver._declared_mid8``): one derivation, never a copy (#5751).
+    declared: str = _declared_mid8(meta, mission_slug)
+    if declared:
+        return declared
     # Final fallback: no DECLARED source carries the disambiguator. The seam's
     # sanctioned heuristic reads the mid8 embedded in the canonical
     # ``<slug>-<mid8>`` name — the legitimate coord-topology mid8 for a mission

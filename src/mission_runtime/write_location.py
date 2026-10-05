@@ -68,6 +68,14 @@ class SeedReport:
     #: The commit id of the seed commit on the coordination branch, or
     #: ``None`` when nothing was carried or the commit was refused.
     coord_commit: str | None = None
+    #: Why the seed commit was refused: a short reason built from the commit
+    #: router result (its status and, when present, its reason). ``None`` when
+    #: the commit was applied, unchanged or not attempted.
+    commit_refused: str | None = None
+    #: Repository-relative (posix) paths, in the coordination checkout, of the
+    #: files a refused seed commit left uncommitted. Empty whenever
+    #: ``commit_refused`` is ``None``.
+    uncommitted_paths: tuple[str, ...] = ()
     #: Human-readable warnings (conflicting non-log copies, a refused seed
     #: commit, …) -- always logged at ``WARNING`` by the caller too.
     warnings: tuple[str, ...] = ()

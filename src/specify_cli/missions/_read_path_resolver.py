@@ -917,6 +917,93 @@ def literal_primary_dir_has_meta(repo_root: Path, mission_slug: str) -> bool:
     return (_compose_primary_feature_dir(repo_root, mission_slug) / "meta.json").exists()
 
 
+def _read_literal_primary_meta(repo_root: Path, mission_slug: str) -> Mapping[str, object]:
+    """Read ``kitty-specs/<mission_slug>/meta.json`` of the LITERAL directory; ``{}`` when it proves nothing.
+
+    One metadata read, no handle canonicalisation, no coordination probing. An absent file, a
+    malformed or non-object file, and a file the OS refuses to read all mean "no recorded
+    identity here" (``{}``); nothing is raised (the silent adapter ``load_meta_or_empty``).
+    """
+    from specify_cli.mission_metadata import load_meta_or_empty
+
+    # ``load_meta_or_empty`` widens to ``Any`` through the late import (``follow_imports=skip``); bind it.
+    meta: Mapping[str, object] = load_meta_or_empty(_compose_primary_feature_dir(repo_root, mission_slug))
+    return meta
+
+
+def _declared_mid8(meta: Mapping[str, object], mission_slug: str) -> str:
+    """The mid8 a ``meta.json`` DECLARES, or ``""``: ``mid8`` first, then ``mission_id``.
+
+    The ONE declared-only core of the mid8 cascade: ``surface_resolver.resolve_declared_mid8``
+    calls it for its first two tiers and adds the heuristic ``mid8_from_slug`` guess from the
+    slug's tail as its final tier, and :func:`mission_dir_aliases` calls it and never adds that
+    tier, because a directory name proposes an identity and recorded identity disposes (#5751).
+    """
+    from specify_cli.lanes.branch_naming import resolve_mid8
+
+    raw_mid8 = meta.get("mid8")
+    if raw_mid8:
+        return str(raw_mid8)
+    raw_mission_id = meta.get("mission_id")
+    declared_mission_id = str(raw_mission_id) if raw_mission_id else None
+    resolved: str = resolve_mid8(mission_slug, mission_id=declared_mission_id)
+    return resolved
+
+
+def _is_safe_segment(name: str) -> bool:
+    """True when ``name`` passes the path-segment guard every primary-directory join uses."""
+    from specify_cli.core.paths import assert_safe_path_segment
+
+    try:
+        assert_safe_path_segment(name)
+    except ValueError:  # UnsafePathSegmentError is a ValueError
+        return False
+    return True
+
+
+def mission_dir_aliases(repo_root: Path, mission_slug: str) -> frozenset[str]:
+    """The exact directory names under ``kitty-specs/`` that belong to one Mission (#5651).
+
+    A coordination Mission whose primary directory is the bare slug keeps its coordination
+    directory under the composed ``<slug>-<mid8>`` name. This is the ONE authority that pairs
+    the two: the set holds ``mission_slug`` as passed plus, when the Mission's recorded identity
+    proves a ``mid8``, the composed name built through the seam's verbatim composer.
+
+    **Exact, never inferred.** The extra name exists only when the literal primary directory
+    ``kitty-specs/<mission_slug>/`` carries a ``meta.json`` that declares ``mid8`` or
+    ``mission_id``. There is no prefix or suffix matching and no guess from the shape of the
+    slug. A slug that already ends in ``-<mid8>`` yields a one-element set (the composer does not
+    double-suffix), so a canonical Mission's bare stem is never an alias. A handle that is not
+    itself a directory name has no literal directory and yields the one-element set; the handle
+    is not canonicalised here.
+
+    **Byte for byte what the composer writes.** No writer normalises or shape-checks the recorded
+    identity (the seed names the coordination directory from ``resolve_declared_mid8``'s first two
+    tiers verbatim, no strip, no case folding), so neither does this. The only gate is the
+    path-segment guard the primary-directory join applies: an unsafe ``mission_slug``, or a recorded
+    identity whose composed name is not one safe segment (a separator, traversal, padding, a
+    newline), yields the one-element set, so a consumer that later joins these names cannot be
+    steered out of ``kitty-specs/``. The recorded identity disposes: a directory whose record disagrees with
+    its own tail still gains the recorded composition, because excluding it would take a guess
+    from the slug's tail.
+
+    **Cost and failure.** One ``meta.json`` read of the literal primary directory per call. It
+    never raises: an unsafe slug, absent, malformed or unreadable metadata yields the
+    one-element set.
+
+    The result holds names, never joined paths: composing a path from a name stays with the
+    read-path leaves in this module.
+    """
+    names = frozenset({mission_slug})
+    if not _is_safe_segment(mission_slug):
+        return names
+    mid8 = _declared_mid8(_read_literal_primary_meta(repo_root, mission_slug), mission_slug)
+    if not mid8:
+        return names
+    composed = _compose_mission_dir(mission_slug, mid8)
+    return names | {composed} if _is_safe_segment(composed) else names
+
+
 def resolve_handle_to_read_path(
     repo_root: Path,
     handle: str,
@@ -1812,6 +1899,7 @@ __all__ = [
     "StatusReadPathNotFound",
     "candidate_feature_dir_for_mission",
     "coord_feature_dir",
+    "mission_dir_aliases",
     "probe_coord_state",
     "resolve_bare_modern_mission_dir_name",
     "resolve_planning_read_dir",
