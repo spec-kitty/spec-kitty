@@ -33,7 +33,7 @@ object as before: the leaves that log pin its name, and the façade re-exports i
 | `mission_creation_identity` | slug, friendly name and purpose inputs | `_mint_mission_id` (the identity seam), `KEBAB_CASE_PATTERN`, `_validate_create_inputs`, `_resolve_purpose` |
 | `mission_creation_roots` | repository root, write root and current branch | `_CreateRoots`, `_resolve_create_roots` |
 | `mission_creation_duplicates` | live-duplicate detection over `kitty-specs/` | `_list_mission_scaffolds`, `_find_live_duplicate_mission`, `_refuse_live_duplicate` |
-| `mission_creation_protected_mint` | the protected-target mission-branch mint for `single_branch` | `_ProtectionProbe` (the per-create protection decision), `_refuse_protected_recreate`, `_mint_protected_branch_for_topology`; `_target_is_protected` is a one-shot compatibility wrapper over the probe |
+| `mission_creation_protected_mint` | the protected-target mission-branch mint for `single_branch` | `_ProtectionProbe` (the per-create protection decision), `_refuse_protected_recreate`, `_mint_protected_branch_for_topology` |
 | `mission_creation_scaffold` | the mission directory scaffold, tasks README and create-time governance | `render_tasks_readme_content`, `_resolve_create_governance`, `_scaffold_mission_dir` |
 | `mission_creation_meta` | `meta.json` assembly, the coordination-branch mint, and the `meta.json` write | `_MetaBuild`, `_build_create_meta`, `_write_create_meta` |
 | `mission_creation_events` | creation events and the coordination status seed | `_emit_create_events`, `_commit_coord_create_events`, `_seed_coord_surface_for_create` |

@@ -56,7 +56,8 @@ LEAF_NAMES = tuple(path.stem for path in LEAVES)
 # excluded) on 61dd4c56c, before the split: the historical
 # import and patch surface (the public surface). Captured once.
 # A removal (for example when a name is de-routed) updates this
-# tuple in the same commit with a reason.
+# tuple in the same commit with a reason. Removed: ``_target_is_protected``
+# (an unused one-shot wrapper over ``_ProtectionProbe``; no caller after the split).
 _FROZEN_FACADE_ATTRIBUTES = (
     "Any", "CasReset", "CommitFailureKind", "CommitTarget", "Delete", "GitCommandError", "GitPath",
     "GuardCapability", "KEBAB_CASE_PATTERN", "KITTY_SPECS_DIR", "Mint", "MissionAlreadyExistsError",
@@ -80,7 +81,7 @@ _FROZEN_FACADE_ATTRIBUTES = (
     "_remove_orphan_mission_scaffolds", "_resolve_create_governance", "_resolve_create_roots",
     "_resolve_purpose", "_restore_git_state_after_failed_create", "_rev_parse_or_none",
     "_rollback_coordination_surface", "_scaffold_mission_dir", "_seed_coord_surface_for_create",
-    "_target_has_commit", "_target_is_protected", "_validate_create_inputs", "annotations",
+    "_target_has_commit", "_validate_create_inputs", "annotations",
     "build_mission_created_payload", "candidate_name_matches", "classify_scaffold_commit_failure",
     "contextlib", "coord_rollback_action", "coord_rollback_needs_current_tip", "create_mission_core",
     "created_file_sets", "dataclass", "decide_protected_mint", "default_mission_display_name",
@@ -104,7 +105,7 @@ _BASE_TOP_LEVEL_DEFINITIONS = (
     "MissionCreationResult", "KEBAB_CASE_PATTERN", "TASKS_README_TEMPLATE", "render_tasks_readme_content",
     "_commit_feature_file", "_list_coordination_branches", "_rev_parse_or_none", "_list_mission_scaffolds",
     "_prior_mission_is_abandoned", "_find_live_duplicate_mission", "MissionBranchExistsError",
-    "_target_has_commit", "_raise_refusal", "_target_is_protected", "_protected_mint_applies",
+    "_target_has_commit", "_raise_refusal", "_protected_mint_applies",
     "_mint_protected_single_branch_mission_branch", "_check_out_minted_branch",
     "_gather_and_decide_protected_mint", "_local_branch_exists", "_dirty_outside_scaffold",
     "_path_is_tracked_by_git", "_failure_is_disposable_create_refusal", "_plan_orphan_scaffold_removal",
@@ -388,7 +389,7 @@ def test_every_base_definition_lives_in_exactly_one_family_module() -> None:
         for name in _top_level_definitions(_tree(path)):
             homes.setdefault(name, []).append(path.stem)
     base = set(_BASE_TOP_LEVEL_DEFINITIONS)
-    assert len(base) == len(_BASE_TOP_LEVEL_DEFINITIONS) == 59
+    assert len(base) == len(_BASE_TOP_LEVEL_DEFINITIONS) == 58
     wrong = {name: homes.get(name, []) for name in base - _MULTI_DEFINED if len(homes.get(name, [])) != 1}
     assert not wrong, f"not defined exactly once across the family: {wrong}"
     assert homes["logger"], "no family module defines logger"
@@ -769,14 +770,6 @@ def test_protection_probe_does_not_cache_a_failed_resolution(monkeypatch: pytest
         with pytest.raises(ValueError, match="malformed protection block"):
             probe.is_protected("main")
     assert fakes.calls == ["policy", "policy"]
-
-
-def test_target_is_protected_wrapper_uses_a_one_shot_probe(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    fakes = _CountingResolvers()
-    fakes.install(monkeypatch)
-    assert mission_creation._target_is_protected(tmp_path, "main") is True
-    assert mission_creation._target_is_protected(tmp_path, "main") is True
-    assert fakes.calls == ["policy", "primary", "policy", "primary"]
 
 
 def test_rollback_journal_records_the_first_coordination_surface(tmp_path: Path) -> None:

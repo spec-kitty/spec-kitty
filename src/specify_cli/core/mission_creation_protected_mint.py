@@ -98,18 +98,6 @@ class _ProtectionProbe:
         return policy, primary_branch
 
 
-def _target_is_protected(write_root: Path, target_branch: str) -> bool:
-    """True when *target_branch* is a protected target under the #5100 rule (C-002).
-
-    A one-shot compatibility wrapper over :class:`_ProtectionProbe` and the pure
-    ``target_is_protected`` decision core, kept on the façade's attribute
-    surface. The create path does not call it: the re-create refusal and the
-    mint both consult the per-create :class:`_ProtectionProbe` (see
-    :func:`_protected_mint_applies`).
-    """
-    return _ProtectionProbe(write_root).is_protected(target_branch)
-
-
 def _protected_mint_applies(
     write_root: Path,
     *,

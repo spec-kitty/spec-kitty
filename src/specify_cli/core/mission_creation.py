@@ -181,7 +181,6 @@ from specify_cli.core.mission_creation_protected_mint import (
     _target_has_commit as _target_has_commit,
     _raise_refusal as _raise_refusal,
     _ProtectionProbe as _ProtectionProbe,
-    _target_is_protected as _target_is_protected,
     _protected_mint_applies as _protected_mint_applies,
     _mint_protected_single_branch_mission_branch as _mint_protected_single_branch_mission_branch,
     _check_out_minted_branch as _check_out_minted_branch,
