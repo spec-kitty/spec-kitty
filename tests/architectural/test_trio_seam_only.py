@@ -100,6 +100,9 @@ _IMPLEMENT_CORES_PY = _SRC_SPECIFY_CLI / "cli" / "commands" / "implement_cores.p
 _ACCEPTANCE_INIT_PY = _SRC_SPECIFY_CLI / "acceptance" / "__init__.py"
 _ACCEPTANCE_SUMMARY_CORE_PY = _SRC_SPECIFY_CLI / "acceptance" / "summary_core.py"
 _ACCEPTANCE_GATES_CORE_PY = _SRC_SPECIFY_CLI / "acceptance" / "gates_core.py"
+# implement-degod WP03: the implement command's context reads (find_wp_file, resolve_lane_state_dir,
+# resolve_mission_target_branch) moved here; the scan keeps following the code.
+_WORKSPACE_CONTEXT_PY = _SRC_SPECIFY_CLI / "workspace" / "context.py"
 
 _TRIO_FILES: tuple[Path, ...] = (
     _WORKFLOW_PY,
@@ -110,6 +113,7 @@ _TRIO_FILES: tuple[Path, ...] = (
     _ACCEPTANCE_INIT_PY,
     _ACCEPTANCE_SUMMARY_CORE_PY,
     _ACCEPTANCE_GATES_CORE_PY,
+    _WORKSPACE_CONTEXT_PY,
 )
 
 # The subset that are the extracted PURE cores (T028 scope). Deliberately

@@ -130,3 +130,87 @@ class TestCommitRouterImportDirection:
             "coordination/commit_router.py does NOT import is_under_worktrees_segment "
             "from specify_cli.coordination.surface_resolver — the seam may be broken."
         )
+
+
+# ---------------------------------------------------------------------------
+# (c) No-CLI import guard for the implement-degod seams (C-004)
+# ---------------------------------------------------------------------------
+#
+# Lower-package modules that receive code moved out of the ``implement`` command
+# must never import the CLI layer (``specify_cli.cli*``), ``typer`` or the
+# console: they return typed results or raise typed errors, and only the command
+# package prints. Each work package that moves code into a lower module adds
+# that module here.
+
+_NO_CLI_SEAM_MODULES: tuple[str, ...] = (
+    # WP03: context reads (find_wp_file, resolve_lane_state_dir, resolve_mission_target_branch)
+    "specify_cli.workspace.context",
+    # WP03: claim-precondition decision (ensure_wp_claim_preconditions)
+    "specify_cli.core.dependency_graph",
+)
+
+
+def _cli_layer_imports(source: str) -> list[str]:
+    """Every import of ``specify_cli.cli*`` or ``typer`` in *source*, at any nesting depth.
+
+    ``ast.walk`` descends into function bodies, so a lazy (function-local) import is caught too.
+    """
+    offenders: list[str] = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            names = [f"{module}.{alias.name}" for alias in node.names]
+            candidates = [module, *names]
+        elif isinstance(node, ast.Import):
+            candidates = [alias.name for alias in node.names]
+        else:
+            continue
+        for candidate in candidates:
+            top = candidate.split(".")[0]
+            if top == "typer" or candidate == "specify_cli.cli" or candidate.startswith("specify_cli.cli."):
+                offenders.append(f"line {node.lineno}: {candidate}")
+                break
+    return offenders
+
+
+class TestSeamModulesHaveNoCliImports:
+    """The seams the ``implement`` command delegates to stay free of CLI-layer imports."""
+
+    @pytest.mark.parametrize("module_name", _NO_CLI_SEAM_MODULES)
+    def test_seam_module_imports_no_cli_layer(self, module_name: str) -> None:
+        spec = importlib.util.find_spec(module_name)
+        assert spec is not None and spec.origin is not None, f"{module_name} not found on sys.path"
+
+        offenders = _cli_layer_imports(Path(spec.origin).read_text(encoding="utf-8"))
+
+        assert not offenders, (
+            f"{module_name} imports the CLI layer (C-004: lower packages return typed results or "
+            "raise typed errors; only the command package prints):\n  " + "\n  ".join(offenders)
+        )
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "from specify_cli.cli.console import console\n",
+            "from specify_cli.cli import StepTracker\n",
+            "from specify_cli import cli\n",
+            "import specify_cli.cli.commands.implement\n",
+            "import typer\n",
+            "from typer import Exit\n",
+            "def f():\n    from specify_cli.cli.console import console\n    return console\n",
+        ],
+    )
+    def test_scanner_flags_every_cli_import_form(self, source: str) -> None:
+        """Non-vacuity: the scanner catches module-level, lazy, ``import`` and ``from`` forms."""
+        assert _cli_layer_imports(source)
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "from specify_cli.status import Lane\n",
+            "from specify_cli.core.dependency_graph import parse_wp_dependencies\n",
+            "import specify_cli.clients\n",
+        ],
+    )
+    def test_scanner_ignores_non_cli_imports(self, source: str) -> None:
+        assert not _cli_layer_imports(source)

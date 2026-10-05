@@ -949,15 +949,66 @@ def _implement_dead_hits(source: str, family: Family, live: dict[str, set[str]])
     return _dead_hits(hits, live)
 
 
-def _dispatch_problems(mapping: Mapping[str, str], family: Family, live: dict[str, set[str]]) -> list[str]:
-    """Dispatch-map entries whose target is not a live ``(module, name)`` of ``family``."""
+def _owner_module_aliases(tree: ast.Module, importer_pkg: str) -> dict[str, str]:
+    """``{local alias: dotted module}`` for ``import a.b as c`` and ``from a import b [as c]`` anywhere in a file.
+
+    ``from a import b`` binds ``b`` to ``a.b`` only when ``a.b`` is a module; the caller checks the
+    candidate against the dispatch target's owner module, so a plain name binding never matches.
+    """
+    aliases: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            aliases.update({a.asname: a.name for a in node.names if a.asname})
+        elif isinstance(node, ast.ImportFrom):
+            base = _resolve_import_from(node, importer_pkg)
+            if base is not None:
+                aliases.update({a.asname or a.name: f"{base}.{a.name}" for a in node.names})
+    return aliases
+
+
+@functools.cache
+def _owner_attribute_reads(family: Family = IMPLEMENT) -> dict[str, set[str]]:
+    """``{owner module: names}`` the family's own modules read as ``<alias>.<name>`` off a module outside the family.
+
+    This is the call style the mission prescribes for moved collaborators (``workspace_context.find_wp_file(...)``):
+    a patch on the owner module intercepts it. Only the family's modules count, so a name read by an
+    unrelated caller does not make a dispatch target live.
+    """
+    reads: dict[str, set[str]] = {}
+    for module in family.modules:
+        tree = _module_tree(module, family)
+        aliases = _owner_module_aliases(tree, family.pkg)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Load) and isinstance(node.value, ast.Name) and node.value.id in aliases:
+                reads.setdefault(aliases[node.value.id], set()).add(node.attr)
+    return reads
+
+
+def _dispatch_problems(
+    mapping: Mapping[str, str],
+    family: Family,
+    live: dict[str, set[str]],
+    owner_reads: Mapping[str, set[str]] | None = None,
+) -> list[str]:
+    """Dispatch-map entries whose target is not live.
+
+    A target is live when it is a module-global name of a family module (one that module looks up),
+    or when it names a collaborator that moved to an owner module outside the family and a family
+    module calls it as ``<alias-of-owner>.<name>(...)`` (``owner_reads``, the mission's call style).
+    """
+    owner_reads = _owner_attribute_reads(family) if owner_reads is None else owner_reads
     problems: list[str] = []
     for logical, dotted in sorted(mapping.items()):
         resolved = _module_of_dotted(dotted, family)
-        if resolved is None:
-            problems.append(f"{logical}: {dotted} is not <{family.pkg}>.<module>.<name> of a {family.name} module")
-        elif resolved[1] not in live[resolved[0]]:
-            problems.append(f"{logical}: {dotted} is dead (module {resolved[0]} never looks {resolved[1]} up as a module global)")
+        owner, _, name = dotted.rpartition(".")
+        if resolved is not None:
+            if resolved[1] not in live[resolved[0]]:
+                problems.append(f"{logical}: {dotted} is dead (module {resolved[0]} never looks {resolved[1]} up as a module global)")
+        elif name not in owner_reads.get(owner, set()):
+            problems.append(
+                f"{logical}: {dotted} is not <{family.pkg}>.<module>.<name> of a {family.name} module, "
+                f"and no {family.name} module reads it as <alias-of-{owner}>.{name}"
+            )
     return problems
 
 
@@ -1105,12 +1156,36 @@ def test_attribute_rule_is_wired_into_the_implement_live_set_only() -> None:
     assert "implement" in _attribute_live_names(IMPLEMENT)["implement"]
 
 
+def test_dispatch_map_hook_accepts_an_owner_module_read_by_attribute_and_flags_an_unread_one() -> None:
+    live = {"implement": set(), "implement_cores": set()}
+    reads = {"specify_cli.workspace.context": {"find_wp_file"}}
+    mapping = {"read": "specify_cli.workspace.context.find_wp_file", "unread": "specify_cli.workspace.context.resolve_lane_state_dir"}
+    problems = _dispatch_problems(mapping, IMPLEMENT, live, reads)
+    assert [p.split(":")[0] for p in problems] == ["unread"]
+
+
+def test_owner_attribute_reads_see_the_real_call_style() -> None:
+    """Real-source wiring: ``implement.py`` calls the moved context reads and the claim gate through their owner modules."""
+    reads = _owner_attribute_reads(IMPLEMENT)
+    assert {"find_wp_file", "resolve_mission_target_branch", "resolve_lane_state_dir"} <= reads["specify_cli.workspace.context"]
+    assert "ensure_wp_claim_preconditions" in reads["specify_cli.core.dependency_graph"]
+
+
+def test_owner_module_aliases_resolve_every_import_spelling() -> None:
+    tree = ast.parse("import specify_cli.core.dependency_graph as dg\nfrom specify_cli.workspace import context as wc\nfrom ...core import errors\n")
+    assert _owner_module_aliases(tree, _CMD) == {
+        "dg": "specify_cli.core.dependency_graph",
+        "wc": "specify_cli.workspace.context",
+        "errors": "specify_cli.core.errors",
+    }
+
+
 def test_dispatch_map_hook_flags_dead_and_foreign_entries() -> None:
     live = {"implement": {"find_repo_root"}, "implement_cores": set()}
     good = {"find_repo": f"{_CMD}.implement.find_repo_root"}
-    assert _dispatch_problems(good, IMPLEMENT, live) == []
+    assert _dispatch_problems(good, IMPLEMENT, live, {}) == []
     planted = {**good, "dead": f"{_CMD}.implement.no_such_name", "foreign": f"{_CMD}.agent.tasks.x", "deep": f"{_CMD}.implement.console.print"}
-    problems = _dispatch_problems(planted, IMPLEMENT, live)
+    problems = _dispatch_problems(planted, IMPLEMENT, live, {})
     assert [p.split(":")[0] for p in problems] == ["dead", "deep", "foreign"]
     assert "is dead" in problems[0]
 
