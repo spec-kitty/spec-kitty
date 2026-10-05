@@ -673,16 +673,13 @@ class AncestryCheckResult:
 
 
 def _workspace_head(workspace_path: Path) -> str | None:
-    """Return the commit SHA at ``workspace_path``'s HEAD, or ``None``."""
-    result = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=str(workspace_path),
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        return None
-    return result.stdout.strip() or None
+    """Return the commit SHA at ``workspace_path``'s HEAD, or ``None``.
+
+    An unborn HEAD or a path outside any repository resolves to ``None``,
+    exactly as the verified ``rev-parse`` probe of :func:`_rev_parse_ref` maps
+    a ref that does not resolve to ``""``.
+    """
+    return _rev_parse_ref(workspace_path, "HEAD") or None
 
 
 def _is_git_ancestor(workspace_path: Path, ref: str, head: str) -> bool:

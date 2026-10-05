@@ -52,6 +52,9 @@ WORKSPACE_HUSK_RECOVERY_COMMAND = "spec-kitty doctor workspaces --fix"
 #: never retype the literal (Sonar S1192).
 _OWNED_CHECKOUT_KIND = "owned_checkout"
 
+#: Glob matching a mission's WP prompt files under ``tasks/`` (Sonar S1192).
+_WP_FILE_GLOB = "WP*.md"
+
 
 class WorkspaceResolutionError(RuntimeError):
     """Structured workspace resolution failure (#1833 — fall-through is failure).
@@ -632,7 +635,7 @@ def _normalized_feature_snapshot(tasks_dir: Path) -> tuple[tuple[str, int], ...]
     if not tasks_dir.is_dir():
         return ()
     snapshot: list[tuple[str, int]] = []
-    for wp_file in sorted(tasks_dir.glob("WP*.md")):
+    for wp_file in sorted(tasks_dir.glob(_WP_FILE_GLOB)):
         snapshot.append((wp_file.name, wp_file.stat().st_mtime_ns))
     return tuple(snapshot)
 
@@ -726,7 +729,7 @@ def build_normalized_wp_index(
         _FEATURE_WP_METADATA_SNAPSHOT_CACHE[cache_key] = snapshot
         return {}
 
-    for wp_file in sorted(tasks_dir.glob("WP*.md")):
+    for wp_file in sorted(tasks_dir.glob(_WP_FILE_GLOB)):
         try:
             normalized_wp = _normalize_wp_file(wp_file, mission_slug)
         except Exception as exc:
@@ -1357,7 +1360,7 @@ def find_wp_file(repo_root: Path, mission_slug: str, wp_id: str) -> Path:
         raise FileNotFoundError(f"Invalid work package ID: {wp_id}. Expected format WP## (for example, WP01).")
 
     wp_name_re = re.compile(rf"^{re.escape(normalized_wp_id)}(?:[-_.].+)?\.md$", re.IGNORECASE)
-    wp_files = sorted(path for path in tasks_dir.glob("WP*.md") if wp_name_re.match(path.name))
+    wp_files = sorted(path for path in tasks_dir.glob(_WP_FILE_GLOB) if wp_name_re.match(path.name))
     if not wp_files:
         raise FileNotFoundError(f"WP file not found for {normalized_wp_id} in {tasks_dir}")
     return wp_files[0]
