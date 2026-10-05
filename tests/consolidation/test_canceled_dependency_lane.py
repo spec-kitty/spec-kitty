@@ -3,7 +3,7 @@
 A fully-canceled lane's own commits can ride an approved dependent lane's
 first-parent spine (the allocator merges dependency lanes without ``--no-ff``).
 These tests drive real git through the shared lane-base helper
-(``wp_attribution.lane_own_commits`` / ``_lane_exempt_commits``) and its three
+(``wp_attribution.lane_own_commits`` / ``lane_exempt_commits``) and its three
 consumers in ``reconciliation``: the canceled-commit set, the authored claim and
 the closed-world anchors. The CLI-level reproduction is
 ``tests/terminus/test_canceled_dependency_content_refused.py``.
@@ -30,7 +30,7 @@ from specify_cli.consolidation.wp_attribution import (
     Attributed,
     Unattributable,
     UnattributableReason,
-    _lane_exempt_commits,
+    lane_exempt_commits,
     _outside_after_anchors,
     lane_own_commits,
     resolve_canceled_wp,
@@ -123,17 +123,17 @@ def dep(tmp_path: Path) -> Dep:
 
 
 def test_lane_exempt_commits_unions_anchor_ranges(dep: Dep) -> None:
-    exempt = _lane_exempt_commits(dep.repo, dep.base, [_branch("lane-a")])
+    exempt = lane_exempt_commits(dep.repo, dep.base, [_branch("lane-a")])
     assert exempt == {dep.canceled_sha}
 
 
 def test_lane_exempt_commits_skips_an_unreadable_anchor(dep: Dep) -> None:
-    exempt = _lane_exempt_commits(dep.repo, dep.base, ["no-such-ref", _branch("lane-a")])
+    exempt = lane_exempt_commits(dep.repo, dep.base, ["no-such-ref", _branch("lane-a")])
     assert exempt == {dep.canceled_sha}  # the bad anchor exempts nothing; the good one still does
 
 
 def test_lane_exempt_commits_without_anchors_is_empty(dep: Dep) -> None:
-    assert _lane_exempt_commits(dep.repo, dep.base, []) == frozenset()
+    assert lane_exempt_commits(dep.repo, dep.base, []) == frozenset()
 
 
 def test_lane_own_commits_drops_history_reachable_from_an_anchor(dep: Dep) -> None:

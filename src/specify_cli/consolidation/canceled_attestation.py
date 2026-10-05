@@ -40,10 +40,10 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from pathlib import Path
 
-from specify_cli.status import LANE_HEAD_KEY, Lane, StatusEvent, TransitionRequest, actor_identity_str
+from specify_cli.status import Lane, StatusEvent, TransitionRequest
 from specify_cli.status_lanes import OPERATOR_REASON_SOURCE
 
-from .wp_attribution import MIGRATION_ACTOR_PREFIX, UnattributableReason
+from .wp_attribution import UnattributableReason, is_migration_event, stamp_of
 
 #: ``policy_metadata`` key of the attestation marker.
 ATTESTATION_KEY = "attestation"
@@ -93,7 +93,7 @@ def is_canceled_superseded_attestation(event: StatusEvent) -> bool:
         and str(event.to_lane) == Lane.CANCELED
         and event.reason_source == OPERATOR_REASON_SOURCE
         and metadata.get(ATTESTATION_KEY) == CANCELED_SUPERSEDED
-        and not actor_identity_str(event.actor).startswith(MIGRATION_ACTOR_PREFIX)
+        and not is_migration_event(event)
     )
 
 
@@ -110,9 +110,8 @@ def attestation_stamps(events: Sequence[StatusEvent]) -> dict[str, str | None]:
     attested: dict[str, str | None] = {}
     for event in events:
         if is_canceled_superseded_attestation(event):
-            stamp = (event.policy_metadata or {}).get(LANE_HEAD_KEY)
-            attested[event.wp_id] = stamp if isinstance(stamp, str) and stamp else None
-        elif event.wp_id in attested and not actor_identity_str(event.actor).startswith(MIGRATION_ACTOR_PREFIX):
+            attested[event.wp_id] = stamp_of(event)
+        elif event.wp_id in attested and not is_migration_event(event):
             del attested[event.wp_id]
     return attested
 

@@ -232,7 +232,8 @@ def _contested_detail(lane_id: str, wp_id: str, contested: frozenset[str]) -> st
     return _detail_for(UnattributableReason.CONTESTED_COMMIT, lane_id, wp_id, commits=sorted(contested))
 
 
-def _stamp_of(event: StatusEvent) -> str | None:
+def stamp_of(event: StatusEvent) -> str | None:
+    """The ``lane_head`` stamp of one event, or ``None`` when it carries none."""
     metadata = event.policy_metadata
     if not metadata:
         return None
@@ -240,7 +241,7 @@ def _stamp_of(event: StatusEvent) -> str | None:
     return value if isinstance(value, str) and value else None
 
 
-def _is_migration_event(event: StatusEvent) -> bool:
+def is_migration_event(event: StatusEvent) -> bool:
     """True for a migration-synthesized event (:data:`MIGRATION_ACTOR_PREFIX`, FR-011)."""
     return bool(actor_identity_str(event.actor).startswith(MIGRATION_ACTOR_PREFIX))
 
@@ -264,7 +265,7 @@ def _entered_implementation(events: Sequence[StatusEvent], wp_id: str) -> bool:
     migration-synthesized event (FR-011) never counts: a backfill seed
     ``planned -> claimed`` for a WP canceled from ``planned`` is not work.
     """
-    return any(event.wp_id == wp_id and event.to_lane in _ENTERED_IMPLEMENTATION_LANES and not _is_migration_event(event) for event in events)
+    return any(event.wp_id == wp_id and event.to_lane in _ENTERED_IMPLEMENTATION_LANES and not is_migration_event(event) for event in events)
 
 
 def _windows(events: Sequence[StatusEvent], wp_ids: frozenset[str]) -> dict[str, list[WorkWindow]]:
@@ -283,10 +284,10 @@ def _windows(events: Sequence[StatusEvent], wp_ids: frozenset[str]) -> dict[str,
     result: dict[str, list[WorkWindow]] = {wp_id: [] for wp_id in wp_ids}
     for event in events:
         wp_id = event.wp_id
-        if wp_id not in wp_ids or _is_migration_event(event):
+        if wp_id not in wp_ids or is_migration_event(event):
             continue
         to_class = _classify(event.to_lane)
-        stamp = _stamp_of(event)
+        stamp = stamp_of(event)
         current = open_state.get(wp_id)
         if current is not None:
             current_kind, open_head = current
@@ -562,14 +563,14 @@ def _first_governed_open_stamp(events: Sequence[StatusEvent], wp_ids: frozenset[
     which can fast-forward target-branch commits). None of that is a straggler.
     """
     for event in events:
-        if event.wp_id in wp_ids and not _is_migration_event(event) and _classify(event.to_lane) is WindowKind.IMPLEMENTATION:
-            stamp = _stamp_of(event)
+        if event.wp_id in wp_ids and not is_migration_event(event) and _classify(event.to_lane) is WindowKind.IMPLEMENTATION:
+            stamp = stamp_of(event)
             if stamp is not None:
                 return stamp
     return None
 
 
-def _lane_exempt_commits(repo_root: Path, coord_base_ref: str, anchors: Iterable[str]) -> frozenset[str]:
+def lane_exempt_commits(repo_root: Path, coord_base_ref: str, anchors: Iterable[str]) -> frozenset[str]:
     """Commits after *coord_base_ref* that predate a lane's own work (the lane-base authority).
 
     The union of ``coord_base_ref..anchor`` over every anchor: the lane head at its
@@ -602,7 +603,7 @@ def lane_own_commits(repo_root: Path, coord_base_ref: str, lane_commits: Iterabl
     Commits that precede the lane's base (shared ancestry reachable from an
     anchor) are never "own" — an approved lane that shares them keeps them.
     """
-    return frozenset(lane_commits) - _lane_exempt_commits(repo_root, coord_base_ref, anchors)
+    return frozenset(lane_commits) - lane_exempt_commits(repo_root, coord_base_ref, anchors)
 
 
 def _outside_after_anchors(
@@ -630,7 +631,7 @@ def _outside_after_anchors(
     """
     if not outside:
         return outside
-    exempt = _lane_exempt_commits(repo_root, coord_base_ref, anchors) - never_exempt
+    exempt = lane_exempt_commits(repo_root, coord_base_ref, anchors) - never_exempt
     return tuple(item for item in outside if item[0] not in exempt)
 
 
@@ -811,14 +812,15 @@ def canceled_spine_content(
 
 
 __all__ = [
-    "MIGRATION_ACTOR_PREFIX",
     "AttributionOutcome",
     "Attributed",
     "Unattributable",
     "UnattributableReason",
     "CanceledPathState",
     "canceled_spine_content",
+    "is_migration_event",
     "lacks_lane_head_stamps",
     "lane_own_commits",
     "resolve_canceled_wp",
+    "stamp_of",
 ]
