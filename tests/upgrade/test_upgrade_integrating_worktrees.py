@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.integration.primary_owned_fixtures import (
+from tests.integration.target_owned_fixtures import (
     METADATA_PATH,
     OLDER_VERSION,
     LanesProject,

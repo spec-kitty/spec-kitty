@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.integration.primary_owned_fixtures import (
+from tests.integration.target_owned_fixtures import (
     DECISION_INDEX_GITATTRIBUTES_LINE,
     GITATTRIBUTES_PATH,
     LanesProject,
@@ -43,7 +43,7 @@ _SHARED_SOURCE = "src/shared.py"
 _GITATTRIBUTES_STALE_REFUSAL = (
     "✗ lane-b: Lane lane-b is stale: overlapping files ['.gitattributes']. "
     "Lane lane-b must incorporate mission changes before merging. "
-    "Run: cd .worktrees/*-lane-b && git merge kitty/mission-primary-owned-01M5457A"
+    "Run: cd .worktrees/*-lane-b && git merge kitty/mission-target-owned-01M5457A"
 )
 
 

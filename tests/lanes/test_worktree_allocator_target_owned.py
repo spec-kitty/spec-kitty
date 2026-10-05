@@ -1,4 +1,4 @@
-"""Dependency-lane merge keeps the dependent lane's primary-owned bookkeeping (#5457, WP04).
+"""Dependency-lane merge keeps the dependent lane's target-owned bookkeeping (#5457, WP04).
 
 Story 4 AS-5 / FR-013 through the real ``spec-kitty implement`` CLI: lane-b
 (WP02) depends on lane-a (WP01, approved). A pre-fix upgrade committed a
@@ -27,7 +27,7 @@ from specify_cli.lanes.worktree_allocator import (
     allocate_lane_worktree,
 )
 from specify_cli.status.reducer import materialize
-from tests.integration.primary_owned_fixtures import (
+from tests.integration.target_owned_fixtures import (
     LanesProject,
     build_older_version_lanes_project,
     commit_broken_upgrade_state,
@@ -38,7 +38,7 @@ from tests.integration.primary_owned_fixtures import (
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _SHARED_SOURCE = "src/shared.py"
-_DEPENDENCY_CONFLICT = "cannot auto-merge dependency lane 'lane-a' (kitty/mission-primary-owned-01M5457A-lane-a) into lane 'lane-b': the merge conflicts."
+_DEPENDENCY_CONFLICT = "cannot auto-merge dependency lane 'lane-a' (kitty/mission-target-owned-01M5457A-lane-a) into lane 'lane-b': the merge conflicts."
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -100,9 +100,9 @@ def test_implement_dependent_wp_keeps_its_own_metadata(tmp_path: Path) -> None:
 
 
 def test_implement_dependent_wp_resolves_mixed_metadata_and_status_conflict(tmp_path: Path) -> None:
-    """A MIXED dependency conflict (primary-owned metadata + derived status.json) resolves and commits.
+    """A MIXED dependency conflict (target-owned metadata + derived status.json) resolves and commits.
 
-    The primary-owned resolver takes the metadata to stage 2 but leaves the
+    The target-owned resolver takes the metadata to stage 2 but leaves the
     ``status.json`` conflict, so it declines to commit; the derived-snapshot
     reconcile then regenerates ``status.json`` from the dependent lane's event
     log and completes the dependency merge.
@@ -149,7 +149,7 @@ def test_implement_dependent_wp_source_conflict_still_refused(tmp_path: Path) ->
 
 
 @pytest.mark.parametrize("source_conflict", [False, True], ids=["bookkeeping-only", "plus-source-conflict"])
-def test_recorded_planning_commit_merge_resolves_primary_owned_bookkeeping(tmp_path: Path, source_conflict: bool) -> None:
+def test_recorded_planning_commit_merge_resolves_target_owned_bookkeeping(tmp_path: Path, source_conflict: bool) -> None:
     """The recorded planning-commit merge (FR-009) keeps the lane's own metadata (#5457).
 
     ``implement`` re-entry merges the recorded ``planning_commit_sha`` before the
@@ -246,7 +246,7 @@ def _raise_runtime_error(*_args: object) -> bool:
 
 @pytest.mark.parametrize(
     "resolver",
-    ["_complete_merge_after_primary_owned_resolution", "reconcile_derived_status_snapshot_conflicts"],
+    ["_complete_merge_after_target_owned_resolution", "reconcile_derived_status_snapshot_conflicts"],
 )
 def test_resolver_failure_still_rolls_back_atomically(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, resolver: str) -> None:
     """A RuntimeError from a conflict resolver must not skip the #1915 abort + reset path."""

@@ -18,7 +18,7 @@ from kernel.git.runner import GitCommandError
 from specify_cli.core.vcs.git import git_diff_names, git_merge_base
 from specify_cli.lanes.compute import is_planning_lane
 from specify_cli.lanes.models import ExecutionLane
-from specify_cli.state.contract import is_primary_owned_path
+from specify_cli.state.contract import is_target_owned_path
 
 
 @dataclass
@@ -89,12 +89,12 @@ def _filter_benign_overlaps(overlap: list[str], lane_branch: str, mission_branch
 
     Two kinds are benign (#5457):
 
-    * primary-owned bookkeeping (``is_primary_owned_path``), which the upgrade
+    * target-owned bookkeeping (``is_target_owned_path``), which the upgrade
       writes on every branch;
     * any path whose tree entry (mode and object id, or absence) is identical at
       the lane tip and the mission tip: equal end states merge trivially.
     """
-    candidates = [path for path in overlap if not is_primary_owned_path(path)]
+    candidates = [path for path in overlap if not is_target_owned_path(path)]
     if not candidates:
         return []
     lane_entries = _tree_entry_ids(repo_root, lane_branch, candidates)

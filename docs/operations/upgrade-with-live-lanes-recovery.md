@@ -53,7 +53,7 @@ earlier run. The fixed CLI resolves them at the next integration without your he
   `.kittify/metadata.yaml` to the receiving side (the Mission branch, the target, the
   dependent lane, or the lane that takes in the recorded planning commit);
 - the lane sync after a coordination commit takes the incoming coordination or Mission copy
-  (rule `R-PRIMARY-OWNED-BOOKKEEPING`).
+  (rule `R-TARGET-OWNED-BOOKKEEPING`).
 
 Going forward, `spec-kitty upgrade` run from the repository root checkout skips lane, Mission
 and coordination worktrees. Run it from the repository root checkout, not from inside a lane

@@ -320,10 +320,10 @@ Per `function-over-form-testing`:
 
 ## Amendment 2026-10-04 (#5457)
 
-**A managed-artifact rule for primary-owned bookkeeping.** `R-PRIMARY-OWNED-BOOKKEEPING` (`RULE_ID_PRIMARY_OWNED` in `src/specify_cli/lanes/auto_rebase.py`) resolves a conflict on a primary-owned path to the incoming side.
+**A managed-artifact rule for target-owned bookkeeping.** `R-TARGET-OWNED-BOOKKEEPING` (`RULE_ID_TARGET_OWNED` in `src/specify_cli/lanes/auto_rebase.py`) resolves a conflict on a target-owned path to the incoming side.
 
 - **Distinction from `RULES`.** It is a **managed-artifact (whole-file) rule**. It is not a per-hunk entry in the `RULES` tuple above and it has no conflict-shape predicate. `_resolve_managed_artifact_conflicts` takes the whole file from the incoming side before the generic text rules run, in the same stage as the coordination-artifact and status rules.
-- **File pattern.** `is_primary_owned_path` from the state contract (`src/specify_cli/state/contract.py`): an exact path declared `StateSurface.primary_owned`. Today that is `.kittify/metadata.yaml`. The set is declared in one place; this ADR does not list paths.
+- **File pattern.** `is_target_owned_path` from the state contract (`src/specify_cli/state/contract.py`): an exact path declared `StateSurface.target_owned`. Today that is `.kittify/metadata.yaml`. The set is declared in one place; this ADR does not list paths.
 - **Resolution.** Stage 3, the incoming coordination or mission side, which is closer to the merge target branch. The file is generated and never authored by a work package.
 - **Fail-safe.** `R-DEFAULT-MANUAL` is unchanged and remains the fail-safe default for every path the rules above and this managed-artifact stage do not match (NFR-005). Operator-editable project files such as `.gitattributes`, `.gitignore` and `.kittify/config.yaml` still resolve to `Manual`.
 

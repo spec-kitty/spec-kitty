@@ -35,15 +35,15 @@ import pytest
 import yaml
 
 from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
-from tests.integration import primary_owned_fixtures as fx
-from tests.integration.primary_owned_fixtures import (
+from tests.integration import target_owned_fixtures as fx
+from tests.integration.target_owned_fixtures import (
     LanesProject,
     append_status_event_on_branch,
     build_older_version_lanes_project,
     output_names_auto_rebase_failure,
     output_names_stale_metadata_refusal,
     output_names_target_content_conflict,
-    output_shows_primary_owned_defect,
+    output_shows_target_owned_defect,
     upgrade_commits_on,
 )
 
@@ -117,7 +117,7 @@ def test_path_a_two_lanes_upgrade_then_consolidate(tmp_path: Path) -> None:
     result = project.run("consolidate", "--mission", project.slug)
 
     assert not output_names_stale_metadata_refusal(result), _out(result)
-    assert not output_shows_primary_owned_defect(result), _out(result)
+    assert not output_shows_target_owned_defect(result), _out(result)
     assert result.returncode == 0, _out(result)
     _assert_lane_files_on_target(project)
     _assert_no_branch_upgrade_commits(upgrade_commits)

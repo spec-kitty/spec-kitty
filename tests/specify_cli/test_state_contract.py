@@ -17,8 +17,8 @@ from specify_cli.state.contract import (
     get_surfaces_by_authority,
     get_surfaces_by_git_class,
     get_surfaces_by_root,
-    is_primary_owned_path,
-    primary_owned_paths,
+    is_target_owned_path,
+    target_owned_paths,
 )
 
 
@@ -96,7 +96,7 @@ def test_to_dict_serializable():
         assert d["format"] == s.format.value
         assert d["authority"] == s.authority.value
         assert d["git_class"] == s.git_class.value
-        assert d["primary_owned"] is s.primary_owned
+        assert d["target_owned"] is s.target_owned
         assert set(d) == {
             "name",
             "path_pattern",
@@ -109,7 +109,7 @@ def test_to_dict_serializable():
             "deprecated",
             "atomic_write",
             "notes",
-            "primary_owned",
+            "target_owned",
         }
 
 
@@ -580,7 +580,7 @@ def test_section_g_legacy_present():
 
 
 # ---------------------------------------------------------------------------
-# Primary-owned declaration (#5457)
+# Target-owned declaration (#5457)
 # ---------------------------------------------------------------------------
 
 _METADATA = ".kittify/metadata.yaml"
@@ -590,8 +590,8 @@ _METADATA = ".kittify/metadata.yaml"
     "path",
     [_METADATA, "./" + _METADATA, ".kittify\\metadata.yaml", ".\\.kittify\\metadata.yaml", PurePosixPath(_METADATA)],
 )
-def test_metadata_forms_are_primary_owned(path: str | os.PathLike[str]) -> None:
-    assert is_primary_owned_path(path) is True
+def test_metadata_forms_are_target_owned(path: str | os.PathLike[str]) -> None:
+    assert is_target_owned_path(path) is True
 
 
 @pytest.mark.parametrize(
@@ -610,12 +610,12 @@ def test_metadata_forms_are_primary_owned(path: str | os.PathLike[str]) -> None:
         "",
     ],
 )
-def test_other_paths_are_not_primary_owned(path: str) -> None:
-    assert is_primary_owned_path(path) is False
+def test_other_paths_are_not_target_owned(path: str) -> None:
+    assert is_target_owned_path(path) is False
 
 
-def test_primary_owned_surfaces_are_tracked_project_literals() -> None:
-    owned = [s for s in STATE_SURFACES if s.primary_owned]
+def test_target_owned_surfaces_are_tracked_project_literals() -> None:
+    owned = [s for s in STATE_SURFACES if s.target_owned]
     assert owned
     for surface in owned:
         assert surface.git_class == GitClass.TRACKED
@@ -623,6 +623,6 @@ def test_primary_owned_surfaces_are_tracked_project_literals() -> None:
         assert not any(ch in surface.path_pattern for ch in "<*?")
 
 
-def test_primary_owned_set_is_pinned() -> None:
-    # Deliberate pin: adding a primary-owned surface must be a reviewed decision.
-    assert primary_owned_paths() == frozenset({_METADATA})
+def test_target_owned_set_is_pinned() -> None:
+    # Deliberate pin: adding a target-owned surface must be a reviewed decision.
+    assert target_owned_paths() == frozenset({_METADATA})

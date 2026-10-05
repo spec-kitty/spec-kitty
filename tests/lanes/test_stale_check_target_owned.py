@@ -1,4 +1,4 @@
-"""Stale-lane rules for primary-owned and content-identical overlaps (#5457, WP03).
+"""Stale-lane rules for target-owned and content-identical overlaps (#5457, WP03).
 
 ``check_lane_staleness`` is what ``consolidate`` calls before folding a lane
 into the mission branch. A pre-fix ``spec-kitty upgrade`` commits a different
@@ -15,7 +15,7 @@ import pytest
 
 from specify_cli.lanes.models import ExecutionLane
 from specify_cli.lanes.stale_check import StaleCheckResult, _stale_remediation, check_lane_staleness
-from tests.integration.primary_owned_fixtures import (
+from tests.integration.target_owned_fixtures import (
     LanesProject,
     build_older_version_lanes_project,
     commit_broken_upgrade_state,
@@ -108,7 +108,7 @@ def _staleness(repo: Path) -> StaleCheckResult:
     return check_lane_staleness(_lane("lane-a", "WP01"), _LANE_BRANCH, _MISSION, repo)
 
 
-def test_only_primary_owned_overlap_is_not_stale(repo: Path) -> None:
+def test_only_target_owned_overlap_is_not_stale(repo: Path) -> None:
     _commit(repo, _MISSION, ".kittify/metadata.yaml", "mission\n")
     _commit(repo, _LANE_BRANCH, ".kittify/metadata.yaml", "lane\n")
 
@@ -117,7 +117,7 @@ def test_only_primary_owned_overlap_is_not_stale(repo: Path) -> None:
     assert (result.is_stale, result.stale_files, result.remediation) == (False, [], None)
 
 
-def test_primary_owned_overlap_is_dropped_but_real_overlap_is_kept(repo: Path) -> None:
+def test_target_owned_overlap_is_dropped_but_real_overlap_is_kept(repo: Path) -> None:
     _commit(repo, _MISSION, ".kittify/metadata.yaml", "mission\n")
     _commit(repo, _MISSION, "src/shared.py", "mission\n")
     _commit(repo, _LANE_BRANCH, ".kittify/metadata.yaml", "lane\n")

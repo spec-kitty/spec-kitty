@@ -32,7 +32,7 @@ from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes.branch_naming import code_lane_branch_name, lane_branch_name, resolve_mid8, worktree_path as _worktree_path
 from specify_cli.lanes.compute import PLANNING_LANE_ID, has_code_lanes
 from specify_cli.lanes.consolidation import (
-    _complete_merge_after_primary_owned_resolution,
+    _complete_merge_after_target_owned_resolution,
     _ephemeral_merge_driver_activation,
     _make_merge_env,
     reconcile_derived_status_snapshot_conflicts,
@@ -1442,7 +1442,7 @@ def _merge_recorded_planning_commit(
         # the conflict markers only exist in ``merge.stdout`` while the merge
         # is still open.
         wp_task_conflicts = _wp_task_file_conflict_paths(worktree_path, env)
-        # #5457 / #5160 friction 1: a conflict confined to primary-owned
+        # #5457 / #5160 friction 1: a conflict confined to target-owned
         # bookkeeping (the lane keeps its own copy) and/or a both-sides-divergent
         # DERIVED ``status.json`` (regenerated from the union-merged event log)
         # is not a real conflict -- resolve it through the dependency-merge
@@ -1524,11 +1524,11 @@ def _current_head(worktree_path: Path) -> str | None:
 def _auto_resolve_dependency_merge(worktree_path: Path, env: dict[str, str]) -> bool:
     """Try to complete an in-progress dependency merge whose conflicts are not lane work.
 
-    * #5457: a conflict confined to primary-owned bookkeeping (plus, FR-007,
+    * #5457: a conflict confined to target-owned bookkeeping (plus, FR-007,
       any derived ``status.json`` left beside it) keeps the dependent lane's
       own copy (stage 2) and completes the merge. Any other mixed set falls
       through to the status reconcile, which then sees only what the
-      primary-owned resolver left.
+      target-owned resolver left.
     * #5160 friction 1: a both-sides-divergent DERIVED ``status.json`` is not a
       real conflict — it is regenerated from the union-merged event log and the
       merge is committed.
@@ -1540,7 +1540,7 @@ def _auto_resolve_dependency_merge(worktree_path: Path, env: dict[str, str]) -> 
     fail closed atomically, never escape past the rollback.
     """
     try:
-        if _complete_merge_after_primary_owned_resolution(worktree_path, env):
+        if _complete_merge_after_target_owned_resolution(worktree_path, env):
             return True
         if not reconcile_derived_status_snapshot_conflicts(worktree_path, env):
             return False

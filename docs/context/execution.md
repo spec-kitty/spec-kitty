@@ -308,7 +308,7 @@ Terms describing tool invocation and semantic safety gates during generation.
 | **Applicable to** | `4.x` |
 | **Use when** | Describing which worktrees `spec-kitty upgrade` leaves alone, or why a lane still shows a pre-upgrade `.kittify/metadata.yaml`. |
 | **Do NOT use when** | The worktree is on an ordinary branch (a feature or landing branch): upgrade still upgrades and commits there. The concept is the repository-root working copy: use [repository root checkout](#repository-root-checkout), which is never an integrating worktree. The concept is a per-work-package execution checkout in general: use lane worktree, [Lane](./orchestration.md#lane). |
-| **Related terms** | [repository root checkout](#repository-root-checkout), [owned checkout](#owned-checkout), [Lane](./orchestration.md#lane), [Primary-owned bookkeeping](./orchestration.md#primary-owned-bookkeeping) |
+| **Related terms** | [repository root checkout](#repository-root-checkout), [owned checkout](#owned-checkout), [Lane](./orchestration.md#lane), [Target-owned bookkeeping](./orchestration.md#target-owned-bookkeeping) |
 
 ---
 

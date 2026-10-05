@@ -82,10 +82,12 @@ class StateFormat(StrEnum):
 class StateSurface:
     """A single durable state surface in the spec-kitty CLI.
 
-    ``primary_owned`` is True only for a tracked, project-root surface that
-    Spec Kitty fully generates and that no work package authors; integration
-    resolves conflicts on it to the side owned by the repository root
-    checkout (#5457).
+    ``target_owned`` is True only for a tracked, project-root surface that
+    Spec Kitty fully generates and that no work package authors. When two
+    branches of one Mission carry different copies, each integration site
+    resolves the conflict to a fixed side: the copy closer to the merge
+    target branch, or between two lanes the receiving lane's own (#5457).
+    Glossary: ``docs/context/orchestration.md#target-owned-bookkeeping``.
     """
 
     name: str
@@ -99,7 +101,7 @@ class StateSurface:
     deprecated: bool = False
     atomic_write: bool = False
     notes: str = ""
-    primary_owned: bool = False
+    target_owned: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable dictionary representation."""
@@ -115,7 +117,7 @@ class StateSurface:
             "deprecated": self.deprecated,
             "atomic_write": self.atomic_write,
             "notes": self.notes,
-            "primary_owned": self.primary_owned,
+            "target_owned": self.target_owned,
         }
 
 
@@ -147,11 +149,11 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         owner_module="init/upgrade",
         creation_trigger="spec-kitty init or upgrade",
         notes=(
-            "Primary-owned bookkeeping: fully generated, never authored by a "
+            "Target-owned bookkeeping: fully generated, never authored by a "
             "work package. The upgrade-owned content is written once, in the "
             "repository root checkout (#5457)."
         ),
-        primary_owned=True,
+        target_owned=True,
     ),
     StateSurface(
         name="workspace_context",
@@ -1001,21 +1003,21 @@ def get_surfaces_by_authority(authority: AuthorityClass) -> list[StateSurface]:
     return [s for s in STATE_SURFACES if s.authority == authority]
 
 
-def primary_owned_paths() -> frozenset[str]:
-    """Return the literal repo-relative paths of every primary-owned surface.
+def target_owned_paths() -> frozenset[str]:
+    """Return the literal repo-relative paths of every target-owned surface.
 
-    Primary-owned surfaces carry literal ``path_pattern`` values (no
+    Target-owned surfaces carry literal ``path_pattern`` values (no
     placeholders or globs); a unit test enforces that invariant.
     """
-    return frozenset(s.path_pattern for s in STATE_SURFACES if s.primary_owned)
+    return frozenset(s.path_pattern for s in STATE_SURFACES if s.target_owned)
 
 
-def is_primary_owned_path(path: str | os.PathLike[str]) -> bool:
-    """Return True when ``path`` is exactly a primary-owned surface (#5457).
+def is_target_owned_path(path: str | os.PathLike[str]) -> bool:
+    """Return True when ``path`` is exactly a target-owned surface (#5457).
 
     ``path`` must be relative to the repository root. It is normalised to a
     POSIX path (a leading ``./`` is stripped, ``\\`` becomes ``/``) and matched
-    exactly against :func:`primary_owned_paths`. Absolute paths never match,
+    exactly against :func:`target_owned_paths`. Absolute paths never match,
     and the match is never by basename (#4933, #4978).
     """
     normalised = to_posix(os.fspath(path))
@@ -1023,7 +1025,7 @@ def is_primary_owned_path(path: str | os.PathLike[str]) -> bool:
         return False
     while normalised.startswith("./"):
         normalised = normalised[2:]
-    return normalised in primary_owned_paths()
+    return normalised in target_owned_paths()
 
 
 def _fully_ignored_top_dirs() -> set[str]:

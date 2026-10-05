@@ -617,17 +617,17 @@ Mission topology terms (the four topologies, write checkout, repo-root lane, cod
 
 ---
 
-### Primary-owned bookkeeping
+### Target-owned bookkeeping
 
 | | |
 |---|---|
-| **Definition** | A tracked file at the project root that Spec Kitty fully generates, marks "do not edit", and that no work package authors, declared `StateSurface.primary_owned` in the state contract (`src/specify_cli/state/contract.py`; today only `.kittify/metadata.yaml`). When two branches of one Mission carry different copies, each integration site resolves the conflict to a fixed side without asking: the copy closer to the [Merge target branch](#merge-target-branch) wins, and between two lanes the receiving lane keeps its own. The per-site table is in ADR [2026-10-04-4](../adr/4.x/2026-10-04-4-upgrade-writes-project-global-state-once.md). The code identifiers `primary_owned`, `is_primary_owned_path` and the rule id `R-PRIMARY-OWNED-BOOKKEEPING` carry this sense. |
+| **Definition** | A tracked file at the project root that Spec Kitty fully generates, marks "do not edit", and that no work package authors, declared `StateSurface.target_owned` in the state contract (`src/specify_cli/state/contract.py`; today only `.kittify/metadata.yaml`). Its authoritative copy is the one on the [Merge target branch](#merge-target-branch). When two branches of one Mission carry different copies, each integration site resolves the conflict to a fixed side without asking: the copy closer to the merge target branch wins, and between two lanes the receiving lane keeps its own until consolidation. The per-site table is in ADR [2026-10-04-4](../adr/4.x/2026-10-04-4-upgrade-writes-project-global-state-once.md). The code identifiers `target_owned`, `is_target_owned_path` and the rule id `R-TARGET-OWNED-BOOKKEEPING` carry this sense. |
 | **Context** | Orchestration |
 | **Status** | candidate |
 | **Applicable to** | `4.x` |
 | **Use when** | Describing why `consolidate`, review start, implement resume or a lane sync did not refuse on a conflict in `.kittify/metadata.yaml`, or which copy of it survived. |
-| **Do NOT use when** | The concept is the artifact-kind partition: use [PRIMARY partition](#primary-partition); `.kittify/metadata.yaml` is not a Mission artifact and has no partition. The concept is the default integration branch: use [primary branch](#primary-branch); the winning copy is the one nearer the merge target branch, which need not be the primary branch. The concept is "the repository root checkout's copy": no site computes that. The file is operator-editable (`.gitattributes`, `.gitignore`, `.kittify/config.yaml`): those are never primary-owned and a conflict on them still refuses. |
-| **Related terms** | [PRIMARY partition](#primary-partition), [primary branch](#primary-branch), [Lane consolidation](#lane-consolidation), [integrating worktree](./execution.md#integrating-worktree), [repository root checkout](./execution.md#repository-root-checkout) |
+| **Do NOT use when** | The file is operator-editable (`.gitattributes`, `.gitignore`, `.kittify/config.yaml`): those are never target-owned, and a conflict on them still refuses. The concept is where a Mission artifact is stored: use [PRIMARY partition](#primary-partition); `.kittify/metadata.yaml` is not a Mission artifact and has no partition. The concept is "the repository root checkout's copy": no site computes that. Do not call it "primary-owned": that earlier name suggested the PRIMARY partition or the [primary branch](#primary-branch), and the merge target branch need not be the primary branch. |
+| **Related terms** | [Merge target branch](#merge-target-branch), [Lane consolidation](#lane-consolidation), [PRIMARY partition](#primary-partition), [integrating worktree](./execution.md#integrating-worktree), [repository root checkout](./execution.md#repository-root-checkout) |
 
 ---
 

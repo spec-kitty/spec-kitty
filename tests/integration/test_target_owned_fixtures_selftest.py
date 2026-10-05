@@ -1,4 +1,4 @@
-"""Self-test for the shared primary-owned fixtures (#5457, WP01/T004).
+"""Self-test for the shared target-owned fixtures (#5457, WP01/T004).
 
 Non-vacuity guard: the consumer tests build on these builders, so the per-branch
 divergence they depend on is proved to really exist, and the defect-text matchers
@@ -14,10 +14,10 @@ from pathlib import Path
 import pytest
 from packaging.version import Version
 
-from specify_cli.state.contract import primary_owned_paths
+from specify_cli.state.contract import target_owned_paths
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.registry import MigrationRegistry
-from tests.integration.primary_owned_fixtures import (
+from tests.integration.target_owned_fixtures import (
     DECISION_INDEX_GITATTRIBUTES_LINE,
     OLDER_VERSION,
     WORKTREE_MIGRATION_ID,
@@ -31,7 +31,7 @@ from tests.integration.primary_owned_fixtures import (
     output_names_merge_failed,
     output_names_stale_metadata_refusal,
     output_names_target_content_conflict,
-    output_shows_primary_owned_defect,
+    output_shows_target_owned_defect,
     upgrade_commits_on,
 )
 
@@ -42,8 +42,8 @@ def _git(repo: Path, *args: str) -> str:
     return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, check=True).stdout
 
 
-def test_fixture_metadata_path_is_the_contract_primary_owned_path() -> None:
-    assert primary_owned_paths() == frozenset({METADATA_PATH})
+def test_fixture_metadata_path_is_the_contract_target_owned_path() -> None:
+    assert target_owned_paths() == frozenset({METADATA_PATH})
 
 
 def test_older_version_is_below_a_registered_worktree_migration() -> None:
@@ -89,6 +89,6 @@ def test_defect_text_matchers() -> None:
     assert output_names_merge_failed(failed)
     assert output_names_auto_rebase_failure(rebase)
     for text in (stale, conflict, failed, rebase):
-        assert output_shows_primary_owned_defect(text)
-    assert not output_shows_primary_owned_defect("Lane lane-b is stale: overlapping files ['src/a.py']")
+        assert output_shows_target_owned_defect(text)
+    assert not output_shows_target_owned_defect("Lane lane-b is stale: overlapping files ['src/a.py']")
     assert not output_names_target_content_conflict("TARGET_BRANCH_CONTENT_CONFLICT conflicting_path: src/a.py")

@@ -1,4 +1,4 @@
-"""Shared real-git fixtures for the primary-owned bookkeeping mission (#5457).
+"""Shared real-git fixtures for the target-owned bookkeeping mission (#5457).
 
 WP02 to WP05 drive their red tests off the two builders here, so no work
 package hand-rolls its own drifting copy of the broken state:
@@ -78,7 +78,7 @@ _bootstrapped_home_template = _harness._bootstrapped_home_template
 Topology = Literal["lanes", "lanes_with_coord"]
 
 #: Project metadata path. The selftest pins it against the state contract's
-#: primary-owned declaration (the single authority for the production rule).
+#: target-owned declaration (the single authority for the production rule).
 METADATA_PATH = ".kittify/metadata.yaml"
 GITATTRIBUTES_PATH = ".gitattributes"
 DECISION_INDEX_GITATTRIBUTES_LINE = "kitty-specs/**/decisions/index.json merge=spec-kitty-decision-index\n"
@@ -460,7 +460,7 @@ def _write_meta(mission: CoordMission, topology: Topology) -> None:
         "mission_number": None,
         "mission_type": "software-dev",
         "target_branch": mission.target_branch,
-        "purpose_tldr": "#5457 primary-owned fixture",
+        "purpose_tldr": "#5457 target-owned fixture",
         "purpose_context": "older-version project with live lanes",
         # Current mission-state shape (``agent mission create``), so ``upgrade``'s
         # mission-state normaliser has nothing to repair in the root checkout.
@@ -503,7 +503,7 @@ def _build_manifest(
         target_branch=mission.target_branch,
         lanes=lanes,
         computed_at=_FIXED_COMPUTED_AT,
-        computed_from="primary-owned-fixture",
+        computed_from="target-owned-fixture",
     )
 
 
@@ -523,7 +523,7 @@ def _write_analysis_report(mission: CoordMission) -> None:
 def _new_mission(tmp_path: Path, target_branch: str, topology: Topology) -> CoordMission:
     mid8 = _MISSION_MID8
     mission_id = (mid8 + "0" * 26)[:26]
-    slug = f"primary-owned-{mid8}"
+    slug = f"target-owned-{mid8}"
     home = tmp_path / "home"
     shutil.copytree(_bootstrapped_home_template(), home, dirs_exist_ok=True)
     branch = CoordinationWorkspace.branch_name(slug, mid8) if topology == "lanes_with_coord" else mission_branch_name(slug, mission_id=mission_id)
@@ -785,7 +785,7 @@ def output_names_auto_rebase_failure(result: subprocess.CompletedProcess[str] | 
     return "LANE_AUTO_REBASE_FAILED" in text and METADATA_PATH in text
 
 
-def output_shows_primary_owned_defect(result: subprocess.CompletedProcess[str] | str) -> bool:
+def output_shows_target_owned_defect(result: subprocess.CompletedProcess[str] | str) -> bool:
     """True when the output carries ANY of the defect's exact signatures."""
     return any(
         matcher(result)
