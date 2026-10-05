@@ -338,6 +338,13 @@ def test_error_reason_and_next_step_follow_precedence() -> None:
     assert "WP03 (lane-c)" in message
 
 
+def test_status_unreadable_message_claims_no_lane_change() -> None:
+    error = LaneMembershipFrozenError((_conflict("status_unreadable", (), ()),))
+    assert error.error_code == "LANE_MEMBERSHIP_FROZEN"
+    assert error.reason == "status_unreadable"
+    assert str(error) == "Cannot re-finalize: the status log is unreadable, so started work cannot be determined."
+
+
 def test_error_dedupes_identical_remedies() -> None:
     first = _conflict("started_wp_removed", ("WP01",), ("lane-a",))
     error = LaneMembershipFrozenError((first, first))

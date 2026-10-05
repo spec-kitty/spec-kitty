@@ -262,10 +262,13 @@ class LaneMembershipFrozenError(LaneComputationError):
         self.reason: str = ordered[0].reason
         self.next_step: str = "\n".join(dict.fromkeys(conflict.remedy for conflict in ordered))
         clauses = "; ".join(conflict.describe() for conflict in ordered)
-        super().__init__(f"{_FROZEN_MESSAGE_PREFIX}{clauses}.")
+        prefix = _UNREADABLE_MESSAGE_PREFIX if self.reason == "status_unreadable" else _FROZEN_MESSAGE_PREFIX
+        super().__init__(f"{prefix}{clauses}.")
 
 
 _FROZEN_MESSAGE_PREFIX = "Cannot re-finalize: started work packages would change lane. "
+#: ``status_unreadable`` alone has not established that any lane would change.
+_UNREADABLE_MESSAGE_PREFIX = "Cannot re-finalize: "
 
 #: ``CollapseEvent.rule`` for a union that keeps started lane-mates together.
 FROZEN_LANE_MEMBERSHIP_RULE = "frozen_lane_membership"

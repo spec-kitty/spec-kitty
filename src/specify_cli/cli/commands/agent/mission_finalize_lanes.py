@@ -67,8 +67,10 @@ def _missing_status_surface_cause(repo_root: Path, mission_slug: str, read_dir: 
     The status-surface resolver composes a coordination path even when that
     worktree was never materialized; the placement seam's ``read_dir`` is the
     fail-closed reader that names the state (``CoordinationWorktreeUnmaterialized``,
-    whose ``next_step`` distinguishes a local from a remote-only branch). When
-    the seam raises nothing, the missing directory itself is the cause.
+    whose ``next_step`` distinguishes a local from a remote-only branch). A
+    ``ValueError`` or ``FileNotFoundError`` from that read (meta resolution) is
+    the cause itself. When the seam raises nothing, the missing directory
+    itself is the cause.
     """
     from mission_runtime import placement_seam
 
@@ -80,6 +82,9 @@ def _missing_status_surface_cause(repo_root: Path, mission_slug: str, read_dir: 
         # ``specify_cli.missions`` is outside mypy's scope, so name the type here.
         canonical: Exception = exc
         return canonical
+    except (ValueError, FileNotFoundError) as exc:
+        # The meta resolution itself failed: fail closed with that cause.
+        return exc
     return FileNotFoundError(f"The status surface {read_dir} does not exist, so the status history cannot be read.")
 
 

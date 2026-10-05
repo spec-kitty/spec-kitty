@@ -368,6 +368,21 @@ def test_branch_that_is_not_a_local_head_refuses_with_the_canonical_guidance(pla
     assert unmaterialized.next_step in remedy
 
 
+@pytest.mark.parametrize("failure", [ValueError("ambiguous meta.json"), FileNotFoundError("meta.json is gone")])
+def test_missing_status_dir_whose_seam_read_fails_refuses_with_the_cause(
+    planning_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: Exception
+) -> None:
+    _write_previous(planning_dir, _lane("lane-a", "WP01"))
+    _missing_status_dir(tmp_path, monkeypatch)
+    monkeypatch.setattr("mission_runtime.placement_seam", lambda *_args, **_kwargs: SimpleNamespace(read_dir=_Recorder(raises=failure)))
+
+    with pytest.raises(LaneMembershipFrozenError) as excinfo:
+        _gather(planning_dir, tmp_path)
+
+    _assert_status_unreadable(excinfo)
+    assert excinfo.value.__cause__ is failure
+
+
 def test_missing_status_dir_without_a_canonical_refusal_still_refuses(planning_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write_previous(planning_dir, _lane("lane-a", "WP01"))
     missing = _missing_status_dir(tmp_path, monkeypatch)
