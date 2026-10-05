@@ -142,7 +142,7 @@ def _patched_implement(tmp_path: Path, feature_dir: Path):
             return_value=(None, feature_dir.name),
         ),
         patch(
-            "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+            "specify_cli.workspace.context.resolve_mission_target_branch",
             return_value="main",
         ),
         patch("specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git"),

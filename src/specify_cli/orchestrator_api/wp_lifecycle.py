@@ -481,7 +481,7 @@ def start_implementation(
     if _self_lane in (Lane.PLANNED, Lane.CLAIMED):
         # Thread per-dependency provenance (FR-009): start-implementation is the
         # external-API CLAIM gate (mutating planned→claimed→in_progress), the
-        # equivalent of implement.py's `_ensure_wp_claim_preconditions`. Without
+        # equivalent of the `ensure_wp_claim_preconditions` seam (core/dependency_graph.py). Without
         # this a dependent of a canceled-with-operator-provenance WP reproduces
         # the #2945 strand on the orchestrator-api claim path.
         # Pre-flight UX only (FR-014, fsm-write-path-integrity WP04). The authoritative

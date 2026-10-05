@@ -43,12 +43,10 @@ from specify_cli.cli.commands.agent.workflow import (
 from specify_cli.cli.commands.agent.workflow_executor import (
     implement_resolve_mission_type,
 )
-from specify_cli.cli.commands.implement import (
-    _load_primary_anchored_mission_meta,
-    find_wp_file,
-)
+from specify_cli.cli.commands.implement import _load_primary_anchored_mission_meta
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.missions._read_path_resolver import _compose_primary_feature_dir
+from specify_cli.workspace.context import find_wp_file
 from tests.specify_cli._read_seam_migration_fixtures import (
     build_coord_branch_deleted,
     build_coord_husk,
@@ -236,7 +234,7 @@ def test_load_primary_anchored_mission_meta_resolves_primary(tmp_path: Path, bui
 
 @_MATERIALIZED_FIXTURES
 def test_find_wp_file_resolves_tasks_dir_under_primary(tmp_path: Path, builder: object) -> None:
-    """``implement.py::find_wp_file`` (WORK_PACKAGE_TASK)."""
+    """``workspace/context.py::find_wp_file`` (WORK_PACKAGE_TASK)."""
     repo = builder(tmp_path)  # type: ignore[operator]
     expected_dir = _compose_primary_feature_dir(repo, _HANDLE) / "tasks"
     wp_file = find_wp_file(repo, _HANDLE, "WP01")

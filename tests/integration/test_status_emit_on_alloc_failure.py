@@ -176,7 +176,7 @@ def _patched_implement(
             return_value=(feature_slug.split("-")[0], feature_slug),
         ),
         patch(
-            "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+            "specify_cli.workspace.context.resolve_mission_target_branch",
             return_value="main",
         ),
         patch("specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git"),

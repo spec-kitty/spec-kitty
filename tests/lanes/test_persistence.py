@@ -111,7 +111,7 @@ def test_resolve_lanes_dir_coord_path_differs_from_primary_path(tmp_path: Path) 
     ``resolve_lanes_dir`` is a pure path-join (feature_dir → feature_dir /
     ``lanes.json``); it does NOT decide the partition. The PARTITION decision
     for ``lanes.json`` (LANE_STATE) is PRIMARY with INV-5 symmetry and lives in
-    the kind-aware placement seam (``implement._resolve_lanes_dir`` →
+    the kind-aware placement seam (``workspace.context.resolve_lane_state_dir`` →
     ``placement_seam(...).read_dir(LANE_STATE)``), not here. This oracle only
     proves the two composed paths differ, so a caller that passes the wrong
     surface dir is detectable.

@@ -186,7 +186,7 @@ def _ensure_repo_root_checkout_available(
     status_feature_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
     # has_event_log guard: a caller reaching this arm before the event log
     # is bootstrapped (e.g. a direct unit-level call to this function,
-    # bypassing implement's own earlier ``_ensure_wp_claim_preconditions``
+    # bypassing implement's own earlier ``ensure_wp_claim_preconditions``
     # seeded-WP check) has, by construction, no recorded claim -- never a
     # resume.
     is_resume = has_event_log(status_feature_dir) and get_wp_lane(status_feature_dir, wp_id) == Lane.IN_PROGRESS

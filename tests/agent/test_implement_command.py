@@ -12,9 +12,9 @@ import typer
 from specify_cli.cli.commands.implement import (
     _ensure_vcs_in_meta,
     detect_feature_context,
-    find_wp_file,
     implement,
 )
+from specify_cli.workspace.context import find_wp_file
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 
@@ -185,7 +185,7 @@ class TestImplementCommand:
                 return_value=("010", "010-feature"),
             ),
             patch(
-                "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+                "specify_cli.workspace.context.resolve_mission_target_branch",
                 return_value="main",
             ),
             patch(
@@ -241,7 +241,7 @@ class TestImplementCommand:
                 return_value=("010", "010-feature"),
             ),
             patch(
-                "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+                "specify_cli.workspace.context.resolve_mission_target_branch",
                 return_value="main",
             ),
             patch(
@@ -283,7 +283,7 @@ class TestImplementCommand:
                 return_value=("010", "010-feature"),
             ),
             patch(
-                "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+                "specify_cli.workspace.context.resolve_mission_target_branch",
                 return_value="main",
             ),
             patch(
@@ -342,7 +342,7 @@ class TestImplementCommand:
                 return_value=("010", "010-feature"),
             ),
             patch(
-                "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+                "specify_cli.workspace.context.resolve_mission_target_branch",
                 return_value="main",
             ),
             patch(
@@ -396,7 +396,7 @@ class TestImplementCommand:
                 return_value=("010", "010-feature"),
             ),
             patch(
-                "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+                "specify_cli.workspace.context.resolve_mission_target_branch",
                 return_value="main",
             ),
             patch(
@@ -492,7 +492,7 @@ class TestImplementCommand:
                 return_value=("010", "010-feature"),
             ),
             patch(
-                "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+                "specify_cli.workspace.context.resolve_mission_target_branch",
                 return_value="main",
             ),
             patch(
@@ -550,7 +550,7 @@ class TestImplementCommand:
                 return_value=("010", "010-feature"),
             ),
             patch(
-                "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+                "specify_cli.workspace.context.resolve_mission_target_branch",
                 return_value="main",
             ),
             patch(
@@ -677,7 +677,7 @@ class TestImplementPrimaryTopologyLanesJson:
             # independently resolves through LANE_STATE placement authority,
             # while the status surface remains ``coord_dir`` (#3371).
             patch(
-                "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+                "specify_cli.workspace.context.resolve_mission_target_branch",
                 return_value="main",
             ),
             patch("specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git"),

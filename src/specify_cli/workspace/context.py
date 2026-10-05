@@ -1342,6 +1342,11 @@ def find_wp_file(repo_root: Path, mission_slug: str, wp_id: str) -> Path:
     kind, so it short-circuits to PRIMARY before any coord probe and -- unlike
     the kind-blind resolver above -- never lands on the coordination
     worktree).
+
+    Distinct from the private :func:`_find_wp_file` below, which globs an
+    already-resolved ``tasks_dir`` for ``<wp_id>*.md`` and returns ``None`` when
+    nothing matches; this public reader resolves the tasks dir itself through
+    the seam, validates the ``WP##`` shape and raises ``FileNotFoundError``.
     """
     tasks_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK) / "tasks"
     if not tasks_dir.exists():
@@ -1358,8 +1363,8 @@ def find_wp_file(repo_root: Path, mission_slug: str, wp_id: str) -> Path:
     return wp_files[0]
 
 
-def resolve_feature_target_branch(mission_slug: str, repo_root: Path) -> str:
-    """Resolve the feature's configured target branch from metadata."""
+def resolve_mission_target_branch(mission_slug: str, repo_root: Path) -> str:
+    """Resolve the mission's configured target branch from metadata."""
     from specify_cli.core.git_ops import resolve_target_branch
 
     resolution = resolve_target_branch(
@@ -1367,10 +1372,11 @@ def resolve_feature_target_branch(mission_slug: str, repo_root: Path) -> str:
         repo_path=repo_root,
         respect_current=True,
     )
-    return resolution.target
+    target: str = resolution.target
+    return target
 
 
-def _resolve_lanes_dir(repo_root: Path, mission_slug: str) -> Path:
+def resolve_lane_state_dir(repo_root: Path, mission_slug: str) -> Path:
     """Return the directory containing ``lanes.json`` for *mission_slug*.
 
     ``lanes.json`` is the ``LANE_STATE`` artifact, a member of
@@ -1386,14 +1392,18 @@ def _resolve_lanes_dir(repo_root: Path, mission_slug: str) -> Path:
     -integrity regression: the write side commits ``lanes.json`` to the
     PRIMARY target branch while this read looked on coord (#3371 e2e break).
 
-    Distinct from :func:`lanes.persistence.resolve_lanes_dir`, which is a
-    path-join helper (``feature_dir / lanes.json``); this function resolves
+    Distinct from :func:`specify_cli.lanes.persistence.resolve_lanes_dir`
+    (hence the name), which is a path-join helper (``feature_dir / lanes.json``);
+    this function resolves
     the *feature_dir* itself from the artifact's canonical partition.
     """
     return placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.LANE_STATE)
 
 
 __all__ = [
+    "find_wp_file",
+    "resolve_lane_state_dir",
+    "resolve_mission_target_branch",
     # ActiveWPResolution: demoted — no cross-module src/ from-import callers
     # (WP01 harden-dead-symbol-gate-01KW0RJR).
     "NormalizedWorkPackage",

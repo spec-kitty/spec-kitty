@@ -15,7 +15,8 @@ from typing import Any
 
 import pytest
 
-from specify_cli.core.dependency_graph import dependency_readiness_for_wp
+from specify_cli.core.dependency_graph import dependency_readiness_for_wp, ensure_wp_claim_preconditions
+from specify_cli.status import read_events, reduce
 from specify_cli.status_lanes import OPERATOR_REASON_SOURCE
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -169,8 +170,8 @@ class TestOptionalParamDefaultPreservesLegacyBehavior:
 
 
 class TestImplementClaimGateThreadsProvenance:
-    """The `spec-kitty implement WP##` claim gate (`_ensure_wp_claim_preconditions`
-    in `implement.py`) is the primary claim command (CLAUDE.md: "the only supported
+    """The `spec-kitty implement WP##` claim gate (`ensure_wp_claim_preconditions`
+    in `core/dependency_graph.py`, fed by the reduced event log) is the primary claim command (CLAUDE.md: "the only supported
     way to prepare a workspace"). It must thread provenance so a dependent of a
     canceled-with-operator-provenance WP is claimable — otherwise the #2945 strand
     trap stays open on the main path even though the pure gate is fixed (review REJECT).
@@ -203,18 +204,15 @@ class TestImplementClaimGateThreadsProvenance:
         append_event(status_dir, ev("01AC", "WP02", Lane.GENESIS, Lane.PLANNED))
 
     def test_operator_canceled_dependency_admits_claim(self, tmp_path: Any) -> None:
-        from specify_cli.cli.commands.implement import _ensure_wp_claim_preconditions
         from specify_cli.status_lanes import OPERATOR_REASON_SOURCE
 
         self._seed(tmp_path, OPERATOR_REASON_SOURCE)
         # Must NOT raise: the documented cancellation resolves WP02's dependency.
-        _ensure_wp_claim_preconditions(tmp_path, "WP02", ["WP01"])
+        ensure_wp_claim_preconditions("WP02", ["WP01"], reduce(read_events(tmp_path)).work_packages)
 
     def test_synthetic_canceled_dependency_still_blocks_claim(self, tmp_path: Any) -> None:
         import pytest as _pytest
 
-        from specify_cli.cli.commands.implement import _ensure_wp_claim_preconditions
-
         self._seed(tmp_path, "synthetic")
         with _pytest.raises(ValueError, match="dependencies_not_satisfied"):
-            _ensure_wp_claim_preconditions(tmp_path, "WP02", ["WP01"])
+            ensure_wp_claim_preconditions("WP02", ["WP01"], reduce(read_events(tmp_path)).work_packages)

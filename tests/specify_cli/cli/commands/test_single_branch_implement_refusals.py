@@ -623,7 +623,7 @@ def test_resuming_the_already_in_progress_wp_is_exempt_from_occupancy_and_dirty(
 def test_dependency_not_ready_refuses_before_occupancy_check(repo: Path) -> None:
     """WP02 depends on WP01, which sits at ``for_review`` -- not yet
     ``approved``/``done``. ``implement WP02`` must be refused on dependency
-    READINESS (``_ensure_wp_claim_preconditions`` -- T012/Contract 3 runs
+    READINESS (``ensure_wp_claim_preconditions`` -- T012/Contract 3 runs
     BEFORE any workspace allocation), never ``WRITE_CHECKOUT_OCCUPIED`` --
     WP01 sitting in the SAME repo-root checkout as an unresolved-but-not-
     in_progress WP must not masquerade as "occupied"."""

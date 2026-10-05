@@ -717,7 +717,7 @@ class TestStartImplementation:
 
         A documented (operator-authored) cancellation is an acceptable ending,
         so WP02 must no longer be stranded on the orchestrator-api claim path —
-        parity with implement.py's ``_ensure_wp_claim_preconditions``.
+        parity with the ``ensure_wp_claim_preconditions`` seam (core/dependency_graph.py).
         """
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         mission_slug = "099-test-mission"

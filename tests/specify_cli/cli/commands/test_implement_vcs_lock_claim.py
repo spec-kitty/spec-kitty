@@ -227,7 +227,7 @@ def _claim_through_guard(
             return_value=(None, feature_dir.name),
         ),
         patch(
-            "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+            "specify_cli.workspace.context.resolve_mission_target_branch",
             return_value="main",
         ),
         patch(

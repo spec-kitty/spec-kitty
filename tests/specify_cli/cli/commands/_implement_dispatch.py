@@ -39,8 +39,8 @@ DISPATCH: dict[str, str] = {
     # The ``safe_commit`` the claim commit calls.
     "safe_commit": "specify_cli.cli.commands.implement.safe_commit",
     # Side-effect-order spies (T007).
-    "target_branch": "specify_cli.cli.commands.implement.resolve_feature_target_branch",
-    "dependency_gate": "specify_cli.cli.commands.implement._ensure_wp_claim_preconditions",
+    "target_branch": "specify_cli.workspace.context.resolve_mission_target_branch",
+    "dependency_gate": "specify_cli.core.dependency_graph.ensure_wp_claim_preconditions",
     "planning_commit": "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
     "bulk_edit_gate": "specify_cli.cli.commands.implement._run_bulk_edit_gate_and_inference",
     "resolve_workspace": "specify_cli.cli.commands.implement.resolve_workspace_for_wp",

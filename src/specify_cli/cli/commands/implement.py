@@ -61,13 +61,10 @@ from specify_cli.status import (
     start_implementation_status,
 )
 from specify_cli.task_utils import TaskCliError, find_repo_root
-from specify_cli.core.dependency_graph import _ensure_wp_claim_preconditions
-from specify_cli.workspace.context import (
-    _resolve_lanes_dir,
-    find_wp_file,
-    resolve_feature_target_branch,
-    resolve_workspace_for_wp,
-)
+from specify_cli.core import dependency_graph
+from specify_cli.status import read_events, reduce as reduce_status_events
+from specify_cli.workspace import context as workspace_context
+from specify_cli.workspace.context import resolve_workspace_for_wp
 
 # WP03 / T019: re-export shim -- bare import (NOT added to __all__, see the
 # bottom of this file). implement_cores.py houses the pure git-porcelain/diff
@@ -1415,7 +1412,7 @@ def _detect_wp_context(
     # kind-blind resolver's coord-husk shadowing -- the kind-correct seam
     # never returns a meta-less coord husk in the first place.
     feature_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.SPEC)
-    wp_file = find_wp_file(repo_root, mission_slug, wp_id)
+    wp_file = workspace_context.find_wp_file(repo_root, mission_slug, wp_id)
     declared_deps = parse_wp_dependencies(wp_file)
     return auto_commit, mission_slug, feature_dir, wp_file, declared_deps
 
@@ -1952,7 +1949,7 @@ def implement(
 
     tracker.start("validate")
     try:
-        planning_branch = resolve_feature_target_branch(mission_slug, repo_root)
+        planning_branch = workspace_context.resolve_mission_target_branch(mission_slug, repo_root)
         _raise_if_status_commit_protected(repo_root, planning_branch, auto_commit, mission_slug)
 
         from specify_cli.coordination.surface_resolver import (
@@ -1974,12 +1971,13 @@ def implement(
         # placement seam (PRIMARY surface) — a DIFFERENT surface than the coord
         # STATUS read above. Resolving it on the coord surface (the pre-symmetry
         # C-LANES-1 read) mismatched the PRIMARY write and broke coord-mission
-        # implement (#3371). See :func:`_resolve_lanes_dir`.
-        _lanes_feature_dir: Path = _resolve_lanes_dir(repo_root, mission_slug)
+        # implement (#3371). See :func:`specify_cli.workspace.context.resolve_lane_state_dir`.
+        _lanes_feature_dir: Path = workspace_context.resolve_lane_state_dir(repo_root, mission_slug)
 
         # T012 / Contract 3 + dependency gate: reject unseeded WPs and
         # not-yet-ready dependencies BEFORE any workspace allocation.
-        _ensure_wp_claim_preconditions(_status_feature_dir, wp_id, declared_deps)
+        _claim_snapshot = reduce_status_events(read_events(_status_feature_dir))
+        dependency_graph.ensure_wp_claim_preconditions(wp_id, declared_deps, _claim_snapshot.work_packages)
 
         # WP06 / T019 / C-PLACE-1: resolve the single artifact-placement ref from
         # the canonical context so implement-claim never reconciles a
@@ -2200,4 +2198,4 @@ def implement(
     _print_workspace_ready_banner(result, workspace_path)
 
 
-__all__ = ["_ensure_vcs_in_meta", "find_wp_file", "implement"]
+__all__ = ["_ensure_vcs_in_meta", "implement"]

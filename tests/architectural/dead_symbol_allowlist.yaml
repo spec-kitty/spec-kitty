@@ -652,9 +652,6 @@ entries:
 - module: specify_cli.cli.commands.implement
   name: _ensure_vcs_in_meta
   category: category_b_grandfathered_legacy
-- module: specify_cli.cli.commands.implement
-  name: find_wp_file
-  category: category_b_grandfathered_legacy
 - module: specify_cli.consolidation.conflict_classifier
   name: ClassifierRule
   category: category_b_grandfathered_legacy

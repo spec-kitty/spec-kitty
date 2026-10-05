@@ -257,7 +257,7 @@ def test_lanes_dir_under_coord_resolves_to_coord_authority(
 
     It does NOT decide the partition: ``lanes.json`` (LANE_STATE) is a PRIMARY
     artifact (INV-5 symmetry), and the partition decision lives in the
-    kind-aware placement seam (``implement._resolve_lanes_dir``), not in this
+    kind-aware placement seam (``workspace.context.resolve_lane_state_dir``), not in this
     join helper. This characterizes the composition only.
     """
     coord = build_coord(tmp_path)

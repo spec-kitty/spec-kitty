@@ -88,7 +88,8 @@ def _dependency_resolved(
     if lane is None:
         return False
     snapshot = provenance.get(dep) if provenance is not None else None
-    return is_acceptable_ending(str(lane), has_provenance=has_operator_provenance(snapshot))
+    resolved: bool = is_acceptable_ending(str(lane), has_provenance=has_operator_provenance(snapshot))
+    return resolved
 
 
 def _dependency_lane(value: Lane | str) -> Lane | None:
@@ -121,7 +122,8 @@ def parse_wp_dependencies(wp_file: Path) -> list[str]:
         >>> print(deps)  # ["WP01"]
     """
     meta, _ = read_wp_frontmatter(wp_file)
-    return meta.dependencies
+    dependencies: list[str] = meta.dependencies
+    return dependencies
 
 
 def build_dependency_graph(feature_dir: Path) -> dict[str, list[str]]:
@@ -400,15 +402,25 @@ def get_dependents(wp_id: str, graph: dict[str, list[str]]) -> list[str]:
     return inverse_graph.get(wp_id, [])
 
 
-def _ensure_wp_claim_preconditions(status_feature_dir: Path, wp_id: str, declared_deps: Any) -> None:
+def ensure_wp_claim_preconditions(
+    wp_id: str,
+    declared_deps: Iterable[str] | Any,
+    work_packages: Mapping[str, Mapping[str, Any]],
+) -> None:
     """Raise if *wp_id* is unseeded (T012 / Contract 3) or a declared
-    dependency is not yet ``approved``/``done``."""
-    from specify_cli.core.dependency_graph import dependency_readiness_for_wp
-    from specify_cli.status import reduce as _reduce_events
-    from specify_cli.status import read_events as _read_events
+    dependency is not yet ``approved``/``done``.
 
-    _snapshot = _reduce_events(_read_events(status_feature_dir))
-    wp_lanes = {_wp_id: _state.get("lane", Lane.GENESIS) for _wp_id, _state in _snapshot.work_packages.items()}
+    Pure decision over the reduced status snapshot's ``work_packages`` mapping:
+    the caller reads and reduces the event log (``read_events`` + ``reduce``)
+    and passes ``snapshot.work_packages`` here, so this seam does no event I/O.
+
+    Raises:
+        WorkPackageStartRejected: *wp_id* is absent from, or still ``genesis`` in,
+            the snapshot (it has not been through ``finalize-tasks``).
+        ValueError: a declared dependency has not reached an acceptable ending
+            (``dependencies_not_satisfied: ...``).
+    """
+    wp_lanes = {_wp_id: _state.get("lane", Lane.GENESIS) for _wp_id, _state in work_packages.items()}
     # T012 / Contract 3: reject unseeded WPs BEFORE any workspace
     # allocation. A genesis WP has not been through finalize-tasks; the
     # user must run it first to seed the genesis→planned bootstrap event.
@@ -426,7 +438,7 @@ def _ensure_wp_claim_preconditions(status_feature_dir: Path, wp_id: str, declare
     # workflow_executor gate fix.
     # Pre-flight UX only (FR-014, fsm-write-path-integrity WP04). The authoritative
     # dependency gate is `GuardContext.dependency_ready`, resolved in-lock by the emit shells.
-    dependency_readiness = dependency_readiness_for_wp(wp_id, declared_deps, wp_lanes, provenance=_snapshot.work_packages)
+    dependency_readiness = dependency_readiness_for_wp(wp_id, declared_deps, wp_lanes, provenance=work_packages)
     if not dependency_readiness.satisfied:
         blocked = ", ".join(dependency_readiness.unsatisfied)
         raise ValueError(f"dependencies_not_satisfied: {wp_id} depends on {blocked}; all dependencies must be approved or done before implementation can start")
@@ -436,6 +448,7 @@ __all__ = [
     "build_dependency_graph",
     "dependency_readiness_for_wp",
     "detect_cycles",
+    "ensure_wp_claim_preconditions",
     "get_dependents",
     "parse_wp_dependencies",
     "topological_sort",
