@@ -3,16 +3,12 @@
 Covers `resolve_lane_state_dir` (WP03 / #2052, absorbed from `tests/cli/commands/test_resolve_lanes_dir.py`),
 `find_wp_file` and `resolve_mission_target_branch`.
 
-Original `resolve_lane_state_dir` notes:
+`resolve_lane_state_dir` returns the primary checkout surface for every topology: ``lanes.json`` is
+PRIMARY-partition state, so a materialised coordination worktree never hides it (#3371), and a
+mission without a coordination branch resolves to the primary checkout too.
 
-Verifies:
-- Coord topology: returns the coord-worktree surface when the worktree and
-  its mission dir are materialised and meta.json declares coordination_branch.
-- Flat/legacy topology: returns the primary checkout surface when no
-  coordination_branch is declared.
-
-No ``unittest.mock`` — the point is that the function is testable with a
-``tmp_path`` filesystem alone (pure path after coord-worktree materialisation).
+No ``unittest.mock``: the path reads run on a ``tmp_path`` filesystem alone; the target-branch
+reads use a real (empty) git repository.
 """
 
 from __future__ import annotations
@@ -26,13 +22,16 @@ import pytest
 from specify_cli.workspace.context import find_wp_file, resolve_lane_state_dir, resolve_mission_target_branch
 from specify_cli.core.constants import KITTY_SPECS_DIR
 
-pytestmark = pytest.mark.fast
+# Per class: the pure path reads are ``fast``; the target-branch reads run git (``git_repo``).
+_FAST = pytest.mark.fast
 
 
 # A Crockford base32 mid8 that ``mid8_from_slug`` will recognise as a valid
 # tail when embedded in a slug (8 chars, charset [0-9A-HJKMNP-TV-Z]).
 _TEST_MID8 = "01KVN754"
 _COORD_BRANCH = "kitty/mission-my-mission-01KVN754"
+#: A valid Crockford ULID whose mid8 is ``_TEST_MID8``.
+_MISSION_ID = "01KVN754TY9CVJ8G10ERTQ6ZXA"
 
 
 def _write_meta(feature_dir: Path, *, coordination_branch: str | None = None) -> None:
@@ -40,14 +39,15 @@ def _write_meta(feature_dir: Path, *, coordination_branch: str | None = None) ->
     feature_dir.mkdir(parents=True, exist_ok=True)
     meta: dict[str, object] = {
         "mission_slug": feature_dir.name,
-        "mission_id": f"01KVN754TY9CVJ8G10ERT{feature_dir.name[:5].upper()}",
+        "mission_id": _MISSION_ID,
     }
     if coordination_branch is not None:
         meta["coordination_branch"] = coordination_branch
     (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
 
-class TestResolveLinesDirCoordTopology:
+@_FAST
+class TestResolveLaneStateDirCoordTopology:
     """Coord-worktree materialised: ``resolve_lane_state_dir`` must STILL return the
     PRIMARY surface, never the coord husk.
 
@@ -75,7 +75,6 @@ class TestResolveLinesDirCoordTopology:
 
         # PRIMARY partition — the primary checkout dir, NOT the coord husk.
         assert result == primary_dir
-        assert result != coord_mission_dir
 
     def test_lanes_dir_is_never_the_coord_husk(self, tmp_path: Path) -> None:
         slug = f"my-mission-{_TEST_MID8}"
@@ -93,7 +92,8 @@ class TestResolveLinesDirCoordTopology:
         assert result == primary_dir
 
 
-class TestResolveLinesDirFlatTopology:
+@_FAST
+class TestResolveLaneStateDirFlatTopology:
     """No coord worktree: ``resolve_lane_state_dir`` must return the primary dir."""
 
     def test_returns_primary_when_no_coordination_branch(self, tmp_path: Path) -> None:
@@ -124,6 +124,7 @@ class TestResolveLinesDirFlatTopology:
 # ---------------------------------------------------------------------------
 
 
+@_FAST
 class TestFindWpFile:
     """``find_wp_file`` resolves the authored WP prompt through the seam (PRIMARY surface)."""
 
@@ -181,15 +182,25 @@ class TestFindWpFile:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.git_repo
 class TestResolveMissionTargetBranch:
-    def test_returns_the_target_branch_recorded_in_meta(self, tmp_path: Path) -> None:
-        subprocess.run(["git", "init", "-q", "-b", "main", str(tmp_path)], check=True)
+    @staticmethod
+    def _mission(repo: Path, meta: dict[str, object], *, branch: str = "main") -> str:
+        subprocess.run(["git", "init", "-q", "-b", branch, str(repo)], check=True)
         slug = "my-mission"
-        feature_dir = tmp_path / KITTY_SPECS_DIR / slug
+        feature_dir = repo / KITTY_SPECS_DIR / slug
         feature_dir.mkdir(parents=True)
-        (feature_dir / "meta.json").write_text(
-            json.dumps({"mission_slug": slug, "target_branch": "release/9.9"}),
-            encoding="utf-8",
-        )
+        (feature_dir / "meta.json").write_text(json.dumps({"mission_slug": slug, **meta}), encoding="utf-8")
+        return slug
+
+    def test_returns_the_target_branch_recorded_in_meta(self, tmp_path: Path) -> None:
+        slug = self._mission(tmp_path, {"target_branch": "release/9.9"})
 
         assert resolve_mission_target_branch(slug, tmp_path) == "release/9.9"
+
+    def test_falls_back_to_the_primary_branch_when_meta_records_none(self, tmp_path: Path) -> None:
+        """Without a recorded ``target_branch`` the primary branch is the target; a repository with no
+        ``origin/HEAD`` takes the checked-out branch as its primary branch."""
+        slug = self._mission(tmp_path, {}, branch="develop")
+
+        assert resolve_mission_target_branch(slug, tmp_path) == "develop"
