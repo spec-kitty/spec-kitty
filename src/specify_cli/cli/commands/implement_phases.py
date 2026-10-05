@@ -401,6 +401,9 @@ def allocate(ctx: ImplementContext, wp_id: str, selection: WorkspaceSelection, b
     # lock is written into meta.json, so a refused implement leaves nothing
     # behind (the read-only check is repeated, idempotently, at allocation).
     occupancy_verified = implement_support.refuse_repo_root_checkout_if_unavailable(repo_root, mission_slug, wp_id, resolved_workspace)
+    # #5738: a claim whose auto-commit cannot land on the checked-out branch is
+    # refused here too, before the VCS lock, the lane worktree and the status write.
+    implement_claim._raise_if_claim_commit_head_mismatch(repo_root, mission_slug, wp_id, ctx.auto_commit)
     vcs_backend = _ensure_vcs_in_meta(feature_dir, repo_root)
 
     # #3571: when --base is provided, validate the ref (planning-lane

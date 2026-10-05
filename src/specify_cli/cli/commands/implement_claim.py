@@ -31,12 +31,22 @@ from specify_cli.coordination.coherence import (
     is_status_state_path,
 )
 from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
+from specify_cli.coordination.surface_resolver import resolve_status_surface_with_anchor
 from specify_cli.status import TransitionError
 from specify_cli.status import (
+    Lane,
     WorkPackageClaimConflict,
     claim_policy_metadata,
+    read_events,
+    reduce,
     start_implementation_status,
 )
+
+#: The lanes ``start_implementation_status`` moves a WP out of. Only such a claim
+#: changes the WP's lane, and only a lane change ends in the claim commit
+#: (``_commit_wp_claim_status`` returns early otherwise); an ``in_progress``
+#: resume commits nothing.
+_CLAIM_COMMITTING_LANES = frozenset({Lane.PLANNED, Lane.CLAIMED})
 
 
 def _protected_branch_status_commit_error(branch: str, repo_root: Path, mission_slug: str | None = None) -> str | None:
@@ -67,6 +77,40 @@ def _raise_if_status_commit_protected(repo_root: Path, planning_branch: str, aut
     protected_error = _protected_branch_status_commit_error(status_destination, repo_root, mission_slug)
     if protected_error is not None:
         raise ValueError(protected_error)
+
+
+def _raise_if_claim_commit_head_mismatch(repo_root: Path, mission_slug: str, wp_id: str, auto_commit: bool | None) -> None:
+    """Refuse up front a claim whose auto-commit cannot land (#5738).
+
+    The claim commit (``_commit_wp_claim_status``) targets the PRIMARY write home
+    of ``WORK_PACKAGE_TASK`` from the repository root checkout, and ``safe_commit``
+    asserts that checkout's HEAD is that branch. When auto-commit is on, the claim
+    will move the WP's lane, and the checkout is on another branch (or detached),
+    that commit can only fail -- after the lane worktree, the VCS lock and the
+    status write already landed. Raise the very ``SafeCommitHeadMismatch`` the
+    commit would raise, before any of them. Only that mismatch is decided here:
+    an unresolvable destination is left to the commit-time handling.
+    """
+    if not auto_commit:
+        return
+    status_dir = resolve_status_surface_with_anchor(repo_root, mission_slug).read_dir
+    current_lane = reduce(read_events(status_dir)).work_packages.get(wp_id, {}).get("lane")
+    if current_lane not in _CLAIM_COMMITTING_LANES:
+        return
+    try:
+        destination_ref = placement_seam(repo_root, mission_slug).write_target(MissionArtifactKind.WORK_PACKAGE_TASK).ref
+    except Exception:
+        # Only a resolved destination is judged here. A destination that does not
+        # resolve (e.g. a merged mission whose coordination branch was torn down)
+        # keeps its existing commit-time handling in ``commit_claim`` unchanged.
+        return
+    observed_head = get_current_branch(repo_root)
+    if observed_head != destination_ref:
+        raise SafeCommitHeadMismatch(
+            destination_ref=destination_ref,
+            observed_head=observed_head or "<detached>",
+            worktree_root=repo_root,
+        )
 
 
 def _primary_surface_status_paths(artifacts: Iterable[Path], *, routes_through_coord: bool) -> list[Path]:

@@ -11,6 +11,7 @@ from typing import Annotated, Any
 
 import typer
 from pydantic import ValidationError
+from rich.markup import escape
 from specify_cli.cli.console import console
 
 from specify_cli.cli import StepTracker
@@ -108,9 +109,13 @@ def _json_safe_output(func: Callable[..., Any]) -> Callable[..., Any]:
         except typer.Exit as exc:
             _json_wrapper_handle_typer_exit(exc, json_output, capture_buffer, wp_id)
             raise
-        except Exception as exc:  # pragma: no cover - defensive
+        except Exception as exc:
+            # #5738: never silent -- an exception no phase rendered still gets its
+            # ``Error:`` line (or the JSON error envelope); the exit code stays 1.
             if json_output:
                 _json_wrapper_emit_error_payload(str(exc), wp_id)
+            else:
+                console.print(f"[red]Error:[/red] {escape(str(exc))}", highlight=False)
             raise typer.Exit(1) from exc
         finally:
             _json_wrapper_end_capture(previous_quiet)
