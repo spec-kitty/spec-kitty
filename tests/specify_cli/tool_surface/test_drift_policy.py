@@ -569,11 +569,11 @@ class TestDriftPolicyViaCli:
             "drifted file must be preserved verbatim under --yes"
         )
         # #4925: a non-zero exit names its reason and never claims success.
-        assert "Unresolved tool-surface drift in " in result.stdout
+        assert f"Not updated, your local edit was kept: .claude/agents/{target.name}" in result.stdout
         assert "spec-kitty doctor tool-surfaces" in result.stdout
         assert "already up to date" not in result.stdout.lower()
         assert result.stdout.rstrip().splitlines()[-1] == (
-            "Upgrade finished with unresolved tool-surface drift."
+            "Upgrade finished, but 1 managed file(s) with local edits were not updated."
         )
 
     def test_rule4_drifted_reported_only_under_yes_json(
@@ -599,7 +599,9 @@ class TestDriftPolicyViaCli:
         assert payload["status"] == "failed"
         assert payload["success"] is False
         assert payload["errors"]
-        assert "Unresolved tool-surface drift" in payload["errors"][0]
+        assert payload["errors"][0].startswith(
+            f"Not updated, your local edit was kept: .claude/agents/{target.name}"
+        )
         drifted = payload["surface_repair"]["drifted_reported"]
         assert any(Path(path).name == target.name for path in drifted)
         assert target.read_text(encoding="utf-8") == custom, (

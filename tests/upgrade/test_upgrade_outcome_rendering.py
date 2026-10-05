@@ -44,6 +44,7 @@ _MIGRATION_ID = "3.2.0a4_fake_migration"
 _SKIPPED_ID = "3.1.0_old_migration"
 _OWNER = "agent_profiles"
 _DRIFTED_PATH = ".claude/agents/reviewer.md"
+_DRIFTED_REASON = "edited by hand"
 _PREVIEW_NOTICE = "Supporting repair preview incomplete: stub owner assessment."
 _WORKTREE_FAILURE = "Worktree lane-x: stamp failed"
 _MIGRATION_ERROR = "migration boom"
@@ -216,7 +217,9 @@ _NO_WRITES = "no_writes"
 _CLOSING_NO_OP = "Project is already up to date!"
 _CLOSING_APPLIED = f"Upgrade complete! {_PROJECT_VERSION} -> {_MIGRATED_VERSION}"
 _CLOSING_APPLIED_DRY_RUN = f"Dry run complete — no changes applied. ({_PROJECT_VERSION} -> {_MIGRATED_VERSION} previewed)"
-_CLOSING_DRIFT = "Upgrade finished with unresolved tool-surface drift."
+_CLOSING_DRIFT = "Upgrade finished, but 1 managed file(s) with local edits were not updated."
+_PRESERVED_LINE = f"Not updated, your local edit was kept: {_DRIFTED_PATH} ({_DRIFTED_REASON})"
+_PRESERVED_GUIDANCE = "To take the current version of a file, delete it and run 'spec-kitty upgrade' again."
 _CLOSING_FAILED = "Upgrade failed."
 _SUCCESS_PHRASES = ("already up to date", "upgrade complete", "dry run complete")
 
@@ -230,7 +233,7 @@ def _stub_drift(monkeypatch: pytest.MonkeyPatch, _path: str) -> None:
         drifted = OwnerAssessment(
             owner_key=_OWNER,
             root=prepared.root,
-            dispositions=(Disposition(_OWNER, prepared.root.root_id, _DRIFTED_PATH, "consent_required", "edited by hand"),),
+            dispositions=(Disposition(_OWNER, prepared.root.root_id, _DRIFTED_PATH, "consent_required", _DRIFTED_REASON),),
         )
         return replace(prepared, remaining=(*prepared.remaining, drifted))
 
@@ -315,7 +318,7 @@ _DANGLING_CHARTER_CONFIG = "charter: does/not/exist.yaml\n"
 _ROWS = (
     _Row("clean-no-op", (), "no_op", (), paths=(_NO_MIGRATIONS,)),
     _Row("clean-applied", (), "applied", (), paths=(_MIGRATIONS,)),
-    _Row("drift", ("drift", _NO_WRITES), "drift_unresolved", ("surface_drift",), errors_contain=("Unresolved tool-surface drift in 1 file(s)",)),
+    _Row("drift", ("drift", _NO_WRITES), "drift_unresolved", ("surface_drift",), errors_contain=(_PRESERVED_LINE, _PRESERVED_GUIDANCE)),
     _Row("drift-without-yes", ("drift", _NO_WRITES), "drift_unresolved", ("surface_drift",), paths=(_NO_MIGRATIONS,), yes=False),
     _Row("repair-not-applied", ("unapplied",), "failed", ("surface_repair_failed",), errors_contain=("was not applied",)),
     _Row(
@@ -323,7 +326,7 @@ _ROWS = (
         ("drift", "unapplied"),
         "failed",
         ("surface_repair_failed", "surface_drift"),
-        errors_contain=("was not applied", "Unresolved tool-surface drift in 1 file(s)"),
+        errors_contain=("was not applied", _PRESERVED_LINE, _PRESERVED_GUIDANCE),
     ),
     _Row("activation-error", ("activation_error",), "failed", ("activation_error",), errors_contain=(_ACTIVATION_ERROR,)),
     _Row(
@@ -392,7 +395,7 @@ def test_matrix_text_and_json_agree_on_one_outcome(row: _Row, path: str, tmp_pat
     assert payload["status"] == {"no_op": "up_to_date", "applied": "success"}.get(row.kind, "failed")
     assert payload["outcome"] == row.kind
     assert payload["failure_reasons"] == list(row.reasons)
-    assert not any("in 0 file(s)" in error for error in payload["errors"])
+    assert not any(" 0 managed file(s)" in error for error in payload["errors"])  # no preserved-file line without a file
     for expected in row.errors_contain:
         assert any(expected in error for error in payload["errors"]), payload["errors"]
     # Text: the closing line is the outcome's, and it is the last thing printed on a failure.
@@ -603,6 +606,7 @@ def test_step_with_a_drifted_owner_reports_the_drifted_path(prepared_project: tu
     report = _run_step(_outcome(), ctx, project)
 
     assert report.drifted_paths == (project.resolve() / _DRIFTED_PATH,)
+    assert report.drifted_reasons == {project.resolve() / _DRIFTED_PATH: _DRIFTED_REASON}
     assert report.failed is False
     assert ctx.surface_repair_summary is not None
     assert ctx.surface_repair_summary.drifted_reported == [project.resolve() / _DRIFTED_PATH]

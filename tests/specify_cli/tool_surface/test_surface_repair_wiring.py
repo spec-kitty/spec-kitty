@@ -145,7 +145,7 @@ def test_upgrade_with_yes_does_not_overwrite_drifted(tmp_path: Path) -> None:
         "drifted file must not be overwritten by --yes"
     )
     # #4925: the exit code is explained, and the run does not claim success.
-    assert "Unresolved tool-surface drift in " in result.stdout
+    assert f"Not updated, your local edit was kept: .claude/agents/{drifted_path.name}" in result.stdout
     assert "already up to date" not in result.stdout.lower()
 
 

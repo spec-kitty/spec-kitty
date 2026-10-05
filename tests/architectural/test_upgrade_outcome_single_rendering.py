@@ -112,7 +112,7 @@ _PINNED_FRAGMENTS = (
     "upgrade complete",
     "upgrade failed",
     "dry run complete",
-    "unresolved tool-surface drift",
+    "local edits were not updated",
 )
 _MIN_FRAGMENT_LENGTH = 12
 
@@ -601,7 +601,7 @@ class TestFloor:
     def test_derived_fragments_cover_every_closing_line(self, outcome_source: str) -> None:
         fragments = closing_fragments(closing_constants(outcome_source))
         assert set(_PINNED_FRAGMENTS) <= fragments
-        assert "upgrade finished with unresolved tool-surface drift." in fragments
+        assert "managed file(s) with local edits were not updated." in fragments
 
     def test_finds_the_exit_sites(self, command_source: str, outcome_source: str, src_sources: dict[str, str]) -> None:
         assert count_outcome_exits(command_source) == 1
@@ -662,7 +662,7 @@ class TestSelfMutation:
             'def _render_x(outcome):\n    console.print("Project is already up to date!")\n',
             'def _render_x(outcome):\n    console.print(f"[green]{name}: Upgrade complete! done[/green]")\n',
             'def helper():\n    """Prints Upgrade failed. when it goes wrong."""\n',
-            'def helper():\n    return "UPGRADE FINISHED WITH UNRESOLVED TOOL-SURFACE DRIFT."\n',
+            'def helper():\n    return "UPGRADE FINISHED, BUT 2 MANAGED FILE(S) WITH LOCAL EDITS WERE NOT UPDATED."\n',
         ],
     )
     def test_rule_1_closing_text_outside_the_outcome(self, mutation: str) -> None:
@@ -671,7 +671,7 @@ class TestSelfMutation:
                 "_CLOSING_NO_OP": "Project is already up to date!",
                 "_CLOSING_APPLIED": "Upgrade complete! {from_version} -> {to_version}",
                 "_CLOSING_FAILED": "Upgrade failed.",
-                "_CLOSING_DRIFT": "Upgrade finished with unresolved tool-surface drift.",
+                "_CLOSING_DRIFT": "Upgrade finished, but {count} managed file(s) with local edits were not updated.",
             }
         )
         assert find_closing_text_leaks(mutation, fragments)

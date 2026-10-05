@@ -28,8 +28,18 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _FROM = "3.1.0"
 _TO = "3.2.0"
-_DRIFT_PATHS = (Path("/proj/.claude/agents/a.md"), Path("/proj/.claude/agents/b.md"))
-_DRIFT_MESSAGE = "Unresolved tool-surface drift in 2 file(s); run 'spec-kitty doctor tool-surfaces' to review."
+_PROJECT = Path("/proj")
+_DRIFT_PATHS = (_PROJECT / ".claude/agents/a.md", _PROJECT / ".claude/agents/b.md")
+_DRIFT_REASONS = {_DRIFT_PATHS[0]: "Managed profile drift requires exact-path consent", _DRIFT_PATHS[1]: "edited by hand"}
+_DRIFT_LINES = [
+    "Not updated, your local edit was kept: .claude/agents/a.md (Managed profile drift requires exact-path consent)",
+    "Not updated, your local edit was kept: .claude/agents/b.md (edited by hand)",
+]
+_DRIFT_GUIDANCE = (
+    "To take the current version of a file, delete it and run 'spec-kitty upgrade' again. "
+    "To keep your edit, leave the file as it is. 'spec-kitty doctor tool-surfaces' shows each file's state."
+)
+_DRIFT_CLOSING = "Upgrade finished, but 2 managed file(s) with local edits were not updated."
 
 # Message each failure input contributes; the order here is the contract's order for ``errors()``.
 _MIGRATION_ERROR = "migration boom"
@@ -51,8 +61,8 @@ _CLOSING_LINES = {
     (UpgradeOutcomeKind.NO_OP, True): "Project is already up to date!",
     (UpgradeOutcomeKind.APPLIED, False): f"Upgrade complete! {_FROM} -> {_TO}",
     (UpgradeOutcomeKind.APPLIED, True): f"Dry run complete — no changes applied. ({_FROM} -> {_TO} previewed)",
-    (UpgradeOutcomeKind.DRIFT_UNRESOLVED, False): "Upgrade finished with unresolved tool-surface drift.",
-    (UpgradeOutcomeKind.DRIFT_UNRESOLVED, True): "Upgrade finished with unresolved tool-surface drift.",
+    (UpgradeOutcomeKind.DRIFT_UNRESOLVED, False): _DRIFT_CLOSING,
+    (UpgradeOutcomeKind.DRIFT_UNRESOLVED, True): _DRIFT_CLOSING,
     (UpgradeOutcomeKind.FAILED, False): "Upgrade failed.",
     (UpgradeOutcomeKind.FAILED, True): "Upgrade failed.",
 }
@@ -72,15 +82,15 @@ _REASON_BY_INPUT = {
     "preview_incomplete": UpgradeFailureReason.PREVIEW_INCOMPLETE,
     "drift": UpgradeFailureReason.SURFACE_DRIFT,
 }
-_MESSAGE_BY_INPUT = {
-    "migration_failed": _MIGRATION_ERROR,
-    "activation": _ACTIVATION_ERROR,
-    "worktree": _WORKTREE_FAILURE,
-    "commit_recovery": _COMMIT_ERROR,
-    "repair_preparation": _PREPARATION_ERROR,
-    "repair_failed": _REPAIR_MESSAGE,
-    "preview_incomplete": _PREVIEW_NOTICE,
-    "drift": _DRIFT_MESSAGE,
+_MESSAGES_BY_INPUT = {
+    "migration_failed": [_MIGRATION_ERROR],
+    "activation": [_ACTIVATION_ERROR],
+    "worktree": [_WORKTREE_FAILURE],
+    "commit_recovery": [_COMMIT_ERROR],
+    "repair_preparation": [_PREPARATION_ERROR],
+    "repair_failed": [_REPAIR_MESSAGE],
+    "preview_incomplete": [_PREVIEW_NOTICE],
+    "drift": [*_DRIFT_LINES, _DRIFT_GUIDANCE],
 }
 
 
@@ -109,7 +119,7 @@ def _cases() -> list[tuple[frozenset[str], bool, bool]]:
 
 def _build(held: frozenset[str], *, had_migrations: bool, dry_run: bool) -> UpgradeOutcome:
     result = UpgradeResult(success="migration_failed" not in held, from_version=_FROM, to_version=_TO, dry_run=dry_run)
-    outcome = UpgradeOutcome(result=result, had_migrations=had_migrations)
+    outcome = UpgradeOutcome(result=result, had_migrations=had_migrations, project_root=_PROJECT)
     if "migration_failed" in held:
         result.errors.append(_MIGRATION_ERROR)
     if "commit_recovery" in held:
@@ -121,10 +131,11 @@ def _build(held: frozenset[str], *, had_migrations: bool, dry_run: bool) -> Upgr
         outcome.worktree_failures = [_WORKTREE_FAILURE]
     if "repair_preparation" in held:
         outcome.repair_preparation_errors = [_PREPARATION_ERROR]
-    messages = tuple(_MESSAGE_BY_INPUT[name] for name in ("repair_failed", "preview_incomplete") if name in held)
+    messages = tuple(_MESSAGES_BY_INPUT[name][0] for name in ("repair_failed", "preview_incomplete") if name in held)
     outcome.record_surface_repair(
         SurfaceRepairReport(
             drifted_paths=_DRIFT_PATHS if "drift" in held else (),
+            drifted_reasons=_DRIFT_REASONS if "drift" in held else {},
             failed="repair_failed" in held,
             preview_incomplete="preview_incomplete" in held,
             failure_messages=messages,
@@ -163,7 +174,7 @@ def test_outcome_truth_table(case: tuple[frozenset[str], bool, bool]) -> None:
     assert outcome.closing_line() == _CLOSING_LINES[(kind, dry_run)]
     assert outcome.derive_exit_code() == (1 if held else 0)
 
-    assert outcome.errors() == [_MESSAGE_BY_INPUT[name] for name in _ERROR_ORDER if name in held]
+    assert outcome.errors() == [message for name in _ERROR_ORDER if name in held for message in _MESSAGES_BY_INPUT[name]]
 
 
 @pytest.mark.parametrize("case", _ALL_CASES, ids=[_case_id(case) for case in _ALL_CASES])
@@ -179,14 +190,14 @@ def test_outcome_invariants(case: tuple[frozenset[str], bool, bool]) -> None:
     assert (outcome.status == "failed") is (exit_code != 0)
     # 3. a non-zero exit always has at least one error
     assert exit_code == 0 or errors
-    # 4. the drift message appears iff a file is drifted, and its count is that number
-    drift_lines = [error for error in errors if error.startswith("Unresolved tool-surface drift in ")]
-    assert bool(drift_lines) is ("drift" in held)
-    assert all(f"in {len(_DRIFT_PATHS)} file(s)" in line for line in drift_lines)
-    assert not any("in 0 file(s)" in error for error in errors)
+    # 4. the preserved-file lines and their guidance appear iff a file is preserved, one line per file
+    drift_lines = [error for error in errors if error.startswith("Not updated, your local edit was kept: ")]
+    assert (drift_lines == _DRIFT_LINES) is ("drift" in held)
+    assert (_DRIFT_GUIDANCE in errors) is ("drift" in held)
     # every explaining message of a held input is listed, once
     for name in held:
-        assert errors.count(_MESSAGE_BY_INPUT[name]) == 1
+        for message in _MESSAGES_BY_INPUT[name]:
+            assert errors.count(message) == 1
     # 5. a mission-state repair never contributes a reason (see the dedicated tests below)
 
 
@@ -196,7 +207,7 @@ def test_repair_failure_with_two_drifted_files_is_failed_and_reports_both() -> N
 
     assert outcome.kind is UpgradeOutcomeKind.FAILED
     assert outcome.reasons == (UpgradeFailureReason.SURFACE_REPAIR_FAILED, UpgradeFailureReason.SURFACE_DRIFT)
-    assert outcome.errors() == [_REPAIR_MESSAGE, _DRIFT_MESSAGE]
+    assert outcome.errors() == [_REPAIR_MESSAGE, *_DRIFT_LINES, _DRIFT_GUIDANCE]
     assert outcome.closing_line() == "Upgrade failed."
     assert outcome.derive_exit_code() == 1
 
@@ -262,7 +273,8 @@ def test_a_repair_failure_without_a_message_is_named_next_to_the_drift_line() ->
     assert outcome.kind is UpgradeOutcomeKind.FAILED
     assert outcome.errors() == [
         "Tool-surface repair did not complete; re-run 'spec-kitty upgrade'.",
-        "Unresolved tool-surface drift in 1 file(s); run 'spec-kitty doctor tool-surfaces' to review.",
+        f"Not updated, your local edit was kept: {_DRIFT_PATHS[0]}",
+        _DRIFT_GUIDANCE,
     ]
 
 
@@ -284,13 +296,29 @@ def test_worktree_failure_mirrored_into_result_errors_is_listed_once() -> None:
     assert outcome.errors() == [_WORKTREE_FAILURE, "lane-b: schema stamp failed"]
 
 
-def test_drift_message_points_at_the_review_command_and_never_at_an_overwrite_option() -> None:
-    outcome = _build(frozenset({"drift"}), had_migrations=False, dry_run=False)
+def test_each_preserved_file_is_named_relative_to_the_project_and_the_list_is_capped() -> None:
+    inside = _PROJECT / ".claude/agents/a.md"
+    outside = Path("/home/someone/.claude/skills/x/SKILL.md")
+    many = [_PROJECT / f"skills/s{index}.md" for index in range(21)]
+    outcome = UpgradeOutcome(
+        result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO),
+        project_root=_PROJECT,
+        drifted_paths=[inside, outside, *many],
+        drifted_reasons={inside: "edited by hand"},
+    )
 
-    (message,) = outcome.errors()
-    assert "spec-kitty doctor tool-surfaces" in message
-    assert "--fix" not in message
-    assert "overwrite" not in message.lower()
+    errors = outcome.errors()
+
+    assert errors[0] == "Not updated, your local edit was kept: .claude/agents/a.md (edited by hand)"
+    assert errors[1] == f"Not updated, your local edit was kept: {outside}"  # outside the project: given as is, no reason known
+    assert errors[2] == "Not updated, your local edit was kept: skills/s0.md"
+    assert len(errors) == 20 + 2  # the first twenty files, "... and N more", the guidance
+    assert errors[-2] == "... and 3 more"
+    assert errors[-1] == _DRIFT_GUIDANCE
+    assert outcome.closing_line() == "Upgrade finished, but 23 managed file(s) with local edits were not updated."
+    # The guidance names what is true: delete + re-run recreates a file, doctor only shows state, nothing overwrites.
+    assert "--fix" not in _DRIFT_GUIDANCE
+    assert "overwrite" not in _DRIFT_GUIDANCE.lower()
 
 
 def test_recording_a_second_report_replaces_the_first() -> None:

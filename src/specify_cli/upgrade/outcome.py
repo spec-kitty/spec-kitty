@@ -28,18 +28,26 @@ consent decision in the first place.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
 from .runner import UpgradeResult
 
-_DRIFT_MESSAGE = "Unresolved tool-surface drift in {count} file(s); run 'spec-kitty doctor tool-surfaces' to review."
+_PRESERVED_FILE_LINE = "Not updated, your local edit was kept: {path}"
+_PRESERVED_FILE_LINE_WITH_REASON = "Not updated, your local edit was kept: {path} ({reason})"
+_PRESERVED_FILE_LIMIT = 20
+_PRESERVED_FILES_MORE = "... and {count} more"
+_PRESERVED_FILES_GUIDANCE = (
+    "To take the current version of a file, delete it and run 'spec-kitty upgrade' again. "
+    "To keep your edit, leave the file as it is. 'spec-kitty doctor tool-surfaces' shows each file's state."
+)
 
 _CLOSING_NO_OP = "Project is already up to date!"
 _CLOSING_APPLIED = "Upgrade complete! {from_version} -> {to_version}"
 _CLOSING_APPLIED_DRY_RUN = "Dry run complete — no changes applied. ({from_version} -> {to_version} previewed)"
-_CLOSING_DRIFT_UNRESOLVED = "Upgrade finished with unresolved tool-surface drift."
+_CLOSING_DRIFT_UNRESOLVED = "Upgrade finished, but {count} managed file(s) with local edits were not updated."
 _CLOSING_FAILED = "Upgrade failed."
 
 
@@ -78,18 +86,31 @@ _UNEXPLAINED_FAILURE_MESSAGES: dict[UpgradeFailureReason, str] = {
 """Fallback wording for a reason that left no message of its own (invariant 3)."""
 
 
+def _display_path(path: Path, project_root: Path | None) -> str:
+    """*path* relative to the project root when it lies inside it, otherwise as given (never raises)."""
+    if project_root is not None:
+        for root in (project_root, project_root.resolve()):
+            try:
+                return path.relative_to(root).as_posix()
+            except ValueError:
+                continue
+    return str(path)
+
+
 @dataclass(frozen=True)
 class SurfaceRepairReport:
     """What the surface-repair step found, split by condition.
 
-    ``drifted_paths`` are managed files preserved pending the operator's consent.
-    ``failed`` means a repair was not applied. ``preview_incomplete`` means a
+    ``drifted_paths`` are managed files preserved pending the operator's consent
+    (they carry local edits Spec Kitty did not overwrite); ``drifted_reasons`` says,
+    per path, why each was preserved. ``failed`` means a repair was not applied. ``preview_incomplete`` means a
     dry-run preview could not be completed. ``failure_messages`` carries one
     reason per non-applied repair that gave no error diagnostic of its own, and
     the notice of an incomplete preview.
     """
 
     drifted_paths: tuple[Path, ...] = ()
+    drifted_reasons: Mapping[Path, str] = field(default_factory=dict)
     failed: bool = False
     preview_incomplete: bool = False
     failure_messages: tuple[str, ...] = ()
@@ -132,6 +153,8 @@ class UpgradeOutcome:
     exit_code: int = 0
     had_migrations: bool = False
     drifted_paths: list[Path] = field(default_factory=list)
+    drifted_reasons: dict[Path, str] = field(default_factory=dict)
+    project_root: Path | None = None
     surface_repair_failed: bool = False
     preview_incomplete: bool = False
     surface_repair_messages: list[str] = field(default_factory=list)
@@ -140,6 +163,7 @@ class UpgradeOutcome:
     def record_surface_repair(self, report: SurfaceRepairReport) -> None:
         """Fold the surface-repair step's report into the outcome."""
         self.drifted_paths = list(report.drifted_paths)
+        self.drifted_reasons = dict(report.drifted_reasons)
         self.surface_repair_failed = report.failed
         self.preview_incomplete = report.preview_incomplete
         self.surface_repair_messages = list(report.failure_messages)
@@ -203,12 +227,28 @@ class UpgradeOutcome:
         ]
         if not self.surface_repair_messages:
             collected.extend(self._unexplained_surface_messages())
-        if self.drifted_paths:
-            collected.append(_DRIFT_MESSAGE.format(count=len(self.drifted_paths)))
+        collected.extend(self._preserved_file_messages())
         errors = list(dict.fromkeys(collected))
         if not errors:
             errors = [_UNEXPLAINED_FAILURE_MESSAGES[reason] for reason in self.reasons[:1] if reason in _UNEXPLAINED_FAILURE_MESSAGES]
         return errors
+
+    def _preserved_file_messages(self) -> list[str]:
+        """One line per managed file whose local edit was kept, capped, then what the operator can do."""
+        if not self.drifted_paths:
+            return []
+        shown = self.drifted_paths[:_PRESERVED_FILE_LIMIT]
+        lines = [self._preserved_file_line(path) for path in shown]
+        if len(self.drifted_paths) > len(shown):
+            lines.append(_PRESERVED_FILES_MORE.format(count=len(self.drifted_paths) - len(shown)))
+        return [*lines, _PRESERVED_FILES_GUIDANCE]
+
+    def _preserved_file_line(self, path: Path) -> str:
+        shown = _display_path(path, self.project_root)
+        reason = self.drifted_reasons.get(path)
+        if reason is None:
+            return _PRESERVED_FILE_LINE.format(path=shown)
+        return _PRESERVED_FILE_LINE_WITH_REASON.format(path=shown, reason=reason)
 
     def _unexplained_surface_messages(self) -> list[str]:
         """Generic lines for a surface-repair or preview reason that recorded no message."""
@@ -231,7 +271,7 @@ class UpgradeOutcome:
         if kind is UpgradeOutcomeKind.NO_OP:
             return _CLOSING_NO_OP
         if kind is UpgradeOutcomeKind.DRIFT_UNRESOLVED:
-            return _CLOSING_DRIFT_UNRESOLVED
+            return _CLOSING_DRIFT_UNRESOLVED.format(count=len(self.drifted_paths))
         if kind is UpgradeOutcomeKind.FAILED:
             return _CLOSING_FAILED
         template = _CLOSING_APPLIED_DRY_RUN if self.result.dry_run else _CLOSING_APPLIED

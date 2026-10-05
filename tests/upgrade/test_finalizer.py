@@ -253,7 +253,8 @@ def test_unresolved_drift_is_recorded_and_derives_exit_code_one() -> None:
     assert result.drifted_paths == list(drifted)
     assert result.reasons == (UpgradeFailureReason.SURFACE_DRIFT,)
     assert result.kind is UpgradeOutcomeKind.DRIFT_UNRESOLVED
-    assert result.errors() == ["Unresolved tool-surface drift in 2 file(s); run 'spec-kitty doctor tool-surfaces' to review."]
+    assert [error.split(": ")[0] for error in result.errors()[:2]] == ["Not updated, your local edit was kept"] * 2
+    assert result.closing_line() == "Upgrade finished, but 2 managed file(s) with local edits were not updated."
     assert result.exit_code == 1
 
 

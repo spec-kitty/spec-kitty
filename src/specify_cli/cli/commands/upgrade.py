@@ -788,7 +788,7 @@ def _build_no_migrations_outcome(
         dry_run=dry_run,
         warnings=worktree_warnings,
     )
-    return UpgradeOutcome(result=result, worktree_failures=worktree_failures)
+    return UpgradeOutcome(result=result, worktree_failures=worktree_failures, project_root=project_path)
 
 
 def _build_migration_json_payload(
@@ -1101,6 +1101,16 @@ def _unapplied_repair_messages(results: Sequence[Any]) -> tuple[str, ...]:
     )
 
 
+def _preserved_for_consent(prepared: PreparedUpgradeRepairs) -> dict[Path, str]:
+    """Managed files left alone because the operator edited them, each with the reason it was kept."""
+    preserved: dict[Path, str] = {}
+    for owner in prepared.owners:
+        for disposition in owner.dispositions:
+            if disposition.state == "consent_required" and disposition.path is not None:
+                preserved.setdefault(owner.root.path / disposition.path, disposition.reason)
+    return preserved
+
+
 def _apply_prepared_surface_repairs(outcome: UpgradeOutcome, ctx: _FinalizerRenderContext, prepared: PreparedUpgradeRepairs) -> SurfaceRepairReport:
     """Apply the prepared repairs and report drift, failures and the summary the JSON payload reads."""
     from specify_cli.upgrade.assessment import apply_upgrade_repairs
@@ -1112,14 +1122,13 @@ def _apply_prepared_surface_repairs(outcome: UpgradeOutcome, ctx: _FinalizerRend
     for effect in prepared.effects:
         if effect.id in succeeded:
             (summary.created if effect.action == "create" else summary.repaired).append(effect.destination)
-    for owner in prepared.owners:
-        summary.drifted_reported.extend(
-            owner.root.path / disposition.path for disposition in owner.dispositions if disposition.state == "consent_required" and disposition.path is not None
-        )
+    drifted_reasons = _preserved_for_consent(prepared)
+    summary.drifted_reported.extend(drifted_reasons)
     ctx.surface_repair_summary = summary
     outcome.result.errors.extend(d.message for result in results for d in result.diagnostics if d.severity == "error")
     return SurfaceRepairReport(
         drifted_paths=tuple(summary.drifted_reported),
+        drifted_reasons=drifted_reasons,
         failed=any(result.outcome not in _REPAIR_OK_OUTCOMES for result in results),
         failure_messages=_unapplied_repair_messages(results),
     )
@@ -1852,6 +1861,7 @@ def upgrade(
             manual_review_paths=[Path(p) for p in manual_review_paths],
             worktree_failures=list(result.worktree_failures),
             had_migrations=True,
+            project_root=project_path,
         )
 
     # T017/C4 — one shared tail: wire the finalizer with the step

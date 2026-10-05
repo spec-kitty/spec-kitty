@@ -31,7 +31,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.slow]
 _runner = CliRunner()
 
 _SKILL_REL = ".agents/skills/spec-kitty.plan/SKILL.md"
-_DRIFT_BANNER = "Unresolved tool-surface drift"
+_DRIFT_BANNER = "Not updated, your local edit was kept"
 _STALE_HASH = "0" * 64
 
 
@@ -121,7 +121,7 @@ def test_real_edit_is_kept_and_reported_by_unattended_upgrade(project: Path) -> 
 
     human_exit, human_output = _upgrade_yes(project)
     assert human_exit != 0, human_output
-    assert f"{_DRIFT_BANNER} in 1 file(s)" in human_output, human_output
+    assert f"{_DRIFT_BANNER}: {_SKILL_REL}" in human_output, human_output
     assert "already up to date" not in human_output.lower(), human_output
     json_exit, payload = _upgrade_yes_json(project)
 

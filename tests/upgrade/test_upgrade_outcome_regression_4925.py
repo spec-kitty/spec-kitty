@@ -4,7 +4,7 @@ On an up-to-date project (no migrations pending) with one managed tool-surface
 file that needs the operator's consent before it is overwritten,
 ``spec-kitty upgrade --yes`` printed ``Project is already up to date!`` and
 exited 1 with no reason. A repair that was not applied at all was worded
-``Unresolved tool-surface drift in 0 file(s)``.
+a drift message that counted zero files.
 
 Both are exercised here through the pre-existing entry point: the command is
 driven with ``CliRunner`` on a real project, and only the prepared repair
@@ -37,7 +37,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 _VERSION = "3.2.0rc37"
 _OWNER = "agent_profiles"
 _DRIFTED_PATH = ".claude/agents/reviewer.md"
-_DRIFT_MESSAGE = "Unresolved tool-surface drift in 1 file(s)"
+_DRIFT_MESSAGE = f"Not updated, your local edit was kept: {_DRIFTED_PATH}"
 _NOT_APPLIED_MESSAGE = "Tool-surface repair for agent_profiles was not applied"
 
 _test_app = typer.Typer(add_completion=False)
@@ -126,5 +126,5 @@ def test_unapplied_repair_is_not_reported_as_drift_in_zero_files(project: Path, 
     payload = json.loads(result.output.strip().splitlines()[-1])
     assert result.exit_code != 0, result.output
     assert payload["errors"], payload
-    assert not any("in 0 file(s)" in error for error in payload["errors"]), payload
+    assert not any(" 0 managed file(s)" in error for error in payload["errors"]), payload
     assert any(_NOT_APPLIED_MESSAGE in error for error in payload["errors"]), payload
