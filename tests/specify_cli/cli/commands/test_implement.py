@@ -18,20 +18,16 @@ from pathlib import Path
 
 import pytest
 import typer
-from specify_cli.coordination.planning_commit import PlanningPlacement, resolve_bookkeeping_transaction_identifiers
+from specify_cli.coordination.planning_commit import PlanningPlacement
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
-def _unresolved_placement_from_meta(repo_root: Path, feature_dir: Path, mission_slug: str) -> PlanningPlacement:
-    """An unresolved placement carrying the coordination branch ``meta.json`` declares.
-
-    This is the coordination value the planning commit read from ``meta.json`` itself
-    before #5232 moved the placement into the seam; these tests drive the commit
-    directly, without a resolvable WP context.
-    """
-    coordination_ref = resolve_bookkeeping_transaction_identifiers(feature_dir, mission_slug, repo_root).coord_branch
-    return PlanningPlacement(resolved=False, ref=None, coordination_ref=coordination_ref)
+def _unresolved_placement() -> PlanningPlacement:
+    """An unresolved placement: these tests drive the commit directly, without a
+    resolvable WP context, so the seam filters on the coordination branch
+    ``meta.json`` declares (#5232, R-1b)."""
+    return PlanningPlacement(resolved=False, ref=None)
 
 
 def _make_meta(
@@ -144,7 +140,7 @@ class TestPlanningArtifactIdempotentCommit:
             wp_id="WP02",
             planning_branch="main",
             auto_commit=True,
-            placement=_unresolved_placement_from_meta(repo, feature_dir, mission_slug),
+            placement=_unresolved_placement(),
         )
 
         # No empty commit was created on the coordination branch.
@@ -248,7 +244,7 @@ class TestSoloPrBoundCoordMissionClaimPrecondition:
             wp_id="WP02",
             planning_branch="main",
             auto_commit=False,
-            placement=_unresolved_placement_from_meta(repo, feature_dir, mission_slug),
+            placement=_unresolved_placement(),
         )
 
         # Topology is unchanged: the coordination branch was never touched.
@@ -309,7 +305,7 @@ class TestStructuralPlanningArtifactsFailClosed:
                 wp_id="WP02",
                 planning_branch="main",
                 auto_commit=True,
-                placement=_unresolved_placement_from_meta(repo, feature_dir, "demo-feature"),
+                placement=_unresolved_placement(),
             )
         # The claim refused: nothing was committed (no silent advance).
         assert git("rev-parse", "HEAD") == head_before
@@ -335,7 +331,7 @@ class TestStructuralPlanningArtifactsFailClosed:
                 wp_id="WP02",
                 planning_branch="main",
                 auto_commit=True,
-                placement=_unresolved_placement_from_meta(repo, feature_dir, "demo-feature"),
+                placement=_unresolved_placement(),
             )
         assert git("rev-parse", "HEAD") == head_before
 
@@ -478,7 +474,7 @@ class TestPlanningArtifactAutoCommit:
             wp_id="WP01",
             planning_branch=planning_branch,
             auto_commit=True,
-            placement=_unresolved_placement_from_meta(repo, feature_dir, mission_slug),
+            placement=_unresolved_placement(),
         )
 
         # write-path-integrity WP02 / T008 / FR-001 (SC-001) re-baseline: a
@@ -556,7 +552,7 @@ class TestPlanningArtifactAutoCommit:
             wp_id="WP01",
             planning_branch=planning_branch,
             auto_commit=True,
-            placement=_unresolved_placement_from_meta(repo, primary_feature_dir, mission_slug),
+            placement=_unresolved_placement(),
         )
         # write-path-integrity WP02 / T008 / FR-001 re-baseline: PRIMARY planning
         # artifacts (tasks.md, meta.json) are committed to the mission TARGET
@@ -588,7 +584,7 @@ class TestPlanningArtifactAutoCommit:
             wp_id="WP02",
             planning_branch=planning_branch,
             auto_commit=True,
-            placement=_unresolved_placement_from_meta(repo, primary_feature_dir, mission_slug),
+            placement=_unresolved_placement(),
         )
 
         assert (

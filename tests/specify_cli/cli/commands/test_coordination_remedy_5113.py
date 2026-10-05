@@ -229,15 +229,17 @@ def _run_implement_claim_commit_target(repo: Path, mission_slug: str) -> str:
     unmaterialized Mission it returns an UNRESOLVED placement: the fixture has
     no WP, so the WP action context fails with ``WORK_PACKAGE_UNRESOLVED``
     (research R-1 traced the former ``None`` to that, not to the
-    unmaterialized worktree). Its coordination ref is the seam's
-    coordination branch. The text is ``placement_resolution_remedy``, the one
-    definition both ``PlacementResolutionRequired`` raise sites use (FR-018).
+    unmaterialized worktree). Its coordination filter is the mission's
+    declared coordination branch (R-1b). The text is
+    ``placement_resolution_remedy``, the one definition of the
+    ``PlacementResolutionRequired`` remedy (FR-018).
     """
-    from specify_cli.coordination.planning_commit import placement_resolution_remedy, resolve_planning_placement
+    from specify_cli.coordination.planning_commit import coordination_filter, placement_resolution_remedy, resolve_planning_placement
 
     placement = resolve_planning_placement(repo, mission_slug=mission_slug, wp_id="WP01")
     assert placement.resolved is False, f"expected the WP context not to resolve on this WP-less fixture; got {placement!r}"
-    assert placement.coordination_ref == f"kitty/mission-{mission_slug}", f"expected the seam's coordination ref; got {placement!r}"
+    declared = coordination_filter(repo, mission_slug, placement, feature_dir=repo / "kitty-specs" / mission_slug)
+    assert declared == f"kitty/mission-{mission_slug}", f"expected the declared coordination branch; got {declared!r}"
     remedy: str = placement_resolution_remedy(mission_slug)
     return remedy
 

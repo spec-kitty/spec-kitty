@@ -161,7 +161,7 @@ def test_implement_claim_refuses_when_planning_status_unreadable(not_a_repo: Pat
             wp_id="WP01",
             planning_branch="main",
             auto_commit=True,
-            placement=PlanningPlacement(resolved=False, ref=None, coordination_ref=None),
+            placement=PlanningPlacement(resolved=False, ref=None),
         )
 
     assert excinfo.value.exit_code == 1

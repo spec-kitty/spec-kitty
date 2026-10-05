@@ -8,7 +8,7 @@ carry ``fast``) per the marker-correctness arch gate
 ``-m git_repo``.
 
 The invariant it pins (INV-7, re-keyed by #5232): an unresolved placement with
-no coordination ref on a flat mission -- NO ``coordination_branch`` in
+no declared coordination branch on a flat mission -- NO ``coordination_branch`` in
 ``meta.json`` at all -- reaches the flat success arm and commits once to the
 planning branch, not WP01's (#2648) narrow-triple fail-close. An unresolved
 placement is NOT unconditionally degenerate (the #2463 guard).
@@ -26,7 +26,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 class TestFlatLegacyNoneAtSeamReachesSuccessArms:
     """T017 -- confirm WP01's (#2648) fail-close scope is the NARROW triple
     only. A real flat/legacy mission's unresolved placement with no
-    coordination ref -- NO ``coordination_branch`` in meta.json at all --
+    declared coordination branch -- NO ``coordination_branch`` in meta.json at all --
     must still reach the flat SUCCESS arm and commit once to the planning
     branch, not the narrow-triple fail-close (INV-7).
     """
@@ -121,7 +121,7 @@ class TestFlatLegacyNoneAtSeamReachesSuccessArms:
 
         spec_rel = f"kitty-specs/{mission_slug}/spec.md"
 
-        # NOT the narrow triple: no coordination ref at all -- must not raise.
+        # NOT the narrow triple: no declared coordination branch at all -- must not raise.
         _commit_planning_artifacts_transaction(
             repo_root=repo,
             feature_dir=feature_dir,
@@ -129,10 +129,10 @@ class TestFlatLegacyNoneAtSeamReachesSuccessArms:
             planning_branch=planning_branch,
             files_to_commit=[spec_rel],
             commit_msg="chore: flat/legacy None-at-seam characterization",
-            placement=PlanningPlacement(resolved=False, ref=None, coordination_ref=None),
+            placement=PlanningPlacement(resolved=False, ref=None),
         )
 
         assert calls == [(planning_branch, [spec_rel])], (
-            "a flat/legacy mission's unresolved placement with no coordination ref "
+            "a flat/legacy mission's unresolved placement with no declared coordination branch "
             "must reach the flat SUCCESS arm, not the narrow-triple fail-close"
         )

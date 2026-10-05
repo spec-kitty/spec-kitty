@@ -662,6 +662,13 @@ def test_protected_planning_branch_without_a_resolved_placement_raises(build: Ca
 # ---------------------------------------------------------------------------
 
 
+def _coordination_filter(built: Built, placement: object) -> str | None:
+    from specify_cli.coordination.planning_commit import PlanningPlacement, coordination_filter
+
+    assert isinstance(placement, PlanningPlacement)
+    return coordination_filter(built.repo, built.slug, placement, feature_dir=built.feature_dir)
+
+
 def test_placement_resolves_on_a_healthy_coord_mission(build: Callable[[str], Built]) -> None:
     from specify_cli.coordination.planning_commit import resolve_planning_placement
 
@@ -672,7 +679,7 @@ def test_placement_resolves_on_a_healthy_coord_mission(build: Callable[[str], Bu
     assert placement.resolved is True
     assert placement.ref is not None
     assert placement.ref.ref == built.coordination_branch
-    assert placement.coordination_ref == built.coordination_branch
+    assert _coordination_filter(built, placement) == built.coordination_branch
 
 
 def test_placement_resolves_without_a_coordination_ref_on_a_flat_mission(build: Callable[[str], Built]) -> None:
@@ -685,10 +692,10 @@ def test_placement_resolves_without_a_coordination_ref_on_a_flat_mission(build: 
     assert placement.resolved is True
     assert placement.ref is not None
     assert placement.ref.ref == "topic"
-    assert placement.coordination_ref is None
+    assert _coordination_filter(built, placement) is None
 
 
-def test_unresolved_placement_carries_the_seam_coordination_ref_on_a_coord_mission(build: Callable[[str], Built]) -> None:
+def test_unresolved_placement_filters_on_the_declared_coordination_branch(build: Callable[[str], Built]) -> None:
     from specify_cli.coordination.planning_commit import resolve_planning_placement
 
     built = build("coord")
@@ -698,10 +705,10 @@ def test_unresolved_placement_carries_the_seam_coordination_ref_on_a_coord_missi
 
     assert placement.resolved is False
     assert placement.ref is None
-    assert placement.coordination_ref == built.coordination_branch
+    assert _coordination_filter(built, placement) == built.coordination_branch
 
 
-def test_unresolved_placement_has_no_coordination_ref_on_a_flat_mission(build: Callable[[str], Built]) -> None:
+def test_unresolved_placement_has_no_coordination_filter_on_a_flat_mission(build: Callable[[str], Built]) -> None:
     from specify_cli.coordination.planning_commit import resolve_planning_placement
 
     built = build("flat")
@@ -711,10 +718,10 @@ def test_unresolved_placement_has_no_coordination_ref_on_a_flat_mission(build: C
 
     assert placement.resolved is False
     assert placement.ref is None
-    assert placement.coordination_ref is None
+    assert _coordination_filter(built, placement) is None
 
 
-def test_unresolved_placement_has_no_coordination_ref_when_none_is_declared(build: Callable[[str], Built]) -> None:
+def test_unresolved_placement_has_no_coordination_filter_when_none_is_declared(build: Callable[[str], Built]) -> None:
     """A topology that routes through coordination but declares no branch degrades like a flat one."""
     from specify_cli.coordination.planning_commit import resolve_planning_placement
 
@@ -725,15 +732,48 @@ def test_unresolved_placement_has_no_coordination_ref_when_none_is_declared(buil
     placement = resolve_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
 
     assert placement.resolved is False
-    assert placement.coordination_ref is None
+    assert _coordination_filter(built, placement) is None
 
 
-def test_unresolved_placement_raises_when_the_seam_cannot_resolve(build: Callable[[str], Built], monkeypatch: pytest.MonkeyPatch) -> None:
+def test_unresolved_placement_keeps_a_torn_down_declared_branch_unprobed(build: Callable[[str], Built]) -> None:
+    """R-1b (B2**): no existence probe -- a torn-down declared branch is returned as declared, never raised."""
+    from specify_cli.coordination.planning_commit import declared_coordination_ref, resolve_planning_placement
+
+    built = build("coord")
+    project_status_and_mark_merged(built)
+    declared = built.coordination_branch
+    delete_coordination_branch(built)
+    duplicate_wp_prompt(built)
+
+    placement = resolve_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
+
+    assert placement.resolved is False
+    assert declared_coordination_ref(built.feature_dir, built.slug, built.repo) == declared
+    assert _coordination_filter(built, placement) == declared
+
+
+def test_unresolved_placement_keeps_a_stale_key_on_a_non_coordination_topology(build: Callable[[str], Built]) -> None:
+    """R-1b (B2**): no topology gate -- a declared key on a lanes mission is the unresolved filter."""
+    from specify_cli.coordination.planning_commit import resolve_planning_placement
+
+    built = build("lanes")
+    stale = f"kitty/mission-{built.slug}"
+    git(built.repo, "branch", "-f", stale)
+    built.set_meta(coordination_branch=stale)
+    duplicate_wp_prompt(built)
+
+    placement = resolve_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
+
+    assert placement.resolved is False
+    assert _coordination_filter(built, placement) == stale
+
+
+def test_unresolved_placement_never_asks_the_seam_for_a_write_target(build: Callable[[str], Built], monkeypatch: pytest.MonkeyPatch) -> None:
+    """R-1b (B2**): the unresolved degrade reads the declared value; it never resolves ``write_target``."""
     from mission_runtime import ActionContextError, MissionArtifactKind
     from mission_runtime import placement_seam as real_seam
 
     from specify_cli.coordination import planning_commit
-    from specify_cli.core.errors import PlacementResolutionRequired
 
     built = build("coord")
     duplicate_wp_prompt(built)
@@ -752,10 +792,10 @@ def test_unresolved_placement_raises_when_the_seam_cannot_resolve(build: Callabl
 
     monkeypatch.setattr(planning_commit, "placement_seam", _WriteTargetUnresolvable)
 
-    with pytest.raises(PlacementResolutionRequired) as raised:
-        planning_commit.resolve_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
+    placement = planning_commit.resolve_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
 
-    assert str(raised.value) == planning_commit.placement_resolution_remedy(built.slug)
+    assert placement.resolved is False
+    assert _coordination_filter(built, placement) == built.coordination_branch
 
 
 def test_placement_resolution_remedy_text_is_pinned() -> None:

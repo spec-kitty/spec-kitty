@@ -24,7 +24,6 @@ from mission_runtime import (
 )
 from specify_cli.coordination.coherence import is_coord_residue_churn, is_self_bookkeeping_churn
 from specify_cli.core.constants import WORKTREES_DIR
-from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.git.commit_helpers import SafeCommitPathPolicyError
 
 
@@ -403,16 +402,15 @@ def guard_planning_commit_partition(files: list[str], *, destination_is_coord: b
 
 
 # ---------------------------------------------------------------------------
-# Planning placement (#5232, research R-1 = B2*)
+# Planning placement (#5232, research R-1b = B2**)
 # ---------------------------------------------------------------------------
 
 
 def placement_resolution_remedy(mission_slug: str) -> str:
-    """The one operator remedy text for :class:`PlacementResolutionRequired` (FR-018).
+    """The one operator remedy text for ``PlacementResolutionRequired`` (FR-018).
 
-    Both raise sites use it: :func:`resolve_planning_placement`, when the seam
-    cannot resolve the coordination ref, and the implement planning-commit
-    adapter's protected-planning-branch arm.
+    The implement planning-commit adapter's protected-planning-branch arm (the
+    #2648 narrow triple) raises with it.
     """
     return (
         "Cannot resolve the canonical write placement for this mission's "
@@ -439,17 +437,14 @@ class PlanningPlacement:
     both resolve).
 
     ``resolved=False``: the WP action context did not resolve
-    (``ActionContextError``); ``ref`` is ``None``.
-
-    ``coordination_ref`` is the coordination ref the planning commit filters
-    against and sends COORD-residue artifacts to, in both cases. It is ``None``
-    when the mission's stored topology does not route through coordination (and,
-    when unresolved, also when no coordination branch is declared).
+    (``ActionContextError``); ``ref`` is ``None``. The coordination ref is not
+    carried here: the adapter asks :func:`coordination_filter` for it lazily,
+    after the #1598 structural check, so a placement fault never pre-empts the
+    structural refusal (#2464 ordering, research R-1b).
     """
 
     resolved: bool
     ref: CommitTarget | None
-    coordination_ref: str | None
 
     def __post_init__(self) -> None:
         if self.resolved != (self.ref is not None):
@@ -476,38 +471,32 @@ def placement_coord_filter(repo_root: Path, mission_slug: str, placement_ref: Co
     return None
 
 
-def resolved_planning_placement(repo_root: Path, mission_slug: str, placement_ref: CommitTarget) -> PlanningPlacement:
-    """The placement for a resolved WP context whose placement ref is *placement_ref*."""
-    return PlanningPlacement(
-        resolved=True,
-        ref=placement_ref,
-        coordination_ref=placement_coord_filter(repo_root, mission_slug, placement_ref),
-    )
+def declared_coordination_ref(feature_dir: Path, mission_slug: str, repo_root: Path) -> str | None:
+    """The seam-owned degrade for an unresolved WP context (#5232 shape 2, research R-1b = B2**).
 
-
-def _declares_coordination_branch(repo_root: Path, mission_slug: str) -> bool:
-    """Whether the mission declares a coordination branch.
-
-    No seam or topology helper answers "is a coordination branch declared", so
-    this reads the identifier cascade's ``coordination_branch`` as a boolean
-    predicate only. Its value is never used as a ref: the ref comes from the
-    placement seam.
+    Returns the mission's DECLARED coordination-branch value, read through the
+    identity cascade (the primary-anchored ``meta.json``, then the
+    ``feature_dir`` fallback) -- the same value the planning commit read before
+    the placement moved into this seam. There is no topology gate and no
+    existence probe: a declared branch that is torn down in git is returned as
+    declared, and the downstream bookkeeping transaction refuses it
+    (``CoordinationBranchDeleted``). It never raises for a missing branch.
+    Returns ``None`` when no coordination branch is declared.
     """
-    mission_meta = load_primary_anchored_mission_meta(repo_root, mission_slug)
-    declared_branch, _mission_id, _mid8 = extract_mission_identifiers_from_meta(mission_meta, mission_slug)
-    return declared_branch is not None
+    return resolve_bookkeeping_transaction_identifiers(feature_dir, mission_slug, repo_root).coord_branch
 
 
-def _unresolved_coordination_ref(repo_root: Path, mission_slug: str) -> str | None:
-    """The seam's coordination ref for a placement whose WP context did not resolve."""
-    if not routes_through_coordination(resolve_topology(repo_root, mission_slug)):
-        return None
-    if not _declares_coordination_branch(repo_root, mission_slug):
-        return None
-    try:
-        return placement_seam(repo_root, mission_slug).write_target(MissionArtifactKind.DECISION_LOG).ref
-    except ActionContextError as exc:
-        raise PlacementResolutionRequired(placement_resolution_remedy(mission_slug)) from exc
+def coordination_filter(repo_root: Path, mission_slug: str, placement: PlanningPlacement, *, feature_dir: Path) -> str | None:
+    """The coordination ref the planning commit filters against and routes COORD residue to.
+
+    A resolved placement yields :func:`placement_coord_filter` of its ref (the
+    stored topology decides); an unresolved one yields
+    :func:`declared_coordination_ref`. The adapter calls this where it computes
+    its coordination filter, after the #1598 structural check.
+    """
+    if placement.resolved:
+        return placement_coord_filter(repo_root, mission_slug, placement.ref)
+    return declared_coordination_ref(feature_dir, mission_slug, repo_root)
 
 
 def resolve_planning_placement(repo_root: Path, *, mission_slug: str, wp_id: str) -> PlanningPlacement:
@@ -520,10 +509,10 @@ def resolve_planning_placement(repo_root: Path, *, mission_slug: str, wp_id: str
     checkout-identity refusal does not arise here.
 
     On ``ActionContextError`` (for example a WP prompt that matches twice) the
-    placement is unresolved, and its coordination ref comes from the placement
-    seam. When the seam itself cannot resolve that ref,
-    :class:`PlacementResolutionRequired` is raised with
-    :func:`placement_resolution_remedy`.
+    placement is unresolved. Nothing else is resolved here: the coordination
+    ref is computed lazily by :func:`coordination_filter` (the declared value,
+    :func:`declared_coordination_ref`), so this function never raises
+    ``PlacementResolutionRequired``.
     """
     try:
         context = resolve_action_context(repo_root, action="implement", feature=mission_slug, wp_id=wp_id)
@@ -531,5 +520,5 @@ def resolve_planning_placement(repo_root: Path, *, mission_slug: str, wp_id: str
         context = None
     artifact_placement = context.artifact_placement if context is not None else None
     if artifact_placement is None:
-        return PlanningPlacement(resolved=False, ref=None, coordination_ref=_unresolved_coordination_ref(repo_root, mission_slug))
-    return resolved_planning_placement(repo_root, mission_slug, artifact_placement.placement_ref)
+        return PlanningPlacement(resolved=False, ref=None)
+    return PlanningPlacement(resolved=True, ref=artifact_placement.placement_ref)

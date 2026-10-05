@@ -232,7 +232,7 @@ class TestWriteSideDerivesFromTheSharedExpression:
             planning_branch=_PLANNING_BRANCH,
             files_to_commit=[spec_rel],
             commit_msg="chore: planning artifacts for wp04-flat-demo",
-            placement=PlanningPlacement(resolved=False, ref=None, coordination_ref=None),
+            placement=PlanningPlacement(resolved=False, ref=None),
         )
 
         assert calls == [(_PLANNING_BRANCH, [spec_rel])]
@@ -295,7 +295,7 @@ class TestDetachedHeadRegression:
             planning_branch=_PLANNING_BRANCH,
             files_to_commit=[spec_rel],
             commit_msg="chore: planning artifacts for wp04-detached-demo",
-            placement=PlanningPlacement(resolved=False, ref=None, coordination_ref=None),
+            placement=PlanningPlacement(resolved=False, ref=None),
         )
 
         # Even with HEAD detached, the write-side destination is the named

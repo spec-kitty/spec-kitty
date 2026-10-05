@@ -51,7 +51,7 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import CommitTarget
-from specify_cli.coordination.planning_commit import resolved_planning_placement
+from specify_cli.coordination.planning_commit import PlanningPlacement
 from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
 from specify_cli.lanes.branch_naming import code_lane_branch_name
 from specify_cli.lanes.implement_support import resolve_claim_ancestry_gate
@@ -233,7 +233,7 @@ def test_sc001_primary_lanes_json_never_lands_on_coord(tmp_path: Path) -> None:
         wp_id=_WP_ID,
         planning_branch=_TARGET_BRANCH,
         auto_commit=True,
-        placement=resolved_planning_placement(repo, _MISSION_SLUG, CommitTarget(ref=coord_branch)),
+        placement=PlanningPlacement(resolved=True, ref=CommitTarget(ref=coord_branch)),
     )
 
     # --- Non-vacuity leg (b): the recorded planning tip genuinely carries

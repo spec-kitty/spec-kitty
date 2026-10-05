@@ -142,9 +142,11 @@ def _ensure_planning_artifacts_committed_git(
 
     ``placement`` is the seam-owned planning placement
     (:func:`~specify_cli.coordination.planning_commit.resolve_planning_placement`):
-    its ``coordination_ref`` is the coordination ref the staging filter and the
-    commit arms use, so implement-claim never reconciles a primary↔coord split
-    (#1816) and never derives a placement from ``meta.json`` itself (#5232).
+    the coordination filter the staging and the commit arms use comes from
+    :func:`~specify_cli.coordination.planning_commit.coordination_filter`,
+    asked lazily after the structural check, so implement-claim never
+    reconciles a primary↔coord split (#1816) and never derives a placement
+    from ``meta.json`` itself (#5232).
     """
     current_branch = implement_support.git_stdout(repo_root, ["rev-parse", "--abbrev-ref", "HEAD"])
     artifact_source_dir = coordination_planning_commit.planning_artifact_source_dir(repo_root, feature_dir, mission_slug)
@@ -160,9 +162,11 @@ def _ensure_planning_artifacts_committed_git(
         _print_structural_planning_refusal(structural)
         raise typer.Exit(1)
 
-    # #5232: the coord/flattened/primary decision is the seam-owned placement's
-    # single coordination ref (C-005), resolved or not.
-    coord_branch_for_filter = placement.coordination_ref
+    # #5232 / R-1b: the coord/flattened/primary decision is the seam's (C-005),
+    # asked here, after the structural check, never earlier: a resolved
+    # placement filters on its topology-gated ref, an unresolved one on the
+    # mission's declared coordination branch (no topology gate, no probe).
+    coord_branch_for_filter = coordination_planning_commit.coordination_filter(repo_root, mission_slug, placement, feature_dir=feature_dir)
 
     # T016: the staging DECISION (structural fail-closed check, #2222
     # vcs-lock exclusion, dedup, idempotency filtering) is a pure core in
@@ -330,8 +334,9 @@ def _commit_planning_artifacts_transaction(
     contracts/seam-api.md's consumer table). The destinations come from the
     seam-owned ``placement`` (#5232): a resolved placement's ``ref`` is the ONE
     :class:`CommitTarget` planning artifacts AND status events resolve to
-    (C-PLACE-1), and ``placement.coordination_ref`` is the single coordination
-    value the arms and the console lines use. ``meta.json`` feeds identity only
+    (C-PLACE-1), and the seam's ``coordination_filter`` is the single
+    coordination value the arms and the console lines use (for an unresolved
+    placement, the mission's declared coordination branch -- #5232 shape 2). ``meta.json`` feeds identity only
     (mission_id / mid8 / the effective ids), never the destination.
 
     WP02 / T007 / FR-003 / INV-1 and write-path-integrity WP02 / T008 / FR-001:
@@ -350,9 +355,9 @@ def _commit_planning_artifacts_transaction(
 
     - ``placement.resolved`` -- partition-aware commit: PRIMARY group to the
       target branch, COORD-residue group to ``placement.ref.ref`` (T008).
-    - unresolved and no ``placement.coordination_ref`` -- flat/legacy
+    - unresolved and no declared coordination branch -- flat/legacy
       mission, single transaction to ``planning_branch``.
-    - unresolved, a ``placement.coordination_ref`` and
+    - unresolved, a declared coordination branch and
       ``is_protected(planning_branch)`` -- the NARROW TRIPLE: raises
       :class:`PlacementResolutionRequired` with
       :func:`~specify_cli.coordination.planning_commit.placement_resolution_remedy`.
@@ -360,14 +365,15 @@ def _commit_planning_artifacts_transaction(
       mission's dedicated branch), so this only fires for a degenerate or
       torn-down topology; loud fail-close beats silently diverting the whole
       dirty-PRIMARY batch to the coordination branch (D11).
-    - unresolved, a ``placement.coordination_ref`` and an unprotected
+    - unresolved, a declared coordination branch and an unprotected
       ``planning_branch`` -- partition-aware split, COORD-residue group to
-      ``placement.coordination_ref`` (T007).
+      that declared branch (T007).
 
     Only the narrow triple raises; the other three outcomes still commit.
     """
     # The identifier tuple (C-006) feeds identity only: mission_id, mid8 and the
-    # effective ids. Its coordination_branch is never a destination (#5232).
+    # effective ids. The destination comes from the seam's coordination_filter
+    # below, never from this tuple (#5232).
     (
         _declared_coord_branch,
         mission_id,
@@ -376,11 +382,12 @@ def _commit_planning_artifacts_transaction(
         effective_mid8,
     ) = coordination_planning_commit.resolve_bookkeeping_transaction_identifiers(feature_dir, mission_slug, repo_root)
 
-    # WP06 / T019 / C-PLACE-1: the coordination value the arms and the console
-    # lines share is the seam-owned placement's. Under a flattened/primary
-    # topology it is ``None`` and the commit lands on ``planning_branch``;
-    # under coordination topology it is the coord ref.
-    coord_branch = placement.coordination_ref
+    # WP06 / T019 / C-PLACE-1 / R-1b: the coordination value the arms and the
+    # console lines share is the seam's coordination filter. Resolved: ``None``
+    # under a flattened/primary topology (the commit lands on
+    # ``planning_branch``), the coord ref under coordination topology.
+    # Unresolved: the mission's declared coordination branch, unprobed.
+    coord_branch = coordination_planning_commit.coordination_filter(repo_root, mission_slug, placement, feature_dir=feature_dir)
     placement_ref = placement.ref
 
     is_legacy = not (coord_branch and mission_id and mid8)
@@ -448,7 +455,7 @@ def _commit_planning_artifacts_transaction(
         )
     elif ProtectionPolicy.resolve_for_mission(repo_root, mission_slug).is_protected(planning_branch):
         # #2648 (WP01) narrow-triple fail-close: the placement is unresolved,
-        # it carries a coordination ref, and ``planning_branch`` is protected.
+        # the mission declares a coordination branch, and ``planning_branch`` is protected.
         # Pre-fix, this arm silently diverted the WHOLE dirty-PRIMARY batch to
         # the coordination branch instead of the (protected) target branch --
         # a genuinely-dirty PRIMARY artifact would never reach

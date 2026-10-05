@@ -26,7 +26,7 @@ import pytest
 import typer
 
 from mission_runtime.context import CommitTarget
-from specify_cli.coordination.planning_commit import resolved_planning_placement
+from specify_cli.coordination.planning_commit import PlanningPlacement
 from specify_cli.cli.commands.implement_cores import PlanningArtifactStagingPlan, resolve_planning_artifact_staging
 
 # Real-git-repo + real BookkeepingTransaction integration test (mirrors the
@@ -111,7 +111,7 @@ def _claim(
         wp_id=wp_id,
         planning_branch=_PLANNING_BRANCH,
         auto_commit=auto_commit,
-        placement=resolved_planning_placement(repo, mission_slug, target),
+        placement=PlanningPlacement(resolved=True, ref=target),
     )
 
 

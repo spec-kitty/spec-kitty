@@ -55,9 +55,10 @@ git log --oneline <coord> -- kitty-specs/<slug>/  =>  ''
    ``implement()`` (``_ensure_planning_artifacts_committed_git(...,
    placement=_placement)``):
 
-   - ``legacy-fallback`` (an unresolved placement carrying the coordination
-     ref): what ``resolve_planning_placement`` returns when the WP context hits
-     an ``ActionContextError`` (#5232). Under this precondition (artifacts
+   - ``legacy-fallback`` (an unresolved placement): what
+     ``resolve_planning_placement`` returns when the WP context hits an
+     ``ActionContextError`` (#5232); its coordination filter is the declared
+     ``coordination_branch`` (R-1b). Under this precondition (artifacts
      already committed on ``HEAD``, so ``git status --porcelain`` is clean)
      the call is a proven no-op that reproduces **Cause B** -- the coord
      branch tip never moves past its pre-artifact mint point.
@@ -127,7 +128,7 @@ import pytest
 
 from mission_runtime import CommitTarget
 from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
-from specify_cli.coordination.planning_commit import PlanningPlacement, resolved_planning_placement
+from specify_cli.coordination.planning_commit import PlanningPlacement
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from specify_cli.missions._create import ensure_coordination_branch
@@ -286,16 +287,16 @@ def test_lane_worktree_does_not_descend_from_planning_artifacts(
 
     # Step 3: run the real auto-commit helper. ``placement`` reproduces the
     # value ``implement()`` threads through in production: an unresolved
-    # placement carrying the coordination ref on the legacy-fallback arm
-    # (context resolution failed), or a resolved ``CommitTarget(ref=coord_branch)``
+    # placement on the legacy-fallback arm (context resolution failed; the
+    # seam's coordination filter is the declared coordination branch), or a resolved ``CommitTarget(ref=coord_branch)``
     # on the healthy-mission arm (mirrors what ``resolve_planning_placement``
     # returns for a mission whose ``meta.json`` carries this mission's own
     # ``coordination_branch`` -- exactly the fixture state written by
     # ``_write_meta`` above).
     placement = (
-        resolved_planning_placement(repo, MISSION_SLUG, CommitTarget(ref=coord_branch))
+        PlanningPlacement(resolved=True, ref=CommitTarget(ref=coord_branch))
         if use_placement_ref
-        else PlanningPlacement(resolved=False, ref=None, coordination_ref=coord_branch)
+        else PlanningPlacement(resolved=False, ref=None)
     )
     _ensure_planning_artifacts_committed_git(
         repo_root=repo,

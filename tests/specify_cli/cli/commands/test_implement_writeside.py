@@ -175,14 +175,11 @@ def _seeded_coord_mission(
     return repo, feature_dir, mission_slug, spec_rel, events_rel, calls
 
 
-#: The coordination branch ``_seeded_coord_mission`` declares (``kitty/mission-<slug>-<mid8>``).
-_SEEDED_COORD_BRANCH = "kitty/mission-wp02-writeside-demo-01J9WP02"
-
-
-def _unresolved_placement(coordination_ref: str | None) -> PlanningPlacement:
-    """The seam's placement when the WP context did not resolve (#5232): no ref, and the
-    coordination ref the seam reports for the mission (``None`` for a flat mission)."""
-    return PlanningPlacement(resolved=False, ref=None, coordination_ref=coordination_ref)
+def _unresolved_placement() -> PlanningPlacement:
+    """The seam's placement when the WP context did not resolve (#5232): no ref; the seam's
+    coordination filter is then the coordination branch the mission declares (R-1b), ``None``
+    for a flat mission."""
+    return PlanningPlacement(resolved=False, ref=None)
 
 
 class TestPartitionAwarePlanningArtifactCommit:
@@ -216,7 +213,7 @@ class TestPartitionAwarePlanningArtifactCommit:
             planning_branch=_PLANNING_BRANCH,
             files_to_commit=[spec_rel, events_rel],
             commit_msg="chore: planning artifacts for wp02-writeside-demo",
-            placement=_unresolved_placement(coord_branch),
+            placement=_unresolved_placement(),
         )
 
         spec_destinations = [ref for ref, paths in calls if spec_rel in paths]
@@ -253,7 +250,7 @@ class TestPartitionAwarePlanningArtifactCommit:
             planning_branch=_PLANNING_BRANCH,
             files_to_commit=[spec_rel],
             commit_msg="chore: planning artifacts for wp02-writeside-demo",
-            placement=_unresolved_placement(_SEEDED_COORD_BRANCH),
+            placement=_unresolved_placement(),
         )
 
         assert calls == [(_PLANNING_BRANCH, [spec_rel])]
@@ -305,7 +302,7 @@ class TestNonCoordinationMissionCommitCollapsesToOneTransaction:
             planning_branch=_PLANNING_BRANCH,
             files_to_commit=[spec_rel, events_rel],
             commit_msg="chore: planning artifacts for wp02-flat-demo",
-            placement=_unresolved_placement(None),
+            placement=_unresolved_placement(),
         )
 
         # Even a coord-shaped path (status.events.jsonl) collapses onto the
@@ -316,7 +313,7 @@ class TestNonCoordinationMissionCommitCollapsesToOneTransaction:
 
 class TestNarrowTripleProtectedPlanningBranchFailsClosed:
     """#2648 (WP01): the narrow triple -- an unresolved placement AND a
-    seam coordination ref AND ``is_protected(planning_branch)`` -- must fail
+    declared coordination branch AND ``is_protected(planning_branch)`` -- must fail
     closed with :class:`PlacementResolutionRequired` instead of silently
     diverting the whole dirty-PRIMARY batch to the coordination branch (the
     pre-fix ``767`` arm). FR-018 (#5232): the message is the seam's one
@@ -352,7 +349,7 @@ class TestNarrowTripleProtectedPlanningBranchFailsClosed:
                 planning_branch="main",
                 files_to_commit=[spec_rel, events_rel],
                 commit_msg="chore: planning artifacts for wp02-writeside-demo",
-                placement=_unresolved_placement(_SEEDED_COORD_BRANCH),
+                placement=_unresolved_placement(),
             )
 
         # SC-002 / FR-018: the one remedy definition, byte-identical at both

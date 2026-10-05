@@ -35,7 +35,7 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import CommitTarget
-from specify_cli.coordination.planning_commit import resolved_planning_placement
+from specify_cli.coordination.planning_commit import PlanningPlacement
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -53,8 +53,8 @@ class TestResolveClaimCommitTargetFailClosed:
     FAILS CLOSED with a structured, actionable error naming the remediation
     path. #5232 moved the decision into the placement seam
     (``coordination/planning_commit.py``): ``PlanningPlacement`` replaced the
-    ``None`` placement, and both ``PlacementResolutionRequired`` raise sites
-    build their text with ``placement_resolution_remedy`` (FR-018).
+    ``None`` placement, and the ``PlacementResolutionRequired`` raise site
+    builds its text with ``placement_resolution_remedy`` (FR-018).
     """
 
     def test_unresolvable_placement_error_is_structured_and_actionable(self) -> None:
@@ -77,11 +77,11 @@ class TestResolveClaimCommitTargetFailClosed:
         from specify_cli.coordination.planning_commit import PlanningPlacement
 
         target = CommitTarget(ref="kitty/mission-demo-AAAA1111")
-        assert PlanningPlacement(resolved=True, ref=target, coordination_ref=None).ref is target
+        assert PlanningPlacement(resolved=True, ref=target).ref is target
         with pytest.raises(ValueError, match="set exactly when the placement is resolved"):
-            PlanningPlacement(resolved=True, ref=None, coordination_ref=None)
+            PlanningPlacement(resolved=True, ref=None)
         with pytest.raises(ValueError, match="set exactly when the placement is resolved"):
-            PlanningPlacement(resolved=False, ref=target, coordination_ref=None)
+            PlanningPlacement(resolved=False, ref=target)
 
     def test_structured_error_is_not_swallowed_as_soft_warning(self) -> None:
         """D11: implement()'s WP-status-update try/except has a broad
@@ -272,7 +272,7 @@ class TestEnsurePlanningArtifactsRoutesThroughPlacementRef:
             wp_id="WP02",
             planning_branch="main",
             auto_commit=True,
-            placement=resolved_planning_placement(repo, mission_slug, CommitTarget(ref=sentinel_seam_ref)),
+            placement=PlanningPlacement(resolved=True, ref=CommitTarget(ref=sentinel_seam_ref)),
         )
 
         wp_rel = f"kitty-specs/{mission_slug}/tasks/WP01.md"

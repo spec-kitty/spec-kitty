@@ -684,7 +684,7 @@ class TestImplementPrimaryTopologyLanesJson:
             patch("specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git"),
             patch(
                 "specify_cli.coordination.planning_commit.resolve_planning_placement",
-                return_value=PlanningPlacement(resolved=False, ref=None, coordination_ref=None),
+                return_value=PlanningPlacement(resolved=False, ref=None),
             ),
             patch(
                 "specify_cli.coordination.surface_resolver.resolve_status_surface_with_anchor",
