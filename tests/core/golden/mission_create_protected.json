@@ -1,0 +1,2374 @@
+{
+  "base_commit": "f0f3daa55fcfa79361acc7b3bab3beffa0e64705",
+  "cells": {
+    "configured_non_primary/single_branch": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/prot-configured-non-primary-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/prot-configured-non-primary-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/prot-configured-non-primary-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/prot-configured-non-primary-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "prot configured non primary",
+            "mid8": "<MID8#1>",
+            "mission_branch": "kitty/mission-prot-configured-non-primary-<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "prot-configured-non-primary-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances prot configured non primary on release so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "prot configured non primary",
+            "slug": "prot-configured-non-primary-<MID8#1>",
+            "target_branch": "release",
+            "topology": "single_branch"
+          },
+          "mission_number": null,
+          "mission_slug": "prot-configured-non-primary-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "release",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/prot-configured-non-primary-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-prot-configured-non-primary-<MID8#1>",
+          "main",
+          "release",
+          "topic"
+        ],
+        "head": {
+          "repo": "kitty/mission-prot-configured-non-primary-<MID8#1>"
+        },
+        "missions": {
+          "repo/kitty-specs/prot-configured-non-primary-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "prot configured non primary",
+              "mid8": "<MID8#1>",
+              "mission_branch": "kitty/mission-prot-configured-non-primary-<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "prot-configured-non-primary-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances prot configured non primary on release so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "prot configured non primary",
+              "slug": "prot-configured-non-primary-<MID8#1>",
+              "target_branch": "release",
+              "topology": "single_branch"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_branch",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-prot-configured-non-primary-<MID8#1>": [
+            {
+              "message": [
+                "Add scaffold for feature prot-configured-non-primary-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/prot-configured-non-primary-<MID8#1>/meta.json",
+                "kitty-specs/prot-configured-non-primary-<MID8#1>/status.events.jsonl",
+                "kitty-specs/prot-configured-non-primary-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/prot-configured-non-primary-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/prot-configured-non-primary-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/prot-configured-non-primary-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "kitty/mission-prot-configured-non-primary-<MID8#1>",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "release",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "owned/coord": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": "kitty/mission-prot-owned-coord-<MID8#1>",
+          "coordination_branch_created": true,
+          "created_files": [
+            "<TMP>/owned/kitty-specs/prot-owned-coord-<MID8#1>/spec.md",
+            "<TMP>/owned/kitty-specs/prot-owned-coord-<MID8#1>/meta.json",
+            "<TMP>/owned/kitty-specs/prot-owned-coord-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "owned-topic",
+          "feature_dir": "<TMP>/owned/kitty-specs/prot-owned-coord-<MID8#1>",
+          "meta": {
+            "coordination_branch": "kitty/mission-prot-owned-coord-<MID8#1>",
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "prot owned coord",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "prot-owned-coord-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances prot owned coord on owned-topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "prot owned coord",
+            "slug": "prot-owned-coord-<MID8#1>",
+            "target_branch": "owned-topic",
+            "topology": "coord"
+          },
+          "mission_number": null,
+          "mission_slug": "prot-owned-coord-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": {
+            "checkout": "<TMP>/owned",
+            "repository_root": "<TMP>/repo"
+          },
+          "target_branch": "owned-topic",
+          "uncommitted_files": [
+            "<TMP>/owned/kitty-specs/prot-owned-coord-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-prot-owned-coord-<MID8#1>",
+          "main",
+          "owned-topic",
+          "topic"
+        ],
+        "head": {
+          "owned": "owned-topic",
+          "repo": "topic"
+        },
+        "missions": {
+          "owned/kitty-specs/prot-owned-coord-<MID8#1>": {
+            "meta": {
+              "coordination_branch": "kitty/mission-prot-owned-coord-<MID8#1>",
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "prot owned coord",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "prot-owned-coord-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances prot owned coord on owned-topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "prot owned coord",
+              "slug": "prot-owned-coord-<MID8#1>",
+              "target_branch": "owned-topic",
+              "topology": "coord"
+            },
+            "meta_key_order": [
+              "coordination_branch",
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-prot-owned-coord-<MID8#1>": [],
+          "owned-topic": [
+            {
+              "message": [
+                "Add scaffold for feature prot-owned-coord-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/prot-owned-coord-<MID8#1>/meta.json",
+                "kitty-specs/prot-owned-coord-<MID8#1>/status.events.jsonl",
+                "kitty-specs/prot-owned-coord-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/prot-owned-coord-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "owned": [
+            "?? kitty-specs/prot-owned-coord-<MID8#1>/spec.md"
+          ],
+          "repo": []
+        },
+        "status_log": {
+          "owned/kitty-specs/prot-owned-coord-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "owned-topic",
+            "path": "owned"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "owned-topic",
+          "topic"
+        ],
+        "head": {
+          "owned": "owned-topic",
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "owned": [],
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "owned-topic",
+            "path": "owned"
+          }
+        ]
+      }
+    },
+    "owned/lanes": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/owned/kitty-specs/prot-owned-lanes-<MID8#1>/spec.md",
+            "<TMP>/owned/kitty-specs/prot-owned-lanes-<MID8#1>/meta.json",
+            "<TMP>/owned/kitty-specs/prot-owned-lanes-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "owned-topic",
+          "feature_dir": "<TMP>/owned/kitty-specs/prot-owned-lanes-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "prot owned lanes",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "prot-owned-lanes-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances prot owned lanes on owned-topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "prot owned lanes",
+            "slug": "prot-owned-lanes-<MID8#1>",
+            "target_branch": "owned-topic",
+            "topology": "lanes"
+          },
+          "mission_number": null,
+          "mission_slug": "prot-owned-lanes-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": {
+            "checkout": "<TMP>/owned",
+            "repository_root": "<TMP>/repo"
+          },
+          "target_branch": "owned-topic",
+          "uncommitted_files": [
+            "<TMP>/owned/kitty-specs/prot-owned-lanes-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "main",
+          "owned-topic",
+          "topic"
+        ],
+        "head": {
+          "owned": "owned-topic",
+          "repo": "topic"
+        },
+        "missions": {
+          "owned/kitty-specs/prot-owned-lanes-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "prot owned lanes",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "prot-owned-lanes-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances prot owned lanes on owned-topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "prot owned lanes",
+              "slug": "prot-owned-lanes-<MID8#1>",
+              "target_branch": "owned-topic",
+              "topology": "lanes"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "owned-topic": [
+            {
+              "message": [
+                "Add scaffold for feature prot-owned-lanes-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/prot-owned-lanes-<MID8#1>/meta.json",
+                "kitty-specs/prot-owned-lanes-<MID8#1>/status.events.jsonl",
+                "kitty-specs/prot-owned-lanes-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/prot-owned-lanes-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "owned": [
+            "?? kitty-specs/prot-owned-lanes-<MID8#1>/spec.md"
+          ],
+          "repo": []
+        },
+        "status_log": {
+          "owned/kitty-specs/prot-owned-lanes-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "owned-topic",
+            "path": "owned"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "owned-topic",
+          "topic"
+        ],
+        "head": {
+          "owned": "owned-topic",
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "owned": [],
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "owned-topic",
+            "path": "owned"
+          }
+        ]
+      }
+    },
+    "owned/lanes_with_coord": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": "kitty/mission-prot-owned-lanes-with-coord-<MID8#1>",
+          "coordination_branch_created": true,
+          "created_files": [
+            "<TMP>/owned/kitty-specs/prot-owned-lanes-with-coord-<MID8#1>/spec.md",
+            "<TMP>/owned/kitty-specs/prot-owned-lanes-with-coord-<MID8#1>/meta.json",
+            "<TMP>/owned/kitty-specs/prot-owned-lanes-with-coord-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "owned-topic",
+          "feature_dir": "<TMP>/owned/kitty-specs/prot-owned-lanes-with-coord-<MID8#1>",
+          "meta": {
+            "coordination_branch": "kitty/mission-prot-owned-lanes-with-coord-<MID8#1>",
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "prot owned lanes with coord",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "prot-owned-lanes-with-coord-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances prot owned lanes with coord on owned-topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "prot owned lanes with coord",
+            "slug": "prot-owned-lanes-with-coord-<MID8#1>",
+            "target_branch": "owned-topic",
+            "topology": "lanes_with_coord"
+          },
+          "mission_number": null,
+          "mission_slug": "prot-owned-lanes-with-coord-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": {
+            "checkout": "<TMP>/owned",
+            "repository_root": "<TMP>/repo"
+          },
+          "target_branch": "owned-topic",
+          "uncommitted_files": [
+            "<TMP>/owned/kitty-specs/prot-owned-lanes-with-coord-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-prot-owned-lanes-with-coord-<MID8#1>",
+          "main",
+          "owned-topic",
+          "topic"
+        ],
+        "head": {
+          "owned": "owned-topic",
+          "repo": "topic"
+        },
+        "missions": {
+          "owned/kitty-specs/prot-owned-lanes-with-coord-<MID8#1>": {
+            "meta": {
+              "coordination_branch": "kitty/mission-prot-owned-lanes-with-coord-<MID8#1>",
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "prot owned lanes with coord",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "prot-owned-lanes-with-coord-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances prot owned lanes with coord on owned-topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "prot owned lanes with coord",
+              "slug": "prot-owned-lanes-with-coord-<MID8#1>",
+              "target_branch": "owned-topic",
+              "topology": "lanes_with_coord"
+            },
+            "meta_key_order": [
+              "coordination_branch",
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-prot-owned-lanes-with-coord-<MID8#1>": [],
+          "owned-topic": [
+            {
+              "message": [
+                "Add scaffold for feature prot-owned-lanes-with-coord-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/prot-owned-lanes-with-coord-<MID8#1>/meta.json",
+                "kitty-specs/prot-owned-lanes-with-coord-<MID8#1>/status.events.jsonl",
+                "kitty-specs/prot-owned-lanes-with-coord-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/prot-owned-lanes-with-coord-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "owned": [
+            "?? kitty-specs/prot-owned-lanes-with-coord-<MID8#1>/spec.md"
+          ],
+          "repo": []
+        },
+        "status_log": {
+          "owned/kitty-specs/prot-owned-lanes-with-coord-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "owned-topic",
+            "path": "owned"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "owned-topic",
+          "topic"
+        ],
+        "head": {
+          "owned": "owned-topic",
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "owned": [],
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "owned-topic",
+            "path": "owned"
+          }
+        ]
+      }
+    },
+    "owned/single_branch": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/owned/kitty-specs/prot-owned-single-branch-<MID8#1>/spec.md",
+            "<TMP>/owned/kitty-specs/prot-owned-single-branch-<MID8#1>/meta.json",
+            "<TMP>/owned/kitty-specs/prot-owned-single-branch-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "owned-topic",
+          "feature_dir": "<TMP>/owned/kitty-specs/prot-owned-single-branch-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "prot owned single branch",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "prot-owned-single-branch-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances prot owned single branch on owned-topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "prot owned single branch",
+            "slug": "prot-owned-single-branch-<MID8#1>",
+            "target_branch": "owned-topic",
+            "topology": "single_branch"
+          },
+          "mission_number": null,
+          "mission_slug": "prot-owned-single-branch-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": {
+            "checkout": "<TMP>/owned",
+            "repository_root": "<TMP>/repo"
+          },
+          "target_branch": "owned-topic",
+          "uncommitted_files": [
+            "<TMP>/owned/kitty-specs/prot-owned-single-branch-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "main",
+          "owned-topic",
+          "topic"
+        ],
+        "head": {
+          "owned": "owned-topic",
+          "repo": "topic"
+        },
+        "missions": {
+          "owned/kitty-specs/prot-owned-single-branch-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "prot owned single branch",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "prot-owned-single-branch-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances prot owned single branch on owned-topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "prot owned single branch",
+              "slug": "prot-owned-single-branch-<MID8#1>",
+              "target_branch": "owned-topic",
+              "topology": "single_branch"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "owned-topic": [
+            {
+              "message": [
+                "Add scaffold for feature prot-owned-single-branch-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/prot-owned-single-branch-<MID8#1>/meta.json",
+                "kitty-specs/prot-owned-single-branch-<MID8#1>/status.events.jsonl",
+                "kitty-specs/prot-owned-single-branch-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/prot-owned-single-branch-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "owned": [
+            "?? kitty-specs/prot-owned-single-branch-<MID8#1>/spec.md"
+          ],
+          "repo": []
+        },
+        "status_log": {
+          "owned/kitty-specs/prot-owned-single-branch-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "owned-topic",
+            "path": "owned"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "owned-topic",
+          "topic"
+        ],
+        "head": {
+          "owned": "owned-topic",
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "owned": [],
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "owned-topic",
+            "path": "owned"
+          }
+        ]
+      }
+    },
+    "primary_no_origin_head/single_branch": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/prot-primary-no-origin-head-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/prot-primary-no-origin-head-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/prot-primary-no-origin-head-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "main",
+          "feature_dir": "<TMP>/repo/kitty-specs/prot-primary-no-origin-head-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "prot primary no origin head",
+            "mid8": "<MID8#1>",
+            "mission_branch": "kitty/mission-prot-primary-no-origin-head-<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "prot-primary-no-origin-head-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances prot primary no origin head on main so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "prot primary no origin head",
+            "slug": "prot-primary-no-origin-head-<MID8#1>",
+            "target_branch": "main",
+            "topology": "single_branch"
+          },
+          "mission_number": null,
+          "mission_slug": "prot-primary-no-origin-head-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "main",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/prot-primary-no-origin-head-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-prot-primary-no-origin-head-<MID8#1>",
+          "main"
+        ],
+        "head": {
+          "repo": "kitty/mission-prot-primary-no-origin-head-<MID8#1>"
+        },
+        "missions": {
+          "repo/kitty-specs/prot-primary-no-origin-head-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "prot primary no origin head",
+              "mid8": "<MID8#1>",
+              "mission_branch": "kitty/mission-prot-primary-no-origin-head-<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "prot-primary-no-origin-head-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances prot primary no origin head on main so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "prot primary no origin head",
+              "slug": "prot-primary-no-origin-head-<MID8#1>",
+              "target_branch": "main",
+              "topology": "single_branch"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_branch",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-prot-primary-no-origin-head-<MID8#1>": [
+            {
+              "message": [
+                "Add scaffold for feature prot-primary-no-origin-head-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/prot-primary-no-origin-head-<MID8#1>/meta.json",
+                "kitty-specs/prot-primary-no-origin-head-<MID8#1>/status.events.jsonl",
+                "kitty-specs/prot-primary-no-origin-head-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/prot-primary-no-origin-head-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/prot-primary-no-origin-head-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/prot-primary-no-origin-head-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "kitty/mission-prot-primary-no-origin-head-<MID8#1>",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "primary_unconfigured/single_branch": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/prot-primary-unconfigured-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/prot-primary-unconfigured-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/prot-primary-unconfigured-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "main",
+          "feature_dir": "<TMP>/repo/kitty-specs/prot-primary-unconfigured-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "prot primary unconfigured",
+            "mid8": "<MID8#1>",
+            "mission_branch": "kitty/mission-prot-primary-unconfigured-<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "prot-primary-unconfigured-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances prot primary unconfigured on main so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "prot primary unconfigured",
+            "slug": "prot-primary-unconfigured-<MID8#1>",
+            "target_branch": "main",
+            "topology": "single_branch"
+          },
+          "mission_number": null,
+          "mission_slug": "prot-primary-unconfigured-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "main",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/prot-primary-unconfigured-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-prot-primary-unconfigured-<MID8#1>",
+          "main"
+        ],
+        "head": {
+          "repo": "kitty/mission-prot-primary-unconfigured-<MID8#1>"
+        },
+        "missions": {
+          "repo/kitty-specs/prot-primary-unconfigured-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "prot primary unconfigured",
+              "mid8": "<MID8#1>",
+              "mission_branch": "kitty/mission-prot-primary-unconfigured-<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "prot-primary-unconfigured-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances prot primary unconfigured on main so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "prot primary unconfigured",
+              "slug": "prot-primary-unconfigured-<MID8#1>",
+              "target_branch": "main",
+              "topology": "single_branch"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_branch",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-prot-primary-unconfigured-<MID8#1>": [
+            {
+              "message": [
+                "Add scaffold for feature prot-primary-unconfigured-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/prot-primary-unconfigured-<MID8#1>/meta.json",
+                "kitty-specs/prot-primary-unconfigured-<MID8#1>/status.events.jsonl",
+                "kitty-specs/prot-primary-unconfigured-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/prot-primary-unconfigured-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/prot-primary-unconfigured-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/prot-primary-unconfigured-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "kitty/mission-prot-primary-unconfigured-<MID8#1>",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "protected/coord/plain": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": "kitty/mission-prot-coord-plain-<MID8#1>",
+          "coordination_branch_created": true,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/prot-coord-plain-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/prot-coord-plain-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/prot-coord-plain-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/.worktrees/prot-coord-plain-<MID8#1>-coord/kitty-specs/prot-coord-plain-<MID8#1>/status.events.jsonl",
+            "<TMP>/repo/kitty-specs/prot-coord-plain-<MID8#1>/tasks/.gitkeep"
+          ],
+          "current_branch": "main",
+          "feature_dir": "<TMP>/repo/kitty-specs/prot-coord-plain-<MID8#1>",
+          "meta": {
+            "coordination_branch": "kitty/mission-prot-coord-plain-<MID8#1>",
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "prot coord plain",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "prot-coord-plain-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances prot coord plain on main so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "prot coord plain",
+            "slug": "prot-coord-plain-<MID8#1>",
+            "target_branch": "main",
+            "topology": "coord"
+          },
+          "mission_number": null,
+          "mission_slug": "prot-coord-plain-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "main",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/prot-coord-plain-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/prot-coord-plain-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/prot-coord-plain-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/kitty-specs/prot-coord-plain-<MID8#1>/tasks/.gitkeep"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-prot-coord-plain-<MID8#1>",
+          "main"
+        ],
+        "head": {
+          "repo": "main",
+          "repo/.worktrees/prot-coord-plain-<MID8#1>-coord": "kitty/mission-prot-coord-plain-<MID8#1>"
+        },
+        "missions": {
+          "repo/.worktrees/prot-coord-plain-<MID8#1>-coord/kitty-specs/prot-coord-plain-<MID8#1>": {
+            "tree": [
+              "status.events.jsonl"
+            ]
+          },
+          "repo/kitty-specs/prot-coord-plain-<MID8#1>": {
+            "meta": {
+              "coordination_branch": "kitty/mission-prot-coord-plain-<MID8#1>",
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "prot coord plain",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "prot-coord-plain-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances prot coord plain on main so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "prot coord plain",
+              "slug": "prot-coord-plain-<MID8#1>",
+              "target_branch": "main",
+              "topology": "coord"
+            },
+            "meta_key_order": [
+              "coordination_branch",
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-prot-coord-plain-<MID8#1>": [
+            {
+              "message": [
+                "chore(prot-coord-plain-<MID8#1>): record mission creation",
+                "",
+                "Spec-Kitty-Coordination-Seed: <ULID#1>"
+              ],
+              "paths": [
+                "kitty-specs/prot-coord-plain-<MID8#1>/status.events.jsonl"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? .worktrees/prot-coord-plain-<MID8#1>-coord/",
+            "?? kitty-specs/prot-coord-plain-<MID8#1>/meta.json",
+            "?? kitty-specs/prot-coord-plain-<MID8#1>/spec.md",
+            "?? kitty-specs/prot-coord-plain-<MID8#1>/tasks/.gitkeep",
+            "?? kitty-specs/prot-coord-plain-<MID8#1>/tasks/README.md"
+          ],
+          "repo/.worktrees/prot-coord-plain-<MID8#1>-coord": []
+        },
+        "status_log": {
+          "repo/.worktrees/prot-coord-plain-<MID8#1>-coord/kitty-specs/prot-coord-plain-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          },
+          {
+            "branch": "kitty/mission-prot-coord-plain-<MID8#1>",
+            "path": "repo/.worktrees/prot-coord-plain-<MID8#1>-coord"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "protected/coord/retention": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": "kitty/mission-prot-coord-retention-<MID8#1>",
+          "coordination_branch_created": true,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/prot-coord-retention-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/prot-coord-retention-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/prot-coord-retention-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/.worktrees/prot-coord-retention-<MID8#1>-coord/kitty-specs/prot-coord-retention-<MID8#1>/status.events.jsonl",
+            "<TMP>/repo/kitty-specs/prot-coord-retention-<MID8#1>/tasks/.gitkeep"
+          ],
+          "current_branch": "main",
+          "feature_dir": "<TMP>/repo/kitty-specs/prot-coord-retention-<MID8#1>",
+          "meta": {
+            "coordination_branch": "kitty/mission-prot-coord-retention-<MID8#1>",
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "prot coord retention",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "prot-coord-retention-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances prot coord retention on main so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "prot coord retention",
+            "retain_branches": true,
+            "retain_worktrees": true,
+            "slug": "prot-coord-retention-<MID8#1>",
+            "target_branch": "main",
+            "topology": "coord"
+          },
+          "mission_number": null,
+          "mission_slug": "prot-coord-retention-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "main",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/prot-coord-retention-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/prot-coord-retention-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/prot-coord-retention-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/kitty-specs/prot-coord-retention-<MID8#1>/tasks/.gitkeep"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-prot-coord-retention-<MID8#1>",
+          "main"
+        ],
+        "head": {
+          "repo": "main",
+          "repo/.worktrees/prot-coord-retention-<MID8#1>-coord": "kitty/mission-prot-coord-retention-<MID8#1>"
+        },
+        "missions": {
+          "repo/.worktrees/prot-coord-retention-<MID8#1>-coord/kitty-specs/prot-coord-retention-<MID8#1>": {
+            "tree": [
+              "status.events.jsonl"
+            ]
+          },
+          "repo/kitty-specs/prot-coord-retention-<MID8#1>": {
+            "meta": {
+              "coordination_branch": "kitty/mission-prot-coord-retention-<MID8#1>",
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "prot coord retention",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "prot-coord-retention-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances prot coord retention on main so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "prot coord retention",
+              "retain_branches": true,
+              "retain_worktrees": true,
+              "slug": "prot-coord-retention-<MID8#1>",
+              "target_branch": "main",
+              "topology": "coord"
+            },
+            "meta_key_order": [
+              "coordination_branch",
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "retain_branches",
+              "retain_worktrees",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-prot-coord-retention-<MID8#1>": [
+            {
+              "message": [
+                "chore(prot-coord-retention-<MID8#1>): record mission creation",
+                "",
+                "Spec-Kitty-Coordination-Seed: <ULID#1>"
+              ],
+              "paths": [
+                "kitty-specs/prot-coord-retention-<MID8#1>/status.events.jsonl"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? .worktrees/prot-coord-retention-<MID8#1>-coord/",
+            "?? kitty-specs/prot-coord-retention-<MID8#1>/meta.json",
+            "?? kitty-specs/prot-coord-retention-<MID8#1>/spec.md",
+            "?? kitty-specs/prot-coord-retention-<MID8#1>/tasks/.gitkeep",
+            "?? kitty-specs/prot-coord-retention-<MID8#1>/tasks/README.md"
+          ],
+          "repo/.worktrees/prot-coord-retention-<MID8#1>-coord": []
+        },
+        "status_log": {
+          "repo/.worktrees/prot-coord-retention-<MID8#1>-coord/kitty-specs/prot-coord-retention-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          },
+          {
+            "branch": "kitty/mission-prot-coord-retention-<MID8#1>",
+            "path": "repo/.worktrees/prot-coord-retention-<MID8#1>-coord"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "protected/lanes/plain": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>/tasks/.gitkeep",
+            "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>/status.events.jsonl"
+          ],
+          "current_branch": "main",
+          "feature_dir": "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "prot lanes plain",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "prot-lanes-plain-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances prot lanes plain on main so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "prot lanes plain",
+            "slug": "prot-lanes-plain-<MID8#1>",
+            "target_branch": "main",
+            "topology": "lanes"
+          },
+          "mission_number": null,
+          "mission_slug": "prot-lanes-plain-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "main",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>/tasks/.gitkeep",
+            "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>/status.events.jsonl"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {
+          "repo/kitty-specs/prot-lanes-plain-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "prot lanes plain",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "prot-lanes-plain-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances prot lanes plain on main so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "prot lanes plain",
+              "slug": "prot-lanes-plain-<MID8#1>",
+              "target_branch": "main",
+              "topology": "lanes"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {},
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/prot-lanes-plain-<MID8#1>/meta.json",
+            "?? kitty-specs/prot-lanes-plain-<MID8#1>/spec.md",
+            "?? kitty-specs/prot-lanes-plain-<MID8#1>/status.events.jsonl",
+            "?? kitty-specs/prot-lanes-plain-<MID8#1>/tasks/.gitkeep",
+            "?? kitty-specs/prot-lanes-plain-<MID8#1>/tasks/README.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/prot-lanes-plain-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "protected/lanes_with_coord/plain": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": "kitty/mission-prot-lanes-with-coord-plain-<MID8#1>",
+          "coordination_branch_created": true,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/prot-lanes-with-coord-plain-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/prot-lanes-with-coord-plain-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/prot-lanes-with-coord-plain-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/.worktrees/prot-lanes-with-coord-plain-<MID8#1>-coord/kitty-specs/prot-lanes-with-coord-plain-<MID8#1>/status.events.jsonl",
+            "<TMP>/repo/kitty-specs/prot-lanes-with-coord-plain-<MID8#1>/tasks/.gitkeep"
+          ],
+          "current_branch": "main",
+          "feature_dir": "<TMP>/repo/kitty-specs/prot-lanes-with-coord-plain-<MID8#1>",
+          "meta": {
+            "coordination_branch": "kitty/mission-prot-lanes-with-coord-plain-<MID8#1>",
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "prot lanes with coord plain",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "prot-lanes-with-coord-plain-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances prot lanes with coord plain on main so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "prot lanes with coord plain",
+            "slug": "prot-lanes-with-coord-plain-<MID8#1>",
+            "target_branch": "main",
+            "topology": "lanes_with_coord"
+          },
+          "mission_number": null,
+          "mission_slug": "prot-lanes-with-coord-plain-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "main",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/prot-lanes-with-coord-plain-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/prot-lanes-with-coord-plain-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/prot-lanes-with-coord-plain-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/kitty-specs/prot-lanes-with-coord-plain-<MID8#1>/tasks/.gitkeep"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-prot-lanes-with-coord-plain-<MID8#1>",
+          "main"
+        ],
+        "head": {
+          "repo": "main",
+          "repo/.worktrees/prot-lanes-with-coord-plain-<MID8#1>-coord": "kitty/mission-prot-lanes-with-coord-plain-<MID8#1>"
+        },
+        "missions": {
+          "repo/.worktrees/prot-lanes-with-coord-plain-<MID8#1>-coord/kitty-specs/prot-lanes-with-coord-plain-<MID8#1>": {
+            "tree": [
+              "status.events.jsonl"
+            ]
+          },
+          "repo/kitty-specs/prot-lanes-with-coord-plain-<MID8#1>": {
+            "meta": {
+              "coordination_branch": "kitty/mission-prot-lanes-with-coord-plain-<MID8#1>",
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "prot lanes with coord plain",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "prot-lanes-with-coord-plain-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances prot lanes with coord plain on main so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "prot lanes with coord plain",
+              "slug": "prot-lanes-with-coord-plain-<MID8#1>",
+              "target_branch": "main",
+              "topology": "lanes_with_coord"
+            },
+            "meta_key_order": [
+              "coordination_branch",
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-prot-lanes-with-coord-plain-<MID8#1>": [
+            {
+              "message": [
+                "chore(prot-lanes-with-coord-plain-<MID8#1>): record mission creation",
+                "",
+                "Spec-Kitty-Coordination-Seed: <ULID#1>"
+              ],
+              "paths": [
+                "kitty-specs/prot-lanes-with-coord-plain-<MID8#1>/status.events.jsonl"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? .worktrees/prot-lanes-with-coord-plain-<MID8#1>-coord/",
+            "?? kitty-specs/prot-lanes-with-coord-plain-<MID8#1>/meta.json",
+            "?? kitty-specs/prot-lanes-with-coord-plain-<MID8#1>/spec.md",
+            "?? kitty-specs/prot-lanes-with-coord-plain-<MID8#1>/tasks/.gitkeep",
+            "?? kitty-specs/prot-lanes-with-coord-plain-<MID8#1>/tasks/README.md"
+          ],
+          "repo/.worktrees/prot-lanes-with-coord-plain-<MID8#1>-coord": []
+        },
+        "status_log": {
+          "repo/.worktrees/prot-lanes-with-coord-plain-<MID8#1>-coord/kitty-specs/prot-lanes-with-coord-plain-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          },
+          {
+            "branch": "kitty/mission-prot-lanes-with-coord-plain-<MID8#1>",
+            "path": "repo/.worktrees/prot-lanes-with-coord-plain-<MID8#1>-coord"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "protected/single_branch/commit_to_target": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/prot-single-branch-commit-to-target-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/prot-single-branch-commit-to-target-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/prot-single-branch-commit-to-target-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "main",
+          "feature_dir": "<TMP>/repo/kitty-specs/prot-single-branch-commit-to-target-<MID8#1>",
+          "meta": {
+            "commit_to_target": true,
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "prot single branch commit to target",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "prot-single-branch-commit-to-target-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances prot single branch commit to target on main so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "prot single branch commit to target",
+            "slug": "prot-single-branch-commit-to-target-<MID8#1>",
+            "target_branch": "main",
+            "topology": "single_branch"
+          },
+          "mission_number": null,
+          "mission_slug": "prot-single-branch-commit-to-target-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "main",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/prot-single-branch-commit-to-target-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {
+          "repo/kitty-specs/prot-single-branch-commit-to-target-<MID8#1>": {
+            "meta": {
+              "commit_to_target": true,
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "prot single branch commit to target",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "prot-single-branch-commit-to-target-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances prot single branch commit to target on main so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "prot single branch commit to target",
+              "slug": "prot-single-branch-commit-to-target-<MID8#1>",
+              "target_branch": "main",
+              "topology": "single_branch"
+            },
+            "meta_key_order": [
+              "commit_to_target",
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "main": [
+            {
+              "message": [
+                "Add scaffold for feature prot-single-branch-commit-to-target-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/prot-single-branch-commit-to-target-<MID8#1>/meta.json",
+                "kitty-specs/prot-single-branch-commit-to-target-<MID8#1>/status.events.jsonl",
+                "kitty-specs/prot-single-branch-commit-to-target-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/prot-single-branch-commit-to-target-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/prot-single-branch-commit-to-target-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/prot-single-branch-commit-to-target-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "protected/single_branch/plain": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/prot-single-branch-plain-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/prot-single-branch-plain-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/prot-single-branch-plain-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "main",
+          "feature_dir": "<TMP>/repo/kitty-specs/prot-single-branch-plain-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "prot single branch plain",
+            "mid8": "<MID8#1>",
+            "mission_branch": "kitty/mission-prot-single-branch-plain-<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "prot-single-branch-plain-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances prot single branch plain on main so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "prot single branch plain",
+            "slug": "prot-single-branch-plain-<MID8#1>",
+            "target_branch": "main",
+            "topology": "single_branch"
+          },
+          "mission_number": null,
+          "mission_slug": "prot-single-branch-plain-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "main",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/prot-single-branch-plain-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-prot-single-branch-plain-<MID8#1>",
+          "main"
+        ],
+        "head": {
+          "repo": "kitty/mission-prot-single-branch-plain-<MID8#1>"
+        },
+        "missions": {
+          "repo/kitty-specs/prot-single-branch-plain-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "prot single branch plain",
+              "mid8": "<MID8#1>",
+              "mission_branch": "kitty/mission-prot-single-branch-plain-<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "prot-single-branch-plain-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances prot single branch plain on main so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "prot single branch plain",
+              "slug": "prot-single-branch-plain-<MID8#1>",
+              "target_branch": "main",
+              "topology": "single_branch"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_branch",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-prot-single-branch-plain-<MID8#1>": [
+            {
+              "message": [
+                "Add scaffold for feature prot-single-branch-plain-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/prot-single-branch-plain-<MID8#1>/meta.json",
+                "kitty-specs/prot-single-branch-plain-<MID8#1>/status.events.jsonl",
+                "kitty-specs/prot-single-branch-plain-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/prot-single-branch-plain-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/prot-single-branch-plain-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/prot-single-branch-plain-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "kitty/mission-prot-single-branch-plain-<MID8#1>",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "protected/single_branch/pr_bound": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/prot-single-branch-pr-bound-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/prot-single-branch-pr-bound-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/prot-single-branch-pr-bound-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "main",
+          "feature_dir": "<TMP>/repo/kitty-specs/prot-single-branch-pr-bound-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "prot single branch pr bound",
+            "mid8": "<MID8#1>",
+            "mission_branch": "kitty/mission-prot-single-branch-pr-bound-<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "prot-single-branch-pr-bound-<MID8#1>",
+            "mission_type": "software-dev",
+            "pr_bound": true,
+            "purpose_context": "This mission advances prot single branch pr bound on main so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "prot single branch pr bound",
+            "slug": "prot-single-branch-pr-bound-<MID8#1>",
+            "target_branch": "main",
+            "topology": "single_branch"
+          },
+          "mission_number": null,
+          "mission_slug": "prot-single-branch-pr-bound-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "main",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/prot-single-branch-pr-bound-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-prot-single-branch-pr-bound-<MID8#1>",
+          "main"
+        ],
+        "head": {
+          "repo": "kitty/mission-prot-single-branch-pr-bound-<MID8#1>"
+        },
+        "missions": {
+          "repo/kitty-specs/prot-single-branch-pr-bound-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "prot single branch pr bound",
+              "mid8": "<MID8#1>",
+              "mission_branch": "kitty/mission-prot-single-branch-pr-bound-<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "prot-single-branch-pr-bound-<MID8#1>",
+              "mission_type": "software-dev",
+              "pr_bound": true,
+              "purpose_context": "This mission advances prot single branch pr bound on main so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "prot single branch pr bound",
+              "slug": "prot-single-branch-pr-bound-<MID8#1>",
+              "target_branch": "main",
+              "topology": "single_branch"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_branch",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "pr_bound",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-prot-single-branch-pr-bound-<MID8#1>": [
+            {
+              "message": [
+                "Add scaffold for feature prot-single-branch-pr-bound-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/prot-single-branch-pr-bound-<MID8#1>/meta.json",
+                "kitty-specs/prot-single-branch-pr-bound-<MID8#1>/status.events.jsonl",
+                "kitty-specs/prot-single-branch-pr-bound-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/prot-single-branch-pr-bound-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/prot-single-branch-pr-bound-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/prot-single-branch-pr-bound-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "kitty/mission-prot-single-branch-pr-bound-<MID8#1>",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "protected/single_branch/retention": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/prot-single-branch-retention-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/prot-single-branch-retention-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/prot-single-branch-retention-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "main",
+          "feature_dir": "<TMP>/repo/kitty-specs/prot-single-branch-retention-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "prot single branch retention",
+            "mid8": "<MID8#1>",
+            "mission_branch": "kitty/mission-prot-single-branch-retention-<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "prot-single-branch-retention-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances prot single branch retention on main so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "prot single branch retention",
+            "retain_branches": true,
+            "retain_worktrees": true,
+            "slug": "prot-single-branch-retention-<MID8#1>",
+            "target_branch": "main",
+            "topology": "single_branch"
+          },
+          "mission_number": null,
+          "mission_slug": "prot-single-branch-retention-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "main",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/prot-single-branch-retention-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-prot-single-branch-retention-<MID8#1>",
+          "main"
+        ],
+        "head": {
+          "repo": "kitty/mission-prot-single-branch-retention-<MID8#1>"
+        },
+        "missions": {
+          "repo/kitty-specs/prot-single-branch-retention-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "prot single branch retention",
+              "mid8": "<MID8#1>",
+              "mission_branch": "kitty/mission-prot-single-branch-retention-<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "prot-single-branch-retention-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances prot single branch retention on main so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "prot single branch retention",
+              "retain_branches": true,
+              "retain_worktrees": true,
+              "slug": "prot-single-branch-retention-<MID8#1>",
+              "target_branch": "main",
+              "topology": "single_branch"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_branch",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "retain_branches",
+              "retain_worktrees",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-prot-single-branch-retention-<MID8#1>": [
+            {
+              "message": [
+                "Add scaffold for feature prot-single-branch-retention-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/prot-single-branch-retention-<MID8#1>/meta.json",
+                "kitty-specs/prot-single-branch-retention-<MID8#1>/status.events.jsonl",
+                "kitty-specs/prot-single-branch-retention-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/prot-single-branch-retention-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/prot-single-branch-retention-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/prot-single-branch-retention-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "kitty/mission-prot-single-branch-retention-<MID8#1>",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      }
+    }
+  }
+}

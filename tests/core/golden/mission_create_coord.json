@@ -1,0 +1,1955 @@
+{
+  "base_commit": "f0f3daa55fcfa79361acc7b3bab3beffa0e64705",
+  "cells": {
+    "coord/documentation": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": "kitty/mission-coord-coord-documentation-<MID8#1>",
+          "coordination_branch_created": true,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/coord-coord-documentation-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/coord-coord-documentation-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/coord-coord-documentation-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/.worktrees/coord-coord-documentation-<MID8#1>-coord/kitty-specs/coord-coord-documentation-<MID8#1>/status.events.jsonl"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/coord-coord-documentation-<MID8#1>",
+          "meta": {
+            "coordination_branch": "kitty/mission-coord-coord-documentation-<MID8#1>",
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "coord coord documentation",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "coord-coord-documentation-<MID8#1>",
+            "mission_type": "documentation",
+            "purpose_context": "This mission advances coord coord documentation on topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "coord coord documentation",
+            "slug": "coord-coord-documentation-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "coord"
+          },
+          "mission_number": null,
+          "mission_slug": "coord-coord-documentation-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/coord-coord-documentation-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-coord-coord-documentation-<MID8#1>",
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic",
+          "repo/.worktrees/coord-coord-documentation-<MID8#1>-coord": "kitty/mission-coord-coord-documentation-<MID8#1>"
+        },
+        "missions": {
+          "repo/.worktrees/coord-coord-documentation-<MID8#1>-coord/kitty-specs/coord-coord-documentation-<MID8#1>": {
+            "tree": [
+              "status.events.jsonl"
+            ]
+          },
+          "repo/kitty-specs/coord-coord-documentation-<MID8#1>": {
+            "meta": {
+              "coordination_branch": "kitty/mission-coord-coord-documentation-<MID8#1>",
+              "created_at": "<TS>",
+              "documentation_state": {
+                "coverage_percentage": 0.0,
+                "divio_types_selected": [],
+                "generators_configured": [],
+                "iteration_mode": "initial",
+                "last_audit_date": null,
+                "target_audience": "developers"
+              },
+              "flattened": false,
+              "friendly_name": "coord coord documentation",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "coord-coord-documentation-<MID8#1>",
+              "mission_type": "documentation",
+              "purpose_context": "This mission advances coord coord documentation on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "coord coord documentation",
+              "slug": "coord-coord-documentation-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "coord"
+            },
+            "meta_key_order": [
+              "coordination_branch",
+              "created_at",
+              "documentation_state",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-coord-coord-documentation-<MID8#1>": [
+            {
+              "message": [
+                "chore(coord-coord-documentation-<MID8#1>): record mission creation",
+                "",
+                "Spec-Kitty-Coordination-Seed: <ULID#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-coord-documentation-<MID8#1>/status.events.jsonl"
+              ]
+            }
+          ],
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature coord-coord-documentation-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-coord-documentation-<MID8#1>/meta.json",
+                "kitty-specs/coord-coord-documentation-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/coord-coord-documentation-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? .worktrees/coord-coord-documentation-<MID8#1>-coord/",
+            "?? kitty-specs/coord-coord-documentation-<MID8#1>/spec.md"
+          ],
+          "repo/.worktrees/coord-coord-documentation-<MID8#1>-coord": []
+        },
+        "status_log": {
+          "repo/.worktrees/coord-coord-documentation-<MID8#1>-coord/kitty-specs/coord-coord-documentation-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "kitty/mission-coord-coord-documentation-<MID8#1>",
+            "path": "repo/.worktrees/coord-coord-documentation-<MID8#1>-coord"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "coord/force_recreate": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": "kitty/mission-coord-force-recreate-<MID8#1>",
+          "coordination_branch_created": true,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/coord-force-recreate-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/coord-force-recreate-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/coord-force-recreate-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/.worktrees/coord-force-recreate-<MID8#1>-coord/kitty-specs/coord-force-recreate-<MID8#1>/status.events.jsonl"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/coord-force-recreate-<MID8#1>",
+          "meta": {
+            "coordination_branch": "kitty/mission-coord-force-recreate-<MID8#1>",
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "coord force recreate",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "coord-force-recreate-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances coord force recreate on topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "coord force recreate",
+            "slug": "coord-force-recreate-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "coord"
+          },
+          "mission_number": null,
+          "mission_slug": "coord-force-recreate-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/coord-force-recreate-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-coord-force-recreate-<MID8#1>",
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic",
+          "repo/.worktrees/coord-force-recreate-<MID8#1>-coord": "kitty/mission-coord-force-recreate-<MID8#1>"
+        },
+        "missions": {
+          "repo/.worktrees/coord-force-recreate-<MID8#1>-coord/kitty-specs/coord-force-recreate-<MID8#1>": {
+            "tree": [
+              "status.events.jsonl"
+            ]
+          },
+          "repo/kitty-specs/coord-force-recreate-<MID8#1>": {
+            "meta": {
+              "coordination_branch": "kitty/mission-coord-force-recreate-<MID8#1>",
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "coord force recreate",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "coord-force-recreate-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances coord force recreate on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "coord force recreate",
+              "slug": "coord-force-recreate-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "coord"
+            },
+            "meta_key_order": [
+              "coordination_branch",
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-coord-force-recreate-<MID8#1>": [
+            {
+              "message": [
+                "chore(coord-force-recreate-<MID8#1>): record mission creation",
+                "",
+                "Spec-Kitty-Coordination-Seed: <ULID#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-force-recreate-<MID8#1>/status.events.jsonl"
+              ]
+            }
+          ],
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature coord-force-recreate-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-force-recreate-<MID8#1>/meta.json",
+                "kitty-specs/coord-force-recreate-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/coord-force-recreate-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? .worktrees/coord-force-recreate-<MID8#1>-coord/",
+            "?? kitty-specs/coord-force-recreate-<MID8#1>/spec.md"
+          ],
+          "repo/.worktrees/coord-force-recreate-<MID8#1>-coord": []
+        },
+        "status_log": {
+          "repo/.worktrees/coord-force-recreate-<MID8#1>-coord/kitty-specs/coord-force-recreate-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "kitty/mission-coord-force-recreate-<MID8#1>",
+            "path": "repo/.worktrees/coord-force-recreate-<MID8#1>-coord"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "coord/plain": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": "kitty/mission-coord-coord-plain-<MID8#1>",
+          "coordination_branch_created": true,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/coord-coord-plain-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/coord-coord-plain-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/coord-coord-plain-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/.worktrees/coord-coord-plain-<MID8#1>-coord/kitty-specs/coord-coord-plain-<MID8#1>/status.events.jsonl"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/coord-coord-plain-<MID8#1>",
+          "meta": {
+            "coordination_branch": "kitty/mission-coord-coord-plain-<MID8#1>",
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "coord coord plain",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "coord-coord-plain-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances coord coord plain on topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "coord coord plain",
+            "slug": "coord-coord-plain-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "coord"
+          },
+          "mission_number": null,
+          "mission_slug": "coord-coord-plain-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/coord-coord-plain-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-coord-coord-plain-<MID8#1>",
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic",
+          "repo/.worktrees/coord-coord-plain-<MID8#1>-coord": "kitty/mission-coord-coord-plain-<MID8#1>"
+        },
+        "missions": {
+          "repo/.worktrees/coord-coord-plain-<MID8#1>-coord/kitty-specs/coord-coord-plain-<MID8#1>": {
+            "tree": [
+              "status.events.jsonl"
+            ]
+          },
+          "repo/kitty-specs/coord-coord-plain-<MID8#1>": {
+            "meta": {
+              "coordination_branch": "kitty/mission-coord-coord-plain-<MID8#1>",
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "coord coord plain",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "coord-coord-plain-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances coord coord plain on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "coord coord plain",
+              "slug": "coord-coord-plain-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "coord"
+            },
+            "meta_key_order": [
+              "coordination_branch",
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-coord-coord-plain-<MID8#1>": [
+            {
+              "message": [
+                "chore(coord-coord-plain-<MID8#1>): record mission creation",
+                "",
+                "Spec-Kitty-Coordination-Seed: <ULID#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-coord-plain-<MID8#1>/status.events.jsonl"
+              ]
+            }
+          ],
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature coord-coord-plain-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-coord-plain-<MID8#1>/meta.json",
+                "kitty-specs/coord-coord-plain-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/coord-coord-plain-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? .worktrees/coord-coord-plain-<MID8#1>-coord/",
+            "?? kitty-specs/coord-coord-plain-<MID8#1>/spec.md"
+          ],
+          "repo/.worktrees/coord-coord-plain-<MID8#1>-coord": []
+        },
+        "status_log": {
+          "repo/.worktrees/coord-coord-plain-<MID8#1>-coord/kitty-specs/coord-coord-plain-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "kitty/mission-coord-coord-plain-<MID8#1>",
+            "path": "repo/.worktrees/coord-coord-plain-<MID8#1>-coord"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "coord/pr_bound": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": "kitty/mission-coord-coord-pr-bound-<MID8#1>",
+          "coordination_branch_created": true,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/coord-coord-pr-bound-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/coord-coord-pr-bound-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/coord-coord-pr-bound-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/.worktrees/coord-coord-pr-bound-<MID8#1>-coord/kitty-specs/coord-coord-pr-bound-<MID8#1>/status.events.jsonl"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/coord-coord-pr-bound-<MID8#1>",
+          "meta": {
+            "coordination_branch": "kitty/mission-coord-coord-pr-bound-<MID8#1>",
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "coord coord pr bound",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "coord-coord-pr-bound-<MID8#1>",
+            "mission_type": "software-dev",
+            "pr_bound": true,
+            "purpose_context": "This mission advances coord coord pr bound on topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "coord coord pr bound",
+            "slug": "coord-coord-pr-bound-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "coord"
+          },
+          "mission_number": null,
+          "mission_slug": "coord-coord-pr-bound-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/coord-coord-pr-bound-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-coord-coord-pr-bound-<MID8#1>",
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic",
+          "repo/.worktrees/coord-coord-pr-bound-<MID8#1>-coord": "kitty/mission-coord-coord-pr-bound-<MID8#1>"
+        },
+        "missions": {
+          "repo/.worktrees/coord-coord-pr-bound-<MID8#1>-coord/kitty-specs/coord-coord-pr-bound-<MID8#1>": {
+            "tree": [
+              "status.events.jsonl"
+            ]
+          },
+          "repo/kitty-specs/coord-coord-pr-bound-<MID8#1>": {
+            "meta": {
+              "coordination_branch": "kitty/mission-coord-coord-pr-bound-<MID8#1>",
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "coord coord pr bound",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "coord-coord-pr-bound-<MID8#1>",
+              "mission_type": "software-dev",
+              "pr_bound": true,
+              "purpose_context": "This mission advances coord coord pr bound on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "coord coord pr bound",
+              "slug": "coord-coord-pr-bound-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "coord"
+            },
+            "meta_key_order": [
+              "coordination_branch",
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "pr_bound",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-coord-coord-pr-bound-<MID8#1>": [
+            {
+              "message": [
+                "chore(coord-coord-pr-bound-<MID8#1>): record mission creation",
+                "",
+                "Spec-Kitty-Coordination-Seed: <ULID#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-coord-pr-bound-<MID8#1>/status.events.jsonl"
+              ]
+            }
+          ],
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature coord-coord-pr-bound-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-coord-pr-bound-<MID8#1>/meta.json",
+                "kitty-specs/coord-coord-pr-bound-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/coord-coord-pr-bound-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? .worktrees/coord-coord-pr-bound-<MID8#1>-coord/",
+            "?? kitty-specs/coord-coord-pr-bound-<MID8#1>/spec.md"
+          ],
+          "repo/.worktrees/coord-coord-pr-bound-<MID8#1>-coord": []
+        },
+        "status_log": {
+          "repo/.worktrees/coord-coord-pr-bound-<MID8#1>-coord/kitty-specs/coord-coord-pr-bound-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "kitty/mission-coord-coord-pr-bound-<MID8#1>",
+            "path": "repo/.worktrees/coord-coord-pr-bound-<MID8#1>-coord"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "coord/retention": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": "kitty/mission-coord-coord-retention-<MID8#1>",
+          "coordination_branch_created": true,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/coord-coord-retention-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/coord-coord-retention-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/coord-coord-retention-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/.worktrees/coord-coord-retention-<MID8#1>-coord/kitty-specs/coord-coord-retention-<MID8#1>/status.events.jsonl"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/coord-coord-retention-<MID8#1>",
+          "meta": {
+            "coordination_branch": "kitty/mission-coord-coord-retention-<MID8#1>",
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "coord coord retention",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "coord-coord-retention-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances coord coord retention on topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "coord coord retention",
+            "retain_branches": true,
+            "retain_worktrees": true,
+            "slug": "coord-coord-retention-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "coord"
+          },
+          "mission_number": null,
+          "mission_slug": "coord-coord-retention-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/coord-coord-retention-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-coord-coord-retention-<MID8#1>",
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic",
+          "repo/.worktrees/coord-coord-retention-<MID8#1>-coord": "kitty/mission-coord-coord-retention-<MID8#1>"
+        },
+        "missions": {
+          "repo/.worktrees/coord-coord-retention-<MID8#1>-coord/kitty-specs/coord-coord-retention-<MID8#1>": {
+            "tree": [
+              "status.events.jsonl"
+            ]
+          },
+          "repo/kitty-specs/coord-coord-retention-<MID8#1>": {
+            "meta": {
+              "coordination_branch": "kitty/mission-coord-coord-retention-<MID8#1>",
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "coord coord retention",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "coord-coord-retention-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances coord coord retention on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "coord coord retention",
+              "retain_branches": true,
+              "retain_worktrees": true,
+              "slug": "coord-coord-retention-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "coord"
+            },
+            "meta_key_order": [
+              "coordination_branch",
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "retain_branches",
+              "retain_worktrees",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-coord-coord-retention-<MID8#1>": [
+            {
+              "message": [
+                "chore(coord-coord-retention-<MID8#1>): record mission creation",
+                "",
+                "Spec-Kitty-Coordination-Seed: <ULID#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-coord-retention-<MID8#1>/status.events.jsonl"
+              ]
+            }
+          ],
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature coord-coord-retention-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-coord-retention-<MID8#1>/meta.json",
+                "kitty-specs/coord-coord-retention-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/coord-coord-retention-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? .worktrees/coord-coord-retention-<MID8#1>-coord/",
+            "?? kitty-specs/coord-coord-retention-<MID8#1>/spec.md"
+          ],
+          "repo/.worktrees/coord-coord-retention-<MID8#1>-coord": []
+        },
+        "status_log": {
+          "repo/.worktrees/coord-coord-retention-<MID8#1>-coord/kitty-specs/coord-coord-retention-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "kitty/mission-coord-coord-retention-<MID8#1>",
+            "path": "repo/.worktrees/coord-coord-retention-<MID8#1>-coord"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "coord/summary": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": "kitty/mission-coord-coord-summary-<MID8#1>",
+          "coordination_branch_created": true,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/coord-coord-summary-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/coord-coord-summary-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/coord-coord-summary-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/.worktrees/coord-coord-summary-<MID8#1>-coord/kitty-specs/coord-coord-summary-<MID8#1>/status.events.jsonl"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/coord-coord-summary-<MID8#1>",
+          "meta": {
+            "coordination_branch": "kitty/mission-coord-coord-summary-<MID8#1>",
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "Golden Coord Coord Summary",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "coord-coord-summary-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission pins how coord coord summary is created so the decomposition can prove it changes nothing observable.",
+            "purpose_tldr": "Pin the coord coord summary create behaviour.",
+            "slug": "coord-coord-summary-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "coord"
+          },
+          "mission_number": null,
+          "mission_slug": "coord-coord-summary-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/coord-coord-summary-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-coord-coord-summary-<MID8#1>",
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic",
+          "repo/.worktrees/coord-coord-summary-<MID8#1>-coord": "kitty/mission-coord-coord-summary-<MID8#1>"
+        },
+        "missions": {
+          "repo/.worktrees/coord-coord-summary-<MID8#1>-coord/kitty-specs/coord-coord-summary-<MID8#1>": {
+            "tree": [
+              "status.events.jsonl"
+            ]
+          },
+          "repo/kitty-specs/coord-coord-summary-<MID8#1>": {
+            "meta": {
+              "coordination_branch": "kitty/mission-coord-coord-summary-<MID8#1>",
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "Golden Coord Coord Summary",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "coord-coord-summary-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission pins how coord coord summary is created so the decomposition can prove it changes nothing observable.",
+              "purpose_tldr": "Pin the coord coord summary create behaviour.",
+              "slug": "coord-coord-summary-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "coord"
+            },
+            "meta_key_order": [
+              "coordination_branch",
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-coord-coord-summary-<MID8#1>": [
+            {
+              "message": [
+                "chore(coord-coord-summary-<MID8#1>): record mission creation",
+                "",
+                "Spec-Kitty-Coordination-Seed: <ULID#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-coord-summary-<MID8#1>/status.events.jsonl"
+              ]
+            }
+          ],
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature coord-coord-summary-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-coord-summary-<MID8#1>/meta.json",
+                "kitty-specs/coord-coord-summary-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/coord-coord-summary-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? .worktrees/coord-coord-summary-<MID8#1>-coord/",
+            "?? kitty-specs/coord-coord-summary-<MID8#1>/spec.md"
+          ],
+          "repo/.worktrees/coord-coord-summary-<MID8#1>-coord": []
+        },
+        "status_log": {
+          "repo/.worktrees/coord-coord-summary-<MID8#1>-coord/kitty-specs/coord-coord-summary-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "kitty/mission-coord-coord-summary-<MID8#1>",
+            "path": "repo/.worktrees/coord-coord-summary-<MID8#1>-coord"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "lanes_with_coord/documentation": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": "kitty/mission-coord-lanes-with-coord-documentation-<MID8#1>",
+          "coordination_branch_created": true,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/coord-lanes-with-coord-documentation-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/coord-lanes-with-coord-documentation-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/coord-lanes-with-coord-documentation-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/.worktrees/coord-lanes-with-coord-documentation-<MID8#1>-coord/kitty-specs/coord-lanes-with-coord-documentation-<MID8#1>/status.events.jsonl"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/coord-lanes-with-coord-documentation-<MID8#1>",
+          "meta": {
+            "coordination_branch": "kitty/mission-coord-lanes-with-coord-documentation-<MID8#1>",
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "coord lanes with coord documentation",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "coord-lanes-with-coord-documentation-<MID8#1>",
+            "mission_type": "documentation",
+            "purpose_context": "This mission advances coord lanes with coord documentation on topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "coord lanes with coord documentation",
+            "slug": "coord-lanes-with-coord-documentation-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "lanes_with_coord"
+          },
+          "mission_number": null,
+          "mission_slug": "coord-lanes-with-coord-documentation-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/coord-lanes-with-coord-documentation-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-coord-lanes-with-coord-documentation-<MID8#1>",
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic",
+          "repo/.worktrees/coord-lanes-with-coord-documentation-<MID8#1>-coord": "kitty/mission-coord-lanes-with-coord-documentation-<MID8#1>"
+        },
+        "missions": {
+          "repo/.worktrees/coord-lanes-with-coord-documentation-<MID8#1>-coord/kitty-specs/coord-lanes-with-coord-documentation-<MID8#1>": {
+            "tree": [
+              "status.events.jsonl"
+            ]
+          },
+          "repo/kitty-specs/coord-lanes-with-coord-documentation-<MID8#1>": {
+            "meta": {
+              "coordination_branch": "kitty/mission-coord-lanes-with-coord-documentation-<MID8#1>",
+              "created_at": "<TS>",
+              "documentation_state": {
+                "coverage_percentage": 0.0,
+                "divio_types_selected": [],
+                "generators_configured": [],
+                "iteration_mode": "initial",
+                "last_audit_date": null,
+                "target_audience": "developers"
+              },
+              "flattened": false,
+              "friendly_name": "coord lanes with coord documentation",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "coord-lanes-with-coord-documentation-<MID8#1>",
+              "mission_type": "documentation",
+              "purpose_context": "This mission advances coord lanes with coord documentation on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "coord lanes with coord documentation",
+              "slug": "coord-lanes-with-coord-documentation-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "lanes_with_coord"
+            },
+            "meta_key_order": [
+              "coordination_branch",
+              "created_at",
+              "documentation_state",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-coord-lanes-with-coord-documentation-<MID8#1>": [
+            {
+              "message": [
+                "chore(coord-lanes-with-coord-documentation-<MID8#1>): record mission creation",
+                "",
+                "Spec-Kitty-Coordination-Seed: <ULID#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-lanes-with-coord-documentation-<MID8#1>/status.events.jsonl"
+              ]
+            }
+          ],
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature coord-lanes-with-coord-documentation-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-lanes-with-coord-documentation-<MID8#1>/meta.json",
+                "kitty-specs/coord-lanes-with-coord-documentation-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/coord-lanes-with-coord-documentation-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? .worktrees/coord-lanes-with-coord-documentation-<MID8#1>-coord/",
+            "?? kitty-specs/coord-lanes-with-coord-documentation-<MID8#1>/spec.md"
+          ],
+          "repo/.worktrees/coord-lanes-with-coord-documentation-<MID8#1>-coord": []
+        },
+        "status_log": {
+          "repo/.worktrees/coord-lanes-with-coord-documentation-<MID8#1>-coord/kitty-specs/coord-lanes-with-coord-documentation-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "kitty/mission-coord-lanes-with-coord-documentation-<MID8#1>",
+            "path": "repo/.worktrees/coord-lanes-with-coord-documentation-<MID8#1>-coord"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "lanes_with_coord/plain": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": "kitty/mission-coord-lanes-with-coord-plain-<MID8#1>",
+          "coordination_branch_created": true,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/coord-lanes-with-coord-plain-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/coord-lanes-with-coord-plain-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/coord-lanes-with-coord-plain-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/.worktrees/coord-lanes-with-coord-plain-<MID8#1>-coord/kitty-specs/coord-lanes-with-coord-plain-<MID8#1>/status.events.jsonl"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/coord-lanes-with-coord-plain-<MID8#1>",
+          "meta": {
+            "coordination_branch": "kitty/mission-coord-lanes-with-coord-plain-<MID8#1>",
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "coord lanes with coord plain",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "coord-lanes-with-coord-plain-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances coord lanes with coord plain on topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "coord lanes with coord plain",
+            "slug": "coord-lanes-with-coord-plain-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "lanes_with_coord"
+          },
+          "mission_number": null,
+          "mission_slug": "coord-lanes-with-coord-plain-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/coord-lanes-with-coord-plain-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-coord-lanes-with-coord-plain-<MID8#1>",
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic",
+          "repo/.worktrees/coord-lanes-with-coord-plain-<MID8#1>-coord": "kitty/mission-coord-lanes-with-coord-plain-<MID8#1>"
+        },
+        "missions": {
+          "repo/.worktrees/coord-lanes-with-coord-plain-<MID8#1>-coord/kitty-specs/coord-lanes-with-coord-plain-<MID8#1>": {
+            "tree": [
+              "status.events.jsonl"
+            ]
+          },
+          "repo/kitty-specs/coord-lanes-with-coord-plain-<MID8#1>": {
+            "meta": {
+              "coordination_branch": "kitty/mission-coord-lanes-with-coord-plain-<MID8#1>",
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "coord lanes with coord plain",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "coord-lanes-with-coord-plain-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances coord lanes with coord plain on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "coord lanes with coord plain",
+              "slug": "coord-lanes-with-coord-plain-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "lanes_with_coord"
+            },
+            "meta_key_order": [
+              "coordination_branch",
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-coord-lanes-with-coord-plain-<MID8#1>": [
+            {
+              "message": [
+                "chore(coord-lanes-with-coord-plain-<MID8#1>): record mission creation",
+                "",
+                "Spec-Kitty-Coordination-Seed: <ULID#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-lanes-with-coord-plain-<MID8#1>/status.events.jsonl"
+              ]
+            }
+          ],
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature coord-lanes-with-coord-plain-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-lanes-with-coord-plain-<MID8#1>/meta.json",
+                "kitty-specs/coord-lanes-with-coord-plain-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/coord-lanes-with-coord-plain-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? .worktrees/coord-lanes-with-coord-plain-<MID8#1>-coord/",
+            "?? kitty-specs/coord-lanes-with-coord-plain-<MID8#1>/spec.md"
+          ],
+          "repo/.worktrees/coord-lanes-with-coord-plain-<MID8#1>-coord": []
+        },
+        "status_log": {
+          "repo/.worktrees/coord-lanes-with-coord-plain-<MID8#1>-coord/kitty-specs/coord-lanes-with-coord-plain-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "kitty/mission-coord-lanes-with-coord-plain-<MID8#1>",
+            "path": "repo/.worktrees/coord-lanes-with-coord-plain-<MID8#1>-coord"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "lanes_with_coord/pr_bound": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": "kitty/mission-coord-lanes-with-coord-pr-bound-<MID8#1>",
+          "coordination_branch_created": true,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/coord-lanes-with-coord-pr-bound-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/coord-lanes-with-coord-pr-bound-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/coord-lanes-with-coord-pr-bound-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/.worktrees/coord-lanes-with-coord-pr-bound-<MID8#1>-coord/kitty-specs/coord-lanes-with-coord-pr-bound-<MID8#1>/status.events.jsonl"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/coord-lanes-with-coord-pr-bound-<MID8#1>",
+          "meta": {
+            "coordination_branch": "kitty/mission-coord-lanes-with-coord-pr-bound-<MID8#1>",
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "coord lanes with coord pr bound",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "coord-lanes-with-coord-pr-bound-<MID8#1>",
+            "mission_type": "software-dev",
+            "pr_bound": true,
+            "purpose_context": "This mission advances coord lanes with coord pr bound on topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "coord lanes with coord pr bound",
+            "slug": "coord-lanes-with-coord-pr-bound-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "lanes_with_coord"
+          },
+          "mission_number": null,
+          "mission_slug": "coord-lanes-with-coord-pr-bound-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/coord-lanes-with-coord-pr-bound-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-coord-lanes-with-coord-pr-bound-<MID8#1>",
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic",
+          "repo/.worktrees/coord-lanes-with-coord-pr-bound-<MID8#1>-coord": "kitty/mission-coord-lanes-with-coord-pr-bound-<MID8#1>"
+        },
+        "missions": {
+          "repo/.worktrees/coord-lanes-with-coord-pr-bound-<MID8#1>-coord/kitty-specs/coord-lanes-with-coord-pr-bound-<MID8#1>": {
+            "tree": [
+              "status.events.jsonl"
+            ]
+          },
+          "repo/kitty-specs/coord-lanes-with-coord-pr-bound-<MID8#1>": {
+            "meta": {
+              "coordination_branch": "kitty/mission-coord-lanes-with-coord-pr-bound-<MID8#1>",
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "coord lanes with coord pr bound",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "coord-lanes-with-coord-pr-bound-<MID8#1>",
+              "mission_type": "software-dev",
+              "pr_bound": true,
+              "purpose_context": "This mission advances coord lanes with coord pr bound on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "coord lanes with coord pr bound",
+              "slug": "coord-lanes-with-coord-pr-bound-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "lanes_with_coord"
+            },
+            "meta_key_order": [
+              "coordination_branch",
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "pr_bound",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-coord-lanes-with-coord-pr-bound-<MID8#1>": [
+            {
+              "message": [
+                "chore(coord-lanes-with-coord-pr-bound-<MID8#1>): record mission creation",
+                "",
+                "Spec-Kitty-Coordination-Seed: <ULID#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-lanes-with-coord-pr-bound-<MID8#1>/status.events.jsonl"
+              ]
+            }
+          ],
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature coord-lanes-with-coord-pr-bound-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-lanes-with-coord-pr-bound-<MID8#1>/meta.json",
+                "kitty-specs/coord-lanes-with-coord-pr-bound-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/coord-lanes-with-coord-pr-bound-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? .worktrees/coord-lanes-with-coord-pr-bound-<MID8#1>-coord/",
+            "?? kitty-specs/coord-lanes-with-coord-pr-bound-<MID8#1>/spec.md"
+          ],
+          "repo/.worktrees/coord-lanes-with-coord-pr-bound-<MID8#1>-coord": []
+        },
+        "status_log": {
+          "repo/.worktrees/coord-lanes-with-coord-pr-bound-<MID8#1>-coord/kitty-specs/coord-lanes-with-coord-pr-bound-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "kitty/mission-coord-lanes-with-coord-pr-bound-<MID8#1>",
+            "path": "repo/.worktrees/coord-lanes-with-coord-pr-bound-<MID8#1>-coord"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "lanes_with_coord/retention": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": "kitty/mission-coord-lanes-with-coord-retention-<MID8#1>",
+          "coordination_branch_created": true,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/coord-lanes-with-coord-retention-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/coord-lanes-with-coord-retention-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/coord-lanes-with-coord-retention-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/.worktrees/coord-lanes-with-coord-retention-<MID8#1>-coord/kitty-specs/coord-lanes-with-coord-retention-<MID8#1>/status.events.jsonl"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/coord-lanes-with-coord-retention-<MID8#1>",
+          "meta": {
+            "coordination_branch": "kitty/mission-coord-lanes-with-coord-retention-<MID8#1>",
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "coord lanes with coord retention",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "coord-lanes-with-coord-retention-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances coord lanes with coord retention on topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "coord lanes with coord retention",
+            "retain_branches": true,
+            "retain_worktrees": true,
+            "slug": "coord-lanes-with-coord-retention-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "lanes_with_coord"
+          },
+          "mission_number": null,
+          "mission_slug": "coord-lanes-with-coord-retention-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/coord-lanes-with-coord-retention-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-coord-lanes-with-coord-retention-<MID8#1>",
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic",
+          "repo/.worktrees/coord-lanes-with-coord-retention-<MID8#1>-coord": "kitty/mission-coord-lanes-with-coord-retention-<MID8#1>"
+        },
+        "missions": {
+          "repo/.worktrees/coord-lanes-with-coord-retention-<MID8#1>-coord/kitty-specs/coord-lanes-with-coord-retention-<MID8#1>": {
+            "tree": [
+              "status.events.jsonl"
+            ]
+          },
+          "repo/kitty-specs/coord-lanes-with-coord-retention-<MID8#1>": {
+            "meta": {
+              "coordination_branch": "kitty/mission-coord-lanes-with-coord-retention-<MID8#1>",
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "coord lanes with coord retention",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "coord-lanes-with-coord-retention-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances coord lanes with coord retention on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "coord lanes with coord retention",
+              "retain_branches": true,
+              "retain_worktrees": true,
+              "slug": "coord-lanes-with-coord-retention-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "lanes_with_coord"
+            },
+            "meta_key_order": [
+              "coordination_branch",
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "retain_branches",
+              "retain_worktrees",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-coord-lanes-with-coord-retention-<MID8#1>": [
+            {
+              "message": [
+                "chore(coord-lanes-with-coord-retention-<MID8#1>): record mission creation",
+                "",
+                "Spec-Kitty-Coordination-Seed: <ULID#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-lanes-with-coord-retention-<MID8#1>/status.events.jsonl"
+              ]
+            }
+          ],
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature coord-lanes-with-coord-retention-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-lanes-with-coord-retention-<MID8#1>/meta.json",
+                "kitty-specs/coord-lanes-with-coord-retention-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/coord-lanes-with-coord-retention-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? .worktrees/coord-lanes-with-coord-retention-<MID8#1>-coord/",
+            "?? kitty-specs/coord-lanes-with-coord-retention-<MID8#1>/spec.md"
+          ],
+          "repo/.worktrees/coord-lanes-with-coord-retention-<MID8#1>-coord": []
+        },
+        "status_log": {
+          "repo/.worktrees/coord-lanes-with-coord-retention-<MID8#1>-coord/kitty-specs/coord-lanes-with-coord-retention-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "kitty/mission-coord-lanes-with-coord-retention-<MID8#1>",
+            "path": "repo/.worktrees/coord-lanes-with-coord-retention-<MID8#1>-coord"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "lanes_with_coord/summary": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": "kitty/mission-coord-lanes-with-coord-summary-<MID8#1>",
+          "coordination_branch_created": true,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/coord-lanes-with-coord-summary-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/coord-lanes-with-coord-summary-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/coord-lanes-with-coord-summary-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/.worktrees/coord-lanes-with-coord-summary-<MID8#1>-coord/kitty-specs/coord-lanes-with-coord-summary-<MID8#1>/status.events.jsonl"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/coord-lanes-with-coord-summary-<MID8#1>",
+          "meta": {
+            "coordination_branch": "kitty/mission-coord-lanes-with-coord-summary-<MID8#1>",
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "Golden Coord Lanes With Coord Summary",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "coord-lanes-with-coord-summary-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission pins how coord lanes with coord summary is created so the decomposition can prove it changes nothing observable.",
+            "purpose_tldr": "Pin the coord lanes with coord summary create behaviour.",
+            "slug": "coord-lanes-with-coord-summary-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "lanes_with_coord"
+          },
+          "mission_number": null,
+          "mission_slug": "coord-lanes-with-coord-summary-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/coord-lanes-with-coord-summary-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-coord-lanes-with-coord-summary-<MID8#1>",
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic",
+          "repo/.worktrees/coord-lanes-with-coord-summary-<MID8#1>-coord": "kitty/mission-coord-lanes-with-coord-summary-<MID8#1>"
+        },
+        "missions": {
+          "repo/.worktrees/coord-lanes-with-coord-summary-<MID8#1>-coord/kitty-specs/coord-lanes-with-coord-summary-<MID8#1>": {
+            "tree": [
+              "status.events.jsonl"
+            ]
+          },
+          "repo/kitty-specs/coord-lanes-with-coord-summary-<MID8#1>": {
+            "meta": {
+              "coordination_branch": "kitty/mission-coord-lanes-with-coord-summary-<MID8#1>",
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "Golden Coord Lanes With Coord Summary",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "coord-lanes-with-coord-summary-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission pins how coord lanes with coord summary is created so the decomposition can prove it changes nothing observable.",
+              "purpose_tldr": "Pin the coord lanes with coord summary create behaviour.",
+              "slug": "coord-lanes-with-coord-summary-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "lanes_with_coord"
+            },
+            "meta_key_order": [
+              "coordination_branch",
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "kitty/mission-coord-lanes-with-coord-summary-<MID8#1>": [
+            {
+              "message": [
+                "chore(coord-lanes-with-coord-summary-<MID8#1>): record mission creation",
+                "",
+                "Spec-Kitty-Coordination-Seed: <ULID#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-lanes-with-coord-summary-<MID8#1>/status.events.jsonl"
+              ]
+            }
+          ],
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature coord-lanes-with-coord-summary-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/coord-lanes-with-coord-summary-<MID8#1>/meta.json",
+                "kitty-specs/coord-lanes-with-coord-summary-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/coord-lanes-with-coord-summary-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? .worktrees/coord-lanes-with-coord-summary-<MID8#1>-coord/",
+            "?? kitty-specs/coord-lanes-with-coord-summary-<MID8#1>/spec.md"
+          ],
+          "repo/.worktrees/coord-lanes-with-coord-summary-<MID8#1>-coord": []
+        },
+        "status_log": {
+          "repo/.worktrees/coord-lanes-with-coord-summary-<MID8#1>-coord/kitty-specs/coord-lanes-with-coord-summary-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "kitty/mission-coord-lanes-with-coord-summary-<MID8#1>",
+            "path": "repo/.worktrees/coord-lanes-with-coord-summary-<MID8#1>-coord"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    }
+  }
+}

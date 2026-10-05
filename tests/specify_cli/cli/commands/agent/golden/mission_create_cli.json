@@ -1,0 +1,1305 @@
+{
+  "base_commit": "f0f3daa55fcfa79361acc7b3bab3beffa0e64705",
+  "cells": {
+    "coord_duplicate_refusal": {
+      "branches": [
+        "kitty/mission-gold-coord-dup-<MID8#1>",
+        "main"
+      ],
+      "envelope": {
+        "error": "A mission named 'gold-coord-dup' of type 'software-dev' already exists and is not abandoned: gold-coord-dup-<MID8#1> (mid8 <MID8#1>). Refusing to silently create a duplicate (#4033).\n\nIf the prior mission is genuinely abandoned (canceled, or never actually worked), re-run this create with no flag -- abandoned priors are auto-allowed.\n\nTo deliberately create a second mission with the same name, pass --allow-duplicate (create_mission_core(allow_duplicate=True) for programmatic callers).",
+        "error_code": "MISSION_ALREADY_EXISTS",
+        "spec_kitty_version": {
+          "present": true,
+          "type": "str"
+        }
+      },
+      "error_code": "MISSION_ALREADY_EXISTS",
+      "exit_code": 1,
+      "heads": {
+        "root": "main"
+      },
+      "stdout_tail": null,
+      "topology": null
+    },
+    "coord_success": {
+      "branches": [
+        "kitty/mission-gold-coord-ok-<MID8#1>",
+        "main"
+      ],
+      "envelope": {
+        "BASE_BRANCH": "main",
+        "BRANCH_MATCHES_TARGET": true,
+        "CURRENT_BRANCH": "main",
+        "EXPECTED_BASE_BRANCH": "main",
+        "EXPECTED_TARGET_BRANCH": "main",
+        "MERGE_TARGET_BRANCH": "main",
+        "NOW_UTC_ISO": "<TS>",
+        "PLANNING_BASE_BRANCH": "main",
+        "TARGET_BRANCH": "main",
+        "base_branch": "main",
+        "branch_context": {
+          "base_branch": "main",
+          "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this feature: main. Completed changes must merge into main.",
+          "current_branch": "main",
+          "expected_checkout_branch": "main",
+          "matches_target": true,
+          "merge_target_branch": "main",
+          "planning_base_branch": "main",
+          "target_branch": "main"
+        },
+        "branch_matches_target": true,
+        "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this feature: main. Completed changes must merge into main.",
+        "commit_to_target": null,
+        "coordination_branch": "kitty/mission-gold-coord-ok-<MID8#1>",
+        "coordination_branch_created": true,
+        "created_at": "<TS>",
+        "created_files": [
+          "<TMP>/repo/kitty-specs/gold-coord-ok-<MID8#1>/spec.md",
+          "<TMP>/repo/kitty-specs/gold-coord-ok-<MID8#1>/meta.json",
+          "<TMP>/repo/kitty-specs/gold-coord-ok-<MID8#1>/tasks/README.md",
+          "<TMP>/repo/.worktrees/gold-coord-ok-<MID8#1>-coord/kitty-specs/gold-coord-ok-<MID8#1>/status.events.jsonl",
+          "<TMP>/repo/kitty-specs/gold-coord-ok-<MID8#1>/tasks/.gitkeep"
+        ],
+        "current_branch": "main",
+        "feature_dir": "<TMP>/repo/kitty-specs/gold-coord-ok-<MID8#1>",
+        "friendly_name": "gold-coord-ok fixture",
+        "merge_target_branch": "main",
+        "meta_file": "<TMP>/repo/kitty-specs/gold-coord-ok-<MID8#1>/meta.json",
+        "mission_branch": null,
+        "mission_dir": "<TMP>/repo/kitty-specs/gold-coord-ok-<MID8#1>",
+        "mission_id": "<ULID#1>",
+        "mission_number": null,
+        "mission_slug": "gold-coord-ok-<MID8#1>",
+        "mission_type": "software-dev",
+        "next_step": "Created scaffold only. Run `/spec-kitty.specify <intent>` in your agent or edit and commit spec_file before `spec-kitty plan`.",
+        "origin_binding": {
+          "attempted": false,
+          "error": null,
+          "succeeded": false
+        },
+        "plan_guard": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED",
+        "planning_base_branch": "main",
+        "purpose_context": "Fixture mission for gold-coord-ok, pinned by the CLI golden matrix.",
+        "purpose_tldr": "Fixture mission for gold-coord-ok.",
+        "requires_agent_authoring": true,
+        "result": "success",
+        "runtime_vars": {
+          "base_branch": "main",
+          "branch_matches_target": true,
+          "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this feature: main. Completed changes must merge into main.",
+          "current_branch": "main",
+          "merge_target_branch": "main",
+          "now_utc_iso": "<TS>",
+          "planning_base_branch": "main",
+          "target_branch": "main"
+        },
+        "scaffold_only": true,
+        "slug": "gold-coord-ok-<MID8#1>",
+        "spec_file": "<TMP>/repo/kitty-specs/gold-coord-ok-<MID8#1>/spec.md",
+        "spec_kitty_version": {
+          "present": true,
+          "type": "str"
+        },
+        "target_branch": "main",
+        "topology": "coord",
+        "uncommitted_artifacts": [
+          {
+            "path": "<TMP>/repo/kitty-specs/gold-coord-ok-<MID8#1>/spec.md",
+            "reason": "Scaffolded empty at create time; populated and committed with substantive content later (#846).",
+            "responsible_command": "/spec-kitty.specify"
+          },
+          {
+            "path": "<TMP>/repo/kitty-specs/gold-coord-ok-<MID8#1>/meta.json",
+            "reason": "Generated scaffold could not be committed to the protected or unavailable target branch.",
+            "responsible_command": "commit from a non-protected feature branch"
+          },
+          {
+            "path": "<TMP>/repo/kitty-specs/gold-coord-ok-<MID8#1>/tasks/README.md",
+            "reason": "Generated scaffold could not be committed to the protected or unavailable target branch.",
+            "responsible_command": "commit from a non-protected feature branch"
+          },
+          {
+            "path": "<TMP>/repo/kitty-specs/gold-coord-ok-<MID8#1>/tasks/.gitkeep",
+            "reason": "Generated scaffold could not be committed to the protected or unavailable target branch.",
+            "responsible_command": "commit from a non-protected feature branch"
+          }
+        ],
+        "write_mode": "update_existing_files"
+      },
+      "error_code": null,
+      "exit_code": 0,
+      "heads": {
+        "root": "main"
+      },
+      "stdout_tail": null,
+      "topology": "coord"
+    },
+    "default_no_origin_head_non_common": {
+      "branches": [
+        "feat-x",
+        "kitty/mission-gold-no-origin-head-<MID8#1>",
+        "main"
+      ],
+      "envelope": {
+        "BASE_BRANCH": "feat-x",
+        "BRANCH_MATCHES_TARGET": true,
+        "CURRENT_BRANCH": "feat-x",
+        "EXPECTED_BASE_BRANCH": "feat-x",
+        "EXPECTED_TARGET_BRANCH": "feat-x",
+        "MERGE_TARGET_BRANCH": "feat-x",
+        "NOW_UTC_ISO": "<TS>",
+        "PLANNING_BASE_BRANCH": "feat-x",
+        "TARGET_BRANCH": "feat-x",
+        "base_branch": "feat-x",
+        "branch_context": {
+          "base_branch": "feat-x",
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "current_branch": "feat-x",
+          "expected_checkout_branch": "feat-x",
+          "matches_target": true,
+          "merge_target_branch": "feat-x",
+          "planning_base_branch": "feat-x",
+          "target_branch": "feat-x"
+        },
+        "branch_matches_target": true,
+        "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+        "commit_to_target": null,
+        "coordination_branch": "kitty/mission-gold-no-origin-head-<MID8#1>",
+        "coordination_branch_created": true,
+        "created_at": "<TS>",
+        "created_files": [
+          "<TMP>/repo/kitty-specs/gold-no-origin-head-<MID8#1>/spec.md",
+          "<TMP>/repo/kitty-specs/gold-no-origin-head-<MID8#1>/meta.json",
+          "<TMP>/repo/kitty-specs/gold-no-origin-head-<MID8#1>/tasks/README.md",
+          "<TMP>/repo/.worktrees/gold-no-origin-head-<MID8#1>-coord/kitty-specs/gold-no-origin-head-<MID8#1>/status.events.jsonl"
+        ],
+        "current_branch": "feat-x",
+        "feature_dir": "<TMP>/repo/kitty-specs/gold-no-origin-head-<MID8#1>",
+        "friendly_name": "gold-no-origin-head fixture",
+        "merge_target_branch": "feat-x",
+        "meta_file": "<TMP>/repo/kitty-specs/gold-no-origin-head-<MID8#1>/meta.json",
+        "mission_branch": null,
+        "mission_dir": "<TMP>/repo/kitty-specs/gold-no-origin-head-<MID8#1>",
+        "mission_id": "<ULID#1>",
+        "mission_number": null,
+        "mission_slug": "gold-no-origin-head-<MID8#1>",
+        "mission_type": "software-dev",
+        "next_step": "Created scaffold only. Run `/spec-kitty.specify <intent>` in your agent or edit and commit spec_file before `spec-kitty plan`.",
+        "origin_binding": {
+          "attempted": false,
+          "error": null,
+          "succeeded": false
+        },
+        "plan_guard": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED",
+        "planning_base_branch": "feat-x",
+        "purpose_context": "Fixture mission for gold-no-origin-head, pinned by the CLI golden matrix.",
+        "purpose_tldr": "Fixture mission for gold-no-origin-head.",
+        "requires_agent_authoring": true,
+        "result": "success",
+        "runtime_vars": {
+          "base_branch": "feat-x",
+          "branch_matches_target": true,
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "current_branch": "feat-x",
+          "merge_target_branch": "feat-x",
+          "now_utc_iso": "<TS>",
+          "planning_base_branch": "feat-x",
+          "target_branch": "feat-x"
+        },
+        "scaffold_only": true,
+        "slug": "gold-no-origin-head-<MID8#1>",
+        "spec_file": "<TMP>/repo/kitty-specs/gold-no-origin-head-<MID8#1>/spec.md",
+        "spec_kitty_version": {
+          "present": true,
+          "type": "str"
+        },
+        "target_branch": "feat-x",
+        "topology": "coord",
+        "uncommitted_artifacts": [
+          {
+            "path": "<TMP>/repo/kitty-specs/gold-no-origin-head-<MID8#1>/spec.md",
+            "reason": "Scaffolded empty at create time; populated and committed with substantive content later (#846).",
+            "responsible_command": "/spec-kitty.specify"
+          }
+        ],
+        "write_mode": "update_existing_files"
+      },
+      "error_code": null,
+      "exit_code": 0,
+      "heads": {
+        "root": "feat-x"
+      },
+      "stdout_tail": null,
+      "topology": "coord"
+    },
+    "default_non_primary_branch": {
+      "branches": [
+        "feat-x",
+        "main"
+      ],
+      "envelope": {
+        "BASE_BRANCH": "feat-x",
+        "BRANCH_MATCHES_TARGET": true,
+        "CURRENT_BRANCH": "feat-x",
+        "EXPECTED_BASE_BRANCH": "feat-x",
+        "EXPECTED_TARGET_BRANCH": "feat-x",
+        "MERGE_TARGET_BRANCH": "feat-x",
+        "NOW_UTC_ISO": "<TS>",
+        "PLANNING_BASE_BRANCH": "feat-x",
+        "TARGET_BRANCH": "feat-x",
+        "base_branch": "feat-x",
+        "branch_context": {
+          "base_branch": "feat-x",
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "current_branch": "feat-x",
+          "expected_checkout_branch": "feat-x",
+          "matches_target": true,
+          "merge_target_branch": "feat-x",
+          "planning_base_branch": "feat-x",
+          "target_branch": "feat-x"
+        },
+        "branch_matches_target": true,
+        "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+        "commit_to_target": null,
+        "coordination_branch": null,
+        "coordination_branch_created": false,
+        "created_at": "<TS>",
+        "created_files": [
+          "<TMP>/repo/kitty-specs/gold-default-nonprimary-<MID8#1>/spec.md",
+          "<TMP>/repo/kitty-specs/gold-default-nonprimary-<MID8#1>/meta.json",
+          "<TMP>/repo/kitty-specs/gold-default-nonprimary-<MID8#1>/tasks/README.md"
+        ],
+        "current_branch": "feat-x",
+        "feature_dir": "<TMP>/repo/kitty-specs/gold-default-nonprimary-<MID8#1>",
+        "friendly_name": "gold-default-nonprimary fixture",
+        "merge_target_branch": "feat-x",
+        "meta_file": "<TMP>/repo/kitty-specs/gold-default-nonprimary-<MID8#1>/meta.json",
+        "mission_branch": null,
+        "mission_dir": "<TMP>/repo/kitty-specs/gold-default-nonprimary-<MID8#1>",
+        "mission_id": "<ULID#1>",
+        "mission_number": null,
+        "mission_slug": "gold-default-nonprimary-<MID8#1>",
+        "mission_type": "software-dev",
+        "next_step": "Created scaffold only. Run `/spec-kitty.specify <intent>` in your agent or edit and commit spec_file before `spec-kitty plan`.",
+        "origin_binding": {
+          "attempted": false,
+          "error": null,
+          "succeeded": false
+        },
+        "plan_guard": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED",
+        "planning_base_branch": "feat-x",
+        "purpose_context": "Fixture mission for gold-default-nonprimary, pinned by the CLI golden matrix.",
+        "purpose_tldr": "Fixture mission for gold-default-nonprimary.",
+        "requires_agent_authoring": true,
+        "result": "success",
+        "runtime_vars": {
+          "base_branch": "feat-x",
+          "branch_matches_target": true,
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "current_branch": "feat-x",
+          "merge_target_branch": "feat-x",
+          "now_utc_iso": "<TS>",
+          "planning_base_branch": "feat-x",
+          "target_branch": "feat-x"
+        },
+        "scaffold_only": true,
+        "slug": "gold-default-nonprimary-<MID8#1>",
+        "spec_file": "<TMP>/repo/kitty-specs/gold-default-nonprimary-<MID8#1>/spec.md",
+        "spec_kitty_version": {
+          "present": true,
+          "type": "str"
+        },
+        "target_branch": "feat-x",
+        "topology": "lanes",
+        "uncommitted_artifacts": [
+          {
+            "path": "<TMP>/repo/kitty-specs/gold-default-nonprimary-<MID8#1>/spec.md",
+            "reason": "Scaffolded empty at create time; populated and committed with substantive content later (#846).",
+            "responsible_command": "/spec-kitty.specify"
+          }
+        ],
+        "write_mode": "update_existing_files"
+      },
+      "error_code": null,
+      "exit_code": 0,
+      "heads": {
+        "root": "feat-x"
+      },
+      "stdout_tail": null,
+      "topology": "lanes"
+    },
+    "default_owned_checkout": {
+      "branches": [
+        "main",
+        "owned-topic"
+      ],
+      "envelope": {
+        "BASE_BRANCH": "owned-topic",
+        "BRANCH_MATCHES_TARGET": true,
+        "CURRENT_BRANCH": "owned-topic",
+        "EXPECTED_BASE_BRANCH": "owned-topic",
+        "EXPECTED_TARGET_BRANCH": "owned-topic",
+        "MERGE_TARGET_BRANCH": "owned-topic",
+        "NOW_UTC_ISO": "<TS>",
+        "PLANNING_BASE_BRANCH": "owned-topic",
+        "TARGET_BRANCH": "owned-topic",
+        "base_branch": "owned-topic",
+        "branch_context": {
+          "base_branch": "owned-topic",
+          "branch_strategy_summary": "Current branch at workflow start: owned-topic. Planning/base branch for this feature: owned-topic. Completed changes must merge into owned-topic.",
+          "current_branch": "owned-topic",
+          "expected_checkout_branch": "owned-topic",
+          "matches_target": true,
+          "merge_target_branch": "owned-topic",
+          "planning_base_branch": "owned-topic",
+          "target_branch": "owned-topic"
+        },
+        "branch_matches_target": true,
+        "branch_strategy_summary": "Current branch at workflow start: owned-topic. Planning/base branch for this feature: owned-topic. Completed changes must merge into owned-topic.",
+        "canonical_repo_root": "<TMP>/repo",
+        "commit_to_target": null,
+        "coordination_branch": null,
+        "coordination_branch_created": false,
+        "created_at": "<TS>",
+        "created_files": [
+          "<TMP>/owned/kitty-specs/gold-owned-default-<MID8#1>/spec.md",
+          "<TMP>/owned/kitty-specs/gold-owned-default-<MID8#1>/meta.json",
+          "<TMP>/owned/kitty-specs/gold-owned-default-<MID8#1>/tasks/README.md"
+        ],
+        "current_branch": "owned-topic",
+        "feature_dir": "<TMP>/owned/kitty-specs/gold-owned-default-<MID8#1>",
+        "friendly_name": "gold-owned-default fixture",
+        "merge_target_branch": "owned-topic",
+        "meta_file": "<TMP>/owned/kitty-specs/gold-owned-default-<MID8#1>/meta.json",
+        "mission_branch": null,
+        "mission_dir": "<TMP>/owned/kitty-specs/gold-owned-default-<MID8#1>",
+        "mission_id": "<ULID#1>",
+        "mission_number": null,
+        "mission_slug": "gold-owned-default-<MID8#1>",
+        "mission_type": "software-dev",
+        "next_step": "Created scaffold only. Run `/spec-kitty.specify <intent>` in your agent or edit and commit spec_file before `spec-kitty plan`.",
+        "origin_binding": {
+          "attempted": false,
+          "error": null,
+          "succeeded": false
+        },
+        "owned_checkout": "<TMP>/owned",
+        "plan_guard": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED",
+        "planning_base_branch": "owned-topic",
+        "purpose_context": "Fixture mission for gold-owned-default, pinned by the CLI golden matrix.",
+        "purpose_tldr": "Fixture mission for gold-owned-default.",
+        "requires_agent_authoring": true,
+        "result": "success",
+        "runtime_vars": {
+          "base_branch": "owned-topic",
+          "branch_matches_target": true,
+          "branch_strategy_summary": "Current branch at workflow start: owned-topic. Planning/base branch for this feature: owned-topic. Completed changes must merge into owned-topic.",
+          "current_branch": "owned-topic",
+          "merge_target_branch": "owned-topic",
+          "now_utc_iso": "<TS>",
+          "planning_base_branch": "owned-topic",
+          "target_branch": "owned-topic"
+        },
+        "scaffold_only": true,
+        "slug": "gold-owned-default-<MID8#1>",
+        "spec_file": "<TMP>/owned/kitty-specs/gold-owned-default-<MID8#1>/spec.md",
+        "spec_kitty_version": {
+          "present": true,
+          "type": "str"
+        },
+        "target_branch": "owned-topic",
+        "topology": "single_branch",
+        "uncommitted_artifacts": [
+          {
+            "path": "<TMP>/owned/kitty-specs/gold-owned-default-<MID8#1>/spec.md",
+            "reason": "Scaffolded empty at create time; populated and committed with substantive content later (#846).",
+            "responsible_command": "/spec-kitty.specify"
+          }
+        ],
+        "write_mode": "update_existing_files"
+      },
+      "error_code": null,
+      "exit_code": 0,
+      "heads": {
+        "owned": "owned-topic",
+        "root": "main"
+      },
+      "stdout_tail": null,
+      "topology": "single_branch"
+    },
+    "default_pr_bound_on_primary": {
+      "branches": [
+        "kitty/mission-gold-prbound-primary-<MID8#1>",
+        "main"
+      ],
+      "envelope": {
+        "BASE_BRANCH": "main",
+        "BRANCH_MATCHES_TARGET": true,
+        "CURRENT_BRANCH": "main",
+        "EXPECTED_BASE_BRANCH": "main",
+        "EXPECTED_TARGET_BRANCH": "main",
+        "MERGE_TARGET_BRANCH": "main",
+        "NOW_UTC_ISO": "<TS>",
+        "PLANNING_BASE_BRANCH": "main",
+        "TARGET_BRANCH": "main",
+        "base_branch": "main",
+        "branch_context": {
+          "base_branch": "main",
+          "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this feature: main. Completed changes must merge into main.",
+          "current_branch": "main",
+          "expected_checkout_branch": "main",
+          "matches_target": true,
+          "merge_target_branch": "main",
+          "planning_base_branch": "main",
+          "target_branch": "main"
+        },
+        "branch_matches_target": true,
+        "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this feature: main. Completed changes must merge into main.",
+        "commit_to_target": null,
+        "coordination_branch": "kitty/mission-gold-prbound-primary-<MID8#1>",
+        "coordination_branch_created": true,
+        "created_at": "<TS>",
+        "created_files": [
+          "<TMP>/repo/kitty-specs/gold-prbound-primary-<MID8#1>/spec.md",
+          "<TMP>/repo/kitty-specs/gold-prbound-primary-<MID8#1>/meta.json",
+          "<TMP>/repo/kitty-specs/gold-prbound-primary-<MID8#1>/tasks/README.md",
+          "<TMP>/repo/.worktrees/gold-prbound-primary-<MID8#1>-coord/kitty-specs/gold-prbound-primary-<MID8#1>/status.events.jsonl"
+        ],
+        "current_branch": "main",
+        "feature_dir": "<TMP>/repo/kitty-specs/gold-prbound-primary-<MID8#1>",
+        "friendly_name": "gold-prbound-primary fixture",
+        "merge_target_branch": "main",
+        "meta_file": "<TMP>/repo/kitty-specs/gold-prbound-primary-<MID8#1>/meta.json",
+        "mission_branch": null,
+        "mission_dir": "<TMP>/repo/kitty-specs/gold-prbound-primary-<MID8#1>",
+        "mission_id": "<ULID#1>",
+        "mission_number": null,
+        "mission_slug": "gold-prbound-primary-<MID8#1>",
+        "mission_type": "software-dev",
+        "next_step": "Created scaffold only. Run `/spec-kitty.specify <intent>` in your agent or edit and commit spec_file before `spec-kitty plan`.",
+        "origin_binding": {
+          "attempted": false,
+          "error": null,
+          "succeeded": false
+        },
+        "plan_guard": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED",
+        "planning_base_branch": "main",
+        "purpose_context": "Fixture mission for gold-prbound-primary, pinned by the CLI golden matrix.",
+        "purpose_tldr": "Fixture mission for gold-prbound-primary.",
+        "requires_agent_authoring": true,
+        "result": "success",
+        "runtime_vars": {
+          "base_branch": "main",
+          "branch_matches_target": true,
+          "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this feature: main. Completed changes must merge into main.",
+          "current_branch": "main",
+          "merge_target_branch": "main",
+          "now_utc_iso": "<TS>",
+          "planning_base_branch": "main",
+          "target_branch": "main"
+        },
+        "scaffold_only": true,
+        "slug": "gold-prbound-primary-<MID8#1>",
+        "spec_file": "<TMP>/repo/kitty-specs/gold-prbound-primary-<MID8#1>/spec.md",
+        "spec_kitty_version": {
+          "present": true,
+          "type": "str"
+        },
+        "target_branch": "main",
+        "topology": "coord",
+        "uncommitted_artifacts": [
+          {
+            "path": "<TMP>/repo/kitty-specs/gold-prbound-primary-<MID8#1>/spec.md",
+            "reason": "Scaffolded empty at create time; populated and committed with substantive content later (#846).",
+            "responsible_command": "/spec-kitty.specify"
+          }
+        ],
+        "write_mode": "update_existing_files"
+      },
+      "error_code": null,
+      "exit_code": 0,
+      "heads": {
+        "root": "main"
+      },
+      "stdout_tail": null,
+      "topology": "coord"
+    },
+    "default_pr_bound_protected_primary": {
+      "branches": [
+        "feat-x",
+        "kitty/mission-gold-prbound-protected-<MID8#1>",
+        "main"
+      ],
+      "envelope": {
+        "BASE_BRANCH": "feat-x",
+        "BRANCH_MATCHES_TARGET": true,
+        "CURRENT_BRANCH": "feat-x",
+        "EXPECTED_BASE_BRANCH": "feat-x",
+        "EXPECTED_TARGET_BRANCH": "feat-x",
+        "MERGE_TARGET_BRANCH": "feat-x",
+        "NOW_UTC_ISO": "<TS>",
+        "PLANNING_BASE_BRANCH": "feat-x",
+        "TARGET_BRANCH": "feat-x",
+        "base_branch": "feat-x",
+        "branch_context": {
+          "base_branch": "feat-x",
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "current_branch": "feat-x",
+          "expected_checkout_branch": "feat-x",
+          "matches_target": true,
+          "merge_target_branch": "feat-x",
+          "planning_base_branch": "feat-x",
+          "target_branch": "feat-x"
+        },
+        "branch_matches_target": true,
+        "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+        "commit_to_target": null,
+        "coordination_branch": "kitty/mission-gold-prbound-protected-<MID8#1>",
+        "coordination_branch_created": true,
+        "created_at": "<TS>",
+        "created_files": [
+          "<TMP>/repo/kitty-specs/gold-prbound-protected-<MID8#1>/spec.md",
+          "<TMP>/repo/kitty-specs/gold-prbound-protected-<MID8#1>/meta.json",
+          "<TMP>/repo/kitty-specs/gold-prbound-protected-<MID8#1>/tasks/README.md",
+          "<TMP>/repo/.worktrees/gold-prbound-protected-<MID8#1>-coord/kitty-specs/gold-prbound-protected-<MID8#1>/status.events.jsonl"
+        ],
+        "current_branch": "feat-x",
+        "feature_dir": "<TMP>/repo/kitty-specs/gold-prbound-protected-<MID8#1>",
+        "friendly_name": "gold-prbound-protected fixture",
+        "merge_target_branch": "feat-x",
+        "meta_file": "<TMP>/repo/kitty-specs/gold-prbound-protected-<MID8#1>/meta.json",
+        "mission_branch": null,
+        "mission_dir": "<TMP>/repo/kitty-specs/gold-prbound-protected-<MID8#1>",
+        "mission_id": "<ULID#1>",
+        "mission_number": null,
+        "mission_slug": "gold-prbound-protected-<MID8#1>",
+        "mission_type": "software-dev",
+        "next_step": "Created scaffold only. Run `/spec-kitty.specify <intent>` in your agent or edit and commit spec_file before `spec-kitty plan`.",
+        "origin_binding": {
+          "attempted": false,
+          "error": null,
+          "succeeded": false
+        },
+        "plan_guard": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED",
+        "planning_base_branch": "feat-x",
+        "purpose_context": "Fixture mission for gold-prbound-protected, pinned by the CLI golden matrix.",
+        "purpose_tldr": "Fixture mission for gold-prbound-protected.",
+        "requires_agent_authoring": true,
+        "result": "success",
+        "runtime_vars": {
+          "base_branch": "feat-x",
+          "branch_matches_target": true,
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "current_branch": "feat-x",
+          "merge_target_branch": "feat-x",
+          "now_utc_iso": "<TS>",
+          "planning_base_branch": "feat-x",
+          "target_branch": "feat-x"
+        },
+        "scaffold_only": true,
+        "slug": "gold-prbound-protected-<MID8#1>",
+        "spec_file": "<TMP>/repo/kitty-specs/gold-prbound-protected-<MID8#1>/spec.md",
+        "spec_kitty_version": {
+          "present": true,
+          "type": "str"
+        },
+        "target_branch": "feat-x",
+        "topology": "coord",
+        "uncommitted_artifacts": [
+          {
+            "path": "<TMP>/repo/kitty-specs/gold-prbound-protected-<MID8#1>/spec.md",
+            "reason": "Scaffolded empty at create time; populated and committed with substantive content later (#846).",
+            "responsible_command": "/spec-kitty.specify"
+          }
+        ],
+        "write_mode": "update_existing_files"
+      },
+      "error_code": null,
+      "exit_code": 0,
+      "heads": {
+        "root": "feat-x"
+      },
+      "stdout_tail": null,
+      "topology": "coord"
+    },
+    "default_pr_bound_topic_default_protection": {
+      "branches": [
+        "feat-x",
+        "kitty/mission-gold-prbound-default-<MID8#1>",
+        "main"
+      ],
+      "envelope": {
+        "BASE_BRANCH": "feat-x",
+        "BRANCH_MATCHES_TARGET": true,
+        "CURRENT_BRANCH": "feat-x",
+        "EXPECTED_BASE_BRANCH": "feat-x",
+        "EXPECTED_TARGET_BRANCH": "feat-x",
+        "MERGE_TARGET_BRANCH": "feat-x",
+        "NOW_UTC_ISO": "<TS>",
+        "PLANNING_BASE_BRANCH": "feat-x",
+        "TARGET_BRANCH": "feat-x",
+        "base_branch": "feat-x",
+        "branch_context": {
+          "base_branch": "feat-x",
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "current_branch": "feat-x",
+          "expected_checkout_branch": "feat-x",
+          "matches_target": true,
+          "merge_target_branch": "feat-x",
+          "planning_base_branch": "feat-x",
+          "target_branch": "feat-x"
+        },
+        "branch_matches_target": true,
+        "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+        "commit_to_target": null,
+        "coordination_branch": "kitty/mission-gold-prbound-default-<MID8#1>",
+        "coordination_branch_created": true,
+        "created_at": "<TS>",
+        "created_files": [
+          "<TMP>/repo/kitty-specs/gold-prbound-default-<MID8#1>/spec.md",
+          "<TMP>/repo/kitty-specs/gold-prbound-default-<MID8#1>/meta.json",
+          "<TMP>/repo/kitty-specs/gold-prbound-default-<MID8#1>/tasks/README.md",
+          "<TMP>/repo/.worktrees/gold-prbound-default-<MID8#1>-coord/kitty-specs/gold-prbound-default-<MID8#1>/status.events.jsonl"
+        ],
+        "current_branch": "feat-x",
+        "feature_dir": "<TMP>/repo/kitty-specs/gold-prbound-default-<MID8#1>",
+        "friendly_name": "gold-prbound-default fixture",
+        "merge_target_branch": "feat-x",
+        "meta_file": "<TMP>/repo/kitty-specs/gold-prbound-default-<MID8#1>/meta.json",
+        "mission_branch": null,
+        "mission_dir": "<TMP>/repo/kitty-specs/gold-prbound-default-<MID8#1>",
+        "mission_id": "<ULID#1>",
+        "mission_number": null,
+        "mission_slug": "gold-prbound-default-<MID8#1>",
+        "mission_type": "software-dev",
+        "next_step": "Created scaffold only. Run `/spec-kitty.specify <intent>` in your agent or edit and commit spec_file before `spec-kitty plan`.",
+        "origin_binding": {
+          "attempted": false,
+          "error": null,
+          "succeeded": false
+        },
+        "plan_guard": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED",
+        "planning_base_branch": "feat-x",
+        "purpose_context": "Fixture mission for gold-prbound-default, pinned by the CLI golden matrix.",
+        "purpose_tldr": "Fixture mission for gold-prbound-default.",
+        "requires_agent_authoring": true,
+        "result": "success",
+        "runtime_vars": {
+          "base_branch": "feat-x",
+          "branch_matches_target": true,
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "current_branch": "feat-x",
+          "merge_target_branch": "feat-x",
+          "now_utc_iso": "<TS>",
+          "planning_base_branch": "feat-x",
+          "target_branch": "feat-x"
+        },
+        "scaffold_only": true,
+        "slug": "gold-prbound-default-<MID8#1>",
+        "spec_file": "<TMP>/repo/kitty-specs/gold-prbound-default-<MID8#1>/spec.md",
+        "spec_kitty_version": {
+          "present": true,
+          "type": "str"
+        },
+        "target_branch": "feat-x",
+        "topology": "coord",
+        "uncommitted_artifacts": [
+          {
+            "path": "<TMP>/repo/kitty-specs/gold-prbound-default-<MID8#1>/spec.md",
+            "reason": "Scaffolded empty at create time; populated and committed with substantive content later (#846).",
+            "responsible_command": "/spec-kitty.specify"
+          }
+        ],
+        "write_mode": "update_existing_files"
+      },
+      "error_code": null,
+      "exit_code": 0,
+      "heads": {
+        "root": "feat-x"
+      },
+      "stdout_tail": null,
+      "topology": "coord"
+    },
+    "default_pr_bound_unprotected_topic": {
+      "branches": [
+        "feat-x",
+        "main"
+      ],
+      "envelope": {
+        "BASE_BRANCH": "feat-x",
+        "BRANCH_MATCHES_TARGET": true,
+        "CURRENT_BRANCH": "feat-x",
+        "EXPECTED_BASE_BRANCH": "feat-x",
+        "EXPECTED_TARGET_BRANCH": "feat-x",
+        "MERGE_TARGET_BRANCH": "feat-x",
+        "NOW_UTC_ISO": "<TS>",
+        "PLANNING_BASE_BRANCH": "feat-x",
+        "TARGET_BRANCH": "feat-x",
+        "base_branch": "feat-x",
+        "branch_context": {
+          "base_branch": "feat-x",
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "current_branch": "feat-x",
+          "expected_checkout_branch": "feat-x",
+          "matches_target": true,
+          "merge_target_branch": "feat-x",
+          "planning_base_branch": "feat-x",
+          "target_branch": "feat-x"
+        },
+        "branch_matches_target": true,
+        "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+        "commit_to_target": null,
+        "coordination_branch": null,
+        "coordination_branch_created": false,
+        "created_at": "<TS>",
+        "created_files": [
+          "<TMP>/repo/kitty-specs/gold-prbound-topic-<MID8#1>/spec.md",
+          "<TMP>/repo/kitty-specs/gold-prbound-topic-<MID8#1>/meta.json",
+          "<TMP>/repo/kitty-specs/gold-prbound-topic-<MID8#1>/tasks/README.md"
+        ],
+        "current_branch": "feat-x",
+        "feature_dir": "<TMP>/repo/kitty-specs/gold-prbound-topic-<MID8#1>",
+        "friendly_name": "gold-prbound-topic fixture",
+        "merge_target_branch": "feat-x",
+        "meta_file": "<TMP>/repo/kitty-specs/gold-prbound-topic-<MID8#1>/meta.json",
+        "mission_branch": null,
+        "mission_dir": "<TMP>/repo/kitty-specs/gold-prbound-topic-<MID8#1>",
+        "mission_id": "<ULID#1>",
+        "mission_number": null,
+        "mission_slug": "gold-prbound-topic-<MID8#1>",
+        "mission_type": "software-dev",
+        "next_step": "Created scaffold only. Run `/spec-kitty.specify <intent>` in your agent or edit and commit spec_file before `spec-kitty plan`.",
+        "origin_binding": {
+          "attempted": false,
+          "error": null,
+          "succeeded": false
+        },
+        "plan_guard": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED",
+        "planning_base_branch": "feat-x",
+        "purpose_context": "Fixture mission for gold-prbound-topic, pinned by the CLI golden matrix.",
+        "purpose_tldr": "Fixture mission for gold-prbound-topic.",
+        "requires_agent_authoring": true,
+        "result": "success",
+        "runtime_vars": {
+          "base_branch": "feat-x",
+          "branch_matches_target": true,
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "current_branch": "feat-x",
+          "merge_target_branch": "feat-x",
+          "now_utc_iso": "<TS>",
+          "planning_base_branch": "feat-x",
+          "target_branch": "feat-x"
+        },
+        "scaffold_only": true,
+        "slug": "gold-prbound-topic-<MID8#1>",
+        "spec_file": "<TMP>/repo/kitty-specs/gold-prbound-topic-<MID8#1>/spec.md",
+        "spec_kitty_version": {
+          "present": true,
+          "type": "str"
+        },
+        "target_branch": "feat-x",
+        "topology": "lanes",
+        "uncommitted_artifacts": [
+          {
+            "path": "<TMP>/repo/kitty-specs/gold-prbound-topic-<MID8#1>/spec.md",
+            "reason": "Scaffolded empty at create time; populated and committed with substantive content later (#846).",
+            "responsible_command": "/spec-kitty.specify"
+          }
+        ],
+        "write_mode": "update_existing_files"
+      },
+      "error_code": null,
+      "exit_code": 0,
+      "heads": {
+        "root": "feat-x"
+      },
+      "stdout_tail": null,
+      "topology": "lanes"
+    },
+    "default_primary_with_origin_head": {
+      "branches": [
+        "kitty/mission-gold-default-primary-<MID8#1>",
+        "main"
+      ],
+      "envelope": {
+        "BASE_BRANCH": "main",
+        "BRANCH_MATCHES_TARGET": true,
+        "CURRENT_BRANCH": "main",
+        "EXPECTED_BASE_BRANCH": "main",
+        "EXPECTED_TARGET_BRANCH": "main",
+        "MERGE_TARGET_BRANCH": "main",
+        "NOW_UTC_ISO": "<TS>",
+        "PLANNING_BASE_BRANCH": "main",
+        "TARGET_BRANCH": "main",
+        "base_branch": "main",
+        "branch_context": {
+          "base_branch": "main",
+          "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this feature: main. Completed changes must merge into main.",
+          "current_branch": "main",
+          "expected_checkout_branch": "main",
+          "matches_target": true,
+          "merge_target_branch": "main",
+          "planning_base_branch": "main",
+          "target_branch": "main"
+        },
+        "branch_matches_target": true,
+        "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this feature: main. Completed changes must merge into main.",
+        "commit_to_target": null,
+        "coordination_branch": "kitty/mission-gold-default-primary-<MID8#1>",
+        "coordination_branch_created": true,
+        "created_at": "<TS>",
+        "created_files": [
+          "<TMP>/repo/kitty-specs/gold-default-primary-<MID8#1>/spec.md",
+          "<TMP>/repo/kitty-specs/gold-default-primary-<MID8#1>/meta.json",
+          "<TMP>/repo/kitty-specs/gold-default-primary-<MID8#1>/tasks/README.md",
+          "<TMP>/repo/.worktrees/gold-default-primary-<MID8#1>-coord/kitty-specs/gold-default-primary-<MID8#1>/status.events.jsonl",
+          "<TMP>/repo/kitty-specs/gold-default-primary-<MID8#1>/tasks/.gitkeep"
+        ],
+        "current_branch": "main",
+        "feature_dir": "<TMP>/repo/kitty-specs/gold-default-primary-<MID8#1>",
+        "friendly_name": "gold-default-primary fixture",
+        "merge_target_branch": "main",
+        "meta_file": "<TMP>/repo/kitty-specs/gold-default-primary-<MID8#1>/meta.json",
+        "mission_branch": null,
+        "mission_dir": "<TMP>/repo/kitty-specs/gold-default-primary-<MID8#1>",
+        "mission_id": "<ULID#1>",
+        "mission_number": null,
+        "mission_slug": "gold-default-primary-<MID8#1>",
+        "mission_type": "software-dev",
+        "next_step": "Created scaffold only. Run `/spec-kitty.specify <intent>` in your agent or edit and commit spec_file before `spec-kitty plan`.",
+        "origin_binding": {
+          "attempted": false,
+          "error": null,
+          "succeeded": false
+        },
+        "plan_guard": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED",
+        "planning_base_branch": "main",
+        "purpose_context": "Fixture mission for gold-default-primary, pinned by the CLI golden matrix.",
+        "purpose_tldr": "Fixture mission for gold-default-primary.",
+        "requires_agent_authoring": true,
+        "result": "success",
+        "runtime_vars": {
+          "base_branch": "main",
+          "branch_matches_target": true,
+          "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this feature: main. Completed changes must merge into main.",
+          "current_branch": "main",
+          "merge_target_branch": "main",
+          "now_utc_iso": "<TS>",
+          "planning_base_branch": "main",
+          "target_branch": "main"
+        },
+        "scaffold_only": true,
+        "slug": "gold-default-primary-<MID8#1>",
+        "spec_file": "<TMP>/repo/kitty-specs/gold-default-primary-<MID8#1>/spec.md",
+        "spec_kitty_version": {
+          "present": true,
+          "type": "str"
+        },
+        "target_branch": "main",
+        "topology": "coord",
+        "uncommitted_artifacts": [
+          {
+            "path": "<TMP>/repo/kitty-specs/gold-default-primary-<MID8#1>/spec.md",
+            "reason": "Scaffolded empty at create time; populated and committed with substantive content later (#846).",
+            "responsible_command": "/spec-kitty.specify"
+          },
+          {
+            "path": "<TMP>/repo/kitty-specs/gold-default-primary-<MID8#1>/meta.json",
+            "reason": "Generated scaffold could not be committed to the protected or unavailable target branch.",
+            "responsible_command": "commit from a non-protected feature branch"
+          },
+          {
+            "path": "<TMP>/repo/kitty-specs/gold-default-primary-<MID8#1>/tasks/README.md",
+            "reason": "Generated scaffold could not be committed to the protected or unavailable target branch.",
+            "responsible_command": "commit from a non-protected feature branch"
+          },
+          {
+            "path": "<TMP>/repo/kitty-specs/gold-default-primary-<MID8#1>/tasks/.gitkeep",
+            "reason": "Generated scaffold could not be committed to the protected or unavailable target branch.",
+            "responsible_command": "commit from a non-protected feature branch"
+          }
+        ],
+        "write_mode": "update_existing_files"
+      },
+      "error_code": null,
+      "exit_code": 0,
+      "heads": {
+        "root": "main"
+      },
+      "stdout_tail": null,
+      "topology": "coord"
+    },
+    "flat_invalid_slug_refusal": {
+      "branches": [
+        "feat-x",
+        "main"
+      ],
+      "envelope": {
+        "error": "Invalid feature slug 'Not A Valid Slug!'. Must be kebab-case (lowercase letters, numbers, hyphens only).\n\nValid examples:\n  - user-auth\n  - fix-bug-123\n  - 068-feature-name\n  - new-dashboard\n\nInvalid examples:\n  - User-Auth (uppercase)\n  - user_auth (underscores)",
+        "spec_kitty_version": {
+          "present": true,
+          "type": "str"
+        }
+      },
+      "error_code": null,
+      "exit_code": 1,
+      "heads": {
+        "root": "feat-x"
+      },
+      "stdout_tail": null,
+      "topology": null
+    },
+    "flat_lanes_success": {
+      "branches": [
+        "feat-x",
+        "main"
+      ],
+      "envelope": {
+        "BASE_BRANCH": "feat-x",
+        "BRANCH_MATCHES_TARGET": true,
+        "CURRENT_BRANCH": "feat-x",
+        "EXPECTED_BASE_BRANCH": "feat-x",
+        "EXPECTED_TARGET_BRANCH": "feat-x",
+        "MERGE_TARGET_BRANCH": "feat-x",
+        "NOW_UTC_ISO": "<TS>",
+        "PLANNING_BASE_BRANCH": "feat-x",
+        "TARGET_BRANCH": "feat-x",
+        "base_branch": "feat-x",
+        "branch_context": {
+          "base_branch": "feat-x",
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "current_branch": "feat-x",
+          "expected_checkout_branch": "feat-x",
+          "matches_target": true,
+          "merge_target_branch": "feat-x",
+          "planning_base_branch": "feat-x",
+          "target_branch": "feat-x"
+        },
+        "branch_matches_target": true,
+        "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+        "commit_to_target": null,
+        "coordination_branch": null,
+        "coordination_branch_created": false,
+        "created_at": "<TS>",
+        "created_files": [
+          "<TMP>/repo/kitty-specs/gold-flat-ok-<MID8#1>/spec.md",
+          "<TMP>/repo/kitty-specs/gold-flat-ok-<MID8#1>/meta.json",
+          "<TMP>/repo/kitty-specs/gold-flat-ok-<MID8#1>/tasks/README.md"
+        ],
+        "current_branch": "feat-x",
+        "feature_dir": "<TMP>/repo/kitty-specs/gold-flat-ok-<MID8#1>",
+        "friendly_name": "gold-flat-ok fixture",
+        "merge_target_branch": "feat-x",
+        "meta_file": "<TMP>/repo/kitty-specs/gold-flat-ok-<MID8#1>/meta.json",
+        "mission_branch": null,
+        "mission_dir": "<TMP>/repo/kitty-specs/gold-flat-ok-<MID8#1>",
+        "mission_id": "<ULID#1>",
+        "mission_number": null,
+        "mission_slug": "gold-flat-ok-<MID8#1>",
+        "mission_type": "software-dev",
+        "next_step": "Created scaffold only. Run `/spec-kitty.specify <intent>` in your agent or edit and commit spec_file before `spec-kitty plan`.",
+        "origin_binding": {
+          "attempted": false,
+          "error": null,
+          "succeeded": false
+        },
+        "plan_guard": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED",
+        "planning_base_branch": "feat-x",
+        "purpose_context": "Fixture mission for gold-flat-ok, pinned by the CLI golden matrix.",
+        "purpose_tldr": "Fixture mission for gold-flat-ok.",
+        "requires_agent_authoring": true,
+        "result": "success",
+        "runtime_vars": {
+          "base_branch": "feat-x",
+          "branch_matches_target": true,
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "current_branch": "feat-x",
+          "merge_target_branch": "feat-x",
+          "now_utc_iso": "<TS>",
+          "planning_base_branch": "feat-x",
+          "target_branch": "feat-x"
+        },
+        "scaffold_only": true,
+        "slug": "gold-flat-ok-<MID8#1>",
+        "spec_file": "<TMP>/repo/kitty-specs/gold-flat-ok-<MID8#1>/spec.md",
+        "spec_kitty_version": {
+          "present": true,
+          "type": "str"
+        },
+        "target_branch": "feat-x",
+        "topology": "lanes",
+        "uncommitted_artifacts": [
+          {
+            "path": "<TMP>/repo/kitty-specs/gold-flat-ok-<MID8#1>/spec.md",
+            "reason": "Scaffolded empty at create time; populated and committed with substantive content later (#846).",
+            "responsible_command": "/spec-kitty.specify"
+          }
+        ],
+        "write_mode": "update_existing_files"
+      },
+      "error_code": null,
+      "exit_code": 0,
+      "heads": {
+        "root": "feat-x"
+      },
+      "stdout_tail": null,
+      "topology": "lanes"
+    },
+    "owned_not_a_worktree_refusal": {
+      "branches": [
+        "main"
+      ],
+      "envelope": {
+        "error": "Cannot validate claimed checkout <TMP>/stranger against resolved primary <TMP>/repo: PosixPath('<TMP>/stranger') is not inside a git repository.",
+        "error_code": "OWNERSHIP_BROKEN_POINTER",
+        "spec_kitty_version": {
+          "present": true,
+          "type": "str"
+        },
+        "success": false
+      },
+      "error_code": "OWNERSHIP_BROKEN_POINTER",
+      "exit_code": 1,
+      "heads": {
+        "root": "main"
+      },
+      "stdout_tail": null,
+      "topology": null
+    },
+    "owned_success": {
+      "branches": [
+        "main",
+        "owned-topic"
+      ],
+      "envelope": {
+        "BASE_BRANCH": "owned-topic",
+        "BRANCH_MATCHES_TARGET": true,
+        "CURRENT_BRANCH": "owned-topic",
+        "EXPECTED_BASE_BRANCH": "owned-topic",
+        "EXPECTED_TARGET_BRANCH": "owned-topic",
+        "MERGE_TARGET_BRANCH": "owned-topic",
+        "NOW_UTC_ISO": "<TS>",
+        "PLANNING_BASE_BRANCH": "owned-topic",
+        "TARGET_BRANCH": "owned-topic",
+        "base_branch": "owned-topic",
+        "branch_context": {
+          "base_branch": "owned-topic",
+          "branch_strategy_summary": "Current branch at workflow start: owned-topic. Planning/base branch for this feature: owned-topic. Completed changes must merge into owned-topic.",
+          "current_branch": "owned-topic",
+          "expected_checkout_branch": "owned-topic",
+          "matches_target": true,
+          "merge_target_branch": "owned-topic",
+          "planning_base_branch": "owned-topic",
+          "target_branch": "owned-topic"
+        },
+        "branch_matches_target": true,
+        "branch_strategy_summary": "Current branch at workflow start: owned-topic. Planning/base branch for this feature: owned-topic. Completed changes must merge into owned-topic.",
+        "canonical_repo_root": "<TMP>/repo",
+        "commit_to_target": null,
+        "coordination_branch": null,
+        "coordination_branch_created": false,
+        "created_at": "<TS>",
+        "created_files": [
+          "<TMP>/owned/kitty-specs/gold-owned-ok-<MID8#1>/spec.md",
+          "<TMP>/owned/kitty-specs/gold-owned-ok-<MID8#1>/meta.json",
+          "<TMP>/owned/kitty-specs/gold-owned-ok-<MID8#1>/tasks/README.md"
+        ],
+        "current_branch": "owned-topic",
+        "feature_dir": "<TMP>/owned/kitty-specs/gold-owned-ok-<MID8#1>",
+        "friendly_name": "gold-owned-ok fixture",
+        "merge_target_branch": "owned-topic",
+        "meta_file": "<TMP>/owned/kitty-specs/gold-owned-ok-<MID8#1>/meta.json",
+        "mission_branch": null,
+        "mission_dir": "<TMP>/owned/kitty-specs/gold-owned-ok-<MID8#1>",
+        "mission_id": "<ULID#1>",
+        "mission_number": null,
+        "mission_slug": "gold-owned-ok-<MID8#1>",
+        "mission_type": "software-dev",
+        "next_step": "Created scaffold only. Run `/spec-kitty.specify <intent>` in your agent or edit and commit spec_file before `spec-kitty plan`.",
+        "origin_binding": {
+          "attempted": false,
+          "error": null,
+          "succeeded": false
+        },
+        "owned_checkout": "<TMP>/owned",
+        "plan_guard": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED",
+        "planning_base_branch": "owned-topic",
+        "purpose_context": "Fixture mission for gold-owned-ok, pinned by the CLI golden matrix.",
+        "purpose_tldr": "Fixture mission for gold-owned-ok.",
+        "requires_agent_authoring": true,
+        "result": "success",
+        "runtime_vars": {
+          "base_branch": "owned-topic",
+          "branch_matches_target": true,
+          "branch_strategy_summary": "Current branch at workflow start: owned-topic. Planning/base branch for this feature: owned-topic. Completed changes must merge into owned-topic.",
+          "current_branch": "owned-topic",
+          "merge_target_branch": "owned-topic",
+          "now_utc_iso": "<TS>",
+          "planning_base_branch": "owned-topic",
+          "target_branch": "owned-topic"
+        },
+        "scaffold_only": true,
+        "slug": "gold-owned-ok-<MID8#1>",
+        "spec_file": "<TMP>/owned/kitty-specs/gold-owned-ok-<MID8#1>/spec.md",
+        "spec_kitty_version": {
+          "present": true,
+          "type": "str"
+        },
+        "target_branch": "owned-topic",
+        "topology": "single_branch",
+        "uncommitted_artifacts": [
+          {
+            "path": "<TMP>/owned/kitty-specs/gold-owned-ok-<MID8#1>/spec.md",
+            "reason": "Scaffolded empty at create time; populated and committed with substantive content later (#846).",
+            "responsible_command": "/spec-kitty.specify"
+          }
+        ],
+        "write_mode": "update_existing_files"
+      },
+      "error_code": null,
+      "exit_code": 0,
+      "heads": {
+        "owned": "owned-topic",
+        "root": "main"
+      },
+      "stdout_tail": null,
+      "topology": "single_branch"
+    },
+    "protected_single_branch_dirty_refusal": {
+      "branches": [
+        "main"
+      ],
+      "envelope": {
+        "error": "Cannot mint the protected-target mission branch: the write checkout at <TMP>/repo has uncommitted changes outside this mission's own scaffold: stray.txt. Commit or discard them, then retry.",
+        "spec_kitty_version": {
+          "present": true,
+          "type": "str"
+        }
+      },
+      "error_code": null,
+      "exit_code": 1,
+      "heads": {
+        "root": "main"
+      },
+      "stdout_tail": null,
+      "topology": null
+    },
+    "protected_single_branch_success": {
+      "branches": [
+        "kitty/mission-gold-protected-ok-<MID8#1>",
+        "main"
+      ],
+      "envelope": {
+        "BASE_BRANCH": "main",
+        "BRANCH_MATCHES_TARGET": true,
+        "CURRENT_BRANCH": "kitty/mission-gold-protected-ok-<MID8#1>",
+        "EXPECTED_BASE_BRANCH": "main",
+        "EXPECTED_TARGET_BRANCH": "main",
+        "MERGE_TARGET_BRANCH": "main",
+        "NOW_UTC_ISO": "<TS>",
+        "PLANNING_BASE_BRANCH": "main",
+        "TARGET_BRANCH": "main",
+        "base_branch": "main",
+        "branch_context": {
+          "base_branch": "main",
+          "branch_strategy_summary": "Current branch at workflow start: kitty/mission-gold-protected-ok-<MID8#1>. Planning/base branch for this feature: main. Completed changes must merge into main.",
+          "current_branch": "kitty/mission-gold-protected-ok-<MID8#1>",
+          "expected_checkout_branch": "kitty/mission-gold-protected-ok-<MID8#1>",
+          "matches_target": true,
+          "merge_target_branch": "main",
+          "planning_base_branch": "main",
+          "target_branch": "main"
+        },
+        "branch_matches_target": true,
+        "branch_strategy_summary": "Current branch at workflow start: kitty/mission-gold-protected-ok-<MID8#1>. Planning/base branch for this feature: main. Completed changes must merge into main.",
+        "commit_to_target": null,
+        "coordination_branch": null,
+        "coordination_branch_created": false,
+        "created_at": "<TS>",
+        "created_files": [
+          "<TMP>/repo/kitty-specs/gold-protected-ok-<MID8#1>/spec.md",
+          "<TMP>/repo/kitty-specs/gold-protected-ok-<MID8#1>/meta.json",
+          "<TMP>/repo/kitty-specs/gold-protected-ok-<MID8#1>/tasks/README.md"
+        ],
+        "current_branch": "kitty/mission-gold-protected-ok-<MID8#1>",
+        "feature_dir": "<TMP>/repo/kitty-specs/gold-protected-ok-<MID8#1>",
+        "friendly_name": "gold-protected-ok fixture",
+        "merge_target_branch": "main",
+        "meta_file": "<TMP>/repo/kitty-specs/gold-protected-ok-<MID8#1>/meta.json",
+        "mission_branch": "kitty/mission-gold-protected-ok-<MID8#1>",
+        "mission_dir": "<TMP>/repo/kitty-specs/gold-protected-ok-<MID8#1>",
+        "mission_id": "<ULID#1>",
+        "mission_number": null,
+        "mission_slug": "gold-protected-ok-<MID8#1>",
+        "mission_type": "software-dev",
+        "next_step": "Created scaffold only. Run `/spec-kitty.specify <intent>` in your agent or edit and commit spec_file before `spec-kitty plan`.",
+        "origin_binding": {
+          "attempted": false,
+          "error": null,
+          "succeeded": false
+        },
+        "plan_guard": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED",
+        "planning_base_branch": "main",
+        "purpose_context": "Fixture mission for gold-protected-ok, pinned by the CLI golden matrix.",
+        "purpose_tldr": "Fixture mission for gold-protected-ok.",
+        "requires_agent_authoring": true,
+        "result": "success",
+        "runtime_vars": {
+          "base_branch": "main",
+          "branch_matches_target": true,
+          "branch_strategy_summary": "Current branch at workflow start: kitty/mission-gold-protected-ok-<MID8#1>. Planning/base branch for this feature: main. Completed changes must merge into main.",
+          "current_branch": "kitty/mission-gold-protected-ok-<MID8#1>",
+          "merge_target_branch": "main",
+          "now_utc_iso": "<TS>",
+          "planning_base_branch": "main",
+          "target_branch": "main"
+        },
+        "scaffold_only": true,
+        "slug": "gold-protected-ok-<MID8#1>",
+        "spec_file": "<TMP>/repo/kitty-specs/gold-protected-ok-<MID8#1>/spec.md",
+        "spec_kitty_version": {
+          "present": true,
+          "type": "str"
+        },
+        "target_branch": "main",
+        "topology": "single_branch",
+        "uncommitted_artifacts": [
+          {
+            "path": "<TMP>/repo/kitty-specs/gold-protected-ok-<MID8#1>/spec.md",
+            "reason": "Scaffolded empty at create time; populated and committed with substantive content later (#846).",
+            "responsible_command": "/spec-kitty.specify"
+          }
+        ],
+        "write_mode": "update_existing_files"
+      },
+      "error_code": null,
+      "exit_code": 0,
+      "heads": {
+        "root": "kitty/mission-gold-protected-ok-<MID8#1>"
+      },
+      "stdout_tail": null,
+      "topology": "single_branch"
+    },
+    "refusal_commit_to_target_with_lanes": {
+      "branches": [
+        "feat-x",
+        "main"
+      ],
+      "envelope": {
+        "error": "--commit-to-target is only valid for a single_branch mission (got topology 'lanes'). Pass --topology single_branch, or drop --commit-to-target.",
+        "spec_kitty_version": {
+          "present": true,
+          "type": "str"
+        }
+      },
+      "error_code": null,
+      "exit_code": 1,
+      "heads": {
+        "root": "feat-x"
+      },
+      "stdout_tail": null,
+      "topology": null
+    }
+  }
+}

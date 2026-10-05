@@ -1,0 +1,1315 @@
+{
+  "base_commit": "f0f3daa55fcfa79361acc7b3bab3beffa0e64705",
+  "cells": {
+    "commit_to_target_without_single_branch": {
+      "outcome": {
+        "error_code": null,
+        "exc_type": "MissionCreationError",
+        "message": "--commit-to-target is only valid for a single_branch mission (got topology 'lanes'). Pass --topology single_branch, or drop --commit-to-target."
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "detached_head": {
+      "outcome": {
+        "error_code": null,
+        "exc_type": "MissionCreationError",
+        "message": "Must be on a branch to create missions (detached HEAD detected)."
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "(detached)"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "(detached)",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "(detached)"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "(detached)",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "dirty_checkout_protected_mint": {
+      "outcome": {
+        "error_code": null,
+        "exc_type": "MissionCreationError",
+        "message": "Cannot mint the protected-target mission branch: the write checkout at <TMP>/repo has uncommitted changes outside this mission's own scaffold: stray.txt. Commit or discard them, then retry."
+      },
+      "post": {
+        "branches": [
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {
+          "repo/kitty-specs/ref-dirty-mint-<MID8#1>": {
+            "tree": [
+              "checklists/",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {},
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/ref-dirty-mint-<MID8#1>/spec.md",
+            "?? kitty-specs/ref-dirty-mint-<MID8#1>/status.events.jsonl",
+            "?? kitty-specs/ref-dirty-mint-<MID8#1>/tasks/.gitkeep",
+            "?? kitty-specs/ref-dirty-mint-<MID8#1>/tasks/README.md",
+            "?? stray.txt"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/ref-dirty-mint-<MID8#1>/status.events.jsonl": []
+        },
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": [
+            "?? stray.txt"
+          ]
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "empty_friendly_name": {
+      "outcome": {
+        "error_code": null,
+        "exc_type": "MissionCreationError",
+        "message": "Mission creation requires a non-empty friendly_name."
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "failed_create_restore/coord": {
+      "outcome": {
+        "error_code": null,
+        "exc_type": "MissionCreationError",
+        "message": "Failed to commit mission-creation events onto the coordination branch for 'ref-restore-coord-<MID8#1>': status='error' diagnostic=\"safe_commit: git commit failed in <TMP>/repo/.worktrees/ref-restore-coord-<MID8#1>-coord for destination_ref='kitty/mission-ref-restore-coord-<MID8#1>': golden fixture: commits refused\""
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/ref-restore-coord-<MID8#1>": {
+            "meta": {
+              "coordination_branch": "kitty/mission-ref-restore-coord-<MID8#1>",
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "ref restore coord",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "ref-restore-coord-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances ref restore coord on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "ref restore coord",
+              "slug": "ref-restore-coord-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "coord"
+            },
+            "meta_key_order": [
+              "coordination_branch",
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {},
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/ref-restore-coord-<MID8#1>/meta.json",
+            "?? kitty-specs/ref-restore-coord-<MID8#1>/spec.md",
+            "?? kitty-specs/ref-restore-coord-<MID8#1>/tasks/.gitkeep",
+            "?? kitty-specs/ref-restore-coord-<MID8#1>/tasks/README.md"
+          ]
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "failed_create_restore/protected_mint": {
+      "outcome": {
+        "error_code": null,
+        "exc_type": "RuntimeError",
+        "message": "meta.json commit failed: safe_commit: git commit failed in <TMP>/repo for destination_ref='kitty/mission-ref-restore-mint-<MID8#1>': golden fixture: commits refused"
+      },
+      "post": {
+        "branches": [
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {
+          "repo/kitty-specs/ref-restore-mint-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "ref restore mint",
+              "mid8": "<MID8#1>",
+              "mission_branch": "kitty/mission-ref-restore-mint-<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "ref-restore-mint-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances ref restore mint on main so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "ref restore mint",
+              "slug": "ref-restore-mint-<MID8#1>",
+              "target_branch": "main",
+              "topology": "single_branch"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_branch",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {},
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/ref-restore-mint-<MID8#1>/meta.json",
+            "?? kitty-specs/ref-restore-mint-<MID8#1>/spec.md",
+            "?? kitty-specs/ref-restore-mint-<MID8#1>/status.events.jsonl",
+            "?? kitty-specs/ref-restore-mint-<MID8#1>/tasks/.gitkeep",
+            "?? kitty-specs/ref-restore-mint-<MID8#1>/tasks/README.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/ref-restore-mint-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "invalid_slug": {
+      "outcome": {
+        "error_code": null,
+        "exc_type": "MissionCreationError",
+        "message": "Invalid feature slug 'Not_Kebab'. Must be kebab-case (lowercase letters, numbers, hyphens only).\n\nValid examples:\n  - user-auth\n  - fix-bug-123\n  - 068-feature-name\n  - new-dashboard\n\nInvalid examples:\n  - User-Auth (uppercase)\n  - user_auth (underscores)"
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "live_duplicate": {
+      "outcome": {
+        "error_code": "MISSION_ALREADY_EXISTS",
+        "exc_type": "MissionAlreadyExistsError",
+        "message": "A mission named 'ref-live-duplicate' of type 'software-dev' already exists and is not abandoned: ref-live-duplicate-<MID8#1> (mid8 <MID8#1>). Refusing to silently create a duplicate (#4033).\n\nIf the prior mission is genuinely abandoned (canceled, or never actually worked), re-run this create with no flag -- abandoned priors are auto-allowed.\n\nTo deliberately create a second mission with the same name, pass --allow-duplicate (create_mission_core(allow_duplicate=True) for programmatic callers)."
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/ref-live-duplicate-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "ref live duplicate",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "ref-live-duplicate-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances ref live duplicate on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "ref live duplicate",
+              "slug": "ref-live-duplicate-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "lanes"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {
+          "repo/kitty-specs/ref-live-duplicate-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/ref-live-duplicate-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "ref live duplicate",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "ref-live-duplicate-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances ref live duplicate on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "ref live duplicate",
+              "slug": "ref-live-duplicate-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "lanes"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {
+          "repo/kitty-specs/ref-live-duplicate-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "malformed_config_invalid_yaml": {
+      "outcome": {
+        "error_code": null,
+        "exc_type": "CharterPackConfigError",
+        "message": "CHARTER_PACK_CONFIG_INVALID"
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "malformed_config_protection_shape": {
+      "outcome": {
+        "error_code": null,
+        "exc_type": "ProtectionConfigError",
+        "message": "protection.protected_branches in .kittify/config.yaml must be a list, got str: 'main'"
+      },
+      "post": {
+        "branches": [
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "mission_branch_exists": {
+      "outcome": {
+        "error_code": "MISSION_BRANCH_EXISTS",
+        "exc_type": "MissionBranchExistsError",
+        "message": "Mission branch 'kitty/mission-ref-branch-exists-<MID8#1>' already exists. Choose a different mission slug, remove the stale branch, or pass --commit-to-target to commit directly onto the target."
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-ref-branch-exists-<MID8#1>",
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {
+          "repo/kitty-specs/ref-branch-exists-<MID8#1>": {
+            "tree": [
+              "checklists/",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {},
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/ref-branch-exists-<MID8#1>/spec.md",
+            "?? kitty-specs/ref-branch-exists-<MID8#1>/status.events.jsonl",
+            "?? kitty-specs/ref-branch-exists-<MID8#1>/tasks/.gitkeep",
+            "?? kitty-specs/ref-branch-exists-<MID8#1>/tasks/README.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/ref-branch-exists-<MID8#1>/status.events.jsonl": []
+        },
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "kitty/mission-ref-branch-exists-<MID8#1>",
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "owned_root_mismatch": {
+      "outcome": {
+        "error_code": null,
+        "exc_type": "MissionCreationError",
+        "message": "Owned-create repository root mismatch: the supplied repo_root (<TMP>/other/repo) does not match the validated owned checkout's repository root (<TMP>/repo)."
+      },
+      "post": {
+        "branches": [
+          "main",
+          "owned-topic",
+          "topic"
+        ],
+        "head": {
+          "owned": "owned-topic",
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "owned": [],
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "owned-topic",
+            "path": "owned"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "owned-topic",
+          "topic"
+        ],
+        "head": {
+          "owned": "owned-topic",
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "owned": [],
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "owned-topic",
+            "path": "owned"
+          }
+        ]
+      },
+      "watched": {
+        "other": {
+          "post": {
+            "branches": [
+              "main",
+              "topic"
+            ],
+            "head": {
+              "repo": "topic"
+            },
+            "missions": {},
+            "new_commits": {},
+            "porcelain": {
+              "repo": []
+            },
+            "status_log": {},
+            "working_tree": [
+              ".kittify/",
+              ".kittify/config.yaml",
+              "README.md"
+            ],
+            "worktrees": [
+              {
+                "branch": "topic",
+                "path": "repo"
+              }
+            ]
+          },
+          "pre": {
+            "branches": [
+              "main",
+              "topic"
+            ],
+            "head": {
+              "repo": "topic"
+            },
+            "missions": {},
+            "new_commits": {},
+            "porcelain": {
+              "repo": []
+            },
+            "status_log": {},
+            "working_tree": [
+              ".kittify/",
+              ".kittify/config.yaml",
+              "README.md"
+            ],
+            "worktrees": [
+              {
+                "branch": "topic",
+                "path": "repo"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "protected_recreate": {
+      "outcome": {
+        "error_code": "MISSION_ALREADY_EXISTS",
+        "exc_type": "MissionAlreadyExistsError",
+        "message": "Mission directory ref-protected-recreate-<MID8#1> already exists (kitty-specs/ref-protected-recreate-<MID8#1>/meta.json is present). Refusing to overwrite an existing mission."
+      },
+      "post": {
+        "branches": [
+          "kitty/mission-ref-protected-recreate-<MID8#1>",
+          "main"
+        ],
+        "head": {
+          "repo": "kitty/mission-ref-protected-recreate-<MID8#1>"
+        },
+        "missions": {
+          "repo/kitty-specs/ref-protected-recreate-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "ref protected recreate",
+              "mid8": "<MID8#1>",
+              "mission_branch": "kitty/mission-ref-protected-recreate-<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "ref-protected-recreate-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances ref protected recreate on main so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "ref protected recreate",
+              "slug": "ref-protected-recreate-<MID8#1>",
+              "target_branch": "main",
+              "topology": "single_branch"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_branch",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {},
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/ref-protected-recreate-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/ref-protected-recreate-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "kitty/mission-ref-protected-recreate-<MID8#1>",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "kitty/mission-ref-protected-recreate-<MID8#1>",
+          "main"
+        ],
+        "head": {
+          "repo": "kitty/mission-ref-protected-recreate-<MID8#1>"
+        },
+        "missions": {
+          "repo/kitty-specs/ref-protected-recreate-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "ref protected recreate",
+              "mid8": "<MID8#1>",
+              "mission_branch": "kitty/mission-ref-protected-recreate-<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "ref-protected-recreate-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances ref protected recreate on main so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "ref protected recreate",
+              "slug": "ref-protected-recreate-<MID8#1>",
+              "target_branch": "main",
+              "topology": "single_branch"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_branch",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {},
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/ref-protected-recreate-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/ref-protected-recreate-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "kitty/mission-ref-protected-recreate-<MID8#1>",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "protected_target_without_commit": {
+      "outcome": {
+        "error_code": null,
+        "exc_type": "MissionCreationError",
+        "message": "Cannot mint the protected-target mission branch: target branch 'release' has no commit in <TMP>/repo (it does not exist yet, or is still unborn). Create it with at least one commit (for example: git branch release <start-point>), or pass --target-branch naming an existing branch, then retry."
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/ref-target-no-commit-<MID8#1>": {
+            "tree": [
+              "checklists/",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {},
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/ref-target-no-commit-<MID8#1>/spec.md",
+            "?? kitty-specs/ref-target-no-commit-<MID8#1>/status.events.jsonl",
+            "?? kitty-specs/ref-target-no-commit-<MID8#1>/tasks/.gitkeep",
+            "?? kitty-specs/ref-target-no-commit-<MID8#1>/tasks/README.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/ref-target-no-commit-<MID8#1>/status.events.jsonl": []
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "refused_mint_orphan_retry": {
+      "outcome": {
+        "error_code": "MISSION_ALREADY_EXISTS",
+        "exc_type": "MissionAlreadyExistsError",
+        "message": "A mission named 'ref-orphan-retry' of type 'software-dev' already exists and is not abandoned: ref-orphan-retry-<MID8#1> (mid8 <MID8#1>). Refusing to silently create a duplicate (#4033).\n\nIf the prior mission is genuinely abandoned (canceled, or never actually worked), re-run this create with no flag -- abandoned priors are auto-allowed.\n\nTo deliberately create a second mission with the same name, pass --allow-duplicate (create_mission_core(allow_duplicate=True) for programmatic callers)."
+      },
+      "post": {
+        "branches": [
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {
+          "repo/kitty-specs/ref-orphan-retry-<MID8#1>": {
+            "tree": [
+              "checklists/",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {},
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/ref-orphan-retry-<MID8#1>/spec.md",
+            "?? kitty-specs/ref-orphan-retry-<MID8#1>/status.events.jsonl",
+            "?? kitty-specs/ref-orphan-retry-<MID8#1>/tasks/.gitkeep",
+            "?? kitty-specs/ref-orphan-retry-<MID8#1>/tasks/README.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/ref-orphan-retry-<MID8#1>/status.events.jsonl": []
+        },
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main"
+        ],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {
+          "repo/kitty-specs/ref-orphan-retry-<MID8#1>": {
+            "tree": [
+              "checklists/",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {},
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/ref-orphan-retry-<MID8#1>/spec.md",
+            "?? kitty-specs/ref-orphan-retry-<MID8#1>/status.events.jsonl",
+            "?? kitty-specs/ref-orphan-retry-<MID8#1>/tasks/.gitkeep",
+            "?? kitty-specs/ref-orphan-retry-<MID8#1>/tasks/README.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/ref-orphan-retry-<MID8#1>/status.events.jsonl": []
+        },
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "unborn_head": {
+      "outcome": {
+        "error_code": null,
+        "exc_type": "MissionCreationError",
+        "message": "This checkout has no commits yet, so Spec Kitty cannot commit the mission scaffold.\n\nMake an initial commit first, then create the mission:\n  git commit --allow-empty -m 'Initial commit'\n\nIf the repository already has files staged, commit those instead."
+      },
+      "post": {
+        "branches": [],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": [
+            "?? .kittify/config.yaml"
+          ]
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [],
+        "head": {
+          "repo": "main"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": [
+            "?? .kittify/config.yaml"
+          ]
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "main",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "worktree_context_without_allow_flag": {
+      "outcome": {
+        "error_code": null,
+        "exc_type": "MissionCreationError",
+        "message": "Cannot create missions from inside a worktree. Run from the project root checkout."
+      },
+      "post": {
+        "branches": [
+          "linked-topic",
+          "main",
+          "topic"
+        ],
+        "head": {
+          "linked": "linked-topic",
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "linked": [],
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "linked-topic",
+            "path": "linked"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "linked-topic",
+          "main",
+          "topic"
+        ],
+        "head": {
+          "linked": "linked-topic",
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "linked": [],
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          },
+          {
+            "branch": "linked-topic",
+            "path": "linked"
+          }
+        ]
+      }
+    }
+  }
+}

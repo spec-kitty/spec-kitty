@@ -1,0 +1,2436 @@
+{
+  "base_commit": "f0f3daa55fcfa79361acc7b3bab3beffa0e64705",
+  "cells": {
+    "lanes/abandoned_prior_recreate": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/flat-abandoned-prior-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/flat-abandoned-prior-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/flat-abandoned-prior-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/flat-abandoned-prior-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "flat abandoned prior",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "flat-abandoned-prior-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances flat abandoned prior on topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "flat abandoned prior",
+            "slug": "flat-abandoned-prior-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "lanes"
+          },
+          "mission_number": null,
+          "mission_slug": "flat-abandoned-prior-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/flat-abandoned-prior-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/flat-abandoned-prior-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "flat abandoned prior",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "flat-abandoned-prior-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances flat abandoned prior on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "flat abandoned prior",
+              "slug": "flat-abandoned-prior-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "lanes"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          },
+          "repo/kitty-specs/flat-abandoned-prior-<MID8#2>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "flat abandoned prior",
+              "mid8": "<MID8#2>",
+              "mission_id": "<ULID#2>",
+              "mission_number": null,
+              "mission_slug": "flat-abandoned-prior-<MID8#2>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances flat abandoned prior on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "flat abandoned prior",
+              "slug": "flat-abandoned-prior-<MID8#2>",
+              "target_branch": "topic",
+              "topology": "lanes"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature flat-abandoned-prior-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/flat-abandoned-prior-<MID8#1>/meta.json",
+                "kitty-specs/flat-abandoned-prior-<MID8#1>/status.events.jsonl",
+                "kitty-specs/flat-abandoned-prior-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/flat-abandoned-prior-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/flat-abandoned-prior-<MID8#2>/spec.md",
+            "?? kitty-specs/flat-abandoned-prior-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/flat-abandoned-prior-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ],
+          "repo/kitty-specs/flat-abandoned-prior-<MID8#2>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/flat-abandoned-prior-<MID8#2>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "flat abandoned prior",
+              "mid8": "<MID8#2>",
+              "mission_id": "<ULID#2>",
+              "mission_number": null,
+              "mission_slug": "flat-abandoned-prior-<MID8#2>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances flat abandoned prior on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "flat abandoned prior",
+              "slug": "flat-abandoned-prior-<MID8#2>",
+              "target_branch": "topic",
+              "topology": "lanes"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {},
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/flat-abandoned-prior-<MID8#2>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/flat-abandoned-prior-<MID8#2>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "lanes/documentation": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/flat-lanes-documentation-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/flat-lanes-documentation-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/flat-lanes-documentation-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/flat-lanes-documentation-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "flat lanes documentation",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "flat-lanes-documentation-<MID8#1>",
+            "mission_type": "documentation",
+            "purpose_context": "This mission advances flat lanes documentation on topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "flat lanes documentation",
+            "slug": "flat-lanes-documentation-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "lanes"
+          },
+          "mission_number": null,
+          "mission_slug": "flat-lanes-documentation-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/flat-lanes-documentation-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/flat-lanes-documentation-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "documentation_state": {
+                "coverage_percentage": 0.0,
+                "divio_types_selected": [],
+                "generators_configured": [],
+                "iteration_mode": "initial",
+                "last_audit_date": null,
+                "target_audience": "developers"
+              },
+              "flattened": false,
+              "friendly_name": "flat lanes documentation",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "flat-lanes-documentation-<MID8#1>",
+              "mission_type": "documentation",
+              "purpose_context": "This mission advances flat lanes documentation on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "flat lanes documentation",
+              "slug": "flat-lanes-documentation-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "lanes"
+            },
+            "meta_key_order": [
+              "created_at",
+              "documentation_state",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature flat-lanes-documentation-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/flat-lanes-documentation-<MID8#1>/meta.json",
+                "kitty-specs/flat-lanes-documentation-<MID8#1>/status.events.jsonl",
+                "kitty-specs/flat-lanes-documentation-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/flat-lanes-documentation-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/flat-lanes-documentation-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/flat-lanes-documentation-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "lanes/plain": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/flat-lanes-plain-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/flat-lanes-plain-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/flat-lanes-plain-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/flat-lanes-plain-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "flat lanes plain",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "flat-lanes-plain-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances flat lanes plain on topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "flat lanes plain",
+            "slug": "flat-lanes-plain-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "lanes"
+          },
+          "mission_number": null,
+          "mission_slug": "flat-lanes-plain-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/flat-lanes-plain-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/flat-lanes-plain-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "flat lanes plain",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "flat-lanes-plain-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances flat lanes plain on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "flat lanes plain",
+              "slug": "flat-lanes-plain-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "lanes"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature flat-lanes-plain-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/flat-lanes-plain-<MID8#1>/meta.json",
+                "kitty-specs/flat-lanes-plain-<MID8#1>/status.events.jsonl",
+                "kitty-specs/flat-lanes-plain-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/flat-lanes-plain-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/flat-lanes-plain-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/flat-lanes-plain-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "lanes/pr_bound": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/flat-lanes-pr-bound-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/flat-lanes-pr-bound-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/flat-lanes-pr-bound-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/flat-lanes-pr-bound-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "flat lanes pr bound",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "flat-lanes-pr-bound-<MID8#1>",
+            "mission_type": "software-dev",
+            "pr_bound": true,
+            "purpose_context": "This mission advances flat lanes pr bound on topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "flat lanes pr bound",
+            "slug": "flat-lanes-pr-bound-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "lanes"
+          },
+          "mission_number": null,
+          "mission_slug": "flat-lanes-pr-bound-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/flat-lanes-pr-bound-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/flat-lanes-pr-bound-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "flat lanes pr bound",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "flat-lanes-pr-bound-<MID8#1>",
+              "mission_type": "software-dev",
+              "pr_bound": true,
+              "purpose_context": "This mission advances flat lanes pr bound on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "flat lanes pr bound",
+              "slug": "flat-lanes-pr-bound-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "lanes"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "pr_bound",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature flat-lanes-pr-bound-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/flat-lanes-pr-bound-<MID8#1>/meta.json",
+                "kitty-specs/flat-lanes-pr-bound-<MID8#1>/status.events.jsonl",
+                "kitty-specs/flat-lanes-pr-bound-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/flat-lanes-pr-bound-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/flat-lanes-pr-bound-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/flat-lanes-pr-bound-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "lanes/retention": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/flat-lanes-retention-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/flat-lanes-retention-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/flat-lanes-retention-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/flat-lanes-retention-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "flat lanes retention",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "flat-lanes-retention-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances flat lanes retention on topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "flat lanes retention",
+            "retain_branches": true,
+            "retain_worktrees": true,
+            "slug": "flat-lanes-retention-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "lanes"
+          },
+          "mission_number": null,
+          "mission_slug": "flat-lanes-retention-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/flat-lanes-retention-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/flat-lanes-retention-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "flat lanes retention",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "flat-lanes-retention-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances flat lanes retention on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "flat lanes retention",
+              "retain_branches": true,
+              "retain_worktrees": true,
+              "slug": "flat-lanes-retention-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "lanes"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "retain_branches",
+              "retain_worktrees",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature flat-lanes-retention-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/flat-lanes-retention-<MID8#1>/meta.json",
+                "kitty-specs/flat-lanes-retention-<MID8#1>/status.events.jsonl",
+                "kitty-specs/flat-lanes-retention-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/flat-lanes-retention-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/flat-lanes-retention-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/flat-lanes-retention-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "lanes/same_slug_other_type": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/flat-same-slug-other-type-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/flat-same-slug-other-type-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/flat-same-slug-other-type-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/flat-same-slug-other-type-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "flat same slug other type",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "flat-same-slug-other-type-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances flat same slug other type on topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "flat same slug other type",
+            "slug": "flat-same-slug-other-type-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "lanes"
+          },
+          "mission_number": null,
+          "mission_slug": "flat-same-slug-other-type-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/flat-same-slug-other-type-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/flat-same-slug-other-type-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "flat same slug other type",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "flat-same-slug-other-type-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances flat same slug other type on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "flat same slug other type",
+              "slug": "flat-same-slug-other-type-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "lanes"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          },
+          "repo/kitty-specs/flat-same-slug-other-type-<MID8#2>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "flat same slug other type",
+              "mid8": "<MID8#2>",
+              "mission_id": "<ULID#2>",
+              "mission_number": null,
+              "mission_slug": "flat-same-slug-other-type-<MID8#2>",
+              "mission_type": "research",
+              "purpose_context": "This mission advances flat same slug other type on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "flat same slug other type",
+              "slug": "flat-same-slug-other-type-<MID8#2>",
+              "target_branch": "topic",
+              "topology": "lanes"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature flat-same-slug-other-type-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/flat-same-slug-other-type-<MID8#1>/meta.json",
+                "kitty-specs/flat-same-slug-other-type-<MID8#1>/status.events.jsonl",
+                "kitty-specs/flat-same-slug-other-type-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/flat-same-slug-other-type-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/flat-same-slug-other-type-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/flat-same-slug-other-type-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ],
+          "repo/kitty-specs/flat-same-slug-other-type-<MID8#2>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/flat-same-slug-other-type-<MID8#2>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "flat same slug other type",
+              "mid8": "<MID8#2>",
+              "mission_id": "<ULID#2>",
+              "mission_number": null,
+              "mission_slug": "flat-same-slug-other-type-<MID8#2>",
+              "mission_type": "research",
+              "purpose_context": "This mission advances flat same slug other type on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "flat same slug other type",
+              "slug": "flat-same-slug-other-type-<MID8#2>",
+              "target_branch": "topic",
+              "topology": "lanes"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {
+          "repo/kitty-specs/flat-same-slug-other-type-<MID8#2>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "lanes/summary": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/flat-lanes-summary-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/flat-lanes-summary-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/flat-lanes-summary-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/flat-lanes-summary-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "Golden Flat Lanes Summary",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "flat-lanes-summary-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission pins how flat lanes summary is created so the decomposition can prove it changes nothing observable.",
+            "purpose_tldr": "Pin the flat lanes summary create behaviour.",
+            "slug": "flat-lanes-summary-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "lanes"
+          },
+          "mission_number": null,
+          "mission_slug": "flat-lanes-summary-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/flat-lanes-summary-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/flat-lanes-summary-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "Golden Flat Lanes Summary",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "flat-lanes-summary-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission pins how flat lanes summary is created so the decomposition can prove it changes nothing observable.",
+              "purpose_tldr": "Pin the flat lanes summary create behaviour.",
+              "slug": "flat-lanes-summary-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "lanes"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature flat-lanes-summary-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/flat-lanes-summary-<MID8#1>/meta.json",
+                "kitty-specs/flat-lanes-summary-<MID8#1>/status.events.jsonl",
+                "kitty-specs/flat-lanes-summary-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/flat-lanes-summary-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/flat-lanes-summary-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/flat-lanes-summary-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "lanes/target_not_checked_out": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/flat-lanes-elsewhere-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/flat-lanes-elsewhere-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/flat-lanes-elsewhere-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/kitty-specs/flat-lanes-elsewhere-<MID8#1>/tasks/.gitkeep",
+            "<TMP>/repo/kitty-specs/flat-lanes-elsewhere-<MID8#1>/status.events.jsonl"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/flat-lanes-elsewhere-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "flat lanes elsewhere",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "flat-lanes-elsewhere-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances flat lanes elsewhere on elsewhere so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "flat lanes elsewhere",
+            "slug": "flat-lanes-elsewhere-<MID8#1>",
+            "target_branch": "elsewhere",
+            "topology": "lanes"
+          },
+          "mission_number": null,
+          "mission_slug": "flat-lanes-elsewhere-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "elsewhere",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/flat-lanes-elsewhere-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/flat-lanes-elsewhere-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/flat-lanes-elsewhere-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/kitty-specs/flat-lanes-elsewhere-<MID8#1>/tasks/.gitkeep",
+            "<TMP>/repo/kitty-specs/flat-lanes-elsewhere-<MID8#1>/status.events.jsonl"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "elsewhere",
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/flat-lanes-elsewhere-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "flat lanes elsewhere",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "flat-lanes-elsewhere-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances flat lanes elsewhere on elsewhere so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "flat lanes elsewhere",
+              "slug": "flat-lanes-elsewhere-<MID8#1>",
+              "target_branch": "elsewhere",
+              "topology": "lanes"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {},
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/flat-lanes-elsewhere-<MID8#1>/meta.json",
+            "?? kitty-specs/flat-lanes-elsewhere-<MID8#1>/spec.md",
+            "?? kitty-specs/flat-lanes-elsewhere-<MID8#1>/status.events.jsonl",
+            "?? kitty-specs/flat-lanes-elsewhere-<MID8#1>/tasks/.gitkeep",
+            "?? kitty-specs/flat-lanes-elsewhere-<MID8#1>/tasks/README.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/flat-lanes-elsewhere-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "elsewhere",
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "single_branch/commit_to_target": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/flat-single-branch-commit-to-target-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/flat-single-branch-commit-to-target-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/flat-single-branch-commit-to-target-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/flat-single-branch-commit-to-target-<MID8#1>",
+          "meta": {
+            "commit_to_target": true,
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "flat single branch commit to target",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "flat-single-branch-commit-to-target-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances flat single branch commit to target on topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "flat single branch commit to target",
+            "slug": "flat-single-branch-commit-to-target-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "single_branch"
+          },
+          "mission_number": null,
+          "mission_slug": "flat-single-branch-commit-to-target-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/flat-single-branch-commit-to-target-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/flat-single-branch-commit-to-target-<MID8#1>": {
+            "meta": {
+              "commit_to_target": true,
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "flat single branch commit to target",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "flat-single-branch-commit-to-target-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances flat single branch commit to target on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "flat single branch commit to target",
+              "slug": "flat-single-branch-commit-to-target-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "single_branch"
+            },
+            "meta_key_order": [
+              "commit_to_target",
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature flat-single-branch-commit-to-target-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/flat-single-branch-commit-to-target-<MID8#1>/meta.json",
+                "kitty-specs/flat-single-branch-commit-to-target-<MID8#1>/status.events.jsonl",
+                "kitty-specs/flat-single-branch-commit-to-target-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/flat-single-branch-commit-to-target-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/flat-single-branch-commit-to-target-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/flat-single-branch-commit-to-target-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "single_branch/documentation": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/flat-single-branch-documentation-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/flat-single-branch-documentation-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/flat-single-branch-documentation-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/flat-single-branch-documentation-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "flat single branch documentation",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "flat-single-branch-documentation-<MID8#1>",
+            "mission_type": "documentation",
+            "purpose_context": "This mission advances flat single branch documentation on topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "flat single branch documentation",
+            "slug": "flat-single-branch-documentation-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "single_branch"
+          },
+          "mission_number": null,
+          "mission_slug": "flat-single-branch-documentation-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/flat-single-branch-documentation-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/flat-single-branch-documentation-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "documentation_state": {
+                "coverage_percentage": 0.0,
+                "divio_types_selected": [],
+                "generators_configured": [],
+                "iteration_mode": "initial",
+                "last_audit_date": null,
+                "target_audience": "developers"
+              },
+              "flattened": false,
+              "friendly_name": "flat single branch documentation",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "flat-single-branch-documentation-<MID8#1>",
+              "mission_type": "documentation",
+              "purpose_context": "This mission advances flat single branch documentation on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "flat single branch documentation",
+              "slug": "flat-single-branch-documentation-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "single_branch"
+            },
+            "meta_key_order": [
+              "created_at",
+              "documentation_state",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature flat-single-branch-documentation-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/flat-single-branch-documentation-<MID8#1>/meta.json",
+                "kitty-specs/flat-single-branch-documentation-<MID8#1>/status.events.jsonl",
+                "kitty-specs/flat-single-branch-documentation-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/flat-single-branch-documentation-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/flat-single-branch-documentation-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/flat-single-branch-documentation-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "single_branch/plain": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/flat-single-branch-plain-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/flat-single-branch-plain-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/flat-single-branch-plain-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/flat-single-branch-plain-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "flat single branch plain",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "flat-single-branch-plain-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances flat single branch plain on topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "flat single branch plain",
+            "slug": "flat-single-branch-plain-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "single_branch"
+          },
+          "mission_number": null,
+          "mission_slug": "flat-single-branch-plain-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/flat-single-branch-plain-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/flat-single-branch-plain-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "flat single branch plain",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "flat-single-branch-plain-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances flat single branch plain on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "flat single branch plain",
+              "slug": "flat-single-branch-plain-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "single_branch"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature flat-single-branch-plain-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/flat-single-branch-plain-<MID8#1>/meta.json",
+                "kitty-specs/flat-single-branch-plain-<MID8#1>/status.events.jsonl",
+                "kitty-specs/flat-single-branch-plain-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/flat-single-branch-plain-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/flat-single-branch-plain-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/flat-single-branch-plain-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "single_branch/pr_bound": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/flat-single-branch-pr-bound-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/flat-single-branch-pr-bound-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/flat-single-branch-pr-bound-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/flat-single-branch-pr-bound-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "flat single branch pr bound",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "flat-single-branch-pr-bound-<MID8#1>",
+            "mission_type": "software-dev",
+            "pr_bound": true,
+            "purpose_context": "This mission advances flat single branch pr bound on topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "flat single branch pr bound",
+            "slug": "flat-single-branch-pr-bound-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "single_branch"
+          },
+          "mission_number": null,
+          "mission_slug": "flat-single-branch-pr-bound-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/flat-single-branch-pr-bound-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/flat-single-branch-pr-bound-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "flat single branch pr bound",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "flat-single-branch-pr-bound-<MID8#1>",
+              "mission_type": "software-dev",
+              "pr_bound": true,
+              "purpose_context": "This mission advances flat single branch pr bound on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "flat single branch pr bound",
+              "slug": "flat-single-branch-pr-bound-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "single_branch"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "pr_bound",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature flat-single-branch-pr-bound-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/flat-single-branch-pr-bound-<MID8#1>/meta.json",
+                "kitty-specs/flat-single-branch-pr-bound-<MID8#1>/status.events.jsonl",
+                "kitty-specs/flat-single-branch-pr-bound-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/flat-single-branch-pr-bound-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/flat-single-branch-pr-bound-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/flat-single-branch-pr-bound-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "single_branch/retention": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/flat-single-branch-retention-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/flat-single-branch-retention-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/flat-single-branch-retention-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/flat-single-branch-retention-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "flat single branch retention",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "flat-single-branch-retention-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances flat single branch retention on topic so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "flat single branch retention",
+            "retain_branches": true,
+            "retain_worktrees": true,
+            "slug": "flat-single-branch-retention-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "single_branch"
+          },
+          "mission_number": null,
+          "mission_slug": "flat-single-branch-retention-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/flat-single-branch-retention-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/flat-single-branch-retention-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "flat single branch retention",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "flat-single-branch-retention-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances flat single branch retention on topic so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "flat single branch retention",
+              "retain_branches": true,
+              "retain_worktrees": true,
+              "slug": "flat-single-branch-retention-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "single_branch"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "retain_branches",
+              "retain_worktrees",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature flat-single-branch-retention-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/flat-single-branch-retention-<MID8#1>/meta.json",
+                "kitty-specs/flat-single-branch-retention-<MID8#1>/status.events.jsonl",
+                "kitty-specs/flat-single-branch-retention-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/flat-single-branch-retention-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/flat-single-branch-retention-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/flat-single-branch-retention-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "single_branch/summary": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/flat-single-branch-summary-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/flat-single-branch-summary-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/flat-single-branch-summary-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/flat-single-branch-summary-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "Golden Flat Single Branch Summary",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "flat-single-branch-summary-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission pins how flat single branch summary is created so the decomposition can prove it changes nothing observable.",
+            "purpose_tldr": "Pin the flat single branch summary create behaviour.",
+            "slug": "flat-single-branch-summary-<MID8#1>",
+            "target_branch": "topic",
+            "topology": "single_branch"
+          },
+          "mission_number": null,
+          "mission_slug": "flat-single-branch-summary-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "topic",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/flat-single-branch-summary-<MID8#1>/spec.md"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/flat-single-branch-summary-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "Golden Flat Single Branch Summary",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "flat-single-branch-summary-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission pins how flat single branch summary is created so the decomposition can prove it changes nothing observable.",
+              "purpose_tldr": "Pin the flat single branch summary create behaviour.",
+              "slug": "flat-single-branch-summary-<MID8#1>",
+              "target_branch": "topic",
+              "topology": "single_branch"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {
+          "topic": [
+            {
+              "message": [
+                "Add scaffold for feature flat-single-branch-summary-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/flat-single-branch-summary-<MID8#1>/meta.json",
+                "kitty-specs/flat-single-branch-summary-<MID8#1>/status.events.jsonl",
+                "kitty-specs/flat-single-branch-summary-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/flat-single-branch-summary-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/flat-single-branch-summary-<MID8#1>/spec.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/flat-single-branch-summary-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    },
+    "single_branch/target_not_checked_out": {
+      "outcome": {
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/flat-single-branch-elsewhere-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/flat-single-branch-elsewhere-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/flat-single-branch-elsewhere-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/kitty-specs/flat-single-branch-elsewhere-<MID8#1>/tasks/.gitkeep",
+            "<TMP>/repo/kitty-specs/flat-single-branch-elsewhere-<MID8#1>/status.events.jsonl"
+          ],
+          "current_branch": "topic",
+          "feature_dir": "<TMP>/repo/kitty-specs/flat-single-branch-elsewhere-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "flat single branch elsewhere",
+            "mid8": "<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "flat-single-branch-elsewhere-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances flat single branch elsewhere on elsewhere so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "flat single branch elsewhere",
+            "slug": "flat-single-branch-elsewhere-<MID8#1>",
+            "target_branch": "elsewhere",
+            "topology": "single_branch"
+          },
+          "mission_number": null,
+          "mission_slug": "flat-single-branch-elsewhere-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "elsewhere",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/flat-single-branch-elsewhere-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/flat-single-branch-elsewhere-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/flat-single-branch-elsewhere-<MID8#1>/tasks/README.md",
+            "<TMP>/repo/kitty-specs/flat-single-branch-elsewhere-<MID8#1>/tasks/.gitkeep",
+            "<TMP>/repo/kitty-specs/flat-single-branch-elsewhere-<MID8#1>/status.events.jsonl"
+          ]
+        }
+      },
+      "post": {
+        "branches": [
+          "elsewhere",
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {
+          "repo/kitty-specs/flat-single-branch-elsewhere-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "flat single branch elsewhere",
+              "mid8": "<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "flat-single-branch-elsewhere-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances flat single branch elsewhere on elsewhere so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "flat single branch elsewhere",
+              "slug": "flat-single-branch-elsewhere-<MID8#1>",
+              "target_branch": "elsewhere",
+              "topology": "single_branch"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
+            "tree": [
+              "checklists/",
+              "meta.json",
+              "research/",
+              "spec.md",
+              "status.events.jsonl",
+              "tasks/",
+              "tasks/.gitkeep",
+              "tasks/README.md"
+            ]
+          }
+        },
+        "new_commits": {},
+        "porcelain": {
+          "repo": [
+            "?? kitty-specs/flat-single-branch-elsewhere-<MID8#1>/meta.json",
+            "?? kitty-specs/flat-single-branch-elsewhere-<MID8#1>/spec.md",
+            "?? kitty-specs/flat-single-branch-elsewhere-<MID8#1>/status.events.jsonl",
+            "?? kitty-specs/flat-single-branch-elsewhere-<MID8#1>/tasks/.gitkeep",
+            "?? kitty-specs/flat-single-branch-elsewhere-<MID8#1>/tasks/README.md"
+          ]
+        },
+        "status_log": {
+          "repo/kitty-specs/flat-single-branch-elsewhere-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
+        },
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      },
+      "pre": {
+        "branches": [
+          "elsewhere",
+          "main",
+          "topic"
+        ],
+        "head": {
+          "repo": "topic"
+        },
+        "missions": {},
+        "new_commits": {},
+        "porcelain": {
+          "repo": []
+        },
+        "status_log": {},
+        "worktrees": [
+          {
+            "branch": "topic",
+            "path": "repo"
+          }
+        ]
+      }
+    }
+  }
+}
