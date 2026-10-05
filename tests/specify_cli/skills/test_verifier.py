@@ -526,6 +526,39 @@ def test_repair_rejects_path_traversal(tmp_path: Path) -> None:
     assert failed == 1
 
 
+def test_find_source_file_rejects_escaping_source_file(tmp_path: Path) -> None:
+    """A ``source_file`` that escapes the skill dir is refused, not read (#56).
+
+    This is the *source* vector (the canonical file hashed for drift detection),
+    distinct from the ``installed_path`` write vector the two tests above cover.
+    ``_find_source_file``'s docstring always promised containment, but before the
+    ``ensure_within_directory`` guard (Sonar ``pythonsecurity:S2083``) it read
+    whatever ``skill_dir / source_file`` resolved to — including a file outside
+    the skill dir reached through ``..``. A readable file above the skill dir
+    must now yield ``None`` even though it exists.
+    """
+    from specify_cli.skills.verifier import _find_source_file
+
+    skills_root = tmp_path / "skills"
+    skill_dir = skills_root / "my-skill"
+    (skill_dir / "references").mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text("ok", encoding="utf-8")
+    (skill_dir / "references" / "note.md").write_text("note", encoding="utf-8")
+    # A real, readable file one level above the skill dir: skill_dir/../secret.txt.
+    (skills_root / "secret.txt").write_text("TOP SECRET", encoding="utf-8")
+
+    # Legitimate in-dir files (flat and nested) still resolve.
+    assert _find_source_file(skill_dir, "SKILL.md") == skill_dir / "SKILL.md"
+    assert (
+        _find_source_file(skill_dir, "references/note.md")
+        == skill_dir / "references" / "note.md"
+    )
+
+    # An escaping source_file is refused even though the target exists on disk.
+    assert _find_source_file(skill_dir, "../secret.txt") is None
+    assert _find_source_file(skill_dir, "../../etc/hostname") is None
+
+
 def test_repair_unsafe_skill_name_never_touches_global_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Repair never builds global-root paths from the manifest skill name.
 

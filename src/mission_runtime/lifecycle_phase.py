@@ -171,8 +171,12 @@ def _target_ref_exists(repo_root: Path, target_branch: str) -> bool:
     reopening it for one boolean check.
     """
     try:
+        # ``--end-of-options`` keeps the ref positional so a crafted
+        # ``target_branch`` cannot be parsed as a git option (Sonar S6350); the
+        # ``refs/heads/`` prefix already prevents a leading ``-`` and argv form
+        # precludes shell injection, so this is belt-and-suspenders.
         result = subprocess.run(
-            ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{target_branch}"],
+            ["git", "rev-parse", "--verify", "--quiet", "--end-of-options", f"refs/heads/{target_branch}"],
             cwd=repo_root,
             capture_output=True,
             timeout=_GIT_PROBE_TIMEOUT,

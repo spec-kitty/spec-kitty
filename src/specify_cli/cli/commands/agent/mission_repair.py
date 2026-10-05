@@ -174,8 +174,11 @@ def _forward_ref(
     if _is_worktree_dirty(worktree):
         return False, f"the worktree for {behind_branch!r} ({worktree}) has uncommitted changes"
 
+    # ``--end-of-options`` keeps ``ahead_branch`` positional so a branch name
+    # beginning with ``-`` cannot be parsed as a git-merge option (Sonar
+    # S6350); argv form already precludes shell injection.
     subprocess.run(
-        ["git", "-C", str(worktree), "merge", "--ff-only", ahead_branch],
+        ["git", "-C", str(worktree), "merge", "--ff-only", "--end-of-options", ahead_branch],
         check=True, capture_output=True, text=True,
     )
     return True, ""

@@ -133,8 +133,15 @@ def _find_source_file(skill_dir: Path, source_file: str) -> Path | None:
     """Locate a source file within a canonical skill directory.
 
     *source_file* is relative within the skill dir (e.g. ``"SKILL.md"`` or
-    ``"references/agent-path-matrix.md"``).  The resolved path must remain
-    within *skill_dir* to prevent path traversal.
+    ``"references/agent-path-matrix.md"``). The resolved path must remain within
+    *skill_dir* to prevent path traversal: :func:`skill_path_observations`
+    enforces that containment — it computes ``candidate.relative_to(skill_dir)``
+    and raises ``ValueError`` for any ``..``/``.`` segment or an absolute
+    ``source_file`` (which ``skill_dir / source_file`` would rebase outside the
+    dir) — and the ``except`` below turns that refusal into ``None``. Sonar
+    ``pythonsecurity:S2083`` flags this sink because its taint tracker does not
+    recognise that lexical guard as a sanitizer; the containment is real and
+    covered by ``test_find_source_file_rejects_escaping_source_file``.
     """
     candidate = skill_dir / source_file
     try:

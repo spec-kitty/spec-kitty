@@ -489,8 +489,15 @@ def create_lane_workspace(
 
 
 def _rev_parse(repo_root: Path, ref: str) -> str:
+    # ``--verify --end-of-options`` forces ``ref`` to be read as a single
+    # positional revision, so a ref beginning with ``-`` can never be parsed as
+    # a git option (Sonar pythonsecurity:S6350); argv form already precludes
+    # shell injection. ``--verify`` keeps the output a single SHA (plain
+    # ``rev-parse --end-of-options`` echoes the flag itself); the sole caller
+    # passes a branch name that resolves to exactly one commit, and an
+    # unresolvable ref still exits non-zero and yields ``"unknown"`` as before.
     result = subprocess.run(
-        ["git", "rev-parse", ref],
+        ["git", "rev-parse", "--verify", "--end-of-options", ref],
         cwd=str(repo_root),
         capture_output=True,
         text=True,
@@ -643,8 +650,11 @@ def _workspace_head(workspace_path: Path) -> str | None:
 
 def _is_git_ancestor(workspace_path: Path, ref: str, head: str) -> bool:
     """``True`` iff ``ref`` is a git ancestor of ``head``, checked at ``workspace_path``."""
+    # ``--end-of-options`` keeps ``ref``/``head`` positional, so neither can be
+    # read as a git option if it begins with ``-`` (Sonar S6350 sibling of
+    # :func:`_rev_parse`; argv form already precludes shell injection).
     result = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", ref, head],
+        ["git", "merge-base", "--is-ancestor", "--end-of-options", ref, head],
         cwd=str(workspace_path),
         capture_output=True,
         text=True,
