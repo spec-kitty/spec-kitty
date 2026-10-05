@@ -375,60 +375,49 @@ def test_scanner_flags_fstring_recipe() -> None:
 # line from ``git show '3e09226fb4^:src/specify_cli/<path>'`` (3e09226fb4^ is
 # 0d4466a39ebc56c3633ccce032ac3e60b60d235a), indentation included, so the
 # f-string handling of the scanner is exercised too. Do not paraphrase.
-_HISTORICAL_RECIPES: list[tuple[str, int, str]] = [
+_HISTORICAL_RECIPES: list[tuple[str, str]] = [
     (
         "cli/commands/agent/mission_setup_plan.py",
-        137,
         '        console.print(f"[yellow]You may need to commit manually:[/yellow] git add {file_path} && git commit")',
     ),
     (
         "cli/commands/agent/tasks_parsing_validation.py",
-        388,
         "        guidance.append(f'  git commit -m \"research({wp_id}): <describe your research outputs>\"')",
     ),
     (
         "cli/commands/agent/tasks_parsing_validation.py",
-        390,
         "        guidance.append(f'  git commit -m \"docs({wp_id}): <describe your changes>\"')",
     ),
     (
         "cli/commands/agent/tasks_parsing_validation.py",
-        588,
         "    guidance.append(f'  git commit -m \"feat({wp_id}): <describe implementation>\"')",
     ),
     (
         "cli/commands/agent/tasks_parsing_validation.py",
-        618,
         "    guidance.append(f'  git commit -m \"feat({wp_id}): <describe implementation>\"')",
     ),
     (
         "cli/commands/agent/tasks_parsing_validation.py",
-        712,
         "    guidance.append('  git commit -m \"chore: remove planning artifacts from lane branch\"')",
     ),
     (
         "cli/commands/agent/workflow_executor.py",
-        1378,
         "    lines.append(f'     git commit -m \"feat({normalized_wp_id}): <brief description>\"')",
     ),
     (
         "cli/commands/agent/workflow_executor.py",
-        1455,
         "    lines.append(f'      git commit -m \"feat({normalized_wp_id}): <brief description>\"')",
     ),
     (
         "cli/commands/agent/workflow_executor.py",
-        1514,
         "    print(f'  1. git status && git add <your-files> && git commit -m \"feat({normalized_wp_id}): <description>\"')",
     ),
     (
         "cli/commands/charter/_synthesis.py",
-        749,
         "    console.print(\"  git commit -m 'chore: charter synthesis artifacts'\")",
     ),
     (
         "cli/commands/implement.py",
-        424,
         "    console.print(f'  git commit -m \"chore: planning artifacts for {mission_slug}\"')",
     ),
 ]
@@ -510,17 +499,25 @@ _KNOWN_OVER_FLAGS: dict[str, str] = {
 }
 
 
-@pytest.mark.parametrize(("path", "line", "source"), _HISTORICAL_RECIPES, ids=[f"{p.rsplit('/', 1)[-1]}:{n}" for p, n, _ in _HISTORICAL_RECIPES])
-def test_each_historical_recipe_is_flagged(path: str, line: int, source: str) -> None:
+@pytest.mark.parametrize(
+    ("path", "source"),
+    _HISTORICAL_RECIPES,
+    ids=[f"{path.rsplit('/', 1)[-1]}-{i}" for i, (path, _) in enumerate(_HISTORICAL_RECIPES)],
+)
+def test_each_historical_recipe_is_flagged(path: str, source: str) -> None:
     """FR-014: every recipe the tree held before 3e09226fb4 is still flagged."""
-    hits = find_git_commit_recipe_hits(source=textwrap.dedent(source), filename=f"{path}:{line}")
-    assert len(hits) == 1, f"{path}:{line} is no longer flagged: {source!r}"
+    hits = find_git_commit_recipe_hits(source=textwrap.dedent(source), filename=path)
+    assert len(hits) == 1, f"{path} is no longer flagged: {source!r}"
     assert is_recipe_shaped(hits[0][1])
 
 
 def test_historical_recipe_set_has_the_eleven_known_members() -> None:
     assert len(_HISTORICAL_RECIPES) == 11
-    assert len({(path, line) for path, line, _ in _HISTORICAL_RECIPES}) == 11
+    # Ten distinct sources: the two feat(...) guidance lines in
+    # tasks_parsing_validation.py (formerly lines 588 and 618) are byte-identical
+    # once the line anchor is dropped, but are two real occurrences in the
+    # pre-3e09226fb4 tree, so the historical count stays 11.
+    assert len(set(_HISTORICAL_RECIPES)) == 10
 
 
 @pytest.mark.parametrize("text", list(_RECIPE_SHAPES.values()), ids=list(_RECIPE_SHAPES))
