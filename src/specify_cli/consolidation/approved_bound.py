@@ -25,7 +25,7 @@ state, no prompt. The claim builder calls it before any branch moves
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -101,27 +101,48 @@ def _short(sha: str | None) -> str:
     return (sha or "")[:_SHORT_SHA]
 
 
+def is_approved_reviewed_attestation(policy_metadata: Mapping[str, object] | None) -> bool:
+    """True iff *policy_metadata* (an event's, parsed or raw) marks an operator attestation of an approval, which is not a review.
+
+    The one test of that marker, for every reader that must tell an attestation from a
+    review approval (the stamp readers here, the hollow-review merge gate).
+    """
+    return isinstance(policy_metadata, Mapping) and policy_metadata.get(ATTESTATION_KEY) == APPROVED_REVIEWED
+
+
 def _is_approval(event: StatusEvent) -> bool:
-    if str(event.to_lane) == _APPROVED_LANE:
-        return True
-    return (event.policy_metadata or {}).get(ATTESTATION_KEY) == APPROVED_REVIEWED
+    return str(event.to_lane) == _APPROVED_LANE or is_approved_reviewed_attestation(event.policy_metadata)
+
+
+def _newest_approval(events: Sequence[StatusEvent], wp_id: str) -> StatusEvent | None:
+    """*wp_id*'s newest approval event, or ``None`` when it has none.
+
+    Walks *events* in append order. An approval is an event whose ``to_lane`` is
+    ``approved`` or an operator attestation of an approval (:data:`APPROVED_REVIEWED`,
+    any ``to_lane``). The ``approved -> done`` event is neither, so the restamp the run
+    itself writes is never read; migration-synthesized events (FR-011) never count.
+    """
+    newest: StatusEvent | None = None
+    for event in events:
+        if event.wp_id == wp_id and not is_migration_event(event) and _is_approval(event):
+            newest = event
+    return newest
 
 
 def approval_stamp(events: Sequence[StatusEvent], wp_id: str) -> str | None:
     """The ``lane_head`` stamp of *wp_id*'s newest approval, or ``None`` when it has none (plan D-1).
 
-    Walks *events* in append order. An approval is an event whose ``to_lane`` is
-    ``approved`` or an operator attestation of an approval (:data:`APPROVED_REVIEWED`,
-    any ``to_lane``). The newest approval decides: an approval with no stamp yields
-    ``None`` even when an older approval had one. The ``approved -> done`` event is
-    neither, so the restamp the run itself writes is never read; migration-synthesized
-    events (FR-011) never supply a stamp.
+    The newest approval decides: an approval with no stamp yields ``None`` even when an
+    older approval had one.
     """
-    stamp: str | None = None
-    for event in events:
-        if event.wp_id == wp_id and not is_migration_event(event) and _is_approval(event):
-            stamp = stamp_of(event)
-    return stamp
+    newest = _newest_approval(events, wp_id)
+    return None if newest is None else stamp_of(newest)
+
+
+def approval_is_attested(events: Sequence[StatusEvent], wp_id: str) -> bool:
+    """True iff *wp_id*'s newest approval is an operator attestation (:data:`APPROVED_REVIEWED`), not a review approval (plan D-5)."""
+    newest = _newest_approval(events, wp_id)
+    return newest is not None and is_approved_reviewed_attestation(newest.policy_metadata)
 
 
 def _latest_stamp(events: Sequence[StatusEvent], wp_id: str) -> str | None:
@@ -266,4 +287,5 @@ __all__ = [
     "check_lane",
     "commits_beyond",
     "content_commits",
+    "is_approved_reviewed_attestation",
 ]

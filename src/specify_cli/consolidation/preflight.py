@@ -37,6 +37,7 @@ from specify_cli.consolidation._constants import (
     _STATUS_FILENAME,
 )
 from specify_cli.git.ref_advance import reset_would_obstruct_untracked
+from specify_cli.consolidation.approved_bound import is_approved_reviewed_attestation
 from specify_cli.consolidation.git_probes import _has_branch_ref, _lane_already_integrated, sha_reachable_from
 from specify_cli.consolidation.state import load_state
 from specify_cli.post_merge.review_artifact_consistency import (
@@ -509,7 +510,9 @@ def _latest_actor_for_transition(feature_dir: Path, wp_id: str, to_lane: str) ->
     only ever tell us who did the LATEST transition of any kind, never who
     specifically claimed/implemented versus who specifically approved.
     Returns ``None`` when the log is absent/unreadable or no matching,
-    actor-bearing transition exists for this WP.
+    actor-bearing transition exists for this WP. An operator attestation of an
+    approval (``--attest-approved-reviewed``, #5668) is a forced ``approved ->
+    approved`` record, not a review, so it is never the approving transition.
     """
     events_path = feature_dir / _STATUS_EVENTS_FILENAME
     if not events_path.exists():
@@ -528,6 +531,8 @@ def _latest_actor_for_transition(feature_dir: Path, wp_id: str, to_lane: str) ->
         if not isinstance(event, dict):
             continue
         if event.get("wp_id") != wp_id or event.get("to_lane") != to_lane:
+            continue
+        if is_approved_reviewed_attestation(event.get("policy_metadata")):
             continue
         actor = event.get("actor")
         if not actor or not str(actor).strip():

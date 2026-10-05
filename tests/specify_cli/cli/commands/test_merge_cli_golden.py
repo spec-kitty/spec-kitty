@@ -83,6 +83,8 @@ EXPECTED_PARSER_LONG_FLAGS = frozenset(
         # #5046 landing (FR-012): operator-attested override for a mixed-lane
         # REFUSE whose attribution evidence can never appear later.
         "--attest-canceled-superseded",
+        # #5668: operator-attested override for an approval that recorded no lane head.
+        "--attest-approved-reviewed",
         "--attest-reason",
     }
 )

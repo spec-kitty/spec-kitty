@@ -132,6 +132,26 @@ def test_undocumented_forcing_still_warns(tmp_path: Path) -> None:
     assert _collect_hollow_review_warnings(feature_dir, ["WP01"]) == {"WP01": ["force_count=2"]}
 
 
+def test_an_attested_approval_does_not_confirm_an_independent_review(tmp_path: Path) -> None:
+    """#5668: ``--attest-approved-reviewed`` records an operator's forced ``approved -> approved``; it is not a review, so the warning stays."""
+    feature_dir = tmp_path / "kitty-specs" / "034-test"
+    _write_force_history(feature_dir, "WP01", ["force-override", None], force_count=2)
+    assert _collect_hollow_review_warnings(feature_dir, ["WP01"]) == {"WP01": ["force_count=2"]}
+    attestation = {
+        "event_id": "z99",
+        "wp_id": "WP01",
+        "actor": "operator",
+        "force": True,
+        "from_lane": "approved",
+        "to_lane": "approved",
+        "policy_metadata": {"attestation": "approved_reviewed"},
+    }
+    with (feature_dir / "status.events.jsonl").open("a", encoding="utf-8") as log:
+        log.write(json.dumps(attestation) + "\n")
+
+    assert _collect_hollow_review_warnings(feature_dir, ["WP01"]) == {"WP01": ["force_count=2"]}
+
+
 def test_mixed_forcing_reports_the_undocumented_count(tmp_path: Path) -> None:
     """Only the undocumented forced transitions count towards the threshold."""
     feature_dir = tmp_path / "kitty-specs" / "034-test"
