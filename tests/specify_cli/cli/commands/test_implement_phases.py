@@ -9,18 +9,16 @@ of substituting spies, so it adds no patch site either.
 from __future__ import annotations
 
 import json
-import re
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Collection
 from dataclasses import replace
 from pathlib import Path
-from types import FrameType
-from typing import Any
+from types import CodeType, FrameType
+from typing import Any, TypeVar
 
 import pytest
 import typer
 
-from specify_cli.charter_runtime.preflight.ambient_warning import _reset_surfaced_for_testing
 from specify_cli.cli import StepTracker
 from specify_cli.cli.commands import implement_phases
 from specify_cli.cli.commands.implement import (
@@ -34,14 +32,18 @@ from specify_cli.lanes import implement_support
 from specify_cli.lanes.implement_support import LaneWorkspaceResult
 from specify_cli.status.work_package_lifecycle import start_implementation_status
 from specify_cli.workspace.context import ResolvedWorkspace
-from tests.specify_cli.cli.commands.test_implement_characterization import (
+from tests._support.ansi import strip_ansi
+from tests.specify_cli.cli.commands._implement_fixtures import (
     ARGS,
+    COORDINATION_BRANCH,
     LANE_BRANCH,
     LANE_WORKTREE,
     MISSION_ID,
     SLUG,
     activate_repo,
     build_mission,
+    create_meta_json,
+    flat,
     git,
     implement_cli,
     init_repo,
@@ -49,7 +51,6 @@ from tests.specify_cli.cli.commands.test_implement_characterization import (
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
-_ANSI = re.compile(r"\x1b\[[0-9;]*m")
 _RULE = "=" * 72
 _PHASES = (
     "detect_context",
@@ -63,15 +64,8 @@ _PHASES = (
     "commit_claim",
 )
 BULK_SPEC = "# Spec\nA codemod to rename across the repo: bulk edit with find-and-replace.\n"
+_T = TypeVar("_T")
 BULK_MATCHED = "Matched: 'rename across' (3pt), 'bulk edit' (3pt), 'codemod' (3pt), 'find-and-replace' (3pt)"
-
-
-@pytest.fixture(autouse=True)
-def _fresh_charter_warning() -> Iterator[None]:
-    """The charter preflight warning is shown once per process; re-arm it around each test."""
-    _reset_surfaced_for_testing()
-    yield
-    _reset_surfaced_for_testing()
 
 
 @pytest.fixture(autouse=True)
@@ -80,19 +74,34 @@ def _wide_console(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("COLUMNS", "240")
 
 
-@pytest.fixture()
-def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    root = init_repo(tmp_path / "repo")
-    activate_repo(root, monkeypatch, tmp_path)
-    return root
-
-
 def _lines(text: str) -> list[str]:
-    return [line.rstrip() for line in _ANSI.sub("", text).splitlines()]
+    return [line.rstrip() for line in strip_ansi(text).splitlines()]
 
 
 def _flat(text: str) -> str:
-    return " ".join(re.sub(r"[│├└─╭╮╰╯●○]", " ", _ANSI.sub("", text)).split())
+    return flat(strip_ansi(text))
+
+
+def _observe_calls(codes: Collection[CodeType], run: Callable[[], _T]) -> tuple[_T, list[FrameType]]:
+    """Run *run* and return its result plus the frame of every call to one of *codes* (observed, not spied).
+
+    The profile hook is per-thread and matches on the function's ``__code__``, so a phase moved to a
+    thread or wrapped in a decorator goes red here rather than falsely green. The previous profiler is
+    restored even when *run* raises.
+    """
+    frames: list[FrameType] = []
+
+    def _observe(frame: FrameType, event: str, _arg: Any) -> None:
+        if event == "call" and frame.f_code in codes:
+            frames.append(frame)
+
+    previous = sys.getprofile()
+    sys.setprofile(_observe)
+    try:
+        result = run()
+    finally:
+        sys.setprofile(previous)
+    return result, frames
 
 
 # ---------------------------------------------------------------------------
@@ -108,21 +117,11 @@ def test_phases_run_in_the_documented_order(repo: Path) -> None:
     """
     build_mission(repo, SLUG, MISSION_ID)
     codes = {getattr(implement_phases, name).__code__: name for name in _PHASES}
-    calls: list[str] = []
 
-    def _observe(frame: FrameType, event: str, _arg: Any) -> None:
-        if event == "call" and frame.f_code in codes:
-            calls.append(codes[frame.f_code])
-
-    previous = sys.getprofile()
-    sys.setprofile(_observe)
-    try:
-        result = implement_cli(*ARGS)
-    finally:
-        sys.setprofile(previous)
+    result, frames = _observe_calls(codes, lambda: implement_cli(*ARGS))
 
     assert result.exit_code == 0, result.output
-    assert calls == list(_PHASES)
+    assert [codes[frame.f_code] for frame in frames] == list(_PHASES)
 
 
 # ---------------------------------------------------------------------------
@@ -174,7 +173,8 @@ def test_bulk_edit_gate_lets_a_bulk_edit_mission_with_a_valid_map_skip_the_infer
     with console.capture() as capture:
         implement_phases.run_bulk_edit_gate(ctx, "WP01", acknowledge_not_bulk_edit=False)
 
-    assert "Bulk Edit Inference" not in _flat(capture.get())
+    # Silent, not merely "no inference panel": a valid map skips the inference entirely.
+    assert _flat(capture.get()) == ""
 
 
 def test_bulk_edit_inference_is_informational_for_the_wp_that_owns_the_occurrence_map(tmp_path: Path) -> None:
@@ -421,21 +421,10 @@ def test_report_workspace_created(tmp_path: Path, overrides: dict[str, Any], ste
 # ---------------------------------------------------------------------------
 
 
-def _calls_of(code: Any, run: Any) -> tuple[Any, list[dict[str, Any]]]:
+def _calls_of(code: CodeType, run: Callable[[], _T]) -> tuple[_T, list[dict[str, Any]]]:
     """Run *run* and return its result plus the arguments of every call to *code* (observed, not spied)."""
-    seen: list[dict[str, Any]] = []
-
-    def _observe(frame: FrameType, event: str, _arg: Any) -> None:
-        if event == "call" and frame.f_code is code:
-            seen.append(dict(frame.f_locals))
-
-    previous = sys.getprofile()
-    sys.setprofile(_observe)
-    try:
-        result = run()
-    finally:
-        sys.setprofile(previous)
-    return result, seen
+    result, frames = _observe_calls({code}, run)
+    return result, [dict(frame.f_locals) for frame in frames]
 
 
 def _claim_events(feature_dir: Path, actor: str) -> list[dict[str, Any]]:
@@ -483,9 +472,6 @@ def test_claim_preflight_refuses_an_unready_dependency_before_anything_is_writte
     assert git(repo, "rev-parse", "HEAD") == head
     assert not (repo / ".worktrees").exists()
     assert "vcs" not in mission.meta()
-
-
-COORDINATION_BRANCH = f"kitty/mission-{SLUG}-{MISSION_ID[:8].lower()}"
 
 
 @pytest.fixture()
@@ -582,7 +568,6 @@ def test_a_lane_claim_records_a_worktree_workspace_context(repo: Path) -> None:
 
     assert result.exit_code == 0, result.output
     assert [call["workspace_context"] for call in calls] == [f"worktree:{repo / LANE_WORKTREE}"]
-    assert all(call["workspace_context"].startswith("worktree:") for call in calls)
 
 
 def test_claim_events_carry_the_transport_execution_mode_not_the_wp_mode(repo: Path) -> None:
@@ -651,33 +636,18 @@ def test_select_workspace_reads_lanes_json_from_the_lanes_surface_not_the_status
 # ---------------------------------------------------------------------------
 
 
-def create_meta_json(feature_dir: Path, vcs: str = "git") -> Path:
-    meta_path = feature_dir / "meta.json"
-    feature_dir.mkdir(parents=True, exist_ok=True)
-    meta_content = {
-        "feature_number": feature_dir.name.split("-")[0],
-        "mission_slug": feature_dir.name,
-        "created_at": "2026-01-17T00:00:00Z",
-        "friendly_name": feature_dir.name,
-        "mission_type": "software-dev",
-        "slug": feature_dir.name,
-        "target_branch": "main",
-    }
-    if vcs:
-        meta_content["vcs"] = vcs
-    meta_path.write_text(json.dumps(meta_content, indent=2))
-    return meta_path
-
-
-class TestDetectFeatureContext:
+class TestDetectMissionContext:
     def test_detect_with_explicit_flag(self) -> None:
         number, slug = detect_mission_context("010-lane-only-runtime")
         assert number == "010"
         assert slug == "010-lane-only-runtime"
 
     def test_detect_failure_no_flag(self) -> None:
-        with pytest.raises(typer.Exit):
+        with console.capture() as capture, pytest.raises(typer.Exit) as excinfo:
             detect_mission_context(None)
+
+        assert excinfo.value.exit_code == 1
+        assert _flat(capture.get()) == "Error: --mission <slug> is required"
 
     def test_detect_invalid_format(self) -> None:
         number, slug = detect_mission_context("lane-only-runtime")
@@ -692,5 +662,12 @@ class TestEnsureVcsInMeta:
         assert _ensure_vcs_in_meta(feature_dir).value == "git"
 
     def test_missing_meta_errors(self, tmp_path: Path) -> None:
-        with pytest.raises(typer.Exit):
-            _ensure_vcs_in_meta(tmp_path / "kitty-specs" / "010-feature")
+        feature_dir = tmp_path / "kitty-specs" / "010-feature"
+
+        with console.capture() as capture, pytest.raises(typer.Exit) as excinfo:
+            _ensure_vcs_in_meta(feature_dir)
+
+        assert excinfo.value.exit_code == 1
+        text = _flat(capture.get())
+        assert f"Error: meta.json not found in {feature_dir}" in text
+        assert "Run /spec-kitty.specify inside your coding agent" in text
