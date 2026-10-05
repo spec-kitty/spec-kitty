@@ -303,11 +303,14 @@ class _Row:
     paths: tuple[str, ...] = (_NO_MIGRATIONS, _MIGRATIONS)
     yes: bool = True
     errors_contain: tuple[str, ...] = ()
+    config_yaml: str = ""
 
     @property
     def exit_code(self) -> int:
         return 0 if self.kind in {"applied", "no_op"} else 1
 
+
+_DANGLING_CHARTER_CONFIG = "charter: does/not/exist.yaml\n"
 
 _ROWS = (
     _Row("clean-no-op", (), "no_op", (), paths=(_NO_MIGRATIONS,)),
@@ -323,6 +326,14 @@ _ROWS = (
         errors_contain=("was not applied", "Unresolved tool-surface drift in 1 file(s)"),
     ),
     _Row("activation-error", ("activation_error",), "failed", ("activation_error",), errors_contain=(_ACTIVATION_ERROR,)),
+    _Row(
+        "dangling-charter-pointer",
+        (),
+        "failed",
+        ("activation_error",),
+        config_yaml=_DANGLING_CHARTER_CONFIG,
+        errors_contain=("'charter:' pointer names", "which does not exist"),
+    ),
     _Row("worktree-failure", ("worktree_failure",), "failed", ("worktree_failure",), errors_contain=(_WORKTREE_FAILURE,)),
     _Row("commit-recovery-failure", ("commit_recovery_failure",), "failed", ("commit_recovery_failed",), errors_contain=("stash@{0}",)),
     _Row("migration-failure", ("migration_failure",), "failed", ("migration_failed",), paths=(_MIGRATIONS,), errors_contain=(_MIGRATION_ERROR,)),
@@ -346,6 +357,10 @@ def _prepare_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, row: _Row, p
     roots = [tmp_path / label for label in labels]
     for root in roots:
         _init_project(root)
+        if row.config_yaml:
+            (root / ".kittify" / "config.yaml").write_text(row.config_yaml, encoding="utf-8")
+            subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-q", "-m", "configure"], cwd=root, check=True)
     if path == _MIGRATIONS and not any(stub in {"worktree_failure", "migration_failure"} for stub in row.stubs):
         _stub_applied_migration(monkeypatch)
     for stub in row.stubs:
@@ -387,7 +402,8 @@ def test_matrix_text_and_json_agree_on_one_outcome(row: _Row, path: str, tmp_pat
         # Rule 2: every string in the JSON errors is printed, no success line is, and the verdict comes last.
         assert payload["errors"], "a non-zero exit always has at least one reason (rule 7)"
         for error in payload["errors"]:
-            assert error in text.output
+            # The two runs are the same project state at two locations: compare the error as printed at the text run's.
+            assert error.replace(str(json_root.resolve()), str(text_root.resolve())) in text.output
         lowered = text.output.lower()
         assert not any(phrase in lowered for phrase in _SUCCESS_PHRASES)
         assert text.output.rstrip().splitlines()[-1] == closing
@@ -439,14 +455,26 @@ def test_completed_dry_run_prints_its_closing_line_and_exits_zero(path: str, clo
 
 
 @pytest.mark.parametrize("path", [_NO_MIGRATIONS, _MIGRATIONS])
-def test_incomplete_dry_run_preview_is_a_failure_and_its_notice_prints_once(path: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, quiet: None) -> None:
-    row = _Row("incomplete-preview", ("incomplete_preview",), "failed", ("preview_incomplete",))
+@pytest.mark.parametrize(
+    ("row", "notice"),
+    [
+        (_Row("incomplete-preview", ("incomplete_preview",), "failed", ("preview_incomplete",)), _PREVIEW_NOTICE),
+        (
+            _Row("dangling-charter-pointer", (), "failed", ("preview_incomplete",), config_yaml=_DANGLING_CHARTER_CONFIG),
+            "Supporting repair preview incomplete: .kittify/config.yaml 'charter:' pointer names",
+        ),
+    ],
+    ids=["stubbed-preview", "dangling-charter-pointer"],
+)
+def test_incomplete_dry_run_preview_is_a_failure_and_its_notice_prints_once(
+    row: _Row, notice: str, path: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, quiet: None
+) -> None:
     (root,), args = _prepare_state(tmp_path, monkeypatch, row, path, "preview")
 
     result = _invoke(root, [*args, "--dry-run"])
 
     assert result.exit_code == 1, result.output
-    assert result.output.count(_PREVIEW_NOTICE) == 1, result.output
+    assert result.output.count(notice) == 1, result.output
     assert not any(phrase in result.output.lower() for phrase in _SUCCESS_PHRASES)
     assert result.output.rstrip().splitlines()[-1] == _CLOSING_FAILED
 

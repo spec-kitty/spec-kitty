@@ -1017,15 +1017,27 @@ def _finalizer_step_provision(project_path: Path, *, dry_run: bool, prepared: Pr
     return []
 
 
+def _preparation_error_text(exc: Exception) -> str:
+    """The operator-facing text of a repair-preparation failure.
+
+    A charter-pack config error carries only its code in ``str(exc)``; the explanation
+    (what is wrong and how to fix it) is its ``body``.
+    """
+    from charter.activation.pack_context import CharterPackConfigError
+
+    return exc.body or str(exc) if isinstance(exc, CharterPackConfigError) else str(exc)
+
+
 def _prepare_finalizer_repairs(project_path: Path, ctx: _FinalizerRenderContext) -> tuple[str, ...]:
+    from charter.activation.pack_context import CharterPackConfigError
     from specify_cli.upgrade.assessment import prepare_upgrade_repairs
     from specify_cli.tool_surface.operations import ApplyConsent
     from specify_cli.core.agent_config import AgentConfigError
 
     try:
         ctx.prepared_repairs = prepare_upgrade_repairs(project_path, consent=ApplyConsent(automatic=True))
-    except (OSError, ValueError, AgentConfigError) as exc:
-        return (str(exc),)
+    except (OSError, ValueError, AgentConfigError, CharterPackConfigError) as exc:
+        return (_preparation_error_text(exc),)
     return ()
 
 
@@ -1042,6 +1054,7 @@ def _finalizer_repair_preflight(prepared: PreparedUpgradeRepairs | None, errors:
 
 def _supporting_repair_preview(project_path: Path) -> tuple[str, bool]:
     """Describe canonical retained effects without entering any write boundary."""
+    from charter.activation.pack_context import CharterPackConfigError
     from specify_cli.core.agent_config import AgentConfigError
     from specify_cli.tool_surface.operations import ApplyConsent
     from specify_cli.upgrade.assessment import prepare_upgrade_repairs
@@ -1053,8 +1066,8 @@ def _supporting_repair_preview(project_path: Path) -> tuple[str, bool]:
             detail = "; ".join(d.message for d in prepared.diagnostics if d.severity == "error")
             return f"Supporting repair preview incomplete: {detail[:350] or 'Required owner assessment incomplete'}. {hint}", True
         effects = prepared.effects
-    except (OSError, ValueError, AgentConfigError) as exc:
-        return f"Supporting repair preview incomplete: {str(exc)[:350]}. {hint}", True
+    except (OSError, ValueError, AgentConfigError, CharterPackConfigError) as exc:
+        return f"Supporting repair preview incomplete: {_preparation_error_text(exc)[:350]}. {hint}", True
     preserved = sum(d.state == "consent_required" for owner in prepared.owners for d in owner.dispositions)
     if not effects and not preserved:
         return "", False
