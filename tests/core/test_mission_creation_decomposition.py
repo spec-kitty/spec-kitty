@@ -13,15 +13,17 @@ from __future__ import annotations
 
 import json
 import subprocess
-import time
 from pathlib import Path
 
 import pytest
+from ulid import ULID
 
 from mission_runtime import MissionArtifactKind, MissionTopology, placement_seam
 from specify_cli.core.mission_creation import (
+    _create_mission_core_failure_atomic,
     MissionAlreadyExistsError,
     MissionCreationError,
+    MissionCreationResult,
     create_mission_core,
 )
 from specify_cli.missions._read_path_resolver import CoordState, probe_coord_state
@@ -81,13 +83,11 @@ def _summary(slug: str) -> dict[str, str]:
 
 
 @pytest.fixture(autouse=True)
-def _not_a_worktree(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The test PROCESS may itself run from inside a lane worktree (this repo's
-    own execution context, per CLAUDE.md), which would trip the worktree-context
-    guard on every ``tmp_path``-based fixture repo. Pin the guard's input to the
-    real ``tmp_path`` fixture repository instead of the process cwd.
-    """
-    monkeypatch.setattr(f"{_CORE_MODULE}.is_worktree_context", lambda cwd: False)
+def _cwd_outside_any_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The worktree-context guard reads the real process cwd, and pytest may run
+    from inside a lane worktree. Run each create from the ``tmp_path`` fixture
+    repository so the real guard sees a non-worktree checkout (no patch)."""
+    monkeypatch.chdir(tmp_path)
 
 
 @pytest.fixture
@@ -111,14 +111,23 @@ def test_explicitly_empty_friendly_name_raises(repo: Path) -> None:
         create_mission_core(repo, "empty-friendly", friendly_name="   ")
 
 
+def _chdir_into_linked_worktree(repo: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Run from a real ``git worktree add`` checkout of ``repo`` (no patch on the guard)."""
+    linked = repo.parent / f"{repo.name}-linked"
+    _git(repo, "worktree", "add", "--detach", str(linked))
+    monkeypatch.chdir(linked)
+    return linked
+
+
 def test_worktree_context_without_allow_flag_is_refused(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(f"{_CORE_MODULE}.is_worktree_context", lambda cwd: True)
+    _chdir_into_linked_worktree(repo, monkeypatch)
     with pytest.raises(MissionCreationError, match="worktree"):
         create_mission_core(repo, "worktree-guard", **_summary("worktree-guard"))
+    assert not list((repo / "kitty-specs").iterdir())
 
 
 def test_worktree_context_bypassed_with_allow_flag(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(f"{_CORE_MODULE}.is_worktree_context", lambda cwd: True)
+    _chdir_into_linked_worktree(repo, monkeypatch)
     result = create_mission_core(
         repo,
         "worktree-allowed",
@@ -156,16 +165,22 @@ def test_detached_head_raises(repo: Path) -> None:
         create_mission_core(repo, "detached-guard", **_summary("detached-guard"))
 
 
+def _later_mission_id(first: MissionCreationResult) -> str:
+    """A ULID minted 2 s after ``first``'s: past the ~1024 ms mid8 bucket, so the
+    next create composes a distinct mission directory (injected, no sleep)."""
+    first_timestamp = ULID.from_str(str(first.meta["mission_id"])).timestamp
+    return str(ULID.from_timestamp(first_timestamp + 2.0))
+
+
 def test_live_duplicate_raises_already_exists(repo: Path) -> None:
     first = create_mission_core(repo, "dup-mission", **_summary("dup-mission"))
     _commit_spec(repo, first.feature_dir)
-    # See test_live_duplicate_allowed_with_flag: force a distinct mid8/dir so
-    # this exercises the #4033 idempotency GUARD itself, not the unrelated
-    # #3861 identical-scaffold commit fallback that a same-mid8 collision
-    # would otherwise trip instead.
-    time.sleep(1.1)
+    # See test_live_duplicate_allowed_with_flag: a distinct mid8/dir (a later
+    # identity, no sleep) so this exercises the #4033 idempotency GUARD
+    # itself, not the unrelated #3861 identical-scaffold commit fallback that a
+    # same-mid8 collision would otherwise trip instead.
     with pytest.raises(MissionAlreadyExistsError):
-        create_mission_core(repo, "dup-mission", **_summary("dup-mission"))
+        _create_mission_core_failure_atomic(repo, "dup-mission", _mission_id=_later_mission_id(first), **_summary("dup-mission"))
     assert len(list((repo / "kitty-specs").glob("dup-mission-*"))) == 1
 
 
@@ -174,10 +189,10 @@ def test_live_duplicate_allowed_with_flag(repo: Path) -> None:
     _commit_spec(repo, first.feature_dir)
     # mid8 is the first 8 Crockford-base32 chars of the minted ULID, which
     # encode only the millisecond timestamp; two creates in rapid succession
-    # can mint the SAME mid8 and collide on the second mission's dir name.
+    # can mint the SAME mid8 and collide on the second mission's dir name. The
+    # second create takes a later identity instead of sleeping.
     # Mirrors tests/core/test_mission_create_idempotency_guard.py.
-    time.sleep(1.1)
-    second = create_mission_core(repo, "dup-allowed", allow_duplicate=True, **_summary("dup-allowed"))
+    second = _create_mission_core_failure_atomic(repo, "dup-allowed", allow_duplicate=True, _mission_id=_later_mission_id(first), **_summary("dup-allowed"))
     assert second.feature_dir.exists()
     assert second.feature_dir != first.feature_dir
 
@@ -495,7 +510,6 @@ def _meta_build_kwargs(feature_dir: Path, **overrides: object) -> dict[str, obje
         "retain_worktrees": False,
         "commit_to_target": False,
         "resolved_root": feature_dir.parent,
-        "write_root": feature_dir.parent,
         "topology": MissionTopology.SINGLE_BRANCH,
         "force_recreate_coordination_branch": False,
     }
