@@ -837,7 +837,6 @@ exclude = [
     "tests/agent/test_csv_schema.py",
     "tests/agent/test_envelope_unit.py",
     "tests/agent/test_gap_analysis.py",
-    "tests/agent/test_implement_command.py",
     "tests/agent/test_implement_programmatic_call.py",
     "tests/agent/test_init_command.py",
     "tests/agent/test_json_envelope_contract_integration.py",
