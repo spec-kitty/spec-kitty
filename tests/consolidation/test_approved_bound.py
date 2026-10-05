@@ -20,7 +20,7 @@ from specify_cli.consolidation import approved_bound as bound
 from specify_cli.consolidation.approved_bound import ATTEST_APPROVED_FLAG, BoundRefusal, BoundRefusalCode, approval_stamp, check_lane, render_refusals
 from specify_cli.consolidation.canceled_attestation import ATTESTATION_KEY
 from specify_cli.consolidation.git_probes import GitProbeError
-from specify_cli.consolidation.reconciliation import ApprovedWpCommitSet, build_approved_wp_set, lane_tips_moved_refusal
+from specify_cli.consolidation.reconciliation import ApprovedWpCommitSet, approval_stamp_anchors, build_approved_wp_set, lane_tips_moved_refusal
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.status import LANE_HEAD_KEY, Lane, StatusEvent
 from tests.terminus.conftest import CoordMission
@@ -226,6 +226,37 @@ def test_several_work_packages_render_one_line_each_and_one_recovery_block() -> 
     assert "see one with `git show ccccccc`" in text
     assert all(f"move-task {wp} --to in_progress --mission demo-mission" in text for wp in (*unstamped, "WP13", "WP14", "WP15"))
     assert "<mission>" not in text
+
+
+def test_a_later_approval_of_a_lane_that_took_this_lane_in_covers_its_late_commit(repo: _Repo) -> None:
+    """Deliberate (ADR 2026-10-04-2): every bounded lane's approval stamps are anchors, so reviewed content stays reviewed wherever it first appeared.
+
+    Lane-a gets a commit after WP01's approval and lane-b takes lane-a in. While WP02's
+    approval predates that merge, lane-a refuses. Once WP02 is approved again, its new
+    stamp reaches the late commit and lane-a no longer refuses.
+    """
+    _approved_lane(repo)
+    late = repo.commit("src/late.py")
+    repo.branch_from("lane-b", "base")
+    stale = repo.commit("src/b.py")
+    repo.event("WP02", Lane.APPROVED, stale)
+    lanes = [
+        ExecutionLane(lane_id=lane_id, wp_ids=(wp,), write_scope=("src",), predicted_surfaces=("code",), depends_on_lanes=(), parallel_group=0)
+        for lane_id, wp in (("lane-a", "WP01"), ("lane-b", "WP02"))
+    ]
+    work_packages = {"WP01": {"lane": "approved"}, "WP02": {"lane": "approved"}}
+
+    def lane_a_refusal() -> BoundRefusal | None:
+        anchors = tuple(approval_stamp_anchors(repo.events, lanes, work_packages, frozenset()))
+        return repo.check(_Setup(anchors=anchors))
+
+    control = lane_a_refusal()
+    assert control is not None and control.code is BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL and control.commits == (late,)
+
+    repo.merge("lane-a")
+    repo.event("WP02", Lane.APPROVED, repo.tip("lane-b"))
+
+    assert lane_a_refusal() is None
 
 
 def test_unresolvable_claim_base_fails_closed_instead_of_passing(repo: _Repo) -> None:

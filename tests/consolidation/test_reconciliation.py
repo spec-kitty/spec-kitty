@@ -2869,8 +2869,7 @@ def test_attested_mixed_lane_refuses_content_committed_after_the_attestation(tmp
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
     assert claim.refusal is not None
     assert claim.refusal.startswith("LANE_MOVED_AFTER_APPROVAL: ")
-    if stamped:
-        assert "src/late.py" in claim.refusal
+    assert "src/late.py" in claim.refusal
 
 
 def test_attestation_never_lifts_visible_canceled_content(tmp_path: Path) -> None:
