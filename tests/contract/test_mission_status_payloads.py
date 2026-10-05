@@ -1063,3 +1063,96 @@ def test_an_all_whitespace_record_is_not_a_release_marker(tools: helper.Contract
     assert not ReviewOverride(**record).is_release_sentinel
     with pytest.raises(helper.ProjectionError, match="not representable"):
         helper.review_override(record, helper.Projector(tools.leak, "m"), "WP01")
+
+
+# ---------------------------------------------------------------------------
+# The reader foundation: wanted titles, the artifact-path leak class, the fixture writer
+# ---------------------------------------------------------------------------
+
+READER_SCHEMA_TITLES = ("WorkPackageDetail", "ArtifactListing", "ArtifactContent", "ArtifactRefusal", "WorkPackageDetailRefusal")
+EXAMPLES_DIR = REPO_ROOT / "contracts" / "mission-status" / "examples"
+ARTIFACT_PATH_KEYS = ("path", "artifactPath")
+ARTIFACT_PATH_MALFORMED = "ARTIFACT_PATH_MALFORMED"
+
+
+def _odd_but_legal_names() -> list[str]:
+    """Names AD-19 keeps legal: a ``home/<x>/`` segment, a space, an accented letter, an at sign (built at run time)."""
+    return ["notes/home/someone/file.md", "with space.md", "caf" + chr(0xE9) + ".md", "scale" + AT + "2x.png", ".hidden/file.md"]
+
+
+def _credential() -> str:
+    return "gh" + "p" + chr(95) + "a" * 36
+
+
+@pytest.mark.parametrize("title", READER_SCHEMA_TITLES)
+def test_the_contract_wrapper_validates_each_reader_schema_and_refuses_a_planted_member(title: str, contract: helper.Contract) -> None:
+    examples = sorted(EXAMPLES_DIR.glob(f"{title}.*.yaml"))
+    assert examples, f"the contract must carry an example of {title}"
+    valid = yaml.safe_load(examples[0].read_text(encoding="utf-8"))
+    assert contract.errors(title, valid) == [], f"the committed {title} example must validate"
+    assert contract.errors(title, {**valid, "unknown_member": 1}), f"a member the schema does not declare must fail {title}"
+
+
+def test_the_contract_tools_carry_the_scanner_with_the_one_artifact_path_predicate(tools: helper.ContractTools) -> None:
+    assert tools.scan.malformed_artifact_path("tasks/WP01-first.md") is None
+    assert tools.scan.malformed_artifact_path("tasks/../spec.md") == "dotdot_segment"
+
+
+@pytest.mark.parametrize("key", ARTIFACT_PATH_KEYS)
+def test_payload_leaks_judges_a_value_under_an_artifact_path_key_by_the_rule(key: str, tools: helper.ContractTools) -> None:
+    for clean in _odd_but_legal_names():
+        assert helper.payload_leaks({"entries": [{key: clean}]}, tools) == [], f"{clean!r} is a legal artifact path and must pass"
+    malformed = {
+        "absolute": SLASH + "home" + SLASH + "someone" + SLASH + "file.md",
+        "dotdot": "tasks" + SLASH + ".." + SLASH + "spec.md",
+        "backslash": "tasks" + chr(92) + "spec.md",
+        "empty": "",
+    }
+    for form, bad in malformed.items():
+        assert helper.payload_leaks({"entries": [{key: bad}]}, tools) == [f"/entries/0/{key}: {ARTIFACT_PATH_MALFORMED}"], form
+
+
+@pytest.mark.parametrize("key", ARTIFACT_PATH_KEYS)
+def test_a_credential_in_an_artifact_path_is_still_reported(key: str, tools: helper.ContractTools) -> None:
+    findings = helper.payload_leaks({key: "notes/" + _credential() + ".md"}, tools)
+    assert findings == [f"/{key}: SECRET"], findings
+    assert helper.payload_leaks({key: "notes/clean.md"}, tools) == []
+
+
+def test_the_artifact_path_class_applies_to_a_string_under_its_two_keys_only(tools: helper.ContractTools) -> None:
+    leaking = _home_path() + " " + _email()
+    for other_key in ("content", "title", "note"):
+        findings = helper.payload_leaks({other_key: leaking}, tools)
+        assert any("HOST_PATH" in finding for finding in findings) and any("EMAIL" in finding for finding in findings), (other_key, findings)
+    assert helper.payload_leaks({"path": None, "artifactPath": 3}, tools) == [], "a value that is not a string is not judged"
+
+
+def test_a_human_field_with_a_glued_address_pair_is_redacted_to_the_last_address(tools: helper.ContractTools) -> None:
+    glued = "x" + AT + "y.z+w" + AT + "v.u"
+
+    assert helper.Projector(tools.leak, "m").human("mail " + glued, "reason") == "mail [email][email]"
+
+
+def test_an_unredacted_artifact_body_reports_the_host_path_and_the_address_and_a_redacted_twin_is_clean(tools: helper.ContractTools) -> None:
+    body = {"path": "spec.md", "kind": "spec", "mediaType": "text/markdown", "encoding": "utf-8", "sizeBytes": 10, "redacted": False}
+    leaking = {**body, "content": "see " + _home_path() + " or " + _email()}
+    findings = helper.payload_leaks(leaking, tools)
+    assert [finding.rsplit(": ", 1)[1] for finding in findings] == ["HOST_PATH", "EMAIL"], findings
+    assert helper.payload_leaks({**body, "redacted": True, "content": "see [path] or [email]"}, tools) == []
+
+
+def test_the_fixture_writer_writes_files_lanes_and_tasks_md_and_writes_none_by_default(tmp_path: Path) -> None:
+    bare = helper.write_fixture_mission(tmp_path / "bare", MISSION)
+    assert not (bare / "lanes.json").exists() and not (bare / "tasks.md").exists(), "control: nothing extra is written by default"
+    blob = bytes([0, 255, 10])
+    full = helper.write_fixture_mission(
+        tmp_path / "full",
+        MISSION,
+        files={"notes/deep/a.md": "text\n", "blob.bin": blob},
+        lanes={"version": 1, "lanes": []},
+        tasks_md="# Tasks\n",
+    )
+    assert (full / "notes" / "deep" / "a.md").read_text(encoding="utf-8") == "text\n"
+    assert (full / "blob.bin").read_bytes() == blob, "a bytes value is written as bytes"
+    assert json.loads((full / "lanes.json").read_text(encoding="utf-8")) == {"version": 1, "lanes": []}
+    assert (full / "tasks.md").read_text(encoding="utf-8") == "# Tasks\n"

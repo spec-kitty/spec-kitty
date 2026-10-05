@@ -24,6 +24,7 @@ from __future__ import annotations
 import functools
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -131,6 +132,11 @@ SCHEMA_PROJECT = "Project"
 SCHEMA_TRANSITION_EVENT = "StatusTransitionEvent"
 SCHEMA_LIFECYCLE_EVENT = "MissionLifecycleEvent"
 SCHEMA_REVIEW_OVERRIDE = "ReviewOverride"
+SCHEMA_WORK_PACKAGE_DETAIL = "WorkPackageDetail"
+SCHEMA_ARTIFACT_LISTING = "ArtifactListing"
+SCHEMA_ARTIFACT_CONTENT = "ArtifactContent"
+SCHEMA_ARTIFACT_REFUSAL = "ArtifactRefusal"
+SCHEMA_DETAIL_REFUSAL = "WorkPackageDetailRefusal"
 DROPPED_INVALID_WP_ID = "status-transition:invalid-wp-id"
 DROPPED_UNKNOWN_ROW = "unknown-row"
 
@@ -170,6 +176,22 @@ class Floors:
     missions: int = 500
     work_package_payloads: int = 3000
     snapshot_work_packages: int = 2800
+    # The reality extension, counted on the successful (200) answers: the values were fixed at plan time (contracts note D) and are never re-pinned.
+    detail_work_packages: int = 3000
+    status_log_only: int = 26
+    subtask_ids: int = 14000
+    table_rows: int = 12000
+    checkbox_rows: int = 8300
+    owned_file_entries: int = 13000
+    dependency_entries: int = 3100
+    review_cycle_files: int = 1200
+    missions_with_cycles: int = 210
+    unparseable_cycles: int = 150
+    verdict_cycles: int = 290
+    artifact_entries: int = 14000
+    readable_true: int = 14000
+    redacted_files: int = 970
+    missions_without_lanes: int = 72
 
 
 FLOORS = Floors()
@@ -195,6 +217,7 @@ class Fingerprint:
     """Bytes of every file under one path (tracked, untracked and ignored), plus ``git status`` for it."""
 
     files: int
+    directories: int
     digest: str
     porcelain: tuple[str, ...]
 
@@ -212,7 +235,8 @@ def _listed(git: str, repo_root: Path, *arguments: str) -> set[bytes]:
 
 
 def tree_fingerprint(repo_root: Path, subpath: str) -> Fingerprint:
-    """Fingerprint every file under ``subpath``: tracked, untracked and ignored (``git ls-files``), bytes and ``git status``.
+    """Fingerprint every file under ``subpath``: tracked, untracked and ignored (``git ls-files``), bytes and ``git status``,
+    and the name of every directory under it (an empty directory is invisible to git; FR-014).
 
     The bytes are the deciding signal for a reader that rewrites an already dirty file (the porcelain line does not
     move). Ignored files are included on purpose: ``git status`` omits them, and a reader that wrote an ignored lock or
@@ -232,8 +256,15 @@ def tree_fingerprint(repo_root: Path, subpath: str) -> Fingerprint:
         path = repo_root / name.decode("utf-8")
         content = path.read_bytes() if path.is_file() else b"<missing>"
         digest.update(name + b"\0" + hashlib.blake2b(content).digest())
+    directories = sorted(
+        (Path(directory) / name).relative_to(repo_root).as_posix()
+        for directory, subdirectories, _files in os.walk(repo_root / subpath, followlinks=False)
+        for name in subdirectories
+    )
+    for directory in directories:
+        digest.update(b"directory\0" + directory.encode("utf-8") + b"\0")
     status = subprocess.run([git, "-C", str(repo_root), "status", "--porcelain", "--ignored", "--", subpath], capture_output=True, check=True, text=True).stdout
-    return Fingerprint(files=len(names), digest=digest.hexdigest(), porcelain=tuple(sorted(status.splitlines())))
+    return Fingerprint(files=len(names), directories=len(directories), digest=digest.hexdigest(), porcelain=tuple(sorted(status.splitlines())))
 
 
 # ---------------------------------------------------------------------------
@@ -481,16 +512,18 @@ class ContractTools:
     leak: ModuleType
     formats: ModuleType
     fixtures: ModuleType
+    scan: ModuleType
 
 
 def load_contract_tools(mp: pytest.MonkeyPatch, repo_root: Path) -> ContractTools:
-    """Load the three contract tools by file path through the shared loader (no sys.path or sys.modules edits of our own)."""
+    """Load the contract tools by file path through the shared loader (no sys.path or sys.modules edits of our own)."""
     tools = repo_root / "contracts" / "tools"
     return ContractTools(
         resolver=load_tool(mp, tools / "contract_resolver.py", "contract_resolver_for_status_payloads", syspath=tools),
         leak=load_tool(mp, tools / "leak_patterns.py", "leak_patterns_for_status_payloads"),
         formats=load_tool(mp, tools / "schema_formats.py", "schema_formats_for_status_payloads"),
         fixtures=load_tool(mp, tools / "fixture_builder.py", "fixture_builder_for_status_payloads"),
+        scan=load_tool(mp, tools / "leak_scan.py", "leak_scan_for_status_payloads", syspath=tools),
     )
 
 
@@ -539,7 +572,20 @@ class Contract:
         nodes: dict[str, dict[str, Any]] = {}
         _schema_nodes(resolution.tree, nodes)
         _schema_nodes(resolution.tree, nodes, examples_required=False)
-        wanted = (SCHEMA_OVERVIEW, SCHEMA_DETAIL, SCHEMA_WORK_PACKAGE, SCHEMA_PROJECT, SCHEMA_TRANSITION_EVENT, SCHEMA_LIFECYCLE_EVENT, SCHEMA_REVIEW_OVERRIDE)
+        wanted = (
+            SCHEMA_OVERVIEW,
+            SCHEMA_DETAIL,
+            SCHEMA_WORK_PACKAGE,
+            SCHEMA_PROJECT,
+            SCHEMA_TRANSITION_EVENT,
+            SCHEMA_LIFECYCLE_EVENT,
+            SCHEMA_REVIEW_OVERRIDE,
+            SCHEMA_WORK_PACKAGE_DETAIL,
+            SCHEMA_ARTIFACT_LISTING,
+            SCHEMA_ARTIFACT_CONTENT,
+            SCHEMA_ARTIFACT_REFUSAL,
+            SCHEMA_DETAIL_REFUSAL,
+        )
         missing = [title for title in wanted if title not in nodes]
         if missing:
             raise RuntimeError(f"the resolved contract has no schema titled {missing}")
@@ -552,11 +598,22 @@ class Contract:
         return ["/" + "/".join(str(part) for part in error.absolute_path) + ": " + error.message for error in found]
 
 
+def _artifact_path_findings(tools: ContractTools, where: str, value: str) -> list[str]:
+    found = []
+    if tools.scan.malformed_artifact_path(value) is not None:
+        found.append(f"{where}: {tools.scan.CODE_ARTIFACT_PATH}")
+    if tools.leak.CODE_CREDENTIAL in tools.leak.leak_codes(value, tools.leak.HUMAN):
+        found.append(f"{where}: {tools.leak.CODE_CREDENTIAL}")
+    return found
+
+
 def payload_leaks(payload: Any, tools: ContractTools, *, authored_markdown: Sequence[str] = ("promptMarkdown",)) -> list[str]:
     """Leak findings of a built payload: strict-class fields by the strict patterns, every other string by the
     human-text patterns, every string for e-mail, every key for forbidden property names (spec D-14).
 
-    ``promptMarkdown`` is authored markdown: it passes through and is excluded from corpus payload scans.
+    ``promptMarkdown`` is authored markdown: it passes through and is excluded from corpus payload scans. A string under an
+    artifact-path key (``path``, ``artifactPath``) is a name inside a Mission directory: it is judged by the artifact-path
+    rule instead of the host-path and e-mail patterns (AD-19), and a credential in it is still reported.
     """
     LEDGER.leak_scans += 1
     strict_names = frozenset(tools.fixtures.STRICT_FIELDS)
@@ -567,7 +624,11 @@ def payload_leaks(payload: Any, tools: ContractTools, *, authored_markdown: Sequ
             for key, value in node.items():
                 if tools.leak.is_forbidden_property_name(str(key)):
                     findings.append(f"{path}/{key}: FORBIDDEN_PROPERTY_NAME")
-                if key not in authored_markdown:
+                if key in authored_markdown:
+                    continue
+                if str(key) in tools.scan.ARTIFACT_PATH_KEYS and isinstance(value, str):
+                    findings.extend(_artifact_path_findings(tools, f"{path}/{key}", value))
+                else:
                     walk(value, f"{path}/{key}", str(key) in strict_names)
         elif isinstance(node, list):
             for index, item in enumerate(node):
@@ -1124,6 +1185,19 @@ def work_package_trap(mp: pytest.MonkeyPatch) -> Callable[[], list[str]]:
 # Fixture Missions built at run time (unit tests and controls)
 # ---------------------------------------------------------------------------
 
+
+def git_init(repo: Path) -> None:
+    """Initialise an empty git repository at ``repo`` (the scratch repository every real-git test builds)."""
+    subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True)
+
+
+def commit_all(repo: Path) -> None:
+    """Commit everything under ``repo`` with a throwaway identity passed on the command line, never read from or written to a config."""
+    git = ["git", "-C", str(repo), "-c", "user.name=fixture", "-c", "user.email=fixture.invalid"]
+    subprocess.run([*git, "add", "-A"], check=True)
+    subprocess.run([*git, "commit", "-q", "-m", "fixture"], check=True)
+
+
 _ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
 
@@ -1144,8 +1218,15 @@ def write_fixture_mission(
     work_packages: Mapping[str, Mapping[str, Any]] | None = None,
     rows: Sequence[Mapping[str, Any]] = (),
     planning_files: Sequence[str] = (),
+    files: Mapping[str, str | bytes] | None = None,
+    lanes: Mapping[str, Any] | None = None,
+    tasks_md: str | None = None,
 ) -> Path:
-    """Write one Mission directory (meta.json, tasks/, status.events.jsonl) under ``root/kitty-specs`` and return it."""
+    """Write one Mission directory (meta.json, tasks/, status.events.jsonl) under ``root/kitty-specs`` and return it.
+
+    ``files`` maps a path below the Mission directory to its text or bytes (directories are created), ``lanes`` is the
+    document written as ``lanes.json`` and ``tasks_md`` the text of ``tasks.md``; none is written when it is not given.
+    """
     mission_dir = root / "kitty-specs" / name
     (mission_dir / "tasks").mkdir(parents=True, exist_ok=True)
     base_meta: dict[str, Any] = {
@@ -1169,6 +1250,17 @@ def write_fixture_mission(
         (mission_dir / planning_file).write_text("# planning file\n", encoding="utf-8")
     if rows:
         (mission_dir / "status.events.jsonl").write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in rows), encoding="utf-8")
+    for relative, content in (files or {}).items():
+        target = mission_dir / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if isinstance(content, bytes):
+            target.write_bytes(content)
+        else:
+            target.write_text(content, encoding="utf-8")
+    if lanes is not None:
+        (mission_dir / "lanes.json").write_text(json.dumps(lanes, sort_keys=True), encoding="utf-8")
+    if tasks_md is not None:
+        (mission_dir / "tasks.md").write_text(tasks_md, encoding="utf-8")
     return mission_dir
 
 

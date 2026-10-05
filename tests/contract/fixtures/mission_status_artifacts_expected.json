@@ -1,0 +1,24 @@
+{
+  "header": {
+    "purpose": "Anomalies of the repository's own Missions that the reality check pins by name. Authored by hand; no value here is generated. Each named entry must still be present and behave as stated (a subset check); an anomaly that is not named is printed by the check and is never a failure, because an archived Mission cannot be edited and a new Mission may legitimately add one.",
+    "paths": "A Mission is its directory name under kitty-specs; a path is relative to that directory."
+  },
+  "refused_content": [
+    {"mission": "charter-contract-cleanup-tranche-1-01KQATS4", "path": "research/_artifacts/test-gate-5-ruff.txt", "status": 413, "code": "artifact_too_large", "why": "over the 262144 byte cap"},
+    {"mission": "unblock-sync-identity-boundary-canary-01KRZJ07", "path": "canary-evidence/full-pytest.txt", "status": 413, "code": "artifact_too_large", "why": "over the 262144 byte cap"},
+    {"mission": "004-modular-code-refactoring", "path": "research/evidence-log.csv", "status": 415, "code": "artifact_not_text", "why": "not valid UTF-8"},
+    {"mission": "004-modular-code-refactoring", "path": "research/source-register.csv", "status": 415, "code": "artifact_not_text", "why": "not valid UTF-8"},
+    {"mission": "003-auto-protect-agent", "path": "data-model.md", "status": 415, "code": "artifact_not_text", "why": "holds a NUL byte"},
+    {"mission": "004-modular-code-refactoring", "path": "research.md", "status": 415, "code": "artifact_not_text", "why": "holds a NUL byte"},
+    {"mission": "005-refactor-mission-system", "path": "data-model.md", "status": 415, "code": "artifact_not_text", "why": "holds a NUL byte"}
+  ],
+  "no_prompt_file": [
+    {"mission": "sync-diagnose-canonical-allowlist-01KS4F8H", "wp_id": "WP01", "file": "tasks/WP01.md", "why": "its file name has no slug, so it is no prompt file: artifactReferences.prompt is null and the listing kind is other"}
+  ],
+  "duplicate_work_package_ids": [
+    {"mission": "cli-boundary-robustness-01M2NQCB", "wp_ids": ["WP02", "WP03", "WP04", "WP06"], "why": "each id is held by two files; the first file in byte order is the work package"}
+  ],
+  "refused_missions": [
+    {"mission": "064-complete-mission-identity-cutover", "work_packages": 9, "code": "source_unreadable", "why": "a legacy lanes.json with feature_slug and no mission_slug: the product's own reader refuses it, so every work package answers 500"}
+  ]
+}
