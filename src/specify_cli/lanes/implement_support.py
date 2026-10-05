@@ -11,6 +11,7 @@ from __future__ import annotations
 import subprocess
 from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Any
 
 from kernel.clock import now_utc_iso
 from mission_runtime import MissionArtifactKind, placement_seam
@@ -872,3 +873,69 @@ def resolve_claim_ancestry_gate(
         return result
     reenter_lane_self_heal(main_repo_root, mission_slug, wp_id)
     return check_claim_ancestry(main_repo_root, mission_slug, mission_dir, wp_id, workspace_path)
+
+
+def _rev_parse_ref(repo_root: Path, ref: str) -> str:
+    """Return the full SHA *ref* resolves to, or ``""`` when it does not resolve.
+
+    ``--end-of-options`` keeps a leading-dash ref (e.g. ``--git-dir``) from being
+    consumed as a rev-parse option (#1917); ``--verify --quiet`` yields an empty
+    stdout + non-zero exit on a missing ref, which :func:`git_stdout` maps to
+    ``""``.
+    """
+    return git_stdout(repo_root, ["rev-parse", "--verify", "--quiet", "--end-of-options", ref])
+
+
+def _is_ancestor(repo_root: Path, maybe_ancestor: str, descendant: str) -> bool:
+    """Return whether *maybe_ancestor* is an ancestor of (or equal to) *descendant*."""
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", maybe_ancestor, descendant],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _resolve_base_ref(repo_root: Path, base_ref: str) -> tuple[str, str] | None:
+    """Resolve ``--base`` to ``(effective_ref, sha)``, preferring ``origin/<lane>`` (#4969).
+
+    A teammate's pushed approved lane on ``origin/<base_ref>`` must NOT be
+    shadowed by a fresh/stale local cut from ``main``: when ``origin/<base_ref>``
+    resolves AND the local ``base_ref`` is either absent or strictly behind it (an
+    ancestor of the origin tip), the origin ref wins. A local ref that is ahead of
+    (or unrelated to) origin is kept, and a ref that resolves nowhere returns
+    ``None`` so the caller can fail closed. The origin-aware base cutting itself
+    (threading ``effective_ref`` into worktree allocation) is coordinated with
+    WP04's ``workspace/context.py`` / ``lanes/compute.py``; this WP owns only the
+    ``implement.py`` resolution site.
+    """
+    local_sha = _rev_parse_ref(repo_root, base_ref)
+    origin_ref = f"origin/{base_ref}"
+    origin_sha = _rev_parse_ref(repo_root, origin_ref)
+    if origin_sha and (not local_sha or _is_ancestor(repo_root, local_sha, origin_sha)):
+        return origin_ref, origin_sha
+    if local_sha:
+        return base_ref, local_sha
+    return None
+
+
+def _refuse_repo_root_checkout_if_unavailable(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    resolved_workspace: Any,
+) -> bool:
+    """Run the repo-root write-checkout refusals early (no side effects).
+
+    Returns ``True`` when the occupancy scan ran, so ``implement`` threads it
+    into ``create_lane_workspace`` and the full-repo scan runs once per call.
+    """
+    from specify_cli.lanes.compute import is_repo_root_lane
+
+    if is_repo_root_lane(resolved_workspace):
+        return _ensure_repo_root_checkout_available(repo_root, mission_slug, wp_id, resolved_workspace)
+    return False

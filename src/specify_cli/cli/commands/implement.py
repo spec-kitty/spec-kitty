@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import functools
 import json
-import subprocess
 from collections.abc import Callable, Iterable
 from io import StringIO
 from pathlib import Path
@@ -216,54 +215,6 @@ def _raise_base_ref_unresolved(base_ref: str) -> NoReturn:
     raise typer.Exit(1)
 
 
-def _rev_parse_ref(repo_root: Path, ref: str) -> str:
-    """Return the full SHA *ref* resolves to, or ``""`` when it does not resolve.
-
-    ``--end-of-options`` keeps a leading-dash ref (e.g. ``--git-dir``) from being
-    consumed as a rev-parse option (#1917); ``--verify --quiet`` yields an empty
-    stdout + non-zero exit on a missing ref, which :func:`implement_support.git_stdout` maps to
-    ``""``.
-    """
-    return implement_support.git_stdout(repo_root, ["rev-parse", "--verify", "--quiet", "--end-of-options", ref])
-
-
-def _is_ancestor(repo_root: Path, maybe_ancestor: str, descendant: str) -> bool:
-    """Return whether *maybe_ancestor* is an ancestor of (or equal to) *descendant*."""
-    result = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", maybe_ancestor, descendant],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    return result.returncode == 0
-
-
-def _resolve_base_ref(repo_root: Path, base_ref: str) -> tuple[str, str] | None:
-    """Resolve ``--base`` to ``(effective_ref, sha)``, preferring ``origin/<lane>`` (#4969).
-
-    A teammate's pushed approved lane on ``origin/<base_ref>`` must NOT be
-    shadowed by a fresh/stale local cut from ``main``: when ``origin/<base_ref>``
-    resolves AND the local ``base_ref`` is either absent or strictly behind it (an
-    ancestor of the origin tip), the origin ref wins. A local ref that is ahead of
-    (or unrelated to) origin is kept, and a ref that resolves nowhere returns
-    ``None`` so the caller can fail closed. The origin-aware base cutting itself
-    (threading ``effective_ref`` into worktree allocation) is coordinated with
-    WP04's ``workspace/context.py`` / ``lanes/compute.py``; this WP owns only the
-    ``implement.py`` resolution site.
-    """
-    local_sha = _rev_parse_ref(repo_root, base_ref)
-    origin_ref = f"origin/{base_ref}"
-    origin_sha = _rev_parse_ref(repo_root, origin_ref)
-    if origin_sha and (not local_sha or _is_ancestor(repo_root, local_sha, origin_sha)):
-        return origin_ref, origin_sha
-    if local_sha:
-        return base_ref, local_sha
-    return None
-
-
 def _validate_base_ref(repo_root: Path, base_ref: str) -> str:
     """Validate ``--base`` and return the effective (origin-preferred) base SHA.
 
@@ -272,7 +223,7 @@ def _validate_base_ref(repo_root: Path, base_ref: str) -> str:
     :func:`_resolve_base_ref`). Raises typer.Exit(1) with a clear error message
     when the ref resolves neither locally nor on ``origin``.
     """
-    resolved = _resolve_base_ref(repo_root, base_ref)
+    resolved = implement_support._resolve_base_ref(repo_root, base_ref)
     if resolved is None:
         _raise_base_ref_unresolved(base_ref)
     return resolved[1]
@@ -588,7 +539,7 @@ def _resolve_active_lanes_manifest(repo_root: Path, base: str | None, resolved_w
     # stale local cut. ``_resolve_base_ref`` returns the effective ref name (the
     # ``origin/<lane>`` ref when it wins), which is what ``create_lane_workspace``
     # cuts the lane from.
-    resolved = _resolve_base_ref(repo_root, base)
+    resolved = implement_support._resolve_base_ref(repo_root, base)
     if resolved is None:
         _raise_base_ref_unresolved(base)
     effective_ref, _sha = resolved
@@ -838,25 +789,6 @@ def _report_workspace_created(tracker: StepTracker, result: Any, workspace_path:
         console.print("[cyan]→ Workspace contract: repository root planning workspace[/cyan]")
 
 
-def _refuse_repo_root_checkout_if_unavailable(
-    repo_root: Path,
-    mission_slug: str,
-    wp_id: str,
-    resolved_workspace: Any,
-) -> bool:
-    """Run the repo-root write-checkout refusals early (no side effects).
-
-    Returns ``True`` when the occupancy scan ran, so ``implement`` threads it
-    into ``create_lane_workspace`` and the full-repo scan runs once per call.
-    """
-    from specify_cli.lanes.compute import is_repo_root_lane
-    from specify_cli.lanes.implement_support import _ensure_repo_root_checkout_available
-
-    if is_repo_root_lane(resolved_workspace):
-        return _ensure_repo_root_checkout_available(repo_root, mission_slug, wp_id, resolved_workspace)
-    return False
-
-
 def _print_workspace_ready_banner(result: Any, workspace_path: Path) -> None:
     """Human-readable "workspace ready" banner (repo-root planning vs lane
     worktree), plus the FR-006 lane-test-env export block."""
@@ -1100,7 +1032,7 @@ def implement(
         # #5100 A3: refusals (wrong branch / occupied / dirty) run BEFORE the VCS
         # lock is written into meta.json, so a refused implement leaves nothing
         # behind (the read-only check is repeated, idempotently, at allocation).
-        occupancy_verified = _refuse_repo_root_checkout_if_unavailable(repo_root, mission_slug, wp_id, resolved_workspace)
+        occupancy_verified = implement_support._refuse_repo_root_checkout_if_unavailable(repo_root, mission_slug, wp_id, resolved_workspace)
         vcs_backend = _ensure_vcs_in_meta(feature_dir, repo_root)
 
         # #3571: when --base is provided, validate the ref (planning-lane
