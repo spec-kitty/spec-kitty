@@ -5,8 +5,9 @@ consumer's revocations are combined in exactly one place,
 ``charter.offering.drg.override_policy``. This module proves that the doctor
 collector and ``test_builtin_override_policy.py`` both reach a verdict through it:
 
-1. structurally: the collector calls the shared loader and adjudicator and never
-   parses a ``replaceable-builtins`` file itself (AST, with a non-vacuity self-test);
+1. structurally: the collector and the gate both call the shared loader and
+   adjudicator and never parse a ``replaceable-builtins`` file themselves (AST,
+   with a non-vacuity self-test);
 2. behaviourally: on a two-pack fixture the collector's verdicts equal the gate's recipe;
 3. structurally: both paths merge with ``project=None``, so neither lets a project node
    mask an org override.
@@ -61,11 +62,12 @@ def _merge_calls_without_project_none(source: str) -> tuple[int, list[int]]:
     return total, offenders
 
 
-def test_collector_uses_shared_loader_and_never_parses_sanction_files() -> None:
-    called = _called_names(_COLLECTOR.read_text(encoding="utf-8"))
+@pytest.mark.parametrize("path", [_COLLECTOR, _GATE], ids=["collector", "gate"])
+def test_consumer_uses_shared_loader_and_never_parses_sanction_files(path: Path) -> None:
+    called = _called_names(path.read_text(encoding="utf-8"))
 
-    assert called >= _REQUIRED_CALLS, f"collector must call {sorted(_REQUIRED_CALLS - called)}"
-    assert not (_FORBIDDEN_CALLS & called), f"collector parses a sanction file itself: {sorted(_FORBIDDEN_CALLS & called)}"
+    assert called >= _REQUIRED_CALLS, f"{path.name} must call {sorted(_REQUIRED_CALLS - called)}"
+    assert not (_FORBIDDEN_CALLS & called), f"{path.name} parses a sanction file itself: {sorted(_FORBIDDEN_CALLS & called)}"
 
 
 def test_walker_is_not_vacuous() -> None:
