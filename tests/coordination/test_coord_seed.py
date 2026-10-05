@@ -17,10 +17,12 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import ActionContextError, Establishment, MissionArtifactKind, MissionTopology, TopologySurface, placement_seam
+from specify_cli.coordination.coherence import is_coordination_kind_file
 from specify_cli.coordination.coord_seed import (
     COORD_SEED_TRAILER,
     CoordBranchUndeclaredAndAbsent,
     CoordSeedForkRefused,
+    _walk_root_coord_relpaths,
     establish_coord_write_location,
 )
 from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted, CoordinationWorktreeUnmaterialized
@@ -495,6 +497,58 @@ def test_materialized_pre_fix_with_uncommitted_extra_record_never_seeds(tmp_path
     assert not _trailer_mission_ids(coord)
     # The uncommitted row is untouched -- establish never commits, never discards it.
     assert extra_row.strip() in (coord.coord_mission_dir / _STATUS_LOG).read_text(encoding="utf-8")
+
+
+def test_seed_defers_when_coord_content_has_no_carry_basis(tmp_path: Path) -> None:
+    """#5651 x #5668: content written straight onto the coord worktree with NO carry basis is left for the caller's commit.
+
+    The ``MissionStatus.save`` escape hatch: a caller stages coordination
+    records directly on the coordination worktree and commits them through its
+    own ``BookkeepingTransaction``. Nothing was carried this attempt, nothing
+    was restored from the coordination tip, and the root checkout holds no
+    coordination content, so ``_seed_has_carry_basis`` is False and the seed
+    must DEFER -- no seed commit, the records stay untracked on disk. A seed
+    that commits them anyway lands the content first and leaves the caller's
+    strict ``commit`` with an empty changeset
+    (``SafeCommitStagedTreeUnchanged``).
+
+    Planted break that proves this red: revert the gate in
+    ``_commit_and_restore`` to ``if commit_relpaths:`` (dropping
+    ``and _seed_has_carry_basis(...)``) -- the seed then commits the files and
+    this test fails on ``seed is None`` / the moved coordination ref.
+    """
+    coord = make_prefix_coord_mission(tmp_path, MissionTopology.COORD, worktree="empty")
+    worktree_path = CoordinationWorkspace.resolve(coord.repo_root, coord.mission_dir_name, coord.mid8)
+
+    # Remove every coordination-kind record from the root checkout: no root basis.
+    for candidate in sorted(coord.root_mission_dir.rglob("*")):
+        if candidate.is_file() and is_coordination_kind_file(candidate.relative_to(coord.root_mission_dir).as_posix()):
+            candidate.unlink()
+    assert not _walk_root_coord_relpaths(coord.root_mission_dir)
+
+    # The caller's own write, directly on the coordination worktree (whole Mission dir untracked).
+    coord.coord_mission_dir.mkdir(parents=True, exist_ok=True)
+    callers_row = '{"event_id": "01CALLEROWNWRITENOBASIS00"}\n'
+    (coord.coord_mission_dir / _STATUS_LOG).write_text(callers_row, encoding="utf-8")
+    assert probe_coord_state(coord.repo_root, coord.mission_dir_name, coord.mid8, coordination_branch=coord.coordination_branch) is CoordState.MATERIALIZED
+
+    before_target, before_branch = _refs(coord)
+    location = establish_coord_write_location(coord.repo_root, coord.mission_dir_name, MissionArtifactKind.STATUS_STATE, owned=None)
+    after_target, after_branch = _refs(coord)
+
+    # The seed did not commit: no report carrying a coord commit, refs untouched, no seed trailer.
+    assert location.seed is None or location.seed.coord_commit is None
+    assert (before_target, before_branch) == (after_target, after_branch)
+    assert not _trailer_mission_ids(coord)
+    # The caller's content is untouched and still pending for the caller's own commit.
+    assert (coord.coord_mission_dir / _STATUS_LOG).read_text(encoding="utf-8") == callers_row
+    porcelain = subprocess.run(
+        ["git", "-C", str(worktree_path), "status", "--porcelain", "--untracked-files=all", "--", f"kitty-specs/{coord.mission_dir_name}/"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert f"?? kitty-specs/{coord.mission_dir_name}/{_STATUS_LOG}" in porcelain
 
 
 # ---------------------------------------------------------------------------
