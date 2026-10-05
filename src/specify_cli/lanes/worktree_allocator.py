@@ -1442,21 +1442,15 @@ def _merge_recorded_planning_commit(
         # the conflict markers only exist in ``merge.stdout`` while the merge
         # is still open.
         wp_task_conflicts = _wp_task_file_conflict_paths(worktree_path, env)
-        # #5160 friction 1: a both-sides-divergent DERIVED ``status.json`` is not a
-        # real conflict — regenerate it from the union-merged event log and
-        # complete the merge, instead of failing closed on a disposable snapshot.
-        # Genuine (human-authored) conflicts still fall through to abort + raise,
-        # and so does an unreadable conflict state (``None``: fail closed).
-        if wp_task_conflicts == [] and reconcile_derived_status_snapshot_conflicts(worktree_path, env):
-            completed = subprocess.run(
-                ["git", "commit", "--no-edit"],
-                cwd=str(worktree_path),
-                capture_output=True,
-                text=True,
-                env=env,
-            )
-            if completed.returncode == 0:
-                return
+        # #5457 / #5160 friction 1: a conflict confined to primary-owned
+        # bookkeeping (the lane keeps its own copy) and/or a both-sides-divergent
+        # DERIVED ``status.json`` (regenerated from the union-merged event log)
+        # is not a real conflict -- resolve it through the dependency-merge
+        # resolver and commit with this merge's own message. Genuine
+        # (human-authored) conflicts, a WP task-file conflict and an unreadable
+        # conflict state (``None``: fail closed) still fall through to abort + raise.
+        if wp_task_conflicts == [] and _auto_resolve_dependency_merge(worktree_path, env):
+            return
         subprocess.run(
             ["git", "merge", "--abort"],
             cwd=str(worktree_path),

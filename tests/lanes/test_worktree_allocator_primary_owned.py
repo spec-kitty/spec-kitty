@@ -10,6 +10,7 @@ raise ``DependencyLaneMergeConflictError`` (FR-009).
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import subprocess
 from pathlib import Path
@@ -19,7 +20,12 @@ import pytest
 from specify_cli.lanes import worktree_allocator
 from specify_cli.lanes.branch_naming import code_lane_branch_name
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
-from specify_cli.lanes.worktree_allocator import DependencyLaneMergeConflictError
+from specify_cli.lanes.persistence import read_lanes_json
+from specify_cli.lanes.worktree_allocator import (
+    DependencyLaneMergeConflictError,
+    PlanningCommitMergeConflictError,
+    allocate_lane_worktree,
+)
 from specify_cli.status.reducer import materialize
 from tests.integration.primary_owned_fixtures import (
     LanesProject,
@@ -140,6 +146,40 @@ def test_implement_dependent_wp_source_conflict_still_refused(tmp_path: Path) ->
     assert _DEPENDENCY_CONFLICT in output, output
     assert _git(project.repo, "rev-parse", lane_b).strip() == lane_b_tip
     assert _git(project.lane_worktrees["lane-b"], "status", "--porcelain", "--untracked-files=no") == ""
+
+
+@pytest.mark.parametrize("source_conflict", [False, True], ids=["bookkeeping-only", "plus-source-conflict"])
+def test_recorded_planning_commit_merge_resolves_primary_owned_bookkeeping(tmp_path: Path, source_conflict: bool) -> None:
+    """The recorded planning-commit merge (FR-009) keeps the lane's own metadata (#5457).
+
+    ``implement`` re-entry merges the recorded ``planning_commit_sha`` before the
+    dependency merge. Once that pin sits at or after the target's pre-fix upgrade
+    commit (a ``finalize-tasks`` re-run), the merge conflicts on the divergent
+    ``.kittify/metadata.yaml``: it resolves to the lane's copy. A genuine source
+    conflict beside it still refuses and leaves the lane untouched.
+    """
+    project = build_older_version_lanes_project(tmp_path, topology="lanes", lanes=1)
+    commit_broken_upgrade_state(project)
+    lane = project.lane_branches["lane-a"]
+    if source_conflict:
+        commit_file_on_branch(project.repo, lane, _SHARED_SOURCE, "lane = 1\n", "feat: lane shared")
+        commit_file_on_branch(project.repo, project.target_branch, _SHARED_SOURCE, "target = 1\n", "feat: target shared")
+    pin = _git(project.repo, "rev-parse", project.target_branch).strip()
+    manifest = dataclasses.replace(read_lanes_json(project.feature_dir), planning_commit_sha=pin)
+    lane_tip = _git(project.repo, "rev-parse", lane).strip()
+    own_metadata = metadata_blob(project.repo, lane)
+
+    if source_conflict:
+        with pytest.raises(PlanningCommitMergeConflictError):
+            allocate_lane_worktree(project.repo, project.slug, "WP01", manifest)
+        assert _git(project.repo, "rev-parse", lane).strip() == lane_tip
+        assert not (Path(_git(project.lane_worktrees["lane-a"], "rev-parse", "--absolute-git-dir").strip()) / "MERGE_HEAD").exists()
+    else:
+        allocate_lane_worktree(project.repo, project.slug, "WP01", manifest)
+        subprocess.run(["git", "-C", str(project.repo), "merge-base", "--is-ancestor", pin, lane], check=True)
+        assert _git(project.repo, "log", "-1", "--format=%s", lane).strip().startswith("Merge recorded planning-artifact commit into lane-a")
+        assert metadata_blob(project.repo, lane) == own_metadata
+    assert _git(project.lane_worktrees["lane-a"], "status", "--porcelain", "--untracked-files=no") == ""
 
 
 # ---------------------------------------------------------------------------
