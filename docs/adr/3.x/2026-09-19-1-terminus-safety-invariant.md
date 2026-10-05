@@ -3,7 +3,7 @@ title: 'ADR: Terminus-Safety Invariant — gate-then-mutate-with-rollback across
 description: 'Terminus-safety invariant: completion commands gate-then-mutate with rollback on failure, enforced by one shared terminal-readiness authority.'
 status: Accepted
 date: '2026-09-19'
-updated: '2026-10-04'
+updated: '2026-10-05'
 ---
 
 ## Context and Problem Statement
@@ -353,6 +353,165 @@ names one teardown refusal.
   - Out of scope: legacy and foreign strand-marker refusal codes; unwrapped remediation
     printing.
 
+### Follow-up 2026-10-05 — the record is the only rollback anchor (#5686 / #5666)
+
+Mission `rollback-anchor-authority-01M45VSA`, issues #5686 and #5666, with the deadlock part of
+#5687. Operator decision (2026-10-05): adopt a move when this run provably made it, refuse
+otherwise, and let the operator release a branch explicitly. A3 is narrowed: every restore
+target and every compare-and-swap expectation now comes from the persisted record, never from a
+live tip the record cannot explain.
+
+- **One door for the gate (#5666).** `_rollback_target_after_failed_reconciliation` is deleted.
+  A reconciliation FAIL or REFUSE moves no ref itself; its `typer.Exit(1)` lands in the A3 door,
+  whose `rollback_to_snapshot` compare-and-swaps against the post tip this run recorded. A
+  commit another actor landed on top of the landing is kept and reported `NOT restored ...
+  moved by another actor`, never discarded. The AST pin
+  (`tests/consolidation/test_single_rollback_authority.py`) now lists the helper among the
+  retired names and forbids any `restore_branch_ref` call in the consolidation executor family
+  outside `consolidation/rollback.py`, not only the resyncing ones.
+- **Unsettled branches.** The record persists `unsettled_refs`. `begin_attempt` marks every
+  run-movable branch unsettled when it opens an attempt. A rollback outcome of restored, already
+  at snapshot or kept by operator settles a branch; a reconciliation PASS (after the squash
+  projection proof) settles the target. A `NOT restored` outcome leaves it unsettled, and so
+  does any exit without a rollback: an orderly exit does not settle a branch. This supersedes
+  the A2 rule "per attempt, `restore_targets` keeps an operator's own change made between
+  attempts": that rule now applies only to a settled branch. On an unsettled branch, a tip that
+  is neither its restore target nor this run's effective post tip is *unexplained*.
+  `begin_attempt` then returns it and changes nothing in the record. A restore target fixed by
+  an earlier attempt stays in force across later attempts.
+- **Advance intents.** Inside the door's span, `advance_branch_ref` and
+  `advance_branch_ref_for_commit` report `(branch, old, new)` to a sink installed with
+  `git/ref_advance.py::reporting_advance_intents`, after their precondition checks and before
+  the compare-and-swap write. The executor's sink persists the pair in `advance_intents` as a
+  per-branch chain `[base, new1, new2, ...]`; a failed save fails the advance closed.
+  `ref_advance` stays plumbing and never imports consolidation state. A live tip in the chain
+  counts as this run's post tip (it is *adopted*) only when the chain's base equals the tip the
+  record expected for that branch: the recorded post tip, else the restore target. The report
+  marks such a restore `adopted interrupted advance`. A phase recorder clears a moved branch's
+  chain, whether it recorded the branch or rejected it; `begin_attempt` and a full restore clear
+  all chains.
+- **Recorder taint (FR-011).** A phase recorder captures, per branch, the entry tip and the tip
+  the record expected at phase entry. It records a post tip only when the branch moved during
+  the phase and its entry tip was the expected tip (`rollback.phase_records_branch`). A foreign
+  commit that lands between two phases is therefore never recorded as this run's, even when the
+  next phase commits on top of it. A nested recorder keeps its own entry expectations.
+- **`UNEXPLAINED_BRANCH_MOVE`.** A re-run or `--resume` refuses with this code (exit 1) when a
+  branch is unexplained. A read-only pre-check in the executor runs before the operator
+  attestations and the coord-strand heal; `begin_attempt` in the claim refuses with the same
+  text for a branch this process moved after the pre-check without explaining it. The message
+  names each branch with its restore target and live SHA, says nothing was changed and the
+  record is kept, and offers only non-destructive remedies, in order: inspect
+  `git log <target>..<live>`; if the commits should not stay, move the branch by hand; to keep
+  them, `consolidate --abort --release-branch`, with a warning that a release keeps every listed
+  commit. A repeat refuses identically. This process's own pre-claim moves (the operator
+  attestations, the coord-strand heal) are measured across those steps, on the one branch each
+  step writes (the status-surface branch for the attestations, the marker's `coord_ref` for the
+  heal): that branch counts as moved by the step only when its tip changed across it, and the
+  claim accepts that only while the branch is still where the step left it. A commit another
+  actor lands after the pre-check on any other branch, or on the step's branch after the step,
+  is judged like any other move. Exemptions: while the live target equals the anchor of an earlier
+  reconciliation PASS, neither check refuses the target or the coordination branch (FR-011
+  already forbids a rollback then, and a late coordination commit is landed by
+  `_land_late_coordination_commits` and compare-and-swap guarded by the teardown, so the #5570
+  `--resume` finishes the teardown). The mission branch is not exempt: the teardown deletes a
+  mission branch without a coordination topology against its live tip, so an unexplained move
+  there still refuses. A heal that clears its `pending_coord_reconcile` marker settles the
+  coordination branch it names, and the pre-check leaves that branch to the heal.
+- **The PASS anchor is the verified tip.** The gate reads the target tip before `verify()`. A
+  PASS over a target that moved during verification, or during the squash projection proof
+  (re-checked right before the anchor is written), refuses (exit 1) into the door, which keeps
+  the new commit (reported `NOT restored`). Otherwise the anchor is exactly that verified SHA,
+  persisted only after the squash projection proof passed. A rollback that restores the target
+  clears the anchor, even when another branch stays `NOT restored`. When a restore went to a
+  record restore target other than the snapshot, the report header and the `--abort` line say
+  "restored to the record's restore targets", not "pre-consolidation".
+- **`--abort --release-branch <b> --release-reason "<why>"`.** Repeatable. It binds a release to
+  the branch's live tip, read under the abort's lock, and saves it before the rollback runs. A
+  branch that would be `NOT restored` and still sits at the bound SHA is left untouched and
+  reported `kept ... (released by operator: <reason>; at <sha>; may contain this
+  consolidation's unverified changes)`. Every other branch is restored as usual, and the record
+  clears only when every other branch is restored. A release never keeps a branch the authority
+  can restore, and it lapses when the branch moves. The success line names every kept branch
+  and says "restored" only when a branch was restored. `RELEASE_BRANCH_INVALID` (exit 2, nothing
+  changed) refuses `--release-branch` without `--abort` or without `--release-reason`, a branch
+  that is not one of the record's run-movable branches (a lane branch, an unknown name), and a
+  branch that does not resolve to a commit.
+- **Restore over a lagging checkout (FR-012).** `restore_branch_ref` accepts a checkout whose
+  index and tracked working tree already equal the restore target, which is what a kill between
+  `update-ref` and the checkout resync leaves; it does not reset that checkout, so a live
+  `index.lock` there cannot fail the restore. Untracked obstructions still refuse.
+- **Atomic record.** `save_state` writes `state.json` through `kernel.atomic.atomic_write`. A
+  record written before this follow-up loads with nothing unsettled, no intents and no
+  releases; a malformed `unsettled_refs` loads as every branch unsettled, a malformed intent map
+  as no proof.
+- **Remaining second restore paths.** `coordination/coherence.py::repair_coord_strand`, plus the
+  raw `git reset --hard HEAD` of resume recovery on four checkout roles (2026-10-04 follow-up).
+- **Residuals (named, not closed).**
+  - The same-phase foreign commit of the A2/A3 residuals is unchanged.
+  - In-span moves that report no intent: a plain `safe_commit`
+    (`git/commit_helpers.py::_run_commit_capture_sha`, for example the LANES done bookkeeping
+    commit on the target) and the primary-tree `git commit` in
+    `consolidation/mission_number/bake.py`. A kill right after one leaves an unprovable move,
+    which refuses with `UNEXPLAINED_BRANCH_MOVE`.
+  - No tool-mediated undo of an unprovable landing: the operator keeps it with a release or
+    moves the branch by hand (follow-up #5784).
+  - Resume recovery (`_recover_behind_head_primary_on_resume`) may reset a provably
+    behind-HEAD checkout to its HEAD before the `UNEXPLAINED_BRANCH_MOVE` refusal. That is a
+    checkout resync, not a ref move.
+  - Decided residual: the heal settle stays unguarded. A heal that clears its marker settles
+    the coordination branch it names, which preserves the #2786 resume recovery. That settle
+    can move this run's own coordination or mission-branch content from before the strand's
+    `captured_sha` into that branch's restore target. That content reaches the target only
+    through the reconciliation-gated squash, so no unverified content ships. A guard that
+    settles only when `captured_sha` equals the restore target was evaluated and rejected: it
+    makes the #2786 resume refuse and breaks that recovery.
+  - When the only unexplained branch is the coordination branch a `pending_coord_reconcile`
+    marker names, the pre-check skips it, so a requested `--attest-canceled-superseded` status
+    commit can land before the claim refuses.
+  - After a PASS, this run's own coordination-branch commits outside the span (teardown
+    bookkeeping) are not recorded; a resume after the target moves off the anchor refuses with
+    `UNEXPLAINED_BRANCH_MOVE`.
+  - A release saved by an `--abort` that then fails on another branch stays in the record; a
+    later plain `--abort` still honours it while the branch sits at the bound SHA.
+  - A killed run's global merge lock is not reclaimed (unchanged).
+  - Closed (#5788): a released mission branch whose kept commit dropped a work package's
+    approved code no longer ships at exit 0. The presence axis measures each approved code
+    lane's content over its first-parent spine from the target's pre-mutation tip (the base
+    the #5668 approved-bound check measures a lane's own range from), less every commit the
+    mission branch already carries that the lane's own base also reaches. The lane's own base
+    is the lane head at its first governed claim (the closed world's first anchor). So a lane
+    commit made after that claim and merged into the mission branch by an earlier attempt is
+    still judged, and the next consolidation refuses with `APPROVED_CONTENT_MISSING`; a
+    mission-branch commit made outside every lane before the lane was cut is never read as
+    the lane's content (#5792 review). Without a readable first-claim stamp every carried
+    commit is dropped, the pre-#5788 reading. The fully-canceled lanes' commits are subtracted
+    as measured from that same base. Residual: a lane the released mission branch already
+    carries never lands, even with its code intact, under either strategy, because the
+    authorship axes still measure from the mission-branch tip and find it attributable to no
+    approved WP (refused, fail closed: under squash by file attribution, under merge by the
+    closed world). Content committed on the mission branch outside every lane is refused the
+    same way. Measuring authorship from the target tip would attribute such commits to a lane;
+    that is a design decision left open.
+  - A foreign commit that lands on a step's own branch inside that step's window (the
+    status-surface branch during the operator attestations, the `coord_ref` during the heal)
+    and is still the tip at the claim is taken as this process's own move.
+  - A `git pull` (or any other commit) on an unsettled target after a hard kill makes the next
+    re-run or `--resume` refuse with `UNEXPLAINED_BRANCH_MOVE` until the operator releases or
+    moves that commit.
+  - `orchestrator-api`'s planning-closeout path reports these refusals as `PREFLIGHT_FAILED`
+    without the `UNEXPLAINED_BRANCH_MOVE` code.
+  - `consolidate --dry-run` does not forecast `UNEXPLAINED_BRANCH_MOVE`.
+  - A phase that started at an unexpected tip records no post tip for that branch (taint), so a
+    later gate FAIL reports the target `NOT restored` instead of restoring it. Safer by design:
+    the record cannot prove the content under the phase is this run's.
+  - `begin_attempt` writes no bookkeeping on a resume whose unexplained rows a verified landing
+    exempts (it refuses nothing and records nothing new); harmless, since the resume only
+    finishes the teardown.
+  - Out of scope: #5372 (stale flags adopted from an auto-resumed record), the window-base half
+    of #5667 (C-003, PR #5724), #5638 (coordination status files dirty after a rollback),
+    #5048(a) (PASS-anchor re-arm), and the #5687 resume that re-bases its window after
+    `git pull` and then pushes.
+
 ## Consequences
 
 - **Positive.** A default-config command can no longer wedge an in-flight mission or push
@@ -385,6 +544,7 @@ names one teardown refusal.
 - Amendment 2026-09-29: #5338, #5318, #5332, #5296 (epic #5001); mission `kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/`; residuals #5385, #5371, #5372.
 - Follow-up 2026-09-30: #5385; mission `kitty-specs/single-rollback-authority-01M3RCP4/`; out-of-scope follow-ups #3536, #5371, #5372.
 - Follow-up 2026-10-04: #5613 (hardening of #5569, #5570, #5571, #5572).
+- Follow-up 2026-10-05: #5686, #5666, the deadlock part of #5687; mission `kitty-specs/rollback-anchor-authority-01M45VSA/`; out-of-scope follow-ups #5372, #5667, #5638, #5048, #5784.
 - Mission: `kitty-specs/terminus-safety-invariant-01M2XFT7/spec.md`; Decision Moments
   `01M2XFVSK8JCCXMXCJNTBB0X5V` (scope), `01M2XFW9B71WKJ4XPCDCH8VYCQ` (warn semantics).
 - Related (separate): #3967 (shared integration view, epic #3894), #4161 (`next` FSM),

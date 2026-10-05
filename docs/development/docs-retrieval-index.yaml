@@ -3137,6 +3137,7 @@ pages:
     - {slug: "amendment-2026-09-29-one-pre-mutation-snapshot-one-cas-rollback-authority-slice-10", text: "Amendment 2026-09-29 — one pre-mutation snapshot, one CAS rollback authority (slice 10)", level: 3}
     - {slug: "follow-up-2026-09-30-every-post-mutation-exit-goes-through-a3-5385", text: "Follow-up 2026-09-30 — every post-mutation exit goes through A3 (#5385)", level: 3}
     - {slug: "follow-up-2026-10-04-presence-axis-status-write-guard-wider-lag-recovery-5613", text: "Follow-up 2026-10-04 — presence axis, status-write guard, wider lag recovery (#5613)", level: 3}
+    - {slug: "follow-up-2026-10-05-the-record-is-the-only-rollback-anchor-5686-5666", text: "Follow-up 2026-10-05 — the record is the only rollback anchor (#5686 / #5666)", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
     - {slug: "references", text: "References", level: 2}
@@ -12408,6 +12409,7 @@ pages:
     - {slug: "quick-reference", text: "Quick Reference", level: 2}
     - {slug: "resume-an-interrupted-consolidation", text: "Resume an Interrupted Consolidation", level: 2}
     - {slug: "undo-a-run-with-abort", text: "Undo a Run with --abort", level: 2}
+    - {slug: "keep-a-branch-that-cannot-be-restored", text: "Keep a branch that cannot be restored", level: 3}
     - {slug: "the-run-refused-before-moving-anything", text: "The Run Refused Before Moving Anything", level: 2}
     - {slug: "wrong-branch-or-uncommitted-changes", text: "Wrong branch or uncommitted changes", level: 3}
     - {slug: "target-branch-content-conflicts-during-squash", text: "Target-Branch Content Conflicts During Squash", level: 3}
@@ -12416,6 +12418,7 @@ pages:
     - {slug: "a-lane-failed-to-merge", text: "A lane failed to merge", level: 3}
     - {slug: "reconciliation-failed-or-refused", text: "Reconciliation FAILED or refused", level: 3}
     - {slug: "a-lane-changed-after-its-work-package-was-approved", text: "A lane changed after its work package was approved", level: 3}
+    - {slug: "a-branch-moved-without-a-record", text: "A branch moved without a record", level: 3}
     - {slug: "exit-code-75-the-landing-stands", text: "Exit code 75: the landing stands", level: 3}
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/guides/how-to/scenarios/agency-client-demo.md"

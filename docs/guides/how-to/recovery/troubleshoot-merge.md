@@ -25,6 +25,8 @@ Each section gives what you see, what it means, and the command to run. The full
 | The run was interrupted (terminal closed, process killed, a lane failed to merge) | `spec-kitty consolidate --resume` |
 | You want to undo what the run moved and start over | `spec-kitty consolidate --abort` |
 | You want to check readiness without changing anything | `spec-kitty consolidate --dry-run` |
+| `UNEXPLAINED_BRANCH_MOVE` on a re-run or `--resume` | Inspect the branch, see [A branch moved without a record](#a-branch-moved-without-a-record) |
+| `--abort` keeps reporting a branch `NOT restored` | `spec-kitty consolidate --abort --release-branch <branch> --release-reason "<why>"`, see [Keep a branch that cannot be restored](#keep-a-branch-that-cannot-be-restored) |
 | Exit code 75, `COORD_MOVED_AFTER_LANDING` | `spec-kitty consolidate --resume`, see [Exit code 75](#exit-code-75-the-landing-stands) |
 
 ## Resume an Interrupted Consolidation
@@ -49,17 +51,44 @@ Running `spec-kitty consolidate --mission <slug>` on a Mission with an unfinishe
 spec-kitty consolidate --abort
 ```
 
-`--abort` restores the branches the run moved (the target branch, the mission branch and the coordination branch) to the commits they had before the run. It restores a branch only while that branch is still at the commit this run recorded, so it never overwrites a commit that someone else added.
+`--abort` restores the branches the run moved (the target branch, the mission branch and the coordination branch) to the commits they had before the run. It restores a branch only while that branch is still at the commit this run recorded, or at a commit the run saved as its next move before it was interrupted. It never overwrites a commit that someone else added, and it never treats a commit it cannot explain as already restored.
 
-The command prints a rollback report with one line per branch. A branch is either restored, already at its snapshot, or marked `NOT restored` with the reason.
+The command prints a rollback report with one line per branch. A branch is restored, already at its snapshot (`unchanged`), kept by an operator release (`kept`), or marked `NOT restored` with the reason. A restore marked `adopted interrupted advance` undid a move the interrupted run had saved before making it.
 
 - **Everything restored.** The command exits 0 and clears the record.
-- **A branch could not be restored.** The command exits 1 and keeps the record. Resolve the branch named in the report, then run `spec-kitty consolidate --abort` again.
+- **A branch could not be restored.** The command exits 1 and keeps the record. Running `--abort` again gives the same answer until you decide what happens to that branch; see [Keep a branch that cannot be restored](#keep-a-branch-that-cannot-be-restored).
 - **The landing was already verified.** The command prints `Kept the landing verified by an earlier reconciliation`, rolls nothing back, exits 1 and keeps the record. Finish with `spec-kitty consolidate --resume` instead.
 
 Lane branches are never moved. For a Mission with a coordination topology, `--abort` also removes the coordination worktree unless the Mission's `meta.json` retains worktrees.
 
 For the full description, see [Recover from an Interrupted Consolidation](recover-from-interrupted-merge.md#aborting-a-consolidation).
+
+### Keep a branch that cannot be restored
+
+A branch is `NOT restored` when it holds a commit this run did not record: a commit someone else added on top of the landing, or a move the interrupted run made without saving it. `--abort` will not move such a branch. When you want to keep its current commits, release it:
+
+```bash
+git log <restore-target>..<branch>
+spec-kitty consolidate --abort --release-branch <branch> --release-reason "<why you keep it>"
+```
+
+Take `<restore-target>` from the report or the refusal. The released branch is left at its current commit and reported:
+
+```text
+  kept       <branch>  (released by operator: <why you keep it>; at <sha>; may contain this consolidation's unverified changes)
+```
+
+Review those changes afterwards: the kept commits can include what this consolidation landed without verifying it. A kept commit cannot ship a mission without its approved code: when the kept branch drops a work package's approved change (for example a commit of a lagging checkout's staged deletions), the next consolidation refuses with `APPROVED_CONTENT_MISSING` naming that work package. A kept mission branch that already carries a lane is also refused by the next consolidation, even with the lane's code intact, under either strategy (squash: its files read as belonging to no approved work package; merge: its commits do), so prefer `--abort` without a release when the branch can be restored. Every other branch is restored as usual. When nothing else is left unrestored, the command exits 0, clears the record, and its closing line names the kept branch instead of saying all branches were restored.
+
+- **Repeatable.** Pass `--release-branch` once per branch. `--release-reason` is required and applies to all of them.
+- **Only the record's own branches.** You can release the target branch, the mission branch or the coordination branch, never a lane branch.
+- **Never a restorable branch.** If the branch can in fact be restored, `--abort` restores it and the release has no effect.
+- **Bound to the commit.** The release is saved for the commit the branch is at when you run the command. If the branch moves afterwards, the release no longer applies and the branch is reported `NOT restored` again.
+- **A release survives a failed abort.** If the same `--abort` cannot restore another branch, the release stays in the record. A later plain `spec-kitty consolidate --abort` still keeps the released branch while it sits at that commit, and reports it as `kept`.
+
+If you do not want to keep the commits, move the branch yourself after reviewing them; spec-kitty never moves a commit it cannot prove is its own.
+
+Misuse is refused before anything changes, with exit code 2 and `Error code: RELEASE_BRANCH_INVALID.`: `--release-branch` without `--abort`, without `--release-reason`, naming a lane branch or a branch the record does not know, or naming a branch that does not resolve to a commit.
 
 ## The Run Refused Before Moving Anything
 
@@ -141,7 +170,7 @@ Reconciliation FAILED: <divergence>
 Reconciliation refused (fail-closed): <reason>
 ```
 
-After landing, `consolidate` checks that the target holds exactly the approved work. When the check fails or cannot decide, the run restores the branches it moved and prints the rollback report that starts `Rollback to the pre-consolidation snapshot:`.
+After landing, `consolidate` checks that the target holds exactly the approved work. When the check fails or cannot decide, the run restores the branches it moved and prints the rollback report that starts `Rollback to the pre-consolidation snapshot:`. If someone else committed on the target after the landing, that commit is kept: the target is reported `NOT restored ... moved by another actor`, and the record stays open (see [Keep a branch that cannot be restored](#keep-a-branch-that-cannot-be-restored)).
 
 Read the divergence or reason. It names the WP, the lane and the paths. Correct the lane, then run `spec-kitty consolidate` or `--resume`.
 
@@ -181,6 +210,31 @@ If a `--resume` is refused this way after an earlier attempt already moved the t
 On a lane that holds both an approved and a canceled WP, `--attest-canceled-superseded` no longer covers work done after the approval. The approved WP must be approved again as well.
 
 The codes are defined in the [CLI reference](../../../api/cli-commands.md#spec-kitty-consolidate-exit-codes-and-refusal-codes). The attribution rules and the full verdict table are in the [status model](../../../architecture/status-model.md#commit-attribution-stamp-policy_metadatalane_head).
+
+### A branch moved without a record
+
+```text
+Error: Refusing to continue this consolidation: the merge record cannot explain where these branches are now (neither their restore target nor a tip this consolidation recorded or provably wrote):
+  <branch>: restore target <sha>, live <sha>
+Nothing was changed and the merge record is kept. To continue:
+...
+Error code: UNEXPLAINED_BRANCH_MOVE.
+```
+
+A re-run or `--resume` found a branch of an unfinished consolidation at a commit the merge record cannot account for. Typical causes: the earlier run was killed right after it moved the branch and before it recorded the move, or someone committed on the branch while the record was still open. The command stops before it moves anything, exits 1 and keeps the record. Running it again gives the same answer.
+
+1. Inspect the commits the message names: `git log <restore-target>..<live>`.
+2. If these commits should not stay, move the branch yourself; spec-kitty never moves a commit it cannot prove is its own.
+3. To keep them, release the branch and clear the record: `spec-kitty consolidate --abort --release-branch <branch> --release-reason "<why>"` (see [Keep a branch that cannot be restored](#keep-a-branch-that-cannot-be-restored)). A release keeps every commit the `git log` listed on the branch, including any change of this consolidation that was never verified; the next consolidation still verifies them, and refuses with `APPROVED_CONTENT_MISSING` if one dropped approved code. Then start the consolidation again.
+
+A resume whose landing was already verified, with the target still at that commit, is not refused; it finishes the cleanup.
+
+Known cases that refuse this way, even though nobody else touched the branch:
+
+- The run was killed right after a commit it makes without first saving where it moves the branch: the mission-number bake commit in the repository root checkout, or a plain status commit on the target.
+- You ran `git pull` (or committed) on the target after a hard kill, before re-running or aborting.
+
+Not covered yet: `orchestrator-api`'s planning-closeout path reports this refusal as `PREFLIGHT_FAILED` without the code, and `spec-kitty consolidate --dry-run` does not predict it.
 
 ### Exit code 75: the landing stands
 

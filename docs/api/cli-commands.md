@@ -2,7 +2,7 @@
 title: CLI Command Reference
 description: Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output.
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-05'
 related:
 - docs/api/bulk-edit-gate.md
 - docs/api/finalize-tasks-internals.md
@@ -119,6 +119,8 @@ Stable codes that appear in the output. Match on the code, not on the surroundin
 | `CANCELED_REACHABLE_VIA_DEPENDENCY` | Content of a fully-canceled dependency lane reached an approved lane, is still live there and is on the target. The run FAILs and rolls back. Content that every carrying lane fully superseded is not counted. | Undo the change on the carrying lane through a surviving WP's governed work, then re-run. Not overridable: `--attest-canceled-superseded` never lifts it. |
 | `COORD_MOVED_AFTER_LANDING` | Exit code `75`, see above. The message ends with `Error code: COORD_MOVED_AFTER_LANDING.` | Coordination branch: review the late commit(s) with the `git log` command in the message, then run `spec-kitty consolidate --resume`, which lands them on the target and finishes the teardown. Mission branch without a coordination topology: land the commit(s) and delete the branch yourself. |
 | `LANE_MOVED_AFTER_APPROVAL` | A code lane holds a content commit made after review approved it (or after an `--attest-approved-reviewed` attestation). Exit code `1`, before any branch moves; also checked again at the reconciliation gate. | Move the work package back for review so the new content is reviewed, approve it again, re-run. The message names the late commits and the command to move each work package of the lane back; see a commit with `git show <sha>`. No attestation lifts it: `--attest-approved-reviewed` and `--attest-canceled-superseded` never do. On a lane that mixes an approved and a canceled work package, `--attest-canceled-superseded` still exempts lane commits up to its own lane head from the closed-world refusal, but the commit still needs its work package approved again. Nothing a canceled work package does covers a commit: no commit of its own, no status move of a work package that stays canceled, no attestation. Forcing a canceled work package into `approved` is a forced approval, which stamps the lane at its current tip; the bound is as strong as the review model (issue #5721). If a canceled work package committed on the lane after the approval, also when that work was reverted, the approved work package needs a new approval. When both refusals apply, the first message names both under `This Mission also has:`. |
+| `RELEASE_BRANCH_INVALID` | `--release-branch` without `--abort` or without `--release-reason`, naming a branch that is not the record's target, mission or coordination branch (a lane branch or an unknown name), or naming a branch that does not resolve to a commit. Exit code `2`; nothing changed. | Correct the flags and re-run `spec-kitty consolidate --abort`. |
+| `UNEXPLAINED_BRANCH_MOVE` | A re-run or `--resume` found a target, mission or coordination branch of an unfinished record at a commit the record cannot explain: neither its restore target nor a commit this run recorded or saved as its next move (for example a run killed right after it moved the branch). Refused before anything moves; the record is kept. Exit code `1`. Not raised while the target still sits at a verified landing. | Inspect `git log <restore-target>..<live>`. If the commits should not stay, move the branch yourself. To keep them, `spec-kitty consolidate --abort --release-branch <branch> --release-reason "<why>"`; a release keeps every listed commit. See [troubleshooting](../guides/how-to/recovery/troubleshoot-merge.md#a-branch-moved-without-a-record). |
 | `PROJECTION_TEARDOWN_ABORTED` | The same race caught earlier: the coordination branch moved before anything was torn down, so the coordination worktree, branch and marker all survive. Exit code `1`. | Re-run `spec-kitty consolidate --resume`. |
 
 - **`--attest-canceled-superseded <WP>`** lifts a REFUSE whose attribution evidence can never
@@ -137,6 +139,14 @@ Stable codes that appear in the output. Match on the code, not on the surroundin
   status log. Attesting again after an unrelated failure is accepted while the lane holds nothing beyond
   the earlier attestation; once it holds a later commit the repeat is refused, nothing is recorded, and
   the work package must go back for review.
+- **`--abort --release-branch <branch> --release-reason "<why>"`** (repeatable) keeps a
+  branch that `--abort` reports `NOT restored` at the commit it has when you run the command,
+  reports it `kept` with the reason and a warning that it may contain this consolidation's
+  unverified changes, and lets the record clear once every other branch is restored. A release
+  never keeps a branch that can be restored, and it no longer applies once the branch moves. A
+  release saved by an `--abort` that then fails on another branch stays in the record and is
+  still honoured by a later plain `--abort` while the branch sits at that commit. See
+  [Keep a branch that cannot be restored](../guides/how-to/recovery/troubleshoot-merge.md#keep-a-branch-that-cannot-be-restored).
 - **`--resume`** refreshes in place a repository root checkout, coordination worktree,
   mission worktree or lane worktree that only lags its own HEAD, and refuses with the exact
   recovery commands when such a worktree also holds an edit of your own. See
@@ -1503,6 +1513,36 @@ _Charter pack management commands._
 │                                                            reason serves     │
 │                                                            every attestation │
 │                                                            of the run.       │
+│ --release-branch                          TEXT             With --abort      │
+│                                                            (repeatable):     │
+│                                                            keep this branch  │
+│                                                            at its current    │
+│                                                            commit instead of │
+│                                                            refusing because  │
+│                                                            it cannot be      │
+│                                                            restored. The     │
+│                                                            branch keeps all  │
+│                                                            of its current    │
+│                                                            commits,          │
+│                                                            including this    │
+│                                                            consolidation's   │
+│                                                            unverified        │
+│                                                            changes; review   │
+│                                                            them afterwards.  │
+│                                                            Only the record's │
+│                                                            target, mission   │
+│                                                            or coordination   │
+│                                                            branch can be     │
+│                                                            released.         │
+│                                                            Requires          │
+│                                                            --release-reason. │
+│ --release-reason                          TEXT             Why the released  │
+│                                                            branches are      │
+│                                                            kept, printed in  │
+│                                                            the --abort       │
+│                                                            report (required  │
+│                                                            with              │
+│                                                            --release-branch… │
 │ --help             -h                                      Show this message │
 │                                                            and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
