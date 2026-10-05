@@ -149,6 +149,8 @@ _WRITE_DIR_CONSUMER_MODULES: tuple[Path, ...] = (
     _SRC / "coordination" / "commit_router.py",
     _SRC / "coordination" / "coord_seed.py",
     _SRC / "coordination" / "transaction.py",
+    # implement-degod WP04: the planning-commit decisions moved here; the scan follows the code.
+    _SRC / "coordination" / "planning_commit.py",
     _SRC / "lanes" / "recovery.py",
     _SRC / "retrospective" / "tracer_writer.py",
     _SRC / "tasks" / "issue_matrix.py",

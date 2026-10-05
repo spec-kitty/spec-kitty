@@ -147,18 +147,33 @@ _NO_CLI_SEAM_MODULES: tuple[str, ...] = (
     "specify_cli.workspace.context",
     # WP03: claim-precondition decision (ensure_wp_claim_preconditions)
     "specify_cli.core.dependency_graph",
+    # WP04: planning-commit decisions (partition, guard, demotion verdict, identifiers)
+    "specify_cli.coordination.planning_commit",
 )
 
 
-def _cli_layer_imports(source: str) -> list[str]:
+def _resolve_relative_module(node: ast.ImportFrom, package: str) -> str:
+    """The absolute dotted module a ``from <dots><module> import ...`` statement names.
+
+    *package* is the dotted package the scanned file lives in (``specify_cli.coordination`` for
+    ``specify_cli/coordination/x.py``); each extra leading dot climbs one package.
+    """
+    if node.level == 0:
+        return node.module or ""
+    anchor = package.split(".")[: len(package.split(".")) - (node.level - 1)]
+    return ".".join([*anchor, *([node.module] if node.module else [])])
+
+
+def _cli_layer_imports(source: str, package: str = "") -> list[str]:
     """Every import of ``specify_cli.cli*`` or ``typer`` in *source*, at any nesting depth.
 
     ``ast.walk`` descends into function bodies, so a lazy (function-local) import is caught too.
+    Relative imports (``from ..cli import x``) are resolved against *package* before the test.
     """
     offenders: list[str] = []
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.ImportFrom):
-            module = node.module or ""
+            module = _resolve_relative_module(node, package)
             names = [f"{module}.{alias.name}" for alias in node.names]
             candidates = [module, *names]
         elif isinstance(node, ast.Import):
@@ -181,7 +196,7 @@ class TestSeamModulesHaveNoCliImports:
         spec = importlib.util.find_spec(module_name)
         assert spec is not None and spec.origin is not None, f"{module_name} not found on sys.path"
 
-        offenders = _cli_layer_imports(Path(spec.origin).read_text(encoding="utf-8"))
+        offenders = _cli_layer_imports(Path(spec.origin).read_text(encoding="utf-8"), module_name.rpartition(".")[0])
 
         assert not offenders, (
             f"{module_name} imports the CLI layer (C-004: lower packages return typed results or "
@@ -214,3 +229,28 @@ class TestSeamModulesHaveNoCliImports:
     )
     def test_scanner_ignores_non_cli_imports(self, source: str) -> None:
         assert not _cli_layer_imports(source)
+
+    @pytest.mark.parametrize(
+        ("source", "package"),
+        [
+            ("from ..cli import StepTracker\n", "specify_cli.coordination"),
+            ("from ..cli.console import console\n", "specify_cli.coordination"),
+            ("from .. import cli\n", "specify_cli.coordination"),
+            ("from ...cli import x\n", "specify_cli.coordination.sub"),
+            ("def f():\n    from ..cli.console import console\n", "specify_cli.workspace"),
+        ],
+    )
+    def test_scanner_flags_relative_cli_imports(self, source: str, package: str) -> None:
+        """Non-vacuity: a relative import that resolves into ``specify_cli.cli`` is caught."""
+        assert _cli_layer_imports(source, package)
+
+    @pytest.mark.parametrize(
+        ("source", "package"),
+        [
+            ("from ..status import Lane\n", "specify_cli.coordination"),
+            ("from . import coherence\n", "specify_cli.coordination"),
+            ("from .coherence import is_coord_residue_churn\n", "specify_cli.coordination"),
+        ],
+    )
+    def test_scanner_ignores_relative_non_cli_imports(self, source: str, package: str) -> None:
+        assert not _cli_layer_imports(source, package)

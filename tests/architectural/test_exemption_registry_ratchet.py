@@ -114,6 +114,8 @@ CHURN_SURFACE_MODULES: tuple[str, ...] = (
     "src/specify_cli/acceptance/__init__.py",
     "src/specify_cli/coordination/coherence.py",
     "src/specify_cli/cli/commands/implement.py",
+    # implement-degod WP04: the planning-commit decisions moved here; the scan follows the code.
+    "src/specify_cli/coordination/planning_commit.py",
     "src/specify_cli/lanes/auto_rebase.py",
 )
 

@@ -57,6 +57,7 @@ def test_no_inline_mid8_slices_remain_after_routing() -> None:
     for rel in (
         "status/aggregate.py",
         "cli/commands/implement.py",
+        "coordination/planning_commit.py",
         "lanes/worktree_allocator.py",
         "cli/commands/doctor.py",
     ):
