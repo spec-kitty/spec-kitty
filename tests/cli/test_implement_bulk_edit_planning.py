@@ -1,16 +1,22 @@
-"""Regression tests for implement bulk-edit planning preflight."""
+"""Regression tests for implement bulk-edit planning preflight.
+
+Each test calls the bulk-edit phase (``implement_phases.run_bulk_edit_gate``) directly with a real
+mission directory and asserts its verdict (raise or proceed) and its console output; nothing in the
+implement command family is patched. The CLI smoke for this family is the characterization
+refusal (``test_unacknowledged_bulk_edit_inference_is_refused_and_the_flag_lets_it_through``).
+"""
 
 from __future__ import annotations
 
 import json
-from contextlib import contextmanager
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 import typer
 
-from specify_cli.cli.commands.implement import implement
+from specify_cli.cli.commands import implement_phases
+from specify_cli.cli.commands.implement_phases import ImplementContext
+from specify_cli.cli.console import console
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 
@@ -18,19 +24,9 @@ pytestmark = pytest.mark.fast
 
 
 @pytest.fixture(autouse=True)
-def _bypass_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
-    """These unit tests do not stage a charter; bypass the preflight gate.
-
-    Without this, ``spec-kitty implement`` returns ``Error: charter_source
-    missing`` before the bulk-edit planning code under test runs.
-    """
-    from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
-
-    result = CharterPreflightResult(passed=True, checks=[])
-    monkeypatch.setattr(
-        "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
-        lambda *_args, **_kwargs: result,
-    )
+def _wide_console(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Render the panels without wrapping so phrases compare whole."""
+    monkeypatch.setenv("COLUMNS", "240")
 
 
 def _write_meta(feature_dir: Path) -> None:
@@ -123,81 +119,47 @@ def _build_feature(tmp_path: Path, *, owned_file: str) -> Path:
     return feature_dir
 
 
-def _workspace(feature_dir: Path) -> MagicMock:
-    return MagicMock(
-        workspace_path=feature_dir.parent.parent / ".worktrees" / f"{feature_dir.name}-lane-a",
-        branch_name=f"kitty/mission-{feature_dir.name}-lane-a",
-        lane_id="lane-a",
-        mission_branch=f"kitty/mission-{feature_dir.name}",
-        is_reuse=False,
-    )
+def _context(tmp_path: Path, feature_dir: Path) -> ImplementContext:
+    wp_file = feature_dir / "tasks" / "WP01-plan.md"
+    return ImplementContext(tmp_path, False, feature_dir.name, feature_dir, wp_file, [])
 
 
-@contextmanager
-def _patched_implement(tmp_path: Path, feature_dir: Path):
-    with (
-        patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
-        patch(
-            "specify_cli.cli.commands.implement_phases.detect_feature_context",
-            return_value=(None, feature_dir.name),
-        ),
-        patch(
-            "specify_cli.workspace.context.resolve_mission_target_branch",
-            return_value="main",
-        ),
-        patch("specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git"),
-        patch("specify_cli.cli.commands.implement_phases._ensure_vcs_in_meta", return_value=MagicMock(value="git")),
-        patch("specify_cli.cli.commands.implement_phases.create_lane_workspace", return_value=_workspace(feature_dir)) as create_workspace,
-    ):
-        yield create_workspace
+def _run_gate(ctx: ImplementContext) -> str:
+    """Run the bulk-edit phase the way ``implement`` does (no acknowledgement); return its output."""
+    with console.capture() as capture:
+        implement_phases.run_bulk_edit_gate(ctx, "WP01", acknowledge_not_bulk_edit=False)
+    return capture.get()
 
 
-def test_occurrence_map_planning_wp_does_not_require_acknowledgement(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
+def test_occurrence_map_planning_wp_does_not_require_acknowledgement(tmp_path: Path) -> None:
     feature_dir = _build_feature(tmp_path, owned_file="occurrence_map.yaml")
 
-    with _patched_implement(tmp_path, feature_dir) as create_workspace:
-        implement("WP01", mission=feature_dir.name, recover=False, auto_commit=False)
+    # The phase returns (the claim proceeds to allocation) instead of raising.
+    output = _run_gate(_context(tmp_path, feature_dir))
 
-    output = capsys.readouterr().out
     assert "Bulk Edit Inference Informational" in output
     assert "Bulk Edit Inference Warning" not in output
-    create_workspace.assert_called_once()
 
 
-def test_active_rewrite_wp_still_requires_acknowledgement(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
+def test_active_rewrite_wp_still_requires_acknowledgement(tmp_path: Path) -> None:
     feature_dir = _build_feature(tmp_path, owned_file="src/runtime/**")
 
-    with (
-        _patched_implement(tmp_path, feature_dir) as create_workspace,
-        pytest.raises(typer.Exit) as exc_info,
-    ):
-        implement("WP01", mission=feature_dir.name, recover=False, auto_commit=False)
+    with console.capture() as capture, pytest.raises(typer.Exit) as exc_info:
+        implement_phases.run_bulk_edit_gate(_context(tmp_path, feature_dir), "WP01", acknowledge_not_bulk_edit=False)
 
     assert exc_info.value.exit_code == 1
-    output = capsys.readouterr().out
+    output = capture.get()
     assert "Bulk Edit Inference Warning" in output
     assert "--acknowledge-not-bulk-edit" in output
-    create_workspace.assert_not_called()
 
 
-def test_non_utf8_spec_without_bulk_edit_signal_does_not_block_implement(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
+def test_non_utf8_spec_without_bulk_edit_signal_does_not_block_implement(tmp_path: Path) -> None:
     feature_dir = _build_feature(tmp_path, owned_file="src/runtime/**")
     (feature_dir / "spec.md").write_bytes(
         b"\xff\xfe# Spec\n\nRegular feature work with no occurrence-sensitive wording.\n"
     )
 
-    with _patched_implement(tmp_path, feature_dir) as create_workspace:
-        implement("WP01", mission=feature_dir.name, recover=False, auto_commit=False)
+    # The phase returns (the claim proceeds to allocation) instead of raising.
+    output = _run_gate(_context(tmp_path, feature_dir))
 
-    output = capsys.readouterr().out
     assert "Bulk Edit Inference Warning" not in output
-    create_workspace.assert_called_once()

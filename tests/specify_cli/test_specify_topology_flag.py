@@ -444,54 +444,6 @@ def _seed_wp_approved(feature_dir: Path, slug: str, wp_id: str) -> None:
 
 
 @contextmanager
-def _claim_allocation_patched(repo: Path, feature_dir: Path) -> Iterator[MagicMock]:
-    """Run REAL ``implement()`` through its REAL guards, patching only the
-    post-guard worktree allocation + status emit (canonical repo-harness pattern).
-
-    The single returned mock's ``call_count`` is the signal: a claim the
-    dirty-tree guard BLOCKS aborts in the validate stage and never reaches
-    allocation; a claim that PASSES reaches it. ``charter`` preflight is bypassed
-    (no charter is staged in this fixture).
-
-    Kept as a shared harness primitive: ``tests/migration/test_birth_cutover.py``
-    (and, through it, ``tests/specify_cli/cli/test_accept_birth_cutover.py``)
-    imports it for its coord / lanes birth-cutover scenarios."""
-    from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
-
-    def _workspace(wp_id: str, lane_id: str) -> MagicMock:
-        return MagicMock(
-            workspace_path=repo / ".worktrees" / f"{feature_dir.name}-{lane_id}",
-            branch_name=f"kitty/mission-{feature_dir.name}-{lane_id}",
-            lane_id=lane_id,
-            mission_branch=f"kitty/mission-{feature_dir.name}",
-            is_reuse=False,
-        )
-
-    create_mock = MagicMock(
-        side_effect=lambda *a, **k: _workspace(
-            k.get("wp_id", a[0] if a else "WP"), "lane-a"
-        )
-    )
-    with ExitStack() as stack:
-        stack.enter_context(
-            patch(
-                "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
-                return_value=CharterPreflightResult(passed=True, checks=[]),
-            )
-        )
-        stack.enter_context(
-            patch("specify_cli.cli.commands.implement_phases.create_lane_workspace", create_mock)
-        )
-        stack.enter_context(
-            patch(
-                "specify_cli.cli.commands.implement_claim.start_implementation_status",
-                MagicMock(return_value=MagicMock(status_changed=False)),
-            )
-        )
-        yield create_mock
-
-
-@contextmanager
 def _preflight_bypassed() -> Iterator[None]:
     """Run REAL ``implement()`` through its REAL guards and REAL workspace
     allocation; bypass only the charter preflight (no charter is staged in this

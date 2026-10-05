@@ -13,29 +13,27 @@ the exclusion opens no race). The default ``auto_commit=True`` path is unchanged
 (NFR-001), and a ``meta.json`` dirtied with any NON-lock field still blocks
 (the exclusion is strictly lock-field-only, not a blanket meta.json bypass).
 
-The end-to-end tests drive the pre-existing claim surface (``implement()`` — the
-function backing ``spec-kitty agent action implement``) so the REAL guard runs;
-the first claim's residue is established by the production writer
+The guard tests call the planning-artifact commit phase of the claim
+(``implement_phases.commit_planning_artifacts``) directly against a real git
+repository, so the REAL guard runs and nothing in the implement command family
+is patched; the first claim's residue is established by the production writer
 ``set_vcs_lock`` (the exact bytes the first claim leaves), which isolates the
 variable under test from unrelated first-claim side effects.
 """
 
 from __future__ import annotations
 
-import contextlib
 import json
 import subprocess
-from collections.abc import Iterator
-from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 import typer
 
 from kernel.vcs_lock import is_vcs_lock_only_change
-from specify_cli.cli.commands.implement import implement
+from specify_cli.cli.commands import implement_phases
+from specify_cli.cli.commands.implement_phases import ClaimPreflight, ImplementContext
 from specify_cli.cli.commands.implement_cores import _is_self_write_only_diff, resolve_planning_artifact_staging
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
@@ -47,20 +45,6 @@ _MISSION_SLUG = "vcs-lock-claim-demo"
 _LOCKED_AT = "2026-06-27T08:30:00+00:00"
 
 
-@pytest.fixture(autouse=True)
-def _bypass_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
-    """These tests do not stage a charter; bypass the preflight gate so the
-    claim reaches the dirty-tree guard under test rather than failing earlier
-    with ``charter_source missing``."""
-    from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
-
-    result = CharterPreflightResult(passed=True, checks=[])
-    monkeypatch.setattr(
-        "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
-        lambda *_args, **_kwargs: result,
-    )
-
-
 def _git(repo_root: Path, *args: str) -> None:
     subprocess.run(
         ["git", *args],
@@ -69,6 +53,10 @@ def _git(repo_root: Path, *args: str) -> None:
         capture_output=True,
         text=True,
     )
+
+
+def _git_out(repo_root: Path, *args: str) -> str:
+    return subprocess.run(["git", *args], cwd=repo_root, check=True, capture_output=True, text=True).stdout.strip()
 
 
 def _write_meta(feature_dir: Path) -> None:
@@ -186,103 +174,48 @@ def _build_mission_repo(tmp_path: Path) -> Path:
     return feature_dir
 
 
-def _workspace_mock(feature_dir: Path, lane_id: str) -> MagicMock:
-    return MagicMock(
-        workspace_path=feature_dir.parent.parent
-        / ".worktrees"
-        / f"{feature_dir.name}-{lane_id}",
-        branch_name=f"kitty/mission-{feature_dir.name}-{lane_id}",
-        lane_id=lane_id,
-        mission_branch=f"kitty/mission-{feature_dir.name}",
-        is_reuse=False,
-    )
+def _planning_commit_phase(tmp_path: Path, feature_dir: Path, wp_id: str) -> None:
+    """Run the REAL planning-artifact commit phase (the dirty-tree guard) for an
+    ``auto_commit=False`` claim of *wp_id*, with real phase values.
 
-
-@contextmanager
-def _claim_through_guard(
-    tmp_path: Path, feature_dir: Path, lane_id: str
-) -> Iterator[MagicMock]:
-    """Drive the REAL dirty-tree guard via ``implement()`` while patching only
-    the post-guard worktree allocation and status emission.
-
-    Yields the ``create_lane_workspace`` mock. Whether it was CALLED is the
-    signal: a claim the guard BLOCKS aborts in the validate stage and never
-    reaches allocation (``create.called is False``); a claim that PASSES the
-    guard reaches it (``create.called is True``). This mirrors the proven
-    ``create_workspace.assert_called_once()`` pattern in
-    ``tests/cli/test_implement_bulk_edit_planning.py``.
+    A claim the guard BLOCKS raises ``typer.Exit(1)`` here and never reaches the
+    workspace allocation that follows this phase in ``implement``; a claim the
+    guard PASSES returns normally.
     """
-    create_mock = MagicMock(return_value=_workspace_mock(feature_dir, lane_id))
-    status_mock = MagicMock(return_value=MagicMock(status_changed=False))
-    with (
-        patch(
-            "specify_cli.cli.commands.implement.find_repo_root",
-            return_value=tmp_path,
-        ),
-        patch(
-            "specify_cli.cli.commands.implement_phases.detect_feature_context",
-            return_value=(None, feature_dir.name),
-        ),
-        patch(
-            "specify_cli.workspace.context.resolve_mission_target_branch",
-            return_value="main",
-        ),
-        patch(
-            "specify_cli.cli.commands.implement_phases.create_lane_workspace",
-            create_mock,
-        ),
-        patch(
-            "specify_cli.cli.commands.implement_claim.start_implementation_status",
-            status_mock,
-        ),
-    ):
-        yield create_mock
+    ctx = ImplementContext(
+        repo_root=tmp_path,
+        auto_commit=False,
+        mission_slug=feature_dir.name,
+        feature_dir=feature_dir,
+        wp_file=feature_dir / "tasks" / f"{wp_id}-plan.md",
+        declared_deps=[],
+    )
+    preflight = ClaimPreflight(planning_branch="main", status_feature_dir=feature_dir, lanes_feature_dir=feature_dir)
+    implement_phases.commit_planning_artifacts(ctx, wp_id, preflight)
 
 
-def test_second_auto_commit_false_claim_not_blocked_by_lock_self_write(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_second_auto_commit_false_claim_not_blocked_by_lock_self_write(tmp_path: Path) -> None:
     """#2222 core: after the first claim's uncommitted vcs-lock self-write to
     meta.json, the second dependency-free ``auto_commit=False`` claim must NOT
     be blocked by the dirty-tree guard.
 
-    RED pre-fix: the guard aborts in the validate stage citing uncommitted
-    planning artifacts; ``create_lane_workspace`` is never reached.
-    GREEN post-fix: the guard passes and execution reaches the (patched)
-    ``create_lane_workspace``.
+    RED pre-fix: the guard aborts the planning-commit phase with ``typer.Exit(1)``
+    citing uncommitted planning artifacts.
+    GREEN post-fix: the phase returns, so the claim proceeds to allocation.
     """
     feature_dir = _build_mission_repo(tmp_path)
     # The first claim's exact production residue: a one-time vcs-lock written to
     # meta.json and left uncommitted in the working tree.
     set_vcs_lock(feature_dir, vcs_type="git", locked_at=_LOCKED_AT)
-    # Leave the lane worktree so the ``require_main_repo`` decorator is satisfied
-    # and the claim reaches the dirty-tree guard under test.
-    monkeypatch.chdir(tmp_path)
+    head = _git_out(tmp_path, "rev-parse", "HEAD")
 
-    # The contract under test is narrowly "the guard did not block the claim" ==
-    # "allocation was reached". Tolerate any unrelated downstream Exit so a
-    # regression of THAT contract (guard blocks) is the only way
-    # ``create_mock.called`` stays False.
-    with (
-        _claim_through_guard(tmp_path, feature_dir, "lane-b") as create_mock,
-        contextlib.suppress(typer.Exit),
-    ):
-        implement(
-            "WP02",
-            mission=feature_dir.name,
-            auto_commit=False,
-            recover=False,
-        )
+    _planning_commit_phase(tmp_path, feature_dir, "WP02")
 
-    assert create_mock.called, (
-        "the second auto_commit=False claim was blocked by the first claim's "
-        "uncommitted vcs-lock self-write (#2222 regression)"
-    )
+    # auto_commit=False: the guard passed without committing anything.
+    assert _git_out(tmp_path, "rev-parse", "HEAD") == head
 
 
-def test_non_lock_dirty_meta_still_blocks_auto_commit_false_claim(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_non_lock_dirty_meta_still_blocks_auto_commit_false_claim(tmp_path: Path) -> None:
     """Required negative guard: a meta.json dirtied with a NON-lock field (here
     alongside the lock fields) still aborts the ``auto_commit=False`` claim — the
     exclusion is strictly lock-field-only, never a blanket meta.json bypass."""
@@ -293,24 +226,11 @@ def test_non_lock_dirty_meta_still_blocks_auto_commit_false_claim(
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     meta["purpose_tldr"] = "operator changed the mission purpose; must still block"
     meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
-    monkeypatch.chdir(tmp_path)
 
-    with (
-        _claim_through_guard(tmp_path, feature_dir, "lane-b") as create_mock,
-        pytest.raises(typer.Exit) as exc_info,
-    ):
-        implement(
-            "WP02",
-            mission=feature_dir.name,
-            auto_commit=False,
-            recover=False,
-        )
+    with pytest.raises(typer.Exit) as exc_info:
+        _planning_commit_phase(tmp_path, feature_dir, "WP02")
 
     assert exc_info.value.exit_code == 1
-    assert not create_mock.called, (
-        "a non-lock dirty meta.json must abort at the guard before allocation; "
-        "the exclusion must be lock-field-only, not a blanket meta.json bypass"
-    )
 
 
 def test_drop_helper_is_noop_under_auto_commit_true(tmp_path: Path) -> None:

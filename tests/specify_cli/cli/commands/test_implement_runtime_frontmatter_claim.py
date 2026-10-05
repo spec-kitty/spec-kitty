@@ -19,33 +19,37 @@ is byte-identical (K-1/NFR-005: a body edit, or any non-runtime frontmatter key
 change, must still block). The default ``auto_commit=True`` path is a
 byte-identical no-op (NFR-001).
 
-Section B drives the REAL claim surface (``implement()``) across N sequential
+Section B runs the REAL claim phases against a real git repository (real claim
+events, nothing in the implement command family patched) across N sequential
 lanes and asserts the post-cutover invariant directly: every ``WP##.md`` prompt
 file is **byte-identical** before and after its claim (0 runtime bytes written),
-so no inter-allocation commit is ever needed.
+so the claim itself never dirties a prompt file.
 """
 
 from __future__ import annotations
 
-import contextlib
 import io
-import json
 import subprocess
-from collections.abc import Iterator
-from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
-import typer
 from ruamel.yaml import YAML
 
-from specify_cli.cli.commands.implement import implement
 from specify_cli.cli.commands.implement_cores import _is_runtime_frontmatter_only_wp_diff, _is_self_write_only_diff, resolve_planning_artifact_staging
 from specify_cli.frontmatter import WP_RUNTIME_FIELDS
-from specify_cli.lanes.models import ExecutionLane, LanesManifest
-from specify_cli.lanes.persistence import write_lanes_json
+from specify_cli.cli.commands import implement_phases
+from specify_cli.cli.commands.implement_phases import AllocationResult
+from specify_cli.lanes.implement_support import LaneWorkspaceResult
+from specify_cli.status.reducer import wp_snapshot_state
+from tests.specify_cli.cli.commands.test_implement_characterization import (
+    MISSION_ID,
+    SLUG,
+    activate_repo,
+    build_mission,
+    git,
+    init_repo,
+)
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -263,212 +267,72 @@ def test_is_runtime_frontmatter_only_wp_diff_truth_table(
 
 
 # ---------------------------------------------------------------------------
-# Section B: T003 SC -- N sequential lanes, zero inter-allocation commits.
+# Section B: T003 SC -- N sequential claims, zero WP prompt-file bytes.
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture(autouse=True)
-def _bypass_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
-    """These tests do not stage a charter; bypass the preflight gate so the
-    claim reaches the dirty-tree guard under test rather than failing earlier
-    with ``charter_source missing``."""
-    from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
-
-    result = CharterPreflightResult(passed=True, checks=[])
-    monkeypatch.setattr(
-        "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
-        lambda *_args, **_kwargs: result,
-    )
-
-
-def _write_meta(feature_dir: Path) -> None:
-    feature_dir.mkdir(parents=True, exist_ok=True)
-    (feature_dir / "meta.json").write_text(
-        json.dumps(
-            {
-                "mission_slug": feature_dir.name,
-                "slug": feature_dir.name,
-                "friendly_name": feature_dir.name,
-                "mission_type": "software-dev",
-                "target_branch": "main",
-                "created_at": "2026-07-12T00:00:00Z",
-            },
-            indent=2,
+def _lane_allocation(repo: Path, lane_id: str) -> AllocationResult:
+    """The ``allocate`` phase value for a lane workspace (the allocation itself is not under test)."""
+    return AllocationResult(
+        result=LaneWorkspaceResult(
+            workspace_path=repo / ".worktrees" / f"{SLUG}-{lane_id}",
+            branch_name=f"kitty/mission-{SLUG}-{lane_id}",
+            workspace_name=f"{SLUG}-{lane_id}",
+            lane_id=lane_id,
+            mission_branch=f"kitty/mission-{SLUG}",
+            is_reuse=False,
+            vcs_backend_value="git",
+            execution_mode="worktree",
+            resolution_kind="lane_workspace",
         ),
-        encoding="utf-8",
+        effective_base=None,
     )
 
 
-def _write_lanes(feature_dir: Path, wp_ids: list[str]) -> None:
-    lanes = [
-        ExecutionLane(
-            lane_id=f"lane-{chr(ord('a') + index)}",
-            wp_ids=(wp_id,),
-            write_scope=(f"src/{wp_id.lower()}/**",),
-            predicted_surfaces=("runtime",),
-            depends_on_lanes=(),
-            parallel_group=0,
-        )
-        for index, wp_id in enumerate(wp_ids)
-    ]
-    write_lanes_json(
-        feature_dir,
-        LanesManifest(
-            version=1,
-            mission_slug=feature_dir.name,
-            mission_id=f"mission-{feature_dir.name}",
-            mission_branch=f"kitty/mission-{feature_dir.name}",
-            target_branch="main",
-            lanes=lanes,
-            computed_at="2026-07-12T00:00:00Z",
-            computed_from="test",
-        ),
-    )
-
-
-def _write_wp_prompt(tasks_dir: Path, wp_id: str, owned_glob: str) -> None:
-    (tasks_dir / f"{wp_id}-plan.md").write_text(
-        "---\n"
-        f"work_package_id: {wp_id}\n"
-        f"title: {wp_id} root work\n"
-        "dependencies: []\n"
-        "execution_mode: code_change\n"
-        "owned_files:\n"
-        f"  - {owned_glob}\n"
-        f"authoritative_surface: {owned_glob.rstrip('*')}\n"
-        "---\n"
-        f"# {wp_id}\n",
-        encoding="utf-8",
-    )
-
-
-def _seed_event(mission_slug: str, wp_id: str, event_suffix: str) -> dict[str, Any]:
-    return {
-        "actor": "seed",
-        "at": "2026-07-12T00:00:00+00:00",
-        "event_id": f"01HXYZ0123456789ABCDEFG{event_suffix}",
-        "evidence": None,
-        "execution_mode": "worktree",
-        "force": False,
-        "from_lane": "genesis",
-        "mission_slug": mission_slug,
-        "reason": "seed",
-        "review_ref": None,
-        "to_lane": "planned",
-        "wp_id": wp_id,
-    }
-
-
-def _build_multi_wp_mission_repo(tmp_path: Path, wp_ids: list[str]) -> Path:
-    """Seed a realistic N-root-WP mission in a real git repo, committed on
-    ``main``. Every WP is a dependency-free root, seeded into ``planned`` (as
-    ``finalize-tasks`` does), each on its own lane."""
-    feature_dir = tmp_path / "kitty-specs" / _MISSION_SLUG
-    tasks_dir = feature_dir / "tasks"
-    tasks_dir.mkdir(parents=True)
-    _write_meta(feature_dir)
-    _write_lanes(feature_dir, wp_ids)
-    (feature_dir / "spec.md").write_text(
-        "# Spec\n\nDeliver independent root work packages.\n",
-        encoding="utf-8",
-    )
-    for index, wp_id in enumerate(wp_ids):
-        _write_wp_prompt(tasks_dir, wp_id, f"src/{chr(ord('a') + index)}/**")
-    events = "".join(
-        json.dumps(_seed_event(_MISSION_SLUG, wp_id, f"S{index:02d}"), sort_keys=True) + "\n"
-        for index, wp_id in enumerate(wp_ids)
-    )
-    (feature_dir / "status.events.jsonl").write_text(events, encoding="utf-8")
-
-    _git(tmp_path, "init", "-b", "main")
-    _git(tmp_path, "config", "user.email", "test@example.com")
-    _git(tmp_path, "config", "user.name", "Test Runner")
-    _git(tmp_path, "add", "-A")
-    _git(tmp_path, "commit", "-m", "seed mission")
-    return feature_dir
-
-
-def _workspace_mock(feature_dir: Path, lane_id: str) -> MagicMock:
-    return MagicMock(
-        workspace_path=feature_dir.parent.parent / ".worktrees" / f"{feature_dir.name}-{lane_id}",
-        branch_name=f"kitty/mission-{feature_dir.name}-{lane_id}",
-        lane_id=lane_id,
-        mission_branch=f"kitty/mission-{feature_dir.name}",
-        is_reuse=False,
-    )
-
-
-@contextmanager
-def _claim_through_guard(tmp_path: Path, feature_dir: Path, lane_id: str) -> Iterator[MagicMock]:
-    """Drive the REAL dirty-tree guard via ``implement()`` while patching only
-    the post-guard worktree allocation and status emission (mirrors the proven
-    pattern in ``test_implement_vcs_lock_claim.py``)."""
-    create_mock = MagicMock(return_value=_workspace_mock(feature_dir, lane_id))
-    status_mock = MagicMock(return_value=MagicMock(status_changed=False))
-    with (
-        patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
-        patch(
-            "specify_cli.cli.commands.implement_phases.detect_feature_context",
-            return_value=(None, feature_dir.name),
-        ),
-        patch(
-            "specify_cli.workspace.context.resolve_mission_target_branch",
-            return_value="main",
-        ),
-        patch("specify_cli.cli.commands.implement_phases.create_lane_workspace", create_mock),
-        patch("specify_cli.cli.commands.implement_claim.start_implementation_status", status_mock),
-    ):
-        yield create_mock
-
-
-def test_sequential_n_lane_allocation_writes_zero_wp_file_bytes(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_sequential_n_lane_claims_write_zero_wp_file_bytes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """SC-004 / NFR-003 (#2816 cutover): N sequential dependency-free root claims
     under ``auto_commit=False`` each write **0 bytes** to their WP prompt file.
 
     Post-cutover the claim no longer self-writes ``shell_pid`` into
-    ``tasks/WP##.md`` (the dual-write mirror was removed), so every ``WP##.md`` is
-    byte-identical across its claim and NO inter-allocation commit is ever needed
-    — the dirty-tree guard has nothing to drop. This test performs no ``git
-    commit`` between iterations and asserts the prompt files never change.
+    ``tasks/WP##.md`` (the dual-write mirror was removed): the claim rides the
+    event log only. This test runs the REAL claim phases (``claim_preflight``,
+    ``record_claim``, ``commit_claim``) for N WPs in sequence against a real git
+    repository, with no ``git commit`` between iterations, and asserts that every
+    claim landed in the event log while every prompt file stayed byte-identical.
+    (The workspace allocation's own ``base_branch``/``base_commit`` stamp is a
+    separate, workspace-creation write and is not part of the claim.)
     """
+    repo = init_repo(tmp_path / "repo")
+    activate_repo(repo, monkeypatch, tmp_path)
     wp_ids = ["WP01", "WP02", "WP03"]
-    feature_dir = _build_multi_wp_mission_repo(tmp_path, wp_ids)
-    monkeypatch.chdir(tmp_path)
-    tasks_dir = feature_dir / "tasks"
-    before = {wp_id: (tasks_dir / f"{wp_id}-plan.md").read_bytes() for wp_id in wp_ids}
+    lane_ids = [f"lane-{chr(ord('a') + index)}" for index in range(len(wp_ids))]
+    mission = build_mission(
+        repo,
+        SLUG,
+        MISSION_ID,
+        wps={wp_id: ("code_change", []) for wp_id in wp_ids},
+        layout=tuple((lane_id, (wp_id,), ()) for lane_id, wp_id in zip(lane_ids, wp_ids, strict=True)),
+    )
+    tasks_dir = mission.feature_dir / "tasks"
+    before = {wp_id: (tasks_dir / f"{wp_id}-test.md").read_bytes() for wp_id in wp_ids}
 
-    for index, wp_id in enumerate(wp_ids):
-        lane_id = f"lane-{chr(ord('a') + index)}"
-        with (
-            _claim_through_guard(tmp_path, feature_dir, lane_id) as create_mock,
-            contextlib.suppress(typer.Exit),
-        ):
-            implement(wp_id, mission=feature_dir.name, auto_commit=False, recover=False)
+    for wp_id, lane_id in zip(wp_ids, lane_ids, strict=True):
+        ctx = implement_phases.detect_context(SLUG, wp_id, repo, False, json_mode=False)
+        implement_phases.claim_preflight(ctx, wp_id)
+        status = implement_phases.record_claim(ctx, wp_id, "tester", _lane_allocation(repo, lane_id), "worktree")
+        implement_phases.commit_claim(ctx, wp_id, status)
 
-        assert create_mock.called, (
-            f"{wp_id} (lane {index + 1} of {len(wp_ids)}) was blocked before "
-            "reaching workspace allocation"
-        )
+    # Every claim really landed: each WP is in_progress in the real event log.
+    for wp_id in wp_ids:
+        assert (wp_snapshot_state(mission.feature_dir, wp_id) or {}).get("lane") == "in_progress"
 
     # Byte-stability (SC-004): the claim wrote 0 runtime bytes to any WP prompt
     # file — every WP##.md is byte-identical to its pre-claim content, so the
     # working tree carries no WP##.md change at all.
     for wp_id in wp_ids:
-        after = (tasks_dir / f"{wp_id}-plan.md").read_bytes()
-        assert after == before[wp_id], (
-            f"{wp_id}'s prompt file must be byte-identical across its claim (0 runtime bytes)"
-        )
+        after = (tasks_dir / f"{wp_id}-test.md").read_bytes()
+        assert after == before[wp_id], f"{wp_id}'s prompt file must be byte-identical across its claim (0 runtime bytes)"
 
-    status = subprocess.run(
-        ["git", "status", "--porcelain"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
+    status_lines = git(repo, "status", "--porcelain")
     for wp_id in wp_ids:
-        assert f"{wp_id}-plan.md" not in status, (
-            f"{wp_id}'s prompt file must stay unmodified after a byte-stable claim"
-        )
+        assert f"{wp_id}-test.md" not in status_lines, f"{wp_id}'s prompt file must stay unmodified after a byte-stable claim"

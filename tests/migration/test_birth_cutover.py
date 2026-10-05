@@ -46,7 +46,6 @@ pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 # tests/merge/test_executor_coord_reconcile.py imports from
 # tests/merge/test_issue_2367_bake_strand.py).
 from tests.specify_cli.test_specify_topology_flag import (
-    _claim_allocation_patched,
     _git,
     _init_project,
     _read_meta,
@@ -359,7 +358,9 @@ def _run_real_merge(repo: Path, slug: str) -> None:
     from specify_cli.consolidation.config import MergeStrategy
     from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 
-    with _claim_allocation_patched(repo, repo / "kitty-specs" / slug), _real_merge_external_mocks(repo):
+    # The consolidation never reaches the implement command: no workspace
+    # allocation or claim stub is needed around it.
+    with _real_merge_external_mocks(repo):
         _run_lane_based_consolidation(
             repo_root=repo,
             mission_slug=slug,

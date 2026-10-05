@@ -8,25 +8,25 @@ is illegal), so ``implement`` must instead leave the WP ``planned`` and surface
 the exception's actionable ``next_step`` — at parity with the orchestrator-api
 path, which never emits ``blocked``.
 
-These tests pin observable STATE (the reduced lane and the event log), not
-message substrings, so a cosmetic message edit cannot fake them (NFR-001).
+These tests pin observable STATE (the reduced lane and the real
+``status.events.jsonl``), not message substrings alone, so a cosmetic message
+edit cannot fake them (NFR-001). They run the real command against a real git
+repository (the characterization fixture). The dependency-lane conflict is a
+real allocator failure; the two planning-pin failures need a pinned planning
+commit the fixture cannot build cheaply, so they are injected at the allocator
+through the characterization dispatch map (``allocate``), which this test is
+allowed to use (implement-degod FR-011).
 """
 
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
-from contextlib import contextmanager
+import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from typing import Any
 
 import pytest
-import typer
 
-from specify_cli.cli.commands import implement as implement_mod
-from specify_cli.cli.commands.implement import implement
-from specify_cli.lanes.models import ExecutionLane, LanesManifest
-from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.lanes.planning_commit_classify import PinClass
 from specify_cli.lanes.worktree_allocator import (
     DependencyLaneMergeConflictError,
@@ -34,274 +34,170 @@ from specify_cli.lanes.worktree_allocator import (
     PlanningCommitMergeConflictError,
 )
 from specify_cli.status.reducer import wp_snapshot_state
-
-pytestmark = pytest.mark.integration
-
-
-@pytest.fixture(autouse=True)
-def _disable_status_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Keep the test hermetic; the fixture targets protected ``main``.
-
-    The documented operator escape hatch is the ONE sanctioned waiver for
-    status commits on a protected branch (``SPEC_KITTY_TEST_MODE`` no longer
-    waives the pre-check — PR #1850 guard-bypass fix).
-    """
-    import specify_cli.status.emit as status_emit
-
-    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
-
-
-def _create_meta(feature_dir: Path) -> Path:
-    feature_dir.mkdir(parents=True, exist_ok=True)
-    meta_path = feature_dir / "meta.json"
-    meta_path.write_text(
-        json.dumps(
-            {
-                "feature_number": feature_dir.name.split("-")[0],
-                "mission_slug": feature_dir.name,
-                "created_at": "2026-04-26T00:00:00Z",
-                "friendly_name": feature_dir.name,
-                "mission": "software-dev",
-                "slug": feature_dir.name,
-                "target_branch": "main",
-                "vcs": "git",
-            },
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
-    return meta_path
-
-
-def _create_lanes(feature_dir: Path) -> None:
-    write_lanes_json(
-        feature_dir,
-        LanesManifest(
-            version=1,
-            mission_slug=feature_dir.name,
-            mission_id=f"mission-{feature_dir.name}",
-            mission_branch=f"kitty/mission-{feature_dir.name}",
-            target_branch="main",
-            lanes=[
-                ExecutionLane(
-                    lane_id="lane-a",
-                    wp_ids=("WP01",),
-                    write_scope=("src/**",),
-                    predicted_surfaces=("core",),
-                    depends_on_lanes=(),
-                    parallel_group=0,
-                )
-            ],
-            computed_at="2026-04-26T10:00:00Z",
-            computed_from="test",
-        ),
-    )
-
-
-def _write_wp_file(feature_dir: Path) -> Path:
-    wp_file = feature_dir / "tasks" / "WP01-fixture.md"
-    wp_file.parent.mkdir(parents=True, exist_ok=True)
-    wp_file.write_text(
-        "---\nwork_package_id: WP01\ndependencies: []\nexecution_mode: code_change\nowned_files:\n  - src/wp01/**\nauthoritative_surface: src/wp01/\n---\n# WP01\n",
-        encoding="utf-8",
-    )
-    return wp_file
-
-
-def _seed_planned(feature_dir: Path, feature_slug: str) -> Path:
-    """Seed WP01 into 'planned' (as finalize-tasks does) via a genesis->planned
-    event, so the alloc-failure path acts on a genuinely-planned WP."""
-    events_log = feature_dir / "status.events.jsonl"
-    events_log.write_text(
-        json.dumps(
-            {
-                "actor": "seed",
-                "at": "2026-04-25T00:00:00+00:00",
-                "event_id": "01HXYZ0123456789ABCDEFGS01",
-                "evidence": None,
-                "execution_mode": "worktree",
-                "force": False,
-                "from_lane": "genesis",
-                "mission_slug": feature_slug,
-                "reason": "seed",
-                "review_ref": None,
-                "to_lane": "planned",
-                "wp_id": "WP01",
-            },
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-    return events_log
-
-
-def _build_fixture(tmp_path: Path, feature_slug: str) -> tuple[Path, Path]:
-    feature_dir = tmp_path / "kitty-specs" / feature_slug
-    _create_meta(feature_dir)
-    _create_lanes(feature_dir)
-    _write_wp_file(feature_dir)
-    events_log = _seed_planned(feature_dir, feature_slug)
-    return feature_dir, events_log
-
-
-def _implement_transitions(events_log: Path) -> list[tuple[str, str]]:
-    """The implement-emitted (from, to) transitions, excluding the seed."""
-    events = _read_events(events_log)
-    return [(e["from_lane"], e["to_lane"]) for e in events if e["from_lane"] != "genesis"]
-
-
-def _read_events(events_log: Path) -> list[dict[str, object]]:
-    if not events_log.exists():
-        return []
-    return [json.loads(line) for line in events_log.read_text(encoding="utf-8").splitlines() if line.strip()]
-
-
-@contextmanager
-def _patched_implement(
-    tmp_path: Path,
-    feature_slug: str,
-    *,
-    alloc: MagicMock,
-) -> Iterator[MagicMock]:
-    """Patch the ``implement`` collaborators up to (and including) the workspace
-    allocator, yielding the recording ``console.print`` mock."""
-    with (
-        patch.object(implement_mod.console, "print") as mock_print,
-        patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
-        patch("specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort"),
-        patch(
-            "specify_cli.cli.commands.implement_phases.detect_feature_context",
-            return_value=(feature_slug.split("-")[0], feature_slug),
-        ),
-        patch(
-            "specify_cli.workspace.context.resolve_mission_target_branch",
-            return_value="main",
-        ),
-        patch("specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git"),
-        patch("specify_cli.cli.commands.implement_phases._ensure_vcs_in_meta") as mock_ensure_vcs,
-        patch(
-            "specify_cli.cli.commands.implement_phases.create_lane_workspace",
-            new=alloc,
-        ),
-    ):
-        mock_ensure_vcs.return_value = MagicMock(value="git")
-        yield mock_print
-
-
-def _printed_text(mock_print: MagicMock) -> str:
-    return "\n".join(" ".join(str(arg) for arg in call.args) for call in mock_print.call_args_list)
-
-
-@pytest.mark.parametrize(
-    ("feature_slug", "exc"),
-    [
-        (
-            "010-dep-lane-conflict-fixture",
-            DependencyLaneMergeConflictError("lane-a", "lane-b", "kitty/dep-branch"),
-        ),
-        (
-            "011-planning-commit-conflict-fixture",
-            PlanningCommitMergeConflictError("lane-a", "deadbeefcafef00d"),
-        ),
-        (
-            "013-orphaned-planning-commit-fixture",
-            OrphanedPlanningCommitError("lane-a", "deadbeefcafef00d", PinClass.ORPHANED),
-        ),
-    ],
+from tests.specify_cli.cli.commands._implement_dispatch import patch_collaborator
+from tests.specify_cli.cli.commands.test_implement_characterization import (
+    ARGS,
+    LANE_WORKTREE,
+    LATE,
+    MISSION_ID,
+    SLUG,
+    Mission,
+    activate_repo,
+    build_mission,
+    flat,
+    git,
+    implement_cli,
+    init_repo,
 )
-def test_alloc_conflict_leaves_wp_planned_and_prints_next_step(
-    tmp_path: Path,
-    feature_slug: str,
-    exc: DependencyLaneMergeConflictError | PlanningCommitMergeConflictError | OrphanedPlanningCommitError,
-) -> None:
-    """F-50 (C1): a conflicting (or orphaned-pin) allocation failure leaves the
-    WP ``planned``, emits NO ``planned -> blocked`` event, and prints the
-    exception's actionable ``next_step`` (not a generic 're-run'). Covers
-    ``OrphanedPlanningCommitError`` (#4827 pre-PR finding: it carries a
-    ``next_step`` too but was missing from the printed-affordance tuple)."""
-    feature_dir, events_log = _build_fixture(tmp_path, feature_slug)
-    alloc = MagicMock(side_effect=exc)
+from tests.utils import _seed_canonical_wp_state
 
-    with (
-        _patched_implement(tmp_path, feature_slug, alloc=alloc) as mock_print,
-        pytest.raises(typer.Exit),
-    ):
-        implement("WP01", mission=feature_slug, recover=False)
-    assert alloc.called
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
+MISSION_BRANCH = f"kitty/mission-{SLUG}"
+DEP_LANE_BRANCH = f"kitty/mission-{SLUG}-lane-a"
+LANE_B_WORKTREE = f".worktrees/{SLUG}-lane-b"
+
+
+@pytest.fixture()
+def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    root = init_repo(tmp_path / "repo")
+    activate_repo(root, monkeypatch, tmp_path)
+    return root
+
+
+def _read_events(mission: Mission) -> list[dict[str, Any]]:
+    if not mission.events_path.exists():
+        return []
+    lines = mission.events_path.read_text(encoding="utf-8").splitlines()
+    return [event for event in map(json.loads, filter(str.strip, lines)) if "kind" not in event]
+
+
+def _dependency_conflict_mission(repo: Path) -> Mission:
+    """WP02 (lane-b) depends on an approved WP01 (lane-a) whose lane conflicts with the mission branch."""
+    mission = build_mission(
+        repo,
+        SLUG,
+        MISSION_ID,
+        wps={"WP01": ("code_change", []), "WP02": ("code_change", ["WP01"])},
+        layout=(("lane-a", ("WP01",), ()), ("lane-b", ("WP02",), ("lane-a",))),
+    )
+    claim = implement_cli(*ARGS)
+    assert claim.exit_code == 0, claim.output
+    lane_a = repo / LANE_WORKTREE
+    (lane_a / "src").mkdir()
+    (lane_a / "src" / "x.py").write_text("A\n", encoding="utf-8")
+    git(lane_a, "add", "-A")
+    git(lane_a, "commit", "-q", "-m", "lane a content")
+    checkout = repo.parent / "mission-branch-checkout"
+    git(repo, "worktree", "add", "-q", str(checkout), MISSION_BRANCH)
+    (checkout / "src").mkdir()
+    (checkout / "src" / "x.py").write_text("B\n", encoding="utf-8")
+    git(checkout, "add", "-A")
+    git(checkout, "commit", "-q", "-m", "mission branch content")
+    git(repo, "worktree", "remove", "--force", str(checkout))
+    for lane in ("for_review", "approved"):
+        _seed_canonical_wp_state(repo, SLUG, "WP01", lane, actor="reviewer", assignee="Owner", shell_pid="1", timestamp=LATE)
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "approve WP01")
+    return mission
+
+
+def _assert_left_planned_with_next_step(mission: Mission, output: str, wp_id: str, next_step: str, events_before: int) -> None:
     # Observable STATE 1: the reduced lane is still ``planned`` — recoverable.
-    reduced = wp_snapshot_state(feature_dir, "WP01")
+    reduced = wp_snapshot_state(mission.feature_dir, wp_id)
     assert reduced is not None
     assert reduced["lane"] == "planned"
 
-    # Observable STATE 2: NO manufactured ``planned -> blocked`` transition, and
-    # no ``blocked`` lane was ever entered for this WP.
-    transitions = _implement_transitions(events_log)
-    assert ("planned", "blocked") not in transitions
-    assert all(e["to_lane"] != "blocked" for e in _read_events(events_log))
-    # The failure emits NO lifecycle transition at all (only the seed remains).
-    assert transitions == []
+    # Observable STATE 2: NO manufactured ``planned -> blocked`` transition, no
+    # ``blocked`` lane ever entered, and no lifecycle event at all for this run.
+    events = _read_events(mission)
+    assert all(e["to_lane"] != "blocked" for e in events)
+    assert [e for e in events if e["wp_id"] == wp_id and e.get("actor") == "tester"] == []
+    assert len(mission.events_path.read_text(encoding="utf-8").splitlines()) == events_before
 
-    # Observable STATE 3: the actionable next_step is surfaced verbatim.
-    assert exc.next_step
-    assert exc.next_step in _printed_text(mock_print)
-
-    # Observable STATE 4: the next_step is surfaced through the PROMINENT
-    # "[yellow]Next step:[/yellow]" affordance specifically -- not merely
-    # incidentally present because the generic "Workspace allocation failed:
-    # {exc}" line above it also embeds next_step in str(exc). Without this,
-    # STATE 3 alone cannot distinguish a genuinely-wired affordance from an
-    # exception type the isinstance() tuple silently omitted (the exact
-    # #4827 pre-PR finding for ``OrphanedPlanningCommitError``).
-    next_step_line = f"[yellow]Next step:[/yellow] {exc.next_step}"
-    assert any(call.args == (next_step_line,) for call in mock_print.call_args_list), _printed_text(mock_print)
+    # Observable STATE 3: the actionable next_step is surfaced verbatim, through the
+    # PROMINENT ``Next step:`` affordance — not merely incidentally present because the
+    # generic "Workspace allocation failed: {exc}" line also embeds next_step in str(exc).
+    text = flat(output)
+    assert next_step
+    assert f"Next step: {next_step}" in text, text
 
 
-def test_rerun_after_resolution_acquires_no_review_cycle_pointer(
-    tmp_path: Path,
+def test_a_real_dependency_lane_conflict_leaves_the_wp_planned_and_prints_the_next_step(repo: Path) -> None:
+    """F-50 (C1), real allocator failure: the dependency-lane merge conflicts during allocation."""
+    mission = _dependency_conflict_mission(repo)
+    events_before = mission.event_count()
+
+    result = implement_cli("WP02", "--mission", SLUG, "--actor", "tester")
+
+    assert result.exit_code == 1, result.output
+    expected = DependencyLaneMergeConflictError("lane-b", "lane-a", DEP_LANE_BRANCH)
+    _assert_left_planned_with_next_step(mission, result.output, "WP02", expected.next_step, events_before)
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [
+        PlanningCommitMergeConflictError("lane-a", "deadbeefcafef00d"),
+        OrphanedPlanningCommitError("lane-a", "deadbeefcafef00d", PinClass.ORPHANED),
+    ],
+    ids=["planning-commit-conflict", "orphaned-planning-commit"],
+)
+def test_a_planning_pin_failure_leaves_the_wp_planned_and_prints_the_next_step(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    exc: PlanningCommitMergeConflictError | OrphanedPlanningCommitError,
 ) -> None:
+    """F-50 (C1), pinned-planning-commit failures. Covers ``OrphanedPlanningCommitError`` (#4827
+    pre-PR finding: it carries a ``next_step`` too but was missing from the printed-affordance tuple)."""
+    mission = build_mission(repo, SLUG, MISSION_ID)
+    events_before = mission.event_count()
+    calls: list[str] = []
+
+    def _fail(**kwargs: Any) -> Any:
+        calls.append(kwargs["wp_id"])
+        raise exc
+
+    patch_collaborator(monkeypatch, "allocate", _fail)
+
+    result = implement_cli(*ARGS)
+
+    assert calls == ["WP01"]
+    assert result.exit_code == 1, result.output
+    _assert_left_planned_with_next_step(mission, result.output, "WP01", exc.next_step, events_before)
+    assert not (repo / ".worktrees").exists()
+
+
+def test_rerun_after_resolution_acquires_no_review_cycle_pointer(repo: Path) -> None:
     """F-50 (C2): once the conflict is resolved, re-running ``implement`` on the
     still-``planned`` WP proceeds through the normal claim — with NO intermediate
     unblock step and NO ``review-cycle://`` feedback pointer (Fix mode is not
     triggered)."""
-    feature_slug = "012-rerun-clean-fixture"
-    feature_dir, events_log = _build_fixture(tmp_path, feature_slug)
+    mission = _dependency_conflict_mission(repo)
 
     # Run 1: allocation conflicts -> WP stays planned, nothing emitted.
-    alloc_fail = MagicMock(
-        side_effect=DependencyLaneMergeConflictError("lane-a", "lane-b", "kitty/dep-branch"),
-    )
-    with (
-        _patched_implement(tmp_path, feature_slug, alloc=alloc_fail),
-        pytest.raises(typer.Exit),
-    ):
-        implement("WP01", mission=feature_slug, recover=False)
+    first = implement_cli("WP02", "--mission", SLUG, "--actor", "tester")
+    assert first.exit_code == 1, first.output
+    assert (wp_snapshot_state(mission.feature_dir, "WP02") or {}).get("lane") == "planned"
 
-    assert (wp_snapshot_state(feature_dir, "WP01") or {}).get("lane") == "planned"
+    # The operator follows the printed next step: merge the dependency lane into
+    # lane-b by hand, resolve the conflict, commit.
+    lane_b = repo / LANE_B_WORKTREE
+    merge = subprocess.run(["git", "-C", str(lane_b), "merge", "--no-edit", DEP_LANE_BRANCH], capture_output=True, text=True, check=False)
+    assert merge.returncode != 0, merge.stdout
+    (lane_b / "src" / "x.py").write_text("A\nB\n", encoding="utf-8")
+    git(lane_b, "add", "-A")
+    git(lane_b, "commit", "-q", "--no-edit")
 
-    # Run 2: conflict resolved -> allocation succeeds; let the REAL claim emit
-    # run, stubbing only the git-touching side effects.
-    alloc_ok = MagicMock(return_value=MagicMock(workspace_path=tmp_path, branch_name="kitty/lane-a"))
-    with (
-        _patched_implement(tmp_path, feature_slug, alloc=alloc_ok),
-        patch("specify_cli.cli.commands.implement_claim._commit_wp_claim_status"),
-        patch("specify_cli.cli.commands.implement._report_workspace_created"),
-        patch("specify_cli.cli.commands.implement._print_workspace_ready_banner"),
-    ):
-        implement(
-            "WP01",
-            mission=feature_slug,
-            recover=False,
-            base=None,
-            json_output=False,
-            auto_commit=False,
-        )
+    # Run 2: the real allocation and the real claim succeed.
+    second = implement_cli("WP02", "--mission", SLUG, "--actor", "tester")
+    assert second.exit_code == 0, second.output
 
-    events = _read_events(events_log)
+    events = _read_events(mission)
     # The normal claim actually happened (proceeded, not an unblock detour).
-    assert (wp_snapshot_state(feature_dir, "WP01") or {}).get("lane") == "in_progress"
+    assert (wp_snapshot_state(mission.feature_dir, "WP02") or {}).get("lane") == "in_progress"
+    wp02_claim = [(e["from_lane"], e["to_lane"]) for e in events if e.get("actor") == "tester" and e["wp_id"] == "WP02"]
+    assert wp02_claim == [("planned", "claimed"), ("claimed", "in_progress")]
     # No ``blocked`` lane was ever entered across both runs.
     assert all(e["to_lane"] != "blocked" for e in events)
     # Fix mode was never triggered: no event carries a ``review-cycle://`` pointer.
