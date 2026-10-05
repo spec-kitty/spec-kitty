@@ -46,7 +46,7 @@ class ImplementContext:
     repo_root: Path
     auto_commit: bool | None
     mission_slug: str
-    feature_dir: Path
+    mission_dir: Path
     wp_file: Path
     declared_deps: list[str]
 
@@ -320,7 +320,7 @@ def claim_preflight(ctx: ImplementContext, wp_id: str) -> ClaimPreflight:
 
 def commit_planning_artifacts(ctx: ImplementContext, wp_id: str, preflight: ClaimPreflight) -> None:
     """Commit the mission's planning artifacts on the seam-owned placement (or refuse)."""
-    repo_root, mission_slug, auto_commit, feature_dir = ctx.repo_root, ctx.mission_slug, ctx.auto_commit, ctx.feature_dir
+    repo_root, mission_slug, auto_commit, feature_dir = ctx.repo_root, ctx.mission_slug, ctx.auto_commit, ctx.mission_dir
     planning_branch = preflight.planning_branch
     # WP06 / T019 / C-PLACE-1 / #5232: the seam owns the planning placement, so
     # implement-claim never reconciles a primary↔coord planning-artifact split
@@ -343,7 +343,7 @@ def commit_planning_artifacts(ctx: ImplementContext, wp_id: str, preflight: Clai
 
 def run_bulk_edit_gate(ctx: ImplementContext, wp_id: str, acknowledge_not_bulk_edit: bool) -> None:
     """The bulk-edit gate phase."""
-    feature_dir, wp_file, mission_slug = ctx.feature_dir, ctx.wp_file, ctx.mission_slug
+    feature_dir, wp_file, mission_slug = ctx.mission_dir, ctx.wp_file, ctx.mission_slug
     # Bulk edit occurrence classification gate (FR-006) + inference
     # warning for potentially unmarked bulk edits (FR-009).
     _run_bulk_edit_gate_and_inference(feature_dir, wp_file, mission_slug, wp_id, acknowledge_not_bulk_edit)
@@ -351,7 +351,7 @@ def run_bulk_edit_gate(ctx: ImplementContext, wp_id: str, acknowledge_not_bulk_e
 
 def build_operational_context(ctx: ImplementContext, wp_id: str, actor: str | None) -> Any:
     """Build and validate the runtime OperationalContext before any allocation."""
-    repo_root, feature_dir, mission_slug = ctx.repo_root, ctx.feature_dir, ctx.mission_slug
+    repo_root, feature_dir, mission_slug = ctx.repo_root, ctx.mission_dir, ctx.mission_slug
     # FR-017 / NFR-004: build and validate the runtime OperationalContext
     # BEFORE any worktree allocation. The shared claim builder is read-only
     # (no worktree, no status event); calling its guards here means a
@@ -390,7 +390,7 @@ def select_workspace(ctx: ImplementContext, wp_id: str, preflight: ClaimPrefligh
 
 def allocate(ctx: ImplementContext, wp_id: str, selection: WorkspaceSelection, base: str | None) -> AllocationResult:
     """Refusals, VCS lock, effective base, then allocate or reuse the workspace."""
-    repo_root, mission_slug, feature_dir, wp_file, declared_deps = ctx.repo_root, ctx.mission_slug, ctx.feature_dir, ctx.wp_file, ctx.declared_deps
+    repo_root, mission_slug, feature_dir, wp_file, declared_deps = ctx.repo_root, ctx.mission_slug, ctx.mission_dir, ctx.wp_file, ctx.declared_deps
     resolved_workspace, lanes_manifest = selection.resolved_workspace, selection.lanes_manifest
     # WP04/T015 (FR-004/NFR-003/SC-004): the pre-write claim triple rides
     # the planned -> claimed transition's policy_metadata sidecar (see
@@ -428,7 +428,7 @@ def allocate(ctx: ImplementContext, wp_id: str, selection: WorkspaceSelection, b
 
 def record_claim(ctx: ImplementContext, wp_id: str, effective_actor: str, allocation: AllocationResult, status_execution_mode: str) -> Any:
     """Start the WP's implementation status (the claim)."""
-    repo_root, mission_slug, feature_dir = ctx.repo_root, ctx.mission_slug, ctx.feature_dir
+    repo_root, mission_slug, feature_dir = ctx.repo_root, ctx.mission_slug, ctx.mission_dir
     workspace_path = allocation.result.workspace_path
     status_result = implement_claim._start_wp_implementation_status(
         feature_dir=feature_dir,
@@ -444,7 +444,7 @@ def record_claim(ctx: ImplementContext, wp_id: str, effective_actor: str, alloca
 
 def commit_claim(ctx: ImplementContext, wp_id: str, status_result: Any) -> None:
     """Auto-commit the claim; three refusals propagate, anything else is a warning."""
-    repo_root, feature_dir, mission_slug, wp_file, auto_commit = ctx.repo_root, ctx.feature_dir, ctx.mission_slug, ctx.wp_file, ctx.auto_commit
+    repo_root, feature_dir, mission_slug, wp_file, auto_commit = ctx.repo_root, ctx.mission_dir, ctx.mission_slug, ctx.wp_file, ctx.auto_commit
     try:
         implement_claim._commit_wp_claim_status(
             repo_root=repo_root,

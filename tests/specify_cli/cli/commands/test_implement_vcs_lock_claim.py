@@ -183,7 +183,7 @@ def _planning_commit_phase(tmp_path: Path, feature_dir: Path, wp_id: str) -> Non
         repo_root=tmp_path,
         auto_commit=False,
         mission_slug=feature_dir.name,
-        feature_dir=feature_dir,
+        mission_dir=feature_dir,
         wp_file=feature_dir / "tasks" / f"{wp_id}-plan.md",
         declared_deps=[],
     )

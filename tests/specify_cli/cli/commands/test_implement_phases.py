@@ -162,7 +162,7 @@ def test_bulk_edit_gate_refuses_a_bulk_edit_mission_without_an_occurrence_map(tm
 
 def test_bulk_edit_gate_lets_a_bulk_edit_mission_with_a_valid_map_skip_the_inference(tmp_path: Path) -> None:
     ctx = _bulk_context(tmp_path, meta={"mission_slug": SLUG, "change_mode": "bulk_edit"}, spec=BULK_SPEC)
-    (ctx.feature_dir / "occurrence_map.yaml").write_text(
+    (ctx.mission_dir / "occurrence_map.yaml").write_text(
         "target:\n  term: old\n  replacement: new\n  operation: rename\n"
         "categories:\n  code_symbols:\n    action: rename\n  import_paths:\n    action: rename\n"
         "  filesystem_paths:\n    action: rename\n  serialized_keys:\n    action: do_not_change\n"
@@ -230,14 +230,14 @@ def _mission_context(repo: Path) -> ImplementContext:
 )
 def test_operational_context_carries_an_active_role_and_writes_nothing(repo: Path, actor: str | None, role: str, model: str | None) -> None:
     ctx = _mission_context(repo)
-    events_before = (ctx.feature_dir / "status.events.jsonl").read_bytes()
+    events_before = (ctx.mission_dir / "status.events.jsonl").read_bytes()
 
     operational_context = implement_phases.build_operational_context(ctx, "WP01", actor)
 
     assert operational_context.require_active_role() == role
     assert operational_context.active_model == model
     assert operational_context.current_activity == "implement"
-    assert (ctx.feature_dir / "status.events.jsonl").read_bytes() == events_before
+    assert (ctx.mission_dir / "status.events.jsonl").read_bytes() == events_before
     assert not (repo / ".worktrees").exists()
 
 
@@ -534,7 +534,7 @@ def test_the_planning_commit_phase_follows_an_allowed_coordination_branch_prefli
     # same coordination branch, refuses an uncommitted planning artifact, names it and the
     # branch it must be committed on, and moves nothing.
     # Planted break (proven red): make ``commit_planning_artifacts`` a no-op.
-    note = ctx.feature_dir / "notes.md"
+    note = ctx.mission_dir / "notes.md"
     note.write_text("late planning note\n", encoding="utf-8")
 
     with console.capture() as capture, pytest.raises(typer.Exit) as excinfo:
