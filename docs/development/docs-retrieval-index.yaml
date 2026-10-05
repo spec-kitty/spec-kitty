@@ -3526,6 +3526,20 @@ pages:
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "questions-the-first-nightly-runs-must-answer", text: "Questions the first nightly runs must answer", level: 3}
+  - path: "docs/adr/4.x/2026-10-05-3-org-packs-ship-their-builtin-override-sanction.md"
+    title: "ADR: org packs ship their own built-in override sanction"
+    divio_type: "none"
+    abstract: "An org pack lists the built-ins it replaces in a pack-root replaceable-builtins.yaml; doctor doctrine honours it for that pack only, and the consumer can revoke it."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "decision-table", text: "Decision table", level: 3}
+    - {slug: "report-shape", text: "Report shape", level: 3}
+    - {slug: "authoring-tools", text: "Authoring tools", level: 3}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "absorption-by-2594", text: "Absorption by #2594", level: 3}
+    - {slug: "follow-ups-not-in-scope", text: "Follow-ups, not in scope", level: 3}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -11497,6 +11511,8 @@ pages:
     - {slug: "namespace-your-ids", text: "Namespace your IDs", level: 3}
     - {slug: "drg-extensions", text: "DRG extensions", level: 3}
     - {slug: "step-3-optional-author-org-charter-yaml", text: "Step 3: Optional — author `org-charter.yaml`", level: 2}
+    - {slug: "step-3b-sanction-the-built-ins-your-pack-replaces", text: "Step 3b: Sanction the built-ins your pack replaces", level: 2}
+    - {slug: "migrating-from-the-setup-template", text: "Migrating from the setup template", level: 3}
     - {slug: "step-4-wrap-an-existing-governance-system", text: "Step 4: Wrap an existing governance system", level: 2}
     - {slug: "step-5-validate-the-pack", text: "Step 5: Validate the pack", level: 2}
     - {slug: "reading-the-output", text: "Reading the output", level: 3}
@@ -11508,8 +11524,11 @@ pages:
     - {slug: "versioning-strategy", text: "Versioning strategy", level: 3}
     - {slug: "step-8-configure-consumers", text: "Step 8: Configure consumers", level: 2}
     - {slug: "env-var-indirection-in-local-path", text: "Env-var indirection in `local_path`", level: 3}
+    - {slug: "built-in-overrides-see-what-is-sanctioned-and-withdraw-it", text: "Built-in overrides: see what is sanctioned, and withdraw it", level: 3}
     - {slug: "troubleshooting", text: "Troubleshooting", level: 2}
     - {slug: "advisory-org-layer-overrides-built-in-artifact", text: "Advisory: \"org layer overrides built-in artifact\"", level: 3}
+    - {slug: "error-unsanctioned-built-in-override-s", text: "Error: \"Unsanctioned built-in override(s)\"", level: 3}
+    - {slug: "error-override-sanction-file-error-s", text: "Error: \"Override sanction file error(s)\"", level: 3}
     - {slug: "error-no-artifact-directories-found-in-fetched-snapshot", text: "Error: \"No artifact directories found in fetched snapshot\"", level: 3}
     - {slug: "error-dangling-drg-edge", text: "Error: \"Dangling DRG edge\"", level: 3}
     - {slug: "error-drg-extension-attempts-to-modify-a-built-in-node", text: "Error: \"DRG extension attempts to modify a built-in node\"", level: 3}
