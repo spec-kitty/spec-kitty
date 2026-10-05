@@ -2,7 +2,7 @@
 title: How to Troubleshoot Merge Issues
 description: 'How to troubleshoot spec-kitty consolidate with Spec Kitty 3.2: resume or abort a stopped run and fix the refusals operators meet most, each with its command.'
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-05'
 audience: docs/context/audience/external/project-owner.md
 type: how-to
 related:
@@ -153,6 +153,32 @@ Read the divergence or reason. It names the WP, the lane and the paths. Correct 
   ```
 
   The flag is repeatable, one WP per use, and `--attest-reason` is required. It never lifts a FAIL. A `--dry-run` does not apply it.
+
+### A lane changed after its work package was approved
+
+```text
+Reconciliation refused (fail-closed) at claim time, before any change: LANE_MOVED_AFTER_APPROVAL: ...
+```
+
+`consolidate` only lands what review approved. It compares each code lane with the lane commit recorded when the WP was approved, and refuses before any branch moves. The message names the lane, the WP and the commit, and prints the commands to run.
+
+| Code | What happened | What to do |
+|---|---|---|
+| `LANE_MOVED_AFTER_APPROVAL` | A commit was made on the lane after the WP was approved | Send the WP back with the printed `spec-kitty agent tasks move-task <WP> --to in_progress --mission <slug>`, have it reviewed, approve it again, then re-run `consolidate`. This also applies to a fix made after approval |
+| `APPROVAL_STAMP_NOT_ON_LANE` | The lane was rewritten (amended or rebased) after approval | Same: send the WP back and approve it again |
+| `APPROVAL_STAMP_MISSING` | The approval recorded no lane commit. Every approval made with a release before 4.0.0rc5 is in this state | Approve the WP again, or attest it (below) |
+
+For `APPROVAL_STAMP_MISSING` only, you can attest that the lane as it stands is what was reviewed. Check the lane by hand first:
+
+```bash
+spec-kitty consolidate --mission <slug> --attest-approved-reviewed WP01 --attest-approved-reviewed WP02 --attest-reason "<what you checked>"
+```
+
+The attestation is recorded with your name and reason. It does not lift the other two codes, and `orchestrator-api consolidate-mission` has no attestation flag: use the CLI.
+
+If a `--resume` is refused this way after an earlier attempt already moved the target, the message says so. Run `spec-kitty consolidate --abort` first: until then the local target holds content from the interrupted attempt.
+
+On a lane that holds both an approved and a canceled WP, `--attest-canceled-superseded` no longer covers work done after the approval. The approved WP must be approved again as well.
 
 The codes are defined in the [CLI reference](../../../api/cli-commands.md#spec-kitty-consolidate-exit-codes-and-refusal-codes). The attribution rules and the full verdict table are in the [status model](../../../architecture/status-model.md#commit-attribution-stamp-policy_metadatalane_head).
 

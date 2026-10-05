@@ -2,7 +2,7 @@
 title: How to Merge a Mission
 description: 'How to merge a mission with Spec Kitty 3.2: land approved work packages on the local target branch with spec-kitty consolidate, preview it, and choose cleanup.'
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-05'
 audience: docs/context/audience/external/project-owner.md
 type: how-to
 related:
@@ -157,6 +157,7 @@ Before you call the Mission done, run the mission review, check the retrospectiv
 | `--skip-lanes` | Complete a direct-on-target Mission whose `lanes.json` is genuinely absent | Off |
 | `--allow-sparse-checkout` | Proceed when legacy sparse-checkout state is detected | Off |
 | `--attest-canceled-superseded <WP>` | Attest, after checking by hand, that a canceled WP's content is absent or superseded. Repeatable, requires `--attest-reason "<what you checked>"`, never lifts a FAIL | Off |
+| `--attest-approved-reviewed <WP>` | Attest, after checking the lane by hand, that an approval with no recorded lane commit (`APPROVAL_STAMP_MISSING`, any approval made before 4.0.0rc5) covers the lane as it stands. Repeatable, requires `--attest-reason "<what you checked>"`. Does not lift `LANE_MOVED_AFTER_APPROVAL` | Off |
 
 Full reference: [CLI Commands](../../../api/cli-commands.md#spec-kitty-consolidate). Exit codes and refusal codes: [CLI reference](../../../api/cli-commands.md#spec-kitty-consolidate-exit-codes-and-refusal-codes).
 

@@ -12362,6 +12362,7 @@ pages:
     - {slug: "the-run-stopped-after-moving-branches", text: "The Run Stopped After Moving Branches", level: 2}
     - {slug: "a-lane-failed-to-merge", text: "A lane failed to merge", level: 3}
     - {slug: "reconciliation-failed-or-refused", text: "Reconciliation FAILED or refused", level: 3}
+    - {slug: "a-lane-changed-after-its-work-package-was-approved", text: "A lane changed after its work package was approved", level: 3}
     - {slug: "exit-code-75-the-landing-stands", text: "Exit code 75: the landing stands", level: 3}
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/guides/how-to/scenarios/agency-client-demo.md"

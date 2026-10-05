@@ -78,7 +78,16 @@ such as `.gitattributes` content that differs between lanes, `.gitignore`, `.kit
 or source files, still stops `consolidate`, and resolving it by hand is correct. For that
 case the printed stale remedy can be a no-op after the in-run rollback.
 
-One of these refusals is caused by the earlier upgrade and not by a work package: if the
+Two of these refusals are caused by the earlier upgrade and not by a work package.
+
+First, `LANE_MOVED_AFTER_APPROVAL` naming `.gitattributes`. The earlier upgrade committed on each
+lane. If a work package was approved before that commit, `consolidate` sees a commit made
+after approval and refuses, even though a tool made it. Send each named work package back with
+the printed `spec-kitty agent tasks move-task <WP> --to in_progress --mission <slug>`, approve
+it again, and re-run `consolidate`. Attestation does not lift this refusal. See
+[A lane changed after its work package was approved](../guides/how-to/recovery/troubleshoot-merge.md#a-lane-changed-after-its-work-package-was-approved).
+
+Second: if the
 target branch's `.gitattributes` was edited after the Mission was cut, the line the earlier
 upgrade appended on the target and on each lane no longer merges cleanly, and `consolidate`
 refuses with `TARGET_BRANCH_CONTENT_CONFLICT` on `.gitattributes`. `.gitattributes` is yours

@@ -59,7 +59,7 @@ def _add_evil_merge(mission: CoordMission) -> str:
 @pytest.mark.xfail(
     strict=True,
     raises=AssertionError,
-    reason="content inside a merge commit is not seen by the approved-bound check; tracked as a named residual of mission approved-claim-bound",
+    reason="content inside a merge commit is not seen by the approved-bound check; tracked in #5721 as a named residual of mission approved-claim-bound",
 )
 def test_content_inside_a_merge_commit_after_approval_is_refused(tmp_path: Path) -> None:
     mission = build_post_approval_mission(tmp_path, "lanes")
