@@ -79,9 +79,32 @@ def _index_blob(repo: Path, rel: str) -> str | None:
     return shown.stdout if shown.returncode == 0 else None
 
 
-def test_both_modified_resolves_to_ours(tmp_path: Path) -> None:
+def _fail_git_probes(monkeypatch: pytest.MonkeyPatch, *subcommands: str) -> None:
+    """Make every ``git <subcommand>`` fail with a spurious exit 128 (all other git calls run for real)."""
+    real_run = subprocess.run
+
+    def fake_run(cmd: Any, *args: Any, **kwargs: Any) -> Any:
+        if isinstance(cmd, (list, tuple)) and any(sub in cmd for sub in subcommands):
+            empty = "" if kwargs.get("text") else b""
+            return subprocess.CompletedProcess(cmd, 128, stdout=empty, stderr=empty)
+        return real_run(cmd, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+
+@pytest.mark.parametrize("probe_fails", [False, True], ids=["resolves-to-ours", "spurious-git-probe-failure-deletes-nothing"])
+def test_both_modified_resolves_to_ours(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, probe_fails: bool) -> None:
     repo = _conflicted_repo(tmp_path, {METADATA: "version: ours\n"}, {METADATA: "version: theirs\n"})
     env = _make_merge_env()
+    if probe_fails:
+        # A stage probe failing for a reason other than "the stage is absent"
+        # must leave the path unresolved, never be read as "ours deleted it".
+        with monkeypatch.context() as probe_failure:
+            _fail_git_probes(probe_failure, "cat-file", "ls-files")
+            assert resolve_primary_owned_conflicts(repo, env) == []
+        assert _unmerged_paths(repo, env) == (METADATA,)
+        assert (repo / METADATA).exists()
+        return
 
     assert resolve_primary_owned_conflicts(repo, env) == [METADATA]
 

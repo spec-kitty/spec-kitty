@@ -14,7 +14,7 @@ Strategy note (FR-006, FR-007):
 
 from __future__ import annotations
 
-from kernel.git import GitCommandError, changed_paths
+from kernel.git import GitCommandError, changed_paths, index_entries
 from mission_runtime import MissionArtifactKind, placement_seam
 import os
 import subprocess
@@ -918,6 +918,21 @@ def _git_in(worktree: Path, args: list[str], env: dict[str, str]) -> bool:
     return result.returncode == 0
 
 
+def unmerged_stages(worktree: Path, rel: str, env: dict[str, str]) -> frozenset[int]:
+    """The conflict stages (1 base, 2 ours, 3 theirs) the index holds for ``rel``.
+
+    Read from the unmerged index entries themselves, so "this stage is absent"
+    is a fact about the conflict (a deletion), never inferred from a failing
+    probe. An empty set means the stage set is UNKNOWN: git failed, or ``rel``
+    is not unmerged. Callers must then leave the path alone.
+    """
+    try:
+        entries = index_entries(worktree, pathspecs=[rel], env=env)
+    except GitCommandError:
+        return frozenset()
+    return frozenset(entry.stage for entry in entries if entry.stage and str(entry.path) == rel)
+
+
 def resolve_primary_owned_conflicts(worktree: Path, env: dict[str, str]) -> list[str]:
     """Resolve every unmerged primary-owned path to stage 2 ("ours") (#5457).
 
@@ -929,18 +944,24 @@ def resolve_primary_owned_conflicts(worktree: Path, env: dict[str, str]) -> list
     is not lane work.
 
     * stage 2 present: ``git checkout --ours`` then ``git add``;
-    * stage 2 absent (ours deleted the path): ``git rm``.
+    * stage 2 absent from the unmerged entries (ours deleted the path):
+      ``git rm``.
 
     Only paths for which :func:`is_primary_owned_path` holds are touched (#4892:
     no ``-X ours`` / ``-X theirs``); every other unmerged path stays unmerged
-    for the caller's existing fail-closed handling. A git failure leaves that
-    path unmerged too. Returns the resolved paths, in sorted order.
+    for the caller's existing fail-closed handling. A git failure -- including
+    one reading the unmerged stages (:func:`unmerged_stages`) -- leaves that
+    path unmerged too, never deleted. Returns the resolved paths, in sorted
+    order.
     """
     resolved: list[str] = []
     for rel in _unmerged_paths(worktree, env):
         if not is_primary_owned_path(rel):
             continue
-        if _git_in(worktree, ["cat-file", "-e", f":2:{rel}"], env):
+        stages = unmerged_stages(worktree, rel, env)
+        if not stages:
+            continue
+        if 2 in stages:
             done = _git_in(worktree, ["checkout", "--ours", "--", rel], env) and _git_in(worktree, ["add", "--", rel], env)
         else:
             done = _git_in(worktree, ["rm", "-q", "--", rel], env)

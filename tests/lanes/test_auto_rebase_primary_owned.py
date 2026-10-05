@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -60,8 +61,23 @@ def _sync(project: fx.LanesProject) -> AutoRebaseReport | None:
     return report
 
 
+def _fail_git_show_of_stage_three(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make ``git show :3:<path>`` fail spuriously (exit 128); every other git call runs for real."""
+    real_run = subprocess.run
+
+    def fake_run(cmd: Any, *args: Any, **kwargs: Any) -> Any:
+        if isinstance(cmd, list) and cmd[:2] == ["git", "show"] and str(cmd[2]).startswith(":3:"):
+            return subprocess.CompletedProcess(cmd, 128, stdout="", stderr="fatal: simulated failure")
+        return real_run(cmd, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+
+@pytest.mark.parametrize("stage_three_unreadable", [False, True], ids=["takes-theirs", "spurious-stage-read-failure-deletes-nothing"])
 def test_lane_sync_takes_coordination_metadata_under_primary_owned_rule(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    stage_three_unreadable: bool,
 ) -> None:
     # Arrange
     project = _broken_coord_project(tmp_path)
@@ -73,6 +89,21 @@ def test_lane_sync_takes_coordination_metadata_under_primary_owned_rule(
 
     # Assumption: the lane worktree is a sparse checkout (product allocator).
     assert _git_out(lane_worktree, "config", "--bool", "core.sparseCheckout").strip() == "true"
+
+    if stage_three_unreadable:
+        # Reading stage 3 failing for a reason other than "the stage is absent"
+        # must halt the sync, never be read as "theirs deleted it" and delete
+        # the lane's metadata.
+        own_metadata = fx.metadata_blob(project.repo, lane_branch)
+        pre_sync_head = _git_out(lane_worktree, "rev-parse", "HEAD").strip()
+        with monkeypatch.context() as stage_failure:
+            _fail_git_show_of_stage_three(stage_failure)
+            with pytest.raises(LaneAutoRebaseSyncError) as exc_info:
+                _sync(project)
+        assert exc_info.value.to_dict()["error_code"] == LANE_AUTO_REBASE_FAILED
+        assert fx.metadata_blob(project.repo, lane_branch) == own_metadata
+        assert _git_out(lane_worktree, "rev-parse", "HEAD").strip() == pre_sync_head
+        return
 
     # Act
     report = _sync(project)

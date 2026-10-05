@@ -38,6 +38,7 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.lanes.consolidation import (
     _ensure_merge_driver_git_config,
     _make_merge_env,
+    unmerged_stages,
 )
 from specify_cli.lanes.models import ExecutionLane
 from specify_cli.consolidation.conflict_classifier import (
@@ -369,13 +370,21 @@ def _resolve_take_theirs(
     rule_id: str = RULE_ID_COORDINATION_ARTIFACT,
 ) -> tuple[ConflictClassification | None, str | None]:
     rel_path = _relative_path(file_path, worktree)
-    theirs = _git_show_stage(worktree, rel_path, 3)
-    if theirs is None:
+    # "Stage 3 is absent" (the incoming side deleted the path) is read from the
+    # unmerged index entries, never inferred from a failing ``git show``: a
+    # spurious git failure must halt, not delete the file.
+    stages = unmerged_stages(worktree, rel_path, _make_merge_env())
+    if not stages:
+        return None, f"{rule_id}: could not read the unmerged index entries of {rel_path}"
+    if 3 not in stages:
         ok, message = _remove_sparse(worktree, rel_path)
         if not ok:
             return None, f"{rule_id}: git rm {rel_path} failed: {message}"
         return _managed_classification(file_path, rule_id), None
 
+    theirs = _git_show_stage(worktree, rel_path, 3)
+    if theirs is None:
+        return None, f"{rule_id}: could not read stage 3 of {rel_path}"
     file_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         file_path.write_text(theirs, encoding="utf-8")
