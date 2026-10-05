@@ -17,8 +17,6 @@ import typer
 from specify_cli.cli.commands import implement_phases
 from specify_cli.cli.commands.implement_phases import ImplementContext
 from specify_cli.cli.console import console
-from specify_cli.lanes.models import ExecutionLane, LanesManifest
-from specify_cli.lanes.persistence import write_lanes_json
 
 pytestmark = pytest.mark.fast
 
@@ -46,38 +44,13 @@ def _write_meta(feature_dir: Path) -> None:
     )
 
 
-def _write_lanes(feature_dir: Path) -> None:
-    write_lanes_json(
-        feature_dir,
-        LanesManifest(
-            version=1,
-            mission_slug=feature_dir.name,
-            mission_id=f"mission-{feature_dir.name}",
-            mission_branch=f"kitty/mission-{feature_dir.name}",
-            target_branch="main",
-            lanes=[
-                ExecutionLane(
-                    lane_id="lane-a",
-                    wp_ids=("WP01",),
-                    write_scope=("src/**",),
-                    predicted_surfaces=("runtime",),
-                    depends_on_lanes=(),
-                    parallel_group=0,
-                )
-            ],
-            computed_at="2026-05-21T00:00:00Z",
-            computed_from="test",
-        ),
-    )
-
-
 def _build_feature(tmp_path: Path, *, owned_file: str) -> Path:
     mission_slug = "bulk-planning-demo"
     feature_dir = tmp_path / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    # Only what ``run_bulk_edit_gate`` reads: meta.json, spec.md and the WP's owned files.
     _write_meta(feature_dir)
-    _write_lanes(feature_dir)
     (feature_dir / "spec.md").write_text(
         "# Spec\n\nThis mission will bulk edit rename across the codebase and replace everywhere.\n",
         encoding="utf-8",
@@ -95,24 +68,6 @@ def _build_feature(tmp_path: Path, *, owned_file: str) -> Path:
         "# WP01\n",
         encoding="utf-8",
     )
-    # Seed WP01 out of the non-display 'genesis' state into 'planned' (as
-    # finalize-tasks does) so implement's start-implementation composite
-    # (planned -> claimed -> in_progress) is legal.
-    seed_event = {
-        "actor": "seed",
-        "at": "2026-05-31T00:00:00+00:00",
-        "event_id": "01HXYZ0123456789ABCDEFGS01",
-        "evidence": None,
-        "execution_mode": "worktree",
-        "force": False,
-        "from_lane": "genesis",
-        "mission_slug": mission_slug,
-        "reason": "seed",
-        "review_ref": None,
-        "to_lane": "planned",
-        "wp_id": "WP01",
-    }
-    (feature_dir / "status.events.jsonl").write_text(json.dumps(seed_event, sort_keys=True) + "\n", encoding="utf-8")
     return feature_dir
 
 
@@ -157,4 +112,5 @@ def test_non_utf8_spec_without_bulk_edit_signal_does_not_block_implement(tmp_pat
     # The phase returns (the claim proceeds to allocation) instead of raising.
     output = _run_gate(_context(tmp_path, feature_dir))
 
-    assert "Bulk Edit Inference Warning" not in output
+    # An undecodable spec is no bulk-edit signal: the gate stays silent.
+    assert output == ""

@@ -29,7 +29,6 @@ between them is
 from __future__ import annotations
 
 import json
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -40,28 +39,16 @@ from kernel.vcs_lock import is_vcs_lock_only_change
 from specify_cli.cli.commands import implement_phases
 from specify_cli.cli.commands.implement_phases import ClaimPreflight, ImplementContext
 from specify_cli.cli.commands.implement_cores import _is_self_write_only_diff, resolve_planning_artifact_staging
+from specify_cli.cli.console import console
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.mission_metadata import set_vcs_lock
+from tests._support.git_cli import git_out
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 _MISSION_SLUG = "vcs-lock-claim-demo"
 _LOCKED_AT = "2026-06-27T08:30:00+00:00"
-
-
-def _git(repo_root: Path, *args: str) -> None:
-    subprocess.run(
-        ["git", *args],
-        cwd=repo_root,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-
-
-def _git_out(repo_root: Path, *args: str) -> str:
-    return subprocess.run(["git", *args], cwd=repo_root, check=True, capture_output=True, text=True).stdout.strip()
 
 
 def _write_meta(feature_dir: Path) -> None:
@@ -168,11 +155,11 @@ def _build_mission_repo(tmp_path: Path) -> Path:
         encoding="utf-8",
     )
 
-    _git(tmp_path, "init", "-b", "main")
-    _git(tmp_path, "config", "user.email", "test@example.com")
-    _git(tmp_path, "config", "user.name", "Test Runner")
-    _git(tmp_path, "add", "-A")
-    _git(tmp_path, "commit", "-m", "seed mission")
+    git_out(tmp_path, "init", "-b", "main")
+    git_out(tmp_path, "config", "user.email", "test@example.com")
+    git_out(tmp_path, "config", "user.name", "Test Runner")
+    git_out(tmp_path, "add", "-A")
+    git_out(tmp_path, "commit", "-m", "seed mission")
     return feature_dir
 
 
@@ -209,12 +196,12 @@ def test_second_auto_commit_false_claim_not_blocked_by_lock_self_write(tmp_path:
     # The first claim's exact production residue: a one-time vcs-lock written to
     # meta.json and left uncommitted in the working tree.
     set_vcs_lock(feature_dir, vcs_type="git", locked_at=_LOCKED_AT)
-    head = _git_out(tmp_path, "rev-parse", "HEAD")
+    head = git_out(tmp_path, "rev-parse", "HEAD")
 
     _planning_commit_phase(tmp_path, feature_dir, "WP02")
 
     # auto_commit=False: the guard passed without committing anything.
-    assert _git_out(tmp_path, "rev-parse", "HEAD") == head
+    assert git_out(tmp_path, "rev-parse", "HEAD") == head
 
 
 def test_non_lock_dirty_meta_still_blocks_auto_commit_false_claim(tmp_path: Path) -> None:
@@ -229,10 +216,13 @@ def test_non_lock_dirty_meta_still_blocks_auto_commit_false_claim(tmp_path: Path
     meta["purpose_tldr"] = "operator changed the mission purpose; must still block"
     meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
-    with pytest.raises(typer.Exit) as exc_info:
+    with console.capture() as capture, pytest.raises(typer.Exit) as exc_info:
         _planning_commit_phase(tmp_path, feature_dir, "WP02")
 
     assert exc_info.value.exit_code == 1
+    # Blocked by the dirty-tree guard on meta.json itself, not by any earlier failure.
+    text = " ".join(capture.get().split())
+    assert f"Planning artifacts not committed: kitty-specs/{_MISSION_SLUG}/meta.json" in text
 
 
 def test_drop_helper_is_noop_under_auto_commit_true(tmp_path: Path) -> None:
