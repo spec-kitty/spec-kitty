@@ -2052,10 +2052,17 @@ def _closed_world_anchors(
     canceled content, which must never be exempt as history that predates *lane*.
     Its commits before its own base are still covered by the anchors that reach
     them (the approved dependencies it was cut from, the target tip).
+
+    A PLANNING dependency lane is not an anchor either: its branch name is the LIVE
+    target branch, which on a ``--resume`` after the interrupted run advanced the target
+    already reaches every merged lane commit and would exempt a late one. What a planning
+    lane legitimately contributes is on the target's pre-consolidation tip, *target_base*.
     """
     by_id = {candidate.lane_id: candidate for candidate in lanes_manifest.lanes}
     anchors = [
-        _lane_branch_for(lanes_manifest, dep) for dep in _dependency_lane_ids(lanes_manifest, lane) if not lane_fully_canceled(by_id[dep], excluded_canceled_wp_ids)
+        _lane_branch_for(lanes_manifest, dep)
+        for dep in _dependency_lane_ids(lanes_manifest, lane)
+        if not is_planning_lane(by_id[dep]) and not lane_fully_canceled(by_id[dep], excluded_canceled_wp_ids)
     ]
     if target_base:
         anchors.append(target_base)

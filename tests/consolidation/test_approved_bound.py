@@ -440,26 +440,39 @@ def test_claim_refuses_a_rewritten_lane(tmp_path: Path) -> None:
     assert claim.refusal is not None and claim.refusal.startswith("APPROVAL_STAMP_NOT_ON_LANE: ")
 
 
-def test_claim_measures_a_lane_from_the_target_tip_when_the_mission_branch_already_carries_its_late_commit(tmp_path: Path) -> None:
-    """The interrupted-run case: the mission branch holds a post-approval lane commit, the target's pre-mutation tip does not."""
-    mission = build_lanes_mission(tmp_path)
+@pytest.mark.parametrize("target_already_advanced", [False, True], ids=["fresh_run", "resume_after_the_target_advanced"])
+def test_claim_measures_a_lane_from_the_target_tip_when_the_mission_branch_already_carries_its_late_commit(tmp_path: Path, target_already_advanced: bool) -> None:
+    """The interrupted-run case: the mission branch holds a post-approval lane commit, the target's pre-mutation tip does not.
+
+    On a resume the interrupted run may also have advanced the live target to that commit. A
+    planning lane the code lane depends on resolves to that live target branch, which must
+    never serve as an anchor: it would exempt the very commit the bound exists to find.
+    """
+    from dataclasses import replace
+
+    mission = build_lanes_mission(tmp_path, with_planning_lane_wp=True, planning_depends_on_code=False)
     lane = mission.lane_branches["WP01"]
     git = _Repo(mission.repo)
+    pre_mutation_target = git.tip(mission.target_branch)
     git.git("checkout", "-q", lane)
     late = git.commit("src/late.py")
     git.git("checkout", "-q", mission.target_branch)
     git.git("update-ref", f"refs/heads/{mission.coord_branch}", late)
+    if target_already_advanced:
+        git.git("update-ref", f"refs/heads/{mission.target_branch}", late)
 
     from specify_cli.lanes.persistence import read_lanes_json
 
     manifest = read_lanes_json(mission.feature_dir)
     assert manifest is not None
+    depends_on_planning = [replace(item, depends_on_lanes=("lane-planning",)) if item.lane_id == "lane-a" else item for item in manifest.lanes]
+    manifest = replace(manifest, lanes=depends_on_planning)
     claim = build_approved_wp_set(
         mission.repo,
         mission.feature_dir,
         manifest,
         coord_base_ref=mission.coord_branch,
-        excluded_window_base=git.tip(mission.target_branch),
+        excluded_window_base=pre_mutation_target,
     )
 
     assert claim.refusal is not None and claim.refusal.startswith("LANE_MOVED_AFTER_APPROVAL: ")
