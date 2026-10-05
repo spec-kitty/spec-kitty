@@ -144,9 +144,9 @@ This prevents accidentally committing agent work-in-progress alongside the lane 
 auto_commit: true    # default
 ```
 
-When `false`, agents must commit everything manually, including planning artifacts and lane transitions.
+When `false`, spec-kitty commits nothing for you: committing planning artifacts and lane transitions is the agent's job.
 
-Per-command override: `--no-auto-commit` on `spec-kitty implement`.
+Per-command override: `--no-auto-commit` on `spec-kitty implement`. With auto-commit off, `implement` still records the claim, then stages the files the auto-commit would have committed, less `.kittify/config.yaml` (the WP file, `meta.json` and, where the mission keeps its status in the repository root checkout, `status.events.jsonl`, `status.json` and `tasks.md`), without committing them. It says "changes staged only", or "changes left unstaged" with a warning when staging fails. The next `implement --no-auto-commit` claim does not treat these uncommitted claim writes as uncommitted planning edits, so consecutive claims need no commit in between. Any other uncommitted planning edit still blocks the claim.
 
 ## What Agents Must Do Manually
 
