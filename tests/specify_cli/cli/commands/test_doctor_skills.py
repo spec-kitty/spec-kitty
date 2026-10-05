@@ -302,6 +302,9 @@ def test_doctor_skills_json_error_schema_stable(tmp_path: Path, monkeypatch: pyt
         "pruned": [],
         "repaired_vibe_config": False,
         "repair_errors": [],
+        # Additive (#5193 / #5694): pack-skill drift, stale, orphaned and unresolvable
+        # findings. Empty for a project with no pack skill.
+        "pack_skills": [],
         "ok": True,
         "slash_commands": {
             "configured_agents": [],

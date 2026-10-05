@@ -505,7 +505,8 @@ def test_doctor_doctrine_json_inline_ref_unhealthy_and_rc1(
     # alongside the pre-existing agent-profile ``packs``/``org_drg`` keys.
     assert "profile_health" in payload
     health = payload["profile_health"]
-    assert set(health) == {"healthy", "packs", "org_drg", "glossary_packs"}
+    # ``skills`` is the pack-skill health dimension added by #5193 / #5694.
+    assert set(health) == {"healthy", "packs", "org_drg", "glossary_packs", "skills"}
     assert health["healthy"] is False
 
     # Surfaced invalid profile with the stable fields + readable error.
