@@ -1116,8 +1116,7 @@ def test_dispatch_map_hook_flags_dead_and_foreign_entries() -> None:
 
 
 def test_implement_dispatch_map_targets_are_live() -> None:
-    if not _DISPATCH_FILE.is_file():
-        pytest.skip("tests/specify_cli/cli/commands/_implement_dispatch.py does not exist yet (created by the characterization suite work package)")
+    assert _DISPATCH_FILE.is_file(), "the characterization suite's dispatch map is missing"
     mapping = importlib.import_module(_DISPATCH_MODULE).DISPATCH
     assert mapping, "an existing dispatch map must not be empty"
     problems = _dispatch_problems(mapping, IMPLEMENT, _live_names_by_module(IMPLEMENT))
