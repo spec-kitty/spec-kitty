@@ -70,6 +70,14 @@ def _is_review_handoff_survivor_path(normalised: str) -> bool:
       PRIMARY-partition, auto-committed by ``move-task`` / ``mark-status`` as
       toolchain writes-in-flight — but the merge/accept gate must still block a
       genuinely-uncommitted one; only review handoff treats them as benign.
+    - the mission-root ``mission-events.jsonl`` (#5669) is spec-kitty's own
+      tracked, write-only lifecycle observability log, appended by
+      ``spec-kitty next`` and left uncommitted. It is NOT a
+      ``MissionArtifactKind`` (so the owner's residue/self-bookkeeping legs miss
+      it) and must NOT be added to ``is_self_bookkeeping_churn`` — it has live
+      research-gate readers and a keep-local ruling, so the merge/accept gate
+      must keep treating it as real dirt (C-002); only review handoff treats its
+      in-flight churn as benign.
 
     The filename / suffix / regex literals are function-local (not module-level
     ``frozenset`` / ``tuple`` / ``re.compile`` assignments) so the R-014
@@ -117,6 +125,22 @@ def _is_review_handoff_survivor_path(normalised: str) -> bool:
     # Mission-root tasks.md (TASKS_INDEX, PRIMARY-partition) — bullet 3.
     root_tasks_md_pattern = re.compile(r"kitty-specs/[^/]+/tasks\.md$")
     if root_tasks_md_pattern.search(normalised):
+        return True
+
+    # Mission-root mission-events.jsonl (#5669) — bullet 4. ``spec-kitty next``
+    # appends this tracked, write-only lifecycle log (STATUS namespace) and
+    # leaves it uncommitted, so review handoff must treat its churn as benign.
+    # It is NOT a ``MissionArtifactKind`` the self-bookkeeping leg recognises
+    # and NOT in ``is_self_bookkeeping_churn``, so the shared owner correctly
+    # keeps it as real dirt for the destructive consolidate/accept/merge gates
+    # (C-002: it has live research-gate readers + a keep-local ruling) — this
+    # per-gate survivor is the ONLY place it is exempt. ``fullmatch`` on the
+    # ``[^/]+`` mission-slug segment (mirrors ``wp_task_pattern``) anchors the
+    # whole string: a user file merely named ``mission-events.jsonl`` elsewhere
+    # (``src/app/mission-events.jsonl``) or one level too deep
+    # (``kitty-specs/<slug>/research/mission-events.jsonl``) still blocks.
+    mission_events_pattern = re.compile(r"kitty-specs/[^/]+/mission-events\.jsonl$")
+    if mission_events_pattern.fullmatch(normalised):
         return True
 
     return False
