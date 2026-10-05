@@ -137,8 +137,8 @@ class TestCommitRouterImportDirection:
 # ---------------------------------------------------------------------------
 #
 # Lower-package modules that receive code moved out of the ``implement`` command
-# must never import the CLI layer (``specify_cli.cli*``), ``typer`` or the
-# console: they return typed results or raise typed errors, and only the command
+# must never import the CLI layer (``specify_cli.cli*``), ``typer`` or ``rich`` (the
+# console): they return typed results or raise typed errors, and only the command
 # package prints. Each work package that moves code into a lower module adds
 # that module here.
 
@@ -152,6 +152,8 @@ _NO_CLI_SEAM_MODULES: tuple[str, ...] = (
     # WP05: git_stdout (public leaf the planning-commit adapter and the base-ref code import).
     # The module's pre-existing lazy ``cli.console`` import is the one recorded exception below.
     "specify_cli.lanes.implement_support",
+    # WP08: claim_policy_metadata (the claim triple shared by implement and the workflow executor)
+    "specify_cli.status.emit",
 )
 
 # The single documented exception to the guard above, mirroring the ``specify_cli.cli.console``
@@ -164,6 +166,11 @@ _NO_CLI_SEAM_MODULES: tuple[str, ...] = (
 _NO_CLI_CONSOLE_CARVE_OUTS: dict[str, str] = {
     "specify_cli.lanes.implement_support": "specify_cli.cli.console",
 }
+
+
+#: Third-party packages that are presentation by nature: ``typer`` (exits, prompts) and ``rich``
+#: (console rendering, C-004 forbids printing below the command package).
+_CLI_TOP_LEVEL_PACKAGES = frozenset({"typer", "rich"})
 
 
 def _is_carve_out(offender: str, allowed: str) -> bool:
@@ -184,7 +191,7 @@ def _resolve_relative_module(node: ast.ImportFrom, package: str) -> str:
 
 
 def _cli_layer_imports(source: str, package: str = "") -> list[str]:
-    """Every import of ``specify_cli.cli*`` or ``typer`` in *source*, at any nesting depth.
+    """Every import of ``specify_cli.cli*``, ``typer`` or ``rich`` in *source*, at any nesting depth.
 
     ``ast.walk`` descends into function bodies, so a lazy (function-local) import is caught too.
     Relative imports (``from ..cli import x``) are resolved against *package* before the test.
@@ -201,7 +208,7 @@ def _cli_layer_imports(source: str, package: str = "") -> list[str]:
             continue
         for candidate in candidates:
             top = candidate.split(".")[0]
-            if top == "typer" or candidate == "specify_cli.cli" or candidate.startswith("specify_cli.cli."):
+            if top in _CLI_TOP_LEVEL_PACKAGES or candidate == "specify_cli.cli" or candidate.startswith("specify_cli.cli."):
                 offenders.append(f"line {node.lineno}: {candidate}")
                 break
     return offenders
@@ -234,6 +241,9 @@ class TestSeamModulesHaveNoCliImports:
             "import specify_cli.cli.commands.implement\n",
             "import typer\n",
             "from typer import Exit\n",
+            "import rich\n",
+            "from rich.panel import Panel\n",
+            "def f():\n    from rich.console import Console\n    return Console()\n",
             "def f():\n    from specify_cli.cli.console import console\n    return console\n",
         ],
     )
