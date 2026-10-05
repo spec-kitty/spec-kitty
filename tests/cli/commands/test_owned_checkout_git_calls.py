@@ -69,6 +69,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -81,6 +82,8 @@ from tests._factories import provision_test_charter
 from tests.integration.conftest import _git, _init_repo, _write_mission, _write_single_lane_manifest
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 _SLUG = "owned-gitcalls-01M44FEP"
 _MISSION_ID = "01M44FEP000000000000000001"
@@ -122,14 +125,52 @@ def built_mission(tmp_path_factory: pytest.TempPathFactory) -> Iterator[_OwnedMi
 
     home = root / "home"
     home.mkdir()
-    with pytest.MonkeyPatch.context() as setup_env:
-        setup_env.setenv("SPEC_KITTY_HOME", str(home))
-        setup_env.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
-        setup_env.delenv("SPECIFY_REPO_ROOT", raising=False)
-        setup_env.chdir(repository_root)
-        finalized = _invoke(["agent", "mission", "finalize-tasks", *_owned_flags(owned_root), "--json"])
-    assert finalized.exit_code == 0, f"fixture finalize-tasks failed: {finalized.output}"
+    # Finalize the Mission in a child interpreter so the module-scoped fixture carries no
+    # in-process ``SPEC_KITTY_HOME`` pin (``test_home_pin_scan_limbs`` bans that shape inside an
+    # explicit-scope fixture; it is the leak-prone pattern the sibling
+    # ``tests/performance/test_owned_checkout_perf.py`` avoids the same way). The home is pinned in
+    # the child ``env`` instead, and the counted invocations below still run in-process under the
+    # function-scoped ``owned_mission`` home.
+    finalized = _finalize_tasks_subprocess(owned_root, cwd=repository_root, home=home)
+    assert finalized.returncode == 0, f"fixture finalize-tasks failed: exit={finalized.returncode}\n{finalized.stdout}\n{finalized.stderr}"
+    _import_warm_the_application()
     yield _OwnedMission(repository_root=repository_root, owned_root=owned_root, home=home)
+
+
+def _import_warm_the_application() -> None:
+    """Build the application object once while the real ``subprocess.Popen`` is in place.
+
+    ``_build_app`` imports the whole command tree, and ``review/pre_review_gate.py`` subscripts
+    ``subprocess.Popen[str]`` at import time. A counted invocation installs a plain-function
+    ``Popen`` replacement, under which that subscript raises ``TypeError``; warming the import here
+    (fixture work, never counted) caches the command tree so the counted invocations below never
+    import it under the replaced ``Popen``. The in-process fixture ``finalize-tasks`` did this
+    implicitly before it moved to a child interpreter.
+    """
+    from specify_cli import app as _app
+
+    assert _app is not None
+
+
+def _finalize_tasks_subprocess(owned_root: Path, *, cwd: Path, home: Path) -> subprocess.CompletedProcess[str]:
+    """Finalize the fixture Mission through the real entry point in a fresh interpreter (never counted)."""
+    env = {
+        **os.environ,
+        "PYTHONPATH": str(REPO_ROOT / "src"),
+        "SPEC_KITTY_HOME": str(home),
+        "SPEC_KITTY_ENABLE_SAAS_SYNC": "0",
+        "PWHEADLESS": "1",
+    }
+    env.pop("SPECIFY_REPO_ROOT", None)
+    return subprocess.run(
+        [sys.executable, "-m", "specify_cli", "agent", "mission", "finalize-tasks", *_owned_flags(owned_root), "--json"],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=env,
+        check=False,
+    )
 
 
 @pytest.fixture
