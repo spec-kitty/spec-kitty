@@ -72,6 +72,20 @@ class MergeTeardownRefused(RuntimeError):
         super().__init__(message)
 
 
+class ApprovedBoundRefused(RuntimeError):
+    """A lane holds work review did not approve; refused before any lane merged (#5668).
+
+    A ``RuntimeError``, so ``consolidate_mission`` envelopes it as ``PREFLIGHT_FAILED``
+    with the message in ``data["errors"]``. The refusal's own code (the leading
+    ``CODE:`` of its text) travels in ``data["preflight_error_code"]`` so callers key
+    on it instead of the prose; ``None`` for the one refusal that carries no code.
+    """
+
+    def __init__(self, message: str, *, error_code: str | None) -> None:
+        self.error_code = error_code
+        super().__init__(message)
+
+
 def _fail_from_destructive_op_refused(cmd: str, mission_dir: Path, target_branch: str, exc: DestructiveOpRefused) -> NoReturn:
     """Envelope a :class:`DestructiveOpRefused` refusal instead of letting it
     escape as a raw traceback (#4753 finding B).
@@ -383,6 +397,65 @@ def _refuse_protected_status_target(main_repo_root: Path, mission_slug: str, lan
         raise RuntimeError(f"{verdict.error_code}: {verdict.message} Next step: {verdict.next_step}")
 
 
+def _bound_refusal_code(refusal: str) -> str | None:
+    """The leading ``CODE:`` of a refusal text when it names a :class:`BoundRefusalCode`, else ``None``."""
+    from specify_cli.consolidation.approved_bound import BoundRefusalCode
+
+    head = refusal.partition(":")[0]
+    try:
+        return BoundRefusalCode(head).value
+    except ValueError:
+        return None
+
+
+def _approved_bound_claim_base(main_repo_root: Path, mission_slug: str, lanes_manifest: LanesManifest) -> str:
+    """The commit the executor's fresh-run claim measures lanes from, resolved to a SHA.
+
+    The status placement's tip (the coordination branch when the mission has one), else
+    the mission branch, as ``phase_claim._capture_reconciliation_claim`` picks it for a
+    run with no persisted record. ``approved_bound_refusal`` answers ``None`` for a base
+    that does not resolve, which would read as "nothing to refuse", so a base that does
+    not resolve raises here instead.
+    """
+    from mission_runtime import MissionArtifactKind, resolve_placement_only
+    from specify_cli.consolidation.git_probes import GitProbeError, resolve_commit
+
+    try:
+        return resolve_commit(main_repo_root, resolve_placement_only(main_repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE).ref)
+    except GitProbeError:
+        return resolve_commit(main_repo_root, lanes_manifest.mission_branch)
+
+
+def _refuse_post_approval_lane_content(main_repo_root: Path, mission_dir: Path, mission_slug: str, lanes_manifest: LanesManifest) -> None:
+    """#5668: refuse, before the first lane merges, a lane holding content committed after review approved it.
+
+    This path merges lanes with no claim and no gate behind it (and no rollback), so
+    the same lane check the ``consolidate`` claim runs
+    (:func:`~specify_cli.consolidation.reconciliation.approved_bound_refusal`) must
+    precede the first merge. The excluded work packages and the window base are the
+    ones the executor resolves for a fresh run. Anything that stops the check from
+    answering (an unreadable status log, an unresolvable base) refuses as well.
+    """
+    from specify_cli.consolidation.done_bookkeeping import acceptably_canceled_wp_ids
+    from specify_cli.consolidation.git_probes import resolve_commit
+    from specify_cli.consolidation.reconciliation import approved_bound_refusal
+    from specify_cli.status import StoreError
+
+    try:
+        refusal = approved_bound_refusal(
+            main_repo_root,
+            mission_dir,
+            lanes_manifest,
+            coord_base_ref=_approved_bound_claim_base(main_repo_root, mission_slug, lanes_manifest),
+            excluded_canceled_wp_ids=acceptably_canceled_wp_ids(main_repo_root, mission_slug),
+            excluded_window_base=resolve_commit(main_repo_root, lanes_manifest.target_branch),
+        )
+    except (StoreError, OSError) as exc:
+        raise RuntimeError(f"The approved lanes could not be checked against what review approved ({exc}); no lane was merged.") from exc
+    if refusal is not None:
+        raise ApprovedBoundRefused(refusal, error_code=_bound_refusal_code(refusal))
+
+
 def _execute_lane_merge(
     main_repo_root: Path,
     mission_dir: Path,
@@ -444,6 +517,8 @@ def _execute_lane_merge(
     if not gate_eval.overall_pass:
         blocking = [gate.details for gate in gate_eval.gates if gate.blocking]
         raise RuntimeError("; ".join(blocking) or "Merge gates failed.")
+
+    _refuse_post_approval_lane_content(main_repo_root, mission_dir, mission_slug, lanes_manifest)
 
     for lane in lanes_manifest.lanes:
         lane_result = consolidate_lane_into_mission(main_repo_root, mission_slug, lane.lane_id, lanes_manifest)
@@ -713,6 +788,9 @@ def consolidate_mission(
         if isinstance(exc, MergeTeardownRefused):
             # #5613: the stable code, beside the unchanged envelope code and message.
             failure["teardown_error_code"] = exc.error_code
+        if isinstance(exc, ApprovedBoundRefused) and exc.error_code is not None:
+            # #5668: the lane-check refusal's code, machine-readable and additive.
+            failure["preflight_error_code"] = exc.error_code
         _fail(cmd, "PREFLIGHT_FAILED", "Merge failed", failure)
         return
 
