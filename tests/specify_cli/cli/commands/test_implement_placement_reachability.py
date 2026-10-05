@@ -15,7 +15,7 @@ and an untracked ``traces/approach.md`` (a COORD-residue artifact).  The rows pi
 they must be identical before and after the placement moves into ``coordination/planning_commit``
 (C-007: any difference is an operator decision, never an implementer's).
 
-The second half unit-tests :func:`specify_cli.coordination.planning_commit.resolve_planning_placement`
+The second half unit-tests :func:`specify_cli.coordination.planning_commit.resolve_claim_planning_placement`
 on the same real fixtures.
 """
 
@@ -41,7 +41,7 @@ from specify_cli.coordination.planning_commit import (
     coordination_filter,
     declared_coordination_ref,
     placement_resolution_remedy,
-    resolve_planning_placement,
+    resolve_claim_planning_placement,
 )
 from specify_cli.lanes.persistence import MissingLanesError
 
@@ -747,7 +747,7 @@ def test_d5_stale_coordination_key_on_a_lanes_mission_with_a_duplicate_wp(build:
 
 
 # ---------------------------------------------------------------------------
-# resolve_planning_placement (the seam that owns the placement decision)
+# resolve_claim_planning_placement (the seam that owns the placement decision)
 # ---------------------------------------------------------------------------
 
 
@@ -759,7 +759,7 @@ def _coordination_filter(built: Built, placement: object) -> str | None:
 def test_placement_resolves_on_a_healthy_coord_mission(build: Callable[[str], Built]) -> None:
     built = build("coord")
 
-    placement = resolve_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
+    placement = resolve_claim_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
 
     assert placement.resolved is True
     assert placement.ref is not None
@@ -770,7 +770,7 @@ def test_placement_resolves_on_a_healthy_coord_mission(build: Callable[[str], Bu
 def test_placement_resolves_without_a_coordination_ref_on_a_flat_mission(build: Callable[[str], Built]) -> None:
     built = build("flat")
 
-    placement = resolve_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
+    placement = resolve_claim_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
 
     assert placement.resolved is True
     assert placement.ref is not None
@@ -782,7 +782,7 @@ def test_unresolved_placement_filters_on_the_declared_coordination_branch(build:
     built = build("coord")
     duplicate_wp_prompt(built)
 
-    placement = resolve_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
+    placement = resolve_claim_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
 
     assert placement.resolved is False
     assert placement.ref is None
@@ -793,7 +793,7 @@ def test_unresolved_placement_has_no_coordination_filter_on_a_flat_mission(build
     built = build("flat")
     duplicate_wp_prompt(built)
 
-    placement = resolve_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
+    placement = resolve_claim_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
 
     assert placement.resolved is False
     assert placement.ref is None
@@ -806,7 +806,7 @@ def test_unresolved_placement_has_no_coordination_filter_when_none_is_declared(b
     built.set_meta(topology="coord")
     duplicate_wp_prompt(built)
 
-    placement = resolve_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
+    placement = resolve_claim_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
 
     assert placement.resolved is False
     assert _coordination_filter(built, placement) is None
@@ -820,7 +820,7 @@ def test_unresolved_placement_keeps_a_torn_down_declared_branch_unprobed(build: 
     delete_coordination_branch(built)
     duplicate_wp_prompt(built)
 
-    placement = resolve_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
+    placement = resolve_claim_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
 
     assert placement.resolved is False
     assert declared_coordination_ref(built.feature_dir, built.slug, built.repo) == declared
@@ -835,7 +835,7 @@ def test_unresolved_placement_keeps_a_stale_key_on_a_non_coordination_topology(b
     built.set_meta(coordination_branch=stale)
     duplicate_wp_prompt(built)
 
-    placement = resolve_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
+    placement = resolve_claim_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
 
     assert placement.resolved is False
     assert _coordination_filter(built, placement) == stale
@@ -863,7 +863,7 @@ def test_unresolved_placement_never_asks_the_seam_for_a_write_target(build: Call
 
     monkeypatch.setattr(planning_commit, "placement_seam", _WriteTargetUnresolvable)
 
-    placement = planning_commit.resolve_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
+    placement = planning_commit.resolve_claim_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
 
     assert placement.resolved is False
     assert _coordination_filter(built, placement) == built.coordination_branch
@@ -892,4 +892,4 @@ def test_broken_lanes_json_propagates_out_of_the_placement(build: Callable[[str]
     (built.feature_dir / "lanes.json").unlink()
 
     with pytest.raises(MissingLanesError):
-        resolve_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
+        resolve_claim_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")

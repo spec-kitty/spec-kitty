@@ -141,7 +141,7 @@ def _ensure_planning_artifacts_committed_git(
     """Ensure planning artifacts are committed on the feature planning branch.
 
     ``placement`` is the seam-owned planning placement
-    (:func:`~specify_cli.coordination.planning_commit.resolve_planning_placement`):
+    (:func:`~specify_cli.coordination.planning_commit.resolve_claim_planning_placement`):
     the coordination filter the staging and the commit arms use comes from
     :func:`~specify_cli.coordination.planning_commit.coordination_filter`,
     asked lazily after the structural check, so implement-claim never

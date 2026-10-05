@@ -518,7 +518,7 @@ def coordination_filter_with_declared(
     return declared_coordination_branch
 
 
-def resolve_planning_placement(repo_root: Path, *, mission_slug: str, wp_id: str) -> PlanningPlacement:
+def resolve_claim_planning_placement(repo_root: Path, *, mission_slug: str, wp_id: str) -> PlanningPlacement:
     """Resolve the placement implement-claim commits planning artifacts under.
 
     The WP action context is resolved first, as the pre-commit gate: any error

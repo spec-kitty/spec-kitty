@@ -33,7 +33,7 @@ Classification:
   ``test_write_target_degrade_local_head_self_materializes`` below (NOT in
   this round trip, since it no longer raises and has no remedy text to
   extract).
-* ``coordination/planning_commit.py::resolve_planning_placement`` (consumed
+* ``coordination/planning_commit.py::resolve_claim_planning_placement`` (consumed
   by ``implement()``; #5232 replaced ``implement_cores._resolve_placement_ref``
   and its ``None`` contract) routes through
   :func:`~mission_runtime.resolve_action_context` first. On this fixture the
@@ -225,7 +225,7 @@ def test_write_target_degrade_local_head_self_materializes(tmp_path: Path, monke
 def _run_implement_claim_commit_target(repo: Path, mission_slug: str) -> str:
     """The real ``implement()`` production resolver, then its remedy text.
 
-    ``resolve_planning_placement`` is ``implement()``'s own call. On this fresh
+    ``resolve_claim_planning_placement`` is ``implement()``'s own call. On this fresh
     unmaterialized Mission it returns an UNRESOLVED placement: the fixture has
     no WP, so the WP action context fails with ``WORK_PACKAGE_UNRESOLVED``
     (research R-1 traced the former ``None`` to that, not to the
@@ -234,9 +234,9 @@ def _run_implement_claim_commit_target(repo: Path, mission_slug: str) -> str:
     ``placement_resolution_remedy``, the one definition of the
     ``PlacementResolutionRequired`` remedy (FR-018).
     """
-    from specify_cli.coordination.planning_commit import coordination_filter, placement_resolution_remedy, resolve_planning_placement
+    from specify_cli.coordination.planning_commit import coordination_filter, placement_resolution_remedy, resolve_claim_planning_placement
 
-    placement = resolve_planning_placement(repo, mission_slug=mission_slug, wp_id="WP01")
+    placement = resolve_claim_planning_placement(repo, mission_slug=mission_slug, wp_id="WP01")
     assert placement.resolved is False, f"expected the WP context not to resolve on this WP-less fixture; got {placement!r}"
     declared = coordination_filter(repo, mission_slug, placement, feature_dir=repo / "kitty-specs" / mission_slug)
     assert declared == f"kitty/mission-{mission_slug}", f"expected the declared coordination branch; got {declared!r}"

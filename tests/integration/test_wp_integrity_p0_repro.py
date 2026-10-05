@@ -10,7 +10,7 @@ mission's primary target branch, never the coordination branch.
 
 Why this is genuinely RED against the pre-fix tree (the mechanism):
 
-* The mission is coordination-topology, so ``resolve_planning_placement`` threads a
+* The mission is coordination-topology, so ``resolve_claim_planning_placement`` threads a
   resolved placement whose ``ref.ref`` is the **coordination branch**. Pre-fix, the
   resolved-placement arm of ``_commit_planning_artifacts_transaction``
   committed the WHOLE batch VERBATIM to that coord ref, so the PRIMARY

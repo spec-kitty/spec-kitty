@@ -328,7 +328,7 @@ def commit_planning_artifacts(ctx: ImplementContext, wp_id: str, preflight: Clai
     # resolve to; an unresolved WP context degrades, inside the seam and
     # only after the planning commit's structural check, to the mission's
     # declared coordination branch (R-1b, #5232 shape 2).
-    _placement = coordination_planning_commit.resolve_planning_placement(repo_root, mission_slug=mission_slug, wp_id=wp_id)
+    _placement = coordination_planning_commit.resolve_claim_planning_placement(repo_root, mission_slug=mission_slug, wp_id=wp_id)
 
     implement_planning_commit._ensure_planning_artifacts_committed_git(
         repo_root=repo_root,

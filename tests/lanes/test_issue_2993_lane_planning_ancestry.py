@@ -56,14 +56,14 @@ git log --oneline <coord> -- kitty-specs/<slug>/  =>  ''
    placement=_placement)``):
 
    - ``legacy-fallback`` (an unresolved placement): what
-     ``resolve_planning_placement`` returns when the WP context hits an
+     ``resolve_claim_planning_placement`` returns when the WP context hits an
      ``ActionContextError`` (#5232); its coordination filter is the declared
      ``coordination_branch`` (R-1b). Under this precondition (artifacts
      already committed on ``HEAD``, so ``git status --porcelain`` is clean)
      the call is a proven no-op that reproduces **Cause B** -- the coord
      branch tip never moves past its pre-artifact mint point.
    - ``placement-ref`` (a resolved placement on ``CommitTarget(ref=coord_branch)``):
-     the path a HEALTHY mission takes, where ``resolve_planning_placement``
+     the path a HEALTHY mission takes, where ``resolve_claim_planning_placement``
      resolves a ``CommitTarget``. This drives
      ``_commit_planning_artifacts_transaction``'s resolved arm, which commits
      the planning-artifact files VERBATIM onto
@@ -289,7 +289,7 @@ def test_lane_worktree_does_not_descend_from_planning_artifacts(
     # value ``implement()`` threads through in production: an unresolved
     # placement on the legacy-fallback arm (context resolution failed; the
     # seam's coordination filter is the declared coordination branch), or a resolved ``CommitTarget(ref=coord_branch)``
-    # on the healthy-mission arm (mirrors what ``resolve_planning_placement``
+    # on the healthy-mission arm (mirrors what ``resolve_claim_planning_placement``
     # returns for a mission whose ``meta.json`` carries this mission's own
     # ``coordination_branch`` -- exactly the fixture state written by
     # ``_write_meta`` above).
