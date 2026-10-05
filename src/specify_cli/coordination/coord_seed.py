@@ -614,6 +614,47 @@ def _coord_kind_relpaths_on_disk(final_dir: Path) -> tuple[str, ...]:
     return tuple(relpaths)
 
 
+def _seed_has_carry_basis(
+    request: _SeedRequest,
+    merge: _MergeResult,
+    restored_from_branch: tuple[str, ...],
+) -> bool:
+    """True when the on-disk coordination content ORIGINATES from the seed's own sources.
+
+    The seed carries ROOT-checkout coordination records onto the coordination
+    surface (I-SEED-7) and commits every coordination-kind file now on disk --
+    not merely what THIS attempt carried -- so a retry of a previously-refused
+    seed still commits the content a prior attempt left untracked (I-SEED-10).
+    That superset is sound only while the disk content comes from a seed source:
+    what this attempt carried (``merge.carried``), what it restored from the
+    coordination tip (``restored_from_branch``), or what still lives in the root
+    checkout (a refused-then-retried carry keeps its root copy, so
+    ``merge.carried`` is empty on the retry yet the root copy is present -- see
+    ``test_refused_seed_commit_then_retried``).
+
+    When all three are empty the coordination worktree holds content the seed
+    never carried: a caller wrote it directly onto the coordination worktree and
+    will commit it itself through the owning ``BookkeepingTransaction`` (the
+    ``MissionStatus.save`` escape hatch -- "callers that have already staged
+    writes directly on the coord worktree"). The seed must NOT pre-empt that
+    commit; doing so lands the content first and leaves the caller's own strict
+    ``commit`` with an empty changeset (``SafeCommitStagedTreeUnchanged``).
+
+    #5651's directory-alias classification is what made this pre-emption
+    reachable: a bare-slug coordination Mission's composed-directory
+    (``<slug>-<mid8>``) status files now route to the COORDINATION partition
+    instead of being misclassified to the primary partition and no-op'd at the
+    seed's ``commit_for_mission`` call, so the seed's commit of the caller's own
+    content stopped failing closed. This basis check restores the pre-#5651
+    deferral for that escape hatch while leaving the composed-directory routing
+    the seed genuinely needs during consolidation (where it carries the status
+    pair out of the root checkout) untouched.
+    """
+    if merge.carried or restored_from_branch:
+        return True
+    return bool(_walk_root_coord_relpaths(request.root_mission_dir))
+
+
 def _commit_and_restore(
     request: _SeedRequest,
     merge: _MergeResult,
@@ -628,7 +669,10 @@ def _commit_and_restore(
     already holds the fully-merged, fork-checked content from the attempt
     that built it; this attempt's own ``merge.carried`` may be empty (root is
     already a prefix of what is on disk), yet the untracked files still need
-    their first commit.
+    their first commit. The everything-on-disk commit runs only when the seed
+    has a genuine basis for the content (:func:`_seed_has_carry_basis`); content
+    a caller wrote directly onto the coordination worktree, which the seed never
+    carried, is left for that caller's own transaction to commit.
     """
     warnings = list(merge.warnings)
     coord_commit: str | None = None
@@ -646,7 +690,7 @@ def _commit_and_restore(
     #                later write commits them.
     restore_relpaths: tuple[str, ...] = merge.carried
     commit_relpaths = _coord_kind_relpaths_on_disk(final_dir)
-    if commit_relpaths:
+    if commit_relpaths and _seed_has_carry_basis(request, merge, restored_from_branch):
         commit_paths = tuple(final_dir / relpath for relpath in commit_relpaths)
         result = _commit_seed(request, commit_paths)
         if result.status == _STATUS_COMMITTED:
