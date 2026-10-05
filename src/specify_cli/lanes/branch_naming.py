@@ -418,7 +418,7 @@ def resolve_transaction_mid8(
     """Resolve the mid8 that names a mission's on-disk transaction dir, or fail.
 
     The fail-closed authority for FR-007: the two transaction-identity sites
-    (``coordination/status_transition.py`` and ``cli/commands/implement.py``)
+    (``coordination/status_transition.py`` and ``coordination/planning_commit.py``)
     historically fabricated a zero-padded mid8 from the slug when no declared
     mid8 was available. That idiom invented a wrong-but-plausible on-disk
     transaction-dir name, mis-routing the lock/transaction target — the

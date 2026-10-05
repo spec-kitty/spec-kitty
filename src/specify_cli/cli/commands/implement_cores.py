@@ -1,4 +1,4 @@
-"""Pure decision cores + a minimal git port for ``implement.py`` (WP03 / #2173).
+"""Pure decision cores + a minimal git port for ``spec-kitty implement`` (WP03 / #2173).
 
 This module extracts the git-porcelain/diff family that used to live inline in
 ``cli/commands/implement.py`` into small,
@@ -10,13 +10,13 @@ real repository and without mocking ``subprocess``.
 :class:`_SubprocessGitPort` is the ONE git-subprocess I/O boundary in this
 module -- a thin adapter, not decision logic. Every port-consuming function
 below defaults its ``git`` parameter to :data:`DEFAULT_GIT_PORT` (an instance
-of that adapter), so every existing call site in ``implement.py`` -- and every
-external test that imports these names directly with their historical,
-git-param-free signatures -- keeps working unchanged against real git.
+of that adapter), so every call site (the planning-commit adapter
+``implement_planning_commit.py``) -- and every external test that imports
+these names directly with their historical, git-param-free signatures -- keeps
+working unchanged against real git.
 
-``implement.py`` re-exports the public names from here via a bare import (not
-added to its own ``__all__``); see the module docstring there for the shim
-contract (T019 / FR-009).
+Callers import these names from this module directly; ``implement.py`` no
+longer re-exports them (implement-degod, #5635).
 """
 
 from __future__ import annotations

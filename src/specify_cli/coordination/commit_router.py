@@ -980,7 +980,7 @@ def _group_files_by_partition(
     FR-005 / C-007 (#2650 / #2533): each file's partition membership is
     decided by the SAME absolute authority the read-side (``implement_cores.
     py::resolve_precondition_ref``) and write-side cli
-    (``implement.py::_partition_files_for_commit``) sites already use —
+    (``coordination/planning_commit.py::partition_files_for_commit``) sites already use —
     :func:`~specify_cli.coordination.coherence.is_coord_residue_churn` — instead
     of the divergent ``kind_for_mission_file(file) or kind`` classifier this
     helper used before. A ``None`` classification (``meta.json``, an

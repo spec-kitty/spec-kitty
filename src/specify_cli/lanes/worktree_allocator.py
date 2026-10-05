@@ -869,7 +869,7 @@ def _fresh_lane_parent_ref(
     topology-derived parent — otherwise the fresh cut from the local mission/coord
     branch SHADOWS the pushed work. Delegates the origin-ref probe to
     :func:`~specify_cli.workspace.context.resolve_lane_base_ref` so this site and
-    ``implement._validate_base_ref`` (WP03) agree on what "the origin lane exists"
+    ``lanes.implement_support.resolve_base_ref`` (WP03) agree on what "the origin lane exists"
     means; the resolver falls back to ``topology_parent_ref`` when no origin ref
     exists (offline / never pushed) — byte-identical to the prior local cut. An
     explicit ``base`` already fully replaced the parent (D1) and is never

@@ -192,8 +192,8 @@ def is_coord_residue_churn(
     hit the ``MissionTopology.COORD`` default above); four of those also never
     thread ``mission_slug``: ``cli/commands/agent/tasks_move_task.py::
     _drop_lane_coord_residue``, ``cli/commands/agent/tasks_shared.py::
-    _list_wp_branch_mission_specs_changes``, ``cli/commands/implement.py::
-    _partition_files_for_commit`` / ``_guard_planning_commit_partition``, and
+    _list_wp_branch_mission_specs_changes``, ``coordination/planning_commit.py::
+    partition_files_for_commit`` / ``guard_planning_commit_partition``, and
     ``lanes/auto_rebase.py::_is_coordination_owned_artifact`` pass neither;
     ``coordination/commit_router.py::partition_for_mission_path`` and
     ``consolidation/executor.py``'s post-merge invariant gate pass
@@ -237,7 +237,7 @@ def is_coord_residue_churn(
 
     Exposed as its own predicate (not folded silently into
     :func:`is_toolchain_generated_churn`'s body) because several consumers
-    (``coordination/commit_router.py``, ``cli/commands/implement.py``,
+    (``coordination/commit_router.py``, ``coordination/planning_commit.py``,
     ``cli/commands/implement_cores.py``,
     ``cli/commands/agent/mission_record_analysis.py``, ``acceptance/__init__.py``,
     ``lanes/auto_rebase.py``) already apply — or must apply — the residue check
@@ -267,7 +267,7 @@ def is_status_state_path(path: str | Path, *, mission_slug: str | None = None) -
     / ``issue-matrix.md``, only skipping the status pair).
 
     Exposed here (not inlined at each call site) so trio-seam-restricted
-    consumers (``cli/commands/implement.py`` / ``implement_cores.py``, guarded
+    consumers (``cli/commands/implement_claim.py`` / ``implement_cores.py``, guarded
     by ``tests/architectural/test_trio_seam_only.py``) can classify by kind
     without importing the forbidden ``mission_runtime.kind_for_mission_file``
     primitive directly — this predicate is the blessed, owner-module wrapper.
