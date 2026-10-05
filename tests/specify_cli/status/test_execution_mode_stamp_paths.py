@@ -269,3 +269,19 @@ def test_move_task_stamps_execution_mode(tmp_path: Path, monkeypatch: pytest.Mon
 
     assert result.exit_code == 0, result.output
     assert _last_execution_mode(feature_dir, "WP01") == expected
+
+
+@pytest.mark.parametrize(("topology", "warned"), [("lanes", True), ("single_branch", False)])
+def test_move_task_to_approved_warns_when_a_code_lane_approval_has_no_lane_head(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, topology: str, warned: bool
+) -> None:
+    """#5668: the lane has no checkout here, so no lane head is recorded; only a code lane's approval is warned about."""
+    repo, mission_slug, _ = _build_mission(tmp_path, f"approve-{topology}", topology=topology)
+    _seed_canonical_wp_state(repo, mission_slug, "WP01", "for_review", actor="claude", assignee="Owner", shell_pid="1234", timestamp="2026-09-28T01:00:00Z")
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo))
+
+    result = _move_task(repo, mission_slug, to="approved")
+
+    assert result.exit_code == 0, result.output
+    assert ("no lane head could be recorded for WP01's approval" in result.output) is warned

@@ -25,6 +25,7 @@ state, no prompt. The claim builder calls it before any branch moves
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -35,6 +36,8 @@ from specify_cli.status import StatusEvent
 from .canceled_attestation import ATTESTATION_KEY
 from .git_probes import GitProbeError, changed_paths_of, commits_in_range, is_merge_commit, resolve_commit, sha_reachable_from
 from .wp_attribution import is_migration_event, lane_exempt_commits, stamp_of
+
+logger = logging.getLogger(__name__)
 
 #: ``policy_metadata[ATTESTATION_KEY]`` value an operator attestation of an approval records.
 APPROVED_REVIEWED = "approved_reviewed"
@@ -232,6 +235,42 @@ def approval_is_attested(events: Sequence[StatusEvent], wp_id: str) -> bool:
     return newest is not None and is_approved_reviewed_attestation(newest.policy_metadata)
 
 
+def _maps_to_code_lane(repo_root: Path, mission_slug: str, wp_id: str) -> bool:
+    """True iff *wp_id* is assigned to a code (non-planning) lane of *mission_slug*; any lookup failure reads as False."""
+    from mission_runtime import MissionArtifactKind, placement_seam
+
+    from specify_cli.lanes.compute import is_planning_lane
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    try:
+        manifest = read_lanes_json(placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK))
+    except Exception:
+        # The warning is advisory and printed after the transition landed: a lookup failure must not fail it.
+        logger.debug("could not read lanes.json for %s to check %s's approval stamp", mission_slug, wp_id, exc_info=True)
+        return False
+    lane = None if manifest is None else manifest.lane_for_wp(wp_id)
+    return lane is not None and not is_planning_lane(lane)
+
+
+def unstamped_approval_warning(event: StatusEvent | None, *, repo_root: Path, mission_slug: str) -> str | None:
+    """The one-line warning for an approval that was persisted without an approval stamp, else ``None``.
+
+    The stamp is best-effort (the status pipeline never refuses a transition for want of
+    one), while ``consolidate`` refuses an approved work package that has none. This is
+    what the shells that persist an approval print, so the operator learns it at approval
+    time. Only a work package that maps to a code lane is warned about: a planning lane is
+    never stamped and never bounded.
+    """
+    if event is None or str(event.to_lane) != _APPROVED_LANE or stamp_of(event) is not None:
+        return None
+    if not _maps_to_code_lane(repo_root, mission_slug, event.wp_id):
+        return None
+    return (
+        f"Warning: no lane head could be recorded for {event.wp_id}'s approval; `spec-kitty consolidate` will refuse it "
+        f"({BoundRefusalCode.APPROVAL_STAMP_MISSING.value}) until it is approved again or attested."
+    )
+
+
 def _latest_stamp(events: Sequence[StatusEvent], wp_id: str) -> str | None:
     """The newest stamp *wp_id*'s non-migration events carry, or ``None`` when none carries one.
 
@@ -376,4 +415,5 @@ __all__ = [
     "move_back_command",
     "render_refusals",
     "resolves_commit",
+    "unstamped_approval_warning",
 ]

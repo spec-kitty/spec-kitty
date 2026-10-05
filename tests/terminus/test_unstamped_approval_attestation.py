@@ -34,6 +34,7 @@ from tests.terminus.post_approval_support import (
     Topology,
     add_post_approval_commit,
     build_post_approval_mission,
+    lane_worktree,
     strip_approval_stamps,
 )
 
@@ -42,6 +43,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regress
 _BANNER = "Reconciliation verified"
 _MISSING = "APPROVAL_STAMP_MISSING"
 _REASON = "read every line of lane-a; it is the reviewed work"
+_WARNING_PREFIX = "Warning: no lane head could be recorded"
 
 
 def _consolidate(mission: CoordMission, *flags: str) -> tuple[int, str]:
@@ -104,6 +106,39 @@ def test_unstamped_approval_refuses_then_attestation_consolidates(tmp_path: Path
     assert attestation["reason_source"] == "operator" and attestation["force"] is True
     assert _REASON in str(attestation["reason"])
     assert _metadata(attestation)["lane_head"] == lane_tip
+
+
+def test_an_approval_recorded_without_a_lane_head_warns_at_approval_time(tmp_path: Path) -> None:
+    """The stamp is best-effort at approval time; ``consolidate`` is not. The approver is told when none was taken."""
+    mission = build_post_approval_mission(tmp_path, "lanes")
+    emit = [
+        "agent",
+        "status",
+        "emit",
+        "WP01",
+        "--to",
+        "approved",
+        "--force",
+        "--actor",
+        ACTOR,
+        "--reason",
+        "approve again",
+        "--review-result-json",
+        json.dumps({"reviewer": ACTOR, "verdict": "approved", "reference": "review-again"}),
+        "--mission",
+        mission.slug,
+    ]
+
+    stamped = run_terminus(mission, emit)
+    assert stamped.returncode == 0 and _WARNING_PREFIX not in stamped.stderr, stamped.stderr
+
+    run_git(mission.repo, "worktree", "remove", "--force", str(lane_worktree(mission, LANE_A)))
+    run_git(mission.repo, "branch", "-D", mission.lane_branches["WP01"])
+    unstamped = run_terminus(mission, emit)
+
+    assert unstamped.returncode == 0, unstamped.stderr
+    warning = f"{_WARNING_PREFIX} for WP01's approval; `spec-kitty consolidate` will refuse it ({_MISSING}) until it is approved again or attested."
+    assert warning in unstamped.stderr
 
 
 def test_commit_after_the_attestation_is_refused(tmp_path: Path) -> None:

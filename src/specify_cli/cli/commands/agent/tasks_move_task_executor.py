@@ -304,6 +304,18 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
         emit_review_ref = None
     st.event = event
     st.final_hop_actor = final_hop_actor
+    _mt_warn_unstamped_approval(st)
+
+
+def _mt_warn_unstamped_approval(st: _MoveTaskState) -> None:
+    """#5668: tell the operator now when this approval recorded no lane head (``consolidate`` will refuse it)."""
+    import typer
+
+    from specify_cli.consolidation.approved_bound import unstamped_approval_warning
+
+    warning = unstamped_approval_warning(st.event, repo_root=st.main_repo_root, mission_slug=st.mission_slug)
+    if warning is not None:
+        typer.echo(warning, err=True)
 
 
 @dataclass(frozen=True)

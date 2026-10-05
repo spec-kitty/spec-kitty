@@ -159,6 +159,7 @@ from specify_cli.cli.commands.agent.tasks_move_task_executor import (
     _mt_persist_rejection_cycle as _mt_persist_rejection_cycle,
     _mt_emit_transitions as _mt_emit_transitions,
     _mt_emit_runtime_state as _mt_emit_runtime_state,
+    _mt_warn_unstamped_approval as _mt_warn_unstamped_approval,
     _mt_persist_wp_file as _mt_persist_wp_file,
     _mt_release_review_lock as _mt_release_review_lock,
     _mt_execute as _mt_execute,

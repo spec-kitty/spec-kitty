@@ -454,6 +454,12 @@ def emit(
                 reload_exc,
             )
 
+        from specify_cli.consolidation.approved_bound import unstamped_approval_warning
+
+        warning = unstamped_approval_warning(event, repo_root=main_repo_root, mission_slug=mission_slug)
+        if warning is not None:
+            typer.echo(warning, err=True)
+
         # Build result
         result = {
             "event_id": event.event_id,
