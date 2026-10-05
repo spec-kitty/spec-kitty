@@ -23,6 +23,7 @@ from specify_cli.lanes.compute import (
     lane_created_branch,
 )
 from specify_cli.lanes.frozen_membership import (
+    REASON_PRECEDENCE,
     FrozenLaneMembership,
     assert_frozen_membership_honoured,
     build_frozen_membership,
@@ -279,16 +280,18 @@ _FORBIDDEN_IN_REMEDIES = (
 )
 
 
-@pytest.mark.parametrize(
-    ("reason", "must_mention"),
-    [
-        ("started_lanes_collapsed", ("Remove the overlap that forces WP01 and WP02 into one lane",)),
-        ("started_wp_removed", ("spec-kitty agent tasks move-task WP01 --to canceled", "--mission", "without clearing")),
-        ("started_wp_kind_changed", ("execution_mode",)),
-        ("status_unreadable", ("spec-kitty agent status validate",)),
-    ],
-)
-def test_remedy_for_names_the_work_packages_and_is_non_destructive(reason: str, must_mention: tuple[str, ...]) -> None:
+# Keyed by reason and parametrized over REASON_PRECEDENCE: a reason added without a row here fails with a KeyError.
+_REMEDY_MENTIONS: dict[str, tuple[str, ...]] = {
+    "started_lanes_collapsed": ("Remove the overlap that forces WP01 and WP02 into one lane",),
+    "started_wp_removed": ("spec-kitty agent tasks move-task WP01 --to canceled", "--mission", "without clearing"),
+    "started_wp_kind_changed": ("execution_mode",),
+    "status_unreadable": ("spec-kitty agent status validate",),
+}
+
+
+@pytest.mark.parametrize("reason", REASON_PRECEDENCE)
+def test_remedy_for_names_the_work_packages_and_is_non_destructive(reason: str) -> None:
+    must_mention = _REMEDY_MENTIONS[reason]
     wp_ids = ("WP01", "WP02") if reason == "started_lanes_collapsed" else ("WP01",)
     remedy = remedy_for(reason, wp_ids)  # type: ignore[arg-type]  # parametrized literal
     for expected in must_mention:

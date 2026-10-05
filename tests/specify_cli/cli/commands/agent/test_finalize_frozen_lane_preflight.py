@@ -261,6 +261,25 @@ def _run_git(repo: Path, *args: str) -> str:
     return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=True).stdout.strip()
 
 
+def _status_line(wp_id: str, to_lane: str) -> str:
+    import json
+
+    from specify_cli.status import Lane, StatusEvent
+
+    event = StatusEvent(
+        event_id=f"01J0000000000000000000{wp_id}",
+        mission_slug=_SLUG,
+        wp_id=wp_id,
+        from_lane=Lane.PLANNED,
+        to_lane=Lane(to_lane),
+        at="2026-10-04T00:00:00+00:00",
+        actor="test",
+        force=False,
+        execution_mode="worktree",
+    )
+    return json.dumps(event.to_dict(), sort_keys=True) + "\n"
+
+
 def _coord_repo(tmp_path: Path, log: bytes | None) -> tuple[Path, Path]:
     """A repository whose local coordination branch carries *log* (``None``: no status log); returns (repo, coord dir)."""
     from specify_cli.coordination.workspace import CoordinationWorkspace
@@ -304,6 +323,16 @@ def _route_to_unmaterialized(monkeypatch: pytest.MonkeyPatch, coord_dir: Path, u
         lambda _repo_root, _slug: SimpleNamespace(read_dir=coord_dir),
     )
     monkeypatch.setattr("mission_runtime.placement_seam", lambda *_args, **_kwargs: SimpleNamespace(read_dir=_Recorder(raises=unmaterialized)))
+
+
+@pytest.mark.git_repo
+def test_unmaterialized_coordination_worktree_reads_the_committed_branch_log(planning_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, coord_dir = _coord_repo(tmp_path, (_status_line("WP01", "planned") + _status_line("WP02", "claimed")).encode())
+    _write_previous(planning_dir, _lane("lane-a", "WP01"), _lane("lane-b", "WP02"))
+    _route_to_unmaterialized(monkeypatch, coord_dir, _unmaterialized(repo, coord_dir, planning_dir))
+
+    assert finalize_lanes._read_started_wp_ids(repo, _SLUG, owned=None) == frozenset({"WP02"})
+    assert not coord_dir.exists(), "the read must not materialize the coordination worktree"
 
 
 @pytest.mark.git_repo
