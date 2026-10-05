@@ -11,18 +11,18 @@ from __future__ import annotations
 import subprocess
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any
 
 from kernel.clock import now_utc_iso
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.core.errors import StructuredError
+from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.lanes.lane_env import lane_test_env
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.branch_naming import lane_branch_name, worktree_dir_name as _worktree_dir_name
 from specify_cli.core.vcs.git import capture_branch_tip
 from specify_cli.lanes._git import branch_exists
-from specify_cli.lanes.persistence import read_lanes_json
+from specify_cli.lanes.persistence import read_lanes_json, require_lanes_json
 from specify_cli.lanes.planning_commit_classify import PinClass, classify_recorded_pin
 from specify_cli.lanes.worktree_allocator import (
     ORPHANED_PIN_RECOVERY_HINT,
@@ -31,6 +31,7 @@ from specify_cli.lanes.worktree_allocator import (
     persist_lane_context,
     predict_lane_worktree,
 )
+from specify_cli.mission_metadata import set_vcs_lock
 from specify_cli.workspace.context import ResolvedWorkspace
 from specify_cli.workspace.context import WorkspaceContext
 
@@ -55,6 +56,26 @@ def git_stdout(repo_root: Path, args: list[str]) -> str:
     if result.returncode != 0:
         return ""
     return result.stdout.strip()
+
+
+class BaseRefUnresolved(StructuredError):
+    """``--base`` names a ref that resolves neither locally nor on ``origin``."""
+
+    error_code: str = "BASE_REF_UNRESOLVED"
+
+    def __init__(self, base_ref: str) -> None:
+        super().__init__(f"Base ref {base_ref!r} does not resolve")
+        self.base_ref = base_ref
+
+
+class MissionMetaMissing(StructuredError):
+    """The mission's ``meta.json`` does not exist (the VCS lock has nothing to lock into)."""
+
+    error_code: str = "MISSION_META_MISSING"
+
+    def __init__(self, feature_dir: Path) -> None:
+        super().__init__(f"meta.json not found in {feature_dir}")
+        self.feature_dir = feature_dir
 
 
 class WriteCheckoutWrongBranchError(StructuredError):
@@ -900,7 +921,7 @@ def _is_ancestor(repo_root: Path, maybe_ancestor: str, descendant: str) -> bool:
     return result.returncode == 0
 
 
-def _resolve_base_ref(repo_root: Path, base_ref: str) -> tuple[str, str] | None:
+def resolve_base_ref(repo_root: Path, base_ref: str) -> tuple[str, str] | None:
     """Resolve ``--base`` to ``(effective_ref, sha)``, preferring ``origin/<lane>`` (#4969).
 
     A teammate's pushed approved lane on ``origin/<base_ref>`` must NOT be
@@ -923,11 +944,11 @@ def _resolve_base_ref(repo_root: Path, base_ref: str) -> tuple[str, str] | None:
     return None
 
 
-def _refuse_repo_root_checkout_if_unavailable(
+def refuse_repo_root_checkout_if_unavailable(
     repo_root: Path,
     mission_slug: str,
     wp_id: str,
-    resolved_workspace: Any,
+    resolved_workspace: ResolvedWorkspace,
 ) -> bool:
     """Run the repo-root write-checkout refusals early (no side effects).
 
@@ -939,3 +960,58 @@ def _refuse_repo_root_checkout_if_unavailable(
     if is_repo_root_lane(resolved_workspace):
         return _ensure_repo_root_checkout_available(repo_root, mission_slug, wp_id, resolved_workspace)
     return False
+
+
+def resolve_effective_base(repo_root: Path, base: str | None, resolved_workspace: ResolvedWorkspace) -> tuple[str | None, bool]:
+    """Resolve ``--base`` to ``(effective_base, ignored_on_planning_lane)`` (#1684, #3571).
+
+    ``effective_base`` is ``None`` when ``--base`` was not supplied or the workspace is a
+    repository-root planning lane, where ``--base`` has no effect (FR-007); the second element
+    then reports whether the flag was supplied and ignored, so the caller can warn. Otherwise
+    the base resolves origin-first (#4969) and the effective ref name is returned.
+
+    Raises :class:`BaseRefUnresolved` when the ref resolves neither locally nor on ``origin``.
+    """
+    from specify_cli.lanes.compute import is_planning_lane
+
+    if base is None:
+        return None, False
+    if is_planning_lane(resolved_workspace):
+        return None, True
+    resolved = resolve_base_ref(repo_root, base)
+    if resolved is None:
+        raise BaseRefUnresolved(base)
+    return resolved[0], False
+
+
+def resolve_execution_lane(resolved_workspace: ResolvedWorkspace, lanes_feature_dir: Path, wp_id: str) -> tuple[LanesManifest | None, ExecutionLane | None]:
+    """Resolve ``(lanes_manifest, lane)`` for a lane workspace, or ``(None, None)`` for a repository-root planning workspace.
+
+    Raises ``MissingLanesError`` / ``CorruptLanesError`` from the manifest read and ``ValueError``
+    when *wp_id* is assigned to no lane.
+    """
+    from specify_cli.lanes.compute import is_repo_root_lane
+
+    if is_repo_root_lane(resolved_workspace):
+        return None, None
+    lanes_manifest = require_lanes_json(lanes_feature_dir)
+    lane = lanes_manifest.lane_for_wp(wp_id)
+    if lane is None:
+        raise ValueError(f"{wp_id} is not assigned to any lane in lanes.json")
+    return lanes_manifest, lane
+
+
+def ensure_vcs_locked(feature_dir: Path) -> bool:
+    """Lock the VCS backend to git in ``meta.json`` on a mission's first claim; return whether it wrote the lock.
+
+    Hard-fails on a missing or malformed ``meta.json`` (post-#2091 contract: ``allow_missing``
+    semantics must never mask the guard): raises :class:`MissionMetaMissing` or
+    ``MissionMetaReadError``.
+    """
+    meta = load_meta_fail_closed(feature_dir)
+    if meta is None:
+        raise MissionMetaMissing(feature_dir)
+    if "vcs" in meta:
+        return False
+    set_vcs_lock(feature_dir, vcs_type="git", locked_at=now_utc_iso())
+    return True

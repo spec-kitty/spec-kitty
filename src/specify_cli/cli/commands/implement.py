@@ -17,11 +17,11 @@ from rich.panel import Panel
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.context_validation import require_main_repo
-from kernel.clock import now_utc_iso
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.core.git_ops import get_current_branch
+from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.core.vcs import VCSBackend
-from specify_cli.mission_metadata import resolve_mission_identity, set_vcs_lock
+from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.frontmatter import FrontmatterError
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import (
@@ -41,7 +41,6 @@ from specify_cli.coordination.coherence import (
 from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
 from specify_cli.lanes import implement_support
 from specify_cli.lanes.implement_support import create_lane_workspace
-from specify_cli.lanes.persistence import require_lanes_json
 from specify_cli.lanes.worktree_allocator import (
     DependencyLaneMergeConflictError,
     OrphanedPlanningCommitError,
@@ -220,45 +219,28 @@ def _validate_base_ref(repo_root: Path, base_ref: str) -> str:
 
     #4969: consults ``origin/<base_ref>`` and prefers it over a local cut that is
     absent or behind it, so a teammate's pushed approved lane is not shadowed (see
-    :func:`_resolve_base_ref`). Raises typer.Exit(1) with a clear error message
+    :func:`implement_support.resolve_base_ref`). Raises typer.Exit(1) with a clear error message
     when the ref resolves neither locally nor on ``origin``.
     """
-    resolved = implement_support._resolve_base_ref(repo_root, base_ref)
+    resolved = implement_support.resolve_base_ref(repo_root, base_ref)
     if resolved is None:
         _raise_base_ref_unresolved(base_ref)
     return resolved[1]
 
 
 def _ensure_vcs_in_meta(feature_dir: Path, _repo_root: Path) -> VCSBackend:
-    """Ensure VCS is selected and locked in meta.json."""
-    # read-surface-ssot-closeout WP05 / FR-005: route the inline
-    # ``json.loads`` read through the canonical ``load_meta`` authority. This
-    # site HARD-FAILS on a missing or malformed meta.json (both branches below
-    # raise ``typer.Exit(1)``) -- the post-#2091 contract for a hard-failing
-    # site is ``allow_missing=False`` (never ``allow_missing=True``, which
-    # would mask the guard by silently returning ``None`` instead of raising).
-    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
-
+    """Ensure VCS is selected and locked in meta.json (printing adapter over the seam's decision)."""
     try:
-        meta = load_meta_fail_closed(feature_dir)
+        locked = implement_support.ensure_vcs_locked(feature_dir)
     except MissionMetaReadError as exc:
         console.print(f"[red]Error:[/red] Invalid JSON in meta.json: {exc}")
         raise typer.Exit(1) from exc
-    # ``load_meta_fail_closed`` carries the ``allow_missing=True`` contract: a
-    # MISSING meta.json is answered with ``None``, NOT an exception. This site
-    # hard-fails on missing, so the guard is spelled explicitly here -- folding
-    # it into ``meta or {}`` would mask it and let the command proceed on an
-    # unspecified mission (the exact masking the comment above warns about).
-    if meta is None:
+    except implement_support.MissionMetaMissing as exc:
         console.print(f"[red]Error:[/red] meta.json not found in {feature_dir}")
         console.print("Run /spec-kitty.specify inside your coding agent (Claude Code, Codex, Cursor) first to create the feature structure")
-        raise typer.Exit(1)
-
-    if "vcs" not in meta:
-        now_iso = now_utc_iso()
-        set_vcs_lock(feature_dir, vcs_type="git", locked_at=now_iso)
+        raise typer.Exit(1) from exc
+    if locked:
         console.print("[cyan]→ VCS locked to git in meta.json[/cyan]")
-
     return VCSBackend.GIT
 
 
@@ -493,57 +475,29 @@ def _run_bulk_edit_gate_and_inference(feature_dir: Path, wp_file: Path, mission_
 
 
 def _resolve_execution_lane(resolved_workspace: Any, lanes_feature_dir: Path, wp_id: str, tracker: StepTracker) -> tuple[Any, Any]:
-    """Resolve ``(lanes_manifest, lane)`` for a lane workspace, or ``(None,
-    None)`` for a repository-root planning workspace. Completes the
-    ``validate`` tracker step either way."""
-    from specify_cli.lanes.compute import is_repo_root_lane
-
-    if is_repo_root_lane(resolved_workspace):
-        tracker.complete("validate", "Execution: repository root planning workspace")
-        return None, None
-    lanes_manifest = require_lanes_json(lanes_feature_dir)
-    lane = lanes_manifest.lane_for_wp(wp_id)
+    """Resolve ``(lanes_manifest, lane)`` via the lanes seam and complete the ``validate`` tracker step."""
+    lanes_manifest, lane = implement_support.resolve_execution_lane(resolved_workspace, lanes_feature_dir, wp_id)
     if lane is None:
-        raise ValueError(f"{wp_id} is not assigned to any lane in lanes.json")
-    tracker.complete("validate", f"Lane: {lane.lane_id}")
+        tracker.complete("validate", "Execution: repository root planning workspace")
+    else:
+        tracker.complete("validate", f"Lane: {lane.lane_id}")
     return lanes_manifest, lane
 
 
-def _resolve_active_lanes_manifest(repo_root: Path, base: str | None, resolved_workspace: Any, lanes_manifest: Any) -> tuple[str | None, Any]:
-    """Validate ``--base`` (#1684) and resolve the effective base to thread
-    through ``create_lane_workspace``.
+def _resolve_effective_base(repo_root: Path, base: str | None, resolved_workspace: Any) -> str | None:
+    """Validate ``--base`` and return the effective base to thread through ``create_lane_workspace``.
 
-    #3571 (P0): this NO LONGER smuggles the override through
-    ``lanes_manifest.mission_branch`` (the coord-topology allocation path
-    never read that field, silently discarding ``--base`` and printing a
-    fabricated success line). ``base`` is now threaded as an explicit
-    parameter all the way to the topology-aware allocator instead; this
-    function's job is reduced to validating the ref and applying the
-    planning-lane "ignored" warning (FR-007) — ``lanes_manifest`` is always
-    returned UNCHANGED.
-
-    Returns ``(effective_base, lanes_manifest)``. ``effective_base`` is
-    ``None`` when ``--base`` was not supplied OR the resolved workspace is a
-    repository-root planning lane (FR-007 — ``--base`` has no effect there).
-    The success line has moved to the CLI layer, AFTER allocation actually
-    succeeds (FR-005) — see the ``implement()`` call site."""
-    from specify_cli.lanes.compute import is_planning_lane
-
-    if base is None:
-        return None, lanes_manifest
-    if is_planning_lane(resolved_workspace):
+    Prints the planning-lane "ignored" warning (FR-007) and translates the seam's
+    ``BaseRefUnresolved`` into the single canonical unresolved-base message plus exit 1. This runs
+    inside ``implement``'s create ``try``, so ``except typer.Exit`` renders the tracker unchanged.
+    """
+    try:
+        effective_base, ignored = implement_support.resolve_effective_base(repo_root, base, resolved_workspace)
+    except implement_support.BaseRefUnresolved as exc:
+        _raise_base_ref_unresolved(exc.base_ref)
+    if ignored:
         console.print("[yellow]Warning:[/yellow] --base is ignored for repository-root planning work")
-        return None, lanes_manifest
-    # #4969: resolve the effective base origin-first so a teammate's pushed
-    # approved lane (``origin/<lane>``) is threaded into allocation instead of a
-    # stale local cut. ``_resolve_base_ref`` returns the effective ref name (the
-    # ``origin/<lane>`` ref when it wins), which is what ``create_lane_workspace``
-    # cuts the lane from.
-    resolved = implement_support._resolve_base_ref(repo_root, base)
-    if resolved is None:
-        _raise_base_ref_unresolved(base)
-    effective_ref, _sha = resolved
-    return effective_ref, lanes_manifest
+    return effective_base
 
 
 def _primary_surface_status_paths(artifacts: Iterable[Path], *, routes_through_coord: bool) -> list[Path]:
@@ -1032,7 +986,7 @@ def implement(
         # #5100 A3: refusals (wrong branch / occupied / dirty) run BEFORE the VCS
         # lock is written into meta.json, so a refused implement leaves nothing
         # behind (the read-only check is repeated, idempotently, at allocation).
-        occupancy_verified = implement_support._refuse_repo_root_checkout_if_unavailable(repo_root, mission_slug, wp_id, resolved_workspace)
+        occupancy_verified = implement_support.refuse_repo_root_checkout_if_unavailable(repo_root, mission_slug, wp_id, resolved_workspace)
         vcs_backend = _ensure_vcs_in_meta(feature_dir, repo_root)
 
         # #3571: when --base is provided, validate the ref (planning-lane
@@ -1041,7 +995,7 @@ def implement(
         # forwards it to the topology-aware allocator (never smuggled
         # through lanes_manifest.mission_branch — the coord path never read
         # that field).
-        effective_base, active_lanes_manifest = _resolve_active_lanes_manifest(repo_root, base, resolved_workspace, lanes_manifest)
+        effective_base = _resolve_effective_base(repo_root, base, resolved_workspace)
 
         result = create_lane_workspace(
             repo_root=repo_root,
@@ -1049,7 +1003,7 @@ def implement(
             wp_id=wp_id,
             wp_file=wp_file,
             resolved_workspace=resolved_workspace,
-            lanes_manifest=active_lanes_manifest,
+            lanes_manifest=lanes_manifest,
             declared_deps=declared_deps,
             vcs_backend_value=vcs_backend.value,
             base=effective_base,
