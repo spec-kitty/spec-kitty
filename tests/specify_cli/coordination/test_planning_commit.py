@@ -15,11 +15,16 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.coordination import planning_commit
-from specify_cli.coordination.commit_router import PrimaryKindReachedCoordStagingError
+from specify_cli.coordination import commit_router, planning_commit
 from specify_cli.git.commit_helpers import SafeCommitPathPolicyError
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
+
+# NB: reference ``commit_router.PrimaryKindReachedCoordStagingError`` through the MODULE, never a
+# top-level ``from ... import`` binding: ``tests/coordination/test_commit_router.py`` reloads
+# ``commit_router`` (``test_1718_no_materialisation_at_read_time``), and ``planning_commit`` imports
+# the class lazily, so after that reload it raises the reloaded class. A stale binding made
+# ``pytest.raises`` miss it whenever both files ran in one process.
 
 _SLUG = "seam-mission"
 _META_REL = f"kitty-specs/{_SLUG}/meta.json"
@@ -76,7 +81,7 @@ class TestPartition:
 
 class TestGuard:
     def test_primary_kind_under_a_coord_destination_raises_with_the_primary_text(self) -> None:
-        with pytest.raises(PrimaryKindReachedCoordStagingError) as caught:
+        with pytest.raises(commit_router.PrimaryKindReachedCoordStagingError) as caught:
             planning_commit.guard_planning_commit_partition([f"kitty-specs/{_SLUG}/lanes.json"], destination_is_coord=True)
 
         assert str(caught.value) == (
@@ -86,7 +91,7 @@ class TestGuard:
         )
 
     def test_coord_kind_under_a_primary_destination_raises_with_the_coord_text(self) -> None:
-        with pytest.raises(PrimaryKindReachedCoordStagingError) as caught:
+        with pytest.raises(commit_router.PrimaryKindReachedCoordStagingError) as caught:
             planning_commit.guard_planning_commit_partition([f"kitty-specs/{_SLUG}/status.json"], destination_is_coord=False)
 
         assert str(caught.value) == (
