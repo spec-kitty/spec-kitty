@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import contextlib
 from collections.abc import Iterator
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NoReturn
 
@@ -499,12 +500,7 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
     # its lane branches may legitimately be gone already.
     refusal = claim_integrity_refusal(run.approved_wp_set)
     if refusal is not None and not _resume_reconciliation_already_passed(run):
-        _exit_on_claim_integrity_refusal(
-            refusal,
-            attested=run.recorded_attestations,
-            earlier_moved=_branches_moved_by_earlier_attempts(run),
-            target_branch=run.lanes_manifest.target_branch,
-        )
+        _refuse_claim_before_mutation(run, refusal)
 
     # #5318 / #5332: snapshot every branch this attempt may move, strictly before
     # the first mutating phase, and fix this attempt's restore targets.
@@ -546,6 +542,27 @@ def _capture_snapshot_and_begin_attempt(run: _MergeRunState) -> None:
     rollback.begin_attempt(run.main_repo, run.state)
 
 
+@dataclass(frozen=True)
+class _EarlierMoves:
+    """What an earlier attempt of this consolidation did to the run-movable branches, read from the persisted snapshot (#5668).
+
+    ``moved`` is every branch whose live tip differs from its pre-run tip; ``unrestorable`` is the
+    subset ``consolidate --abort`` will report as NOT restored (no recorded post-mutation tip, or the
+    branch moved past it); ``unknown`` could not be resolved at all, so nothing is claimed about them.
+    """
+
+    target_branch: str = ""
+    moved: tuple[str, ...] = ()
+    unrestorable: tuple[str, ...] = ()
+    unknown: tuple[str, ...] = ()
+    pre_run: dict[str, str] = field(default_factory=dict)
+
+    @property
+    def touched(self) -> bool:
+        """True when an earlier attempt moved, or may have moved, a branch."""
+        return bool(self.moved or self.unknown)
+
+
 def _claim_refusal_change_sentence(attested: tuple[str, ...]) -> str:
     """What this run changed before a claim-time refusal: nothing, or only the operator attestations (F4)."""
     if not attested:
@@ -553,38 +570,64 @@ def _claim_refusal_change_sentence(attested: tuple[str, ...]) -> str:
     return f"No branch or worktree was changed by this run; only the operator attestation(s) for {', '.join(attested)} were recorded."
 
 
-def _branches_moved_by_earlier_attempts(run: _MergeRunState) -> tuple[str, ...]:
-    """The branches an earlier attempt of this consolidation recorded moving; empty on a fresh run (#5668).
+def _branches_moved_by_earlier_attempts(run: _MergeRunState) -> _EarlierMoves:
+    """Which run-movable branches an earlier attempt moved, judged against the persisted pre-run snapshot; nothing on a fresh run (#5668).
 
-    A ``--resume`` carries the persisted record's post-mutation tips: each is a branch the
-    interrupted run advanced, so a claim-time refusal of the resume does not mean nothing moved.
+    Post-mutation tips are written when a phase exits, never on a kill, so they cannot tell
+    that an interrupted phase advanced the target. A branch is moved when its live tip is not
+    its ``pre_mutation_refs`` entry, whether or not a post tip was recorded for it.
     """
-    return tuple(sorted(run.state.post_mutation_refs)) if run.is_resume else ()
+    target = run.lanes_manifest.target_branch
+    if not run.is_resume:
+        return _EarlierMoves(target_branch=target)
+    state = run.state
+    tips = rollback.movable_branch_tips(run.main_repo, state)
+    unknown = [branch for branch, live in tips.items() if live is None]
+    moved = [branch for branch, live in tips.items() if live is not None and live != state.pre_mutation_refs[branch]]
+    unrestorable = [branch for branch in moved if state.post_mutation_refs.get(branch) != tips[branch]]
+    return _EarlierMoves(target, tuple(sorted(moved)), tuple(sorted(unrestorable)), tuple(sorted(unknown)), dict(state.pre_mutation_refs))
 
 
-def _claim_refusal_footer(attested: tuple[str, ...], earlier_moved: tuple[str, ...], target_branch: str) -> str:
+def _earlier_moves_sentences(moves: _EarlierMoves) -> str:
+    """What an earlier attempt did and what ``--abort`` will and will not undo about it (leading space per sentence)."""
+    holds = f" (the local target '{moves.target_branch}' currently holds content from it)" if moves.target_branch in moves.moved else ""
+    text = f" That attempt already moved {', '.join(moves.moved)}{holds}." if moves.moved else ""
+    if moves.unrestorable:
+        was = ", ".join(f"{b} (at {moves.pre_run[b]} before the run)" for b in moves.unrestorable)
+        text += f" `{_CONSOLIDATE_ABORT_COMMAND}` will report {was} as NOT restored: the attempt was interrupted before it recorded where it stopped."
+        if moves.target_branch in moves.unrestorable:
+            text += f" Restore the local target '{moves.target_branch}' to {moves.pre_run[moves.target_branch]} yourself before re-running."
+    if moves.unknown:
+        text += f" The current tip of {', '.join(moves.unknown)} could not be resolved, so whether that attempt moved it is unknown."
+    return text
+
+
+def _claim_refusal_footer(attested: tuple[str, ...], moves: _EarlierMoves) -> str:
     """The closing sentences of a claim-time refusal: a fresh run changed nothing; a resume leads with ``--abort`` (#5668).
 
-    A resume refused after an earlier attempt already advanced the target leaves that
-    content on the local target, so the text starts from the restore command (the same
-    sentence an up-front protected-target refusal of a resume prints) and says so.
+    A resume refused after an earlier attempt already advanced a branch leaves that
+    content in place, so the text starts from the restore command (the same sentence an
+    up-front protected-target refusal of a resume prints) and says what it will not restore.
     """
-    if not earlier_moved:
+    if not moves.touched:
         return (
             f"{_claim_refusal_change_sentence(attested)} Fix the cause, then re-run; "
             f"if an earlier attempt left partial state, run `{_CONSOLIDATE_ABORT_COMMAND}` first."
         )
-    holds = f" (the local target '{target_branch}' currently holds content from it)" if target_branch in earlier_moved else ""
     recorded = f" Only the operator attestation(s) for {', '.join(attested)} were recorded by this run." if attested else ""
-    return f"{_REFUSED_WITH_EARLIER_RECORD} That attempt already moved {', '.join(earlier_moved)}{holds}.{recorded} Then fix the cause and re-run."
+    return f"{_REFUSED_WITH_EARLIER_RECORD}{_earlier_moves_sentences(moves)}{recorded} Then fix the cause and re-run."
+
+
+def _refuse_claim_before_mutation(run: _MergeRunState, refusal: str) -> NoReturn:
+    """Refuse the claim, saying what this run recorded and what an earlier attempt of it already moved."""
+    _exit_on_claim_integrity_refusal(refusal, attested=run.recorded_attestations, earlier_moves=_branches_moved_by_earlier_attempts(run))
 
 
 def _exit_on_claim_integrity_refusal(
     refusal: str,
     *,
     attested: tuple[str, ...] = (),
-    earlier_moved: tuple[str, ...] = (),
-    target_branch: str = "",
+    earlier_moves: _EarlierMoves | None = None,
 ) -> NoReturn:
     """Abort before any mutation because the approved-WP claim failed integrity (#5338).
 
@@ -592,19 +635,20 @@ def _exit_on_claim_integrity_refusal(
     so no branch or worktree was changed by this run. ``--attest-canceled-superseded``
     writes its status events BEFORE the claim (FR-012); when this run recorded any
     (``attested``), the text says so instead of claiming no status record changed.
-    A resume refused after an earlier attempt moved branches (``earlier_moved``) says to
+    A resume refused after an earlier attempt moved branches (``earlier_moves``) says to
     abort first (:func:`_claim_refusal_footer`).
     The verdict leads with the same ``Reconciliation refused (fail-closed)``
     header the teardown gate prints (#5359), so operators and tooling see one
     REFUSE vocabulary whether the claim refuses early or the gate refuses late.
     """
+    moves = earlier_moves or _EarlierMoves()
     # A multi-line refusal ends on a recovery line: the footer starts its own line. The text is escaped (a path may
     # hold ``[id]``) and printed unwrapped, so a recovery command stays on one copyable line.
     footer_separator = "\n" if "\n" in refusal else " "
-    before_any_change = "" if earlier_moved else ", before any change"
+    before_any_change = "" if moves.touched else ", before any change"
     console.print(
         f"\n[red]Error:[/red] Reconciliation refused (fail-closed) at claim time{before_any_change}: {escape(refusal.rstrip('.'))}."
-        f"{footer_separator}{escape(_claim_refusal_footer(attested, earlier_moved, target_branch))}",
+        f"{footer_separator}{escape(_claim_refusal_footer(attested, moves))}",
         soft_wrap=True,
     )
     raise typer.Exit(1)

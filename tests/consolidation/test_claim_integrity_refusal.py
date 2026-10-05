@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
+from typing import cast
 
 import pytest
 
@@ -19,6 +21,8 @@ from specify_cli.consolidation.reconciliation import (
     claim_integrity_refusal,
 )
 from specify_cli.consolidation import phase_claim
+from specify_cli.consolidation.run_state import _MergeRunState
+from specify_cli.consolidation.state import ConsolidationState
 from tests.consolidation.executor_family import setattr_executor_family
 
 pytestmark = [pytest.mark.git_repo]
@@ -101,44 +105,130 @@ def test_predicate_and_gate_agree_on_a_healthy_claim(tmp_path: Path) -> None:
 # ------------------------------------------------ claim-time refusal text (slice-10 F4)
 
 
-def _claim_refusal_output(monkeypatch: pytest.MonkeyPatch, attested: tuple[str, ...], *, earlier_moved: tuple[str, ...] = ()) -> str:
+_MISSION = "kitty/mission-x"
+_GONE = "kitty/mission-gone"
+
+
+def _git_out(repo: Path, *args: str) -> str:
+    return subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True).stdout.strip()
+
+
+def _earlier_attempt(
+    tmp_path: Path, *, is_resume: bool, moved: tuple[str, ...], recorded: tuple[str, ...], vanished: tuple[str, ...]
+) -> tuple[_MergeRunState, str]:
+    """A run whose persisted state carries a pre-run snapshot of a real repo, in which ``moved`` branches have advanced since.
+
+    ``recorded`` names the branches that also hold a post-mutation tip (a phase exited after moving them);
+    ``vanished`` are snapshotted branches that do not resolve. Returns the run and the target's pre-run SHA.
+    """
+    repo = _init_repo(tmp_path)
+    pre = _git_out(repo, "rev-parse", "HEAD")
+    _git_out(repo, "branch", _MISSION)
+    state = ConsolidationState(mission_id="m", mission_slug="m", target_branch=_TARGET, wp_order=["WP01"])
+    state.pre_mutation_refs = {_TARGET: pre, _MISSION: pre, **dict.fromkeys(vanished, pre)}
+    for branch in moved:
+        _git_out(repo, "update-ref", f"refs/heads/{branch}", _git_out(repo, "commit-tree", "-p", pre, "-m", branch, f"{pre}^{{tree}}"))
+    state.post_mutation_refs = {branch: _git_out(repo, "rev-parse", branch) for branch in recorded}
+    run = SimpleNamespace(main_repo=repo, state=state, is_resume=is_resume, recorded_attestations=(), lanes_manifest=SimpleNamespace(target_branch=_TARGET))
+    return cast("_MergeRunState", run), pre
+
+
+def _claim_refusal_output(monkeypatch: pytest.MonkeyPatch, attested: tuple[str, ...], *, run: _MergeRunState | None = None) -> str:
     from unittest.mock import MagicMock
 
     import typer
 
     console = MagicMock()
     setattr_executor_family(monkeypatch, "console", console)
+
+    def refuse() -> None:
+        if run is None:
+            phase_claim._exit_on_claim_integrity_refusal("approved lane branch is gone.", attested=attested)
+        phase_claim._refuse_claim_before_mutation(run, "approved lane branch is gone.")
+
     with pytest.raises(typer.Exit) as exited:
-        phase_claim._exit_on_claim_integrity_refusal("approved lane branch is gone.", attested=attested, earlier_moved=earlier_moved, target_branch=_TARGET)
+        refuse()
     assert exited.value.exit_code == 1
     return " ".join(str(call.args[0]) for call in console.print.call_args_list)
 
 
 @pytest.mark.parametrize(
-    ("earlier_moved", "present", "absent"),
+    ("is_resume", "moved", "recorded", "vanished", "present", "absent"),
     [
         pytest.param(
+            False,
+            (_TARGET, _MISSION),
+            (),
             (),
             ["at claim time, before any change:", "No branch, worktree or status record was changed by this run."],
-            ["attestation", "currently holds"],
+            ["attestation", "currently holds", "NOT restored"],
             id="fresh_run",
         ),
         pytest.param(
-            (_TARGET, "kitty/mission-x"),
+            True,
+            (_TARGET, _MISSION),
+            (_TARGET, _MISSION),
+            (),
             [
                 "Run `spec-kitty consolidate --abort` to restore the branches it recorded.",
-                f"That attempt already moved {_TARGET}, kitty/mission-x (the local target '{_TARGET}' currently holds content from it).",
+                f"That attempt already moved {_MISSION}, {_TARGET} (the local target '{_TARGET}' currently holds content from it).",
             ],
-            ["before any change", "No branch, worktree or status record was changed"],
-            id="resume_after_the_target_moved",
+            ["before any change", "No branch, worktree or status record was changed", "NOT restored", "could not be resolved"],
+            id="resume_moved_with_a_recorded_post_tip",
+        ),
+        pytest.param(
+            True,
+            (_TARGET, _MISSION),
+            (_MISSION,),
+            (),
+            [
+                "Run `spec-kitty consolidate --abort` to restore the branches it recorded.",
+                f"That attempt already moved {_MISSION}, {_TARGET} (the local target '{_TARGET}' currently holds content from it).",
+                f"`spec-kitty consolidate --abort` will report {_TARGET} (at {{pre}} before the run) as NOT restored: the attempt was interrupted before it",
+                "recorded where it stopped.",
+                f"Restore the local target '{_TARGET}' to {{pre}} yourself before re-running.",
+            ],
+            ["before any change", "No branch, worktree or status record was changed", f"{_MISSION} (at"],
+            id="resume_target_moved_but_killed_before_a_post_tip_was_recorded",
+        ),
+        pytest.param(
+            True,
+            (),
+            (),
+            (_GONE,),
+            [
+                "Run `spec-kitty consolidate --abort` to restore the branches it recorded.",
+                f"The current tip of {_GONE} could not be resolved, so whether that attempt moved it is unknown.",
+            ],
+            ["before any change", "No branch, worktree or status record was changed", "already moved", "NOT restored"],
+            id="resume_with_an_unresolvable_tip",
+        ),
+        pytest.param(
+            True,
+            (),
+            (),
+            (),
+            ["at claim time, before any change:", "if an earlier attempt left partial state, run `spec-kitty consolidate --abort` first."],
+            ["already moved", "NOT restored"],
+            id="resume_that_nothing_moved",
         ),
     ],
 )
-def test_claim_refusal_says_what_the_run_changed(monkeypatch: pytest.MonkeyPatch, earlier_moved: tuple[str, ...], present: list[str], absent: list[str]) -> None:
-    """A fresh run changed nothing; a refused resume leads with ``--abort`` because an earlier attempt already moved the target."""
-    printed = _claim_refusal_output(monkeypatch, (), earlier_moved=earlier_moved)
+def test_claim_refusal_says_what_the_run_changed(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    is_resume: bool,
+    moved: tuple[str, ...],
+    recorded: tuple[str, ...],
+    vanished: tuple[str, ...],
+    present: list[str],
+    absent: list[str],
+) -> None:
+    """A fresh run changed nothing; a refused resume leads with ``--abort`` and says what ``--abort`` will not restore, judged from the pre-run snapshot."""
+    run, pre = _earlier_attempt(tmp_path, is_resume=is_resume, moved=moved, recorded=recorded, vanished=vanished)
+    printed = _claim_refusal_output(monkeypatch, (), run=run)
     for text in present:
-        assert text in printed
+        assert text.format(pre=pre) in printed
     for text in absent:
         assert text not in printed
 

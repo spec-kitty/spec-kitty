@@ -121,6 +121,8 @@ def test_resume_refuses_a_commit_added_to_a_lane_not_yet_consolidated(tmp_path: 
 
     assert rc != 0, f"a commit added after approval must be refused on --resume ({topology}):\n{flat}"
     assert _CODE in flat, f"expected {_CODE}:\n{flat}"
+    assert f"That attempt already moved {run.mission.coord_branch}." in flat, f"the killed attempt moved the mission branch, so the refusal must say so:\n{flat}"
+    assert "will report" in flat and "as NOT restored" in flat, f"the killed attempt recorded no post tip, so the refusal must not promise a restore:\n{flat}"
     assert not blob_present_at(run.mission.repo, run.mission.target_branch, LATE_PATH), "the unreviewed file must not be on the target"
     assert run.mission.rev(run.mission.target_branch) == run.pre_target, "the refusal must not move the target"
 
