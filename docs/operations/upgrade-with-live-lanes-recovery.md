@@ -8,7 +8,7 @@ updated: '2026-10-04'
 related:
 - docs/operations/recovery-index.md
 - docs/operations/stale-lane-seed.md
-- docs/adr/4.x/2026-10-04-2-upgrade-writes-project-global-state-once.md
+- docs/adr/4.x/2026-10-04-4-upgrade-writes-project-global-state-once.md
 ---
 
 # Recovery: consolidate, review or implement refuses after an upgrade mid-Mission
@@ -79,5 +79,5 @@ case the printed stale remedy can be a no-op after the in-run rollback. Follow-u
 
 - [Recovery guides](recovery-index.md)
 - [Stale lane seed after re-finalizing tasks](stale-lane-seed.md)
-- [ADR 2026-10-04-2: upgrade writes project-global state once](../adr/4.x/2026-10-04-2-upgrade-writes-project-global-state-once.md)
+- [ADR 2026-10-04-4: upgrade writes project-global state once](../adr/4.x/2026-10-04-4-upgrade-writes-project-global-state-once.md)
 - [Branch-target routing](../architecture/branch-target-routing.md)

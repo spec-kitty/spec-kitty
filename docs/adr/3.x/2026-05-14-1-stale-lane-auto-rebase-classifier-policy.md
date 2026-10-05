@@ -327,4 +327,4 @@ Per `function-over-form-testing`:
 - **Resolution.** Stage 3, the incoming coordination or mission side, which is closer to the primary branch. The file is generated and never authored by a work package.
 - **Fail-safe.** `R-DEFAULT-MANUAL` is unchanged and remains the fail-safe default for every path the rules above and this managed-artifact stage do not match (NFR-005). Operator-editable project files such as `.gitattributes`, `.gitignore` and `.kittify/config.yaml` still resolve to `Manual`.
 
-The decision and its merge-site table are recorded in [ADR 2026-10-04-2](../4.x/2026-10-04-2-upgrade-writes-project-global-state-once.md). The original decision text above is unchanged.
+The decision and its merge-site table are recorded in [ADR 2026-10-04-4](../4.x/2026-10-04-4-upgrade-writes-project-global-state-once.md). The original decision text above is unchanged.

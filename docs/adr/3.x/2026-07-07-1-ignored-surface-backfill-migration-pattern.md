@@ -140,7 +140,7 @@ When adding a `GitClass.IGNORED` surface to `state/contract.py`:
 
 ## Amendment 2026-10-04 (#5457)
 
-**Decision item 3 no longer reaches integrating worktrees.** Item 3 said the migration inherits `runs_on_worktrees=True` "so lane worktrees receive the same gitignore protection on upgrade". Since [ADR 2026-10-04-2](../4.x/2026-10-04-2-upgrade-writes-project-global-state-once.md), `spec-kitty upgrade` skips an integrating worktree: a worktree whose branch is a `kitty/mission-…` mission, lane or coordination branch, or whose branch cannot be read (`_is_integrating_worktree`, `_worktrees_to_upgrade` in `src/specify_cli/upgrade/runner.py`). The `True` default therefore still applies to worktrees that upgrade does visit (a worktree on any other branch), and the migration is still correct to inherit it.
+**Decision item 3 no longer reaches integrating worktrees.** Item 3 said the migration inherits `runs_on_worktrees=True` "so lane worktrees receive the same gitignore protection on upgrade". Since [ADR 2026-10-04-4](../4.x/2026-10-04-4-upgrade-writes-project-global-state-once.md), `spec-kitty upgrade` skips an integrating worktree: a worktree whose branch is a `kitty/mission-…` mission, lane or coordination branch, or whose branch cannot be read (`_is_integrating_worktree`, `_worktrees_to_upgrade` in `src/specify_cli/upgrade/runner.py`). The `True` default therefore still applies to worktrees that upgrade does visit (a worktree on any other branch), and the migration is still correct to inherit it.
 
 Lanes receive the gitignore protection through integration instead: the repository root checkout carries the backfilled `.gitignore`, and a lane picks it up when it next merges the Mission branch.
 
