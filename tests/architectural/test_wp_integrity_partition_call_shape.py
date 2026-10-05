@@ -44,7 +44,8 @@ import pytest
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_IMPLEMENT = _REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "implement.py"
+# implement-degod WP05: the planning-commit adapter (and its partition-split arms) moved out of implement.py.
+_IMPLEMENT = _REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "implement_planning_commit.py"
 
 _COMMIT_FN = "_run_planning_artifact_commit"
 _RAW_BATCH_NAME = "files_to_commit"

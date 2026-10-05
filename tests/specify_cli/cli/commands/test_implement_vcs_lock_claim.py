@@ -35,11 +35,8 @@ import pytest
 import typer
 
 from kernel.vcs_lock import is_vcs_lock_only_change
-from specify_cli.cli.commands.implement import (
-    _is_self_write_only_diff,
-    implement,
-    resolve_planning_artifact_staging,
-)
+from specify_cli.cli.commands.implement import implement
+from specify_cli.cli.commands.implement_cores import _is_self_write_only_diff, resolve_planning_artifact_staging
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.mission_metadata import set_vcs_lock

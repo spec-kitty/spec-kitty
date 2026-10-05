@@ -71,9 +71,7 @@ class TestPlanningArtifactIdempotentCommit:
     """
 
     def test_committing_content_already_on_coord_is_noop(self, tmp_path: Path) -> None:
-        from specify_cli.cli.commands.implement import (
-            _ensure_planning_artifacts_committed_git,
-        )
+        from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
 
         repo = tmp_path / "repo"
         repo.mkdir()
@@ -158,9 +156,7 @@ class TestSoloPrBoundCoordMissionClaimPrecondition:
     """
 
     def test_committed_planning_artifacts_do_not_abort_the_claim(self, tmp_path: Path) -> None:
-        from specify_cli.cli.commands.implement import (
-            _ensure_planning_artifacts_committed_git,
-        )
+        from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
 
         repo = tmp_path / "repo"
         repo.mkdir()
@@ -284,9 +280,7 @@ class TestStructuralPlanningArtifactsFailClosed:
         return repo, feature_dir, git, wp
 
     def test_deleted_planning_artifact_fails_closed(self, tmp_path: Path) -> None:
-        from specify_cli.cli.commands.implement import (
-            _ensure_planning_artifacts_committed_git,
-        )
+        from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
 
         repo, feature_dir, git, wp = self._seeded_repo(tmp_path)
         head_before = git("rev-parse", "HEAD")
@@ -306,9 +300,7 @@ class TestStructuralPlanningArtifactsFailClosed:
         assert git("rev-parse", "HEAD") == head_before
 
     def test_renamed_planning_artifact_fails_closed(self, tmp_path: Path) -> None:
-        from specify_cli.cli.commands.implement import (
-            _ensure_planning_artifacts_committed_git,
-        )
+        from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
 
         repo, feature_dir, git, wp = self._seeded_repo(tmp_path)
         head_before = git("rev-parse", "HEAD")
@@ -379,7 +371,7 @@ class TestNonCoordStatusFilesCommitted:
     """
 
     def _entries(self):
-        from specify_cli.cli.commands.implement import _PorcelainEntry
+        from specify_cli.cli.commands.implement_cores import _PorcelainEntry
 
         return [
             _PorcelainEntry(xy=" M", path="kitty-specs/m/status.events.jsonl", is_structural=False),
@@ -388,7 +380,7 @@ class TestNonCoordStatusFilesCommitted:
         ]
 
     def test_non_coord_includes_status_files(self) -> None:
-        from specify_cli.cli.commands.implement import _status_paths_for_commit
+        from specify_cli.cli.commands.implement_cores import _status_paths_for_commit
 
         # No coordination branch → the primary checkout's status files are
         # canonical and must be committed (not dropped).
@@ -398,7 +390,7 @@ class TestNonCoordStatusFilesCommitted:
         assert "kitty-specs/m/tasks.md" in paths
 
     def test_coord_excludes_status_files(self) -> None:
-        from specify_cli.cli.commands.implement import _status_paths_for_commit
+        from specify_cli.cli.commands.implement_cores import _status_paths_for_commit
 
         # Coordination branch present → status log/snapshot are coord-owned and
         # excluded so the primary checkout's stale copies do not clobber the seed.
@@ -414,7 +406,7 @@ class TestPlanningArtifactAutoCommit:
     """Planning artifacts stage from the transaction worktree, not the caller checkout."""
 
     def test_auto_commit_uses_coordination_worktree_paths(self, tmp_path: Path) -> None:
-        from specify_cli.cli.commands.implement import _ensure_planning_artifacts_committed_git
+        from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
 
         repo = tmp_path / "repo"
         repo.mkdir()
@@ -497,9 +489,7 @@ class TestPlanningArtifactAutoCommit:
     def test_auto_commit_with_coord_feature_dir_uses_primary_artifact_source(
         self, tmp_path: Path
     ) -> None:
-        from specify_cli.cli.commands.implement import (
-            _ensure_planning_artifacts_committed_git,
-        )
+        from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
 
         repo = tmp_path / "repo"
         repo.mkdir()

@@ -41,12 +41,8 @@ import pytest
 import typer
 from ruamel.yaml import YAML
 
-from specify_cli.cli.commands.implement import (
-    _is_runtime_frontmatter_only_wp_diff,
-    _is_self_write_only_diff,
-    implement,
-    resolve_planning_artifact_staging,
-)
+from specify_cli.cli.commands.implement import implement
+from specify_cli.cli.commands.implement_cores import _is_runtime_frontmatter_only_wp_diff, _is_self_write_only_diff, resolve_planning_artifact_staging
 from specify_cli.frontmatter import WP_RUNTIME_FIELDS
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json

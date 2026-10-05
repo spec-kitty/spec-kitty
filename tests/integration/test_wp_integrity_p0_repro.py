@@ -51,7 +51,7 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import CommitTarget
-from specify_cli.cli.commands.implement import _ensure_planning_artifacts_committed_git
+from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
 from specify_cli.lanes.branch_naming import code_lane_branch_name
 from specify_cli.lanes.implement_support import resolve_claim_ancestry_gate
 from specify_cli.lanes.models import ExecutionLane, LanesManifest

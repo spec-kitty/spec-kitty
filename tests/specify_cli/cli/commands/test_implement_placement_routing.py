@@ -55,10 +55,8 @@ class TestResolveClaimCommitTargetFailClosed:
     """
 
     def test_none_placement_ref_raises_structured_error(self) -> None:
-        from specify_cli.cli.commands.implement import (
-            PlacementResolutionRequired,
-            _resolve_claim_commit_target,
-        )
+        from specify_cli.cli.commands.implement import PlacementResolutionRequired
+        from specify_cli.cli.commands.implement_cores import _resolve_claim_commit_target
 
         with pytest.raises(PlacementResolutionRequired) as excinfo:
             _resolve_claim_commit_target(None, mission_slug="demo-mission")
@@ -75,7 +73,7 @@ class TestResolveClaimCommitTargetFailClosed:
         value is returned unchanged, even when it names a branch that is
         neither the current checkout nor `planning_branch` (proving the
         helper does not fall back to either)."""
-        from specify_cli.cli.commands.implement import _resolve_claim_commit_target
+        from specify_cli.cli.commands.implement_cores import _resolve_claim_commit_target
 
         target = CommitTarget(ref="kitty/mission-demo-AAAA1111")
         assert _resolve_claim_commit_target(target, mission_slug="demo-mission") is target
@@ -196,9 +194,7 @@ class TestEnsurePlanningArtifactsRoutesThroughPlacementRef:
         batch (including the PRIMARY WP file) was committed VERBATIM to
         ``placement_ref.ref``; this asserts the T008 partition instead.
         """
-        from specify_cli.cli.commands.implement import (
-            _ensure_planning_artifacts_committed_git,
-        )
+        from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
 
         repo = tmp_path / "repo"
         _init_repo(repo)
@@ -303,8 +299,9 @@ class TestEnsurePlanningArtifactsRoutesThroughPlacementRef:
         import inspect
 
         from specify_cli.cli.commands import implement as implement_module
+        from specify_cli.cli.commands import implement_planning_commit
 
-        source = inspect.getsource(implement_module)
+        source = inspect.getsource(implement_module) + inspect.getsource(implement_planning_commit)
         assert "coord_branch if coord_branch else planning_branch" not in source
         assert "str(coord_branch) if coord_branch else planning_branch" not in source
 

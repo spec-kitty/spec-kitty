@@ -58,6 +58,7 @@ _INSCOPE_FILES: tuple[str, ...] = (
     # 8 user-facing command files de-aliased in mission feature-alias-removal-
     # 01KW0N87 WP01–WP03.  Authority: spec.md FR-007.
     "src/specify_cli/cli/commands/implement.py",
+    "src/specify_cli/cli/commands/implement_planning_commit.py",
     "src/specify_cli/cli/commands/merge.py",
     "src/specify_cli/cli/commands/next_cmd.py",
     "src/specify_cli/cli/commands/research.py",

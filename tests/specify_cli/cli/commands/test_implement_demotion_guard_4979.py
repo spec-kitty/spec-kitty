@@ -101,7 +101,7 @@ class TestPlanningArtifactCommitDemotionGuard:
         the `chore: planning artifacts` commit silently. Fixed behavior:
         REFUSE (typer.Exit) and leave HEAD untouched.
         """
-        from specify_cli.cli.commands.implement import _ensure_planning_artifacts_committed_git
+        from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
 
         mission_slug = "demotion-guard-mission"
         repo, feature_dir, planning_branch = _seeded_coord_mission(tmp_path, mission_slug)
@@ -132,7 +132,7 @@ class TestPlanningArtifactCommitDemotionGuard:
     def test_untracked_meta_json_allows_first_commit(self, tmp_path: Path) -> None:
         """No HEAD baseline (`git show HEAD:...` exit 128) is a legitimate
         first commit -- ALLOW, even though `coordination_branch` is set."""
-        from specify_cli.cli.commands.implement import _ensure_planning_artifacts_committed_git
+        from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
 
         mission_slug = "fresh-coord-mission"
         planning_branch, coord_branch = _mission_branches(mission_slug)
@@ -161,7 +161,7 @@ class TestPlanningArtifactCommitDemotionGuard:
 
     def test_corrupt_head_meta_json_refuses(self, tmp_path: Path) -> None:
         """A HEAD baseline that fails to parse as JSON fails closed to REFUSE."""
-        from specify_cli.cli.commands.implement import _ensure_planning_artifacts_committed_git
+        from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
 
         mission_slug = "corrupt-head-mission"
         planning_branch, _coord_branch = _mission_branches(mission_slug)
@@ -194,7 +194,7 @@ class TestPlanningArtifactCommitDemotionGuard:
     def test_corrupt_working_meta_json_refuses(self, tmp_path: Path) -> None:
         """A working copy that fails to parse as JSON fails closed to REFUSE,
         even though the HEAD baseline is valid."""
-        from specify_cli.cli.commands.implement import _ensure_planning_artifacts_committed_git
+        from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
 
         mission_slug = "corrupt-working-mission"
         repo, feature_dir, planning_branch = _seeded_coord_mission(tmp_path, mission_slug)
@@ -216,7 +216,7 @@ class TestPlanningArtifactCommitDemotionGuard:
 
     def test_non_demoting_edit_commits_as_today(self, tmp_path: Path) -> None:
         """An ordinary, non-demoting meta.json edit still commits normally."""
-        from specify_cli.cli.commands.implement import _ensure_planning_artifacts_committed_git
+        from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
 
         mission_slug = "non-demoting-edit-mission"
         repo, feature_dir, planning_branch = _seeded_coord_mission(tmp_path, mission_slug)
@@ -311,7 +311,7 @@ class TestMetaJsonDemotionRefusalHelper:
         """The guard is a no-op when `meta.json` is not itself part of the
         dirty files being staged -- it must never inspect git for paths that
         are not part of this commit."""
-        from specify_cli.cli.commands.implement import _refuse_if_meta_json_demotion
+        from specify_cli.cli.commands.implement_planning_commit import _refuse_if_meta_json_demotion
 
         mission_slug = "unrelated-dirty-file-mission"
         repo, feature_dir = self._seed(tmp_path, mission_slug, _meta_payload(with_coord=True, mission_slug=mission_slug))

@@ -255,7 +255,7 @@ def _run_implement_via_seam(
         patch("specify_cli.core.dependency_graph.parse_wp_dependencies", return_value=[]),
         patch("specify_cli.workspace.context.resolve_mission_target_branch",
               return_value="main"),
-        patch("specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git"),
+        patch("specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git"),
         patch("specify_cli.cli.commands.implement._ensure_vcs_in_meta", return_value=VCSBackend.GIT),
         patch("specify_cli.cli.commands.implement._resolve_placement_ref", return_value=None),
         patch(

@@ -189,7 +189,7 @@ class TestImplementCommand:
                 return_value="main",
             ),
             patch(
-                "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
+                "specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git",
             ),
             patch(
                 "specify_cli.cli.commands.implement._ensure_vcs_in_meta",
@@ -245,7 +245,7 @@ class TestImplementCommand:
                 return_value="main",
             ),
             patch(
-                "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
+                "specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git",
             ),
         ):
             with pytest.raises(typer.Exit):
@@ -287,7 +287,7 @@ class TestImplementCommand:
                 return_value="main",
             ),
             patch(
-                "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
+                "specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git",
             ),
             patch(
                 "specify_cli.cli.commands.implement._ensure_vcs_in_meta",
@@ -346,7 +346,7 @@ class TestImplementCommand:
                 return_value="main",
             ),
             patch(
-                "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
+                "specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git",
             ) as mock_commit_planning,
             patch(
                 "specify_cli.cli.commands.implement.create_lane_workspace",
@@ -408,7 +408,7 @@ class TestImplementCommand:
                 return_value=mock_policy,
             ) as mock_resolver,
             patch(
-                "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
+                "specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git",
             ) as mock_commit_planning,
             patch(
                 "specify_cli.cli.commands.implement._ensure_vcs_in_meta",
@@ -496,7 +496,7 @@ class TestImplementCommand:
                 return_value="main",
             ),
             patch(
-                "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
+                "specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git",
             ),
             patch(
                 "specify_cli.cli.commands.implement._ensure_vcs_in_meta",
@@ -554,7 +554,7 @@ class TestImplementCommand:
                 return_value="main",
             ),
             patch(
-                "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
+                "specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git",
             ),
             patch(
                 "specify_cli.cli.commands.implement._ensure_vcs_in_meta",
@@ -680,7 +680,7 @@ class TestImplementPrimaryTopologyLanesJson:
                 "specify_cli.workspace.context.resolve_mission_target_branch",
                 return_value="main",
             ),
-            patch("specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git"),
+            patch("specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git"),
             patch("specify_cli.cli.commands.implement._resolve_placement_ref", return_value=None),
             patch(
                 "specify_cli.coordination.surface_resolver.resolve_status_surface_with_anchor",

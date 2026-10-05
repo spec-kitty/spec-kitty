@@ -101,7 +101,7 @@ def _claim(
     *,
     auto_commit: bool = True,
 ) -> None:
-    from specify_cli.cli.commands.implement import _ensure_planning_artifacts_committed_git
+    from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
 
     _ensure_planning_artifacts_committed_git(
         repo_root=repo,
@@ -234,7 +234,7 @@ class TestGitCleanCrlfCheckout:
         ``implement WP##`` calls, with and without ``--no-auto-commit``) a
         Git-clean CRLF checkout is not refused and opens no planning-artifact
         commit transaction, so no empty commit can be attempted."""
-        from specify_cli.cli.commands import implement as implement_module
+        from specify_cli.cli.commands import implement_planning_commit as implement_module
 
         repo, feature_dir, slug, target = _seed_crlf_clean_checkout(tmp_path)
         tips_before = (_git(repo, "rev-parse", _PLANNING_BRANCH), _git(repo, "rev-parse", target.ref))

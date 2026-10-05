@@ -215,7 +215,7 @@ class TestImplementBaseFlagIntegration:
             patch("specify_cli.workspace.context.find_wp_file", return_value=feature_dir / "tasks" / "WP06-task.md"),
             patch("specify_cli.core.dependency_graph.parse_wp_dependencies", return_value=[]),
             patch("specify_cli.workspace.context.resolve_mission_target_branch", return_value="main"),
-            patch("specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git"),
+            patch("specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git"),
             patch("specify_cli.core.agent_config.get_auto_commit_default", return_value=False),
             impl_mod.console.capture() as captured,
             pytest.raises((typer.Exit, SystemExit)) as exc_info,

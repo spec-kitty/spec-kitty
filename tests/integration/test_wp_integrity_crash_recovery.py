@@ -134,7 +134,7 @@ def _seed_coord_mission(tmp_path: Path) -> tuple[Path, Path, str]:
 
 
 def _commit_batch(repo: Path, feature_dir: Path, coord_branch: str) -> None:
-    from specify_cli.cli.commands.implement import _commit_planning_artifacts_transaction
+    from specify_cli.cli.commands.implement_planning_commit import _commit_planning_artifacts_transaction
 
     _commit_planning_artifacts_transaction(
         repo_root=repo,
@@ -154,7 +154,7 @@ def test_crash_between_partition_commits_recovers_idempotently(
     commit is recovered by re-invoking the auto-commit path — no stranded residue,
     no error.
     """
-    import specify_cli.cli.commands.implement as im
+    import specify_cli.cli.commands.implement_planning_commit as im
 
     repo, feature_dir, coord_branch = _seed_coord_mission(tmp_path)
 

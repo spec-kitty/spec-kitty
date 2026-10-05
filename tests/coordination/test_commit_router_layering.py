@@ -149,7 +149,26 @@ _NO_CLI_SEAM_MODULES: tuple[str, ...] = (
     "specify_cli.core.dependency_graph",
     # WP04: planning-commit decisions (partition, guard, demotion verdict, identifiers)
     "specify_cli.coordination.planning_commit",
+    # WP05: git_stdout (public leaf the planning-commit adapter and the base-ref code import).
+    # The module's pre-existing lazy ``cli.console`` import is the one recorded exception below.
+    "specify_cli.lanes.implement_support",
 )
+
+# The single documented exception to the guard above, mirroring the ``specify_cli.cli.console``
+# carve-out ``tests/architectural/test_layer_rules.py`` grants ``specify_cli/consolidation/**``
+# (a presentation-only singleton). ``lanes/implement_support.py`` imports it lazily to print the
+# #4895 foreign-pre-commit-hook backup notice. The module -> allowed import is shrink-only: the
+# guard below fails when the import is gone (remove the entry) and when a second one appears.
+# TODO(#5715): drain this import (return the notice as a typed result, print in the command
+# package) and delete the entry.
+_NO_CLI_CONSOLE_CARVE_OUTS: dict[str, str] = {
+    "specify_cli.lanes.implement_support": "specify_cli.cli.console",
+}
+
+
+def _is_carve_out(offender: str, allowed: str) -> bool:
+    """True when *offender* (``"line N: <module>"``) is exactly the allowed carve-out import."""
+    return offender.partition(": ")[2] == allowed
 
 
 def _resolve_relative_module(node: ast.ImportFrom, package: str) -> str:
@@ -197,6 +216,9 @@ class TestSeamModulesHaveNoCliImports:
         assert spec is not None and spec.origin is not None, f"{module_name} not found on sys.path"
 
         offenders = _cli_layer_imports(Path(spec.origin).read_text(encoding="utf-8"), module_name.rpartition(".")[0])
+        allowed = _NO_CLI_CONSOLE_CARVE_OUTS.get(module_name)
+        if allowed is not None:
+            offenders = [offender for offender in offenders if not _is_carve_out(offender, allowed)]
 
         assert not offenders, (
             f"{module_name} imports the CLI layer (C-004: lower packages return typed results or "
@@ -218,6 +240,33 @@ class TestSeamModulesHaveNoCliImports:
     def test_scanner_flags_every_cli_import_form(self, source: str) -> None:
         """Non-vacuity: the scanner catches module-level, lazy, ``import`` and ``from`` forms."""
         assert _cli_layer_imports(source)
+
+    @pytest.mark.parametrize(("module_name", "allowed"), sorted(_NO_CLI_CONSOLE_CARVE_OUTS.items()))
+    def test_console_carve_out_is_exactly_one_live_import(self, module_name: str, allowed: str) -> None:
+        """Shrink-only: the carve-out names one import that still exists (no stale or widened entry)."""
+        spec = importlib.util.find_spec(module_name)
+        assert spec is not None and spec.origin is not None, f"{module_name} not found on sys.path"
+
+        offenders = _cli_layer_imports(Path(spec.origin).read_text(encoding="utf-8"), module_name.rpartition(".")[0])
+        carved = [offender for offender in offenders if _is_carve_out(offender, allowed)]
+
+        assert len(carved) == 1, f"{module_name}: expected exactly one live {allowed} import, found {carved!r}; update _NO_CLI_CONSOLE_CARVE_OUTS (#5715)"
+
+    @pytest.mark.parametrize(
+        "offender",
+        [
+            "line 3: specify_cli.cli.commands.implement",
+            "line 3: specify_cli.cli",
+            "line 3: typer",
+            "line 3: specify_cli.cli.console.extra",
+        ],
+    )
+    def test_carve_out_forgives_only_the_console_import(self, offender: str) -> None:
+        """Non-vacuity: the carve-out never excuses any other CLI-layer import."""
+        assert not _is_carve_out(offender, "specify_cli.cli.console")
+
+    def test_carve_out_matches_the_console_import(self) -> None:
+        assert _is_carve_out("line 400: specify_cli.cli.console", "specify_cli.cli.console")
 
     @pytest.mark.parametrize(
         "source",

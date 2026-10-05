@@ -107,6 +107,8 @@ _WORKSPACE_CONTEXT_PY = _SRC_SPECIFY_CLI / "workspace" / "context.py"
 # planning_artifact_source_dir / load_primary_anchored_mission_meta) moved here. It is a TRIO file
 # but NOT a _CORE_FILES member: it runs git subprocesses and reads files, which the pure-core scan forbids.
 _COORDINATION_PLANNING_COMMIT_PY = _SRC_SPECIFY_CLI / "coordination" / "planning_commit.py"
+# implement-degod WP05: the planning-commit adapter (prints/exits/BookkeepingTransaction) moved out of implement.py.
+_IMPLEMENT_PLANNING_COMMIT_PY = _SRC_SPECIFY_CLI / "cli" / "commands" / "implement_planning_commit.py"
 
 _TRIO_FILES: tuple[Path, ...] = (
     _WORKFLOW_PY,
@@ -119,6 +121,7 @@ _TRIO_FILES: tuple[Path, ...] = (
     _ACCEPTANCE_GATES_CORE_PY,
     _WORKSPACE_CONTEXT_PY,
     _COORDINATION_PLANNING_COMMIT_PY,
+    _IMPLEMENT_PLANNING_COMMIT_PY,
 )
 
 # The subset that are the extracted PURE cores (T028 scope). Deliberately

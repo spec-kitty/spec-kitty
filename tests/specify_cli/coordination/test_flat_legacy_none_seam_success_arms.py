@@ -55,9 +55,7 @@ class TestFlatLegacyNoneAtSeamReachesSuccessArms:
     ) -> None:
         import json
 
-        from specify_cli.cli.commands.implement import (
-            _commit_planning_artifacts_transaction,
-        )
+        from specify_cli.cli.commands.implement_planning_commit import _commit_planning_artifacts_transaction
 
         planning_branch = "mission/2650-wp04-flat-legacy-demo"
         repo = tmp_path / "repo"

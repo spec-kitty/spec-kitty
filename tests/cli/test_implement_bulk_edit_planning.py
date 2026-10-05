@@ -145,7 +145,7 @@ def _patched_implement(tmp_path: Path, feature_dir: Path):
             "specify_cli.workspace.context.resolve_mission_target_branch",
             return_value="main",
         ),
-        patch("specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git"),
+        patch("specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git"),
         patch("specify_cli.cli.commands.implement._ensure_vcs_in_meta", return_value=MagicMock(value="git")),
         patch("specify_cli.cli.commands.implement.create_lane_workspace", return_value=_workspace(feature_dir)) as create_workspace,
     ):

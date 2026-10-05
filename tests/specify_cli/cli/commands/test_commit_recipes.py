@@ -370,9 +370,7 @@ def test_protected_primary_hint_never_suggests_env_bypass() -> None:
 def test_planning_artifact_recipe_pins_to_branch_on_the_planning_branch(capsys: pytest.CaptureFixture[str]) -> None:
     import typer
 
-    from specify_cli.cli.commands.implement import (
-        _print_planning_artifact_commit_instructions,
-    )
+    from specify_cli.cli.commands.implement_planning_commit import _print_planning_artifact_commit_instructions
 
     planning_branch = "kitty/mission-demo-mission-abcd1234"
     lane_branch = "kitty/mission-demo-mission-lane-a"

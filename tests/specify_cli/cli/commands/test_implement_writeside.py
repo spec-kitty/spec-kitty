@@ -189,9 +189,7 @@ class TestPartitionAwarePlanningArtifactCommit:
         ``_PLANNING_BRANCH``, ``status.events.jsonl`` lands on the
         coordination branch.
         """
-        from specify_cli.cli.commands.implement import (
-            _commit_planning_artifacts_transaction,
-        )
+        from specify_cli.cli.commands.implement_planning_commit import _commit_planning_artifacts_transaction
 
         repo, feature_dir, mission_slug, spec_rel, events_rel, calls = _seeded_coord_mission(
             tmp_path, monkeypatch=monkeypatch
@@ -230,9 +228,7 @@ class TestPartitionAwarePlanningArtifactCommit:
     ) -> None:
         """When the batch is entirely PRIMARY, only one transaction runs, to
         the primary/target ref -- no spurious empty coordination commit."""
-        from specify_cli.cli.commands.implement import (
-            _commit_planning_artifacts_transaction,
-        )
+        from specify_cli.cli.commands.implement_planning_commit import _commit_planning_artifacts_transaction
 
         repo, feature_dir, mission_slug, spec_rel, _events_rel, calls = _seeded_coord_mission(
             tmp_path, monkeypatch=monkeypatch
@@ -261,9 +257,7 @@ class TestNonCoordinationMissionCommitCollapsesToOneTransaction:
     def test_no_coord_branch_collapses_primary_and_coord_shaped_paths(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from specify_cli.cli.commands.implement import (
-            _commit_planning_artifacts_transaction,
-        )
+        from specify_cli.cli.commands.implement_planning_commit import _commit_planning_artifacts_transaction
 
         repo = tmp_path / "repo"
         _init_repo(repo, branch=_PLANNING_BRANCH)
@@ -330,9 +324,7 @@ class TestNarrowTripleProtectedPlanningBranchFailsClosed:
     def test_protected_planning_branch_raises_placement_resolution_required(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from specify_cli.cli.commands.implement import (
-            _commit_planning_artifacts_transaction,
-        )
+        from specify_cli.cli.commands.implement_planning_commit import _commit_planning_artifacts_transaction
         from specify_cli.cli.commands.implement_cores import (
             _resolve_claim_commit_target,
         )
@@ -494,7 +486,7 @@ class TestPlanningCommitBranch:
 
     @staticmethod
     def _resolve(monkeypatch: pytest.MonkeyPatch, meta: dict[str, object] | None) -> str:
-        from specify_cli.cli.commands import implement as impl
+        from specify_cli.cli.commands import implement_planning_commit as impl
         from specify_cli.coordination import planning_commit
 
         monkeypatch.setattr(planning_commit, "load_primary_anchored_mission_meta", lambda _r, _s: meta)
@@ -516,7 +508,7 @@ class TestPlanningCommitBranch:
         is the mission branch, so it names it and never the protected ``main``."""
         import typer
 
-        from specify_cli.cli.commands import implement as impl
+        from specify_cli.cli.commands import implement_planning_commit as impl
         from specify_cli.coordination import planning_commit
 
         mission_branch = "kitty/mission-m-01ABCDEF"

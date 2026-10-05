@@ -186,9 +186,7 @@ class TestWriteSideDerivesFromTheSharedExpression:
     reference -- it goes through ``_commit_target_ref_for`` too."""
 
     def test_commit_planning_artifacts_transaction_calls_the_shared_expression(self) -> None:
-        from specify_cli.cli.commands.implement import (
-            _commit_planning_artifacts_transaction,
-        )
+        from specify_cli.cli.commands.implement_planning_commit import _commit_planning_artifacts_transaction
 
         source = inspect.getsource(_commit_planning_artifacts_transaction)
         body = source.split('"""', 2)[-1]
@@ -207,9 +205,7 @@ class TestWriteSideDerivesFromTheSharedExpression:
     def test_flat_legacy_commit_still_lands_on_planning_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Behavior-preserving (NFR-001): a flat/legacy mission's single
         transaction still lands on ``planning_branch`` byte-identically."""
-        from specify_cli.cli.commands.implement import (
-            _commit_planning_artifacts_transaction,
-        )
+        from specify_cli.cli.commands.implement_planning_commit import _commit_planning_artifacts_transaction
 
         repo = tmp_path / "repo"
         _init_repo(repo, branch=_PLANNING_BRANCH)
@@ -257,9 +253,7 @@ class TestDetachedHeadRegression:
     def test_write_side_targets_the_named_branch_even_when_head_is_detached(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from specify_cli.cli.commands.implement import (
-            _commit_planning_artifacts_transaction,
-        )
+        from specify_cli.cli.commands.implement_planning_commit import _commit_planning_artifacts_transaction
 
         repo = tmp_path / "repo"
         _init_repo(repo, branch=_PLANNING_BRANCH)

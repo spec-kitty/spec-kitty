@@ -258,7 +258,7 @@ class TestImplementClaimNoPlanningArtifactSplit:
     as a primary↔coord split."""
 
     def _entries(self) -> list[object]:
-        from specify_cli.cli.commands.implement import _PorcelainEntry
+        from specify_cli.cli.commands.implement_cores import _PorcelainEntry
 
         return [
             _PorcelainEntry(
@@ -273,10 +273,7 @@ class TestImplementClaimNoPlanningArtifactSplit:
     def test_flattened_placement_has_no_coord_split(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from specify_cli.cli.commands.implement import (
-            _placement_coord_filter,
-            _status_paths_for_commit,
-        )
+        from specify_cli.cli.commands.implement_cores import _placement_coord_filter, _status_paths_for_commit
 
         # FR-001b: the coord-vs-primary decision reads the STORED topology, not a
         # per-ref enum. A coord-less (flattened) topology → no coord split.
@@ -296,10 +293,7 @@ class TestImplementClaimNoPlanningArtifactSplit:
     def test_coordination_placement_routes_to_coord_ref(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from specify_cli.cli.commands.implement import (
-            _placement_coord_filter,
-            _status_paths_for_commit,
-        )
+        from specify_cli.cli.commands.implement_cores import _placement_coord_filter, _status_paths_for_commit
 
         _patch_implement_topology(monkeypatch, coord=True)
         coord = CommitTarget(ref="kitty/mission-m-01ABCDEF")
@@ -315,10 +309,7 @@ class TestImplementClaimNoPlanningArtifactSplit:
     def test_primary_placement_commits_status_files(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from specify_cli.cli.commands.implement import (
-            _placement_coord_filter,
-            _status_paths_for_commit,
-        )
+        from specify_cli.cli.commands.implement_cores import _placement_coord_filter, _status_paths_for_commit
 
         _patch_implement_topology(monkeypatch, coord=False)
         primary = CommitTarget(ref="main")

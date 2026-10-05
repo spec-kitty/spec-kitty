@@ -22,7 +22,7 @@ from specify_cli.cli.commands._coordination_doctor import (
 )
 from specify_cli.cli.commands.accept import _commit_residual_acceptance_artifacts, _dirty_paths_with_prefix
 from specify_cli.cli.commands.charter_bundle import _is_git_tracked
-from specify_cli.cli.commands.implement import _ensure_planning_artifacts_committed_git
+from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
 from specify_cli.cli.commands.implement_cores import (
     _feature_dir_status_entries,
     detect_structural_planning_changes,

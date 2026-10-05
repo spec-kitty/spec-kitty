@@ -126,7 +126,7 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import CommitTarget
-from specify_cli.cli.commands.implement import _ensure_planning_artifacts_committed_git
+from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from specify_cli.missions._create import ensure_coordination_branch
