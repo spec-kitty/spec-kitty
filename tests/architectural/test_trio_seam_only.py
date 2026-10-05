@@ -504,12 +504,14 @@ _IO_ALLOWLIST_SITES: tuple[ContentDescriptor, ...] = (
         token_substring="source . read_text ( encoding =",
         occurrence=None,
         rationale=(
-            "_is_self_write_only_diff's WP##.md leg reads the CALLER-supplied "
-            "working-tree path to compare its frontmatter against the "
-            "committed baseline (via the injected GitPort) -- the exact "
-            "filesystem twin of its own meta.json leg above (WP01/#2570.1), "
-            "same lightweight already-scoped read, not a subprocess/worktree/"
-            "placement decision."
+            "_is_self_write_only_diff's text legs read the CALLER-supplied "
+            "working-tree path once: the WP##.md leg compares its frontmatter "
+            "against the committed baseline (WP01/#2570.1), and the #3471 "
+            "status legs compare the event log against the committed log and "
+            "the snapshot against what that log materializes to (both via the "
+            "injected GitPort / the status store) -- the exact filesystem twin "
+            "of its own meta.json leg above, same lightweight already-scoped "
+            "read, not a subprocess/worktree/placement decision."
         ),
     ),
     ContentDescriptor(

@@ -44,3 +44,19 @@ justified-survivor`, and a live `_is_self_write_only_diff` symbol -- rather
 than silently retained, per plan.md's "if implementation finds a genuine
 must-keep, it becomes an explicit, justified registry row, never a silent
 survivor" (WP15 precedent).
+
+**#3471 status-log and snapshot legs (still diff-scoped, no new kind
+derivation).** Under `--no-auto-commit` the predicate also exempts a claim's
+own status writes on a topology without a coordination branch: the event log
+when it is exactly the committed log plus appended claim transitions
+(`planned -> claimed`, `claimed -> in_progress`) and nothing else, and the
+snapshot when that log qualifies and the snapshot's working bytes are exactly
+what the status store materializes from it. Which files take these legs is
+decided by the owner's `is_status_state_path` (the `STATUS_STATE` kind), not
+by a local filename list, so no kind is re-derived here; what the predicate
+adds is again a DIFF verdict the owner's whole-file kind answer cannot give
+(a hand-edited snapshot, a rewritten log prefix, a non-JSON or non-claim
+appended line, or a log the store cannot read all keep the file, so the
+claim is still refused). The allocator's `created_at` stamp likewise counts
+as runtime frontmatter on the `WP##.md` leg only together with a
+`base_commit` change.
