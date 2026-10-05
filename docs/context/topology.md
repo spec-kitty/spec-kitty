@@ -1,6 +1,6 @@
 ---
 title: 'Context: Topology'
-description: 'Glossary context for mission topology: the four topologies, write checkout, repo-root and code lanes, protected target, mission branch, lane work tip, and absorbed lane.'
+description: 'Topology glossary: the four topologies, write checkout, repo-root and code lanes, protected target, mission branch, lane work tip, absorbed lane, started work package.'
 doc_status: active
 updated: '2026-10-04'
 related:
@@ -126,3 +126,29 @@ Terms describing the shape a mission is given at creation and where its work run
 | **Applicable to** | `3.x` |
 | **Do NOT use when** | The concept is whether a work package produces code or planning artifacts — say "work-product kind" (`code_change` / `planning_artifact`). Never write bare "execution_mode" when the kind is meant. |
 | **Related terms** | [write checkout](#write-checkout), [work package](./orchestration.md#work-package) |
+
+---
+
+### Started work package
+
+| | |
+|---|---|
+| **Definition** | A work package whose status history has ever recorded a move into a working lane: `claimed`, `in_progress`, `for_review`, `in_review`, `approved` or `done`, including forced moves and `blocked → in_progress` moves that skip `claimed` (`started_wp_ids`, `src/specify_cli/lanes/frozen_membership.py`). Being reset to `planned`, or canceled, afterwards does not make it unstarted. A move from `planned` straight to `blocked` or `canceled` does not start it. On a re-finalize, a prior [code lane](#code-lane) with no such work package but a recorded [lane work tip](#lane-work-tip) counts as wholly started. A started work package keeps its recorded execution lane when `finalize-tasks` is re-run; see [Execution Lanes](../architecture/execution-lanes.md#re-finalizing-an-active-mission) and ADR [4.x `2026-10-04-2`](../adr/4.x/2026-10-04-2-started-work-package-lane-membership-is-frozen.md). |
+| **Context** | Topology |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Do NOT use when** | The concept is the work package's current status lane — name the lane (`in_progress`, `for_review`, …). "Started" is not a synonym of `in_progress`: a `done`, canceled or reset work package can be started. The concept is the planning-pin question "has execution begun?" (any work package currently past `planned`, `blocked` and `canceled` included) — that is a different predicate. Avoid "active WP" or "in-flight WP", which are ambiguous about resets. |
+| **Related terms** | [LANE_MEMBERSHIP_FROZEN](#lane_membership_frozen), [lane work tip](#lane-work-tip), [code lane](#code-lane), [work package](./orchestration.md#work-package) |
+
+---
+
+### LANE_MEMBERSHIP_FROZEN
+
+| | |
+|---|---|
+| **Definition** | The error code (`LaneMembershipFrozenError`, `src/specify_cli/lanes/compute.py`) with which `spec-kitty agent mission finalize-tasks` refuses a re-finalize that cannot keep every [started work package](#started-work-package) on its recorded execution lane. Its `reason` is one of `started_lanes_collapsed` (started work packages from two lanes would share one), `started_wp_removed` (a started work package's task file was removed without canceling it), `started_wp_kind_changed` (its `execution_mode` would move it across `lane-planning`) or `status_unreadable` (a `lanes.json` exists but the status surface or log cannot be read). It is raised by a read-only preflight before the first status write, `--validate-only` included, and exits 1 with nothing written. The JSON envelope and the non-destructive remedy for each reason are in [finalize-tasks internals §5](../api/finalize-tasks-internals.md#5-started-work-packages-keep-their-lane-lane_membership_frozen). |
+| **Context** | Topology |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Do NOT use when** | The failure is `implement` refusing a lane whose branch or work tip is gone — use `LANE_WORK_TIP_UNKNOWN` or `DESTROYED_LANE` ([lane work tip](#lane-work-tip)). The failure is a cyclic lane graph — that is `LANE_DEPENDENCY_CYCLE`. Never answer it by deleting `lanes.json`, forcing, or resetting git; the remedies keep the recorded lanes. |
+| **Related terms** | [started work package](#started-work-package), [code lane](#code-lane), [repo-root lane](#repo-root-lane) |

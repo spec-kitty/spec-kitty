@@ -2,7 +2,7 @@
 title: Execution Lanes
 description: "Spec Kitty's lane-based execution model: finalize-tasks computes lanes.json from dependencies and file ownership, giving each lane one worktree and branch to preserve parallelism."
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-04'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/branch-target-routing.md
@@ -103,25 +103,36 @@ Per-work-package worktrees allowed overlapping work packages to run in parallel 
 
 ## Parallelism Preservation
 
-`finalize-tasks` assigns WPs to lanes based on two criteria:
+`finalize-tasks` groups WPs into lanes with a union-find over three rules
+(`compute_lanes`, `src/specify_cli/lanes/compute.py`):
 
-1. **File ownership overlap** — WPs that declare no files in common are placed in separate lanes and run in parallel.
-2. **Explicit dependencies** — If WP B lists WP A in its `dependencies` field, they are assigned to the same lane and run sequentially (A then B).
+1. **File ownership overlap** (`write_scope_overlap`) — WPs whose `owned_files` overlap share a lane.
+2. **Shared surface** (`surface_heuristic`) — WPs that share a predicted surface keyword share a lane unless their ownership is provably disjoint (see below).
+3. **Frozen lane membership** (`frozen_lane_membership`) — on a re-finalize, started WPs that were recorded in the same lane stay together (see [Re-finalizing an active Mission](#re-finalizing-an-active-mission)).
 
-When neither criterion forces a merge, the pipeline keeps WPs in separate lanes to maximise parallelism. When a merge is forced, it is recorded in `lanes.json` under the `collapse_report` field:
+Dependency edges do not merge lanes by themselves. They become lane-level dependencies, so disjoint upstream lanes run in parallel and the WP that depends on them is the synchronization point. Inside one lane, WPs run in dependency order.
+
+When no rule forces a merge, WPs stay in separate lanes to maximise parallelism. Every merge is recorded in `lanes.json` under `collapse_report`:
 
 ```json
 {
-  "collapse_report": [
-    {
-      "merged_wps": ["WP02", "WP03"],
-      "reason": "overlapping owned files: src/foo.py"
-    }
-  ]
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP03",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/foo.py' vs 'src/foo.py'"
+      }
+    ],
+    "total_merges": 1,
+    "independent_wps_collapsed": 1,
+    "by_rule": {"write_scope_overlap": 1}
+  }
 }
 ```
 
-Each entry in `collapse_report` lists the WPs that were merged into a single lane and the reason (file overlap or explicit dependency). Inspect this field after `finalize-tasks` to understand why two WPs share a lane.
+Each event names the two WPs merged, the rule and its evidence. `independent_wps_collapsed` counts merges of WPs with no direct or transitive dependency between them; `frozen_lane_membership` merges are never counted there, because those WPs already shared a lane. Inspect this field after `finalize-tasks` to understand why two WPs share a lane.
 
 ### Disjoint Ownership vs. the Surface Heuristic (bulk-edit missions)
 
@@ -154,6 +165,31 @@ similarly-worded bulk-edit WPs is exactly the kind of input that could
 otherwise produce a lane graph the depth function has to paper over instead
 of compute correctly; skipping the merge when ownership is disjoint avoids
 manufacturing that situation in the first place.
+
+## Re-finalizing an active Mission
+
+Re-running `spec-kitty agent mission finalize-tasks --mission <handle>` on a Mission that already has a `lanes.json` is supported: you can amend work packages mid-execution and re-finalize. Lanes are recomputed, but **a started work package keeps its recorded lane** (ADR [4.x `2026-10-04-2`](../adr/4.x/2026-10-04-2-started-work-package-lane-membership-is-frozen.md), #5573).
+
+**Why.** A started work package has commits on its lane branch and a [lane work tip](../context/topology.md#lane-work-tip). Moving it to another lane would strand that work: the next `implement` on it fails with `LANE_WORK_TIP_UNKNOWN`, and a lane-mate could be bound to a branch that carries foreign commits.
+
+**What counts as started.** A [started work package](../context/topology.md#started-work-package) is one whose status history has ever recorded a move into `claimed`, `in_progress`, `for_review`, `in_review`, `approved` or `done`. A later reset to `planned`, or a cancellation, does not unstart it. As fallback evidence, a prior code lane with no such work package but a recorded lane work tip counts as wholly started.
+
+**How lane ids are assigned on a re-finalize.**
+
+1. A group that contains started work packages takes their recorded lane id.
+2. Every other group that shares at least one member with an unused prior lane reads back the one it shares the most members with. A tie goes to the lowest prior lane id.
+3. A group that shares no member with any unused prior lane gets the next free lane id. Lane ids that held started work are never handed to a new group.
+
+Started work packages recorded in the same lane are kept in one group even when their ownership no longer overlaps. An unstarted work package can still move: if an amendment makes a planned WP01 overlap an in-progress WP02, WP01 joins WP02's lane.
+
+**When finalize refuses.** If an amendment cannot keep every started work package on its recorded lane, `finalize-tasks` refuses with `LANE_MEMBERSHIP_FROZEN` before it writes anything (no status event, no `lanes.json`, work package files restored). The cases are:
+
+- the amendment would put started work packages from two lanes into one lane;
+- a started work package's task file was removed without canceling it;
+- a started work package changed `execution_mode`, so it would cross the `lane-planning` boundary;
+- the status log cannot be read.
+
+`--validate-only` reports the same refusal, and its lane preview now shows the lane ids a real run would write. `single_branch` Missions are not affected: their one repo-root lane has nothing to move. The JSON envelope and the remedy for each case are in [finalize-tasks internals §5](../api/finalize-tasks-internals.md#5-started-work-packages-keep-their-lane-lane_membership_frozen).
 
 ## See Also
 

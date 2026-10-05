@@ -2,7 +2,7 @@
 title: '4.x Architectural Decision Records'
 description: 'Index for Spec Kitty 4.x architectural decision records: where new ADRs land from the 4.0.0 cycle onward, the naming convention, and how to register one.'
 doc_status: active
-updated: '2026-10-01'
+updated: '2026-10-04'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 ---
@@ -50,3 +50,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-01 | [the decision ledger is a PRIMARY-partition kind (reverses the #3928 COORD intent)](2026-10-01-3-decision-ledger-primary-partition.md) |
 | 2026-10-03 | [replace charter reads and writes through a staged Java service strangler](2026-10-03-1-charter-read-write-service-strangler.md) |
 | 2026-10-04 | [a Mission waives the contracts/ deliverable with a meta.json declaration](2026-10-04-1-mission-contracts-waiver-in-meta-json.md) |
+| 2026-10-04 | [a started work package keeps its recorded execution lane on re-finalize](2026-10-04-2-started-work-package-lane-membership-is-frozen.md) |

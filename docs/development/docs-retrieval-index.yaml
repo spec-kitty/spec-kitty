@@ -3440,6 +3440,16 @@ pages:
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
+  - path: "docs/adr/4.x/2026-10-04-2-started-work-package-lane-membership-is-frozen.md"
+    title: "ADR: a started work package keeps its recorded execution lane on re-finalize"
+    divio_type: "none"
+    abstract: "Lane computation keeps started work packages on their recorded lane by construction and refuses unsatisfiable amendments with LANE_MEMBERSHIP_FROZEN before any write."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "related", text: "Related", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -4193,12 +4203,19 @@ pages:
   - path: "docs/api/finalize-tasks-internals.md"
     title: "finalize-tasks internals reference"
     divio_type: "none"
-    abstract: "finalize-tasks internals: empty owned_files, lane-depth cycle safety, the planning_commit_sha refresh override, and the automatic planning-pin refresh."
+    abstract: "finalize-tasks internals: empty owned_files, lane-depth cycle safety, the planning-pin refresh (override and automatic), and the LANE_MEMBERSHIP_FROZEN refusal."
     anchors:
     - {slug: "1-explicit-empty-owned-files", text: "1. Explicit empty `owned_files`", level: 2}
     - {slug: "2-lane-depth-cycle-safety", text: "2. Lane-depth cycle safety", level: 2}
     - {slug: "3-refreshing-the-recorded-planning-commit-after-an-amendment-4141", text: "3. Refreshing the recorded planning commit after an amendment (#4141)", level: 2}
     - {slug: "4-automatic-planning-pin-refresh-and-planning-commit-refresh", text: "4. Automatic planning-pin refresh and `planning_commit_refresh`", level: 2}
+    - {slug: "5-started-work-packages-keep-their-lane-lane-membership-frozen", text: "5. Started work packages keep their lane (`LANE_MEMBERSHIP_FROZEN`)", level: 2}
+    - {slug: "where-the-check-runs", text: "Where the check runs", level: 3}
+    - {slug: "evidence", text: "Evidence", level: 3}
+    - {slug: "validate-only", text: "`--validate-only`", level: 3}
+    - {slug: "refusal-envelope", text: "Refusal envelope", level: 3}
+    - {slug: "reasons-and-remedies", text: "Reasons and remedies", level: 3}
+    - {slug: "not-the-planning-pin-probe", text: "Not the planning-pin probe", level: 3}
     - {slug: "module-map", text: "Module map", level: 2}
   - path: "docs/api/index.md"
     title: "Reference"
@@ -5048,6 +5065,7 @@ pages:
     - {slug: "why-this-replaced-per-wp-worktrees", text: "Why This Replaced Per-WP Worktrees", level: 2}
     - {slug: "parallelism-preservation", text: "Parallelism Preservation", level: 2}
     - {slug: "disjoint-ownership-vs-the-surface-heuristic-bulk-edit-missions", text: "Disjoint Ownership vs. the Surface Heuristic (bulk-edit missions)", level: 3}
+    - {slug: "re-finalizing-an-active-mission", text: "Re-finalizing an active Mission", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}
     - {slug: "lane-specific-test-database-isolation-fr-006", text: "Lane-Specific Test Database Isolation (FR-006)", level: 2}
   - path: "docs/architecture/explanation-index.md"
@@ -10605,7 +10623,7 @@ pages:
   - path: "docs/context/topology.md"
     title: "Context: Topology"
     divio_type: "none"
-    abstract: "Glossary context for mission topology: the four topologies, write checkout, repo-root and code lanes, protected target, mission branch, lane work tip, and absorbed lane."
+    abstract: "Topology glossary: the four topologies, write checkout, repo-root and code lanes, protected target, mission branch, lane work tip, absorbed lane, started work package."
     anchors:
     - {slug: "context-topology", text: "Context: Topology", level: 2}
     - {slug: "topology", text: "Topology", level: 3}
@@ -10617,6 +10635,8 @@ pages:
     - {slug: "lane-work-tip", text: "Lane work tip", level: 3}
     - {slug: "absorbed-lane", text: "Absorbed lane", level: 3}
     - {slug: "execution-mode-stamp", text: "Execution-mode stamp", level: 3}
+    - {slug: "started-work-package", text: "Started work package", level: 3}
+    - {slug: "lane-membership-frozen", text: "LANE_MEMBERSHIP_FROZEN", level: 3}
   - path: "docs/contracts/handoff-packet-v1.md"
     title: "Handoff Packet v1"
     divio_type: "none"
