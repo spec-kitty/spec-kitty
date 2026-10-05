@@ -130,10 +130,36 @@ def test_a_failed_staging_is_reported_and_the_message_says_unstaged(repo: Path) 
 
     assert result.exit_code == 0, result.output
     text = flat(result.output)
-    assert "Warning: Could not stage the claim's changes: git add -- " in text
+    assert "Warning: Could not stage the claim's changes: git add --force -- " in text
     assert "→ WP01 moved to 'doing' (auto-commit disabled, changes left unstaged)" in text
     assert "changes staged only" not in text
     assert git(repo, "diff", "--cached", "--name-only") == ""
+
+
+def test_an_ignored_claim_file_is_staged_with_the_rest_like_the_auto_commit_would_commit_it(repo: Path) -> None:
+    """A consumer repository that ignores the status snapshot: the claim stages it with ``--force``,
+    exactly as ``safe_commit`` would commit it, and never leaves the rest half-staged behind a warning.
+
+    Planted break (proven red): stage with plain ``git add`` (git then stages the other paths and
+    refuses the ignored one, and the claim reports "changes left unstaged").
+    """
+    mission = _independent_lanes_mission(repo)
+    rel = f"kitty-specs/{SLUG}"
+    (repo / ".gitignore").write_text(f"{rel}/status.json\n", encoding="utf-8")
+    git(repo, "rm", "-q", "--cached", f"{rel}/status.json")
+    git(repo, "add", ".gitignore")
+    git(repo, "commit", "-q", "-m", "ignore the status snapshot")
+    assert (mission.feature_dir / "status.json").exists()
+
+    result = _claim("WP01")
+
+    assert result.exit_code == 0, result.output
+    text = flat(result.output)
+    assert "→ WP01 moved to 'doing' (auto-commit disabled, changes staged only)" in text
+    assert "Could not stage" not in text
+    staged = set(git(repo, "diff", "--cached", "--name-only").splitlines())
+    assert {f"{rel}/tasks/WP01-test.md", f"{rel}/status.events.jsonl", f"{rel}/status.json", f"{rel}/meta.json"} <= staged
+    assert git(repo, "diff", "--name-only") == ""
 
 
 def test_a_hand_edit_to_the_spec_between_claims_still_blocks(repo: Path) -> None:

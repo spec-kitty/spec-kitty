@@ -15,6 +15,7 @@ import pytest
 import typer
 
 from specify_cli.cli.commands import implement_claim
+from specify_cli.cli.console import console
 from specify_cli.git.commit_helpers import SafeCommitHeadMismatch, SafeCommitPathPolicyError
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.status import Lane, StatusEvent
@@ -310,3 +311,23 @@ def test_start_status_translates_a_transition_error(claim_repo: SimpleNamespace,
 
     assert excinfo.value.exit_code == 1
     assert capsys.readouterr().out.startswith("Error: Could not start implementation status: ")
+
+
+def test_a_non_git_failure_to_gather_the_claim_bundle_is_reported_as_unstaged(tmp_path: Path) -> None:
+    """N-8: with auto-commit off, a non-git failure while gathering the bundle to stage says what
+    failed -- the staging -- and that the changes were left unstaged; it no longer escapes to
+    ``commit_claim``'s misleading "Could not update WP status" warning.
+
+    Planted break (proven red): gather the bundle outside the staging ``try``.
+    """
+
+    def _unreadable_bundle() -> list[Path]:
+        raise OSError("status.json: permission denied")
+
+    with console.capture() as capture:
+        implement_claim._stage_claim_writes(tmp_path, "WP01", _unreadable_bundle)
+
+    text = " ".join(capture.get().split())
+    assert "Warning: Could not stage the claim's changes: status.json: permission denied" in text
+    assert "→ WP01 moved to 'doing' (auto-commit disabled, changes left unstaged)" in text
+    assert "Could not update WP status" not in text

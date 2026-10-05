@@ -7,14 +7,14 @@ Stays in the command package because the claim commit imports
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any
 
 import typer
 from specify_cli.cli.console import console
 
-from kernel.git import GitCommandError, run_git
+from kernel.git import run_git
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import (
@@ -192,18 +192,23 @@ def claim_commit_paths(
     return paths
 
 
-def _stage_claim_writes(repo_root: Path, wp_id: str, paths: Iterable[Path]) -> None:
+def _stage_claim_writes(repo_root: Path, wp_id: str, collect_paths: Callable[[], Iterable[Path]]) -> None:
     """``--no-auto-commit``: stage the claim's own writes, so "staged only" is true (#3471).
 
     Stages the claim-commit bundle (less ``config.yaml``) in the repository root
-    checkout and commits nothing. A failed ``git add`` is reported, never hidden:
-    the message then says the changes were left unstaged.
+    checkout and commits nothing. ``git add --force`` matches ``safe_commit``'s
+    staging, so a claim file a consumer repository ignores is staged like the auto-commit
+    would commit it, and git never stages part of the bundle before refusing an ignored
+    path. Gathering the bundle runs here too: the claim has already landed, so a
+    failure to gather or stage it (git or not) is reported, never hidden and never
+    worded as a failed status update; the message then says the changes were left
+    unstaged.
     """
-    resolved_root = repo_root.resolve()
-    rel_paths = [path.relative_to(resolved_root).as_posix() for path in paths if path.is_relative_to(resolved_root) and path.exists()]
     try:
-        run_git(repo_root, "add", "--", *rel_paths)
-    except GitCommandError as exc:
+        resolved_root = repo_root.resolve()
+        rel_paths = [path.relative_to(resolved_root).as_posix() for path in collect_paths() if path.is_relative_to(resolved_root) and path.exists()]
+        run_git(repo_root, "add", "--force", "--", *rel_paths)
+    except Exception as exc:  # staging is best-effort: the claim's status write already landed
         console.print(f"[yellow]Warning:[/yellow] Could not stage the claim's changes: {exc}")
         console.print(f"[cyan]→ {wp_id} moved to 'doing' (auto-commit disabled, changes left unstaged)[/cyan]")
         return
@@ -237,7 +242,7 @@ def _commit_wp_claim_status(
         _stage_claim_writes(
             repo_root,
             wp_id,
-            claim_commit_paths(
+            lambda: claim_commit_paths(
                 repo_root=repo_root,
                 feature_dir=feature_dir,
                 wp_file=wp_file,
