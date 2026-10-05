@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-MESSAGE_OPTION_HELP = "Commit message. Repeat -m to add paragraphs (joined by a blank line, as git commit does)."
+MESSAGE_OPTION_HELP = "Commit message. Repeat -m to add paragraphs (joined by a blank line, the same way git does)."
 
 
 def join_message_paragraphs(paragraphs: Sequence[str]) -> str:

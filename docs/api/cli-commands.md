@@ -5817,7 +5817,8 @@ _Show which team admits this checkout and which relay carries its moments._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --message    -m      TEXT  Commit message. Repeat -m to add paragraphs    │
-│                               (joined by a blank line, as git commit does).  │
+│                               (joined by a blank line, the same way git      │
+│                               does).                                         │
 │                               [required]                                     │
 │    --to-branch          TEXT  Short branch name the commit must land on. The │
 │                               helper asserts HEAD matches this branch before │
@@ -5883,8 +5884,8 @@ _Emit the open-Ops reminder for the Claude Code Stop hook._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --message         -m      TEXT  Commit message. Repeat -m to add          │
-│                                    paragraphs (joined by a blank line, as    │
-│                                    git commit does).                         │
+│                                    paragraphs (joined by a blank line, the   │
+│                                    same way git does).                       │
 │                                    [required]                                │
 │    --mission                 TEXT  Mission slug (e.g. '001-my-mission').     │
 │                                    When omitted, the slug is derived from    │
