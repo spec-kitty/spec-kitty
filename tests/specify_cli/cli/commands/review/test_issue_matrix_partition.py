@@ -24,7 +24,6 @@ import contextlib
 import json
 import subprocess
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 import typer
@@ -43,7 +42,6 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 _ISSUE_NUMBER = "11"
 _ISSUE_KEY = f"#{_ISSUE_NUMBER}"
 _GATING_SPEC_TEXT = f"# Spec\n\nFix the pagination bug in {_ISSUE_KEY}.\n"
-_CORE_MODULE = "specify_cli.core.mission_creation"
 
 
 class _RecordingConsole:
@@ -77,15 +75,15 @@ def _init_git_repo(repo: Path, *, branch: str = "main") -> None:
 
 
 def _create_mission(repo: Path, slug: str, topology: MissionTopology) -> MissionCreationResult:
-    with patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False):
-        return create_mission_core(
-            repo,
-            slug,
-            friendly_name=slug.replace("-", " ").title(),
-            purpose_tldr=f"Deliver {slug} for the WP03 partition-split lock.",
-            purpose_context=(f"Exercises the {slug} issue-matrix partition split (#5171) end to end."),
-            topology=topology,
-        )
+    return create_mission_core(
+        repo,
+        slug,
+        allow_worktree_context=True,
+        friendly_name=slug.replace("-", " ").title(),
+        purpose_tldr=f"Deliver {slug} for the WP03 partition-split lock.",
+        purpose_context=(f"Exercises the {slug} issue-matrix partition split (#5171) end to end."),
+        topology=topology,
+    )
 
 
 def _write_gating_spec(feature_dir: Path) -> None:

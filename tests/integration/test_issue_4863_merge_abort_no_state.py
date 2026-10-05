@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from contextlib import AbstractContextManager
+from contextlib import AbstractContextManager, chdir
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -62,11 +62,7 @@ def _init_repo(repo: Path) -> None:
 
 def _mission_create_patches(repo: Path) -> list[AbstractContextManager[Any]]:
     return [
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=repo),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}._commit_feature_file"),
+        chdir(repo),
         patch(
             "specify_cli.cli.commands.agent.mission.locate_project_root",
             return_value=repo,

@@ -470,33 +470,22 @@ def test_specify_twice_for_same_slug_fails_closed_with_structured_error(tmp_path
     with a structured ``error_code``, leaving the first mission's meta.json
     byte-identical (never a silent overwrite).
 
-    Ground truth (verified during implementation by direct invocation): a
-    second ``create_mission`` call for the same slug that regenerates
-    byte-identical scaffold content (same minted ``mission_id`` -> same
-    ``mid8`` -> same directory, same ``created_at``) makes the underlying
-    ``safe_commit`` see an empty changeset and raise -- this is the
-    "already-established duplicate-mission error" the WP prompt refers to;
-    classifying it into a stable ``error_code`` (rather than letting the bare
-    ``{"error": ...}`` propagate uncoded) is this WP's job.
-
-    ``mission_id`` is minted from a real ULID (``str(ULID())``,
-    ``mission_creation.py:666``), whose first-8-char ``mid8`` prefix is
-    timestamp-derived at ~256ms granularity -- colliding it by real-time
-    proximity alone was observed to be FLAKY (two back-to-back calls through
-    the full create_mission pipeline, with real git I/O between them, land in
-    different 256ms buckets often enough to matter). Freeze both entropy
-    sources the scaffold content depends on (``ULID`` mint + ``created_at``)
-    so the collision is deterministic on every run, not a timing bet.
+    Ground truth: the first ``specify`` commits its scaffold on the
+    (unprotected) planning branch, so it is a LIVE mission; the #4033
+    idempotency guard refuses the second ``specify`` for the same slug and
+    mission type before any write, whatever ``mission_id`` the second call
+    mints. Classifying that refusal into a stable ``error_code`` (rather than
+    letting the bare ``{"error": ...}`` propagate uncoded) is this WP's job.
+    The refusal the second call hits depends on its ``mid8``: with the first
+    call's ``mid8`` (same ~256ms ULID bucket) the guard refuses with
+    ``MISSION_ALREADY_EXISTS``; with a fresh ``mid8`` the protected-mint dirty
+    check refuses first on the first mission's untracked ``spec.md``
+    (``MISSION_CREATE_FAILED``). Both outcomes are identical before and after
+    #5634, so the mint is frozen on the identity leaf to pin the duplicate case
+    deterministically (the orchestrator-api verb exposes no identity input).
     """
-    from ulid import ULID
-
-    frozen_mission_id = ULID()
-    monkeypatch.setattr("specify_cli.core.mission_creation.ULID", lambda: frozen_mission_id)
-    monkeypatch.setattr(
-        "specify_cli.core.mission_creation.now_utc_iso",
-        lambda: "2026-01-01T00:00:00+00:00",
-    )
-
+    frozen_mission_id = "01M4563SAAAAAAAAAAAAAAAAAA"
+    monkeypatch.setattr("specify_cli.core.mission_creation_identity.ULID", lambda: frozen_mission_id)
     repo = _init_repo(tmp_path)
 
     first = _specify(repo, "wp03-scenario4")
@@ -511,7 +500,7 @@ def test_specify_twice_for_same_slug_fails_closed_with_structured_error(tmp_path
     assert second["error_code"] != ""
     # #3861: the duplicate refusal arrives as the delegate's TYPED
     # ``MissionAlreadyExistsError`` signal (emitted by the #4033 guard, the
-    # first refusal a frozen-``mission_id`` re-run hits), carried through the
+    # first refusal a same-slug re-run hits), carried through the
     # ``--json`` error payload as ``error_code`` -- pinned here so a future
     # message-wording change in the delegate can never flip the reported
     # failure code.
@@ -519,9 +508,10 @@ def test_specify_twice_for_same_slug_fails_closed_with_structured_error(tmp_path
     # Never a bare unstructured exception surface.
     assert "message" in second["data"]
 
-    # The first mission directory is untouched.
+    # The first mission directory is untouched, and no second one was scaffolded.
     assert feature_dir.exists()
     assert (feature_dir / "meta.json").read_text(encoding="utf-8") == meta_before
+    assert [p.name for p in feature_dir.parent.glob("wp03-scenario4-*")] == [feature_dir.name]
 
 
 # ---------------------------------------------------------------------------

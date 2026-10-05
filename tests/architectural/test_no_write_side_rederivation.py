@@ -163,6 +163,19 @@ _WRITE_DIR_CONSUMER_MODULES: tuple[Path, ...] = (
     _SRC / "cli" / "commands" / "agent" / "tasks_move_task_hops.py",
     _SRC / "cli" / "commands" / "agent" / "tasks_move_task_executor.py",
     _SRC / "agent_tasks_ports.py",
+    # #5634: mission_creation.py (an original adopted module) was split into
+    # leaf modules with the bodies moved verbatim; the scan keeps following the
+    # code, so every leaf joins (the façade stays in the adopted scope above).
+    _SRC / "core" / "mission_creation_errors.py",
+    _SRC / "core" / "mission_creation_identity.py",
+    _SRC / "core" / "mission_creation_roots.py",
+    _SRC / "core" / "mission_creation_duplicates.py",
+    _SRC / "core" / "mission_creation_protected_mint.py",
+    _SRC / "core" / "mission_creation_scaffold.py",
+    _SRC / "core" / "mission_creation_meta.py",
+    _SRC / "core" / "mission_creation_events.py",
+    _SRC / "core" / "mission_creation_commit.py",
+    _SRC / "core" / "mission_creation_rollback.py",
     _SRC / "cli" / "commands" / "retrospect.py",
     _SRC / "cli" / "commands" / "agent_retrospect.py",
 )
@@ -1378,7 +1391,8 @@ _COORD_WRITER_CENSUS: tuple[tuple[str, str], ...] = (
     ("src/specify_cli/cli/commands/accept.py", "_coord_status_feature_dir"),
     ("src/specify_cli/cli/commands/retrospect.py", "_canonical_events_write_path"),
     ("src/specify_cli/cli/commands/agent_retrospect.py", "_canonical_events_write_dir"),
-    ("src/specify_cli/core/mission_creation.py", "_emit_create_events"),
+    # #5634: re-pointed; ``_emit_create_events`` moved verbatim to the events leaf.
+    ("src/specify_cli/core/mission_creation_events.py", "_emit_create_events"),
     # Operator ruling Q4 / research D21: the consolidation and ``materialize``
     # sites were MIGRATED (WP18), not allow-listed.
     ("src/specify_cli/consolidation/phase_advance.py", "_phase_baseline_and_surface"),

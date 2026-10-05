@@ -48,6 +48,22 @@ def _init_git_repo(repo: Path) -> None:
     subprocess.run(["git", "branch", "-M", _ORIGINAL_BRANCH], cwd=repo, capture_output=True, check=True)
 
 
+def _refuse_commits_on(repo: Path, branch: str, message: str) -> None:
+    """Real hard git failure: a ``pre-commit`` hook that refuses every commit on ``branch``.
+
+    ``core.hooksPath`` is pinned repo-locally so a global setting cannot bypass it.
+    """
+    hooks = repo / ".git" / "hooks"
+    hooks.mkdir(parents=True, exist_ok=True)
+    hook = hooks / "pre-commit"
+    hook.write_text(
+        f'#!/bin/sh\nif [ "$(git rev-parse --abbrev-ref HEAD)" = "{branch}" ]; then echo "{message}" >&2; exit 1; fi\nexit 0\n',
+        encoding="utf-8",
+    )
+    hook.chmod(0o755)
+    subprocess.run(["git", "config", "core.hooksPath", str(hooks)], cwd=repo, capture_output=True, check=True)
+
+
 def _mission_summary(slug: str) -> dict[str, str]:
     title = slug.replace("-", " ").strip() or "test mission"
     return {
@@ -201,7 +217,7 @@ def test_restore_helper_switches_back_and_deletes_new_branches(tmp_path: Path) -
     assert _coordination_branches(tmp_path) == []
 
 
-def test_meta_json_commit_hard_failure_raises_and_restores_git_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_meta_json_commit_hard_failure_raises_and_restores_git_state(tmp_path: Path) -> None:
     """FR-001 / NFR-003 (primary mission-type call site, mission_creation.py:767).
 
     A hard git failure while committing ``meta.json`` must propagate out of
@@ -212,11 +228,10 @@ def test_meta_json_commit_hard_failure_raises_and_restores_git_state(tmp_path: P
     leave the checkout's branch, HEAD commit, and index tree indistinguishable
     from before ``create_mission_core`` was invoked (NFR-003).
 
-    The mock raises the RAW underlying error exactly as production's
-    ``safe_commit`` would (no "meta.json commit failed" prefix baked in --
-    that prefix is production's own contribution via the ``try/except``
-    wrapper around each ``_commit_feature_file`` call site). This proves the
-    step-naming context comes from production code, not from the mock.
+    A real ``pre-commit`` hook rejects the commit, so the raw error is
+    git's own (no "meta.json commit failed" prefix -- that prefix is
+    production's own contribution via the ``try/except`` wrapper around each
+    ``_commit_feature_file`` call site).
 
     Revert sensitivity: reverting the fix (re-wrapping the
     ``_commit_feature_file`` call in ``contextlib.suppress(Exception)``)
@@ -239,16 +254,10 @@ def test_meta_json_commit_hard_failure_raises_and_restores_git_state(tmp_path: P
         check=True,
     ).stdout.strip()
 
-    # Simulates a hard git failure (e.g. a pre-commit hook that always
-    # rejects) surfacing from inside the meta.json commit call -- the RAW
-    # ``safe_commit``-shaped error, with no step-name prefix (production adds
-    # that itself; see the docstring above).
-    boom = RuntimeError(f"safe_commit: git commit failed in {tmp_path} for destination_ref='main': pre-commit hook rejected (exit 1)")
-
-    def _explode(*_args: object, **_kwargs: object) -> None:
-        raise boom
-
-    monkeypatch.setattr("specify_cli.core.mission_creation._commit_feature_file", _explode)
+    # A real hard git failure: a pre-commit hook rejects the scaffold
+    # commit on the operator's (unprotected) branch. The raw git error carries
+    # no step-name prefix (production adds that itself; see the docstring above).
+    _refuse_commits_on(tmp_path, _ORIGINAL_BRANCH, "pre-commit hook rejected")
 
     with pytest.raises(RuntimeError, match="pre-commit hook rejected") as exc_info:
         create_mission_core(
@@ -259,8 +268,8 @@ def test_meta_json_commit_hard_failure_raises_and_restores_git_state(tmp_path: P
         )
 
     # NFR-001: the step name is added by production's try/except wrapper
-    # around the ``_commit_feature_file`` call -- not present in the mock's
-    # raw raise -- so this proves production, not the mock, names the step.
+    # around the ``_commit_feature_file`` call -- not present in git's raw
+    # error -- so this proves production names the step.
     assert "meta.json commit failed" in str(exc_info.value)
 
     # NFR-003: branch, HEAD commit, and index tree are unchanged -- no
@@ -306,19 +315,18 @@ def test_restore_helper_preserves_pre_existing_coordination_branches(tmp_path: P
     assert new not in remaining
 
 
-def test_meta_json_commit_hard_failure_message_names_step_and_git_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_meta_json_commit_hard_failure_message_names_step_and_git_error(tmp_path: Path) -> None:
     """NFR-001 / Acceptance Scenario 2: the raised exception's message names
     the failing step ("meta.json commit") AND surfaces the underlying git
     error text, so a calling agent can distinguish this failure from any
     other ``specify`` failure without parsing prose -- in both the
     human-readable exit path (asserted here) and the ``--json`` path.
 
-    The mock raises the RAW underlying error exactly as production's
-    ``safe_commit`` would (no "meta.json commit failed" prefix baked in).
+    A real ``pre-commit`` hook fails the commit with git-shaped error text;
+    ``safe_commit`` raises it raw (no "meta.json commit failed" prefix).
     The step-name prefix asserted below must therefore come from
     production's own ``try/except`` wrapper around the
-    ``_commit_feature_file`` call, not from the mock -- proving NFR-001 is
-    met in production, not just in the test double.
+    ``_commit_feature_file`` call -- proving NFR-001 is met in production.
 
     WP01 owns only ``mission_creation.py`` and this test file -- the
     ``--json`` envelope itself is assembled by ``_run_create_core_phase``'s
@@ -340,14 +348,8 @@ def test_meta_json_commit_hard_failure_message_names_step_and_git_error(tmp_path
     "DID NOT RAISE".
     """
     _init_git_repo(tmp_path)
-    # RAW underlying error, shaped exactly like ``safe_commit``'s own
-    # RuntimeError -- no "meta.json commit failed" prefix baked in here.
-    boom = RuntimeError(f"safe_commit: git commit failed in {tmp_path} for destination_ref='main': fatal: unable to write new index file (disk full)")
-
-    def _explode(*_args: object, **_kwargs: object) -> None:
-        raise boom
-
-    monkeypatch.setattr("specify_cli.core.mission_creation._commit_feature_file", _explode)
+    # A real failing commit whose git error text is the disk-full message.
+    _refuse_commits_on(tmp_path, _ORIGINAL_BRANCH, "fatal: unable to write new index file (disk full)")
 
     with pytest.raises(RuntimeError) as exc_info:
         create_mission_core(
@@ -359,7 +361,7 @@ def test_meta_json_commit_hard_failure_message_names_step_and_git_error(tmp_path
 
     message = str(exc_info.value)
     # Names the failing step -- added by production's try/except wrapper
-    # around the ``_commit_feature_file`` call, not by the mock.
+    # around the ``_commit_feature_file`` call, not by git.
     assert "meta.json commit failed" in message
     # ... and surfaces the underlying git error text, not a generic message.
     assert "unable to write new index file" in message
@@ -368,7 +370,7 @@ def test_meta_json_commit_hard_failure_message_names_step_and_git_error(tmp_path
     assert "unable to write new index file" in str(exc_info.value.__cause__)
 
 
-def test_meta_json_commit_empty_changeset_surfaces_typed_already_exists(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_meta_json_commit_empty_changeset_surfaces_typed_already_exists(tmp_path: Path) -> None:
     """#3861: a genuine empty-changeset refusal at the scaffold commit (a
     byte-identical scaffold already committed -- the duplicate-mission
     signature the WP03 tracer observed) is re-raised as the TYPED
@@ -376,29 +378,29 @@ def test_meta_json_commit_empty_changeset_surfaces_typed_already_exists(tmp_path
     the "meta.json commit failed" step context in the message.
 
     The classification is by exception TYPE (``SafeCommitStagedTreeUnchanged``
-    -- safe_commit's index-authority no-op signal), never by message prose:
-    the mock raises the typed error exactly as production's ``safe_commit``
-    now does, with no prefix baked in.
+    -- safe_commit's index-authority no-op signal), never by message prose.
+    Reproduced for real -- a second create with the SAME identity
+    (``_mission_id``/``_created_at``) and ``allow_duplicate=True`` (past the
+    #4033 guard) regenerates a byte-identical, already-committed scaffold, so
+    the real ``safe_commit`` raises the typed signal.
     """
-    from specify_cli.core.mission_creation import MissionAlreadyExistsError
+    from specify_cli.core.mission_creation import MissionAlreadyExistsError, _create_mission_core_failure_atomic
     from specify_cli.git.commit_helpers import SafeCommitStagedTreeUnchanged
 
     _init_git_repo(tmp_path)
-
-    boom = SafeCommitStagedTreeUnchanged(destination_ref=_ORIGINAL_BRANCH)
-
-    def _explode(*_args: object, **_kwargs: object) -> None:
-        raise boom
-
-    monkeypatch.setattr("specify_cli.core.mission_creation._commit_feature_file", _explode)
+    identity = {"_mission_id": "01KABCDEFGHJKMNPQRSTVWXYZ0", "_created_at": "2026-01-01T00:00:00+00:00"}
+    kwargs = {
+        "allow_worktree_context": True,
+        "allow_duplicate": True,
+        "topology": MissionTopology.LANES,
+        **_mission_summary("meta-commit-empty-changeset"),
+        **identity,
+    }
+    first = _create_mission_core_failure_atomic(tmp_path, "meta-commit-empty-changeset", **kwargs)
+    assert first.feature_dir / "meta.json" not in first.uncommitted_files, "the first scaffold must be committed"
 
     with pytest.raises(MissionAlreadyExistsError) as exc_info:
-        create_mission_core(
-            tmp_path,
-            "meta-commit-empty-changeset",
-            allow_worktree_context=True,
-            **_mission_summary("meta-commit-empty-changeset"),
-        )
+        _create_mission_core_failure_atomic(tmp_path, "meta-commit-empty-changeset", **kwargs)
 
     assert exc_info.value.error_code == "MISSION_ALREADY_EXISTS"
     # NFR-001 step context is preserved by the typed re-raise, verbatim with
@@ -406,4 +408,4 @@ def test_meta_json_commit_empty_changeset_surfaces_typed_already_exists(tmp_path
     assert "meta.json commit failed" in str(exc_info.value)
     assert "empty changeset" in str(exc_info.value)
     # The exception chain preserves the typed underlying signal.
-    assert exc_info.value.__cause__ is boom
+    assert isinstance(exc_info.value.__cause__, SafeCommitStagedTreeUnchanged)

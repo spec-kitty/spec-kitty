@@ -20,15 +20,13 @@ import pytest
 from ulid import ULID as _RealULID
 
 from mission_runtime import MissionTopology
-from specify_cli.core.mission_creation import create_mission_core
+from specify_cli.core.mission_creation import MissionCreationError, _create_mission_core_failure_atomic, create_mission_core
 from specify_cli.lanes.branch_naming import mission_dir_name, resolve_mid8
 from specify_cli.missions._create import coordination_branch_name
 
 from tests._factories import provision_test_charter
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
-
-_CORE_MODULE = "specify_cli.core.mission_creation"
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -47,6 +45,21 @@ def _init_repo(repo: Path, *, branch: str) -> None:
     _git(repo, "commit", "-m", "init")
 
 
+def _install_hook(repo: Path, body: str) -> None:
+    """Real git fault: a repo-local hook (``core.hooksPath`` pinned so a global setting cannot bypass it)."""
+    hooks = repo / ".git" / "hooks"
+    hooks.mkdir(parents=True, exist_ok=True)
+    hook = hooks / "pre-commit"
+    hook.write_text("#!/bin/sh\n" + body, encoding="utf-8")
+    hook.chmod(0o755)
+    _git(repo, "config", "core.hooksPath", str(hooks))
+
+
+def _refuse_on_branch(branch_pattern: str, message: str, *, before: str = "") -> str:
+    """Hook body: run ``before``, then refuse every commit whose branch matches ``branch_pattern``."""
+    return f'case "$(git rev-parse --abbrev-ref HEAD)" in\n  {branch_pattern}) {before}echo "{message}" >&2; exit 1 ;;\nesac\nexit 0\n'
+
+
 def _summary(slug: str) -> dict[str, str]:
     title = slug.replace("-", " ").strip() or "test mission"
     return {
@@ -57,8 +70,11 @@ def _summary(slug: str) -> dict[str, str]:
 
 
 @pytest.fixture(autouse=True)
-def _not_a_worktree(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(f"{_CORE_MODULE}.is_worktree_context", lambda cwd: False)
+def _cwd_outside_any_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The worktree-context guard reads the real process cwd, and pytest may run
+    from inside a lane worktree. Run each create from the ``tmp_path`` fixture
+    repository so the real guard sees a non-worktree checkout (no patch)."""
+    monkeypatch.chdir(tmp_path)
 
 
 # ---------------------------------------------------------------------------
@@ -98,23 +114,20 @@ def test_protected_primary_still_seeds_coordination_surface(tmp_path: Path) -> N
 # ---------------------------------------------------------------------------
 
 
-def test_rollback_after_seed_removes_worktree_and_branch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rollback_after_seed_removes_worktree_and_branch(tmp_path: Path) -> None:
     """A failure injected right after the coordination seed/commit undoes both
     the coordination worktree and the branch THIS create minted, and restores
     the operator's original checkout."""
     _init_repo(tmp_path, branch="work")
     original_branch = _git(tmp_path, "branch", "--show-current").strip()
-    worktree_present_before_failure: list[bool] = []
-
-    def _raise(*_args: object, **_kwargs: object) -> None:
-        # Non-vacuity: prove the coordination worktree genuinely existed by
-        # the time of this injected failure, so the rollback assertions below
-        # are a real regression guard on T032's teardown -- not merely
-        # observing that a worktree was never created in the first place.
-        worktree_present_before_failure.append(bool(list((tmp_path / ".worktrees").glob("rollback-seed*"))))
-        raise RuntimeError("injected failure after coordination seed")
-
-    monkeypatch.setattr(f"{_CORE_MODULE}._commit_create_scaffold", _raise)
+    # A real failure of the target scaffold commit (a hook refusing commits
+    # on ``work``). Non-vacuity: the hook records whether the coordination
+    # worktree genuinely existed at the time of the failure, so the rollback
+    # assertions below are a real regression guard on T032's teardown -- not
+    # merely observing that a worktree was never created in the first place.
+    marker = tmp_path / ".git" / "worktree-present-at-failure"
+    probe = f'ls -d "{tmp_path}/.worktrees/"rollback-seed* >/dev/null 2>&1 && echo yes > "{marker}"; '
+    _install_hook(tmp_path, _refuse_on_branch("work", "injected failure after coordination seed", before=probe))
 
     with pytest.raises(RuntimeError, match="injected failure after coordination seed"):
         create_mission_core(
@@ -125,7 +138,7 @@ def test_rollback_after_seed_removes_worktree_and_branch(tmp_path: Path, monkeyp
             **_summary("rollback-seed"),
         )
 
-    assert worktree_present_before_failure == [True], "the coordination worktree must be materialized BEFORE the injected failure (non-vacuity)"
+    assert marker.read_text(encoding="utf-8").strip() == "yes", "the coordination worktree must be materialized BEFORE the injected failure (non-vacuity)"
     branches = [line for line in _git(tmp_path, "branch", "--list", "kitty/mission-*", "--format=%(refname:short)").splitlines() if line.strip()]
     assert branches == [], f"the minted coordination branch must be deleted on rollback, found: {branches}"
     worktrees = _git(tmp_path, "worktree", "list", "--porcelain")
@@ -139,14 +152,15 @@ def test_rollback_after_seed_removes_worktree_and_branch(tmp_path: Path, monkeyp
 # ---------------------------------------------------------------------------
 
 
-def test_preexisting_coordination_branch_is_reset_not_deleted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_preexisting_coordination_branch_is_reset_not_deleted(tmp_path: Path) -> None:
     """A coordination branch that pre-dates this create (silently reused,
     ``created=False``) is CAS-reset to its OWN pre-create tip on rollback --
     never deleted, since it is not this run's own mint (it may belong to
     another create / a prior healed Mission)."""
     _init_repo(tmp_path, branch="work")
+    # The identity is fixed through the private input of the create body,
+    # so the coordination branch name is known before the create runs.
     fixed_ulid = _RealULID()
-    monkeypatch.setattr(f"{_CORE_MODULE}.ULID", lambda: fixed_ulid)
 
     mid8 = resolve_mid8("", mission_id=str(fixed_ulid))
     mission_slug_formatted = mission_dir_name("reset-not-delete", mid8=mid8)
@@ -157,26 +171,25 @@ def test_preexisting_coordination_branch_is_reset_not_deleted(tmp_path: Path, mo
     # will silently reuse rather than mint.
     _git(tmp_path, "branch", coordination_branch, "work")
     pre_existing_tip = _git(tmp_path, "rev-parse", coordination_branch).strip()
-    tip_seen_before_failure: list[str] = []
-
-    def _raise(*_args: object, **_kwargs: object) -> None:
-        # Non-vacuity: prove the seed/creation-events commit genuinely moved
-        # the branch past its pre-existing tip before this injected failure,
-        # so "reset, not deleted" below is a real CAS-reset regression guard.
-        tip_seen_before_failure.append(_git(tmp_path, "rev-parse", coordination_branch).strip())
-        raise RuntimeError("injected failure on reuse")
-
-    monkeypatch.setattr(f"{_CORE_MODULE}._commit_create_scaffold", _raise)
+    # A real failure of the target scaffold commit. Non-vacuity: the hook records
+    # the coordination branch tip at the failure, proving the seed/creation-events
+    # commit genuinely moved the branch past its pre-existing tip, so "reset, not
+    # deleted" below is a real CAS-reset regression guard.
+    tip_marker = tmp_path / ".git" / "coordination-tip-at-failure"
+    probe = f'git rev-parse "{coordination_branch}" > "{tip_marker}"; '
+    _install_hook(tmp_path, _refuse_on_branch("work", "injected failure on reuse", before=probe))
 
     with pytest.raises(RuntimeError, match="injected failure on reuse"):
-        create_mission_core(
+        _create_mission_core_failure_atomic(
             tmp_path,
             "reset-not-delete",
             topology=MissionTopology.COORD,
             allow_worktree_context=True,
+            _mission_id=str(fixed_ulid),
             **_summary("reset-not-delete"),
         )
 
+    tip_seen_before_failure = tip_marker.read_text(encoding="utf-8").split()
     assert tip_seen_before_failure and tip_seen_before_failure[0] != pre_existing_tip, (
         "the coordination seed/creation-events commit must move the branch before the injected failure (non-vacuity)"
     )
@@ -192,9 +205,21 @@ def test_preexisting_coordination_branch_is_reset_not_deleted(tmp_path: Path, mo
 # ``write_dir`` runs, not only once ``_seed_coord_surface_for_create``
 # returns -- a failure INSIDE the seed (after ``write_dir`` has already
 # materialized the worktree) must not orphan the minted branch/worktree.
-# Parametrized over the three points a failure can strike between
-# materialization and the coordination commit landing.
+# Three points a failure can strike between materialization and the
+# coordination commit landing: two injected (parametrized below) and the
+# coordination commit itself, failed for real by a git hook.
 # ---------------------------------------------------------------------------
+
+
+def _assert_no_coordination_leftovers(repo: Path, slug: str, original_branch: str, failure_point: str) -> None:
+    branches = [line for line in _git(repo, "branch", "--list", "kitty/mission-*", "--format=%(refname:short)").splitlines() if line.strip()]
+    assert branches == [], f"no coordination branch may be left orphaned (failure point: {failure_point}), found: {branches}"
+    worktree_list = _git(repo, "worktree", "list", "--porcelain")
+    assert slug not in worktree_list, f"no coordination worktree registry entry may survive (failure point: {failure_point}): {worktree_list!r}"
+    assert not (repo / ".worktrees").exists() or not list((repo / ".worktrees").glob(f"{slug}*")), (
+        f"no coordination worktree directory may survive on disk (failure point: {failure_point})"
+    )
+    assert _git(repo, "branch", "--show-current").strip() == original_branch
 
 
 @pytest.mark.parametrize(
@@ -205,15 +230,15 @@ def test_preexisting_coordination_branch_is_reset_not_deleted(tmp_path: Path, mo
         # forbids: the generic rollback's ``git branch -D`` would otherwise
         # fail because the branch is still checked out in the worktree).
         "specify_cli.coordination.coord_seed._seed_coord_surface",
-        # After the seed returns, before the coordination commit.
+        # After the seed returns, before the coordination commit. No real
+        # reproduction exists for a failure at exactly this step, so the
+        # orchestrator's own call is replaced (kept with rationale).
         "specify_cli.core.mission_creation._emit_create_events",
-        # The coordination commit itself.
-        "specify_cli.core.mission_creation._commit_coord_create_events",
     ],
-    ids=["inside_write_dir_seed", "emit_create_events", "commit_coord_create_events"],
+    ids=["inside_write_dir_seed", "emit_create_events"],
 )
 def test_rollback_covers_every_seed_injection_point(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure_target: str) -> None:
-    """B2: no leftover branch, worktree or worktree-registry entry at ANY of the three injection points."""
+    """B2: no leftover branch, worktree or worktree-registry entry at the injected points."""
     _init_repo(tmp_path, branch="work")
     original_branch = _git(tmp_path, "branch", "--show-current").strip()
 
@@ -232,11 +257,24 @@ def test_rollback_covers_every_seed_injection_point(tmp_path: Path, monkeypatch:
             **_summary(slug),
         )
 
-    branches = [line for line in _git(tmp_path, "branch", "--list", "kitty/mission-*", "--format=%(refname:short)").splitlines() if line.strip()]
-    assert branches == [], f"no coordination branch may be left orphaned (failure point: {failure_target}), found: {branches}"
-    worktree_list = _git(tmp_path, "worktree", "list", "--porcelain")
-    assert slug not in worktree_list, f"no coordination worktree registry entry may survive (failure point: {failure_target}): {worktree_list!r}"
-    assert not (tmp_path / ".worktrees").exists() or not list((tmp_path / ".worktrees").glob(f"{slug}*")), (
-        f"no coordination worktree directory may survive on disk (failure point: {failure_target})"
-    )
-    assert _git(tmp_path, "branch", "--show-current").strip() == original_branch
+    _assert_no_coordination_leftovers(tmp_path, slug, original_branch, failure_target)
+
+
+def test_rollback_covers_a_failed_coordination_commit(tmp_path: Path) -> None:
+    """B2, third injection point: the coordination commit itself fails for real (a
+    ``pre-commit`` hook refuses every commit on ``kitty/mission-*``)."""
+    _init_repo(tmp_path, branch="work")
+    original_branch = _git(tmp_path, "branch", "--show-current").strip()
+    _install_hook(tmp_path, _refuse_on_branch("kitty/mission-*", "injected coordination commit refusal"))
+
+    slug = "probe-commit-coord-create-events"
+    with pytest.raises(MissionCreationError, match="injected coordination commit refusal"):
+        create_mission_core(
+            tmp_path,
+            slug,
+            topology=MissionTopology.COORD,
+            allow_worktree_context=True,
+            **_summary(slug),
+        )
+
+    _assert_no_coordination_leftovers(tmp_path, slug, original_branch, "commit_coord_create_events")

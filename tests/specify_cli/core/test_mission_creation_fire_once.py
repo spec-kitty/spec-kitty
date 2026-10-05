@@ -26,21 +26,30 @@ import subprocess
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
 
 import pytest
 
 from ulid import ULID
 
-from specify_cli.core.mission_creation import create_mission_core
+from specify_cli.core.mission_creation import (
+    MissionCreationResult,
+    _create_mission_core_failure_atomic,
+    create_mission_core,
+)
 from specify_cli.status import adapters as status_adapters
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
-_CORE_MODULE = "specify_cli.core.mission_creation"
-
 # lifecycle_events surfaced by the ``_isolated_adapter_registry`` fixture.
 _RegistryFixture = list[dict[str, Any]]
+
+
+@pytest.fixture(autouse=True)
+def _cwd_outside_any_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The worktree-context guard reads the real process cwd, and pytest may run
+    from inside a lane worktree. Run each test from its ``tmp_path`` so the real
+    guard sees a non-worktree directory (no patch)."""
+    monkeypatch.chdir(tmp_path)
 
 
 def _init_repo(repo: Path) -> None:
@@ -53,7 +62,10 @@ def _init_repo(repo: Path) -> None:
     (kittify_dir / "config.yaml").write_text(
         "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
     )
-    subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+    # A REAL ``main`` (independent of ``init.defaultBranch``); the
+    # default coord create mints the coordination branch for real, so the
+    # canonical status log is the coordination surface's (see _canonical_log).
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, capture_output=True, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True
     )
@@ -75,6 +87,12 @@ def _mission_summary(slug: str) -> dict[str, str]:
             "forward with a clear outcome and shared understanding."
         ),
     }
+
+
+def _canonical_log(result: MissionCreationResult) -> Path:
+    """The status log the create wrote: the coordination surface's on a coord create."""
+    [log] = [p for p in result.created_files if p.name == "status.events.jsonl"]
+    return log
 
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -118,17 +136,10 @@ def test_mission_created_fanout_fires_exactly_once(
     _init_repo(tmp_path)
     slug = "fire-once-mission"
 
-    with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}._commit_feature_file"),
-    ):
-        result = create_mission_core(tmp_path, slug, **_mission_summary(slug))
+    result = create_mission_core(tmp_path, slug, **_mission_summary(slug))
 
     # No drop / no double-write: exactly one MissionCreated row on the canonical log.
-    rows = _read_jsonl(result.feature_dir / "status.events.jsonl")
+    rows = _read_jsonl(_canonical_log(result))
     mission_created_rows = [r for r in rows if r.get("event_type") == "MissionCreated"]
     assert len(mission_created_rows) == 1, (
         f"Expected exactly one MissionCreated row, got {len(mission_created_rows)}: "
@@ -159,33 +170,21 @@ def test_mission_created_resume_does_not_double_fire(
     _init_repo(tmp_path)
     slug = "fire-once-resume"
 
-    # Pin the ULID so both create calls resolve to the SAME mission directory,
+    # Fix the identity so both create calls resolve to the SAME mission directory,
     # which is what makes the second call a genuine "resume" of the first. Each
-    # create_mission_core call mints a fresh ULID, and the mission dir name embeds
-    # its ``mid8`` (the first 8 Crockford chars = the top 40 bits of the 48-bit ms
-    # timestamp, so it only changes every ~256ms). Without pinning, the two calls
-    # land in the same dir ONLY when they happen to fall inside the same 256ms
-    # window; under load (parallel CI workers + coverage) they straddle a boundary,
-    # get different dirs, and the per-dir dedup can't see the first event — the
-    # fan-out fires twice and this test flakes. Pinning removes the timing luck and
-    # deterministically exercises the dedup path this test exists to guard.
-    pinned_ulid = ULID()
-    with (
-        patch(f"{_CORE_MODULE}.ULID", return_value=pinned_ulid),
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}._commit_feature_file"),
-    ):
-        first = create_mission_core(tmp_path, slug, **_mission_summary(slug))
-        second = create_mission_core(tmp_path, slug, **_mission_summary(slug))
+    # create mints a fresh ULID and the mission dir name embeds its ``mid8`` (the
+    # top 40 bits of the 48-bit ms timestamp, changing every ~256ms), so two
+    # unpinned calls land in one dir only by timing luck. The identity goes in
+    # through the private input of the create body, not a patch.
+    mission_id = str(ULID())
+    first = _create_mission_core_failure_atomic(tmp_path, slug, **_mission_summary(slug), _mission_id=mission_id)
+    second = _create_mission_core_failure_atomic(tmp_path, slug, **_mission_summary(slug), _mission_id=mission_id)
 
     # Guard the pin's premise: both calls must resolve to one mission directory,
     # else the "resume" dedup below is not actually being exercised.
     assert first.feature_dir == second.feature_dir
 
-    rows = _read_jsonl(first.feature_dir / "status.events.jsonl")
+    rows = _read_jsonl(_canonical_log(first))
     mission_created_rows = [r for r in rows if r.get("event_type") == "MissionCreated"]
     assert len(mission_created_rows) == 1, (
         f"Resume must not duplicate MissionCreated; got {len(mission_created_rows)} rows"

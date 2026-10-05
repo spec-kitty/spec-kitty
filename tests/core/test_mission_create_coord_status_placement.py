@@ -86,11 +86,11 @@ def _summary(slug: str) -> dict[str, str]:
 
 
 @pytest.fixture(autouse=True)
-def _not_a_worktree(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The test process may itself run inside a lane worktree; pin the
-    worktree-context guard to the ``tmp_path`` fixture repository instead of
-    the process cwd (same pin as the sibling create tests)."""
-    monkeypatch.setattr(f"{_CORE_MODULE}.is_worktree_context", lambda cwd: False)
+def _cwd_outside_any_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The worktree-context guard reads the real process cwd, and pytest may run
+    from inside a lane worktree. Run each create from the ``tmp_path`` fixture
+    repository so the real guard sees a non-worktree checkout (no patch)."""
+    monkeypatch.chdir(tmp_path)
 
 
 def test_coord_create_scaffold_commit_keeps_status_off_target_branch(tmp_path: Path) -> None:

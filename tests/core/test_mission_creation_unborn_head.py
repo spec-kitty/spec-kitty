@@ -9,10 +9,9 @@ writing a scaffold. The error identifies the initial commit needed to proceed.
 
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import chdir, contextmanager
 import subprocess
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -23,8 +22,6 @@ from specify_cli.core.owned_mission import resolve_owned_create_root
 from tests._factories import provision_test_charter
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
-
-_CORE_MODULE = "specify_cli.core.mission_creation"
 
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
@@ -52,14 +49,10 @@ def _mission_summary(slug: str) -> dict[str, str]:
 
 
 @contextmanager
-def _patched_context(tmp_path: Path):
-    """Patch the context seams, but leave the real ``has_unborn_head`` in place."""
-    with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="operator-work"),
-    ):
+def _in_repo(tmp_path: Path):
+    """Run from the fixture repository; nothing is patched, so the real context
+    guards, branch read and ``has_unborn_head`` all run."""
+    with chdir(tmp_path):
         yield
 
 
@@ -105,7 +98,7 @@ def test_coord_create_refuses_on_unborn_head(tmp_path: Path) -> None:
     """Coord create on a commitless repo fails before writing a scaffold."""
     _scaffold_project(tmp_path)
 
-    with _patched_context(tmp_path), pytest.raises(MissionCreationError) as excinfo:
+    with _in_repo(tmp_path), pytest.raises(MissionCreationError) as excinfo:
         create_mission_core(
             tmp_path,
             "unborn-coord",
@@ -127,7 +120,7 @@ def test_refusal_writes_no_scaffold(tmp_path: Path) -> None:
     """
     _scaffold_project(tmp_path)
 
-    with _patched_context(tmp_path), pytest.raises(MissionCreationError):
+    with _in_repo(tmp_path), pytest.raises(MissionCreationError):
         create_mission_core(
             tmp_path,
             "unborn-no-residue",
@@ -147,7 +140,7 @@ def test_branch_flat_topologies_refuse_unborn_head(tmp_path: Path, topology: Mis
     """Branch-flat creation still needs an existing ref for its scaffold commit."""
     _scaffold_project(tmp_path)
 
-    with _patched_context(tmp_path), pytest.raises(MissionCreationError, match="no commits yet"):
+    with _in_repo(tmp_path), pytest.raises(MissionCreationError, match="no commits yet"):
         create_mission_core(
             tmp_path,
             "unborn-flat",
@@ -170,7 +163,7 @@ def test_coord_create_succeeds_after_the_first_commit(tmp_path: Path) -> None:
     # The mint is deliberately NOT patched here: the point is that a real
     # coordination branch can now be created, which is exactly what the unborn
     # HEAD made impossible.
-    with _patched_context(tmp_path):
+    with _in_repo(tmp_path):
         result = create_mission_core(
             tmp_path,
             "born-coord",

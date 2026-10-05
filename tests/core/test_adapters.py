@@ -301,11 +301,12 @@ def test_mission_creation_has_no_integration_imports() -> None:
     no 'specify_cli.sync' or 'specify_cli.tracker' strings in mission_creation.py.
     """
     import ast
-    from pathlib import Path as _Path
 
-    src_file = _Path(__file__).parents[2] / "src" / "specify_cli" / "core" / "mission_creation.py"
-    assert src_file.exists(), f"Source file not found: {src_file}"
-    source = src_file.read_text(encoding="utf-8")
+    from tests._support.mission_creation_source import FACADE, family_source
+
+    # #5634: mission_creation.py was split into a module family; read all of it.
+    assert FACADE.exists(), f"Source file not found: {FACADE}"
+    source = family_source()
 
     # Simple text check — catches module-level, lazy, and TYPE_CHECKING imports
     integration_markers = [

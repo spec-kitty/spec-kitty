@@ -30,6 +30,7 @@ still_defaults_to_coord`` in ``tests/specify_cli/cli/commands/agent/``.
 from __future__ import annotations
 
 import json
+from contextlib import chdir
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
@@ -76,6 +77,11 @@ def _init_repo_unprotected(repo: Path) -> None:
     _git(repo, "config", "user.email", "test@test.com")
     _git(repo, "config", "user.name", "Test")
     _git(repo, "commit", "-m", "init", "--allow-empty")
+    # Really stand on the feature checkout; ``origin/HEAD`` keeps ``main`` the
+    # resolved primary (without it the checked-out branch would be primary).
+    _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    _git(repo, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+    _git(repo, "checkout", "-q", "-b", _FEATURE_CHECKOUT)
 
 
 def _mission_summary_args(title: str) -> list[str]:
@@ -101,11 +107,7 @@ def _create_pr_bound(repo: Path, slug: str) -> dict[str, object]:
     """Create a ``--pr-bound`` mission from the unprotected feature checkout."""
     runner = CliRunner()
     with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=repo),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value=_FEATURE_CHECKOUT),
-        patch(f"{_CORE_MODULE}._commit_feature_file"),
+        chdir(repo),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=repo),
         patch(
             "specify_cli.cli.commands.agent.mission.get_current_branch",

@@ -29,7 +29,7 @@ from typer.testing import CliRunner
 
 from mission_runtime import MissionTopology
 from specify_cli import app as root_app
-from specify_cli.core.mission_creation import MissionCreationError, create_mission_core
+from specify_cli.core.mission_creation import MissionCreationError, _create_mission_core_failure_atomic
 
 from tests._factories import make_mission, provision_test_charter
 
@@ -148,13 +148,11 @@ def test_commit_to_target_rejected_unless_single_branch(tmp_path: Path, topology
     assert not (repo / "kitty-specs" / "ctt-wrong-topology").exists()
 
 
-def test_existing_mission_branch_name_refuses_create(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_existing_mission_branch_name_refuses_create(tmp_path: Path) -> None:
     """A pre-existing branch matching the deterministic mint name refuses
-    create with MISSION_BRANCH_EXISTS, naming the branch. A fixed ULID
-    (monkeypatched) makes the minted name deterministic so the collision can
-    be pre-created."""
-    from ulid import ULID as _ULID
-
+    create with MISSION_BRANCH_EXISTS, naming the branch. A fixed mission_id
+    (the private identity input) makes the minted name deterministic so
+    the collision can be pre-created."""
     repo = _seed_repo(tmp_path, name="existing-branch")
     provision_test_charter(repo)
 
@@ -164,14 +162,12 @@ def test_existing_mission_branch_name_refuses_create(tmp_path: Path, monkeypatch
     forced_name = mission_branch_name("existing-branch-b", mission_id=fixed_mission_id)
     _git(repo, "branch", forced_name)
 
-    monkeypatch.setattr(
-        "specify_cli.core.mission_creation.ULID",
-        lambda: _ULID.from_str(fixed_mission_id),
-    )
+    # The identity is fixed through the private input of the create body.
     with pytest.raises(MissionCreationError, match="already exists") as exc_info:
-        create_mission_core(
+        _create_mission_core_failure_atomic(
             repo,
             "existing-branch-b",
+            _mission_id=fixed_mission_id,
             topology=MissionTopology.SINGLE_BRANCH,
             target_branch="main",
             allow_worktree_context=True,
@@ -188,7 +184,7 @@ def test_existing_mission_branch_name_refuses_create(tmp_path: Path, monkeypatch
     assert forced_name in str(exc_info.value)
 
 
-def test_recreate_of_existing_mission_reports_mission_already_exists(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_recreate_of_existing_mission_reports_mission_already_exists(tmp_path: Path) -> None:
     """A second create of an ALREADY-CREATED mission reports
     MISSION_ALREADY_EXISTS, not MISSION_BRANCH_EXISTS.
 
@@ -196,16 +192,12 @@ def test_recreate_of_existing_mission_reports_mission_already_exists(tmp_path: P
     also collides on the branch; the existing-mission check must win. The
     first mission stays byte-identical (fail-closed, no partial writes).
     """
-    from ulid import ULID as _ULID
-
     repo = _seed_repo(tmp_path, name="recreate-existing")
     provision_test_charter(repo)
+    # The identity is fixed through the private input of the create body.
     fixed_mission_id = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
-    monkeypatch.setattr(
-        "specify_cli.core.mission_creation.ULID",
-        lambda: _ULID.from_str(fixed_mission_id),
-    )
     kwargs = {
+        "_mission_id": fixed_mission_id,
         "topology": MissionTopology.SINGLE_BRANCH,
         "target_branch": "main",
         "allow_worktree_context": True,
@@ -213,12 +205,12 @@ def test_recreate_of_existing_mission_reports_mission_already_exists(tmp_path: P
         "purpose_tldr": "Second create must report the existing mission.",
         "purpose_context": "The second create of the same mission must be refused as already existing.",
     }
-    first = create_mission_core(repo, "recreate-existing-a", **kwargs)
+    first = _create_mission_core_failure_atomic(repo, "recreate-existing-a", **kwargs)
     meta_path = first.feature_dir / "meta.json"
     meta_before = meta_path.read_text(encoding="utf-8")
 
     with pytest.raises(MissionCreationError) as exc_info:
-        create_mission_core(repo, "recreate-existing-a", **kwargs)
+        _create_mission_core_failure_atomic(repo, "recreate-existing-a", **kwargs)
 
     assert exc_info.value.error_code == "MISSION_ALREADY_EXISTS"
     assert meta_path.read_text(encoding="utf-8") == meta_before
@@ -458,7 +450,6 @@ def test_minted_mission_branch_not_classified_by_recovery_or_doctor(tmp_path: Pa
 )
 def test_protected_mint_applies_only_to_a_protected_single_branch_mint(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
     topology: MissionTopology,
     commit_to_target: bool,
     target: str,
@@ -466,8 +457,9 @@ def test_protected_mint_applies_only_to_a_protected_single_branch_mint(
 ) -> None:
     from specify_cli.core.mission_creation import _protected_mint_applies
 
+    # The real seed repository is checked out on ``main`` with no remote, so the
+    # real ``resolve_primary_branch`` answers ``main`` (no patch needed).
     repo = _seed_repo(tmp_path, name="mint-applies")
-    monkeypatch.setattr("specify_cli.core.git_ops.resolve_primary_branch", lambda *_a, **_k: "main")
 
     assert _protected_mint_applies(repo, topology=topology, commit_to_target=commit_to_target, target_branch=target) is expected
 

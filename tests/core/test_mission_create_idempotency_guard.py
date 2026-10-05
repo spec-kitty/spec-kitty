@@ -23,13 +23,14 @@ from __future__ import annotations
 
 import json
 import subprocess
-import time
 from pathlib import Path
 
 import pytest
+from ulid import ULID
 
 from mission_runtime import MissionTopology
 from specify_cli.core.mission_creation import (
+    _create_mission_core_failure_atomic,
     MissionAlreadyExistsError,
     MissionCreationError,
     MissionCreationResult,
@@ -122,20 +123,25 @@ def _read_meta(feature_dir: Path) -> dict[str, object]:
     return loaded
 
 
-def _cross_mid8_bucket() -> None:
-    """Sleep past the mid8 collision window between two same-test creates.
+def _create_later(repo: Path, slug: str, *, after: MissionCreationResult, **overrides: object) -> MissionCreationResult:
+    """A second create whose identity is minted 2 s after ``after``'s (no sleep).
 
-    mid8 is the first 8 Crockford chars of a ULID. The 48-bit millisecond
-    timestamp is Crockford-base32 encoded across the ULID's first 10 chars
-    (5 bits/char); keeping only the first 8 drops the low 2 chars (10 bits),
-    so two creates inside the same ~1024 ms bucket mint the SAME directory
-    name and the second silently overwrites the first -- the same class of
-    gotcha noted in ``test_mission_create_scaffold_rollback.py`` (squad R3,
-    #4051). Empirically measured here: 1.1s reliably crosses the boundary.
-    Any test that expects the second create to mint a genuinely distinct
-    mission directory must cross this boundary first.
+    mid8 is the first 8 Crockford chars of a ULID: the 48-bit millisecond
+    timestamp spread over the ULID's first 10 chars (5 bits/char), so keeping 8
+    drops the low 10 bits and two creates inside the same ~1024 ms bucket mint
+    the SAME directory name (the second silently overwrites the first -- the
+    gotcha noted in ``test_mission_create_scaffold_rollback.py``, squad R3,
+    #4051). The later identity goes in through the private ``_mission_id`` input
+    of the create body instead of sleeping past the bucket boundary.
     """
-    time.sleep(1.1)
+    first_timestamp = ULID.from_str(str(after.meta["mission_id"])).timestamp
+    kwargs: dict[str, object] = {
+        "topology": MissionTopology.SINGLE_BRANCH,
+        "allow_worktree_context": True,
+        **_mission_summary(slug),
+        **overrides,
+    }
+    return _create_mission_core_failure_atomic(repo, slug, _mission_id=str(ULID.from_timestamp(first_timestamp + 2.0)), **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -186,9 +192,8 @@ def test_genesis_prior_auto_allows_recreate_with_no_flag(tmp_path: Path) -> None
     _init_git_repo(tmp_path)
     first = _create(tmp_path, "genesis-mission-guard")
     # Deliberately do nothing further: spec.md stays uncommitted, no WPs.
-    _cross_mid8_bucket()
 
-    second = _create(tmp_path, "genesis-mission-guard")
+    second = _create_later(tmp_path, "genesis-mission-guard", after=first)
 
     assert second.feature_dir != first.feature_dir
     dirs = {p.name for p in (tmp_path / "kitty-specs").iterdir()}
@@ -202,9 +207,8 @@ def test_canceled_only_prior_auto_allows_recreate_with_no_flag(tmp_path: Path) -
     first = _create(tmp_path, "canceled-mission-guard")
     _commit_spec(tmp_path, first.feature_dir)
     _cancel_only_wp(first.feature_dir, first.mission_slug)
-    _cross_mid8_bucket()
 
-    second = _create(tmp_path, "canceled-mission-guard")
+    second = _create_later(tmp_path, "canceled-mission-guard", after=first)
 
     assert second.feature_dir != first.feature_dir
 
@@ -220,9 +224,8 @@ def test_allow_duplicate_true_creates_second_live_mission(tmp_path: Path) -> Non
     _init_git_repo(tmp_path)
     first = _create(tmp_path, "deliberate-dup-mission-guard")
     _commit_spec(tmp_path, first.feature_dir)
-    _cross_mid8_bucket()
 
-    second = _create(tmp_path, "deliberate-dup-mission-guard", allow_duplicate=True)
+    second = _create_later(tmp_path, "deliberate-dup-mission-guard", after=first, allow_duplicate=True)
 
     assert second.feature_dir != first.feature_dir
     dirs = {p.name for p in (tmp_path / "kitty-specs").iterdir()}
@@ -240,9 +243,8 @@ def test_same_slug_different_mission_type_is_allowed(tmp_path: Path) -> None:
     _init_git_repo(tmp_path)
     first = _create(tmp_path, "shared-name-mission-guard", mission="research")
     _commit_spec(tmp_path, first.feature_dir)
-    _cross_mid8_bucket()
 
-    second = _create(tmp_path, "shared-name-mission-guard", mission="software-dev")
+    second = _create_later(tmp_path, "shared-name-mission-guard", after=first, mission="software-dev")
 
     assert second.feature_dir != first.feature_dir
     assert _read_meta(second.feature_dir)["mission_type"] == "software-dev"

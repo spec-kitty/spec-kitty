@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -47,6 +46,14 @@ _CORE_MODULE = "specify_cli.core.mission_creation"
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture(autouse=True)
+def _cwd_outside_any_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The worktree-context guard reads the real process cwd, and pytest may run
+    from inside a lane worktree. Run each test from its ``tmp_path`` so the real
+    guard sees a non-worktree directory (no patch)."""
+    monkeypatch.chdir(tmp_path)
+
+
 def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", "-C", str(cwd), *args],
@@ -75,6 +82,18 @@ def _init_repo(repo: Path) -> None:
     _git(repo, "commit", "-m", "init", "--allow-empty")
 
 
+def _check_out_feature_branch_with_main_primary(repo: Path, branch: str) -> None:
+    """Really stand on ``branch`` while the repository's primary stays ``main``.
+
+    ``resolve_primary_branch`` prefers ``origin/HEAD``; without one it would take
+    the checked-out branch as primary. A local ``refs/remotes/origin/main`` plus
+    ``origin/HEAD`` pointing at it models a clone whose default branch is ``main``.
+    """
+    _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    _git(repo, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+    _git(repo, "checkout", "-q", "-b", branch)
+
+
 def _mission_summary(slug: str) -> dict[str, str]:
     title = slug.replace("-", " ").title()
     return {
@@ -96,26 +115,10 @@ def _mission_summary_args(title: str) -> list[str]:
     ]
 
 
-def _patch_repo_environment(repo: Path) -> list[AbstractContextManager[Any]]:
-    """Common patch stack for ``create_mission_core`` against ``repo``."""
-    return [
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=repo),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}._commit_feature_file"),
-    ]
-
-
 def _create(repo: Path, slug: str, **kwargs: Any) -> MissionCreationResult:
-    patches = _patch_repo_environment(repo)
-    for p in patches:
-        p.__enter__()
-    try:
-        return create_mission_core(repo, slug, **_mission_summary(slug), **kwargs)
-    finally:
-        for p in reversed(patches):
-            p.__exit__(None, None, None)
+    """Run ``create_mission_core`` against ``repo`` unpatched (the commit runs
+    for real; on a protected planning branch it is the disclosed bootstrap skip)."""
+    return create_mission_core(repo, slug, **_mission_summary(slug), **kwargs)
 
 
 def _branch_exists(repo: Path, branch: str) -> bool:
@@ -315,11 +318,6 @@ def test_create_json_output_contains_coordination_branch(tmp_path: Path) -> None
     # actual typer entry point through a tmp repo.
     runner = CliRunner()
     with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}._commit_feature_file"),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="main"),
     ):
@@ -387,20 +385,15 @@ def test_create_on_non_primary_branch_without_pr_bound_defaults_to_lanes(
     ``--topology single_branch`` or ``--owned-checkout`` — per the binding
     decision on #5100 (comment 5870360497).
 
-    The on-disk repo stays on ``main`` (``resolve_primary_branch`` falls back to
-    the real current branch when no ``origin`` is configured); the CLI's view of
-    "current branch" is mocked to a feature branch so the derivation sees a
-    genuine primary/non-primary mismatch.
+    The repository really stands on ``feature/my-fix`` while ``origin/HEAD``
+    names ``main`` as the primary, so the derivation sees a genuine
+    primary/non-primary mismatch.
     """
     _init_repo(tmp_path)
+    _check_out_feature_branch_with_main_primary(tmp_path, "feature/my-fix")
 
     runner = CliRunner()
     with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="feature/my-fix"),
-        patch(f"{_CORE_MODULE}._commit_feature_file"),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="feature/my-fix"),
     ):
@@ -433,11 +426,6 @@ def test_create_on_primary_branch_still_defaults_to_coord(tmp_path: Path) -> Non
 
     runner = CliRunner()
     with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}._commit_feature_file"),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="main"),
     ):
@@ -478,14 +466,10 @@ def test_create_pr_bound_on_non_primary_branch_still_defaults_to_coord(tmp_path:
     by ``tests/specify_cli/cli/commands/agent/test_coord_topology_no_strand.py``.
     """
     _init_repo(tmp_path)
+    _check_out_feature_branch_with_main_primary(tmp_path, "feature/my-fix")
 
     runner = CliRunner()
     with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="feature/my-fix"),
-        patch(f"{_CORE_MODULE}._commit_feature_file"),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="feature/my-fix"),
     ):
@@ -515,11 +499,6 @@ def test_create_explicit_topology_overrides_context_derivation(tmp_path: Path) -
 
     runner = CliRunner()
     with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}._commit_feature_file"),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="main"),
     ):
@@ -549,11 +528,6 @@ def test_pr_bound_create_json_refuses_with_json_instead_of_prompt_abort(tmp_path
 
     runner = CliRunner()
     with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}._commit_feature_file"),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="main"),
     ):
@@ -591,11 +565,6 @@ def test_pr_bound_create_json_already_confirmed_preserves_success_path(tmp_path:
 
     runner = CliRunner()
     with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}._commit_feature_file"),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="main"),
     ):
@@ -633,8 +602,6 @@ def test_pr_bound_create_start_branch_switches_before_scaffold_writes(tmp_path: 
 
     runner = CliRunner()
     with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
     ):
         result = runner.invoke(
@@ -744,8 +711,6 @@ def test_failed_create_restores_original_branch_without_deleting_preexisting_sta
 
     runner = CliRunner()
     with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
     ):
         result = runner.invoke(
@@ -979,8 +944,6 @@ def test_mission_created_persistence_failure_is_nonzero_and_probe_recoverable(
 
     runner = CliRunner()
     with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch("specify_cli.status.emit_mission_created_local", return_value=None),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
     ):

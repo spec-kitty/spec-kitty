@@ -84,18 +84,25 @@ domain_exempt_notes:
       `spec-kitty migrate backfill-mission-type`; this internal migration write is
       frozen. Not in IN_SCOPE_READER_MODULES (a backfill write, not a runtime
       resolver) — recorded here for census completeness (AC-7).
-  - path: src/specify_cli/core/mission_creation.py
+  - path: src/specify_cli/core/mission_creation_meta.py
     issue: "#3598 / census completeness"
     rationale: >-
-      The `"software-dev"` literals (lines 623 `selected_mission_type = mission or
-      "software-dev"`, 704 `meta.setdefault(_META_KEY_MISSION_TYPE, ...)`, and 822/835
-      `mission_type=str(meta.get(_META_KEY_MISSION_TYPE) or mission or "software-dev")`
-      as call-site args) are all CREATE-time write defaults — the value stamped into
-      a NEW mission's meta/event when the operator gives no explicit `--mission-type`
-      (`mission` here is the create param, not the legacy field). `emit_mission_created_local`
-      is imported here (line 813), not defined; lines 822/835 are its call arguments.
-      Same class as feature_meta.infer_mission. Not a runtime resolver; recorded for
-      census completeness (AC-7).
+      The `"software-dev"` literals of the mission_creation module family
+      (`_build_create_meta`'s `meta.setdefault(_META_KEY_MISSION_TYPE, mission or
+      "software-dev")` in this module; `_scaffold_mission_dir`'s
+      `selected_mission_type = mission or "software-dev"` in
+      mission_creation_scaffold.py; `_refuse_live_duplicate`'s
+      `effective_mission_type = mission or "software-dev"` in
+      mission_creation_duplicates.py; and `_emit_create_events`'s two
+      `mission_type=str(meta.get(_META_KEY_MISSION_TYPE) or "software-dev")`
+      call-site args in mission_creation_events.py) are all CREATE-time write
+      defaults — the value stamped into a NEW mission's meta/event when the operator
+      gives no explicit `--mission-type` (`mission` here is the create param, not the
+      legacy field). `emit_mission_created_local` is imported lazily inside
+      `_emit_create_events`, not defined there. Same class as
+      feature_meta.infer_mission. Not a runtime resolver; recorded for census
+      completeness (AC-7). Re-pointed (#5634): mission_creation.py was split
+      verbatim into the module family; function names replace stale line numbers.
   - path: src/specify_cli/upgrade/migrations/m_0_13_0_research_csv_schema_check.py
     issue: "#3598 / census completeness"
     rationale: >-

@@ -24,13 +24,20 @@ from unittest.mock import patch
 import pytest
 
 from charter.activation.mission_type_profiles import ResolvedMissionType
-from specify_cli.core.mission_creation import create_mission_core
+from specify_cli.core.mission_creation import MissionCreationResult, create_mission_core
 from specify_cli.runtime.resolver import TemplateConfigurationError
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
-_CORE_MODULE = "specify_cli.core.mission_creation"
+
+
+@pytest.fixture(autouse=True)
+def _cwd_outside_any_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The worktree-context guard reads the real process cwd, and pytest may run
+    from inside a lane worktree. Run each test from its ``tmp_path`` so the real
+    guard sees a non-worktree directory (no patch)."""
+    monkeypatch.chdir(tmp_path)
 
 
 def _init_repo(repo: Path) -> None:
@@ -44,7 +51,10 @@ def _init_repo(repo: Path) -> None:
     (kittify_dir / "config.yaml").write_text(
         "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
     )
-    subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+    # A REAL ``main`` (independent of ``init.defaultBranch``); the
+    # default coord create mints the coordination branch for real, so the
+    # canonical status log is the coordination surface's (see _canonical_log).
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, capture_output=True, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"],
         cwd=repo,
@@ -77,6 +87,12 @@ def _mission_summary(slug: str) -> dict[str, str]:
     }
 
 
+def _canonical_log(result: MissionCreationResult) -> Path:
+    """The status log the create wrote: the coordination surface's on a coord create."""
+    [log] = [p for p in result.created_files if p.name == "status.events.jsonl"]
+    return log
+
+
 def _read_jsonl(path: Path) -> list[dict]:
     if not path.exists():
         return []
@@ -93,16 +109,9 @@ def test_mission_create_appends_mission_created_and_specify_started(tmp_path: Pa
     """A fresh mission's canonical event log records both `MissionCreated` and `SpecifyStarted`."""
     _init_repo(tmp_path)
 
-    with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}._commit_feature_file"),
-    ):
-        result = create_mission_core(tmp_path, "lifecycle-stream-1067", **_mission_summary("lifecycle-stream-1067"))
+    result = create_mission_core(tmp_path, "lifecycle-stream-1067", **_mission_summary("lifecycle-stream-1067"))
 
-    log = result.feature_dir / "status.events.jsonl"
+    log = _canonical_log(result)
     rows = _read_jsonl(log)
     event_types = [row.get("event_type") for row in rows]
 
@@ -119,16 +128,9 @@ def test_mission_create_specify_started_payload_references_spec_md(tmp_path: Pat
     """The `SpecifyStarted` payload identifies the spec.md artifact."""
     _init_repo(tmp_path)
 
-    with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}._commit_feature_file"),
-    ):
-        result = create_mission_core(tmp_path, "lifecycle-stream-1067", **_mission_summary("lifecycle-stream-1067"))
+    result = create_mission_core(tmp_path, "lifecycle-stream-1067", **_mission_summary("lifecycle-stream-1067"))
 
-    rows = _read_jsonl(result.feature_dir / "status.events.jsonl")
+    rows = _read_jsonl(_canonical_log(result))
     specify = next(r for r in rows if r.get("event_type") == "SpecifyStarted")
     assert specify["payload"]["mission_slug"] == result.mission_slug
     artifact_path = specify["payload"].get("artifact_path") or ""
@@ -142,31 +144,26 @@ def test_mission_create_specify_started_is_idempotent(tmp_path: Path) -> None:
     """
     _init_repo(tmp_path)
 
-    with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}._commit_feature_file"),
-    ):
-        first = create_mission_core(tmp_path, "lifecycle-stream-1067", **_mission_summary("lifecycle-stream-1067"))
+    first = create_mission_core(tmp_path, "lifecycle-stream-1067", **_mission_summary("lifecycle-stream-1067"))
 
-        # Replay an emit at the same artifact_path; the dedupe key in
-        # ``emit_artifact_phase`` should make this a no-op.
-        from specify_cli.status.lifecycle_events import (
-            SPECIFY_STARTED,
-            emit_artifact_phase,
-        )
+    # Replay an emit at the same artifact_path, into the directory of the log
+    # the create wrote (the coordination Mission dir on a coord create); the
+    # dedupe key in ``emit_artifact_phase`` should make this a no-op.
+    from specify_cli.status.lifecycle_events import (
+        SPECIFY_STARTED,
+        emit_artifact_phase,
+    )
 
-        second = emit_artifact_phase(
-            first.feature_dir,
-            event_type=SPECIFY_STARTED,
-            mission_slug=first.mission_slug,
-            actor="spec-kitty mission create",
-            artifact_path="spec.md",
-        )
+    log = _canonical_log(first)
+    second = emit_artifact_phase(
+        log.parent,
+        event_type=SPECIFY_STARTED,
+        mission_slug=first.mission_slug,
+        actor="spec-kitty mission create",
+        artifact_path="spec.md",
+    )
 
-    rows = _read_jsonl(first.feature_dir / "status.events.jsonl")
+    rows = _read_jsonl(log)
     specify_events = [r for r in rows if r.get("event_type") == "SpecifyStarted"]
     assert len(specify_events) == 1, (
         f"SpecifyStarted must be idempotent on (mission_slug, artifact_path); "
@@ -187,10 +184,6 @@ def test_template_configuration_failure_emits_no_lifecycle_events(tmp_path: Path
     )
 
     with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(
             "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=invalid_context,
@@ -206,3 +199,5 @@ def test_template_configuration_failure_emits_no_lifecycle_events(tmp_path: Path
 
     event_logs = list((tmp_path / "kitty-specs").glob("*/status.events.jsonl"))
     assert event_logs == []
+    # Nor on a coordination surface: the failure precedes the coordination mint.
+    assert not (tmp_path / ".worktrees").exists()

@@ -16,36 +16,44 @@ declares ``target_branch: design/coord-target`` but its own git history lives
 on ``main``.
 
 This test drives the real ``create_mission_core`` entry point end-to-end
-(not ``_commit_feature_file`` directly, per the WP) and captures the
-``CommitTarget`` handed to ``safe_commit``, proving the destination is
-derived from the checkout, not the seam
-(``mission_runtime.placement_seam(...).write_target``).
+(not ``_commit_feature_file`` directly, per the WP) with the REAL
+``safe_commit`` (#5634: formerly a capturing fake). The destination the
+create hands ``safe_commit`` is observable in what the real commit does with
+it: ``safe_commit`` refuses a HEAD/destination mismatch (and a protected
+branch) by naming the ``destination_ref``, the create discloses that refusal
+as the bootstrap-skip log line, and nothing lands on the operator's checkout.
 
-RED pre-fix: the captured ref is ``"main"`` (the checkout) -- wrong.
-GREEN post-fix (T007): the captured ref is ``"design/coord-target"`` (the
-seam-resolved PRIMARY_METADATA/SPEC home), matching parity for both coord
+RED pre-fix: the destination is ``"main"`` (the checkout) -- the protected
+refusal names ``'main'``. GREEN post-fix (T007): the destination is
+``"design/coord-target"`` (the seam-resolved PRIMARY_METADATA/SPEC home), so
+the refusal is the HEAD mismatch naming it, matching parity for both coord
 and non-coord topologies (T008).
 """
 
 from __future__ import annotations
 
+import logging
 import subprocess
-from collections.abc import Callable
 from pathlib import Path
-from typing import Any
-from unittest.mock import patch
 
 import pytest
 
-from mission_runtime import CommitTarget, MissionTopology
+from mission_runtime import MissionTopology
 from specify_cli.core.mission_creation import create_mission_core
-from specify_cli.git.commit_helpers import CommitResult
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _CORE_MODULE = "specify_cli.core.mission_creation"
 _CHECKOUT_BRANCH = "main"
 _TARGET_BRANCH = "design/coord-target"
+
+
+@pytest.fixture(autouse=True)
+def _cwd_outside_any_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The worktree-context guard reads the real process cwd, and pytest may run
+    from inside a lane worktree. Run each test from its ``tmp_path`` so the real
+    guard sees a non-worktree directory (no patch)."""
+    monkeypatch.chdir(tmp_path)
 
 
 def _git(repo: Path, *args: str) -> None:
@@ -84,25 +92,20 @@ def _mission_summary(slug: str) -> dict[str, str]:
     }
 
 
-def _capturing_safe_commit(captured: list[CommitTarget]) -> Callable[..., CommitResult]:
-    """Stand in for ``safe_commit`` that records the ``target`` it was given.
-
-    The assertion under test is about DESTINATION DERIVATION (C-001) -- which
-    branch ``_commit_feature_file`` decides to commit to -- not the downstream
-    git mechanics of ``safe_commit`` itself (which legitimately refuses a
-    HEAD/destination mismatch; that refusal is orthogonal to this WP). A fake
-    keeps the test focused and avoids requiring the operator to actually be
-    checked out on the seam-resolved branch just to observe the decision.
-    """
-
-    def _fake(*, target: CommitTarget, worktree_root: Path, **_kwargs: Any) -> CommitResult:
-        captured.append(target)
-        return CommitResult(sha="0" * 40, destination_ref=target.ref, worktree_root=worktree_root)
-
-    return _fake
+_SKIP_LOG_PREFIX = "Skipping bootstrap scaffold commit"
 
 
-def test_meta_commit_destination_comes_from_seam_not_checkout(tmp_path: Path) -> None:
+def _scaffold_commit_refusal(caplog: pytest.LogCaptureFixture) -> str:
+    """The real ``safe_commit`` refusal the create disclosed for its scaffold commit."""
+    [record] = [r for r in caplog.records if r.getMessage().startswith(_SKIP_LOG_PREFIX)]
+    return record.getMessage()
+
+
+def _tip(repo: Path, branch: str) -> str:
+    return subprocess.run(["git", "rev-parse", branch], cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
+
+
+def test_meta_commit_destination_comes_from_seam_not_checkout(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """Coord-routing mission, checkout ("main") != target_branch (design/coord-target).
 
     The meta.json commit destination must be the seam-resolved PRIMARY home
@@ -111,33 +114,29 @@ def test_meta_commit_destination_comes_from_seam_not_checkout(tmp_path: Path) ->
     repo = tmp_path / "repo"
     repo.mkdir()
     _init_git_repo(repo)
+    checkout_tip = _tip(repo, _CHECKOUT_BRANCH)
+    caplog.set_level(logging.INFO, logger=_CORE_MODULE)
 
-    captured_targets: list[CommitTarget] = []
-
-    with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=repo),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.safe_commit", side_effect=_capturing_safe_commit(captured_targets)),
-    ):
-        create_mission_core(
-            repo,
-            "coord-checkout-mismatch",
-            target_branch=_TARGET_BRANCH,
-            topology=MissionTopology.COORD,
-            **_mission_summary("coord-checkout-mismatch"),
-        )
-
-    assert captured_targets, "expected _commit_feature_file to call safe_commit for meta.json"
-    meta_commit_target = captured_targets[0]
-    assert meta_commit_target.ref == _TARGET_BRANCH, (
-        "meta.json commit destination must be the seam-resolved primary target "
-        f"({_TARGET_BRANCH!r}), not the operator's checkout ({_CHECKOUT_BRANCH!r}); "
-        f"got {meta_commit_target.ref!r} -- the create-time split-brain root "
-        "(research.md D5) is still deriving from the checkout, not the seam."
+    result = create_mission_core(
+        repo,
+        "coord-checkout-mismatch",
+        target_branch=_TARGET_BRANCH,
+        topology=MissionTopology.COORD,
+        **_mission_summary("coord-checkout-mismatch"),
     )
 
+    refusal = _scaffold_commit_refusal(caplog)
+    assert f"expected {_TARGET_BRANCH!r}" in refusal, (
+        "meta.json commit destination must be the seam-resolved primary target "
+        f"({_TARGET_BRANCH!r}), not the operator's checkout ({_CHECKOUT_BRANCH!r}); "
+        f"got {refusal!r} -- the create-time split-brain root "
+        "(research.md D5) is still deriving from the checkout, not the seam."
+    )
+    assert _tip(repo, _CHECKOUT_BRANCH) == checkout_tip, "meta.json must never land on the operator's checkout"
+    assert result.feature_dir / "meta.json" in result.uncommitted_files
 
-def test_non_coord_single_branch_meta_commit_still_targets_target_branch(tmp_path: Path) -> None:
+
+def test_non_coord_single_branch_meta_commit_still_targets_target_branch(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """Parity (T008): a SINGLE_BRANCH mission with checkout != target_branch
     also lands meta.json on the seam-resolved target, not the checkout.
 
@@ -147,55 +146,41 @@ def test_non_coord_single_branch_meta_commit_still_targets_target_branch(tmp_pat
     repo = tmp_path / "repo"
     repo.mkdir()
     _init_git_repo(repo)
+    checkout_tip = _tip(repo, _CHECKOUT_BRANCH)
+    caplog.set_level(logging.INFO, logger=_CORE_MODULE)
 
-    captured_targets: list[CommitTarget] = []
-
-    with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=repo),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.safe_commit", side_effect=_capturing_safe_commit(captured_targets)),
-    ):
-        create_mission_core(
-            repo,
-            "flat-checkout-mismatch",
-            target_branch=_TARGET_BRANCH,
-            topology=MissionTopology.SINGLE_BRANCH,
-            **_mission_summary("flat-checkout-mismatch"),
-        )
-
-    assert captured_targets, "expected _commit_feature_file to call safe_commit for meta.json"
-    meta_commit_target = captured_targets[0]
-    assert meta_commit_target.ref == _TARGET_BRANCH, (
-        f"got {meta_commit_target.ref!r}, expected {_TARGET_BRANCH!r} "
-        "(SINGLE_BRANCH parity with COORD)"
+    create_mission_core(
+        repo,
+        "flat-checkout-mismatch",
+        target_branch=_TARGET_BRANCH,
+        topology=MissionTopology.SINGLE_BRANCH,
+        **_mission_summary("flat-checkout-mismatch"),
     )
 
+    refusal = _scaffold_commit_refusal(caplog)
+    assert f"expected {_TARGET_BRANCH!r}" in refusal, f"got {refusal!r}, expected the destination {_TARGET_BRANCH!r} (SINGLE_BRANCH parity with COORD)"
+    assert _tip(repo, _CHECKOUT_BRANCH) == checkout_tip
 
-def test_meta_commit_matches_seam_write_target_when_checkout_equals_target(tmp_path: Path) -> None:
+
+def test_meta_commit_matches_seam_write_target_when_checkout_equals_target(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """Parity (T007): normal create (checkout == target_branch) is unaffected.
 
     No behavior change to WHICH surface meta.json lands on when the operator
     is already parked on the mission's target -- only the DERIVATION changes
     (seam, not checkout). This regression-locks that the common-case create
-    flow keeps committing meta.json to the branch it always has.
+    flow keeps committing meta.json to the branch it always has: here the
+    protected ``main``, whose real refusal names it as the destination.
     """
     repo = tmp_path / "repo"
     repo.mkdir()
     _init_git_repo(repo)
+    caplog.set_level(logging.INFO, logger=_CORE_MODULE)
 
-    captured_targets: list[CommitTarget] = []
+    create_mission_core(
+        repo,
+        "no-mismatch",
+        topology=MissionTopology.COORD,
+        **_mission_summary("no-mismatch"),
+    )
 
-    with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=repo),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.safe_commit", side_effect=_capturing_safe_commit(captured_targets)),
-    ):
-        create_mission_core(
-            repo,
-            "no-mismatch",
-            topology=MissionTopology.COORD,
-            **_mission_summary("no-mismatch"),
-        )
-
-    assert captured_targets
-    assert captured_targets[0].ref == _CHECKOUT_BRANCH
+    assert f"refusing to commit to protected branch {_CHECKOUT_BRANCH!r}" in _scaffold_commit_refusal(caplog)

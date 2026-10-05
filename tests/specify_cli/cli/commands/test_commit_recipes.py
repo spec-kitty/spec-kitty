@@ -80,7 +80,7 @@ _ALLOWED_GIT_COMMIT_HITS: dict[tuple[str, str], str] = {
         "safe_commit: git commit failed",
     ): "_EMPTY_CHANGESET_PREFIX: an internal prefix-matching constant shared with commit_router, not printed as a recipe.",
     (
-        "core/mission_creation.py",
+        "core/mission_creation_roots.py",
         "has no commits yet",
     ): (
         "Bootstrap recipe for an unborn HEAD (`git commit --allow-empty -m "

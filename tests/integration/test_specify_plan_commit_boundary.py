@@ -16,6 +16,7 @@ scaffold + 300 bytes of arbitrary prose stays NON-substantive.
 from __future__ import annotations
 
 import json
+from contextlib import chdir
 import os
 import subprocess
 from pathlib import Path
@@ -28,9 +29,6 @@ from specify_cli.missions._substantive import is_committed, is_substantive
 from tests._factories import provision_test_charter
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
-
-
-_CORE_MODULE = "specify_cli.core.mission_creation"
 
 
 # ---------------------------------------------------------------------------
@@ -71,12 +69,7 @@ def _summary(slug: str) -> dict[str, str]:
 
 def _create_mission(repo: Path, slug: str) -> Path:
     """Run create_mission_core against ``repo`` and return the feature_dir."""
-    with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=repo),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-    ):
+    with chdir(repo):
         result = create_mission_core(repo, slug, **_summary(slug))
     feature_dir: Path = result.feature_dir
     return feature_dir

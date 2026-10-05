@@ -7,12 +7,11 @@ creations are not rolled back. These tests cover exceptions that escape create.
 from __future__ import annotations
 
 import subprocess
-import time
 from pathlib import Path
 
 import pytest
 
-from specify_cli.core.mission_creation import create_mission_core
+from specify_cli.core.mission_creation import _create_mission_core_failure_atomic, create_mission_core
 from specify_cli.git.commit_helpers import ProtectedBranchRefused
 
 from tests._factories import provision_test_charter
@@ -20,6 +19,9 @@ from tests._factories import provision_test_charter
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _ORIGINAL_BRANCH = "operator-work"
+# Two identities with distinct mid8s (``01KAAAAA`` / ``01KBBBBB``).
+_FAILED_MISSION_ID = "01KAAAAAAAAAAAAAAAAAAAAAAA"
+_RETRY_MISSION_ID = "01KBBBBBBBBBBBBBBBBBBBBBBB"
 
 
 def _init_git_repo(repo: Path) -> None:
@@ -93,26 +95,28 @@ def test_retry_after_failure_yields_exactly_one_mission(tmp_path: Path, monkeypa
     """
     _init_git_repo(tmp_path)
 
+    # mid8 is the first 8 Crockford chars of a ULID = the top 40 bits of a 48-bit
+    # millisecond timestamp, so two creates inside the same bucket mint the SAME
+    # directory name and the retry silently reuses the orphan. That made this
+    # test pass on pristine 3.2.6 (squad R3, #4051). The two creates take
+    # identities with distinct mid8s through the private input of the create
+    # body (no sleep), so an undeleted orphan shows as a second dir.
     _fail_at_meta_write(monkeypatch, tmp_path)
     with pytest.raises(Exception, match="refusing to commit to protected branch"):
-        create_mission_core(
+        _create_mission_core_failure_atomic(
             tmp_path,
             "retry-check",
             allow_worktree_context=True,
+            _mission_id=_FAILED_MISSION_ID,
             **_mission_summary("retry-check"),
         )
 
     monkeypatch.undo()  # the operator fixes the cause and retries
-    # mid8 is the first 8 Crockford chars of a ULID = the top 40 bits of a 48-bit
-    # millisecond timestamp, so two creates inside the same 256 ms bucket mint the
-    # SAME directory name and the retry silently reuses the orphan. That made this
-    # test pass on pristine 3.2.6 (squad R3, #4051). Cross the bucket boundary so
-    # the retry mints a distinct name and an undeleted orphan shows as a second dir.
-    time.sleep(0.3)
-    create_mission_core(
+    _create_mission_core_failure_atomic(
         tmp_path,
         "retry-check",
         allow_worktree_context=True,
+        _mission_id=_RETRY_MISSION_ID,
         **_mission_summary("retry-check"),
     )
 
@@ -185,17 +189,33 @@ def test_rollback_never_deletes_tracked_content(tmp_path: Path, monkeypatch: pyt
 
 
 def test_tracking_probe_launch_failure_preserves_scaffold(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """An unavailable Git executable cannot establish permission to delete."""
+    """An unavailable Git executable cannot establish permission to delete.
+
+    Reproduced for real -- ``PATH`` holds no ``git``, so launching
+    the tracking probe raises ``FileNotFoundError`` (an ``OSError``). Formerly a
+    patch of ``mission_creation.subprocess.run``, which replaced the
+    process-global ``subprocess.run`` for every caller in the process.
+
+    *tmp_path* is a real repository, so with ``git`` available the untracked
+    scaffold IS removable; only the missing executable keeps it.
+    """
     from specify_cli.core.mission_creation import _plan_orphan_scaffold_removal
 
+    subprocess.run(["git", "init", "-b", "main"], cwd=tmp_path, capture_output=True, check=True)
     scaffold = tmp_path / "kitty-specs" / "orphan-check-01KABCDE"
     scaffold.mkdir(parents=True)
+    (scaffold / "meta.json").write_text("{}\n", encoding="utf-8")
+    no_git = tmp_path / "no-git-on-path"
+    no_git.mkdir()
 
-    def unavailable(*args: object, **kwargs: object) -> None:
-        raise OSError("git unavailable")
+    def plan() -> tuple[Path, ...]:
+        return _plan_orphan_scaffold_removal(tmp_path, mission_slug="orphan-check", pre_existing_scaffolds=frozenset())
 
-    monkeypatch.setattr("specify_cli.core.mission_creation.subprocess.run", unavailable)
-    assert _plan_orphan_scaffold_removal(tmp_path, mission_slug="orphan-check", pre_existing_scaffolds=frozenset()) == ()
+    # Control: with git on PATH the probe establishes the scaffold is untracked.
+    assert plan() == (scaffold,)
+
+    monkeypatch.setenv("PATH", str(no_git))
+    assert plan() == ()
     assert scaffold.exists()
 
 

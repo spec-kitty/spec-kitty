@@ -10,36 +10,35 @@ side-effect-free, no-coordination-branch entrypoint usable from test code
 A raw byte-compare across two independent calls is unachievable as-is:
 ``mission_id`` (a ``ULID``) and ``created_at`` (wall-clock) are minted fresh
 every call, and the mission directory / ``slug`` / ``mission_slug`` fields
-embed the ``mission_id``-derived ``mid8`` suffix. This test freezes both the
-ULID mint and the clock so both calls produce the identical mission_id and
-timestamp, making a true byte-identical comparison of the written
-``meta.json`` possible -- the strongest form of the parity assertion.
+embed the ``mission_id``-derived ``mid8`` suffix. The factory runs first with
+its real mint; the direct core call then takes that identity through the
+private identity inputs of ``_create_mission_core_failure_atomic`` (the body of
+``create_mission_core``, #5634), so both calls produce the identical
+mission_id and timestamp and the written ``meta.json`` files can be compared
+byte for byte -- the strongest form of the parity assertion, with nothing
+patched.
 """
 
 from __future__ import annotations
 
-from kernel.clock import UTC, datetime
+import json
+import re
 from pathlib import Path
 import subprocess
 
 import pytest
 
 from mission_runtime import MissionTopology
-import specify_cli.core.mission_creation as mission_creation_module
-from specify_cli.core.mission_creation import MissionCreationError, create_mission_core
+from specify_cli.core.mission_creation import (
+    MissionCreationError,
+    _create_mission_core_failure_atomic,
+    create_mission_core,
+)
 from tests._factories import make_mission, provision_test_charter
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
-_FROZEN_MISSION_ID = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
-_FROZEN_NOW = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
-
-
-class _FrozenULID:
-    """Stand-in for ``ulid.ULID()`` whose ``str()`` is a fixed value."""
-
-    def __str__(self) -> str:  # noqa: D105 - trivial stringification
-        return _FROZEN_MISSION_ID
+_ULID_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 
 
 def _init_git_repo(repo: Path, *, branch: str = "main") -> None:
@@ -51,6 +50,12 @@ def _init_git_repo(repo: Path, *, branch: str = "main") -> None:
     subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "init"], cwd=repo, check=True)
 
 
+def _linked_worktree(repo: Path, checkout: Path) -> Path:
+    """A real ``git worktree add`` checkout of ``repo`` (its ``.git`` is a gitdir pointer)."""
+    subprocess.run(["git", "worktree", "add", "-q", "--detach", str(checkout)], cwd=repo, check=True)
+    return checkout
+
+
 def _read_meta_bytes(repo_root: Path, mission_slug_prefix: str) -> bytes:
     matches = [
         p for p in (repo_root / "kitty-specs").iterdir() if p.name.startswith(f"{mission_slug_prefix}-")
@@ -59,30 +64,7 @@ def _read_meta_bytes(repo_root: Path, mission_slug_prefix: str) -> bytes:
     return (matches[0] / "meta.json").read_bytes()
 
 
-@pytest.fixture
-def _frozen_mint(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Freeze the ULID mint and the clock seam inside ``mission_creation`` so
-    two independent ``create_mission_core()`` calls made under this fixture
-    mint the identical ``mission_id`` / ``created_at`` -- the only two per-call
-    non-deterministic fields in the schema (the ``mid8`` embedded in
-    ``slug``/``mission_slug`` derives from ``mission_id``, so freezing it also
-    pins those fields).
-
-    The ``created_at`` stamp routes through the canonical
-    :func:`kernel.clock.now_utc_iso` helper (#2496), imported
-    into ``mission_creation`` as a module-level name. Freezing that name is the
-    supported seam; there is deliberately no module-local ``datetime`` copy
-    left to patch.
-    """
-    monkeypatch.setattr(mission_creation_module, "ULID", _FrozenULID)
-    monkeypatch.setattr(
-        mission_creation_module, "now_utc_iso", lambda: _FROZEN_NOW.isoformat()
-    )
-
-
-def test_make_mission_meta_is_byte_identical_to_direct_core_call(
-    tmp_path: Path, _frozen_mint: None
-) -> None:
+def test_make_mission_meta_is_byte_identical_to_direct_core_call(tmp_path: Path) -> None:
     """E-06 / IC-07: make_mission() delegates -- it does not fork the schema."""
     direct_repo = tmp_path / "direct"
     factory_repo = tmp_path / "factory"
@@ -105,16 +87,6 @@ def test_make_mission_meta_is_byte_identical_to_direct_core_call(
         "can move forward with a clear outcome and shared understanding."
     )
 
-    create_mission_core(
-        direct_repo,
-        "parity-mission",
-        friendly_name=friendly_name,
-        purpose_tldr=purpose_tldr,
-        purpose_context=purpose_context,
-        target_branch="main",
-        topology=MissionTopology.SINGLE_BRANCH,
-        allow_worktree_context=True,
-    )
     make_mission(
         factory_repo,
         "parity-mission",
@@ -125,6 +97,19 @@ def test_make_mission_meta_is_byte_identical_to_direct_core_call(
         topology=MissionTopology.SINGLE_BRANCH,
         allow_worktree_context=True,
     )
+    factory_meta = json.loads(_read_meta_bytes(factory_repo, "parity-mission"))
+    _create_mission_core_failure_atomic(
+        direct_repo,
+        "parity-mission",
+        friendly_name=friendly_name,
+        purpose_tldr=purpose_tldr,
+        purpose_context=purpose_context,
+        target_branch="main",
+        topology=MissionTopology.SINGLE_BRANCH,
+        allow_worktree_context=True,
+        _mission_id=factory_meta["mission_id"],
+        _created_at=factory_meta["created_at"],
+    )
 
     direct_bytes = _read_meta_bytes(direct_repo, "parity-mission")
     factory_bytes = _read_meta_bytes(factory_repo, "parity-mission")
@@ -132,9 +117,7 @@ def test_make_mission_meta_is_byte_identical_to_direct_core_call(
     assert direct_bytes == factory_bytes
 
 
-def test_make_mission_applies_explicit_overrides_on_production_shaped_meta(
-    tmp_path: Path, _frozen_mint: None
-) -> None:
+def test_make_mission_applies_explicit_overrides_on_production_shaped_meta(tmp_path: Path) -> None:
     """Overrides land on top of the production schema, not a forked one."""
     repo = tmp_path / "override-repo"
     repo.mkdir()
@@ -147,7 +130,10 @@ def test_make_mission_applies_explicit_overrides_on_production_shaped_meta(
     assert b'"friendly_name": "Custom Override Name"' in meta_bytes
     # Still production-shaped: the schema fields make_mission() did not
     # override come straight from create_mission_core().
-    assert result.meta["mission_id"] == _FROZEN_MISSION_ID
+    # The identity is the core's own mint: a ULID whose mid8 names the mission.
+    assert _ULID_RE.match(result.meta["mission_id"])
+    assert result.meta["mid8"] == result.meta["mission_id"][:8]
+    assert result.mission_slug == f"override-mission-{result.meta['mid8']}"
     assert result.meta["topology"] == "single_branch"
     assert "coordination_branch" not in result.meta
 
@@ -164,11 +150,11 @@ def test_create_mission_core_worktree_guard_default_still_blocks(
     repo.mkdir()
     _init_git_repo(repo)
 
-    # Simulate the *process* cwd resolving inside a worktree, independent of
-    # the temp ``repo_root`` under test -- this is exactly what
-    # ``is_worktree_context(Path.cwd())`` observes for real test runs
-    # executed from a lane worktree checkout.
-    monkeypatch.setattr(mission_creation_module, "is_worktree_context", lambda _p: True)
+    # The *process* cwd sits inside a real linked worktree of the repository,
+    # independent of the temp ``repo_root`` under test -- exactly what
+    # ``is_worktree_context(Path.cwd())`` observes for a run started from a
+    # lane worktree checkout. Nothing is patched.
+    monkeypatch.chdir(_linked_worktree(repo, tmp_path / "guard-default-linked"))
 
     with pytest.raises(MissionCreationError, match="worktree"):
         create_mission_core(
@@ -193,8 +179,7 @@ def test_create_mission_core_worktree_guard_bypass_is_behaviour_preserving(
     repo.mkdir()
     _init_git_repo(repo)
     provision_test_charter(repo)
-
-    monkeypatch.setattr(mission_creation_module, "is_worktree_context", lambda _p: True)
+    monkeypatch.chdir(_linked_worktree(repo, tmp_path / "guard-bypass-linked"))
 
     result = create_mission_core(
         repo,

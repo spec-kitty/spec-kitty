@@ -43,8 +43,11 @@ def _event_types(log_path: Path) -> list[str]:
 
 
 @pytest.fixture(autouse=True)
-def _not_a_worktree(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("specify_cli.core.mission_creation.is_worktree_context", lambda cwd: False)
+def _cwd_outside_any_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The worktree-context guard reads the real process cwd, and pytest may run
+    from inside a lane worktree. Run each create from the ``tmp_path`` fixture
+    repository so the real guard sees a non-worktree checkout (no patch)."""
+    monkeypatch.chdir(tmp_path)
 
 
 def test_lanes_with_coord_create_seeds_the_coordination_branch(tmp_path: Path) -> None:

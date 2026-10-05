@@ -294,7 +294,7 @@ _RAW_JOIN_SITES: tuple[ContentDescriptor, ...] = (
             "WP08's deletion of the (now-thin) public wrapper."
         ),
     ),
-    # ----- mission_creation.py: seam-grammar output -----
+    # ----- mission_creation_scaffold.py: seam-grammar output -----
     # ``mission_slug_formatted = mission_dir_name(mission_slug, mid8=...)`` is
     # composed just above.  The slug on the RHS of the join is NOT raw operator
     # input: it is the OUTPUT of the canonical ``mission_dir_name`` grammar
@@ -302,7 +302,7 @@ _RAW_JOIN_SITES: tuple[ContentDescriptor, ...] = (
     # dir name.  The join is therefore using a seam-produced, pre-composed
     # name — not a raw slug bypass.
     ContentDescriptor(
-        rel_path="specify_cli/core/mission_creation.py",
+        rel_path="specify_cli/core/mission_creation_scaffold.py",
         qualname="_scaffold_mission_dir",
         token_substring="feature_dir = write_root / KITTY_SPECS_DIR / mission_slug_formatted",
         occurrence=None,
@@ -317,7 +317,8 @@ _RAW_JOIN_SITES: tuple[ContentDescriptor, ...] = (
             "which owns this join line. Re-pinned (owned-checkout-lifecycle-authority "
             "WP10/T051): _create_mission_core_impl decomposed (FR-026); the join is "
             "unchanged seam-grammar output, now in the extracted _scaffold_mission_dir "
-            "helper (param renamed effective_root -> write_root)."
+            "helper (param renamed effective_root -> write_root). "
+            "Re-pinned (#5634): moved verbatim to mission_creation_scaffold.py."
         ),
     ),
     # ----- DRAINED by mission retrospective-durable-home-01KVYM1W (#2136/#2164):

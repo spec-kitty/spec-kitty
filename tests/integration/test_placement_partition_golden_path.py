@@ -67,7 +67,6 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 
-_CORE_MODULE = "specify_cli.core.mission_creation"
 _ALLOW_PROTECTED_ENV = "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"
 
 _SUBSTANTIVE_SPEC = """\
@@ -125,25 +124,25 @@ def _create_mission(
 ) -> MissionCreationResult:
     """Create a mission via the SAME core the CLI ``mission create`` calls.
 
-    Only ``is_worktree_context`` is patched — it inspects the actual OS
-    ``Path.cwd()`` (not ``repo_root``), which during a pytest run under this
-    lane worktree genuinely IS a spec-kitty worktree and would otherwise
-    trip the "cannot create missions from inside a worktree" guard. Every
-    other resolver (``is_git_repo`` / ``get_current_branch``) runs for
-    real against ``repo`` — this is real git, not a stub.
+    Nothing is patched. The worktree guard inspects the actual OS
+    ``Path.cwd()`` (not ``repo_root``), which during a pytest run under a
+    lane worktree genuinely IS a spec-kitty worktree, so the create opts out
+    with ``allow_worktree_context=True`` (the same flag ``make_mission`` uses).
+    Every resolver (``is_git_repo`` / ``get_current_branch``) runs for real
+    against ``repo`` — this is real git, not a stub.
     """
-    with patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False):
-        return create_mission_core(
-            repo,
-            slug,
-            friendly_name=slug.replace("-", " ").title(),
-            purpose_tldr=f"Deliver {slug} for the golden-path lock.",
-            purpose_context=(
-                f"This mission exercises the {slug} golden path end to end so "
-                "the placement partition stays proven under CI."
-            ),
-            topology=topology,
-        )
+    return create_mission_core(
+        repo,
+        slug,
+        allow_worktree_context=True,
+        friendly_name=slug.replace("-", " ").title(),
+        purpose_tldr=f"Deliver {slug} for the golden-path lock.",
+        purpose_context=(
+            f"This mission exercises the {slug} golden path end to end so "
+            "the placement partition stays proven under CI."
+        ),
+        topology=topology,
+    )
 
 
 def _commit(repo: Path, rel_path: str, message: str) -> None:

@@ -8,7 +8,7 @@ after finalize and are covered in the classifier + backfill tests.
 
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import chdir, contextmanager
 import json
 import subprocess
 from pathlib import Path
@@ -32,13 +32,9 @@ def _init_git_repo(repo: Path) -> None:
     # (same shared helper used across the mission-creation test harness).
     provision_test_charter(repo)
     (repo / "kitty-specs").mkdir(exist_ok=True)
-    subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
-    # Pin the branch the checkout is really on to the one ``_patched_context``
-    # reports (``get_current_branch`` -> "main"): ``git init``'s default branch
-    # is environment-dependent (``init.defaultBranch``; ``master`` when unset),
-    # so without this the protected single_branch mint is asked to fork from a
-    # ``main`` that exists only in the patch.
-    subprocess.run(["git", "symbolic-ref", "HEAD", "refs/heads/main"], cwd=repo, capture_output=True, check=True)
+    # The checkout really is on ``main`` (``git init``'s default is environment-
+    # dependent), so the create reads the real branch -- nothing is patched.
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, capture_output=True, check=True)
     subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, capture_output=True, check=True)
     subprocess.run(["git", "commit", "-m", "init", "--allow-empty"], cwd=repo, capture_output=True, check=True)
@@ -56,11 +52,7 @@ def _mission_summary(slug: str) -> dict[str, str]:
 @contextmanager
 def _patched_context(tmp_path: Path):
     with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}._commit_feature_file"),
+        chdir(tmp_path),
     ):
         yield
 

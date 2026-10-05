@@ -4,7 +4,8 @@ Guarantees locked by this file:
   T001 — two back-to-back creations always produce distinct, valid ULIDs
   T002 — creation succeeds with all outbound sockets blocked (offline guarantee, FR-003)
   T003 — mission_id is a valid ULID and is immutable after creation (FR-002)
-  T004 — 100 sequential creations all produce distinct ULIDs (monotonicity, FR-005)
+  T004 — N sequential identity mints are distinct, ordered ULIDs, and the create
+         derives mid8 from the minted id (monotonicity, FR-005)
 
 Do NOT add ``# type: ignore`` to this file — it must pass ``mypy --strict`` cleanly.
 """
@@ -24,6 +25,7 @@ import pytest
 
 from specify_cli.core.mission_creation import (
     MissionCreationResult,
+    _mint_mission_id,
     create_mission_core,
 )
 from tests._factories import provision_test_charter
@@ -33,8 +35,6 @@ from tests._factories import provision_test_charter
 pytestmark = [pytest.mark.contract, pytest.mark.git_repo]
 
 _ULID_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
-
-_CORE = "specify_cli.core.mission_creation"
 
 # ULID volume for the monotonicity contract. 25 proves the uniqueness/ordering
 # guarantee at a fraction of the cost; the full 100-mission run stays available
@@ -80,11 +80,12 @@ def _create_mission(
     slug: str,
     feature_number: int = 1,  # retained for call-site compatibility; not used post-WP02
 ) -> MissionCreationResult:
-    """Call create_mission_core with the minimum scaffolding patches.
+    """Call create_mission_core with nothing patched.
 
-    Patches allowed (local/git state only):
-    - is_worktree_context: always False (we run in tmp dir, not inside .worktrees/)
-    - _commit_feature_file: no-op (avoids git-commit overhead in volume tests)
+    The worktree guard is opted out with ``allow_worktree_context=True`` (the
+    process cwd may be a lane worktree; the create targets ``repo`` explicitly).
+    The scaffold commit runs for real (on the protected primary checkout it is
+    the disclosed bootstrap skip).
 
     Note (WP02): get_next_feature_number is no longer imported by mission_creation.py;
     the allocator was removed as part of FR-044. The ``feature_number`` parameter is
@@ -94,20 +95,17 @@ def _create_mission(
     - emit_mission_created  (see T002 for network-blocking test)
     - locate_project_root, is_git_repo, get_current_branch (real git repo is present)
     """
-    with (
-        patch(f"{_CORE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE}._commit_feature_file"),
-    ):
-        return create_mission_core(
-            repo,
-            slug,
-            friendly_name=slug.replace("-", " ").title(),
-            purpose_tldr=f"Deliver {slug.replace('-', ' ')} cleanly for the team.",
-            purpose_context=(
-                f"This mission delivers {slug.replace('-', ' ')} so product and engineering can "
-                "move forward with a clear outcome and shared understanding."
-            ),
-        )
+    return create_mission_core(
+        repo,
+        slug,
+        allow_worktree_context=True,
+        friendly_name=slug.replace("-", " ").title(),
+        purpose_tldr=f"Deliver {slug.replace('-', ' ')} cleanly for the team.",
+        purpose_context=(
+            f"This mission delivers {slug.replace('-', ' ')} so product and engineering can "
+            "move forward with a clear outcome and shared understanding."
+        ),
+    )
 
 
 def _read_meta(feature_dir: Path) -> dict[str, Any]:
@@ -177,14 +175,11 @@ def test_t002_creation_succeeds_with_network_blocked(tmp_path: Path) -> None:
     """
     _init_git_repo(tmp_path)
 
-    with (
-        patch(f"{_CORE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE}._commit_feature_file"),
-        patch.object(socket.socket, "connect", _block_connect),
-    ):
+    with patch.object(socket.socket, "connect", _block_connect):
         result = create_mission_core(
             tmp_path,
             "offline-feature",
+            allow_worktree_context=True,
             friendly_name="Offline Feature",
             purpose_tldr="Deliver offline feature cleanly for the team.",
             purpose_context="This mission delivers offline feature so product and engineering can move forward with a clear outcome and shared understanding.",
@@ -233,29 +228,24 @@ def test_t003_mission_id_is_valid_ulid_and_immutable(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.slow
 def test_t004_hundred_sequential_creations_all_distinct(tmp_path: Path) -> None:
-    """FR-005: ULID monotonicity — N missions in one process yield N unique IDs.
+    """FR-005: ULID monotonicity — N identity mints in one process yield N unique IDs.
 
-    N defaults to 25 (enough to prove the uniqueness/ordering contract) and
-    rises to the full 100 when SPEC_KITTY_ULID_VOLUME_FULL is set (nightly path).
-    Also asserts non-decreasing lexicographic order, which holds because ULID
-    timestamps are monotonically increasing within a single process (the
-    python-ulid library guarantees this).
+    The contract is about the identity mint, so the volume runs
+    through the create's identity seam (``_mint_mission_id``, the one function
+    ``create_mission_core`` mints with) instead of N full creates. N defaults to
+    25 and rises to 100 when SPEC_KITTY_ULID_VOLUME_FULL is set (nightly path).
+    Each id must be a valid ULID, all must be distinct, and they must be in
+    non-decreasing lexicographic order (ULID timestamps increase monotonically
+    within one process; the python-ulid library guarantees this). One real
+    end-to-end create then proves the create uses a minted id the same way:
+    a valid ULID whose first 8 characters are the ``mid8`` naming the mission.
     """
-    _init_git_repo(tmp_path)
-
     n = _VOLUME
-    ids: list[str] = []
+    ids = [_mint_mission_id() for _ in range(n)]
 
-    for i in range(1, n + 1):
-        slug = f"vol-{i:03d}"
-        result = _create_mission(tmp_path, slug, feature_number=i)
-        meta = _read_meta(result.feature_dir)
-        mission_id: str = meta["mission_id"]
-        _assert_valid_ulid(mission_id, label=f"vol-{i:03d} mission_id")
-        ids.append(mission_id)
-
+    for index, mission_id in enumerate(ids, start=1):
+        _assert_valid_ulid(mission_id, label=f"mint {index:03d} mission_id")
     unique_ids = set(ids)
     assert len(unique_ids) == n, (
         f"Expected {n} distinct mission_ids, found {len(unique_ids)} unique values "
@@ -267,3 +257,12 @@ def test_t004_hundred_sequential_creations_all_distinct(tmp_path: Path) -> None:
         assert ids[j] <= ids[j + 1], (
             f"ULID order violation at index {j}: {ids[j]!r} > {ids[j + 1]!r}"
         )
+
+    # End to end: the create's own mint is a fresh, valid ULID that names the mission.
+    _init_git_repo(tmp_path)
+    result = _create_mission(tmp_path, "vol-end-to-end")
+    meta = _read_meta(result.feature_dir)
+    _assert_valid_ulid(meta["mission_id"], label="end-to-end mission_id")
+    assert meta["mission_id"] not in unique_ids
+    assert meta["mid8"] == meta["mission_id"][:8]
+    assert result.mission_slug == f"vol-end-to-end-{meta['mid8']}"

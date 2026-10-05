@@ -61,6 +61,7 @@ Downstream notes (no action needed in WP02, recorded for later WPs):
 
 from __future__ import annotations
 
+import contextlib
 import json
 import subprocess
 from dataclasses import dataclass
@@ -350,9 +351,10 @@ def _first_json_line(output: str) -> dict[str, object]:
 
 def _invoke_mission_create_cli(repo: Path, args: list[str]) -> dict[str, object]:
     runner = CliRunner()
+    # The create's worktree guard reads the real process cwd: run it from the
+    # fixture repository, not from the lane worktree pytest may be started in.
     with (
-        patch("specify_cli.core.mission_creation.locate_project_root", return_value=repo),
-        patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False),
+        contextlib.chdir(repo),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=repo),
     ):
         result = runner.invoke(_mission_app, ["create", *args], input="")

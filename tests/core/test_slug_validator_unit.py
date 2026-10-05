@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
-from ulid import ULID
 
 from specify_cli.core.mission_creation import KEBAB_CASE_PATTERN, MissionCreationError
 from tests._factories import provision_test_charter
@@ -70,15 +68,15 @@ class TestCreateMissionCoreSlugValidation:
         from specify_cli.core.mission_creation import create_mission_core
 
         provision_test_charter(temp_repo)
-        with patch("specify_cli.core.mission_creation.ULID", return_value=ULID.from_str("01KNXQS9ATWWFXS3K5ZJ9E5008")):
-            result = create_mission_core(
-                repo_root=temp_repo,
-                mission_slug="070-new-feature",
-                allow_worktree_context=True,
-                **self._mission_summary("070-new-feature"),
-            )
-            assert result is not None
-            assert result.mission_slug.startswith("new-feature-")
+        result = create_mission_core(
+            repo_root=temp_repo,
+            mission_slug="070-new-feature",
+            allow_worktree_context=True,
+            **self._mission_summary("070-new-feature"),
+        )
+        assert result is not None
+        # The NNN- prefix is dropped and the real mint's mid8 names the mission.
+        assert result.mission_slug == f"new-feature-{result.meta['mission_id'][:8]}"
 
     def test_uppercase_slug_still_rejected(self, tmp_path: Path) -> None:
         """FR-018: uppercase slugs are still rejected by slug validation."""

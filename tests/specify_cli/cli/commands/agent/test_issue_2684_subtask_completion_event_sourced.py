@@ -79,7 +79,6 @@ from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
-from unittest.mock import patch
 
 from mission_runtime import MissionTopology
 from specify_cli import app as root_app
@@ -101,7 +100,6 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 
-_CREATE_MODULE = "specify_cli.core.mission_creation"
 
 #: The three canonical subtasks WP01 carries in ``tasks.md``.
 _SUBTASKS = ("T001", "T002", "T003")
@@ -163,35 +161,34 @@ def _build_single_branch_mission_with_in_progress_wp(
     # non-protected target branch checked out in the primary checkout.
     _git(repo, "checkout", "-b", "feature-work")
 
-    # `is_worktree_context` inspects the REAL process cwd (pytest genuinely runs
-    # inside a spec-kitty lane worktree), which would otherwise trip the "cannot
-    # create missions from inside a worktree" guard. Every other resolver runs
-    # for real against `repo`.
-    with patch(f"{_CREATE_MODULE}.is_worktree_context", return_value=False):
-        result = create_mission_core(
-            repo,
-            "issue-2684-repro",
-            friendly_name="Issue 2684 Regression",
-            purpose_tldr="reproduce the markdown-gated subtask-completion bug",
-            purpose_context=(
-                "Drive the #2684 invariant-1 reproduction end to end so the "
-                "review gate's subtask-completion source of truth stays proven."
-            ),
-            # #5100 WP05 (T024 blast radius): this fixture hand-writes a
-            # ``lane-a`` CODE lane below and asserts ``.worktrees/*-lane-a``
-            # -- exactly the manifest shape ``compute_lanes(topology=
-            # single_branch)`` (WP05, IC-03) no longer allows: a mission
-            # explicitly stamped ``single_branch`` now fails closed
-            # (``SINGLE_BRANCH_CODE_LANES_UNMIGRATED``) against a hand-written
-            # code-lane manifest, both at ``implement`` and at
-            # ``finalize-tasks`` (``assert_topology_matches_manifest``,
-            # ``mission_runtime/context.py``). This fixture's own concern
-            # (#2684 -- subtask-completion event-sourcing) is orthogonal to
-            # topology; a genuine ``lanes`` mission exercises the identical
-            # ordinary code-lane worktree path this test needs, without
-            # tripping the new single_branch guard.
-            topology=MissionTopology.LANES,
-        )
+    # The worktree guard inspects the REAL process cwd (pytest may run inside a
+    # spec-kitty lane worktree), so the create opts out with
+    # `allow_worktree_context=True`; every resolver runs for real against `repo`.
+    result = create_mission_core(
+        repo,
+        "issue-2684-repro",
+        allow_worktree_context=True,
+        friendly_name="Issue 2684 Regression",
+        purpose_tldr="reproduce the markdown-gated subtask-completion bug",
+        purpose_context=(
+            "Drive the #2684 invariant-1 reproduction end to end so the "
+            "review gate's subtask-completion source of truth stays proven."
+        ),
+        # #5100 WP05 (T024 blast radius): this fixture hand-writes a
+        # ``lane-a`` CODE lane below and asserts ``.worktrees/*-lane-a``
+        # -- exactly the manifest shape ``compute_lanes(topology=
+        # single_branch)`` (WP05, IC-03) no longer allows: a mission
+        # explicitly stamped ``single_branch`` now fails closed
+        # (``SINGLE_BRANCH_CODE_LANES_UNMIGRATED``) against a hand-written
+        # code-lane manifest, both at ``implement`` and at
+        # ``finalize-tasks`` (``assert_topology_matches_manifest``,
+        # ``mission_runtime/context.py``). This fixture's own concern
+        # (#2684 -- subtask-completion event-sourcing) is orthogonal to
+        # topology; a genuine ``lanes`` mission exercises the identical
+        # ordinary code-lane worktree path this test needs, without
+        # tripping the new single_branch guard.
+        topology=MissionTopology.LANES,
+    )
     feature_dir = result.feature_dir
     mission_slug = result.mission_slug
     meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))

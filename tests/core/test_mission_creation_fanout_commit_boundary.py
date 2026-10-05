@@ -97,18 +97,39 @@ def test_creation_fanout_follows_the_scaffold_commit(tmp_path, monkeypatch):
     assert all(returncode == 0 for _, returncode in emitted), emitted
 
 
+def _install_commit_msg_hook(repo: Path, *, refuse_prefix: str, message: str) -> Path:
+    """Real hard git failure: a ``commit-msg`` hook on the operator branch.
+
+    It records every commit message it sees on ``operator-work`` and refuses the
+    commit whose message starts with ``refuse_prefix`` (the coordination branch's
+    commits pass untouched). Returns the record file.
+    """
+    record = repo / ".git" / "commit-attempts.log"
+    hooks = repo / ".git" / "hooks"
+    hooks.mkdir(parents=True, exist_ok=True)
+    hook = hooks / "commit-msg"
+    hook.write_text(
+        "#!/bin/sh\n"
+        '[ "$(git rev-parse --abbrev-ref HEAD)" = "operator-work" ] || exit 0\n'
+        f'head -n 1 "$1" >> "{record}"\n'
+        f'case "$(head -n 1 "$1")" in "{refuse_prefix}"*) echo "{message}" >&2; exit 1 ;; esac\n'
+        "exit 0\n",
+        encoding="utf-8",
+    )
+    hook.chmod(0o755)
+    _git(repo, "config", "core.hooksPath", str(hooks))
+    return record
+
+
 def test_hard_commit_failure_does_not_fanout_discarded_creation(tmp_path, monkeypatch):
     from specify_cli.core.mission_creation import create_mission_core
     from tests.core.test_mission_create_scaffold_rollback import _init_git_repo, _mission_summary
 
     _init_git_repo(tmp_path)
     emitted = []
-
-    def refuse(*args, **kwargs):
-        raise RuntimeError("injected scaffold commit failure")
+    _install_commit_msg_hook(tmp_path, refuse_prefix="Add scaffold for", message="injected scaffold commit failure")
 
     monkeypatch.setattr("specify_cli.status.adapters.fire_lifecycle_saas_fanout", lambda **kwargs: emitted.append(kwargs))
-    monkeypatch.setattr("specify_cli.core.mission_creation._commit_feature_file", refuse)
     with pytest.raises(RuntimeError, match="injected scaffold commit failure"):
         create_mission_core(tmp_path, "late-refusal", allow_worktree_context=True, **_mission_summary("late-refusal"))
     assert not emitted
@@ -116,32 +137,31 @@ def test_hard_commit_failure_does_not_fanout_discarded_creation(tmp_path, monkey
 
 def test_origin_commit_failure_preserves_evidence_without_creation_fanout(tmp_path, monkeypatch):
     from specify_cli.core import mission_creation
+    from specify_cli.core.adapters import register_pending_origin_consumer, reset_origin_consumer
     from specify_cli.mission_metadata import write_meta
     from tests.core.test_mission_create_scaffold_rollback import _init_git_repo, _mission_summary
 
     _init_git_repo(tmp_path)
     original_head = _git(tmp_path, "rev-parse", "HEAD").stdout
-    committed = mission_creation._commit_feature_file
     emitted = []
-    calls = []
 
-    def bind(*, repo_root, feature_dir, meta):
+    def bind(repo_root, feature_dir, meta):
         meta["origin_ticket"] = {"id": "TEST-1"}
         write_meta(feature_dir, meta)
         return True, True, None, meta
 
-    def commit(*args, **kwargs):
-        calls.append(args[2])
-        if len(calls) == 2:
-            raise RuntimeError("injected origin commit failure")
-        return committed(*args, **kwargs)
-
+    # A real pending-origin consumer (the registry the tracker uses) and a
+    # real ``commit-msg`` hook that refuses the second, origin-binding commit.
+    record = _install_commit_msg_hook(tmp_path, refuse_prefix="Add origin-ticket binding for", message="injected origin commit failure")
     monkeypatch.setattr("specify_cli.status.adapters.fire_lifecycle_saas_fanout", lambda **kwargs: emitted.append(kwargs))
-    monkeypatch.setattr(mission_creation, "_consume_pending_origin_if_present", bind)
-    monkeypatch.setattr(mission_creation, "_commit_feature_file", commit)
-    with pytest.raises(RuntimeError, match="origin-ticket binding commit failed"):
-        mission_creation.create_mission_core(tmp_path, "origin-failure", allow_worktree_context=True, **_mission_summary("origin-failure"))
-    assert calls == ["scaffold", "origin-ticket binding"]
+    register_pending_origin_consumer(bind)
+    try:
+        with pytest.raises(RuntimeError, match="origin-ticket binding commit failed"):
+            mission_creation.create_mission_core(tmp_path, "origin-failure", allow_worktree_context=True, **_mission_summary("origin-failure"))
+    finally:
+        reset_origin_consumer()
+    attempts = record.read_text(encoding="utf-8").splitlines()
+    assert [line.split(" for feature ")[0] for line in attempts] == ["Add scaffold", "Add origin-ticket binding"]
     assert not emitted
     assert _git(tmp_path, "rev-parse", "HEAD").stdout == original_head
     # Re-pinned (coord-artifact-single-home-01M3V4BE WP06, T032): the default

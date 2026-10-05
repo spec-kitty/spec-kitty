@@ -1527,7 +1527,6 @@ def test_seeded_coord_branch_not_reported_diverged(monkeypatch: pytest.MonkeyPat
     repo = tmp_path / "repo"
     repo.mkdir()
     _doctor_init_repo(repo, branch="work")
-    monkeypatch.setattr("specify_cli.core.mission_creation.is_worktree_context", lambda cwd: False)
 
     result = create_mission_core(
         repo,
@@ -1568,7 +1567,6 @@ def test_genuinely_diverged_legacy_still_reported(monkeypatch: pytest.MonkeyPatc
     repo = tmp_path / "repo"
     repo.mkdir()
     _doctor_init_repo(repo, branch="work")
-    monkeypatch.setattr("specify_cli.core.mission_creation.is_worktree_context", lambda cwd: False)
 
     from specify_cli.coordination.workspace import CoordinationWorkspace
 

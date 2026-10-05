@@ -18,7 +18,8 @@ _SANCTIONED_RESOLVER_MODULE = "src/specify_cli/context/mission_resolver.py"
 # Failed-create disposal must census malformed and incomplete directories too:
 # MissionResolver omits those, which could make pre-existing data look new.
 # Exempt only this top-level snapshot function, never the whole creation module.
-_SCAFFOLD_SNAPSHOT_MODULE = "src/specify_cli/core/mission_creation.py"
+# #5634: re-pointed to the leaf ``_list_mission_scaffolds`` moved to verbatim.
+_SCAFFOLD_SNAPSHOT_MODULE = "src/specify_cli/core/mission_creation_duplicates.py"
 _SCAFFOLD_SNAPSHOT_FUNCTION = "_list_mission_scaffolds"
 _LEGACY_WALKER_ALLOWLIST = frozenset(
     {
