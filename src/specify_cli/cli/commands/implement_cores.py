@@ -37,7 +37,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from specify_cli.frontmatter import WP_RUNTIME_FIELDS
-from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME, is_dossier_snapshot, materialize_snapshot, materialize_to_json
+from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME, StoreError, is_dossier_snapshot, materialize_snapshot, materialize_to_json
 from specify_cli.task_utils.support import split_frontmatter
 
 _META_JSON_FILENAME = "meta.json"
@@ -541,14 +541,21 @@ def _is_claim_status_self_write(
     """#3471: is this status-log / snapshot diff only the claim's own write?
 
     The event log qualifies when it is the committed log plus claim transitions
-    only. The snapshot qualifies when its working bytes are exactly what that
-    log materializes to (a hand edit never is) and the log itself qualifies.
+    only. The snapshot qualifies when the log itself qualifies and its working
+    bytes are exactly what that log materializes to (a hand edit never is). The
+    log is judged first, so a corrupt log keeps both files in the "not
+    committed" set instead of raising out of the materialization; a log the
+    status store cannot read is likewise "not a self-write".
     """
     rel = Path(repo_rel)
     if rel.name == SNAPSHOT_FILENAME:
-        if working_text != materialize_to_json(materialize_snapshot((repo_root / rel.parent).resolve())):
+        if not _is_self_write_only_diff(repo_root, (rel.parent / EVENTS_FILENAME).as_posix(), ref, git=git):
             return False
-        return _is_self_write_only_diff(repo_root, (rel.parent / EVENTS_FILENAME).as_posix(), ref, git=git)
+        try:
+            materialized: str = materialize_to_json(materialize_snapshot((repo_root / rel.parent).resolve()))
+        except StoreError:
+            return False
+        return working_text == materialized
     committed_blob = git.show_blob(repo_root, resolve_precondition_ref(repo_rel, ref), repo_rel)
     if committed_blob is None:
         return False

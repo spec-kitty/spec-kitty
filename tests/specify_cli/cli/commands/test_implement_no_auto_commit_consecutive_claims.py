@@ -19,7 +19,11 @@ import pytest
 from click.testing import Result
 
 from specify_cli.charter_runtime.preflight.ambient_warning import _reset_surfaced_for_testing
-from specify_cli.cli.commands.implement_cores import _is_runtime_frontmatter_only_wp_diff
+from specify_cli.cli.commands.implement_cores import (
+    _is_runtime_frontmatter_only_wp_diff,
+    _is_self_write_only_diff,
+    resolve_planning_artifact_staging,
+)
 from tests.specify_cli.cli.commands.test_implement_characterization import (
     MISSION_ID,
     SLUG,
@@ -186,6 +190,27 @@ def test_an_appended_non_claim_status_event_between_claims_still_blocks(repo: Pa
 
     assert result.exit_code == 1, result.output
     assert f"kitty-specs/{SLUG}/status.events.jsonl" in flat(result.output)
+
+
+def test_a_corrupt_status_log_between_claims_still_reads_as_not_committed(repo: Path) -> None:
+    """A corrupt event log keeps both status files in the "not committed" set; it never raises.
+
+    The command's own claim preflight reads the log first and refuses a corrupt one, so this drives
+    the planning guard's staging core directly, on the state a real claim left behind.
+
+    Planted break (proven red): restore the pre-fix snapshot leg, which rebuilt the snapshot before
+    judging the event log and so raised ``StoreError`` from the corrupt log.
+    """
+    mission = _independent_lanes_mission(repo)
+    assert _claim("WP01").exit_code == 0
+    with mission.events_path.open("a", encoding="utf-8") as handle:
+        handle.write('{"truncated": \n')
+    rel = f"kitty-specs/{SLUG}"
+
+    plan = resolve_planning_artifact_staging(repo, mission.feature_dir, None, [], auto_commit=False)
+
+    assert {f"{rel}/status.events.jsonl", f"{rel}/status.json"} <= set(plan.files_to_commit)
+    assert _is_self_write_only_diff(repo, f"{rel}/status.json", None) is False
 
 
 @pytest.mark.parametrize(

@@ -13,6 +13,7 @@ signatures with a default port) already lives in
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 from collections.abc import Sequence
@@ -460,6 +461,25 @@ class TestIsSelfWriteOnlyDiff:
 
     def test_missing_wp_source_is_not_dropped_defensively(self, tmp_path: Path) -> None:
         assert _is_self_write_only_diff(tmp_path, "kitty-specs/m/tasks/WP01.md", None, git=_FakeGitPort()) is False
+
+    def test_a_snapshot_over_an_unreadable_committed_log_is_not_dropped(self, tmp_path: Path) -> None:
+        """#3471 / N-6: the status store cannot read the log, so the snapshot is "not a self-write".
+
+        The appended line is a genuine claim transition, so the log leg alone passes; the snapshot
+        leg then cannot rebuild from the corrupt committed prefix and must refuse, not raise.
+
+        Planted break (proven red): drop the ``StoreError`` guard around the snapshot rebuild.
+        """
+        mission_dir = tmp_path / "kitty-specs" / "m"
+        mission_dir.mkdir(parents=True)
+        committed_log = b"not json\n"
+        claim_line = json.dumps({"wp_id": "WP01", "from_lane": "planned", "to_lane": "claimed"})
+        (mission_dir / "status.events.jsonl").write_bytes(committed_log + claim_line.encode() + b"\n")
+        (mission_dir / "status.json").write_text("{}\n", encoding="utf-8")
+        fake = _FakeGitPort(blobs={("HEAD", "kitty-specs/m/status.events.jsonl"): committed_log})
+
+        assert _is_self_write_only_diff(tmp_path, "kitty-specs/m/status.events.jsonl", None, git=fake) is True
+        assert _is_self_write_only_diff(tmp_path, "kitty-specs/m/status.json", None, git=fake) is False
 
     def test_missing_committed_blob_is_not_dropped_defensively(self, tmp_path: Path) -> None:
         wp_rel = "kitty-specs/m/tasks/WP02.md"
