@@ -35,6 +35,15 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent import mission as mission_commands
 from specify_cli.cli.commands.agent.workflow import top_level_implement
+from specify_cli.coordination import planning_commit
+from specify_cli.coordination.planning_commit import (
+    PlanningPlacement,
+    coordination_filter,
+    declared_coordination_ref,
+    placement_resolution_remedy,
+    resolve_planning_placement,
+)
+from specify_cli.lanes.persistence import MissingLanesError
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -743,15 +752,11 @@ def test_d5_stale_coordination_key_on_a_lanes_mission_with_a_duplicate_wp(build:
 
 
 def _coordination_filter(built: Built, placement: object) -> str | None:
-    from specify_cli.coordination.planning_commit import PlanningPlacement, coordination_filter
-
     assert isinstance(placement, PlanningPlacement)
     return coordination_filter(built.repo, built.slug, placement, feature_dir=built.feature_dir)
 
 
 def test_placement_resolves_on_a_healthy_coord_mission(build: Callable[[str], Built]) -> None:
-    from specify_cli.coordination.planning_commit import resolve_planning_placement
-
     built = build("coord")
 
     placement = resolve_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
@@ -763,8 +768,6 @@ def test_placement_resolves_on_a_healthy_coord_mission(build: Callable[[str], Bu
 
 
 def test_placement_resolves_without_a_coordination_ref_on_a_flat_mission(build: Callable[[str], Built]) -> None:
-    from specify_cli.coordination.planning_commit import resolve_planning_placement
-
     built = build("flat")
 
     placement = resolve_planning_placement(built.repo, mission_slug=built.slug, wp_id="WP01")
@@ -776,8 +779,6 @@ def test_placement_resolves_without_a_coordination_ref_on_a_flat_mission(build: 
 
 
 def test_unresolved_placement_filters_on_the_declared_coordination_branch(build: Callable[[str], Built]) -> None:
-    from specify_cli.coordination.planning_commit import resolve_planning_placement
-
     built = build("coord")
     duplicate_wp_prompt(built)
 
@@ -789,8 +790,6 @@ def test_unresolved_placement_filters_on_the_declared_coordination_branch(build:
 
 
 def test_unresolved_placement_has_no_coordination_filter_on_a_flat_mission(build: Callable[[str], Built]) -> None:
-    from specify_cli.coordination.planning_commit import resolve_planning_placement
-
     built = build("flat")
     duplicate_wp_prompt(built)
 
@@ -803,8 +802,6 @@ def test_unresolved_placement_has_no_coordination_filter_on_a_flat_mission(build
 
 def test_unresolved_placement_has_no_coordination_filter_when_none_is_declared(build: Callable[[str], Built]) -> None:
     """A topology that routes through coordination but declares no branch degrades like a flat one."""
-    from specify_cli.coordination.planning_commit import resolve_planning_placement
-
     built = build("lanes")
     built.set_meta(topology="coord")
     duplicate_wp_prompt(built)
@@ -817,8 +814,6 @@ def test_unresolved_placement_has_no_coordination_filter_when_none_is_declared(b
 
 def test_unresolved_placement_keeps_a_torn_down_declared_branch_unprobed(build: Callable[[str], Built]) -> None:
     """R-1b (B2**): no existence probe -- a torn-down declared branch is returned as declared, never raised."""
-    from specify_cli.coordination.planning_commit import declared_coordination_ref, resolve_planning_placement
-
     built = build("coord")
     project_status_and_mark_merged(built)
     declared = built.coordination_branch
@@ -834,8 +829,6 @@ def test_unresolved_placement_keeps_a_torn_down_declared_branch_unprobed(build: 
 
 def test_unresolved_placement_keeps_a_stale_key_on_a_non_coordination_topology(build: Callable[[str], Built]) -> None:
     """R-1b (B2**): no topology gate -- a declared key on a lanes mission is the unresolved filter."""
-    from specify_cli.coordination.planning_commit import resolve_planning_placement
-
     built = build("lanes")
     stale = f"kitty/mission-{built.slug}"
     git(built.repo, "branch", "-f", stale)
@@ -852,8 +845,6 @@ def test_unresolved_placement_never_asks_the_seam_for_a_write_target(build: Call
     """R-1b (B2**): the unresolved degrade reads the declared value; it never resolves ``write_target``."""
     from mission_runtime import ActionContextError, MissionArtifactKind
     from mission_runtime import placement_seam as real_seam
-
-    from specify_cli.coordination import planning_commit
 
     built = build("coord")
     duplicate_wp_prompt(built)
@@ -879,8 +870,6 @@ def test_unresolved_placement_never_asks_the_seam_for_a_write_target(build: Call
 
 
 def test_placement_resolution_remedy_text_is_pinned() -> None:
-    from specify_cli.coordination.planning_commit import placement_resolution_remedy
-
     assert placement_resolution_remedy("demo-mission") == (
         "Cannot resolve the canonical write placement for this mission's "
         "WP status claim commit -- refusing to commit to the currently "
@@ -899,9 +888,6 @@ def test_placement_resolution_remedy_text_is_pinned() -> None:
 
 def test_broken_lanes_json_propagates_out_of_the_placement(build: Callable[[str], Built]) -> None:
     """A non-``ActionContextError`` from the context resolve is today's pre-commit gate: it propagates."""
-    from specify_cli.coordination.planning_commit import resolve_planning_placement
-    from specify_cli.lanes.persistence import MissingLanesError
-
     built = build("coord")
     (built.feature_dir / "lanes.json").unlink()
 
