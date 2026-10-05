@@ -35,20 +35,6 @@ from specify_cli.charter_runtime.preflight.runner import (
 pytestmark = pytest.mark.fast
 
 
-@pytest.fixture(autouse=True)
-def _reset_surfaced_latch() -> None:
-    """Reset the process-lifetime surfaced latch around every test case.
-
-    The latch is exactly the "once per command run" budget; a test process
-    is one long command run, so without this fixture the first test would
-    consume every other test's emission. Mirrors the
-    ``retrospective.deprecation`` reset pattern.
-    """
-    _reset_surfaced_for_testing()
-    yield
-    _reset_surfaced_for_testing()
-
-
 def _advisory_result(warnings: list[str]) -> CharterPreflightResult:
     return CharterPreflightResult(
         passed=True,

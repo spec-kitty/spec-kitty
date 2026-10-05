@@ -14,15 +14,13 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 import typer
 
-from specify_cli.charter_runtime.preflight.ambient_warning import _reset_surfaced_for_testing
 from specify_cli.cli.commands.implement import _json_safe_output
-from tests.specify_cli.cli.commands.test_implement_characterization import (
+from tests.specify_cli.cli.commands._implement_fixtures import (
     MISSION_ID,
     SLUG,
     Mission,
@@ -44,13 +42,6 @@ PROTECTED_HINT = (
     "'main' is a protected branch, so the claim's status commit cannot land there either: "
     "rerun with --no-auto-commit to stage the claim's changes and commit them yourself."
 )
-
-
-@pytest.fixture(autouse=True)
-def _fresh_charter_warning() -> Iterator[None]:
-    _reset_surfaced_for_testing()
-    yield
-    _reset_surfaced_for_testing()
 
 
 @pytest.fixture()

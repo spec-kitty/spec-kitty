@@ -10,7 +10,7 @@ import pytest
 import typer
 
 from specify_cli.cli.commands.implement import implement
-from tests.specify_cli.cli.commands.test_implement_characterization import MISSION_ID, SLUG, activate_repo, build_mission, init_repo
+from tests.specify_cli.cli.commands._implement_fixtures import MISSION_ID, SLUG, activate_repo, build_mission, init_repo
 
 pytestmark = pytest.mark.fast
 

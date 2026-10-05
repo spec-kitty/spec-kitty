@@ -44,7 +44,7 @@ from specify_cli.cli.commands import implement_phases
 from specify_cli.cli.commands.implement_phases import AllocationResult
 from specify_cli.lanes.implement_support import LaneWorkspaceResult
 from specify_cli.status.reducer import wp_snapshot_state
-from tests.specify_cli.cli.commands.test_implement_characterization import (
+from tests.specify_cli.cli.commands._implement_fixtures import (
     MISSION_ID,
     SLUG,
     activate_repo,

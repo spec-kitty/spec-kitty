@@ -2334,3 +2334,21 @@ def drain_off(_drain_posture_enabled: None, monkeypatch: pytest.MonkeyPatch) -> 
             reason="repository scope is off (test fixture)",
         ),
     )
+
+
+@pytest.fixture(autouse=True)
+def _rearm_charter_ambient_warning() -> Iterator[None]:
+    """Re-arm the once-per-process charter ambient warning around every test (#5714).
+
+    ``emit_advisory_warnings`` surfaces each distinct charter warning at most once per process: the
+    latch is exactly the "once per command run" budget. A test process is one long run, so without a
+    reset the first test that drives a command in-process consumes the warning every later test in
+    the same worker would see, and the outcome depends on how ``--dist loadfile`` schedules files.
+    One root-level reset covers every directory, including suites that drive ``implement`` from
+    outside ``tests/specify_cli/cli/commands/``. Imported lazily so collection cost stays flat.
+    """
+    from specify_cli.charter_runtime.preflight.ambient_warning import _reset_surfaced_for_testing
+
+    _reset_surfaced_for_testing()
+    yield
+    _reset_surfaced_for_testing()

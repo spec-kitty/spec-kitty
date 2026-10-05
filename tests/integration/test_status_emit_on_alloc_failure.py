@@ -35,19 +35,18 @@ from specify_cli.lanes.worktree_allocator import (
 )
 from specify_cli.status.reducer import wp_snapshot_state
 from tests.specify_cli.cli.commands._implement_dispatch import patch_collaborator
-from tests.specify_cli.cli.commands.test_implement_characterization import (
+from tests.specify_cli.cli.commands._implement_fixtures import (
     ARGS,
     LANE_WORKTREE,
     LATE,
     MISSION_ID,
     SLUG,
     Mission,
-    activate_repo,
+    activated_repo,
     build_mission,
     flat,
     git,
     implement_cli,
-    init_repo,
 )
 from tests.utils import _seed_canonical_wp_state
 
@@ -60,9 +59,7 @@ LANE_B_WORKTREE = f".worktrees/{SLUG}-lane-b"
 
 @pytest.fixture()
 def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    root = init_repo(tmp_path / "repo")
-    activate_repo(root, monkeypatch, tmp_path)
-    return root
+    return activated_repo(tmp_path, monkeypatch)
 
 
 def _read_events(mission: Mission) -> list[dict[str, Any]]:

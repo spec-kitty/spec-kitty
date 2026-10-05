@@ -33,7 +33,6 @@ import typer
 from click.testing import Result
 from typer.testing import CliRunner
 
-from specify_cli.charter_runtime.preflight.ambient_warning import _reset_surfaced_for_testing
 from specify_cli.cli.commands.agent import mission as mission_commands
 from specify_cli.cli.commands.agent.workflow import top_level_implement
 
@@ -199,17 +198,6 @@ def build_mission(root: Path, shape: str, monkeypatch: pytest.MonkeyPatch) -> Bu
         # A flat mission: no stored topology at all.
         built.set_meta(drop=("topology",))
     return built
-
-
-@pytest.fixture(autouse=True)
-def _fresh_charter_warning() -> Iterator[None]:
-    """The charter preflight warning is shown once per process; give it back afterwards.
-
-    Without this, a run here consumes the warning that ``test_implement_preflight`` later asserts.
-    """
-    _reset_surfaced_for_testing()
-    yield
-    _reset_surfaced_for_testing()
 
 
 @pytest.fixture

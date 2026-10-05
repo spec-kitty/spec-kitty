@@ -15,7 +15,7 @@ import pytest
 import typer
 
 from specify_cli.cli.commands.implement_phases import _validate_base_ref
-from tests.specify_cli.cli.commands.test_implement_characterization import (
+from tests.specify_cli.cli.commands._implement_fixtures import (
     ARGS,
     LANE_BRANCH,
     LANE_WORKTREE,

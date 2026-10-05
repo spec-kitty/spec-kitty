@@ -12,48 +12,30 @@ Every test drives the real command against a real git fixture; nothing is patche
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 from click.testing import Result
 
-from specify_cli.charter_runtime.preflight.ambient_warning import _reset_surfaced_for_testing
 from specify_cli.cli.commands.implement_cores import (
     _is_runtime_frontmatter_only_wp_diff,
     _is_self_write_only_diff,
     resolve_planning_artifact_staging,
 )
-from tests.specify_cli.cli.commands.test_implement_characterization import (
+from tests.specify_cli.cli.commands._implement_fixtures import (
     MISSION_ID,
     SLUG,
     Mission,
-    activate_repo,
     build_mission,
     flat,
     git,
     implement_cli,
-    init_repo,
 )
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 WPS = ("WP01", "WP02", "WP03")
 NOT_COMMITTED = "Planning artifacts not committed:"
-
-
-@pytest.fixture(autouse=True)
-def _fresh_charter_warning() -> Iterator[None]:
-    _reset_surfaced_for_testing()
-    yield
-    _reset_surfaced_for_testing()
-
-
-@pytest.fixture()
-def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    root = init_repo(tmp_path / "repo")
-    activate_repo(root, monkeypatch, tmp_path)
-    return root
 
 
 def _independent_lanes_mission(repo: Path) -> Mission:
