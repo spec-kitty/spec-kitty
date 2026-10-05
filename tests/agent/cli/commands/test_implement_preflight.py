@@ -8,15 +8,52 @@ exit 1 and ``create_lane_workspace`` is never invoked.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
 import typer
 
 from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
+from tests.specify_cli.cli.commands._implement_fixtures import (
+    LANE_BRANCH,
+    LANE_WORKTREE,
+    MISSION_ID,
+    SLUG,
+    activate_repo,
+    build_mission,
+    git,
+    init_repo,
+)
+
+# The command-level cases drive the real claim against a real repository.
+pytestmark = pytest.mark.git_repo
+
+#: The ``implement`` call the command-level cases make (``@_json_safe_output`` / ``@require_main_repo`` bypassed).
+_IMPLEMENT_KWARGS: dict[str, Any] = {
+    "wp_id": "WP01",
+    "mission": SLUG,
+    "auto_commit": None,
+    "json_output": False,
+    "recover": False,
+    "base": None,
+    "acknowledge_not_bulk_edit": False,
+    "actor": None,
+}
 
 
-pytestmark = pytest.mark.fast
+@pytest.fixture()
+def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A real repository the command runs in (``find_repo_root`` walks up from the cwd)."""
+    root = init_repo(tmp_path / "repo")
+    activate_repo(root, monkeypatch, tmp_path)
+    return root
+
+
+def _assert_nothing_allocated(repo: Path) -> None:
+    """No lane worktree and no lane branch: the claim never reached its allocation."""
+    assert not (repo / ".worktrees").exists()
+    assert LANE_BRANCH not in git(repo, "branch", "--list")
 
 
 
@@ -91,71 +128,34 @@ def test_hook_does_not_abort_on_legacy_charter_bundle_for_implement(
 
 
 def test_implement_still_blocks_and_no_worktree_alloc_on_invalid_charter_yaml(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    repo: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Non-regression: genuinely broken charter state still blocks implement.
 
-    Uses the REAL runner end-to-end through the ``implement`` command (not a
-    mocked ``run_charter_preflight``) and confirms ``create_lane_workspace``
-    is never invoked -- the still-blocking case must remain untouched.
+    Uses the REAL runner end-to-end through the ``implement`` command (not a mocked
+    ``run_charter_preflight``) against a real, claimable mission: the gate must block before the
+    claim, so no lane worktree and no lane branch exist afterwards.
     """
-    from specify_cli.cli.commands import implement as implement_mod
-    from specify_cli.cli.commands import implement_phases
-
-    monkeypatch.setattr(implement_mod, "find_repo_root", lambda: tmp_path)
-
-    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir = repo / ".kittify" / "charter"
     charter_dir.mkdir(parents=True)
     (charter_dir / "charter.yaml").write_text("not: [valid: yaml: at: all", encoding="utf-8")
-
-    create_calls: list = []
-
-    def _create(*args, **kwargs):  # pragma: no cover — assertion is on non-call
-        create_calls.append((args, kwargs))
-        raise AssertionError("create_lane_workspace must not be invoked when preflight fails")
-
-    monkeypatch.setattr(implement_phases, "create_lane_workspace", _create)
+    build_mission(repo, SLUG, MISSION_ID)
 
     with pytest.raises(typer.Exit) as excinfo:
-        _call_implement_unwrapped(
-            wp_id="WP01",
-            mission="042-test-feature",
-            auto_commit=None,
-            json_output=False,
-            recover=False,
-            base=None,
-            acknowledge_not_bulk_edit=False,
-            actor=None,
-        )
+        _call_implement_unwrapped(**_IMPLEMENT_KWARGS)
 
     assert excinfo.value.exit_code == 1
-    assert create_calls == []
-    captured = capsys.readouterr()
-    assert "charter_source" in captured.err
+    assert "charter_source" in capsys.readouterr().err
+    _assert_nothing_allocated(repo)
 
 
 def test_implement_aborts_before_worktree_allocation_on_failure(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    repo: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Preflight failure exits 1 BEFORE ``create_lane_workspace`` is called."""
-    from specify_cli.cli.commands import implement as implement_mod
-    from specify_cli.cli.commands import implement_phases
-
-    monkeypatch.setattr(implement_mod, "find_repo_root", lambda: tmp_path)
-
-    create_calls: list = []
-
-    def _create(*args, **kwargs):  # pragma: no cover — assertion is on non-call
-        create_calls.append((args, kwargs))
-        raise AssertionError(
-            "create_lane_workspace must not be invoked when preflight fails"
-        )
-
-    monkeypatch.setattr(implement_phases, "create_lane_workspace", _create)
+    """A blocked preflight exits 1 before the claim allocates anything."""
+    build_mission(repo, SLUG, MISSION_ID)
 
     with (
         patch(
@@ -164,58 +164,22 @@ def test_implement_aborts_before_worktree_allocation_on_failure(
         ),
         pytest.raises(typer.Exit) as excinfo,
     ):
-        _call_implement_unwrapped(
-            wp_id="WP01",
-            mission="042-test-feature",
-            auto_commit=None,
-            json_output=False,
-            recover=False,
-            base=None,
-            acknowledge_not_bulk_edit=False,
-            actor=None,
-        )
+        _call_implement_unwrapped(**_IMPLEMENT_KWARGS)
 
     assert excinfo.value.exit_code == 1
-    assert create_calls == []
-    captured = capsys.readouterr()
-    assert "synthesized DRG missing" in captured.err
+    assert "synthesized DRG missing" in capsys.readouterr().err
+    _assert_nothing_allocated(repo)
 
 
-def test_implement_proceeds_past_preflight_when_passed(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """On success the gate releases control to the downstream stages."""
-    from specify_cli.cli.commands import implement as implement_mod
-    from specify_cli.cli.commands import implement_phases
+def test_implement_proceeds_past_preflight_when_passed(repo: Path) -> None:
+    """On success the gate releases control to the downstream stages: the claim runs to completion."""
+    build_mission(repo, SLUG, MISSION_ID)
 
-    monkeypatch.setattr(implement_mod, "find_repo_root", lambda: tmp_path)
-
-    sentinel = RuntimeError("reached detect_mission_context")
-
-    def _detect(*_args, **_kwargs):
-        raise sentinel
-
-    # detect_mission_context is the very next call after preflight; reaching
-    # it proves the gate let us through.
-    monkeypatch.setattr(implement_phases, "detect_mission_context", _detect)
-
-    with (
-        patch(
-            "specify_cli.charter_runtime.preflight.hook.run_charter_preflight",
-            return_value=_pass_result(),
-        ),
-        pytest.raises(RuntimeError) as excinfo,
+    with patch(
+        "specify_cli.charter_runtime.preflight.hook.run_charter_preflight",
+        return_value=_pass_result(),
     ):
-        _call_implement_unwrapped(
-            wp_id="WP01",
-            mission="042-test-feature",
-            auto_commit=None,
-            json_output=False,
-            recover=False,
-            base=None,
-            acknowledge_not_bulk_edit=False,
-            actor=None,
-        )
+        _call_implement_unwrapped(**_IMPLEMENT_KWARGS)
 
-    assert excinfo.value is sentinel
+    assert (repo / LANE_WORKTREE).is_dir()
+    assert LANE_BRANCH in git(repo, "branch", "--list")

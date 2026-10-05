@@ -40,15 +40,17 @@ from typing import Any
 import pytest
 import typer
 
-from specify_cli.cli.commands import implement_phases, implement_recover
+from specify_cli.cli.commands import implement_phases
 from specify_cli.cli.commands.implement import _json_safe_output
 from specify_cli.cli.commands.implement_recover import _run_recover_mode
 from specify_cli.cli.console import console
 from specify_cli.lanes import recovery as recovery_module
 from specify_cli.lanes.recovery import RecoveryReport, RecoveryState
 from specify_cli.task_utils import TaskCliError
+from tests.specify_cli.cli.commands._implement_fixtures import MISSION_ID, SLUG, activate_repo, build_mission, init_repo
 
-pytestmark = pytest.mark.fast
+# The ``_run_recover_mode`` cases resolve their context from a real repository and mission.
+pytestmark = pytest.mark.git_repo
 
 
 @pytest.fixture(autouse=True)
@@ -183,13 +185,17 @@ def test_wp_id_resolved_from_positional_arg_when_not_a_kwarg(capsys: pytest.Capt
 # ---------------------------------------------------------------------------
 
 
-def _patch_context(monkeypatch: pytest.MonkeyPatch, repo_root: Path, mission_slug: str) -> None:
-    monkeypatch.setattr(implement_recover, "find_repo_root", lambda: repo_root)
-    monkeypatch.setattr(
-        implement_phases,
-        "detect_mission_context",
-        lambda _mission, repo_root=None: (None, mission_slug),
-    )
+@pytest.fixture()
+def recover_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A real repository with a real mission, so recovery resolves its context for real.
+
+    ``find_repo_root`` walks up from the cwd and ``detect_mission_context`` resolves the mission
+    handle against ``kitty-specs/``; neither is patched.
+    """
+    root = init_repo(tmp_path / "repo")
+    activate_repo(root, monkeypatch, tmp_path)
+    build_mission(root, SLUG, MISSION_ID)
+    return root
 
 
 def _state(*, recovery_action: str, wp_id: str = "WP04") -> RecoveryState:
@@ -210,10 +216,8 @@ class TestRecoverErrorPath:
     """Branch 1: context resolution fails (TaskCliError/typer.Exit)."""
 
     def test_json_output_emits_error_payload_and_exits_1(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self, monkeypatch: pytest.MonkeyPatch, recover_repo: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(implement_recover, "find_repo_root", lambda: tmp_path)
-
         def _raise(_mission: str | None, repo_root: Path | None = None) -> tuple[str | None, str]:
             raise TaskCliError("mission not found")
 
@@ -227,10 +231,8 @@ class TestRecoverErrorPath:
         assert payload == {"status": "error", "error": "mission not found"}
 
     def test_console_output_raises_without_json_payload(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self, monkeypatch: pytest.MonkeyPatch, recover_repo: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(implement_recover, "find_repo_root", lambda: tmp_path)
-
         def _raise(_mission: str | None, repo_root: Path | None = None) -> tuple[str | None, str]:
             raise TaskCliError("mission not found")
 
@@ -247,9 +249,8 @@ class TestRecoverNoActionNeeded:
     """Branch 2: scan finds no crashed sessions (needs_recovery empty)."""
 
     def test_json_output_ok_payload(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self, monkeypatch: pytest.MonkeyPatch, recover_repo: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        _patch_context(monkeypatch, tmp_path, "my-mission")
         monkeypatch.setattr(
             recovery_module,
             "scan_recovery_state",
@@ -261,7 +262,7 @@ class TestRecoverNoActionNeeded:
 
         monkeypatch.setattr(recovery_module, "run_recovery", _fail_run_recovery)
 
-        _run_recover_mode("WP01", "my-mission", json_output=True)
+        _run_recover_mode("WP01", SLUG, json_output=True)
 
         payload = json.loads(capsys.readouterr().out.strip())
         assert payload == {
@@ -274,9 +275,8 @@ class TestRecoverNoActionNeeded:
         }
 
     def test_console_output_message(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self, monkeypatch: pytest.MonkeyPatch, recover_repo: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        _patch_context(monkeypatch, tmp_path, "my-mission")
         monkeypatch.setattr(recovery_module, "scan_recovery_state", lambda repo_root, mission_slug: [])
 
         def _fail_run_recovery(*_args: Any, **_kwargs: Any) -> RecoveryReport:
@@ -284,7 +284,7 @@ class TestRecoverNoActionNeeded:
 
         monkeypatch.setattr(recovery_module, "run_recovery", _fail_run_recovery)
 
-        _run_recover_mode("WP01", "my-mission", json_output=False)
+        _run_recover_mode("WP01", SLUG, json_output=False)
 
         out = capsys.readouterr().out
         assert "No crashed implementation sessions found." in out
@@ -306,9 +306,8 @@ class TestRecoverNeedsRecovery:
         )
 
     def test_json_output_final_payload_omits_contexts_recreated(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self, monkeypatch: pytest.MonkeyPatch, recover_repo: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        _patch_context(monkeypatch, tmp_path, "my-mission")
         monkeypatch.setattr(
             recovery_module,
             "scan_recovery_state",
@@ -316,7 +315,7 @@ class TestRecoverNeedsRecovery:
         )
         monkeypatch.setattr(recovery_module, "run_recovery", lambda repo_root, mission_slug: self._report())
 
-        _run_recover_mode("WP01", "my-mission", json_output=True)
+        _run_recover_mode("WP01", SLUG, json_output=True)
 
         out = capsys.readouterr().out.strip()
         # Exactly one JSON object on stdout: no rich table rendered in json mode.
@@ -331,9 +330,8 @@ class TestRecoverNeedsRecovery:
         assert "contexts_recreated" not in payload
 
     def test_console_output_table_and_summary_include_contexts_recreated(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self, monkeypatch: pytest.MonkeyPatch, recover_repo: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        _patch_context(monkeypatch, tmp_path, "my-mission")
         monkeypatch.setattr(
             recovery_module,
             "scan_recovery_state",
@@ -341,7 +339,7 @@ class TestRecoverNeedsRecovery:
         )
         monkeypatch.setattr(recovery_module, "run_recovery", lambda repo_root, mission_slug: self._report())
 
-        _run_recover_mode("WP01", "my-mission", json_output=False)
+        _run_recover_mode("WP01", SLUG, json_output=False)
 
         out = capsys.readouterr().out
         assert "Recovery Scan Results" in out  # the scan table header
@@ -353,9 +351,8 @@ class TestRecoverNeedsRecovery:
         assert "Status transitions emitted: 3" in out
 
     def test_console_output_renders_errors_block_when_present(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self, monkeypatch: pytest.MonkeyPatch, recover_repo: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        _patch_context(monkeypatch, tmp_path, "my-mission")
         monkeypatch.setattr(
             recovery_module,
             "scan_recovery_state",
@@ -367,16 +364,15 @@ class TestRecoverNeedsRecovery:
             lambda repo_root, mission_slug: self._report(errors=["worktree lock held"]),
         )
 
-        _run_recover_mode("WP01", "my-mission", json_output=False)
+        _run_recover_mode("WP01", SLUG, json_output=False)
 
         out = capsys.readouterr().out
         assert "Errors:" in out
         assert "worktree lock held" in out
 
     def test_json_output_includes_errors_list(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self, monkeypatch: pytest.MonkeyPatch, recover_repo: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        _patch_context(monkeypatch, tmp_path, "my-mission")
         monkeypatch.setattr(
             recovery_module,
             "scan_recovery_state",
@@ -388,7 +384,7 @@ class TestRecoverNeedsRecovery:
             lambda repo_root, mission_slug: self._report(errors=["worktree lock held"]),
         )
 
-        _run_recover_mode("WP01", "my-mission", json_output=True)
+        _run_recover_mode("WP01", SLUG, json_output=True)
 
         payload = json.loads(capsys.readouterr().out.strip())
         assert payload["errors"] == ["worktree lock held"]
