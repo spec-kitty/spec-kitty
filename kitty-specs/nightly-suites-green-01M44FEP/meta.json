@@ -1,0 +1,37 @@
+{
+  "accept_commit": "9ee87d152ee241c897fd4623df99d5b8d740d05b",
+  "acceptance_history": [
+    {
+      "accept_commit": "9ee87d152ee241c897fd4623df99d5b8d740d05b",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-05T09:56:07.447758+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "d3bb21212f8054a5d991da7418fbdd90e235dfd3"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-05T09:56:07.447758+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "d3bb21212f8054a5d991da7418fbdd90e235dfd3",
+  "baseline_merge_commit": "3a94b2f8db94ca6734bbd8bae9c83c6348c0d13f",
+  "created_at": "2026-10-04T22:09:50.377918+00:00",
+  "flattened": false,
+  "friendly_name": "Nightly suites green on main",
+  "merged_at": "2026-10-05T09:57:30.651757+00:00",
+  "merged_commit": "cabe4884e068ea93d5dafa8ab4f3a77c4880d64d",
+  "mid8": "01M44FEP",
+  "mission_id": "01M44FEP4C13ARANFW065C35ZW",
+  "mission_number": 216,
+  "mission_slug": "nightly-suites-green-01M44FEP",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The release workflow only publishes on a green nightly for the tagged commit. Three nightly reds remain: a bare-slug coordination Mission cannot consolidate onto a protected target, three performance budget tests fail on slow shared runners, and a commit-recipe gate flags help text and is not run per pull request. This mission fixes each at its structural cause and delivers them as one pull request.",
+  "purpose_tldr": "Make the nightly integration, performance and interpreter suites green on main so the 4.0.0rc6 release gate can pass.",
+  "retain_branches": true,
+  "slug": "nightly-suites-green-01M44FEP",
+  "status_phase": "1",
+  "target_branch": "issue-5611-5419-nightly-green",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-05T05:35:52.698838+00:00"
+}

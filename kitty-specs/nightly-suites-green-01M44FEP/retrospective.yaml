@@ -1,0 +1,300 @@
+schema_version: 1
+mission_id: 01M44FEP4C13ARANFW065C35ZW
+mission_slug: nightly-suites-green-01M44FEP
+mission_number: 216
+friendly_name: Nightly suites green on main
+mission_type: software-dev
+target_branch: issue-5611-5419-nightly-green
+created_at: '2026-10-05T09:58:11.287658+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-05T09:58:11.287658+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-002
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-003
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-013
+not_helpful:
+- id: n-006
+  category: doc
+  summary: analysis-report.md records 6 finding(s)
+  evidence_refs:
+  - e-019
+  details: The analysis-report.md artifact for this mission records 6 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: review_loop
+  summary: WP02 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-014
+  details: WP WP02 was sent back to an earlier lane with documented review feedback 2 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP04 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-015
+  details: WP WP04 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP05 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-016
+  details: WP WP05 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-004
+  category: review_loop
+  summary: WP06 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-017
+  details: WP WP06 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-005
+  category: review_loop
+  summary: WP07 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-018
+  details: WP WP07 was sent back to an earlier lane with documented review feedback 2 time(s).
+- id: n-011
+  category: tooling
+  summary: 'Tracer: Alias authority'
+  evidence_refs:
+  - e-020
+  details: '1. **Alias authority** (`specify.track-a.bare-slug-fix`): keep the composed coordination directory; one exact
+    alias set {primary directory name, composed `<slug>-<mid8>`}, consumed by the partition classifier, the bookkeeping exemption
+    and the teardown metadata read. Only the body of `_is_bookkeeping` changes in `consolidation/reconciliation.py`.'
+- id: n-012
+  category: tooling
+  summary: 'Tracer: Alias plus fold to one directory'
+  evidence_refs:
+  - e-020
+  details: '2. **Alias plus fold to one directory**: the target ends with one directory, the primary one, holding the full
+    event log; seeded composed-directory records are projected back onto the primary directory on landing.'
+- id: n-014
+  category: tooling
+  summary: 'Tracer: D1, Track A fix shape'
+  evidence_refs:
+  - e-021
+  details: '- **D1, Track A fix shape**: alias authority plus fold to one directory (operator rulings). It keeps the composed
+    coordination directory introduced by `5b5699e500`, fixes the three failure layers with one rule and restores one directory
+    on the target. Rejected: one directory name keyed on the primary directory; alias without the fold; refusing the bare-slug
+    shape.'
+- id: n-015
+  category: tooling
+  summary: 'Tracer: D2, where the alias authority lives'
+  evidence_refs:
+  - e-021
+  details: '- **D2, where the alias authority lives**: `src/specify_cli/missions/_read_path_resolver.py`, resolved once and
+    passed to pure classifiers. That module already owns the directory composers and the primary metadata read; resolving
+    in `mission_runtime` would grow an outbound ledger in a gate file this mission may not edit. Rejected: a new module; deriving
+    the alias inside `mission_runtime/artifacts.py`.'
+- id: n-016
+  category: tooling
+  summary: 'Tracer: D3, reconciliation exemption'
+  evidence_refs:
+  - e-021
+  details: '- **D3, reconciliation exemption**: derive the composed name inside `_is_bookkeeping` from `planning_prefix`;
+    for that name only, exempt coordination record kinds. The function exempts a whole subtree for the primary name, so an
+    unrestricted alias would exempt planning artifacts and source under the composed directory. No signature or call-site
+    change. Rejected: threading the alias set through the claim object.'
+- id: n-017
+  category: tooling
+  summary: 'Tracer: D4, performance measure'
+  evidence_refs:
+  - e-021
+  details: '- **D4, performance measure**: ratio of the command median to a start-up floor median, interleaved in the same
+    run; start-up against a fixed interpreter workload; a git-subprocess count pin as the clock-free signal. Rejected: delta
+    over the floor; one wider absolute budget; count proxies alone.'
+- id: n-018
+  category: tooling
+  summary: 'Tracer: D5, limits are calibrated'
+  evidence_refs:
+  - e-021
+  details: '- **D5, limits are calibrated**: the ratio limits are set by the calibration spike and recorded in the Track B
+    decision record with their headroom. Rejected: fixing 1.7 in advance.'
+- id: n-019
+  category: tooling
+  summary: 'Tracer: D6, recipe gate'
+  evidence_refs:
+  - e-021
+  details: "- **D6, recipe gate**: classify by command-line shape and move the gate to `tests/architectural/`. Rejected: exempting
+    strings that reach `help=`; rewording the help text; promoting the 2,960-test directory to a shard.\n\n## Operator rulings
+    (2026-10-05)\n\n1. Alias authority (decision `DM-01M44FNPQWA759DSQPAJRNTSGM`).\n2. Move the recipe gate (decision `DM-01M44FNVCK8K5V0B60MVQTBS22`).\n\
+    3. Alias plus fold to one directory (decision `DM-01M456JJB072M7V36XMYZXZSKX`).\n\n## Entries\n\n- 2026-10-05 (tasks):
+    The refused-seed backstop's CLI-level test uses a Mission whose primary directory carries the composed name and a commit
+    hook that rejects only the seed commit, so its result does not depend on the bare-slug misroute that WP02 removes.\n-
+    2026-10-05 (tasks): The Track B decision record is written by WP05 (it holds the measured figures) but registered in the
+    ADR index and page inventory by WP08, so the contended index files have one owner.\n- 2026-10-05 (tasks): The resolver
+    unit tests go in a new "
+- id: n-013
+  category: tooling
+  summary: 'Tracer: Move the gate'
+  evidence_refs:
+  - e-020
+  details: "3. **Move the gate**: the recipe scanner test moves to `tests/architectural/`; the `tests/specify_cli/cli/commands`
+    directory stays nightly-only and is cross-referenced, not promoted.\n\n## Entries\n\n- 2026-10-05 (tasks): Decomposed
+    into 8 work packages on 8 lanes (`lane-a` to `lane-g` plus `lane-planning`). WP01, WP05, WP06 and WP07 can start together;
+    WP04 runs alongside WP02 and WP03.\n- 2026-10-05 (tasks): Stop conditions written into the prompts: a fold that needs
+    a new destructive git operation (WP03); clean and planted ratio ranges that overlap (WP05); any edit in a path owned by
+    a running mission (all).\n- 2026-10-05 (post-tasks squad): The adversarial review changed six work packages. WP08 became
+    `code_change` with docs-only ownership on its own lane (`lane-h`), because a planning-lane claim waives code-lane ancestry
+    and would never see its dependencies. WP01 adds `SeedReport.uncommitted_paths` and commits the teardown test red first;
+    WP04 names files from that field, adds a twice-"
+- id: n-007
+  category: tooling
+  summary: 'Tracer: Track A (WP01 to WP04)'
+  evidence_refs:
+  - e-020
+  details: '- **Track A (WP01 to WP04)**: a bare-slug coordination Mission cannot consolidate onto a protected target. Order:
+    two tidy-first enablers (teardown identity read, structured seed-refusal field), then the directory alias authority and
+    partition classification, then the consolidation consumers and the one-directory end state; the refused-seed backstop
+    runs alongside.'
+- id: n-008
+  category: tooling
+  summary: 'Tracer: Track B (WP05, WP06)'
+  evidence_refs:
+  - e-020
+  details: '- **Track B (WP05, WP06)**: performance tests bound to runner speed. A calibration spike sets runner-relative
+    limits; a planted-work test proves the assertion can fail; a git-subprocess count pin gives a clock-free signal per pull
+    request.'
+- id: n-009
+  category: tooling
+  summary: 'Tracer: Track C (WP07)'
+  evidence_refs:
+  - e-020
+  details: '- **Track C (WP07)**: the commit-recipe gate flags help text and ran only nightly. Tidy-first move to the architectural
+    battery, then fixtures, a recipe-shape classifier, and an allowlist reduced to live hits.'
+- id: n-010
+  category: tooling
+  summary: 'Tracer: WP08'
+  evidence_refs:
+  - e-020
+  details: "- **WP08**: the Track A decision record, registration of both records, changelog and docs index.\n\nRed first
+    throughout (charter C-011, spec C-005): enabler commits, then a failing test through the pre-existing entry point, then
+    the fix. For Track B \"red\" is the previous absolute assertion failing at a throttle level where the start-up floor is
+    at least 1.9 s, with the cited nightly result.\n\n## Operator rulings that shape the approach (2026-10-05)"
+gaps:
+- id: g-001
+  category: doc
+  summary: data-model.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md declares domain entities but data-model.md is missing. A data model document clarifies domain entity
+    relationships.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/nightly-suites-green-01M44FEP/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/nightly-suites-green-01M44FEP/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/nightly-suites-green-01M44FEP/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/nightly-suites-green-01M44FEP/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/nightly-suites-green-01M44FEP/tasks/WP01-track-a-enablers.md
+- id: e-006
+  kind: file
+  path: kitty-specs/nightly-suites-green-01M44FEP/tasks/WP02-track-a-alias-authority-and-partition.md
+- id: e-007
+  kind: file
+  path: kitty-specs/nightly-suites-green-01M44FEP/tasks/WP03-track-a-consolidation-consumers-one-directory.md
+- id: e-008
+  kind: file
+  path: kitty-specs/nightly-suites-green-01M44FEP/tasks/WP04-track-a-refused-seed-backstop.md
+- id: e-009
+  kind: file
+  path: kitty-specs/nightly-suites-green-01M44FEP/tasks/WP05-track-b-runner-relative-performance-tests.md
+- id: e-010
+  kind: file
+  path: kitty-specs/nightly-suites-green-01M44FEP/tasks/WP06-track-b-git-subprocess-count-pin.md
+- id: e-011
+  kind: file
+  path: kitty-specs/nightly-suites-green-01M44FEP/tasks/WP07-track-c-recipe-classifier-and-move.md
+- id: e-012
+  kind: file
+  path: kitty-specs/nightly-suites-green-01M44FEP/tasks/WP08-closing-records.md
+- id: e-013
+  kind: file
+  path: kitty-specs/nightly-suites-green-01M44FEP/status.events.jsonl
+- id: e-014
+  kind: event_range
+  path: kitty-specs/nightly-suites-green-01M44FEP/status.events.jsonl
+  range: 01M45C0W88YB4HDX9S7CR54YSF..01M45D13V7C737J7FBF777CYDN
+- id: e-015
+  kind: event_range
+  path: kitty-specs/nightly-suites-green-01M44FEP/status.events.jsonl
+  range: 01M45BM55F7FKHJA92ZRSPAKP8
+- id: e-016
+  kind: event_range
+  path: kitty-specs/nightly-suites-green-01M44FEP/status.events.jsonl
+  range: 01M45PHD9GBT5V4NK4RKM4QEB5
+- id: e-017
+  kind: event_range
+  path: kitty-specs/nightly-suites-green-01M44FEP/status.events.jsonl
+  range: 01M45AGHHP828MDQJVRJN1M5NH
+- id: e-018
+  kind: event_range
+  path: kitty-specs/nightly-suites-green-01M44FEP/status.events.jsonl
+  range: 01M45AZ74A13BX6SA746BABKT5..01M45CGMYGREBK3YZCAKZF5F65
+- id: e-019
+  kind: file
+  path: kitty-specs/nightly-suites-green-01M44FEP/analysis-report.md
+- id: e-020
+  kind: file
+  path: kitty-specs/nightly-suites-green-01M44FEP/traces/approach.md
+- id: e-021
+  kind: file
+  path: kitty-specs/nightly-suites-green-01M44FEP/traces/design-decisions.md
+generator_version: '1.0'
+provenance_history: []

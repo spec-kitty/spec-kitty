@@ -1,0 +1,199 @@
+{
+  "mission_slug": "nightly-suites-green-01M44FEP",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved: tests/integration/test_merge_lane_planning_data_loss.py::test_bare_slug_coord_mission_consolidates_onto_a_protected_target green on the real consolidation path, squash and merge",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-05T09:54:39.085149+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved: tests/coordination/test_commit_router.py seed-style commit lands the composed status files on the coordination branch",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-05T09:54:41.758220+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02/WP03 approved: mission_dir_aliases resolved once per commit; consumer-to-test revert table reproduced by the reviewer",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-05T09:54:44.460201+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02/WP03 approved: 32-case alias-vs-composer probe with 0 mismatches; closed-world table in tests/consolidation/test_reconciliation.py",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-05T09:54:47.170822+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02/WP03 approved: canonical-Mission characterization green on the base and at the tip; sibling canonical suites pass",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-05T09:54:49.906505+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 approved: tests/consolidation/test_refused_seed_commit_backstop.py, real commit hook, COORD_SEED_COMMIT_REFUSED exit 1",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-05T09:54:52.613090+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved: ratio assertions in tests/performance/test_owned_checkout_perf.py; six-nightly-row control",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-05T09:54:55.312358+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved: limits and headroom recorded in docs/adr/4.x/2026-10-05-2; provisional pending CI-runner calibration",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-05T09:54:58.076757+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved: planted-work tests via test-side sitecustomize; mutations turn them red",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-05T09:55:00.814789+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved: start-up tests assert a median against a fixed interpreter workload; no absolute start-up limit remains",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-05T09:55:03.488028+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 approved: tests/cli/commands/test_owned_checkout_git_calls.py pins 7/14/7, equal to an out-of-process trace",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-05T09:55:06.236472+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved: tests/architectural/test_perf_limit_authority.py",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-05T09:55:08.957065+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP07 approved: is_recipe_shaped in tests/architectural/test_commit_recipe_strings.py; mutations red both ways",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-05T09:55:11.687746+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP07 approved: 11 of 11 historical fixtures verbatim from 3e09226fb4^ and flagged",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-05T09:55:14.427974+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP07 approved: allowlist 14 to 2, nothing added, stale-entry check enforced",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-05T09:55:17.195832+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP07 approved: select_gates dry run selects the architectural jobs for every src/specify_cli path tried",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-05T09:55:19.973928+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "Verify FR-017 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05/WP08 approved: docs/adr/4.x/2026-10-05-1 and 2026-10-05-2; testing-flakiness.md updated",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-05T09:55:22.711185+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Verify FR-018 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved: reproduction keeps the regression marker; docstring rewritten",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-05T09:55:25.359822+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-019",
+      "description": "Verify FR-019 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved: one Mission directory on the target ref with the full event set, asserted by event identity",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-10-05T09:55:28.056612+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

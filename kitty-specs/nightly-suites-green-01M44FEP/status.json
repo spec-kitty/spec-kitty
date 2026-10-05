@@ -1,0 +1,277 @@
+{
+  "event_count": 99,
+  "last_event_id": "01M45QYV7BP54YYBWDPA57MMS8",
+  "materialized_at": "2026-10-05T09:57:42.763912+00:00",
+  "mission_number": "216",
+  "mission_slug": "nightly-suites-green-01M44FEP",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 8,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M45QYG6Q9GQEHGPCZ29ZBVM2",
+      "last_transition_at": "2026-10-05T09:57:31.479648+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed: red-to-green proven at 894fba9803 and 383d9d1f77; 95 behavioural and 198 gate tests pass; teardown read is behaviour-preserving. Residual: pre-existing mypy no-any-return at coord_seed.py:367 to fold in a later touch."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261005",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 214936,
+      "shell_pid_created_at": "1791179891.48",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M45QYPJ1YQN13996SDYWP2VH",
+      "last_transition_at": "2026-10-05T09:57:37.985663+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review cycle 3 passed: the alias equals what the seed composer writes in 32 of 32 probed cases and is gated only on one safe path segment; never raises; red-to-green proven; 277 behavioural and 398 gate tests pass; the reproduction (upper- and lowercase identity) now fails later, at the reconciliation gate."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20261005",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1633764,
+      "shell_pid_created_at": "1791183431.95",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M45QYSNFW9W5D5HKJYESCGF5",
+      "last_transition_at": "2026-10-05T09:57:41.167491+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed: the reproduction runs the real consolidation with no in-repo patches and goes green under squash and merge with one directory on the target; fold and gate leg each proven by revert; closed-world table holds; 299 gate and 353 behavioural tests pass. Residuals: resume after a hard kill inside the fold refuses for a bare-slug Mission (abort works); the preservation refusal is an unrendered traceback; reconciliation.py gains one adjacent private helper beside the #5668 area; four pre-existing mypy errors in touched files."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261005",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2483075,
+      "shell_pid_created_at": "1791187387.08",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M45QYR42S1MC90HQ9A37274V",
+      "last_transition_at": "2026-10-05T09:57:39.586040+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review cycle 2 passed: backstop tests are mock-free on the real path; refusal wording true with and without an earlier merge record via the shared footer; red-to-green proven at 6ef1cdd314; 169 behavioural and 398 gate tests pass. Residuals: pending-sentinel mission id raises before the refusal (pre-existing in the executor); orchestrator-api code-lane path has no backstop."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP04:20261005",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1111862,
+      "shell_pid_created_at": "1791182096.01",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M45QYHSRP44Q57564ESA0RWK",
+      "last_transition_at": "2026-10-05T09:57:33.112766+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review cycle 2 passed: runner-relative ratio assertions with one limit authority; planted tests record their figures and fail diagnosably; mutations turn the tests red; decision-record figures match the raw logs; 23 performance and 233 gate tests pass. Limits are provisional pending CI-runner calibration from nightly runs dispatched on the branch."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP05:20261005",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 373796,
+      "shell_pid_created_at": "1791193254.81",
+      "subtasks": {
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M45QYKCN68H0GDKKVPXY1CT9",
+      "last_transition_at": "2026-10-05T09:57:34.741827+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review cycle 2 passed: pins 7/14/7 equal the out-of-process trace call for call; order-independent across isolation, reversed order and sibling orderings; mutation check red; gates 187 passed. Residual: two docstring wording nits at :22 and :48-49."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP06:20261005",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 822589,
+      "shell_pid_created_at": "1791181384.08",
+      "subtasks": {
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M45QYMYMMAG93VSBC8CH9WQG",
+      "last_transition_at": "2026-10-05T09:57:36.340521+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review cycle 3 passed: classifier flags recipes by shape with 11 of 11 historical fixtures verbatim and flagged, allowlist 14 to 2 with nothing added, mutations red both ways; both converted warnings print recovery commands proven on protected and non-protected targets, with real-path tests that run the printed command. Residuals: classifier known limits listed in the test module; two allowlist entries need an owner issue; consolidate-triggered warning not exercised end to end."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP07:20261005",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1617350,
+      "shell_pid_created_at": "1791183289.56",
+      "subtasks": {
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done",
+        "T038": "done"
+      }
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M45QYV7BP54YYBWDPA57MMS8",
+      "last_transition_at": "2026-10-05T09:57:42.763912+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed after the two flagged follow-up references were made true by adding the missing items to #5750 (fold preservation refusal) and #5753 (CI-runner calibration of the provisional limits). Track A record verified against the lane code; changelog edits minimal; 336 docs gate tests pass. Non-blocking wording nits (ADR line 27 'Commit routing', changelog line 76 issue ref) deferred to the pre-PR docs pass."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP08:20261005",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 409906,
+      "shell_pid_created_at": "1791194026.29",
+      "subtasks": {
+        "T039": "done",
+        "T040": "done",
+        "T041": "done",
+        "T042": "done"
+      }
+    }
+  }
+}

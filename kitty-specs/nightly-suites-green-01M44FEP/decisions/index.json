@@ -1,0 +1,101 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-04T22:13:40.220824Z",
+      "decision_id": "01M44FNPQWA759DSQPAJRNTSGM",
+      "final_answer": "Alias authority: keep the composed coordination directory; one exact alias set {primary dir name, composed <slug>-<mid8>} consumed by the partition classifier, the bookkeeping exemption and the teardown metadata read. Edits _is_bookkeeping in consolidation/reconciliation.py (adjacent to #5668).",
+      "input_key": "track_a_fix",
+      "mission_id": "01M44FEP4C13ARANFW065C35ZW",
+      "mission_slug": "nightly-suites-green-01M44FEP",
+      "opened_by": "cli",
+      "options": [
+        "One directory name",
+        "Alias authority",
+        "Split Track A out"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Bare-slug coordination Mission has two directory names and three classifiers keyed on one (#5651). Which fix?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T22:13:42.572671Z",
+      "resolved_by": null,
+      "slot_key": "specify.track-a.bare-slug-fix",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-04T22:13:44.979703Z",
+      "decision_id": "01M44FNVCK8K5V0B60MVQTBS22",
+      "final_answer": "Move the gate: the recipe scanner test moves to tests/architectural (precedent #4479); the directory stays nightly-only and is cross-referenced on #4708/#4732/#5652.",
+      "input_key": "track_c_home",
+      "mission_id": "01M44FEP4C13ARANFW065C35ZW",
+      "mission_slug": "nightly-suites-green-01M44FEP",
+      "opened_by": "cli",
+      "options": [
+        "Move the gate",
+        "Promote the directory"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Claiming tests/specify_cli/cli/commands as a per-PR shard is blocked by the nested-claim rule. How does the recipe gate get a per-PR home?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T22:13:47.482167Z",
+      "resolved_by": null,
+      "slot_key": "specify.track-c.per-pr-home",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-05T04:53:54.656406Z",
+      "decision_id": "01M456JJB072M7V36XMYZXZSKX",
+      "final_answer": "Alias + fold to one dir: keep the alias authority; the target ends with one directory (the primary bare one) holding the full event log; seeded composed-directory records are projected back onto the primary directory on landing.",
+      "input_key": "track_a_end_state",
+      "mission_id": "01M44FEP4C13ARANFW065C35ZW",
+      "mission_slug": "nightly-suites-green-01M44FEP",
+      "opened_by": "cli",
+      "options": [
+        "Alias + fold to one dir",
+        "Switch to one directory name",
+        "Alias as-is, accept two dirs",
+        "Refuse the bare shape"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Alias authority lands two directories on the target for a bare-slug coordination Mission (measured). What end state?",
+      "rationale": null,
+      "resolved_at": "2026-10-05T04:53:56.385060Z",
+      "resolved_by": null,
+      "slot_key": "specify.track-a.target-end-state",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-05T09:21:31.661709Z",
+      "decision_id": "01M45NWK0DVH1D9KC1RHEE2Y61",
+      "final_answer": "CI runner via dispatched nightly: local runs prove only non-vacuity and a throttled positive control; limits are confirmed or adjusted from the ratios measured on the shared runner class.",
+      "input_key": "track_b_calibration_venue",
+      "mission_id": "01M44FEP4C13ARANFW065C35ZW",
+      "mission_slug": "nightly-suites-green-01M44FEP",
+      "opened_by": "cli",
+      "options": [
+        "Long local series",
+        "CI runner via dispatched nightly"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Where are the Track B ratio limits calibrated?",
+      "rationale": null,
+      "resolved_at": "2026-10-05T09:21:33.523927Z",
+      "resolved_by": null,
+      "slot_key": "plan.track-b.calibration-venue",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M44FEP4C13ARANFW065C35ZW",
+  "version": 1
+}

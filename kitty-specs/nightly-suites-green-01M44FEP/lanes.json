@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "mission_slug": "nightly-suites-green-01M44FEP",
+  "mission_id": "01M44FEP4C13ARANFW065C35ZW",
+  "mission_branch": "kitty/mission-nightly-suites-green-01M44FEP",
+  "target_branch": "issue-5611-5419-nightly-green",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/mission_runtime/write_location.py",
+        "src/specify_cli/consolidation/phase_teardown.py",
+        "src/specify_cli/coordination/coord_seed.py",
+        "tests/consolidation/test_coord_teardown_order_3926.py",
+        "tests/coordination/test_coord_seed.py",
+        "tests/mission_runtime/test_placement_seam_write_dir.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-05-2-runner-relative-performance-budgets.md",
+        "docs/development/testing/testing-flakiness.md",
+        "tests/_perf_helpers.py",
+        "tests/architectural/test_perf_limit_authority.py",
+        "tests/performance/test_cli_startup_agent_commands_freshness.py",
+        "tests/performance/test_cli_startup_budget_4409.py",
+        "tests/performance/test_owned_checkout_perf.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "tests/architectural/test_owned_checkout_git_calls.py",
+        "tests/cli/commands/test_owned_checkout_git_calls.py",
+        "tests/specify_cli/workspace/test_owned_checkout_git_calls.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "tests/architectural/test_commit_recipe_strings.py",
+        "tests/specify_cli/cli/commands/test_commit_recipes.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/coherence.py",
+        "src/specify_cli/coordination/commit_router.py",
+        "src/specify_cli/missions/_read_path_resolver.py",
+        "tests/coordination/test_commit_router.py",
+        "tests/mission_runtime/test_artifact_partition_mapping.py",
+        "tests/specify_cli/coordination/test_commit_router_partition.py",
+        "tests/specify_cli/coordination/test_commit_router_partition_authority.py",
+        "tests/specify_cli/coordination/test_partition_authority_characterization.py",
+        "tests/specify_cli/missions/test_mission_dir_aliases.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/_constants.py",
+        "src/specify_cli/consolidation/entry_preflight.py",
+        "tests/consolidation/test_constants_seam.py",
+        "tests/consolidation/test_preflight_seam.py",
+        "tests/consolidation/test_refused_seed_commit_backstop.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/bookkeeping_projection.py",
+        "src/specify_cli/consolidation/executor.py",
+        "src/specify_cli/consolidation/phase_bookkeeping.py",
+        "src/specify_cli/consolidation/reconciliation.py",
+        "src/specify_cli/consolidation/run_state.py",
+        "tests/consolidation/test_bare_slug_alias_consumers.py",
+        "tests/consolidation/test_bookkeeping_projection_seam.py",
+        "tests/consolidation/test_reconciliation.py",
+        "tests/integration/test_merge_lane_planning_data_loss.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-05-1-bare-slug-coordination-directory-alias.md",
+        "docs/adr/4.x/index.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/docs-retrieval-index.yaml",
+        "docs/development/page-inventory.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f",
+        "lane-g"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-10-05T05:29:23.575432+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "72bc659ebbf02abf5bbabd2893c995eeb9af3f8c"
+}
