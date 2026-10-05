@@ -1,0 +1,433 @@
+schema_version: 1
+mission_id: 01M3PK9WC362F9XQ9BWP6FK31W
+mission_slug: in-harness-feedback-survey-01M3PK9W
+mission_number: 209
+friendly_name: In-Harness Feedback Survey
+mission_type: software-dev
+target_branch: feat/in-harness-feedback-survey
+created_at: '2026-10-01T12:10:30.836556+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: explicit_create
+  invoked_at: '2026-10-01T13:40:00+00:00'
+  command: human-authored addendum (orchestrator retrospective check) appended to the runtime record
+  policy_resolved_from: &id001
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-005
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-006
+  category: review_loop
+  summary: Independent review caught real defects before merge
+  evidence_refs:
+  - e-024
+  - e-025
+  details: 'WP05: Ctrl-C/abort handling and manifest regeneration. WP07: a shell-injection risk in free-text arguments, the
+    op_close survey firing on ''abandoned'', and the survey placed after the handoff step.'
+- id: h-007
+  category: implementation
+  summary: Red-first discipline held on every WP
+  evidence_refs:
+  - e-013
+  details: 'Test-only commits precede fix commits in each WP history (e.g. WP07 cycle 2: tests in 911f8381e before the fix
+    in 2daef086e).'
+- id: h-008
+  category: design
+  summary: Dormant-by-default endpoint plus explicit consent kept the feature safe to ship upstream
+  evidence_refs:
+  - e-029
+  details: The end-to-end quickstart showed an anonymous on-demand submission with no identifying fields, and silent success
+    with the receiver down.
+not_helpful:
+- id: n-010
+  category: doc
+  summary: analysis-report.md records 3 finding(s)
+  evidence_refs:
+  - e-023
+  details: The analysis-report.md artifact for this mission records 3 finding(s) in its structured frontmatter. Review them
+    to understand documented issues and decisions.
+- id: n-007
+  category: implementation
+  summary: WP05 needed 2 implementation cycles
+  evidence_refs:
+  - e-020
+  details: WP WP05 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a documented
+    review rejection; the WP scope or contract may need refinement.
+- id: n-008
+  category: implementation
+  summary: WP07 needed 2 implementation cycles
+  evidence_refs:
+  - e-021
+  details: WP WP07 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a documented
+    review rejection; the WP scope or contract may need refinement.
+- id: n-009
+  category: implementation
+  summary: WP08 needed 2 implementation cycles
+  evidence_refs:
+  - e-022
+  details: WP WP08 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a documented
+    review rejection; the WP scope or contract may need refinement.
+- id: n-004
+  category: process
+  summary: WP05 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-017
+  details: WP WP05 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime guard
+    failed or the operator routed around it; investigate the underlying cause.
+- id: n-005
+  category: process
+  summary: WP07 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-018
+  details: WP WP07 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime guard
+    failed or the operator routed around it; investigate the underlying cause.
+- id: n-003
+  category: process
+  summary: WP08 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-016
+  details: WP WP08 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-006
+  category: process
+  summary: WP08 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-019
+  details: WP WP08 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime guard
+    failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP05 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-014
+  details: WP WP05 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP07 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-015
+  details: WP WP07 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-011
+  category: process
+  summary: Duplicate concurrent agents on the same WP (WP06/WP07)
+  evidence_refs:
+  - e-027
+  - e-030
+  details: 36 subagent runs for 8 WPs. WP06 had 4 implementer runs and WP07 had 3 overlapping 'finishing' runs; agents reported
+    another agent active on the same lane. The orchestrator relaunched on 'agent looks dead' signals without first checking
+    lane state or stopping the prior run.
+- id: n-012
+  category: review_loop
+  summary: Redundant reviewers kept running after verdicts existed; WP07 idled 10 h in review
+  evidence_refs:
+  - e-027
+  - e-030
+  details: About ten reviewer runs for WP06/WP07 overnight, two running 6-7.5 h, with conflicting WP07 verdicts (two unrecorded
+    approvals, one recorded rejection). WP06 was approved at 00:27 but reviews continued until 14:03.
+- id: n-013
+  category: process
+  summary: Broad test suites run mid-mission instead of once at the end
+  evidence_refs:
+  - e-030
+  details: Repeated whole-directory regression runs (one killed after 10 minutes, unfinished), plus make test-fast (10 minutes)
+    and consolidation (12.5 minutes). Targeted module tests plus a single post-consolidation run would have sufficed.
+- id: n-014
+  category: tooling
+  summary: Acceptance matrix generated as a TODO template; 21 one-by-one verdict calls at accept time
+  evidence_refs:
+  - e-028
+  - e-031
+- id: n-015
+  category: tooling
+  summary: PRIMARY-checkout duplicates of review artifacts blocked implement and accept; spec-commit refused them
+  evidence_refs:
+  - e-032
+- id: n-016
+  category: tooling
+  summary: Coordination teardown failed after lane cleanup and --resume could not recover
+  evidence_refs:
+  - e-035
+- id: n-017
+  category: tooling
+  summary: charter.yaml silently rewritten to a stub, surfacing as misleading mission-type errors
+  evidence_refs:
+  - e-033
+- id: n-018
+  category: tooling
+  summary: 'Harness environment friction: shell-command rewriting hook, sandbox false reds, transport errors'
+  evidence_refs:
+  - e-030
+  details: A third-party command-rewriting hook rewrote tail/git/ls invocations, breaking several commands. Sandboxed test
+    runs produced false reds and had to be repeated unsandboxed. Harness logs show transport errors (refused streams, ping
+    and deadline timeouts) overlapping the window in which background agents stalled.
+- id: n-019
+  category: process
+  summary: Validation evidence not recorded as it was produced
+  evidence_refs:
+  - e-026
+  details: WP08 bounced once solely because the quickstart and gate evidence was not in the Activity Log.
+gaps:
+- id: g-001
+  category: spec_quality
+  summary: 'SC-006 only partially verified: survey not observed in each harness''s own question UI'
+  evidence_refs:
+  - e-029
+  details: Generated surfaces for Claude, Codex and Cursor carry the survey block; the plain-terminal path ran end to end.
+    No interactive harness session was driven.
+- id: g-002
+  category: other
+  summary: Auto-generated retrospective misclassifies the canonical rejection flow and omits timing
+  evidence_refs:
+  - e-034
+  - e-036
+  details: n-003..n-009 count the documented `move-task --to planned --force --review-feedback-file` rejection as a force
+    override, an undocumented lane bounce, and undocumented rework. There are no elapsed-time signals.
+proposals:
+- id: p-001
+  category: process
+  risk_class: low
+  summary: One live agent per WP
+  evidence_refs:
+  - e-027
+  auto_applicable: false
+  suggested_action: Before relaunching an implementer or reviewer, check the WP lane state and stop any prior run on that
+    WP; prefer foreground, scoped subagents over background ones.
+- id: p-002
+  category: process
+  risk_class: low
+  summary: Scoped reviewer briefs; one broad test run after consolidation
+  evidence_refs:
+  - e-027
+  - e-030
+  auto_applicable: false
+  suggested_action: Reviewers verify named blockers and gates and do not re-run broad suites; run make test-fast once on the
+    consolidated branch.
+- id: p-003
+  category: process
+  risk_class: low
+  summary: Record evidence in the WP Activity Log as it is produced
+  evidence_refs:
+  - e-026
+  auto_applicable: false
+  suggested_action: Implementers append dated Activity Log entries with commands, counts and outputs before moving to for_review.
+- id: p-004
+  category: tooling
+  risk_class: structural
+  summary: Fix acceptance-matrix generation and batch verdicts
+  evidence_refs:
+  - e-031
+  auto_applicable: false
+  suggested_action: Track in issue 5542.
+- id: p-005
+  category: tooling
+  risk_class: structural
+  summary: Stop PRIMARY residue from review-artifact writes; fix cycle numbering
+  evidence_refs:
+  - e-032
+  auto_applicable: false
+  suggested_action: Track in issue 5543.
+- id: p-006
+  category: tooling
+  risk_class: structural
+  summary: Guard charter.yaml against stub overwrites
+  evidence_refs:
+  - e-033
+  auto_applicable: false
+  suggested_action: Track in issue 5544.
+- id: p-007
+  category: tooling
+  risk_class: structural
+  summary: 'Retrospective generator: recognise the canonical rejection flow and add per-WP timing'
+  evidence_refs:
+  - e-034
+  - e-036
+  auto_applicable: false
+  suggested_action: Track in issues 2267 and 3947.
+- id: p-008
+  category: tooling
+  risk_class: structural
+  summary: Make coordination teardown recoverable after lane cleanup
+  evidence_refs:
+  - e-035
+  auto_applicable: false
+  suggested_action: Track in issue 3926.
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/tasks/WP01-feedback-domain-core.md
+- id: e-006
+  kind: file
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/tasks/WP02-endpoint-resolution-distribution-seam.md
+- id: e-007
+  kind: file
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/tasks/WP03-submission-payload-sender.md
+- id: e-008
+  kind: file
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/tasks/WP04-agent-protocol-service.md
+- id: e-009
+  kind: file
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/tasks/WP05-feedback-command-terminal-form.md
+- id: e-010
+  kind: file
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/tasks/WP06-inline-trigger-hooks.md
+- id: e-011
+  kind: file
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/tasks/WP07-agent-guidance-block-surfaces.md
+- id: e-012
+  kind: file
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/tasks/WP08-docs-glossary-changelog-validation.md
+- id: e-013
+  kind: file
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/status.events.jsonl
+- id: e-014
+  kind: event_range
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/status.events.jsonl
+  range: 01M3SG5Z5MNGE7WE182FMKT9B7
+- id: e-015
+  kind: event_range
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/status.events.jsonl
+  range: 01M3V771T451T0SKWSPMR86MNF
+- id: e-016
+  kind: event_range
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/status.events.jsonl
+  range: 01M3VJSWW00285TSJSRFATDWGZ
+- id: e-017
+  kind: event_range
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/status.events.jsonl
+  range: 01M3SG5Z5MNGE7WE182FMKT9B7
+- id: e-018
+  kind: event_range
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/status.events.jsonl
+  range: 01M3V771T451T0SKWSPMR86MNF
+- id: e-019
+  kind: event_range
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/status.events.jsonl
+  range: 01M3VJSWW00285TSJSRFATDWGZ
+- id: e-020
+  kind: event_range
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/status.events.jsonl
+  range: implementation_cycles
+- id: e-021
+  kind: event_range
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/status.events.jsonl
+  range: implementation_cycles
+- id: e-022
+  kind: event_range
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/status.events.jsonl
+  range: implementation_cycles
+- id: e-023
+  kind: file
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/analysis-report.md
+- id: e-024
+  kind: file
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/tasks/WP05-feedback-command-terminal-form/review-feedback-1.md
+- id: e-025
+  kind: file
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/tasks/WP07-agent-guidance-block-surfaces/review-feedback-1.md
+- id: e-026
+  kind: file
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/tasks/WP08-docs-glossary-changelog-validation/review-feedback-1.md
+- id: e-027
+  kind: event_range
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/status.events.jsonl
+  range: WP06+WP07 2026-09-30T16:46Z..2026-10-01T09:52Z
+- id: e-028
+  kind: file
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/acceptance-matrix.json
+- id: e-029
+  kind: file
+  path: kitty-specs/in-harness-feedback-survey-01M3PK9W/tasks/WP08-docs-glossary-changelog-validation.md
+- id: e-030
+  kind: external
+  range: local harness session + agent logs 2026-09-30..2026-10-01 (not committed)
+- id: e-031
+  kind: external
+  url: https://github.com/spec-kitty/spec-kitty/issues/5542
+- id: e-032
+  kind: external
+  url: https://github.com/spec-kitty/spec-kitty/issues/5543
+- id: e-033
+  kind: external
+  url: https://github.com/spec-kitty/spec-kitty/issues/5544
+- id: e-034
+  kind: external
+  url: https://github.com/spec-kitty/spec-kitty/issues/2267
+- id: e-035
+  kind: external
+  url: https://github.com/spec-kitty/spec-kitty/issues/3926
+- id: e-036
+  kind: external
+  url: https://github.com/spec-kitty/spec-kitty/issues/3947
+generator_version: '1.0'
+provenance_history:
+- kind: runtime_post_completion
+  invoked_at: '2026-10-01T12:10:30.836556+00:00'
+  policy_resolved_from: *id001

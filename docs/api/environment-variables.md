@@ -2,7 +2,7 @@
 title: Environment Variables Reference
 description: Environment variable reference for Spec Kitty 3.2 runtime, CI, hosted sync, tracker, and test configuration.
 doc_status: active
-updated: '2026-09-26'
+updated: '2026-10-01'
 related:
 - docs/api/cli-commands.md
 - docs/api/configuration.md
@@ -422,6 +422,38 @@ shows presence and tier only.
 
 ---
 
+## Feedback Survey
+
+### SPEC_KITTY_FEEDBACK_URL
+
+Sets the destination for the optional Feedback Survey.
+
+**Purpose**: Names the Feedback Endpoint that receives a Feedback Submission after a
+person confirms "Send feedback?". See [Context: Feedback](../context/feedback.md) and
+[Give Feedback on Spec Kitty](../guides/how-to/collaboration/give-feedback.md).
+
+**Precedence** (first value present wins; an invalid value does not fall through to the next):
+
+1. `SPEC_KITTY_FEEDBACK_URL`
+2. `endpoint_override` in `feedback.json` (see [Configuration Reference](configuration.md#feedbackjson-feedback-survey-preferences))
+3. the packager default, `DistributionProfile.feedback_endpoint` (the upstream build ships none)
+4. none, which leaves automatic surveys dormant
+
+**Validation**: the scheme must be `https`. Plain `http` is accepted only for a loopback
+host (`127.0.0.1`, `::1`, or `localhost`). Anything else is rejected, and
+`spec-kitty feedback --status` reports the rejection.
+
+**Scope**: machine-global when exported in a shell. Like the hosted-sync variables above, it has
+no project-scoped form, and it applies to every project that shell subsequently touches.
+
+**Example**:
+```bash
+export SPEC_KITTY_FEEDBACK_URL=http://127.0.0.1:8765/feedback
+spec-kitty feedback --status
+```
+
+---
+
 ## Output and UX
 
 ### SPEC_KITTY_NO_NAG
@@ -589,6 +621,7 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 | `SPEC_KITTY_NO_MOMENT_HANDLERS` | Register no moment handlers at import | `1` |
 | `SPEC_KITTY_SKIP_PRE_REVIEW_GATE` | Skip the pre-review regression gate | `1` |
 | `SPEC_KITTY_PRERELEASE` | Opt in to the pre-release (rc) consumer channel | `1` |
+| `SPEC_KITTY_FEEDBACK_URL` | Destination for the optional Feedback Survey; https, or loopback http | `https://feedback.example.test/submit` |
 | `SPEC_KITTY_NO_NAG` | Disable upgrade notices | `1` |
 | `SPEC_KITTY_NAG_THROTTLE_SECONDS` | Override upgrade-check cadence | `86400` |
 | `SPEC_KITTY_UPGRADE_DISABLED` | Disable upgrade readiness UX | `1` |

@@ -2,7 +2,7 @@
 title: Configuration Reference
 description: Reference for Spec Kitty configurations. Explore parameters for meta.json, work package frontmatter, docfx.json, toc.yml, config.yaml's env_file pointer, and agent settings.
 doc_status: active
-updated: '2026-09-26'
+updated: '2026-10-01'
 related:
 - docs/api/agent-subcommands.md
 - docs/api/cli-commands.md
@@ -320,6 +320,51 @@ under every setting (FR-010).
 ```yaml
 ledger:
   projection: false  # stop automatic projection refresh; the committed record is unaffected
+```
+
+---
+
+## feedback.json (Feedback Survey preferences)
+
+Per-user state for the optional Feedback Survey. See [Context: Feedback](../context/feedback.md).
+
+**Location**: `feedback.json` in the per-user Spec Kitty config directory, the same directory
+as the upgrade config:
+
+| OS | Directory |
+|----|-----------|
+| macOS | `~/Library/Application Support/spec-kitty/` |
+| Linux | `$XDG_CONFIG_HOME/spec-kitty/`, or `~/.config/spec-kitty/` |
+| Windows | `%APPDATA%\spec-kitty\` |
+
+It is never stored in a project repository, so clearing caches does not re-arm prompts or forget
+"don't ask again". Delete the file to reset it.
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `schema_version` | integer | Format version; currently `1`. |
+| `automatic_prompts` | boolean | `false` after "don't ask again" or `spec-kitty feedback --prompts off`. Default `true`. |
+| `last_shown_at` | ISO-8601 UTC string or `null` | When the survey was last offered; drives the weekly limit. |
+| `endpoint_override` | string or `null` | Your Feedback Endpoint; see precedence under [`SPEC_KITTY_FEEDBACK_URL`](environment-variables.md#spec_kitty_feedback_url). |
+
+**Permissions and trust**: on POSIX the file is written with mode `0600`. A file that is a
+symlink, is not a regular file, is larger than 64 KiB, is owned by another user, or has looser
+permissions is treated as untrustworthy: no automatic survey is offered, and
+`spec-kitty feedback --status` shows a preferences note.
+
+**Packagers**: `DistributionProfile.feedback_endpoint` (see
+[Fork Packaging Hooks](../guides/how-to/installation/fork-packaging-hooks.md)) is an optional
+default Feedback Endpoint. It is validated at resolution time, not when the profile is built.
+The stock upstream profile sets it to `None`, so automatic surveys stay dormant unless a
+packager sets it or the user configures an endpoint.
+
+```json
+{
+  "schema_version": 1,
+  "automatic_prompts": true,
+  "last_shown_at": null,
+  "endpoint_override": null
+}
 ```
 
 ---

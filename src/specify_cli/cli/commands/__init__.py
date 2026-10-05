@@ -263,6 +263,12 @@ def _register_events(app: typer.Typer) -> None:
     app.add_typer(events_module.app, name="events", help="Event log tailing commands")
 
 
+def _register_feedback(app: typer.Typer) -> None:
+    from . import feedback as feedback_module
+
+    app.command(name="feedback")(feedback_module.feedback)
+
+
 def _register_glossary(app: typer.Typer) -> None:
     from . import glossary as glossary_module
 
@@ -573,6 +579,7 @@ _ALL_COMMAND_REGISTRARS: tuple[_CommandRegistrar, ...] = (
     _register_doctrine,
     _register_docs,
     _register_events,
+    _register_feedback,
     _register_glossary,
     _register_implement,
     _register_intake,
@@ -628,6 +635,7 @@ _COMMAND_REGISTRARS: dict[str, _CommandRegistrar] = {
     "doctrine": _register_doctrine,
     "docs": _register_docs,
     "events": _register_events,
+    "feedback": _register_feedback,
     "glossary": _register_glossary,
     "implement": _register_implement,
     "intake": _register_intake,

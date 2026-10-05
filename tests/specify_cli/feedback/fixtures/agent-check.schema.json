@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "spec-kitty/feedback-agent-check/v1",
+  "title": "spec-kitty feedback --agent-check --trigger <t> --agent <key> --json",
+  "description": "Tells an agent harness whether to present the Feedback Survey now. Computed locally (no network). When action is 'prompt', the offer has already been recorded as shown; the agent must ask the human with its native question UI and must never answer on the human's behalf.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "action", "reason", "trigger"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "action": { "enum": ["prompt", "none"] },
+    "reason": {
+      "enum": [
+        "eligible",
+        "no_endpoint",
+        "prompts_off",
+        "throttled",
+        "non_interactive",
+        "ci",
+        "preferences_unreadable",
+        "clock_skew",
+        "lock_busy",
+        "trigger_not_eligible"
+      ]
+    },
+    "trigger": { "enum": ["planning_complete", "mission_end", "op_close", "on_demand"] },
+    "survey": {
+      "description": "Present only when action is 'prompt'. Fixed wording the agent should render.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rating_question", "comment_question", "email_question", "consent_question", "comment_max_length", "choices"],
+      "properties": {
+        "comment_max_length": {
+          "const": 2000,
+          "description": "The agent must tell the user before the consent step if their comment exceeds this and will be cut."
+        },
+        "rating_question": { "const": "How would you rate your experience? (1-5)" },
+        "comment_question": { "const": "What would you change? (optional, up to 2000 characters)" },
+        "email_question": { "const": "Email, only if you want to sign your feedback (optional)" },
+        "consent_question": { "const": "Send feedback?" },
+        "choices": {
+          "type": "array",
+          "items": { "enum": ["answer", "skip", "never"] }
+        }
+      }
+    }
+  }
+}

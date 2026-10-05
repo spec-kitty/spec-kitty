@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "mission_slug": "feedback-slash-command-validation-01M3VZBD",
+  "mission_id": "01M3VZBDW0BV0HZX5ZY5VXBAW7",
+  "mission_branch": "kitty/mission-feedback-slash-command-validation-01M3VZBD",
+  "target_branch": "feat/in-harness-feedback-survey",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/feedback/agent_protocol.py",
+        "src/specify_cli/feedback/payload.py",
+        "tests/specify_cli/feedback/test_agent_protocol.py",
+        "tests/specify_cli/feedback/test_payload.py",
+        "tests/specify_cli/feedback/test_validation_table.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/feedback/terminal_form.py",
+        "src/specify_cli/feedback/wording.py",
+        "tests/specify_cli/feedback/test_agent_contracts.py",
+        "tests/specify_cli/feedback/test_terminal_form.py",
+        "tests/specify_cli/feedback/test_wording.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "packs/built-in/missions/mission-steps/software-dev/feedback/**",
+        "src/specify_cli/shims/registry.py",
+        "src/specify_cli/skills/command_installer.py",
+        "tests/specify_cli/feedback/test_feedback_command_surface.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/context/feedback.md",
+        "docs/guides/how-to/collaboration/give-feedback.md",
+        "tests/specify_cli/feedback/test_flow_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-01T19:33:15.566152+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "3853b37a0f1da92786a914b3091a95b46fcf8e2c"
+}

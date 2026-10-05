@@ -241,6 +241,7 @@ def test_current_version_lock_does_not_mask_partial_global_commands(
         "spec-kitty.analyze.md",
         "spec-kitty.charter.md",
         "spec-kitty.consolidate.md",
+        "spec-kitty.feedback.md",
         "spec-kitty.implement.md",
         "spec-kitty.plan.md",
         "spec-kitty.research.md",

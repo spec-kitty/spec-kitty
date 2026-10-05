@@ -1,0 +1,36 @@
+{
+  "accept_commit": "392d7df324829352930c59b51a957dcc3f7e9cb1",
+  "acceptance_history": [
+    {
+      "accept_commit": "392d7df324829352930c59b51a957dcc3f7e9cb1",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-01T11:53:01.149238+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "4fd4365ba95cce00be87a8424cbcd3e95e0b18e7"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-01T11:53:01.149238+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "4fd4365ba95cce00be87a8424cbcd3e95e0b18e7",
+  "baseline_merge_commit": "0b124673949bbc40201119bad066249b5b87ada7",
+  "coordination_branch": "kitty/mission-in-harness-feedback-survey-01M3PK9W",
+  "created_at": "2026-09-29T12:47:45.028686+00:00",
+  "flattened": false,
+  "friendly_name": "In-Harness Feedback Survey",
+  "merged_at": "2026-10-01T12:09:01.785375+00:00",
+  "merged_commit": "b2b549642e090b2a378513184c909645979f19de",
+  "mission_id": "01M3PK9WC362F9XQ9BWP6FK31W",
+  "mission_number": 209,
+  "mission_slug": "in-harness-feedback-survey-01M3PK9W",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Spec Kitty has no direct channel for hearing how people experience missions and ad-hoc work. A short, optional two-question Feedback Survey (a 1-5 rating plus 'what would you change?') shown at natural completion points gives maintainers a steady signal, while staying anonymous by default, sending only with explicit consent each time, and never blocking the user's workflow.",
+  "purpose_tldr": "Let Spec Kitty users rate their experience and suggest changes at key moments, without getting in their way.",
+  "slug": "in-harness-feedback-survey-01M3PK9W",
+  "source_description": "Present a quick two-question feedback survey (1-5 rating + 'what would you change?') at mission end, Op close, planning complete, or on demand; send to a web service only with explicit per-submission consent; fire-and-forget; harness-native UI; non-intrusive; anonymous by default with opt-in email.",
+  "status_phase": "1",
+  "target_branch": "feat/in-harness-feedback-survey",
+  "topology": "coord",
+  "vcs": "git"
+}

@@ -864,6 +864,11 @@
     }
    }
   },
+  "feedback": {
+   "help": "Offer the Feedback Survey on demand, or inspect / toggle settings.\n\nSubmissions are anonymous unless an email is typed, and are sent only after\n``Send feedback?``. Automatic prompts ignore the weekly limit for this\non-demand command. Prefer ``--status`` to see the destination; the consent\nstep never prints a URL.",
+   "hidden": false,
+   "deprecated": false
+  },
   "glossary": {
    "help": "Glossary management commands",
    "hidden": false,

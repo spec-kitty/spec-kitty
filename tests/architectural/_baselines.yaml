@@ -320,7 +320,11 @@ test_egress_consent_boundary:
   # same class as device_code.py/refresh.py/revoke.py; no project data.
   # 17 -> 15 (#5530): the bundled dashboard was deleted, taking its two
   # loopback-control rows (dashboard/lifecycle.py, dashboard/server.py) with it.
-  egress_allowlist_files: 15
+  # 15 -> 16 (in-harness-feedback-survey-01M3PK9W WP03): feedback/sender.py
+  # posts the allowlisted anonymous Feedback Submission (no repo/mission/
+  # user/host/credential fields). Consent gated in build_and_hand_off;
+  # NOT_PROJECT_DATA / E18-feedback.
+  egress_allowlist_files: 16
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the

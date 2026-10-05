@@ -707,6 +707,8 @@ def test_real_typer_app_visible_count_within_tolerance() -> None:
     2026-09-05 baseline of 281, and PR #5390 adds the `doctor run-index`
     diagnostic (310), tripping the saturated upper bound. Re-centered on the
     current count.
+    Visible count is 311 after the new top-level ``feedback`` command
+    (in-harness feedback survey mission), a deliberate, spec-required addition.
     Tolerance: ±10% on the visible count (279..341) to allow natural growth.
 
     Block-scoped (``pytest.MonkeyPatch.context()``, not the ``monkeypatch``

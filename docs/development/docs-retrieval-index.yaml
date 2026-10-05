@@ -4016,6 +4016,7 @@ pages:
     - {slug: "spec-kitty-doctrine-validate", text: "spec-kitty doctrine validate", level: 2}
     - {slug: "spec-kitty-events", text: "spec-kitty events", level: 2}
     - {slug: "spec-kitty-events-tail", text: "spec-kitty events tail", level: 2}
+    - {slug: "spec-kitty-feedback", text: "spec-kitty feedback", level: 2}
     - {slug: "spec-kitty-glossary", text: "spec-kitty glossary", level: 2}
     - {slug: "spec-kitty-glossary-conflicts", text: "spec-kitty glossary conflicts", level: 2}
     - {slug: "spec-kitty-glossary-list", text: "spec-kitty glossary list", level: 2}
@@ -4186,6 +4187,7 @@ pages:
     - {slug: "mission-configuration-advanced", text: "Mission Configuration (Advanced)", level: 2}
     - {slug: "hosted-repository-opt-in-for-live-drain", text: "hosted (repository opt-in for live drain)", level: 2}
     - {slug: "ledger-local-execution-state-projection-refresh", text: "ledger (local execution-state projection refresh)", level: 2}
+    - {slug: "feedback-json-feedback-survey-preferences", text: "feedback.json (Feedback Survey preferences)", level: 2}
     - {slug: "vcs-configuration", text: "VCS configuration", level: 2}
     - {slug: "project-level-vcs-settings", text: "Project-Level VCS Settings", level: 3}
     - {slug: "checking-current-vcs", text: "Checking Current VCS", level: 3}
@@ -4225,6 +4227,8 @@ pages:
     - {slug: "release-channel", text: "Release Channel", level: 2}
     - {slug: "spec-kitty-prerelease", text: "SPEC_KITTY_PRERELEASE", level: 3}
     - {slug: "the-kitty-env-file", text: "The `.kitty.env` file", level: 2}
+    - {slug: "feedback-survey", text: "Feedback Survey", level: 2}
+    - {slug: "spec-kitty-feedback-url", text: "SPEC_KITTY_FEEDBACK_URL", level: 3}
     - {slug: "output-and-ux", text: "Output and UX", level: 2}
     - {slug: "spec-kitty-no-nag", text: "SPEC_KITTY_NO_NAG", level: 3}
     - {slug: "spec-kitty-nag-throttle-seconds", text: "SPEC_KITTY_NAG_THROTTLE_SECONDS", level: 3}
@@ -10381,6 +10385,16 @@ pages:
     - {slug: "integrating-worktree", text: "integrating worktree", level: 3}
     - {slug: "owned-checkout", text: "owned checkout", level: 3}
     - {slug: "shadow-clone-isolated-dev-environment", text: "Shadow Clone (Isolated Dev Environment)", level: 3}
+  - path: "docs/context/feedback.md"
+    title: "Context: Feedback"
+    divio_type: "explanation"
+    abstract: "Glossary context for the Feedback Survey: how Spec Kitty asks users for optional, anonymous experience feedback, and the four canonical terms that name each part of it."
+    anchors:
+    - {slug: "context-feedback", text: "Context: Feedback", level: 2}
+    - {slug: "feedback-survey", text: "Feedback Survey", level: 3}
+    - {slug: "feedback-submission", text: "Feedback Submission", level: 3}
+    - {slug: "survey-trigger", text: "Survey Trigger", level: 3}
+    - {slug: "feedback-endpoint", text: "Feedback Endpoint", level: 3}
   - path: "docs/context/glossary-conventions.md"
     title: "Glossary Conventions"
     divio_type: "reference"
@@ -11344,6 +11358,17 @@ pages:
     - {slug: "minimal-loop-skeleton", text: "Minimal Loop Skeleton", level: 2}
     - {slug: "reference-implementation", text: "Reference Implementation", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}
+  - path: "docs/guides/how-to/collaboration/give-feedback.md"
+    title: "Give Feedback on Spec Kitty"
+    divio_type: "how-to"
+    abstract: "How to answer, skip, or turn off the optional Spec Kitty feedback survey, give feedback on demand, see exactly what is sent, and check or override where it goes."
+    anchors:
+    - {slug: "when-you-will-see-the-survey", text: "When you will see the survey", level: 2}
+    - {slug: "answer-skip-or-turn-it-off", text: "Answer, skip, or turn it off", level: 2}
+    - {slug: "give-feedback-any-time", text: "Give feedback any time", level: 2}
+    - {slug: "what-is-sent", text: "What is sent", level: 2}
+    - {slug: "where-it-goes", text: "Where it goes", level: 2}
+    - {slug: "if-the-service-is-down", text: "If the service is down", level: 2}
   - path: "docs/guides/how-to/collaboration/index.md"
     title: "Parallel & Multi-Agent Work"
     divio_type: "explanation"

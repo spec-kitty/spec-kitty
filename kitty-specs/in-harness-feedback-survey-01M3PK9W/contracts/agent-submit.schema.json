@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "spec-kitty/feedback-agent-submit/v1",
+  "title": "Result of spec-kitty feedback --agent-submit | --agent-choice (--json)",
+  "description": "Invocations: (1) `spec-kitty feedback --agent-submit --trigger <t> --agent <key> --rating <1-5> [--comment <text>] [--email <addr>] --consent yes --json`; (2) `spec-kitty feedback --agent-choice skip|never --trigger <t> --json`. Without `--consent yes`, --agent-submit sends nothing and returns status 'not_sent'. The result never reports delivery success or failure: sending is fire-and-forget.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "status": {
+      "enum": ["handed_off", "not_sent", "skipped", "prompts_off", "invalid_input", "no_endpoint"],
+      "description": "handed_off: payload passed to the detached sender. not_sent: consent missing or declined. skipped: user chose skip. prompts_off: user chose 'don't ask again'. invalid_input: rating/email/comment failed validation (nothing sent). no_endpoint: dormant."
+    },
+    "message": {
+      "type": "string",
+      "description": "Short text the agent may show the user, e.g. 'Thanks for your feedback.'"
+    },
+    "errors": {
+      "type": "array",
+      "items": { "enum": ["rating_out_of_range", "email_malformed", "comment_truncated"] },
+      "description": "comment_truncated is informational and accompanies handed_off."
+    }
+  }
+}

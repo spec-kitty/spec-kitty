@@ -1,0 +1,85 @@
+{
+  "event_count": 33,
+  "last_event_id": "01M3WKDEPHZ0XRYTDE3GHGFH8E",
+  "materialized_at": "2026-10-01T20:45:08.689557+00:00",
+  "mission_number": "",
+  "mission_slug": "feedback-slash-command-validation-01M3VZBD",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "cursor:claude-sonnet:python-pedro:implementer",
+      "force_count": 1,
+      "implementer_of_record": "cursor:claude-sonnet:python-pedro:implementer",
+      "lane": "done",
+      "last_event_id": "01M3WKD9X0D1VRVK34APQF1S4F",
+      "last_transition_at": "2026-10-01T20:45:03.776479+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261001",
+        "reviewer": "Zohar Stolar",
+        "verdict": "approved"
+      },
+      "shell_pid": 21923,
+      "shell_pid_created_at": "1790884269.457397"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "cursor:claude-sonnet:python-pedro:implementer",
+      "force_count": 0,
+      "implementer_of_record": "cursor:claude-sonnet:python-pedro:implementer",
+      "lane": "done",
+      "last_event_id": "01M3WKDBB4WEVYYBEAV85C3WSS",
+      "last_transition_at": "2026-10-01T20:45:05.252699+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261001",
+        "reviewer": "Zohar Stolar",
+        "verdict": "approved"
+      },
+      "shell_pid": 5983,
+      "shell_pid_created_at": "1790883536.956171"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "cursor:claude-sonnet:python-pedro:implementer",
+      "force_count": 0,
+      "implementer_of_record": "cursor:claude-sonnet:python-pedro:implementer",
+      "lane": "done",
+      "last_event_id": "01M3WKDD7QWPH2AWABRNZBCS4P",
+      "last_transition_at": "2026-10-01T20:45:07.191049+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261001",
+        "reviewer": "Zohar Stolar",
+        "verdict": "approved"
+      },
+      "shell_pid": 36137,
+      "shell_pid_created_at": "1790884889.955082"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "cursor:claude-sonnet:curator-carla:implementer",
+      "force_count": 0,
+      "implementer_of_record": "cursor:claude-sonnet:curator-carla:implementer",
+      "lane": "done",
+      "last_event_id": "01M3WKDEPHZ0XRYTDE3GHGFH8E",
+      "last_transition_at": "2026-10-01T20:45:08.689557+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261001",
+        "reviewer": "Zohar Stolar",
+        "verdict": "approved"
+      },
+      "shell_pid": 55255,
+      "shell_pid_created_at": "1790886368.360335"
+    }
+  }
+}

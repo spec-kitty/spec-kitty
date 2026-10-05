@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-01T19:15:04.983462Z",
+      "decision_id": "01M3WE8HMQVM7M259PP7RPF9J8",
+      "final_answer": "on-demand modifier on agent-check",
+      "input_key": "on_demand_check_mode",
+      "mission_id": "01M3VZBDW0BV0HZX5ZY5VXBAW7",
+      "mission_slug": "feedback-slash-command-validation-01M3VZBD",
+      "opened_by": "cli",
+      "options": [
+        "on-demand modifier on agent-check",
+        "skip check and hardcode wording in prompt",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How does the slash command skip the weekly throttle and get the canonical wording (incl. the 2000-char limit)?",
+      "rationale": null,
+      "resolved_at": "2026-10-01T19:18:44.983628Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.on-demand-check-mode",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3VZBDW0BV0HZX5ZY5VXBAW7",
+  "version": 1
+}

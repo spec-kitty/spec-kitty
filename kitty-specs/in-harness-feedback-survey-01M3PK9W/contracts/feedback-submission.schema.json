@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "spec-kitty/feedback-submission/v1",
+  "title": "Feedback Submission",
+  "description": "Body of the single HTTPS POST (Content-Type: application/json) sent to the Feedback Endpoint after the user confirms 'Send feedback'. Anonymous by default: no repository, mission, branch, user, host, or credential data. No Authorization header is ever sent. The client ignores the response entirely.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "submission_format_version",
+    "rating",
+    "spec_kitty_version",
+    "distribution",
+    "trigger",
+    "harness",
+    "os"
+  ],
+  "properties": {
+    "submission_format_version": { "const": 1 },
+    "rating": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "comment": { "type": ["string", "null"], "maxLength": 2000 },
+    "email": {
+      "type": "string",
+      "maxLength": 254,
+      "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+      "description": "Present only when the user typed one."
+    },
+    "spec_kitty_version": { "type": "string", "maxLength": 64 },
+    "distribution": { "type": "string", "maxLength": 128 },
+    "trigger": { "enum": ["planning_complete", "mission_end", "op_close", "on_demand"] },
+    "harness": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{1,32}$",
+      "description": "'cli', a supported agent key, or 'other'."
+    },
+    "os": { "enum": ["linux", "darwin", "windows", "other"] },
+    "mission_type": { "type": ["string", "null"], "maxLength": 64 }
+  }
+}

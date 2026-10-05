@@ -1,0 +1,204 @@
+{
+  "version": 1,
+  "mission_slug": "in-harness-feedback-survey-01M3PK9W",
+  "mission_id": "01M3PK9WC362F9XQ9BWP6FK31W",
+  "mission_branch": "kitty/mission-in-harness-feedback-survey-01M3PK9W",
+  "target_branch": "feat/in-harness-feedback-survey",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/feedback/__init__.py",
+        "src/specify_cli/feedback/eligibility.py",
+        "src/specify_cli/feedback/models.py",
+        "src/specify_cli/feedback/preferences.py",
+        "tests/specify_cli/feedback/__init__.py",
+        "tests/specify_cli/feedback/acceptance/__init__.py",
+        "tests/specify_cli/feedback/acceptance/test_offer_rules.py",
+        "tests/specify_cli/feedback/conftest.py",
+        "tests/specify_cli/feedback/test_eligibility.py",
+        "tests/specify_cli/feedback/test_models.py",
+        "tests/specify_cli/feedback/test_preferences.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/distribution/profile.py",
+        "src/specify_cli/feedback/endpoint.py",
+        "tests/specify_cli/distribution/test_profile_feedback_endpoint.py",
+        "tests/specify_cli/feedback/test_endpoint.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/feedback/payload.py",
+        "src/specify_cli/feedback/sender.py",
+        "tests/specify_cli/feedback/acceptance/test_submission_delivery.py",
+        "tests/specify_cli/feedback/fixtures/feedback-submission.schema.json",
+        "tests/specify_cli/feedback/loopback_server.py",
+        "tests/specify_cli/feedback/test_payload.py",
+        "tests/specify_cli/feedback/test_sender.py",
+        "tests/specify_cli/feedback/test_submission_contract.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/feedback/agent_protocol.py",
+        "src/specify_cli/feedback/wording.py",
+        "tests/specify_cli/feedback/fixtures/agent-check.schema.json",
+        "tests/specify_cli/feedback/fixtures/agent-submit.schema.json",
+        "tests/specify_cli/feedback/test_agent_contracts.py",
+        "tests/specify_cli/feedback/test_agent_protocol.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "src/specify_cli/_completion_manifest.json",
+        "src/specify_cli/cli/commands/__init__.py",
+        "src/specify_cli/cli/commands/feedback.py",
+        "src/specify_cli/feedback/terminal_form.py",
+        "tests/specify_cli/cli/commands/test_feedback.py",
+        "tests/specify_cli/feedback/test_terminal_form.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 4
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
+        "src/specify_cli/cli/commands/consolidate.py",
+        "src/specify_cli/cli/commands/profile_invocation.py",
+        "src/specify_cli/feedback/hooks.py",
+        "tests/specify_cli/feedback/acceptance/test_trigger_hooks.py",
+        "tests/specify_cli/feedback/test_hooks.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 5
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "packs/built-in/missions/mission-steps/software-dev/tasks-finalize/prompt.md",
+        "packs/built-in/missions/mission-steps/software-dev/tasks/prompt.md",
+        "packs/built-in/pack-manifest.yaml",
+        "src/charter/offering/skills/spec-kitty/SKILL.md",
+        "src/specify_cli/cli/commands/dispatch.py",
+        "src/specify_cli/feedback/agent_block.py",
+        "src/specify_cli/shims/generator.py",
+        "src/specify_cli/skills/command_installer.py",
+        "tests/architectural/test_docs_cli_reference_parity.py",
+        "tests/specify_cli/feedback/test_agent_block.py",
+        "tests/specify_cli/feedback/test_agent_block_surfaces.py",
+        "tests/specify_cli/regression/_twelve_agent_baseline/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 5
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "docs/api/configuration.md",
+        "docs/api/environment-variables.md",
+        "docs/context/feedback.md",
+        "docs/context/index.md",
+        "docs/guides/how-to/collaboration/give-feedback.md",
+        "docs/guides/how-to/collaboration/index.md",
+        "docs/guides/toc.yml",
+        "src/specify_cli/.contextive/feedback.yml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-f",
+        "lane-g"
+      ],
+      "parallel_group": 6
+    }
+  ],
+  "computed_at": "2026-09-30T08:12:23.742465+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

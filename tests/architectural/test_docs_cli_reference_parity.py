@@ -20,7 +20,7 @@ references to non-existent profile subcommands (FR-017).
 The :func:`test_doctrine_source_snippets_are_registered` guard (FR-011/FR-012)
 scans all ``spec-kitty …`` command snippets inside bash fences in the doctrine
 SOURCE (``src/charter/offering/skills/**/*.md``,
-``src/charter/offering/missions/mission-steps/**/*.md``) and asserts every extracted
+``packs/built-in/missions/mission-steps/**/*.md``) and asserts every extracted
 command path is a registered Typer surface.  Catches ``HARD`` drift (nonexistent
 command/group) introduced by skills and mission-step prompts; does NOT catch
 behavioral drift (e.g. a missing required flag whose absence triggers a resolver
@@ -290,7 +290,9 @@ def test_skill_docs_profile_subcommands_are_registered() -> None:
 #: maintained.
 _DOCTRINE_SOURCE_GLOBS: tuple[str, ...] = (
     "src/charter/offering/skills/**/*.md",
-    "src/charter/offering/missions/mission-steps/**/*.md",
+    # Mission steps live in the built-in pack (retired:
+    # src/charter/offering/missions/mission-steps/**/*.md).
+    "packs/built-in/missions/mission-steps/**/*.md",
 )
 
 #: Ratchet allow-list.  Start empty after WP07 lands all 15 SOURCE fixes.
@@ -370,7 +372,13 @@ def _doctrine_source_snippets(
     SOURCE files.
     """
     for glob_pat in _DOCTRINE_SOURCE_GLOBS:
-        for filepath in sorted(repo_root.glob(glob_pat)):
+        matches = sorted(repo_root.glob(glob_pat))
+        assert matches, (
+            f"Doctrine snippet-gate glob matched zero files: {glob_pat!r}. "
+            "Update _DOCTRINE_SOURCE_GLOBS — a vacuous scan is a gate failure "
+            "(Standing Order 5 / architectural-gate-non-vacuity)."
+        )
+        for filepath in matches:
             text = filepath.read_text(encoding="utf-8")
             rel = str(filepath.relative_to(repo_root))
             for fence_match in _BASH_FENCE_RE.finditer(text):
@@ -520,3 +528,16 @@ def test_guard_accepts_valid_bool_auto_negation() -> None:
     assert _is_registered_path(path, registered), (
         "('charter', 'context') must be registered — guard would false-positive otherwise."
     )
+
+
+def test_snippet_gate_glob_floor_fails_on_zero_matches(tmp_path: Path) -> None:
+    """Negative control: a glob that matches nothing must fail loudly, not scan nothing."""
+    with pytest.raises(AssertionError, match="matched zero files"):
+        list(_doctrine_source_snippets(tmp_path))
+
+
+def test_snippet_gate_scans_pack_mission_step_prompts() -> None:
+    """Positive control: the gate reaches the pack prompts that carry the feedback block."""
+    scanned = {(rel, path) for rel, path, _raw in _doctrine_source_snippets(_REPO_ROOT)}
+    pack_feedback = {rel for rel, path in scanned if rel.startswith("packs/built-in/missions/mission-steps/") and path == ("feedback",)}
+    assert pack_feedback, "gate did not scan any `spec-kitty feedback` snippet under packs/built-in mission steps"

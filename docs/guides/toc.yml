@@ -157,6 +157,8 @@
           href: how-to/collaboration/manage-agents.md
         - name: "How to Start an Ad-Hoc Specialist Session"
           href: how-to/collaboration/adhoc-specialist-session.md
+        - name: "Give Feedback on Spec Kitty"
+          href: how-to/collaboration/give-feedback.md
     - name: Status & History
       href: how-to/monitoring/index.md
       items:

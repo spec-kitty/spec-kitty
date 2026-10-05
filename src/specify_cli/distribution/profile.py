@@ -65,6 +65,9 @@ class DistributionProfile:
             public-PyPI “no upgrade” notice.
         version_label: Optional ``--version`` banner label; ``None`` means use
             ``package_name``.
+        feedback_endpoint: Default Feedback Endpoint for the Feedback Survey;
+            ``None`` leaves automatic surveys dormant. Validated at resolution
+            time, not here.
     """
 
     package_name: str
@@ -75,6 +78,7 @@ class DistributionProfile:
     data_freshness_seconds: int | None = None
     disable_public_pypi_notifier: bool = False
     version_label: str | None = None
+    feedback_endpoint: str | None = None
 
 
 @dataclass(frozen=True)
@@ -99,6 +103,7 @@ def stock_distribution_profile() -> DistributionProfile:
         data_freshness_seconds=None,
         disable_public_pypi_notifier=False,
         version_label=None,
+        feedback_endpoint=None,
     )
 
 
