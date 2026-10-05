@@ -776,8 +776,9 @@ places. The conventions themselves are in [`contracts/README.md`](../../../contr
   three `--ignore` modules, so a new corpus-marked tool test is picked up without a
   workflow edit. The job runs when the `corpus` filter group matches (`contracts/**`) or
   the `contract_tools` group matches (`tests/contract/**`, the two contract workflow
-  files, the lock and pytest configuration, `tests/conftest.py` and
-  `status/lifecycle_events.py`). They read no corpus; keeping them out of
+  files, the lock and pytest configuration, `tests/conftest.py`,
+  `status/lifecycle_events.py` and the `src/` modules the mission-status reference reader
+  imports, spelled `**/<module path>` so the group stays non-src). They read no corpus; keeping them out of
   `tests (corpus-blocking)` keeps that job inside its timeout. Unmarked
   `tests/contract` modules run in the module matrix.
 - **The reality check and its payload helper** (`tests/contract/test_mission_status_reality.py`
