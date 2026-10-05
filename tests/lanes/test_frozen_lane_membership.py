@@ -430,6 +430,21 @@ def test_retired_started_lane_id_is_never_minted_for_a_new_group() -> None:
     result = compute_lanes(graph, manifests, _SLUG, previous_lanes=prior, frozen=frozen)
     assert _lane_of(result) == {"WP02": "lane-b", "WP05": "lane-c"}
 
+    # A LATER re-finalize no longer sees lane-a in the manifest, so the reservation must survive on its own:
+    # WP01 is still started in the status history and lane-a's branch still carries its recorded work tip.
+    graph_later = {**graph, "WP06": []}
+    manifests_later = {**manifests, "WP06": _manifest(["later.py"])}
+    later = build_frozen_membership(
+        result,
+        started=frozenset({"WP01"}),
+        tipped_branches=frozenset({lane_created_branch(prior, "lane-a")}),
+        present_wp_ids=frozenset({"WP01", "WP02", "WP05", "WP06"}),
+        eligible_wp_ids=frozenset({"WP02", "WP05", "WP06"}),
+    )
+    assert "lane-a" in later.reserved_lane_ids
+    result_later = compute_lanes(graph_later, manifests_later, _SLUG, previous_lanes=result, frozen=later)
+    assert _lane_of(result_later) == {"WP02": "lane-b", "WP05": "lane-c", "WP06": "lane-d"}
+
 
 def test_started_lane_mates_stay_together_after_their_overlap_is_removed() -> None:
     graph: dict[str, list[str]] = {"WP01": [], "WP02": []}

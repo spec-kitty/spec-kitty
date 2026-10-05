@@ -194,10 +194,10 @@ def _gather_frozen_lane_membership(
     A first finalize (no ``lanes.json``) reads nothing and constrains nothing.
     Otherwise the started set comes from the status history
     (:func:`_read_started_wp_ids`, fail-closed), and the recorded lane work
-    tips are listed (one git call) only when a prior code lane has no
-    history-started member, the only case the tip fallback can change.
+    tips are listed (one git call): they are both the fallback evidence for a
+    lane without a history-started member and the source of the lane ids kept
+    reserved after a lane leaves the manifest.
     """
-    from specify_cli.lanes.branch_naming import PLANNING_LANE_ID
     from specify_cli.lanes.frozen_membership import FrozenLaneMembership, build_frozen_membership
     from specify_cli.lanes.lane_tip import recorded_tip_branches
     from specify_cli.lanes.persistence import read_lanes_json
@@ -206,8 +206,7 @@ def _gather_frozen_lane_membership(
     if previous is None:
         return FrozenLaneMembership.empty()
     started = _read_started_wp_ids(repo_root, mission_slug, owned=owned)
-    needs_tips = any(lane.lane_id != PLANNING_LANE_ID and started.isdisjoint(lane.wp_ids) for lane in previous.lanes)
-    tipped = recorded_tip_branches(owned.repository_root if owned else repo_root) if needs_tips else frozenset()
+    tipped = recorded_tip_branches(owned.repository_root if owned else repo_root)
     return build_frozen_membership(
         previous,
         started=started,

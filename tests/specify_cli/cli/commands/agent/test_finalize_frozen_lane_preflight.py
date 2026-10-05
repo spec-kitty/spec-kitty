@@ -395,18 +395,23 @@ def test_missing_status_dir_without_a_canonical_refusal_still_refuses(planning_d
     assert str(missing) in excinfo.value.conflicts[0].remedy
 
 
-def test_tip_listing_is_skipped_when_every_code_lane_has_a_started_member(
+def test_recorded_tips_keep_a_lane_id_reserved_after_the_manifest_stops_listing_it(
     planning_dir: Path, tmp_path: Path, status_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _write_previous(planning_dir, _lane("lane-a", "WP01"), _lane("lane-b", "WP02"), _lane("lane-planning", "WP03"))
+    from specify_cli.lanes.compute import lane_created_branch
+
+    previous = _write_previous(planning_dir, _lane("lane-a", "WP01"), _lane("lane-b", "WP02"), _lane("lane-planning", "WP03"))
     _with_events(monkeypatch, status_dir, [_event("WP01", "in_progress"), _event("WP02", "claimed")])
-    tips = _Recorder(frozenset())
+    # lane-c left the manifest after its WP was retired, but its branch still carries a recorded tip; the listing is
+    # repository-wide, so another mission's lane branch is in it too and must not reserve anything here.
+    tips = _Recorder(frozenset({lane_created_branch(previous, "lane-c"), "kitty/mission-another-mission-lane-d"}))
     monkeypatch.setattr("specify_cli.lanes.lane_tip.recorded_tip_branches", tips)
 
     frozen = _gather(planning_dir, tmp_path, present=("WP01", "WP02", "WP03"))
 
-    assert tips.calls == [], "no code lane lacks a started member, so the tip fallback cannot change anything"
+    assert [args for args, _kwargs in tips.calls] == [(tmp_path,)], "the one git listing runs whenever a prior manifest exists"
     assert dict(frozen.bindings) == {"WP01": "lane-a", "WP02": "lane-b"}
+    assert frozen.reserved_lane_ids == frozenset({"lane-a", "lane-b", "lane-c"})
 
 
 def test_tip_fallback_freezes_a_tipped_lane_without_history(planning_dir: Path, tmp_path: Path, status_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:

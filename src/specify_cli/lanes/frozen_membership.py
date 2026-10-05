@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Literal
 
 from mission_runtime import MissionTopology
 
-from specify_cli.lanes.branch_naming import PLANNING_LANE_ID
+from specify_cli.lanes.branch_naming import PLANNING_LANE_ID, code_lane_branch_name, parse_lane_id_from_branch
 
 if TYPE_CHECKING:
     from specify_cli.lanes.models import LanesManifest
@@ -194,14 +194,21 @@ class FrozenLaneMembership:
         retired_wp_ids: Present work packages the cancellation projection
             excluded from lane inputs. A missing binding WP that is retired is
             leaving, not moving: no conflict, but its lane id stays reserved.
+        reserved_ids: Lane ids reserved independently of the previous manifest
+            still listing them: every lane id whose created branch carries a
+            recorded work tip (:func:`_tipped_lane_ids`). A lane retired from the
+            manifest keeps its branch and commits, so its id must never be
+            re-minted on a later re-finalize either.
     """
 
     bindings: Mapping[str, str] = field(default_factory=dict)
     retired_wp_ids: frozenset[str] = frozenset()
+    reserved_ids: frozenset[str] = frozenset()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "bindings", _FrozenBindings(self.bindings))
         object.__setattr__(self, "retired_wp_ids", frozenset(self.retired_wp_ids))
+        object.__setattr__(self, "reserved_ids", frozenset(self.reserved_ids))
 
     @classmethod
     def empty(cls) -> FrozenLaneMembership:
@@ -210,13 +217,13 @@ class FrozenLaneMembership:
 
     @property
     def is_empty(self) -> bool:
-        """True when there are neither bindings nor retired work packages."""
-        return not self.bindings and not self.retired_wp_ids
+        """True when there are no bindings, no retired work packages and no reserved lane ids."""
+        return not self.bindings and not self.retired_wp_ids and not self.reserved_ids
 
     @property
     def reserved_lane_ids(self) -> frozenset[str]:
         """Lane ids that held started work: never minted for a new group (FR-004)."""
-        return frozenset(self.bindings.values())
+        return frozenset(self.bindings.values()) | self.reserved_ids
 
 
 def started_wp_ids(events: Iterable[StatusEvent]) -> frozenset[str]:
@@ -258,6 +265,23 @@ def _lane_started_members(
     return ()
 
 
+def _tipped_lane_ids(previous: LanesManifest, tipped_branches: frozenset[str]) -> frozenset[str]:
+    """Return the code lane ids whose created branch for this mission has a recorded work tip.
+
+    ``tipped_branches`` lists every mission's lane branches (one repository-wide
+    listing), so each candidate id parsed from a branch is accepted only when
+    :func:`~specify_cli.lanes.branch_naming.code_lane_branch_name` composes that
+    exact branch back from this manifest's mission slug (compare candidates;
+    never trust the parse alone).
+    """
+    candidates = (parse_lane_id_from_branch(branch) for branch in tipped_branches)
+    return frozenset(
+        lane_id
+        for lane_id in candidates
+        if lane_id is not None and lane_id != PLANNING_LANE_ID and code_lane_branch_name(previous.mission_slug, lane_id) in tipped_branches
+    )
+
+
 def build_frozen_membership(
     previous: LanesManifest | None,
     *,
@@ -273,7 +297,9 @@ def build_frozen_membership(
             finalize (nothing is frozen).
         started: Work packages :func:`started_wp_ids` reports as started.
         tipped_branches: Lane branches with a recorded work tip
-            (``lane_tip.recorded_tip_branches``), the fallback evidence.
+            (``lane_tip.recorded_tip_branches``): the fallback evidence for a
+            lane without a history-started member, and the source of the lane
+            ids reserved even once the manifest stops listing the lane.
         present_wp_ids: Every work package in the mission's task set.
         eligible_wp_ids: The work packages that are lane inputs (present minus
             the cancellation projection's exclusions).
@@ -284,7 +310,11 @@ def build_frozen_membership(
     for lane in previous.lanes:
         members = _lane_started_members(previous, lane.lane_id, tuple(lane.wp_ids), started=started, tipped_branches=tipped_branches)
         bindings.update(dict.fromkeys(members, lane.lane_id))
-    return FrozenLaneMembership(bindings=bindings, retired_wp_ids=present_wp_ids - eligible_wp_ids)
+    return FrozenLaneMembership(
+        bindings=bindings,
+        retired_wp_ids=present_wp_ids - eligible_wp_ids,
+        reserved_ids=_tipped_lane_ids(previous, tipped_branches),
+    )
 
 
 def assert_frozen_membership_honoured(
