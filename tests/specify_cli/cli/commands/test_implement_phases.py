@@ -689,8 +689,8 @@ class TestEnsureVcsInMeta:
     def test_existing_vcs_is_preserved(self, tmp_path: Path) -> None:
         feature_dir = tmp_path / "kitty-specs" / "010-feature"
         create_meta_json(feature_dir, vcs="git")
-        assert _ensure_vcs_in_meta(feature_dir, tmp_path).value == "git"
+        assert _ensure_vcs_in_meta(feature_dir).value == "git"
 
     def test_missing_meta_errors(self, tmp_path: Path) -> None:
         with pytest.raises(typer.Exit):
-            _ensure_vcs_in_meta(tmp_path / "kitty-specs" / "010-feature", tmp_path)
+            _ensure_vcs_in_meta(tmp_path / "kitty-specs" / "010-feature")

@@ -131,7 +131,7 @@ def _validate_base_ref(repo_root: Path, base_ref: str) -> str:
     return resolved[1]
 
 
-def _ensure_vcs_in_meta(feature_dir: Path, _repo_root: Path) -> VCSBackend:
+def _ensure_vcs_in_meta(feature_dir: Path) -> VCSBackend:
     """Ensure VCS is selected and locked in meta.json (printing adapter over the seam's decision)."""
     try:
         locked = implement_support.ensure_vcs_locked(feature_dir)
@@ -404,7 +404,7 @@ def allocate(ctx: ImplementContext, wp_id: str, selection: WorkspaceSelection, b
     # #5738: a claim whose auto-commit cannot land on the checked-out branch is
     # refused here too, before the VCS lock, the lane worktree and the status write.
     implement_claim._raise_if_claim_commit_head_mismatch(repo_root, mission_slug, wp_id, ctx.auto_commit)
-    vcs_backend = _ensure_vcs_in_meta(feature_dir, repo_root)
+    vcs_backend = _ensure_vcs_in_meta(feature_dir)
 
     # #3571: when --base is provided, validate the ref (planning-lane
     # "ignored" warning applied here, FR-007) and thread the EFFECTIVE
