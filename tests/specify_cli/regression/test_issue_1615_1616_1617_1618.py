@@ -92,6 +92,7 @@ def test_resolve_mission_read_path_used_in_implement(tmp_path: Path, monkeypatch
     ``lanes.json``). If it read the primary surface instead, it would refuse with "not finalized".
     """
     import json
+    import subprocess
     from unittest.mock import patch
 
     import typer
@@ -106,8 +107,22 @@ def test_resolve_mission_read_path_used_in_implement(tmp_path: Path, monkeypatch
         "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
         lambda *_a, **_k: CharterPreflightResult(passed=True, checks=[]),
     )
+    # A real (empty) repository: no implement collaborator is patched, so the oracle survives the
+    # implement module being split.
+    git_setup = (
+        ["init", "-q", "-b", "main"],
+        ["config", "user.email", "t@example.com"],
+        ["config", "user.name", "t"],
+        ["commit", "-q", "--allow-empty", "-m", "init"],
+    )
+    for argv in git_setup:
+        subprocess.run(["git", *argv], cwd=tmp_path, check=True, capture_output=True)
+    (tmp_path / ".kittify").mkdir()
     primary = tmp_path / "kitty-specs" / "010-feature"
-    create_meta_json(primary)
+    meta_path = create_meta_json(primary)
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["mission_id"] = "01KVCPCHMCA5GSGF6NBAEE5E17"
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
     (primary / "tasks").mkdir(parents=True)
     (primary / "tasks" / "WP01-setup.md").write_text(
         "---\nwork_package_id: WP01\ndependencies: []\nexecution_mode: code_change\n"
@@ -118,11 +133,8 @@ def test_resolve_mission_read_path_used_in_implement(tmp_path: Path, monkeypatch
     coord_surface.mkdir(parents=True)
     _seed_planned(coord_surface, "WP01")  # finalized on the coordination surface only
 
+    monkeypatch.chdir(tmp_path)
     with (
-        patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
-        patch("specify_cli.cli.commands.implement.detect_feature_context", return_value=("010", "010-feature")),
-        patch("specify_cli.cli.commands.implement.resolve_feature_target_branch", return_value="main"),
-        patch("specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git"),
         patch(
             "specify_cli.coordination.surface_resolver.resolve_status_surface_with_anchor",
             return_value=ResolvedStatusSurface(surface_path=coord_surface / "status.events.jsonl", primary_anchor=primary),
