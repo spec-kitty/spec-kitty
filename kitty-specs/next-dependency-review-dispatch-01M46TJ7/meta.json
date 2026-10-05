@@ -1,0 +1,40 @@
+{
+  "accept_commit": "866b4a68ff7b800160f6967fdbf33dd2dd93bf02",
+  "acceptance_history": [
+    {
+      "accept_commit": "40d885c5c8bf83d9a64d76e3dc5669cbf262939b",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-05T21:11:27.698357+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "39b8c3a5ec6ea063002f3684e9902842bec2ef8b"
+    },
+    {
+      "accept_commit": "866b4a68ff7b800160f6967fdbf33dd2dd93bf02",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-05T21:11:41.908494+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "298a1f6aa6257942c99a0147b4cdcc76323b07a1"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-05T21:11:41.908494+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "298a1f6aa6257942c99a0147b4cdcc76323b07a1",
+  "baseline_merge_commit": "30a152d880074bab337f6010fab0532ec4468399",
+  "created_at": "2026-10-05T20:02:29.708575+00:00",
+  "flattened": false,
+  "friendly_name": "Next dependency wedge, dispatch the review",
+  "merged_at": "2026-10-05T21:14:12.922410+00:00",
+  "merged_commit": "7a109ce98b70b3cbdd9b74c6f36831641f3eafb9",
+  "mid8": "01M46TJ7",
+  "mission_id": "01M46TJ7KRCRY404147KH2GP4J",
+  "mission_number": 218,
+  "mission_slug": "next-dependency-review-dispatch-01M46TJ7",
+  "mission_type": "software-dev",
+  "purpose_context": "Addresses P1 #5669 (the wedge + the lanes mission-events.jsonl approval residue) and folds #5310 (advance first-contact bootstrap bypasses the finalized-board authority that query mode honours). Three fixes in src/runtime/next and the move-task dirty gate, red-first ATDD, one PR to main.",
+  "purpose_tldr": "Fix the canonical next control loop so it dispatches the review of a for_review WP that a planned WP depends on, instead of wedging on blocked/dependencies_not_satisfied.",
+  "slug": "next-dependency-review-dispatch-01M46TJ7",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}

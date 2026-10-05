@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#4860": {
+      "evidence_ref": "context-only: closed mirror bug cited as the #4980/#4975 regression origin; no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4975": {
+      "evidence_ref": "context-only: closed PR (with #4980) that introduced the wedge; cited as regression origin, no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4980": {
+      "evidence_ref": "context-only: closed PR that (with #4975) introduced the wedge by dropping the for_review fallback; cited as regression origin, no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5310": {
+      "evidence_ref": "advance first-contact board-authority parity (WP01 _dn_finalized_board_override) merged as mission #218; red\u2192green witnessed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5669": {
+      "evidence_ref": "WP01 (the wedge) + WP02 (dirty-gate survivor) merged to local main as mission #218 (7a109ce); red\u2192green witnessed by independent review",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#5797": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

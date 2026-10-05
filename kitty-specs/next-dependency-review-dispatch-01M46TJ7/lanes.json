@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "next-dependency-review-dispatch-01M46TJ7",
+  "mission_id": "01M46TJ7KRCRY404147KH2GP4J",
+  "mission_branch": "kitty/mission-next-dependency-review-dispatch-01M46TJ7",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge.py",
+        "src/specify_cli/review/dirty_classifier.py",
+        "tests/integration/test_next_preview_primary_routing.py",
+        "tests/next/test_finalized_task_routing.py",
+        "tests/review/test_dirty_classifier.py",
+        "tests/runtime/test_next_board_authority.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-05T20:13:24.863156+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "30a152d880074bab337f6010fab0532ec4468399"
+}

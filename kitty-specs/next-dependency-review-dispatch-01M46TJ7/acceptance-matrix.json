@@ -1,0 +1,79 @@
+{
+  "mission_slug": "next-dependency-review-dispatch-01M46TJ7",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/next/test_next_dependency_wedge_5669.py \u2014 dispatch+query both route a dependency-walled board to review (red\u2192green witnessed)",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-10-05T21:10:45.833147+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/next/test_next_dependency_wedge_5669.py \u2014 #4860 guard: walled planned WP never dispatched for implement",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-10-05T21:10:48.285407+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/next/test_next_dependency_wedge_5669.py + test_finalized_task_routing.py \u2014 walled board with no reviewable WP reports honest no_actionable_wp",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-10-05T21:10:50.702688+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/next/test_finalized_task_routing.py \u2014 claimed/in_progress resume routes to implement despite a sibling walled planned WP",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-10-05T21:10:53.113967+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/next/test_next_advance_first_contact_5310.py \u2014 advance first-contact agrees with query on a finalized board (red\u2192green)",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-10-05T21:10:55.538646+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/review/test_mission_events_dirty_survivor_5669.py \u2014 uncommitted mission-events.jsonl no longer refuses move-task (red\u2192green)",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-10-05T21:10:57.969740+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/review/test_mission_events_dirty_survivor_5669.py \u2014 anchored survivor + negative controls + C-002 global-owner-unchanged guard",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-10-05T21:11:00.387142+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
