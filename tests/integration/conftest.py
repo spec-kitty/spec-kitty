@@ -7,9 +7,11 @@ import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from collections.abc import Callable
+from collections.abc import Iterator, Callable
 
 import pytest
+
+from tests._support.charter_warning import rearmed_charter_warning
 
 # Register the coord-topology test fixture + asserters so they are available
 # to every test in the tests/integration/ subtree without a per-file import.
@@ -356,3 +358,10 @@ def owned_cwd(request: pytest.FixtureRequest, owned_checkouts: OwnedCheckouts, m
     }[request.param]
     monkeypatch.chdir(target)
     return target
+
+
+@pytest.fixture(autouse=True)
+def _rearm_charter_ambient_warning() -> Iterator[None]:
+    """Re-arm the once-per-process charter warning around each test (#5714; see tests/_support/charter_warning.py)."""
+    with rearmed_charter_warning():
+        yield

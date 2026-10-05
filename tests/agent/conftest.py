@@ -7,7 +7,11 @@ pytest's nested-conftest autouse-fixture composition.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import pytest
+
+from tests._support.charter_warning import rearmed_charter_warning
 
 from tests.conftest import reset_spec_kitty_queue_state
 
@@ -39,3 +43,10 @@ def _autoclean_spec_kitty_queue():
     reset_spec_kitty_queue_state()
     yield
     reset_spec_kitty_queue_state()
+
+
+@pytest.fixture(autouse=True)
+def _rearm_charter_ambient_warning() -> Iterator[None]:
+    """Re-arm the once-per-process charter warning around each test (#5714; see tests/_support/charter_warning.py)."""
+    with rearmed_charter_warning():
+        yield
