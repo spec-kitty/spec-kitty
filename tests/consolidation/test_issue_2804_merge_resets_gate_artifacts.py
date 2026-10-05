@@ -95,6 +95,7 @@ from specify_cli.acceptance.matrix import SCAFFOLD_TODO_MARKER
 from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
+from tests.consolidation.approval_stamps import restamp_log_at_lane_tips
 from specify_cli.consolidation.config import MergeStrategy
 from tests.consolidation.executor_family import patch_executor_family
 
@@ -363,6 +364,7 @@ def _bootstrap_mission(repo: Path) -> Path:
     _git(repo, "add", LANE_CODE)
     _git(repo, "commit", "-m", f"feat({MISSION_SLUG}): {WP_ID} retire charter.generator")
     _git(repo, "checkout", "main")
+    restamp_log_at_lane_tips(repo, feature_dir)
 
     # --- primary checkout (still on target_branch) authors + accepts the
     # FILLED matrix directly onto main; the mission branch never sees this. ---

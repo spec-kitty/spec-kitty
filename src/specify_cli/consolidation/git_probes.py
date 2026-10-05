@@ -351,6 +351,25 @@ def sha_reachable_from(repo_root: Path, sha: str, ref: str) -> bool:
     return bool(ret == 0)
 
 
+def resolve_commit(repo_root: Path, ref: str) -> str:
+    """Return the commit SHA *ref* names now (``git rev-parse --verify <ref>^{commit}``).
+
+    Raises :class:`GitProbeError` when *ref* does not resolve to a commit. A caller that
+    needs a reference frozen before a run mutates anything (the approved-bound anchors)
+    resolves it here once; a branch name would move with the run.
+    """
+    ret, out, err = run_command(
+        ["git", "rev-parse", "--verify", f"{ref}^{{commit}}"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    sha = (out or "").strip()
+    if ret != 0 or not sha:
+        raise GitProbeError(f"git rev-parse --verify {ref}^{{commit}} failed (exit {ret}): {(err or '').strip()}")
+    return sha
+
+
 def commits_in_range(repo_root: Path, base: str, tip: str) -> list[str]:
     """Return the SHAs reachable from *tip* but not *base* (``git rev-list base..tip``).
 
@@ -861,6 +880,7 @@ __all__ = [
     "_has_branch_ref",
     "GitProbeError",
     "sha_reachable_from",
+    "resolve_commit",
     "commits_in_range",
     "patch_id_of",
     "patch_ids_in_range",

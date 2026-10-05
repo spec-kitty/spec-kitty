@@ -121,6 +121,7 @@ from specify_cli.status import Lane, StatusEvent
 # Reuse ONLY the primitive git helpers from the #2711 harness (never the
 # single-WP ``_bootstrap_coord_mission``, which has no bake-loop injection hook
 # and is in no WP's owned_files — WP01 authors its own >=2-WP bootstrap below).
+from tests.consolidation.approval_stamps import restamp_log_at_lane_tips
 from tests.consolidation.test_issue_2711_merge_rollback_resume_coherence import (
     _git,
     _init_git_repo,
@@ -269,6 +270,7 @@ def _bootstrap_two_wp_coord_mission(repo: Path) -> Path:
     _git(repo, "add", "src")
     _git(repo, "commit", "-m", f"feat({MISSION_SLUG}): lane code for the 2-WP write-set")
     _git(repo, "checkout", "main")
+    restamp_log_at_lane_tips(repo, feature_dir, coord_branch=COORD_BRANCH)
 
     # Materialize the coordination worktree with the mission branch CHECKED OUT
     # (the production topology): the pre-target ``done`` transactions commit

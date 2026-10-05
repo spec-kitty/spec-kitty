@@ -39,6 +39,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import typer
 
+from tests.consolidation.approval_stamps import restamp_log_at_lane_tips
 from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
@@ -1123,6 +1124,7 @@ class TestPlanningArtifactReachesTarget:
 
         # Return to main so the merge command does not run from a feature branch.
         _git(tmp_path, "checkout", "main")
+        restamp_log_at_lane_tips(tmp_path, feature_dir)
 
         # Drive the real merge.  No mocks of consolidate_lane_into_mission /
         # integrate_mission_into_target / _merge_branch_into.
@@ -1402,6 +1404,7 @@ class TestPlanningArtifactReachesTarget:
         )
 
         _git(tmp_path, "checkout", "main")
+        restamp_log_at_lane_tips(tmp_path, feature_dir)
 
         with _real_merge_external_mocks(tmp_path):
             _run_lane_based_consolidation(
@@ -1445,6 +1448,14 @@ _RETENTION_MISSION_ID = "01KX0000000RETENTIONCOORD01"
 _RETENTION_MID8 = _RETENTION_MISSION_ID[:8]
 _RETENTION_SLUG = f"retention-repro-{_RETENTION_MID8}"
 _RETENTION_MISSION_BRANCH = f"kitty/mission-{_RETENTION_SLUG}"
+
+
+def _restamp_coord_worktree(repo: Path, slug: str, feature_dir: Path) -> None:
+    """Record, in the coordination worktree's own log, that review approved the lane tips (#5668)."""
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+
+    coord = CoordinationWorkspace.worktree_path(repo, slug, _RETENTION_MID8)
+    restamp_log_at_lane_tips(coord, coord / feature_dir.relative_to(repo))
 
 
 def _write_coord_retaining_meta(feature_dir: Path, slug: str) -> None:
@@ -1546,6 +1557,8 @@ class TestRetentionConstraintSurvivesCleanup:
             message=f"feat({slug}): add foo function (WP01)",
         )
         _git(tmp_path, "checkout", "main")
+        restamp_log_at_lane_tips(tmp_path, feature_dir)
+        _restamp_coord_worktree(tmp_path, slug, feature_dir)
 
         # A REAL lane worktree, at the MODERN mid8-embedded path the cleanup
         # phase resolves for a modern (mission_id-bearing) mission — NOT the
@@ -1670,6 +1683,8 @@ class TestRetentionConstraintSurvivesCleanup:
             message=f"feat({slug}): add bar function (WP01)",
         )
         _git(tmp_path, "checkout", "main")
+        restamp_log_at_lane_tips(tmp_path, feature_dir)
+        _restamp_coord_worktree(tmp_path, slug, feature_dir)
 
         # The CREATED worktree — never a Mission-identity-keyed path.
         # ``predict_lane_worktree`` is the
@@ -1775,6 +1790,8 @@ class TestRetentionConstraintSurvivesCleanup:
             message=f"feat({slug}): add baz function (WP01)",
         )
         _git(tmp_path, "checkout", "main")
+        restamp_log_at_lane_tips(tmp_path, feature_dir)
+        _restamp_coord_worktree(tmp_path, slug, feature_dir)
 
         # The CREATED worktree — never a Mission-identity-keyed path.
         # ``predict_lane_worktree`` is the
@@ -1962,6 +1979,8 @@ def test_bare_slug_coord_mission_consolidates_onto_a_protected_target(tmp_path: 
         message=f"feat({slug}): add bar function (WP01)",
     )
     _git(tmp_path, "checkout", "main")
+    restamp_log_at_lane_tips(tmp_path, feature_dir)
+    _restamp_coord_worktree(tmp_path, slug, feature_dir)
 
     from specify_cli.lanes.worktree_allocator import predict_lane_worktree
 

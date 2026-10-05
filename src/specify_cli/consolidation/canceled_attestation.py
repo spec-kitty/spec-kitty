@@ -187,6 +187,7 @@ def dry_run_attestation_notice(attested_wps: Sequence[str], *, dry_run: bool, js
 
 
 __all__ = [
+    "ATTESTATION_KEY",
     "ATTEST_FLAG",
     "ATTEST_REASON_FLAG",
     "OVERRIDABLE_REASONS",

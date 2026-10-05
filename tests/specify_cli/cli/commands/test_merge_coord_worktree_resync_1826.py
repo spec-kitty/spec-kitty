@@ -55,6 +55,7 @@ import typer
 # this regression test importable under ``PYTHONPATH=src``.
 import specify_cli.status  # noqa: F401  # import-order guard (see comment above)
 
+from tests.consolidation.approval_stamps import restamp_log_at_lane_tips
 from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.git.ref_advance import (
@@ -264,6 +265,7 @@ def _bootstrap_coord_mission(repo: Path) -> Path:
         _git(repo, "add", relpath)
         _git(repo, "commit", "-m", f"feat({MISSION_SLUG}): {lane_id} code")
         _git(repo, "checkout", "main")
+    restamp_log_at_lane_tips(repo, feature_dir, coord_branch=COORD_BRANCH)
 
     # The coordination worktree with the mission branch CHECKED OUT — the
     # production topology in which #1826 reproduces. Every Stage-1 ref advance

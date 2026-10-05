@@ -64,6 +64,7 @@ from specify_cli.coordination.status_service import (
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
+from tests.consolidation.approval_stamps import with_lane_head
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.state import load_state
 from specify_cli.status import Lane, StatusEvent
@@ -239,6 +240,7 @@ def _bootstrap_primary_tree_bake_mission(repo: Path) -> Path:
     code_path.write_text("def folda_bake() -> int:\n    return 4764\n", encoding="utf-8")
     _git(repo, "add", LANE_CODE)
     _git(repo, "commit", "-m", f"feat({MISSION_SLUG}): lane code for {WP_ID}")
+    lane_tip = _git(repo, "rev-parse", "HEAD").stdout.strip()
     _git(repo, "checkout", "main")
 
     # Coordination branch is lifecycle-only: status.events.jsonl lives there,
@@ -247,7 +249,7 @@ def _bootstrap_primary_tree_bake_mission(repo: Path) -> Path:
     _git(repo, "checkout", COORD_BRANCH)
     coord_feature_dir = repo / "kitty-specs" / MISSION_SLUG
     coord_feature_dir.mkdir(parents=True, exist_ok=True)
-    (coord_feature_dir / "status.events.jsonl").write_text(json.dumps(_approved_event(), sort_keys=True) + "\n", encoding="utf-8")
+    (coord_feature_dir / "status.events.jsonl").write_text(json.dumps(with_lane_head(_approved_event(), lane_tip), sort_keys=True) + "\n", encoding="utf-8")
     _git(repo, "add", str(coord_feature_dir / "status.events.jsonl"))
     _git(repo, "commit", "-m", f"chore({MISSION_SLUG}): coord status events")
     _git(repo, "checkout", "main")

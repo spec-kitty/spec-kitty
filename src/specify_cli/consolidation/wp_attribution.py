@@ -820,6 +820,7 @@ __all__ = [
     "canceled_spine_content",
     "is_migration_event",
     "lacks_lane_head_stamps",
+    "lane_exempt_commits",
     "lane_own_commits",
     "resolve_canceled_wp",
     "stamp_of",

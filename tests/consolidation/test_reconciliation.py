@@ -677,6 +677,7 @@ def test_build_claim_authorship_excludes_merged_in_second_parent(tmp_path: Path)
     _git(repo, "checkout", "-q", lane_branch)
     _git(repo, "merge", "-q", "--no-edit", "lane-removed")
     _git(repo, "checkout", "-q", _TARGET)
+    _restamp_approvals(repo)
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base)
     assert claim.enforce_closed_world is True
     assert claim.authored_patch_ids  # the approved WP's own commit is present
@@ -734,6 +735,37 @@ def _commit_status_log(repo: Path, feature_dir: Path, events: list[dict[str, obj
     log.write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events), encoding="utf-8")
     _git(repo, "add", str(log.relative_to(repo)))
     _git(repo, "commit", "-qm", message)
+
+
+def _restamp_approvals(repo: Path) -> None:
+    """Record that review approved every approved lane's CURRENT tip (#5668): the truthful stamp.
+
+    For tests whose subject is something other than "content arrived after approval" (a
+    smuggled second-parent commit, a superseded blob, a shared-file merge resolution) and
+    that move a lane after the builder approved it. Rewrites the ``approved`` event of
+    every work package that sits on an existing lane branch so its ``lane_head`` is that
+    branch's tip now, and commits the log on the target branch.
+    """
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    _git(repo, "checkout", "-q", _TARGET)
+    feature_dir = repo / "kitty-specs" / _MISSION_SLUG
+    manifest = read_lanes_json(feature_dir)
+    assert manifest is not None
+    tips: dict[str, str] = {}
+    for lane in manifest.lanes:
+        branch = lane_branch_name(_MISSION_SLUG, lane.lane_id, target_branch=_TARGET)
+        if _git(repo, "branch", "--list", branch):
+            tips.update({wp: _rev(repo, branch) for wp in lane.wp_ids})
+    log = feature_dir / "status.events.jsonl"
+    original = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines() if line.strip()]
+    events = json.loads(json.dumps(original))
+    for event in events:
+        if event["to_lane"] == "approved" and event["wp_id"] in tips:
+            event["policy_metadata"] = {**(event.get("policy_metadata") or {}), "lane_head": tips[event["wp_id"]]}
+    if events == original:
+        return
+    _commit_status_log(repo, feature_dir, events, "restamp approvals at the lane tips")
 
 
 def _build_mission(
@@ -1085,6 +1117,7 @@ def test_squash_authored_blobs_keep_final_not_superseded(tmp_path: Path) -> None
     _git(repo, "checkout", "-q", _TARGET)
     assert v1_blob != v2_blob
 
+    _restamp_approvals(repo)
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base)
     assert ("src/wp01.py", v2_blob) in claim.authored_blobs  # final kept
     assert ("src/wp01.py", v1_blob) not in claim.authored_blobs  # superseded dropped
@@ -1132,6 +1165,7 @@ def test_squash_fails_on_second_parent_smuggled_blob(tmp_path: Path) -> None:
     _git(repo, "merge", "-q", "--no-edit", lane_branch)  # both wp01 + smuggled land
     _git(repo, "branch", "-qD", "lane-removed")
 
+    _restamp_approvals(repo)
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_window_base=coord_base)
     assert ("src/wp99_removed.py", smuggled_blob) not in claim.authored_blobs
     squash_claim = replace(claim, verify_reachability=False)
@@ -1472,6 +1506,7 @@ def test_squash_authored_deletion_union_across_two_lanes_passes(tmp_path: Path) 
     _git(repo, "rm", "-q", "src/wp02.py")
     _git(repo, "commit", "-qm", "feat: wp02 removes its own file")
     _git(repo, "checkout", "-q", _TARGET)
+    _restamp_approvals(repo)
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_window_base=coord_base)
     assert "src/wp02.py" in claim.authored_deletions
     _git(repo, "merge", "-q", "--no-edit", lane_a)
@@ -1592,6 +1627,7 @@ def test_collect_excluded_still_catches_second_parent_smuggled_commit_in_mixed_l
     _git(repo, "merge", "-q", "--no-edit", branch)  # survivor + smuggled both land
     _git(repo, "branch", "-qD", "lane-removed")
 
+    _restamp_approvals(repo)
     claim = build_approved_wp_set(
         repo,
         feature_dir,
@@ -1754,7 +1790,9 @@ def _edit_shared_line(repo: Path, branch: str, shared_path: str, line_index: int
     full_path.write_text("".join(lines), encoding="utf-8")
     _git(repo, "add", shared_path)
     _git(repo, "commit", "-qm", f"feat: edit {shared_path}@{line_index}")
-    return _rev(repo, branch)
+    sha = _rev(repo, branch)
+    _restamp_approvals(repo)
+    return sha
 
 
 def test_collect_authored_multi_lane_paths_present_for_exactly_two_lanes(tmp_path: Path) -> None:
@@ -1888,6 +1926,7 @@ def test_squash_fails_closed_when_carrier_lane_tip_smuggles_second_parent_hunk_i
     _git(repo, "merge", "-q", "--no-edit", lane_b)
     target_blob = git_probes.blob_id_at(repo, _TARGET, "src/shared.py")
 
+    _restamp_approvals(repo)
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_window_base=coord_base)
     assert "src/shared.py" in claim.multi_lane_paths
     contributions = claim.multi_lane_paths["src/shared.py"]
@@ -2427,8 +2466,9 @@ def _build_mixed_lane_entered_mission(
         _event(i, "WP01", frm, to, at=f"2026-01-01T00:0{i}:00+00:00", lamport=i) for i, (frm, to) in enumerate(_APPROVE_CHAIN, start=1)
     ]
     for e in events:
-        if stamp_attribution:
-            e["policy_metadata"] = {"lane_head": coord_base}
+        # WP01's approval is always stamped: the stamp names the commit review approved, and
+        # ``stamp_attribution`` is only the knob for the CANCELED work package's own events.
+        e["policy_metadata"] = {"lane_head": coord_base}
 
     if not entered_implementation:
         events.append(_event(90, "WP02", "planned", "canceled", at="2026-01-02T00:00:00+00:00", lamport=6))
@@ -2519,18 +2559,32 @@ def test_mixed_lane_wiring_never_entered_implementation_is_noop(tmp_path: Path) 
     assert claim.canceled_content == frozenset()
 
 
-def test_mixed_lane_wiring_non_mixed_lane_never_reads_events(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """NFR-002: a mission with no mixed lane never pays the event-log read at
-    all -- byte-identical to pre-#5046 for every non-mixed mission."""
-    repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01",))
+@pytest.mark.parametrize("mixed", [False, True], ids=["plain-lane", "mixed-lane"])
+def test_claim_reads_the_event_log_exactly_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mixed: bool) -> None:
+    """NFR-001 (#5668): every claim with a code lane reads the status event log ONCE.
 
-    def _boom(*_args: object, **_kwargs: object) -> object:
-        raise AssertionError("read_events must not be called when no mixed lane exists")
+    The approved-bound check needs the approval stamps of every claim; it shares the read
+    with the canceled-dependency and mixed-lane resolutions through one ``_ClaimEventLog``,
+    so a mixed lane does not pay a second read. (Before #5668 a plain lane paid none.)
+    """
+    from specify_cli.status import read_events as real_read_events
 
-    monkeypatch.setattr("specify_cli.status.read_events", _boom)
-    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base)
+    if mixed:
+        repo, feature_dir, manifest, coord_base, _lane = _build_mixed_lane_entered_mission(tmp_path)
+        canceled = frozenset({"WP02"})
+    else:
+        repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01",))
+        canceled = frozenset()
+    reads: list[Path] = []
+
+    def _counting_read(read_dir: Path) -> object:
+        reads.append(read_dir)
+        return real_read_events(read_dir)
+
+    monkeypatch.setattr("specify_cli.status.read_events", _counting_read)
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=canceled)
     assert claim.refusal is None
-    assert claim.canceled_content == frozenset()
+    assert len(reads) == 1
 
 
 def test_mixed_lane_wiring_events_unreadable_refuses(tmp_path: Path) -> None:
@@ -2782,12 +2836,41 @@ def _append_attestation(repo: Path, feature_dir: Path, wp_id: str = "WP02", *, s
 
 def test_attested_unstamped_mixed_lane_falls_back_to_whole_lane(tmp_path: Path) -> None:
     """An attested WP's ``no_stamp`` REFUSE is lifted: no refusal, no per-WP content."""
-    repo, feature_dir, manifest, coord_base, _lane = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=False)
-    _append_attestation(repo, feature_dir)
+    repo, feature_dir, manifest, coord_base, lane = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=False)
+    _append_attestation(repo, feature_dir, lane_head=_rev(repo, lane))
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
     assert claim.refusal is None
     assert claim.canceled_content == frozenset()
     assert claim.attested_canceled_wp_ids == frozenset({"WP02"})
+
+
+def _commit_on_lane(repo: Path, lane_branch: str, rel: str) -> None:
+    """One more real content commit on *lane_branch* (leaves HEAD on the target)."""
+    _git(repo, "checkout", "-q", lane_branch)
+    path = repo / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("late\n", encoding="utf-8")
+    _git(repo, "add", str(path))
+    _git(repo, "commit", "-qm", f"feat: {rel}")
+    _git(repo, "checkout", "-q", _TARGET)
+
+
+@pytest.mark.parametrize("stamped", [True, False])
+def test_attested_mixed_lane_refuses_content_committed_after_the_attestation(tmp_path: Path, stamped: bool) -> None:
+    """#5668: an attestation lifts the attribution refusal, never the approved bound.
+
+    Stamped: the attestation's own ``lane_head`` is the covered point, so only the late
+    commit is beyond it. Unstamped: the canceled work package has no covered point at
+    all, so its commits are beyond the bound too; the lane is refused, never skipped.
+    """
+    repo, feature_dir, manifest, coord_base, lane = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=False)
+    _append_attestation(repo, feature_dir, lane_head=_rev(repo, lane) if stamped else None)
+    _commit_on_lane(repo, lane, "src/late.py")
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
+    assert claim.refusal is not None
+    assert claim.refusal.startswith("LANE_MOVED_AFTER_APPROVAL: ")
+    if stamped:
+        assert "src/late.py" in claim.refusal
 
 
 def test_attestation_never_lifts_visible_canceled_content(tmp_path: Path) -> None:

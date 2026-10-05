@@ -32,6 +32,7 @@ from specify_cli.consolidation._constants import (
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.git_probes import (
     GitProbeError,
+    resolve_commit,
 )
 from specify_cli.consolidation.preflight import (
     _enforce_canonical_status_history,
@@ -487,6 +488,9 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
     except GitProbeError as exc:
         _exit_on_claim_probe_error(exc)
 
+    run.validated_lane_tips = dict(run.approved_wp_set.bound_lane_tips)
+    run.bound_anchor_shas = _bound_anchor_shas(run, coord_base)
+
     # #5338: act on a claim-integrity refusal HERE, before the first mutating
     # phase, instead of storing it for the post-mutation gate. A resume whose
     # reconciliation already PASSed for the current target tip (#5021) is exempt:
@@ -498,6 +502,26 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
     # #5318 / #5332: snapshot every branch this attempt may move, strictly before
     # the first mutating phase, and fix this attempt's restore targets.
     _capture_snapshot_and_begin_attempt(run)
+
+
+def _bound_anchor_shas(run: _MergeRunState, coord_base: str) -> tuple[str, ...]:
+    """The mission branch, the target and the coordination base as SHAs now, for the gate's lane re-check (#5668).
+
+    Captured before any mutation: at gate time the live mission branch already holds every
+    merged lane commit, so a branch name would exempt the very commit the re-check looks
+    for. A reference that does not resolve is left out, which exempts less and so only refuses more.
+    """
+    shas: list[str] = []
+    for ref in (run.lanes_manifest.mission_branch, run.target_expected_old_sha, coord_base):
+        if not ref:
+            continue
+        try:
+            sha = resolve_commit(run.main_repo, ref)
+        except GitProbeError:
+            continue
+        if sha not in shas:
+            shas.append(sha)
+    return tuple(shas)
 
 
 def _capture_snapshot_and_begin_attempt(run: _MergeRunState) -> None:

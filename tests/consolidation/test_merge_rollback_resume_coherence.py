@@ -64,6 +64,8 @@ from specify_cli.coordination.status_service import (
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import MissingLanesError, write_lanes_json
+from tests.consolidation.approval_stamps import with_lane_head
+from tests.consolidation.approval_stamps import restamp_log_at_lane_tips
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.status import Lane, StatusEvent
 
@@ -355,6 +357,7 @@ def _rb_bootstrap_coord_mission(repo: Path) -> Path:
     _git(repo, "add", RB_LANE_CODE)
     _git(repo, "commit", "-m", f"feat({RB_MISSION_SLUG}): lane code for {RB_WP_ID}")
     _git(repo, "checkout", "main")
+    restamp_log_at_lane_tips(repo, feature_dir, coord_branch=RB_COORD_BRANCH)
     CoordinationWorkspace.resolve(repo, RB_MISSION_SLUG, RB_MID8)
     return feature_dir
 
@@ -614,6 +617,7 @@ def _f1_bootstrap_primary_tree_bake_mission(repo: Path) -> Path:
     code_path.write_text("def primarybake_f1() -> int:\n    return 4764\n", encoding="utf-8")
     _git(repo, "add", F1_LANE_CODE)
     _git(repo, "commit", "-m", f"feat({F1_MISSION_SLUG}): lane code for {F1_WP_ID}")
+    lane_tip = _git(repo, "rev-parse", "HEAD").stdout.strip()
     _git(repo, "checkout", "main")
 
     # The coordination branch is lifecycle-only: status.events.jsonl lives
@@ -622,7 +626,7 @@ def _f1_bootstrap_primary_tree_bake_mission(repo: Path) -> Path:
     _git(repo, "checkout", F1_COORD_BRANCH)
     coord_feature_dir = repo / "kitty-specs" / F1_MISSION_SLUG
     coord_feature_dir.mkdir(parents=True, exist_ok=True)
-    (coord_feature_dir / "status.events.jsonl").write_text(json.dumps(_f1_approved_event(), sort_keys=True) + "\n", encoding="utf-8")
+    (coord_feature_dir / "status.events.jsonl").write_text(json.dumps(with_lane_head(_f1_approved_event(), lane_tip), sort_keys=True) + "\n", encoding="utf-8")
     _git(repo, "add", str(coord_feature_dir / "status.events.jsonl"))
     _git(repo, "commit", "-m", f"chore({F1_MISSION_SLUG}): coord status events")
     _git(repo, "checkout", "main")

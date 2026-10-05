@@ -40,6 +40,7 @@ import pytest
 import typer
 
 from kernel.clock import now_utc_iso
+from tests.consolidation.approval_stamps import restamp_log_at_lane_tips
 from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.git.destructive_guard import (
@@ -156,6 +157,7 @@ def _bootstrap_mission(tmp_path: Path, slug: str) -> Path:
         message=f"feat({slug}): add foo function (WP01)",
     )
     _git(tmp_path, "checkout", "main")
+    restamp_log_at_lane_tips(tmp_path, feature_dir)
     return feature_dir
 
 

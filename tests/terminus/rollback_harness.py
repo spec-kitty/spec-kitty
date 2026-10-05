@@ -12,7 +12,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from tests.terminus.conftest import CoordMission, build_coord_mission, plant_canceled_commit, run_terminus
+from tests.terminus.conftest import CoordMission, build_coord_mission, plant_canceled_commit, restamp_approvals_at_lane_tips, run_terminus
 from tests.terminus.conftest import _git as git
 
 _REPORT_HEADER = "Rollback to the pre-consolidation snapshot:"
@@ -112,6 +112,7 @@ def remove_carrier_cause(mission: CoordMission, carrier_wp: str) -> None:
     branch = mission.lane_branches[carrier_wp]
     first_parent = git(mission.repo, "rev-parse", f"{branch}^1").stdout.strip()
     git(mission.repo, "update-ref", f"refs/heads/{branch}", first_parent)
+    restamp_approvals_at_lane_tips(mission)  # review approved this tip: it is the lane as built
 
 
 def failing_gate_run(tmp_path: Path, mid8: str) -> tuple[CoordMission, str, dict[str, str], int, subprocess.CompletedProcess[str]]:

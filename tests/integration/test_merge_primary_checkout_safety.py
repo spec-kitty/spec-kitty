@@ -35,6 +35,7 @@ import pytest
 import typer
 
 from kernel.clock import now_utc_iso
+from tests.consolidation.approval_stamps import restamp_log_at_lane_tips
 from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.git.destructive_guard import (
     MERGE_UNSAFE_PRIMARY_DIRTY,
@@ -151,6 +152,10 @@ def _bootstrap_mission(tmp_path: Path, slug: str) -> Path:
         content="def foo():\n    return 1\n",
         message=f"feat({slug}): add foo function (WP01)",
     )
+    # Record that review approved the lane tip (#5668), then leave the lane checked out as before.
+    _git(tmp_path, "checkout", "main")
+    restamp_log_at_lane_tips(tmp_path, feature_dir)
+    _git(tmp_path, "checkout", lane_branch)
     return feature_dir
 
 

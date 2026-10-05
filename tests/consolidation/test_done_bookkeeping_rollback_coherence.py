@@ -59,6 +59,7 @@ from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
+from tests.consolidation.approval_stamps import restamp_log_at_lane_tips
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.done_bookkeeping import _durable_done_wps_on_coordination_ref
 from specify_cli.status import Lane, StatusEvent, get_wp_lane, resolve_lane_alias
@@ -194,6 +195,7 @@ def _bootstrap_coord_mission(repo: Path) -> Path:
     _git(repo, "add", LANE_CODE)
     _git(repo, "commit", "-m", f"feat({MISSION_SLUG}): lane code for {WP_ID}")
     _git(repo, "checkout", "main")
+    restamp_log_at_lane_tips(repo, feature_dir, coord_branch=COORD_BRANCH)
     CoordinationWorkspace.resolve(repo, MISSION_SLUG, MID8)
     return feature_dir
 

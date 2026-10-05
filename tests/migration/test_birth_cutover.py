@@ -52,6 +52,7 @@ from tests.specify_cli.test_specify_topology_flag import (
     _read_meta,
     _real_merge_external_mocks,
 )
+from tests.consolidation.approval_stamps import restamp_log_at_lane_tips
 from specify_cli.consolidation import phase_bookkeeping
 from tests.consolidation.executor_family import setattr_executor_family
 
@@ -344,6 +345,12 @@ def _bootstrap_born_mission(
     _git(repo, "add", "src")
     _git(repo, "commit", "-m", f"feat({slug}): WP01 adds src/a/foo.py")
     _git(repo, "checkout", "main")
+
+    # Record that review approved the lane tip (#5668): in the root log (lanes topology) and,
+    # on a coordination mission, in the coordination worktree's log, where the events live.
+    restamp_log_at_lane_tips(repo, feature_dir)
+    if coord_worktree is not None:
+        restamp_log_at_lane_tips(coord_worktree, coord_worktree / feature_dir.relative_to(repo))
 
     return repo, slug, feature_dir
 

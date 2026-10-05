@@ -752,6 +752,9 @@ def _build_approved_prefix_coord_mission(tmp_path: Path) -> tuple[CoordMission, 
         _git(repo, "commit", "-qm", f"feat({mission.slug}): WP01 approved code")
 
     mission.lane_branches["WP01"] = _cut_lane_branch(mission, "lane-a", [_plant_code])
+    from tests.consolidation.approval_stamps import restamp_log_at_lane_tips
+
+    restamp_log_at_lane_tips(mission.repo, mission.feature_dir)
     return coord, mission
 
 

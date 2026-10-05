@@ -18,10 +18,14 @@ end to end. The transitions run through the in-process production status shell
 
 from __future__ import annotations
 
+import json
+import re
+import shlex
 from pathlib import Path
 
 import pytest
 
+from specify_cli.consolidation.approved_bound import BoundRefusal, BoundRefusalCode
 from tests.terminus.conftest import CoordMission, blob_present_at, git_rev, run_terminus
 from tests.terminus.mixed_lane_support import collapse
 from tests.terminus.post_approval_support import (
@@ -88,3 +92,28 @@ def test_rework_and_reapproval_consolidates(tmp_path: Path, topology: Topology) 
 
     assert rc == 0, f"a re-approved lane must consolidate:\n{flat}"
     assert blob_present_at(mission.repo, mission.target_branch, REWORK_PATH)
+
+
+def _wp_lane(mission: CoordMission, wp_id: str) -> str:
+    status = run_terminus(mission, ["agent", "tasks", "status", "--mission", mission.slug, "--json"])
+    assert status.returncode == 0, status.stderr
+    payload = json.loads(status.stdout)
+    return str(next(wp["lane"] for wp in payload["work_packages"] if wp["id"] == wp_id))
+
+
+@pytest.mark.parametrize("code", [BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL, BoundRefusalCode.APPROVAL_STAMP_MISSING, BoundRefusalCode.APPROVAL_STAMP_NOT_ON_LANE])
+@pytest.mark.parametrize("topology", _TOPOLOGIES)
+def test_printed_recovery_command_runs_and_sends_the_work_package_back(tmp_path: Path, topology: Topology, code: BoundRefusalCode) -> None:
+    """The remedy every refusal prints is executed as printed, on both topologies (NFR-004)."""
+    mission = build_post_approval_mission(tmp_path, topology)
+    assert _wp_lane(mission, "WP01") == "approved"
+    text = BoundRefusal(code, "lane-a", "lane-a", ("WP01",), commits=("a" * 40,), path="src/a.py", stamp="b" * 40).render()
+    printed = re.search(r"\((spec-kitty agent tasks move-task [^)]*)\)", text)
+    assert printed is not None, text
+    argv = shlex.split(printed.group(1).replace("<mission>", mission.slug))
+    assert argv[0] == "spec-kitty"
+
+    moved = run_terminus(mission, argv[1:])
+
+    assert moved.returncode == 0, f"the printed recovery command failed on {topology}:\n{moved.stdout}\n{moved.stderr}"
+    assert _wp_lane(mission, "WP01") == "in_progress"

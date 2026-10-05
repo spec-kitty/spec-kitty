@@ -68,6 +68,7 @@ from specify_cli.coordination.status_service import (
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
+from tests.consolidation.approval_stamps import restamp_log_at_lane_tips
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.state import get_state_path
 from specify_cli.status import Lane, StatusEvent
@@ -258,6 +259,7 @@ def _bootstrap_coord_mission(repo: Path, *, wp_event: dict[str, object]) -> Path
     _git(repo, "add", LANE_CODE)
     _git(repo, "commit", "-m", f"feat({MISSION_SLUG}): lane code for {WP_ID}")
     _git(repo, "checkout", "main")
+    restamp_log_at_lane_tips(repo, feature_dir, coord_branch=COORD_BRANCH)
 
     # Materialize the coordination worktree with the mission branch checked out
     # (the production topology).

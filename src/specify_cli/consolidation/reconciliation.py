@@ -55,6 +55,7 @@ from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR
 from specify_cli.lanes._git import branch_exists
 from specify_cli.lanes.compute import is_planning_lane, lane_created_branch, lane_fully_canceled
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.consolidation.approved_bound import BoundRefusal, BoundRefusalCode, check_lane, commits_beyond, content_commits
 from specify_cli.consolidation.git_probes import (
     GitProbeError,
     blob_id_at,
@@ -66,6 +67,7 @@ from specify_cli.consolidation.git_probes import (
     patch_id_of,
     patch_ids_in_range,
     path_state_at,
+    resolve_commit,
     sha_reachable_from,
     three_way_merge_blob,
 )
@@ -638,6 +640,12 @@ class ApprovedWpCommitSet:
     # field lets the verifier name the canceled WP, both lanes and the stable code.
     # Empty on a hand-built claim and on every mission without such a lane.
     canceled_dependency_content: frozenset[CanceledDependencyContent] = frozenset()
+
+    # #5668: the lane tip (branch name, SHA) the approved-bound check validated for every
+    # code lane it covered, each resolved once when the lane was checked. The reconciliation
+    # gate asks whether content arrived on a lane after exactly these tips. Empty on a
+    # hand-built claim and on a mission with no checked lane.
+    bound_lane_tips: tuple[tuple[str, str], ...] = ()
 
     @property
     def is_vacuous_against_manifest(self) -> bool:
@@ -1385,8 +1393,11 @@ def build_approved_wp_set(
       ``reduce_parsed``), so a wall-clock-later approval cannot override a
       committed rejection in the claim (C-002 preserved — no ``spec_kitty_events``
       edit);
-    * approved commit SHAs come from **lane-branch git tips** relative to
-      *coord_base_ref* (never status rows);
+    * approved commit SHAs still come from **lane-branch git tips** relative to
+      *coord_base_ref* (never status rows), but the approved-bound check in front of the
+      collectors (:func:`approved_bound_refusal`, #5668) refuses a lane whose tip holds
+      content beyond what the approval stamps name, so the live tip equals the approved
+      content up to tool-made merges and bookkeeping commits;
     * fail-closed: an unmaterializable coord surface, or a claim that is empty
       while the manifest lists WPs, yields a REFUSE-shaped claim.
     """
@@ -1459,6 +1470,21 @@ def build_approved_wp_set(
     if mixed_lane_refusal is not None:
         return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, mixed_lane_refusal)
 
+    # Approved-bound check (#5668): after the mixed-lane resolution (its refusals keep
+    # precedence), before the collectors read the live lane tips.
+    bound = _approved_bound_verdict(
+        repo_root,
+        lanes_manifest,
+        work_packages,
+        excluded_ids,
+        coord_base_ref=coord_base_ref,
+        window_base=excluded_window_base,
+        planning_prefix=planning_prefix,
+        event_log=event_log,
+    )
+    if bound.refusal is not None:
+        return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, bound.refusal)
+
     approved = _collect_approved_shas(repo_root, lanes_manifest, work_packages, coord_base_ref, sb_window)
     # Authored (WP1/WP2 shared prerequisite): computed BEFORE the excluded axis so
     # #5018's commit-level narrowing (below) can subtract it. Collectors stay pure
@@ -1493,6 +1519,7 @@ def build_approved_wp_set(
         attested_canceled_wp_ids=attested_wp_ids,
         approved_lane_content=approved_lane_content,
         canceled_dependency_content=dependency.content,
+        bound_lane_tips=bound.lane_tips,
     )
 
 
@@ -1611,11 +1638,13 @@ def _resolve_mixed_lane_canceled_content(
 
     Returns ``(canceled_content, attested_wp_ids, refusal)``. Events are read
     through :func:`specify_cli.status.read_events` exactly ONCE per claim
-    (*event_log*, shared with :func:`_resolve_canceled_dependency_lanes`; a
-    caller that passes none gets its own), and ONLY when
+    (*event_log*, shared with :func:`_resolve_canceled_dependency_lanes` and the
+    approved-bound check, :func:`_approved_bound_verdict`; a
+    caller that passes none gets its own). This function itself reads only when
     at least one mixed lane exists (decided from ``lanes.json`` + the Lamport
-    snapshot + *excluded_canceled_wp_ids* alone) — a non-mixed mission never
-    pays the read and stays byte-identical to pre-#5046 behaviour. A
+    snapshot + *excluded_canceled_wp_ids* alone); since #5668 every claim with a
+    code lane reads the log once, through the approved-bound check, and its
+    mixed-lane verdicts stay byte-identical to pre-#5046 behaviour. A
     ``StoreError`` reading them refuses with the ``events_unreadable`` reason
     (NFR-002; never overridable — the attestation lives in that same log).
     Every canceled WP in every mixed lane is handed to
@@ -1679,6 +1708,194 @@ def _resolve_mixed_lane_canceled_content(
             else:
                 return frozenset(), frozenset(), _mixed_lane_unattributable_refusal(lane.lane_id, wp_id, outcome)
     return frozenset(canceled_content), attested, None
+
+
+@dataclass(frozen=True)
+class _BoundVerdict:
+    """The approved-bound outcome of one claim: a refusal, or the lane tips it validated."""
+
+    refusal: str | None = None
+    lane_tips: tuple[tuple[str, str], ...] = ()
+
+
+def _bound_events_unreadable_text(lane_id: str) -> str:
+    return (
+        f"the status event log could not be read, so the approvals of lane {lane_id} cannot be bounded to what was reviewed. "
+        "Recovery: repair or restore status.events.jsonl, then re-run"
+    )
+
+
+def _bound_lane_wp_ids(
+    lane: ExecutionLane,
+    work_packages: Mapping[str, Any],
+    excluded_canceled_wp_ids: frozenset[str],
+) -> tuple[list[str], list[str]]:
+    """``(approved, canceled)`` work package ids of *lane*: approved membership, not canceled-with-provenance."""
+    approved = [wp for wp in lane.wp_ids if wp not in excluded_canceled_wp_ids and str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES]
+    return approved, [wp for wp in lane.wp_ids if wp in excluded_canceled_wp_ids]
+
+
+def _bound_lanes(
+    lanes_manifest: LanesManifest,
+    work_packages: Mapping[str, Any],
+    excluded_canceled_wp_ids: frozenset[str],
+) -> list[ExecutionLane]:
+    """The code lanes the approved bound covers, by lane id: not planning, not fully canceled, with an approved work package."""
+    covered = [
+        lane
+        for lane in lanes_manifest.lanes
+        if not is_planning_lane(lane)
+        and not lane_fully_canceled(lane, excluded_canceled_wp_ids)
+        and _bound_lane_wp_ids(lane, work_packages, excluded_canceled_wp_ids)[0]
+    ]
+    return sorted(covered, key=lambda lane: lane.lane_id)
+
+
+def _mission_branch_anchor(repo_root: Path, lanes_manifest: LanesManifest) -> list[str]:
+    """The mission branch as a SHA now, as an anchor: only the tool advances it.
+
+    Unresolved yields no anchor, which exempts less and so can only refuse more.
+    """
+    try:
+        return [resolve_commit(repo_root, lanes_manifest.mission_branch)]
+    except GitProbeError:
+        return []
+
+
+def _approved_bound_verdict(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    work_packages: Mapping[str, Any],
+    excluded_canceled_wp_ids: frozenset[str],
+    *,
+    coord_base_ref: str,
+    window_base: str | None,
+    planning_prefix: str | None,
+    event_log: _ClaimEventLog,
+) -> _BoundVerdict:
+    """Check every covered code lane against its approval stamps (#5668); read the log once via *event_log*.
+
+    Each refused lane renders its own clause, joined with ``"; "`` in lane order. A lane
+    tip is resolved once and both checked and recorded, so the gate re-check asks about
+    exactly the commit this check validated.
+    """
+    lanes = _bound_lanes(lanes_manifest, work_packages, excluded_canceled_wp_ids)
+    if not lanes:
+        return _BoundVerdict()
+    events = event_log.read()
+    if events is None:
+        return _BoundVerdict(refusal=_bound_events_unreadable_text(lanes[0].lane_id))
+    mission_anchor = _mission_branch_anchor(repo_root, lanes_manifest)
+    is_bookkeeping = functools.partial(_is_bookkeeping, mission_slug=lanes_manifest.mission_slug, planning_prefix=planning_prefix)
+    refusals: list[str] = []
+    tips: list[tuple[str, str]] = []
+    for lane in lanes:
+        branch = _lane_branch_for(lanes_manifest, lane.lane_id)
+        try:
+            tip = resolve_commit(repo_root, branch)
+        except GitProbeError:
+            continue  # an unresolvable lane tip reads as an empty lane, as the collectors read it (:func:`_lane_tip_commits`)
+        approved, canceled = _bound_lane_wp_ids(lane, work_packages, excluded_canceled_wp_ids)
+        found: BoundRefusal | None = check_lane(
+            repo_root,
+            events=events,
+            lane_id=lane.lane_id,
+            branch=branch,
+            approved_wp_ids=approved,
+            canceled_wp_ids=canceled,
+            claim_base=coord_base_ref,
+            anchors=[*_closed_world_anchors(lanes_manifest, lane, window_base, excluded_canceled_wp_ids=excluded_canceled_wp_ids), *mission_anchor],
+            is_bookkeeping=is_bookkeeping,
+            tip=tip,
+        )
+        if found is not None:
+            refusals.append(found.render())
+        tips.append((branch, tip))
+    if refusals:
+        return _BoundVerdict(refusal="; ".join(refusals))
+    return _BoundVerdict(lane_tips=tuple(tips))
+
+
+def approved_bound_refusal(
+    repo_root: Path,
+    feature_dir: Path,
+    lanes_manifest: LanesManifest,
+    *,
+    coord_base_ref: str,
+    excluded_canceled_wp_ids: Iterable[str] = (),
+    excluded_window_base: str | None = None,
+    event_log: _ClaimEventLog | None = None,
+) -> str | None:
+    """Refusal text when a code lane holds content beyond what review approved, else ``None`` (#5668).
+
+    The claim builder's approved-bound check as a public entry point for the other
+    callers (``orchestrator-api consolidate-mission``, the resume path): the Lamport
+    snapshot gives membership exactly as :func:`build_approved_wp_set` reads it, the
+    status events come from *event_log* (one read per claim; a caller that passes none
+    gets its own), and the three refusal codes are rendered as
+    :class:`~specify_cli.consolidation.approved_bound.BoundRefusal` does. A snapshot
+    that cannot be materialized raises, as it does for the claim builder's own caller.
+    """
+    from specify_cli.status import materialize_snapshot
+
+    snapshot = materialize_snapshot(feature_dir)
+    verdict = _approved_bound_verdict(
+        repo_root,
+        lanes_manifest,
+        snapshot.work_packages or {},
+        frozenset(excluded_canceled_wp_ids),
+        coord_base_ref=coord_base_ref,
+        window_base=excluded_window_base,
+        planning_prefix=_planning_prefix(repo_root, feature_dir),
+        event_log=event_log or _ClaimEventLog(feature_dir),
+    )
+    return verdict.refusal
+
+
+def lane_tips_moved_refusal(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    *,
+    validated_tips: Mapping[str, str],
+    anchor_shas: Sequence[str],
+    planning_prefix: str | None,
+    approved_wp_ids: Mapping[str, Sequence[str]] | None = None,
+) -> str | None:
+    """Refusal text when content arrived on a lane after the claim-time check validated it, else ``None`` (#5668).
+
+    For each lane branch in *validated_tips* that still exists: the commits reachable from
+    the live tip and from none of the lane's own validated tip, any other lane's validated
+    tip or any of *anchor_shas*, less merge commits and bookkeeping-only commits. Reads no
+    status events: the stamps were checked at claim time and this asks only whether
+    content arrived since. Every reference it excludes is a SHA captured before the run
+    mutated anything, never a live branch name: at gate time the live mission branch
+    already reaches every merged lane commit and would exempt the commit this exists to
+    find. A lane is named with its manifest work packages, or with *approved_wp_ids*
+    (lane id -> approved work package ids) for the lanes it lists, so the recovery
+    command never names a canceled work package.
+    """
+    is_bookkeeping = functools.partial(_is_bookkeeping, mission_slug=lanes_manifest.mission_slug, planning_prefix=planning_prefix)
+    refusals: list[str] = []
+    for lane in sorted(lanes_manifest.lanes, key=lambda candidate: candidate.lane_id):
+        branch = _lane_branch_for(lanes_manifest, lane.lane_id)
+        validated = validated_tips.get(branch)
+        if validated is None or not branch_exists(repo_root, branch):
+            continue
+        others = [sha for other, sha in validated_tips.items() if other != branch]
+        beyond = commits_beyond(repo_root, branch, [validated, *others, *anchor_shas])
+        content = content_commits(repo_root, beyond, is_bookkeeping)
+        if content:
+            refusals.append(
+                BoundRefusal(
+                    BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL,
+                    lane.lane_id,
+                    branch,
+                    tuple(sorted((approved_wp_ids or {}).get(lane.lane_id) or lane.wp_ids)),
+                    commits=tuple(sha for sha, _path in content),
+                    path=content[0][1],
+                ).render()
+            )
+    return "; ".join(refusals) if refusals else None
 
 
 def _dependency_lane_ids(lanes_manifest: LanesManifest, lane: ExecutionLane) -> list[str]:

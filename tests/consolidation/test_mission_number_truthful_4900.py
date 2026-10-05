@@ -50,6 +50,7 @@ from tests.integration.test_merge_lane_planning_data_loss import (
     _write_wp_file,
 )
 from specify_cli.consolidation import phase_bookkeeping
+from tests.consolidation.approval_stamps import restamp_log_at_lane_tips
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -255,6 +256,7 @@ def _cut_mission_and_lane_branches(repo: Path, slug: str, *, code_relpath: str) 
         message=f"feat({slug}): WP01 approved code",
     )
     _git(repo, "checkout", "main")
+    restamp_log_at_lane_tips(repo, repo / "kitty-specs" / slug)
 
     meta_path = repo / "kitty-specs" / slug / "meta.json"
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
@@ -397,6 +399,7 @@ def test_target_already_assigned_wins_over_stale_mission_branch_value(tmp_path: 
     # plus the accept-style edit so both sides genuinely diverge for the
     # squash driver.
     _git(tmp_path, "checkout", "main")
+    restamp_log_at_lane_tips(tmp_path, tmp_path / "kitty-specs" / slug)
     target_meta_path = tmp_path / "kitty-specs" / slug / "meta.json"
     target_meta = json.loads(target_meta_path.read_text(encoding="utf-8"))
     target_meta["mission_number"] = 3

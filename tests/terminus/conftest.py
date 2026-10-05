@@ -1210,6 +1210,36 @@ def fold_lanes_into_mission_branch(mission: CoordMission, wp_ids: Sequence[str])
         _git(coord_worktree, "merge", "-q", "--no-edit", mission.lane_branches[wp_id])
 
 
+def restamp_approvals_at_lane_tips(mission: CoordMission) -> None:
+    """Record that review approved every lane branch's CURRENT tip (#5668), in every copy of the log.
+
+    The truthful stamp for a test that moves a lane AFTER its builder approved it, when the
+    test's subject is the content axes that run after the approved-bound check (a canceled
+    commit riding a carrier lane, a removed deletion): the planted lane state is then "what
+    review approved". A test whose subject IS "content arrived after approval" does not call
+    this. Rewrites each ``approved`` event of a work package that has a lane branch and
+    commits the log where it lives: the coordination worktree on a coordination mission (the
+    target branch does not move), the root checkout otherwise.
+    """
+    tips = {wp_id: git_rev(mission.repo, branch) for wp_id, branch in mission.lane_branches.items()}
+    logs = [log for log in mission.repo.rglob(_STATUS_EVENTS_FILENAME) if ".git" not in log.parts]
+    # A coordination mission reads its status from the coordination worktree: stamp that copy
+    # and leave the root checkout's (and so the target branch) untouched.
+    coord_logs = [log for log in logs if ".worktrees" in log.relative_to(mission.repo).parts]
+    for log in coord_logs or logs:
+        original = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines() if line.strip()]
+        rewritten: list[dict[str, object]] = []
+        for event in original:
+            if event.get("to_lane") == "approved" and event.get("wp_id") in tips:
+                event = {**event, "policy_metadata": {**(event.get("policy_metadata") or {}), "lane_head": tips[str(event["wp_id"])]}}
+            rewritten.append(event)
+        if rewritten == original:
+            continue
+        log.write_text("".join(json.dumps(event, sort_keys=True) + "\n" for event in rewritten), encoding="utf-8")
+        _git(log.parent, "add", str(log))
+        _git(log.parent, "commit", "-qm", "test: record that review approved the lane tips")
+
+
 def plant_canceled_commit(
     mission: CoordMission,
     *,
@@ -1268,6 +1298,7 @@ def plant_canceled_commit(
     _git(repo, "branch", "-qD", cancel_branch)
 
     mission.canceled_wps.add(canceled_wp)
+    restamp_approvals_at_lane_tips(mission)
     return canceled_sha, canceled_pid, planted_path
 
 
@@ -1308,6 +1339,7 @@ def plant_canceled_deletion(
     _git(repo, "branch", "-qD", cancel_branch)
 
     mission.canceled_wps.add(canceled_wp)
+    restamp_approvals_at_lane_tips(mission)
     return canceled_sha, canceled_pid
 
 

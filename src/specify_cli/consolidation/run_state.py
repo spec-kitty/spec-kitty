@@ -319,6 +319,13 @@ class _MergeRunState:
     # checkpoint that must be projected onto the target before teardown. WP06
     # scaffolds the slot; WP08 fills it.
     projected_since_checkpoint: tuple[str, ...] = ()
+    # #5668 approved bound: the lane tip (branch name -> SHA) the claim-time check validated
+    # for every code lane it covered, and the SHAs of the mission branch, the target and the
+    # coordination base, all resolved at that moment. The gate asks whether content arrived on
+    # a lane after exactly these. In-memory: the gate runs in the same process and a resume
+    # recomputes both in its own claim phase.
+    validated_lane_tips: dict[str, str] = field(default_factory=dict)
+    bound_anchor_shas: tuple[str, ...] = ()
 
 
 _P = ParamSpec("_P")

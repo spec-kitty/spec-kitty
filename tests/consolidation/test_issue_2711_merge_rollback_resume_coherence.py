@@ -89,6 +89,7 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.status import Lane, StatusEvent
+from tests.consolidation.approval_stamps import restamp_log_at_lane_tips
 from tests.consolidation.executor_family import patch_executor_family
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -260,6 +261,7 @@ def _bootstrap_coord_mission(repo: Path) -> Path:
     _git(repo, "add", LANE_CODE)
     _git(repo, "commit", "-m", f"feat({MISSION_SLUG}): lane code for {WP_ID}")
     _git(repo, "checkout", "main")
+    restamp_log_at_lane_tips(repo, feature_dir, coord_branch=COORD_BRANCH)
 
     # Materialize the coordination worktree with the mission branch CHECKED OUT
     # (the production topology): the pre-target ``done`` transaction commits

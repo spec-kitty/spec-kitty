@@ -234,6 +234,28 @@ def _bootstrap_coord_mission(
     _git(repo, "commit", "-m", f"feat({MISSION_SLUG}): lane code for WP01")
     _git(repo, "checkout", "main")
 
+    # The log records the approval the ``done`` event follows, stamped with the lane tip
+    # review approved (#5668: an approval with no stamp cannot be bounded).
+    approved_event = {
+        "actor": "reviewer-renata",
+        "at": now_utc_iso(),
+        "event_id": "01HXYZAPPR0000000000000001",
+        "execution_mode": "worktree",
+        "feature_slug": MISSION_SLUG,
+        "force": False,
+        "from_lane": "in_review",
+        "policy_metadata": {"lane_head": _git(repo, "rev-parse", lane_branch).stdout.strip()},
+        "review_ref": "review-WP01",
+        "to_lane": "approved",
+        "wp_id": "WP01",
+    }
+    (feature_dir / "status.events.jsonl").write_text(
+        json.dumps(approved_event) + "\n" + json.dumps(done_event) + "\n", encoding="utf-8"
+    )
+    _git(repo, "add", str((feature_dir / "status.events.jsonl").relative_to(repo)))
+    _git(repo, "commit", "-m", f"chore({MISSION_SLUG}): record the approval stamped at the lane tip")
+    _git(repo, "branch", "-f", COORD_BRANCH, "HEAD")
+
     return feature_dir
 
 

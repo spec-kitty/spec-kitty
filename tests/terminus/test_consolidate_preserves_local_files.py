@@ -26,7 +26,7 @@ from specify_cli.lanes.branch_naming import lane_branch_name, mission_branch_nam
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status import wp_snapshot_state
-from tests.terminus.conftest import CoordMission, _approve_events, _now_iso, blob_present_at, git_rev, run_terminus
+from tests.terminus.conftest import CoordMission, _now_iso, _stamped_approve_events, blob_present_at, git_rev, run_terminus
 from tests.terminus.conftest import _git as git
 from tests.terminus.conftest import _git_out as git_out
 
@@ -165,7 +165,8 @@ def _prepare_mission(
 
 
 def _approve_wp01(mission: CoordMission) -> None:
-    events = _approve_events(mission, "WP01")
+    tip = git_rev(mission.repo, mission.lane_branches["WP01"])  # the lane tip review approved
+    events = _stamped_approve_events(mission, "WP01", claim_head=tip, approved_head=tip)
     (mission.feature_dir / "status.events.jsonl").write_text(
         "".join(json.dumps(event, sort_keys=True) + "\n" for event in events),
         encoding="utf-8",
