@@ -1944,6 +1944,74 @@ def _dn_bootstrap(
     )
 
 
+def _run_is_untouched(run_dir: Path) -> bool:
+    """True when the persisted run has never advanced: no completed step and no
+    decision, pending or answered (query mode's initial-step predicate). An
+    unreadable or malformed snapshot is NOT untouched, so the caller keeps its existing path."""
+    try:
+        snapshot = _engine_adapter._read_snapshot(run_dir)
+        return not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions
+    except Exception:
+        return False
+
+
+def _dn_finalized_board_override(ctx: DecideNextContext) -> Decision | None:
+    """Front phase of ``decide_next_via_runtime`` (#5310) — advance first-contact
+    parity with query mode.
+
+    Query mode applies the finalized-board override at the top of
+    ``_query_dispatch_decision``; advance used to reach the board only once the
+    persisted run already sat on a WP-iteration step, so a first-contact advance
+    against a finalized board booted ``discovery`` and walked the DAG from its
+    first step. This phase consults the SAME board authority
+    (:func:`_resolve_wp_board_action`; never a re-derived claimability) before
+    the DAG phases, for an advancing ``success`` result against an *untouched*
+    run (nothing completed, no decisions: the same "never advanced" predicate
+    query mode uses for its initial-step branch). A run that already walked the
+    DAG owns its own progression (``_dn_dependency_gate`` /
+    ``_dn_composition_dispatch``); pre-empting it would leave the run state
+    behind the decision it issued.
+
+    A board dispatch (``implement``/``review``) or a named ``blocked:*`` verdict
+    is materialized the way the WP-iteration path does; every other board answer
+    (decline for accept/done/no finalized board, coord/task-surface errors) falls
+    through unchanged so pre-finalize and terminal behaviour stay byte-identical.
+    """
+    if ctx.result != "success" or not _run_is_untouched(ctx.run_dir):
+        return None
+    board = _resolve_wp_board_action(mission_slug=ctx.mission_slug, repo_root=ctx.repo_root, owned=ctx.owned)
+    if board.action is not None and board.board_step is not None:
+        return _build_wp_iteration_decision(
+            board.board_step,
+            ctx.agent,
+            ctx.mission_slug,
+            ctx.mission_type,
+            ctx.feature_dir,
+            ctx.repo_root,
+            ctx.now,
+            ctx.progress,
+            ctx.origin,
+            ctx.run_ref,
+            owned=ctx.owned,
+        )
+    if board.blocked_reason is not None and board.board_step is not None and board.board_step.startswith("blocked:"):
+        return _materialize_decision(
+            _cores.DecisionEnvelope(
+                kind=DecisionKind.blocked,
+                agent=ctx.agent,
+                mission_slug=ctx.mission_slug,
+                mission=ctx.mission_type,
+                mission_state="blocked",
+                timestamp=ctx.now,
+                reason=board.blocked_reason,
+                progress=ctx.progress,
+                origin=ctx.origin,
+                run_id=ctx.run_ref.run_id,
+            )
+        )
+    return None
+
+
 def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
     """Phase 2/4 of ``decide_next_via_runtime`` (FR-010) — the
     dependency/guard gate: the WP-iteration stay-in-step check (plus its
@@ -2792,7 +2860,7 @@ def decide_next_via_runtime(
         return early_decision
     assert ctx is not None  # _dn_bootstrap always pairs a ctx with None (or vice versa)
 
-    for phase in (_dn_dependency_gate, _dn_composition_dispatch, _dn_decision_materialize):
+    for phase in (_dn_finalized_board_override, _dn_dependency_gate, _dn_composition_dispatch, _dn_decision_materialize):
         decision = phase(ctx)
         if decision is not None:
             return decision

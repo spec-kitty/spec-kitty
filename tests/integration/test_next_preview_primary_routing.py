@@ -246,3 +246,32 @@ class TestNextPreviewRoutesToPrimary:
         assert decision.progress is not None
         assert decision.progress["total_wps"] == 1
         assert decision.progress["planned_wps"] == 1
+
+    def test_advance_first_contact_matches_query_under_coord_topology_5310(
+        self,
+        coord_topology_mission: CoordTopologyContext,
+    ) -> None:
+        """#5310 advance-side analog: with no persisted run, advancing ``next``
+        reads PRIMARY tasks + COORD status (never the STATUS-only coord husk) and
+        resolves the same board step/WP query mode previews, instead of booting a
+        discovery run."""
+        from runtime.next.runtime_bridge import decide_next_via_runtime
+
+        ctx = coord_topology_mission
+        _mark_primary_task_board_finalized(ctx)
+        _seed_coord_planned_event(ctx)
+        # Advance (unlike query) opens the durable decision log, whose coordination
+        # seed refuses a root status log that forks from the coordination copy. The
+        # fixture's DECOY primary log is exactly such a fork, so drop it here: the
+        # primary-task / coord-status split is still proven (tasks/ exist only on
+        # PRIMARY, the planned event only on COORD).
+        ctx.decoy_events_path.unlink()
+
+        query = query_current_state("claude", ctx.slug, ctx.repo)
+        advance = decide_next_via_runtime("claude", ctx.slug, "success", ctx.repo)
+
+        assert query.preview_step == "implement"
+        assert advance.kind is DecisionKind.step, advance.reason
+        assert advance.action == query.preview_step
+        assert advance.mission_state == query.mission_state
+        assert advance.wp_id == _EXPECTED_PRIMARY_WP_ID
