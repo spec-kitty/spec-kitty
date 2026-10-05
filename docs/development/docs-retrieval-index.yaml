@@ -4228,11 +4228,11 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/mission-creation-internals.md"
     title: "mission-creation internals reference"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "mission-creation internals: the mission_creation module family, the patch-routing rule, and where to add a create-time decision."
     anchors:
     - {slug: "module-map", text: "Module map", level: 2}
-    - {slug: "the-routing-rule", text: "The routing rule", level: 2}
+    - {slug: "the-patch-routing-rule", text: "The patch-routing rule", level: 2}
     - {slug: "fixing-a-create-s-identity", text: "Fixing a create's identity", level: 2}
     - {slug: "where-to-add-a-create-time-decision", text: "Where to add a create-time decision", level: 2}
   - path: "docs/api/missions.md"

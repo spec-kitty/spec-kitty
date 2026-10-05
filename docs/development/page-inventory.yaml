@@ -1408,7 +1408,7 @@
   notes: null
 - path: docs/api/mission-creation-internals.md
   tag: current
-  divio_type: none
+  divio_type: reference
   owning_workstream: none
   current_target: true
   notes: null

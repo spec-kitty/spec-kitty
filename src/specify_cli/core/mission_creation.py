@@ -151,7 +151,8 @@ from specify_cli.mission_metadata import (
 )
 
 # Moved verbatim to the leaf modules (#5634); re-exported so
-# ``mission_creation.<name>`` stays the import and patch surface.
+# ``mission_creation.<name>`` stays the import surface. These are import
+# points, not patch points (see the module docstring).
 from specify_cli.core.mission_creation_errors import (
     MissionCreationError as MissionCreationError,
     MissionAlreadyExistsError as MissionAlreadyExistsError,
@@ -438,9 +439,9 @@ def _create_mission_core_impl(
     _mission_id: str | None = None,
     _created_at: str | None = None,
 ) -> MissionCreationResult:
-    """Create a new feature with all scaffolding.
+    """Create a new mission with all scaffolding.
 
-    This is the programmatic API for feature creation.  Unlike the CLI
+    This is the programmatic API for mission creation.  Unlike the CLI
     command, it returns a structured result and raises domain exceptions
     instead of calling ``typer.Exit()``.
 

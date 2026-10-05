@@ -3,12 +3,14 @@ title: mission-creation internals reference
 description: 'mission-creation internals: the mission_creation module family, the patch-routing rule, and where to add a create-time decision.'
 doc_status: active
 updated: '2026-10-05'
+type: reference
+audience: docs/context/audience/internal/maintainer.md
 ---
 # `mission_creation` internals reference
 
 `spec-kitty agent mission create` and the orchestrator-api `specify` verb both
 call `create_mission_core()` in `src/specify_cli/core/mission_creation.py`. That
-module used to hold all of mission creation in about 2,400 lines. Since #5634 it
+module used to hold all of mission creation in about 2,360 lines. Since #5634 it
 is a façade over a family of sibling modules. This page is for a maintainer who
 changes create-time behaviour.
 
@@ -48,11 +50,11 @@ mint `_mint_protected_branch_for_topology`, then `_write_create_meta`. The mint
 is called from the orchestration, not from the meta builder, and it runs before
 the write because it can set `meta["mission_branch"]`.
 
-## The routing rule
+## The patch-routing rule
 
 Tests patch names on the façade, for example
 `monkeypatch.setattr(mission_creation, "build_mission_created_payload", ...)`. A leaf that
-called such a name directly would ignore the patch. Today the routed set (patched
+called such a name directly would ignore the patch. Today the patch-routed set (patched
 names a leaf reads) is `{build_mission_created_payload}`; the other `_mc.` calls in
 the leaves are cross-leaf calls. So:
 
@@ -88,7 +90,7 @@ The public signature of `create_mission_core` does not carry them.
 
 1. Put the rule in `mission_creation_decisions.py` as a pure function over plain
    values. It may not do I/O; `tests/core/test_mission_creation_purity.py`
-   enforces that.
+   checks that with an import allow-list and a ban on file and process calls.
 2. Unit-test every branch in `tests/core/test_mission_creation_decisions.py`.
 3. Gather the facts in the leaf that owns the step (the adapter) and pass them
    in. Keep the order in which facts are probed, so an error still raises at the
