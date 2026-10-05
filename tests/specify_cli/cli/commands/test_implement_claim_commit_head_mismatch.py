@@ -212,3 +212,60 @@ def test_an_unexpected_exception_is_rendered_as_the_json_error_envelope(capsys: 
     assert excinfo.value.exit_code == 1
     lines = capsys.readouterr().out.strip().splitlines()
     assert json.loads(lines[-1]) == {"status": "error", "error": "unexpected failure for WP07; run `fix-it` first", "wp_id": "WP07"}
+
+
+# ---------------------------------------------------------------------------
+# The check refuses only an off-target checkout: claims run from the claim commit's
+# destination go through on every topology (N-2).
+# ---------------------------------------------------------------------------
+
+
+#: A coordination-topology mission: the slug embeds its mid8, as ``agent mission create`` names it.
+COORD_SLUG = f"{SLUG}-{MISSION_ID[:8].lower()}"
+COORD_MISSION_BRANCH = f"kitty/mission-{COORD_SLUG}"
+
+
+@pytest.mark.parametrize("topology", ["coord", "lanes_with_coord"])
+def test_a_coordination_topology_claim_from_the_destination_is_not_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, topology: str) -> None:
+    """The claim commit's destination is the PRIMARY target, never the coordination branch: an
+    auto-commit claim run from the target checkout goes through, its status transition lands on
+    the coordination branch and the claim commit on the target.
+
+    Planted break (proven red): judge the HEAD against the coordination branch instead of the
+    claim commit's destination.
+    """
+    repo = init_repo(tmp_path / "repo")
+    activate_repo(repo, monkeypatch, tmp_path)
+    build_mission(repo, COORD_SLUG, MISSION_ID, topology=topology, meta_extra={"coordination_branch": COORD_MISSION_BRANCH})
+    # The coordination branch and its worktree carry the finalized status, as finalize-tasks leaves them.
+    git(repo, "branch", COORD_MISSION_BRANCH)
+    git(repo, "worktree", "add", "-q", f".worktrees/{COORD_SLUG}-coord", COORD_MISSION_BRANCH)
+
+    result = implement_cli("WP01", "--mission", COORD_SLUG, "--actor", "tester", "--auto-commit")
+
+    assert result.exit_code == 0, result.output
+    assert "HEAD is" not in flat(result.output)
+    assert git(repo, "rev-parse", "--abbrev-ref", "HEAD") == "trunk"
+    assert git(repo, "log", "-1", "--format=%s", "trunk") == "chore: WP01 claimed for implementation"
+    assert git(repo, "log", "-1", "--format=%s", COORD_MISSION_BRANCH) == "chore(spec-kitty): status transition batch WP01"
+
+
+def test_a_protected_single_branch_claim_from_the_minted_mission_branch_is_not_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A ``single_branch`` mission on the protected ``main`` writes to its minted mission branch: an
+    auto-commit claim run from that branch goes through and commits the claim there.
+
+    Planted break (proven red): judge the HEAD against the target branch instead of the claim
+    commit's destination.
+    """
+    repo = init_repo(tmp_path / "repo", "main")
+    activate_repo(repo, monkeypatch, tmp_path)
+    monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
+    build_mission(repo, SLUG, MISSION_ID, topology="single_branch", target="main", meta_extra={"mission_branch": COORDINATION_BRANCH})
+    git(repo, "checkout", "-q", "-b", COORDINATION_BRANCH)
+
+    result = implement_cli(*ARGS, "--auto-commit")
+
+    assert result.exit_code == 0, result.output
+    assert "HEAD is" not in flat(result.output)
+    assert git(repo, "log", "-1", "--format=%s", COORDINATION_BRANCH) == "chore: WP01 claimed for implementation"
+    assert git(repo, "log", "-1", "--format=%s", "main") != "chore: WP01 claimed for implementation"
