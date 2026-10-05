@@ -2,7 +2,7 @@
 
 Pre-unification, the read side (``implement_cores.py::resolve_precondition_ref``)
 hard-coded the git-rev shorthand ``"HEAD"`` inline and the write side
-(``implement.py::_commit_planning_artifacts_transaction``'s PRIMARY-group
+(``implement_planning_commit.py::_commit_planning_artifacts_transaction``'s PRIMARY-group
 commit destination) hard-coded the mission's ``planning_branch`` name inline
 -- two independently-written literals that happen to agree only because a
 real claim always runs from a checkout whose ``HEAD`` IS ``planning_branch``.

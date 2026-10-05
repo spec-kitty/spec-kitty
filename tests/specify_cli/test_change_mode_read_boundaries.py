@@ -11,7 +11,7 @@ behavior between a legacy value and absence, which is exactly the
 
 This module enumerates each such reader and asserts ``observe(legacy) ==
 observe(absent)`` at each one. Before the WP03 fix the
-``implement._run_bulk_edit_gate_and_inference`` probe is RED (a legacy value
+``implement_phases._run_bulk_edit_gate_and_inference`` probe is RED (a legacy value
 short-circuits before the inference scan, while an absent value runs it and can
 ``typer.Exit(1)``); after the fix every probe is GREEN.
 
@@ -166,7 +166,7 @@ _READER_PROBES: list[tuple[str, Callable[[Path, str | None], object]]] = [
     ("bulk_edit.gate._is_bulk_edit_mission", _observe_gate_is_bulk_edit_mission),
     ("runtime_bridge._occurrence_gate_failures", _observe_runtime_bridge_occurrence_gate),
     ("workflow_executor.review_enforce_bulk_edit_gate", _observe_workflow_executor_review_gate),
-    ("implement._run_bulk_edit_gate_and_inference", _observe_implement_gate_and_inference),
+    ("implement_phases._run_bulk_edit_gate_and_inference", _observe_implement_gate_and_inference),
 ]
 
 

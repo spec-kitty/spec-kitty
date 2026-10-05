@@ -10,7 +10,7 @@ own docstring). Four of the six pass NEITHER a ``topology`` NOR a
 
 - ``cli/commands/agent/tasks_move_task.py::_drop_lane_coord_residue``
 - ``cli/commands/agent/tasks_shared.py::_list_wp_branch_mission_specs_changes``
-- ``cli/commands/implement.py::partition_files_for_commit`` /
+- ``coordination/planning_commit.py::partition_files_for_commit`` /
   ``guard_planning_commit_partition`` (two call sites, same file)
 - ``lanes/auto_rebase.py::_is_coordination_owned_artifact``
 
@@ -119,7 +119,7 @@ def test_tasks_move_task_keeps_ledger_as_real_work(tmp_path: Path, topology: Mis
 
 @pytest.mark.parametrize("topology", _ALL_TOPOLOGIES)
 def test_implement_partition_files_for_commit_classifies_ledger_primary(tmp_path: Path, topology: MissionTopology) -> None:
-    """``implement.py::partition_files_for_commit`` (~L905), the truly blind
+    """``coordination/planning_commit.py::partition_files_for_commit``, the truly blind
     shape (bare path string, no mission_slug, no topology): the ledger joins
     the PRIMARY group, not the COORD-residue group -- for EVERY topology.
     """
@@ -136,7 +136,7 @@ def test_implement_partition_files_for_commit_classifies_ledger_primary(tmp_path
 
 @pytest.mark.parametrize("topology", _ALL_TOPOLOGIES)
 def test_implement_guard_refuses_ledger_reaching_coord_seam(tmp_path: Path, topology: MissionTopology) -> None:
-    """``implement.py::guard_planning_commit_partition`` (~L947), the truly
+    """``coordination/planning_commit.py::guard_planning_commit_partition``, the truly
     blind shape: a PRIMARY-kind ledger path reaching a COORD-destination
     commit seam is now the FORBIDDEN PRIMARY→coord route (it was the
     permitted same-partition route pre-WP12); reaching a PRIMARY destination

@@ -225,7 +225,7 @@ def test_mission_id_for_claim_resolves_identity_from_primary(tmp_path: Path, bui
 
 @_MATERIALIZED_FIXTURES
 def test_load_primary_anchored_mission_meta_resolves_primary(tmp_path: Path, builder: object) -> None:
-    """``implement.py::load_primary_anchored_mission_meta`` (PRIMARY_METADATA)."""
+    """``coordination/planning_commit.py::load_primary_anchored_mission_meta`` (PRIMARY_METADATA)."""
     repo = builder(tmp_path)  # type: ignore[operator]
     meta = load_primary_anchored_mission_meta(repo, _HANDLE)
     assert meta is not None

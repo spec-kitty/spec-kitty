@@ -53,7 +53,7 @@ PROVENANCE NOTE (squad correction): step (a)/(b) below feed
 ``_collect_status_artifacts`` the COORD ``feature_dir`` directly to force a
 ``.worktrees/``-nested ``tasks.md`` into the candidate list and exercise the
 ``is_under_worktrees_segment`` filter clause. The live production caller,
-``implement._commit_wp_claim_status``, never does this: ``implement()``
+``implement_claim._commit_wp_claim_status``, never does this: ``implement()``
 resolves its own ``feature_dir`` via
 ``placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.SPEC)``
 — a PRIMARY-partition kind that is topology-blind and never returns the coord
@@ -214,7 +214,7 @@ def test_coord_surface_tasks_md_never_reaches_primary_safe_commit_bundle(
 
     # --- Exercise the ``_primary_surface_status_paths`` filter helper in
     # isolation (squad correction — see module docstring PROVENANCE NOTE): the
-    # live caller (``implement._commit_wp_claim_status``) resolves its
+    # live caller (``implement_claim._commit_wp_claim_status``) resolves its
     # ``feature_dir`` via the PRIMARY-partition placement seam and so never
     # collects status artifacts from the coord worktree itself. Collecting
     # from ``ctx.coord_feature_dir`` here is a DELIBERATE deviation to force a

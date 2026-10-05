@@ -11,7 +11,7 @@ unified-authority contract in ``contracts/partition-authority-and-warning.md``.
 The three sites:
 
 * Read  -- ``implement_cores.py::resolve_precondition_ref``
-* Write -- ``implement.py::partition_files_for_commit``
+* Write -- ``coordination/planning_commit.py::partition_files_for_commit``
 * Write -- ``coordination/commit_router.py::_group_files_by_partition``
 
 Both cli-side sites (read + write in ``implement.py``/``implement_cores.py``)
@@ -79,7 +79,7 @@ class TestThreeSitesCurrentPartitionDecisions:
     for the representative path set, is a live snapshot in this suite."""
 
     def test_write_side_partition_files_for_commit(self) -> None:
-        """Site 1 (write): ``implement.py::partition_files_for_commit``."""
+        """Site 1 (write): ``coordination/planning_commit.py::partition_files_for_commit``."""
         from specify_cli.coordination.planning_commit import partition_files_for_commit
 
         primary, coord = partition_files_for_commit(

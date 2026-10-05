@@ -12,8 +12,8 @@ exclusively).
 Entry points exercised here:
 
 * ``spec-kitty implement`` -- the plain top-level CLI command
-  (``cli/commands/implement.py::implement`` -> ``lanes/implement_support.py::
-  create_lane_workspace`` -> ``allocate_lane_worktree``).
+  (``cli/commands/implement.py::implement`` -> ``implement_phases.allocate`` ->
+  ``lanes/implement_support.py::create_lane_workspace`` -> ``allocate_lane_worktree``).
 * ``spec-kitty agent action implement`` / ``agent action review`` /
   ``agent tasks move-task`` -- the coord lifecycle surface
   (``cli/commands/agent/workflow.py`` /

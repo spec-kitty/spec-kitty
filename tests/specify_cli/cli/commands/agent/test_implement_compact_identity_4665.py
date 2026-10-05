@@ -20,7 +20,7 @@ Harness scope note: a fully materialized-from-scratch lane worktree (real
 ``test_implement_single_resolution.py`` and the lane-allocator suite; that
 mechanism is orthogonal to this WP's actor-identity-representation scope.
 This test instead reproduces the exact defect at its real boundary by (1)
-calling ``cli.commands.implement._start_wp_implementation_status`` directly —
+calling ``cli.commands.implement_claim._start_wp_implementation_status`` directly —
 the SAME function ``top_level_implement`` calls for its workspace-create
 claim, with the SAME compact-string actor shape — against a pre-faked lane
 worktree (mirroring ``test_implement_runtime_frontmatter_claim.py``'s
