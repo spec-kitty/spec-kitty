@@ -151,14 +151,15 @@ def test_a_check_that_cannot_answer_refuses_before_any_lane_merges(tmp_path: Pat
         raise StoreError("status.events.jsonl is unreadable")
 
     mission = _build(tmp_path, "lanes")
-    monkeypatch.setattr("specify_cli.status.read_events", _unreadable)
-    with pytest.raises(ApprovedBoundRefused, match=r"the status event log could not be read") as refused:
-        _refuse(mission)
-    assert refused.value.error_code is None
+    with monkeypatch.context() as unreadable_status:  # undone before the target arm, so that arm proves its own cause
+        unreadable_status.setattr("specify_cli.status.read_events", _unreadable)
+        with pytest.raises(ApprovedBoundRefused, match=r"the status event log could not be read") as refused:
+            _refuse(mission)
+        assert refused.value.error_code is None
 
-    monkeypatch.setattr("specify_cli.status.materialize_snapshot", _unreadable)
-    with pytest.raises(RuntimeError, match=r"could not be checked against what review approved \(.*unreadable.*\); no lane was merged\."):
-        _refuse(mission)
+        unreadable_status.setattr("specify_cli.status.materialize_snapshot", _unreadable)
+        with pytest.raises(RuntimeError, match=r"could not be checked against what review approved \(.*unreadable.*\); no lane was merged\."):
+            _refuse(mission)
 
     manifest = read_lanes_json(mission.feature_dir)
     assert manifest is not None

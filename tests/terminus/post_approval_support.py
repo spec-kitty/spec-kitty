@@ -44,6 +44,7 @@ from specify_cli.lanes.branch_naming import mission_branch_name
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree, predict_lane_worktree
+from specify_cli.status.models import ReviewResult
 from tests.terminus import lanes_fixture
 from tests.terminus.canceled_dependency_support import (
     ACTOR,
@@ -172,15 +173,22 @@ def strip_approval_stamps(mission: CoordMission, wp_id: str) -> None:
     strip_lane_head_stamps(mission, wp_id)
 
 
-def rework_and_reapprove(mission: CoordMission, wp_id: str = "WP01") -> str:
+def rework_and_reapprove(mission: CoordMission, wp_id: str = "WP01", *, final: Literal["approved", "done"] = "approved") -> str:
     """Reject *wp_id*, change its lane, then approve it again; return the re-approved lane tip.
 
     The lane gains one content commit (:data:`REWORK_PATH`) after the first approval and
     before the second, so the newest approval stamp is the new tip and the first one is
-    an ancestor of it.
+    an ancestor of it. With ``final="done"`` the second review goes straight from
+    ``in_review`` to ``done``, unforced, without the ``approved`` stop.
     """
     lane = _LANE_OF_WP[wp_id]
     transition(mission, wp_id, "in_progress", actor=ACTOR, review_ref=f"review-{wp_id}-rejected")
     tip = _commit_in(lane_worktree(mission, lane), REWORK_PATH, REWORK_CONTENT, f"feat({mission.slug}): {wp_id} rework")
-    _approve(mission, wp_id, reference=f"review-{wp_id}-rework")
+    reference = f"review-{wp_id}-rework"
+    if final == "approved":
+        _approve(mission, wp_id, reference=reference)
+        return tip
+    transition(mission, wp_id, "for_review", actor=ACTOR, subtasks_complete=True)
+    transition(mission, wp_id, "in_review", actor=ACTOR)
+    transition(mission, wp_id, "done", actor=ACTOR, review_ref=reference, review_result=ReviewResult(reviewer=ACTOR, verdict="approved", reference=reference))
     return tip

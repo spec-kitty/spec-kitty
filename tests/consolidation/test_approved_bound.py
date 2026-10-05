@@ -649,6 +649,9 @@ def test_bound_anchor_shas_leave_out_a_reference_that_does_not_resolve(repo: _Re
         pytest.param(
             Lane.APPROVED, None, "WP01", "WP01's approval; `spec-kitty consolidate` will refuse it (APPROVAL_STAMP_MISSING)", id="unstamped-code-lane-approval"
         ),
+        pytest.param(
+            Lane.DONE, None, "WP01", "WP01's approval; `spec-kitty consolidate` will refuse it (APPROVAL_STAMP_MISSING)", id="unstamped-review-straight-to-done"
+        ),
         pytest.param(Lane.APPROVED, "a" * 40, "WP01", None, id="stamped-approval"),
         pytest.param(Lane.IN_PROGRESS, None, "WP01", None, id="not-an-approval"),
         pytest.param(Lane.APPROVED, None, "WP99", None, id="work-package-on-no-lane"),

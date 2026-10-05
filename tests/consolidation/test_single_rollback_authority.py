@@ -128,6 +128,17 @@ def _calls_named(source: str, module: str, name: str) -> list[tuple[_Call, ast.C
     return [(_Call(module, owners[id(n)]), n) for n in ast.walk(tree) if isinstance(n, ast.Call) and _called_name(n) == name]
 
 
+def references_name(source: str, name: str) -> bool:
+    """True when *source* imports, attributes or names *name* in any way: a call, an alias import, a ``mod.name`` access, a string."""
+    return any(
+        (isinstance(n, ast.alias) and n.name == name)
+        or (isinstance(n, ast.Attribute) and n.attr == name)
+        or (isinstance(n, ast.Name) and n.id == name)
+        or (isinstance(n, ast.Constant) and n.value == name)
+        for n in ast.walk(ast.parse(source))
+    )
+
+
 def scan_authority_callers(source: str, module: str) -> list[_Call]:
     """Every call of ``rollback_to_snapshot`` in *source*."""
     return [call for call, _node in _calls_named(source, module, "rollback_to_snapshot")]
@@ -241,8 +252,12 @@ def test_rollback_to_snapshot_is_called_only_from_allowed_callers() -> None:
 
 
 def test_a_lane_is_merged_only_by_the_two_paths_that_run_the_approval_bound() -> None:
-    """#5668: a lane merge must be preceded by the approval bound, a call each landing path has to remember."""
-    callers = {module for module, src in _all_src_files() if module != _LANE_MERGE_HOME for _call, _node in _calls_named(src, module, _LANE_MERGE)}
+    """#5668: a lane merge must be preceded by the approval bound, a call each landing path has to remember.
+
+    Every module that imports or references the function counts, not only a direct call: an alias import
+    (``from ... import consolidate_lane_into_mission as _merge``) cannot slip past it.
+    """
+    callers = {module for module, src in _all_src_files() if module != _LANE_MERGE_HOME and references_name(src, _LANE_MERGE)}
     assert callers == _LANE_MERGE_CALLERS, (
         f"{_LANE_MERGE} is called from {sorted(callers)}, expected {sorted(_LANE_MERGE_CALLERS)}. "
         "A new call site must run the approval bound (approved_bound_refusal, as orchestrator_api/consolidation.py does, "

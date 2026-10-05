@@ -22,6 +22,7 @@ import json
 import re
 import shlex
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
@@ -84,11 +85,15 @@ def test_post_approval_commit_is_refused_before_any_branch_moves(tmp_path: Path,
     assert not blob_present_at(mission.repo, mission.target_branch, LATE_PATH), "the unreviewed file must not be on the target"
 
 
-@pytest.mark.parametrize("topology", _TOPOLOGIES)
-def test_rework_and_reapproval_consolidates(tmp_path: Path, topology: Topology) -> None:
-    """A lane that moved and was approved AGAIN is within its (newest) approval."""
+@pytest.mark.parametrize(
+    ("topology", "final"),
+    [("lanes", "approved"), ("coord", "approved"), ("lanes", "done")],
+    ids=["lanes", "coord", "lanes-review-straight-to-done"],
+)
+def test_rework_and_reapproval_consolidates(tmp_path: Path, topology: Topology, final: Literal["approved", "done"]) -> None:
+    """A lane that moved and was approved AGAIN, with or without the ``approved`` stop, is within its (newest) approval."""
     mission = build_post_approval_mission(tmp_path, topology)
-    rework_and_reapprove(mission, "WP01")
+    rework_and_reapprove(mission, "WP01", final=final)
 
     rc, flat = _consolidate(mission)
 
