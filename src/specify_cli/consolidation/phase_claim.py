@@ -40,6 +40,7 @@ from specify_cli.consolidation.preflight import (
     _warn_or_confirm_hollow_reviews,
 )
 from specify_cli.consolidation import rollback
+from specify_cli.consolidation.entry_preflight import _REFUSED_WITH_EARLIER_RECORD
 from specify_cli.consolidation.reconciliation import (
     build_approved_wp_set,
     claim_integrity_refusal,
@@ -498,7 +499,12 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
     # its lane branches may legitimately be gone already.
     refusal = claim_integrity_refusal(run.approved_wp_set)
     if refusal is not None and not _resume_reconciliation_already_passed(run):
-        _exit_on_claim_integrity_refusal(refusal, attested=run.recorded_attestations)
+        _exit_on_claim_integrity_refusal(
+            refusal,
+            attested=run.recorded_attestations,
+            earlier_moved=_branches_moved_by_earlier_attempts(run),
+            target_branch=run.lanes_manifest.target_branch,
+        )
 
     # #5318 / #5332: snapshot every branch this attempt may move, strictly before
     # the first mutating phase, and fix this attempt's restore targets.
@@ -547,13 +553,47 @@ def _claim_refusal_change_sentence(attested: tuple[str, ...]) -> str:
     return f"No branch or worktree was changed by this run; only the operator attestation(s) for {', '.join(attested)} were recorded."
 
 
-def _exit_on_claim_integrity_refusal(refusal: str, *, attested: tuple[str, ...] = ()) -> NoReturn:
+def _branches_moved_by_earlier_attempts(run: _MergeRunState) -> tuple[str, ...]:
+    """The branches an earlier attempt of this consolidation recorded moving; empty on a fresh run (#5668).
+
+    A ``--resume`` carries the persisted record's post-mutation tips: each is a branch the
+    interrupted run advanced, so a claim-time refusal of the resume does not mean nothing moved.
+    """
+    return tuple(sorted(run.state.post_mutation_refs)) if run.is_resume else ()
+
+
+def _claim_refusal_footer(attested: tuple[str, ...], earlier_moved: tuple[str, ...], target_branch: str) -> str:
+    """The closing sentences of a claim-time refusal: a fresh run changed nothing; a resume leads with ``--abort`` (#5668).
+
+    A resume refused after an earlier attempt already advanced the target leaves that
+    content on the local target, so the text starts from the restore command (the same
+    sentence an up-front protected-target refusal of a resume prints) and says so.
+    """
+    if not earlier_moved:
+        return (
+            f"{_claim_refusal_change_sentence(attested)} Fix the cause, then re-run; "
+            f"if an earlier attempt left partial state, run `{_CONSOLIDATE_ABORT_COMMAND}` first."
+        )
+    holds = f" (the local target '{target_branch}' currently holds content from it)" if target_branch in earlier_moved else ""
+    recorded = f" Only the operator attestation(s) for {', '.join(attested)} were recorded by this run." if attested else ""
+    return f"{_REFUSED_WITH_EARLIER_RECORD} That attempt already moved {', '.join(earlier_moved)}{holds}.{recorded} Then fix the cause and re-run."
+
+
+def _exit_on_claim_integrity_refusal(
+    refusal: str,
+    *,
+    attested: tuple[str, ...] = (),
+    earlier_moved: tuple[str, ...] = (),
+    target_branch: str = "",
+) -> NoReturn:
     """Abort before any mutation because the approved-WP claim failed integrity (#5338).
 
     Runs strictly pre-mutation (inside ``_clear_fresh_record_on_pre_mutation_exit``),
     so no branch or worktree was changed by this run. ``--attest-canceled-superseded``
     writes its status events BEFORE the claim (FR-012); when this run recorded any
     (``attested``), the text says so instead of claiming no status record changed.
+    A resume refused after an earlier attempt moved branches (``earlier_moved``) says to
+    abort first (:func:`_claim_refusal_footer`).
     The verdict leads with the same ``Reconciliation refused (fail-closed)``
     header the teardown gate prints (#5359), so operators and tooling see one
     REFUSE vocabulary whether the claim refuses early or the gate refuses late.
@@ -561,10 +601,10 @@ def _exit_on_claim_integrity_refusal(refusal: str, *, attested: tuple[str, ...] 
     # A multi-line refusal ends on a recovery line: the footer starts its own line. The text is escaped (a path may
     # hold ``[id]``) and printed unwrapped, so a recovery command stays on one copyable line.
     footer_separator = "\n" if "\n" in refusal else " "
+    before_any_change = "" if earlier_moved else ", before any change"
     console.print(
-        f"\n[red]Error:[/red] Reconciliation refused (fail-closed) at claim time, before any change: {escape(refusal.rstrip('.'))}."
-        f"{footer_separator}{_claim_refusal_change_sentence(attested)} Fix the cause, then re-run; "
-        f"if an earlier attempt left partial state, run `{_CONSOLIDATE_ABORT_COMMAND}` first.",
+        f"\n[red]Error:[/red] Reconciliation refused (fail-closed) at claim time{before_any_change}: {escape(refusal.rstrip('.'))}."
+        f"{footer_separator}{escape(_claim_refusal_footer(attested, earlier_moved, target_branch))}",
         soft_wrap=True,
     )
     raise typer.Exit(1)

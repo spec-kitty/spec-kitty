@@ -101,7 +101,7 @@ def test_predicate_and_gate_agree_on_a_healthy_claim(tmp_path: Path) -> None:
 # ------------------------------------------------ claim-time refusal text (slice-10 F4)
 
 
-def _claim_refusal_output(monkeypatch: pytest.MonkeyPatch, attested: tuple[str, ...]) -> str:
+def _claim_refusal_output(monkeypatch: pytest.MonkeyPatch, attested: tuple[str, ...], *, earlier_moved: tuple[str, ...] = ()) -> str:
     from unittest.mock import MagicMock
 
     import typer
@@ -109,15 +109,38 @@ def _claim_refusal_output(monkeypatch: pytest.MonkeyPatch, attested: tuple[str, 
     console = MagicMock()
     setattr_executor_family(monkeypatch, "console", console)
     with pytest.raises(typer.Exit) as exited:
-        phase_claim._exit_on_claim_integrity_refusal("approved lane branch is gone.", attested=attested)
+        phase_claim._exit_on_claim_integrity_refusal("approved lane branch is gone.", attested=attested, earlier_moved=earlier_moved, target_branch=_TARGET)
     assert exited.value.exit_code == 1
     return " ".join(str(call.args[0]) for call in console.print.call_args_list)
 
 
-def test_claim_refusal_without_attestations_says_nothing_changed(monkeypatch: pytest.MonkeyPatch) -> None:
-    printed = _claim_refusal_output(monkeypatch, ())
-    assert "No branch, worktree or status record was changed by this run." in printed
-    assert "attestation" not in printed
+@pytest.mark.parametrize(
+    ("earlier_moved", "present", "absent"),
+    [
+        pytest.param(
+            (),
+            ["at claim time, before any change:", "No branch, worktree or status record was changed by this run."],
+            ["attestation", "currently holds"],
+            id="fresh_run",
+        ),
+        pytest.param(
+            (_TARGET, "kitty/mission-x"),
+            [
+                "Run `spec-kitty consolidate --abort` to restore the branches it recorded.",
+                f"That attempt already moved {_TARGET}, kitty/mission-x (the local target '{_TARGET}' currently holds content from it).",
+            ],
+            ["before any change", "No branch, worktree or status record was changed"],
+            id="resume_after_the_target_moved",
+        ),
+    ],
+)
+def test_claim_refusal_says_what_the_run_changed(monkeypatch: pytest.MonkeyPatch, earlier_moved: tuple[str, ...], present: list[str], absent: list[str]) -> None:
+    """A fresh run changed nothing; a refused resume leads with ``--abort`` because an earlier attempt already moved the target."""
+    printed = _claim_refusal_output(monkeypatch, (), earlier_moved=earlier_moved)
+    for text in present:
+        assert text in printed
+    for text in absent:
+        assert text not in printed
 
 
 def test_claim_refusal_after_recorded_attestations_names_them(monkeypatch: pytest.MonkeyPatch) -> None:
