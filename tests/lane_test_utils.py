@@ -127,8 +127,28 @@ def create_lane_branches(repo_root: Path, lanes_manifest: Any, *, start_point: s
     what the allocator creates. Accepts a real ``LanesManifest`` or a mock with
     ``mission_slug``/``target_branch``/``lanes``. Fails if a lane branch already
     exists, so it can never silently reset real lane work. Returns the created names.
+
+    It also ensures the mission branch (``mission_branch``) resolves, creating it
+    only when absent: the approval-bound claim base (#5668) is that branch, and a
+    claim whose base does not resolve is refused fail-closed before any lane is
+    consolidated. An existing mission branch is never reset.
     """
     created: list[str] = []
+    mission_branch = getattr(lanes_manifest, "mission_branch", None)
+    if isinstance(mission_branch, str) and mission_branch:
+        resolves = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", f"refs/heads/{mission_branch}"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if resolves.returncode != 0:
+            subprocess.run(
+                ["git", "-C", str(repo_root), "branch", mission_branch, start_point],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
     for lane in lanes_manifest.lanes:
         if is_planning_lane(lane):
             continue

@@ -599,7 +599,9 @@ def test_single_branch_mission_survives_implement_and_merge_end_to_end(
     #
     # A real claim leaves only meta.json's one-time vcs-lock self-write
     # (``_ensure_vcs_in_meta``); claim state is event-sourced and the WP file is
-    # byte-stable. That is the lock-only residue the second claim must tolerate.
+    # byte-stable. Under ``auto_commit=False`` the claim STAGES its bundle (incl.
+    # meta.json) and commits nothing (#3471, ``_stage_claim_writes``), so the
+    # lock-only residue the second claim must tolerate is that STAGED meta.json.
     meta_rel = (feature_dir / "meta.json").relative_to(repo).as_posix()
     with _preflight_bypassed():
         implement("WP01", mission=slug, auto_commit=False, recover=False)
@@ -610,8 +612,10 @@ def test_single_branch_mission_survives_implement_and_merge_end_to_end(
         # serves one in_progress WP at a time (WriteCheckoutOccupiedError). The
         # direct ``emit_status_transition`` library call below does not commit (the
         # real claim commits its own status batch), so commit the park's
-        # status.events.jsonl/status.json here; the sole residue facing the second
-        # claim is then the first claim's vcs-lock meta.json self-write.
+        # status.events.jsonl/status.json here, by pathspec: a bare ``git commit``
+        # would also sweep in the meta.json the first claim staged. The sole
+        # residue facing the second claim is then the first claim's staged
+        # vcs-lock meta.json self-write.
         from specify_cli.status.emit import emit_status_transition
         from specify_cli.status.models import TransitionRequest
 
@@ -627,7 +631,7 @@ def test_single_branch_mission_survives_implement_and_merge_end_to_end(
         )
         status_rels = [(feature_dir / n).relative_to(repo).as_posix() for n in ("status.events.jsonl", "status.json")]
         _git(repo, "add", *status_rels)
-        _git(repo, "commit", "-m", f"chore({slug}): commit WP01 claim + park status")
+        _git(repo, "commit", "-m", f"chore({slug}): commit WP01 claim + park status", "--", *status_rels)
         # ``.kittify/derived/`` is the untracked derived-cache dir, not planning state.
         dirty_paths = sorted(
             line[3:]
@@ -636,7 +640,7 @@ def test_single_branch_mission_survives_implement_and_merge_end_to_end(
         )
         assert dirty_paths == [meta_rel], (
             f"precondition: the only residue facing the second claim must be the "
-            f"lock-dirty meta.json, got {dirty_paths!r}"
+            f"lock-staged meta.json, got {dirty_paths!r}"
         )
         from kernel.vcs_lock import is_vcs_lock_only_change
 

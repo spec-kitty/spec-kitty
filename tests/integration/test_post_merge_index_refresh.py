@@ -123,6 +123,10 @@ def _drive_merge(tmp_path: Path, slug: str, *, refresh_returncode: int = 0):
         call_log.append(tuple(cmd))
         if "merge-base" in cmd:
             return (0, "abc123\n", "")
+        # #5668: the approval-bound claim resolves its base ref through the git probe
+        # ({ref}^{{commit}}); an empty answer reads as "does not resolve" and refuses the claim.
+        if "rev-parse" in cmd:
+            return (0, "d4f8a1c2e6b09f37a5c1e8b2f4a6d0c9e3b7f1a2\n", "")
         if "update-index" in cmd and "--refresh" in cmd:
             # Allow caller to simulate divergence via non-zero return.
             return (refresh_returncode, "", "stat info differs")

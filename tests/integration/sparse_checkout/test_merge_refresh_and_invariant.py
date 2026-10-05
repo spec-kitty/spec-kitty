@@ -137,6 +137,10 @@ class TestPostMergeRefreshAndInvariant:
                 return (0, "", "")
             if "merge-base" in cmd:
                 return (0, "abc123\n", "")
+            # #5668: the approval-bound claim resolves its base ref through the git probe
+            # ({ref}^{{commit}}); an empty answer reads as "does not resolve" and refuses the claim.
+            if "rev-parse" in cmd:
+                return (0, "d4f8a1c2e6b09f37a5c1e8b2f4a6d0c9e3b7f1a2\n", "")
             return (0, "", "")
 
         def fake_raw_porcelain(repo_root):  # noqa: ANN001
@@ -253,6 +257,10 @@ class TestPostMergeRefreshAndInvariant:
                 return (0, "", "")
             if "merge-base" in cmd:
                 return (0, "abc123\n", "")
+            # #5668: the approval-bound claim resolves its base ref through the git probe
+            # ({ref}^{{commit}}); an empty answer reads as "does not resolve" and refuses the claim.
+            if "rev-parse" in cmd:
+                return (0, "d4f8a1c2e6b09f37a5c1e8b2f4a6d0c9e3b7f1a2\n", "")
             return (0, "", "")
 
         def fake_raw_porcelain(repo_root):  # noqa: ANN001
