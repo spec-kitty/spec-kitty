@@ -744,6 +744,11 @@ class TestAC4SuccessLineBothDirections:
         # First call (no base) creates the lane -- now a second call with an
         # explicit base hits the reuse fail-loud guard (FL1).
         _run_implement_for_real(repo, feature_dir, base=None)
+        # The claim ran with --no-auto-commit and left its planning-artifact
+        # edits uncommitted; commit them as the refusal tells the operator to,
+        # so the second claim reaches the allocator instead of that refusal.
+        _git(repo, "add", "kitty-specs")
+        _git(repo, "commit", "-q", "-m", "chore: planning artifacts after the first claim")
 
         captured: list[str] = []
         _run_implement_for_real(
