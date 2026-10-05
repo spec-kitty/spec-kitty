@@ -1,0 +1,132 @@
+work_packages:
+- id: WP01
+  title: 'Effective override policy: pack sanctions, scoping, revocation, decision
+    table'
+  dependencies: []
+  owned_files:
+  - src/charter/offering/drg/override_policy.py
+  - src/charter/offering/drg/merge.py
+  - tests/doctrine/drg/test_override_policy_predicates.py
+  - tests/doctrine/drg/test_override_policy_pack_sanctions.py
+  - tests/architectural/test_builtin_override_policy.py
+  - tests/doctrine/test_drg_merge.py
+  requirement_refs:
+  - FR-002
+  - FR-003
+  - FR-004
+  - FR-005
+  - FR-006
+  - FR-007
+  - FR-013
+  - NFR-001
+  - NFR-002
+  - NFR-003
+  - NFR-004
+  - C-001
+  - C-003
+  - C-004
+  - C-005
+  - C-006
+  - SC-005
+  plan_concern_refs:
+  - IC-01
+  - IC-02
+  subtasks:
+  - T001
+  - T002
+  - T003
+  - T004
+  - T005
+  - T006
+  prompt_file: tasks/WP01-effective-override-policy.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP02
+  title: doctor doctrine wiring, rendering and red-first acceptance
+  dependencies:
+  - WP01
+  owned_files:
+  - src/specify_cli/cli/commands/_doctrine_collect.py
+  - src/specify_cli/cli/commands/doctor.py
+  - tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py
+  - tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py
+  - docs/api/cli-commands.md
+  - tests/architectural/test_override_policy_parity.py
+  requirement_refs:
+  - FR-006
+  - FR-007
+  - FR-013
+  - SC-005
+  - FR-001
+  - FR-008
+  - FR-009
+  - FR-010
+  - FR-012
+  - NFR-005
+  - SC-001
+  - SC-002
+  - SC-003
+  - SC-004
+  - C-002
+  - C-008
+  plan_concern_refs:
+  - IC-03
+  subtasks:
+  - T007
+  - T008
+  - T009
+  - T010
+  - T011
+  prompt_file: tasks/WP02-doctor-doctrine-wiring.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP03
+  title: 'Pack authoring: validate and assemble carry the sanction'
+  dependencies:
+  - WP01
+  owned_files:
+  - src/specify_cli/doctrine/pack_validator.py
+  - src/specify_cli/doctrine/pack_assembler.py
+  - tests/specify_cli/doctrine/test_pack_validator.py
+  - tests/specify_cli/doctrine/test_pack_assembler.py
+  requirement_refs:
+  - FR-014
+  - FR-015
+  plan_concern_refs:
+  - IC-04
+  subtasks:
+  - T012
+  - T013
+  - T014
+  prompt_file: tasks/WP03-pack-authoring-validate-assemble.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP04
+  title: ADR, org-pack how-to and changelog
+  dependencies:
+  - WP01
+  - WP02
+  - WP03
+  owned_files:
+  - docs/adr/4.x/2026-10-05-1-org-packs-ship-their-builtin-override-sanction.md
+  - docs/adr/4.x/index.md
+  - docs/guides/how-to/governance/create-an-org-doctrine-pack.md
+  - docs/changelog/CHANGELOG.md
+  - docs/development/docs-retrieval-index.yaml
+  requirement_refs:
+  - FR-011
+  - C-007
+  plan_concern_refs:
+  - IC-05
+  subtasks:
+  - T015
+  - T016
+  - T017
+  - T018
+  prompt_file: tasks/WP04-adr-howto-changelog.md
+  agent_profile: scribe-sally
+  role: implementer
+  agent: claude

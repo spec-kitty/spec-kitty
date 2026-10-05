@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "mission_slug": "pack-shipped-builtin-override-sanction-01M45WB7",
+  "mission_id": "01M45WB7GKA5NSZFYHBBHCEVK7",
+  "mission_branch": "kitty/mission-pack-shipped-builtin-override-sanction-01M45WB7",
+  "target_branch": "issue-replaceable-builtins-sanction",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/offering/drg/merge.py",
+        "src/charter/offering/drg/override_policy.py",
+        "tests/architectural/test_builtin_override_policy.py",
+        "tests/doctrine/drg/test_override_policy_pack_sanctions.py",
+        "tests/doctrine/drg/test_override_policy_predicates.py",
+        "tests/doctrine/test_drg_merge.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "src/specify_cli/cli/commands/_doctrine_collect.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "tests/architectural/test_override_policy_parity.py",
+        "tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py",
+        "tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/doctrine/pack_assembler.py",
+        "src/specify_cli/doctrine/pack_validator.py",
+        "tests/specify_cli/doctrine/test_pack_assembler.py",
+        "tests/specify_cli/doctrine/test_pack_validator.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-05-1-org-packs-ship-their-builtin-override-sanction.md",
+        "docs/adr/4.x/index.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/docs-retrieval-index.yaml",
+        "docs/guides/how-to/governance/create-an-org-doctrine-pack.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-05T11:33:35.800184+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP04"
+  ],
+  "planning_commit_sha": "74c2c207e5e95060f06a7fb6c033364d08216473"
+}

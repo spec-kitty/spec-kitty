@@ -1,0 +1,56 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-05T11:15:52.849494Z",
+      "decision_id": "01M45WDZCHWAKTWE0Q2V6HR3Z9",
+      "final_answer": "a: pack-root replaceable-builtins.yaml read in place",
+      "input_key": "sanction_source",
+      "mission_id": "01M45WB7GKA5NSZFYHBBHCEVK7",
+      "mission_slug": "pack-shipped-builtin-override-sanction-01M45WB7",
+      "opened_by": "cli",
+      "options": [
+        "a: pack-root replaceable-builtins.yaml read in place",
+        "a: org-charter.yaml key",
+        "b: fetch installs/merges consumer file",
+        "c: per-node replaces marker",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Where does an org pack deliver its built-in override sanction: (a) pack-declared list unioned by doctor, (b) doctrine fetch installs into the consumer file, (c) per-node replaces: marker?",
+      "rationale": null,
+      "resolved_at": "2026-10-05T11:15:55.985289Z",
+      "resolved_by": null,
+      "slot_key": "specify.design.sanction-source",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-05T11:15:59.166697Z",
+      "decision_id": "01M45WE5HYCVX64HEVHWG8DVSW",
+      "final_answer": "yes: additive revoked_pack_sanctions key in consumer file",
+      "input_key": "consumer_revocation",
+      "mission_id": "01M45WB7GKA5NSZFYHBBHCEVK7",
+      "mission_slug": "pack-shipped-builtin-override-sanction-01M45WB7",
+      "opened_by": "cli",
+      "options": [
+        "yes: additive revoked_pack_sanctions key in consumer file",
+        "no: defer to #2594",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Must the consumer be able to revoke a pack-delivered sanction in this mission?",
+      "rationale": null,
+      "resolved_at": "2026-10-05T11:16:02.390372Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.consumer-revocation",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M45WB7GKA5NSZFYHBBHCEVK7",
+  "version": 1
+}

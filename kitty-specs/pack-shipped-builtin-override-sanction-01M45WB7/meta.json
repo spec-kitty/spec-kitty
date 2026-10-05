@@ -1,0 +1,36 @@
+{
+  "accept_commit": "889816082382b20f9ea20357446a0c5b15863fc5",
+  "acceptance_history": [
+    {
+      "accept_commit": "889816082382b20f9ea20357446a0c5b15863fc5",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-10-05T13:57:47.335564+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "47e5a78a01c3208f9504c5549ec9035129c9b84c"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-10-05T13:57:47.335564+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "47e5a78a01c3208f9504c5549ec9035129c9b84c",
+  "baseline_merge_commit": "eb8b5aea98ebe125a7a572bc6c9ac9bee62fcbf2",
+  "created_at": "2026-10-05T11:14:24.411310+00:00",
+  "flattened": false,
+  "friendly_name": "Pack-shipped built-in override sanction",
+  "merged_at": "2026-10-05T14:00:03.524089+00:00",
+  "merged_commit": "0a6061aaeabe7ef7f005e9d372bfa52cda47b39e",
+  "mid8": "01M45WB7",
+  "mission_id": "01M45WB7GKA5NSZFYHBBHCEVK7",
+  "mission_number": 217,
+  "mission_slug": "pack-shipped-builtin-override-sanction-01M45WB7",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Today doctor doctrine only reads each consumer's hand-copied replaceable-builtins allowlist. Every time upstream promotes an org-authored artifact into the built-in set, consumers whose copy predates the promotion fail closed with no change on their side. This mission lets the org pack deliver its own scoped, reason-bearing sanction while keeping unsanctioned overrides fail-closed (issue #5767).",
+  "purpose_tldr": "Let org packs ship the sanction for the built-ins they deliberately replace, so consumers stop going red whenever an org artifact is promoted to built-in.",
+  "slug": "pack-shipped-builtin-override-sanction-01M45WB7",
+  "status_phase": "1",
+  "target_branch": "issue-replaceable-builtins-sanction",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-05T11:36:50.655292+00:00"
+}

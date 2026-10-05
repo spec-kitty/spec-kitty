@@ -1,0 +1,159 @@
+{
+  "mission_slug": "pack-shipped-builtin-override-sanction-01M45WB7",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_pack_root_sanction_clears_override_without_consumer_file; tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_pack_root_sanction_beats_stale_consumer_allowlist; real-CLI repro RC 1->0",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T13:56:04.531317+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_cross_pack_sanction_does_not_apply; tests/doctrine/drg/test_override_policy_predicates.py (cross-pack rows)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T13:56:11.352914+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_directive_with_empty_pack_reason_is_unsanctioned; tests/doctrine/drg/test_override_policy_predicates.py (reason rows)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T13:56:17.685229+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_sanctioned_org_override_is_cleared; tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_consumer_and_pack_sanctions_are_unioned; tests/doctrine/test_drg_merge.py::TestReplaceableBuiltinsPolicy",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T13:56:24.190775+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_positive_control_same_fixture_without_pack_file_is_red; tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_unsanctioned_org_override_is_flagged",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T13:56:30.145016+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_malformed_pack_file_is_reported_even_when_pack_overrides_nothing; tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_malformed_pack_file_keeps_other_findings; tests/doctrine/drg/test_override_policy_pack_sanctions.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T13:56:36.280550+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_revoking_a_urn_withdraws_the_pack_sanction; tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_revoking_a_pack_withdraws_all_its_sanctions; tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_consumer_listing_wins_over_its_own_revocation; tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_revocation_of_unknown_pack_is_an_error",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T13:56:42.428515+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_sanctioned_overrides_are_listed_in_json_and_human_output",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T13:56:48.559312+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_legacy_template_stays_red_and_prints_actionable_hint; tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_legacy_template_directive_without_reason_says_reason_required; tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_malformed_legacy_template_gives_no_hint_and_no_error",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T13:56:55.191257+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_generic_hint_names_both_remedies",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T13:57:01.412911+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/adr/4.x/2026-10-05-1-org-packs-ship-their-builtin-override-sanction.md; docs/guides/how-to/governance/create-an-org-doctrine-pack.md; docs/changelog/CHANGELOG.md [Unreleased]; WP04 review approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T13:57:08.058078+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_no_org_packs_output_is_byte_identical_to_pre_change_snapshot; tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py::test_no_org_packs_output_unchanged",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T13:57:13.909786+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_override_policy_parity.py (4 tests); tests/architectural/test_builtin_override_policy.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T13:57:19.785546+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/doctrine/test_pack_validator.py::TestPackSanctionValidation; ::TestPackSanctionSymlinkPresence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T13:57:25.812784+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/doctrine/test_pack_assembler.py::TestAssembleSanctionUnion",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-05T13:57:32.004665+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
