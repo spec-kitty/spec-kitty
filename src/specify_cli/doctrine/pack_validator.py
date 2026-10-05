@@ -660,7 +660,9 @@ def _validate_pack_sanction(
     Errors: any parse/shape failure reported by the single sanction parser, and a
     ``directive:`` entry with an empty reason. Advisory: an entry naming a URN
     that is not a built-in this pack overrides (inert, never an error). The
-    advisory is skipped when the pack's own nodes cannot be loaded.
+    advisory is skipped when the pack's own nodes cannot be loaded, or when the
+    built-in graph is unavailable (``built_in_urns`` empty) — without the set of
+    real built-ins, every entry would otherwise look inert.
     """
     sanction_file = pack_dir / PACK_POLICY_FILENAME
     try:
@@ -682,7 +684,7 @@ def _validate_pack_sanction(
                     "requires a non-empty reason",
                 )
             )
-        elif pack_urns is not None and not (
+        elif pack_urns is not None and built_in_urns and not (
             entry.urn in built_in_urns and entry.urn in pack_urns
         ):
             advisories.append(

@@ -1482,6 +1482,33 @@ class TestPackSanctionValidation:
         assert result.ok, [i.message for i in result.errors]
         assert _sanction_issues(result) == ([], [])
 
+    def test_valid_sanction_is_not_inert_when_the_built_in_graph_is_unavailable(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A degraded env (built-in graph unloadable) must not flood every entry
+        with the inert advisory: without the real built-in set we cannot tell an
+        entry is inert, so the advisory is withheld rather than wrongly emitted."""
+        from charter.offering.drg import loader
+
+        def failing() -> object:
+            raise loader.DRGLoadError("broken built-in graph")
+
+        monkeypatch.setattr(loader, "load_built_in_graph", failing)
+        _write_override_fragment(tmp_path, ("tactics", _BUILT_IN_TACTIC))
+        _write_sanction(
+            tmp_path,
+            f"""\
+            replaceable_builtins:
+              - urn: tactic:{_BUILT_IN_TACTIC}
+                reason: Ours is stricter.
+            """,
+        )
+
+        errors, advisories = _sanction_issues(validate_pack(tmp_path))
+
+        assert errors == []
+        assert advisories == []
+
     def test_malformed_sanction_is_an_error_naming_the_file(self, tmp_path: Path) -> None:
         _write_override_fragment(tmp_path, ("tactics", _BUILT_IN_TACTIC))
         _write_sanction(tmp_path, "replaceable_builtins: [unterminated\n")
