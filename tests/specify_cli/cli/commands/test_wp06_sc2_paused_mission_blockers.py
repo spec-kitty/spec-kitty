@@ -60,23 +60,23 @@ def _patch_implement_topology(
 ) -> None:
     """Stub the implement module's stored-topology read (FR-001b routing reads topology).
 
-    coord-authority-trio-degod WP03 (#2173) relocated the placement family
-    (``_placement_coord_filter`` et al.) into ``implement_cores`` -- that
-    module now holds its own ``resolve_topology`` import and is the one a
-    directly-invoked ``_placement_coord_filter`` actually reads at call time.
+    #5232 moved ``placement_coord_filter`` into the placement seam
+    (``coordination/planning_commit``) -- that module holds its own
+    ``resolve_topology`` import and is the one a directly-invoked
+    ``placement_coord_filter`` actually reads at call time.
     ``implement.py`` still calls ``resolve_topology`` inline too (e.g. the WP
     claim-status commit), so both module namespaces are patched to keep every
     call path -- direct-core and through-implement -- stubbed consistently.
     """
     from specify_cli.cli.commands import implement as _implement_mod
-    from specify_cli.cli.commands import implement_cores as _implement_cores_mod
+    from specify_cli.coordination import planning_commit as _planning_commit_mod
 
     topology = MissionTopology.COORD if coord else MissionTopology.SINGLE_BRANCH
     monkeypatch.setattr(
         _implement_mod, "resolve_topology", lambda _root, _slug: topology
     )
     monkeypatch.setattr(
-        _implement_cores_mod, "resolve_topology", lambda _root, _slug: topology
+        _planning_commit_mod, "resolve_topology", lambda _root, _slug: topology
     )
 
 
@@ -273,14 +273,15 @@ class TestImplementClaimNoPlanningArtifactSplit:
     def test_flattened_placement_has_no_coord_split(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from specify_cli.cli.commands.implement_cores import _placement_coord_filter, _status_paths_for_commit
+        from specify_cli.cli.commands.implement_cores import _status_paths_for_commit
+        from specify_cli.coordination.planning_commit import placement_coord_filter
 
         # FR-001b: the coord-vs-primary decision reads the STORED topology, not a
         # per-ref enum. A coord-less (flattened) topology → no coord split.
         _patch_implement_topology(monkeypatch, coord=False)
         flattened = CommitTarget(ref="fixups/code-engine-stabilization")
         # Flattened topology → no coord branch to reconcile (C-PLACE-1).
-        coord_filter = _placement_coord_filter(tmp_path, "m", flattened)
+        coord_filter = placement_coord_filter(tmp_path, "m", flattened)
         assert coord_filter is None
 
         # Consequently the status files are committed on the single flattened ref
@@ -293,13 +294,14 @@ class TestImplementClaimNoPlanningArtifactSplit:
     def test_coordination_placement_routes_to_coord_ref(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from specify_cli.cli.commands.implement_cores import _placement_coord_filter, _status_paths_for_commit
+        from specify_cli.cli.commands.implement_cores import _status_paths_for_commit
+        from specify_cli.coordination.planning_commit import placement_coord_filter
 
         _patch_implement_topology(monkeypatch, coord=True)
         coord = CommitTarget(ref="kitty/mission-m-01ABCDEF")
         # Coordination topology → the coord ref owns the status files; the primary
         # checkout's copies are excluded so they don't clobber the seeded state.
-        coord_filter = _placement_coord_filter(tmp_path, "m", coord)
+        coord_filter = placement_coord_filter(tmp_path, "m", coord)
         assert coord_filter == "kitty/mission-m-01ABCDEF"
         paths = _status_paths_for_commit(self._entries(), coord_filter)
         assert "kitty-specs/m/status.events.jsonl" not in paths
@@ -309,13 +311,14 @@ class TestImplementClaimNoPlanningArtifactSplit:
     def test_primary_placement_commits_status_files(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from specify_cli.cli.commands.implement_cores import _placement_coord_filter, _status_paths_for_commit
+        from specify_cli.cli.commands.implement_cores import _status_paths_for_commit
+        from specify_cli.coordination.planning_commit import placement_coord_filter
 
         _patch_implement_topology(monkeypatch, coord=False)
         primary = CommitTarget(ref="main")
         # Primary/legacy topology → no coord owner; the primary status files are
         # canonical and must be committed.
-        coord_filter = _placement_coord_filter(tmp_path, "m", primary)
+        coord_filter = placement_coord_filter(tmp_path, "m", primary)
         assert coord_filter is None
         paths = _status_paths_for_commit(self._entries(), coord_filter)
         assert "kitty-specs/m/status.events.jsonl" in paths

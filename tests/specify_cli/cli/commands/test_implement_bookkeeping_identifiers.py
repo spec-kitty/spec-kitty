@@ -212,7 +212,11 @@ def test_consumer_contract_five_tuple_positions_match_fixture(tmp_path: Path) ->
     """Import the three symbols the way ``tasks_move_task.py`` does and assert
     each POSITIONAL value of the 5-tuple against a known fixture -- a bare
     tuple has no field names, so positions (not ``inspect.signature``) are the
-    contract WP07 (Lane B) depends on."""
+    contract WP07 (Lane B) depends on.
+
+    #5232: the implement planning-commit adapter no longer reads ``[0]`` as a
+    placement (its destination comes from the seam-owned ``PlanningPlacement``);
+    it still unpacks all five for identity. The arity stays (C-006)."""
     from specify_cli.coordination.planning_commit import (
         feature_dir_file_paths as consumer_feature_dir_file_paths,
         planning_artifact_source_dir as consumer_planning_artifact_source_dir,

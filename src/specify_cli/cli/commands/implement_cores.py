@@ -1,7 +1,7 @@
 """Pure decision cores + a minimal git port for ``implement.py`` (WP03 / #2173).
 
-This module extracts the git-porcelain/diff family and the placement-resolution
-family that used to live inline in ``cli/commands/implement.py`` into small,
+This module extracts the git-porcelain/diff family that used to live inline in
+``cli/commands/implement.py`` into small,
 independently testable functions. Any function that needs live git data takes
 an injected :class:`GitPort` (T015 "git injected as a port" requirement) so
 the decision/parsing logic itself can be exercised in unit tests without a
@@ -31,18 +31,10 @@ from typing import Any, NamedTuple, Protocol, runtime_checkable
 from kernel.git import GitCommandError, StatusEntry, status_entries, tree_entries
 from kernel.meta_decode import MetaDecodeError, decode_meta
 from kernel.vcs_lock import is_vcs_lock_only_change
-from mission_runtime import (
-    ActionContextError,
-    CommitTarget,
-    resolve_action_context,
-    resolve_topology,
-    routes_through_coordination,
-)
 from specify_cli.coordination.coherence import is_coord_residue_churn, is_status_state_path
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.frontmatter import WP_RUNTIME_FIELDS
 from specify_cli.status import is_dossier_snapshot
 from specify_cli.task_utils.support import split_frontmatter
@@ -616,9 +608,9 @@ def _files_changed_vs_precondition_ref(
     committed" instructions.
 
     ``verbatim_ref`` (PR #2662 squad fix): when the caller commits the WHOLE
-    batch to ONE ref (the healthy ``placement_ref is not None`` verbatim path in
-    ``_commit_planning_artifacts_transaction``, which the C-004/#2160 deferral
-    leaves un-partitioned), the idempotency comparison MUST use that same single
+    batch to ONE ref (the healthy resolved-placement path in
+    ``_commit_planning_artifacts_transaction`` before #2160 partitioned it),
+    the idempotency comparison MUST use that same single
     write target for EVERY file -- not the PRIMARY-vs-``HEAD`` split. Otherwise a
     PRIMARY artifact already-identical on the coord write ref but differing from
     ``HEAD`` is compared vs ``HEAD`` (still "changed"), re-committed verbatim to
@@ -690,7 +682,7 @@ def resolve_planning_artifact_staging(
     and ``git show`` via the injected port.
 
     ``verbatim_ref`` (PR #2662 squad fix) is the single ref the whole batch will
-    be committed to on the healthy ``placement_ref is not None`` verbatim path;
+    be committed to on the healthy resolved-placement verbatim path;
     when set, the idempotency filter compares EVERY file against it so a
     PRIMARY artifact already-identical on the (coord) write ref is dropped
     instead of re-committed into an empty commit that hard-fails the claim. See
@@ -756,99 +748,3 @@ def resolve_planning_artifact_staging(
         files_to_commit=files_to_commit,
         status_paths_to_commit=status_paths_to_commit,
     )
-
-
-# ---------------------------------------------------------------------------
-# placement family (T015)
-# ---------------------------------------------------------------------------
-
-
-def _resolve_placement_ref(repo_root: Path, *, mission_slug: str, wp_id: str) -> CommitTarget | None:
-    """Resolve the context's artifact-placement ref (C-PLACE-1 / IC-05).
-
-    Routes through the single canonical resolver (``resolve_action_context``,
-    C-CTX-1) and returns ``context.artifact_placement.placement_ref`` -- the ONE
-    :class:`CommitTarget` that planning artifacts AND status events resolve to.
-    On any resolution failure it returns ``None`` so the caller keeps the legacy
-    meta-derived placement path (C-004 strangler: never break the implement
-    lifecycle on a context-resolution edge case).
-    """
-    try:
-        context = resolve_action_context(
-            repo_root,
-            action="implement",
-            feature=mission_slug,
-            wp_id=wp_id,
-        )
-    except ActionContextError:
-        # WP03 / T017 (#3128): this handler is deliberately NARROW — only the
-        # legacy-fallback ``ActionContextError`` degrades to ``None`` here. A
-        # Seam-B ``CheckoutIdentityError`` is an ``Exception``-direct refusal
-        # (NOT an ``ActionContextError``), so it can never be caught/degraded by
-        # this arm. (This is a read-shaped placement resolve — it passes no
-        # write-intent — so a refusal does not arise here regardless; the narrow
-        # catch is the structural guarantee that it could not be swallowed.)
-        return None
-    placement = context.artifact_placement
-    return placement.placement_ref if placement is not None else None
-
-
-def _resolve_claim_commit_target(
-    placement_ref: CommitTarget | None, *, mission_slug: str
-) -> CommitTarget:
-    """Resolve the WP status claim-commit target (T012 / D11 fail-closed).
-
-    A small, pure extraction (Sonar-testable) over the single seam-resolved
-    ``placement_ref`` (the SAME :class:`CommitTarget` planning artifacts AND
-    status events resolve to, C-PLACE-1). Replaces the forbidden
-    ``_get_current_branch(repo_root) or planning_branch`` grammar: when
-    ``placement_ref`` failed to resolve, this FAILS CLOSED with
-    :class:`PlacementResolutionRequired` instead of silently committing the
-    WP claim to whatever branch happens to be checked out.
-
-    #5113 / FR-014 (T041): ``placement_ref`` is ``None`` for BOTH an
-    unmaterialized coordination worktree (branch present) and a deleted /
-    never-created coordination branch — ``_resolve_status_surface_dir``
-    collapses both into the same generic ``ActionContextError`` the caller
-    degrades on (see the module docstring's classification note), so this
-    helper cannot tell them apart. The remedy command below is truthful for
-    both: ``doctor coordination --fix`` materializes a present branch via its
-    ``COORDINATION_WORKTREE_MISSING`` fixer, and flattens (drops the stale
-    key) via its ``COORDINATION_WORKTREE_NEVER_CREATED`` fixer.
-    """
-    if placement_ref is None:
-        raise PlacementResolutionRequired(
-            "Cannot resolve the canonical write placement for this mission's "
-            "WP status claim commit -- refusing to commit to the currently "
-            "checked-out branch (D11 fail-closed). This usually means the "
-            "mission's stored coordination topology could not be resolved "
-            "(e.g. the coordination worktree has not been materialized yet, "
-            "or the `coordination_branch` declared in meta.json is missing/"
-            "torn down in git). Run `spec-kitty doctor coordination "
-            f"--mission {mission_slug} --fix` to repair automatically -- it "
-            "materializes a present branch, or flattens (removes the stale "
-            "key) if the topology was never activated; or remove "
-            "`coordination_branch` from meta.json manually if you know the "
-            "coordination topology was never used, then retry."
-        )
-    return placement_ref
-
-
-def _placement_coord_filter(repo_root: Path, mission_slug: str, placement_ref: CommitTarget | None) -> str | None:
-    """Return the coord-owned-exclusion ref implied by the mission's topology.
-
-    The coord/flattened/primary decision reads the STORED topology via the ONE
-    canonical :func:`routes_through_coordination` predicate -- never a per-ref
-    ``.kind`` (the retired arm) and not independent meta.json/git logic
-    (C-005). Only a genuine *coordination* topology owns the status files on a
-    separate branch and therefore excludes them from the primary-checkout
-    commit; a flattened/primary topology has no primary/coord split, so the
-    primary status files are NOT filtered out. The excluded ref is the
-    context's single ``placement_ref.ref`` (the SAME CommitTarget status
-    events resolve to). Returns ``None`` for flattened/primary topologies.
-    """
-    if placement_ref is None:
-        return None
-    if routes_through_coordination(resolve_topology(repo_root, mission_slug)):
-        return placement_ref.ref
-    return None

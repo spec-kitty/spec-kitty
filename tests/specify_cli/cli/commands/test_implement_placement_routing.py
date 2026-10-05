@@ -16,9 +16,9 @@ contracts/seam-api.md``):
    destination from whatever branch the operator happens to have checked
    out -- completely ignoring the already-resolved ``_placement_ref``. This
    is the literal D11 "None -> CommitTarget(ref=<checkout>)" grammar. T012
-   fixes it fail-closed via the small, pure ``_resolve_claim_commit_target``
-   extraction (Sonar-testable per the charter's "prefer testable
-   extractions" guidance) instead of a broad end-to-end reproduction.
+   fixed it fail-closed; since #5232 the placement seam
+   (``coordination/planning_commit.py``) owns that decision and its one remedy
+   text (``placement_resolution_remedy``).
 
 Each class below pins the FIXED (green) behavior; the docstrings record what
 the pre-fix code did (the red baseline), consistent with this WP's git
@@ -35,48 +35,53 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import CommitTarget
+from specify_cli.coordination.planning_commit import resolved_planning_placement
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------
-# T012 / D11 -- _resolve_claim_commit_target fail-closed pure helper
+# T012 / D11 -- an unresolvable placement fails closed (#5232: seam-owned)
 # ---------------------------------------------------------------------------
 
 
 class TestResolveClaimCommitTargetFailClosed:
     """Pre-fix, the WP status claim commit (``implement.py`` ~:1462) derived its
     destination via ``_get_current_branch(repo_root) or planning_branch`` --
-    completely ignoring a failed (``None``) placement resolution and silently
-    committing to whatever branch was checked out. Post-fix, a ``None``
-    placement FAILS CLOSED with a structured, actionable error naming the
-    remediation path; a resolved placement is used verbatim (no
-    re-derivation, no checkout consultation at all).
+    completely ignoring a failed placement resolution and silently committing
+    to whatever branch was checked out. Post-fix, an unresolvable placement
+    FAILS CLOSED with a structured, actionable error naming the remediation
+    path. #5232 moved the decision into the placement seam
+    (``coordination/planning_commit.py``): ``PlanningPlacement`` replaced the
+    ``None`` placement, and both ``PlacementResolutionRequired`` raise sites
+    build their text with ``placement_resolution_remedy`` (FR-018).
     """
 
-    def test_none_placement_ref_raises_structured_error(self) -> None:
+    def test_unresolvable_placement_error_is_structured_and_actionable(self) -> None:
         from specify_cli.cli.commands.implement import PlacementResolutionRequired
-        from specify_cli.cli.commands.implement_cores import _resolve_claim_commit_target
+        from specify_cli.coordination.planning_commit import placement_resolution_remedy
 
-        with pytest.raises(PlacementResolutionRequired) as excinfo:
-            _resolve_claim_commit_target(None, mission_slug="demo-mission")
+        error = PlacementResolutionRequired(placement_resolution_remedy("demo-mission"))
 
         # Structured (error_code) and actionable (names the remediation path).
         # #5113 / FR-014: names the REAL materializing command with the real
         # slug, never the retired `doctor workspaces --fix` (#2240) and never
         # a `<mission>` placeholder.
-        assert excinfo.value.error_code == "PLACEMENT_RESOLUTION_REQUIRED"
-        assert "doctor coordination --mission demo-mission --fix" in str(excinfo.value)
+        assert error.error_code == "PLACEMENT_RESOLUTION_REQUIRED"
+        assert "doctor coordination --mission demo-mission --fix" in str(error)
 
-    def test_resolved_placement_ref_is_used_verbatim(self) -> None:
-        """No re-derivation, no checkout consultation -- the resolved seam
-        value is returned unchanged, even when it names a branch that is
-        neither the current checkout nor `planning_branch` (proving the
-        helper does not fall back to either)."""
-        from specify_cli.cli.commands.implement_cores import _resolve_claim_commit_target
+    def test_placement_ref_is_set_exactly_when_resolved(self) -> None:
+        """A resolved placement always carries its seam ref and an unresolved one
+        never does, so no caller can fall back to the checkout or
+        `planning_branch` behind a resolved flag."""
+        from specify_cli.coordination.planning_commit import PlanningPlacement
 
         target = CommitTarget(ref="kitty/mission-demo-AAAA1111")
-        assert _resolve_claim_commit_target(target, mission_slug="demo-mission") is target
+        assert PlanningPlacement(resolved=True, ref=target, coordination_ref=None).ref is target
+        with pytest.raises(ValueError, match="set exactly when the placement is resolved"):
+            PlanningPlacement(resolved=True, ref=None, coordination_ref=None)
+        with pytest.raises(ValueError, match="set exactly when the placement is resolved"):
+            PlanningPlacement(resolved=False, ref=target, coordination_ref=None)
 
     def test_structured_error_is_not_swallowed_as_soft_warning(self) -> None:
         """D11: implement()'s WP-status-update try/except has a broad
@@ -267,7 +272,7 @@ class TestEnsurePlanningArtifactsRoutesThroughPlacementRef:
             wp_id="WP02",
             planning_branch="main",
             auto_commit=True,
-            placement_ref=CommitTarget(ref=sentinel_seam_ref),
+            placement=resolved_planning_placement(repo, mission_slug, CommitTarget(ref=sentinel_seam_ref)),
         )
 
         wp_rel = f"kitty-specs/{mission_slug}/tasks/WP01.md"

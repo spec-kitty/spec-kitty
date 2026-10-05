@@ -33,16 +33,17 @@ Classification:
   ``test_write_target_degrade_local_head_self_materializes`` below (NOT in
   this round trip, since it no longer raises and has no remedy text to
   extract).
-* ``implement_cores.py::_resolve_placement_ref`` (consumed by
-  ``implement()`` at the real ``_resolve_placement_ref(repo_root,
-  mission_slug=..., wp_id=...)`` call site) routes through
-  :func:`~mission_runtime.resolve_action_context`, whose status-surface leg
-  resolves with ``for_write=False`` (the READ shape) — so it genuinely
-  raises/degrades-to-``None`` for BOTH the unmaterialized AND the deleted/
-  never-created classification. IN this round trip, called directly (the
-  real production resolver, on a real fresh unmaterialized Mission) rather
-  than through the full ``spec-kitty implement`` CLI, which additionally
-  needs a seeded ``lanes.json``/task board unrelated to this remedy.
+* ``coordination/planning_commit.py::resolve_planning_placement`` (consumed
+  by ``implement()``; #5232 replaced ``implement_cores._resolve_placement_ref``
+  and its ``None`` contract) routes through
+  :func:`~mission_runtime.resolve_action_context` first. On this fixture the
+  context does not resolve, so the placement is the seam's typed *unresolved*
+  placement carrying the seam's coordination ref. IN this round trip, called
+  directly (the real production resolver, on a real fresh unmaterialized
+  Mission) rather than through the full ``spec-kitty implement`` CLI, which
+  additionally needs a seeded ``lanes.json``/task board unrelated to this
+  remedy. Its remedy text is ``placement_resolution_remedy``, the one
+  definition both ``PlacementResolutionRequired`` raise sites use (FR-018).
 * ``mission_record_analysis.py::_resolve_record_analysis_placement_ref`` —
   investigated and found NOT reachable in the unmaterialized state: it
   resolves via ``placement_seam(...).write_target(...)`` ->
@@ -55,12 +56,10 @@ Classification:
   ``PlacementResolutionRequired``, was what actually fired). Its remedy text
   is corrected for the deleted/never-created command and pinned by
   ``test_record_analysis_placement.py``.
-* ``implement.py``'s own inline ``PlacementResolutionRequired`` raise (inside
-  ``_commit_planning_artifacts_transaction``, the known SC-002 duplicate of
-  ``_resolve_claim_commit_target``) raises the byte-identical text (proven by
-  ``test_implement_writeside.py``) via the SAME
-  ``doctor coordination --fix`` command already round-trip-proven by the
-  ``doctor_finding`` case above, so a second full-CLI round trip through it
+* The planning-commit adapter's ``PlacementResolutionRequired`` raise (inside
+  ``_commit_planning_artifacts_transaction``) uses the same
+  ``placement_resolution_remedy`` text (proven by
+  ``test_implement_writeside.py``), so a second full-CLI round trip through it
   would exercise the identical fixer a second time without covering any new
   remedy text or command.
 """
@@ -224,26 +223,23 @@ def test_write_target_degrade_local_head_self_materializes(tmp_path: Path, monke
 
 
 def _run_implement_claim_commit_target(repo: Path, mission_slug: str) -> str:
-    """The real ``implement()`` production resolver + fail-closed helper,
-    not the private message builder read in isolation.
+    """The real ``implement()`` production resolver, then its remedy text.
 
-    ``_resolve_placement_ref`` is ``implement()``'s own call
-    (``implement.py`` line ~1898: ``_resolve_placement_ref(repo_root,
-    mission_slug=mission_slug, wp_id=wp_id)``) — it genuinely returns
-    ``None`` on this fresh unmaterialized Mission, which is exactly the
-    input ``_resolve_claim_commit_target`` fails closed on.
+    ``resolve_planning_placement`` is ``implement()``'s own call. On this fresh
+    unmaterialized Mission it returns an UNRESOLVED placement: the fixture has
+    no WP, so the WP action context fails with ``WORK_PACKAGE_UNRESOLVED``
+    (research R-1 traced the former ``None`` to that, not to the
+    unmaterialized worktree). Its coordination ref is the seam's
+    coordination branch. The text is ``placement_resolution_remedy``, the one
+    definition both ``PlacementResolutionRequired`` raise sites use (FR-018).
     """
-    from specify_cli.cli.commands.implement_cores import (
-        _resolve_claim_commit_target,
-        _resolve_placement_ref,
-    )
-    from specify_cli.core.errors import PlacementResolutionRequired
+    from specify_cli.coordination.planning_commit import placement_resolution_remedy, resolve_planning_placement
 
-    placement_ref = _resolve_placement_ref(repo, mission_slug=mission_slug, wp_id="WP01")
-    assert placement_ref is None, f"expected the unmaterialized coord surface to degrade _resolve_placement_ref to None; got {placement_ref!r} instead"
-    with pytest.raises(PlacementResolutionRequired) as excinfo:
-        _resolve_claim_commit_target(placement_ref, mission_slug=mission_slug)
-    return str(excinfo.value)
+    placement = resolve_planning_placement(repo, mission_slug=mission_slug, wp_id="WP01")
+    assert placement.resolved is False, f"expected the WP context not to resolve on this WP-less fixture; got {placement!r}"
+    assert placement.coordination_ref == f"kitty/mission-{mission_slug}", f"expected the seam's coordination ref; got {placement!r}"
+    remedy: str = placement_resolution_remedy(mission_slug)
+    return remedy
 
 
 # ---------------------------------------------------------------------------

@@ -27,6 +27,7 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import CommitTarget
+from specify_cli.coordination.planning_commit import resolved_planning_placement
 from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
 from specify_cli.coordination.coherence import (
     is_coord_residue_churn,
@@ -161,7 +162,7 @@ def test_sc002_no_primary_files_on_coord_after_implement(tmp_path: Path) -> None
         wp_id="WP01",
         planning_branch=_IMPL_TARGET,
         auto_commit=True,
-        placement_ref=CommitTarget(ref=coord_branch),
+        placement=resolved_planning_placement(repo, _IMPL_SLUG, CommitTarget(ref=coord_branch)),
     )
 
     offenders = _primary_mission_files_on_ref(repo, coord_branch, _IMPL_SLUG)

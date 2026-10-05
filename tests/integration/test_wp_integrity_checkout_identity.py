@@ -16,7 +16,7 @@ point ``implement`` AND ``review`` funnel through):
 A companion structural test pins the T016 write-intent marker table: the three
 true write sites (compat ``implement`` CLI, canonical ``agent action implement``,
 the review gate) carry ``write_intent=True``, while the audited read vehicle
-(``_resolve_placement_ref``) does not — guarding against both over-marking
+(``resolve_planning_placement``) does not — guarding against both over-marking
 (false-refused reads) and under-marking (#3128 stays live for review).
 """
 from __future__ import annotations
@@ -313,9 +313,9 @@ def test_true_wp_write_sites_carry_write_intent() -> None:
 
 
 def test_read_vehicle_does_not_carry_write_intent() -> None:
-    """The audited placement READ (``_resolve_placement_ref``) must NOT mark write
+    """The audited placement READ (``resolve_planning_placement``) must NOT mark write
     intent (no over-marking → reads stay unrefused)."""
-    implement_cores = _src("src/specify_cli/cli/commands/implement_cores.py")
-    # The resolve_action_context call inside _resolve_placement_ref carries no
+    planning_commit = _src("src/specify_cli/coordination/planning_commit.py")
+    # The resolve_action_context call inside resolve_planning_placement carries no
     # write_intent — it is a read-shaped placement resolve (marker table: NO).
-    assert "write_intent" not in implement_cores
+    assert "write_intent" not in planning_commit

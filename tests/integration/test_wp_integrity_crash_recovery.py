@@ -31,6 +31,7 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import CommitTarget
+from specify_cli.coordination.planning_commit import resolved_planning_placement
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -143,7 +144,7 @@ def _commit_batch(repo: Path, feature_dir: Path, coord_branch: str) -> None:
         planning_branch=_TARGET_BRANCH,
         files_to_commit=[_PRIMARY_REL, _COORD_REL],
         commit_msg=f"chore: planning artifacts for {_MISSION_SLUG}",
-        placement_ref=CommitTarget(ref=coord_branch),
+        placement=resolved_planning_placement(repo, _MISSION_SLUG, CommitTarget(ref=coord_branch)),
     )
 
 

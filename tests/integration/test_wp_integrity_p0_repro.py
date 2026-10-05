@@ -10,9 +10,9 @@ mission's primary target branch, never the coordination branch.
 
 Why this is genuinely RED against the pre-fix tree (the mechanism):
 
-* The mission is coordination-topology, so ``_resolve_placement_ref`` threads a
-  ``placement_ref`` whose ``.ref`` is the **coordination branch**. Pre-fix, the
-  ``placement_ref is not None`` arm of ``_commit_planning_artifacts_transaction``
+* The mission is coordination-topology, so ``resolve_planning_placement`` threads a
+  resolved placement whose ``ref.ref`` is the **coordination branch**. Pre-fix, the
+  resolved-placement arm of ``_commit_planning_artifacts_transaction``
   committed the WHOLE batch VERBATIM to that coord ref, so the PRIMARY
   ``lanes.json`` landed on the coordination branch (empirically observed:
   ``git ls-tree -r <coord_ref>`` contains ``lanes.json`` -- non-vacuity leg (a)).
@@ -51,6 +51,7 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import CommitTarget
+from specify_cli.coordination.planning_commit import resolved_planning_placement
 from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
 from specify_cli.lanes.branch_naming import code_lane_branch_name
 from specify_cli.lanes.implement_support import resolve_claim_ancestry_gate
@@ -224,7 +225,7 @@ def test_sc001_primary_lanes_json_never_lands_on_coord(tmp_path: Path) -> None:
     )
 
     # Real production entry point: the implement-time planning auto-commit, with
-    # the coordination ``placement_ref`` a healthy coord mission threads.
+    # the resolved coordination placement a healthy coord mission threads.
     _ensure_planning_artifacts_committed_git(
         repo_root=repo,
         feature_dir=feature_dir,
@@ -232,7 +233,7 @@ def test_sc001_primary_lanes_json_never_lands_on_coord(tmp_path: Path) -> None:
         wp_id=_WP_ID,
         planning_branch=_TARGET_BRANCH,
         auto_commit=True,
-        placement_ref=CommitTarget(ref=coord_branch),
+        placement=resolved_planning_placement(repo, _MISSION_SLUG, CommitTarget(ref=coord_branch)),
     )
 
     # --- Non-vacuity leg (b): the recorded planning tip genuinely carries

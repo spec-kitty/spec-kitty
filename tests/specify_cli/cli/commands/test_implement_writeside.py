@@ -37,6 +37,8 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.coordination.planning_commit import PlanningPlacement
+
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 _PLANNING_BRANCH = "mission/2533-wp02-writeside-demo"
@@ -173,6 +175,16 @@ def _seeded_coord_mission(
     return repo, feature_dir, mission_slug, spec_rel, events_rel, calls
 
 
+#: The coordination branch ``_seeded_coord_mission`` declares (``kitty/mission-<slug>-<mid8>``).
+_SEEDED_COORD_BRANCH = "kitty/mission-wp02-writeside-demo-01J9WP02"
+
+
+def _unresolved_placement(coordination_ref: str | None) -> PlanningPlacement:
+    """The seam's placement when the WP context did not resolve (#5232): no ref, and the
+    coordination ref the seam reports for the mission (``None`` for a flat mission)."""
+    return PlanningPlacement(resolved=False, ref=None, coordination_ref=coordination_ref)
+
+
 class TestPartitionAwarePlanningArtifactCommit:
     """T006/T007: a genuinely-dirty PRIMARY artifact lands on the
     primary/target ref; a dirty COORD-residue artifact still lands on the
@@ -204,7 +216,7 @@ class TestPartitionAwarePlanningArtifactCommit:
             planning_branch=_PLANNING_BRANCH,
             files_to_commit=[spec_rel, events_rel],
             commit_msg="chore: planning artifacts for wp02-writeside-demo",
-            placement_ref=None,
+            placement=_unresolved_placement(coord_branch),
         )
 
         spec_destinations = [ref for ref, paths in calls if spec_rel in paths]
@@ -241,7 +253,7 @@ class TestPartitionAwarePlanningArtifactCommit:
             planning_branch=_PLANNING_BRANCH,
             files_to_commit=[spec_rel],
             commit_msg="chore: planning artifacts for wp02-writeside-demo",
-            placement_ref=None,
+            placement=_unresolved_placement(_SEEDED_COORD_BRANCH),
         )
 
         assert calls == [(_PLANNING_BRANCH, [spec_rel])]
@@ -293,7 +305,7 @@ class TestNonCoordinationMissionCommitCollapsesToOneTransaction:
             planning_branch=_PLANNING_BRANCH,
             files_to_commit=[spec_rel, events_rel],
             commit_msg="chore: planning artifacts for wp02-flat-demo",
-            placement_ref=None,
+            placement=_unresolved_placement(None),
         )
 
         # Even a coord-shaped path (status.events.jsonl) collapses onto the
@@ -303,13 +315,13 @@ class TestNonCoordinationMissionCommitCollapsesToOneTransaction:
 
 
 class TestNarrowTripleProtectedPlanningBranchFailsClosed:
-    """#2648 (WP01): the narrow triple -- ``placement_ref is None`` AND the
-    meta-derived ``coord_branch`` is truthy AND ``is_protected(planning_branch)``
-    -- must fail closed with :class:`PlacementResolutionRequired` instead of
-    silently diverting the whole dirty-PRIMARY batch to the coordination
-    branch (the pre-fix ``767`` arm). This is EXACTLY the precondition where
-    the status-commit half (``_resolve_claim_commit_target``) already raises,
-    so both halves of a claim now agree.
+    """#2648 (WP01): the narrow triple -- an unresolved placement AND a
+    seam coordination ref AND ``is_protected(planning_branch)`` -- must fail
+    closed with :class:`PlacementResolutionRequired` instead of silently
+    diverting the whole dirty-PRIMARY batch to the coordination branch (the
+    pre-fix ``767`` arm). FR-018 (#5232): the message is the seam's one
+    ``placement_resolution_remedy``, the same text the seam raises with when
+    it cannot resolve a placement.
 
     Uses the same module-level ``_seeded_coord_mission`` harness as
     ``TestPartitionAwarePlanningArtifactCommit`` (coord mission, genuinely-
@@ -325,9 +337,7 @@ class TestNarrowTripleProtectedPlanningBranchFailsClosed:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         from specify_cli.cli.commands.implement_planning_commit import _commit_planning_artifacts_transaction
-        from specify_cli.cli.commands.implement_cores import (
-            _resolve_claim_commit_target,
-        )
+        from specify_cli.coordination.planning_commit import placement_resolution_remedy
         from specify_cli.core.errors import PlacementResolutionRequired
 
         repo, feature_dir, mission_slug, spec_rel, events_rel, calls = _seeded_coord_mission(
@@ -342,18 +352,12 @@ class TestNarrowTripleProtectedPlanningBranchFailsClosed:
                 planning_branch="main",
                 files_to_commit=[spec_rel, events_rel],
                 commit_msg="chore: planning artifacts for wp02-writeside-demo",
-                placement_ref=None,
+                placement=_unresolved_placement(_SEEDED_COORD_BRANCH),
             )
 
-        # SC-002: byte-identical operator remediation message as the
-        # status-commit half, so both halves are indistinguishable to the
-        # operator.
-        try:
-            _resolve_claim_commit_target(None, mission_slug=mission_slug)
-        except PlacementResolutionRequired as status_half_exc:
-            assert str(excinfo.value) == str(status_half_exc)
-        else:  # pragma: no cover -- _resolve_claim_commit_target(None) always raises
-            pytest.fail("_resolve_claim_commit_target(None) unexpectedly did not raise")
+        # SC-002 / FR-018: the one remedy definition, byte-identical at both
+        # raise sites, so they are indistinguishable to the operator.
+        assert str(excinfo.value) == placement_resolution_remedy(mission_slug)
 
         # No transaction of any kind (coord or primary) ran -- the fail-close
         # is loud, not a partial/silent commit to either ref.

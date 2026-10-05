@@ -14,6 +14,7 @@ import pytest
 import typer
 
 from kernel.git import GitCommandError
+from specify_cli.coordination.planning_commit import PlanningPlacement
 from specify_cli.acceptance import _accept_dirty_gate, _resolve_git_context, _staged_paths
 from specify_cli.agent_tasks_ports import RealGitOps
 from specify_cli.cli.commands._coordination_doctor import (
@@ -160,6 +161,7 @@ def test_implement_claim_refuses_when_planning_status_unreadable(not_a_repo: Pat
             wp_id="WP01",
             planning_branch="main",
             auto_commit=True,
+            placement=PlanningPlacement(resolved=False, ref=None, coordination_ref=None),
         )
 
     assert excinfo.value.exit_code == 1

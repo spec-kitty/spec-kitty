@@ -13,10 +13,8 @@ from specify_cli.cli.commands._commit_recipes import PROTECTED_PRIMARY_HINT, saf
 from kernel.git import GitCommandError
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.git.protection_policy import ProtectionPolicy
-from mission_runtime import (
-    CommitTarget,
-)
 from specify_cli.coordination import planning_commit as coordination_planning_commit
+from specify_cli.coordination.planning_commit import PlanningPlacement
 from specify_cli.cli.commands import implement_cores
 
 # Bare name on purpose: ``test_wp_integrity_partition_call_shape`` recognises the flat/legacy
@@ -138,16 +136,15 @@ def _ensure_planning_artifacts_committed_git(
     planning_branch: str,
     *,
     auto_commit: bool,
-    placement_ref: CommitTarget | None = None,
+    placement: PlanningPlacement,
 ) -> None:
     """Ensure planning artifacts are committed on the feature planning branch.
 
-    ``placement_ref`` (WP06 / T019) is the context's resolved
-    :class:`CommitTarget` — the ONE ref planning artifacts AND status events
-    resolve to (C-PLACE-1). When supplied it drives the coord/flattened/primary
-    placement decision so implement-claim never reconciles a primary↔coord
-    split (#1816). When ``None`` (callers not yet threading the context, C-004
-    strangler) the legacy meta-derived path is used unchanged.
+    ``placement`` is the seam-owned planning placement
+    (:func:`~specify_cli.coordination.planning_commit.resolve_planning_placement`):
+    its ``coordination_ref`` is the coordination ref the staging filter and the
+    commit arms use, so implement-claim never reconciles a primary↔coord split
+    (#1816) and never derives a placement from ``meta.json`` itself (#5232).
     """
     current_branch = implement_support.git_stdout(repo_root, ["rev-parse", "--abbrev-ref", "HEAD"])
     artifact_source_dir = coordination_planning_commit.planning_artifact_source_dir(repo_root, feature_dir, mission_slug)
@@ -163,14 +160,9 @@ def _ensure_planning_artifacts_committed_git(
         _print_structural_planning_refusal(structural)
         raise typer.Exit(1)
 
-    # WP06 / T019 / C-PLACE-1: when the context supplies a placement ref, the
-    # coord/flattened/primary decision comes from that single CommitTarget — no
-    # independent meta-derived coord logic (C-005). Otherwise fall back to the
-    # legacy meta-derived coord branch (C-004 strangler).
-    if placement_ref is not None:
-        coord_branch_for_filter = implement_cores._placement_coord_filter(repo_root, mission_slug, placement_ref)
-    else:
-        coord_branch_for_filter = coordination_planning_commit.resolve_bookkeeping_transaction_identifiers(feature_dir, mission_slug, repo_root)[0]
+    # #5232: the coord/flattened/primary decision is the seam-owned placement's
+    # single coordination ref (C-005), resolved or not.
+    coord_branch_for_filter = placement.coordination_ref
 
     # T016: the staging DECISION (structural fail-closed check, #2222
     # vcs-lock exclusion, dedup, idempotency filtering) is a pure core in
@@ -238,7 +230,7 @@ def _ensure_planning_artifacts_committed_git(
         planning_branch=planning_branch,
         files_to_commit=files_to_commit,
         commit_msg=commit_msg,
-        placement_ref=placement_ref,
+        placement=placement,
     )
 
 
@@ -313,7 +305,7 @@ def _commit_planning_artifacts_transaction(
     planning_branch: str,
     files_to_commit: list[str],
     commit_msg: str,
-    placement_ref: CommitTarget | None,
+    placement: PlanningPlacement,
 ) -> None:
     """T016 git-executor tail: run the BookkeepingTransaction commit(s).
 
@@ -335,84 +327,61 @@ def _commit_planning_artifacts_transaction(
 
     WP03 / T011 / D11: no inline ``coord_branch if coord_branch else
     planning_branch`` grammar (the forbidden pattern named in
-    contracts/seam-api.md's consumer table). When a ``placement_ref`` was
-    threaded (modern, non-legacy missions), it is already the ONE
-    seam-resolved :class:`CommitTarget` planning artifacts AND status events
-    resolve to (C-PLACE-1) -- use its ``.ref`` directly instead of
-    reconstructing the coord/primary choice a second time from
-    ``coord_branch``. Genuinely-legacy missions (no ``placement_ref``) keep
-    the existing meta-derived placeholder -- out of this WP's scope (#2453;
-    the value is never persisted).
+    contracts/seam-api.md's consumer table). The destinations come from the
+    seam-owned ``placement`` (#5232): a resolved placement's ``ref`` is the ONE
+    :class:`CommitTarget` planning artifacts AND status events resolve to
+    (C-PLACE-1), and ``placement.coordination_ref`` is the single coordination
+    value the arms and the console lines use. ``meta.json`` feeds identity only
+    (mission_id / mid8 / the effective ids), never the destination.
 
-    WP02 / T007 / FR-003 / INV-1: pre-fix, the ``elif coord_branch:`` (meta-
-    derived) branch below committed EVERY file in ``files_to_commit`` through
-    ONE transaction to the coordination branch, so a genuinely-dirty PRIMARY
-    artifact would land on coordination, never the primary/target branch.
-    Post-fix, THAT branch partitions ``files_to_commit``
-    (:func:`coordination_planning_commit.partition_files_for_commit`) into a PRIMARY group (committed to
-    ``planning_branch``, the mission's target branch) and a COORD-residue
-    group (committed to the coordination branch) -- two transactions when
-    both groups are non-empty, mirroring
-    ``commit_router._group_files_by_partition``'s own two-group split.
-
-    write-path-integrity WP02 / T008 / FR-001 (SANCTIONED C-004 reversal):
-    the ``if placement_ref is not None:`` branch is NO LONGER a verbatim
-    whole-batch commit. It now partitions ``files_to_commit`` exactly like the
-    meta-derived ``else`` arm -- the PRIMARY group commits to the mission's
-    target branch (honoured via ``commit_to_primary_target=True`` so the
-    transaction does not redirect it onto coord) and the COORD-residue group
-    commits to ``placement_ref.ref`` (the coordination ref). This closes the
-    #3371 P0 where a PRIMARY ``lanes.json`` was committed onto the coordination
-    branch and add/add-conflicted at lane allocation. The prior "one ref for
-    everything" contract (and its pinned test
-    ``test_effective_destination_ref_is_placement_ref_verbatim``) is rewritten
-    (not deleted) to assert BOTH partition refs receive their group (T010).
+    WP02 / T007 / FR-003 / INV-1 and write-path-integrity WP02 / T008 / FR-001:
+    a coordination-topology commit partitions ``files_to_commit``
+    (:func:`coordination_planning_commit.partition_files_for_commit`) into a
+    PRIMARY group (committed to ``planning_branch``, the mission's target
+    branch, honoured via ``commit_to_primary_target=True``) and a
+    COORD-residue group (committed to the coordination ref) -- two
+    transactions when both groups are non-empty, mirroring
+    ``commit_router._group_files_by_partition``'s own two-group split. This
+    closes the #3371 P0 where a PRIMARY ``lanes.json`` was committed onto the
+    coordination branch and add/add-conflicted at lane allocation.
 
     #2648 (WP01) narrow-triple fail-close: this function has exactly FOUR
-    ``placement_ref``/``coord_branch``/protection outcomes, and only ONE of
-    them raises --
+    placement/protection outcomes, and only ONE of them raises --
 
-    - ``placement_ref is not None`` -- partition-aware commit: PRIMARY group to
-      the target branch, COORD-residue group to ``placement_ref.ref`` (T008).
-    - ``placement_ref is None`` and ``not coord_branch`` -- flat/legacy
-      mission, single transaction to ``planning_branch`` (C-004 strangler,
-      unchanged).
-    - ``placement_ref is None`` and ``coord_branch`` truthy and
+    - ``placement.resolved`` -- partition-aware commit: PRIMARY group to the
+      target branch, COORD-residue group to ``placement.ref.ref`` (T008).
+    - unresolved and no ``placement.coordination_ref`` -- flat/legacy
+      mission, single transaction to ``planning_branch``.
+    - unresolved, a ``placement.coordination_ref`` and
       ``is_protected(planning_branch)`` -- the NARROW TRIPLE: raises
-      :class:`PlacementResolutionRequired` with the SAME operator message as
-      the status-commit half (``_resolve_claim_commit_target``,
-      implement_cores.py). A real mission's ``planning_branch`` is never
-      main/master (it is the mission's dedicated feature branch), so this
-      only fires for a degenerate fixture/edge case or a torn-down topology;
-      pre-fix, this arm silently diverted the WHOLE dirty-PRIMARY batch to
-      the coordination branch instead of raising -- a genuinely-dirty
-      PRIMARY artifact would never reach ``planning_branch`` and the operator
-      would get no signal that the write placement is undecidable. Loud
-      fail-close beats a silent wrong-branch commit here (D11).
-    - ``placement_ref is None`` and ``coord_branch`` truthy and
-      ``planning_branch`` is NOT protected -- meta-derived coordination
-      mission, partition-aware split (unchanged: see ``T007`` below).
+      :class:`PlacementResolutionRequired` with
+      :func:`~specify_cli.coordination.planning_commit.placement_resolution_remedy`.
+      A real mission's ``planning_branch`` is never main/master (it is the
+      mission's dedicated branch), so this only fires for a degenerate or
+      torn-down topology; loud fail-close beats silently diverting the whole
+      dirty-PRIMARY batch to the coordination branch (D11).
+    - unresolved, a ``placement.coordination_ref`` and an unprotected
+      ``planning_branch`` -- partition-aware split, COORD-residue group to
+      ``placement.coordination_ref`` (T007).
 
     Only the narrow triple raises; the other three outcomes still commit.
     """
+    # The identifier tuple (C-006) feeds identity only: mission_id, mid8 and the
+    # effective ids. Its coordination_branch is never a destination (#5232).
     (
-        coord_branch,
+        _declared_coord_branch,
         mission_id,
         mid8,
         effective_mission_id,
         effective_mid8,
     ) = coordination_planning_commit.resolve_bookkeeping_transaction_identifiers(feature_dir, mission_slug, repo_root)
 
-    # WP06 / T019 / C-PLACE-1: the placement destination is the context's single
-    # ``placement_ref`` when threaded — one ref for planning artifacts AND status
-    # events. Under a flattened/primary topology there is no coord branch
-    # (``CommitTarget`` is ref-only; the retired ``.kind``/FLATTENED arm is gone),
-    # so ``coord_branch`` collapses to ``None`` and the commit lands on
-    # ``planning_branch`` (== target == coordination); under coordination
-    # topology it is the coord ref. Identity (``mission_id`` / ``mid8``) is
-    # unaffected — only the placement decision moves to the context (C-005).
-    if placement_ref is not None:
-        coord_branch = implement_cores._placement_coord_filter(repo_root, mission_slug, placement_ref)
+    # WP06 / T019 / C-PLACE-1: the coordination value the arms and the console
+    # lines share is the seam-owned placement's. Under a flattened/primary
+    # topology it is ``None`` and the commit lands on ``planning_branch``;
+    # under coordination topology it is the coord ref.
+    coord_branch = placement.coordination_ref
+    placement_ref = placement.ref
 
     is_legacy = not (coord_branch and mission_id and mid8)
     if is_legacy:
@@ -422,20 +391,20 @@ def _commit_planning_artifacts_transaction(
             f"routed through BookkeepingTransaction for FR-020/FR-027 atomicity)[/dim]"
         )
 
-    if placement_ref is not None:
-        # write-path-integrity WP02 / T008 / FR-001 (SANCTIONED C-004 reversal):
-        # the seam-resolved ``placement_ref.ref`` is the COORD ref under
-        # coordination topology. Pre-fix this arm committed the WHOLE batch
-        # (PRIMARY ``lanes.json`` / ``spec.md`` included) VERBATIM to that coord
-        # ref -- the #3371 P0 that landed PRIMARY ``lanes.json`` on the
-        # coordination branch and add/add-conflicted at lane allocation. Post-fix
-        # this arm partitions the batch exactly like the meta-derived ``else`` arm
-        # below: the PRIMARY group commits to the mission's target branch
+    if placement.resolved and placement_ref is not None:  # ``ref`` is set exactly when resolved
+        # write-path-integrity WP02 / T008 / FR-001: the seam-resolved
+        # ``placement_ref.ref`` is the COORD ref under coordination topology.
+        # Pre-fix this arm committed the WHOLE batch (PRIMARY ``lanes.json`` /
+        # ``spec.md`` included) VERBATIM to that coord ref -- the #3371 P0 that
+        # landed PRIMARY ``lanes.json`` on the coordination branch and
+        # add/add-conflicted at lane allocation. Post-fix this arm partitions
+        # the batch exactly like the unresolved partition arm below: the
+        # PRIMARY group commits to the mission's target branch
         # (``_commit_target_ref_for(planning_branch)``, honoured by
         # ``commit_to_primary_target=True`` so the transaction does not redirect
         # it to coord), and the COORD-residue group commits to the coordination
         # ref (``placement_ref.ref``). Only the non-empty group(s) run
-        # (skip-empty caller guard, mirroring the ``else`` arm -- no empty
+        # (skip-empty caller guard, mirroring the unresolved partition arm -- no empty
         # transaction). The Seam-A guard (``enforce_partition=True``) fails loud on
         # any partition mis-route on either leg (FR-002 / T011).
         primary_files, coord_files = coordination_planning_commit.partition_files_for_commit(files_to_commit)
@@ -478,39 +447,18 @@ def _commit_planning_artifacts_transaction(
             commit_msg=commit_msg,
         )
     elif ProtectionPolicy.resolve_for_mission(repo_root, mission_slug).is_protected(planning_branch):
-        # #2648 (WP01) narrow-triple fail-close: ``placement_ref is None`` AND
-        # the meta-derived ``coord_branch`` is truthy AND
-        # ``is_protected(planning_branch)`` -- EXACTLY the precondition where
-        # the status-commit half (``_resolve_claim_commit_target``,
-        # implement_cores.py) already raises ``PlacementResolutionRequired``.
+        # #2648 (WP01) narrow-triple fail-close: the placement is unresolved,
+        # it carries a coordination ref, and ``planning_branch`` is protected.
         # Pre-fix, this arm silently diverted the WHOLE dirty-PRIMARY batch to
         # the coordination branch instead of the (protected) target branch --
         # a genuinely-dirty PRIMARY artifact would never reach
         # ``planning_branch``. Raising here (rather than falling back to a
-        # coord-only commit) makes both halves of the claim agree: neither
-        # commits partially or silently when the canonical write placement
-        # cannot be resolved for a protected planning branch.
-        # SC-002 / T041: kept byte-identical (given the same mission_slug) to
-        # implement_cores.py::_resolve_claim_commit_target's message -- known
-        # duplication, deliberately not deduped in this WP (no new shared
-        # module); follow-up: dedupe the PlacementResolutionRequired remedy
-        # between implement_cores.py and implement.py.
-        raise PlacementResolutionRequired(
-            "Cannot resolve the canonical write placement for this mission's "
-            "WP status claim commit -- refusing to commit to the currently "
-            "checked-out branch (D11 fail-closed). This usually means the "
-            "mission's stored coordination topology could not be resolved "
-            "(e.g. the coordination worktree has not been materialized yet, "
-            "or the `coordination_branch` declared in meta.json is missing/"
-            "torn down in git). Run `spec-kitty doctor coordination "
-            f"--mission {mission_slug} --fix` to repair automatically -- it "
-            "materializes a present branch, or flattens (removes the stale "
-            "key) if the topology was never activated; or remove "
-            "`coordination_branch` from meta.json manually if you know the "
-            "coordination topology was never used, then retry."
-        )
+        # coord-only commit) refuses to commit partially or silently when the
+        # canonical write placement cannot be resolved for a protected
+        # planning branch. FR-018: the remedy text has one definition.
+        raise PlacementResolutionRequired(coordination_planning_commit.placement_resolution_remedy(mission_slug))
     else:
-        # T007: meta-derived coordination mission -- partition-aware commit.
+        # T007: unresolved coordination placement -- partition-aware commit.
         # A genuinely-dirty PRIMARY artifact lands on ``planning_branch``
         # (never coordination); COORD-residue artifacts still land on the
         # coordination branch. Only the group(s) that are non-empty run.

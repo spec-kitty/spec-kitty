@@ -27,6 +27,7 @@ import pytest
 import typer
 from kernel.clock import now_utc_iso
 
+from specify_cli.coordination.planning_commit import PlanningPlacement
 from specify_cli.coordination.surface_resolver import ResolvedStatusSurface
 from specify_cli.core.vcs import VCSBackend
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
@@ -257,7 +258,10 @@ def _run_implement_via_seam(
               return_value="main"),
         patch("specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git"),
         patch("specify_cli.cli.commands.implement._ensure_vcs_in_meta", return_value=VCSBackend.GIT),
-        patch("specify_cli.cli.commands.implement._resolve_placement_ref", return_value=None),
+        patch(
+            "specify_cli.coordination.planning_commit.resolve_planning_placement",
+            return_value=PlanningPlacement(resolved=False, ref=None, coordination_ref=None),
+        ),
         patch(
             "specify_cli.coordination.surface_resolver.resolve_status_surface_with_anchor",
             return_value=ResolvedStatusSurface(

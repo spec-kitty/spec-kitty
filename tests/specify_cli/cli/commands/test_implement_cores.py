@@ -31,9 +31,7 @@ from specify_cli.cli.commands.implement_cores import (
     _files_changed_vs_ref,
     _is_self_write_only_diff,
     _parse_porcelain_entries,
-    _placement_coord_filter,
     _PorcelainEntry,
-    _resolve_claim_commit_target,
     _status_paths_for_commit,
     detect_structural_planning_changes,
     resolve_planning_artifact_staging,
@@ -41,10 +39,8 @@ from specify_cli.cli.commands.implement_cores import (
 )
 from kernel.meta_decode import MetaDecodeError, decode_meta
 from kernel.vcs_lock import is_vcs_lock_only_change
-from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.coordination.coherence import is_status_state_path
 from kernel.git import GitPath, StatusEntry
-from mission_runtime import CommitTarget
 
 pytestmark = [pytest.mark.unit]
 
@@ -897,44 +893,3 @@ class TestResolvePlanningArtifactStaging:
         # drop out too (idempotency guard, INV-5) -- nothing needs staging.
         assert plan.files_to_commit == []
 
-
-# ---------------------------------------------------------------------------
-# placement family
-# ---------------------------------------------------------------------------
-
-
-class TestResolveClaimCommitTarget:
-    def test_none_raises_placement_resolution_required(self) -> None:
-        with pytest.raises(PlacementResolutionRequired) as excinfo:
-            _resolve_claim_commit_target(None, mission_slug="demo-mission")
-        assert excinfo.value.error_code == "PLACEMENT_RESOLUTION_REQUIRED"
-        # #5113 / FR-014: names the real materializing/flattening command
-        # with the real slug, never the retired `doctor workspaces --fix`.
-        assert "doctor coordination --mission demo-mission --fix" in str(excinfo.value)
-
-    def test_resolved_ref_returned_verbatim(self) -> None:
-        target = CommitTarget(ref="kitty/mission-demo-AAAA1111")
-        assert _resolve_claim_commit_target(target, mission_slug="demo-mission") is target
-
-
-class TestPlacementCoordFilter:
-    def test_none_placement_ref_returns_none(self, tmp_path: Path) -> None:
-        assert _placement_coord_filter(tmp_path, "m", None) is None
-
-    def test_coord_topology_returns_placement_ref(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        from mission_runtime import MissionTopology
-
-        import specify_cli.cli.commands.implement_cores as cores_module
-
-        monkeypatch.setattr(cores_module, "resolve_topology", lambda _root, _slug: MissionTopology.COORD)
-        target = CommitTarget(ref="kitty/mission-m-AAAA1111")
-        assert _placement_coord_filter(tmp_path, "m", target) == "kitty/mission-m-AAAA1111"
-
-    def test_flattened_topology_returns_none(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        from mission_runtime import MissionTopology
-
-        import specify_cli.cli.commands.implement_cores as cores_module
-
-        monkeypatch.setattr(cores_module, "resolve_topology", lambda _root, _slug: MissionTopology.SINGLE_BRANCH)
-        target = CommitTarget(ref="main")
-        assert _placement_coord_filter(tmp_path, "m", target) is None

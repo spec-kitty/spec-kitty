@@ -476,6 +476,15 @@ def placement_coord_filter(repo_root: Path, mission_slug: str, placement_ref: Co
     return None
 
 
+def resolved_planning_placement(repo_root: Path, mission_slug: str, placement_ref: CommitTarget) -> PlanningPlacement:
+    """The placement for a resolved WP context whose placement ref is *placement_ref*."""
+    return PlanningPlacement(
+        resolved=True,
+        ref=placement_ref,
+        coordination_ref=placement_coord_filter(repo_root, mission_slug, placement_ref),
+    )
+
+
 def _declares_coordination_branch(repo_root: Path, mission_slug: str) -> bool:
     """Whether the mission declares a coordination branch.
 
@@ -523,9 +532,4 @@ def resolve_planning_placement(repo_root: Path, *, mission_slug: str, wp_id: str
     artifact_placement = context.artifact_placement if context is not None else None
     if artifact_placement is None:
         return PlanningPlacement(resolved=False, ref=None, coordination_ref=_unresolved_coordination_ref(repo_root, mission_slug))
-    placement_ref = artifact_placement.placement_ref
-    return PlanningPlacement(
-        resolved=True,
-        ref=placement_ref,
-        coordination_ref=placement_coord_filter(repo_root, mission_slug, placement_ref),
-    )
+    return resolved_planning_placement(repo_root, mission_slug, artifact_placement.placement_ref)

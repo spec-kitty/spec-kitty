@@ -534,15 +534,14 @@ def test_checkout_head_selector_entry_is_still_a_live_finding() -> None:
 #: documented thin wrapper over ``placement_seam(...).write_target(kind)``:
 #: ``write_target`` itself (the seam method, e.g.
 #: ``placement_seam(...).write_target(kind)``), ``_resolve_workflow_placement``
-#: (workflow.py T017), ``_resolve_claim_commit_target`` (implement.py, wraps the
-#: context's seam-resolved ``artifact_placement.placement_ref``), and
-#: ``_require_record_analysis_placement`` (mission_record_analysis.py, same
-#: pattern).
+#: (workflow.py T017), and ``_require_record_analysis_placement``
+#: (mission_record_analysis.py, wraps the seam-resolved placement ref).
+#: ``_resolve_claim_commit_target`` (implement_cores.py) was deleted with no
+#: production caller left (#5232 / FR-018), so it is no longer a fold callee.
 _SEAM_FOLD_CALLEES: frozenset[str] = frozenset(
     {
         "write_target",
         "_resolve_workflow_placement",
-        "_resolve_claim_commit_target",
         "_require_record_analysis_placement",
     }
 )

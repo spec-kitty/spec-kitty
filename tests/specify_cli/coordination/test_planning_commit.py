@@ -251,3 +251,83 @@ class TestCandidateEnumeration:
         coord_dir.mkdir(parents=True)
 
         assert planning_commit.planning_artifact_source_dir(tmp_path, coord_dir, _SLUG) == primary
+
+
+class TestPlacementResolutionRemedy:
+    """FR-018: the one remedy text both ``PlacementResolutionRequired`` raise sites use
+    (moved here from ``implement_cores._resolve_claim_commit_target``, deleted in #5232)."""
+
+    def test_remedy_is_structured_and_names_the_real_command(self) -> None:
+        from specify_cli.core.errors import PlacementResolutionRequired
+
+        error = PlacementResolutionRequired(planning_commit.placement_resolution_remedy("demo-mission"))
+
+        assert error.error_code == "PLACEMENT_RESOLUTION_REQUIRED"
+        # #5113 / FR-014: names the real materializing/flattening command
+        # with the real slug, never the retired `doctor workspaces --fix`.
+        assert "doctor coordination --mission demo-mission --fix" in str(error)
+        assert "doctor workspaces" not in str(error)
+
+
+class TestPlanningPlacement:
+    def test_ref_is_set_exactly_when_resolved(self) -> None:
+        from mission_runtime import CommitTarget
+
+        target = CommitTarget(ref="kitty/mission-demo-AAAA1111")
+        assert planning_commit.PlanningPlacement(resolved=True, ref=target, coordination_ref=None).ref is target
+        assert planning_commit.PlanningPlacement(resolved=False, ref=None, coordination_ref=_COORD_BRANCH).coordination_ref == _COORD_BRANCH
+        with pytest.raises(ValueError, match="set exactly when the placement is resolved"):
+            planning_commit.PlanningPlacement(resolved=True, ref=None, coordination_ref=None)
+        with pytest.raises(ValueError, match="set exactly when the placement is resolved"):
+            planning_commit.PlanningPlacement(resolved=False, ref=target, coordination_ref=None)
+
+    def test_resolved_placement_keeps_the_ref_verbatim(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        from mission_runtime import CommitTarget, MissionTopology
+
+        monkeypatch.setattr(planning_commit, "resolve_topology", lambda _root, _slug: MissionTopology.COORD)
+        target = CommitTarget(ref="kitty/mission-m-AAAA1111")
+
+        placement = planning_commit.resolved_planning_placement(tmp_path, "m", target)
+
+        assert placement.resolved is True
+        assert placement.ref is target
+        assert placement.coordination_ref == "kitty/mission-m-AAAA1111"
+
+
+class TestPlacementCoordFilter:
+    """Moved with ``placement_coord_filter`` from ``implement_cores._placement_coord_filter`` (#5232)."""
+
+    def test_none_placement_ref_returns_none(self, tmp_path: Path) -> None:
+        assert planning_commit.placement_coord_filter(tmp_path, "m", None) is None
+
+    def test_coord_topology_returns_placement_ref(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        from mission_runtime import CommitTarget, MissionTopology
+
+        monkeypatch.setattr(planning_commit, "resolve_topology", lambda _root, _slug: MissionTopology.COORD)
+        target = CommitTarget(ref="kitty/mission-m-AAAA1111")
+        assert planning_commit.placement_coord_filter(tmp_path, "m", target) == "kitty/mission-m-AAAA1111"
+
+    def test_flattened_topology_returns_none(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        from mission_runtime import CommitTarget, MissionTopology
+
+        monkeypatch.setattr(planning_commit, "resolve_topology", lambda _root, _slug: MissionTopology.SINGLE_BRANCH)
+        target = CommitTarget(ref="main")
+        assert planning_commit.placement_coord_filter(tmp_path, "m", target) is None
+
+
+class TestUnresolvedCoordinationRef:
+    """The unresolved placement's coordination ref: seam-owned, and only when coordination
+    topology AND a declared coordination branch."""
+
+    def test_no_coordination_topology_gives_no_ref(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        from mission_runtime import MissionTopology
+
+        monkeypatch.setattr(planning_commit, "resolve_topology", lambda _root, _slug: MissionTopology.LANES)
+        assert planning_commit._unresolved_coordination_ref(tmp_path, _SLUG) is None
+
+    def test_undeclared_coordination_branch_gives_no_ref(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        from mission_runtime import MissionTopology
+
+        monkeypatch.setattr(planning_commit, "resolve_topology", lambda _root, _slug: MissionTopology.COORD)
+        monkeypatch.setattr(planning_commit, "load_primary_anchored_mission_meta", lambda _root, _slug: {"mission_id": "01X"})
+        assert planning_commit._unresolved_coordination_ref(tmp_path, _SLUG) is None

@@ -51,22 +51,22 @@ git log --oneline <coord> -- kitty-specs/<slug>/  =>  ''
 2. A normal ``git commit`` of ``kitty-specs/<slug>/{spec.md,tasks.md,
    meta.json}`` onto the planning branch (captures the sha).
 3. ``_ensure_planning_artifacts_committed_git`` -- the auto-commit helper.
-   This test is parametrized over BOTH production call shapes at
-   ``implement.py:1706`` (``_ensure_planning_artifacts_committed_git(...,
-   placement_ref=_placement_ref)``):
+   This test is parametrized over BOTH production call shapes of
+   ``implement()`` (``_ensure_planning_artifacts_committed_git(...,
+   placement=_placement)``):
 
-   - ``legacy-fallback`` (``placement_ref=None``): the fallback ``implement.py``
-     takes when ``_resolve_placement_ref`` hits an ``ActionContextError``
-     (``implement_cores.py:617-637``). Under this precondition (artifacts
+   - ``legacy-fallback`` (an unresolved placement carrying the coordination
+     ref): what ``resolve_planning_placement`` returns when the WP context hits
+     an ``ActionContextError`` (#5232). Under this precondition (artifacts
      already committed on ``HEAD``, so ``git status --porcelain`` is clean)
      the call is a proven no-op that reproduces **Cause B** -- the coord
      branch tip never moves past its pre-artifact mint point.
-   - ``placement-ref`` (``placement_ref=CommitTarget(ref=coord_branch)``):
-     the path a HEALTHY mission takes, where ``_resolve_placement_ref``
-     successfully resolves a ``CommitTarget``. This drives
-     ``_commit_planning_artifacts_transaction``'s ``placement_ref is not
-     None`` arm, which commits the planning-artifact files VERBATIM onto
-     ``placement_ref.ref`` via ``_run_planning_artifact_commit`` -- a plain
+   - ``placement-ref`` (a resolved placement on ``CommitTarget(ref=coord_branch)``):
+     the path a HEALTHY mission takes, where ``resolve_planning_placement``
+     resolves a ``CommitTarget``. This drives
+     ``_commit_planning_artifacts_transaction``'s resolved arm, which commits
+     the planning-artifact files VERBATIM onto
+     ``placement.ref.ref`` via ``_run_planning_artifact_commit`` -- a plain
      content copy, not a git merge/cherry-pick from the planning-branch
      commit. This reproduces **Cause A** -- the coord branch tip DOES move
      (a new commit lands on it), but that commit has no ancestry
@@ -127,6 +127,7 @@ import pytest
 
 from mission_runtime import CommitTarget
 from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
+from specify_cli.coordination.planning_commit import PlanningPlacement, resolved_planning_placement
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from specify_cli.missions._create import ensure_coordination_branch
@@ -238,9 +239,9 @@ def test_lane_worktree_does_not_descend_from_planning_artifacts(
     artifacts. Today it does not, on EITHER of the two production call
     shapes ``implement.py:1706`` can take:
 
-    - ``legacy-fallback`` (``use_placement_ref=False``): the ``placement_ref
-      is None`` path taken when ``_resolve_placement_ref`` fails to resolve
-      an ``ActionContextError`` -- reproduces Cause B (silent no-op, coord
+    - ``legacy-fallback`` (``use_placement_ref=False``): the unresolved
+      placement taken when the WP context fails to resolve with an
+      ``ActionContextError`` -- reproduces Cause B (silent no-op, coord
       tip never moves).
     - ``placement-ref`` (``use_placement_ref=True``): the path a healthy
       mission takes, where a resolved ``CommitTarget`` is threaded through
@@ -283,14 +284,19 @@ def test_lane_worktree_does_not_descend_from_planning_artifacts(
     _git(repo, "commit", "-q", "-m", f"docs: spec+tasks for {MISSION_SLUG}")
     planning_artifact_sha = _git(repo, "rev-parse", "HEAD")
 
-    # Step 3: run the real auto-commit helper. ``placement_ref`` reproduces
-    # the exact value ``implement.py:1706`` threads through in production:
-    # ``None`` on the legacy-fallback arm (context resolution failed), or a
-    # resolved ``CommitTarget(ref=coord_branch)`` on the healthy-mission arm
-    # (mirrors what ``_resolve_placement_ref`` returns for a topology whose
-    # ``meta.json`` carries this mission's own ``coordination_branch`` --
-    # exactly the fixture state written by ``_write_meta`` above).
-    placement_ref = CommitTarget(ref=coord_branch) if use_placement_ref else None
+    # Step 3: run the real auto-commit helper. ``placement`` reproduces the
+    # value ``implement()`` threads through in production: an unresolved
+    # placement carrying the coordination ref on the legacy-fallback arm
+    # (context resolution failed), or a resolved ``CommitTarget(ref=coord_branch)``
+    # on the healthy-mission arm (mirrors what ``resolve_planning_placement``
+    # returns for a mission whose ``meta.json`` carries this mission's own
+    # ``coordination_branch`` -- exactly the fixture state written by
+    # ``_write_meta`` above).
+    placement = (
+        resolved_planning_placement(repo, MISSION_SLUG, CommitTarget(ref=coord_branch))
+        if use_placement_ref
+        else PlanningPlacement(resolved=False, ref=None, coordination_ref=coord_branch)
+    )
     _ensure_planning_artifacts_committed_git(
         repo_root=repo,
         feature_dir=feature_dir,
@@ -298,7 +304,7 @@ def test_lane_worktree_does_not_descend_from_planning_artifacts(
         wp_id=WP_ID,
         planning_branch=TARGET_BRANCH,
         auto_commit=True,
-        placement_ref=placement_ref,
+        placement=placement,
     )
 
     # Step 4: allocate the lane worktree -- the real WP04 lane allocator.

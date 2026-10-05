@@ -30,6 +30,8 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.coordination.planning_commit import PlanningPlacement
+
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 _PLANNING_BRANCH = "mission/2650-wp04-ref-unification-demo"
@@ -230,7 +232,7 @@ class TestWriteSideDerivesFromTheSharedExpression:
             planning_branch=_PLANNING_BRANCH,
             files_to_commit=[spec_rel],
             commit_msg="chore: planning artifacts for wp04-flat-demo",
-            placement_ref=None,
+            placement=PlanningPlacement(resolved=False, ref=None, coordination_ref=None),
         )
 
         assert calls == [(_PLANNING_BRANCH, [spec_rel])]
@@ -293,7 +295,7 @@ class TestDetachedHeadRegression:
             planning_branch=_PLANNING_BRANCH,
             files_to_commit=[spec_rel],
             commit_msg="chore: planning artifacts for wp04-detached-demo",
-            placement_ref=None,
+            placement=PlanningPlacement(resolved=False, ref=None, coordination_ref=None),
         )
 
         # Even with HEAD detached, the write-side destination is the named

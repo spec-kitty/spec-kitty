@@ -14,6 +14,7 @@ from specify_cli.cli.commands.implement import (
     detect_feature_context,
     implement,
 )
+from specify_cli.coordination.planning_commit import PlanningPlacement
 from specify_cli.workspace.context import find_wp_file
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
@@ -681,7 +682,10 @@ class TestImplementPrimaryTopologyLanesJson:
                 return_value="main",
             ),
             patch("specify_cli.cli.commands.implement_planning_commit._ensure_planning_artifacts_committed_git"),
-            patch("specify_cli.cli.commands.implement._resolve_placement_ref", return_value=None),
+            patch(
+                "specify_cli.coordination.planning_commit.resolve_planning_placement",
+                return_value=PlanningPlacement(resolved=False, ref=None, coordination_ref=None),
+            ),
             patch(
                 "specify_cli.coordination.surface_resolver.resolve_status_surface_with_anchor",
                 return_value=_FakeStatusSurface(),

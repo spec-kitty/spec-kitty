@@ -59,12 +59,8 @@ from specify_cli.status import read_events, reduce as reduce_status_events
 from specify_cli.workspace import context as workspace_context
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
-# implement_cores.py houses the pure git-porcelain/diff and placement decision cores (git
-# injected as a port). Production code here reads ``_resolve_placement_ref`` through the one name
-# below; every other former shim re-export was deleted (implement-degod WP05) and callers import
-# ``implement_cores`` directly.
 from specify_cli.cli.commands import implement_planning_commit
-from specify_cli.cli.commands.implement_cores import _resolve_placement_ref
+from specify_cli.coordination import planning_commit as coordination_planning_commit
 
 if TYPE_CHECKING:
     # WP03 / T013: type-only -- ``_run_recover_mode`` and its extracted
@@ -1022,13 +1018,12 @@ def implement(
         _claim_snapshot = reduce_status_events(read_events(_status_feature_dir))
         dependency_graph.ensure_wp_claim_preconditions(wp_id, declared_deps, _claim_snapshot.work_packages)
 
-        # WP06 / T019 / C-PLACE-1: resolve the single artifact-placement ref from
-        # the canonical context so implement-claim never reconciles a
-        # primary↔coord planning-artifact split (#1816). The placement ref is the
-        # SAME CommitTarget status events resolve to. Resolution is best-effort:
-        # on a context-resolution error we pass ``None`` and the helper keeps the
-        # legacy meta-derived path (C-004 strangler — never break the lifecycle).
-        _placement_ref = _resolve_placement_ref(repo_root, mission_slug=mission_slug, wp_id=wp_id)
+        # WP06 / T019 / C-PLACE-1 / #5232: the seam owns the planning placement, so
+        # implement-claim never reconciles a primary↔coord planning-artifact split
+        # (#1816). A resolved placement is the SAME CommitTarget status events
+        # resolve to; an unresolved WP context degrades to the seam's typed
+        # placement, never to a meta.json-derived one.
+        _placement = coordination_planning_commit.resolve_planning_placement(repo_root, mission_slug=mission_slug, wp_id=wp_id)
 
         implement_planning_commit._ensure_planning_artifacts_committed_git(
             repo_root=repo_root,
@@ -1037,7 +1032,7 @@ def implement(
             wp_id=wp_id,
             planning_branch=implement_planning_commit._planning_commit_branch(repo_root, mission_slug, planning_branch),
             auto_commit=bool(auto_commit),
-            placement_ref=_placement_ref,
+            placement=_placement,
         )
 
         # Bulk edit occurrence classification gate (FR-006) + inference

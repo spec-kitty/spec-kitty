@@ -28,10 +28,22 @@ from typing import Any
 
 import pytest
 import typer
+from specify_cli.coordination.planning_commit import PlanningPlacement, resolve_bookkeeping_transaction_identifiers
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 _MISSION_ID = "01J8Y8Z900000000000000000R"
+
+
+def _unresolved_placement_from_meta(repo_root: Path, feature_dir: Path, mission_slug: str) -> PlanningPlacement:
+    """An unresolved placement carrying the coordination branch ``meta.json`` declares.
+
+    This is the coordination value the planning commit read from ``meta.json`` itself
+    before #5232 moved the placement into the seam; these tests drive the commit
+    directly, without a resolvable WP context.
+    """
+    coordination_ref = resolve_bookkeeping_transaction_identifiers(feature_dir, mission_slug, repo_root).coord_branch
+    return PlanningPlacement(resolved=False, ref=None, coordination_ref=coordination_ref)
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -120,6 +132,7 @@ class TestPlanningArtifactCommitDemotionGuard:
                 wp_id="WP01",
                 planning_branch=planning_branch,
                 auto_commit=True,
+                placement=_unresolved_placement_from_meta(repo, feature_dir, mission_slug),
             )
 
         # The claim refused: nothing was committed (no silent demotion).
@@ -154,6 +167,7 @@ class TestPlanningArtifactCommitDemotionGuard:
             wp_id="WP01",
             planning_branch=planning_branch,
             auto_commit=True,
+            placement=_unresolved_placement_from_meta(repo, feature_dir, mission_slug),
         )
 
         committed = json.loads(_git(repo, "show", f"{planning_branch}:kitty-specs/{mission_slug}/meta.json"))
@@ -188,6 +202,7 @@ class TestPlanningArtifactCommitDemotionGuard:
                 wp_id="WP01",
                 planning_branch=planning_branch,
                 auto_commit=True,
+                placement=_unresolved_placement_from_meta(repo, feature_dir, mission_slug),
             )
         assert _git(repo, "rev-parse", "HEAD") == head_before
 
@@ -211,6 +226,7 @@ class TestPlanningArtifactCommitDemotionGuard:
                 wp_id="WP01",
                 planning_branch=planning_branch,
                 auto_commit=True,
+                placement=_unresolved_placement_from_meta(repo, feature_dir, mission_slug),
             )
         assert _git(repo, "rev-parse", "HEAD") == head_before
 
@@ -234,6 +250,7 @@ class TestPlanningArtifactCommitDemotionGuard:
             wp_id="WP01",
             planning_branch=planning_branch,
             auto_commit=True,
+            placement=_unresolved_placement_from_meta(repo, feature_dir, mission_slug),
         )
 
         head_after = _git(repo, "rev-parse", "HEAD")
