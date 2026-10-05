@@ -61,7 +61,8 @@ from types import ModuleType
 
 import pytest
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+# Not ``fast``: two whole-``src`` AST scans take seconds each.
+pytestmark = pytest.mark.unit
 
 _REPO = Path(__file__).resolve().parents[5]
 _SRC_ROOT = _REPO / "src"
@@ -407,7 +408,9 @@ def _attribute_reads(tree: ast.Module, family: Family, importer_pkg: str) -> dic
 def _attribute_live_names(family: Family = IMPLEMENT) -> dict[str, set[str]]:
     """The attribute rule over every ``src`` file: names read off a family module by any importer."""
     live: dict[str, set[str]] = {m: set() for m in family.modules}
-    for path, source in _src_sources("implement"):
+    # Every importer that reads ``<alias>.<name>`` off a family module names that module, and every
+    # family module name contains the family name, so the family name is the cheap pre-filter.
+    for path, source in _src_sources(family.name):
         for module, names in _attribute_reads(ast.parse(source), family, _importer_package(path)).items():
             live[module] |= names
     return live

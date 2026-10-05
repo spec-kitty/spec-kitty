@@ -31,7 +31,6 @@ inter-allocation commit is ever needed.
 from __future__ import annotations
 
 import io
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -44,6 +43,7 @@ from specify_cli.cli.commands import implement_phases
 from specify_cli.cli.commands.implement_phases import AllocationResult
 from specify_cli.lanes.implement_support import LaneWorkspaceResult
 from specify_cli.status.reducer import wp_snapshot_state
+from tests._support.git_cli import git_out
 from tests.specify_cli.cli.commands._implement_fixtures import (
     MISSION_ID,
     SLUG,
@@ -63,10 +63,6 @@ _BODY = "# WP01\n\nDo the thing.\n"
 # ---------------------------------------------------------------------------
 # Section A helpers: a single committed WP prompt + direct core calls.
 # ---------------------------------------------------------------------------
-
-
-def _git(repo_root: Path, *args: str) -> None:
-    subprocess.run(["git", *args], cwd=repo_root, check=True, capture_output=True, text=True)
 
 
 def _base_wp_frontmatter() -> dict[str, Any]:
@@ -111,11 +107,11 @@ def _init_repo_with_wp(tmp_path: Path, frontmatter: dict[str, Any], body: str = 
     tasks_dir.mkdir(parents=True)
     wp_path = tasks_dir / "WP01-plan.md"
     wp_path.write_text(_render_wp(frontmatter, body), encoding="utf-8")
-    _git(tmp_path, "init", "-b", "main")
-    _git(tmp_path, "config", "user.email", "test@example.com")
-    _git(tmp_path, "config", "user.name", "Test Runner")
-    _git(tmp_path, "add", "-A")
-    _git(tmp_path, "commit", "-m", "seed WP01")
+    git_out(tmp_path, "init", "-b", "main")
+    git_out(tmp_path, "config", "user.email", "test@example.com")
+    git_out(tmp_path, "config", "user.name", "Test Runner")
+    git_out(tmp_path, "add", "-A")
+    git_out(tmp_path, "commit", "-m", "seed WP01")
     return wp_path, wp_path.relative_to(tmp_path).as_posix()
 
 
@@ -284,6 +280,7 @@ def _lane_allocation(repo: Path, lane_id: str) -> AllocationResult:
     )
 
 
+@pytest.mark.integration
 def test_sequential_n_lane_claims_write_zero_wp_file_bytes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """SC-004 / NFR-003 (#2816 cutover): N sequential dependency-free root claims
     under ``auto_commit=False`` each write **0 bytes** to their WP prompt file.

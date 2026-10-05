@@ -214,15 +214,24 @@ def _cli_layer_imports(source: str, package: str = "") -> list[str]:
     return offenders
 
 
+def _seam_cli_layer_imports(module_name: str) -> list[str]:
+    """``_cli_layer_imports`` over *module_name*'s source, relative imports resolved against its package.
+
+    ``spec.parent`` is the package relative imports resolve against: the module's parent package for
+    a submodule, and the package itself for a package ``__init__`` (where ``rpartition`` would climb
+    one level too far).
+    """
+    spec = importlib.util.find_spec(module_name)
+    assert spec is not None and spec.origin is not None, f"{module_name} not found on sys.path"
+    return _cli_layer_imports(Path(spec.origin).read_text(encoding="utf-8"), spec.parent or "")
+
+
 class TestSeamModulesHaveNoCliImports:
     """The seams the ``implement`` command delegates to stay free of CLI-layer imports."""
 
     @pytest.mark.parametrize("module_name", _NO_CLI_SEAM_MODULES)
     def test_seam_module_imports_no_cli_layer(self, module_name: str) -> None:
-        spec = importlib.util.find_spec(module_name)
-        assert spec is not None and spec.origin is not None, f"{module_name} not found on sys.path"
-
-        offenders = _cli_layer_imports(Path(spec.origin).read_text(encoding="utf-8"), module_name.rpartition(".")[0])
+        offenders = _seam_cli_layer_imports(module_name)
         allowed = _NO_CLI_CONSOLE_CARVE_OUTS.get(module_name)
         if allowed is not None:
             offenders = [offender for offender in offenders if not _is_carve_out(offender, allowed)]
@@ -251,13 +260,15 @@ class TestSeamModulesHaveNoCliImports:
         """Non-vacuity: the scanner catches module-level, lazy, ``import`` and ``from`` forms."""
         assert _cli_layer_imports(source)
 
+    def test_scanner_resolves_a_package_init_against_the_package_itself(self) -> None:
+        """Non-vacuity for ``spec.parent``: ``specify_cli/cli/__init__.py``'s ``from .step_tracker import``
+        is ``specify_cli.cli.step_tracker`` (CLI layer), not ``specify_cli.step_tracker``."""
+        assert "line 10: specify_cli.cli.step_tracker" in _seam_cli_layer_imports("specify_cli.cli")
+
     @pytest.mark.parametrize(("module_name", "allowed"), sorted(_NO_CLI_CONSOLE_CARVE_OUTS.items()))
     def test_console_carve_out_is_exactly_one_live_import(self, module_name: str, allowed: str) -> None:
         """Shrink-only: the carve-out names one import that still exists (no stale or widened entry)."""
-        spec = importlib.util.find_spec(module_name)
-        assert spec is not None and spec.origin is not None, f"{module_name} not found on sys.path"
-
-        offenders = _cli_layer_imports(Path(spec.origin).read_text(encoding="utf-8"), module_name.rpartition(".")[0])
+        offenders = _seam_cli_layer_imports(module_name)
         carved = [offender for offender in offenders if _is_carve_out(offender, allowed)]
 
         assert len(carved) == 1, f"{module_name}: expected exactly one live {allowed} import, found {carved!r}; update _NO_CLI_CONSOLE_CARVE_OUTS (#5715)"
