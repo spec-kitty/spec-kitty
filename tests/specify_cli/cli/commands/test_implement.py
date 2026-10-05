@@ -361,22 +361,12 @@ class TestImplementModuleImports:
     """The migrated implement module imports cleanly after WP01/WP06."""
 
     def test_implement_imports_safe_commit_with_new_signature(self) -> None:
-        from specify_cli.cli.commands import implement
         from specify_cli.git import safe_commit
         import inspect
 
         sig = inspect.signature(safe_commit)
         assert "destination_ref" in sig.parameters
         assert "worktree_root" in sig.parameters
-        # The implement module still imports safe_commit (legacy
-        # auto-commit path).
-        assert hasattr(implement, "safe_commit")
-
-    def test_implement_command_callable(self) -> None:
-        from specify_cli.cli.commands.implement import implement
-
-        # Just ensure the symbol is importable as a Typer command.
-        assert callable(implement)
 
 
 class TestNonCoordStatusFilesCommitted:

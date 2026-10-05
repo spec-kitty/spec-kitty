@@ -160,32 +160,6 @@ class TestEnsureVcsInMeta:
 
 
 class TestImplementCommand:
-    def test_implement_requires_lanes_json(self, tmp_path: Path) -> None:
-        feature_dir = tmp_path / "kitty-specs" / "010-feature"
-        create_meta_json(feature_dir)
-        wp_file = feature_dir / "tasks" / "WP01-setup.md"
-        wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            "---\n"
-            "work_package_id: WP01\n"
-            "dependencies: []\n"
-            "execution_mode: code_change\n"
-            "owned_files:\n  - src/wp01/**\n"
-            "authoritative_surface: src/wp01/\n"
-            "---\n# WP01",
-            encoding="utf-8",
-        )
-
-        with (
-            patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
-            patch(
-                "specify_cli.cli.commands.implement.detect_feature_context",
-                return_value=("010", "010-feature"),
-            ),
-        ):
-            with pytest.raises(typer.Exit):
-                implement("WP01", mission="010-feature", recover=False)
-
     def test_implement_json_output_is_clean(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         feature_dir = tmp_path / "kitty-specs" / "010-feature"
         create_meta_json(feature_dir)

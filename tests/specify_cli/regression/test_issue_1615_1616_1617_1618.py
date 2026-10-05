@@ -82,12 +82,58 @@ def test_no_stale_done_only_dependency() -> None:
 
 # --- #1615: coord-aware resolver must be present ---
 
-def test_resolve_mission_read_path_used_in_implement() -> None:
-    """implement.py must import or reference resolve_mission_read_path."""
-    src = _read("src/specify_cli/cli/commands/implement.py")
-    assert "resolve_mission_read_path" in src, (
-        "coord-aware resolver not present in implement.py (#1615 regression)"
+def test_resolve_mission_read_path_used_in_implement(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """#1615: implement's finalized/dependency gate reads the resolved coordination status surface.
+
+    Behavioural oracle (it replaces a substring match that a comment satisfied). The primary
+    checkout carries NO status events (every WP reads as genesis, "not finalized"); the WP is
+    finalized only on the status surface the canonical resolver returns, the way a coord-topology
+    mission is. implement must get past the finalization gate (and stop later, at the missing
+    ``lanes.json``). If it read the primary surface instead, it would refuse with "not finalized".
+    """
+    import json
+    from unittest.mock import patch
+
+    import typer
+
+    from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
+    from specify_cli.cli.commands.implement import implement
+    from specify_cli.coordination.surface_resolver import ResolvedStatusSurface
+    from tests.agent.test_implement_command import _seed_planned, create_meta_json
+
+    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
+    monkeypatch.setattr(
+        "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
+        lambda *_a, **_k: CharterPreflightResult(passed=True, checks=[]),
     )
+    primary = tmp_path / "kitty-specs" / "010-feature"
+    create_meta_json(primary)
+    (primary / "tasks").mkdir(parents=True)
+    (primary / "tasks" / "WP01-setup.md").write_text(
+        "---\nwork_package_id: WP01\ndependencies: []\nexecution_mode: code_change\n"
+        "owned_files:\n  - src/wp01/**\nauthoritative_surface: src/wp01/\n---\n# WP01",
+        encoding="utf-8",
+    )
+    coord_surface = tmp_path / ".worktrees" / "010-feature-coord" / "kitty-specs" / "010-feature"
+    coord_surface.mkdir(parents=True)
+    _seed_planned(coord_surface, "WP01")  # finalized on the coordination surface only
+
+    with (
+        patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.implement.detect_feature_context", return_value=("010", "010-feature")),
+        patch("specify_cli.cli.commands.implement.resolve_feature_target_branch", return_value="main"),
+        patch("specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git"),
+        patch(
+            "specify_cli.coordination.surface_resolver.resolve_status_surface_with_anchor",
+            return_value=ResolvedStatusSurface(surface_path=coord_surface / "status.events.jsonl", primary_anchor=primary),
+        ),
+        pytest.raises(typer.Exit),
+    ):
+        implement("WP01", mission="010-feature", json_output=True, recover=False)
+
+    error = json.loads(capsys.readouterr().out.strip())["error"]
+    assert "not finalized" not in error, f"implement read the primary surface, not the resolved status surface (#1615 regression): {error}"
+    assert "lanes.json is required" in error, f"implement did not get past the finalization gate: {error}"
 
 
 def test_resolve_mission_read_path_used_in_orchestrator_api() -> None:
