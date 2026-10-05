@@ -601,7 +601,7 @@ specify_cli/cli/commands/agent/workflow_executor.py :: implement_sparse_checkout
 specify_cli/cli/commands/agent/workflow_executor.py :: implement_resolve_mission_type
 specify_cli/cli/commands/agent/workflow_executor.py :: review_finalize_and_print
 specify_cli/workspace/context.py :: find_wp_file   (moved from cli/commands/implement.py, #5635)
-specify_cli/cli/commands/implement.py :: _load_primary_anchored_mission_meta   (retired: replaced by the seam-owned placement in coordination/planning_commit.py, #5232)
+specify_cli/coordination/planning_commit.py :: load_primary_anchored_mission_meta   (moved from cli/commands/implement.py::_load_primary_anchored_mission_meta, #5635; still live: identity-cascade layer 1 and the #5232 declared-coordination degrade)
 specify_cli/coordination/planning_commit.py :: planning_artifact_source_dir   (moved from cli/commands/implement.py::_planning_artifact_source_dir, #5635)
 specify_cli/cli/commands/implement.py :: _build_implement_json_payload
 specify_cli/cli/commands/mission_type.py :: close_cmd
