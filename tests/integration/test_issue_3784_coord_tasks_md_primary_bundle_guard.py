@@ -79,7 +79,7 @@ from specify_cli.cli.commands.agent.tasks import (
     _do_move_task,
     _MoveTaskArgs,
 )
-from specify_cli.cli.commands.implement import _primary_surface_status_paths
+from specify_cli.cli.commands.implement_claim import _primary_surface_status_paths
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import (
     SafeCommitError,

@@ -153,6 +153,8 @@ _WRITE_DIR_CONSUMER_MODULES: tuple[Path, ...] = (
     _SRC / "coordination" / "planning_commit.py",
     # implement-degod WP05: the planning-commit adapter moved here; the scan follows the code.
     _SRC / "cli" / "commands" / "implement_planning_commit.py",
+    # implement-degod WP08: the claim preflight and claim commit moved here; the scan follows the code.
+    _SRC / "cli" / "commands" / "implement_claim.py",
     _SRC / "lanes" / "recovery.py",
     _SRC / "retrospective" / "tracer_writer.py",
     _SRC / "tasks" / "issue_matrix.py",
@@ -244,7 +246,8 @@ class _Finding:
 #: never touches ``mission_id``/``mid8``/``primary_root`` or a write
 #: ``CommitTarget``).
 #:
-#: WS#3 — ``cli/commands/implement.py`` / ``_status_commit_destination_branch``:
+#: WS#3 — ``cli/commands/implement_claim.py`` / ``_status_commit_destination_branch``
+#: (moved from ``implement.py`` by implement-degod WP08):
 #: tracked #2453 — the ``get_current_branch(repo_root) or fallback_branch``
 #: git-HEAD selector. It ONLY predicts the pre-lane status-commit branch for
 #: the protected-branch guard (``_protected_branch_status_commit_error``) —
@@ -275,7 +278,7 @@ _ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
         ),
     ),
     ContentDescriptor(
-        rel_path="src/specify_cli/cli/commands/implement.py",
+        rel_path="src/specify_cli/cli/commands/implement_claim.py",
         qualname="_status_commit_destination_branch",
         token_substring="get_current_branch ( repo_root ) or fallback_branch",
         occurrence=None,
@@ -283,7 +286,9 @@ _ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
             "tracked: #2453 - predicts the pre-lane status-commit branch for "
             "the protected-branch guard only; never feeds a write "
             "CommitTarget/destination_ref. Deferred to the #2453 read-site "
-            "sweep bucket (D-1/C-003)."
+            "sweep bucket (D-1/C-003). implement-degod WP08: the function "
+            "moved implement.py -> implement_claim.py; descriptor re-pointed, "
+            "same underlying code."
         ),
     ),
 )
@@ -325,7 +330,7 @@ def _scan_source(source: str, path: Path) -> list[_Finding]:
       git-HEAD write-target selectors.
     * ``get_current_branch(...) or <fallback>`` git-HEAD branch selectors — the
       generic checkout-derived ``current-branch-or-fallback`` shape (e.g.
-      ``implement.py``'s ``_status_commit_destination_branch``, which predicts
+      ``implement_claim.py``'s ``_status_commit_destination_branch``, which predicts
       the pre-lane status-commit branch for the protected-branch guard). Making
       this shape a first-class finding pulls the last checkout-derived selector
       an adopted module carries into the ratchet's field of view so it cannot
@@ -491,7 +496,7 @@ def test_ws1_descriptor_no_longer_seeded_after_the_1716_drain() -> None:
 def test_checkout_head_selector_entry_is_still_a_live_finding() -> None:
     """Staleness twin-guard for the tracked #2453 checkout-HEAD selector descriptor.
 
-    The ``implement.py`` descriptor pins ``_status_commit_destination_branch``'s
+    The ``implement_claim.py`` descriptor pins ``_status_commit_destination_branch``'s
     ``get_current_branch(repo_root) or fallback_branch`` prediction selector. If
     that site is finally routed through the placement seam (or removed),
     :func:`descriptor_still_live` returns ``False`` (0 matches, or a
@@ -499,7 +504,7 @@ def test_checkout_head_selector_entry_is_still_a_live_finding() -> None:
     now-stale allow-list entry (shrink-only), never to leave a vacuous
     allow-list rule masking nothing.
     """
-    descriptor, seeded_key = _seed_and_key_for("src/specify_cli/cli/commands/implement.py")
+    descriptor, seeded_key = _seed_and_key_for("src/specify_cli/cli/commands/implement_claim.py")
     source = (_REPO_ROOT / descriptor.rel_path).read_text(encoding="utf-8")
     assert descriptor_still_live(source, descriptor, seeded_key), (
         f"{descriptor.rel_path} ({descriptor.qualname}) checkout_head_selector "

@@ -401,11 +401,11 @@ class TestImplementCommand:
                 return_value="main",
             ),
             patch(
-                "specify_cli.cli.commands.implement.get_current_branch",
+                "specify_cli.cli.commands.implement_claim.get_current_branch",
                 return_value="kitty/mission-010-feature-01ABCDEF",
             ),
             patch(
-                "specify_cli.cli.commands.implement.ProtectionPolicy.resolve_for_mission",
+                "specify_cli.cli.commands.implement_claim.ProtectionPolicy.resolve_for_mission",
                 return_value=mock_policy,
             ) as mock_resolver,
             patch(
@@ -421,7 +421,7 @@ class TestImplementCommand:
                 "specify_cli.cli.commands.implement.create_lane_workspace",
             ) as mock_create_lane_workspace,
             patch(
-                "specify_cli.cli.commands.implement.start_implementation_status",
+                "specify_cli.cli.commands.implement_claim.start_implementation_status",
                 return_value=MagicMock(status_changed=False),
             ),
             patch(
@@ -506,7 +506,7 @@ class TestImplementCommand:
                 "specify_cli.cli.commands.implement.create_lane_workspace",
             ) as mock_create_lane_workspace,
             patch(
-                "specify_cli.cli.commands.implement.start_implementation_status",
+                "specify_cli.cli.commands.implement_claim.start_implementation_status",
                 side_effect=fake_start_status,
             ),
         ):
@@ -744,7 +744,7 @@ class TestNFR003ProtectionPolicySingleBoundaryRead:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Drive _protected_branch_status_commit_error and assert single-boundary I/O (T013)."""
-        from specify_cli.cli.commands.implement import _protected_branch_status_commit_error
+        from specify_cli.cli.commands.implement_claim import _protected_branch_status_commit_error
         from specify_cli.git import protection_policy as _pp_module
 
         # The autouse fixture sets SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1.

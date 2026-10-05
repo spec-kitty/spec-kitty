@@ -416,7 +416,7 @@ def _claim_through_guard(tmp_path: Path, feature_dir: Path, lane_id: str) -> Ite
             return_value="main",
         ),
         patch("specify_cli.cli.commands.implement.create_lane_workspace", create_mock),
-        patch("specify_cli.cli.commands.implement.start_implementation_status", status_mock),
+        patch("specify_cli.cli.commands.implement_claim.start_implementation_status", status_mock),
     ):
         yield create_mock
 

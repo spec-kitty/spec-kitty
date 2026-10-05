@@ -157,7 +157,7 @@ def _call_site_repo(tmp_path: Path) -> Path:
 
 
 def _implement_refuses(repo: Path, slug: str, branch: str) -> bool:
-    from specify_cli.cli.commands.implement import _protected_branch_status_commit_error
+    from specify_cli.cli.commands.implement_claim import _protected_branch_status_commit_error
 
     return _protected_branch_status_commit_error(branch, repo, slug) is not None
 

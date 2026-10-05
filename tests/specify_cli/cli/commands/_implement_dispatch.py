@@ -31,13 +31,13 @@ import pytest
 #: logical collaborator -> ``<package>.<module>.<name>`` of the module global the command looks up.
 DISPATCH: dict[str, str] = {
     # Record the claim: the status pipeline entry point.
-    "start_status": "specify_cli.cli.commands.implement.start_implementation_status",
+    "start_status": "specify_cli.cli.commands.implement_claim.start_implementation_status",
     # Allocate or reuse the lane workspace.
     "allocate": "specify_cli.cli.commands.implement.create_lane_workspace",
     # Record the claim: the auto-commit of the claimed->doing change.
-    "claim_commit": "specify_cli.cli.commands.implement._commit_wp_claim_status",
+    "claim_commit": "specify_cli.cli.commands.implement_claim._commit_wp_claim_status",
     # The ``safe_commit`` the claim commit calls.
-    "safe_commit": "specify_cli.cli.commands.implement.safe_commit",
+    "safe_commit": "specify_cli.cli.commands.implement_claim.safe_commit",
     # Side-effect-order spies (T007).
     "target_branch": "specify_cli.workspace.context.resolve_mission_target_branch",
     "dependency_gate": "specify_cli.core.dependency_graph.ensure_wp_claim_preconditions",

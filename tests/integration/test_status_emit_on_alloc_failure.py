@@ -286,7 +286,7 @@ def test_rerun_after_resolution_acquires_no_review_cycle_pointer(
     alloc_ok = MagicMock(return_value=MagicMock(workspace_path=tmp_path, branch_name="kitty/lane-a"))
     with (
         _patched_implement(tmp_path, feature_slug, alloc=alloc_ok),
-        patch("specify_cli.cli.commands.implement._commit_wp_claim_status"),
+        patch("specify_cli.cli.commands.implement_claim._commit_wp_claim_status"),
         patch("specify_cli.cli.commands.implement._report_workspace_created"),
         patch("specify_cli.cli.commands.implement._print_workspace_ready_banner"),
     ):

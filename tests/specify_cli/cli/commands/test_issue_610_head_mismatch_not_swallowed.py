@@ -37,7 +37,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from specify_cli.cli.commands.implement import _commit_wp_claim_status
+from specify_cli.cli.commands.implement_claim import _commit_wp_claim_status
 from specify_cli.git.commit_helpers import SafeCommitHeadMismatch
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -124,7 +124,7 @@ def test_no_swallowed_warning_printed_on_head_mismatch(tmp_path: Path, capsys: p
     what silently downgraded this defect to a non-fatal warning before the
     fix, letting the caller move on with a dirty tree.
     """
-    from specify_cli.cli.commands import implement as impl_mod
+    from specify_cli.cli.commands import implement_claim as impl_mod
 
     repo = tmp_path / "repo"
     wp_file = _init_flat_repo(repo, checked_out_branch="feat/checked-out")

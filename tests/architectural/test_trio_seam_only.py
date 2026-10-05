@@ -110,6 +110,9 @@ _COORDINATION_PLANNING_COMMIT_PY = _SRC_SPECIFY_CLI / "coordination" / "planning
 # implement-degod WP05: the planning-commit adapter (prints/exits/BookkeepingTransaction) moved out of implement.py.
 _IMPLEMENT_PLANNING_COMMIT_PY = _SRC_SPECIFY_CLI / "cli" / "commands" / "implement_planning_commit.py"
 
+# implement-degod WP08: the claim commit (placement_seam write_target, resolve_topology) moved out of implement.py.
+_IMPLEMENT_CLAIM_PY = _SRC_SPECIFY_CLI / "cli" / "commands" / "implement_claim.py"
+
 _TRIO_FILES: tuple[Path, ...] = (
     _WORKFLOW_PY,
     _WORKFLOW_CORES_PY,
@@ -122,6 +125,7 @@ _TRIO_FILES: tuple[Path, ...] = (
     _WORKSPACE_CONTEXT_PY,
     _COORDINATION_PLANNING_COMMIT_PY,
     _IMPLEMENT_PLANNING_COMMIT_PY,
+    _IMPLEMENT_CLAIM_PY,
 )
 
 # The subset that are the extracted PURE cores (T028 scope). Deliberately

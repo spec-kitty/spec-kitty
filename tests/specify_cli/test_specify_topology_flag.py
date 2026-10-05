@@ -484,7 +484,7 @@ def _claim_allocation_patched(repo: Path, feature_dir: Path) -> Iterator[MagicMo
         )
         stack.enter_context(
             patch(
-                "specify_cli.cli.commands.implement.start_implementation_status",
+                "specify_cli.cli.commands.implement_claim.start_implementation_status",
                 MagicMock(return_value=MagicMock(status_changed=False)),
             )
         )

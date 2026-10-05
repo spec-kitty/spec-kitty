@@ -291,7 +291,7 @@ def test_status_commit_prechecks_ignore_test_mode_env(
     from specify_cli.cli.commands.agent.tasks import (
         _protected_branch_status_commit_error as tasks_precheck,
     )
-    from specify_cli.cli.commands.implement import (
+    from specify_cli.cli.commands.implement_claim import (
         _protected_branch_status_commit_error as implement_precheck,
     )
 
@@ -316,7 +316,7 @@ def test_status_commit_prechecks_honor_operator_hatch(
     from specify_cli.cli.commands.agent.tasks import (
         _protected_branch_status_commit_error as tasks_precheck,
     )
-    from specify_cli.cli.commands.implement import (
+    from specify_cli.cli.commands.implement_claim import (
         _protected_branch_status_commit_error as implement_precheck,
     )
 

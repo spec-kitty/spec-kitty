@@ -251,6 +251,28 @@ def build_claim_policy_metadata(
     }
 
 
+def claim_policy_metadata(shell_pid: int, agent: str) -> dict[str, Any]:
+    """Best-effort ``policy_metadata`` triple for a claim transition (WP07/T026-T027).
+
+    Routes the ``(shell_pid, shell_pid_created_at, agent)`` triple onto the
+    claim transition's ``policy_metadata`` sidecar (FR-004) using
+    :func:`build_claim_policy_metadata` -- the exact key names the reducer fold
+    (``planned -> claimed``) reads. One definition, shared by
+    ``cli.commands.implement_claim`` and ``cli.commands.agent.workflow_executor``.
+
+    ``shell_pid_created_at`` capture is best-effort (C-007): when
+    :func:`~specify_cli.core.process_liveness.capture_creation_time_baseline`
+    cannot capture a baseline, the key is OMITTED (never fabricated, D3a
+    legacy-claim semantics).
+    """
+    from specify_cli.core.process_liveness import capture_creation_time_baseline
+
+    baseline = capture_creation_time_baseline(shell_pid)
+    if baseline is None:
+        return {"shell_pid": shell_pid, "agent": agent}
+    return build_claim_policy_metadata(shell_pid=shell_pid, shell_pid_created_at=baseline, agent=agent)
+
+
 def _reduce_write_surface(feature_dir: Path) -> StatusSnapshot:
     """Read and reduce the full event log of a shell's write surface -- once.
 

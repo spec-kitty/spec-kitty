@@ -282,7 +282,7 @@ def _run_implement_via_seam(
         # as a no-op ("already there") result so ``_commit_wp_claim_status``
         # skips (status_changed=False) without touching git.
         patch(
-            "specify_cli.cli.commands.implement.start_implementation_status",
+            "specify_cli.cli.commands.implement_claim.start_implementation_status",
             return_value=WorkPackageStartResult(
                 wp_id=wp_id, from_lane=Lane.IN_PROGRESS, to_lane=Lane.IN_PROGRESS,
                 actor="test", events=(), no_op=True,

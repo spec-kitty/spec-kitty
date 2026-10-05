@@ -232,7 +232,7 @@ def _claim_through_guard(
             create_mock,
         ),
         patch(
-            "specify_cli.cli.commands.implement.start_implementation_status",
+            "specify_cli.cli.commands.implement_claim.start_implementation_status",
             status_mock,
         ),
     ):

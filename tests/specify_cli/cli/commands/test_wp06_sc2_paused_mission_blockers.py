@@ -64,11 +64,11 @@ def _patch_implement_topology(
     (``coordination/planning_commit``) -- that module holds its own
     ``resolve_topology`` import and is the one a directly-invoked
     ``placement_coord_filter`` actually reads at call time.
-    ``implement.py`` still calls ``resolve_topology`` inline too (e.g. the WP
+    ``implement_claim.py`` still calls ``resolve_topology`` inline too (the WP
     claim-status commit), so both module namespaces are patched to keep every
     call path -- direct-core and through-implement -- stubbed consistently.
     """
-    from specify_cli.cli.commands import implement as _implement_mod
+    from specify_cli.cli.commands import implement_claim as _implement_mod
     from specify_cli.coordination import planning_commit as _planning_commit_mod
 
     topology = MissionTopology.COORD if coord else MissionTopology.SINGLE_BRANCH

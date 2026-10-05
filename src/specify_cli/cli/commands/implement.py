@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import functools
 import json
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, NoReturn
@@ -18,38 +18,24 @@ from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.errors import PlacementResolutionRequired
-from specify_cli.core.git_ops import get_current_branch
 from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.core.vcs import VCSBackend
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.frontmatter import FrontmatterError
-from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import (
     SafeCommitHeadMismatch,
     SafeCommitPathPolicyError,
 )
-from specify_cli.git.protection_policy import ProtectionPolicy
 from mission_runtime import (
     MissionArtifactKind,
     placement_seam,
-    resolve_topology,
-    routes_through_coordination,
 )
-from specify_cli.coordination.coherence import (
-    is_status_state_path,
-)
-from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
 from specify_cli.lanes import implement_support
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.worktree_allocator import (
     DependencyLaneMergeConflictError,
     OrphanedPlanningCommitError,
     PlanningCommitMergeConflictError,
-)
-from specify_cli.status import TransitionError
-from specify_cli.status import (
-    WorkPackageClaimConflict,
-    start_implementation_status,
 )
 from specify_cli.task_utils import TaskCliError, find_repo_root
 from specify_cli.core import dependency_graph

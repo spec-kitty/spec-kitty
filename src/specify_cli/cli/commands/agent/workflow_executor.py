@@ -62,6 +62,7 @@ from specify_cli.cli.commands.agent.workflow_cores import (
 from specify_cli.core.constants import MISSION_TYPE_RESEARCH
 from specify_cli.mission import get_deliverables_path, get_mission_type
 from specify_cli.status import Lane, WorkPackageClaimConflict, WorkPackageStartRejected, read_wp_frontmatter
+from specify_cli import status as _status_facade
 from specify_cli.task_utils import extract_scalar
 from specify_cli.workspace.context import ResolvedWorkspace, husk_resolution_error
 
@@ -87,34 +88,6 @@ def _wf() -> ModuleType:
 
     module: ModuleType = _workflow_module
     return module
-
-
-def _claim_policy_metadata(shell_pid: int, agent: str) -> dict[str, Any]:
-    """Best-effort ``policy_metadata`` triple for a claim transition (WP07/T026-T027).
-
-    Routes the ``(shell_pid, shell_pid_created_at, agent)`` triple onto the
-    claim transition's ``policy_metadata`` sidecar (FR-004) using WP01's
-    :func:`~specify_cli.status.emit.build_claim_policy_metadata` builder --
-    the exact key names WP01's reducer fold (``planned -> claimed``) reads.
-
-    ``shell_pid_created_at`` capture is best-effort (C-007): when
-    :func:`~specify_cli.core.process_liveness.capture_creation_time_baseline`
-    cannot capture a baseline, the key is OMITTED (never fails the claim,
-    D3a legacy-claim semantics) rather than calling the builder with a
-    fabricated value.
-    """
-    from specify_cli.core.process_liveness import capture_creation_time_baseline
-    from specify_cli.status import build_claim_policy_metadata
-
-    baseline = capture_creation_time_baseline(shell_pid)
-    if baseline is None:
-        return {"shell_pid": shell_pid, "agent": agent}
-    # Explicit local annotation re-narrows the import from ``Any`` back to
-    # ``dict[str, Any]`` -- the project's ``follow_imports = "skip"`` mypy
-    # config for ``specify_cli.*`` means a cross-module late import is
-    # otherwise seen as ``Any`` (same pattern as :func:`_wf` above).
-    metadata: dict[str, Any] = build_claim_policy_metadata(shell_pid=shell_pid, shell_pid_created_at=baseline, agent=agent)
-    return metadata
 
 
 def _locate_wp(repo_root: Path, mission_slug: str, normalized_wp_id: str) -> WorkPackage:
@@ -847,7 +820,7 @@ def _implement_start_claim(
             # planned -> claimed transition's policy_metadata sidecar
             # instead of a separate WP-file write -- WP01's reducer folds
             # these exact keys into the reduced snapshot.
-            policy_metadata=_claim_policy_metadata(int(shell_pid), actor),
+            policy_metadata=_status_facade.claim_policy_metadata(int(shell_pid), actor),
             annotation_delta=(
                 resolved_binding.to_delta(role=_IMPLEMENT_CLAIM_ROLE)
                 if resolved_binding is not None
@@ -1731,7 +1704,7 @@ def review_claim_transition(
     import os
 
     shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
-    claim_policy_metadata = _claim_policy_metadata(int(shell_pid), agent)
+    claim_policy_metadata = _status_facade.claim_policy_metadata(int(shell_pid), agent)
     claim_delta_values: dict[str, Any] = {
         "shell_pid": int(shell_pid),
         "shell_pid_created_at": claim_policy_metadata.get("shell_pid_created_at"),

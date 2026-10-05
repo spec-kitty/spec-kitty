@@ -34,6 +34,7 @@ from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
 from specify_cli.status import TransitionError
 from specify_cli.status import (
     WorkPackageClaimConflict,
+    claim_policy_metadata,
     start_implementation_status,
 )
 
@@ -90,6 +91,31 @@ def _primary_surface_status_paths(artifacts: Iterable[Path], *, routes_through_c
     return [path for path in resolved if not (is_status_state_path(path) or is_under_worktrees_segment(path))]
 
 
+def claim_commit_paths(
+    *,
+    repo_root: Path,
+    feature_dir: Path,
+    wp_file: Path,
+    status_artifacts: Iterable[Path],
+    routes_through_coord: bool,
+) -> list[Path]:
+    """Return the exact ordered bundle the claim commit stages.
+
+    Order: the WP file, the primary-surface status artifacts, ``meta.json`` when
+    it exists, then ``.kittify/config.yaml`` when it exists. Pure apart from the
+    two ``exists()`` probes. #5673 (``config.yaml`` is bundled although the claim
+    never changes it) is a one-line change here.
+    """
+    paths = [wp_file.resolve(), *_primary_surface_status_paths(status_artifacts, routes_through_coord=routes_through_coord)]
+    meta_file = feature_dir / "meta.json"
+    config_file = repo_root / ".kittify" / "config.yaml"
+    if meta_file.exists():
+        paths.append(meta_file.resolve())
+    if config_file.exists():
+        paths.append(config_file.resolve())
+    return paths
+
+
 def _commit_wp_claim_status(
     *,
     repo_root: Path,
@@ -118,8 +144,6 @@ def _commit_wp_claim_status(
     from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
 
     commit_msg = f"chore: {wp_id} claimed for implementation"
-    meta_file = feature_dir / "meta.json"
-    config_file = repo_root / ".kittify" / "config.yaml"
     # #2155 (FR-002 / T011) + #3784: bundle ONLY primary-surface artifacts
     # into the primary-root claim commit. The status transition was already
     # committed to the coordination branch by ``start_implementation_status``
@@ -127,20 +151,18 @@ def _commit_wp_claim_status(
     # artifact ``_collect_status_artifacts`` returns (events.jsonl /
     # status.json / the coord-worktree ``tasks.md``) lives UNDER
     # ``.worktrees/``, so staging it from the primary root trips the #1887
-    # ``SafeCommitPathPolicyError`` guard. ``_primary_surface_status_paths``
-    # drops ANY ``.worktrees/``-nested path on coord topology (the
+    # ``SafeCommitPathPolicyError`` guard. ``claim_commit_paths`` drops ANY
+    # ``.worktrees/``-nested path on coord topology (the
     # ``is_status_state_path`` check alone let ``tasks.md`` — a TASKS_INDEX
     # kind — survive, the #3784 residual); on a flat/legacy mission these
     # artifacts ARE canonical on PRIMARY and stay in the bundle.
-    status_paths = _primary_surface_status_paths(
-        _collect_status_artifacts(feature_dir),
+    files_to_commit = claim_commit_paths(
+        repo_root=repo_root,
+        feature_dir=feature_dir,
+        wp_file=wp_file,
+        status_artifacts=_collect_status_artifacts(feature_dir),
         routes_through_coord=routes_through_coordination(resolve_topology(repo_root, mission_slug)),
     )
-    files_to_commit = [wp_file.resolve(), *status_paths]
-    if meta_file.exists():
-        files_to_commit.append(meta_file.resolve())
-    if config_file.exists():
-        files_to_commit.append(config_file.resolve())
 
     # #610: every file gathered above is, by construction, primary-surface
     # (the coord-owned status pair is filtered out above under coord
@@ -189,27 +211,6 @@ def _commit_wp_claim_status(
         console.print(f"[yellow]Warning:[/yellow] Could not auto-commit lane change: {_commit_exc}")
 
 
-def _claim_policy_metadata(shell_pid: int, agent: str) -> dict[str, Any]:
-    """Best-effort ``policy_metadata`` triple for the claim transition (WP07/T026).
-
-    Mirrors ``cli.commands.agent.workflow_executor._claim_policy_metadata``
-    (duplicated rather than imported to avoid a lower-layer -> agent-package
-    dependency): routes ``(shell_pid, shell_pid_created_at, agent)`` onto the
-    ``planned -> claimed`` transition's ``policy_metadata`` sidecar (FR-004)
-    using WP01's exact reducer-fold key names, omitting
-    ``shell_pid_created_at`` (never fabricating a value) when
-    :func:`~specify_cli.core.process_liveness.capture_creation_time_baseline`
-    cannot capture a baseline (C-007 best-effort, D3a legacy-claim semantics).
-    """
-    from specify_cli.core.process_liveness import capture_creation_time_baseline
-    from specify_cli.status import build_claim_policy_metadata
-
-    baseline = capture_creation_time_baseline(shell_pid)
-    if baseline is None:
-        return {"shell_pid": shell_pid, "agent": agent}
-    return build_claim_policy_metadata(shell_pid=shell_pid, shell_pid_created_at=baseline, agent=agent)
-
-
 def _start_wp_implementation_status(
     *,
     feature_dir: Path,
@@ -236,7 +237,7 @@ def _start_wp_implementation_status(
             # WP07/T026 (FR-004/FR-014): the claim triple rides the
             # planned -> claimed transition's policy_metadata sidecar; the
             # frontmatter pre-write mirror was removed in the #2816 cutover.
-            policy_metadata=_claim_policy_metadata(_os.getppid(), effective_actor),
+            policy_metadata=claim_policy_metadata(_os.getppid(), effective_actor),
         )
     except WorkPackageClaimConflict as exc:
         console.print(f"[red]Error:[/red] {exc}")

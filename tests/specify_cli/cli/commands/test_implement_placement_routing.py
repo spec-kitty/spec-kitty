@@ -325,7 +325,7 @@ class TestPrimarySurfaceStatusPaths:
     def test_coord_drops_worktrees_nested_tasks_md_and_status_files(
         self, tmp_path: Path
     ) -> None:
-        from specify_cli.cli.commands.implement import _primary_surface_status_paths
+        from specify_cli.cli.commands.implement_claim import _primary_surface_status_paths
 
         wt = tmp_path / ".worktrees" / "slug-coord" / "kitty-specs" / "slug"
         wt.mkdir(parents=True)
@@ -345,7 +345,7 @@ class TestPrimarySurfaceStatusPaths:
     def test_flat_topology_keeps_all_collected_artifacts(
         self, tmp_path: Path
     ) -> None:
-        from specify_cli.cli.commands.implement import _primary_surface_status_paths
+        from specify_cli.cli.commands.implement_claim import _primary_surface_status_paths
 
         feature_dir = tmp_path / "kitty-specs" / "slug"
         feature_dir.mkdir(parents=True)

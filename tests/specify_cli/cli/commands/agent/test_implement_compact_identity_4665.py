@@ -55,7 +55,7 @@ from tests.lane_test_utils import lane_worktree_path, write_single_lane_manifest
 
 from specify_cli.analysis_report import write_analysis_report
 from specify_cli.cli.commands.agent import workflow
-from specify_cli.cli.commands.implement import _start_wp_implementation_status
+from specify_cli.cli.commands.implement_claim import _start_wp_implementation_status
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status import Lane, StatusEvent
 from specify_cli.status.store import append_event
