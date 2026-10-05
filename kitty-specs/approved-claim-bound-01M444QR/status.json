@@ -1,0 +1,250 @@
+{
+  "event_count": 69,
+  "last_event_id": "01M44PTKQ066TGM7P6W1J4H5K3",
+  "materialized_at": "2026-10-05T00:18:40.992418+00:00",
+  "mission_number": "216",
+  "mission_slug": "approved-claim-bound-01M444QR",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M44PTBH7JQDCZEDX369245EA",
+      "last_transition_at": "2026-10-05T00:18:32.615949+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Public stamp readers, truthful stamped fixtures (terminus + reconciliation unit builders), self-comparison test removed; consolidation+terminus 1891 -> 1890 passed",
+        "Review passed: behaviour-preserving tidy. src diff = 3 renames + fold onto stamp_of/is_migration_event (semantics identical) + __all__. Fixtures stamp real lane tips read from git, approvals written after lane commits; no unstamped switch; one tautological test removed (1897 -> 1896 collected). tests/consolidation + tests/terminus: 1890 passed, 1 skipped, 5 xfailed. Gates + ruff + format + mypy --strict clean. Notes for WP02: lane_exempt_commits and ATTESTATION_KEY must be added to __all__ when imported; _build_shared_file_lanes approvals predate callers' edit commits; Activity Log entries were not written."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261004",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3704339,
+      "shell_pid_created_at": "1791143475.09",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M44PTCXWT6N7XARKHVXENG26",
+      "last_transition_at": "2026-10-05T00:18:34.044700+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Approved bound at claim time: red e2e (4 cells) first, approved_bound.py, wiring in reconciliation/phase_claim/run_state, fixtures restamped centrally. Dead-symbol gate flags approved_bound_refusal, lane_tips_moved_refusal, APPROVED_REVIEWED, ATTEST_APPROVED_FLAG, approval_stamp until WP03/04/05 import them (no allowlist added). test_bare_slug (#5651) is red on the base too.",
+        "rework cycle 1: refuse unstamped canceled attestation lane, recovery command without --note (runs on both topologies), stamp-rule test, wording",
+        "Cycle 2 approved at 1ee2e20bfc. Fail-open skip removed (claim refuses a late commit with and without an attestation stamp); printed recovery command executed on lanes+coord for all three codes; newest-stamped-event rule pinned (mutation fails 6 tests); lane_tips_moved_refusal takes optional approved_wp_ids. 1928 passed, 1 skipped, 5 xfailed on tests/consolidation + tests/terminus; ruff, format, C901 clean. Dead-symbol gate flags the five planned names (consumers WP03/WP04/WP05). WP03 must pass approved_wp_ids so the recovery command never names a canceled work package."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20261004",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1730193,
+      "shell_pid_created_at": "1791149806.31",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M44PTEB9FD14Z9V5P52FW1CW",
+      "last_transition_at": "2026-10-05T00:18:35.497275+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Gate re-check via lane_tips_moved_refusal in phase_gate (one non-PASS branch, no new restore call); red test (4 cells, injection via wrapped _phase_merge_lanes, ancestor proof), strict-xfail merge-commit residual",
+        "Review passed. Gate re-check sits after the already-passed resume short-circuit and before verify(), uses claim-time SHAs only, one non-PASS branch, no new restore path. Red-first test valid: at 66e4b0f877 all 4 cells already exit 1 via the un-attributable FAIL and roll back, failing only on the named-code assertion; with phase_gate.py reverted the 4 cells fail again. The re-check adds real coverage too: a late lane-a commit duplicating lane-b's approved blob on a LANES mission consolidated at exit 0 with the verified banner on the old gate (squash and merge) and is now refused LANE_MOVED_AFTER_APPROVAL. PR text must not claim the plain late-file case landed silently before this change. Tests: 4 passed + 1 xfailed (new), 57 passed (rollback/phase pins), tests/terminus 157 passed, tests/consolidation 1775 passed 1 skipped 6 xfailed; ruff, format, C901, mypy --strict clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261004",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2136718,
+      "shell_pid_created_at": "1791151403.91",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M44PTFP8VJXMBB9VXPKCV83K",
+      "last_transition_at": "2026-10-05T00:18:36.872226+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Attest path for an unstamped approval: --attest-approved-reviewed lifts APPROVAL_STAMP_MISSING only; e2e + unit tests, docs, golden inventory",
+        "rework cycle 1: a re-attestation is refused once the lane holds content past the earlier attestation (check_lane); the hollow-review gate ignores approved_reviewed attestations; ConsolidateOptions field order matches the typer parameters; refusal-code table alphabetical",
+        "Cycle 2 approved. Blocker 1 fixed: attest -> late commit -> repeat attest refuses (rc 1, log byte-unchanged, late file not on target) on lanes and coord; plain consolidate still LANE_MOVED_AFTER_APPROVAL; unmoved repeat accepted. Blocker 2 fixed: hollow-review warning prints with the attestation (force_count 3 vs 2). Option order and docs table fixed. Attacks: mixed request records nothing; rewritten lane refused; lane synced with target refused (fail-closed, text imprecise). Re-attest check equals the claim check; a late commit already reachable from the live mission branch is exempt in BOTH (plain consolidate lands it too) - a claim-check matter for WP02/WP05/WP07, not this WP. Tests: 72 targeted, 1938 passed/1 skipped/5 xfailed consolidation+terminus, 56 cli, arch 234 passed with only the two expected dead symbols; ruff/format/C901 clean; mypy only the known untyped-decorator."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP04:20261004",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2784674,
+      "shell_pid_created_at": "1791153143.47",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M44PTH0THW7BCH59A98E4JT3",
+      "last_transition_at": "2026-10-05T00:18:38.234536+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "consolidate-mission refuses a post-approval lane commit before its first lane merge (PREFLIGHT_FAILED + data.preflight_error_code); resume refusal proven through a real interrupted run",
+        "Review passed. Red-first proven at d29d0a8bf2 (2 refusing cases fail with the late commit landed, 2 controls pass). Claim base equals the executor's fresh-run base on lanes (target tip) and coord (coordination tip), probed against both fixtures; verdict is base-independent because target and mission branch are both anchors. Check precedes the first lane merge; no branch moves. Resume test is non-vacuous (fails when check_lane is neutralised). Suites: orchestrator_api+contract 54 passed, resume 14 passed, agent integration 72 passed, arch gates 199 passed / 2 failed on the 4 names owned by WP03/WP04 only. ruff, format, C901, mypy clean on changed files. REQUIRED BEFORE THE PR, outside this WP's owned files: precedent 1.9.0 (#5613 teardown_error_code) bumps CONTRACT_VERSION for an additive data key, so preflight_error_code needs 1.10.0 in orchestrator_api/envelope.py (changelog comment), tests/specify_cli/orchestrator_api/test_contract_version.py, docs/api/orchestrator-api.md and the changelog."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261004",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2009392,
+      "shell_pid_created_at": "1791151120.1",
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "orchestrator-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M44PTJBCNRWJANA9HP2JGNQC",
+      "last_transition_at": "2026-10-05T00:18:39.597006+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "ADR 2026-10-04-2 with 3.x forward pointer and index, changelog upgrade note and fix entry, AGENTS.md (CLAUDE.md symlink) paragraph; docs freshness errors=0; changelog style and CLI parity tests pass; terminology test has 2 pre-existing source offenders from WP05 (orchestrator_api/consolidation.py lines 76, 430)",
+        "rework cycle 1: ADR and AGENTS.md state the anchor consequence; corrected claim-time entry, attestation acceptance and hollow-review wording, claim-time row, claim base, gate references",
+        "rework cycle 2: corrected the dependency-lane anchor clause in AGENTS.md",
+        "Cycle 3: the one required item of review-feedback-2 is applied with the reviewer's exact wording (commit 0068809207, AGENTS.md only, trailer present); the LOW wording item is applied too. Diff checked word by word against the feedback; docs freshness errors=0 and index drift=False reported by the implementer."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP06:20261004",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4186192,
+      "shell_pid_created_at": "1791158130.27",
+      "subtasks": {
+        "T024": "done",
+        "T025": "done",
+        "T026": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M44PTKQ066TGM7P6W1J4H5K3",
+      "last_transition_at": "2026-10-05T00:18:40.992418+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T031 hole closed (lane measured from target pre-mutation tip + other lanes' approval stamps as anchors; killed-run resume test red then green), T032 pins/tidy, T030 contract 1.10.0, T028 integration test, T029 suites green except base-red test_bare_slug_coord_mission_consolidates_onto_a_protected_target, T027 reproducer 4/4 exit 0",
+        "Review passed. Red-first confirmed at 89d9163aac (resume exits 0 with banner on lanes+coord), green at HEAD. Suites green: terminus+consolidation+orchestrator_api 1987p, lanes+coordination 1286p, status 1310p, cli 56p, integration 79p/1 known base red (5651), named gates 142p, architectural gate files 369p. Mutations of the gate re-check and of the re-attestation base are killed. Probes: no false refusal found (mission-branch commit before lane cut, target merged into lane, real auto-rebase fresh/resume/abort-then-fresh all exit 0). Noted for the PR: a fresh-run verdict widens when another lane merged a late commit and was re-approved (content is inside that lane's reviewed stamp; adjudicated sound, unpinned)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP07:20261004",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3858048,
+      "shell_pid_created_at": "1791156456.12",
+      "subtasks": {
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done"
+      }
+    }
+  }
+}

@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "mission_slug": "approved-claim-bound-01M444QR",
+  "mission_id": "01M444QR19BY00CKEDYSTTYBKS",
+  "mission_branch": "kitty/mission-approved-claim-bound-01M444QR",
+  "target_branch": "issue-5668-approved-claim-bound",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/canceled_attestation.py",
+        "src/specify_cli/consolidation/wp_attribution.py",
+        "tests/consolidation/_divergent_shapes.py",
+        "tests/consolidation/test_approved_content_presence.py",
+        "tests/consolidation/test_canceled_content_benchmark.py",
+        "tests/consolidation/test_canceled_dependency_lane.py",
+        "tests/consolidation/test_executor_phase_boundary.py",
+        "tests/consolidation/test_reconciliation.py",
+        "tests/terminus/conftest.py",
+        "tests/terminus/lanes_fixture.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/approved_bound.py",
+        "src/specify_cli/consolidation/git_probes.py",
+        "src/specify_cli/consolidation/phase_claim.py",
+        "src/specify_cli/consolidation/reconciliation.py",
+        "src/specify_cli/consolidation/run_state.py",
+        "tests/consolidation/test_approved_bound.py",
+        "tests/consolidation/test_canceled_content_residuals.py",
+        "tests/terminus/post_approval_support.py",
+        "tests/terminus/test_post_approval_commit_refused.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/phase_gate.py",
+        "tests/consolidation/test_approved_bound_residuals.py",
+        "tests/terminus/test_post_approval_gate_recheck.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "src/specify_cli/cli/commands/consolidate.py",
+        "src/specify_cli/consolidation/approved_attestation.py",
+        "src/specify_cli/consolidation/executor.py",
+        "tests/consolidation/test_approved_attestation.py",
+        "tests/specify_cli/cli/commands/test_merge_cli_golden.py",
+        "tests/terminus/test_unstamped_approval_attestation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/orchestrator_api/consolidation.py",
+        "tests/orchestrator_api/test_consolidate_mission_post_approval.py",
+        "tests/terminus/test_post_approval_resume.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "CLAUDE.md",
+        "docs/adr/3.x/2026-09-29-1-closed-world-refuse-on-mixed-lanes.md",
+        "docs/adr/4.x/2026-10-04-2-approval-stamp-bounds-the-approved-claim.md",
+        "docs/adr/4.x/index.md",
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "tests/terminus/test_approved_bound_integration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-10-04T19:25:26.484231+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "1c448d9604ad2a11567677026e7ec28571647bd7"
+}

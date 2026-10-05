@@ -1,0 +1,36 @@
+{
+  "accept_commit": "9afe5b6bb210c5b4b8f78b7c1dbf06925ae5cadc",
+  "acceptance_history": [
+    {
+      "accept_commit": "9afe5b6bb210c5b4b8f78b7c1dbf06925ae5cadc",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-05T00:17:23.147009+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "f2e45cd3bfd583d212a348210b8706e3ad7310f2"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-05T00:17:23.147009+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "f2e45cd3bfd583d212a348210b8706e3ad7310f2",
+  "baseline_merge_commit": "4edd508329ae1a56ffbb163dc4fc9d456f68c312",
+  "created_at": "2026-10-04T19:02:32.825248+00:00",
+  "flattened": false,
+  "friendly_name": "Approved claim bound",
+  "merged_at": "2026-10-05T00:18:31.969411+00:00",
+  "merged_commit": "7866ec6ead1f24b4a35aa8f82721b95ccd461c43",
+  "mid8": "01M444QR",
+  "mission_id": "01M444QR19BY00CKEDYSTTYBKS",
+  "mission_number": 216,
+  "mission_slug": "approved-claim-bound-01M444QR",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Today a commit added to a lane after its work package was approved lands on the target with a verified banner, so unreviewed code can reach the target unnoticed. This mission makes the commit recorded at approval the single reference for what review approved: later commits are refused with a named error and a re-review remedy, approvals with no recorded commit fail closed with an operator attest path, and the verified banner is printed only when the landed content is the approved content.",
+  "purpose_tldr": "Consolidate lands only the work a reviewer approved, and says verified only when that is true.",
+  "slug": "approved-claim-bound-01M444QR",
+  "status_phase": "1",
+  "target_branch": "issue-5668-approved-claim-bound",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-04T19:26:57.686071+00:00"
+}
