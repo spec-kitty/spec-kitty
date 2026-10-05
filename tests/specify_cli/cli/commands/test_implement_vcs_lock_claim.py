@@ -159,10 +159,7 @@ def _build_mission_repo(tmp_path: Path) -> Path:
     _write_wp(tasks_dir, "WP01", "src/a/**")
     _write_wp(tasks_dir, "WP02", "src/b/**")
     (feature_dir / "status.events.jsonl").write_text(
-        json.dumps(_seed_event(_MISSION_SLUG, "WP01", "S01"), sort_keys=True)
-        + "\n"
-        + json.dumps(_seed_event(_MISSION_SLUG, "WP02", "S02"), sort_keys=True)
-        + "\n",
+        json.dumps(_seed_event(_MISSION_SLUG, "WP01", "S01"), sort_keys=True) + "\n" + json.dumps(_seed_event(_MISSION_SLUG, "WP02", "S02"), sort_keys=True) + "\n",
         encoding="utf-8",
     )
 

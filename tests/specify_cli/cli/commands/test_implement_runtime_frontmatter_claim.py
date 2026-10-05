@@ -178,9 +178,7 @@ def test_body_change_alongside_runtime_field_still_blocks(tmp_path: Path) -> Non
 
     dropped = _is_self_write_only_diff(tmp_path, repo_rel, None)
 
-    assert dropped is False, (
-        "a body edit must still block even alongside a runtime-only frontmatter change"
-    )
+    assert dropped is False, "a body edit must still block even alongside a runtime-only frontmatter change"
 
 
 def test_non_runtime_frontmatter_change_still_blocks(tmp_path: Path) -> None:
@@ -216,9 +214,7 @@ def test_auto_commit_true_is_byte_identical_noop(tmp_path: Path) -> None:
     working["shell_pid"] = "999999"
     wp_path.write_text(_render_wp(working), encoding="utf-8")
 
-    plan = resolve_planning_artifact_staging(
-        tmp_path, tmp_path / "kitty-specs" / _MISSION_SLUG, None, [], auto_commit=True
-    )
+    plan = resolve_planning_artifact_staging(tmp_path, tmp_path / "kitty-specs" / _MISSION_SLUG, None, [], auto_commit=True)
 
     assert repo_rel in plan.files_to_commit, "auto_commit=True must be a byte-identical no-op (NFR-001)"
 
@@ -260,10 +256,7 @@ def test_is_runtime_frontmatter_only_wp_diff_truth_table(
     working_tail: str,
     expected: bool,
 ) -> None:
-    assert (
-        _is_runtime_frontmatter_only_wp_diff(committed_front, working_front, committed_tail, working_tail)
-        is expected
-    )
+    assert _is_runtime_frontmatter_only_wp_diff(committed_front, working_front, committed_tail, working_tail) is expected
 
 
 # ---------------------------------------------------------------------------
