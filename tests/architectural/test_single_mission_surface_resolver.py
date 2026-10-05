@@ -702,14 +702,17 @@ def test_raw_join_bite_battery_new_unsanctioned_join_reds() -> None:
     the tmp copy for the duration of the ``with`` block still exercises the
     genuine detector, not a stub.
     """
-    target = _SRC_SPECIFY_CLI / "core" / "mission_creation.py"
+    # The file that holds the allowlisted ``_scaffold_mission_dir`` join (#5634
+    # moved it here from ``mission_creation.py``), so the battery proves a NEW
+    # join is flagged next to an allowlisted one in the same file.
+    target = _SRC_SPECIFY_CLI / "core" / "mission_creation_scaffold.py"
 
     def _unexpected_mission_creation_rows(src_root: Path) -> list[_scan.ResolutionRow]:
         return [
             row
             for row in discover_rows()
             if row.call_name == "raw-path-join"
-            and row.rel_path.endswith("core/mission_creation.py")
+            and row.rel_path.endswith("core/mission_creation_scaffold.py")
             and composite_key_from_file(src_root / row.rel_path, row.line) not in _ALLOWLISTED_RAW_JOINS
         ]
 
@@ -720,7 +723,7 @@ def test_raw_join_bite_battery_new_unsanctioned_join_reds() -> None:
     baseline = _unexpected_mission_creation_rows(_SRC_ROOT)
     assert not baseline, (
         "Bite battery precondition violated: an unexpected raw-path-join row "
-        "already exists for mission_creation.py BEFORE injection — the "
+        "already exists for mission_creation_scaffold.py BEFORE injection — the "
         "post-injection assertion would be a tautology."
     )
 

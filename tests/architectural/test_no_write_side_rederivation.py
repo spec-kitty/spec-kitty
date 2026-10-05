@@ -176,6 +176,7 @@ _WRITE_DIR_CONSUMER_MODULES: tuple[Path, ...] = (
     _SRC / "core" / "mission_creation_events.py",
     _SRC / "core" / "mission_creation_commit.py",
     _SRC / "core" / "mission_creation_rollback.py",
+    _SRC / "core" / "mission_creation_decisions.py",
     _SRC / "cli" / "commands" / "retrospect.py",
     _SRC / "cli" / "commands" / "agent_retrospect.py",
 )
