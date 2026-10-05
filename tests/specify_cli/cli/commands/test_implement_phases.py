@@ -32,6 +32,7 @@ from specify_cli.cli.commands.implement_phases import ImplementContext, _ensure_
 from specify_cli.cli.console import console
 from specify_cli.lanes import implement_support
 from specify_cli.lanes.implement_support import LaneWorkspaceResult
+from specify_cli.status.work_package_lifecycle import start_implementation_status
 from specify_cli.workspace.context import ResolvedWorkspace
 from tests.specify_cli.cli.commands.test_implement_characterization import (
     ARGS,
@@ -528,6 +529,38 @@ def test_the_planning_commit_phase_follows_an_allowed_coordination_branch_prefli
 
     assert git(repo, "rev-parse", "HEAD") == head
     assert git(repo, "rev-parse", "--abbrev-ref", "HEAD") == COORDINATION_BRANCH
+
+    # The phase really ran its check (it is not a pass-through): the same phase, on the
+    # same coordination branch, refuses an uncommitted planning artifact, names it and the
+    # branch it must be committed on, and moves nothing.
+    # Planted break (proven red): make ``commit_planning_artifacts`` a no-op.
+    note = ctx.feature_dir / "notes.md"
+    note.write_text("late planning note\n", encoding="utf-8")
+
+    with console.capture() as capture, pytest.raises(typer.Exit) as excinfo:
+        implement_phases.commit_planning_artifacts(ctx, "WP01", preflight)
+
+    assert excinfo.value.exit_code == 1
+    text = _flat(capture.get())
+    assert f"Planning artifacts not committed: kitty-specs/{SLUG}/notes.md" in text
+    assert f"Error: Planning artifacts must be committed on main. Current branch: {COORDINATION_BRANCH}" in text
+    assert git(repo, "rev-parse", "HEAD") == head
+
+
+def test_a_lane_claim_records_a_worktree_workspace_context(repo: Path) -> None:
+    """The claim hands the status pipeline ``workspace_context="worktree:<lane worktree path>"`` for a lane WP.
+
+    Observed on the real ``start_implementation_status`` call (profile hook, not a spy).
+    Planted break (proven red): build the context as ``f"direct:{workspace_path}"`` in
+    ``implement_claim._start_wp_implementation_status``.
+    """
+    build_mission(repo, SLUG, MISSION_ID)
+
+    result, calls = _calls_of(start_implementation_status.__code__, lambda: implement_cli(*ARGS))
+
+    assert result.exit_code == 0, result.output
+    assert [call["workspace_context"] for call in calls] == [f"worktree:{repo / LANE_WORKTREE}"]
+    assert all(call["workspace_context"].startswith("worktree:") for call in calls)
 
 
 def test_claim_events_carry_the_transport_execution_mode_not_the_wp_mode(repo: Path) -> None:
