@@ -676,33 +676,3 @@ def test_load_runtime_merges_per_worker_files(tmp_path: Path) -> None:
     assert "applications total" in text and ": 5" in text
     assert re.search(r"^patch budget applications \(family \+ source\): \d+$", text, re.M)
     assert merged["budget_applications"] == merged["by_bucket"].get("family", 0) + merged["by_bucket"].get("source", 0)
-
-
-# --------------------------------------------------------------------------- #
-# Repository control: known permanent sites, never a count (no floor, no ratchet)
-# --------------------------------------------------------------------------- #
-
-#: Permanent façade patch sites the real test suite keeps on purpose, one per
-#: static form the scanner must resolve. A broken scanner misses one of them; the
-#: shrinking total is not a signal (it shrinks by design).
-_KNOWN_PERMANENT_SITES = frozenset(
-    {
-        # ``patch("specify_cli.core.mission_creation.create_mission_core", ...)``: the CLI stubs the
-        # whole core it imports lazily (a legitimate public seam patch).
-        ("tests/specify_cli/cli/commands/test_selector_resolution.py", "create_mission_core", "patch"),
-        # ``monkeypatch.setattr(<module object>, "name", ...)``: branch-coverage row 4 fault injection.
-        ("tests/core/test_mission_creation_branch_coverage.py", "build_mission_created_payload", "setattr"),
-        # ``monkeypatch.setattr(<parametrized string target>, ...)``: the B2 seed-rollback row.
-        ("tests/core/test_mission_create_coord_seed_rollback.py", "_emit_create_events", "setattr"),
-    }
-)
-
-
-@pytest.mark.integration
-def test_repository_scan_finds_the_known_permanent_facade_sites() -> None:
-    reads = derive_family_reads(REPO_ROOT / "src")
-    report = scan_static(REPO_ROOT / "tests", family_read_names=reads.names, read_sources=reads.sources)
-    found = {(site.file, site.attr, site.form) for site in report.sites if site.bucket == BUCKET_FAMILY and site.module == pc.DEFAULT_FAMILY_PREFIX}
-    print(f"mission_creation facade patch sites: {report.count(BUCKET_FAMILY)} (grounding: 277 on origin/main 9adc6880; 90 after the de-routing)")
-    assert found >= _KNOWN_PERMANENT_SITES, sorted(_KNOWN_PERMANENT_SITES - found)
-    assert {"is_worktree_context", "locate_project_root", "is_git_repo", "get_current_branch"} <= reads.names

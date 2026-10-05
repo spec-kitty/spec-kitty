@@ -224,17 +224,17 @@ def test_t003_mission_id_is_valid_ulid_and_immutable(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# T004 — 100 sequential creations all produce distinct ULIDs (FR-005)
+# T004 — 100 minted mission ids are all distinct (FR-005)
 # ---------------------------------------------------------------------------
 
 
-def test_t004_hundred_sequential_creations_all_distinct(tmp_path: Path) -> None:
-    """FR-005: ULID monotonicity — N identity mints in one process yield N unique IDs.
+def test_t004_hundred_minted_mission_ids_are_all_distinct(tmp_path: Path) -> None:
+    """FR-005: ULID monotonicity — N minted mission ids in one process are N unique IDs.
 
-    The contract is about the identity mint, so the volume runs
-    through the create's identity seam (``_mint_mission_id``, the one function
-    ``create_mission_core`` mints with) instead of N full creates. N defaults to
-    25 and rises to 100 when SPEC_KITTY_ULID_VOLUME_FULL is set (nightly path).
+    This asserts the identity mint, not N creates: the volume runs through the
+    create's identity seam (``_mint_mission_id``, the one function
+    ``create_mission_core`` mints with). N defaults to 25 and rises to 100 when
+    SPEC_KITTY_ULID_VOLUME_FULL is set (nightly path).
     Each id must be a valid ULID, all must be distinct, and they must be in
     non-decreasing lexicographic order (ULID timestamps increase monotonically
     within one process; the python-ulid library guarantees this). One real

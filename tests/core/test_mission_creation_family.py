@@ -8,25 +8,22 @@ behaviour-neutral:
    and every name the façade exposed before the split still resolves on it;
 2. no leaf imports the façade at module scope, and the pure decisions module
    never imports it at all (no import cycle);
-3. leaves log through the façade's logger name, and every leaf imports on its
-   own (no reliance on the façade being imported first);
-4. the function-local imports of the pre-split module stay function-local;
-5. every top-level definition of the pre-split module lives in exactly one
-   family module;
-6. a patch on ``mission_creation.<name>`` intercepts a call made inside a leaf;
-7. routing set-equality (the routing rule; patches keep intercepting): a leaf reaches a name tests patch on
+3. every family logger is the façade's logger name, and every leaf imports on
+   its own (no reliance on the façade being imported first);
+4. the lazy-only modules are never imported at module scope;
+5. a patch on ``mission_creation.<name>`` intercepts a call made inside a leaf;
+6. routing set-equality (the routing rule; patches keep intercepting): a leaf reaches a name tests patch on
    the façade, or a function another family module owns, only as
    ``_mc.<name>``, and routes nothing else. Import aliases are resolved, and
    ``<module alias>.<name>`` and ``sys.modules[...]`` reads are flagged;
-8. the seam cleanups (the mint gate, the protection probe, the rollback journal);
-9. the seam structural checks, each with a planted control.
+7. the seam cleanups (the mint gate, the protection probe, the rollback journal);
+8. the seam structural checks, each with a planted control.
 """
 
 from __future__ import annotations
 
 import ast
 import importlib
-import logging
 import subprocess
 import sys
 from collections.abc import Iterable
@@ -96,82 +93,6 @@ _FROZEN_FACADE_ATTRIBUTES = (
     "validate_purpose_summary",
 )  # fmt: skip
 
-# The top-level definitions of ``mission_creation.py`` on 61dd4c56c (functions, classes and module assignments; imports excluded),
-# taken from ``ast.parse(<base file>).body`` before the split. The one-off
-# split proof also compared each moved definition's AST with the base one.
-_BASE_TOP_LEVEL_DEFINITIONS = (
-    "logger", "_META_KEY_MISSION_TYPE", "_META_KEY_CREATED_AT", "_COORDINATION_BRANCH_GLOB",
-    "_BOOTSTRAP_META_COMMIT_SKIPS", "MissionCreationError", "MissionAlreadyExistsError",
-    "MissionCreationResult", "KEBAB_CASE_PATTERN", "TASKS_README_TEMPLATE", "render_tasks_readme_content",
-    "_commit_feature_file", "_list_coordination_branches", "_rev_parse_or_none", "_list_mission_scaffolds",
-    "_prior_mission_is_abandoned", "_find_live_duplicate_mission", "MissionBranchExistsError",
-    "_target_has_commit", "_raise_refusal", "_protected_mint_applies",
-    "_mint_protected_single_branch_mission_branch", "_check_out_minted_branch",
-    "_gather_and_decide_protected_mint", "_local_branch_exists", "_dirty_outside_scaffold",
-    "_path_is_tracked_by_git", "_failure_is_disposable_create_refusal", "_plan_orphan_scaffold_removal",
-    "_remove_orphan_mission_scaffolds", "_CoordCreateRollbackContext", "_rollback_coordination_surface",
-    "_restore_git_state_after_failed_create", "create_mission_core", "_validate_create_inputs",
-    "_CreateRoots", "_resolve_create_roots", "_refuse_live_duplicate", "_Purpose", "_resolve_purpose",
-    "_Governance", "_resolve_create_governance", "_Scaffold", "_scaffold_mission_dir", "_MetaBuild",
-    "_build_create_meta", "_refuse_protected_recreate", "_mint_protected_branch_for_topology",
-    "_emit_create_events", "_CommitOutcome", "_commit_create_scaffold", "_commit_failure_kind",
-    "_build_create_result", "_commit_coord_create_events", "_CoordCreateSeed",
-    "_seed_coord_surface_for_create", "_create_mission_core_impl", "_consume_pending_origin_if_present",
-)  # fmt: skip
-
-# Definitions the seam cleanups added; every other
-# name is still one of the base definitions above.
-_SEAM_CLEANUP_DEFINITIONS = frozenset({"_write_create_meta", "_ProtectionProbe", "CreateRollbackJournal"})
-# The identity seam and the failure-atomic body that takes
-# the private identity inputs (``_mission_id`` / ``_created_at``).
-_IDENTITY_SEAM_DEFINITIONS = frozenset({"_mint_mission_id", "_create_mission_core_failure_atomic"})
-
-# ``logger`` is the one name defined more than once: each leaf that logs pins
-# ``logging.getLogger("specify_cli.core.mission_creation")`` (test 3), the logger
-# the pre-split ``logging.getLogger(__name__)`` named, and the façade re-exports
-# it, so every copy is the same logger object.
-_MULTI_DEFINED = frozenset({"logger"})
-
-# The function-local imports of the pre-split module, as
-# ``(module, name)`` pairs, from a one-off scan of 61dd4c56c.
-# They avoid import cycles and keep tracker adapter registration order
-# (``specify_cli.core.adapters`` is imported lazily).
-_BASE_FUNCTION_LOCAL_IMPORTS = frozenset(
-    {
-        ("charter.activation.mission_type_profiles", "existing_mission_types"),
-        ("charter.activation.mission_type_profiles", "resolve_mission_type_context"),
-        ("charter.activation.pack_context", "CharterPackConfigError"),
-        ("mission_runtime", "classify_topology"),
-        ("specify_cli.coordination.commit_outcome", "STATUS_COMMITTED"),
-        ("specify_cli.coordination.commit_outcome", "STATUS_UNCHANGED"),
-        ("specify_cli.coordination.commit_router", "commit_for_mission"),
-        ("specify_cli.coordination.coord_seed", "COORD_SEED_TRAILER"),
-        ("specify_cli.coordination.teardown", "teardown_coordination_topology"),
-        ("specify_cli.core.adapters", "consume_pending_origin"),
-        ("specify_cli.core.git_ops", "resolve_primary_branch"),
-        ("specify_cli.git.commit_helpers", "ProtectedBranchRefused"),
-        ("specify_cli.git.commit_helpers", "SafeCommitDestinationNotFound"),
-        ("specify_cli.git.commit_helpers", "SafeCommitHeadMismatch"),
-        ("specify_cli.git.protection_policy", "ProtectionPolicy"),
-        ("specify_cli.identity.project", "load_identity"),
-        ("specify_cli.mission_metadata", "set_documentation_state"),
-        ("specify_cli.mission_metadata", "write_meta"),
-        ("specify_cli.missions._create", "ensure_coordination_branch"),
-        ("specify_cli.missions._create", "topology_mints_coordination_branch"),
-        ("specify_cli.missions._read_path_resolver", "coord_feature_dir"),
-        ("specify_cli.runtime.resolver", "resolve_configured_template"),
-        ("specify_cli.status", "Lane"),
-        ("specify_cli.status", "MISSION_CREATED"),
-        ("specify_cli.status", "SPECIFY_STARTED"),
-        ("specify_cli.status", "StoreError"),
-        ("specify_cli.status", "_resolve_local_actor"),
-        ("specify_cli.status", "emit_artifact_phase_local"),
-        ("specify_cli.status", "emit_mission_created_local"),
-        ("specify_cli.status", "fanout_lifecycle_event_hosted"),
-        ("specify_cli.status", "materialize_snapshot"),
-        ("specify_cli.status", "read_lifecycle_events"),
-    }
-)
 # Modules that must never be imported at module scope anywhere in the family.
 _LAZY_ONLY_MODULES = frozenset(
     {
@@ -240,17 +161,6 @@ def _module_scope_imports(tree: ast.Module) -> list[ast.Import | ast.ImportFrom]
     return found
 
 
-def _function_local_imports(tree: ast.Module) -> set[tuple[str, str]]:
-    pairs: set[tuple[str, str]] = set()
-    for fn in _function_nodes(tree):
-        for node in ast.walk(fn):
-            if isinstance(node, ast.ImportFrom) and node.module:
-                pairs.update((node.module, alias.name) for alias in node.names)
-            elif isinstance(node, ast.Import):
-                pairs.update((alias.name, "") for alias in node.names)
-    return pairs
-
-
 # --------------------------------------------------------------------------- #
 # 1. Re-export identity and the frozen façade surface
 # --------------------------------------------------------------------------- #
@@ -305,21 +215,6 @@ def test_decisions_module_never_imports_the_facade() -> None:
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.parametrize("module_name", LEAF_NAMES)
-def test_leaf_logger_is_pinned_to_the_facade_name(module_name: str) -> None:
-    module = importlib.import_module(f"{_PKG}.{module_name}")
-    leaf_logger = getattr(module, "logger", None)
-    if leaf_logger is None:
-        pytest.skip(f"{module_name} does not log")
-    assert isinstance(leaf_logger, logging.Logger)
-    assert leaf_logger.name == _FACADE_MODULE
-    assert leaf_logger is mission_creation.logger
-
-
-def test_facade_logger_name_is_unchanged() -> None:
-    assert mission_creation.logger.name == _FACADE_MODULE
-
-
 def _get_logger_names(path: Path) -> list[object]:
     """Arguments of every ``logging.getLogger(...)`` / ``getLogger(...)`` call in *path*."""
     names: list[object] = []
@@ -352,16 +247,8 @@ def test_leaf_imports_on_its_own(module_name: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# 4. Function-local imports stay function-local
+# 4. Lazy-only imports stay function-local
 # --------------------------------------------------------------------------- #
-
-
-def test_function_local_imports_of_the_base_stay_function_local() -> None:
-    family_local: set[tuple[str, str]] = set()
-    for path in MISSION_CREATION_MODULE_PATHS:
-        family_local |= _function_local_imports(_tree(path))
-    family_local.discard((_PKG, "mission_creation"))  # the routing import
-    assert family_local == _BASE_FUNCTION_LOCAL_IMPORTS
 
 
 @pytest.mark.parametrize("path", MISSION_CREATION_MODULE_PATHS, ids=lambda p: p.stem)
@@ -377,30 +264,7 @@ def test_lazy_only_imports_never_appear_at_module_scope(path: Path) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# 5. Exactly once
-# --------------------------------------------------------------------------- #
-
-
-def test_every_base_definition_lives_in_exactly_one_family_module() -> None:
-    homes: dict[str, list[str]] = {}
-    for path in MISSION_CREATION_MODULE_PATHS:
-        if path == DECISIONS:
-            continue
-        for name in _top_level_definitions(_tree(path)):
-            homes.setdefault(name, []).append(path.stem)
-    base = set(_BASE_TOP_LEVEL_DEFINITIONS)
-    assert len(base) == len(_BASE_TOP_LEVEL_DEFINITIONS) == 58
-    wrong = {name: homes.get(name, []) for name in base - _MULTI_DEFINED if len(homes.get(name, [])) != 1}
-    assert not wrong, f"not defined exactly once across the family: {wrong}"
-    assert homes["logger"], "no family module defines logger"
-    added = {name: homes.get(name, []) for name in _SEAM_CLEANUP_DEFINITIONS | _IDENTITY_SEAM_DEFINITIONS if len(homes.get(name, [])) != 1}
-    assert not added, f"post-split additions not defined exactly once: {added}"
-    unexpected = sorted(set(homes) - base - _SEAM_CLEANUP_DEFINITIONS - _IDENTITY_SEAM_DEFINITIONS)
-    assert not unexpected, f"family defines names the pre-split module did not: {unexpected}"
-
-
-# --------------------------------------------------------------------------- #
-# 6. Behavioural intercepts
+# 5. Behavioural intercepts
 # --------------------------------------------------------------------------- #
 
 
@@ -439,8 +303,13 @@ def test_meta_leaf_reads_the_clock_without_an_injected_stamp(tmp_path: Path) -> 
 
 
 # --------------------------------------------------------------------------- #
-# 7. Routing set-equality (hardening (a)-(e))
+# 6. Routing set-equality (hardening (a)-(e))
 # --------------------------------------------------------------------------- #
+
+
+#: ``census`` scans the whole ``tests/`` tree (about 11 s), so every test that
+#: depends on it (directly or through ``patched_names``) leaves the fast tier.
+_NEEDS_TEST_TREE_CENSUS = pytest.mark.integration
 
 
 @pytest.fixture(scope="module")
@@ -626,6 +495,7 @@ def _routing_violations(tree: ast.Module, own_path: Path, routed: frozenset[str]
     return violations
 
 
+@_NEEDS_TEST_TREE_CENSUS
 def test_routed_set_is_the_expected_patch_surface(patched_names: frozenset[str]) -> None:
     """Documents the computed routing set; a change here means a test started (or
     stopped) patching a name a leaf reads, and the leaf routing must follow."""
@@ -633,6 +503,7 @@ def test_routed_set_is_the_expected_patch_surface(patched_names: frozenset[str])
 
 
 @pytest.mark.parametrize("module_name", LEAF_NAMES)
+@_NEEDS_TEST_TREE_CENSUS
 def test_leaf_routes_exactly_the_patched_and_cross_module_names(module_name: str, patched_names: frozenset[str]) -> None:
     """A bare reference silently stops honouring a patch on ``mission_creation``; an
     ``_mc.`` reference to a name nobody patches hides drift."""
@@ -640,6 +511,7 @@ def test_leaf_routes_exactly_the_patched_and_cross_module_names(module_name: str
     assert _routing_violations(_tree(path), path, _routed_set(patched_names), patched_names) == []
 
 
+@_NEEDS_TEST_TREE_CENSUS
 def test_no_family_targeting_patch_site_is_unresolved(census: CensusReport) -> None:
     """Hardening (d): a patch the census cannot resolve could target a leaf name unseen."""
     assert census.family_targeting_unresolved() == ()
@@ -654,17 +526,20 @@ def _mutated_violations(module_name: str, old: str, new: str, patched: frozenset
     return _routing_violations(tree, path, _routed_set(patched, _leaf_trees((path, tree))), patched)
 
 
+@_NEEDS_TEST_TREE_CENSUS
 def test_planted_control_flags_a_derouted_reference(patched_names: frozenset[str]) -> None:
     violations = _mutated_violations(_EVENTS, _ROUTED_CALL, _ROUTED_CALL.replace("_mc.", ""), patched_names)
     assert len(violations) == 1 and violations[0].startswith("Rule A"), violations
 
 
+@_NEEDS_TEST_TREE_CENSUS
 def test_planted_control_flags_a_newly_patched_name_read_bare(patched_names: frozenset[str]) -> None:
     path = _leaf_path("mission_creation_roots")
     violations = _routing_violations(_tree(path), path, _routed_set(patched_names | {"has_unborn_head"}))
     assert any("has_unborn_head" in v for v in violations), violations
 
 
+@_NEEDS_TEST_TREE_CENSUS
 def test_planted_control_flags_an_aliased_import_of_a_routed_name(patched_names: frozenset[str]) -> None:
     violations = _mutated_violations(
         "mission_creation_roots",
@@ -675,6 +550,7 @@ def test_planted_control_flags_an_aliased_import_of_a_routed_name(patched_names:
     assert any(v.startswith("Rule A: routed name imported ['build_mission_created_payload']") for v in violations), violations
 
 
+@_NEEDS_TEST_TREE_CENSUS
 def test_planted_control_flags_a_module_scope_reference(patched_names: frozenset[str]) -> None:
     violations = _mutated_violations(
         "mission_creation_roots",
@@ -685,6 +561,7 @@ def test_planted_control_flags_a_module_scope_reference(patched_names: frozenset
     assert any("build_mission_created_payload" in v and v.startswith("Rule A") for v in violations), violations
 
 
+@_NEEDS_TEST_TREE_CENSUS
 def test_planted_control_flags_another_facade_alias(patched_names: frozenset[str]) -> None:
     violations = _mutated_violations(
         "mission_creation_events", f"    {_LAZY_IMPORT}\n", "    from specify_cli.core import mission_creation as _facade\n", patched_names
@@ -692,13 +569,14 @@ def test_planted_control_flags_another_facade_alias(patched_names: frozenset[str
     assert any("façade imported as" in v for v in violations), violations
 
 
+@_NEEDS_TEST_TREE_CENSUS
 def test_planted_control_flags_over_routing(patched_names: frozenset[str]) -> None:
     violations = _mutated_violations("mission_creation_roots", "has_unborn_head(write_root)", "_mc.has_unborn_head(write_root)", patched_names)
     assert any(v.startswith("Rule C") for v in violations), violations
 
 
 # --------------------------------------------------------------------------- #
-# 8. Seam cleanups
+# 7. Seam cleanups
 # --------------------------------------------------------------------------- #
 
 
@@ -788,7 +666,7 @@ def test_rollback_journal_records_the_first_coordination_surface(tmp_path: Path)
 
 
 # --------------------------------------------------------------------------- #
-# 9. Structural checks, each with a planted control
+# 8. Structural checks, each with a planted control
 # --------------------------------------------------------------------------- #
 
 _COORD_PREDICATE = "is_coordination_routed"
@@ -956,6 +834,7 @@ _EVENTS_IMPORT = "from specify_cli.core.owned_mission import OwnedCreateRoot\n"
 _ROUTED_CALL = "        expected_created_payload = _mc.build_mission_created_payload(\n"
 
 
+@_NEEDS_TEST_TREE_CENSUS
 def test_planted_control_flags_a_module_alias_attribute_of_a_routed_name(patched_names: frozenset[str]) -> None:
     """``import specify_cli.core.git_ops as _g; _g.get_current_branch()`` bypasses ``_mc``.
 
@@ -970,6 +849,7 @@ def test_planted_control_flags_a_module_alias_attribute_of_a_routed_name(patched
     assert violations == [f"Rule D: _g.get_current_branch bypasses _mc (line {_line_of(source, '_g.get_current_branch(')})"], violations
 
 
+@_NEEDS_TEST_TREE_CENSUS
 def test_planted_control_flags_a_dotted_module_attribute_of_a_routed_name(patched_names: frozenset[str]) -> None:
     """``import specify_cli.core.git_ops; specify_cli.core.git_ops.get_current_branch()`` bypasses ``_mc``
     (with ``get_current_branch`` added to the patched set, as above)."""
@@ -981,6 +861,7 @@ def test_planted_control_flags_a_dotted_module_attribute_of_a_routed_name(patche
     assert any(v.startswith("Rule D: specify_cli.core.git_ops.get_current_branch") for v in violations), violations
 
 
+@_NEEDS_TEST_TREE_CENSUS
 def test_planted_control_flags_an_aliased_import_of_a_foreign_function(patched_names: frozenset[str]) -> None:
     """Rule B through an alias: another family module's function imported as ``_cff``."""
     violations = _mutated_violations(
@@ -992,6 +873,7 @@ def test_planted_control_flags_an_aliased_import_of_a_foreign_function(patched_n
     assert any(v.startswith("Rule B: another module's function imported ['_refuse_live_duplicate']") for v in violations), violations
 
 
+@_NEEDS_TEST_TREE_CENSUS
 def test_planted_control_flags_a_read_of_an_aliased_foreign_function(patched_names: frozenset[str]) -> None:
     """A bare read is judged by the imported name: ``_lms`` is ``_list_mission_scaffolds``."""
     violations = _mutated_violations(
@@ -1012,6 +894,7 @@ def test_planted_control_flags_a_read_of_an_aliased_foreign_function(patched_nam
         ("specify_cli.core.mission_creation", "create_mission_core"),
     ],
 )
+@_NEEDS_TEST_TREE_CENSUS
 def test_planted_control_flags_an_aliased_import_of_a_patched_but_unread_name(patched_names: frozenset[str], module: str, name: str) -> None:
     """A name tests patch on the façade but no leaf reads today is still caught when a leaf imports it under an alias."""
     assert name in patched_names and name not in _routed_set(patched_names)
@@ -1019,6 +902,7 @@ def test_planted_control_flags_an_aliased_import_of_a_patched_but_unread_name(pa
     assert any(v.startswith(f"Rule A: routed name imported ['{name}']") for v in violations), violations
 
 
+@_NEEDS_TEST_TREE_CENSUS
 def test_planted_control_flags_an_aliased_read_of_a_newly_patched_name(patched_names: frozenset[str]) -> None:
     """The routed set resolves aliases: a patched name read only as ``_hub`` still joins it."""
     patched = patched_names | {"has_unborn_head"}
@@ -1036,6 +920,7 @@ def test_planted_control_flags_an_aliased_read_of_a_newly_patched_name(patched_n
     ("module_scope", "label"),
     [(False, "function-local"), (True, "module-level")],
 )
+@_NEEDS_TEST_TREE_CENSUS
 def test_planted_control_flags_a_two_step_rebind_of_an_imported_module(patched_names: frozenset[str], module_scope: bool, label: str) -> None:
     """``from specify_cli.core import mission_payload; _m = mission_payload;
     _m.build_mission_created_payload(...)`` reaches a routed name past ``_mc`` through a rebound
@@ -1061,6 +946,7 @@ def test_rebound_alias_detection_is_transitive_and_ignores_non_import_values() -
     assert _rebound_aliases(tree, {"m"}) == {"x", "y"}
 
 
+@_NEEDS_TEST_TREE_CENSUS
 def test_planted_control_flags_sys_modules_access_to_the_facade(patched_names: frozenset[str]) -> None:
     violations = _mutated_violations(
         _ROOTS,

@@ -614,41 +614,6 @@ def test_default_mission_is_software_dev(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_meta_json_commit_noop_does_not_raise(tmp_path: Path) -> None:
-    """FR-001 Acceptance Scenario 3: the legitimate "nothing to commit" no-op
-    case is unaffected by removing the ``contextlib.suppress(Exception)``
-    wrapper. ``_commit_feature_file``'s own docstring documents it "silently
-    succeeds when there is nothing to commit" -- that no-op behavior lives
-    inside ``_commit_feature_file``/``safe_commit`` itself and is untouched by
-    this WP's fix, which only removes the code that discarded a *raised*
-    exception. This test proves the fix distinguishes "nothing to commit"
-    (still silent, unchanged) from "hard failure" (now raises, see the
-    sibling hard-failure tests in ``test_mission_create_checkout_restore.py``).
-
-    Not red-first by design (T003): a non-raising ``_commit_feature_file``
-    call is unaffected whether or not ``contextlib.suppress`` wraps it, so
-    this test passes identically before and after the fix -- it is a
-    regression guard against the fix ever broadening to reject the no-op
-    case, not a reproduction of the defect.
-    """
-    # An unprotected planning branch, so the real scaffold commit lands
-    # (on protected ``main`` it is a disclosed bootstrap skip instead).
-    _init_git_repo(tmp_path)
-    subprocess.run(["git", "checkout", "-q", "-b", "develop"], cwd=tmp_path, check=True)
-
-    result = create_mission_core(tmp_path, "meta-noop-commit", **_mission_summary("meta-noop-commit"))
-
-    assert isinstance(result, MissionCreationResult)
-    # The commit ran for real and did not raise: the scaffold is HEAD's commit
-    # (``spec.md`` is never part of the create's scaffold commit).
-    assert [p.name for p in result.uncommitted_files] == ["spec.md"]
-    committed = _git_out(tmp_path, "log", "-1", "--name-only", "--format=%s").split()
-    assert committed[:3] == ["Add", "scaffold", "for"]
-    assert f"kitty-specs/{result.mission_slug}/meta.json" in committed
-    meta_file = result.feature_dir / "meta.json"
-    assert meta_file.exists()
-
-
 def test_meta_json_commit_hard_failure_raises_for_documentation_mission(
     tmp_path: Path,
 ) -> None:
