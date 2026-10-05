@@ -163,6 +163,7 @@ def test_mixed_lane_claim_is_untouched(tmp_path: Path) -> None:
     mission = build_coord_mission_mixed_lane_canceled(
         tmp_path,
         canceled_changes=[PlantedChange("src/pkg/wp02_new.py", "def wp02_new() -> str:\n    return 'x'\n")],
+        survivor_reapproved=True,
         mid8="01M5569M",
     )
     manifest = read_lanes_json(mission.feature_dir)
@@ -236,6 +237,33 @@ def test_attesting_an_unstamped_wp_never_lifts_a_stamped_sibling_of_the_same_can
     assert built.wp01_sha not in claim.authored_shas, "attesting WP03 must not turn stamped WP01's commit into approved authorship"
     assert built.wp01_sha in claim.excluded_shas
     assert [(e.wp_ids, e.path) for e in claim.canceled_dependency_content] == [(("WP01", "WP03"), WP01_PATH)]
+
+
+def test_every_unstamped_canceled_wp_and_the_approval_bound_are_named_in_the_one_text(tmp_path: Path) -> None:
+    """Two unstamped canceled WPs of one carried lane, and a late commit on the approved carrier lane: one text, in that order (#5720)."""
+    from tests.terminus.post_approval_support import add_post_approval_commit
+
+    built = build_canceled_dependency_mission(tmp_path, mid8="01M5720D")
+    mission = built.mission
+    strip_lane_head_stamps(mission, "WP01")
+    _add_unstamped_sibling(mission, "WP03", like="WP01")
+    add_post_approval_commit(mission, LANE_B)
+    manifest = read_lanes_json(mission.feature_dir)
+    assert manifest is not None
+    two_wp_lane = replace(manifest, lanes=[replace(lane, wp_ids=("WP01", "WP03")) if lane.lane_id == LANE_A else lane for lane in manifest.lanes])
+
+    claim = build_approved_wp_set(
+        mission.repo,
+        _status_dir(mission),
+        two_wp_lane,
+        coord_base_ref=mission.target_branch,
+        excluded_canceled_wp_ids=frozenset({"WP01", "WP03"}),
+        excluded_window_base=mission.target_branch,
+    )
+
+    assert claim.refusal is not None
+    positions = [claim.refusal.find(marker) for marker in ("canceled WP01 (lane", "canceled WP03 (lane", "This Mission also has:", "LANE_MOVED_AFTER_APPROVAL: ")]
+    assert all(position >= 0 for position in positions) and positions == sorted(positions), claim.refusal
 
 
 def test_lacks_lane_head_stamps_is_event_only(tmp_path: Path) -> None:

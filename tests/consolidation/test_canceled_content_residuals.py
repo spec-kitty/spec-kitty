@@ -145,6 +145,19 @@ def _event(seq: int, wp: str, frm: str, to: str, *, slug: str, at: str, stamp: s
     return ev
 
 
+def _wp01_approved_again(events: list[dict[str, object]], first_seq: int, *, slug: str, lane_tip: str) -> None:
+    """Record that review approved WP01 AGAIN at *lane_tip*, the lane as it now stands.
+
+    The approval-stamp bound refuses any content commit on a lane after the approval it
+    names, so a fixture whose lane commits land after WP01's first approval re-approves
+    WP01 at the final tip; the rework adds no commit of its own.
+    """
+    rework = (("approved", "in_progress"), ("in_progress", "for_review"), ("for_review", "in_review"), ("in_review", "approved"))
+    for step, (frm, to) in enumerate(rework):
+        stamp = None if to == "in_review" else lane_tip
+        events.append(_event(first_seq + step, "WP01", frm, to, slug=slug, at=f"2026-01-09T00:0{step}:00+00:00", stamp=stamp))
+
+
 def _write_events(repo: Path, feature_dir: Path, events: list[dict[str, object]]) -> None:
     events_path = feature_dir / "status.events.jsonl"
     events_path.write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events), encoding="utf-8")
@@ -353,6 +366,7 @@ def test_other_lane_identical_content_ideally_passes(tmp_path: Path) -> None:
     events.append(_event(11, "WP03", "in_progress", "for_review", slug=slug, at="2026-01-01T00:02:00+00:00", stamp=_rev(repo)))
     events.append(_event(12, "WP03", "for_review", "in_review", slug=slug, at="2026-01-01T00:03:00+00:00", stamp=None))
     events.append(_event(13, "WP03", "in_review", "approved", slug=slug, at="2026-01-01T00:04:00+00:00", stamp=_rev(repo)))
+    _wp01_approved_again(events, 14, slug=slug, lane_tip=_rev(repo, lane_a))
 
     _git(repo, "checkout", "-q", _TARGET)
     _write_events(repo, feature_dir, events)
@@ -608,6 +622,7 @@ def test_sibling_never_entered_implementation_commit_ideally_not_attributed_to_c
     # WP02 closes its window AFTER WP03's stray commit -- the commit falls
     # squarely inside WP02's open..close range.
     events.append(_event(10, "WP02", "in_progress", "canceled", slug=slug, at="2026-01-02T00:07:00+00:00", stamp=_rev(repo)))
+    _wp01_approved_again(events, 11, slug=slug, lane_tip=_rev(repo))
 
     _git(repo, "checkout", "-q", _TARGET)
     _write_events(repo, feature_dir, events)

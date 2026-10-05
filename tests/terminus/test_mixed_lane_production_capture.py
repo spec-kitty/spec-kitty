@@ -30,7 +30,7 @@ import pytest
 from specify_cli.status.models import ReviewResult
 from tests.terminus.conftest import CoordMission, build_coord_mission_mixed_lane_canceled, git_rev, run_terminus
 from tests.terminus.conftest import _git as git
-from tests.terminus.mixed_lane_support import FAIL_HEADER, FAIL_WHO, LANE_NAME, collapse, ensure_wp01_subtasks_roster, transition
+from tests.terminus.mixed_lane_support import FAIL_HEADER, FAIL_WHO, LANE_NAME, collapse, ensure_wp01_subtasks_roster, reapprove_wp01, transition
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
 
@@ -111,9 +111,13 @@ def _build_live_capture_mission(tmp_path: Path, mid8: str) -> CoordMission:
 
 def test_production_path_unsuperseded_canceled_content_fails(tmp_path: Path) -> None:
     """WP02's lifecycle driven live, its real commit never superseded:
-    consolidation FAILs, naming WP02, the lane and the path, and restores the target."""
+    consolidation FAILs, naming WP02, the lane and the path, and restores the target.
+
+    WP02 committed after WP01's approval, so WP01 is approved again first (#5720): the
+    approval-stamp bound then passes and the canceled-content verdict is what the run reports."""
     mission = _build_live_capture_mission(tmp_path, "01M5046P")
     _drive_wp02_live(mission, mission.lane_branches["WP02"])
+    reapprove_wp01(mission, actor=_ACTOR)
 
     pre_sha = mission.rev(mission.target_branch)
     result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes"])

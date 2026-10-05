@@ -18,7 +18,15 @@ from typing import Any
 import pytest
 
 from specify_cli.consolidation import approved_bound as bound
-from specify_cli.consolidation.approved_bound import ATTEST_APPROVED_FLAG, BoundRefusal, BoundRefusalCode, approval_stamp, check_lane, render_refusals
+from specify_cli.consolidation.approved_bound import (
+    ATTEST_APPROVED_FLAG,
+    BoundRefusal,
+    BoundRefusalCode,
+    approval_stamp,
+    check_lane,
+    refusal_codes,
+    render_refusals,
+)
 from specify_cli.consolidation.canceled_attestation import ATTESTATION_KEY
 from specify_cli.consolidation.git_probes import GitProbeError
 from specify_cli.consolidation.reconciliation import ApprovedWpCommitSet, approval_stamp_anchors, build_approved_wp_set, lane_tips_moved_refusal
@@ -50,7 +58,6 @@ class _Setup:
 
     anchors: tuple[str, ...] = ()
     approved: tuple[str, ...] = ("WP01",)
-    canceled: tuple[str, ...] = ()
 
 
 @dataclass
@@ -110,7 +117,6 @@ class _Repo:
             lane_id=_LANE,
             branch=_BRANCH,
             approved_wp_ids=setup.approved,
-            canceled_wp_ids=setup.canceled,
             claim_base="base",
             anchors=setup.anchors,
             is_bookkeeping=_is_bookkeeping,
@@ -232,6 +238,20 @@ def test_several_work_packages_render_one_line_each_and_one_recovery_block() -> 
         assert "\n  spec-kitty agent tasks move-task WP01 --to in_progress --mission demo-mission\n" in single
 
 
+def test_refusal_codes_lists_each_code_that_leads_a_block_once_in_text_order() -> None:
+    """A code named inside a sentence, or by a second lane of the same code, adds no entry (#5720)."""
+    refusals = [
+        BoundRefusal(BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL, "lane-a", "branch-a", ("WP01",), commits=("a" * 40,), path="src/a.py"),
+        BoundRefusal(BoundRefusalCode.APPROVAL_STAMP_MISSING, "lane-b", "branch-b", ("WP02",)),
+        BoundRefusal(BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL, "lane-c", "branch-c", ("WP03",), commits=("c" * 40,), path="src/c.py"),
+    ]
+    text = render_refusals(refusals, "demo-mission")
+
+    assert refusal_codes(text) == ["LANE_MOVED_AFTER_APPROVAL", "APPROVAL_STAMP_MISSING"]
+    assert refusal_codes(f"intro: APPROVAL_STAMP_NOT_ON_LANE: inside a line\n{text}") == ["LANE_MOVED_AFTER_APPROVAL", "APPROVAL_STAMP_MISSING"]
+    assert refusal_codes("no code here") == []
+
+
 def test_a_later_approval_of_a_lane_that_took_this_lane_in_covers_its_late_commit(repo: _Repo) -> None:
     """Deliberate (ADR 2026-10-04-2): every bounded lane's approval stamps are anchors, so reviewed content stays reviewed wherever it first appeared.
 
@@ -273,7 +293,6 @@ def test_unresolvable_claim_base_fails_closed_instead_of_passing(repo: _Repo) ->
             lane_id=_LANE,
             branch=_BRANCH,
             approved_wp_ids=("WP01",),
-            canceled_wp_ids=(),
             claim_base="no-such-base-xyz",
             anchors=(),
             is_bookkeeping=_is_bookkeeping,
@@ -383,29 +402,6 @@ def test_content_arriving_through_a_merge_from_a_non_anchor_is_found(repo: _Repo
 
     assert refusal is not None and refusal.code is BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL
     assert refusal.commits == (smuggled,)
-
-
-@pytest.mark.parametrize("unstamped_event_after_cancel", [False, True])
-def test_mixed_lane_counts_the_canceled_work_packages_stamp_as_covered(repo: _Repo, unstamped_event_after_cancel: bool) -> None:
-    """WP02's commits after WP01's approval are the existing closed world's; only a commit after the cancel is new.
-
-    The covered point is WP02's newest STAMPED event: an unstamped event recorded after the
-    stamped cancel (an operator attestation taken when the lane could not be read) must not
-    hide it, or the lane would be refused for WP02's own commits.
-    """
-    _approved_lane(repo)
-    repo.commit("src/wp02.py")
-    repo.event("WP02", Lane.CANCELED, repo.tip(_BRANCH))
-    if unstamped_event_after_cancel:
-        repo.event("WP02", Lane.CANCELED, None, actor="operator")
-    setup = _Setup(canceled=("WP02",))
-
-    assert repo.check(setup) is None
-
-    repo.commit("src/after_cancel.py")
-    refusal = repo.check(setup)
-    assert refusal is not None and refusal.code is BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL
-    assert "src/after_cancel.py" in refusal.render(_SLUG)
 
 
 # ---------------------------------------------------------------------------

@@ -162,6 +162,21 @@ def test_the_refusal_helper_adds_the_cli_only_sentence_for_an_unstamped_approval
     )
 
 
+def test_two_lanes_refusing_for_different_reasons_name_every_code_first_code_first(tmp_path: Path) -> None:
+    """#5720: the code is the first one in the text; the list names every distinct code the text carries."""
+    from specify_cli.orchestrator_api.consolidation import ApprovedBoundRefused
+
+    mission = _build(tmp_path, "lanes")
+    add_post_approval_commit(mission)
+    strip_approval_stamps(mission, "WP02")
+
+    with pytest.raises(ApprovedBoundRefused) as refused:
+        _refuse(mission)
+
+    assert refused.value.error_code == "LANE_MOVED_AFTER_APPROVAL"
+    assert refused.value.error_codes == ("LANE_MOVED_AFTER_APPROVAL", "APPROVAL_STAMP_MISSING")
+
+
 @pytest.mark.parametrize(("text", "code"), [("LANE_MOVED_AFTER_APPROVAL: x", "LANE_MOVED_AFTER_APPROVAL"), ("SOMETHING_ELSE: x", None), ("no colon at all", None)])
 @pytest.mark.unit
 def test_the_refusal_code_is_the_leading_known_code_or_none(text: str, code: str | None) -> None:

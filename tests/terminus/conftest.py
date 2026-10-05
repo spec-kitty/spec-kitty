@@ -895,6 +895,7 @@ def build_coord_mission_mixed_lane_canceled(
     canceled_changes: Sequence[PlantedChange],
     survivor_after: Sequence[PlantedChange] = (),
     survivor_before: Sequence[PlantedChange] = (),
+    survivor_reapproved: bool = False,
     lane_sync_merge_in_canceled_session: bool = False,
     stamp_attribution: bool = True,
     canceled_entered_implementation: bool = True,
@@ -924,6 +925,13 @@ def build_coord_mission_mixed_lane_canceled(
       ``survivor_after``, consolidation must exit 0 (US2 Acceptance Scenario
       1) — including the survivor-undone shapes SC-007 pins (an add the
       survivor later deletes; a change the survivor later reverts to base).
+    - ``survivor_reapproved`` — WP01 goes back to ``in_progress`` and is approved
+      again AFTER WP02's cancel stamp, with no commit of its own (the
+      ``survivor_after`` rework window, empty). WP02's commits land after WP01's
+      first approval, so without a new approval the approval-stamp bound refuses
+      the lane (``LANE_MOVED_AFTER_APPROVAL``, #5720) before any canceled-content
+      verdict. A test whose subject is that verdict sets this: review then approved
+      the lane as it stands, WP02's content included.
     - ``survivor_before`` — WP01 commits planted BEFORE WP02's session opens,
       used to seed content that ``canceled_changes`` or ``survivor_after``
       then edits/deletes (US2 Acceptance Scenario 2/3's pre-state).
@@ -1112,7 +1120,7 @@ def build_coord_mission_mixed_lane_canceled(
             )
         )
 
-    if survivor_after:
+    if survivor_after or survivor_reapproved:
         head_at_rework_open = _lane_head()
         events.append(
             _event(

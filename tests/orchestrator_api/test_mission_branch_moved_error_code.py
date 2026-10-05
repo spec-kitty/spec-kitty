@@ -110,16 +110,32 @@ def test_any_other_merge_failure_carries_no_teardown_code(moved: tuple[Path, str
     assert "teardown_error_code" not in envelope["data"]
 
 
-@pytest.mark.parametrize(("error_code", "expected"), [("LANE_MOVED_AFTER_APPROVAL", "LANE_MOVED_AFTER_APPROVAL"), (None, None)])
-def test_an_approved_bound_refusal_carries_its_code_beside_the_unchanged_envelope(
-    moved: tuple[Path, str, str], capsys: pytest.CaptureFixture[str], error_code: str | None, expected: str | None
+_BOTH_CODES = ("LANE_MOVED_AFTER_APPROVAL", "APPROVAL_STAMP_MISSING")
+
+
+@pytest.mark.parametrize(
+    ("error_code", "error_codes", "expected", "expected_list"),
+    [
+        ("LANE_MOVED_AFTER_APPROVAL", None, "LANE_MOVED_AFTER_APPROVAL", ["LANE_MOVED_AFTER_APPROVAL"]),
+        ("LANE_MOVED_AFTER_APPROVAL", _BOTH_CODES, "LANE_MOVED_AFTER_APPROVAL", list(_BOTH_CODES)),
+        (None, None, None, None),
+    ],
+)
+def test_an_approved_bound_refusal_carries_its_codes_beside_the_unchanged_envelope(
+    moved: tuple[Path, str, str],
+    capsys: pytest.CaptureFixture[str],
+    error_code: str | None,
+    error_codes: tuple[str, ...] | None,
+    expected: str | None,
+    expected_list: list[str] | None,
 ) -> None:
-    """#5668: ``data.preflight_error_code`` is additive; a refusal with no code leaves the key out."""
+    """#5668, #5720: ``preflight_error_code`` (first code) and ``preflight_error_codes`` (every distinct code) are additive; no code leaves both out."""
     repo, _approved, _late = moved
-    refusal = consolidation.ApprovedBoundRefused("a lane holds work review did not approve", error_code=error_code)
+    refusal = consolidation.ApprovedBoundRefused("a lane holds work review did not approve", error_code=error_code, error_codes=error_codes)
 
     envelope = _run_consolidate_mission(repo, refusal, capsys)
 
     assert envelope["error_code"] == "PREFLIGHT_FAILED" and envelope["data"]["errors"] == ["a lane holds work review did not approve"]
     assert envelope["data"].get("preflight_error_code") == expected
+    assert envelope["data"].get("preflight_error_codes") == expected_list
     assert ("preflight_error_code" in envelope["data"]) is (expected is not None)

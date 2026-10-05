@@ -2419,10 +2419,16 @@ def _build_mixed_lane_entered_mission(
     entered_implementation: bool = True,
     canceled_path: str = _CANCELED_PATH,
     canceled_content: str = "wp02 content\n",
+    wp01_approved_again: bool = False,
 ) -> tuple[Path, Path, LanesManifest, str, str]:
     """A single lane-a shared by an approved WP01 and a canceled WP02 that
     entered implementation and made one real commit -- the minimal C2 "mixed
-    lane" shape, git-backed (real lane-tip commits, real event stamps)."""
+    lane" shape, git-backed (real lane-tip commits, real event stamps).
+
+    WP02's commit lands after WP01's approval, so the approval-stamp bound refuses the
+    lane (#5720). *wp01_approved_again* records that review approved WP01 again at the
+    lane tip, after WP02's cancel: the shape for a test whose subject is the
+    canceled-content resolution that runs once the bound passes."""
     repo = _init_repo(tmp_path)
     feature_dir = repo / "kitty-specs" / _MISSION_SLUG
     (feature_dir / "tasks").mkdir(parents=True)
@@ -2492,6 +2498,12 @@ def _build_mixed_lane_entered_mission(
         if stamp_attribution:
             e_cancel["policy_metadata"] = {"lane_head": head()}
         events.append(e_cancel)
+        if wp01_approved_again:
+            rework = (("approved", "in_progress"), ("in_progress", "for_review"), ("for_review", "in_review"), ("in_review", "approved"))
+            events.extend(
+                _event(93 + step, "WP01", frm, to, at=f"2026-01-02T00:1{step}:00+00:00", lamport=9 + step, lane_head=head())
+                for step, (frm, to) in enumerate(rework)
+            )
 
     _git(repo, "checkout", "-q", _TARGET)
     (feature_dir / "status.events.jsonl").write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events), encoding="utf-8")
@@ -2524,8 +2536,11 @@ def test_mixed_lane_wiring_unattributable_no_stamp_refuses(tmp_path: Path) -> No
 
 def test_mixed_lane_wiring_resolved_populates_canceled_content(tmp_path: Path) -> None:
     """T023: a resolvable mixed lane populates ``canceled_content`` from the
-    resolver's ``Attributed`` outcome, and the claim does NOT refuse."""
-    repo, feature_dir, manifest, coord_base, _lane_branch = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
+    resolver's ``Attributed`` outcome, and the claim does NOT refuse.
+
+    WP01 was approved again after WP02's commit, so the approval-stamp bound passes
+    (#5720) and the canceled-content resolution is what the claim reports."""
+    repo, feature_dir, manifest, coord_base, _lane_branch = _build_mixed_lane_entered_mission(tmp_path, wp01_approved_again=True)
     claim = build_approved_wp_set(
         repo,
         feature_dir,
@@ -2570,7 +2585,7 @@ def test_claim_reads_the_event_log_exactly_once(tmp_path: Path, monkeypatch: pyt
     from specify_cli.status import read_events as real_read_events
 
     if mixed:
-        repo, feature_dir, manifest, coord_base, _lane = _build_mixed_lane_entered_mission(tmp_path)
+        repo, feature_dir, manifest, coord_base, _lane = _build_mixed_lane_entered_mission(tmp_path, wp01_approved_again=True)
         canceled = frozenset({"WP02"})
     else:
         repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01",))
@@ -2781,7 +2796,7 @@ def test_claim_fields_are_byte_identical_to_unmodified_collectors_mixed_lane(tmp
     )
     from specify_cli.status import materialize_snapshot
 
-    repo, feature_dir, manifest, coord_base, _lane_branch = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
+    repo, feature_dir, manifest, coord_base, _lane_branch = _build_mixed_lane_entered_mission(tmp_path, wp01_approved_again=True)
     claim = build_approved_wp_set(
         repo,
         feature_dir,
@@ -2867,10 +2882,35 @@ def _append_attestation(repo: Path, feature_dir: Path, wp_id: str = "WP02", *, s
     _git(repo, "commit", "-qm", "attest")
 
 
-def test_attested_unstamped_mixed_lane_falls_back_to_whole_lane(tmp_path: Path) -> None:
-    """An attested WP's ``no_stamp`` REFUSE is lifted: no refusal, no per-WP content."""
+def _reapprove_wp01(repo: Path, feature_dir: Path, lane_branch: str, *, lamport: int = 60) -> None:
+    """Record that review approved WP01 again at the CURRENT lane tip (back to ``in_progress``, then the review chain)."""
+    head = _rev(repo, lane_branch)
+    steps = (("approved", "in_progress"), ("in_progress", "for_review"), ("for_review", "in_review"), ("in_review", "approved"))
+    events_path = feature_dir / "status.events.jsonl"
+    with events_path.open("a", encoding="utf-8") as handle:
+        for offset, (frm, to) in enumerate(steps):
+            event = _event(900 + lamport + offset, "WP01", frm, to, at=f"2026-02-01T00:0{offset}:00+00:00", lamport=lamport + offset, lane_head=head)
+            handle.write(json.dumps(event, sort_keys=True) + "\n")
+    _git(repo, "add", str(events_path.relative_to(repo)))
+    _git(repo, "commit", "-qm", "re-approve WP01 at the lane tip")
+
+
+def test_attested_unstamped_mixed_lane_lifts_the_missing_stamp_but_not_the_approval_bound(tmp_path: Path) -> None:
+    """An attested WP's ``no_stamp`` REFUSE is lifted, but its commits lie beyond WP01's approval stamp (#5720).
+
+    The attestation covers attribution evidence only. WP02's own commit came after WP01
+    was approved, so the claim refuses ``LANE_MOVED_AFTER_APPROVAL`` until WP01 is approved
+    again at the lane tip; then it passes with the whole-lane fallback: no refusal, no per-WP content.
+    """
     repo, feature_dir, manifest, coord_base, lane = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=False)
     _append_attestation(repo, feature_dir, lane_head=_rev(repo, lane))
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
+    assert claim.refusal is not None
+    assert claim.refusal.startswith("LANE_MOVED_AFTER_APPROVAL: ")
+    assert _CANCELED_PATH in claim.refusal
+    assert "no commit attribution" not in claim.refusal
+
+    _reapprove_wp01(repo, feature_dir, lane)
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
     assert claim.refusal is None
     assert claim.canceled_content == frozenset()
@@ -2892,9 +2932,8 @@ def _commit_on_lane(repo: Path, lane_branch: str, rel: str) -> None:
 def test_attested_mixed_lane_refuses_content_committed_after_the_attestation(tmp_path: Path, stamped: bool) -> None:
     """#5668: an attestation lifts the attribution refusal, never the approved bound.
 
-    Stamped: the attestation's own ``lane_head`` is the covered point, so only the late
-    commit is beyond it. Unstamped: the canceled work package has no covered point at
-    all, so its commits are beyond the bound too; the lane is refused, never skipped.
+    Stamped or not, the attestation covers no commit: the late commit is beyond the
+    approval stamp and the lane is refused, never skipped.
     """
     repo, feature_dir, manifest, coord_base, lane = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=False)
     _append_attestation(repo, feature_dir, lane_head=_rev(repo, lane) if stamped else None)
@@ -2907,7 +2946,7 @@ def test_attested_mixed_lane_refuses_content_committed_after_the_attestation(tmp
 
 def test_attestation_never_lifts_visible_canceled_content(tmp_path: Path) -> None:
     """A FAIL stays a FAIL: attested, stamped, unsuperseded content is still collected."""
-    repo, feature_dir, manifest, coord_base, _lane = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
+    repo, feature_dir, manifest, coord_base, _lane = _build_mixed_lane_entered_mission(tmp_path, wp01_approved_again=True)
     _append_attestation(repo, feature_dir)
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
     assert claim.refusal is None
@@ -2921,7 +2960,7 @@ def test_closed_world_reason_is_lifted_by_the_attestation_anchor_not_by_reason()
 
 @pytest.mark.parametrize("reason", sorted(OVERRIDABLE_REASONS, key=lambda r: r.value))
 def test_overridable_reason_refusal_names_the_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, reason: UnattributableReason) -> None:
-    repo, feature_dir, manifest, coord_base, _lane = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
+    repo, feature_dir, manifest, coord_base, lane = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
     monkeypatch.setattr(
         "specify_cli.consolidation.reconciliation.resolve_canceled_wp",
         lambda *_a, **_k: Unattributable(reason, f"detail for {reason.value}"),
@@ -2930,10 +2969,15 @@ def test_overridable_reason_refusal_names_the_override(tmp_path: Path, monkeypat
     assert claim.refusal is not None
     assert '--attest-canceled-superseded WP02 --attest-reason "<what you checked>"' in claim.refusal
     assert "cannot clear" in claim.refusal
-    # ... and an attestation lifts it.
+    # ... and an attestation lifts it. WP02's commit was made after WP01's approval, so the
+    # approval-stamp bound refuses it until WP01 is approved again (#5720).
     _append_attestation(repo, feature_dir)
     lifted = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
-    assert lifted.refusal is None
+    assert lifted.refusal is not None and lifted.refusal.startswith("LANE_MOVED_AFTER_APPROVAL: ")
+    assert "--attest-canceled-superseded" not in lifted.refusal
+    _reapprove_wp01(repo, feature_dir, lane)
+    approved_again = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
+    assert approved_again.refusal is None
 
 
 @pytest.mark.parametrize(
@@ -3029,12 +3073,248 @@ def test_attestation_exempts_only_commits_up_to_its_own_stamp(tmp_path: Path) ->
     assert before[:10] not in claim.refusal
 
 
-def test_attestation_exempts_stragglers_it_covers(tmp_path: Path) -> None:
+def test_attestation_exempts_stragglers_from_the_closed_world_but_the_bound_refuses_until_reapproval(tmp_path: Path) -> None:
+    """The attestation lifts the closed-world refusal for the stragglers it covers; the approval bound still refuses them (#5720)."""
     repo, feature_dir, manifest, coord_base, lane_branch = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
     _commit_on_lane(repo, lane_branch, "src/pkg/before_attest.py")
     unattested = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
     assert unattested.refusal is not None and "outside every WP's recorded work window" in unattested.refusal
     _append_attestation(repo, feature_dir, lane_head=_rev(repo, lane_branch))
+    attested = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
+    assert attested.refusal is not None
+    assert attested.refusal.startswith("LANE_MOVED_AFTER_APPROVAL: ")
+    assert "outside every WP's recorded work window" not in attested.refusal
+    _reapprove_wp01(repo, feature_dir, lane_branch)
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
     assert claim.refusal is None
     assert {entry.path for entry in claim.canceled_content} == {_CANCELED_PATH}  # the visible FAIL still stands
+
+
+# --------------------------------------------------------------------------- #
+# One message names every refusal (#5720)
+# --------------------------------------------------------------------------- #
+
+_ALSO = "This Mission also has:"
+_MOVED = "LANE_MOVED_AFTER_APPROVAL: "
+_CLOSED_WORLD = "outside every WP's recorded work window"
+
+
+def _claim_refusal(repo: Path, feature_dir: Path, manifest: LanesManifest, coord_base: str, canceled: frozenset[str] = frozenset({"WP02"})) -> str:
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=canceled)
+    assert claim.refusal is not None
+    return claim.refusal
+
+
+def test_a_mixed_lane_refusal_is_followed_by_the_approval_bound_refusal_in_one_text(tmp_path: Path) -> None:
+    """The first refusal stays byte-identical; the bound refusal the operator would meet next follows it, in one text."""
+    from specify_cli.consolidation.reconciliation import _ClaimEventLog, _resolve_mixed_lane_canceled_content
+    from specify_cli.status import materialize_snapshot
+
+    repo, feature_dir, manifest, coord_base, lane_branch = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
+    _commit_on_lane(repo, lane_branch, "src/pkg/late.py")
+
+    refusal = _claim_refusal(repo, feature_dir, manifest, coord_base)
+
+    _content, _attested, closed_world_alone = _resolve_mixed_lane_canceled_content(
+        repo,
+        feature_dir,
+        manifest,
+        materialize_snapshot(feature_dir).work_packages or {},
+        frozenset({"WP02"}),
+        coord_base,
+        None,
+        canceled_lane_commits=frozenset(),
+        event_log=_ClaimEventLog(feature_dir),
+    )
+    assert closed_world_alone is not None and _CLOSED_WORLD in closed_world_alone
+    assert refusal.startswith(closed_world_alone + "\n\n" + _ALSO + "\n" + _MOVED), refusal
+    assert "src/pkg/late.py" in refusal.partition(_ALSO)[2]
+    assert refusal.count(_MOVED) == 1
+
+
+@pytest.mark.parametrize("attest_first", [True, False], ids=["attest-then-reapprove", "reapprove-then-attest"])
+def test_a_mixed_lane_with_a_late_commit_needs_both_the_new_approval_and_the_attestation(tmp_path: Path, attest_first: bool) -> None:
+    """Approving WP01 again does not clear the closed world, the attestation does not clear the bound, and the order does not matter."""
+    repo, feature_dir, manifest, coord_base, lane_branch = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
+    _commit_on_lane(repo, lane_branch, "src/pkg/late.py")
+    assert _ALSO in _claim_refusal(repo, feature_dir, manifest, coord_base)
+
+    steps = [
+        lambda: _append_attestation(repo, feature_dir, lane_head=_rev(repo, lane_branch)),
+        lambda: _reapprove_wp01(repo, feature_dir, lane_branch),
+    ]
+    first, second = steps if attest_first else steps[::-1]
+    first()
+    after_first = _claim_refusal(repo, feature_dir, manifest, coord_base)
+    # One act alone leaves exactly the other problem, no more.
+    if attest_first:
+        assert after_first.startswith(_MOVED) and _CLOSED_WORLD not in after_first
+    else:
+        assert _CLOSED_WORLD in after_first and _MOVED not in after_first and _ALSO not in after_first
+    second()
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
+    assert claim.refusal is None, claim.refusal
+
+
+def test_every_canceled_work_package_that_refuses_is_named_in_the_one_text(tmp_path: Path) -> None:
+    """Two canceled work packages on a mixed lane, neither with attribution evidence: both refusals, in WP order, and the bound after them."""
+    repo, feature_dir, manifest, coord_base, _lane_branch = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=False)
+    events_path = feature_dir / "status.events.jsonl"
+    with events_path.open("a", encoding="utf-8") as handle:
+        for seq, (frm, to) in enumerate((("planned", "claimed"), ("claimed", "in_progress"), ("in_progress", "canceled")), start=70):
+            handle.write(json.dumps(_event(seq, "WP03", frm, to, at=f"2026-01-04T00:0{seq - 70}:00+00:00", lamport=seq), sort_keys=True) + "\n")
+    _git(repo, "add", str(events_path.relative_to(repo)))
+    _git(repo, "commit", "-qm", "WP03 canceled without stamps")
+    three_wp_lane = replace(manifest, lanes=[replace(lane, wp_ids=("WP01", "WP02", "WP03")) for lane in manifest.lanes])
+
+    refusal = _claim_refusal(repo, feature_dir, three_wp_lane, coord_base, frozenset({"WP02", "WP03"}))
+
+    first, second, also = (refusal.find(marker) for marker in ("canceled WP02 cannot be attributed", "canceled WP03 cannot be attributed", _ALSO))
+    assert 0 <= first < second < also, refusal
+    assert refusal.count("mixed lane lane-a: canceled WP0") == 2
+
+
+def test_the_first_refusal_stands_alone_when_the_approval_bound_cannot_be_computed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A git probe failure, and an unreadable event log, each leave the first refusal as the whole message."""
+    from specify_cli.consolidation import reconciliation
+    from specify_cli.consolidation.git_probes import GitProbeError
+    from specify_cli.status import StoreError
+
+    _repo, feature_dir, _manifest, _base, _lane = _build_mixed_lane_entered_mission(tmp_path)
+
+    def probe_failed() -> reconciliation._BoundVerdict:
+        raise GitProbeError("git log failed")
+
+    assert reconciliation._compound_refusal("first", probe_failed, reconciliation._ClaimEventLog(feature_dir)) == "first"
+
+    def unreadable(_dir: Path) -> list[object]:
+        raise StoreError("corrupt line 3")
+
+    monkeypatch.setattr("specify_cli.status.read_events", unreadable)
+    bound = reconciliation._BoundVerdict(refusal="bound")
+    assert reconciliation._compound_refusal("first", lambda: bound, reconciliation._ClaimEventLog(feature_dir)) == "first"
+
+
+# --------------------------------------------------------------------------- #
+# Nothing a canceled work package does covers a commit made after the approval (#5720)
+# --------------------------------------------------------------------------- #
+
+#: ``None`` is the commit made after WP01's approval; a pair is a forced ``(from, to)`` move of WP02.
+_COMMIT = None
+_LAUNDERING_SHAPES: dict[str, tuple[tuple[str, str] | None, ...]] = {
+    "no-further-event": (_COMMIT,),
+    "forced-recancel": (_COMMIT, ("canceled", "canceled")),
+    "recancel-from-planned": (_COMMIT, ("canceled", "planned"), ("planned", "canceled")),
+    "blocked-window-around-the-commit": (("canceled", "blocked"), _COMMIT, ("blocked", "canceled")),
+    "review-window-around-the-commit": (("canceled", "for_review"), _COMMIT, ("for_review", "canceled")),
+}
+
+
+def _force_wp02(repo: Path, feature_dir: Path, lane_branch: str, frm: str, to: str, *, seq: int) -> None:
+    """Append one forced operator move of WP02, stamped at the current lane tip as the status shells stamp it."""
+    event = _event(200 + seq, "WP02", frm, to, at=f"2026-03-01T00:{seq:02d}:00+00:00", lamport=20 + seq, lane_head=_rev(repo, lane_branch))
+    event.update(actor="operator", force=True, reason="forced", reason_source="operator")
+    events_path = feature_dir / "status.events.jsonl"
+    with events_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(event, sort_keys=True) + "\n")
+    _git(repo, "add", str(events_path.relative_to(repo)))
+    _git(repo, "commit", "-qm", f"force WP02 {frm} -> {to}")
+
+
+@pytest.mark.parametrize("shape", sorted(_LAUNDERING_SHAPES))
+def test_no_status_move_of_a_canceled_work_package_covers_a_commit_made_after_the_approval(tmp_path: Path, shape: str) -> None:
+    """No status event of a canceled work package covers a commit for the approval-stamp bound.
+
+    Whatever the operator does to WP02 around a commit made after WP01's approval, the first
+    refusal names ``LANE_MOVED_AFTER_APPROVAL`` for it, and a canceled-superseded attestation
+    recorded at the lane tip leaves exactly that refusal.
+    """
+    repo, feature_dir, manifest, coord_base, lane = _build_mixed_lane_entered_mission(tmp_path, entered_implementation=False)
+    late = ""
+    for seq, step in enumerate(_LAUNDERING_SHAPES[shape]):
+        if step is _COMMIT:
+            late = _commit_on_lane(repo, lane, "src/pkg/late.py")
+        else:
+            _force_wp02(repo, feature_dir, lane, *step, seq=seq)
+
+    unattested = _claim_refusal(repo, feature_dir, manifest, coord_base)
+    assert _MOVED in unattested and late[:7] in unattested.partition(_MOVED)[2], unattested
+
+    _append_attestation(repo, feature_dir, lane_head=_rev(repo, lane))
+    attested = _claim_refusal(repo, feature_dir, manifest, coord_base)
+    assert attested.startswith(_MOVED) and late[:7] in attested, attested
+
+
+@pytest.mark.parametrize("entry", ["claim-builder", "orchestrator-entry"])
+def test_canceled_work_committed_after_the_approval_refuses_until_the_work_package_is_approved_again(tmp_path: Path, entry: str) -> None:
+    """A canceled work package's own stamped work window, opened after WP01's approval, exempts none of its commits (#5720).
+
+    The canceled-work attribution assigns the commit to WP02 and there is no closed-world
+    refusal, so the approval-stamp refusal is the whole message. Once WP01 is approved
+    again at the lane tip the bound passes, and the claim reports WP02's content for the
+    canceled-content check.
+    """
+    from specify_cli.consolidation.reconciliation import _BOTH_NEEDED, approved_bound_refusal
+
+    repo, feature_dir, manifest, coord_base, lane = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
+    wp02_commit = _rev(repo, lane)
+
+    def refusal() -> str | None:
+        if entry == "claim-builder":
+            return build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"})).refusal
+        text: str | None = approved_bound_refusal(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
+        return text
+
+    refused = refusal()
+    assert refused is not None and refused.startswith(_MOVED), refused
+    assert wp02_commit[:7] in refused and _CANCELED_PATH in refused
+    assert _ALSO not in refused and _BOTH_NEEDED not in refused
+
+    _reapprove_wp01(repo, feature_dir, lane)
+    assert refusal() is None
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
+    assert {entry_.path for entry_ in claim.canceled_content} == {_CANCELED_PATH}
+
+
+def test_two_canceled_work_packages_cannot_hide_a_commit_made_after_the_approval_between_them(tmp_path: Path) -> None:
+    """Canceled work made after the approval refuses even when a second canceled work package supersedes it (#5720).
+
+    WP02 is reopened and writes a file; WP03 overwrites it and then writes WP02's bytes
+    back. Each canceled work package's content is superseded or equal to its own pre-state,
+    so the canceled-content resolution finds nothing; WP01 was never approved again.
+    """
+    repo, feature_dir, manifest, coord_base, lane = _build_mixed_lane_entered_mission(tmp_path, entered_implementation=False)
+    late = "src/pkg/late.py"
+
+    def write(content: str) -> str:
+        _git(repo, "checkout", "-q", lane)
+        (repo / late).parent.mkdir(parents=True, exist_ok=True)
+        (repo / late).write_text(content, encoding="utf-8")
+        _git(repo, "add", late)
+        _git(repo, "commit", "-qm", f"late: {content.strip()}")
+        sha = _rev(repo, "HEAD")
+        _git(repo, "checkout", "-q", _TARGET)
+        return sha
+
+    _force_wp02(repo, feature_dir, lane, "canceled", "in_progress", seq=0)
+    first = write("payload\n")
+    _force_wp02(repo, feature_dir, lane, "in_progress", "canceled", seq=1)
+    events_path = feature_dir / "status.events.jsonl"
+
+    def wp03(seq: int, frm: str, to: str) -> None:
+        event = _event(300 + seq, "WP03", frm, to, at=f"2026-03-02T00:{seq:02d}:00+00:00", lamport=40 + seq, lane_head=_rev(repo, lane))
+        with events_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(event, sort_keys=True) + "\n")
+        _git(repo, "add", str(events_path.relative_to(repo)))
+        _git(repo, "commit", "-qm", f"WP03 {frm} -> {to}")
+
+    wp03(0, "planned", "claimed")
+    wp03(1, "claimed", "in_progress")
+    write("junk\n")
+    write("payload\n")
+    wp03(2, "in_progress", "canceled")
+    three_wp_lane = replace(manifest, lanes=[replace(lane_, wp_ids=("WP01", "WP02", "WP03")) for lane_ in manifest.lanes])
+
+    refusal = _claim_refusal(repo, feature_dir, three_wp_lane, coord_base, frozenset({"WP02", "WP03"}))
+
+    assert refusal.startswith(_MOVED) and first[:7] in refusal, refusal

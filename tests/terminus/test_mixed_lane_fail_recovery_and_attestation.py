@@ -62,11 +62,12 @@ def _consolidate(mission: CoordMission, *extra: str) -> tuple[int, str]:
 
 
 def _build_failing_mixed_lane(tmp_path: Path, mid8: str) -> CoordMission:
-    """Stamped mixed lane: WP01 approved, WP02 added an unsuperseded file, then canceled."""
+    """Stamped mixed lane: WP02 added an unsuperseded file, then canceled; WP01 was approved again after that."""
     return build_coord_mission_mixed_lane_canceled(
         tmp_path,
         canceled_changes=[PlantedChange(_LEAKED_PATH, "def wp02_new() -> str:\n    return 'wp02 leaked'\n")],
         survivor_before=[PlantedChange(_WP01_PATH, "def wp01() -> str:\n    return 'ok'\n")],
+        survivor_reapproved=True,
         stamp_attribution=True,
         mid8=mid8,
     )

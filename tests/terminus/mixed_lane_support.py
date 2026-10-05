@@ -95,6 +95,26 @@ def transition(
     return emit_status_transition_transactional(request)
 
 
+def reapprove_wp01(mission: CoordMission, *, actor: str) -> None:
+    """Send WP01 back for review and approve it again at the current lane tip (the production shell stamps it).
+
+    Any content commit on the lane after WP01's approval refuses with
+    ``LANE_MOVED_AFTER_APPROVAL`` until this is done, a canceled work package's own
+    commit included (#5720). The caller gives WP01 its subtasks roster first
+    (:func:`ensure_wp01_subtasks_roster`).
+    """
+    transition(mission, "WP01", "in_progress", actor=actor, review_ref="review-wp01-rework")
+    transition(mission, "WP01", "for_review", actor=actor, subtasks_complete=True)
+    transition(mission, "WP01", "in_review", actor=actor)
+    transition(
+        mission,
+        "WP01",
+        "approved",
+        actor=actor,
+        review_result=ReviewResult(reviewer=actor, verdict="approved", reference="review-wp01-rework"),
+    )
+
+
 def ensure_wp01_subtasks_roster(mission: CoordMission) -> None:
     """Give WP01's fixture task file an empty ``subtasks:`` roster.
 

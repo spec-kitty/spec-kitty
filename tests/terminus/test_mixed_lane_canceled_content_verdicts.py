@@ -94,6 +94,7 @@ def test_unsuperseded_canceled_add_modify_delete_fails_and_restores_target(tmp_p
         extra_base_files={_SHARED_PATH: _SHARED_BASE_CONTENT, _LEGACY_PATH: _LEGACY_BASE_CONTENT},
         canceled_changes=_add_modify_delete_changes(),
         survivor_before=[PlantedChange(_WP01_OWN_PATH, _WP01_OWN_CONTENT)],
+        survivor_reapproved=True,
         stamp_attribution=True,
         mid8="01M5046A",
     )
