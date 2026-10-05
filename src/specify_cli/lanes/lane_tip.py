@@ -27,6 +27,7 @@ from specify_cli.git.ref_advance import delete_bookkeeping_ref, write_bookkeepin
 __all__ = [
     "LANE_TIP_REF_PREFIX",
     "AbsorptionUnsupported",
+    "LaneTipListingError",
     "clear_tip",
     "is_absorbed",
     "read_tip",
@@ -39,6 +40,14 @@ __all__ = [
 #: Namespace of the hidden, never-pushed lane work-tip refs. The recorder hook
 #: (``policy/lane_tip_recorder.py``) renders this same constant into its script.
 LANE_TIP_REF_PREFIX = "refs/spec-kitty/lane-tip/"
+
+
+class LaneTipListingError(Exception):
+    """Raised by :func:`recorded_tip_branches` when the lane-tip refs cannot be listed.
+
+    An unreadable listing is *unknown*, never "no tips": callers must not read
+    it as an empty set (#5573).
+    """
 
 
 class AbsorptionUnsupported(Exception):
@@ -139,9 +148,13 @@ def recorded_tip_branches(repo_root: Path) -> frozenset[str]:
 
     Runs ``git for-each-ref --format=%(refname) refs/spec-kitty/lane-tip/`` and
     strips :data:`LANE_TIP_REF_PREFIX` (#5573: the frozen-lane preflight's
-    fallback evidence, NFR-001). Read-only. A git failure -- a non-zero exit,
-    not a repository, or no ``git`` binary at all -- yields an empty set: no
-    fallback evidence, while the status log remains the primary authority.
+    evidence, NFR-001). Read-only. An empty result from a successful listing
+    means no lane recorded a tip.
+
+    Raises:
+        LaneTipListingError: git could not list the refs -- a non-zero exit,
+            not a repository, or no ``git`` binary at all. That is *unknown*,
+            never "no tips".
     """
     try:
         listing = subprocess.run(
@@ -151,10 +164,11 @@ def recorded_tip_branches(repo_root: Path) -> frozenset[str]:
             text=True,
             check=False,
         )
-    except OSError:
-        return frozenset()
+    except OSError as exc:
+        raise LaneTipListingError(f"cannot run git to list the recorded lane work tips in {repo_root}: {exc}") from exc
     if listing.returncode != 0:
-        return frozenset()
+        detail = listing.stderr.strip() or f"git exited {listing.returncode}"
+        raise LaneTipListingError(f"git could not list the recorded lane work tips in {repo_root}: {detail}")
     return frozenset(line.removeprefix(LANE_TIP_REF_PREFIX) for line in listing.stdout.splitlines() if line.startswith(LANE_TIP_REF_PREFIX))
 
 

@@ -72,6 +72,9 @@ def test_ownership_only_amendment_preserves_established_lanes_and_provenance(
     # finalize before these assertions run (mirrors the source module's autouse
     # guard, which does not apply to this importing module).
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
+    # The workspace is not a git repository, and an unreadable lane-tip listing now refuses
+    # instead of reading as "no tips": stand in the listing of a repository that recorded none.
+    monkeypatch.setattr("specify_cli.lanes.lane_tip.recorded_tip_branches", lambda _root: frozenset())
 
     mission_slug = "061-lane-feature"
     feature_dir = _setup_lane_based_feature(tmp_path, mission_slug)

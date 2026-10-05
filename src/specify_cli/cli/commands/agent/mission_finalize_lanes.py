@@ -196,17 +196,22 @@ def _gather_frozen_lane_membership(
     (:func:`_read_started_wp_ids`, fail-closed), and the recorded lane work
     tips are listed (one git call): they are both the fallback evidence for a
     lane without a history-started member and the source of the lane ids kept
-    reserved after a lane leaves the manifest.
+    reserved after a lane leaves the manifest. A listing git cannot produce
+    refuses with ``status_unreadable``; it never reads as "no tips".
     """
     from specify_cli.lanes.frozen_membership import FrozenLaneMembership, build_frozen_membership
-    from specify_cli.lanes.lane_tip import recorded_tip_branches
+    from specify_cli.lanes.lane_tip import LaneTipListingError, recorded_tip_branches
     from specify_cli.lanes.persistence import read_lanes_json
 
     previous = read_lanes_json(planning_dir)
     if previous is None:
         return FrozenLaneMembership.empty()
     started = _read_started_wp_ids(repo_root, mission_slug, owned=owned)
-    tipped = recorded_tip_branches(owned.repository_root if owned else repo_root)
+    try:
+        tipped = recorded_tip_branches(owned.repository_root if owned else repo_root)
+    except LaneTipListingError as exc:
+        # An unreadable listing is unknown, never "no tips": with a lane manifest on disk, refuse (#5573 FR-007).
+        raise _status_unreadable_error(exc) from exc
     return build_frozen_membership(
         previous,
         started=started,

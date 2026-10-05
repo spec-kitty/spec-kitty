@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.lanes.lane_tip import record_tip, recorded_tip_branches
+from specify_cli.lanes.lane_tip import LaneTipListingError, record_tip, recorded_tip_branches
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -45,15 +45,17 @@ def test_returns_every_recorded_branch_name(tmp_path: Path) -> None:
     assert recorded_tip_branches(repo) == frozenset({"kitty/mission-x-lane-a", "lane-plain"})
 
 
-def test_non_git_directory_returns_empty(tmp_path: Path) -> None:
+def test_non_git_directory_raises_instead_of_reading_as_no_tips(tmp_path: Path) -> None:
     plain = tmp_path / "plain"
     plain.mkdir()
-    assert recorded_tip_branches(plain) == frozenset()
+    with pytest.raises(LaneTipListingError):
+        recorded_tip_branches(plain)
 
 
-def test_missing_git_binary_returns_empty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_missing_git_binary_raises_instead_of_reading_as_no_tips(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     def _no_git(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
         raise FileNotFoundError("git")
 
     monkeypatch.setattr("specify_cli.lanes.lane_tip.subprocess.run", _no_git)
-    assert recorded_tip_branches(tmp_path) == frozenset()
+    with pytest.raises(LaneTipListingError):
+        recorded_tip_branches(tmp_path)

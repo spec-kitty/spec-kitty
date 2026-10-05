@@ -428,6 +428,21 @@ def test_tip_fallback_freezes_a_tipped_lane_without_history(planning_dir: Path, 
     assert dict(frozen.bindings) == {"WP01": "lane-a", "WP02": "lane-b"}
 
 
+def test_unreadable_tip_listing_refuses_status_unreadable(planning_dir: Path, tmp_path: Path, status_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.lanes.lane_tip import LaneTipListingError
+
+    _write_previous(planning_dir, _lane("lane-a", "WP01"), _lane("lane-b", "WP02"))
+    _with_events(monkeypatch, status_dir, [_event("WP01", "in_progress")])
+    failure = LaneTipListingError("git could not list the recorded lane work tips: not a git repository")
+    monkeypatch.setattr("specify_cli.lanes.lane_tip.recorded_tip_branches", _Recorder(raises=failure))
+
+    with pytest.raises(LaneMembershipFrozenError) as excinfo:
+        _gather(planning_dir, tmp_path)
+
+    _assert_status_unreadable(excinfo)
+    assert excinfo.value.__cause__ is failure
+
+
 def test_retired_wps_are_present_minus_eligible(planning_dir: Path, tmp_path: Path, status_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write_previous(planning_dir, _lane("lane-a", "WP01"), _lane("lane-b", "WP02"))
     _with_events(monkeypatch, status_dir, [_event("WP01", "in_progress"), _event("WP02", "in_progress")])
