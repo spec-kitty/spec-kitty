@@ -3451,6 +3451,18 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "known-limits", text: "Known limits", level: 3}
     - {slug: "related", text: "Related", level: 2}
+  - path: "docs/adr/4.x/2026-10-04-3-upgrade-reports-one-outcome.md"
+    title: "ADR: a completed upgrade run reports one outcome"
+    divio_type: "none"
+    abstract: "The upgrade outcome owns the kind, reasons, messages, JSON status, closing line and exit code of a run; presentation code reads them and cannot build its own."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "open-decision-exit-code-for-unresolved-drift", text: "Open decision: exit code for unresolved drift", level: 3}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "enforcement", text: "Enforcement", level: 3}
+    - {slug: "follow-ups-not-in-scope", text: "Follow-ups, not in scope", level: 3}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
