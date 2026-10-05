@@ -1319,6 +1319,80 @@ def cleanup_orphaned_contexts(repo_root: Path) -> int:
     return len(orphaned)
 
 
+_WP_ID_RE = re.compile(r"^WP\d{2}$", re.IGNORECASE)
+
+
+def find_wp_file(repo_root: Path, mission_slug: str, wp_id: str) -> Path:
+    """Find the markdown file for a work package.
+
+    WP05 / FR-003 (coord-topology regression fix): WP prompt files under
+    ``tasks/`` are authored on the PRIMARY checkout (``mission_creation`` writes
+    the mission dir there and the ``tasks`` step appends beside it). On a
+    coordination-topology mission finalize-tasks commits a COPY of those files
+    onto the coordination branch, but a freshly-resolved ``find_wp_file`` runs
+    before the lane worktree is allocated and must locate the authored prompt on
+    the surface that always carries it. The topology-aware
+    ``resolve_feature_dir_for_mission`` selects the coordination worktree once
+    one exists, which need not carry every authored prompt — so anchor the
+    WP-file read on the primary surface, consistent with finalize-tasks and
+    ``mission_runtime.resolve_placement_only``.
+
+    read-side-seam-primary-primitive-closure-01KYKMMT WP05/FR-004: routed
+    through the kind-aware seam (WORK_PACKAGE_TASK is a PRIMARY-partition
+    kind, so it short-circuits to PRIMARY before any coord probe and -- unlike
+    the kind-blind resolver above -- never lands on the coordination
+    worktree).
+    """
+    tasks_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK) / "tasks"
+    if not tasks_dir.exists():
+        raise FileNotFoundError(f"Tasks directory not found: {tasks_dir}")
+
+    normalized_wp_id = wp_id.strip().upper()
+    if not _WP_ID_RE.fullmatch(normalized_wp_id):
+        raise FileNotFoundError(f"Invalid work package ID: {wp_id}. Expected format WP## (for example, WP01).")
+
+    wp_name_re = re.compile(rf"^{re.escape(normalized_wp_id)}(?:[-_.].+)?\.md$", re.IGNORECASE)
+    wp_files = sorted(path for path in tasks_dir.glob("WP*.md") if wp_name_re.match(path.name))
+    if not wp_files:
+        raise FileNotFoundError(f"WP file not found for {normalized_wp_id} in {tasks_dir}")
+    return wp_files[0]
+
+
+def resolve_feature_target_branch(mission_slug: str, repo_root: Path) -> str:
+    """Resolve the feature's configured target branch from metadata."""
+    from specify_cli.core.git_ops import resolve_target_branch
+
+    resolution = resolve_target_branch(
+        mission_slug=mission_slug,
+        repo_path=repo_root,
+        respect_current=True,
+    )
+    return resolution.target
+
+
+def _resolve_lanes_dir(repo_root: Path, mission_slug: str) -> Path:
+    """Return the directory containing ``lanes.json`` for *mission_slug*.
+
+    ``lanes.json`` is the ``LANE_STATE`` artifact, a member of
+    :data:`mission_runtime.artifacts._PRIMARY_ARTIFACT_KINDS` — it "travels
+    with tasks.md → PRIMARY" and carries **INV-5 full read/write symmetry**
+    (FR-004 / NFR-004): PRIMARY on both sides, for every topology. So this
+    reader resolves it through the kind-aware placement seam
+    (``placement_seam(...).read_dir(LANE_STATE)`` → the PRIMARY surface),
+    exactly as the other canonical ``lanes.json`` readers already do
+    (``merge/executor.py``, ``lanes/lifecycle_sync.py``). The coord-aware
+    STATUS surface — the ``-coord`` husk — does NOT carry ``lanes.json``, so
+    resolving it there (the pre-symmetry C-LANES-1 read) was the write-path
+    -integrity regression: the write side commits ``lanes.json`` to the
+    PRIMARY target branch while this read looked on coord (#3371 e2e break).
+
+    Distinct from :func:`lanes.persistence.resolve_lanes_dir`, which is a
+    path-join helper (``feature_dir / lanes.json``); this function resolves
+    the *feature_dir* itself from the artifact's canonical partition.
+    """
+    return placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.LANE_STATE)
+
+
 __all__ = [
     # ActiveWPResolution: demoted — no cross-module src/ from-import callers
     # (WP01 harden-dead-symbol-gate-01KW0RJR).
