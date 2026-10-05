@@ -2,7 +2,7 @@
 title: 'Status Model: Operator Documentation'
 description: 'Operator reference for the Spec Kitty status model: the append-only event-log lane state machine, the canonical --mission selector, and mission_id ULID identity.'
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-05'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 related:
@@ -439,7 +439,10 @@ gate lifts the attribution-evidence and "merged with an independent change"
 REFUSEs. For the closed world the attestation is bounded in time: its own
 `lane_head` stamp exempts the lane commits made up to it, and a straggler
 committed afterwards still REFUSEs until the operator checks it and attests
-again. Every explicit `--attest-canceled-superseded` records a fresh
+again. Attesting again is not enough when the straggler was committed after
+an approved WP's approval: that WP must also be approved again, or the lane
+refuses with `LANE_MOVED_AFTER_APPROVAL` (ADR
+[2026-10-04-2](../adr/4.x/2026-10-04-2-approval-stamp-bounds-the-approved-claim.md)). Every explicit `--attest-canceled-superseded` records a fresh
 attestation (a new operator act with its own reason and stamp); the latest one
 per WP is the one the gate reads. A FAIL and an
 infrastructure REFUSE still stand. A later governed transition of the WP voids

@@ -100,7 +100,9 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   `preflight_error_code` (see
   [`data.preflight_error_code`](#consolidate-mission-datapreflight_error_code)).
   A call that used to succeed can now refuse, so a minor bump; the key is absent
-  on every other failure.
+  on every other failure. `data` also carries `preflight_error_codes`, every
+  distinct code the refusal names, the first equal to `preflight_error_code`
+  (#5720).
 
 ## Response Envelope
 
@@ -894,8 +896,13 @@ envelope code, puts the message in `data.errors`, and carries a stable code in
 | `APPROVAL_STAMP_MISSING` | An approved work package records no lane head, so what review approved cannot be determined. | Move it back for review and approve it again, or attest the approval with `spec-kitty consolidate --attest-approved-reviewed` (the host command only). |
 | `APPROVAL_STAMP_NOT_ON_LANE` | The approval names a commit that is not on the lane: the lane was rewritten after review. | Move the work package back for review, approve it again, re-run. |
 
-The key is absent on every other failure. The host command `spec-kitty consolidate`
-reports the same three codes in its message and exits 1.
+`data.preflight_error_code` is the first code the message names. `data.preflight_error_codes`
+is a list of every distinct code the message names, in the order they appear, so a mission whose
+lanes refuse for different reasons reports all of them. Both keys are absent on every other
+failure. The host command `spec-kitty consolidate` reports the same three codes in its message and
+exits 1. When a mixed-lane refusal also applies, it prints that refusal first and these codes
+after `This Mission also has:`; `consolidate-mission` never raises the mixed-lane refusal, so its
+list holds only the codes above.
 
 ### `consolidate-mission`: `data.teardown_error_code`
 

@@ -3301,6 +3301,7 @@ pages:
     - {slug: "amendment-2026-10-03-fully-canceled-dependency-lanes-5569", text: "Amendment 2026-10-03 — fully-canceled dependency lanes (#5569)", level: 2}
     - {slug: "follow-up-2026-10-04-superseded-exemption-unstamped-refuse-and-a-stable-code-5613", text: "Follow-up 2026-10-04 — superseded exemption, unstamped REFUSE and a stable code (#5613)", level: 2}
     - {slug: "follow-up-2026-10-05-every-code-lane-is-now-bounded-by-its-approval-stamp-5668", text: "Follow-up 2026-10-05: every code lane is now bounded by its approval stamp (#5668)", level: 2}
+    - {slug: "amendment-2026-10-05-the-attestation-does-not-cover-a-commit-of-the-approval-stamp-bound-5720", text: "Amendment 2026-10-05: the attestation does not cover a commit of the approval-stamp bound (#5720)", level: 2}
   - path: "docs/adr/3.x/2026-09-29-1-requirement-id-grammar-single-authority.md"
     title: "ADR: one requirement-ID grammar, one authority"
     divio_type: "none"
