@@ -251,7 +251,10 @@ class CoordMission:
 
         Never consults ``status.events.jsonl``; the claim the property/repro
         assertions compare against is the set of commits a lane tip carries
-        beyond the coordination base.
+        beyond the coordination base. This reads the lane TIPS: it equals the
+        approved content only because the product refuses a lane that moved
+        after its approval, so a test that adds a lane commit after approval
+        must not use it as the approved set.
         """
         out: dict[str, list[str]] = {}
         for wp_id in wp_ids:
@@ -339,7 +342,41 @@ def _event(
 
 
 def _approve_events(mission: CoordMission, wp_id: str) -> list[dict[str, object]]:
+    """The approval chain with NO ``lane_head`` stamp (a hand-built, unstamped log).
+
+    Kept for the few callers that build their own status log by hand; the shared
+    builders use :func:`_stamped_approve_events` instead.
+    """
     return [_event(mission, wp_id, frm, to) for frm, to in _APPROVE_CHAIN]
+
+
+def _stamped_approve_events(mission: CoordMission, wp_id: str, *, claim_head: str, approved_head: str) -> list[dict[str, object]]:
+    """The approval chain, every event stamped with a real lane tip (the real governed workflow).
+
+    ``claim_head`` is the lane tip when the WP was claimed (before its own commit);
+    ``approved_head`` is the lane tip once its content was committed. The caller
+    reads both from git, never a constant, and writes the log AFTER the lane's
+    commits exist so each stamp names a tip that was real.
+    """
+    return [
+        _event(mission, wp_id, frm, to, policy_metadata={"lane_head": claim_head if idx < 2 else approved_head}) for idx, (frm, to) in enumerate(_APPROVE_CHAIN)
+    ]
+
+
+def _commit_status_events(mission: CoordMission, events: Sequence[dict[str, object]], message: str) -> None:
+    """Write the status log, commit it on the target branch, and fast-forward the coordination branch to it.
+
+    Runs AFTER every lane commit exists (so each ``lane_head`` stamp names a real
+    tip) and BEFORE the coordination worktree is materialized. Lane branches keep
+    their own base, so ``commits_between(coord_branch, lane_branch)`` still names
+    exactly the lane's own commits.
+    """
+    _git(mission.repo, "checkout", "-q", mission.target_branch)
+    events_path = mission.feature_dir / _STATUS_EVENTS_FILENAME
+    events_path.write_text("".join(json.dumps(ev, sort_keys=True) + "\n" for ev in events), encoding="utf-8")
+    _git(mission.repo, "add", str(events_path.relative_to(mission.repo)))
+    _git(mission.repo, "commit", "-qm", message)
+    _git(mission.repo, "branch", "-f", mission.coord_branch, mission.target_branch)
 
 
 _GITIGNORE_WORKTREES_LINE = ".worktrees/"
@@ -518,24 +555,19 @@ def build_coord_mission(
     slug = f"terminus-{mid8}"
     mission = _init_fixture_repo(tmp_path, mid8=mid8, slug=slug, target_branch=target_branch, extra_base_files=extra_base_files)
 
-    # -- planning artifacts + approved status log --------------------------
+    # -- planning artifacts (the approved status log is written after the lanes exist) --
     (mission.feature_dir / "tasks").mkdir(parents=True)
     _write_meta(mission)
     _write_manifest(mission, wps)
-    events: list[dict[str, object]] = []
     for wp_id in wps:
         _write_wp_file(mission, wp_id)
-        events.extend(_approve_events(mission, wp_id))
-    (mission.feature_dir / _STATUS_EVENTS_FILENAME).write_text(
-        "".join(json.dumps(ev, sort_keys=True) + "\n" for ev in events),
-        encoding="utf-8",
-    )
     _commit_planning_artifacts(mission, f"chore({slug}): bootstrap coord mission")
 
     # -- coordination branch at the bootstrap tip --------------------------
     _cut_coord_branch(mission)
 
     # -- one lane branch per WP, each carrying real approved code ----------
+    events: list[dict[str, object]] = []
     for idx, wp_id in enumerate(wps):
 
         def _plant_code(repo: Path, wp_id: str = wp_id, idx: int = idx) -> None:
@@ -546,7 +578,12 @@ def build_coord_mission(
             _git(repo, "commit", "-qm", f"feat({slug}): {wp_id} approved code")
 
         lane_id = f"lane-{chr(ord('a') + idx)}"
+        claim_head = mission.rev(mission.coord_branch)
         mission.lane_branches[wp_id] = _cut_lane_branch(mission, lane_id, [_plant_code])
+        events.extend(_stamped_approve_events(mission, wp_id, claim_head=claim_head, approved_head=mission.rev(mission.lane_branches[wp_id])))
+
+    # -- the approved status log, stamped with the real lane tips ----------
+    _commit_status_events(mission, events, f"chore({slug}): approve coord mission WPs")
 
     # -- materialize the coordination worktree (production topology) -------
     return _finish_coord_mission(mission)
@@ -650,11 +687,6 @@ def build_coord_mission_mixed_lane(
     write_lanes_json(mission.feature_dir, manifest)
     _write_wp_file(mission, survivor_wp)
     _write_wp_file(mission, canceled_wp)
-    events = [*_approve_events(mission, survivor_wp), _cancel_event(mission, canceled_wp)]
-    (mission.feature_dir / _STATUS_EVENTS_FILENAME).write_text(
-        "".join(json.dumps(ev, sort_keys=True) + "\n" for ev in events),
-        encoding="utf-8",
-    )
     _commit_planning_artifacts(mission, f"chore({slug}): bootstrap mixed-lane coord mission")
 
     # -- coordination branch at the bootstrap tip --------------------------
@@ -668,10 +700,21 @@ def build_coord_mission_mixed_lane(
         _git(repo, "add", str(code))
         _git(repo, "commit", "-qm", f"feat({slug}): {survivor_wp} approved code")
 
+    claim_head = mission.rev(mission.coord_branch)
     lane_branch = _cut_lane_branch(mission, "lane-a", [_plant_survivor_code])
     mission.lane_branches[survivor_wp] = lane_branch
     mission.lane_branches[canceled_wp] = lane_branch
     mission.canceled_wps.add(canceled_wp)
+
+    # -- the status log, written once the lane commit exists: every event stamped
+    # with the real lane tip. The canceled sibling never committed, so its
+    # cancellation carries the same final tip.
+    lane_tip = mission.rev(lane_branch)
+    events = [
+        *_stamped_approve_events(mission, survivor_wp, claim_head=claim_head, approved_head=lane_tip),
+        _cancel_event(mission, canceled_wp, policy_metadata={"lane_head": lane_tip}),
+    ]
+    _commit_status_events(mission, events, f"chore({slug}): mixed-lane coord mission events")
 
     # -- materialize the coordination worktree (production topology) -------
     return _finish_coord_mission(mission)
@@ -762,20 +805,15 @@ def build_coord_mission_shared_file(
         computed_from="terminus-shared-file-fixture",
     )
     write_lanes_json(mission.feature_dir, manifest)
-    events: list[dict[str, object]] = []
     for wp_id in wps:
         _write_wp_file(mission, wp_id)
-        events.extend(_approve_events(mission, wp_id))
-    (mission.feature_dir / _STATUS_EVENTS_FILENAME).write_text(
-        "".join(json.dumps(ev, sort_keys=True) + "\n" for ev in events),
-        encoding="utf-8",
-    )
     _commit_planning_artifacts(mission, f"chore({slug}): bootstrap shared-file coord mission")
 
     # -- coordination branch at the bootstrap tip ------------------------------
     _cut_coord_branch(mission)
 
     # -- one lane branch per WP, each committing its OWN disjoint-hunk edit ----
+    events: list[dict[str, object]] = []
     for idx, wp_id in enumerate(wps):
 
         def _plant_edit(repo: Path, wp_id: str = wp_id) -> None:
@@ -787,7 +825,12 @@ def build_coord_mission_shared_file(
             _git(repo, "commit", "-qm", f"feat({slug}): {wp_id} edits {shared_path}@{line_index}")
 
         lane_id = f"lane-{chr(ord('a') + idx)}"
+        claim_head = mission.rev(mission.coord_branch)
         mission.lane_branches[wp_id] = _cut_lane_branch(mission, lane_id, [_plant_edit])
+        events.extend(_stamped_approve_events(mission, wp_id, claim_head=claim_head, approved_head=mission.rev(mission.lane_branches[wp_id])))
+
+    # -- the approved status log, stamped with the real lane tips --------------
+    _commit_status_events(mission, events, f"chore({slug}): approve shared-file coord mission WPs")
 
     # -- materialize the coordination worktree ONCE (production topology) -----
     return _finish_coord_mission(mission)

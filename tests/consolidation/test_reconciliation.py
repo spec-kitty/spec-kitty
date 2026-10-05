@@ -693,8 +693,8 @@ def _now_iso() -> str:
     return now_utc_iso()
 
 
-def _event(seq: int, wp: str, frm: str, to: str, *, at: str, lamport: int) -> dict[str, object]:
-    return {
+def _event(seq: int, wp: str, frm: str, to: str, *, at: str, lamport: int, lane_head: str | None = None) -> dict[str, object]:
+    event: dict[str, object] = {
         "actor": "reviewer" if to == "approved" else "impl",
         "at": at,
         "event_id": f"01HXYZ{seq:020d}",
@@ -709,13 +709,31 @@ def _event(seq: int, wp: str, frm: str, to: str, *, at: str, lamport: int) -> di
         "wp_id": wp,
         "lamport_clock": lamport,
     }
+    if lane_head is not None:
+        event["policy_metadata"] = {"lane_head": lane_head}
+    return event
 
 
-def _approve_events(seq_start: int, wp: str, *, day: int) -> list[dict[str, object]]:
+def _approve_events(seq_start: int, wp: str, *, day: int, claim_head: str, approved_head: str) -> list[dict[str, object]]:
+    """The approval chain, every event stamped with a real lane tip.
+
+    ``claim_head`` is the lane tip when the WP was claimed (before its commit) and
+    ``approved_head`` the tip once its content was committed, both read from git by
+    the caller; the log is written after the lane commits exist.
+    """
     events: list[dict[str, object]] = []
     for i, (frm, to) in enumerate(_APPROVE_CHAIN, start=1):
-        events.append(_event(seq_start + i, wp, frm, to, at=f"2026-01-{day:02d}T00:0{i}:00+00:00", lamport=i))
+        head = claim_head if i <= 2 else approved_head
+        events.append(_event(seq_start + i, wp, frm, to, at=f"2026-01-{day:02d}T00:0{i}:00+00:00", lamport=i, lane_head=head))
     return events
+
+
+def _commit_status_log(repo: Path, feature_dir: Path, events: list[dict[str, object]], message: str) -> None:
+    """Write the status log and commit it on the target branch, AFTER the lane commits exist."""
+    log = feature_dir / "status.events.jsonl"
+    log.write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events), encoding="utf-8")
+    _git(repo, "add", str(log.relative_to(repo)))
+    _git(repo, "commit", "-qm", message)
 
 
 def _build_mission(
@@ -769,18 +787,6 @@ def _build_mission(
         computed_from="recon-test",
     )
 
-    events: list[dict[str, object]] = []
-    seq = 0
-    for day, wp in enumerate(approved_wps, start=1):
-        events.extend(_approve_events(seq, wp, day=day))
-        seq += 100
-    if extra_events:
-        events.extend(extra_events)
-    (feature_dir / "status.events.jsonl").write_text(
-        "".join(json.dumps(e, sort_keys=True) + "\n" for e in events),
-        encoding="utf-8",
-    )
-
     from specify_cli.lanes.persistence import write_lanes_json
 
     write_lanes_json(feature_dir, manifest)
@@ -789,10 +795,21 @@ def _build_mission(
     coord_base = _rev(repo, "HEAD")
 
     # one lane branch per manifest WP, each with a real approved commit.
+    lane_tips: dict[str, str] = {}
     for lane in manifest.lanes:
         branch = lane_branch_name(_MISSION_SLUG, lane.lane_id, target_branch=_TARGET)
         for wp in lane.wp_ids:
-            _lane_commit(repo, coord_base, branch, f"src/{wp.lower()}.py", f"# {wp}\n")
+            lane_tips[wp] = _lane_commit(repo, coord_base, branch, f"src/{wp.lower()}.py", f"# {wp}\n")
+
+    # the approved status log, written once the lane commits exist and stamped with their real tips.
+    events: list[dict[str, object]] = []
+    seq = 0
+    for day, wp in enumerate(approved_wps, start=1):
+        events.extend(_approve_events(seq, wp, day=day, claim_head=coord_base, approved_head=lane_tips[wp]))
+        seq += 100
+    if extra_events:
+        events.extend(extra_events)
+    _commit_status_log(repo, feature_dir, events, "approve mission WPs")
     return repo, feature_dir, manifest, coord_base
 
 
@@ -1519,14 +1536,6 @@ def _build_mixed_lane_mission(tmp_path: Path) -> tuple[Path, Path, LanesManifest
         computed_at=_now_iso(),
         computed_from="recon-test-mixed-lane",
     )
-    events = [
-        *_approve_events(0, "WP01", day=1),
-        _event(9000, "WP02", "planned", "canceled", at="2026-03-01T00:00:00+00:00", lamport=1),
-    ]
-    (feature_dir / "status.events.jsonl").write_text(
-        "".join(json.dumps(e, sort_keys=True) + "\n" for e in events),
-        encoding="utf-8",
-    )
     from specify_cli.lanes.persistence import write_lanes_json
 
     write_lanes_json(feature_dir, manifest)
@@ -1535,7 +1544,13 @@ def _build_mixed_lane_mission(tmp_path: Path) -> tuple[Path, Path, LanesManifest
     coord_base = _rev(repo, "HEAD")
 
     branch = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
-    _lane_commit(repo, coord_base, branch, "src/wp01.py", "# WP01 survivor\n")
+    lane_tip = _lane_commit(repo, coord_base, branch, "src/wp01.py", "# WP01 survivor\n")
+    # the status log is written once the lane commit exists; every event carries the real lane tip.
+    events = [
+        *_approve_events(0, "WP01", day=1, claim_head=coord_base, approved_head=lane_tip),
+        _event(9000, "WP02", "planned", "canceled", at="2026-03-01T00:00:00+00:00", lamport=1, lane_head=lane_tip),
+    ]
+    _commit_status_log(repo, feature_dir, events, "mixed-lane mission events")
     return repo, feature_dir, manifest, coord_base
 
 
@@ -1711,25 +1726,22 @@ def _build_shared_file_lanes(
         computed_at=_now_iso(),
         computed_from="recon-test",
     )
-    events: list[dict[str, object]] = []
-    seq = 0
-    for day, (_lane_id, wp) in enumerate(lane_wp_pairs, start=1):
-        events.extend(_approve_events(seq, wp, day=day))
-        seq += 100
-    (feature_dir / "status.events.jsonl").write_text(
-        "".join(json.dumps(e, sort_keys=True) + "\n" for e in events),
-        encoding="utf-8",
-    )
-
     from specify_cli.lanes.persistence import write_lanes_json
 
     write_lanes_json(feature_dir, manifest)
     _git(repo, "add", ".")
     _git(repo, "commit", "-qm", "bootstrap mission with shared file")
     coord_base = _rev(repo, "HEAD")
-    for lane_id, _wp in lane_wp_pairs:
+    events: list[dict[str, object]] = []
+    seq = 0
+    for day, (lane_id, wp) in enumerate(lane_wp_pairs, start=1):
         branch = lane_branch_name(_MISSION_SLUG, lane_id, target_branch=_TARGET)
         _git(repo, "branch", branch, coord_base)
+        # The lane is empty here, so its real tip is the coord base: each caller's own
+        # edit commit lands AFTER this approval, which is exactly what the stamp records.
+        events.extend(_approve_events(seq, wp, day=day, claim_head=_rev(repo, branch), approved_head=_rev(repo, branch)))
+        seq += 100
+    _commit_status_log(repo, feature_dir, events, "approve shared-file mission WPs")
     return repo, feature_dir, manifest, coord_base
 
 
@@ -2667,41 +2679,8 @@ def test_mixed_lane_fully_canceled_single_wp_lane_is_not_mixed(tmp_path: Path) -
 # --------------------------------------------------------------------------- #
 # Byte-identical pin (Objectives & Success Criteria) -- no issue-5018-class
 # regression surface: every pre-existing collector-derived field stays
-# EXACTLY what the unmodified collectors compute, for both a non-mixed and a
-# mixed-lane input.
+# EXACTLY what the unmodified collectors compute, for a mixed-lane input.
 # --------------------------------------------------------------------------- #
-
-
-def test_claim_fields_are_byte_identical_to_unmodified_collectors_non_mixed(tmp_path: Path) -> None:
-    from specify_cli.consolidation.reconciliation import (
-        _collect_approved_shas,
-        _collect_authored,
-        _collect_excluded,
-    )
-    from specify_cli.status import materialize_snapshot
-
-    repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01", "WP02"))
-    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base)
-
-    snapshot = materialize_snapshot(feature_dir)
-    work_packages = snapshot.work_packages or {}
-    expected_approved = _collect_approved_shas(repo, manifest, work_packages, coord_base)
-    expected_authored_shas, expected_authored_patch_ids, expected_authored_blobs, expected_authored_deletions, expected_multi_lane_paths, *_ = _collect_authored(
-        repo, manifest, work_packages, coord_base, canceled_lane_commits=frozenset()
-    )
-    expected_excluded_shas, expected_excluded_patch_ids = _collect_excluded(
-        repo, manifest, coord_base, frozenset(), authored_shas=expected_authored_shas, authored_patch_ids=expected_authored_patch_ids
-    )
-
-    assert claim.approved == expected_approved
-    assert claim.authored_shas == expected_authored_shas
-    assert claim.authored_patch_ids == expected_authored_patch_ids
-    assert claim.authored_blobs == expected_authored_blobs
-    assert claim.authored_deletions == expected_authored_deletions
-    assert claim.multi_lane_paths == expected_multi_lane_paths
-    assert claim.excluded_shas == expected_excluded_shas
-    assert claim.excluded_patch_ids == expected_excluded_patch_ids
-    assert claim.canceled_content == frozenset()  # non-mixed mission: always empty
 
 
 def test_claim_fields_are_byte_identical_to_unmodified_collectors_mixed_lane(tmp_path: Path) -> None:

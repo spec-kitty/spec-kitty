@@ -37,7 +37,7 @@ from tests.terminus.conftest import CoordMission, PlantedChange, git_rev
 # --- single adapter over the conftest private helpers (#5359 rename => one edit) ---
 _run = _harness._run
 _git = _harness._git
-_approve_events = _harness._approve_events
+_stamped_approve_events = _harness._stamped_approve_events
 _now_iso = _harness._now_iso
 _STATUS_EVENTS_FILENAME = _harness._STATUS_EVENTS_FILENAME
 _event = _harness._event
@@ -106,18 +106,23 @@ def _write_meta(m: CoordMission, target_branch: str) -> None:
     (m.feature_dir / "meta.json").write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n")
 
 
-def _cut_lane_branches(m: CoordMission, wps: Sequence[str], target_branch: str) -> None:
+def _cut_lane_branches(m: CoordMission, wps: Sequence[str], target_branch: str) -> dict[str, tuple[str, str]]:
+    """Cut one lane per WP with its code commit; return ``{wp: (claim_head, approved_head)}`` read from git."""
+    heads: dict[str, tuple[str, str]] = {}
     for i, wp in enumerate(wps):
         lane_branch = f"kitty/mission-{m.slug}-lane-{chr(ord('a') + i)}"
         _git(m.repo, "branch", lane_branch, m.coord_branch)
         _git(m.repo, "checkout", "-q", lane_branch)
+        claim_head = git_rev(m.repo, lane_branch)
         code = m.repo / "src" / "pkg" / f"{wp.lower()}.py"
         code.parent.mkdir(parents=True, exist_ok=True)
         code.write_text(f"def {wp.lower()}() -> int:\n    return {i}\n")
         _git(m.repo, "add", str(code))
         _git(m.repo, "commit", "-qm", f"feat({m.slug}): {wp} approved code")
+        heads[wp] = (claim_head, git_rev(m.repo, lane_branch))
         _git(m.repo, "checkout", "-q", target_branch)
         m.lane_branches[wp] = lane_branch
+    return heads
 
 
 def build_lanes_mission(
@@ -182,16 +187,26 @@ def build_lanes_mission(
     )
 
     all_wps = [*wps, *([planning_wp] if with_planning_lane_wp else [])]
-    events: list[dict[str, object]] = []
     for wp in all_wps:
         (m.feature_dir / "tasks" / f"{wp}-work.md").write_text(_wp_file_text(wp))
-        if wp != planning_wp or approve_planning_wp:
-            events.extend(_approve_events(m, wp))
-    (m.feature_dir / _STATUS_EVENTS_FILENAME).write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events))
     _git(repo, "add", ".")
     _git(repo, "commit", "-qm", f"chore({slug}): bootstrap lanes mission")
     _git(repo, "branch", mission_branch)
-    _cut_lane_branches(m, wps, target_branch)
+    heads = _cut_lane_branches(m, wps, target_branch)
+
+    # The approved status log is written once the lane commits exist, every code-lane
+    # event stamped with the real lane tip. The planning lane has no branch, so the
+    # real probe never stamps it (``status/lane_head.py``): its events stay unstamped.
+    events: list[dict[str, object]] = []
+    for wp in all_wps:
+        if wp in heads:
+            events.extend(_stamped_approve_events(m, wp, claim_head=heads[wp][0], approved_head=heads[wp][1]))
+        elif approve_planning_wp:
+            events.extend(_harness._approve_events(m, wp))
+    (m.feature_dir / _STATUS_EVENTS_FILENAME).write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events))
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", f"chore({slug}): approve lanes mission WPs")
+    _git(repo, "branch", "-f", mission_branch, target_branch)
     return m
 
 
