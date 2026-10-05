@@ -7,16 +7,32 @@ exit 1 and ``create_lane_workspace`` is never invoked.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 import typer
 
+from specify_cli.charter_runtime.preflight.ambient_warning import _reset_surfaced_for_testing
 from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
 
 
 pytestmark = pytest.mark.fast
+
+
+@pytest.fixture(autouse=True)
+def _fresh_charter_warning() -> Iterator[None]:
+    """The charter preflight warning is shown once per process; re-arm it around each test.
+
+    Any earlier test in the same xdist worker that runs ``implement`` in-process (the
+    characterization, phase and reachability suites, among others) consumes the warning that
+    ``test_hook_does_not_abort_on_fully_absent_charter_for_implement`` asserts. The outcome then
+    depends on how ``--dist loadfile`` schedules files; re-arming here removes that dependency.
+    """
+    _reset_surfaced_for_testing()
+    yield
+    _reset_surfaced_for_testing()
 
 
 def _pass_result() -> CharterPreflightResult:
