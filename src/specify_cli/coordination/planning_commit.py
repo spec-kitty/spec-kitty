@@ -494,9 +494,28 @@ def coordination_filter(repo_root: Path, mission_slug: str, placement: PlanningP
     :func:`declared_coordination_ref`. The adapter calls this where it computes
     its coordination filter, after the #1598 structural check.
     """
+    declared = None if placement.resolved else declared_coordination_ref(feature_dir, mission_slug, repo_root)
+    return coordination_filter_with_declared(repo_root, mission_slug, placement, declared_coordination_branch=declared)
+
+
+def coordination_filter_with_declared(
+    repo_root: Path,
+    mission_slug: str,
+    placement: PlanningPlacement,
+    *,
+    declared_coordination_branch: str | None,
+) -> str | None:
+    """:func:`coordination_filter` for a caller that already holds the declared coordination branch.
+
+    The planning-commit transaction reads the identity cascade once
+    (:func:`resolve_bookkeeping_transaction_identifiers`); passing its
+    ``coord_branch`` here keeps that the only ``meta.json`` read. The value must
+    be :func:`declared_coordination_ref` for the same mission, which is exactly
+    that field. A resolved placement ignores it.
+    """
     if placement.resolved:
         return placement_coord_filter(repo_root, mission_slug, placement.ref)
-    return declared_coordination_ref(feature_dir, mission_slug, repo_root)
+    return declared_coordination_branch
 
 
 def resolve_planning_placement(repo_root: Path, *, mission_slug: str, wp_id: str) -> PlanningPlacement:

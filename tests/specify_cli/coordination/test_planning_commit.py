@@ -363,3 +363,25 @@ class TestCoordinationFilter:
         placement = planning_commit.PlanningPlacement(resolved=False, ref=None)
 
         assert planning_commit.coordination_filter(tmp_path, _SLUG, placement, feature_dir=feature_dir) == _COORD_BRANCH
+
+
+class TestCoordinationFilterWithDeclared:
+    """R-NB-1: the transaction passes the declared branch it already read, so ``meta.json`` is read once."""
+
+    def test_unresolved_placement_filters_on_the_given_declared_branch_without_reading_meta(self, tmp_path: Path) -> None:
+        """No ``meta.json`` exists at all: the value can only come from the caller.
+
+        Planted break (proven red): read the declared branch from ``meta.json`` instead of the argument.
+        """
+        placement = planning_commit.PlanningPlacement(resolved=False, ref=None)
+
+        assert planning_commit.coordination_filter_with_declared(tmp_path, _SLUG, placement, declared_coordination_branch=_COORD_BRANCH) == _COORD_BRANCH
+        assert planning_commit.coordination_filter_with_declared(tmp_path, _SLUG, placement, declared_coordination_branch=None) is None
+
+    def test_resolved_placement_ignores_the_declared_branch(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        from mission_runtime import CommitTarget, MissionTopology
+
+        monkeypatch.setattr(planning_commit, "resolve_topology", lambda _root, _slug: MissionTopology.SINGLE_BRANCH)
+        placement = planning_commit.PlanningPlacement(resolved=True, ref=CommitTarget(ref="main"))
+
+        assert planning_commit.coordination_filter_with_declared(tmp_path, "m", placement, declared_coordination_branch=_COORD_BRANCH) is None

@@ -386,8 +386,11 @@ def _commit_planning_artifacts_transaction(
     # console lines share is the seam's coordination filter. Resolved: ``None``
     # under a flattened/primary topology (the commit lands on
     # ``planning_branch``), the coord ref under coordination topology.
-    # Unresolved: the mission's declared coordination branch, unprobed.
-    coord_branch = coordination_planning_commit.coordination_filter(repo_root, mission_slug, placement, feature_dir=feature_dir)
+    # Unresolved: the mission's declared coordination branch, unprobed -- the
+    # value the identifier read above already holds, so meta.json is read once.
+    coord_branch = coordination_planning_commit.coordination_filter_with_declared(
+        repo_root, mission_slug, placement, declared_coordination_branch=_declared_coord_branch
+    )
     placement_ref = placement.ref
 
     is_legacy = not (coord_branch and mission_id and mid8)
