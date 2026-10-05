@@ -242,7 +242,8 @@ def check_lane(
     *branch* names the lane in the refusal; *tip* (default *branch*) is what is read, so a
     caller that froze the lane tip once reads exactly that commit. *anchors* are the
     lane-base anchors (dependency-lane tips, the target's pre-consolidation tip, the
-    mission branch as a SHA); *claim_base* bounds the lane's own range. A lane with no commit
+    other lanes' approval stamps); *claim_base* bounds the lane's own range and must
+    predate every commit the run merges (a live mission-branch tip does not). A lane with no commit
     beyond *claim_base*, or over a *claim_base* that does not resolve (which the claim builder
     has always read as an empty lane), has nothing to bound and is not refused.
     """
