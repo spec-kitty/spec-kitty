@@ -441,12 +441,18 @@ def _resolve_dependency_readiness(
     declared dependencies are then read from ``owned.mission_dir`` (P), never
     re-anchored to the repository root. ``None`` keeps the legacy behaviour.
     """
+    # The verdict helpers live in a sibling module that a narrow mypy check
+    # does not follow (``specify_cli.*`` skip), so bind each verdict to the
+    # declared type before returning it.
+    readiness: DependencyReadiness
     try:
         declared = _declared_dependencies(planning_feature_dir, wp_id, owned=owned)
     except TransitionError as exc:
         logger.warning("Dependency readiness of %s is unresolvable; refusing the guarded entry edges: %s", wp_id, exc)
-        return unresolvable_readiness(wp_id, str(exc))
-    return readiness_from_snapshot(snapshot, wp_id, declared)
+        readiness = unresolvable_readiness(wp_id, str(exc))
+        return readiness
+    readiness = readiness_from_snapshot(snapshot, wp_id, declared)
+    return readiness
 
 
 def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:
