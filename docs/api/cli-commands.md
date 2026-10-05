@@ -3431,6 +3431,15 @@ _Live Work harness capture: tools, files, tests and delegation as live relay fra
  - ``progress.json`` — lane-weighted progress percentage
  - ``lifecycle.json`` — canonical active/recent/stale/abandoned mission state
 
+ A coordination-routed Mission is reduced from its coordination surface's
+ event log. To find that log this command may create the coordination
+ worktree (one ``git worktree add`` per coordination-routed Mission, done
+ once) and, for a Mission created before the coordination surface was
+ seeded, seed it. ``lanes`` and ``single_branch`` Missions are reduced from
+ the repository root checkout exactly as before. A Mission whose coordination
+ branch exists only on a remote, or whose logs diverged, is reported in the
+ error summary and the remaining Missions are still processed.
+
  Examples::
 
      spec-kitty materialize
@@ -3888,7 +3897,8 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
  PRIMARY-partition status surface. It is idempotent: a re-run appends
  nothing. WPs the snapshot carries without a WP file are reported, never
  repaired. A Mission whose status log lives on a live coordination surface
- is refused (``COORD_SURFACE_LIVE``, counted as refused rather than skipped, nothing written):
+ is refused (``COORD_SURFACE_LIVE``, counted as refused rather than skipped,
+ nothing written):
  consolidate it first and rerun once the coordination branch is gone.
 
  A Mission with terminal evidence (``meta.json`` ``merged_at`` /

@@ -949,12 +949,25 @@ _Mission lifecycle commands for AI agents_
 │                                                            lanes_with_coord) │
 │                                                            mint a            │
 │                                                            coordination      │
-│                                                            branch;           │
+│                                                            branch and        │
+│                                                            materialize its   │
+│                                                            worktree          │
+│                                                            immediately,      │
+│                                                            seeding it with   │
+│                                                            the mission's     │
+│                                                            creation events   │
+│                                                            (MissionCreated,  │
+│                                                            SpecifyStarted)   │
+│                                                            so the            │
+│                                                            coordination      │
+│                                                            surface is live   │
+│                                                            from birth        │
+│                                                            (#5440);          │
 │                                                            branch-flat       │
 │                                                            shapes            │
 │                                                            (single_branch,   │
-│                                                            lanes) do not.    │
-│                                                            Default:          │
+│                                                            lanes) do         │
+│                                                            neither. Default: │
 │                                                            context-derived   │
 │                                                            (#2581, #2602) —  │
 │                                                            coord on the      │
@@ -1124,24 +1137,41 @@ _Mission lifecycle commands for AI agents_
 │                                          converges on it too (#3466).        │
 │ --owned-checkout                   PATH  Explicit owned checkout for a       │
 │                                          single-branch mission.              │
-│ --refresh-planning-commit                Advance the recorded                │
-│                                          planning_commit_sha in lanes.json   │
-│                                          to the current target-branch tip    │
-│                                          after a legitimate planning         │
-│                                          amendment, even though execution    │
-│                                          has begun (#4141). Without it, a    │
-│                                          re-finalize after execution has     │
-│                                          begun preserves the recorded SHA    │
-│                                          (#3311) and every lane keeps        │
-│                                          merging the stale planning          │
-│                                          snapshot. Refused when the recorded │
-│                                          SHA is not an ancestor of the tip   │
-│                                          (a history rewrite, not an          │
-│                                          amendment) -- if that's because of  │
-│                                          a deliberate mid-mission rebase     │
-│                                          rather than a divergence, add       │
-│                                          --allow-orphaned to re-point anyway │
-│                                          (#4827).                            │
+│ --refresh-planning-commit                Force a refresh-ONLY run: re-point  │
+│                                          the recorded planning_commit_sha in │
+│                                          lanes.json to the current           │
+│                                          target-branch tip and exit, without │
+│                                          running the rest of finalize-tasks  │
+│                                          (#4141). By default (no flag        │
+│                                          needed) a normal re-finalize        │
+│                                          already advances the pin            │
+│                                          automatically whenever a PRIMARY    │
+│                                          planning file genuinely changed     │
+│                                          since it was recorded (FR-012); use │
+│                                          this flag only to force JUST the    │
+│                                          pin refresh for an ADVANCED pin     │
+│                                          (the common case) or to re-point a  │
+│                                          deliberate mid-mission rebase with  │
+│                                          --allow-orphaned (#4827). It is     │
+│                                          advance-only and REFUSES when the   │
+│                                          recorded SHA is not an ancestor of  │
+│                                          the tip without --allow-orphaned,   │
+│                                          and it CANNOT help a pin the        │
+│                                          automatic path already warned about │
+│                                          and kept unchanged (a FOREIGN       │
+│                                          object absent from this repository  │
+│                                          entirely, or an INDETERMINATE pin   │
+│                                          whose target tip could not even be  │
+│                                          resolved) -- WP15 cycle 2/3:        │
+│                                          neither shape is inspectable, so    │
+│                                          --refresh-planning-commit           │
+│                                          --allow-orphaned refuses both the   │
+│                                          same as a bare                      │
+│                                          --refresh-planning-commit would;    │
+│                                          correct lanes.json's                │
+│                                          planning_commit_sha by hand         │
+│                                          instead, per that warning's own     │
+│                                          text.                               │
 │ --allow-orphaned                         Only meaningful with                │
 │                                          --refresh-planning-commit (#4827).  │
 │                                          Permits the re-pin to re-point a    │
@@ -1456,8 +1486,11 @@ _Apply staged proposals from a mission's retrospective record._
 │                                     [required]                               │
 │    --apply                          Execute application after checks pass    │
 │                                     (default is dry-run)                     │
-│    --proposal-id              TEXT  Restrict batch to specific proposal ids  │
-│                                     (repeatable)                             │
+│    --proposal-id              TEXT  Restrict the batch to the given proposal │
+│                                     ids, which must be accepted              │
+│                                     (repeatable). Any id that is pending,    │
+│                                     rejected or not in the record is refused │
+│                                     (exit 1) before anything is applied.     │
 │    --json-out                 PATH  Write JSON envelope to PATH in addition  │
 │                                     to other output                          │
 │    --json                           Emit JSON to stdout (suppresses Rich     │
