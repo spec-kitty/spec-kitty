@@ -22,7 +22,7 @@ import inspect
 import json
 import re
 import subprocess
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -34,6 +34,7 @@ from typer.testing import CliRunner, Result
 
 from runtime.next import runtime_bridge
 from specify_cli.cli.commands.agent.workflow import top_level_implement
+from specify_cli.charter_runtime.preflight.ambient_warning import _reset_surfaced_for_testing
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.git.commit_helpers import SafeCommitHeadMismatch, SafeCommitPathPolicyError
 from specify_cli.lanes.compute import PLANNING_LANE_ID
@@ -286,6 +287,17 @@ def assert_refused(result: Result, *fragments: str) -> None:
     text = flat(result.output)
     for fragment in fragments:
         assert fragment in text, f"{fragment!r} not in: {text}"
+
+
+@pytest.fixture(autouse=True)
+def _reset_ambient_warning_latch() -> Iterator[None]:
+    """Each case is its own command run: re-arm the once-per-process charter warning around it.
+
+    Without this, the first case consumes the warning that ``test_implement_preflight`` later asserts.
+    """
+    _reset_surfaced_for_testing()
+    yield
+    _reset_surfaced_for_testing()
 
 
 @pytest.fixture()
