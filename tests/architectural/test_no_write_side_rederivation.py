@@ -155,6 +155,9 @@ _WRITE_DIR_CONSUMER_MODULES: tuple[Path, ...] = (
     _SRC / "cli" / "commands" / "implement_planning_commit.py",
     # implement-degod WP08: the claim preflight and claim commit moved here; the scan follows the code.
     _SRC / "cli" / "commands" / "implement_claim.py",
+    # implement-degod WP09: the phase blocks and the --recover family moved here; the scan follows the code.
+    _SRC / "cli" / "commands" / "implement_phases.py",
+    _SRC / "cli" / "commands" / "implement_recover.py",
     _SRC / "lanes" / "recovery.py",
     _SRC / "retrospective" / "tracer_writer.py",
     _SRC / "tasks" / "issue_matrix.py",

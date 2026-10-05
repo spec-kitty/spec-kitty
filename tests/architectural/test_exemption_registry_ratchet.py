@@ -118,6 +118,9 @@ CHURN_SURFACE_MODULES: tuple[str, ...] = (
     "src/specify_cli/cli/commands/implement_planning_commit.py",
     # implement-degod WP08: the claim commit bundle (is_status_state_path filter) moved here; the scan follows the code.
     "src/specify_cli/cli/commands/implement_claim.py",
+    # implement-degod WP09: the phase blocks and the --recover family moved here; the scan follows the code.
+    "src/specify_cli/cli/commands/implement_phases.py",
+    "src/specify_cli/cli/commands/implement_recover.py",
     # implement-degod WP04: the planning-commit decisions moved here; the scan follows the code.
     "src/specify_cli/coordination/planning_commit.py",
     "src/specify_cli/lanes/auto_rebase.py",

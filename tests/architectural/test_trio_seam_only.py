@@ -113,6 +113,11 @@ _IMPLEMENT_PLANNING_COMMIT_PY = _SRC_SPECIFY_CLI / "cli" / "commands" / "impleme
 # implement-degod WP08: the claim commit (placement_seam write_target, resolve_topology) moved out of implement.py.
 _IMPLEMENT_CLAIM_PY = _SRC_SPECIFY_CLI / "cli" / "commands" / "implement_claim.py"
 
+# implement-degod WP09: the phase blocks (placement_seam reads, workspace resolution) and the
+# --recover family moved out of implement.py.
+_IMPLEMENT_PHASES_PY = _SRC_SPECIFY_CLI / "cli" / "commands" / "implement_phases.py"
+_IMPLEMENT_RECOVER_PY = _SRC_SPECIFY_CLI / "cli" / "commands" / "implement_recover.py"
+
 _TRIO_FILES: tuple[Path, ...] = (
     _WORKFLOW_PY,
     _WORKFLOW_CORES_PY,
@@ -126,6 +131,8 @@ _TRIO_FILES: tuple[Path, ...] = (
     _COORDINATION_PLANNING_COMMIT_PY,
     _IMPLEMENT_PLANNING_COMMIT_PY,
     _IMPLEMENT_CLAIM_PY,
+    _IMPLEMENT_PHASES_PY,
+    _IMPLEMENT_RECOVER_PY,
 )
 
 # The subset that are the extracted PURE cores (T028 scope). Deliberately

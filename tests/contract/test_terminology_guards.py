@@ -53,6 +53,8 @@ INSCOPE_FEATURE_FREE_FILES: tuple[str, ...] = (
     "src/specify_cli/cli/commands/implement.py",
     "src/specify_cli/cli/commands/implement_planning_commit.py",
     "src/specify_cli/cli/commands/implement_claim.py",
+    "src/specify_cli/cli/commands/implement_phases.py",
+    "src/specify_cli/cli/commands/implement_recover.py",
     "src/specify_cli/cli/commands/consolidate.py",
     "src/specify_cli/cli/commands/next_cmd.py",
     "src/specify_cli/cli/commands/research.py",

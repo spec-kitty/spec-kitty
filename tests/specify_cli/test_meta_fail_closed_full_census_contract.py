@@ -85,6 +85,9 @@ _WP09_OWNED_FILES: frozenset[str] = frozenset(
         "src/specify_cli/cli/commands/_identity_audit.py",
         "src/specify_cli/cli/commands/implement.py",
         "src/specify_cli/cli/commands/implement_planning_commit.py",
+        # implement-degod WP09: implement.py's phase blocks and --recover family moved here.
+        "src/specify_cli/cli/commands/implement_phases.py",
+        "src/specify_cli/cli/commands/implement_recover.py",
         "src/specify_cli/coordination/planning_commit.py",
         "src/specify_cli/cli/commands/merge.py",
         "src/specify_cli/cli/commands/mission_type.py",

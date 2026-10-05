@@ -61,6 +61,9 @@ _WP04_OWNED_SRC = (
     "src/specify_cli/status/__init__.py",
     "src/specify_cli/status/wp_metadata.py",
     "src/specify_cli/cli/commands/implement.py",
+    # implement-degod WP09: implement.py's phase blocks and --recover family moved here.
+    "src/specify_cli/cli/commands/implement_phases.py",
+    "src/specify_cli/cli/commands/implement_recover.py",
     "src/specify_cli/cli/commands/agent/tasks_transition_core.py",
     "src/specify_cli/cli/commands/agent/tasks_shared.py",
     "src/specify_cli/cli/commands/agent/tasks_mark_status.py",

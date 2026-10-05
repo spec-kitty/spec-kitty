@@ -59,6 +59,8 @@ def test_no_inline_mid8_slices_remain_after_routing() -> None:
         "cli/commands/implement.py",
         "cli/commands/implement_planning_commit.py",
         "cli/commands/implement_claim.py",
+        "cli/commands/implement_phases.py",
+        "cli/commands/implement_recover.py",
         "coordination/planning_commit.py",
         "lanes/worktree_allocator.py",
         "cli/commands/doctor.py",
