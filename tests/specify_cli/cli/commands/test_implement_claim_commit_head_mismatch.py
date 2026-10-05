@@ -40,6 +40,10 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 COORDINATION_BRANCH = f"kitty/mission-{SLUG}-{MISSION_ID[:8].lower()}"
 ARGS = ["WP01", "--mission", SLUG, "--actor", "tester"]
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")
+PROTECTED_HINT = (
+    "'main' is a protected branch, so the claim's status commit cannot land there either: "
+    "rerun with --no-auto-commit to stage the claim's changes and commit them yourself."
+)
 
 
 @pytest.fixture(autouse=True)
@@ -115,6 +119,44 @@ def test_off_target_auto_commit_claim_is_refused_in_json_mode_with_the_error_env
         assert fragment in error, f"{fragment!r} not in: {error}"
     assert snapshot(mission) == before
     assert not (off_target_repo / ".worktrees").exists()
+
+
+def test_a_protected_destination_names_the_no_auto_commit_way_out(off_target_repo: Path) -> None:
+    """The checkout remedy alone loops for a protected destination: checking out ``main`` meets the
+    protected-branch refusal. The refusal therefore also names ``--no-auto-commit``.
+
+    Planted break (proven red): drop the protected-destination hint from the claim-commit HEAD check.
+    """
+    _seed(off_target_repo)
+
+    result = implement_cli(*ARGS, "--auto-commit")
+
+    assert result.exit_code == 1, result.output
+    text = flat(_ANSI.sub("", result.output))
+    assert PROTECTED_HINT in text, text
+    for fragment in _mismatch_fragments(off_target_repo):
+        assert fragment in text, f"{fragment!r} not in: {text}"
+
+
+def test_an_unprotected_destination_gets_no_no_auto_commit_hint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Checking out an unprotected destination is a remedy that works, so it stays the only one named.
+
+    Planted break (proven red): add the protected-destination hint unconditionally.
+    """
+    repo = init_repo(tmp_path / "repo")
+    activate_repo(repo, monkeypatch, tmp_path)
+    mission = build_mission(repo, SLUG, MISSION_ID)
+    git(repo, "checkout", "-q", "-b", "elsewhere")
+    before = snapshot(mission)
+
+    result = implement_cli(*ARGS, "--auto-commit")
+
+    assert result.exit_code == 1, result.output
+    text = flat(_ANSI.sub("", result.output))
+    assert "HEAD is 'elsewhere', expected 'trunk'." in text
+    assert f"Run `git -C {repo} checkout trunk` first." in text
+    assert "--no-auto-commit" not in text
+    assert snapshot(mission) == before
 
 
 def test_off_target_claim_without_auto_commit_is_not_refused(off_target_repo: Path) -> None:

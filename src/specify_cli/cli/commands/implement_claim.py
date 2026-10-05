@@ -23,6 +23,7 @@ from specify_cli.git.commit_helpers import (
 )
 from specify_cli.git.protection_policy import ProtectionPolicy
 from mission_runtime import (
+    ActionContextError,
     MissionArtifactKind,
     placement_seam,
     resolve_topology,
@@ -31,8 +32,11 @@ from mission_runtime import (
 from specify_cli.coordination.coherence import (
     is_status_state_path,
 )
-from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
-from specify_cli.coordination.surface_resolver import resolve_status_surface_with_anchor
+from specify_cli.coordination.surface_resolver import (
+    StatusReadPathNotFound,
+    is_under_worktrees_segment,
+    resolve_status_surface_with_anchor,
+)
 from specify_cli.status import TransitionError
 from specify_cli.status import (
     Lane,
@@ -80,6 +84,21 @@ def _raise_if_status_commit_protected(repo_root: Path, planning_branch: str, aut
         raise ValueError(protected_error)
 
 
+def _protected_destination_hint(destination_ref: str) -> str:
+    """The way out of a #5738 refusal whose destination is a protected branch.
+
+    The mismatch message tells the operator to check out the destination; for a
+    protected destination that only leads to the protected-branch refusal of
+    :func:`_raise_if_status_commit_protected`, so the refusal names the remedy that
+    works.
+    """
+    return (
+        f" '{destination_ref}' is a protected branch, so the claim's status commit cannot "
+        "land there either: rerun with --no-auto-commit to stage the claim's changes and "
+        "commit them yourself."
+    )
+
+
 def _raise_if_claim_commit_head_mismatch(repo_root: Path, mission_slug: str, wp_id: str, auto_commit: bool | None) -> None:
     """Refuse up front a claim whose auto-commit cannot land (#5738).
 
@@ -89,8 +108,10 @@ def _raise_if_claim_commit_head_mismatch(repo_root: Path, mission_slug: str, wp_
     will move the WP's lane, and the checkout is on another branch (or detached),
     that commit can only fail -- after the lane worktree, the VCS lock and the
     status write already landed. Raise the very ``SafeCommitHeadMismatch`` the
-    commit would raise, before any of them. Only that mismatch is decided here:
-    an unresolvable destination is left to the commit-time handling.
+    commit would raise, before any of them; when the destination is protected,
+    its message also names ``--no-auto-commit`` (:func:`_protected_destination_hint`).
+    Only that mismatch is decided here: a destination the resolver reports as
+    unresolvable is left to the commit-time handling.
     """
     if not auto_commit:
         return
@@ -100,18 +121,25 @@ def _raise_if_claim_commit_head_mismatch(repo_root: Path, mission_slug: str, wp_
         return
     try:
         destination_ref = placement_seam(repo_root, mission_slug).write_target(MissionArtifactKind.WORK_PACKAGE_TASK).ref
-    except Exception:
-        # Only a resolved destination is judged here. A destination that does not
-        # resolve (e.g. a merged mission whose coordination branch was torn down)
-        # keeps its existing commit-time handling in ``commit_claim`` unchanged.
+    except (ActionContextError, StatusReadPathNotFound):
+        # The resolver's typed "does not resolve" failures (``CoordinationBranchDeleted``
+        # is a ``StatusReadPathNotFound``): only a resolved destination is judged here.
+        # Such a destination (e.g. a merged mission whose coordination branch was torn
+        # down) keeps its existing commit-time handling in ``commit_claim`` unchanged.
         return
     observed_head = get_current_branch(repo_root)
-    if observed_head != destination_ref:
-        raise SafeCommitHeadMismatch(
-            destination_ref=destination_ref,
-            observed_head=observed_head or "<detached>",
-            worktree_root=repo_root,
-        )
+    if observed_head == destination_ref:
+        return
+    mismatch = SafeCommitHeadMismatch(
+        destination_ref=destination_ref,
+        observed_head=observed_head or "<detached>",
+        worktree_root=repo_root,
+    )
+    if ProtectionPolicy.resolve_for_mission(repo_root, mission_slug).is_protected(destination_ref):
+        # Same type and ``error_code``; only the message gains the working remedy.
+        mismatch.message += _protected_destination_hint(destination_ref)
+        mismatch.args = (mismatch.message,)
+    raise mismatch
 
 
 def _primary_surface_status_paths(artifacts: Iterable[Path], *, routes_through_coord: bool) -> list[Path]:
