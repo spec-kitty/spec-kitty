@@ -2,7 +2,7 @@
 title: How to Create an Org Doctrine Pack
 description: Author, validate, assemble, publish, and consume a spec-kitty org doctrine pack.
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-05'
 type: how-to
 audience: docs/context/audience/external/tech-lead-evaluator.md
 related:
@@ -248,6 +248,45 @@ policy) simply omit it.
 For more on how `org-charter.yaml` composes when multiple packs are configured, see
 [the org charter composition section of the explanation doc](../../../architecture/org-doctrine-layer.md#org-charter-composition).
 
+## Step 3b: Sanction the built-ins your pack replaces
+
+If an artifact in your pack has the same ID as a built-in artifact, it replaces that built-in in place. A consumer's `spec-kitty doctor doctrine` accepts the replacement only when something sanctions it; otherwise it exits 1 and names the URN. You list the built-ins you replace on purpose in a file at the **pack root**. This also covers the case where upstream later promotes one of your artifacts into the built-in set: your same-ID artifact then becomes an override, and the sanction is already in your pack.
+
+Create `replaceable-builtins.yaml` next to `org-charter.yaml`. The pack root is the resolved root of the pack, including any `subdir` the consumer configures:
+
+```yaml
+# <pack root>/replaceable-builtins.yaml
+replaceable_builtins:
+  - urn: directive:MINUTES_STAND_ALONE
+    reason: We replace this directive because our minutes template differs.
+  - urn: agent_profile:minutes-mahad
+```
+
+Rules:
+
+- Each entry is `{urn, reason}`. The `urn` is `<kind>:<id>`.
+- A `directive:` entry **must** carry a non-empty `reason`. For other kinds the reason is optional but recommended.
+- The sanction covers only overrides your own pack contributes. A consumer matches it by the pack's name in the consumer's configuration, so it cannot sanction an override from another pack.
+- The file has one key, `replaceable_builtins`. `revoked_pack_sanctions` belongs to the consumer file only and is an error here. Other unknown keys are ignored.
+- An entry for a URN that is not a built-in, or that your pack does not override, does nothing.
+- A file that is malformed, unreadable, not a regular file, or a symlink that leaves the pack root makes the consumer's `doctor doctrine` unhealthy, with an error that names your pack and the file. The file is checked for every configured pack, whether or not that pack overrides anything.
+
+Validate it with the rest of the pack (Step 5). `spec-kitty doctrine pack validate` parses the file with the same parser the consumer uses. It reports an error for a malformed file or a directive entry without a reason, and an advisory for an entry your pack does not override.
+
+When you assemble packs (Step 6), the assembled pack root carries the union of the input packs' `replaceable-builtins.yaml` files. If two inputs list the same URN with different reasons, assembly reports a conflict; `--force` keeps the last pack's reason.
+
+### Migrating from the setup template
+
+Earlier guidance had packs ship `templates/setup/replaceable-builtins.yaml` for consumers to copy. Nothing reads that template, and the copies drift. Move the file instead, once, in your pack repository:
+
+```bash
+git mv templates/setup/replaceable-builtins.yaml replaceable-builtins.yaml
+```
+
+If the pack is consumed through a `subdir`, move it to the root of that subdirectory. Consumers then delete their hand-copied entries, or leave them: a consumer file that lists the same URN keeps working.
+
+A pack fetched through an API source (Option C in Step 7) does not carry root files, so it delivers no sanction and the consumer's own file still governs.
+
 ---
 
 ## Step 4: Wrap an existing governance system
@@ -326,6 +365,8 @@ The validator distinguishes errors from advisories:
 | Dangling DRG edge (target URN not in merged artifact set) | Error |
 | DRG extension tries to modify or remove a built-in node | Error |
 | `org-charter.yaml` schema violation | Error |
+| `replaceable-builtins.yaml` malformed, or a directive entry without a reason | Error |
+| `replaceable-builtins.yaml` entry for a URN your pack does not override | Advisory |
 | Artifact ID collides with a built-in ID | Advisory |
 | `pack-manifest.yaml` exists and was author-edited | Advisory |
 | `enforcement` value other than `"advisory"` | Advisory |
@@ -519,6 +560,26 @@ uv run spec-kitty doctor doctrine
 The output enumerates each configured pack, its on-disk version, per-artifact counts,
 and `org-charter.yaml` status. Add `--json` for scripting.
 
+### Built-in overrides: see what is sanctioned, and withdraw it
+
+Consumers no longer copy the pack's allowlist. `spec-kitty doctor doctrine` reads each pack's root `replaceable-builtins.yaml` in place and unions it with the consumer's own `.kittify/doctrine/replaceable-builtins.yaml`, which keeps its schema and is checked first. A pack's sanction applies only to overrides that same pack contributes.
+
+The report lists every sanctioned built-in override with its source and reason, including on a passing run, under `Sanctioned built-in override(s)`. With `--json` they appear as `sanctioned_overrides` under `profile_health.org_drg`, each with `source` set to `consumer` or `pack`.
+
+To withdraw what a pack delivered without unconfiguring the pack, add `revoked_pack_sanctions` to the consumer file. Each entry names either a URN or a configured pack, with an optional reason:
+
+```yaml
+# .kittify/doctrine/replaceable-builtins.yaml
+revoked_pack_sanctions:
+  - urn: directive:MINUTES_STAND_ALONE
+    reason: We want to review this replacement ourselves.
+  - pack: acme-doctrine   # every sanction this pack delivers
+```
+
+A revoked override is reported as unsanctioned and `doctor doctrine` exits 1 until you list the URN under `replaceable_builtins` in your own file. Revocation withdraws only pack-delivered sanctions. A `pack` value must match a configured pack name exactly (case-sensitive); one that does not is an error, so a typo cannot leave a sanction in force. Revoking a whole pack also catches overrides the pack starts sanctioning on a later refresh.
+
+A malformed consumer file is now reported as an error that names the file, and is treated as empty. Older CLIs ignore `revoked_pack_sanctions`.
+
 Confirm the org layer is participating in actual context resolution:
 
 ```bash
@@ -538,6 +599,22 @@ intended (full-replace), but `charter lint` and `pack validate` warn because the
 collision is usually unintentional. Either rename the artifact (recommended — namespace
 your IDs as in Step 2) or accept the override if you genuinely meant to replace the
 built-in version.
+
+### Error: "Unsanctioned built-in override(s)"
+
+`doctor doctrine` found a built-in override that nothing sanctions. The `why` text on the finding says which case applies. Fix it in this order:
+
+1. **Pack root.** If the overriding pack should own the replacement, add the URN to the pack's `replaceable-builtins.yaml` (Step 3b) and refresh the pack with `spec-kitty doctrine fetch`. A directive needs a non-empty `reason`. The entry counts only for the pack that contributes the override.
+2. **Consumer entry.** If you accept the replacement yourself, append `{urn, reason}` under `replaceable_builtins` in `.kittify/doctrine/replaceable-builtins.yaml`. Append the one entry; do not copy a whole file over yours.
+3. **Revoked.** If the finding says the pack sanction was revoked by the consumer file, remove the matching `revoked_pack_sanctions` entry, or use step 2.
+
+If the pack still ships only `templates/setup/replaceable-builtins.yaml`, a template is not a sanction and the run still exits 1. The finding then prints where the pack author should move the file and the exact entry to append to your file for step 2. If the template entry is a directive with no reason, it says a reason is required instead of printing an entry; add one yourself.
+
+### Error: "Override sanction file error(s)"
+
+A pack's root `replaceable-builtins.yaml`, or your consumer file, could not be used. The message names the pack and file. Common causes are invalid YAML, an entry without a `urn`, `revoked_pack_sanctions` inside a pack file, a symlink that leaves the pack root, and a `revoked_pack_sanctions` pack name that is not configured. The broken file contributes no sanction; fix it and re-run.
+
+While your consumer file is malformed it is treated as empty, so its `revoked_pack_sanctions` are not applied either: a pack-sanctioned override you meant to revoke may still be listed as sanctioned. Fix the file first; `doctor doctrine` stays unhealthy until then.
 
 ### Error: "No artifact directories found in fetched snapshot"
 
