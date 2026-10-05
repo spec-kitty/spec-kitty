@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#5761": {
+      "evidence_ref": "commits 351e12ce8 + 1357c7cf8: three terms in packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml and .kittify/glossaries/spec_kitty_core.yaml; pack manifest regenerated",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
