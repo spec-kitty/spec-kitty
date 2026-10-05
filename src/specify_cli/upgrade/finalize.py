@@ -34,7 +34,7 @@ def finalize_upgrade(
     should_commit: bool,
     repair_preflight: AbstractContextManager[Sequence[str]] | None = None,
 ) -> UpgradeOutcome:
-    """Sequence the shared post-migration tail and derive the exit code once.
+    """Sequence the shared post-migration tail and record each step's result on the outcome.
 
     Ordered steps (C4/D-4):
       0. ``repair_preflight`` — the repair preparation and preflight errors feed
@@ -55,8 +55,9 @@ def finalize_upgrade(
          whose outcome does NOT feed ``exit_code`` (FR-014). Its own commit,
          if any, is the gate's responsibility, never folded into step 3.
 
-    The exit code is derived exactly once, at the end, from ``outcome``
-    (D-5) — no other site in the upgrade flow may compute it independently.
+    The exit code is not computed here: ``UpgradeOutcome.exit_code`` derives it from
+    the outcome's kind whenever it is read (D-5), so it can never disagree with the
+    kind, the status or the closing line.
     """
     # Keep owner locks around only the two dependent write phases, never Git
     # commits or the independently consented mission-state repair prompt.
@@ -71,8 +72,6 @@ def finalize_upgrade(
         outcome.committed = bool(commit_churn())
 
     outcome.repair = _run_repair_isolated(offer_repair)
-
-    outcome.derive_exit_code()
     return outcome
 
 

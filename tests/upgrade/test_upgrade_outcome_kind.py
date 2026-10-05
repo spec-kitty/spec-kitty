@@ -172,7 +172,7 @@ def test_outcome_truth_table(case: tuple[frozenset[str], bool, bool]) -> None:
     assert outcome.status == _STATUS_BY_KIND[kind]
     assert outcome.effective_success is (not held)
     assert outcome.closing_line() == _CLOSING_LINES[(kind, dry_run)]
-    assert outcome.derive_exit_code() == (1 if held else 0)
+    assert outcome.exit_code == (1 if held else 0)
 
     assert outcome.errors() == [message for name in _ERROR_ORDER if name in held for message in _MESSAGES_BY_INPUT[name]]
 
@@ -181,7 +181,7 @@ def test_outcome_truth_table(case: tuple[frozenset[str], bool, bool]) -> None:
 def test_outcome_invariants(case: tuple[frozenset[str], bool, bool]) -> None:
     held, had_migrations, dry_run = case
     outcome = _build(held, had_migrations=had_migrations, dry_run=dry_run)
-    exit_code = outcome.derive_exit_code()
+    exit_code = outcome.exit_code
     errors = outcome.errors()
 
     # 1. exit 0 iff the kind is applied or no-op
@@ -209,7 +209,7 @@ def test_repair_failure_with_two_drifted_files_is_failed_and_reports_both() -> N
     assert outcome.reasons == (UpgradeFailureReason.SURFACE_REPAIR_FAILED, UpgradeFailureReason.SURFACE_DRIFT)
     assert outcome.errors() == [_REPAIR_MESSAGE, *_DRIFT_LINES, _DRIFT_GUIDANCE]
     assert outcome.closing_line() == "Upgrade failed."
-    assert outcome.derive_exit_code() == 1
+    assert outcome.exit_code == 1
 
 
 @pytest.mark.parametrize("repair", [RepairOutcome(declined=True), RepairOutcome(ran=True, failed=True, message="boom"), RepairOutcome(pending=True)])
@@ -220,7 +220,7 @@ def test_mission_state_repair_never_adds_a_reason_or_an_error(repair: RepairOutc
     outcome.repair = repair
 
     assert (outcome.kind, outcome.reasons, outcome.errors(), outcome.status, outcome.closing_line()) == before
-    assert outcome.derive_exit_code() == 0
+    assert outcome.exit_code == 0
 
 
 def test_mission_state_repair_failure_the_gate_did_not_show_is_a_warning_only() -> None:
@@ -259,7 +259,7 @@ def test_a_reason_without_a_message_still_gets_an_error_line(held: str, expected
     )
 
     assert outcome.errors() == [expected]
-    assert outcome.derive_exit_code() == 1
+    assert outcome.exit_code == 1
 
 
 def test_a_repair_failure_without_a_message_is_named_next_to_the_drift_line() -> None:
@@ -337,7 +337,7 @@ def test_a_success_that_carries_an_error_diagnostic_still_lists_it() -> None:
     outcome = UpgradeOutcome(result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO, errors=["an error diagnostic"]))
 
     assert outcome.errors() == ["an error diagnostic"]
-    assert outcome.derive_exit_code() == 0
+    assert outcome.exit_code == 0
 
 
 def _only_migration_failed() -> UpgradeOutcome:
@@ -403,5 +403,5 @@ def test_a_lone_failure_reason_exits_non_zero_and_explains_itself(reason: Upgrad
     outcome = _OUTCOME_BY_REASON[reason]()
 
     assert outcome.reasons == (reason,)
-    assert outcome.derive_exit_code() != 0
+    assert outcome.exit_code != 0
     assert outcome.errors()

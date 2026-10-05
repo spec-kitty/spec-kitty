@@ -2,7 +2,7 @@
 
 Why this gate exists
 --------------------
-The upgrade exit code already had one authority (``UpgradeOutcome.derive_exit_code``).
+The upgrade exit code already had one authority (``UpgradeOutcome.exit_code``, derived live from the kind).
 The messages and the closing line did not: each presentation path assembled its own
 error list, and the no-migrations path printed ``Project is already up to date!``
 unconditionally, so a run that exited 1 told the operator it had succeeded.
@@ -28,16 +28,14 @@ This gate keeps that true. It fails when:
    ``outcome`` that calls ``console.print`` or ``print``. The rule is scoped to
    presentation functions: ``upgrade()`` itself may append to ``result.warnings``
    before it renders.
-3. **The exit code has more than one site.** ``derive_exit_code`` is called from
-   exactly one place under ``src/`` (the finalizer); the only exit after the
-   ``finalize_upgrade`` call inside ``upgrade()`` is ``raise typer.Exit(outcome.exit_code)``
-   directly under a test of ``outcome.exit_code`` (``raise SystemExit``,
-   ``sys.exit`` and ``os._exit`` count as exits); nothing in ``cli/commands/upgrade.py``
-   assigns to an ``.exit_code`` attribute; and no presentation function exits at all.
-4. **The exit code is not a function of the kind.** The only attribute
-   ``derive_exit_code`` reads from ``self`` is ``kind`` (it may return the
-   ``exit_code`` it has just stored), and the value it stores in ``self.exit_code``
-   is an expression that reads ``self.kind``.
+3. **The exit has more than one site.** The only exit after the ``finalize_upgrade``
+   call inside ``upgrade()`` is ``raise typer.Exit(outcome.exit_code)`` directly under
+   a test of ``outcome.exit_code`` (``raise SystemExit``, ``sys.exit`` and ``os._exit``
+   count as exits), and no other function exits: not one that takes ``outcome``, not a
+   presentation function, not a ``_finalizer_step*`` function, not one the tail of
+   ``upgrade()`` calls after the finalizer, and nothing in ``upgrade/finalize.py`` or
+   ``upgrade/outcome.py``. The kind-to-exit-code mapping itself is pinned by the truth
+   table in ``tests/upgrade/test_upgrade_outcome_kind.py``, not by shape here.
 
 There is no allowlist: every rule starts and stays empty.
 
@@ -45,8 +43,7 @@ Non-vacuity (``architectural-gate-non-vacuity``)
 ------------------------------------------------
 * Floor: the checker visits the real tail renderer, both JSON builders and the
   migration-section renderer, finds every closing-line constant in ``outcome.py``,
-  finds the one ``derive_exit_code`` call and the one exit raise, and finds the
-  one assignment to ``self.exit_code``.
+  finds the one exit raise and the finalizer steps and tail helpers that may not exit.
 * Self-mutation: every rule is a pure function over source text; a synthetic
   source carrying exactly that violation must be reported, and a compliant one
   must not.
@@ -71,7 +68,8 @@ pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 _SRC_ROOT = Path(specify_cli.__file__).resolve().parent.parent
 _UPGRADE_CMD = _SRC_ROOT / "specify_cli" / "cli" / "commands" / "upgrade.py"
 _OUTCOME = _SRC_ROOT / "specify_cli" / "upgrade" / "outcome.py"
-_FINALIZER_SUFFIX = "specify_cli/upgrade/finalize.py"
+_FINALIZER = "specify_cli/upgrade/finalize.py"
+_OUTCOME_MODULE = "specify_cli/upgrade/outcome.py"
 
 _PRESENTATION_PREFIXES = ("_display", "_render", "_build_", "_print")
 _OUTCOME_NAME = "outcome"
@@ -83,10 +81,9 @@ _SECTION_RENDERER = "_display_upgrade_results"
 _JSON_BUILDERS = frozenset({"_build_migration_json_payload", "_build_no_migrations_json_payload"})
 _COMMAND = "upgrade"
 _FINALIZE_CALL = "finalize_upgrade"
-_DERIVE = "derive_exit_code"
+_FINALIZER_STEP_PREFIX = "_finalizer_step"
 _CLOSING_PREFIX = "_CLOSING_"
 _CLOSING_LINE_METHOD = "closing_line"
-_EXIT_CODE = "exit_code"
 _CALL_EXITS = frozenset({"sys", "os"})
 
 # Message state a presentation function must obtain through ``outcome.errors()`` /
@@ -400,26 +397,40 @@ def _tail_after_finalizer(source: str) -> list[ast.stmt] | None:
     return None
 
 
-def find_exit_code_assignments(source: str) -> list[str]:
-    """Rule 3: nothing in the command module assigns to an ``.exit_code`` attribute (plain, augmented, annotated, unpacked, ``setattr``)."""
-    violations: list[str] = []
-    for node in ast.walk(ast.parse(source)):
-        if isinstance(node, ast.Attribute) and node.attr == _EXIT_CODE and isinstance(node.ctx, ast.Store):
-            violations.append(f"assigns .{_EXIT_CODE} (line {node.lineno}); only derive_exit_code may")
-        elif (
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Name)
-            and node.func.id == "setattr"
-            and len(node.args) >= 2
-            and isinstance(node.args[1], ast.Constant)
-            and node.args[1].value == _EXIT_CODE
-        ):
-            violations.append(f"sets .{_EXIT_CODE} with setattr (line {node.lineno}); only derive_exit_code may")
-    return violations
+def _calls_by_name(nodes: list[ast.stmt]) -> set[str]:
+    return {node.func.id for stmt in nodes for node in ast.walk(stmt) if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
+
+
+def _may_not_exit(source: str) -> list[ast.FunctionDef]:
+    """The functions of the command module that may never exit.
+
+    Any function that takes ``outcome`` or is named ``_finalizer_step*`` (the injected finalizer
+    steps), any presentation function, and every function reachable by name from the tail of
+    ``upgrade()`` after the ``finalize_upgrade`` call. ``upgrade()`` itself is the one exit site.
+    """
+    functions = _functions(ast.parse(source))
+    by_name = {fn.name: fn for fn in functions}
+    selected = {
+        fn.name
+        for fn in functions
+        if fn.name != _COMMAND and (_is_presentation(fn) or _OUTCOME_NAME in _parameter_names(fn) or fn.name.startswith(_FINALIZER_STEP_PREFIX))
+    }
+    queue = deque(_calls_by_name(_tail_after_finalizer(source) or []))
+    while queue:
+        name = queue.popleft()
+        if name in by_name and name != _COMMAND and name not in selected:
+            selected.add(name)
+            queue.extend(_called_names(by_name[name]))
+    return [fn for fn in functions if fn.name in selected]
+
+
+def may_not_exit_names(source: str) -> set[str]:
+    """Names of the command-module functions the exit rule forbids from exiting."""
+    return {fn.name for fn in _may_not_exit(source)}
 
 
 def find_exit_site_violations(source: str) -> list[str]:
-    """Rule 3 (command side): one guarded exit after the finalizer, no exit-code writes, and presentation functions never exit."""
+    """Rule 3 (command module): one guarded exit after the finalizer; no function that renders, finalizes or runs after it exits."""
     violations: list[str] = []
     tail = _tail_after_finalizer(source)
     if tail is None:
@@ -431,109 +442,14 @@ def find_exit_site_violations(source: str) -> list[str]:
                 violations.append(f"{_COMMAND}(): exit after {_FINALIZE_CALL} is not typer.Exit(outcome.exit_code) (line {node.lineno})")
             elif id(node) not in guarded:
                 violations.append(f"{_COMMAND}(): typer.Exit(outcome.exit_code) is not directly under a test of outcome.exit_code (line {node.lineno})")
-    violations.extend(find_exit_code_assignments(source))
-    for fn in _presentation_functions(ast.parse(source)):
-        violations.extend(f"{fn.name}: presentation function exits (line {node.lineno})" for node in _exits_in(fn.body))
+    for fn in _may_not_exit(source):
+        violations.extend(f"{fn.name}: a function that must not exit exits (line {node.lineno})" for node in _exits_in(fn.body))
     return violations
 
 
-def find_derive_calls(sources: Mapping[str, str]) -> list[str]:
-    """Every ``derive_exit_code()`` call site in *sources* (path -> source), as ``path:line``."""
-    sites: list[str] = []
-    for path, source in sources.items():
-        if _DERIVE not in source:
-            continue
-        for node in ast.walk(ast.parse(source)):
-            if isinstance(node, ast.Call) and (
-                (isinstance(node.func, ast.Attribute) and node.func.attr == _DERIVE) or (isinstance(node.func, ast.Name) and node.func.id == _DERIVE)
-            ):
-                sites.append(f"{path}:{node.lineno}")
-    return sites
-
-
-def find_derive_site_violations(sources: Mapping[str, str]) -> list[str]:
-    """Rule 3 (call side): exactly one call, and it is in the finalizer."""
-    sites = find_derive_calls(sources)
-    if len(sites) != 1:
-        return [f"{_DERIVE} is called from {len(sites)} places, expected 1: {sites}"]
-    if not sites[0].split(":")[0].endswith(_FINALIZER_SUFFIX):
-        return [f"{_DERIVE} is called outside the finalizer: {sites[0]}"]
-    return []
-
-
-def _derive_function(tree: ast.AST) -> ast.FunctionDef | None:
-    return next((fn for fn in _functions(tree) if fn.name == _DERIVE), None)
-
-
-def derive_self_reads(source: str) -> set[str] | None:
-    """Attributes ``derive_exit_code`` loads from ``self`` (``None`` if it is absent).
-
-    The ``exit_code`` it returns right after storing it is not a read of another
-    field, so a direct ``return self.exit_code`` is left out.
-    """
-    fn = _derive_function(ast.parse(source))
-    if fn is None:
-        return None
-    returned = {id(node.value) for node in ast.walk(fn) if isinstance(node, ast.Return) and node.value is not None}
-    return {
-        node.attr
-        for node in ast.walk(fn)
-        if isinstance(node, ast.Attribute)
-        and isinstance(node.ctx, ast.Load)
-        and isinstance(node.value, ast.Name)
-        and node.value.id == "self"
-        and not (id(node) in returned and node.attr == "exit_code")
-    }
-
-
-def _exit_code_stores(fn: ast.FunctionDef) -> list[ast.expr | None]:
-    """Value assigned to ``self.exit_code`` by each assignment in *fn* (``None`` for a bare annotation)."""
-
-    def is_target(target: ast.expr) -> bool:
-        return isinstance(target, ast.Attribute) and target.attr == _EXIT_CODE and isinstance(target.value, ast.Name) and target.value.id == "self"
-
-    stored: list[ast.expr | None] = []
-    for node in ast.walk(fn):
-        if isinstance(node, ast.Assign):
-            targets = node.targets
-        elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
-            targets = [node.target]
-        else:
-            continue
-        if any(is_target(target) for target in targets):
-            stored.append(node.value)
-    return stored
-
-
-def _reads_self_kind(node: ast.expr | None) -> bool:
-    return node is not None and any(
-        isinstance(part, ast.Attribute) and part.attr == "kind" and isinstance(part.ctx, ast.Load) and isinstance(part.value, ast.Name) and part.value.id == "self"
-        for part in ast.walk(node)
-    )
-
-
-def find_exit_derivation_violations(source: str) -> list[str]:
-    """Rule 4: the exit code is a function of ``self.kind`` and nothing else."""
-    reads = derive_self_reads(source)
-    if reads is None:
-        return [f"{_DERIVE} not found"]
-    violations = [f"{_DERIVE} reads self.{name}" for name in sorted(reads - {"kind"})]
-    if "kind" not in reads:
-        violations.append(f"{_DERIVE} does not read self.kind")
-    fn = _derive_function(ast.parse(source))
-    assert fn is not None
-    stored = _exit_code_stores(fn)
-    if not stored:
-        violations.append(f"{_DERIVE} never assigns self.{_EXIT_CODE}")
-    violations.extend(f"{_DERIVE} assigns self.{_EXIT_CODE} a value that does not read self.kind" for value in stored if not _reads_self_kind(value))
-    # ``self`` handed to another callable would hide a read from the check above.
-    attribute_receivers = {id(node.value) for node in ast.walk(fn) if isinstance(node, ast.Attribute)}
-    violations.extend(
-        f"{_DERIVE} passes self on (line {node.lineno})"
-        for node in ast.walk(fn)
-        if isinstance(node, ast.Name) and node.id == "self" and id(node) not in attribute_receivers
-    )
-    return violations
+def find_exit_violations_anywhere(source: str) -> list[str]:
+    """Rule 3 (outcome and finalizer modules): no function exits at all; the command alone decides the exit."""
+    return [f"{fn.name}: exits (line {node.lineno})" for fn in _functions(ast.parse(source)) for node in _exits_in(fn.body)]
 
 
 # --------------------------------------------------------------------------- #
@@ -578,12 +494,10 @@ class TestLiveCode:
     def test_presentation_functions_assemble_no_messages(self, command_source: str) -> None:
         _assert_clean(find_message_assembly_violations(command_source))
 
-    def test_one_exit_code_site(self, command_source: str, src_sources: dict[str, str]) -> None:
+    def test_one_exit_site(self, command_source: str, src_sources: dict[str, str]) -> None:
         _assert_clean(find_exit_site_violations(command_source))
-        _assert_clean(find_derive_site_violations(src_sources))
-
-    def test_exit_code_is_a_function_of_the_kind(self, outcome_source: str) -> None:
-        _assert_clean(find_exit_derivation_violations(outcome_source))
+        _assert_clean(find_exit_violations_anywhere(src_sources[_FINALIZER]))
+        _assert_clean(find_exit_violations_anywhere(src_sources[_OUTCOME_MODULE]))
 
 
 class TestFloor:
@@ -603,17 +517,19 @@ class TestFloor:
         assert set(_PINNED_FRAGMENTS) <= fragments
         assert "managed file(s) with local edits were not updated." in fragments
 
-    def test_finds_the_exit_sites(self, command_source: str, outcome_source: str, src_sources: dict[str, str]) -> None:
+    def test_finds_the_exit_sites(self, command_source: str, src_sources: dict[str, str]) -> None:
         assert count_outcome_exits(command_source) == 1
         tail = _tail_after_finalizer(command_source)
         assert tail is not None
         assert len(_guarded_outcome_exits(tail)) == 1
-        derive = _derive_function(ast.parse(outcome_source))
-        assert derive is not None
-        assert len(_exit_code_stores(derive)) == 1
         assert len(src_sources) >= _SCANNED_FILE_FLOOR
-        assert len(find_derive_calls(src_sources)) == 1
-        assert derive_self_reads(outcome_source) == {"kind"}
+        assert {_FINALIZER, _OUTCOME_MODULE} <= set(src_sources)
+
+    def test_the_functions_that_may_not_exit_include_the_finalizer_steps_and_the_tail_helpers(self, command_source: str) -> None:
+        names = may_not_exit_names(command_source)
+        assert {"_finalizer_step_commit_churn", "_finalizer_step_offer_repair", "_finalizer_step_surface_repair"} <= names
+        assert {"_churn_left_uncommitted_by_config", "_render_text_report", "_build_migration_json_payload"} <= names
+        assert _COMMAND not in names
 
 
 _FRAGMENTS = closing_fragments({"_CLOSING_X": "Project is already up to date!"})
@@ -638,9 +554,9 @@ def upgrade():
 
 _COMPLIANT_OUTCOME = """
 class UpgradeOutcome:
-    def derive_exit_code(self):
-        self.exit_code = 0 if self.kind in SUCCESS_KINDS else 1
-        return self.exit_code
+    @property
+    def exit_code(self):
+        return 0 if self.kind in SUCCESS_KINDS else 1
 """
 
 
@@ -653,7 +569,7 @@ class TestSelfMutation:
         assert find_closing_line_violations(_COMPLIANT_COMMAND) == []
         assert find_message_assembly_violations(_COMPLIANT_COMMAND) == []
         assert find_exit_site_violations(_COMPLIANT_COMMAND) == []
-        assert find_exit_derivation_violations(_COMPLIANT_OUTCOME) == []
+        assert find_exit_violations_anywhere(_COMPLIANT_OUTCOME) == []
         assert count_outcome_exits(_COMPLIANT_COMMAND) == 1
 
     @pytest.mark.parametrize(
@@ -826,17 +742,30 @@ class TestSelfMutation:
         assert find_exit_site_violations(mutated)
 
     @pytest.mark.parametrize(
-        "exit_statement",
+        ("definition", "tail_call"),
         [
-            "raise SystemExit(1)",
-            "sys.exit(1)",
-            "os._exit(1)",
-            "raise typer.Exit(1)",
+            ("def _render_y(outcome):\n    raise SystemExit(1)\n", ""),
+            ("def _render_y(outcome):\n    sys.exit(1)\n", ""),
+            ("def _render_y(outcome):\n    os._exit(1)\n", ""),
+            ("def _render_y(outcome):\n    raise typer.Exit(1)\n", ""),
+            # a finalizer step, found by its name alone
+            ("def _finalizer_step_commit_churn(ctx):\n    raise typer.Exit(1)\n", ""),
+            # any function that takes the outcome, whatever its name and even when it prints nothing
+            ("def _quiet_helper(outcome, ctx):\n    raise typer.Exit(3)\n", ""),
+            # a function the tail of upgrade() calls after the finalizer
+            ("def _churn_left_uncommitted_by_config(dry_run):\n    raise typer.Exit(0)\n", "    _churn_left_uncommitted_by_config(False)\n"),
+            # any function at all of the outcome and finalizer modules (checked as a module, not through upgrade())
+            ("def finalize_upgrade(steps):\n    raise typer.Exit(0)\n", None),
         ],
+        ids=["system-exit", "sys-exit", "os-exit", "typer-exit", "finalizer-step", "takes-outcome", "called-from-the-tail", "outcome-or-finalizer-module"],
     )
-    def test_rule_3_presentation_function_with_any_kind_of_exit_is_reported(self, exit_statement: str) -> None:
-        mutated = _COMPLIANT_COMMAND + f"\ndef _render_y(outcome):\n    {exit_statement}\n"
-        assert any("presentation function exits" in violation for violation in find_exit_site_violations(mutated))
+    def test_rule_3_a_function_that_must_not_exit_is_reported_for_any_kind_of_exit(self, definition: str, tail_call: str | None) -> None:
+        if tail_call is None:
+            assert find_exit_violations_anywhere(definition)
+            return
+        compliant_tail = "    if outcome.exit_code != 0:\n        raise typer.Exit(outcome.exit_code)"
+        mutated = _COMPLIANT_COMMAND.replace(compliant_tail, f"{tail_call}{compliant_tail}") + f"\n{definition}"
+        assert any("must not exit" in violation for violation in find_exit_site_violations(mutated))
 
     @pytest.mark.parametrize(
         "guard",
@@ -857,82 +786,8 @@ class TestSelfMutation:
             twin = _COMPLIANT_COMMAND.replace("outcome.exit_code != 0", test)
             assert find_exit_site_violations(twin) == [], test
 
-    @pytest.mark.parametrize(
-        "assignment",
-        [
-            "outcome.exit_code = 0",
-            "outcome.exit_code += 1",
-            "outcome.exit_code: int = 0",
-            "result.exit_code, other = 0, 1",
-            "for outcome.exit_code in (0,):\n        pass",
-            'setattr(outcome, "exit_code", 0)',
-        ],
-    )
-    def test_rule_3_assigning_an_exit_code_in_the_command_module_is_reported(self, assignment: str) -> None:
-        in_command = _COMPLIANT_COMMAND + f"    {assignment}\n"
-        elsewhere = _COMPLIANT_COMMAND + f"\ndef helper(outcome, result):\n    {assignment}\n"
-        for mutated in (in_command, elsewhere):
-            assert find_exit_code_assignments(mutated)
-            assert find_exit_site_violations(mutated)
-
-    def test_rule_3_reading_or_naming_an_exit_code_is_not_an_assignment(self) -> None:
-        twin = _COMPLIANT_COMMAND + "\ndef helper(outcome):\n    code = outcome.exit_code\n    exit_code = 1\n    return code, exit_code\n"
-        assert find_exit_code_assignments(twin) == []
-
-    def test_rule_3_presentation_function_that_exits_is_reported(self) -> None:
-        mutated = _COMPLIANT_COMMAND + "\ndef _render_y(outcome):\n    raise typer.Exit(outcome.exit_code)\n"
-        assert find_exit_site_violations(mutated)
-
     def test_rule_3_missing_finalizer_call_is_reported(self) -> None:
         assert find_exit_site_violations("def upgrade():\n    pass\n")
-
-    def test_rule_3_derive_call_sites(self) -> None:
-        finalizer = f"{_FINALIZER_SUFFIX}"
-        call = "def f(outcome):\n    outcome.derive_exit_code()\n"
-        assert find_derive_site_violations({finalizer: call}) == []
-        assert find_derive_site_violations({finalizer: call, "specify_cli/cli/commands/upgrade.py": call})
-        assert find_derive_site_violations({"specify_cli/cli/commands/upgrade.py": call})
-        assert find_derive_site_violations({finalizer: "def f():\n    pass\n"})
-
-    @pytest.mark.parametrize(
-        "body",
-        [
-            "self.exit_code = 0 if self.result.success else 1\n        return self.exit_code",
-            "self.exit_code = 0 if self.kind in SUCCESS_KINDS and self.effective_success else 1\n        return self.exit_code",
-            "self.exit_code = compute(self)\n        return self.exit_code",
-            "self.exit_code = 1\n        return self.exit_code",
-            "self.exit_code = 0 if self.kind in SUCCESS_KINDS else 1\n        return self.committed",
-        ],
-    )
-    def test_rule_4_exit_code_reads_more_than_the_kind(self, body: str) -> None:
-        source = f"class UpgradeOutcome:\n    def derive_exit_code(self):\n        {body}\n"
-        assert find_exit_derivation_violations(source)
-
-    @pytest.mark.parametrize(
-        "body",
-        [
-            "_ = self.kind\n        self.exit_code = 1\n        return self.exit_code",
-            "_ = self.kind\n        self.exit_code = 0\n        return self.exit_code",
-            "_ = self.kind\n        self.exit_code = int(False)\n        return self.exit_code",
-            "_ = self.kind\n        self.exit_code: int = 1\n        return self.exit_code",
-            "_ = self.kind\n        self.exit_code = 0 if self.kind in SUCCESS_KINDS else 1\n        self.exit_code = 1\n        return self.exit_code",
-        ],
-    )
-    def test_rule_4_the_stored_exit_code_must_be_computed_from_the_kind(self, body: str) -> None:
-        source = f"class UpgradeOutcome:\n    def derive_exit_code(self):\n        {body}\n"
-        assert any("value that does not read self.kind" in violation for violation in find_exit_derivation_violations(source))
-
-    def test_rule_4_an_exit_code_that_is_never_stored_is_reported(self) -> None:
-        source = "class UpgradeOutcome:\n    def derive_exit_code(self):\n        return 0 if self.kind in SUCCESS_KINDS else 1\n"
-        assert any("never assigns self.exit_code" in violation for violation in find_exit_derivation_violations(source))
-
-    def test_rule_4_an_annotated_assignment_computed_from_the_kind_passes(self) -> None:
-        body = "self.exit_code: int = 0 if self.kind in SUCCESS_KINDS else 1\n        return self.exit_code"
-        source = f"class UpgradeOutcome:\n    def derive_exit_code(self):\n        {body}\n"
-        assert find_exit_derivation_violations(source) == []
-
-    def test_rule_4_missing_function_is_reported(self) -> None:
-        assert find_exit_derivation_violations("class UpgradeOutcome:\n    pass\n")
 
     def test_authority_parse_reads_the_closing_constants_at_run_time(self) -> None:
         reworded = '_CLOSING_NO_OP = "Nothing left to do for this project."\n_CLOSING_FAILED = "Upgrade failed."\n'

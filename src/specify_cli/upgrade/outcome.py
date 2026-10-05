@@ -150,7 +150,6 @@ class UpgradeOutcome:
     repair_preparation_errors: list[str] = field(default_factory=list)
     repair: RepairOutcome = field(default_factory=RepairOutcome)
     committed: bool = False
-    exit_code: int = 0
     had_migrations: bool = False
     drifted_paths: list[Path] = field(default_factory=list)
     drifted_reasons: dict[Path, str] = field(default_factory=dict)
@@ -197,6 +196,11 @@ class UpgradeOutcome:
     def effective_success(self) -> bool:
         """True iff no reason holds: the migration result AND every finalizer-owned signal succeeded."""
         return not self.reasons
+
+    @property
+    def exit_code(self) -> int:
+        """The process exit code: 0 for a success kind, 1 for every other kind (derived live, never stored)."""
+        return 0 if self.kind in SUCCESS_KINDS else 1
 
     @property
     def status(self) -> str:
@@ -276,13 +280,3 @@ class UpgradeOutcome:
             return _CLOSING_FAILED
         template = _CLOSING_APPLIED_DRY_RUN if self.result.dry_run else _CLOSING_APPLIED
         return template.format(from_version=self.result.from_version, to_version=self.result.to_version)
-
-    def derive_exit_code(self) -> int:
-        """Compute, store, and return ``exit_code`` from ``kind``.
-
-        This is the ONLY site that computes the upgrade exit code (D-5) —
-        callers must not derive it independently from ``result.success`` or
-        any other formula.
-        """
-        self.exit_code = 0 if self.kind in SUCCESS_KINDS else 1
-        return self.exit_code

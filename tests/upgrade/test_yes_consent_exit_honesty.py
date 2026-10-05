@@ -303,9 +303,9 @@ def test_repair_declined_or_failed_never_flips_effective_success() -> None:
     outcome = _up_to_date_outcome()
     outcome.repair = RepairOutcome(declined=True)
     assert outcome.effective_success is True
-    assert outcome.derive_exit_code() == 0
+    assert outcome.exit_code == 0
 
     outcome2 = _up_to_date_outcome()
     outcome2.repair = RepairOutcome(failed=True, message="boom")
     assert outcome2.effective_success is True
-    assert outcome2.derive_exit_code() == 0
+    assert outcome2.exit_code == 0
