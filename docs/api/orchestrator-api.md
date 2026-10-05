@@ -29,7 +29,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.9.0`
+- `CONTRACT_VERSION`: `1.10.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -93,6 +93,14 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   [`data.teardown_error_code`](#consolidate-mission-datateardown_error_code)).
   The envelope `error_code` stays `PREFLIGHT_FAILED` and `data.errors` is
   unchanged. Purely additive: the key is absent on every other failure.
+- `1.10.0` — `consolidate-mission` can newly refuse a mission before it merges
+  any lane (#5668): a lane holding content committed after review approved it,
+  or an approved work package whose approval records no usable lane head. The
+  envelope `error_code` stays `PREFLIGHT_FAILED` and `data` gains
+  `preflight_error_code` (see
+  [`data.preflight_error_code`](#consolidate-mission-datapreflight_error_code)).
+  A call that used to succeed can now refuse, so a minor bump; the key is absent
+  on every other failure.
 
 ## Response Envelope
 
@@ -826,7 +834,7 @@ Current machine-readable error codes (the authoritative list is
 - `WP_ALREADY_CLAIMED` (for `start-implementation` on an `in_progress` WP after a reviewer's rework verdict, the WP's implementer of record is admitted as a `no_op` resume rather than refused; an unrelated actor is still refused)
 - `MISSION_NOT_READY`
 - `WORKFLOW_EVIDENCE_REQUIRED`
-- `PREFLIGHT_FAILED` (on `consolidate-mission`, `data.teardown_error_code` can refine it; see below)
+- `PREFLIGHT_FAILED` (on `consolidate-mission`, `data.preflight_error_code` or `data.teardown_error_code` can refine it; see below)
 - `CONTRACT_VERSION_MISMATCH`
 - `UNSUPPORTED_STRATEGY`
 - `HISTORY_COMMIT_FAILED`
@@ -871,6 +879,23 @@ Added in contract `1.4.0` (#3837), for the 11 design-phase verbs above:
 - `AMBIGUOUS_PENDING_DECISION` — `answer-decision`
 - `DECISION_NOT_PENDING` — `answer-decision`
 - `DECISION_OPERATION_FAILED` — `open-decision`, `resolve-decision`, `defer-decision`, `cancel-decision` (fallback when a decision-ledger operation fails for a reason without a more specific registered code)
+
+### `consolidate-mission`: `data.preflight_error_code`
+
+`consolidate-mission` merges the code lanes directly, with no reconciliation claim
+behind it, so it checks every approved lane against the commit review approved
+before it merges the first one. A lane that fails keeps the `PREFLIGHT_FAILED`
+envelope code, puts the message in `data.errors`, and carries a stable code in
+`data.preflight_error_code`. No branch was moved.
+
+| `data.preflight_error_code` | Meaning | What to do |
+|---|---|---|
+| `LANE_MOVED_AFTER_APPROVAL` | The lane holds a content commit made after review approved it. | Move the work package back for review, approve it again, re-run. |
+| `APPROVAL_STAMP_MISSING` | An approved work package records no lane head, so what review approved cannot be determined. | Move it back for review and approve it again, or attest the approval with `spec-kitty consolidate --attest-approved-reviewed` (the host command only). |
+| `APPROVAL_STAMP_NOT_ON_LANE` | The approval names a commit that is not on the lane: the lane was rewritten after review. | Move the work package back for review, approve it again, re-run. |
+
+The key is absent on every other failure. The host command `spec-kitty consolidate`
+reports the same three codes in its message and exits 1.
 
 ### `consolidate-mission`: `data.teardown_error_code`
 

@@ -73,7 +73,7 @@ class MergeTeardownRefused(RuntimeError):
 
 
 class ApprovedBoundRefused(RuntimeError):
-    """A lane holds work review did not approve; refused before any lane merged (#5668).
+    """A lane holds work review did not approve; refused before any lane was consolidated (#5668).
 
     A ``RuntimeError``, so ``consolidate_mission`` envelopes it as ``PREFLIGHT_FAILED``
     with the message in ``data["errors"]``. The refusal's own code (the leading
@@ -408,26 +408,38 @@ def _bound_refusal_code(refusal: str) -> str | None:
         return None
 
 
+def _status_placement_tip(main_repo_root: Path, mission_slug: str) -> str | None:
+    """The status placement's tip as a SHA, or ``None`` when it cannot be resolved for any reason.
+
+    The executor's coordination checkpoint (``run_state._capture_coord_checkpoint``) answers
+    ``None`` for any placement failure; so does this, whatever the failure is.
+    """
+    from mission_runtime import MissionArtifactKind, resolve_placement_only
+    from specify_cli.consolidation.git_probes import resolve_commit
+
+    try:
+        return resolve_commit(main_repo_root, resolve_placement_only(main_repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE).ref)
+    except Exception:  # noqa: BLE001 -- the executor's coordination checkpoint treats every placement or git failure as "no coordination tip"
+        return None
+
+
 def _approved_bound_claim_base(main_repo_root: Path, mission_slug: str, lanes_manifest: LanesManifest) -> str:
     """The commit the executor's fresh-run claim measures lanes from, resolved to a SHA.
 
     The status placement's tip (the coordination branch when the mission has one), else
     the mission branch, as ``phase_claim._capture_reconciliation_claim`` picks it for a
     run with no persisted record. ``approved_bound_refusal`` answers ``None`` for a base
-    that does not resolve, which would read as "nothing to refuse", so a base that does
-    not resolve raises here instead.
+    that does not resolve, which would read as "nothing to refuse", so a mission branch
+    that does not resolve raises here instead (a ``GitProbeError``, a ``RuntimeError``
+    the caller envelopes as ``PREFLIGHT_FAILED`` before any lane is merged).
     """
-    from mission_runtime import MissionArtifactKind, resolve_placement_only
-    from specify_cli.consolidation.git_probes import GitProbeError, resolve_commit
+    from specify_cli.consolidation.git_probes import resolve_commit
 
-    try:
-        return resolve_commit(main_repo_root, resolve_placement_only(main_repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE).ref)
-    except GitProbeError:
-        return resolve_commit(main_repo_root, lanes_manifest.mission_branch)
+    return _status_placement_tip(main_repo_root, mission_slug) or resolve_commit(main_repo_root, lanes_manifest.mission_branch)
 
 
 def _refuse_post_approval_lane_content(main_repo_root: Path, mission_dir: Path, mission_slug: str, lanes_manifest: LanesManifest) -> None:
-    """#5668: refuse, before the first lane merges, a lane holding content committed after review approved it.
+    """#5668: refuse, before the first lane is consolidated, a lane holding content committed after review approved it.
 
     This path merges lanes with no claim and no gate behind it (and no rollback), so
     the same lane check the ``consolidate`` claim runs

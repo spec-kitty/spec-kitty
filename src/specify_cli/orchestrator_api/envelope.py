@@ -66,7 +66,15 @@ from kernel.clock import now_utc_iso
 # it refused (``COORD_MOVED_AFTER_LANDING``, #5613). The envelope ``error_code``
 # stays ``PREFLIGHT_FAILED`` and ``data.errors`` is unchanged. Purely additive:
 # the key is absent on every other failure.
-CONTRACT_VERSION = "1.9.0"
+# 1.10.0: ``consolidate-mission`` can newly refuse a mission before it merges any
+# lane (#5668): a lane holding content committed after review approved it, or an
+# approved work package whose approval records no usable lane head. The envelope
+# ``error_code`` stays ``PREFLIGHT_FAILED`` and the failure ``data`` gains
+# ``preflight_error_code`` carrying ``LANE_MOVED_AFTER_APPROVAL``,
+# ``APPROVAL_STAMP_MISSING`` or ``APPROVAL_STAMP_NOT_ON_LANE``. A call that used
+# to succeed can now refuse, so a minor bump; the key is absent on every other
+# failure and no field is removed or renamed.
+CONTRACT_VERSION = "1.10.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose
