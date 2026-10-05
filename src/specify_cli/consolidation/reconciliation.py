@@ -97,6 +97,7 @@ from specify_cli.consolidation.wp_attribution import (
     Unattributable,
     UnattributableReason,
     canceled_spine_content,
+    first_governed_open_stamp,
     lacks_lane_head_stamps,
     lane_own_commits,
     resolve_canceled_wp,
@@ -1555,7 +1556,20 @@ def build_approved_wp_set(
     # #5018's commit-level narrowing (below) can subtract it. Collectors stay pure
     # (WP2 note) — no shared mutable state, just a value threaded as a parameter.
     authored_shas, authored_patch_ids, authored_blobs, authored_deletions, multi_lane_paths, approved_lane_content = _collect_authored(
-        repo_root, lanes_manifest, work_packages, coord_base_ref, sb_window, canceled_lane_commits=canceled_lane_commits
+        repo_root,
+        lanes_manifest,
+        work_packages,
+        coord_base_ref,
+        sb_window,
+        canceled_lane_commits=canceled_lane_commits,
+        presence=_presence_scope(
+            repo_root,
+            lanes_manifest,
+            excluded_ids,
+            base=_bound_claim_base(repo_root, excluded_window_base, coord_base_ref),
+            coord_base_ref=coord_base_ref,
+            events=event_log.read(),
+        ),
     )
     excluded_shas, excluded_patch_ids = _collect_excluded(
         repo_root,
@@ -2949,6 +2963,112 @@ class _AuthoredClaim(NamedTuple):
     lane_content: tuple[ApprovedLaneContent, ...]
 
 
+@dataclass(frozen=True)
+class _LaneWalk:
+    """One lane's authorship walk: its range base and branch, first-parent spine and FINAL blobs / deletions."""
+
+    base: str
+    branch: str
+    spine: list[str]
+    blobs: set[tuple[str, str]]
+    deletions: set[str]
+
+
+@dataclass(frozen=True)
+class _PresenceScope:
+    """What the presence axis measures every approved code lane from (#5788, #5792 review M1).
+
+    ``base`` is the target's pre-mutation tip (:func:`_bound_claim_base`). ``carried``
+    are the commits after ``base`` the mission branch (*coord_base_ref*) already
+    holds, or ``None`` when that range cannot be read. ``lane_bases`` maps a lane id
+    to its own base, the lane head when its first governed work began
+    (:func:`~specify_cli.consolidation.wp_attribution.first_governed_open_stamp`, the
+    closed world's first anchor), ``None`` when no stamp names it. ``canceled`` are
+    the fully-canceled lanes' own commits measured from ``base`` (L1: the same base as
+    the spine they are subtracted from).
+    """
+
+    base: str
+    carried: frozenset[str] | None
+    lane_bases: Mapping[str, str | None]
+    canceled: frozenset[str]
+
+
+def _presence_scope(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    excluded_ids: frozenset[str],
+    *,
+    base: str,
+    coord_base_ref: str,
+    events: Sequence[Any] | None,
+) -> _PresenceScope:
+    """Build the :class:`_PresenceScope` of one claim: one range read for the mission branch, the event log already read."""
+    try:
+        carried: frozenset[str] | None = frozenset(commits_in_range(repo_root, base, coord_base_ref))
+    except GitProbeError:
+        carried = None
+    lane_bases = {lane.lane_id: first_governed_open_stamp(events, frozenset(lane.wp_ids)) for lane in lanes_manifest.lanes} if events is not None else {}
+    canceled = _fully_canceled_lane_commits(repo_root, lanes_manifest, excluded_ids, base, base)
+    return _PresenceScope(base=base, carried=carried, lane_bases=lane_bases, canceled=canceled)
+
+
+def _commits_before(repo_root: Path, base: str, lane_base: str | None) -> frozenset[str] | None:
+    """The commits after *base* that *lane_base* reaches (they predate the lane's own work), or ``None`` when unknown."""
+    if lane_base is None:
+        return None
+    try:
+        return frozenset(commits_in_range(repo_root, base, lane_base))
+    except GitProbeError:
+        return None
+
+
+def _presence_spine(repo_root: Path, presence: _PresenceScope, lane_id: str, branch: str) -> list[str] | None:
+    """*lane*'s presence spine: ``base..lane`` first-parent, less what the mission branch carried from before the lane's own base.
+
+    A commit the mission branch carries is the lane's own only when the lane's own
+    base does not reach it: the lane authored it after its first governed claim and
+    an earlier attempt merged it (#5788). A mission-branch commit made outside every
+    lane before the lane was cut is reached by that base and is never the lane's
+    content (M1). With no readable lane base every carried commit is dropped, the
+    pre-#5788 reading. ``None`` when the mission-branch range cannot be read: the
+    caller keeps the authorship walk.
+    """
+    if presence.carried is None:
+        return None
+    before = _commits_before(repo_root, presence.base, presence.lane_bases.get(lane_id))
+    dropped = presence.carried if before is None else presence.carried & before
+    return [sha for sha in _lane_first_parent_spine(repo_root, presence.base, branch) if sha not in dropped]
+
+
+def _presence_lane_content(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    lane: ExecutionLane,
+    work_packages: Mapping[str, Mapping[str, object]],
+    walk: _LaneWalk,
+    presence: _PresenceScope | None,
+    canceled_lane_commits: frozenset[str],
+) -> ApprovedLaneContent:
+    """*lane*'s :class:`ApprovedLaneContent`, measured from the lane's own base (:func:`_presence_spine`).
+
+    The fully-canceled lanes' commits are dropped before the final states are read,
+    both the claim's set and the one measured from the presence base (L1). The
+    authorship walk is reused when the presence spine is the same commit list and
+    drops nothing more (the common case: the mission branch carries none of the
+    lane's commits), so no second diff walk is paid then (L2).
+    """
+    spine = _presence_spine(repo_root, presence, lane.lane_id, walk.branch) if presence is not None else None
+    if spine is None or presence is None:
+        return _lane_content(repo_root, lanes_manifest, lane, work_packages, walk.spine, walk.blobs, walk.deletions)
+    canceled = canceled_lane_commits | presence.canceled
+    authored = [sha for sha in spine if sha not in canceled]
+    if spine == walk.spine and authored == [sha for sha in walk.spine if sha not in canceled_lane_commits]:
+        return _lane_content(repo_root, lanes_manifest, lane, work_packages, walk.spine, walk.blobs, walk.deletions)
+    blobs, deletions = _final_authored_walk(repo_root, authored)
+    return _lane_content(repo_root, lanes_manifest, lane, work_packages, spine, blobs, deletions)
+
+
 def _collect_authored(
     repo_root: Path,
     lanes_manifest: LanesManifest,
@@ -2957,6 +3077,7 @@ def _collect_authored(
     sb_window: tuple[str, str] | None = None,
     *,
     canceled_lane_commits: frozenset[str],
+    presence: _PresenceScope | None = None,
 ) -> _AuthoredClaim:
     """Approved lanes → their OWN first-parent SHAs + patch-ids + FINAL blobs + FINAL deletions + multi-lane paths.
 
@@ -3003,6 +3124,18 @@ def _collect_authored(
     dependency order (:class:`ApprovedLaneContent`), taken from that same walk.
     A planning (repo-root) lane is left out: its commits already sit on the
     target, so there is nothing to integrate and nothing to be missing.
+
+    *presence* (#5788, #5792 review M1, :class:`_PresenceScope`) is what that sixth
+    element measures a lane from: ``base..lane`` from the target's pre-mutation tip
+    (:func:`_bound_claim_base`), less the commits the mission branch already carries
+    that the lane's own base (its first governed claim stamp) also reaches. Measured
+    from *coord_base_ref* alone, a lane the mission branch already carries (an
+    earlier attempt merged it; that attempt's later commit, kept by the operator,
+    then dropped its content) has an empty range, so its approved content would
+    never be judged; measured from the target tip alone, a mission-branch commit
+    made outside every lane before the lane was cut would read as the lane's
+    approved content. The authorship axes keep *coord_base_ref*. ``None`` measures
+    from *coord_base_ref* too.
     """
     shas: set[str] = set()
     patch_ids: set[str] = set()
@@ -3026,7 +3159,17 @@ def _collect_authored(
         deletions |= lane_deletions
         _record_lane_path_contribution(path_contributions, lane, lane_blobs, authored)
         if not is_planning_lane(lane):
-            lane_contents.append(_lane_content(repo_root, lanes_manifest, lane, work_packages, first_parent, lane_blobs, lane_deletions))
+            lane_contents.append(
+                _presence_lane_content(
+                    repo_root,
+                    lanes_manifest,
+                    lane,
+                    work_packages,
+                    _LaneWalk(base, branch, first_parent, lane_blobs, lane_deletions),
+                    presence,
+                    canceled_lane_commits,
+                )
+            )
     multi_lane_paths = {path: (contributions[0], contributions[1]) for path, contributions in path_contributions.items() if len(contributions) == 2}
     return _AuthoredClaim(frozenset(shas), frozenset(patch_ids), frozenset(blobs), frozenset(deletions), multi_lane_paths, _order_lane_content(lane_contents))
 
@@ -3038,7 +3181,6 @@ __all__ = [
     "TERMINUS_ENTRY_POINTS",
     "UnroutedTerminusPathError",
     "VerifyResult",
-    "VerifyStatus",
     "build_approved_wp_set",
     "claim_integrity_refusal",
     "detect_legacy_in_flight_state",

@@ -210,10 +210,31 @@ class InterruptedConsolidate:
         assert self.log.exists(), f"fixture precondition: the fault hook was never reached\n{collapse(self.run.stdout + self.run.stderr)}"
         if self.point == "kill":
             assert self.run.returncode == -signal.SIGKILL, f"fixture precondition: consolidate must be SIGKILLed\n{collapse(self.run.stdout + self.run.stderr)}"
-        assert self.mission.rev(self.mission.coord_branch) != self.pre_mission, "fixture precondition: the mission branch ref was advanced"
         assert self.mission.rev(self.mission.target_branch) == self.pre_target, "fixture precondition: the target was not touched yet"
+        if self.point == "lock":
+            self._assert_the_door_restored_the_lagging_branch()
+            self.staged = []
+            return
+        assert self.mission.rev(self.mission.coord_branch) != self.pre_mission, "fixture precondition: the mission branch ref was advanced"
         self.staged = _git_out(self.lagging, "diff", "--cached", "--name-status").splitlines()
         assert any(line.startswith("D") for line in self.staged), f"fixture precondition: the lagging checkout must read as staged deletions, got {self.staged}"
+
+    def _assert_the_door_restored_the_lagging_branch(self) -> None:
+        """Lock arm (no kill), re-pinned by rollback-anchor-authority WP03 (orchestrator ruling).
+
+        The process survives the failed resync, so the single rollback door runs. Its
+        compare-and-swap restore needs no reset of the lagging checkout (index and
+        worktree already equal the restore target), so the planted ``index.lock`` no
+        longer blocks it: the mission branch is truthfully RESTORED, the checkout is
+        consistent, and the lock is still there for the operator to remove.
+        """
+        flat = collapse(self.run.stdout + self.run.stderr)
+        assert self.run.returncode != 0, f"fixture precondition: the failed resync fails the run\n{flat}"
+        assert f"restored {self.mission.coord_branch} " in flat, f"fixture precondition: the door restores the advanced mission branch\n{flat}"
+        assert self.mission.rev(self.mission.coord_branch) == self.pre_mission, "fixture precondition: the mission branch is back at its snapshot"
+        assert _git_out(self.lagging, "status", "--porcelain", "--untracked-files=no") == "", "the restored checkout is consistent"
+        index_lock = Path(_git_out(self.lagging, "rev-parse", "--absolute-git-dir")) / "index.lock"
+        assert index_lock.exists(), "fixture precondition: the planted index.lock is untouched"
 
     def _coord_worktree(self) -> Path:
         for line in _git_out(self.mission.repo, "worktree", "list").splitlines():

@@ -552,7 +552,7 @@ def _resolve_sibling_windows(
     return frozenset(impl), frozenset(review), None
 
 
-def _first_governed_open_stamp(events: Sequence[StatusEvent], wp_ids: frozenset[str]) -> str | None:
+def first_governed_open_stamp(events: Sequence[StatusEvent], wp_ids: frozenset[str]) -> str | None:
     """The lane head when the lane's FIRST governed work began (FR-013 anchor).
 
     The stamp on the first non-migration transition of any lane WP into an
@@ -739,7 +739,7 @@ def resolve_canceled_wp(
             _detail_for(UnattributableReason.SPINE_UNREADABLE, lane_id, canceled_wp_id),
         )
     if walk.outside_windows:
-        base_anchor = _first_governed_open_stamp(events, wp_ids)
+        base_anchor = first_governed_open_stamp(events, wp_ids)
         anchors = [*([base_anchor] if base_anchor else []), *closed_world_anchors]
         outside = _outside_after_anchors(repo_root, coord_base_ref, walk.outside_windows, anchors, never_exempt=never_exempt_commits)
         if outside:
@@ -818,6 +818,7 @@ __all__ = [
     "UnattributableReason",
     "CanceledPathState",
     "canceled_spine_content",
+    "first_governed_open_stamp",
     "is_migration_event",
     "lacks_lane_head_stamps",
     "lane_exempt_commits",
