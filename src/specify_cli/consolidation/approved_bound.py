@@ -49,6 +49,7 @@ APPROVED_REVIEWED = "approved_reviewed"
 ATTEST_APPROVED_FLAG = "--attest-approved-reviewed"
 
 _APPROVED_LANE = "approved"
+_DONE_LANE = "done"
 _MAX_NAMED_COMMITS = 3
 _SHORT_SHA = 7
 _ATTEST_REASON = '--attest-reason "<what you checked>"'
@@ -215,17 +216,32 @@ def is_approved_reviewed_attestation(policy_metadata: Mapping[str, object] | Non
     return isinstance(policy_metadata, Mapping) and policy_metadata.get(ATTESTATION_KEY) == APPROVED_REVIEWED
 
 
+def _is_approval_transition(event: StatusEvent) -> bool:
+    """True iff *event* is a review's approval of a work package.
+
+    Two transitions are: ``-> approved``, and an unforced ``in_review -> done``, which the
+    state machine allows and which finishes a review that approved the work without the
+    ``approved`` stop (its stamp is the reviewed tip). The ``approved -> done`` record the
+    run itself writes is not one, and neither is a forced move to ``done``: neither is a
+    review. An operator attestation of an approval is read separately.
+    """
+    if str(event.to_lane) == _APPROVED_LANE:
+        return True
+    return str(event.to_lane) == _DONE_LANE and not event.force and str(event.from_lane) != _APPROVED_LANE
+
+
 def _is_approval(event: StatusEvent) -> bool:
-    return str(event.to_lane) == _APPROVED_LANE or is_approved_reviewed_attestation(event.policy_metadata)
+    return _is_approval_transition(event) or is_approved_reviewed_attestation(event.policy_metadata)
 
 
 def _newest_approval(events: Sequence[StatusEvent], wp_id: str) -> StatusEvent | None:
     """*wp_id*'s newest approval event, or ``None`` when it has none.
 
-    Walks *events* in append order. An approval is an event whose ``to_lane`` is
-    ``approved`` or an operator attestation of an approval (:data:`APPROVED_REVIEWED`,
-    any ``to_lane``). The ``approved -> done`` event is neither, so the restamp the run
-    itself writes is never read; migration-synthesized events (FR-011) never count.
+    Walks *events* in append order. An approval is an approval transition
+    (:func:`_is_approval_transition`) or an operator attestation of an approval
+    (:data:`APPROVED_REVIEWED`, any ``to_lane``). The ``approved -> done`` event is
+    neither, so the restamp the run itself writes is never read; forced moves to ``done``
+    and migration-synthesized events (FR-011) never count.
     """
     newest: StatusEvent | None = None
     for event in events:
@@ -276,7 +292,7 @@ def unstamped_approval_warning(event: StatusEvent | None, *, repo_root: Path, mi
     time. Only a work package that maps to a code lane is warned about: a planning lane is
     never stamped and never bounded.
     """
-    if event is None or str(event.to_lane) != _APPROVED_LANE or stamp_of(event) is not None:
+    if event is None or not _is_approval_transition(event) or stamp_of(event) is not None:
         return None
     if not _maps_to_code_lane(repo_root, mission_slug, event.wp_id):
         return None

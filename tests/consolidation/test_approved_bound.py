@@ -89,7 +89,17 @@ class _Repo:
     def tip(self, ref: str) -> str:
         return self.git("rev-parse", ref)
 
-    def event(self, wp_id: str, to_lane: Lane, stamp: str | None, *, actor: str = "claude", metadata: dict[str, str] | None = None) -> None:
+    def event(
+        self,
+        wp_id: str,
+        to_lane: Lane,
+        stamp: str | None,
+        *,
+        actor: str = "claude",
+        metadata: dict[str, str] | None = None,
+        from_lane: Lane = Lane.IN_REVIEW,
+        force: bool = False,
+    ) -> None:
         self.seq += 1
         policy = dict(metadata or {})
         if stamp:
@@ -99,11 +109,11 @@ class _Repo:
                 event_id=f"e{self.seq}",
                 mission_slug=_SLUG,
                 wp_id=wp_id,
-                from_lane=Lane.IN_REVIEW,
+                from_lane=from_lane,
                 to_lane=to_lane,
                 at=f"2026-10-04T00:00:{self.seq:02d}Z",
                 actor=actor,
-                force=False,
+                force=force,
                 execution_mode="worktree",
                 policy_metadata=policy or None,
             )
@@ -149,25 +159,39 @@ def _approved_lane(repo: _Repo) -> str:
 # ---------------------------------------------------------------------------
 
 
+_RUN_DONE = {"from_lane": Lane.APPROVED}  # the ``approved -> done`` record the run itself writes
+_FORCED = {"force": True}
+
+
 @pytest.mark.parametrize(
     ("steps", "expected"),
     [
         pytest.param(
-            [("approved", "s1", {}, "claude"), ("in_progress", "s2", {}, "claude"), ("approved", "s3", {}, "claude")], "s3", id="latest-approval-after-rework"
+            [("approved", "s1", {}, "claude", {}), ("in_progress", "s2", {}, "claude", {}), ("approved", "s3", {}, "claude", {})],
+            "s3",
+            id="latest-approval-after-rework",
         ),
-        pytest.param([("approved", "s1", {}, "claude"), ("approved", None, {}, "claude")], None, id="newer-unstamped-approval-hides-older-stamped-one"),
-        pytest.param([("approved", "s1", {}, "claude"), ("approved", "s9", {}, "migration:backfill")], "s1", id="migration-event-ignored"),
-        pytest.param([("approved", "s1", {}, "claude"), ("done", "s7", {}, "merge")], "s1", id="done-restamp-ignored"),
+        pytest.param([("approved", "s1", {}, "claude", {}), ("approved", None, {}, "claude", {})], None, id="newer-unstamped-approval-hides-older-stamped-one"),
+        pytest.param([("approved", "s1", {}, "claude", {}), ("approved", "s9", {}, "migration:backfill", {})], "s1", id="migration-event-ignored"),
+        pytest.param([("approved", "s1", {}, "claude", {}), ("done", "s7", {}, "merge", _RUN_DONE)], "s1", id="done-restamp-ignored"),
         pytest.param(
-            [("approved", None, {}, "claude"), ("approved", "s5", {ATTESTATION_KEY: bound.APPROVED_REVIEWED}, "operator")], "s5", id="attestation-supplies-stamp"
+            [("approved", None, {}, "claude", {}), ("approved", "s5", {ATTESTATION_KEY: bound.APPROVED_REVIEWED}, "operator", {})],
+            "s5",
+            id="attestation-supplies-stamp",
         ),
-        pytest.param([("done", "s7", {}, "merge")], None, id="done-without-approved-event"),
+        pytest.param([("done", "s7", {}, "merge", _RUN_DONE)], None, id="done-without-approved-event"),
+        pytest.param([("done", "s7", {}, "claude", _FORCED)], None, id="forced-done-is-no-approval"),
+        pytest.param(
+            [("approved", "s1", {}, "claude", {}), ("in_progress", "s2", {}, "claude", {}), ("done", "s8", {}, "claude", {})],
+            "s8",
+            id="unforced-review-straight-to-done-is-the-approval",
+        ),
     ],
 )
-def test_approval_stamp_selection(steps: list[tuple[str, str | None, dict[str, str], str]], expected: str | None) -> None:
+def test_approval_stamp_selection(steps: list[tuple[str, str | None, dict[str, str], str, dict[str, Any]]], expected: str | None) -> None:
     holder = _Repo(Path("."))
-    for lane, stamp, metadata, actor in steps:
-        holder.event("WP01", Lane(lane), stamp, actor=actor, metadata=metadata)
+    for lane, stamp, metadata, actor, extra in steps:
+        holder.event("WP01", Lane(lane), stamp, actor=actor, metadata=metadata, **extra)
     assert approval_stamp(holder.events, "WP01") == expected
     assert approval_stamp(holder.events, "WP99") is None
 
