@@ -643,11 +643,6 @@ def test_bound_anchor_shas_leave_out_a_reference_that_does_not_resolve(repo: _Re
     assert anchors == (target,), "the unresolvable mission branch and coordination base are left out, the target is not repeated"
 
 
-def test_commits_beyond_needs_an_excluded_ref(repo: _Repo) -> None:
-    with pytest.raises(ValueError, match="needs at least one excluded ref"):
-        bound.commits_beyond(repo.root, "HEAD", [])
-
-
 @pytest.mark.parametrize(
     ("to_lane", "stamp", "wp_id", "expected"),
     [

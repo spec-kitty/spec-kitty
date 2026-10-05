@@ -307,11 +307,10 @@ def commits_beyond(repo_root: Path, tip: str, excluded: Sequence[str]) -> list[s
 
     The intersection of ``ref..tip`` over every excluded ref: the FULL commit range, a
     commit reached through any merge parent included, never the first-parent spine.
-    Raises :class:`~specify_cli.consolidation.git_probes.GitProbeError` when a ref does
-    not resolve (fail-closed, as every sibling probe).
+    *excluded* is never empty (both callers always pass the claim base or the lane's own
+    validated tip). Raises :class:`~specify_cli.consolidation.git_probes.GitProbeError`
+    when a ref does not resolve (fail-closed, as every sibling probe).
     """
-    if not excluded:
-        raise ValueError("commits_beyond needs at least one excluded ref")
     beyond = commits_in_range(repo_root, excluded[0], tip)
     for ref in excluded[1:]:
         if not beyond:

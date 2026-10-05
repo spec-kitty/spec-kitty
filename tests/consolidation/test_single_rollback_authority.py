@@ -20,7 +20,9 @@ Non-vacuous architectural pin (DIRECTIVE_043 / Standing Order #5) that keeps the
    rollback helpers (``_RETIRED_NAMES``) is defined or referenced anywhere in src.
 5. ``_heal_pending_coord_reconcile`` (a forward ``git revert``) is called only from
    the driver's resume-start site, never from a restore primitive in the span.
-6. Self-mutation tests run the SAME scanners over synthetic sources that violate
+6. #5668: ``consolidate_lane_into_mission`` is called only from the two landing paths, each of
+   which runs the approval bound (``approved_bound_refusal`` or the claim's own check) before it.
+7. Self-mutation tests run the SAME scanners over synthetic sources that violate
    each rule, proving the pin can fail.
 """
 
@@ -50,6 +52,10 @@ _GATE_PHASE = "_phase_reconcile_before_teardown"
 _WRAPPER_HELPER = "_report_rollback"
 _ABORT_HELPER = "_abort_restore_or_keep_record"
 _HEAL = "_heal_pending_coord_reconcile"
+_LANE_MERGE = "consolidate_lane_into_mission"
+_LANE_MERGE_HOME = "specify_cli/lanes/consolidation.py"
+# #5668: the modules that merge a lane into the mission branch, each preceded by its own approval bound check.
+_LANE_MERGE_CALLERS: frozenset[str] = frozenset({"specify_cli/consolidation/phase_advance.py", "specify_cli/orchestrator_api/consolidation.py"})
 
 # #5385: the post-mutation span the door covers, first mutation through the gate.
 _SPAN_PHASES: frozenset[str] = frozenset(
@@ -232,6 +238,16 @@ def test_rollback_to_snapshot_is_called_only_from_allowed_callers() -> None:
     assert len(discovered) >= _CALLER_FLOOR, f"non-vacuity: expected >= {_CALLER_FLOOR} authority caller(s), found {discovered}"
     assert _Call(_EXECUTOR, _WRAPPER_HELPER) in discovered, "the executor wrapper must be the (or a) caller"
     assert _Call(_CLI_CONSOLIDATE, _ABORT_HELPER) in discovered, "the --abort helper must be the (or a) caller"
+
+
+def test_a_lane_is_merged_only_by_the_two_paths_that_run_the_approval_bound() -> None:
+    """#5668: a lane merge must be preceded by the approval bound, a call each landing path has to remember."""
+    callers = {module for module, src in _all_src_files() if module != _LANE_MERGE_HOME for _call, _node in _calls_named(src, module, _LANE_MERGE)}
+    assert callers == _LANE_MERGE_CALLERS, (
+        f"{_LANE_MERGE} is called from {sorted(callers)}, expected {sorted(_LANE_MERGE_CALLERS)}. "
+        "A new call site must run the approval bound (approved_bound_refusal, as orchestrator_api/consolidation.py does, "
+        "or the claim phase_claim builds) before it merges any lane; then add the module here."
+    )
 
 
 def test_resyncing_restore_lives_only_in_the_authority() -> None:

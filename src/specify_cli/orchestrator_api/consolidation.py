@@ -403,54 +403,6 @@ def _refuse_protected_status_target(main_repo_root: Path, mission_slug: str, lan
         raise RuntimeError(f"{verdict.error_code}: {verdict.message} Next step: {verdict.next_step}")
 
 
-def _bound_refusal_code(refusal: str) -> str | None:
-    """The leading ``CODE:`` of a refusal text when it names a :class:`BoundRefusalCode`, else ``None``."""
-    from specify_cli.consolidation.approved_bound import BoundRefusalCode
-
-    head = refusal.partition(":")[0]
-    try:
-        return BoundRefusalCode(head).value
-    except ValueError:
-        return None
-
-
-def _bound_refusal_codes(refusal: str) -> list[str]:
-    """Every distinct :class:`BoundRefusalCode` the refusal text names, first code first (see :class:`ApprovedBoundRefused`)."""
-    from specify_cli.consolidation.approved_bound import refusal_codes
-
-    return refusal_codes(refusal)
-
-
-def _status_placement_tip(main_repo_root: Path, mission_slug: str) -> str | None:
-    """The status placement's tip as a SHA, or ``None`` when it cannot be resolved for any reason.
-
-    The executor's coordination checkpoint (``run_state._capture_coord_checkpoint``) answers
-    ``None`` for any placement failure; so does this, whatever the failure is.
-    """
-    from mission_runtime import MissionArtifactKind, resolve_placement_only
-    from specify_cli.consolidation.git_probes import resolve_commit
-
-    try:
-        return resolve_commit(main_repo_root, resolve_placement_only(main_repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE).ref)
-    except Exception:  # noqa: BLE001 -- the executor's coordination checkpoint treats every placement or git failure as "no coordination tip"
-        return None
-
-
-def _approved_bound_claim_base(main_repo_root: Path, mission_slug: str, lanes_manifest: LanesManifest) -> str:
-    """The commit the executor's fresh-run claim measures lanes from, resolved to a SHA.
-
-    The status placement's tip (the coordination branch when the mission has one), else
-    the mission branch, as ``phase_claim._capture_reconciliation_claim`` picks it for a
-    run with no persisted record. ``approved_bound_refusal`` answers ``None`` for a base
-    that does not resolve, which would read as "nothing to refuse", so a mission branch
-    that does not resolve raises here instead (a ``GitProbeError``, a ``RuntimeError``
-    the caller envelopes as ``PREFLIGHT_FAILED`` before any lane is merged).
-    """
-    from specify_cli.consolidation.git_probes import resolve_commit
-
-    return _status_placement_tip(main_repo_root, mission_slug) or resolve_commit(main_repo_root, lanes_manifest.mission_branch)
-
-
 def _orchestrator_refusal_text(refusal: str) -> str:
     """The lane-check refusal for this command's envelope: ``consolidate-mission`` has no attestation flag.
 
@@ -474,27 +426,32 @@ def _refuse_post_approval_lane_content(main_repo_root: Path, mission_dir: Path, 
     ones the executor resolves for a fresh run. Anything that stops the check from
     answering (an unreadable status log, an unresolvable base) refuses as well.
     """
+    from specify_cli.consolidation.approved_bound import refusal_codes
     from specify_cli.consolidation.done_bookkeeping import acceptably_canceled_wp_ids
     from specify_cli.consolidation.git_probes import resolve_commit
     from specify_cli.consolidation.reconciliation import approved_bound_refusal
     from specify_cli.status import StoreError
 
+    # The target's tip is the one base every lane is measured from: it predates every commit this run merges
+    # (the mission branch or a coordination tip would not on a resumed run), and an unresolvable target raises.
+    target_tip = resolve_commit(main_repo_root, lanes_manifest.target_branch)
     try:
         refusal = approved_bound_refusal(
             main_repo_root,
             mission_dir,
             lanes_manifest,
-            coord_base_ref=_approved_bound_claim_base(main_repo_root, mission_slug, lanes_manifest),
+            coord_base_ref=target_tip,
             excluded_canceled_wp_ids=acceptably_canceled_wp_ids(main_repo_root, mission_slug),
-            excluded_window_base=resolve_commit(main_repo_root, lanes_manifest.target_branch),
+            excluded_window_base=target_tip,
         )
     except (StoreError, OSError) as exc:
         raise RuntimeError(f"The approved lanes could not be checked against what review approved ({exc}); no lane was merged.") from exc
     if refusal is not None:
+        codes = refusal_codes(refusal)
         raise ApprovedBoundRefused(
             _orchestrator_refusal_text(refusal),
-            error_code=_bound_refusal_code(refusal),
-            error_codes=_bound_refusal_codes(refusal),
+            error_code=codes[0] if codes else None,
+            error_codes=codes,
         )
 
 
