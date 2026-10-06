@@ -1,0 +1,7 @@
+{
+  "absent": [],
+  "exit_code": 0,
+  "note": "both sides changed: planning key from the mission side, status from the target side, unassigned mission_number never replaces an assigned one; the pre-fix driver agreed on this shape (it ignored the base)",
+  "stderr": "",
+  "stdout": ""
+}

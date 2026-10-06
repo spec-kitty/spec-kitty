@@ -3,7 +3,7 @@
     "O"
   ],
   "exit_code": 0,
-  "note": "base (%O) file absent -- driver never reads it (2-way field merge)",
+  "note": "base (%O) file absent -- an absent ancestor selects the two-way field merge",
   "stderr": "",
   "stdout": ""
 }

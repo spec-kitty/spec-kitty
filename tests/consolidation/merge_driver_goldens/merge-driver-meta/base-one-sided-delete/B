@@ -1,0 +1,8 @@
+{
+  "coordination_branch": "kitty/mission-m-01M490FF",
+  "flattened": false,
+  "mission_slug": "m",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-06T16:09:00.623338+00:00"
+}

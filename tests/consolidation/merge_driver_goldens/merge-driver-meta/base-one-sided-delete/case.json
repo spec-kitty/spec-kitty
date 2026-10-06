@@ -1,0 +1,7 @@
+{
+  "absent": [],
+  "exit_code": 0,
+  "note": "one-sided deletion and addition survive; the pre-fix driver returned B plus nothing (discard lost)",
+  "stderr": "",
+  "stdout": ""
+}

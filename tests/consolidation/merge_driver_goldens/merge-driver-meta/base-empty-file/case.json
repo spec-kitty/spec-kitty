@@ -1,0 +1,7 @@
+{
+  "absent": [],
+  "exit_code": 0,
+  "note": "zero-byte base (%O) file -- an empty ancestor selects the two-way field merge, identical to field-union",
+  "stderr": "",
+  "stdout": ""
+}
