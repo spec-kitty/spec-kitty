@@ -107,10 +107,20 @@ leaves the rules to the procedure it requires. A `requires` edge in
 render as `kitty-land-pr`, `kitty-issue-triage`, `kitty-mission-from-issue` and
 `kitty-report-debrief`, and `required_skills` puts all four in force for every project that registers this pack.
 The `SKILL.md` files are not on disk until `spec-kitty upgrade` projects them into each
-configured tool's skill root (for example `.claude/skills/kitty-land-pr/`). In a fresh
-clone with no `.claude/` directory, run `mkdir .claude` first: today `upgrade` fails there
-with an "Owner effect conflict" on that directory. `spec-kitty doctor skills --fix` does
-not project pack skills.
+configured tool's project skill root. Two known defects affect that today:
+
+- When `claude` is a configured tool and the clone has no `.claude/` directory, `upgrade`
+  fails with an "Owner effect conflict" on that directory (#4275). Run `mkdir .claude`
+  first. Projects that do not configure `claude` are not affected.
+- `spec-kitty doctor skills` reports healthy while a pack skill in force is not projected,
+  and `--fix` does not project it (#5801). Check for the `kitty-*` directories yourself
+  after `upgrade`.
+
+The command-skill ledger `.kittify/command-skills-manifest.json` is per-machine and no
+longer tracked. Pulling the change that untracked it deletes your local copy, and
+`doctor skills --fix` then refuses because it sees unmanaged files. Remove the generated
+`.agents/skills/spec-kitty.*` directories and run `spec-kitty doctor skills --fix` once.
+
 See [Create and activate a pack skill](../../docs/development/how-to/create-a-pack-skill.md).
 
 ## Reference, don't duplicate
