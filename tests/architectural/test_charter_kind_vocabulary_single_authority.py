@@ -56,8 +56,9 @@ plural subsets (``< 8``) used for ordered rendering; and singular→singular
 subdir maps. These do not restate the kind universe or its singular↔plural
 relationship, so they are not drift mirrors. Known shapes the rules do not yet
 recognise (hyphenated operator-token maps, ``ArtifactKind``→``NodeKind``
-identity maps, glob-valued maps, universe sets padded with one non-kind
-string) are tracked as a follow-up rather than allowlisted here.
+identity maps, glob- or suffix-valued maps, universe sets padded with one
+non-kind string, tuples of ``ArtifactKind`` members, the 3-kind synthesizable
+subset) are tracked in #5823 rather than allowlisted here.
 """
 
 from __future__ import annotations

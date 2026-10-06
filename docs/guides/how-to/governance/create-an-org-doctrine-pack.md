@@ -68,7 +68,7 @@ my-pack/
 ```
 
 **Important: do not create `pack-manifest.yaml` yourself.** It is written by
-`doctrine fetch` (for non-git sources) and `doctrine pack assemble`. Authors should leave
+`charter fetch` (for non-git sources) and `doctrine pack assemble`. Authors should leave
 it alone; manual edits surface as an advisory in `pack validate`.
 
 ---
@@ -154,7 +154,7 @@ If your pack contributes typed graph relations (for example, a new directive tha
 to a specific mission action), declare them in a single `drg/fragment.yaml` — the
 `OrgDRGFragment` shape that `spec-kitty charter org init` scaffolds. An org pack's DRG
 is read only from `drg/fragment.yaml`; a `drg/*.graph.yaml` fragment is **not** consumed
-and `doctrine org validate` now rejects it (`drg_root_graph_missing`):
+and `charter org validate` now rejects it (`drg_root_graph_missing`):
 
 ```yaml
 # drg/fragment.yaml
@@ -530,7 +530,7 @@ doctrine:
 export SPEC_KITTY_PACK_HOME=/opt/acme-doctrine
 ```
 
-Expansion happens only when the path is resolved (e.g. `doctrine fetch`,
+Expansion happens only when the path is resolved (e.g. `charter fetch`,
 `doctor doctrine`) — the literal `${SPEC_KITTY_PACK_HOME}/security-doctrine`
 string is what stays written in `.kittify/config.yaml`, so the config remains
 portable across machines/CI. If the referenced variable is unset or empty,

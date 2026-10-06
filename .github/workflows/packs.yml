@@ -31,7 +31,7 @@
 #   second glob list); advisory = job-level continue-on-error, outside
 #   `packs-gate.needs`.
 # - **Internal lane** (`packs/internal/**`, MAINTAINER-only, NEVER ships):
-#   `spec-kitty doctrine org validate` (DRG-fragment validity + `refines`-edge
+#   `spec-kitty charter org validate` (DRG-fragment validity + `refines`-edge
 #   resolution + `org-charter.yaml` required-id validation), plus the
 #   packaging-safety NEGATIVE guard proving the internal pack never ships in
 #   the wheel.
@@ -330,7 +330,7 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
-          uv run --frozen spec-kitty doctrine org validate packs/internal
+          uv run --frozen spec-kitty charter org validate packs/internal
 
   internal-packaging-safety:
     name: internal / packaging-safety NEGATIVE guard (never ships)

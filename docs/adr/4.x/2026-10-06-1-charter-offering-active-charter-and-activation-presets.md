@@ -24,7 +24,7 @@ PR #3791 settled two words for the rename of "doctrine pack": **Charter Pack** f
 
 - **"charter pack" has three meanings in the code, not two.** The config key `charter_packs.org.packs` and the directory `.kittify/charter-packs/` already mean the offered collection. `spec-kitty charter pack list|path|apply`, `src/charter/activation/packs/{default,minimal}.yaml` and the `3.2.0rc35_default_charter_pack` migration mean a ready-made activation set. `CharterPackManager`, `CharterPackConfigError` and the error code `CHARTER_PACK_CONFIG_INVALID` mean a project's own activation state. The contract had no word for the third meaning.
 - **The CLI name was taken twice over.** Retiring `spec-kitty doctrine` sends `doctrine pack validate|assemble` to `charter pack`, which already holds the activation-set commands.
-- **The "default charter pack" is a drifted copy.** `default.yaml` says it lists every built-in artifact id; it lists about 200 and misses 91 shipped artifacts across seven kinds. Nothing regenerates it or compares it to `packs/built-in/`. The rc35 upgrade migration and `charter pack apply default` write it into `.kittify/config.yaml`, where a present `activated_<kind>` key is an allowlist, so those projects silently lose every newer built-in ([#5323](https://github.com/spec-kitty/spec-kitty/issues/5323)). Three activation-promotion callers narrow an absent key with the same file ([#4400](https://github.com/spec-kitty/spec-kitty/issues/4400)).
+- **The "default charter pack" is a drifted copy.** `default.yaml` says it lists every built-in artifact id; it lists about 200, and at `b327f5bb` it missed 91 shipped artifacts across seven kinds (matching each file by YAML `id` or filename stem; a stricter match finds about 100). Nothing regenerates it or compares it to `packs/built-in/`. The rc35 upgrade migration and `charter pack apply default` write it into `.kittify/config.yaml`, where a present `activated_<kind>` key is an allowlist, so those projects silently lose every newer built-in ([#5323](https://github.com/spec-kitty/spec-kitty/issues/5323)). Three activation-promotion callers narrow an absent key with the same file ([#4400](https://github.com/spec-kitty/spec-kitty/issues/4400)).
 - **The presets are not part of any pack.** They are registered in a hard-coded `BUILTIN_PACKS` map in `specify_cli` and live outside `packs/built-in/`; the pack descriptor does not know them. Packs are going to ship from the spec-kitty public-packs sidecar repository, where a code-registered preset cannot exist.
 - **The `spk-doctrine-*` skill family mixes two things.** Four skills are charter governance (charter, glossary, profile loading, the REASONS canvas); three are working practices unrelated to the charter (bulk-edit classification, semantic compression, show-me visuals). An older `spec-kitty-*` name layer still ships beside them and often holds the real content.
 - **Earlier renames left compatibility layers with no end date.** The `spec-kitty doctrine` group, the `doctrine.*` config keys and the `.kittify/doctrine/` read root each warn once and keep working, with no removal milestone, so in practice they are permanent.
@@ -58,7 +58,7 @@ spec-kitty charter activate --pack <pack> --preset <preset>
 - **`default`**: every built-in artifact, plus the built-in mission types. It is expressed as *no per-kind restriction* (the per-kind keys stay absent, which already means "all built-ins"), never as a list of ids, so it cannot drift from the shipped inventory.
 - **`minimal`**: the curated small baseline (today's `minimal.yaml`).
 
-Skipping charter activation during `spec-kitty init` is the same as `charter activate --pack built-in --preset default`. Today's fresh `init` already behaves this way for artifact kinds: it writes only `mission_type_activations` and leaves the per-kind keys absent.
+Skipping charter activation during `spec-kitty init` is the same as `charter activate --pack built-in --preset default`. Today's fresh `init` already behaves this way for artifact kinds: it writes only `mission_type_activations` and leaves the per-kind keys absent. It reads that mission-type list from `src/charter/activation/packs/default.yaml` and fails closed when the file is missing (`provision_default_mission_type_activations`, `DefaultCharterPackMissingError`); that read moves with the preset, to the built-in pack's `default` preset.
 
 ### 3. Presets are pack data
 
@@ -73,7 +73,8 @@ A preset lives inside its pack, next to the pack's components, and is discovered
 | `charter pack path <name>` | `charter pack path <pack>` |
 | `doctrine pack validate`, `doctrine pack assemble` | `charter pack validate`, `charter pack assemble` |
 | `charter pack consistency-check` | a top-level `charter` subcommand; it checks the active charter, not a pack |
-| `doctrine regenerate-graph`, `doctrine asset`, `doctrine mission-type list` | a home under `spec-kitty charter` |
+| `doctrine regenerate-graph`, `doctrine asset` | a home under `spec-kitty charter` |
+| `doctrine mission-type list` | already replaced by `charter mission-type list --include-inactive`; removed with the group |
 | `spec-kitty doctrine` group | removed once its last command has moved |
 
 `charter pack` holds operations on Charter Packs (the offering). Activation operations, presets included, stay on `charter activate` and `charter deactivate`.

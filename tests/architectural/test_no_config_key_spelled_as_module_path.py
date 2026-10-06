@@ -35,6 +35,7 @@ from pathlib import Path
 import pytest
 
 from charter.activation.schemas import DoctrineSelectionConfig
+from tests._support.terminology_scope import FORBIDDEN_SCAN_ROOTS
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -42,16 +43,9 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SCAN_ROOTS = ("src", "packs", "docs")
 _SUFFIXES = frozenset({".py", ".md", ".yaml", ".yml", ".toml", ".txt"})
 
-#: Immutable record roots (terminology-exemptions.md) and the changelog.
-_EXCLUDED_PREFIXES = (
-    "docs/adr/",
-    "docs/reports/",
-    "docs/archive/",
-    "docs/migrations/",
-    "docs/plans/engineering-notes/",
-    "docs/plans/initiatives/",
-    "docs/changelog/",
-)
+#: The shared terminology-exempt roots, plus the changelog, whose entries quote
+#: the old wrong text as the "Before" (recorded in terminology-exemptions.md).
+_EXCLUDED_PREFIXES = (*FORBIDDEN_SCAN_ROOTS, "docs/changelog/")
 
 #: ``charter_packs.<tier>`` keys in ``.kittify/config.yaml``.
 _PACK_TIER_KEYS = frozenset({"org", "project"})

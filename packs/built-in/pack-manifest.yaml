@@ -505,7 +505,7 @@ constituents:
   kind: procedure
   path: procedures/mission-wrap-up-sequence.procedure.yaml
   provenance_path:
-- content_hash: 1a4720bc6a37449d4ef6cce7c530f2df5c1314896a176fba9f75d4b0840ef781
+- content_hash: 75ac49ff16ed3048baaa9f34bdeb954d1d80281eb928dd0d68906b90a74a6e53
   id: onboard-external-agent-to-pack
   kind: procedure
   path: procedures/onboard-external-agent-to-pack.procedure.yaml
@@ -1375,7 +1375,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 81f29f481cda1dabacfaf6ee973f1fcf3006f89c0dc6d62680aa4d4fd393a6b4
+manifest_hash: 67eede7fd793907e44d1dba6b4e5dc182ef05840d5da67c70a20d4635972165d
 schema_version: '1'
 source_type: built-in
 source_url:

@@ -486,11 +486,9 @@ To validate project-layer artifacts:
 spec-kitty charter validate .kittify/doctrine
 ```
 
-To list registered mission types (every visible type; this command still
-lives only under the deprecated `doctrine` group, so the deprecation banner
-it prints is expected, not a fault):
+To list registered mission types (every visible type, activated or not):
 ```bash
-spec-kitty doctrine mission-type list
+spec-kitty charter mission-type list --include-inactive
 ```
 
 To list agent profiles:

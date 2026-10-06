@@ -158,7 +158,10 @@ def check_governance_resolution(project_dir: Path) -> DoctorCheck:
         return DoctorCheck(
             "governance_resolution",
             True,
-            (f"Resolved governance with template fallback '{resolution.template_set}'. Set governance.charter.template_set in .kittify/charter/charter.yaml to make this explicit."),
+            (
+                f"Resolved governance with template fallback '{resolution.template_set}'. "
+                "Set governance.charter.template_set in .kittify/charter/charter.yaml to make this explicit."
+            ),
             "warning",
         )
 

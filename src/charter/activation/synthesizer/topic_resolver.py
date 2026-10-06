@@ -33,7 +33,7 @@ from .request import SynthesisTarget
 # Synthesizable kinds (tier-1 local-first rule)
 # ---------------------------------------------------------------------------
 
-_SYNTHESIZABLE_KINDS: frozenset[str] = frozenset({"directive", "tactic", "styleguide"})
+SYNTHESIZABLE_KINDS: frozenset[str] = frozenset({"directive", "tactic", "styleguide"})
 
 # DRG node kinds, derived from the canonical ``NodeKind`` enum so a new kind is
 # addressable at the membership gate the moment it is declared — no hand copy to
@@ -196,7 +196,7 @@ def _resolve_kind_slug(
     lhs = raw[:colon_idx].strip()
     rhs = raw[colon_idx + 1:].strip()
 
-    if lhs not in _SYNTHESIZABLE_KINDS:
+    if lhs not in SYNTHESIZABLE_KINDS:
         return None
 
     for artifact in project_artifacts:
@@ -343,7 +343,7 @@ def resolve(
         lhs = raw[:colon_idx].strip()
 
         # Tier 1: project-local kind:slug (synthesizable kinds only)
-        if lhs in _SYNTHESIZABLE_KINDS:
+        if lhs in SYNTHESIZABLE_KINDS:
             attempted_forms.append("kind_slug")
             artifact = _resolve_kind_slug(raw, project_artifacts)
             if artifact is not None:
@@ -394,6 +394,7 @@ def resolve(
 
 
 __all__ = [
+    "SYNTHESIZABLE_KINDS",
     "ResolvedTopic",
     "resolve",
 ]

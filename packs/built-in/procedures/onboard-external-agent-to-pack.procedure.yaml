@@ -27,7 +27,7 @@ exit_condition: >
   documented justification). Every artifact extracted from the source agent is written under the
   correct pack subdirectory and registered in the DRG with appropriate edges. If a dedicated
   agent profile was warranted it is created; if not, the decision not to create one is recorded.
-  For an org or built-in pack, spec-kitty doctor doctrine reports the pack installed with the
+  For an org pack, spec-kitty doctor doctrine reports the pack installed with the
   expected artifact counts; for the project tier, spec-kitty charter list shows the new
   artifacts activated.
 steps:
@@ -43,8 +43,6 @@ steps:
         - Org pack — the artifacts are shared across repositories through a pack directory
           configured under charter_packs.org.packs in .kittify/config.yaml. The pack is validated
           with spec-kitty charter org validate <pack-dir>.
-        - Built-in pack — the artifacts ship with Spec Kitty itself (maintainers only). The pack
-          is validated with spec-kitty doctrine pack validate packs/built-in.
 
       Before extracting anything, run the validation command for the chosen tier and record the
       result. If errors exist, stop and fix them before proceeding — adding new artifacts on top
@@ -197,7 +195,7 @@ steps:
       steps into the profile's specialization block — multi-step workflows belong in a procedure
       or tactic that the profile references through a DRG edge. Embedding procedures in a profile
       is an anti-pattern.
-  - title: Register every new artifact in the DRG and regenerate the compiled graph
+  - title: Register every new artifact in the DRG
     actor: agent
     description: >
       Add each new artifact's relationships to the pack's DRG fragment as typed edges, following
@@ -212,9 +210,6 @@ steps:
       How the edges are recorded and the graph refreshed depends on the tier chosen in the first
       step:
 
-        - Built-in pack — edges go in the per-kind *.graph.yaml fragments; the committed graph
-          must be regenerated with spec-kitty doctrine regenerate-graph so CI and the validator
-          see the same node/edge set. Confirm the new nodes and edges appear in the output.
         - Org pack — edges go in the pack's drg/fragment.yaml. The runtime reads that fragment
           directly, so there is no compiled graph to regenerate.
         - Project tier — there is no fragment to edit. Activate the new artifacts with
@@ -237,7 +232,7 @@ steps:
     description: >
       Run the full verification suite for the chosen tier: the tier's validation command from the
       first step (expect zero errors), then spec-kitty doctor doctrine (expect the pack installed
-      with matching counts, for an org or built-in pack). For the project tier, confirm the
+      with matching counts, for an org pack). For the project tier, confirm the
       artifacts are active with spec-kitty charter list, check the graph with
       spec-kitty charter lint, and, if a profile was created, inspect it with
       spec-kitty profiles show <profile-id>. If spec-kitty doctor doctrine is unavailable, verify
@@ -279,11 +274,12 @@ anti_patterns:
       Adding specializes-from directly on the agent profile YAML. The profile validator rejects
       this field. Express lineage and augmentation exclusively as specializes_from edges in the
       DRG.
-  - name: Skipping the compiled DRG regeneration
+  - name: Leaving new project-tier artifacts unactivated
     description: >
-      Editing the DRG fragment but forgetting to regenerate the compiled graph. The runtime sees
-      the fragment, but CI and the validator consume the committed compiled graph; an out-of-date
-      graph produces silent divergence between what runs locally and what is reviewed.
+      Authoring project-tier artifacts and validating them, but never running
+      spec-kitty charter activate --cascade all. Validation passes, yet the project graph never
+      gains the new nodes or edges, so the artifacts are not part of the active charter and no
+      action loads them. Activate them, then confirm with spec-kitty charter list.
   - name: Skipping the existing-artifact overlap audit
     description: >
       Id-only deduplication without a semantic read: declaring two artifacts non-overlapping

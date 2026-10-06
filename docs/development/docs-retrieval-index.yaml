@@ -11207,6 +11207,7 @@ pages:
     - {slug: "what-is-excluded-5", text: "What is excluded", level: 3}
     - {slug: "why-it-is-exempt-5", text: "Why it is exempt", level: 3}
     - {slug: "scope-boundary-4", text: "Scope boundary", level: 3}
+    - {slug: "shared-exempt-root-list-and-the-operator-surface-gates", text: "Shared Exempt-Root List and the Operator-Surface Gates", level: 2}
     - {slug: "invariant-exemptions-must-stay-narrow", text: "Invariant: Exemptions Must Stay Narrow", level: 2}
     - {slug: "updating-this-policy", text: "Updating This Policy", level: 2}
   - path: "docs/development/reference/version-taxonomy.md"

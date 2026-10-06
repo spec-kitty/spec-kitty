@@ -30,7 +30,7 @@ from kernel.clock import from_epoch
 from .adapter import AdapterOutput
 from .errors import GeneratedArtifactLoadError, GeneratedArtifactMissingError
 from .request import SynthesisRequest
-from .topic_resolver import _SYNTHESIZABLE_KINDS
+from .topic_resolver import SYNTHESIZABLE_KINDS
 
 __all__ = [
     "GeneratedArtifactAdapter",
@@ -52,7 +52,7 @@ class GeneratedArtifactAdapter:
 
     def _path_for_target(self, request: SynthesisRequest) -> Path:
         target = request.target
-        if target.kind not in _SYNTHESIZABLE_KINDS:
+        if target.kind not in SYNTHESIZABLE_KINDS:
             raise KeyError(target.kind)
         subdir = ArtifactKind(target.kind).plural
         path: Path = self._input_root / subdir / target.filename

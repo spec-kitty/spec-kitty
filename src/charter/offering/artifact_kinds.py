@@ -238,8 +238,8 @@ class ArtifactKind(StrEnum):
         ``doctor doctrine`` org-pack directory count and collision scan, and
         the API source's fallback type list. They read it from here instead of
         restating it; a surface that should also cover a later kind switches
-        to a broader predicate rather than editing this set. Backs
-        :data:`CORE_KIND_PLURALS`.
+        to a broader predicate rather than editing this set (#5824 tracks
+        which of them should). Backs :data:`CORE_KIND_PLURALS`.
         """
         return self in _CORE_KINDS
 

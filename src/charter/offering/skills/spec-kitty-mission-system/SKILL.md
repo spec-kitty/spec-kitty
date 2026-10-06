@@ -401,10 +401,8 @@ It's recorded in `meta.json` and cannot be changed after creation.
 ```bash
 # List available mission types (activated for this project)
 spec-kitty mission-type list
-# Every visible mission type, activated or not. This one still lives only
-# under the deprecated `doctrine` group, so it prints a deprecation banner;
-# the banner is expected, not a fault.
-spec-kitty doctrine mission-type list
+# Every visible mission type, activated or not
+spec-kitty charter mission-type list --include-inactive
 
 # Specify a mission with a specific mission type
 spec-kitty specify --mission-type research "What are the best auth patterns?"

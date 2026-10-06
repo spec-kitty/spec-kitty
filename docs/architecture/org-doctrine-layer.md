@@ -285,7 +285,7 @@ Empty packs (no `org-charter.yaml`) contribute no policy — they are doctrine-o
 
 ## The fetch model
 
-Org packs are not resolved over the network at runtime. The `doctrine fetch` command
+Org packs are not resolved over the network at runtime. The `charter fetch` command
 downloads or refreshes a **local snapshot** under each pack's configured `local_path`,
 and every subsequent resolution reads from that snapshot.
 
@@ -296,8 +296,8 @@ This shape was chosen deliberately:
   fetched the same ref.
 - **Auditability**: the on-disk snapshot is the record of "what governance ran here."
 
-`doctrine fetch` is an explicit install/update step, not a background operation. If
-your org publishes a new ref, you re-run `doctrine fetch` (or your IT system does)
+`charter fetch` is an explicit install/update step, not a background operation. If
+your org publishes a new ref, you re-run `charter fetch` (or your IT system does)
 to pick it up. This is the same shape as `npm install` or `pip install` — fetch is
 the install step; resolution is offline.
 
@@ -390,7 +390,7 @@ section below for the migration path. `spec-kitty doctor doctrine` reports every
 configured pack and flags any that are missing.
 
 **Is it safe to gitignore the snapshot directory?**
-Yes — and that is the recommended pattern. `doctrine fetch` is the install step;
+Yes — and that is the recommended pattern. `charter fetch` is the install step;
 treating the snapshot as cache rather than source-controlled artifacts keeps the
 repository small and ensures all consumers pull the same way.
 

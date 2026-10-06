@@ -362,3 +362,24 @@ class TestRunGlobalChecks:
 
         checks = run_global_checks(project_dir=project)
         assert all(c.passed for c in checks)
+
+
+# ---------------------------------------------------------------------------
+# #4836: the template-fallback hint names the real charter.yaml key
+# ---------------------------------------------------------------------------
+
+
+def test_template_fallback_hint_names_the_real_charter_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The hint used to say ``charter.offering.template_set`` (a module path, not a key)."""
+    from types import SimpleNamespace
+
+    from specify_cli.runtime import doctor
+
+    resolution = SimpleNamespace(template_set="software-dev-default", metadata={"template_set_source": "fallback"})
+    monkeypatch.setattr(doctor, "resolve_project_governance", lambda _project_dir: resolution)
+
+    check = doctor.check_governance_resolution(tmp_path)
+
+    assert check.passed
+    assert "Set governance.charter.template_set in .kittify/charter/charter.yaml" in check.message
+    assert "charter.offering" not in check.message

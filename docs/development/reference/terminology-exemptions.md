@@ -2,7 +2,7 @@
 title: Terminology Guard Exemption Policy
 description: "Policy for the five surfaces exempt from spec-kitty terminology guards: ADRs, migrations, archival plans, dated reports and the Unreleased-only CHANGELOG scan."
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-06'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related: []
@@ -215,6 +215,30 @@ silently kept.
 
 ---
 
+## Shared Exempt-Root List and the Operator-Surface Gates
+
+The exempt roots above are one list, `FORBIDDEN_SCAN_ROOTS` in
+`tests/_support/terminology_scope.py`. The live-doc guard
+(`tests/contract/test_terminology_guards.py`) and the two operator-surface
+gates added for #4836 read it, so a root exempted for one scan is exempted
+for all:
+
+- `tests/architectural/test_no_config_key_spelled_as_module_path.py` — no
+  charter config key written as a `charter.offering.*` module path.
+- `tests/architectural/test_no_deprecated_doctrine_command_in_guidance.py` —
+  no guidance naming a `spec-kitty doctrine` command that the `charter` group
+  registers with the same handler.
+
+Those two gates add the following exemptions on top of the shared list, each
+for the reason given:
+
+| Exemption | Gate | Reason |
+|---|---|---|
+| `docs/changelog/` (both gates) | both | A changelog entry's **Before** quotes the old key or command. The live-doc guard's Unreleased-only scan does not fit here, because the Unreleased section is exactly where those Before quotes live. |
+| `docs/plans/` | migrated-command gate | Plans and design reviews record how past work was planned and delivered (for example a work-package row recording that it added a subcommand to the `doctrine` group). Rewriting a delivered work package's command would falsify the record. |
+| `docs/api/cli-commands.md`, `docs/development/docs-retrieval-index.yaml` | migrated-command gate | Generated outputs: they regenerate from the CLI's help text and from the docs they index. |
+| Python docstrings and comments | migrated-command gate | They describe code, including the deprecated group itself; they do not instruct an operator. Every other string literal in `src/` is scanned. |
+
 ## Invariant: Exemptions Must Stay Narrow
 
 Each exemption above is explicitly bounded. The guards include non-vacuity and
@@ -245,7 +269,7 @@ regression, not maintenance.
 If a new surface requires an exemption:
 
 1. Update `FORBIDDEN_SCAN_ROOTS` in
-   `tests/contract/test_terminology_guards.py`.
+   `tests/_support/terminology_scope.py` (shared by every terminology scan).
 2. Update `_EXCLUDED_PATH_FRAGMENTS` in
    `tests/architectural/test_no_legacy_terminology.py` if the legacy-term scan
    is also affected.

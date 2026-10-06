@@ -30,28 +30,30 @@ from pathlib import Path
 import pytest
 
 from specify_cli.cli.commands.charter._app import charter_app
+from tests._support.terminology_scope import FORBIDDEN_SCAN_ROOTS
 from specify_cli.cli.commands.doctrine import app as doctrine_app
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_SCAN_ROOTS = ("src/charter/offering/skills", "packs", "docs")
+_SCAN_ROOTS = ("src/charter/offering/skills", "packs", "docs", ".github/workflows")
 _SUFFIXES = frozenset({".md", ".yaml", ".yml", ".txt"})
+#: The shared terminology-exempt roots, plus three extras recorded in
+#: terminology-exemptions.md: design plans (records of how past work was planned
+#: and delivered; rewriting a delivered work package's command would falsify
+#: the record), the changelog (entries quote the old command as the "Before"),
+#: and generated outputs (the CLI reference and the retrieval index regenerate
+#: from their sources).
 _EXCLUDED_PREFIXES = (
-    "docs/adr/",
-    "docs/reports/",
-    "docs/archive/",
-    "docs/migrations/",
-    # Plans are design records of how past work was planned and delivered,
-    # not instructions; rewriting a delivered work package's command would
-    # falsify the record.
+    *FORBIDDEN_SCAN_ROOTS,
     "docs/plans/",
     "docs/changelog/",
-    # Generated outputs: the CLI reference from the CLI's own help text, the
-    # retrieval index from the docs it indexes.
     "docs/api/cli-commands.md",
     "docs/development/docs-retrieval-index.yaml",
 )
+
+#: Non-vacuity floor: a scan that stopped reaching the trees passes over nothing.
+_MIN_FILES_SCANNED = 800
 
 
 def _migrated_doctrine_commands() -> frozenset[str]:
@@ -64,7 +66,8 @@ def _migrated_doctrine_commands() -> frozenset[str]:
 
 
 _MIGRATED = _migrated_doctrine_commands()
-_INVOCATION = re.compile(r"spec-kitty doctrine ([a-z][a-z-]*)")
+#: ``spec-kitty doctrine <cmd>``, or the bare backticked form ``\`doctrine <cmd>``.
+_INVOCATION = re.compile(r"(?:spec-kitty |`)doctrine ([a-z][a-z-]*)")
 
 
 def _offenders(text: str) -> list[tuple[int, str]]:
@@ -125,6 +128,14 @@ def test_guidance_names_the_charter_spelling_of_migrated_commands() -> None:
         for lineno, token in _python_offenders(path.read_text(encoding="utf-8")):
             violations.append(f"{rel}:{lineno}  {token}")
     assert not violations, "Use `spec-kitty charter <command>` for doctrine commands that moved to the charter group (same handler):\n  " + "\n  ".join(violations)
+
+
+def test_gate_reaches_a_real_file_count() -> None:
+    assert len(_scanned_files()) >= _MIN_FILES_SCANNED
+
+
+def test_gate_flags_the_bare_backticked_form() -> None:
+    assert _offenders("and `doctrine org validate` now rejects it")
 
 
 def test_gate_flags_a_planted_invocation() -> None:

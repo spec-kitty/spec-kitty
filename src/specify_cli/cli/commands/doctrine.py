@@ -72,8 +72,9 @@ _DEPRECATION_NOTICE = (
     "(mission charter-code-topology-01M152G1, CR-02). This command still "
     "works and delegates to the same implementation. "
     "The following commands remain under `spec-kitty doctrine`: "
-    "regenerate-graph, pack validate, pack assemble, asset, and mission-type list "
-    "(all visible types; charter mission-type list shows activated types)."
+    "regenerate-graph, pack validate, pack assemble and asset. For "
+    "`doctrine mission-type list` (every visible type), use "
+    "`spec-kitty charter mission-type list --include-inactive`."
 )
 
 
