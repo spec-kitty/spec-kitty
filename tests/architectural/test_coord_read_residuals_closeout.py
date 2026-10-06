@@ -550,14 +550,14 @@ def test_fr003_runtime_bridge_get_mission_type_reads_are_clean_not_pinned() -> N
     # are checked (runtime_bridge_io.py's census pin is a separate matter).
     runtime_bridge_flags = {k for k in offenders if any(f"runtime/next/{name}::" in k for name in _BRIDGE_READ_FILES)}
     assert not runtime_bridge_flags, (
-        "runtime_bridge.py identity reads unexpectedly flagged — their FR-003 "
+        "Bridge-family identity reads (runtime_bridge.py / _decision_mapping / _query) unexpectedly flagged — their FR-003 "
         f"disposition is CLEAN/ROUTED, not pinned: {runtime_bridge_flags}. If a real "
         "coord-aware binding appeared, route it or pin it explicitly."
     )
     # And they are not (incorrectly) carried as census pins.
     assert not any(
         any(f"runtime/next/{name}::" in entry for name in _BRIDGE_READ_FILES) for entry in _IDENTITY_CALLSHAPE_KNOWN_RESIDUALS
-    ), "runtime_bridge.py reads must NOT be census pins — they are clean (ROUTED)."
+    ), "Bridge-family reads must NOT be census pins — they are clean (ROUTED)."
 
 
 # read-side-seam-primary-primitive-closure-01KYKMMT WP01 (T005, FR-014):

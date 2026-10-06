@@ -170,7 +170,9 @@ REMOVED: dict[str, tuple[str, ...]] = {
     ),
 }
 _SEAMS = tuple(REMOVED)
-_EXPECTED_TOTAL = 36
+#: 36 names retired by #2561 plus 56 moved by #2560 (decision_mapping 27,
+#: decision_log 4, query 13, guards 11, identity 1).
+_EXPECTED_TOTAL = 92
 
 # Floor and uniqueness: a shrinking or duplicated table must not make the gate vacuous.
 _ALL_REMOVED = [_n for _names_ in REMOVED.values() for _n in _names_]

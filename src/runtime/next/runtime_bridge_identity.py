@@ -70,7 +70,7 @@ def _primary_runtime_feature_dir(repo_root: Path, mission_slug: str) -> Path:
     nothing and fell back to the bare slug, yielding an empty ``mid8`` and a
     malformed ``kitty/mission-<slug>-`` coord branch (#2091). Anchor on the
     topology-BLIND ``PRIMARY_METADATA`` leg of the kind-aware placement seam,
-    mirroring :func:`_mission_routes_through_coordination` (``runtime_bridge.py``)
+    mirroring :func:`_mission_routes_through_coordination` (``runtime_bridge_decision_log.py``)
     and the canonical precedent in ``core/paths.py`` (the same bug-class fixed
     for the merge target): the kind-aware seam CANNOT land on a
     materialized-but-empty coord worktree here — for a PRIMARY-partition kind

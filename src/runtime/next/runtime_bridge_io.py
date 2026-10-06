@@ -19,8 +19,8 @@ Also hosts the two new port-shaped additions this WP introduces:
 - ``resolve_commit_target`` (T019) — the ONE pure decision that was
   interleaved inside ``_wrap_with_decision_git_log`` (mid8 derivation +
   fail-closed validation + ``CommitTarget``/worktree_root-candidate
-  selection). ``_wrap_with_decision_git_log`` itself stays in ``runtime_bridge`` —
-  only its pure selection moved out; see that function's docstring for why the remaining ``.exists()``
+  selection). ``_wrap_with_decision_git_log`` itself lives in
+  ``runtime_bridge_decision_log`` (#2560) — only its pure selection moved here; see that function's docstring for why the remaining ``.exists()``
   check stays a residual I/O concern.
 
 This module owns the names it defines. Callers inside ``src/runtime/next/``

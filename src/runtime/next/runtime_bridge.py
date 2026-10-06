@@ -4,13 +4,18 @@ The runtime is now internalized as part of mission
 ``shared-package-boundary-cutover-01KQ22DS``; production code no longer imports
 the standalone ``spec-kitty-runtime`` PyPI package.
 
-Maps the CLI's Decision dataclass to the runtime's NextDecision by:
+This module owns the advance path of ``spec-kitty next``
+(``decide_next_via_runtime`` and its ``_dn_*`` phases):
 
 1. Starting or loading a mission run (persisted under .kittify/runtime/)
 2. Delegating step planning to the runtime DAG planner
 3. Handling WP-level iteration within "implement" and "review" steps
 4. Enforcing CLI-level guards (artifact checks, WP status)
 5. Preserving the existing JSON output contract
+
+The read path (query mode, answer mode) lives in ``runtime_bridge_query``; the
+public names CLI callers read here are plain re-exports of the seams' own
+objects (see the re-export block below).
 
 Underscore-prefixed functions in the ``runtime_bridge_*`` seam modules that the
 bridge calls are a package-internal seam API, not module-private.
@@ -21,107 +26,47 @@ A tracked-mission-to-run compatibility index currently lives at
 """
 
 # ─────────────────────────────────────────────────────────────────────────────
-# #2531 DECOMPOSITION IN PROGRESS (mission runtime-bridge-degod-01KX8M1C).
+# Seam map (#2531 decomposition, #2561 delegate retirement, #2560 split).
 #
-# This module is being progressively decomposed from a single ~3800-LOC /
-# 62-symbol god module into cohesive, independently-tested seams under
-# ``runtime/next/``. Extracted so far:
+# This module keeps the advance path, the CLI guard composition
+# (``_check_cli_guards``) and the owned-coordination workspace helpers
+# (``_resolve_owned_coordination_workspace`` /
+# ``_is_transient_git_worktree_contention``, imported from here by
+# ``specify_cli.coordination.coord_seed``). Everything else lives in one
+# owning seam under ``runtime/next/``; the bridge calls each name on its seam
+# (``_<seam>.<name>``) and keeps no forwarder, so a test patches a name on
+# the seam that owns it:
 #
-#   runtime_bridge_engine.py   sole home of ``_internal_runtime`` engine /
-#                              planner private access (FR-013); also owns the
-#                              ``advance_run_state_after_composition`` logic
-#                              (former CC23 body, reduced to <=15); callers
-#                              here and in the composition seam call it on the
-#                              engine seam, and a test patches it there.
-#
-#   runtime_bridge_retrospective.py   sole home of the self-contained
-#                              Confirm.ask-gated retrospective / learning-
-#                              capture cluster (FR-006). The bridge calls the
-#                              cluster on the seam (``_retrospective_seam.<name>``)
-#                              and keeps no forwarder for it; a test patches a
-#                              retrospective symbol on the seam.
-#
-#   runtime_bridge_io.py       sole home of the narrow I/O ports (IC-04):
-#                              feature-runs.json index, template/pack
-#                              discovery, run lifecycle, the OperationalContext
-#                              builder, the FR-009 gather_artifact_presence
-#                              fact-port, and the pure resolve_commit_target
-#                              lifted out of _wrap_with_decision_git_log. The
-#                              bridge calls them on the seam and keeps no
-#                              forwarder; two names are re-exported here for
-#                              callers outside the package (see below).
-#
-#   runtime_bridge_cores.py    sole home of the pure, zero-dependency leaves
-#                              (FR-009): the tasks.md parse family and the
-#                              guard inversion (`evaluate_guards(snapshot)`
-#                              folding `_check_cli_guards` /
-#                              `_check_composed_action_guard` /
-#                              `_check_requirement_mapping_ready`'s decision
-#                              tail over the WP05 `ArtifactPresenceSnapshot`
-#                              fact-port). The bridge calls the parse family
-#                              on the cores seam; `_parse_requirement_refs_
-#                              from_tasks_md` takes the requirement grammar as
-#                              a ``grammar=`` argument, which the bridge call
-#                              site supplies.
-#
-#   runtime_bridge_cores.py    ALSO owns the Decision-builder (FR-011,
-#                              WP07): ``DecisionEnvelope`` + ``step_or_
-#                              blocked`` collapse the 29 open-coded
-#                              ``Decision(...)`` constructions (+ the 4x
-#                              ``_state_to_action -> _build_prompt_or_error
-#                              -> step-or-blocked`` triad) that used to be
-#                              scattered across this module's three public
-#                              entries. This module keeps ``_materialize_
-#                              decision`` (the thin residual wrapper
-#                              supplying the production ``prompt_exists``
-#                              port) plus ``_map_wp_step_decision`` /
-#                              ``_map_non_wp_step_decision`` /
-#                              ``_build_decision_required_prompt_file``, the
-#                              extractions that keep ``_map_runtime_
-#                              decision`` / ``query_current_state`` at or
-#                              under the complexity ceiling.
-#
-#   runtime_bridge_composition.py   sole home of the composition-dispatch
-#                              cluster (WP08): the dispatch entry
-#                              (``_dispatch_via_composition``), the
-#                              composed-action guard
-#                              (``_check_composed_action_guard``), the
-#                              composition-input resolution helpers, the
-#                              research/documentation guard-fact readers, and
-#                              — the FR-008 headline — the
-#                              ``_should_dispatch_via_composition`` selection
-#                              seam isolated as a clean, gates-#2535-free
-#                              predicate for a future WP14 consumer to route
-#                              through. The bridge calls it on the seam; it
-#                              keeps no forwarder for any of its names.
-#
-#   runtime_bridge_identity.py   sole home of the hottest fracture line
-#                              (WP10, LAST): coord-branch naming
-#                              (``_resolve_coordination_branch``), mission-ULID
-#                              resolution (``_resolve_mission_ulid``), and
-#                              primary-feature-dir resolution
-#                              (``_primary_runtime_feature_dir``) — the scars
-#                              #2091/#1978/#1918/#1814/#2069 cluster. The
-#                              bridge calls them on the identity seam, and the
-#                              two callers of ``_primary_runtime_feature_dir``
-#                              inside the seam call it directly, so a test
-#                              patches it on ``runtime_bridge_identity``.
-#                              ``_wrap_with_decision_git_log`` (the cluster's
-#                              caller) and ``_mission_routes_through_
-#                              coordination`` are KEEP-IN-PLACE here, unmoved.
-#
-# This is the FINAL extraction (WP10) — see
-# ``kitty-specs/runtime-bridge-degod-01KX8M1C/``.
+#   runtime_bridge_query.py             query mode + answer mode (read path)
+#   runtime_bridge_decision_mapping.py  NextDecision -> Decision mapping, the
+#                                       WP-board / WP-iteration selector, the
+#                                       merged / finalized-board short-circuits
+#   runtime_bridge_decision_log.py      the coordination-aware decision-log
+#                                       wrapper (_wrap_with_decision_git_log)
+#   runtime_bridge_guards.py            guard facts + the WP-advance guard
+#   runtime_bridge_engine.py            sole home of _internal_runtime engine /
+#                                       planner private access (FR-013)
+#   runtime_bridge_composition.py       composition dispatch + composed guard
+#   runtime_bridge_io.py                narrow I/O ports (run index, template
+#                                       discovery, run lifecycle, fact port)
+#   runtime_bridge_identity.py          coord-branch / mission-ULID / feature-dir
+#                                       resolution (leaf)
+#   runtime_bridge_retrospective.py     retrospective / learning capture
+#   runtime_bridge_cores.py             pure leaves: tasks.md parse family,
+#                                       guard inversion, DecisionEnvelope
 #
 # RULES (do NOT regress):
+#   * No ``runtime_bridge_*`` seam imports this module, at module scope or
+#     deferred (tests/runtime/test_runtime_bridge_query_seam_layout.py), and
+#     the bridge defines, exposes and loads no seam-owned name
+#     (tests/runtime/test_bridge_no_compat_delegates.py).
 #   * Never reach into ``_internal_runtime.engine`` / ``.planner`` directly
 #     from this module — go through ``runtime_bridge_engine`` (arch-guarded,
 #     see ``tests/runtime/test_bridge_engine.py``).
 #   * ``__all__`` (below) covers the 8 public names only (governs
-#     ``import *``). The bridge defines no forwarders for names a seam owns;
-#     a test patches a seam-owned name on its owning seam.
+#     ``import *``).
 #
-# De-godding effort: https://github.com/Priivacy-ai/spec-kitty/issues/2531
+# De-godding effort: https://github.com/spec-kitty/spec-kitty/issues/2531
 # ─────────────────────────────────────────────────────────────────────────────
 
 from __future__ import annotations
@@ -241,11 +186,6 @@ def _is_transient_git_worktree_contention(
 
 
 # ---------------------------------------------------------------------------
-# WP advance guards
-# ---------------------------------------------------------------------------
-
-
-# ---------------------------------------------------------------------------
 # Guard evaluation (CLI-level, not runtime-level)
 # ---------------------------------------------------------------------------
 
@@ -267,7 +207,7 @@ def _check_cli_guards(
     folds it through :func:`runtime_bridge_cores.evaluate_guards_strict`, which
     raises for an unregistered mission family. ``wp_advance_ready`` is not part
     of the gathered snapshot: for ``implement``/``review`` it is read here from
-    the bridge-owned :func:`_should_advance_wp_step` and set on the snapshot.
+    :func:`runtime_bridge_guards._should_advance_wp_step` and set on the snapshot.
 
     ``mission_family`` is supplied by runtime paths that already resolved the
     primary-anchored mission type. Direct callers may omit it to preserve the
