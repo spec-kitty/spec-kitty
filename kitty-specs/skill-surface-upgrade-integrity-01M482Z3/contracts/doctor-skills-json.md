@@ -12,4 +12,4 @@ Every existing field keeps its name, type and meaning (C-006).
 `ok` is false (exit 1) when `pack_skills` or `tool_folders` is non-empty, in addition to existing conditions.
 
 ## `--fix`
-Missing pack skills are projected; projected paths appear in the existing `repaired_agents` list; failures in `repair_errors`; findings are recomputed after repair. `drift` entries are never repaired.
+Missing pack skills are projected; projected paths appear in the additive `repaired_paths` list (`repaired_agents` keeps agent keys only); failures in `repair_errors`; findings are recomputed after repair. `drift` entries are never repaired.

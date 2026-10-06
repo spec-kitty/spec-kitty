@@ -13,6 +13,7 @@
   "pruned": [],
   "repair_errors": [],
   "repaired_agents": [],
+  "repaired_paths": [],
   "repaired_vibe_config": "bool",
   "slash_commands": {
     "configured_agents": [],

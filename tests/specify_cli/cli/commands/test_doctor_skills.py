@@ -304,6 +304,7 @@ def test_doctor_skills_json_error_schema_stable(tmp_path: Path, monkeypatch: pyt
         "uninstalled_agents": [],
         "vibe_config_missing": False,
         "repaired_agents": [],
+        "repaired_paths": [],
         "pruned": [],
         "repaired_vibe_config": False,
         "repair_errors": [],
@@ -386,7 +387,8 @@ def test_required_pack_skill_never_installed_is_reported_missing_then_projected_
 
     code, payload = _doctor_skills_json("--fix")
     assert (pack_skill_project / ".claude" / "skills" / PACK_SKILL_RENDERED / "SKILL.md").is_file()
-    assert payload["repaired_agents"]
+    assert payload["repaired_paths"]
+    assert not any("/" in agent for agent in payload["repaired_agents"])
 
     code, payload = _doctor_skills_json()
     assert code == 0, payload

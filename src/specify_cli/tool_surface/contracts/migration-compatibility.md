@@ -41,6 +41,7 @@ Frozen success-path fields:
 | `uninstalled_agents` | list[str] | Configured but not installed |
 | `vibe_config_missing` | bool | Vibe skill-path config absent |
 | `repaired_agents` | list[str] | Agents repaired by `--fix` |
+| `repaired_paths` | list[str] | Pack-skill paths projected or retired by `--fix` (additive, #5801) |
 | `pruned` | list[str] | Entries pruned by `--fix` |
 | `repaired_vibe_config` | bool | Vibe config repaired by `--fix` |
 | `repair_errors` | list[str] | Errors during `--fix` |

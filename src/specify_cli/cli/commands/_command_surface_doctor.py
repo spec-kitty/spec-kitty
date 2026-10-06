@@ -416,6 +416,7 @@ def _command_skill_payload(
         "uninstalled_agents": uninstalled_agents,
         "vibe_config_missing": vibe_config_missing,
         "repaired_agents": repaired,
+        "repaired_paths": [],
         "pruned": pruned,
         "repaired_vibe_config": repaired_vibe_config,
         "repair_errors": repair_errors,
@@ -697,7 +698,7 @@ def _assemble_skills_payload(
     payload["slash_commands"] = slash_payload
     pack_findings = find_pack_skill_findings(project_path)
     if fix:
-        pack_findings = _repair_pack_skills(project_path, pack_findings, cast(list[str], payload["repaired_agents"]), cast(list[str], payload["repair_errors"]))
+        pack_findings = _repair_pack_skills(project_path, pack_findings, cast(list[str], payload["repaired_paths"]), cast(list[str], payload["repair_errors"]))
     payload["pack_skills"] = [finding.to_dict() for finding in pack_findings]
     tool_folders = _tool_folder_findings(project_path)
     payload["tool_folders"] = tool_folders
@@ -714,7 +715,7 @@ def _repair_pack_skills(
     """Project missing pack skills (``--fix``); ``drift`` is never repaired. Returns the recomputed findings.
 
     Projection can also retire orphaned copies the catalog no longer provides; those paths are
-    listed in *repaired* like any other projected path.
+    listed in *repaired*, the payload's ``repaired_paths`` (``repaired_agents`` keeps agent keys only).
     """
     if not any(finding.kind == KIND_MISSING for finding in findings):
         return findings

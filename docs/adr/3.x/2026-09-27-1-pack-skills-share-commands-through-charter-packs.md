@@ -264,7 +264,8 @@ skill directories to document its proof. This flow acts only on what it can prov
   its installed copy was deleted. Before, the health check could pass while the skill was absent.
   The `drift`, `stale`, `orphaned` and `unresolvable` kinds are unchanged.
 - **`doctor skills --fix` projects missing skills.** It calls the same `project_pack_skills`
-  installer as `charter activate` and `upgrade`. The projected paths appear in `repaired_agents`.
+  installer as `charter activate` and `upgrade`. The projected paths appear in the additive `repaired_paths` list;
+  `repaired_agents` keeps agent keys only.
   `--fix` still never repairs `drift`.
 - **`no_tool_folder`.** When none of the configured agents' tool folders exists, `doctor skills`
   fails and lists the finding under `tool_folders`.
