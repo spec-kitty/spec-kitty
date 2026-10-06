@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from charter.bundle import CHARTER_YAML
-from charter.drg import ArtifactKind
+from charter.drg import CORE_KIND_PLURALS
 from ._profile_health_render import _SELECTION_KIND_PLURALS
 
 logger = logging.getLogger(__name__)
@@ -77,7 +77,7 @@ __all__ = [
 ]
 
 
-_ORG_ARTIFACT_DIRS: tuple[str, ...] = tuple(kind.plural for kind in ArtifactKind if kind.core)
+_ORG_ARTIFACT_DIRS: tuple[str, ...] = CORE_KIND_PLURALS
 
 
 def _read_authored_pack_version(pack_root: Path) -> str | None:

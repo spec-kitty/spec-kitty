@@ -16,12 +16,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from charter.drg import ArtifactKind
+from charter.drg import CORE_KIND_PLURALS
 from specify_cli.charter_runtime.lint.findings import LintFinding
 
 KITTIFY_DIR_NAME = ".kittify"
 
-_OVERRIDABLE_ARTIFACT_TYPES: tuple[str, ...] = tuple(kind.plural for kind in ArtifactKind if kind.core)
+_OVERRIDABLE_ARTIFACT_TYPES: tuple[str, ...] = CORE_KIND_PLURALS
 
 
 def _find_repo_root_from_drg(drg: Any) -> Path | None:

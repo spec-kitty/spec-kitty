@@ -22,7 +22,7 @@ from typing import Any
 
 import requests
 
-from charter.offering.artifact_kinds import CORE_KIND_PLURALS
+from charter.drg import CORE_KIND_PLURALS
 
 from .protocol import FetchResult
 

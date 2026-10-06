@@ -62,6 +62,9 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # (WP03/T010) so the wheel symbol gains a live in-repo caller. Identity
         # holds: ``charter.offering.api.ArtifactKind is charter.offering.artifact_kinds.ArtifactKind``.
         ("ArtifactKind", "charter.offering.api"),
+        # FACADE-ONLY: the one spelling of the core-kind plurals (#5538) that the
+        # specify_cli surfaces (org-layer lint, doctor doctrine, API source) read.
+        ("CORE_KIND_PLURALS", "charter.offering.artifact_kinds"),
         ("DRGEdge", "charter.offering.drg.models"),
         ("DRGGraph", "charter.offering.drg.models"),
         ("DRGNode", "charter.offering.drg.models"),

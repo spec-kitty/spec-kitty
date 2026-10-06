@@ -240,6 +240,10 @@ class ArtifactKind(StrEnum):
         restating it; a surface that should also cover a later kind switches
         to a broader predicate rather than editing this set (#5824 tracks
         which of them should). Backs :data:`CORE_KIND_PLURALS`.
+
+        This set equals :attr:`selection_overlayable` today by coincidence, not
+        because they are the same fact: do not merge them. It is transitional;
+        delete it once #5824 lands.
         """
         return self in _CORE_KINDS
 
