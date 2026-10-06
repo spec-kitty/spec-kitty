@@ -116,7 +116,8 @@ def test_hidden_surface_still_runs_when_invoked_by_name(monkeypatch: pytest.Monk
     assert "Usage:" in result.output
 
 
-def test_unparseable_posture_warning_does_not_reach_root_help(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("failure", ["warns", "raises"])
+def test_unreadable_posture_leaves_root_help_working_and_hidden(monkeypatch: pytest.MonkeyPatch, failure: str) -> None:
     app = _registered_root(monkeypatch)
     off = hosted_posture.DrainPosture(
         enabled=False,
@@ -128,11 +129,13 @@ def test_unparseable_posture_warning_does_not_reach_root_help(monkeypatch: pytes
         reason="unparseable",
     )
 
-    def _warning_posture(*_args: object, **_kwargs: object) -> hosted_posture.DrainPosture:
+    def _failing_posture(*_args: object, **_kwargs: object) -> hosted_posture.DrainPosture:
+        if failure == "raises":
+            raise PermissionError("personal config is not readable")
         warnings.warn("config.toml is not valid TOML", UserWarning, stacklevel=2)
         return off
 
-    monkeypatch.setattr(hosted_posture, "drain_posture", _warning_posture)
+    monkeypatch.setattr(hosted_posture, "drain_posture", _failing_posture)
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
@@ -140,3 +143,4 @@ def test_unparseable_posture_warning_does_not_reach_root_help(monkeypatch: pytes
 
     assert caught == []
     assert _hidden_by_name(app)["zeitgeist"] is True
+    assert not _listed(_root_listing(app), "zeitgeist")

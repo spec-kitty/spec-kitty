@@ -202,15 +202,23 @@ def reveal_hosted_surfaces(app: typer.Typer, argv: list[str]) -> None:
     command invocation pays no extra config read. The posture reader warns on
     an unparseable config file; that warning is silenced here because the
     listing falls back to hidden, the same fail-closed answer the hosted edges
-    give, and the edges themselves still report the file when invoked.
+    give, and the edges themselves still report the file when invoked. Any other
+    failure of the read also leaves the surfaces hidden.
     """
     if _resolve_single_leaf_command(argv, app) is not None:
         return
     from specify_cli.core import hosted_posture
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        enabled = hosted_posture.drain_posture().enabled
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            enabled = hosted_posture.drain_posture().enabled
+    except Exception:
+        # Hidden is the safe default and the root listing must never crash, so
+        # any failure reading the posture (e.g. PermissionError on the personal
+        # config) leaves the hosted surfaces hidden. The hosted edges report the
+        # underlying problem themselves when invoked.
+        return
     if enabled:
         _set_hosted_surfaces_hidden(app, hidden=False)
 
