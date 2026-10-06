@@ -184,6 +184,10 @@ nodes:
     kind: skills
     title: "Run a Mission from GitHub issues"
     body_path: skills/mission-from-issue.skill.yaml
+  - id: report-debrief
+    kind: skills
+    title: "Write an executive debrief"
+    body_path: skills/report-debrief.skill.yaml
 edges:
   # Reference-not-duplicate: the landing runbook refines built-in doctrine that
   # already ships publicly, rather than re-authoring it. Targets are
@@ -471,3 +475,19 @@ edges:
   - source: debrief-template
     target: "asset:debrief-font-falling-sky-extrabold"
     relation: requires
+  # Pack skill: requires the procedure and the styleguide that carry the substance.
+  - source: "skill:report-debrief"
+    target: "procedure:executive-debrief-generation"
+    relation: requires
+  - source: "skill:report-debrief"
+    target: "styleguide:executive-debrief"
+    relation: requires
+  - source: "skill:report-debrief"
+    target: "asset:debrief-collector"
+    relation: suggests
+  - source: "skill:report-debrief"
+    target: "asset:debrief-renderer"
+    relation: suggests
+  - source: "skill:report-debrief"
+    target: "asset:spec-kitty-branded-pdf"
+    relation: suggests

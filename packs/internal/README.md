@@ -31,6 +31,7 @@ packs/internal/
 │   ├── land-pr.skill.yaml                           # kitty-land-pr: thin entry point to landing-contributor-prs
 │   ├── issue-triage.skill.yaml                      # kitty-issue-triage: thin entry point to issue-triage-pass
 │   ├── mission-from-issue.skill.yaml                # kitty-mission-from-issue: thin entry point to issue-to-mission-delivery
+│   ├── report-debrief.skill.yaml                    # kitty-report-debrief: thin entry point to executive-debrief-generation
 │   └── *.skill.md                                   # their prompt bodies (goal, inputs, ordered pointers, stop conditions)
 ├── glossary_packs/
 │   └── spk-internal.glossary-pack.yaml              # spk-internal-glossary — maintainer/engineering glossary
@@ -41,10 +42,12 @@ packs/internal/
 │   ├── memory-curation-and-escalation.procedure.yaml  # agent-memory curation and escalation
 │   ├── project-evolution-postmortem.procedure.yaml  # cycle postmortem: research squads + branded report
 │   ├── test-suite-quality-assessment.procedure.yaml # static triage, domain review squads, shrink-only follow-through
+│   ├── executive-debrief-generation.procedure.yaml  # collect, synthesize, render and hand over a debrief (behind kitty-report-debrief)
 │   ├── cloud-session-dispatch.procedure.yaml        # hand tracker issues to an autonomous cloud runner (behind spk-dispatch-cloud)
 │   ├── spec-kitty-arch-gate-adjudication.procedure.yaml  # refines built-in post-merge-arch-gate-adjudication
 │   └── spec-kitty-red-main-policy.procedure.yaml    # refines built-in red-main-release-discipline
 ├── styleguides/
+│   ├── executive-debrief.styleguide.yaml            # house style for executive debriefs (refines report-writing)
 │   ├── report-writing.styleguide.yaml               # audience-first, anti-AI-prose, Spec Kitty voice
 │   ├── spec-kitty-docs-lint-config.styleguide.yaml  # this repo's docs structural-lint config (refines common-docs)
 │   ├── spec-kitty-package-tiers.styleguide.yaml     # this repo's package-to-tier map (refines tiered-standards)
@@ -66,11 +69,20 @@ packs/internal/
     ├── test-quality-scan.py                         # static test-quality triage (runs no tests)
     ├── test-quality-scan.py.asset.yaml              # its asset sidecar
     ├── validate-pr-body.py                          # PR-body contract validator (five sections, git-grep discovery check)
-    └── validate-pr-body.py.asset.yaml               # its asset sidecar
+    ├── validate-pr-body.py.asset.yaml               # its asset sidecar
+    └── debrief/                                     # executive-debrief tooling; the template loads logo.png and fonts/ by relative path
+        ├── collect-debrief.py                       # deterministic GitHub facts as one JSON document (debrief-collector)
+        ├── render-debrief.py                        # one-pager renderer with the reference guard (debrief-renderer)
+        ├── debrief-template.html                    # one-pager HTML template (debrief-template)
+        ├── logo.png                                 # Spec Kitty logo (debrief-logo)
+        ├── fonts/FallingSky-{Regular,Bold,Extrabold}.otf  # display face (debrief-font-falling-sky-*)
+        └── *.asset.yaml                             # one sidecar per file above
 ```
 
 Asset sidecar `path` values are relative to this `assets/` folder (org-tier
 anchor), so `spec-kitty doctrine asset path <id>` resolves them to a real file.
+The debrief files sit in a `debrief/` subfolder so the template's relative links
+to the logo and fonts keep working.
 
 The `project-evolution-postmortem` procedure `suggests` the `report-writing`
 styleguide and the `branded-deliverable` tactic; the tactic `requires` the
@@ -86,13 +98,13 @@ run with `make test-quality-scan`.
 
 ## Pack skills
 
-The three skills in `skills/` are the team-shared maintainer commands. Each is a thin
+The four skills in `skills/` are the team-shared maintainer commands. Each is a thin
 entry point that carries no doctrine of its own: a `requires` edge in
 `drg/fragment.yaml` points it at the procedure that holds the rules, and the rendered
 `SKILL.md` tells the agent to load that procedure with
 `spec-kitty charter context --include <urn>`. The namespace is `kitty`, so they
-render as `kitty-land-pr`, `kitty-issue-triage` and `kitty-mission-from-issue`, and
-`required_skills` puts all three in force for every project that registers this pack.
+render as `kitty-land-pr`, `kitty-issue-triage`, `kitty-mission-from-issue` and
+`kitty-report-debrief`, and `required_skills` puts all four in force for every project that registers this pack.
 See [Create and activate a pack skill](../../docs/development/how-to/create-a-pack-skill.md).
 
 ## Reference, don't duplicate

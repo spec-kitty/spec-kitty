@@ -1,0 +1,24 @@
+schema_version: "1.0"
+id: report-debrief
+title: Write an executive debrief
+description: Use when a maintainer asks what happened or what is open ("what landed since Friday", "WTF happened with X", a milestone overview). Collects the facts from GitHub, writes a short branded debrief for named readers, and hands the PDF back without committing it.
+triggers: ["what landed since", "WTF happened", "debrief the weekend", "milestone overview", "exec overview of open issues", "write up what shipped"]
+form: prompt
+body_path: report-debrief.skill.md
+parameters:
+  - name: scope
+    required: true
+    description: "What the debrief covers: a time window (for example 'since Friday 08:00 Brussels time') or a milestone, label or query"
+  - name: repos
+    required: false
+    description: "Repositories to cover. Default: spec-kitty/spec-kitty; add spec-kitty/spec-kitty-planning only when the request covers it"
+  - name: readers
+    required: false
+    description: "Who the debrief is for (for example CTO, CEO, Head of QA, maintainers). Ask if the request does not say"
+  - name: layout
+    required: false
+    description: "one-pager or long-form. Default: choose by the rule in the executive-debrief styleguide"
+invocation:
+  user_invocable: true
+version: 1.0.0
+maintainers: ["@spec-kitty/core"]
