@@ -293,6 +293,8 @@ class LaneWorkspaceResult:
     # #4895/#5715: where a foreign (non-spec-kitty) ``.git/hooks/pre-commit``
     # was backed up before the commit guard replaced it. ``None`` when nothing
     # was backed up. The command layer prints the notice; this seam never does.
+    # Every caller MUST surface it (``implement_phases._report_hook_backup``), or
+    # the #4895 harm returns: the hook is preserved but nobody is told where.
     hook_backup_path: Path | None = None
 
     def __post_init__(self) -> None:
