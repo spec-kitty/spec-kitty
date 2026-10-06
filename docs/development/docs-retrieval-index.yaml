@@ -9337,8 +9337,9 @@ pages:
   - path: "docs/changelog/4.0.0.md"
     title: "4.0.0 — Hosted collaboration & the open-core structural finish"
     divio_type: "explanation"
-    abstract: "Declaration of intent for the 4.0.0 cycle: hosted collaboration (sync, consent, auth) plus the open-core structural strangler finish deferred from 3.2.x."
+    abstract: "Declaration of intent for the 4.0.0 cycle, re-anchored 2026-10-06: local CLI integrity gates GA, hosted collaboration is frozen, structural work continues on 4.x."
     anchors:
+    - {slug: "where-the-goals-stand-2026-10-06", text: "Where the goals stand (2026-10-06)", level: 2}
     - {slug: "why-now", text: "Why now", level: 2}
     - {slug: "theme", text: "Theme", level: 2}
     - {slug: "goals", text: "Goals", level: 2}
@@ -9348,7 +9349,7 @@ pages:
     - {slug: "committed-scope-verified-milestone-4-0-0-2026-09-04", text: "Committed scope (verified milestone `4.0.0`, 2026-09-04)", level: 2}
     - {slug: "structural-strangler-spine-committed-to-4-0-0-2026-09-04", text: "Structural strangler spine — committed to 4.0.0 (2026-09-04)", level: 2}
     - {slug: "non-goals", text: "Non-goals", level: 2}
-    - {slug: "success-criteria-placeholder-refine-when-the-cycle-activates", text: "Success criteria (placeholder — refine when the cycle activates)", level: 2}
+    - {slug: "success-criteria", text: "Success criteria", level: 2}
     - {slug: "emergent-patches", text: "Emergent patches", level: 2}
     - {slug: "links", text: "Links", level: 2}
   - path: "docs/changelog/CHANGELOG.md"
@@ -13462,19 +13463,19 @@ pages:
   - path: "docs/plans/4-0-0-milestone-roadmap.md"
     title: "4.0.0 Milestone — Roadmap"
     divio_type: "explanation"
-    abstract: "Roadmap for the 4.0.0 cycle: the 2026-10-01 direction update (hosted work off the critical path), dependency spine, exit criteria and watch items."
+    abstract: "Roadmap for the 4.0.0 cycle, re-synthesized 2026-10-06 against the GA milestone: release posture, what still gates GA, dependency spine, exit criteria and risks."
     anchors:
     - {slug: "intent-of-4-0-0", text: "Intent of 4.0.0", level: 2}
     - {slug: "direction-update-2026-10-01-hosted-collaboration-is-off-the-critical-path", text: "Direction update (2026-10-01): hosted collaboration is off the critical path", level: 2}
     - {slug: "release-posture", text: "Release posture", level: 2}
-    - {slug: "drift-since-the-declaration-convergence-re-homing", text: "Drift since the declaration (convergence re-homing)", level: 2}
+    - {slug: "drift-since-the-declaration", text: "Drift since the declaration", level: 2}
     - {slug: "the-dependency-spine", text: "The dependency spine", level: 2}
     - {slug: "per-theme-progress-and-scope", text: "Per-theme progress and scope", level: 2}
-    - {slug: "theme-1-stability-reliability-honest-reporting", text: "Theme 1 — Stability (reliability, honest reporting)", level: 3}
-    - {slug: "theme-2-maturity-one-honest-event-store-post-convergence-settle", text: "Theme 2 — Maturity (one honest event store, post-convergence settle)", level: 3}
+    - {slug: "theme-1-stability-local-integrity", text: "Theme 1 — Stability (local integrity)", level: 3}
+    - {slug: "theme-2-maturity-one-honest-local-store-owned-seams", text: "Theme 2 — Maturity (one honest local store, owned seams)", level: 3}
     - {slug: "theme-3-extensibility-governed-front-door-stable-api", text: "Theme 3 — Extensibility (governed front door + stable API)", level: 3}
-    - {slug: "theme-4-team-kitty-enablers-auth-launch-consent-identity", text: "Theme 4 — Team Kitty enablers (auth, launch, consent/identity)", level: 3}
-    - {slug: "cross-cutting-sonar-quality-debt-standing-campsite-epic", text: "Cross-cutting — Sonar / quality debt (standing campsite epic)", level: 3}
+    - {slug: "theme-4-team-kitty-enablers-frozen", text: "Theme 4 — Team Kitty enablers (frozen)", level: 3}
+    - {slug: "cross-cutting-sonar-quality-debt", text: "Cross-cutting — Sonar / quality debt", level: 3}
     - {slug: "exit-criteria-for-4-0-0", text: "Exit criteria for 4.0.0", level: 2}
     - {slug: "risks-watch-items", text: "Risks / watch items", level: 2}
     - {slug: "immediate-next-steps", text: "Immediate next steps", level: 2}
