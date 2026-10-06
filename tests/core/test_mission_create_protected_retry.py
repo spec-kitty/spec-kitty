@@ -142,4 +142,3 @@ def test_rerun_for_same_slug_refuses_mission_already_exists(tmp_path: Path, seco
     assert meta_path.read_text(encoding="utf-8") == meta_before
     assert _scaffolds(repo, "rerun-slug") == [first.feature_dir.name]
     assert _git(repo, "branch", "--show-current") == mission_branch_name("rerun-slug", mission_id=_FIRST_ID)
-

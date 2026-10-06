@@ -30,8 +30,8 @@ and 2 failed-create restore cells):
     branches, missions, working tree) is captured too, under ``watched``.
 12. ``protected_recreate``: a protected ``single_branch`` create re-run into
     its own existing scaffold (predict-then-plant).
-13. ``refused_mint_orphan_retry``: cell 3's orphan scaffold, then the retry
-    after ``stray.txt`` is removed (baseline-red, follow-up: #5704).
+13. ``refused_mint_orphan_retry``: cell 3's refused mint leaves no scaffold, so
+    the retry after ``stray.txt`` is removed succeeds (#5704).
 14. ``malformed_config_invalid_yaml``: ``.kittify/config.yaml`` is not YAML.
 15. ``malformed_config_protection_shape``: well-formed YAML whose
     ``protection.protected_branches`` is not a list.
@@ -205,12 +205,12 @@ def test_protected_recreate(tmp_path: Path) -> None:
 
 
 def test_refused_mint_orphan_retry(tmp_path: Path) -> None:
-    """Baseline-red, follow-up: #5704 -- pinned as-is, not fixed."""
+    """#5704: the refused mint leaves no orphan scaffold, so the retry creates the mission."""
     slug = "ref-orphan-retry"
     repo = _protected_main(tmp_path)
     stray = repo / _STRAY
     stray.write_text("operator work\n", encoding="utf-8")
-    # The refused mint itself is pinned by cell 3; its residue is this cell's ``pre``.
+    # The refused mint itself is pinned by cell 3; ``pre`` records that it left no residue.
     outcome_of(_create(repo, slug, MissionTopology.SINGLE_BRANCH))
     stray.unlink()
     observed = run_cell(repo, tmp_path, _create(repo, slug, MissionTopology.SINGLE_BRANCH), slugs=[slug])

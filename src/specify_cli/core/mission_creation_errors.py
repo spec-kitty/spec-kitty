@@ -94,7 +94,22 @@ class MissionCreationResult:
 MissionCreationResult.__module__ = "specify_cli.core.mission_creation"
 
 
-class MissionBranchExistsError(MissionCreationError):
+class ProtectedMintRefusedError(MissionCreationError):
+    """The protected-target mint refused before any git write (#5704).
+
+    Raised for every :func:`decide_protected_mint` refusal (target with no
+    commit, dirty write checkout, mission branch already exists). Nothing this
+    create wrote is committed yet, so the failure-atomic rollback treats it as
+    disposable and removes the untracked scaffold: the retry after the operator
+    fixes the cause must not meet an orphan scaffold. ``error_code`` stays
+    ``None`` (``MISSION_CREATE_FAILED``) unless a subclass names one.
+    """
+
+    # Report the façade as home, as before #5634 (tracebacks, repr, pickling).
+    __module__ = "specify_cli.core.mission_creation"
+
+
+class MissionBranchExistsError(ProtectedMintRefusedError):
     """Raised when the deterministically-composed mission branch already exists.
 
     #5100 FR-007 (WP08): a protected-target ``single_branch`` mission mints

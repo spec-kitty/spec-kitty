@@ -263,13 +263,20 @@ def is_abandoned(
     canceled_lane: str,
     event_count: int,
     spec_tracked: bool | None,
+    mission_branch_live: bool = False,
 ) -> bool | None:
     """Classify a same-key prior mission as abandoned (#4033 research.md D-2).
 
     Abandoned = every recorded work package sits in *canceled_lane*, OR no
-    lifecycle progress (zero events) AND the spec was never committed.
-    ``spec_tracked`` is ``None`` until probed; the result is ``None`` when it
-    is the deciding fact.
+    lifecycle progress (zero events) AND the spec was never committed AND
+    *mission_branch_live* is false. ``spec_tracked`` is ``None`` until probed;
+    the result is ``None`` when it is the deciding fact.
+
+    *mission_branch_live* (#5726): the prior's protected-target mint created
+    its ``mission_branch``, that branch still exists (its scaffold is committed
+    there), and the create asking would run the protected mint too. That is
+    real create state, not a never-touched scaffold, even while ``spec.md`` is
+    untracked under the #846 create boundary.
     """
     if wp_lanes and all(lane == canceled_lane for lane in wp_lanes.values()):
         return True
@@ -277,7 +284,7 @@ def is_abandoned(
         return False
     if spec_tracked is None:
         return None
-    return not spec_tracked
+    return not spec_tracked and not mission_branch_live
 
 
 # ---------------------------------------------------------------------------

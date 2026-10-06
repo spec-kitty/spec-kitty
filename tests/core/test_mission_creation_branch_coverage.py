@@ -40,6 +40,7 @@ from specify_cli.core import mission_creation
 from specify_cli.core.mission_creation import (
     MissionAlreadyExistsError,
     MissionCreationError,
+    ProtectedMintRefusedError,
     create_mission_core,
 )
 from specify_cli.lanes.branch_naming import mission_branch_name, mission_dir_name, resolve_mid8
@@ -139,7 +140,7 @@ class TestProtectedMintBranches:
             _create(repo, "row-one", topology=MissionTopology.SINGLE_BRANCH, target_branch=_MAIN)
 
         message = str(excinfo.value)
-        assert type(excinfo.value) is MissionCreationError
+        assert type(excinfo.value) is ProtectedMintRefusedError  # #5704: disposable, no orphan scaffold
         assert "Cannot mint the protected-target mission branch" in message
         assert "has uncommitted changes outside this mission's own scaffold: operator-notes.txt" in message
         assert "Commit or discard them, then retry." in message

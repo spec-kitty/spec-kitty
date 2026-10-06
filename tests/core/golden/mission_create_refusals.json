@@ -1,5 +1,5 @@
 {
-  "base_commit": "f0f3daa55fcfa79361acc7b3bab3beffa0e64705",
+  "base_commit": "6acff3089d8378de8ec69ae87a7cab89bf85fa20",
   "cells": {
     "commit_to_target_without_single_branch": {
       "outcome": {
@@ -102,7 +102,7 @@
     "dirty_checkout_protected_mint": {
       "outcome": {
         "error_code": null,
-        "exc_type": "MissionCreationError",
+        "exc_type": "ProtectedMintRefusedError",
         "message": "Cannot mint the protected-target mission branch: the write checkout at <TMP>/repo has uncommitted changes outside this mission's own scaffold: stray.txt. Commit or discard them, then retry."
       },
       "post": {
@@ -112,32 +112,14 @@
         "head": {
           "repo": "main"
         },
-        "missions": {
-          "repo/kitty-specs/ref-dirty-mint-<MID8#1>": {
-            "tree": [
-              "checklists/",
-              "research/",
-              "spec.md",
-              "status.events.jsonl",
-              "tasks/",
-              "tasks/.gitkeep",
-              "tasks/README.md"
-            ]
-          }
-        },
+        "missions": {},
         "new_commits": {},
         "porcelain": {
           "repo": [
-            "?? kitty-specs/ref-dirty-mint-<MID8#1>/spec.md",
-            "?? kitty-specs/ref-dirty-mint-<MID8#1>/status.events.jsonl",
-            "?? kitty-specs/ref-dirty-mint-<MID8#1>/tasks/.gitkeep",
-            "?? kitty-specs/ref-dirty-mint-<MID8#1>/tasks/README.md",
             "?? stray.txt"
           ]
         },
-        "status_log": {
-          "repo/kitty-specs/ref-dirty-mint-<MID8#1>/status.events.jsonl": []
-        },
+        "status_log": {},
         "worktrees": [
           {
             "branch": "main",
@@ -722,31 +704,12 @@
         "head": {
           "repo": "main"
         },
-        "missions": {
-          "repo/kitty-specs/ref-branch-exists-<MID8#1>": {
-            "tree": [
-              "checklists/",
-              "research/",
-              "spec.md",
-              "status.events.jsonl",
-              "tasks/",
-              "tasks/.gitkeep",
-              "tasks/README.md"
-            ]
-          }
-        },
+        "missions": {},
         "new_commits": {},
         "porcelain": {
-          "repo": [
-            "?? kitty-specs/ref-branch-exists-<MID8#1>/spec.md",
-            "?? kitty-specs/ref-branch-exists-<MID8#1>/status.events.jsonl",
-            "?? kitty-specs/ref-branch-exists-<MID8#1>/tasks/.gitkeep",
-            "?? kitty-specs/ref-branch-exists-<MID8#1>/tasks/README.md"
-          ]
+          "repo": []
         },
-        "status_log": {
-          "repo/kitty-specs/ref-branch-exists-<MID8#1>/status.events.jsonl": []
-        },
+        "status_log": {},
         "worktrees": [
           {
             "branch": "main",
@@ -899,7 +862,7 @@
       "outcome": {
         "error_code": "MISSION_ALREADY_EXISTS",
         "exc_type": "MissionAlreadyExistsError",
-        "message": "Mission directory ref-protected-recreate-<MID8#1> already exists (kitty-specs/ref-protected-recreate-<MID8#1>/meta.json is present). Refusing to overwrite an existing mission."
+        "message": "A mission named 'ref-protected-recreate' of type 'software-dev' already exists and is not abandoned: ref-protected-recreate-<MID8#1> (mid8 <MID8#1>). Refusing to silently create a duplicate (#4033).\n\nIf the prior mission is genuinely abandoned (canceled, or never actually worked), re-run this create with no flag -- abandoned priors are auto-allowed.\n\nTo deliberately create a second mission with the same name, pass --allow-duplicate (create_mission_core(allow_duplicate=True) for programmatic callers)."
       },
       "post": {
         "branches": [
@@ -1051,7 +1014,7 @@
     "protected_target_without_commit": {
       "outcome": {
         "error_code": null,
-        "exc_type": "MissionCreationError",
+        "exc_type": "ProtectedMintRefusedError",
         "message": "Cannot mint the protected-target mission branch: target branch 'release' has no commit in <TMP>/repo (it does not exist yet, or is still unborn). Create it with at least one commit (for example: git branch release <start-point>), or pass --target-branch naming an existing branch, then retry."
       },
       "post": {
@@ -1062,31 +1025,12 @@
         "head": {
           "repo": "topic"
         },
-        "missions": {
-          "repo/kitty-specs/ref-target-no-commit-<MID8#1>": {
-            "tree": [
-              "checklists/",
-              "research/",
-              "spec.md",
-              "status.events.jsonl",
-              "tasks/",
-              "tasks/.gitkeep",
-              "tasks/README.md"
-            ]
-          }
-        },
+        "missions": {},
         "new_commits": {},
         "porcelain": {
-          "repo": [
-            "?? kitty-specs/ref-target-no-commit-<MID8#1>/spec.md",
-            "?? kitty-specs/ref-target-no-commit-<MID8#1>/status.events.jsonl",
-            "?? kitty-specs/ref-target-no-commit-<MID8#1>/tasks/.gitkeep",
-            "?? kitty-specs/ref-target-no-commit-<MID8#1>/tasks/README.md"
-          ]
+          "repo": []
         },
-        "status_log": {
-          "repo/kitty-specs/ref-target-no-commit-<MID8#1>/status.events.jsonl": []
-        },
+        "status_log": {},
         "worktrees": [
           {
             "branch": "topic",
@@ -1118,21 +1062,90 @@
     },
     "refused_mint_orphan_retry": {
       "outcome": {
-        "error_code": "MISSION_ALREADY_EXISTS",
-        "exc_type": "MissionAlreadyExistsError",
-        "message": "A mission named 'ref-orphan-retry' of type 'software-dev' already exists and is not abandoned: ref-orphan-retry-<MID8#1> (mid8 <MID8#1>). Refusing to silently create a duplicate (#4033).\n\nIf the prior mission is genuinely abandoned (canceled, or never actually worked), re-run this create with no flag -- abandoned priors are auto-allowed.\n\nTo deliberately create a second mission with the same name, pass --allow-duplicate (create_mission_core(allow_duplicate=True) for programmatic callers)."
+        "result": {
+          "canonical_repo_root": "<TMP>/repo",
+          "coordination_branch": null,
+          "coordination_branch_created": false,
+          "created_files": [
+            "<TMP>/repo/kitty-specs/ref-orphan-retry-<MID8#1>/spec.md",
+            "<TMP>/repo/kitty-specs/ref-orphan-retry-<MID8#1>/meta.json",
+            "<TMP>/repo/kitty-specs/ref-orphan-retry-<MID8#1>/tasks/README.md"
+          ],
+          "current_branch": "main",
+          "feature_dir": "<TMP>/repo/kitty-specs/ref-orphan-retry-<MID8#1>",
+          "meta": {
+            "created_at": "<TS>",
+            "flattened": false,
+            "friendly_name": "ref orphan retry",
+            "mid8": "<MID8#1>",
+            "mission_branch": "kitty/mission-ref-orphan-retry-<MID8#1>",
+            "mission_id": "<ULID#1>",
+            "mission_number": null,
+            "mission_slug": "ref-orphan-retry-<MID8#1>",
+            "mission_type": "software-dev",
+            "purpose_context": "This mission advances ref orphan retry on main so stakeholders can track the work from mission creation onward.",
+            "purpose_tldr": "ref orphan retry",
+            "slug": "ref-orphan-retry-<MID8#1>",
+            "target_branch": "main",
+            "topology": "single_branch"
+          },
+          "mission_number": null,
+          "mission_slug": "ref-orphan-retry-<MID8#1>",
+          "origin_binding_attempted": false,
+          "origin_binding_error": null,
+          "origin_binding_succeeded": false,
+          "owned_checkout": null,
+          "target_branch": "main",
+          "uncommitted_files": [
+            "<TMP>/repo/kitty-specs/ref-orphan-retry-<MID8#1>/spec.md"
+          ]
+        }
       },
       "post": {
         "branches": [
+          "kitty/mission-ref-orphan-retry-<MID8#1>",
           "main"
         ],
         "head": {
-          "repo": "main"
+          "repo": "kitty/mission-ref-orphan-retry-<MID8#1>"
         },
         "missions": {
           "repo/kitty-specs/ref-orphan-retry-<MID8#1>": {
+            "meta": {
+              "created_at": "<TS>",
+              "flattened": false,
+              "friendly_name": "ref orphan retry",
+              "mid8": "<MID8#1>",
+              "mission_branch": "kitty/mission-ref-orphan-retry-<MID8#1>",
+              "mission_id": "<ULID#1>",
+              "mission_number": null,
+              "mission_slug": "ref-orphan-retry-<MID8#1>",
+              "mission_type": "software-dev",
+              "purpose_context": "This mission advances ref orphan retry on main so stakeholders can track the work from mission creation onward.",
+              "purpose_tldr": "ref orphan retry",
+              "slug": "ref-orphan-retry-<MID8#1>",
+              "target_branch": "main",
+              "topology": "single_branch"
+            },
+            "meta_key_order": [
+              "created_at",
+              "flattened",
+              "friendly_name",
+              "mid8",
+              "mission_branch",
+              "mission_id",
+              "mission_number",
+              "mission_slug",
+              "mission_type",
+              "purpose_context",
+              "purpose_tldr",
+              "slug",
+              "target_branch",
+              "topology"
+            ],
             "tree": [
               "checklists/",
+              "meta.json",
               "research/",
               "spec.md",
               "status.events.jsonl",
@@ -1142,21 +1155,35 @@
             ]
           }
         },
-        "new_commits": {},
+        "new_commits": {
+          "kitty/mission-ref-orphan-retry-<MID8#1>": [
+            {
+              "message": [
+                "Add scaffold for feature ref-orphan-retry-<MID8#1>"
+              ],
+              "paths": [
+                "kitty-specs/ref-orphan-retry-<MID8#1>/meta.json",
+                "kitty-specs/ref-orphan-retry-<MID8#1>/status.events.jsonl",
+                "kitty-specs/ref-orphan-retry-<MID8#1>/tasks/.gitkeep",
+                "kitty-specs/ref-orphan-retry-<MID8#1>/tasks/README.md"
+              ]
+            }
+          ]
+        },
         "porcelain": {
           "repo": [
-            "?? kitty-specs/ref-orphan-retry-<MID8#1>/spec.md",
-            "?? kitty-specs/ref-orphan-retry-<MID8#1>/status.events.jsonl",
-            "?? kitty-specs/ref-orphan-retry-<MID8#1>/tasks/.gitkeep",
-            "?? kitty-specs/ref-orphan-retry-<MID8#1>/tasks/README.md"
+            "?? kitty-specs/ref-orphan-retry-<MID8#1>/spec.md"
           ]
         },
         "status_log": {
-          "repo/kitty-specs/ref-orphan-retry-<MID8#1>/status.events.jsonl": []
+          "repo/kitty-specs/ref-orphan-retry-<MID8#1>/status.events.jsonl": [
+            "MissionCreated",
+            "SpecifyStarted"
+          ]
         },
         "worktrees": [
           {
-            "branch": "main",
+            "branch": "kitty/mission-ref-orphan-retry-<MID8#1>",
             "path": "repo"
           }
         ]
@@ -1168,31 +1195,12 @@
         "head": {
           "repo": "main"
         },
-        "missions": {
-          "repo/kitty-specs/ref-orphan-retry-<MID8#1>": {
-            "tree": [
-              "checklists/",
-              "research/",
-              "spec.md",
-              "status.events.jsonl",
-              "tasks/",
-              "tasks/.gitkeep",
-              "tasks/README.md"
-            ]
-          }
-        },
+        "missions": {},
         "new_commits": {},
         "porcelain": {
-          "repo": [
-            "?? kitty-specs/ref-orphan-retry-<MID8#1>/spec.md",
-            "?? kitty-specs/ref-orphan-retry-<MID8#1>/status.events.jsonl",
-            "?? kitty-specs/ref-orphan-retry-<MID8#1>/tasks/.gitkeep",
-            "?? kitty-specs/ref-orphan-retry-<MID8#1>/tasks/README.md"
-          ]
+          "repo": []
         },
-        "status_log": {
-          "repo/kitty-specs/ref-orphan-retry-<MID8#1>/status.events.jsonl": []
-        },
+        "status_log": {},
         "worktrees": [
           {
             "branch": "main",

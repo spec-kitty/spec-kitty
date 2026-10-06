@@ -158,6 +158,7 @@ from specify_cli.core.mission_creation_errors import (
     MissionAlreadyExistsError as MissionAlreadyExistsError,
     MissionCreationResult as MissionCreationResult,
     MissionBranchExistsError as MissionBranchExistsError,
+    ProtectedMintRefusedError as ProtectedMintRefusedError,
     _BOOTSTRAP_META_COMMIT_SKIPS as _BOOTSTRAP_META_COMMIT_SKIPS,
 )
 from specify_cli.core.mission_creation_identity import (
@@ -174,6 +175,7 @@ from specify_cli.core.mission_creation_roots import (
 from specify_cli.core.mission_creation_duplicates import (
     _list_mission_scaffolds as _list_mission_scaffolds,
     _prior_mission_is_abandoned as _prior_mission_is_abandoned,
+    _minted_mission_branch_is_live as _minted_mission_branch_is_live,
     _find_live_duplicate_mission as _find_live_duplicate_mission,
     _refuse_live_duplicate as _refuse_live_duplicate,
 )
@@ -593,9 +595,28 @@ def _create_mission_core_impl(
     # coordination create is never seeded onto the coordination surface
     # itself -- tracked as a follow-up, not fixed here.
 
-    _refuse_live_duplicate(write_root, mission_slug, mission, allow_duplicate)
-
     planning_branch = target_branch if target_branch else current_branch
+
+    # One protection probe per create, shared by the duplicate guard, the
+    # recreate guard and the mint. Making it resolves nothing; the first caller
+    # that needs protection resolves it, the others reuse it. The duplicate
+    # guard asks only for a genesis prior with a live minted mission branch
+    # (#5726), so every other create resolves protection where it did before.
+    protection = _ProtectionProbe(write_root)
+    _refuse_live_duplicate(
+        write_root,
+        mission_slug,
+        mission,
+        allow_duplicate,
+        protected_mint_applies=lambda: _protected_mint_applies(
+            write_root,
+            topology=topology,
+            commit_to_target=commit_to_target,
+            target_branch=planning_branch,
+            protection=protection,
+        ),
+    )
+
     create_time_target = resolve_create_time_write_target(planning_branch)
     purpose = _resolve_purpose(normalized_friendly_name, purpose_tldr, purpose_context, planning_branch)
 
@@ -615,11 +636,6 @@ def _create_mission_core_impl(
     # ``_build_create_meta`` (#3474), so the two can never drift.
     mid8 = resolve_mid8("", mission_id=mission_id)
     mission_slug_formatted = mission_dir_name(mission_slug, mid8=mid8)
-
-    # One protection probe per create, shared by the recreate guard
-    # and the mint. Making it resolves nothing; the first caller that needs
-    # protection resolves it (never earlier than before), the second reuses it.
-    protection = _ProtectionProbe(write_root)
 
     scaffold = _scaffold_mission_dir(
         write_root=write_root,

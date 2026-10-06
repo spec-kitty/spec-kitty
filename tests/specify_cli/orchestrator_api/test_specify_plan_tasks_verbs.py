@@ -476,13 +476,9 @@ def test_specify_twice_for_same_slug_fails_closed_with_structured_error(tmp_path
     mission type before any write, whatever ``mission_id`` the second call
     mints. Classifying that refusal into a stable ``error_code`` (rather than
     letting the bare ``{"error": ...}`` propagate uncoded) is this WP's job.
-    The refusal the second call hits depends on its ``mid8``: with the first
-    call's ``mid8`` (same ~256ms ULID bucket) the guard refuses with
-    ``MISSION_ALREADY_EXISTS``; with a fresh ``mid8`` the protected-mint dirty
-    check refuses first on the first mission's untracked ``spec.md``
-    (``MISSION_CREATE_FAILED``). Both outcomes are identical before and after
-    #5634, so the mint is frozen on the identity leaf to pin the duplicate case
-    deterministically (the orchestrator-api verb exposes no identity input).
+    This test pins the same-``mid8`` case (the identity is frozen on the
+    identity leaf; the orchestrator-api verb exposes no identity input); its
+    fresh-``mid8`` sibling below pins the other bucket (#5726).
     """
     frozen_mission_id = "01M4563SAAAAAAAAAAAAAAAAAA"
     monkeypatch.setattr("specify_cli.core.mission_creation_identity.ULID", lambda: frozen_mission_id)

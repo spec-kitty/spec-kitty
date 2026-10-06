@@ -36,7 +36,12 @@ from kernel.git import GitPath, status_entries
 from specify_cli.lanes.branch_naming import (
     mission_branch_name,
 )
-from specify_cli.core.mission_creation_errors import MissionAlreadyExistsError, MissionBranchExistsError, MissionCreationError
+from specify_cli.core.mission_creation_errors import (
+    MissionAlreadyExistsError,
+    MissionBranchExistsError,
+    MissionCreationError,
+    ProtectedMintRefusedError,
+)
 
 
 def _target_has_commit(write_root: Path, target_branch: str) -> bool:
@@ -50,10 +55,14 @@ def _target_has_commit(write_root: Path, target_branch: str) -> bool:
 
 
 def _raise_refusal(decision: Refuse) -> NoReturn:
-    """Raise a protected-mint refusal as its existing error class (error codes unchanged)."""
+    """Raise a protected-mint refusal as a :class:`ProtectedMintRefusedError` (error codes unchanged).
+
+    The type is what marks the refusal disposable for the failure-atomic
+    rollback (#5704): no scaffold outlives it.
+    """
     if decision.kind == "branch_exists":
         raise MissionBranchExistsError(decision.message)
-    raise MissionCreationError(decision.message)
+    raise ProtectedMintRefusedError(decision.message)
 
 
 class _ProtectionProbe:

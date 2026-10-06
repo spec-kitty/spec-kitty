@@ -8,6 +8,7 @@ function another ``mission_creation*`` module owns, goes through a lazy in-funct
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
@@ -40,7 +41,23 @@ def _list_mission_scaffolds(repo_root: Path) -> frozenset[str]:
         return frozenset()
 
 
-def _prior_mission_is_abandoned(repo_root: Path, feature_dir: Path) -> bool:
+def _minted_mission_branch_is_live(repo_root: Path, meta: dict[str, object]) -> bool:
+    """True when *meta* records a minted ``mission_branch`` that exists in *repo_root* (#5726)."""
+    from specify_cli.core import mission_creation as _mc
+
+    mission_branch = meta.get("mission_branch")
+    if not isinstance(mission_branch, str) or not mission_branch:
+        return False
+    live: bool = _mc._local_branch_exists(repo_root, mission_branch)
+    return live
+
+
+def _prior_mission_is_abandoned(
+    repo_root: Path,
+    feature_dir: Path,
+    meta: dict[str, object] | None = None,
+    protected_mint_applies: Callable[[], bool] | None = None,
+) -> bool:
     """Classify a same-key prior mission as abandoned (#4033 research.md D-2).
 
     Abandoned = canceled (every recorded work package sits in the
@@ -55,6 +72,13 @@ def _prior_mission_is_abandoned(repo_root: Path, feature_dir: Path) -> bool:
     (a same-key create run twice back to back) -- and must still be refused,
     while a bare, never-touched scaffold (spec.md left uncommitted, no WP
     ever seeded) is the common "gave up and re-ran" case and must auto-allow.
+    One narrowing (#5726): when THIS create would run the protected mint
+    (*protected_mint_applies*, resolved only when it decides), a prior whose
+    *meta* records a minted ``mission_branch`` that still exists is LIVE. Its
+    scaffold is committed on that branch, and the mint would otherwise refuse
+    on the prior's own untracked ``spec.md`` with a mid8-dependent code; the
+    re-run refuses MISSION_ALREADY_EXISTS instead. A re-create that does not
+    mint (for example one made on the prior's mission branch) keeps FR-003.
 
     Fail closed (C-002): any status-log read failure means abandonment
     cannot be established, so this returns ``False`` (treated as LIVE) and
@@ -74,7 +98,20 @@ def _prior_mission_is_abandoned(repo_root: Path, feature_dir: Path) -> bool:
     if verdict is None:
         # genesis candidate: the spec's git tracking decides, probed only now.
         spec_tracked = _mc._path_is_tracked_by_git(repo_root, feature_dir / "spec.md")
-        verdict = is_abandoned(wp_lanes=wp_lanes, canceled_lane=Lane.CANCELED.value, event_count=snapshot.event_count, spec_tracked=spec_tracked)
+        branch_live = (
+            meta is not None
+            and protected_mint_applies is not None
+            and not spec_tracked
+            and _minted_mission_branch_is_live(repo_root, meta)
+            and protected_mint_applies()
+        )
+        verdict = is_abandoned(
+            wp_lanes=wp_lanes,
+            canceled_lane=Lane.CANCELED.value,
+            event_count=snapshot.event_count,
+            spec_tracked=spec_tracked,
+            mission_branch_live=branch_live,
+        )
     return verdict is True
 
 
@@ -83,6 +120,7 @@ def _find_live_duplicate_mission(
     *,
     mission_slug: str,
     mission_type: str,
+    protected_mint_applies: Callable[[], bool] | None = None,
 ) -> tuple[str, str] | None:
     """Find a live same-key prior mission, if any (#4033 idempotency guard).
 
@@ -93,7 +131,8 @@ def _find_live_duplicate_mission(
 
     Returns ``(dir_name, mid8)`` for the first live match, or ``None`` when
     no same-key prior mission exists or every one is abandoned (see
-    :func:`_prior_mission_is_abandoned`).
+    :func:`_prior_mission_is_abandoned`, which receives
+    *protected_mint_applies*).
 
     Fail closed (C-002): a same-slug candidate whose ``meta.json`` is
     missing or corrupt is treated as LIVE -- its type/abandonment cannot be
@@ -121,7 +160,7 @@ def _find_live_duplicate_mission(
         if not candidate_mid8:
             candidate_mid8 = str(candidate_meta.get("mid8") or "")
 
-        if _prior_mission_is_abandoned(repo_root, candidate_dir):
+        if _prior_mission_is_abandoned(repo_root, candidate_dir, candidate_meta, protected_mint_applies):
             continue  # abandoned prior: auto-allow (FR-003), no flag needed
 
         return (name, candidate_mid8)
@@ -134,6 +173,7 @@ def _refuse_live_duplicate(
     mission_slug: str,
     mission: str | None,
     allow_duplicate: bool,
+    protected_mint_applies: Callable[[], bool] | None = None,
 ) -> None:
     """Idempotency guard (#4033, FR-001..004, C-001, C-002).
 
@@ -143,7 +183,9 @@ def _refuse_live_duplicate(
     refusal). "Live" excludes abandoned priors (canceled, genesis / no
     lifecycle progress, or spec never committed, see
     :func:`_prior_mission_is_abandoned`), so the common gave-up-and-re-ran
-    path just works with no flag (FR-003).
+    path just works with no flag (FR-003). *protected_mint_applies* (#5726)
+    says whether this create will run the protected mint; see
+    :func:`_prior_mission_is_abandoned`.
     """
     if allow_duplicate:
         return
@@ -152,6 +194,7 @@ def _refuse_live_duplicate(
         write_root,
         mission_slug=mission_slug,
         mission_type=effective_mission_type,
+        protected_mint_applies=protected_mint_applies,
     )
     if duplicate is None:
         return

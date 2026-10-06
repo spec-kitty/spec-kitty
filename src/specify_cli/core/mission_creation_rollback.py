@@ -27,6 +27,7 @@ from specify_cli.core.mission_creation_decisions import (
 )
 from kernel.git import GitCommandError, tracked_paths
 from specify_cli.core.git_ops import get_current_branch
+from specify_cli.core.mission_creation_errors import ProtectedMintRefusedError
 from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
 from specify_cli.lanes.branch_naming import (
     strip_numeric_prefix,
@@ -105,6 +106,11 @@ def _failure_is_disposable_create_refusal(exc: BaseException) -> bool:
     their new, untracked scaffolds. Persistence failures retain their explicit
     resume-probe evidence. Both scaffold and origin commits wrap exceptions;
     inspect their causes rather than only the surface type.
+
+    A protected-mint refusal (:class:`ProtectedMintRefusedError`, #5704) is
+    disposable too: it fires after the scaffold write and before any commit,
+    and its remedy (commit the stray work, give the target a commit, remove
+    the stale branch) is a retry that an orphan scaffold would block.
     """
     from specify_cli.git.commit_helpers import (
         ProtectedBranchRefused,
@@ -115,7 +121,7 @@ def _failure_is_disposable_create_refusal(exc: BaseException) -> bool:
     seen: set[int] = set()
     current: BaseException | None = exc
     while current is not None and id(current) not in seen:
-        if isinstance(current, (ProtectedBranchRefused, SafeCommitHeadMismatch, SafeCommitDestinationNotFound)):
+        if isinstance(current, (ProtectedBranchRefused, SafeCommitHeadMismatch, SafeCommitDestinationNotFound, ProtectedMintRefusedError)):
             return True
         seen.add(id(current))
         current = current.__cause__ or current.__context__
