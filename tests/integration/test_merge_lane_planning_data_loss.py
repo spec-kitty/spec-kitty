@@ -1450,12 +1450,30 @@ _RETENTION_SLUG = f"retention-repro-{_RETENTION_MID8}"
 _RETENTION_MISSION_BRANCH = f"kitty/mission-{_RETENTION_SLUG}"
 
 
-def _restamp_coord_worktree(repo: Path, slug: str, feature_dir: Path) -> None:
-    """Record, in the coordination worktree's own log, that review approved the lane tips (#5668)."""
+def _restamp_coord_worktree(repo: Path, slug: str, feature_dir: Path, composed_rel: Path | None = None) -> None:
+    """Give the coordination worktree the approval stamps the target already committed (#5668).
+
+    Call it after the target (checked out in *repo*) has committed its stamps. A coordination
+    branch with no commit of its own is fast-forwarded to the target, so both branches share the
+    target's stamp commits, the shape ``restamp_log_at_lane_tips(coord_branch=...)`` gives. Do not
+    stamp such a branch again in a commit of its own: that commit gets the target's SHA only when
+    both land in the same wall-clock second. Otherwise the merge base predates the stamp, and the
+    event-log merge driver refuses the ``approved`` event whose payload the stamp rewrote. That
+    was the ``TARGET_BRANCH_CONTENT_CONFLICT`` flake. A branch with a commit of its own is stamped
+    in place (its stamp commits never share the target's), together with the composed
+    *composed_rel* log when one is given.
+    """
     from specify_cli.coordination.workspace import CoordinationWorkspace
 
     coord = CoordinationWorkspace.worktree_path(repo, slug, _RETENTION_MID8)
+    target_tip = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    has_own_commits = subprocess.run(["git", "-C", str(coord), "merge-base", "--is-ancestor", "HEAD", target_tip], check=False).returncode != 0
+    if not has_own_commits:
+        _git(coord, "merge", "--ff-only", "-q", target_tip)
+        return
     restamp_log_at_lane_tips(coord, coord / feature_dir.relative_to(repo))
+    if composed_rel is not None:
+        _stamp_composed_log_at_lane_tips(repo, feature_dir, coord, composed_rel)
 
 
 def _stamp_composed_log_at_lane_tips(repo: Path, primary_dir: Path, checkout: Path, composed_rel: Path) -> None:
@@ -2028,7 +2046,6 @@ def _build_bare_slug_coord_mission(
     )
     _git(repo, "checkout", "main")
     restamp_log_at_lane_tips(repo, feature_dir)
-    _restamp_coord_worktree(repo, slug, feature_dir)
     # A bare-slug Mission's coordination writes resolve to the COMPOSED directory,
     # so #5668's approved bound reads the approval stamp from a composed-name log
     # -- not the inherited bare one restamped above. Stamp every composed log this
@@ -2036,14 +2053,11 @@ def _build_bare_slug_coord_mission(
     # ``primary_dir_files``, and in the coordination worktree via ``composed_files``)
     # at the lane tips, exactly as a real post-#5668 Mission records. The lane tips
     # come from the PRIMARY manifest (the composed dirs carry only a status pair).
+    # The target's stamps are all committed first, so a coordination branch with
+    # no commit of its own shares them (see ``_restamp_coord_worktree``).
     composed_rel = Path("kitty-specs") / f"{slug}-{_RETENTION_MID8}"
     _stamp_composed_log_at_lane_tips(repo, feature_dir, repo, composed_rel)
-    _stamp_composed_log_at_lane_tips(
-        repo,
-        feature_dir,
-        CoordinationWorkspace.worktree_path(repo, slug, _RETENTION_MID8),
-        composed_rel,
-    )
+    _restamp_coord_worktree(repo, slug, feature_dir, composed_rel)
 
     from specify_cli.lanes.worktree_allocator import predict_lane_worktree
 
