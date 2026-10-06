@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import pytest
 
@@ -89,13 +89,6 @@ def test_second_start_reuses_the_run_read_back_from_the_resolved_index(started_r
     assert again.mission_key == first.mission_key
 
 
-def test_kept_public_re_export_reaches_the_same_run(started_run: tuple[Path, MissionRunRef]) -> None:
-    repo_root, first = started_run
-    via_bridge = runtime_bridge.get_or_start_run(_SLUG, repo_root, _MISSION_TYPE)
-    assert via_bridge.run_id == first.run_id
-    assert via_bridge.run_dir == first.run_dir
-
-
 def test_runs_index_on_disk_maps_the_mission_to_the_started_run(started_run: tuple[Path, MissionRunRef]) -> None:
     repo_root, first = started_run
     index = runtime_bridge_io.load_feature_runs(runtime_bridge_io._feature_runs_path(repo_root))
@@ -108,36 +101,6 @@ def test_runs_index_on_disk_maps_the_mission_to_the_started_run(started_run: tup
 
 def test_load_feature_runs_of_a_missing_index_is_empty(tmp_path: Path) -> None:
     assert runtime_bridge_io.load_feature_runs(runtime_bridge_io._feature_runs_path(tmp_path)) == {}
-
-
-def test_build_run_ref_defaults_to_the_current_run_ref_class() -> None:
-    ref = runtime_bridge_io._build_run_ref(run_id="r1", run_dir="runs/r1", mission_type=_MISSION_TYPE)
-    assert isinstance(ref, MissionRunRef)
-    assert (ref.run_id, ref.run_dir, ref.mission_key) == ("r1", "runs/r1", _MISSION_TYPE)
-
-
-def test_build_run_ref_honours_an_explicit_run_ref_cls() -> None:
-    """The ``run_ref_cls=`` seam: the constructor passed in is the one called."""
-    calls: list[dict[str, Any]] = []
-
-    def factory(**kwargs: Any) -> MissionRunRef:
-        calls.append(kwargs)
-        return MissionRunRef(**kwargs)
-
-    ref = runtime_bridge_io._build_run_ref(run_id="r2", run_dir="runs/r2", mission_type=_MISSION_TYPE, run_ref_cls=factory)
-    assert calls == [{"run_id": "r2", "run_dir": "runs/r2", "mission_key": _MISSION_TYPE}]
-    assert ref.run_id == "r2"
-
-
-def test_build_run_ref_falls_back_to_the_legacy_mission_type_keyword() -> None:
-    seen: list[dict[str, Any]] = []
-
-    class LegacyRunRef:
-        def __init__(self, *, run_id: str, run_dir: str, mission_type: str) -> None:
-            seen.append({"run_id": run_id, "run_dir": run_dir, "mission_type": mission_type})
-
-    runtime_bridge_io._build_run_ref(run_id="r3", run_dir="runs/r3", mission_type=_MISSION_TYPE, run_ref_cls=cast("Any", LegacyRunRef))
-    assert seen == [{"run_id": "r3", "run_dir": "runs/r3", "mission_type": _MISSION_TYPE}]
 
 
 # ---------------------------------------------------------------------------

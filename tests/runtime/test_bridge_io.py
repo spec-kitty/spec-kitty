@@ -143,6 +143,30 @@ def test_build_run_ref_uses_mission_key() -> None:
     assert ref.mission_key == "software-dev"
 
 
+def test_build_run_ref_honours_an_explicit_run_ref_cls() -> None:
+    """The ``run_ref_cls=`` seam: the constructor passed in is the one called."""
+    calls: list[dict[str, Any]] = []
+
+    def factory(**kwargs: Any) -> MissionRunRef:
+        calls.append(kwargs)
+        return MissionRunRef(**kwargs)
+
+    ref = io_seam._build_run_ref(run_id="r2", run_dir="runs/r2", mission_type="software-dev", run_ref_cls=factory)
+    assert calls == [{"run_id": "r2", "run_dir": "runs/r2", "mission_key": "software-dev"}]
+    assert ref.run_id == "r2"
+
+
+def test_build_run_ref_falls_back_to_the_legacy_mission_type_keyword() -> None:
+    seen: list[dict[str, Any]] = []
+
+    class LegacyRunRef:
+        def __init__(self, *, run_id: str, run_dir: str, mission_type: str) -> None:
+            seen.append({"run_id": run_id, "run_dir": run_dir, "mission_type": mission_type})
+
+    io_seam._build_run_ref(run_id="r3", run_dir="runs/r3", mission_type="software-dev", run_ref_cls=cast("Any", LegacyRunRef))
+    assert seen == [{"run_id": "r3", "run_dir": "runs/r3", "mission_type": "software-dev"}]
+
+
 def test_mission_key_for_run_ref_prefers_mission_key_then_default() -> None:
     ref_present = cast(MissionRunRef, SimpleNamespace(mission_key="software-dev"))
     assert io_seam._mission_key_for_run_ref(ref_present, default="fallback") == "software-dev"

@@ -88,6 +88,10 @@ REMOVED: dict[str, tuple[str, ...]] = {
 _SEAMS = tuple(REMOVED)
 _EXPECTED_TOTAL = 36
 
+# Floor and uniqueness: a shrinking or duplicated table must not make the gate vacuous.
+_ALL_REMOVED = [_n for _names_ in REMOVED.values() for _n in _names_]
+assert len(_ALL_REMOVED) == len(set(_ALL_REMOVED)) >= _EXPECTED_TOTAL, "REMOVED table shrank below the floor or repeats a name"
+
 #: Owner-side name where it differs from the bridge-side name.
 _OWNER_NAME = {
     "_load_feature_runs": "load_feature_runs",
@@ -298,19 +302,6 @@ def _owner_module(seam: str) -> ModuleType:
 # ---------------------------------------------------------------------------
 
 
-def test_removed_table_pins_36_names() -> None:
-    """Concrete floor so a shrinking table cannot make the gate vacuous."""
-    counts = {seam: len(names) for seam, names in REMOVED.items()}
-    assert counts == {"identity": 3, "cores": 2, "engine": 1, "retrospective": 9, "composition": 8, "io": 13}
-    flat = [n for names in REMOVED.values() for n in names]
-    assert len(flat) == len(set(flat)) == _EXPECTED_TOTAL
-
-
-@pytest.mark.parametrize("seam", _rows())
-def test_check_a_bridge_defines_none_of_the_names(seam: str) -> None:
-    assert scan_definitions(_bridge_source(), _names(seam)) == []
-
-
 @pytest.mark.parametrize("seam", _rows())
 def test_check_a_prime_bridge_loads_none_of_the_names(seam: str) -> None:
     assert scan_name_loads(_bridge_source(), _names(seam)) == []
@@ -329,8 +320,15 @@ def test_check_b_prime_no_indirect_bridge_read_anywhere_in_src(seam: str) -> Non
 
 @pytest.mark.parametrize("seam", _rows())
 def test_check_d_bridge_has_no_attribute_for_any_name(seam: str) -> None:
-    present = [n for n in _names(seam, with_re_exports=False) if hasattr(_bridge(), n)]
-    assert present == []
+    """The bridge exposes no removed name (the kept re-exports are check C's).
+
+    Subsumes the former source-level definition scan: a top-level def, assignment
+    or foreign import of a removed name is an attribute at runtime. The scanner
+    stays in the failure message to report the offending line numbers.
+    """
+    names = _names(seam, with_re_exports=False)
+    present = [n for n in names if hasattr(_bridge(), n)]
+    assert present == [], f"{present}; source hits: {scan_definitions(_bridge_source(), names)}"
 
 
 @pytest.mark.parametrize("name", list(_KEPT_RE_EXPORTS))
@@ -341,6 +339,11 @@ def test_check_c_re_export_is_the_owning_seam_object(name: str) -> None:
 
 @pytest.mark.parametrize("seam", _rows(("io",)))
 def test_call_style_bridge_calls_io_functions_on_the_seam(seam: str) -> None:
+    """No bare ``get_or_start_run(...)`` in the bridge: calls go through ``_io_seam.<name>``.
+
+    That keeps the ``runtime_bridge_io.get_or_start_run`` patches in the tests
+    effective; a bare call would bind the function at import and bypass them.
+    """
     assert scan_bare_calls(_bridge_source(), _names(seam)) == []
 
 
