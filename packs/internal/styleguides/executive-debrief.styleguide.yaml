@@ -1,73 +1,154 @@
 schema_version: "1.0"
 id: executive-debrief
-title: Executive Debrief Styleguide (WTF-happened one-pagers)
+title: Executive Debrief Styleguide (WTF-happened debriefs)
 scope: docs
 applies_to_languages: []
 
 principles:
-  - "This styleguide refines report-writing for one deliverable: the single-page executive debrief — a 'WTF happened / WTF is up' one-pager over a repository scope. It adds only what is specific to that shape; the voice, the least-technical-first ordering, the honest hedging, and the anti-machine-prose discipline all come from report-writing and are not restated here."
-  - "Two modes, one shape. A window debrief answers 'what landed since <T>' from merged PRs and closed issues; a scope debrief answers 'what is open in <milestone/label>'. Both use the same fixed grammar; only the scope selector and the tile set differ."
-  - "The facts are collected, never composed. A deterministic collector owns every count, author tally, SHA and issue/PR reference; the writer clusters, narrates and labels those facts and does nothing else. A number that did not come from the collector does not appear — this is report-writing's attribute-every-number rule made mechanical."
-  - "Every reference must exist in the collected set. Each `#NNNN` in the debrief must be one the collector returned (its `valid_refs`); the renderer fails closed on any other. The writer may cluster and prioritise, never invent an issue or a PR."
-  - "Name the failure class. The house framing for the most damaging defects is 'silent and exit 0' — a command that destroys, mis-lands, or erases work while reporting success. Use it; it is the through-line of 4.x hardening and it orients a reader faster than a per-issue description."
-  - "Keep the Method footer honest. State the exact scope and as-of, generated from the collector, never typed. Distinguish 'closed' (GitHub's state_reason) from 'verified fixed' (a linked closing PR); in scope mode mark impact/cluster labels as a preliminary read until verified against the code."
+  - "This styleguide refines report-writing for one deliverable: the executive debrief, a 'WTF happened / WTF is up' report over a repository scope. It adds only what is specific to that deliverable; the voice, the least-technical-first ordering, the honest hedging, and the anti-machine-prose discipline all come from report-writing and are not restated here."
+  - "Two layouts, one discipline. The one-pager is a dashboard (tiles, pills, cluster cards) for a quick count-led read of a window or a milestone. The long-form debrief is a multi-page branded document (cover, executive summary, parts, open risks, appendix) for when the readers need the mechanism explained, a trend shown, or a decision prepared. Pick the long form when the answer to 'what happened' needs a 'why' or a 'what now'; pick the one-pager when the counts and a few labelled clusters say it all."
+  - "Name the readers and write the top for the least technical of them. A debrief goes to leadership (for example CTO, CEO, CPO, Head of QA) and to the maintainers in one document. The cover names them. The executive summary must be usable by a reader who knows the product but not the code; the parts and the appendix carry the maintainer detail. Explain an internal term the first time it appears, in one clause ('consolidate, the command that lands finished work')."
+  - "Two modes. A window debrief answers 'what landed since <T>' from merged PRs and closed issues; a scope debrief answers 'what is open in <milestone/label>'. Either mode can use either layout."
+  - "The facts are collected, never composed. A deterministic collector owns every count, author tally, SHA and issue/PR reference; the writer clusters, narrates and labels those facts and does nothing else. A number that did not come from a collected file does not appear. This is report-writing's attribute-every-number rule made mechanical."
+  - "Every reference must exist in the collected set. In the one-pager, each `#NNNN` must be in the collector's `valid_refs`, and the renderer fails closed on any other. A long-form debrief may add supplemental queries (open P0s, nightly runs, git statistics) when each result is saved as a file beside the collector output and named in the appendix; each `#NNNN` must then appear in the collector output or one of those files, and the writer checks that before rendering. The writer may cluster and prioritise, never invent an issue or a PR."
+  - "Name the failure class when it fits. The house framing for the most damaging defects is 'silent and exit 0': a command that destroys, mis-lands, or erases work while reporting success. Use it where the collected defects are of that kind, because it orients a reader faster than a per-issue description. Do not force it onto a debrief about something else (CI runtime, a milestone's shape)."
+  - "End the summary with what the readers must decide. A long-form debrief closes its executive summary with 'What we need from leadership': two to four decisions, each with the fact that forces it. A debrief that only reports leaves the reader to work out the ask."
+  - "Keep the Method honest. State the exact scope and as-of, generated from the collector, never typed. Distinguish 'closed' (GitHub's state_reason) from 'verified fixed' (a linked closing PR); in scope mode mark impact/cluster labels as a preliminary read until verified against the code. Say 'correlation, not a proven cause' when the data shows only that. When a claim rests on an earlier debrief rather than on this collection, say so in the sentence."
 
 patterns:
-  - name: Fixed layout grammar
+  - name: Long-form layout grammar
     description: >
-      Order is fixed so two debriefs are comparable: brand mark, eyebrow
+      Rendered from one Markdown file by the spec-kitty-branded-pdf generator, so
+      it has that generator's look: cream page, a yellow top band on the cover,
+      Falling Sky headings, yellow table headers, and a running mono footer
+      (Spec Kitty, a short label with the date, page n / N). Order is fixed.
+      Cover: logo, eyebrow (SPEC KITTY · EXECUTIVE DEBRIEF), title ("WTF
+      happened with <X>" or "since <T>"), a one-line subtitle giving the subject
+      and the period, a two-to-three sentence lede, and three meta chips (AS OF,
+      SCOPE, FOR). Then: Executive summary; lettered parts (Part A, Part B) with
+      subsections; Open risks; Appendix: method, sources and caveats. Parts are
+      first-level headings and subsections second-level, which the generator
+      draws as an underlined part title and a left-ruled subsection title.
+  - name: Executive summary shape
+    description: >
+      One page, readable alone. A "Bottom line." paragraph of three to six
+      sentences. One small table of the headline counts (or a before/after
+      comparison), every value from the collected files. "What happened." as a
+      numbered list of three to five items, each a bold one-sentence claim
+      followed by the evidence. Optionally "Still open." in one sentence that
+      points at Open risks. Then "What we need from leadership." as a short
+      bullet list of decisions.
+  - name: Open-risks table
+    description: >
+      One table near the end with four columns: Risk, Why it matters, Issue,
+      Owner. One row per risk, written as the consequence for a user or a
+      release rather than as an issue title. The Issue column carries the
+      ref and its priority, or "none filed". The Owner column is the GitHub
+      assignee at collection time, "unassigned", or the role that must decide.
+  - name: Charts earn their place and stay plain
+    description: >
+      Use a chart only for a trend or a comparison the reader would otherwise
+      have to rebuild from a table: a time series, a before/after, a per-run
+      status grid. One measure per chart and one axis. Give it a title that
+      names the measure and the unit, label values directly where there are few
+      marks, and draw it from a collected file. A single headline number is a
+      table cell, not a chart.
+  - name: Appendix carries method, definitions and caveats
+    description: >
+      The appendix states the method (the generated Method line, the collector,
+      where the collected files are), the scope and as-of, a definition for
+      each measure that could be read two ways, the list of data files, and the
+      caveats as a bullet list. A caveat names what was not checked or could not
+      be retrieved and what that means for a claim in the report.
+  - name: One-pager layout grammar
+    description: >
+      Order is fixed so two one-pagers are comparable: brand mark, eyebrow
       (SPEC KITTY · EXECUTIVE OVERVIEW / RELEASE STATE), title (the question
       answered), a generated meta line (scope, as-of, main SHA), a one-to-three
       sentence lede, a row of metric tiles, a highlights list (The bottom line /
       Key takeaways), four-to-six clustered sections, an optional decision table
       (window: What's next; release: What it takes to tag), and a footer with
       author attribution and the generated Method line.
-  - name: Pill vocabulary
+  - name: Pill vocabulary (one-pager)
     description: >
       Status is carried by a small pill on each highlight, drawn from the design
       system's sk-tag. SHIPPED (green tint) for what landed; WATCH (red on sky)
       for an open risk or a red gate; P0 (red) for a release blocker. Yellow is
       the brand signature and stays an accent (title bow, tile top-accent), never
-      a status colour. Status is green-good / red-attention only.
+      a status colour. Status is green-good / red-attention only. The long form
+      has no pills; it states status in words.
   - name: Cluster to four-to-six themes
     description: >
       Group the collected items into four to six clusters that tell the cycle's
-      or the scope's real story, each a card with a mono title, a right-aligned
-      count, a one-line intro, and ref-bearing bullets. Never one bullet per
-      issue in a flat list, and never more than six clusters — the point is the
-      shape of the work, not the backlog dump.
-  - name: Tiles carry the headline metrics
+      or the scope's real story. In the one-pager each is a card with a mono
+      title, a right-aligned count, a one-line intro, and ref-bearing bullets;
+      in the long form each is a numbered subsection of a part. Never one bullet
+      per issue in a flat list, and never more than six clusters. The point is
+      the shape of the work, not the backlog dump.
+  - name: Tiles carry the headline metrics (one-pager)
     description: >
-      One bordered card row of the numbers a reader needs first — PRs merged,
-      issues closed, P0 closed/open, epics — every value straight from the
+      One bordered card row of the numbers a reader needs first (PRs merged,
+      issues closed, P0 closed/open, epics), every value straight from the
       collector's metrics. The attention number (open P0s / release-blocking)
-      takes the red alert treatment.
+      takes the red alert treatment. The long form puts the same numbers in the
+      executive summary's table.
 
 anti_patterns:
   - name: Hand-counted or invented figures
     description: >
-      Typing a count from memory, or citing an issue the collector did not
-      return, breaks the debrief's core guarantee and its Method footer's
-      promise. Every number and every ref traces to the collected JSON, or it
-      does not ship.
+      Typing a count from memory, or citing an issue no collected file
+      contains, breaks the debrief's core guarantee and its Method's promise.
+      Every number and every ref traces to a collected file, or it does not
+      ship.
     bad_example: >
-      "About 50 PRs landed (#5301 was the big one)" — the count is estimated and
+      "About 50 PRs landed (#5301 was the big one)": the count is estimated and
       #5301 is not in the collected window.
     good_example: >
       "54 PRs merged" from the collector's metrics; every cited #ref present in
-      valid_refs so the renderer's guard passes.
+      valid_refs or in a named supplemental file.
+  - name: A report with no ask
+    description: >
+      A long-form debrief that lists what happened and stops makes each
+      executive work out what is wanted of them. If nothing needs deciding, say
+      that in one line; otherwise name the decisions.
+    bad_example: >
+      An executive summary that ends on the fifth "what happened" item.
+    good_example: >
+      "What we need from leadership. Decide when rc6 ships: the release rule
+      needs a green nightly and the last run had one red job."
+  - name: Maintainer vocabulary in the summary
+    description: >
+      Module names, gate names, error codes and lane mechanics in the executive
+      summary lose the readers it is written for. Keep them for the parts and
+      the appendix, or explain the term in a clause.
+    bad_example: >
+      "The reconciliation gate's blob-attribution axis now REFUSEs."
+    good_example: >
+      "The landing command now refuses to land code nobody reviewed."
+  - name: Hand-built chrome
+    description: >
+      Building a cover, page footer or table styling by hand for a long-form
+      debrief produces a near-copy of the house look that drifts from it. The
+      branded generator already draws all of it from the design tokens; write
+      Markdown and pass the cover fields as arguments.
+    bad_example: >
+      A one-off HTML template and stylesheet written beside the report.
+    good_example: >
+      One Markdown file rendered with spec-kitty-branded-pdf, cover set through
+      --title, --subtitle, --lede and --meta.
   - name: Dark chrome or a white print margin
     description: >
-      These are printed one-pagers: use the light cream/paper treatment, never
-      the dark website surface, and let the cream reach every page edge. A white
-      band at a page top (from an @page margin) is a defect — Chromium paints the
-      page-margin box white; shift continuation-page content down in flow with a
-      transparent top border instead, so the background stays cream.
+      These are printed documents: use the light cream/paper treatment, never
+      the dark website surface, and let the cream reach every page edge. The
+      long form gets this from the generator (WeasyPrint paints the page
+      background). The one-pager prints through Chromium, which paints the
+      page-margin box white; shift its continuation-page content down in flow
+      with a transparent top border instead, so the background stays cream.
     bad_example: >
       A dark-mode debrief, or pages 2+ with a white strip above the content.
     good_example: >
-      Cream full-bleed on every page; continuation pages inset in-flow so content
-      sits lower and the background never turns white.
+      Cream full-bleed on every page; one-pager continuation pages inset
+      in-flow so content sits lower and the background never turns white.
   - name: Restating report-writing here
     description: >
       Voice, em-dash rationing, buzzword avoidance, progressive disclosure and
@@ -77,9 +158,10 @@ anti_patterns:
       Re-listing "ration the em-dash" and "drop the LLM buzzwords" in this file.
     good_example: >
       "Follow report-writing for voice and anti-AI-prose; this file governs the
-      debrief's structure, pills, ref-guard and print treatment."
+      debrief's structure, readers, ref check and print treatment."
 
 references:
   - "packs/internal/styleguides/report-writing.styleguide.yaml"
   - "docs/development/reporting/debrief-styleguide.md"
   - "packs/internal/tactics/branded-deliverable.tactic.yaml"
+  - "packs/internal/toolguides/branded-document-generation.toolguide.yaml"

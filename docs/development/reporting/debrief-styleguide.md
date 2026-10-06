@@ -1,23 +1,117 @@
 ---
 title: 'Executive Debrief House Style'
-description: 'House style for Spec Kitty executive debriefs (what-happened one-pagers): the layout grammar, pill vocabulary, brand palette, and light-chrome print treatment.'
+description: 'House style for Spec Kitty executive debriefs (what-happened reports): the long-form and one-pager layouts, readers and voice, pill vocabulary, brand palette, and light-chrome print treatment.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-06'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
 - docs/development/how-to/pr-landing.md
 - docs/changelog/index.md
 ---
-# Debrief house style — executive one-pagers ("what happened")
+# Debrief house style — executive debriefs ("what happened")
 
 **Status:** the design system's house style, now shipped as the internal
 doctrine styleguide
 [`packs/internal/styleguides/executive-debrief.styleguide.yaml`](../../../packs/internal/styleguides/executive-debrief.styleguide.yaml).
-This page is that artifact's detailed palette and print-treatment reference.
+This page is that artifact's detailed layout, palette and print-treatment reference.
 **Applies to:** the reports produced by the `spk-report-debrief` skill — the
 time-window "what landed since <T>" debrief and the milestone/label open-issue
-snapshot. Examples: [`examples/`](examples/).
+snapshot. One-pager examples: [`examples/`](examples/).
+
+## Two layouts
+
+| | One-pager | Long-form debrief |
+|---|---|---|
+| Use when | counts and a few labelled clusters answer the question | readers need a mechanism explained, a trend shown, or a decision prepared |
+| Length | 1 to 2 pages | about 5 to 12 pages |
+| Source | a slot object (JSON) | one Markdown file |
+| Renderer | `scripts/reporting/render_debrief.py` + `debrief_template.html`, printed with a headless browser | `packs/internal/assets/spec-kitty-branded-pdf.py` (pandoc + WeasyPrint) |
+| Status shown by | pills and tiles | words and tables |
+| Reference check | the renderer fails closed on a `#ref` outside `valid_refs` | the writer checks every `#ref` against the collector output and the saved supplemental files |
+
+Both follow the same rules for facts, readers and voice (see "Voice & content
+conventions" below). The Palette, Typography, One-pager layout grammar and Pill
+vocabulary sections describe the one-pager template. The long form takes its
+colours and type from the branded generator and needs no styling of its own.
+
+## Long-form debrief
+
+A long-form debrief is one Markdown file rendered by the branded PDF generator.
+Do not build a cover, a footer or a stylesheet by hand: the generator draws
+them from the design tokens. Its look is documented in
+[`BRANDED_DOCUMENT_GENERATION.md`](../../../packs/internal/toolguides/BRANDED_DOCUMENT_GENERATION.md).
+
+### Order (fixed)
+
+1. **Cover**, set through generator arguments, not Markdown:
+   - eyebrow: `Spec Kitty · Executive Debrief`
+   - title: `WTF happened with <X>` or `WTF happened since <T>`, two lines at most
+   - subtitle: the subject and the period, one line
+   - lede: two or three sentences a reader can stop after
+   - three meta chips: `AS OF` (date), `SCOPE` (repository), `FOR` (the readers,
+     as the requester named them, separated by ` · `)
+2. **Executive summary**, one page, readable alone:
+   - **Bottom line.** Three to six sentences.
+   - One small table of headline counts or a before/after comparison.
+   - **What happened.** A numbered list of three to five items. Each starts with
+     a bold one-sentence claim, then gives the evidence.
+   - **Still open.** Optional, one sentence pointing at Open risks.
+   - **What we need from leadership.** Two to four decisions, each with the
+     fact that forces it.
+3. **Parts** (`Part A. …`, `Part B. …`) with subsections. Four to six themes in
+   total across the parts. Tables for before/after and for lists of four or
+   more comparable items; prose for mechanisms.
+4. **Open risks.** One table: Risk, Why it matters, Issue, Owner. Write the risk
+   as the consequence for a user or a release. Issue is the ref with its
+   priority, or "none filed". Owner is the GitHub assignee at collection time,
+   "unassigned", or the role that must decide.
+5. **Appendix: method, sources and caveats.** The Method line, scope and as-of,
+   a definition for any measure that could be read two ways, the data files,
+   and the caveats as a list.
+
+### Headings
+
+The generator draws a first-level heading (`#`) as a part title with a yellow
+underline and a second-level heading (`##`) as a left-ruled subsection. The body
+passed to the generator therefore starts at `# Executive summary`, with
+`# Part A. …`, `# Open risks` and `# Appendix: …` at the same level. The document
+title lives on the cover and is not repeated as a heading.
+
+### Charts
+
+Add a chart only for a trend or a comparison the reader would otherwise rebuild
+from a table. One measure and one axis per chart. Title it with the measure and
+the unit, label values directly when there are few marks, and draw it from a
+collected file. Save it as SVG beside the Markdown and include it as an image.
+A white chart card on the cream page is fine.
+
+### Render
+
+```bash
+python packs/internal/assets/spec-kitty-branded-pdf.py \
+  --input body.md --output debrief.pdf \
+  --eyebrow "Spec Kitty · Executive Debrief" \
+  --title "WTF happened<br>since 4.0.0rc5" \
+  --subtitle "Four days on main after the fifth release candidate" \
+  --lede "Two or three sentences." \
+  --footer-center "SINCE 4.0.0RC5 · 2026-10-06" \
+  --meta "AS OF=2026-10-06" --meta "SCOPE=spec-kitty/spec-kitty" \
+  --meta "FOR=CTO · CEO · CPO · Head of QA · maintainers"
+```
+
+Then open the PDF and look at every page: a table header alone at a page
+bottom, a chart label that collides with its title, or a cover chip that wraps
+badly is fixed in the Markdown or the arguments, not left in.
+
+### Supplemental facts
+
+The collector returns merged PRs, closed issues and headline counts. A long-form
+debrief often needs more: open P0s, milestone counts, nightly runs, git
+statistics, file sizes. Read each with `gh` or `git` into a file under `raw/`
+beside the collector output, and list those files in the appendix. Every number
+and every `#ref` in the report must be in the collector output or one of those
+files. A fact that was not saved does not go in.
 
 ## Provenance — this is the design system's style, not ad-hoc
 
@@ -28,7 +122,7 @@ The look is taken from **`@spec-kitty/tokens`** in the sibling
 subset** of those tokens; when a value here and a token there ever disagree,
 the token package wins — re-sync the subset, don't fork it.
 
-## Palette (light theme — these are printed one-pagers)
+## Palette (light theme — these are printed documents)
 
 | Role | Token | Value |
 |------|-------|-------|
@@ -89,7 +183,7 @@ so the dark-theme tokens are never used here.
 - Scale: title 40px, section heading 24px, tile number 34px, body 15px, lede
   17px, eyebrow/label 12px.
 
-## Layout grammar (fixed order)
+## One-pager layout grammar (fixed order)
 
 0. **Brand mark** — the Spec Kitty logo (`assets/logo.png`, mirrored from
    `@spec-kitty/tokens`) top-left, ~52px. The PNG carries a light baked
@@ -125,11 +219,36 @@ Status uses `STATUS`-style words in the decision table
 
 ## Voice & content conventions
 
+These apply to both layouts. General report voice (plain words, few em-dashes,
+no puffery, every number attributed) comes from the `report-writing` styleguide
+and is not repeated here.
+
+- **Name the readers.** A debrief goes to leadership (for example CTO, CEO,
+  CPO, Head of QA) and to the maintainers in one document. Ask who it is for if
+  the request does not say, and put them on the cover (`FOR`) or in the meta
+  line.
+- **Write the top for the least technical named reader.** The executive summary
+  (or the lede and highlights) must work for someone who knows the product but
+  not the code. Module names, gate names, error codes and lane mechanics belong
+  in the parts and the appendix. Explain an internal term in one clause the
+  first time it appears: "`consolidate`, the command that lands finished work".
 - **BLUF, consumer-first.** Lead each bullet with the impact a user/operator
   saw, then the mechanism. Plain language, active voice, concrete before→after.
-- **Name the failure class.** The recurring "silent and exit 0" framing (a
-  command that destroys/hides/mis-lands work while reporting success) is the
-  house way to describe the most damaging defects — use it.
+- **End the summary with the ask.** Close with what the readers must decide,
+  each decision next to the fact that forces it. If nothing needs deciding, say
+  so in one line.
+- **Name the failure class when it fits.** The recurring "silent and exit 0"
+  framing (a command that destroys/hides/mis-lands work while reporting success)
+  is the house way to describe the most damaging defects. Use it where the
+  collected defects are of that kind. Do not force it onto a debrief about
+  something else, such as CI runtime.
+- **Say what the data does not show.** "A correlation, not a proven cause."
+  "Three days and 119 runs: an early signal, not a settled trend." When a claim
+  rests on an earlier debrief rather than on this collection, say so in the
+  sentence.
+- **State uncomfortable facts plainly and once.** A release shipped under a
+  waiver, one author on most PRs, more issues opened than closed: give the
+  count, put it in Open risks, and do not soften or repeat it.
 - **Consumer-impact lens for release scopes.** Foreground consumer-facing,
   silent-false-success defects; hold internal/loud/unreachable ones off the top.
 - **Method-footer honesty (non-negotiable):**
@@ -147,6 +266,6 @@ internal doctrine pack: `packs/internal/styleguides/executive-debrief.styleguide
 `executive-debrief-generation` procedure, which is in `org-charter.yaml`'s
 `required_procedures`). Internal doctrine never ships to consumers, it governs how
 *we* report. That YAML is the durable, activatable doctrine; this page is the
-detailed palette and print-treatment reference it links to. Converging the debrief
-renderer's brand assets (fonts/logo/palette) with the canonical
+detailed layout, palette and print-treatment reference it links to. Converging the
+one-pager renderer's brand assets (fonts/logo/palette) with the canonical
 `spec-kitty-branded-pdf` generator is tracked as follow-up #5273.

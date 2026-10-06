@@ -20,6 +20,22 @@ overview" backlog snapshot). Both are the **same pipeline** with a different
 scope selector. This is an **in-house / maintainer** tool — it reports on how
 the core team's own repos are moving; it never ships to consumers.
 
+## Two layouts
+
+The house style ([`debrief-styleguide.md`](../../../docs/development/reporting/debrief-styleguide.md))
+defines two layouts over the same collected facts:
+
+- **One-pager**: tiles, pills and cluster cards from the fixed template. Use it
+  when the counts and a few labelled clusters answer the question.
+- **Long-form debrief**: a multi-page branded document (cover, executive
+  summary, parts, open risks, appendix) written as one Markdown file. Use it
+  when the readers need a mechanism explained, a trend shown, or a decision
+  prepared, or when the requester names several readers (CTO, CEO, CPO, Head of
+  QA, maintainers) or points at an earlier long-form debrief as the example.
+
+Ask who the debrief is for if the request does not say. The readers go on the
+cover (`FOR`) and decide how plain the summary must be.
+
 ## When to use
 
 Trigger on any "what happened / what shipped / what's open" ask over a repo
@@ -91,11 +107,26 @@ Produce this structured object (the render slots), nothing else:
 }
 ```
 
+**Long form.** Instead of the slot object, write one Markdown file in the
+styleguide's fixed order: executive summary (bottom line, one headline table,
+"What happened" as three to five numbered claims, "What we need from
+leadership"), lettered parts, an open-risks table (Risk / Why it matters /
+Issue / Owner), and an appendix with the Method line, definitions, data files
+and caveats. Write the summary for the least technical named reader and explain
+an internal term in one clause on first use. If you need facts the collector
+does not return (open P0s, milestone counts, nightly runs, git statistics),
+read each with `gh`/`git` into a file under `raw/` next to the collector JSON
+and name those files in the appendix. Verify each claim that is not a plain
+count (an owner, an author, "N PRs touch X") against the collected files before
+it goes in.
+
 **Hallucination guard (non-negotiable).** Every `#NNNN` you write in any slot
 MUST appear in `valid_refs`. Before rendering, diff your output's refs against
 `valid_refs`; if any ref is not in the set, you invented it — remove it or fix
 it. You may cluster, narrate, prioritise and label; you may not add a number,
-an issue, or a PR the collector did not return.
+an issue, or a PR the collector did not return. For the long form the allowed
+set is `valid_refs` plus the numbers in your saved `raw/` files; the renderer
+does not check it for you, so run the diff yourself before rendering.
 
 **Honesty rules baked into the examples:**
 - "Closed as fixed" is GitHub's `state_reason`, not proof of a shipped fix.
@@ -112,6 +143,22 @@ Fill `scripts/reporting/debrief_template.html` from the Stage-B object
 (`{{ SLOT }}` scalars, `<!-- @each NAME -->` repeats). Then print to PDF with a
 headless browser if a PDF is wanted. The template is light-theme, print-sized;
 do not restyle per report — the consistency is the point.
+
+**Long form.** Render the Markdown with the canonical branded generator, never
+a hand-built cover or stylesheet:
+
+```bash
+python packs/internal/assets/spec-kitty-branded-pdf.py \
+  --input body.md --output debrief.pdf \
+  --eyebrow "Spec Kitty · Executive Debrief" \
+  --title "WTF happened<br>since <T>" --subtitle "…" --lede "…" \
+  --footer-center "<SHORT LABEL> · <YYYY-MM-DD>" \
+  --meta "AS OF=<date>" --meta "SCOPE=<owner/repo>" --meta "FOR=<readers>"
+```
+
+The generator draws `#` as a part title and `##` as a subsection, so the body
+starts at `# Executive summary`. It needs `pandoc`, WeasyPrint and the sibling
+`spec-kitty-design` repo. Look at every page of the result before handing over.
 
 The look is the **design system's**, not ad-hoc: tokens (colours, type, pills)
 come from `@spec-kitty/tokens` in the sibling `spec-kitty-design` repo. The
@@ -139,8 +186,9 @@ A debrief is **handed over, not committed**.
 
 ## Guardrails checklist (run before handing over the report)
 
-- [ ] Every tile number came from `metrics` — none typed by hand.
-- [ ] Every `#ref` in the rendered report is in `valid_refs`.
+- [ ] Every tile or table number came from `metrics` or a saved `raw/` file — none typed by hand.
+- [ ] Every `#ref` in the rendered report is in `valid_refs` (long form: or in a saved `raw/` file).
+- [ ] The readers are named, and the summary ends with what they must decide (long form).
 - [ ] The Method footer names the exact window/scope + as-of (from `meta`).
 - [ ] "fixed" vs "closed" distinction honoured for any issue singled out.
 - [ ] scope-mode impact tags marked preliminary unless a verify pass ran.

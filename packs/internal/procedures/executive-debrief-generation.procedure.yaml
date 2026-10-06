@@ -2,23 +2,28 @@ schema_version: "1.0"
 id: executive-debrief-generation
 name: Executive Debrief Generation
 purpose: >
-  The maintainer workflow for producing a single-page executive debrief — a
+  The maintainer workflow for producing an executive debrief — a
   "WTF happened since <T>" window report or a "WTF is up with <milestone>"
   scope report — over one or more repositories. It is a three-stage pipeline:
   a deterministic collector reads the facts from GitHub, the maintainer
-  synthesizes them into a fixed slot contract under the executive-debrief
-  styleguide, and a renderer produces the branded one-pager. It is lighter and
-  more data-driven than the project-evolution-postmortem, and it is run as a
-  governed dispatch Op, not a Mission (DIRECTIVE_053).
+  synthesizes them under the executive-debrief styleguide, and a renderer
+  produces the branded PDF. The styleguide defines two layouts: a one-pager
+  (a fixed slot contract filled into the debrief template) and a long-form
+  debrief (one Markdown file rendered by the spec-kitty-branded-pdf
+  generator). It is lighter and more data-driven than the
+  project-evolution-postmortem, and it is run as a governed dispatch Op, not
+  a Mission (DIRECTIVE_053).
 entry_condition: >
   A maintainer has been asked what happened over a window, or what the state of
   a milestone/label is. The scope is expressible as either a time window (since
   a date/tag, converted to UTC) or a milestone/label/query, and the target
   repositories are known.
 exit_condition: >
-  A branded single-page debrief PDF exists whose every count and every issue/PR
-  reference traces to the collector output (the renderer's ref-guard passed),
-  whose Method footer states the exact scope and as-of, and which follows the
+  A branded debrief PDF exists whose every count and every issue/PR reference
+  traces to a collected file (one-pager: the renderer's ref-guard passed;
+  long form: the writer's ref check against the collector output and the
+  named supplemental files passed), whose Method states the exact scope and
+  as-of, which names its readers, and which follows the
   executive-debrief styleguide for shape and report-writing for voice. The Op is
   closed with its real outcome; scratch inputs live in the gitignored work/ dir.
   Nothing from the debrief is committed to a product repository: the PDF and
@@ -31,6 +36,10 @@ steps:
       scope mode (a milestone, a label, a query). For window mode convert the
       local time to UTC — Brussels is CEST/UTC+2 until late October. Name the
       target repositories; add the planning repo only when the request covers it.
+      Record who the debrief is for, as the requester named them. Pick the
+      layout: the one-pager when counts and a few labelled clusters answer the
+      question, the long form when the readers need a mechanism explained, a
+      trend shown or a decision prepared.
       Open the work as a governed dispatch Op; a debrief is an Op, not a Mission.
     actor: agent
   - title: Collect the facts deterministically
@@ -41,34 +50,53 @@ steps:
       open_issues, and valid_refs — which is the sole input to synthesis. Never
       count by hand; the collector owns every number and every reference. If a
       gh query fails, it fails closed; do not paper over a missing count.
+      A long-form debrief may need facts the collector does not return (open
+      P0s, milestone counts, nightly runs, git statistics, file sizes). Read
+      each with gh or git into a file under raw/ beside the collector output,
+      and name those files in the appendix. A supplemental fact that was not
+      saved to a file does not go in the report.
     actor: agent
     on_failure: >
       If a metric or query cannot be gathered, record it as unavailable with the
       reason in the Method footer rather than estimating it.
-  - title: Synthesize into the slot contract
+  - title: Synthesize
     description: >
-      Read only the collector JSON. Apply the customer-impact and
+      Read only the collected files. Apply the customer-impact and
       issue-valuation lenses and the executive-debrief styleguide: write the
       lede, the tiles (from metrics), the SHIPPED/WATCH highlights, four-to-six
       clustered sections, and — window mode: the decision table, release mode:
       "what it takes to tag". Name the "silent and exit 0" class where it fits.
-      Every #ref written must be in the collector's valid_refs.
+      Every #ref written must be in the collector's valid_refs. That is the
+      one-pager's slot contract. For the long form, write one Markdown file in
+      the styleguide's order: executive summary (bottom line, headline table,
+      what happened, what we need from leadership), lettered parts, open risks,
+      appendix. Write the summary for the least technical named reader. Before
+      rendering, check that every #ref in the Markdown appears in the collector
+      output or in a file under raw/, and verify each claim that is not a
+      plain count (an owner, an author, "N PRs touch X") against those files.
     actor: agent
     on_failure: >
       If a load-bearing claim cannot be tied to a collected fact, cut it rather
       than shipping an unattributed assertion.
-  - title: Render the branded one-pager
+  - title: Render the branded PDF
     description: >
-      Fill the debrief template with the renderer (scripts/reporting/render_debrief.py),
-      which enforces the ref-guard and fails closed on any invented reference,
-      then print to PDF with the design-repo fonts and logo alongside. Follow the
-      branded-deliverable tactic's decision-and-review discipline — this is an
-      audience-facing branded deliverable. The debrief uses its own structured
-      renderer rather than the Markdown spec-kitty-branded-pdf generator because
-      its dashboard layout (metric tiles, pill-tagged cluster cards) is not
-      Markdown prose; converging the two brand treatments onto one token/font/logo
-      source (pointing both renderers at the spec-kitty-design source) is tracked
-      as follow-up #5273, not a blocker.
+      One-pager: fill the debrief template with the renderer
+      (scripts/reporting/render_debrief.py), which enforces the ref-guard and
+      fails closed on any invented reference, then print to PDF with the
+      design-repo fonts and logo alongside. It uses its own structured renderer
+      because its dashboard layout (metric tiles, pill-tagged cluster cards) is
+      not Markdown prose. Long form: render the Markdown with the
+      spec-kitty-branded-pdf generator (packs/internal/assets), passing the
+      cover through --eyebrow, --title, --subtitle, --lede, --footer-center and
+      three --meta chips (AS OF, SCOPE, FOR). Do not hand-build a cover, a
+      footer or a stylesheet. The generator draws a first-level heading as a
+      part title and a second-level heading as a subsection, so the body starts
+      at the executive summary with parts at the first level. Follow the
+      branded-deliverable tactic's decision-and-review discipline in both
+      cases; this is an audience-facing branded deliverable. Converging the
+      two brand treatments onto one token/font/logo source (pointing both
+      renderers at the spec-kitty-design source) is tracked as follow-up #5273,
+      not a blocker.
     actor: agent
   - title: Verify, review, and hand off
     description: >
@@ -78,7 +106,8 @@ steps:
       signature yellow. Fold findings back into the synthesis or the renderer and
       re-render until it reads on-brand, then send the PDF to the operator. Close
       the Op with its real outcome and keep the collector JSON and synthesis in
-      the gitignored work/ directory.
+      the gitignored work/ directory. When the requester asked for the Markdown
+      as well, hand over the long form's source file with the PDF.
     actor: agent
     on_failure: >
       A brand or accuracy fault found in review goes back to the synthesis or the

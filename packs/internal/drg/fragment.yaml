@@ -42,11 +42,11 @@ nodes:
     title: "Project-Evolution Postmortem (research squads + branded report)"
     body_path: procedures/project-evolution-postmortem.procedure.yaml
   # Executive-debrief doctrine: the data-driven "WTF happened / WTF is up"
-  # one-pager. A lighter, recurring cousin of the postmortem; refines
+  # debrief (one-pager or long form). A lighter, recurring cousin of the postmortem; refines
   # report-writing and reuses the branded-deliverable discipline.
   - id: executive-debrief
     kind: styleguides
-    title: "Executive Debrief Styleguide (WTF-happened one-pagers)"
+    title: "Executive Debrief Styleguide (WTF-happened debriefs)"
     body_path: styleguides/executive-debrief.styleguide.yaml
   - id: executive-debrief-generation
     kind: procedures
