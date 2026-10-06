@@ -33,7 +33,7 @@ from pathlib import Path
 import pytest
 
 from runtime.next._internal_runtime.schema import load_mission_template_file
-from runtime.next.runtime_bridge import _should_dispatch_via_composition
+from runtime.next.runtime_bridge_composition import _should_dispatch_via_composition
 
 pytestmark = pytest.mark.fast
 

@@ -38,7 +38,7 @@ from specify_cli.mission_step_contracts.executor import (
 )
 from runtime.next import runtime_bridge as rb
 from runtime.next._internal_runtime import MissionRunRef
-from runtime.next.runtime_bridge import (
+from runtime.next.runtime_bridge_composition import (
     _check_composed_action_guard,
     _dispatch_via_composition,
     _normalize_action_for_composition,

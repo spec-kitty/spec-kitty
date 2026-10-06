@@ -934,9 +934,10 @@ def test_build_operational_context_for_claim_resolves_profile_from_run_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from runtime.next import runtime_bridge as rb
+    from runtime.next import runtime_bridge_composition as composition_seam
 
     monkeypatch.setattr(rb, "_resolve_run_dir_for_mission", lambda repo_root, mission_slug: tmp_path)
-    monkeypatch.setattr(rb, "_resolve_step_agent_profile", lambda run_dir, activity: "python-pedro")
+    monkeypatch.setattr(composition_seam, "_resolve_step_agent_profile", lambda run_dir, activity: "python-pedro")
     monkeypatch.setattr(rb, "_resolve_tech_stack_for_profile", lambda repo_root, profile_id: frozenset({"python"}))
 
     oc = io_seam.build_operational_context_for_claim(
@@ -1006,11 +1007,12 @@ def _stub_guard_helpers(
     file instead (see ``test_gather_artifact_presence_carries_generated_docs_flag``).
     """
     from runtime.next import runtime_bridge as rb
+    from runtime.next import runtime_bridge_composition as composition_seam
 
     monkeypatch.setattr(rb, "_check_requirement_mapping_ready", lambda feature_dir: requirement_mapping_failures or [])
     monkeypatch.setattr(rb, "_occurrence_gate_failures", lambda feature_dir: occurrence_gate_failures or [])
-    monkeypatch.setattr(rb, "_count_source_documented_events", lambda feature_dir: source_documented_count)
-    monkeypatch.setattr(rb, "_publication_approved", lambda feature_dir: publication_approved)
+    monkeypatch.setattr(composition_seam, "_count_source_documented_events", lambda feature_dir: source_documented_count)
+    monkeypatch.setattr(composition_seam, "_publication_approved", lambda feature_dir: publication_approved)
     monkeypatch.setattr(rb, "_has_raw_dependencies_field", lambda wp_file: has_raw_dependencies_field)
 
 

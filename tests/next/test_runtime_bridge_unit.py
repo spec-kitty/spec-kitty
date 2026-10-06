@@ -1131,7 +1131,7 @@ class TestAtomicTaskSteps:
             encoding="utf-8",
         )
 
-        from runtime.next.runtime_bridge import _check_composed_action_guard
+        from runtime.next.runtime_bridge_composition import _check_composed_action_guard
 
         failures = _check_composed_action_guard(
             "tasks",
@@ -1202,7 +1202,8 @@ class TestAtomicTaskSteps:
             encoding="utf-8",
         )
 
-        from runtime.next.runtime_bridge import _check_composed_action_guard, _check_requirement_mapping_ready
+        from runtime.next.runtime_bridge import _check_requirement_mapping_ready
+        from runtime.next.runtime_bridge_composition import _check_composed_action_guard
 
         # Sanity: the pre-existing requirement-mapping check is clean here --
         # the assertion below is not incidentally passing because of it.

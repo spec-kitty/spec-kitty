@@ -30,8 +30,8 @@ import pytest
 
 from specify_cli.invocation.writer import EVENTS_DIR
 from runtime.next._internal_runtime.engine import _read_snapshot
+from runtime.next.runtime_bridge_composition import _check_composed_action_guard
 from runtime.next.runtime_bridge import (
-    _check_composed_action_guard,
     _resolve_runtime_template_in_root,
     decide_next_via_runtime,
     get_or_start_run,

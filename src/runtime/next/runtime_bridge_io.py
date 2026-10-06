@@ -11,8 +11,7 @@ Also hosts the two new port-shaped additions this WP introduces:
   status / bulk-edit / requirement-mapping facts ``_check_cli_guards``
   (still defined on ``runtime_bridge``, unmoved by this WP) /
   ``_check_composed_action_guard`` (moved to ``runtime_bridge_composition``
-  by #2531 WP08; the residual keeps a thin compat delegate under the same
-  name) read today, packaged as an
+  by #2531 WP08; the bridge keeps no forwarder for it) read today, packaged as an
   :class:`ArtifactPresenceSnapshot`, so a future pure ``evaluate_guards``
   (WP06) can decide pass/fail without doing I/O itself. This function
   GATHERS ONLY — it makes no pass/fail decisions, and nothing in the current
@@ -55,10 +54,11 @@ now that they live together in this module (``get_or_start_run`` ->
 compat-tracked names reachable at ``runtime_bridge.<name>`` — some still
 natively defined in the residual (``_resolve_runtime_feature_dir``, ``_has_raw_dependencies_field``,
 ``_check_requirement_mapping_ready``, ``_occurrence_gate_failures``), others
-now thin compat delegates onto ``runtime_bridge_composition`` after #2531
-WP08 (``_resolve_step_agent_profile``, ``_count_source_documented_events``,
-``_publication_approved``) or plain re-exports from that same seam
-(``_has_generated_docs``). Every one of these calls is routed through a
+owned by ``runtime_bridge_composition`` (``_resolve_step_agent_profile``,
+``_count_source_documented_events``, ``_publication_approved``,
+``_has_generated_docs``; #2561). Those four are looked up on the composition
+seam through a deferred import (composition imports this module at top level).
+The bridge-owned names are routed through a
 **local, live import of ``runtime_bridge``**
 (``from runtime.next import runtime_bridge as _rb; _rb.<name>(...)``,
 deferred to function scope — ``runtime_bridge`` imports this module at its
@@ -1020,13 +1020,14 @@ def build_operational_context_for_claim(
     """
     from charter.activation.invocation_context import build_operational_context  # noqa: PLC0415
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
+    from runtime.next import runtime_bridge_composition as _composition  # noqa: PLC0415 — deferred; composition imports this module at top level
 
     resolved_profile = active_profile
     if resolved_profile is None:
         try:
             run_dir = _rb._resolve_run_dir_for_mission(repo_root, mission_slug)
             if run_dir is not None:
-                resolved_profile = _rb._resolve_step_agent_profile(run_dir, current_activity)
+                resolved_profile = _composition._resolve_step_agent_profile(run_dir, current_activity)
         except Exception:
             resolved_profile = None
 
@@ -1058,12 +1059,13 @@ def _build_operational_context_for_decision(
     """
     from charter.activation.invocation_context import build_operational_context  # noqa: PLC0415
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
+    from runtime.next import runtime_bridge_composition as _composition  # noqa: PLC0415 — deferred; composition imports this module at top level
 
     activity = step_id or mission_state
     resolved_profile: str | None = None
     if step_id is not None:
         try:
-            resolved_profile = _rb._resolve_step_agent_profile(Path(run_ref.run_dir), step_id)
+            resolved_profile = _composition._resolve_step_agent_profile(Path(run_ref.run_dir), step_id)
         except Exception:
             resolved_profile = None
 
@@ -1198,8 +1200,8 @@ class ArtifactPresenceSnapshot:
     A plain, I/O-free value object carrying the filesystem/status facts the
     CLI-level guards (``_check_cli_guards``, still defined on
     ``runtime_bridge``; ``_check_composed_action_guard``, moved to
-    ``runtime_bridge_composition`` by #2531 WP08 behind a thin residual
-    compat delegate under the same name) read today, gathered
+    ``runtime_bridge_composition`` by #2531 WP08; the bridge keeps no
+    forwarder for it) read today, gathered
     ONCE by :func:`gather_artifact_presence` so the pure
     ``runtime_bridge_cores.evaluate_guards(snapshot)`` (WP06) can decide
     pass/fail without doing I/O itself.
@@ -1442,13 +1444,9 @@ def gather_artifact_presence(
     without touching disk again. The guard-helper calls below
     (``_check_requirement_mapping_ready``, ``_occurrence_gate_failures``,
     ``_has_raw_dependencies_field``) stay natively defined on
-    ``runtime_bridge`` (unmoved by this WP); ``_count_source_documented_events``
-    / ``_publication_approved`` are now thin compat delegates onto
-    ``runtime_bridge_composition`` and ``_has_generated_docs`` is a plain
-    re-export from that same seam (#2531 WP08) — all still reachable at
-    ``runtime_bridge.<name>``. Several are compat-tracked, so every one is
-    invoked through a live lookup — never a bare/cached import — exactly
-    like every other cross-seam call in this module.
+    ``runtime_bridge`` (unmoved by this WP); ``_count_source_documented_events``,
+    ``_publication_approved`` and ``_has_generated_docs`` are owned by
+    ``runtime_bridge_composition`` and looked up there (#2561).
 
     Presence is checked with ``Path.is_file()`` uniformly — the stricter of
     the two predicates the guards mix today (research/documentation branches
@@ -1532,8 +1530,8 @@ def gather_artifact_presence(
         "requirement_mapping_failures": tuple(_rb._check_requirement_mapping_ready(planning_dir)),
         "bare_prose_requirement_failures": tuple(_rb._check_bare_prose_requirements_ready(planning_dir)),
         "occurrence_gate_failures": tuple(_rb._occurrence_gate_failures(planning_dir)),
-        "source_documented_count": _rb._count_source_documented_events(feature_dir),
-        "publication_approved": bool(_rb._publication_approved(feature_dir)),
+        "source_documented_count": _composition._count_source_documented_events(feature_dir),
+        "publication_approved": bool(_composition._publication_approved(feature_dir)),
         "has_generated_docs": has_generated_docs,
     }
 

@@ -260,7 +260,7 @@ class TestCheckComposedActionGuardOccurrenceGate:
             tmp_path, change_mode="bulk_edit", occurrence_map_content=None
         )
 
-        from runtime.next.runtime_bridge import _check_composed_action_guard
+        from runtime.next.runtime_bridge_composition import _check_composed_action_guard
 
         failures = _check_composed_action_guard("tasks", feature_dir, legacy_step_id=None)
         assert len(failures) == 1
@@ -271,7 +271,7 @@ class TestCheckComposedActionGuardOccurrenceGate:
             tmp_path, change_mode="bulk_edit", occurrence_map_content=None
         )
 
-        from runtime.next.runtime_bridge import _check_composed_action_guard
+        from runtime.next.runtime_bridge_composition import _check_composed_action_guard
 
         failures = _check_composed_action_guard(
             "tasks", feature_dir, legacy_step_id="tasks_finalize"
@@ -284,7 +284,7 @@ class TestCheckComposedActionGuardOccurrenceGate:
             tmp_path, change_mode="bulk_edit", occurrence_map_content=VALID_OCCURRENCE_MAP
         )
 
-        from runtime.next.runtime_bridge import _check_composed_action_guard
+        from runtime.next.runtime_bridge_composition import _check_composed_action_guard
 
         failures = _check_composed_action_guard("tasks", feature_dir, legacy_step_id=None)
         assert failures == []
@@ -294,7 +294,7 @@ class TestCheckComposedActionGuardOccurrenceGate:
             tmp_path, change_mode=None, occurrence_map_content=None
         )
 
-        from runtime.next.runtime_bridge import _check_composed_action_guard
+        from runtime.next.runtime_bridge_composition import _check_composed_action_guard
 
         failures = _check_composed_action_guard("tasks", feature_dir, legacy_step_id=None)
         assert failures == []
@@ -306,7 +306,7 @@ class TestCheckComposedActionGuardOccurrenceGate:
             tmp_path, change_mode="bulk_edit", occurrence_map_content=None
         )
 
-        from runtime.next.runtime_bridge import _check_composed_action_guard
+        from runtime.next.runtime_bridge_composition import _check_composed_action_guard
 
         outline_failures = _check_composed_action_guard(
             "tasks", feature_dir, legacy_step_id="tasks_outline"
@@ -342,10 +342,8 @@ class TestOccurrenceGateParityAcrossDispatchPaths:
             tmp_path, change_mode=change_mode, occurrence_map_content=occurrence_map_content
         )
 
-        from runtime.next.runtime_bridge import (
-            _check_cli_guards,
-            _check_composed_action_guard,
-        )
+        from runtime.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge_composition import _check_composed_action_guard
 
         legacy_failures = _check_cli_guards("tasks_finalize", feature_dir)
         composed_failures = _check_composed_action_guard(

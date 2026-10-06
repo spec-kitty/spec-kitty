@@ -92,8 +92,8 @@ A tracked-mission-to-run compatibility index currently lives at
 #                              ``_should_dispatch_via_composition`` selection
 #                              seam isolated as a clean, gates-#2535-free
 #                              predicate for a future WP14 consumer to route
-#                              through. Same native-thin-delegate rule for
-#                              every compat-tracked symbol moved there.
+#                              through. The bridge calls it on the seam; it
+#                              keeps no forwarder for any of its names.
 #
 #   runtime_bridge_identity.py   sole home of the hottest fracture line
 #                              (WP10, LAST): coord-branch naming
@@ -1098,134 +1098,10 @@ def _has_raw_dependencies_field(wp_file: Path) -> bool:
 # Composition dispatch (WP02 / mission software-dev-composition-rewrite-01KQ26CY)
 # ---------------------------------------------------------------------------
 #
-# The cluster itself now lives in ``runtime_bridge_composition.py`` (#2531
-# WP08) — see that module's docstring for the constraints (C-001/C-002/
-# C-003/C-008) that still govern it. This residual keeps:
-#
-#   * a **native thin compat delegate** for every WP02-tracked symbol
-#     (FR-012) below, so ``monkeypatch.setattr(runtime_bridge, "<name>", …)``
-#     keeps intercepting exactly as before the move;
-#   * a **plain re-export** for the two untracked helpers
-#     (``_composition_dispatch_inputs``, ``_has_generated_docs``) that
-#     ``decide_next_via_runtime`` / ``runtime_bridge_io`` still reach bare /
-#     via live lookup, respectively.
-#
-# ``_resolve_step_binding`` and ``_LEGACY_TASKS_STEP_IDS`` have no caller left
-# in this module and are not compat-tracked — they live ONLY in
-# ``runtime_bridge_composition.py`` now, with no residual re-export.
-# (``_composition_dispatch_inputs`` / ``_has_generated_docs`` plain
-# re-exports live in the top-of-file import block above, alongside the
-# other untracked-helper re-exports, to keep them module-level per E402.)
-
-
-def _normalize_action_for_composition(step_id: str) -> str:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_composition._normalize_action_for_composition`
-    (FR-012 compat surface, #2531 WP08)."""
-    return _composition._normalize_action_for_composition(step_id)
-
-
-def _should_dispatch_via_composition(
-    mission: str,
-    step_id: str,
-    *,
-    run_dir: Path | None = None,
-    repo_root: Path | None = None,
-) -> bool:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_composition._should_dispatch_via_composition`
-    (FR-008 selection seam; FR-012 compat surface, #2531 WP08). See the seam
-    module's docstring for the full order-critical charter-lookup /
-    custom-widening contract."""
-    return _composition._should_dispatch_via_composition(mission, step_id, run_dir=run_dir, repo_root=repo_root)
-
-
-def _resolve_step_agent_profile(run_dir: Path, step_id: str) -> str | None:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_composition._resolve_step_agent_profile`
-    (FR-012 compat surface, #2531 WP08)."""
-    return _composition._resolve_step_agent_profile(run_dir, step_id)
-
-
-def _resolve_runtime_contract_for_step(
-    *,
-    repo_root: Path,
-    run_dir: Path,
-    mission: str,
-    step_id: str,
-) -> Any | None:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_composition._resolve_runtime_contract_for_step`
-    (identity-only compat surface — GUARD_B_ONLY_IMPORT_SURFACE in
-    contracts/compat-surface.md; #2531 WP08)."""
-    return _composition._resolve_runtime_contract_for_step(repo_root=repo_root, run_dir=run_dir, mission=mission, step_id=step_id)
-
-
-def _count_source_documented_events(feature_dir: Path) -> int:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_composition._count_source_documented_events`
-    (FR-012 compat surface, #2531 WP08)."""
-    return _composition._count_source_documented_events(feature_dir)
-
-
-def _publication_approved(feature_dir: Path) -> bool:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_composition._publication_approved`
-    (FR-012 compat surface, #2531 WP08)."""
-    return _composition._publication_approved(feature_dir)
-
-
-def _check_composed_action_guard(
-    action: str,
-    feature_dir: Path,
-    *,
-    mission: str = "software-dev",
-    legacy_step_id: str | None = None,
-    repo_root: Path | None = None,
-    owned: OwnedCheckout | None = None,
-) -> list[str]:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_composition._check_composed_action_guard`
-    (FR-012 compat surface, #2531 WP08). See the seam module's docstring for
-    the full guard-branch-family / legacy-vs-composition-only contract.
-
-    ``repo_root`` (#3704 WP03, FR-003) is forwarded unchanged; defaults to
-    ``None`` (built-in tree only, matching every existing caller of this
-    compat surface that does not yet pass a real ``repo_root``)."""
-    return _composition._check_composed_action_guard(action, feature_dir, mission=mission, legacy_step_id=legacy_step_id, repo_root=repo_root, owned=owned)
-
-
-def _dispatch_via_composition(
-    *,
-    repo_root: Path,
-    mission: str,
-    action: str,
-    actor: str,
-    profile_hint: str | None,
-    request_text: str | None,
-    mode_of_work: Any | None,
-    feature_dir: Path,
-    legacy_step_id: str | None = None,
-    contract: Any | None = None,
-    owned: OwnedCheckout | None = None,
-) -> list[str] | None:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_composition._dispatch_via_composition`
-    (FR-012 compat surface, #2531 WP08). See the seam module's docstring for
-    the full ``StepContractExecutor`` handoff / structured-failure contract."""
-    return _composition._dispatch_via_composition(
-        repo_root=repo_root,
-        mission=mission,
-        action=action,
-        actor=actor,
-        profile_hint=profile_hint,
-        request_text=request_text,
-        mode_of_work=mode_of_work,
-        feature_dir=feature_dir,
-        legacy_step_id=legacy_step_id,
-        contract=contract,
-        owned=owned,
-    )
+# The cluster lives in ``runtime_bridge_composition.py`` (#2531 WP08) — see
+# that module's docstring for the constraints (C-001/C-002/C-003/C-008) that
+# govern it. The bridge reaches it as ``_composition.<name>``; it keeps no
+# forwarder for any of the cluster's names (#2561).
 
 
 # Single-dispatch invariant (FR-001 / phase6-composition-stabilization-01KQ2JAS):
@@ -2126,14 +2002,14 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
     if (
         ctx.result == "success"
         and current_step_id
-        and _should_dispatch_via_composition(
+        and _composition._should_dispatch_via_composition(
             mission_type,
             current_step_id,
             run_dir=ctx.run_dir,
             repo_root=config_root,
         )
     ):
-        composed_action = _normalize_action_for_composition(current_step_id)
+        composed_action = _composition._normalize_action_for_composition(current_step_id)
         # R-005: for custom missions, the active step's ``agent_profile`` is
         # the source of truth for ``profile_hint``. For built-in missions
         # (e.g., ``software-dev``), built-in templates do NOT set
@@ -2147,7 +2023,7 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
             step_id=current_step_id,
             action=composed_action,
         )
-        composition_failures = _dispatch_via_composition(
+        composition_failures = _composition._dispatch_via_composition(
             repo_root=config_root,
             mission=mission_type,
             action=composed_action,

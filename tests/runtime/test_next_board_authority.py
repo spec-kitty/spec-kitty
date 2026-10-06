@@ -241,7 +241,7 @@ def test_board_authority_tests_never_set_up_the_oracle_fixture() -> None:
 
 
 def test_research_fail_closed_default_direct_call(tmp_path: Path) -> None:
-    from runtime.next.runtime_bridge import _check_composed_action_guard
+    from runtime.next.runtime_bridge_composition import _check_composed_action_guard
 
     feature_dir = tmp_path / "kitty-specs" / "research-fail-closed"
     feature_dir.mkdir(parents=True)
@@ -250,7 +250,7 @@ def test_research_fail_closed_default_direct_call(tmp_path: Path) -> None:
 
 
 def test_documentation_fail_closed_default_direct_call(tmp_path: Path) -> None:
-    from runtime.next.runtime_bridge import _check_composed_action_guard
+    from runtime.next.runtime_bridge_composition import _check_composed_action_guard
 
     feature_dir = tmp_path / "kitty-specs" / "documentation-fail-closed"
     feature_dir.mkdir(parents=True)

@@ -641,7 +641,7 @@ class TestFr009CompositionSeams:
             return _call
 
         monkeypatch.setattr(composition, "_composition_dispatch_inputs", _spy("inputs", composition._composition_dispatch_inputs))
-        monkeypatch.setattr(runtime_bridge, "_dispatch_via_composition", _spy("dispatch", runtime_bridge._dispatch_via_composition))
+        monkeypatch.setattr(composition, "_dispatch_via_composition", _spy("dispatch", composition._dispatch_via_composition))
         monkeypatch.setattr(
             runtime_bridge._engine_adapter,
             "advance_run_state_after_composition",

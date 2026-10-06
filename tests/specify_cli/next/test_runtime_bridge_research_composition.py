@@ -20,7 +20,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from runtime.next.runtime_bridge import (
+from runtime.next.runtime_bridge_composition import (
     _check_composed_action_guard,
     _count_source_documented_events,
     _dispatch_via_composition,

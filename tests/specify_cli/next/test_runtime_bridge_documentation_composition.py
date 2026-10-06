@@ -23,7 +23,7 @@ import types
 from unittest.mock import MagicMock, patch
 
 from specify_cli.mission_step_contracts.executor import _ACTION_PROFILE_DEFAULTS
-from runtime.next.runtime_bridge import (
+from runtime.next.runtime_bridge_composition import (
     _check_composed_action_guard,
 )
 

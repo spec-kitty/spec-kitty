@@ -252,10 +252,10 @@ def test_composition_dispatch_decision_required_reaches_decision_log(monkeypatch
     mirrors the real helper's first two emitter calls (seed, then the
     decision request raised by ``_emit_decision_required``)."""
     h = _Harness(tmp_path)
-    monkeypatch.setattr(rb, "_should_dispatch_via_composition", lambda *args, **kwargs: True)
-    monkeypatch.setattr(rb, "_normalize_action_for_composition", lambda step_id: step_id)
+    monkeypatch.setattr(rb._composition, "_should_dispatch_via_composition", lambda *args, **kwargs: True)
+    monkeypatch.setattr(rb._composition, "_normalize_action_for_composition", lambda step_id: step_id)
     monkeypatch.setattr(rb._composition, "_composition_dispatch_inputs", lambda **kwargs: (None, None))
-    monkeypatch.setattr(rb, "_dispatch_via_composition", lambda **kwargs: [])
+    monkeypatch.setattr(rb._composition, "_dispatch_via_composition", lambda **kwargs: [])
     monkeypatch.setattr(
         rb._engine_adapter,
         "plan_composition_advance",
@@ -375,10 +375,10 @@ def test_real_composition_advances_and_logs_despite_optional_seed_failure(
             return getattr(h.inner, name)
 
     h.log._inner = Producer()
-    monkeypatch.setattr(rb, "_should_dispatch_via_composition", lambda *args, **kwargs: True)
-    monkeypatch.setattr(rb, "_normalize_action_for_composition", lambda step_id: step_id)
+    monkeypatch.setattr(rb._composition, "_should_dispatch_via_composition", lambda *args, **kwargs: True)
+    monkeypatch.setattr(rb._composition, "_normalize_action_for_composition", lambda step_id: step_id)
     monkeypatch.setattr(rb._composition, "_composition_dispatch_inputs", lambda **kwargs: (None, None))
-    monkeypatch.setattr(rb, "_dispatch_via_composition", lambda **kwargs: [])
+    monkeypatch.setattr(rb._composition, "_dispatch_via_composition", lambda **kwargs: [])
     snapshot = MissionRunSnapshot(run_id=RUN_ID, mission_key=MISSION_TYPE, template_path="", template_hash="h", issued_step_id="plan")
     monkeypatch.setattr(engine, "_read_snapshot", lambda _: snapshot)
     monkeypatch.setattr(engine, "_load_frozen_template", lambda _: object())

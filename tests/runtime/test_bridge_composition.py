@@ -2,11 +2,10 @@
 
 Four concerns, mirroring the WP03/WP04/WP05 test-file pattern:
 
-1. **Compat surface** (``test_seam_defines_every_relocated_symbol``,
-   ``test_runtime_bridge_keeps_plain_reexports_for_untracked_helpers``) — the
-   non-vacuousness + plain-reexport half of the split contract from
-   contracts/compat-surface.md; the native-thin-delegate half was previously
-   pinned by a dedicated frozen family guard, retired in #3285.
+1. **Seam surface** (``test_seam_defines_every_relocated_symbol``,
+   ``test_untracked_helpers_have_no_runtime_bridge_reexport``) — the seam
+   defines every relocated name (non-vacuousness); the bridge-side absence of
+   the forwarders is pinned by ``test_bridge_no_compat_delegates.py``.
 
 2. **FR-008 both-branch fixture** (``test_should_dispatch_via_composition_*``)
    — the selection seam exercised for BOTH outcomes (dispatch / no-dispatch),
@@ -17,16 +16,13 @@ Four concerns, mirroring the WP03/WP04/WP05 test-file pattern:
    contracts / executor), mirroring the pattern
    ``tests/runtime/test_bridge_retrospective.py`` already uses.
 
-4. **Intra-seam live-lookup regression** (the WP03-WP07 risk flagged in
-   ``research.md`` §Compat and ``contracts/compat-surface.md``): now that the
-   whole cluster lives together in one seam module, an intra-cluster call
-   between two compat-guarded symbols (or a call back into a symbol that
-   stays in the residual, e.g. ``_should_advance_wp_step``) MUST resolve via
-   a live lookup back through ``runtime_bridge`` (never a bare intra-module
-   call), or a ``monkeypatch.setattr(runtime_bridge, "<name>", …)`` becomes a
-   no-op (false-green). ``test_*_uses_live_lookup_for_*`` pin this by
-   patching the callee on ``runtime_bridge`` and asserting the (unpatched)
-   caller in the seam still observes it.
+4. **Seam patch-point regression**: every intra-cluster call, and every
+   call the bridge and ``runtime_bridge_io`` make into the cluster, looks the
+   name up on this module (#2561), so one patch on ``runtime_bridge_composition``
+   intercepts all of them. ``test_*_calls_*_on_the_seam`` pin this by patching
+   the callee on the seam and asserting the (unpatched) caller observes it.
+   The one back-edge to the bridge, ``_should_advance_wp_step``, stays a live
+   lookup (the bridge still owns it) and is pinned the same way.
 """
 
 from __future__ import annotations
@@ -58,9 +54,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _RUNTIME_BRIDGE_PATH = Path(__file__).resolve().parents[2] / "src" / "runtime" / "next" / "runtime_bridge.py"
 
-# The 8 compat-guarded symbols (contracts/compat-surface.md) that MUST stay
-# natively defined in runtime_bridge.py as thin delegates (never a plain
-# re-export) -- see runtime_bridge_composition's module docstring for why.
+# The 8 composition-cluster names the bridge used to forward (#2561 retired
+# the forwarders): the seam is their only home.
 _COMPAT_GUARDED_NAMES = frozenset(
     {
         "_should_dispatch_via_composition",
@@ -91,9 +86,9 @@ _INTERNAL_ONLY_NAMES = frozenset(
 
 def test_seam_defines_every_relocated_symbol() -> None:
     """Non-vacuousness check: the seam must actually define every relocated
-    name. Native-thin-delegate status for the compat-guarded set was pinned by
-    a dedicated frozen family guard, retired in #3285; this check only guards
-    against passing for the wrong reason (nobody needing the cluster at all)."""
+    name. The bridge-side absence is pinned by
+    ``test_bridge_no_compat_delegates.py``; this check only guards against
+    passing for the wrong reason (nobody needing the cluster at all)."""
     for name in sorted(_COMPAT_GUARDED_NAMES | _INTERNAL_ONLY_NAMES):
         assert hasattr(composition, name), f"seam is missing relocated symbol {name!r}"
 
@@ -215,13 +210,9 @@ def test_should_dispatch_via_composition_both_branches_via_charter_lookup(tmp_pa
     assert composition._should_dispatch_via_composition("totally-unknown-mission", "step1", repo_root=_REPO_ROOT) is False
 
 
-def test_should_dispatch_via_composition_uses_live_lookup_for_normalize(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """Live-lookup regression: the charter branch must resolve
-    ``_normalize_action_for_composition`` via ``runtime_bridge`` -- a bare
-    intra-module call would silently bypass a patch on
-    ``runtime_bridge._normalize_action_for_composition``."""
-    from runtime.next import runtime_bridge as rb
-
+def test_should_dispatch_via_composition_calls_normalize_on_the_seam(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The charter branch calls ``_normalize_action_for_composition`` on this
+    seam, so a patch on ``runtime_bridge_composition`` is observed."""
     monkeypatch.setattr(
         "charter.activation.mission_type_profiles.resolve_mission_type_context",
         lambda repo_root, *, mission_type=None, feature_dir=None: SimpleNamespace(action_sequence=["patched-action"]),
@@ -232,7 +223,7 @@ def test_should_dispatch_via_composition_uses_live_lookup_for_normalize(monkeypa
         calls.append(step_id)
         return "patched-action"
 
-    monkeypatch.setattr(rb, "_normalize_action_for_composition", _fake_normalize)
+    monkeypatch.setattr(composition, "_normalize_action_for_composition", _fake_normalize)
 
     result = composition._should_dispatch_via_composition("software-dev", "unrelated-step", repo_root=tmp_path)
 
@@ -301,12 +292,9 @@ def test_resolve_step_agent_profile_returns_only_the_profile(tmp_path: Path) -> 
     assert composition._resolve_step_agent_profile(run_dir, "step1") == "implementer-ivan"
 
 
-def test_resolve_step_binding_uses_live_lookup_for_normalize(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """Live-lookup regression: patching ``runtime_bridge._normalize_action_for_composition``
-    must still be observed from inside ``_resolve_step_binding`` even though
-    both symbols now live in the same seam module."""
-    from runtime.next import runtime_bridge as rb
-
+def test_resolve_step_binding_calls_normalize_on_the_seam(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A patch on ``runtime_bridge_composition._normalize_action_for_composition``
+    is observed from inside ``_resolve_step_binding`` (same module)."""
     run_dir = tmp_path / "run"
     _write_frozen_template(
         run_dir,
@@ -319,7 +307,7 @@ def test_resolve_step_binding_uses_live_lookup_for_normalize(monkeypatch: pytest
         calls.append(step_id)
         return "step1"  # pretend "weird-id" normalizes to "step1"
 
-    monkeypatch.setattr(rb, "_normalize_action_for_composition", _fake_normalize)
+    monkeypatch.setattr(composition, "_normalize_action_for_composition", _fake_normalize)
 
     profile, _contract_ref = composition._resolve_step_binding(run_dir, "weird-id")
 
@@ -394,12 +382,9 @@ def test_resolve_runtime_contract_for_step_synthesizes_for_agent_profile(monkeyp
     assert result is matching
 
 
-def test_resolve_runtime_contract_for_step_uses_live_lookup_for_normalize(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """Live-lookup regression: patching
-    ``runtime_bridge._normalize_action_for_composition`` must still be
-    observed from inside ``_resolve_runtime_contract_for_step``."""
-    from runtime.next import runtime_bridge as rb
-
+def test_resolve_runtime_contract_for_step_calls_normalize_on_the_seam(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A patch on ``runtime_bridge_composition._normalize_action_for_composition``
+    is observed from inside ``_resolve_runtime_contract_for_step``."""
     run_dir = tmp_path / "run"
     _write_frozen_template(
         run_dir,
@@ -412,7 +397,7 @@ def test_resolve_runtime_contract_for_step_uses_live_lookup_for_normalize(monkey
         calls.append(step_id)
         return "step1"
 
-    monkeypatch.setattr(rb, "_normalize_action_for_composition", _fake_normalize)
+    monkeypatch.setattr(composition, "_normalize_action_for_composition", _fake_normalize)
     monkeypatch.setattr(
         "charter.offering.missions.step_contracts.MissionStepContractRepository",
         lambda *, project_dir, org_dirs=None: object(),
@@ -646,13 +631,11 @@ def test_composition_dispatch_inputs_builtin_types_unaffected(mission: str, step
     assert profile is None
 
 
-def test_composition_dispatch_inputs_uses_live_lookup_for_resolution_helpers(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """Live-lookup regression: even when ``resolve_mission_type_context``
-    genuinely raises, ``_composition_dispatch_inputs`` must still resolve
-    ``_resolve_step_agent_profile`` / ``_resolve_runtime_contract_for_step``
-    via a live lookup through ``runtime_bridge`` -- a bare intra-module call
-    would silently bypass a monkeypatch on ``runtime_bridge.<name>``."""
-    from runtime.next import runtime_bridge as rb
+def test_composition_dispatch_inputs_calls_resolution_helpers_on_the_seam(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Even when ``resolve_mission_type_context`` genuinely raises,
+    ``_composition_dispatch_inputs`` calls ``_resolve_step_agent_profile`` /
+    ``_resolve_runtime_contract_for_step`` on this seam, so a patch on
+    ``runtime_bridge_composition`` is observed."""
 
     def _raise_unknown(repo_root: Path, *, mission_type: str | None = None, feature_dir: Path | None = None) -> SimpleNamespace:
         from charter.activation.mission_type_profiles import UnknownMissionTypeError
@@ -671,8 +654,8 @@ def test_composition_dispatch_inputs_uses_live_lookup_for_resolution_helpers(mon
         calls.append("contract")
         return "patched-contract"
 
-    monkeypatch.setattr(rb, "_resolve_step_agent_profile", _fake_resolve_profile)
-    monkeypatch.setattr(rb, "_resolve_runtime_contract_for_step", _fake_resolve_contract)
+    monkeypatch.setattr(composition, "_resolve_step_agent_profile", _fake_resolve_profile)
+    monkeypatch.setattr(composition, "_resolve_runtime_contract_for_step", _fake_resolve_contract)
 
     profile, contract = composition._composition_dispatch_inputs(repo_root=tmp_path, run_dir=tmp_path, mission="custom-mission", step_id="step1", action="step1")
     assert profile == "patched-profile"
@@ -831,9 +814,9 @@ def test_check_composed_action_guard_delegates_to_cores_and_io(monkeypatch: pyte
 
 
 def test_check_composed_action_guard_uses_live_lookup_for_should_advance_wp_step(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """Live-lookup regression: ``_should_advance_wp_step`` stays defined in
-    the residual (untouched by this WP) -- ``_check_composed_action_guard``
-    must reach it via a live lookup through ``runtime_bridge``."""
+    """``_should_advance_wp_step`` stays defined on the bridge (#2560 owns it)
+    -- ``_check_composed_action_guard`` must reach it via a live lookup through
+    ``runtime_bridge``."""
     from runtime.next import runtime_bridge as rb
     from runtime.next.runtime_bridge_io import ArtifactPresenceSnapshot
 
@@ -946,16 +929,14 @@ def test_check_composed_action_guard_does_not_thread_wp_advance_ready_for_non_wp
 
 
 # ---------------------------------------------------------------------------
-# 3g/4. _dispatch_via_composition -- behavior + live lookup
+# 3g/4. _dispatch_via_composition -- behavior + seam patch point
 # ---------------------------------------------------------------------------
 
 
 def test_dispatch_via_composition_success_returns_none_when_guard_passes(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from unittest.mock import MagicMock
 
-    from runtime.next import runtime_bridge as rb
-
-    monkeypatch.setattr(rb, "_check_composed_action_guard", lambda *a, **k: [])
+    monkeypatch.setattr(composition, "_check_composed_action_guard", lambda *a, **k: [])
     monkeypatch.setattr(
         "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
         lambda self, context, contract=None: MagicMock(invocation_ids=("inv-1",)),
@@ -977,9 +958,7 @@ def test_dispatch_via_composition_success_returns_none_when_guard_passes(monkeyp
 def test_dispatch_via_composition_returns_guard_failures(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from unittest.mock import MagicMock
 
-    from runtime.next import runtime_bridge as rb
-
-    monkeypatch.setattr(rb, "_check_composed_action_guard", lambda *a, **k: ["missing artifact"])
+    monkeypatch.setattr(composition, "_check_composed_action_guard", lambda *a, **k: ["missing artifact"])
     monkeypatch.setattr(
         "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
         lambda self, context, contract=None: MagicMock(invocation_ids=()),
@@ -1072,15 +1051,11 @@ def test_dispatch_via_composition_plan_mission_keeps_distinct_step_contract_erro
     assert "profile_hint is required" not in failures[0]
 
 
-def test_dispatch_via_composition_uses_live_lookup_for_check_composed_action_guard(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """Live-lookup regression: ``_dispatch_via_composition`` must resolve
-    ``_check_composed_action_guard`` via a live lookup through
-    ``runtime_bridge`` -- both symbols now live in this same seam module, the
-    exact intra-seam false-green trap contracts/compat-surface.md warns
-    about."""
+def test_dispatch_via_composition_calls_check_composed_action_guard_on_the_seam(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """``_dispatch_via_composition`` calls ``_check_composed_action_guard`` on
+    this seam (same module), so a patch on ``runtime_bridge_composition`` is
+    observed."""
     from unittest.mock import MagicMock
-
-    from runtime.next import runtime_bridge as rb
 
     calls: list[str] = []
     repo_roots_seen: list[Path | None] = []
@@ -1098,7 +1073,7 @@ def test_dispatch_via_composition_uses_live_lookup_for_check_composed_action_gua
         repo_roots_seen.append(repo_root)
         return ["patched-failure"]
 
-    monkeypatch.setattr(rb, "_check_composed_action_guard", _spy_guard)
+    monkeypatch.setattr(composition, "_check_composed_action_guard", _spy_guard)
     monkeypatch.setattr(
         "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
         lambda self, context, contract=None: MagicMock(invocation_ids=()),
@@ -1117,7 +1092,7 @@ def test_dispatch_via_composition_uses_live_lookup_for_check_composed_action_gua
 
     assert calls == ["specify"]
     assert failures == ["patched-failure"]
-    # #3704 WP03: the live-lookup dispatch path must thread the caller's
+    # #3704 WP03: the dispatch path must thread the caller's
     # ``repo_root`` through to ``_check_composed_action_guard`` unchanged --
     # not merely swallow it, since this is exactly the seam WP03 threaded.
     assert repo_roots_seen == [tmp_path]
@@ -1132,9 +1107,7 @@ def test_dispatch_via_composition_warns_on_unresolved_delegation_candidates(
     function per SC-004, so a future change cannot break the negative case
     while the positive case still passes) zero WARNING records when every
     candidate resolves."""
-    from runtime.next import runtime_bridge as rb
-
-    monkeypatch.setattr(rb, "_check_composed_action_guard", lambda *a, **k: [])
+    monkeypatch.setattr(composition, "_check_composed_action_guard", lambda *a, **k: [])
 
     # Positive case: one step with an unresolved candidate.
     unresolved_result = SimpleNamespace(

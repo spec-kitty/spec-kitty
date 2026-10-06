@@ -23,7 +23,7 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from runtime.next.runtime_bridge import (
+from runtime.next.runtime_bridge_composition import (
     _resolve_step_agent_profile,
     _resolve_runtime_contract_for_step,
     _should_dispatch_via_composition,

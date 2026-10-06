@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from tests._perf_helpers import assert_timing_budget
-from runtime.next.runtime_bridge import (
+from runtime.next.runtime_bridge_composition import (
     _normalize_action_for_composition,
     _should_dispatch_via_composition,
 )

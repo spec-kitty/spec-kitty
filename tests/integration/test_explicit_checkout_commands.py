@@ -285,8 +285,8 @@ def test_owned_composition_policy_reaches_executor_before_advancing(checkouts, m
     provision_test_charter(owned)
     (primary / ".kittify/config.yaml").write_text("mission_type_activations: []\n")
     run_dir = owned / ".kittify/test-run"
-    assert rb._should_dispatch_via_composition("software-dev", "tasks", repo_root=owned)
-    assert not rb._should_dispatch_via_composition("software-dev", "tasks", repo_root=primary)
+    assert rb._composition._should_dispatch_via_composition("software-dev", "tasks", repo_root=owned)
+    assert not rb._composition._should_dispatch_via_composition("software-dev", "tasks", repo_root=primary)
     executed = []
     original_inputs = rb._composition._composition_dispatch_inputs
 
@@ -306,7 +306,7 @@ def test_owned_composition_policy_reaches_executor_before_advancing(checkouts, m
         return "advanced"
 
     monkeypatch.setattr(rb._composition, "_composition_dispatch_inputs", inputs)
-    monkeypatch.setattr(rb, "_dispatch_via_composition", execute)
+    monkeypatch.setattr(rb._composition, "_dispatch_via_composition", execute)
     monkeypatch.setattr(rb._engine_adapter, "advance_run_state_after_composition", advance)
     # The plan step (post-WP11) needs a live run; the composition-policy contract under test is the
     # root handed to the executor and the fact handed to the advance, so stub the pure planner.

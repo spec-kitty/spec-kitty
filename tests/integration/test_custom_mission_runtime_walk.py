@@ -51,7 +51,7 @@ from runtime.next._internal_runtime.schema import (
     MissionPolicySnapshot,
 )
 from runtime.next.decision import Decision, DecisionKind
-from runtime.next.runtime_bridge import _dispatch_via_composition
+from runtime.next.runtime_bridge_composition import _dispatch_via_composition
 from tests._factories import provision_test_charter
 
 
