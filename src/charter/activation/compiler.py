@@ -1200,9 +1200,10 @@ def _record_unresolved_reference(
 #: its own (only ``SCOPE_FILTERED`` always does), worded to match the advice
 #: ``charter context`` gives for the same miss.
 _MISSING_ARTIFACT_DETAIL = (
-    "no artifact with this id in any doctrine layer (project, org, built-in); run `spec-kitty charter validate` to rule out a silent schema-validation drop"
+    "no artifact with this id in any doctrine layer (project, org, built-in); "
+    "run `spec-kitty charter validate .kittify/doctrine` to rule out a silent schema-validation drop"
 )
-_SCHEMA_DROP_DETAIL = "the artifact failed schema validation and was dropped by the loader; run `spec-kitty charter validate` to see why"
+_SCHEMA_DROP_DETAIL = "the artifact failed schema validation and was dropped by the loader; run `spec-kitty charter validate .kittify/doctrine` to see why"
 _SCOPE_FILTERED_DETAIL = "the artifact exists but its applies_to_languages scope excludes the active language set"
 _TYPO_DETAIL_TEMPLATE = "did you mean '{suggestion}'?"
 _CAUSE_BY_CATALOG_MISS: dict[CatalogMissCause, UnresolvedCause] = {

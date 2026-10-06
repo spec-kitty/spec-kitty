@@ -35,7 +35,7 @@ catalog-miss call sites in ``charter.activation.context``:
   is reserved for callers that already know the loader dropped the
   artifact (e.g. a validation report); the renderer cannot distinguish
   schema-drop from never-existed and therefore uses ``MISSING_ARTIFACT``
-  with a suggestion to run ``spec-kitty charter validate``.
+  with a suggestion to run ``spec-kitty charter validate .kittify/doctrine``.
 * :func:`classify_catalog_miss` — given the missing ID and the available
   catalog IDs, returns a :class:`CatalogMissDiagnosis` describing the
   cause + the closest-match suggestion (if any).
@@ -145,7 +145,7 @@ class CatalogMissCause(str, Enum):  # noqa: UP042 — keep str mixin for Py3.10 
             never have existed, OR it may have been silently dropped by
             the loader due to schema validation failure.  The renderer
             uses this value when it cannot distinguish the two — the
-            stanza then suggests running ``spec-kitty charter validate``
+            stanza then suggests running ``spec-kitty charter validate .kittify/doctrine``
             so the operator can surface any latent schema errors.
         SCHEMA_VALIDATION_SUSPECTED: Reserved for callers that already
             know the artifact YAML was rejected by Pydantic validation
@@ -362,7 +362,7 @@ def format_catalog_miss_stanza(
         lines.append(
             f"{indent}  Suggestion: the artifact YAML failed Pydantic "
             "validation and was dropped by the loader. Run "
-            "`spec-kitty charter validate` to surface the schema error."
+            "`spec-kitty charter validate .kittify/doctrine` to surface the schema error."
         )
     elif diagnosis.cause is CatalogMissCause.SCOPE_FILTERED:
         hint = diagnosis.suggestion or (
@@ -377,7 +377,7 @@ def format_catalog_miss_stanza(
         lines.append(
             f"{indent}  Suggestion: confirm the artifact exists "
             "(check project, org, and built-in layers) or run "
-            "`spec-kitty charter validate` to check for a silent schema "
+            "`spec-kitty charter validate .kittify/doctrine` to check for a silent schema "
             "validation drop."
         )
     return lines
