@@ -100,11 +100,11 @@ A preset lives inside its pack, next to the pack's components, and is discovered
 
 ### 7. Full cutover: no aliases, no shims
 
-The old names are removed, not deprecated:
+Earlier renames kept the old names working for backwards compatibility. The result is a mixed bag of naming and code structures: agents and human contributors meet two names for one thing, and users' harnesses contradict themselves because one surface uses the old name while another uses the new one. This rename therefore does not repeat that approach. The old names are removed, not deprecated:
 
 - No alias commands, alias skills or redirecting stubs. An old command name fails as an unknown command.
 - The existing compatibility layers are removed: the deprecated `spec-kitty doctrine` group (after its commands move), the read-side fallbacks for the `doctrine.org.packs` and `governance.doctrine.*` config keys, and the `.kittify/doctrine/` read-root fallback.
-- **Persisted project state is rewritten once, not shimmed.** An upgrade migration rewrites legacy config keys and moves `.kittify/doctrine/` to `.kittify/charter-packs/` during `spec-kitty upgrade`. The same migration replaces a project's `activated_<kind>` lists that equal the drifted `default.yaml` contents with the `default` preset's meaning (key absent), so projects stop losing newer built-ins. After the migration there is no read-side compatibility. A project that has not been upgraded gets an error naming `spec-kitty upgrade`.
+- **Persisted project state is rewritten once, not shimmed** (confirmed by the deciders: a one-time migration is not a compatibility layer). An upgrade migration rewrites legacy config keys and moves `.kittify/doctrine/` to `.kittify/charter-packs/` during `spec-kitty upgrade`. The same migration replaces a project's `activated_<kind>` lists that equal the drifted `default.yaml` contents with the `default` preset's meaning (key absent), so projects stop losing newer built-ins. After the migration there is no read-side compatibility. A project that has not been upgraded gets an error naming `spec-kitty upgrade`.
 
 ## Consequences
 
