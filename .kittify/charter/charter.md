@@ -1,7 +1,12 @@
 # Spec Kitty Charter
 
 > Created: 2026-01-27
-> Version: 1.4.0
+> Version: 1.5.0
+> Updated: 2026-10-06 — Purpose now states the product purpose. Team Kitty is
+> no longer actively supported (owner ruling, ADR `2026-10-06-1`), so the 4.x
+> line no longer names hosted collaboration as current work, the SaaS
+> Docker-mode section binds only requested hosted work, and the CLI-SaaS
+> contract section says no new hosted work starts unasked.
 > Updated: 2026-09-30 — allowlist ratchets are priced debt (ADR `2026-09-30-1`,
 > owner ruling): Standing Order #5 no longer names a shrink-only allowlist as part
 > of the fix and prefers an empty-allowlist invariant; Burn-down Policy (a) gives
@@ -35,7 +40,13 @@
 
 ## Purpose
 
-This charter captures the technical standards, architectural principles, and development practices for Spec Kitty. All features and pull requests should align with these principles.
+Spec Kitty is building the operating system for Governed AI Delivery: it helps
+individuals and teams reduce the time from agreed intent to a verified, useful result,
+with human-led decision-making and accountability at the centre of the work. Changes are
+judged by whether they shorten that path without weakening what it requires: a clear purpose, verification proportionate to
+the risk of the work, and evidence that the result was useful.
+
+This charter captures the technical standards, architectural principles, and development practices for Spec Kitty. All changes and pull requests should align with these principles.
 
 ---
 
@@ -389,7 +400,7 @@ For external package contract changes:
 ### Current Branch Strategy (4.x)
 
 **Active development** happens on `main`. The current line is **4.x**: the 4.0.0 cycle is at
-release-candidate stage (`4.0.0rc5` is open on `main`). The cycle's intent is declared in
+release-candidate stage (`4.0.0rc5` was published on 2026-10-02 and `4.0.0rc6` is open on `main`). The cycle's intent is declared in
 [`docs/changelog/4.0.0.md`](../../docs/changelog/4.0.0.md) and executed against the
 [4.0.0 milestone roadmap](../../docs/plans/4-0-0-milestone-roadmap.md); work deferred past
 4.0.0 goes to the **CLI 4.x stable** milestone.
@@ -402,7 +413,7 @@ The former `2.x` branch was merged into `main` when the SaaS transformation reac
 
 ### Release Versioning
 
-- **4.x** — Current active line. Hosted collaboration (Team Kitty over Zeitgeist), the open-core structural finish, and consolidation/status integrity. The sync transport was retired in August 2026.
+- **4.x** — Current active line: governed delivery from agreed intent to a verified result. The 4.0.0 GA gate is local CLI integrity (the CLI never reports success while it loses, overwrites or strands local work); the open-core structural finish continues on 4.x after GA. Hosted collaboration (Team Kitty over Zeitgeist) is no longer actively supported: its code still ships, hosted interaction is off unless an operator opts in, and its CLI entries are hidden from listings unless the hosted drain posture is on (ADR `2026-10-06-1`). The sync transport was retired in August 2026.
 - **3.x** — Closed. The last release was **3.2.7** (2026-09-10). The planned 3.3.x cycle was retired on 2026-08-23 without shipping; its open work was re-triaged into 4.0.0 or CLI 4.x stable. Documents scoped to 3.2.x/3.3.x are historical records.
 - **1.x** — Historical maintenance branch. YAML activity logs, local-only operation, no spec-kitty-events dependency.
 
@@ -525,7 +536,9 @@ The standing close-out sequence that produces such a PR — accept → resolve i
 
 ## Local Docker Development Governance (`spec-kitty-saas`)
 
-When work in this program touches the SaaS repository, all contributors and agents must use a two-mode Docker workflow:
+The SaaS repository serves the hosted Team Kitty product, which is no longer actively
+supported. This section binds only work the operator explicitly requests there. When such
+work touches the SaaS repository, all contributors and agents must use a two-mode Docker workflow:
 
 1. **`dev-live` mode** for active implementation loops
 - Live code volumes
@@ -547,6 +560,7 @@ Operational reference:
 
 ## Central CLI-SaaS API Contract
 
+- Team Kitty is no longer actively supported (ADR `2026-10-06-1`): start no new hosted work unless the operator asks for it. Any change that alters the hosted wire surface must still update the contract below.
 - The published current-state CLI↔SaaS contract lives at `../spec-kitty-saas/contracts/cli-saas-current-api.yaml`.
 - Any CLI change that alters hosted routes, request/response bodies, auth headers, websocket behavior, sync payloads, or tracker control-plane semantics must update that contract in the same change.
 - ADRs, PRDs, and roadmap notes may describe future APIs, but the authoritative reference for what the CLI actually speaks to SaaS today is that contract file.

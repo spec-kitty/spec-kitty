@@ -1,6 +1,10 @@
 # Spec Kitty Development Guidelines
 
-**Spec Kitty** is a toolkit for Spec-Driven Development (SDD) — clear, actionable specifications ahead of implementation, inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit). **Spec Kitty CLI** bootstraps projects with the framework: directory structures, templates, and AI agent integrations. Every command template leads with a discovery interview; the CLI refuses to create specs or plans until the question set is answered.
+**Spec Kitty is building the operating system for Governed AI Delivery.** It helps individuals and teams reduce the time from agreed intent to a verified, useful result, with human-led decision-making and accountability at the centre of the work. Spec-Driven Development (SDD), inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit), is the method: an agreed specification comes before implementation, and the result is checked against it.
+
+**The Spec Kitty CLI** (this repository) carries that method into a repository: it bootstraps the directory structure, templates, charter and agent integrations, then runs Missions from specification through review and consolidation. Every command template leads with a discovery interview; the CLI refuses to create specs or plans until the question set is answered.
+
+**What to optimise for.** Judge a change by whether it shortens the path from agreed intent to a verified, useful result for the person using Spec Kitty, without weakening what that path requires: a clear purpose, verification proportionate to the risk of the work, and evidence that the result did its job.
 
 ---
 
@@ -62,9 +66,17 @@ packs/built-in/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURC
 
 ---
 
-## ⚠️ CRITICAL: Team Kitty is Zeitgeist — "sync" is dead
+## ⚠️ CRITICAL: Team Kitty is not actively supported — do not build toward it
 
-The hosted product is **Team Kitty**; the live transport is **Zeitgeist**, a volatile per-team relay the SaaS provisions and polls. On every lane transition the CLI publishes one **moment** straight to the team's relay (`status/emit.py` → `status/adapters.py` → `status/zeitgeist_bridge.py` → `zeitgeist_client/`), bounded to one request with no queue and no retry, gated only by team membership and repository admission on the SaaS side. The old "sync" transport (daemon, offline queue, per-project consent, `api/v1/sync/*` ingress) was deleted on both sides in August 2026; every remaining "sync" identifier (`SPEC_KITTY_ENABLE_SAAS_SYNC`, `SPEC_KITTY_SYNC_*`, `sync_active()`, `OWNED_SYNC_UNSUPPORTED`) is residue that does **not** gate the moment path. Read [`docs/context/team-kitty.md`](docs/context/team-kitty.md) before touching anything hosted, and never design against or "re-enable" sync.
+**Team Kitty**, the hosted collaboration product, is no longer actively supported. Team Kitty / SaaS work was frozen on 2026-10-01 ([4.0.0 direction amendment](docs/changelog/4.0.0.md)), and nothing hosted gates a release. Do not propose or extend hosted features, and do not point users or agent harnesses to them, unless the operator explicitly asks for hosted work.
+
+What still ships, and how it is fenced ([ADR `2026-10-06-1`](docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md)):
+
+- **Hosted interaction is off by default, behind two gates** ([ADR `2026-09-26-3`](docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md)). Moments, Live Work and the relay commands need the drain posture (`src/specify_cli/core/hosted_posture.py`): `hosted.drain` in the repository's `.kittify/config.yaml` and `[hosted] drain` in the personal `config.toml` must both be true, and no environment variable can turn it on. Authentication and the SaaS-backed tracker calls need a configured endpoint instead (`SPEC_KITTY_SAAS_URL` or `config.toml [sync].server_url`, `src/specify_cli/auth/server_target.py`). Neither ships configured.
+- **The hosted CLI entries are hidden from listings.** `auth`, `issue-search`, `live-work`, `moments`, `routes` and `zeitgeist` (`HOSTED_SURFACE_NAMES`, `src/specify_cli/cli/commands/__init__.py`) are missing from `--help`, completion and the CLI reference unless drain is on. They still run when invoked by name. `tracker` stays visible for its local providers (`beads`, `fp`).
+- **The `spk-team-*` skills are retired.** Do not add skill or command-template guidance that sends agents to Team Kitty.
+
+When work does touch the dormant hosted code, keep its model straight. The live transport is **Zeitgeist**, a volatile per-team relay: on every lane transition, with drain on, the CLI publishes one **moment** to the team's relay (`status/emit.py` → `status/adapters.py` → `status/zeitgeist_bridge.py` → `zeitgeist_client/`), bounded to one request with no queue and no retry. The old "sync" transport (daemon, offline queue, per-project consent, `api/v1/sync/*` ingress) was deleted on both sides in August 2026. Every remaining "sync" identifier (`SPEC_KITTY_ENABLE_SAAS_SYNC`, `SPEC_KITTY_SYNC_*`, `sync_active()`, `OWNED_SYNC_UNSUPPORTED`) is residue that does **not** gate the moment path; never design against or "re-enable" sync. The full model is in [`docs/context/team-kitty.md`](docs/context/team-kitty.md).
 
 ---
 
@@ -667,7 +679,7 @@ Live GitHub Actions are part of that workflow. The reinstated lean modular CI (`
 
 ## Docker Mode Policy (`spec-kitty-saas`)
 
-When work touches `/spec-kitty-saas`, use two explicit Docker modes:
+The SaaS repository serves the hosted Team Kitty product, which is not actively supported (see the Team Kitty section above). This policy applies only when the operator explicitly asks for work there. When work touches `/spec-kitty-saas`, use two explicit Docker modes:
 
 - **`dev-live`** (implementation/debug loops): `make docker-app-up-live`, `make docker-app-down-live`
 - **`prod-like`** (pre-merge gate): `make docker-app-up`, `make docker-auth-check` (required before merge), `make docker-app-down`

@@ -2,7 +2,7 @@
 title: 'Context: Team Kitty and Zeitgeist'
 description: "Glossary context for the hosted product: how the CLI, its Zeitgeist client, the per-team relay, and the Team Kitty SaaS fit together, and why 'sync' is a dead word."
 doc_status: active
-updated: '2026-09-27'
+updated: '2026-10-06'
 audience: docs/context/audience/internal/ai-collaboration-agent.md
 type: explanation
 related:
@@ -12,8 +12,14 @@ related:
 - docs/api/configuration.md
 - docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md
 - docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md
+- docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md
 ---
 # Context: Team Kitty and Zeitgeist
+
+> **Status (2026-10-06):** Team Kitty is no longer actively supported
+> ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md)).
+> This page describes code that still ships but is off by default; do not build
+> toward it unless the operator asks for hosted work.
 
 **Read this before touching anything hosted.** It is the one-page model every
 agent needs when work mentions the SaaS, moments, presence, readiness, auth,

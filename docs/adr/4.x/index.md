@@ -2,7 +2,7 @@
 title: '4.x Architectural Decision Records'
 description: 'Index for Spec Kitty 4.x architectural decision records: where new ADRs land from the 4.0.0 cycle onward, the naming convention, and how to register one.'
 doc_status: active
-updated: '2026-10-05'
+updated: '2026-10-06'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 ---
@@ -57,3 +57,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-05 | [a bare-slug coordination Mission has one exact directory alias set, and one directory on the target](2026-10-05-1-bare-slug-coordination-directory-alias.md) |
 | 2026-10-05 | [owned-checkout and start-up performance tests assert runner-relative ratios](2026-10-05-2-runner-relative-performance-budgets.md) |
 | 2026-10-05 | [org packs ship their own built-in override sanction](2026-10-05-3-org-packs-ship-their-builtin-override-sanction.md) |
+| 2026-10-06 | [the Team Kitty surfaces are hidden unless hosted drain is on](2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md) |

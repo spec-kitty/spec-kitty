@@ -3544,6 +3544,15 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "absorption-by-2594", text: "Absorption by #2594", level: 3}
     - {slug: "follow-ups-not-in-scope", text: "Follow-ups, not in scope", level: 3}
+  - path: "docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md"
+    title: "ADR: the Team Kitty surfaces are hidden unless hosted drain is on"
+    divio_type: "none"
+    abstract: "Team Kitty is no longer supported: the spk-team-* skills are retired and its six CLI entries are hidden from listings unless the hosted drain posture is on."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -3629,8 +3638,6 @@ pages:
     - {slug: "spec-kitty-agent-mission-record-analysis", text: "spec-kitty agent mission record-analysis", level: 2}
     - {slug: "spec-kitty-agent-mission-repair", text: "spec-kitty agent mission repair", level: 2}
     - {slug: "spec-kitty-agent-mission-setup-plan", text: "spec-kitty agent mission setup-plan", level: 2}
-    - {slug: "spec-kitty-agent-profile-list", text: "spec-kitty agent profile list", level: 2}
-    - {slug: "spec-kitty-agent-profile-show", text: "spec-kitty agent profile show", level: 2}
     - {slug: "spec-kitty-agent-release", text: "spec-kitty agent release", level: 2}
     - {slug: "spec-kitty-agent-release-prep", text: "spec-kitty agent release prep", level: 2}
     - {slug: "spec-kitty-agent-retrospect", text: "spec-kitty agent retrospect", level: 2}
@@ -3946,12 +3953,6 @@ pages:
     - {slug: "spec-kitty-archive", text: "spec-kitty archive", level: 2}
     - {slug: "spec-kitty-archive-create", text: "spec-kitty archive create", level: 2}
     - {slug: "spec-kitty-archive-list", text: "spec-kitty archive list", level: 2}
-    - {slug: "spec-kitty-auth", text: "spec-kitty auth", level: 2}
-    - {slug: "spec-kitty-auth-doctor", text: "spec-kitty auth doctor", level: 2}
-    - {slug: "spec-kitty-auth-login", text: "spec-kitty auth login", level: 2}
-    - {slug: "spec-kitty-auth-logout", text: "spec-kitty auth logout", level: 2}
-    - {slug: "spec-kitty-auth-status", text: "spec-kitty auth status", level: 2}
-    - {slug: "spec-kitty-auth-whoami", text: "spec-kitty auth whoami", level: 2}
     - {slug: "spec-kitty-charter", text: "spec-kitty charter", level: 2}
     - {slug: "spec-kitty-charter-activate", text: "spec-kitty charter activate", level: 2}
     - {slug: "spec-kitty-charter-bundle", text: "spec-kitty charter bundle", level: 2}
@@ -4017,21 +4018,6 @@ pages:
     - {slug: "spec-kitty-doctor-tool-surfaces", text: "spec-kitty doctor tool-surfaces", level: 2}
     - {slug: "spec-kitty-doctor-topology", text: "spec-kitty doctor topology", level: 2}
     - {slug: "spec-kitty-doctor-workspaces", text: "spec-kitty doctor workspaces", level: 2}
-    - {slug: "spec-kitty-doctrine-asset", text: "spec-kitty doctrine asset", level: 2}
-    - {slug: "spec-kitty-doctrine-asset-list", text: "spec-kitty doctrine asset list", level: 2}
-    - {slug: "spec-kitty-doctrine-asset-path", text: "spec-kitty doctrine asset path", level: 2}
-    - {slug: "spec-kitty-doctrine-fetch", text: "spec-kitty doctrine fetch", level: 2}
-    - {slug: "spec-kitty-doctrine-mission-type", text: "spec-kitty doctrine mission-type", level: 2}
-    - {slug: "spec-kitty-doctrine-mission-type-list", text: "spec-kitty doctrine mission-type list", level: 2}
-    - {slug: "spec-kitty-doctrine-new", text: "spec-kitty doctrine new", level: 2}
-    - {slug: "spec-kitty-doctrine-org", text: "spec-kitty doctrine org", level: 2}
-    - {slug: "spec-kitty-doctrine-org-init", text: "spec-kitty doctrine org init", level: 2}
-    - {slug: "spec-kitty-doctrine-org-validate", text: "spec-kitty doctrine org validate", level: 2}
-    - {slug: "spec-kitty-doctrine-pack", text: "spec-kitty doctrine pack", level: 2}
-    - {slug: "spec-kitty-doctrine-pack-assemble", text: "spec-kitty doctrine pack assemble", level: 2}
-    - {slug: "spec-kitty-doctrine-pack-validate", text: "spec-kitty doctrine pack validate", level: 2}
-    - {slug: "spec-kitty-doctrine-regenerate-graph", text: "spec-kitty doctrine regenerate-graph", level: 2}
-    - {slug: "spec-kitty-doctrine-validate", text: "spec-kitty doctrine validate", level: 2}
     - {slug: "spec-kitty-events", text: "spec-kitty events", level: 2}
     - {slug: "spec-kitty-events-tail", text: "spec-kitty events tail", level: 2}
     - {slug: "spec-kitty-glossary", text: "spec-kitty glossary", level: 2}
@@ -4047,14 +4033,7 @@ pages:
     - {slug: "spec-kitty-invocations-list", text: "spec-kitty invocations list", level: 2}
     - {slug: "spec-kitty-issue-matrix", text: "spec-kitty issue-matrix", level: 2}
     - {slug: "spec-kitty-issue-matrix-migrate", text: "spec-kitty issue-matrix migrate", level: 2}
-    - {slug: "spec-kitty-issue-search", text: "spec-kitty issue-search", level: 2}
     - {slug: "spec-kitty-lint", text: "spec-kitty lint", level: 2}
-    - {slug: "spec-kitty-live-work", text: "spec-kitty live-work", level: 2}
-    - {slug: "spec-kitty-live-work-hook", text: "spec-kitty live-work hook", level: 2}
-    - {slug: "spec-kitty-live-work-install", text: "spec-kitty live-work install", level: 2}
-    - {slug: "spec-kitty-live-work-matrix", text: "spec-kitty live-work matrix", level: 2}
-    - {slug: "spec-kitty-live-work-uninstall", text: "spec-kitty live-work uninstall", level: 2}
-    - {slug: "spec-kitty-live-work-watch", text: "spec-kitty live-work watch", level: 2}
     - {slug: "spec-kitty-materialize", text: "spec-kitty materialize", level: 2}
     - {slug: "spec-kitty-migrate", text: "spec-kitty migrate", level: 2}
     - {slug: "spec-kitty-migrate-backfill-identity", text: "spec-kitty migrate backfill-identity", level: 2}
@@ -4091,14 +4070,6 @@ pages:
     - {slug: "spec-kitty-mission-type-run", text: "spec-kitty mission-type run", level: 2}
     - {slug: "spec-kitty-mission-type-show", text: "spec-kitty mission-type show", level: 2}
     - {slug: "spec-kitty-mission-type-switch", text: "spec-kitty mission-type switch", level: 2}
-    - {slug: "spec-kitty-moments", text: "spec-kitty moments", level: 2}
-    - {slug: "spec-kitty-moments-drain", text: "spec-kitty moments drain", level: 2}
-    - {slug: "spec-kitty-moments-drain-off", text: "spec-kitty moments drain off", level: 2}
-    - {slug: "spec-kitty-moments-drain-on", text: "spec-kitty moments drain on", level: 2}
-    - {slug: "spec-kitty-moments-drain-status", text: "spec-kitty moments drain status", level: 2}
-    - {slug: "spec-kitty-moments-off", text: "spec-kitty moments off", level: 2}
-    - {slug: "spec-kitty-moments-on", text: "spec-kitty moments on", level: 2}
-    - {slug: "spec-kitty-moments-status", text: "spec-kitty moments status", level: 2}
     - {slug: "spec-kitty-next", text: "spec-kitty next", level: 2}
     - {slug: "spec-kitty-ops", text: "spec-kitty ops", level: 2}
     - {slug: "spec-kitty-ops-log", text: "spec-kitty ops log", level: 2}
@@ -4141,7 +4112,6 @@ pages:
     - {slug: "spec-kitty-retrospect-create", text: "spec-kitty retrospect create", level: 2}
     - {slug: "spec-kitty-retrospect-summary", text: "spec-kitty retrospect summary", level: 2}
     - {slug: "spec-kitty-review", text: "spec-kitty review", level: 2}
-    - {slug: "spec-kitty-routes", text: "spec-kitty routes", level: 2}
     - {slug: "spec-kitty-safe-commit", text: "spec-kitty safe-commit", level: 2}
     - {slug: "spec-kitty-session-start", text: "spec-kitty session-start", level: 2}
     - {slug: "spec-kitty-session-stop", text: "spec-kitty session-stop", level: 2}
@@ -4171,25 +4141,6 @@ pages:
     - {slug: "spec-kitty-workflow-export", text: "spec-kitty workflow export", level: 2}
     - {slug: "spec-kitty-workflow-import", text: "spec-kitty workflow import", level: 2}
     - {slug: "spec-kitty-workflow-list", text: "spec-kitty workflow list", level: 2}
-    - {slug: "spec-kitty-zeitgeist", text: "spec-kitty zeitgeist", level: 2}
-    - {slug: "spec-kitty-zeitgeist-activity", text: "spec-kitty zeitgeist activity", level: 2}
-    - {slug: "spec-kitty-zeitgeist-inbox", text: "spec-kitty zeitgeist inbox", level: 2}
-    - {slug: "spec-kitty-zeitgeist-operability", text: "spec-kitty zeitgeist operability", level: 2}
-    - {slug: "spec-kitty-zeitgeist-operability-drill-rollback", text: "spec-kitty zeitgeist operability drill-rollback", level: 2}
-    - {slug: "spec-kitty-zeitgeist-operability-drill-rotation", text: "spec-kitty zeitgeist operability drill-rotation", level: 2}
-    - {slug: "spec-kitty-zeitgeist-operability-drill-timeout", text: "spec-kitty zeitgeist operability drill-timeout", level: 2}
-    - {slug: "spec-kitty-zeitgeist-operability-report", text: "spec-kitty zeitgeist operability report", level: 2}
-    - {slug: "spec-kitty-zeitgeist-outbox", text: "spec-kitty zeitgeist outbox", level: 2}
-    - {slug: "spec-kitty-zeitgeist-outbox-approve", text: "spec-kitty zeitgeist outbox approve", level: 2}
-    - {slug: "spec-kitty-zeitgeist-outbox-list", text: "spec-kitty zeitgeist outbox list", level: 2}
-    - {slug: "spec-kitty-zeitgeist-outbox-reject", text: "spec-kitty zeitgeist outbox reject", level: 2}
-    - {slug: "spec-kitty-zeitgeist-outbox-revoke", text: "spec-kitty zeitgeist outbox revoke", level: 2}
-    - {slug: "spec-kitty-zeitgeist-outbox-show", text: "spec-kitty zeitgeist outbox show", level: 2}
-    - {slug: "spec-kitty-zeitgeist-read", text: "spec-kitty zeitgeist read", level: 2}
-    - {slug: "spec-kitty-zeitgeist-reply", text: "spec-kitty zeitgeist reply", level: 2}
-    - {slug: "spec-kitty-zeitgeist-send", text: "spec-kitty zeitgeist send", level: 2}
-    - {slug: "spec-kitty-zeitgeist-status", text: "spec-kitty zeitgeist status", level: 2}
-    - {slug: "spec-kitty-zeitgeist-watch", text: "spec-kitty zeitgeist watch", level: 2}
   - path: "docs/api/configuration.md"
     title: "Configuration Reference"
     divio_type: "none"
@@ -4475,7 +4426,6 @@ pages:
     - {slug: "spk-run", text: "spk-run-*", level: 2}
     - {slug: "spk-gate", text: "spk-gate-*", level: 2}
     - {slug: "spk-admin", text: "spk-admin-*", level: 2}
-    - {slug: "spk-team", text: "spk-team-*", level: 2}
     - {slug: "spk-doctrine", text: "spk-doctrine-*", level: 2}
     - {slug: "spk-integrate", text: "spk-integrate-*", level: 2}
     - {slug: "spk-meta", text: "spk-meta-*", level: 2}
