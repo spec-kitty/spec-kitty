@@ -42,13 +42,6 @@ detailed workflows or aliases while new public operating skills use `spk-*`.
 - `spk-admin-upgrade`: upgrade and migrations.
 - `spk-admin-git-workflow`: git and worktree workflows.
 
-## Team
-
-- `spk-team-auth`: auth and accounts.
-- `spk-team-sync`: tracker sync (local pull/push/run, hosted binding).
-- `spk-team-tracker`: tracker workflows.
-- `spk-team-connectors`: connector integrations.
-
 ## Doctrine
 
 - `spk-doctrine-charter`: charter workflows.

@@ -68,7 +68,6 @@ Families:
   loops, single-WP review, blocked recovery.
 - `spk-gate-*`: accept, merge, mission review, retrospective.
 - `spk-admin-*`: setup, agent config, upgrade.
-- `spk-team-*`: auth, sync, tracker, connectors.
 - `spk-doctrine-*`: charter, glossary, SPDD, profile load, bulk-edit policy.
 - `spk-doctrine-show-me`: compact visual communication grounded in diagram doctrine.
 - `spk-doctrine-semantic-compression`: behavior-preserving code reduction.
@@ -107,10 +106,6 @@ the public user-facing hierarchy moves to `spk-*`.
 | `spk-admin-agent-config` | Agent setup |
 | `spk-admin-upgrade` | Upgrade and migrations |
 | `spk-admin-git-workflow` | Git and worktree workflows |
-| `spk-team-auth` | Auth and accounts |
-| `spk-team-sync` | Tracker sync (local pull/push/run, hosted binding) |
-| `spk-team-tracker` | Tracker workflows |
-| `spk-team-connectors` | Connector integrations |
 | `spk-doctrine-charter` | Charter workflows |
 | `spk-doctrine-glossary` | Terminology |
 | `spk-doctrine-spdd-reasons` | REASONS Canvas |

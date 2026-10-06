@@ -49,10 +49,6 @@ SPK_SKILLS = {
     "spk-start-command-map",
     "spk-start-first-feature",
     "spk-start-here",
-    "spk-team-auth",
-    "spk-team-connectors",
-    "spk-team-sync",
-    "spk-team-tracker",
 }
 LEGACY_ALIAS_SKILLS = {
     "ad-hoc-profile-load",

@@ -2,7 +2,7 @@
 title: Skills
 description: Catalog of Spec Kitty's operator-facing skills — the spk-* public hierarchy, their legacy spec-kitty-* aliases, and which skills have a deep reference page.
 doc_status: active
-updated: '2026-08-10'
+updated: '2026-10-06'
 type: reference
 audience: docs/context/audience/internal/lead-developer.md
 related:
@@ -82,15 +82,6 @@ re-listing it here.
 | `spk-admin-agent-config` | Agent setup | — | — |
 | `spk-admin-upgrade` | Upgrade and migrations | — | — |
 | `spk-admin-git-workflow` | Git and worktree workflows | `spec-kitty-git-workflow` | — |
-
-## spk-team-*
-
-| Skill ID | Purpose | Legacy Alias | Deep Page |
-|---|---|---|---|
-| `spk-team-auth` | Auth and accounts | — | — |
-| `spk-team-sync` | Hosted/team sync | — | — |
-| `spk-team-tracker` | Tracker workflows | — | — |
-| `spk-team-connectors` | Connector integrations | — | — |
 
 ## spk-doctrine-*
 

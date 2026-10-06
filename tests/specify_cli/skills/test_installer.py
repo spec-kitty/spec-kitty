@@ -351,7 +351,7 @@ class TestInstallSharedRootAgent:
             (stale / "scripts" / "use-upsun-env.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
 
         # The currently-shipped pack no longer contains the upsun skill.
-        shipped = _make_skill(skills_root, "spk-team-sync")
+        shipped = _make_skill(skills_root, "spk-start-here")
         install_skills_for_agent(project, "claude", [shipped])
 
         for root in [
@@ -360,7 +360,7 @@ class TestInstallSharedRootAgent:
         ]:
             assert (root / RETIRED_UPSUN_SKILL / "SKILL.md").read_text(encoding="utf-8") == upsun_body
             assert (root / RETIRED_UPSUN_SKILL / "scripts/use-upsun-env.sh").read_text(encoding="utf-8") == "#!/usr/bin/env bash\n"
-            assert (root / "spk-team-sync" / "SKILL.md").is_file()
+            assert (root / "spk-start-here" / "SKILL.md").is_file()
 
 
 class TestInstallWrapperOnlyAgentSkipped:
