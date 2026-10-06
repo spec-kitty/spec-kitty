@@ -380,12 +380,14 @@ def _run_retrospective_learning_capture(
     resolved_provenance: ProvenanceKind = provenance_kind or (
         "runtime_strict_gate" if block_on_failure else "runtime_post_completion"
     )
-    callback = _build_retrospective_facilitator_callback(
-        mission_slug=mission_slug,
-        repo_root=repo_root,
-        provenance_kind=resolved_provenance,
-    )
     try:
+        # Built inside the ``try``: a failure while building the capture (a late
+        # import, say) follows the same policy as a failure while running it.
+        callback = _build_retrospective_facilitator_callback(
+            mission_slug=mission_slug,
+            repo_root=repo_root,
+            provenance_kind=resolved_provenance,
+        )
         callback(mission_id=mission_id, feature_dir=feature_dir, repo_root=repo_root)
     except Exception:
         logger.exception(
