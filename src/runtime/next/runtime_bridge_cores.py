@@ -480,7 +480,7 @@ class _ArtifactPresenceSnapshotLike(Protocol):
 
     ``wp_advance_ready`` is populated by ``_check_cli_guards`` and
     ``_check_composed_action_guard`` (not by ``gather_artifact_presence``
-    itself) from the bridge-owned ``_should_advance_wp_step`` I/O read,
+    itself) from the ``runtime_bridge_guards._should_advance_wp_step`` I/O read,
     without adding a new gather concern to the WP05 port or its
     already-green test suite.
 

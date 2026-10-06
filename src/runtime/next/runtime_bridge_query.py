@@ -1,4 +1,4 @@
-"""Read path of ``spec-kitty next``: query mode and answer mode (#2560).
+"""Query (read) and answer (write) entry points of ``spec-kitty next`` (#2560).
 
 Mission ``runtime-bridge-query-seam-01M490EQ`` moved this cluster out of
 ``runtime_bridge.py`` verbatim:
@@ -10,8 +10,9 @@ Mission ``runtime-bridge-query-seam-01M490EQ`` moved this cluster out of
   ``_build_runtime_query_decision``) and helpers
   (``_query_resolve_mission_context``, ``_query_read_runtime_plan``,
   ``_query_dispatch_decision``, ``_is_read_path_error``);
-* ``answer_decision_via_runtime`` — records the answer to a pending decision
-  through the runtime engine, committed by the decision-log wrapper;
+* ``answer_decision_via_runtime`` — the one write entry point: starts a run if
+  needed, records the answer to a pending decision through the runtime engine,
+  and commits it to the decision log through the decision-log wrapper;
 * their exceptions ``QueryModeValidationError`` and ``MissionNotFoundError``.
 
 ``query_current_state``, ``answer_decision_via_runtime``,

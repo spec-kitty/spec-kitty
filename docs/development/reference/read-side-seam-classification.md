@@ -2,7 +2,7 @@
 title: Read-side placement-seam classification ledger
 description: "Per-site verdicts (migrate-fail-loud / stay-lenient / sanction-infra) for every production call site that bypasses PlacementSeam.read_dir(kind)."
 doc_status: active
-updated: '2026-10-05'
+updated: '2026-10-07'
 audience: docs/context/audience/internal/system-architect.md
 type: reference
 related:
@@ -585,8 +585,8 @@ only; scope statement repeated in the WP body). They are recorded here as
 against a concrete list rather than staring at an undifferentiated red:
 
 ```text
-runtime/next/runtime_bridge.py :: _mission_routes_through_coordination
 runtime/next/runtime_bridge.py :: _dn_bootstrap
+runtime/next/runtime_bridge_decision_log.py :: _mission_routes_through_coordination
 runtime/next/runtime_bridge_identity.py :: _primary_runtime_feature_dir
 specify_cli/acceptance/__init__.py :: _primary_anchor_feature_dir
 specify_cli/agent_tasks_ports.py :: RealFsReader.primary_anchor_dir

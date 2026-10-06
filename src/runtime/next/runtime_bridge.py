@@ -37,7 +37,7 @@ A tracked-mission-to-run compatibility index currently lives at
 # (``_<seam>.<name>``) and keeps no forwarder, so a test patches a name on
 # the seam that owns it:
 #
-#   runtime_bridge_query.py             query mode + answer mode (read path)
+#   runtime_bridge_query.py             query mode (read) + answer mode (write)
 #   runtime_bridge_decision_mapping.py  NextDecision -> Decision mapping, the
 #                                       WP-board / WP-iteration selector, the
 #                                       merged / finalized-board short-circuits

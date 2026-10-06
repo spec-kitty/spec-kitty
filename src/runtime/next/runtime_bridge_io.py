@@ -1170,7 +1170,7 @@ class ArtifactPresenceSnapshot:
     ``wp_advance_ready`` (WP06, T022) is deliberately NOT populated by
     :func:`gather_artifact_presence` — it defaults to ``None`` here and is
     set by ``_check_cli_guards`` (and ``_check_composed_action_guard``) from
-    the bridge-owned ``_should_advance_wp_step`` for ``step_id``/``action``
+    ``runtime_bridge_guards._should_advance_wp_step`` for ``step_id``/``action``
     in ``{"implement", "review"}`` via
     ``dataclasses.replace(snapshot, wp_advance_ready=...)``, so this port's
     already-green ``tests/runtime/test_bridge_io.py`` (which does not stub
@@ -1403,8 +1403,8 @@ def gather_artifact_presence(
     reproduce identical ``guard_failures`` content and ordering (SC-007)
     without touching disk again. The guard-helper calls below
     (``_check_requirement_mapping_ready``, ``_occurrence_gate_failures``,
-    ``_has_raw_dependencies_field``) stay natively defined on
-    ``runtime_bridge`` (unmoved by this WP); ``_count_source_documented_events``,
+    ``_has_raw_dependencies_field``) are owned by
+    ``runtime_bridge_guards`` (#2560); ``_count_source_documented_events``,
     ``_publication_approved`` and ``_has_generated_docs`` are owned by
     ``runtime_bridge_composition`` and looked up there (#2561).
 
@@ -1467,7 +1467,7 @@ def gather_artifact_presence(
             # guards this snapshot feeds (evaluate_guards, WP06) read
             # `wp_lane_raw` for their decision — `wp_advance_ready` (also
             # threaded through this snapshot, but computed separately by the
-            # residual via the unmoved `_should_advance_wp_step`) is what
+            # residual via `runtime_bridge_guards._should_advance_wp_step`) is what
             # implement/review actually consult — so this fact is gathered
             # best-effort and a missing event log must not turn a narrow
             # tasks_packages/tasks_finalize dependency-field check into an
