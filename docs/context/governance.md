@@ -2,7 +2,7 @@
 title: 'Context: Governance'
 description: 'Glossary context for governance: rule ownership, precedence, and policy controls in Spec Kitty, including the charter and doctrine-selection terms.'
 doc_status: active
-updated: '2026-06-05'
+updated: '2026-10-06'
 related:
 - docs/context/configuration-project-structure.md
 - docs/context/charter.md
@@ -21,6 +21,18 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Project Charter](./configuration-project-structure.md#project-charter), [Charter Interview](#charter-interview), [Charter Compiler](#charter-compiler), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic) |
+
+---
+
+### Governed AI Delivery
+
+| | |
+|---|---|
+| **Definition** | Delivering software with AI agents under explicit human governance: work moves from agreed intent to a verified, useful result, while humans keep decision-making and accountability. Every change needs a clear purpose, verification proportionate to its risk, and evidence that the result was useful. Spec Kitty describes itself as the operating system for Governed AI Delivery. |
+| **Context** | Governance |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Related terms** | [Charter](#charter), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic), [Precedence Rule](#precedence-rule) |
 
 ---
 

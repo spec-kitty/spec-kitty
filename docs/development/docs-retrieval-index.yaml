@@ -10399,6 +10399,7 @@ pages:
     anchors:
     - {slug: "context-governance", text: "Context: Governance", level: 2}
     - {slug: "charter", text: "Charter", level: 3}
+    - {slug: "governed-ai-delivery", text: "Governed AI Delivery", level: 3}
     - {slug: "adr-architectural-decision-record", text: "ADR (Architectural Decision Record)", level: 3}
     - {slug: "glossary-strictness-policy", text: "Glossary Strictness Policy", level: 3}
     - {slug: "clarification-burst-policy", text: "Clarification Burst Policy", level: 3}
