@@ -271,17 +271,20 @@ def test_is_abandoned(wp_lanes: dict[str, str | None], event_count: int, spec_tr
 
 
 @pytest.mark.parametrize(
-    ("wp_lanes", "event_count", "spec_tracked", "expected"),
+    ("wp_lanes", "event_count", "spec_tracked", "mission_branch_live", "expected"),
     [
-        ({}, 0, False, False),  # #5726: genesis with a live minted mission branch is LIVE
-        ({}, 0, True, False),
-        ({}, 0, None, None),  # the spec probe still decides first
-        ({"WP01": "canceled"}, 2, None, True),  # all canceled stays abandoned
-        ({}, 3, None, False),
+        ({}, 0, False, True, False),  # #5726: genesis with a live minted mission branch is LIVE
+        ({}, 0, False, False, True),  # FR-003: untracked spec + live branch but this create does not mint -> still abandoned
+        ({}, 0, True, True, False),
+        ({}, 0, None, True, None),  # the spec probe still decides first
+        ({"WP01": "canceled"}, 2, None, True, True),  # all canceled stays abandoned
+        ({}, 3, None, True, False),
     ],
 )
-def test_is_abandoned_with_a_live_mission_branch(wp_lanes: dict[str, str | None], event_count: int, spec_tracked: bool | None, expected: bool | None) -> None:
-    verdict = is_abandoned(wp_lanes=wp_lanes, canceled_lane="canceled", event_count=event_count, spec_tracked=spec_tracked, mission_branch_live=True)
+def test_is_abandoned_with_a_live_mission_branch(
+    wp_lanes: dict[str, str | None], event_count: int, spec_tracked: bool | None, mission_branch_live: bool, expected: bool | None
+) -> None:
+    verdict = is_abandoned(wp_lanes=wp_lanes, canceled_lane="canceled", event_count=event_count, spec_tracked=spec_tracked, mission_branch_live=mission_branch_live)
     assert verdict is expected
 
 
