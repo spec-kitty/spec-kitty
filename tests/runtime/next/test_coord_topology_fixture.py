@@ -56,7 +56,7 @@ from typing import Any
 import pytest
 
 from mission_runtime import MissionArtifactKind, placement_seam
-from runtime.next.runtime_bridge import _should_advance_wp_step, _wp_blocks_step
+from runtime.next.runtime_bridge_guards import _should_advance_wp_step, _wp_blocks_step
 from specify_cli.missions._read_path_resolver import (
     coord_feature_dir as _compose_coord_feature_dir,
 )

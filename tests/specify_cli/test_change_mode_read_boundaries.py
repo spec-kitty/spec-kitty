@@ -91,9 +91,9 @@ def _observe_gate_is_bulk_edit_mission(tmp_path: Path, change_mode: str | None) 
 
 
 def _observe_runtime_bridge_occurrence_gate(tmp_path: Path, change_mode: str | None) -> object:
-    """Reader ``runtime/next/runtime_bridge.py:921`` — ``_occurrence_gate_failures``
+    """Reader ``runtime/next/runtime_bridge_guards.py`` — ``_occurrence_gate_failures``
     consumes ``GateResult.errors`` only, never ``.change_mode``."""
-    from runtime.next.runtime_bridge import _occurrence_gate_failures
+    from runtime.next.runtime_bridge_guards import _occurrence_gate_failures
 
     feature_dir = tmp_path / f"occ_gate_{_slug(change_mode)}"
     _write_meta(feature_dir, change_mode)
@@ -164,7 +164,7 @@ def _observe_implement_gate_and_inference(tmp_path: Path, change_mode: str | Non
 
 _READER_PROBES: list[tuple[str, Callable[[Path, str | None], object]]] = [
     ("bulk_edit.gate._is_bulk_edit_mission", _observe_gate_is_bulk_edit_mission),
-    ("runtime_bridge._occurrence_gate_failures", _observe_runtime_bridge_occurrence_gate),
+    ("runtime_bridge_guards._occurrence_gate_failures", _observe_runtime_bridge_occurrence_gate),
     ("workflow_executor.review_enforce_bulk_edit_gate", _observe_workflow_executor_review_gate),
     ("implement_phases._run_bulk_edit_gate_and_inference", _observe_implement_gate_and_inference),
 ]

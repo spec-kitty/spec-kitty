@@ -41,6 +41,8 @@ from charter.activation.invocation_context import OperationalContext
 from specify_cli.status import CanonicalStatusNotFoundError
 from runtime.next import runtime_bridge_decision_mapping as decision_mapping
 from runtime.next import runtime_bridge_decision_log as decision_log
+from runtime.next import runtime_bridge_guards as bridge_guards
+from runtime.next import runtime_bridge_identity as identity_seam
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -239,7 +241,7 @@ def test_decide_next_via_runtime_runs_decision_materialize_when_earlier_phases_p
 
 def test_bootstrap_returns_blocked_decision_when_feature_dir_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     missing_dir = tmp_path / "nope"
-    monkeypatch.setattr(rb, "_resolve_runtime_feature_dir", lambda repo_root, slug: missing_dir)
+    monkeypatch.setattr(identity_seam, "_resolve_runtime_feature_dir", lambda repo_root, slug: missing_dir)
 
     ctx, decision = rb._dn_bootstrap("agent-x", "999-missing", "success", tmp_path)
 
@@ -253,7 +255,7 @@ def test_bootstrap_returns_blocked_decision_when_feature_dir_missing(tmp_path: P
 def test_bootstrap_returns_blocked_decision_when_run_start_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     feature_dir = tmp_path / "kitty-specs" / "042-mission"
     feature_dir.mkdir(parents=True)
-    monkeypatch.setattr(rb, "_resolve_runtime_feature_dir", lambda repo_root, slug: feature_dir)
+    monkeypatch.setattr(identity_seam, "_resolve_runtime_feature_dir", lambda repo_root, slug: feature_dir)
     monkeypatch.setattr(rb, "get_mission_type", lambda fd: "software-dev")
     wrap_calls: list[str] = []
     monkeypatch.setattr(decision_log, "_wrap_with_decision_git_log", _recording_pass_through(wrap_calls))
@@ -294,7 +296,7 @@ def test_bootstrap_returns_terminal_before_run_for_merged_mission(tmp_path: Path
     )
     stale_coord_dir = tmp_path / ".worktrees" / f"{slug}-coord" / "kitty-specs" / slug
     stale_coord_dir.mkdir(parents=True)
-    monkeypatch.setattr(rb, "_resolve_runtime_feature_dir", lambda repo_root, mission_slug: stale_coord_dir)
+    monkeypatch.setattr(identity_seam, "_resolve_runtime_feature_dir", lambda repo_root, mission_slug: stale_coord_dir)
     monkeypatch.setattr(rb, "get_mission_type", lambda feature_dir: "software-dev")
 
     def _raise_assertion(**_kwargs: Any) -> Any:
@@ -333,7 +335,7 @@ def test_bootstrap_proceeds_for_unmerged_mission(tmp_path: Path, monkeypatch: py
         encoding="utf-8",
     )
     monkeypatch.setattr(status_pkg, "is_mission_completed", lambda *_a, **_k: True)
-    monkeypatch.setattr(rb, "_resolve_runtime_feature_dir", lambda repo_root, mission_slug: primary_dir)
+    monkeypatch.setattr(identity_seam, "_resolve_runtime_feature_dir", lambda repo_root, mission_slug: primary_dir)
     monkeypatch.setattr(rb, "get_mission_type", lambda feature_dir: "software-dev")
 
     class _Sentinel(Exception):
@@ -376,7 +378,7 @@ def test_bootstrap_builds_full_context_on_happy_path(tmp_path: Path, monkeypatch
 
     wrapped_sentinel = object()
 
-    monkeypatch.setattr(rb, "_resolve_runtime_feature_dir", lambda repo_root, slug: feature_dir)
+    monkeypatch.setattr(identity_seam, "_resolve_runtime_feature_dir", lambda repo_root, slug: feature_dir)
     monkeypatch.setattr(rb, "get_mission_type", lambda fd: "software-dev")
     monkeypatch.setattr(rb, "runtime_emitter_for_mission", lambda **_: fake_emitter)
     monkeypatch.setattr(decision_log, "_wrap_with_decision_git_log", lambda emitter, slug, repo_root: wrapped_sentinel)
@@ -435,7 +437,7 @@ def test_bootstrap_preserves_phase_and_guards_when_optional_seed_unavailable(
     for name in RuntimeEventEmitter.__dict__:
         if name.startswith("emit_"):
             setattr(producer, name, lambda payload: None)
-    monkeypatch.setattr(rb, "_resolve_runtime_feature_dir", lambda *_: feature_dir)
+    monkeypatch.setattr(identity_seam, "_resolve_runtime_feature_dir", lambda *_: feature_dir)
     monkeypatch.setattr(rb._identity_seam, "_primary_runtime_feature_dir", lambda *_: None)
     monkeypatch.setattr(rb, "get_mission_type", lambda *_: "software-dev")
     monkeypatch.setattr(rb, "runtime_emitter_for_mission", lambda **_: producer)
@@ -468,7 +470,7 @@ def test_bootstrap_preserves_phase_and_guards_when_optional_seed_unavailable(
     def unavailable_status(*args: Any, **kwargs: Any) -> bool:
         raise CanonicalStatusNotFoundError("guard still active")
 
-    monkeypatch.setattr(rb, "_should_advance_wp_step", unavailable_status)
+    monkeypatch.setattr(bridge_guards, "_should_advance_wp_step", unavailable_status)
     guarded = rb._dn_dependency_gate(ctx)
     assert guarded is not None
     assert guarded.kind == DecisionKind.blocked
@@ -488,7 +490,7 @@ def test_bootstrap_defaults_current_step_id_to_none_when_snapshot_read_fails(tmp
         def seed_from_snapshot(self, snapshot: Any) -> None:
             raise AssertionError("must not be reached when the snapshot read itself fails")
 
-    monkeypatch.setattr(rb, "_resolve_runtime_feature_dir", lambda repo_root, slug: feature_dir)
+    monkeypatch.setattr(identity_seam, "_resolve_runtime_feature_dir", lambda repo_root, slug: feature_dir)
     monkeypatch.setattr(rb, "get_mission_type", lambda fd: "software-dev")
     monkeypatch.setattr(rb, "runtime_emitter_for_mission", lambda **_: _FakeSyncEmitter())
     wrap_calls: list[str] = []
@@ -537,7 +539,7 @@ def test_dependency_gate_returns_blocked_decision_on_status_lookup_failure(tmp_p
     def _raise(*_a: Any, **_kw: Any) -> bool:
         raise CanonicalStatusNotFoundError("no status file")
 
-    monkeypatch.setattr(rb, "_should_advance_wp_step", _raise)
+    monkeypatch.setattr(bridge_guards, "_should_advance_wp_step", _raise)
 
     decision = rb._dn_dependency_gate(ctx)
 
@@ -550,7 +552,7 @@ def test_dependency_gate_returns_blocked_decision_on_status_lookup_failure(tmp_p
 def test_dependency_gate_stays_in_step_when_wps_remain(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _make_ctx(tmp_path, current_step_id="implement")
     monkeypatch.setattr(decision_mapping, "_is_wp_iteration_step", lambda step: True)
-    monkeypatch.setattr(rb, "_should_advance_wp_step", lambda step, fd, **kw: False)
+    monkeypatch.setattr(bridge_guards, "_should_advance_wp_step", lambda step, fd, **kw: False)
     monkeypatch.setattr(rb, "_check_cli_guards", _raising)
 
     sentinel = _sentinel_decision("stay-in-step")
@@ -571,7 +573,7 @@ def test_dependency_gate_stays_in_step_when_wps_remain(tmp_path: Path, monkeypat
 def test_dependency_gate_stays_in_step_with_guard_failures_on_advance(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _make_ctx(tmp_path, current_step_id="implement")
     monkeypatch.setattr(decision_mapping, "_is_wp_iteration_step", lambda step: True)
-    monkeypatch.setattr(rb, "_should_advance_wp_step", lambda step, fd, **kw: True)
+    monkeypatch.setattr(bridge_guards, "_should_advance_wp_step", lambda step, fd, **kw: True)
     monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd, **kw: ["missing artifact"])
 
     sentinel = _sentinel_decision("guard-blocked")
@@ -592,7 +594,7 @@ def test_dependency_gate_stays_in_step_with_guard_failures_on_advance(tmp_path: 
 def test_dependency_gate_falls_through_when_wp_step_advances_cleanly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _make_ctx(tmp_path, current_step_id="implement")
     monkeypatch.setattr(decision_mapping, "_is_wp_iteration_step", lambda step: True)
-    monkeypatch.setattr(rb, "_should_advance_wp_step", lambda step, fd, **kw: True)
+    monkeypatch.setattr(bridge_guards, "_should_advance_wp_step", lambda step, fd, **kw: True)
     monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd, **kw: [])
 
     assert rb._dn_dependency_gate(ctx) is None

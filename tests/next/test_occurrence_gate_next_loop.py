@@ -148,7 +148,7 @@ class TestOccurrenceGateFailuresHelper:
             tmp_path, change_mode=None, occurrence_map_content=None
         )
 
-        from runtime.next.runtime_bridge import _occurrence_gate_failures
+        from runtime.next.runtime_bridge_guards import _occurrence_gate_failures
 
         assert _occurrence_gate_failures(feature_dir) == []
 
@@ -157,7 +157,7 @@ class TestOccurrenceGateFailuresHelper:
             tmp_path, change_mode="bulk_edit", occurrence_map_content=None
         )
 
-        from runtime.next.runtime_bridge import _occurrence_gate_failures
+        from runtime.next.runtime_bridge_guards import _occurrence_gate_failures
 
         failures = _occurrence_gate_failures(feature_dir)
         assert len(failures) == 1
@@ -168,7 +168,7 @@ class TestOccurrenceGateFailuresHelper:
             tmp_path, change_mode="bulk_edit", occurrence_map_content=VALID_OCCURRENCE_MAP
         )
 
-        from runtime.next.runtime_bridge import _occurrence_gate_failures
+        from runtime.next.runtime_bridge_guards import _occurrence_gate_failures
 
         assert _occurrence_gate_failures(feature_dir) == []
 

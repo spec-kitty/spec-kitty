@@ -25,6 +25,7 @@ from runtime.next._internal_runtime import DiscoveryContext
 from runtime.next import runtime_bridge_decision_mapping as decision_mapping
 from runtime.next import runtime_bridge_decision_log as decision_log
 from runtime.next import runtime_bridge_query
+from runtime.next import runtime_bridge_guards as bridge_guards
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -976,7 +977,7 @@ class TestWPStepHelpers:
         assert _is_wp_iteration_step("discovery") is False
 
     def test_should_advance_no_tasks_dir(self, tmp_path: Path) -> None:
-        from runtime.next.runtime_bridge import _should_advance_wp_step
+        from runtime.next.runtime_bridge_guards import _should_advance_wp_step
 
         assert _should_advance_wp_step("implement", tmp_path) is True
 
@@ -991,7 +992,7 @@ class TestWPStepHelpers:
             encoding="utf-8",
         )
 
-        from runtime.next.runtime_bridge import _should_advance_wp_step
+        from runtime.next.runtime_bridge_guards import _should_advance_wp_step
         from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
 
         with pytest.raises(CanonicalStatusNotFoundError):
@@ -1003,7 +1004,7 @@ class TestWPStepHelpers:
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
         _add_wp_files(feature_dir, {"WP01": "done", "WP02": "done"})
 
-        from runtime.next.runtime_bridge import _should_advance_wp_step
+        from runtime.next.runtime_bridge_guards import _should_advance_wp_step
 
         assert _should_advance_wp_step("implement", feature_dir) is True
         assert _should_advance_wp_step("review", feature_dir) is True
@@ -1014,7 +1015,7 @@ class TestWPStepHelpers:
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
         _add_wp_files(feature_dir, {"WP01": "done", "WP02": "planned"})
 
-        from runtime.next.runtime_bridge import _should_advance_wp_step
+        from runtime.next.runtime_bridge_guards import _should_advance_wp_step
 
         assert _should_advance_wp_step("implement", feature_dir) is False
 
@@ -1025,7 +1026,7 @@ class TestWPStepHelpers:
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
         _add_wp_files(feature_dir, {"WP01": "done", "WP02": "for_review"})
 
-        from runtime.next.runtime_bridge import _should_advance_wp_step
+        from runtime.next.runtime_bridge_guards import _should_advance_wp_step
 
         assert _should_advance_wp_step("implement", feature_dir) is True
         assert _should_advance_wp_step("review", feature_dir) is False
@@ -1036,7 +1037,7 @@ class TestWPStepHelpers:
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
         _add_wp_files(feature_dir, {"WP01": "approved", "WP02": "done"})
 
-        from runtime.next.runtime_bridge import _should_advance_wp_step
+        from runtime.next.runtime_bridge_guards import _should_advance_wp_step
 
         assert _should_advance_wp_step("implement", feature_dir) is True
         assert _should_advance_wp_step("review", feature_dir) is True
@@ -1051,7 +1052,6 @@ class TestWPStepHelpers:
             encoding="utf-8",
         )
 
-        from runtime.next import runtime_bridge
         from runtime.next import committed_authority
 
         snapshot_reads: list[Path] = []
@@ -1069,7 +1069,7 @@ class TestWPStepHelpers:
         )
         assert decision_mapping._count_wp_endings(feature_dir)[1] == 0
         assert snapshot_reads, "the unknown-lane snapshot fake must be the one _count_wp_endings read"
-        assert runtime_bridge._should_advance_wp_step("implement", feature_dir) is False
+        assert bridge_guards._should_advance_wp_step("implement", feature_dir) is False
 
 
 # ---------------------------------------------------------------------------
@@ -1242,7 +1242,7 @@ class TestAtomicTaskSteps:
             encoding="utf-8",
         )
 
-        from runtime.next.runtime_bridge import _check_requirement_mapping_ready
+        from runtime.next.runtime_bridge_guards import _check_requirement_mapping_ready
         from runtime.next.runtime_bridge_composition import _check_composed_action_guard
 
         # Sanity: the pre-existing requirement-mapping check is clean here --
@@ -1438,7 +1438,7 @@ class TestAtomicTaskSteps:
             encoding="utf-8",
         )
 
-        from runtime.next.runtime_bridge import _check_requirement_mapping_ready
+        from runtime.next.runtime_bridge_guards import _check_requirement_mapping_ready
 
         assert _check_requirement_mapping_ready(feature_dir) == []
 
@@ -1462,7 +1462,7 @@ class TestAtomicTaskSteps:
 
         monkeypatch.setattr(rm, "parse_requirement_ids_from_spec_md", _boom)
 
-        from runtime.next.runtime_bridge import _check_requirement_mapping_ready
+        from runtime.next.runtime_bridge_guards import _check_requirement_mapping_ready
 
         failures = _check_requirement_mapping_ready(feature_dir)
         assert len(failures) == 1
@@ -1508,7 +1508,7 @@ class TestAtomicTaskSteps:
 
         monkeypatch.setattr(rm, "find_undeclared_requirement_citations", _boom)
 
-        from runtime.next.runtime_bridge import _check_requirement_mapping_ready
+        from runtime.next.runtime_bridge_guards import _check_requirement_mapping_ready
 
         caplog.set_level("DEBUG")
         failures = _check_requirement_mapping_ready(feature_dir)
@@ -1554,7 +1554,7 @@ class TestAtomicTaskSteps:
             encoding="utf-8",
         )
 
-        from runtime.next.runtime_bridge import _check_requirement_mapping_ready
+        from runtime.next.runtime_bridge_guards import _check_requirement_mapping_ready
 
         caplog.set_level("WARNING")
         failures = _check_requirement_mapping_ready(feature_dir)
@@ -1582,7 +1582,7 @@ class TestAtomicTaskSteps:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(exist_ok=True)  # exists, but deliberately no WP*.md files
 
-        from runtime.next.runtime_bridge import _check_requirement_mapping_ready
+        from runtime.next.runtime_bridge_guards import _check_requirement_mapping_ready
 
         assert _check_requirement_mapping_ready(feature_dir) == []
 
@@ -1626,7 +1626,8 @@ class TestAtomicTaskSteps:
             encoding="utf-8",
         )
 
-        from runtime.next.runtime_bridge import _check_cli_guards, _check_requirement_mapping_ready
+        from runtime.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge_guards import _check_requirement_mapping_ready
 
         # The pre-#3396 requirement-mapping decision alone is still clean --
         # every declared FR is mapped to WP01.
@@ -1670,7 +1671,8 @@ class TestAtomicTaskSteps:
             encoding="utf-8",
         )
 
-        from runtime.next.runtime_bridge import _check_cli_guards, _check_requirement_mapping_ready
+        from runtime.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge_guards import _check_requirement_mapping_ready
 
         caplog.set_level("WARNING")
         # The pre-#3396 requirement-mapping decision alone is still clean --
@@ -1741,7 +1743,7 @@ class TestAtomicTaskSteps:
         assert "dependencies" in failures[0]
 
     def test_has_raw_dependencies_field_positive(self, tmp_path: Path) -> None:
-        from runtime.next.runtime_bridge import _has_raw_dependencies_field
+        from runtime.next.runtime_bridge_guards import _has_raw_dependencies_field
 
         wp_file = tmp_path / "WP01.md"
         wp_file.write_text(
@@ -1751,7 +1753,7 @@ class TestAtomicTaskSteps:
         assert _has_raw_dependencies_field(wp_file) is True
 
     def test_has_raw_dependencies_field_negative(self, tmp_path: Path) -> None:
-        from runtime.next.runtime_bridge import _has_raw_dependencies_field
+        from runtime.next.runtime_bridge_guards import _has_raw_dependencies_field
 
         wp_file = tmp_path / "WP01.md"
         wp_file.write_text(
@@ -1761,14 +1763,14 @@ class TestAtomicTaskSteps:
         assert _has_raw_dependencies_field(wp_file) is False
 
     def test_has_raw_dependencies_field_no_frontmatter(self, tmp_path: Path) -> None:
-        from runtime.next.runtime_bridge import _has_raw_dependencies_field
+        from runtime.next.runtime_bridge_guards import _has_raw_dependencies_field
 
         wp_file = tmp_path / "WP01.md"
         wp_file.write_text("# WP01\nNo frontmatter here.\n", encoding="utf-8")
         assert _has_raw_dependencies_field(wp_file) is False
 
     def test_has_raw_dependencies_field_with_values(self, tmp_path: Path) -> None:
-        from runtime.next.runtime_bridge import _has_raw_dependencies_field
+        from runtime.next.runtime_bridge_guards import _has_raw_dependencies_field
 
         wp_file = tmp_path / "WP01.md"
         wp_file.write_text(

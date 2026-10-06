@@ -65,7 +65,7 @@ def feature_dir(tmp_path: Path) -> Path:
 def test_operator_canceled_wp_advances_review(feature_dir: Path) -> None:
     _write_canceled_wp(feature_dir, reason_source="operator")
 
-    from runtime.next.runtime_bridge import _should_advance_wp_step
+    from runtime.next.runtime_bridge_guards import _should_advance_wp_step
 
     assert _should_advance_wp_step("review", feature_dir) is True
 
@@ -73,7 +73,7 @@ def test_operator_canceled_wp_advances_review(feature_dir: Path) -> None:
 def test_synthetic_canceled_wp_blocks_review_but_advances_implement(feature_dir: Path) -> None:
     _write_canceled_wp(feature_dir, reason_source="synthetic")
 
-    from runtime.next.runtime_bridge import _should_advance_wp_step
+    from runtime.next.runtime_bridge_guards import _should_advance_wp_step
 
     assert _should_advance_wp_step("review", feature_dir) is False
     assert _should_advance_wp_step("implement", feature_dir) is True
@@ -87,6 +87,6 @@ def test_operator_canceled_wp_does_not_hide_another_active_wp(feature_dir: Path)
         encoding="utf-8",
     )
 
-    from runtime.next.runtime_bridge import _should_advance_wp_step
+    from runtime.next.runtime_bridge_guards import _should_advance_wp_step
 
     assert _should_advance_wp_step("review", feature_dir) is False

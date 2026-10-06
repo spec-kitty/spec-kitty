@@ -39,9 +39,9 @@ The cluster's internal calls are plain intra-module calls:
 deferred import of this module (this module imports ``runtime_bridge_io`` at
 top level, so a top-level import back would be circular).
 
-The only remaining back-edge to ``runtime_bridge`` is
-``_should_advance_wp_step`` (called from ``_check_composed_action_guard``
-through a deferred import); it stays defined in the bridge, which still owns it.
+This module never reads a name off ``runtime_bridge`` (#2560):
+``_check_composed_action_guard`` calls ``_should_advance_wp_step`` on
+``runtime_bridge_guards``, which sits below this module.
 
 Import DAG (research.md §Import DAG): this module may import
 ``runtime_bridge_io`` / ``runtime_bridge_engine`` / ``runtime_bridge_cores``;
@@ -60,6 +60,7 @@ from mission_runtime import OwnedCheckout
 
 from runtime.next import runtime_bridge_cores as _cores
 from runtime.next import runtime_bridge_engine as _engine_adapter
+from runtime.next import runtime_bridge_guards as _guards
 from runtime.next import runtime_bridge_io as _io_seam
 
 
@@ -495,11 +496,8 @@ def _check_composed_action_guard(
         owned=owned,
     )
     if mission == "software-dev" and action in ("implement", "review"):
-        # _should_advance_wp_step is owned by the bridge (its move is #2560's
-        # job), so it is reached through a deferred import of the bridge to
-        # avoid a top-level cycle; a test patches it on ``runtime_bridge``.
-        from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
-
+        # _should_advance_wp_step is owned by runtime_bridge_guards (#2560); a
+        # test patches it there.
         # Intentionally NOT anchored (no repo_root=/mission_slug= forwarded), even
         # though repo_root is in scope above for gather_artifact_presence: this
         # composed-guard path (_dn_composition_dispatch, phase 3 of
@@ -511,7 +509,7 @@ def _check_composed_action_guard(
         # future reorder of decide_next_via_runtime's phase tuple that lets this be
         # reached with WPs still pending would need a repo_root=/mission_slug=
         # forward of its own, mirroring _dn_dependency_gate's call.
-        snapshot = dataclasses.replace(snapshot, wp_advance_ready=_rb._should_advance_wp_step(action, feature_dir))
+        snapshot = dataclasses.replace(snapshot, wp_advance_ready=_guards._should_advance_wp_step(action, feature_dir))
     try:
         return _cores.evaluate_guards_strict(snapshot)
     # #3412 (FR-009/FR-010): NEVER widen this to also catch MalformedManifestError -- that would re-launder a malformed manifest into a tolerant empty result.

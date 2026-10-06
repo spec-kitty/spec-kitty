@@ -190,7 +190,7 @@ def _str_list(payload: dict[str, object], key: str) -> list[str]:
 
 def _runtime_findings(feature_dir: Path) -> list[str]:
     """The SAME function ``runtime_bridge_io.py`` calls for ``spec-kitty next``."""
-    from runtime.next.runtime_bridge import _check_requirement_mapping_ready
+    from runtime.next.runtime_bridge_guards import _check_requirement_mapping_ready
 
     return _check_requirement_mapping_ready(feature_dir)
 

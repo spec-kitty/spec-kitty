@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from runtime.next.runtime_bridge import _should_advance_wp_step, _wp_blocks_step
+from runtime.next.runtime_bridge_guards import _should_advance_wp_step, _wp_blocks_step
 from specify_cli.status.models import Lane
 from specify_cli.status.wp_state import UninitializedState, wp_state_for
 

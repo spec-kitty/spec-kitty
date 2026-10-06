@@ -45,6 +45,7 @@ from tests.specify_cli.mission_step_contracts.test_executor import (
     write_org_pack_config,
     write_org_tier_step_contract_fixture,
 )
+from runtime.next import runtime_bridge_guards as bridge_guards
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -817,7 +818,6 @@ def test_check_composed_action_guard_uses_live_lookup_for_should_advance_wp_step
     """``_should_advance_wp_step`` stays defined on the bridge (#2560 owns it)
     -- ``_check_composed_action_guard`` must reach it via a live lookup through
     ``runtime_bridge``."""
-    from runtime.next import runtime_bridge as rb
     from runtime.next.runtime_bridge_io import ArtifactPresenceSnapshot
 
     captured: dict[str, Any] = {}
@@ -845,7 +845,7 @@ def test_check_composed_action_guard_uses_live_lookup_for_should_advance_wp_step
 
     monkeypatch.setattr(io_seam, "gather_artifact_presence", _fake_gather)
     monkeypatch.setattr(cores_seam, "evaluate_guards_strict", _fake_evaluate)
-    monkeypatch.setattr(rb, "_should_advance_wp_step", lambda step_id, feature_dir: True)
+    monkeypatch.setattr(bridge_guards, "_should_advance_wp_step", lambda step_id, feature_dir: True)
 
     failures = composition._check_composed_action_guard("implement", tmp_path, mission="software-dev")
 

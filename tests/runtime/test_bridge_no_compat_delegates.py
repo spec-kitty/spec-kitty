@@ -1,12 +1,17 @@
-"""Acceptance gate: ``runtime_bridge`` carries no compat delegates (#2561).
+"""Acceptance gate: ``runtime_bridge`` carries no compat delegates (#2561, #2560).
 
-The mission retires 36 "thin compat delegate" names from
-``src/runtime/next/runtime_bridge.py``. Each name is owned by exactly one seam
-module (``data-model.md``); after the mission the bridge neither defines it
-nor does any seam read it back off the bridge. Two names, ``get_or_start_run``
-and ``build_operational_context_for_claim``, stay on the bridge as public
-re-exports bound by ``from runtime.next.runtime_bridge_io import ...`` (the
-very same objects).
+#2561 retired 36 "thin compat delegate" names from
+``src/runtime/next/runtime_bridge.py``; #2560 then moved the decision mapping,
+the decision-log wrapper, the query/answer read path, the guard facts and
+``_resolve_runtime_feature_dir`` out of the bridge into their own seams. Each
+name is owned by exactly one seam module; the bridge neither defines it nor
+does any seam read it back off the bridge. A few public names stay on the
+bridge as plain re-exports bound by ``from runtime.next.runtime_bridge_<seam>
+import ...`` (the very same objects): ``get_or_start_run`` and
+``build_operational_context_for_claim`` (io), ``query_current_state``,
+``answer_decision_via_runtime``, ``QueryModeValidationError`` and
+``MissionNotFoundError`` (query) and ``DecisionGitLogUnavailable``
+(decision_log).
 
 Every check is static (``ast``) except Check C (identity) and Check D (a
 runtime ``hasattr`` that sees every binding form an AST walk of top-level
@@ -35,13 +40,25 @@ _NEXT = _SRC / "runtime" / "next"
 _BRIDGE_PATH = _NEXT / "runtime_bridge.py"
 _BRIDGE_MODULE = "runtime.next.runtime_bridge"
 _IO_MODULE = "runtime.next.runtime_bridge_io"
-_KEPT_RE_EXPORTS = ("get_or_start_run", "build_operational_context_for_claim")
+#: Public re-export -> the seam that owns it (the bridge binds it with a plain
+#: ``from runtime.next.runtime_bridge_<seam> import <name>``).
+_KEPT_RE_EXPORT_OWNERS: dict[str, str] = {
+    "get_or_start_run": "io",
+    "build_operational_context_for_claim": "io",
+    "query_current_state": "query",
+    "answer_decision_via_runtime": "query",
+    "QueryModeValidationError": "query",
+    "MissionNotFoundError": "query",
+    "DecisionGitLogUnavailable": "decision_log",
+}
+_KEPT_RE_EXPORTS = tuple(_KEPT_RE_EXPORT_OWNERS)
 
 REMOVED: dict[str, tuple[str, ...]] = {
     "identity": (
         "_primary_runtime_feature_dir",
         "_resolve_coordination_branch",
         "_resolve_mission_ulid",
+        "_resolve_runtime_feature_dir",  # #2560
     ),
     "cores": (
         "_parse_wp_sections_from_tasks_md",
@@ -83,6 +100,73 @@ REMOVED: dict[str, tuple[str, ...]] = {
         "_resolve_tech_stack_for_profile",
         "build_operational_context_for_claim",
         "_build_operational_context_for_decision",
+    ),
+    # #2560: the shared decision mapping (advance path, engine adapter, read path).
+    "decision_mapping": (
+        "_prompt_exists",
+        "_materialize_decision",
+        "TASKS_GLOB",
+        "_WP_ITERATION_STEPS",
+        "_is_wp_iteration_step",
+        "_has_claimable_planned_wp",
+        "_finalized_task_board_override_step",
+        "_reduced_wp_lane",
+        "_count_wp_endings",
+        "_MERGED_MISSION_DONE_REASON",
+        "_merged_mission_short_circuit",
+        "_WpIterationResolution",
+        "_WpBoardAction",
+        "_WP_BOARD_DECLINE",
+        "_inspect_board_recovery_command",
+        "_wp_blocked_action",
+        "_wp_task_surface_error",
+        "_wp_dispatch_action",
+        "_resolve_wp_board_implement_action",
+        "_resolve_wp_board_review_action",
+        "_resolve_wp_board_action",
+        "_wp_iteration_action_and_state",
+        "_build_wp_iteration_decision",
+        "_build_decision_required_prompt_file",
+        "_map_wp_step_decision",
+        "_map_non_wp_step_decision",
+        "_map_runtime_decision",
+    ),
+    # #2560: the coordination-aware decision-log wrapper.
+    "decision_log": (
+        "DecisionGitLogUnavailable",
+        "_mission_routes_through_coordination",
+        "_is_owned_coordination_unavailable",
+        "_wrap_with_decision_git_log",
+    ),
+    # #2560: the query/answer read path.
+    "query": (
+        "_READ_PATH_ERROR_CODES",
+        "_is_read_path_error",
+        "QueryModeValidationError",
+        "MissionNotFoundError",
+        "_build_finalized_override_query_decision",
+        "_build_initial_query_decision",
+        "_build_decision_required_query",
+        "_build_runtime_query_decision",
+        "query_current_state",
+        "_query_resolve_mission_context",
+        "_query_read_runtime_plan",
+        "_query_dispatch_decision",
+        "answer_decision_via_runtime",
+    ),
+    # #2560: the guard facts io reads and the WP-advance guard composition reads.
+    "guards": (
+        "SPEC_ARTIFACT",
+        "TASKS_ARTIFACT",
+        "_should_advance_wp_step",
+        "_wp_blocks_step",
+        "_occurrence_gate_failures",
+        "_log_requirement_extraction_warnings",
+        "_log_requirement_extraction_warnings_safely",
+        "_load_wps_manifest_findings",
+        "_check_requirement_mapping_ready",
+        "_check_bare_prose_requirements_ready",
+        "_has_raw_dependencies_field",
     ),
 }
 _SEAMS = tuple(REMOVED)
@@ -178,7 +262,8 @@ def _import_bindings(node: ast.stmt, names: frozenset[str]) -> list[str]:
         bound = alias.asname or alias.name
         if bound not in names:
             continue
-        legitimate = node.module == _IO_MODULE and node.level == 0 and bound in _KEPT_RE_EXPORTS and alias.asname is None
+        owner = _KEPT_RE_EXPORT_OWNERS.get(bound)
+        legitimate = owner is not None and node.module == f"runtime.next.runtime_bridge_{owner}" and node.level == 0 and alias.asname is None
         if not legitimate:
             hits.append(f"line {node.lineno}: imports {bound} from {node.module}")
     return hits
@@ -333,7 +418,7 @@ def test_check_d_bridge_has_no_attribute_for_any_name(seam: str) -> None:
 
 @pytest.mark.parametrize("name", list(_KEPT_RE_EXPORTS))
 def test_check_c_re_export_is_the_owning_seam_object(name: str) -> None:
-    assert getattr(_bridge(), name) is getattr(_owner_module("io"), name)
+    assert getattr(_bridge(), name) is getattr(_owner_module(_KEPT_RE_EXPORT_OWNERS[name]), name)
     assert name in _bridge().__all__
 
 
@@ -384,11 +469,13 @@ def test_scan_definitions_flags_every_top_level_binding_form(source: str) -> Non
     assert scan_definitions(source, _BUILD) != []
 
 
-def test_scan_definitions_allows_only_the_kept_re_exports_from_io() -> None:
-    kept = "from runtime.next.runtime_bridge_io import get_or_start_run\n"
+def test_scan_definitions_allows_only_the_kept_re_exports_from_their_owner() -> None:
+    kept = "from runtime.next.runtime_bridge_io import get_or_start_run\nfrom runtime.next.runtime_bridge_query import query_current_state\n"
     assert scan_definitions(kept, _KEPT_RE_EXPORTS) == []
     assert scan_definitions("from runtime.next.runtime_bridge_io import _build_run_ref\n", _BUILD) != []
     assert scan_definitions("from elsewhere import get_or_start_run\n", _KEPT_RE_EXPORTS) != []
+    # A public re-export bound from the wrong seam is not legitimate (#2560).
+    assert scan_definitions("from runtime.next.runtime_bridge_io import query_current_state\n", _KEPT_RE_EXPORTS) != []
 
 
 def test_scan_back_edges_flags_a_deferred_bridge_attribute_lookup() -> None:
@@ -405,9 +492,9 @@ def test_scan_back_edges_recognises_every_alias_form(header: str) -> None:
 
 def test_scan_back_edges_ignores_names_the_bridge_still_owns() -> None:
     """FR-004 positive control: bridge-owned back-edge targets are not flagged."""
-    owned = "def f():\n    from runtime.next import runtime_bridge as _rb\n    return _rb._should_advance_wp_step()\n"
+    owned = "def f():\n    from runtime.next import runtime_bridge as _rb\n    return _rb._check_cli_guards()\n"
     assert scan_back_edges(owned, _BUILD) == []
-    assert scan_back_edges(owned, ("_should_advance_wp_step",)) != []
+    assert scan_back_edges(owned, ("_check_cli_guards",)) != []
 
 
 def test_scan_back_edges_ignores_an_unrelated_alias() -> None:
@@ -427,7 +514,7 @@ def test_scan_indirect_flags_getattr_and_dotted_reads() -> None:
 
 
 def test_scan_indirect_ignores_names_the_bridge_still_owns() -> None:
-    source = "def f():\n    from runtime.next.runtime_bridge import _should_advance_wp_step\n"
+    source = "def f():\n    from runtime.next.runtime_bridge import _check_cli_guards\n"
     assert scan_indirect_bridge_reads(source, _BUILD) == []
 
 

@@ -37,6 +37,7 @@ import pytest
 from runtime.next._internal_runtime import MissionRunRef
 from runtime.next import runtime_bridge_io as io_seam
 from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
+from runtime.next import runtime_bridge_guards as bridge_guards
 
 # Module name the WP06 (FR-010/FR-011) diagnostics log under -- matches
 # ``_logger = logging.getLogger(__name__)`` in ``runtime_bridge_io.py``.
@@ -968,14 +969,13 @@ def _stub_guard_helpers(
     that need ``has_generated_docs=True`` drive it with a real ``docs/*.md``
     file instead (see ``test_gather_artifact_presence_carries_generated_docs_flag``).
     """
-    from runtime.next import runtime_bridge as rb
     from runtime.next import runtime_bridge_composition as composition_seam
 
-    monkeypatch.setattr(rb, "_check_requirement_mapping_ready", lambda feature_dir: requirement_mapping_failures or [])
-    monkeypatch.setattr(rb, "_occurrence_gate_failures", lambda feature_dir: occurrence_gate_failures or [])
+    monkeypatch.setattr(bridge_guards, "_check_requirement_mapping_ready", lambda feature_dir: requirement_mapping_failures or [])
+    monkeypatch.setattr(bridge_guards, "_occurrence_gate_failures", lambda feature_dir: occurrence_gate_failures or [])
     monkeypatch.setattr(composition_seam, "_count_source_documented_events", lambda feature_dir: source_documented_count)
     monkeypatch.setattr(composition_seam, "_publication_approved", lambda feature_dir: publication_approved)
-    monkeypatch.setattr(rb, "_has_raw_dependencies_field", lambda wp_file: has_raw_dependencies_field)
+    monkeypatch.setattr(bridge_guards, "_has_raw_dependencies_field", lambda wp_file: has_raw_dependencies_field)
 
 
 def test_gather_artifact_presence_reads_file_presence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

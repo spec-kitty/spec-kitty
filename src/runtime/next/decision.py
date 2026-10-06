@@ -391,7 +391,8 @@ def _with_guard_failure_paths(decision: Decision, repo_root: Path, *, owned: Own
     if not decision.guard_failures or decision.guard_failure_paths:
         return decision
     try:
-        from runtime.next.runtime_bridge import _resolve_runtime_feature_dir, get_mission_type
+        from runtime.next.runtime_bridge import get_mission_type
+        from runtime.next.runtime_bridge_identity import _resolve_runtime_feature_dir
         from runtime.next.runtime_bridge_io import guard_failure_artifact_paths
 
         if owned is None:

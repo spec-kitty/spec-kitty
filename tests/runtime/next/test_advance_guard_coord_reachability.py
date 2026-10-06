@@ -27,6 +27,7 @@ from runtime.next import runtime_bridge as rb
 from runtime.next._internal_runtime import MissionRunRef
 from runtime.next.decision import DecisionKind
 from tests.runtime.next.test_coord_topology_fixture import build_coord_topology_fixture
+from runtime.next import runtime_bridge_guards as bridge_guards
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -52,7 +53,7 @@ class TestT010CoordReachabilityJointFix:
     def test_anchored_coord_call_blocks_for_never_claimed_wp(self, tmp_path: Path) -> None:
         fixture = build_coord_topology_fixture(tmp_path)  # default wp_events=None -> UNINITIALIZED
 
-        result = rb._should_advance_wp_step(
+        result = bridge_guards._should_advance_wp_step(
             "implement",
             fixture.coord_feature_dir,
             repo_root=fixture.repo_root,
@@ -72,7 +73,7 @@ class TestT010CoordReachabilityJointFix:
         answer above."""
         fixture = build_coord_topology_fixture(tmp_path)
 
-        result = rb._should_advance_wp_step("implement", fixture.primary_dir)
+        result = bridge_guards._should_advance_wp_step("implement", fixture.primary_dir)
 
         assert result is False
 
@@ -107,7 +108,7 @@ class TestT010JointFixIsolation:
     def test_unanchored_call_against_the_same_coord_fixture_wrongly_permits(self, tmp_path: Path) -> None:
         fixture = build_coord_topology_fixture(tmp_path)
 
-        result = rb._should_advance_wp_step("implement", fixture.coord_feature_dir)
+        result = bridge_guards._should_advance_wp_step("implement", fixture.coord_feature_dir)
 
         assert result is True, (
             "isolation check: WITHOUT T008's anchoring, the unanchored 2-arg "
@@ -245,8 +246,8 @@ class TestT012NoOpRegressionPins:
         this_feature_dir = this_repo_root / "kitty-specs" / "runtime-advance-guard-topology-wp-completion-01M1W6VZ"
         assert (this_feature_dir / "tasks").is_dir()
 
-        unanchored = rb._should_advance_wp_step("implement", this_feature_dir)
-        anchored = rb._should_advance_wp_step(
+        unanchored = bridge_guards._should_advance_wp_step("implement", this_feature_dir)
+        anchored = bridge_guards._should_advance_wp_step(
             "implement",
             this_feature_dir,
             repo_root=this_repo_root,
@@ -290,7 +291,7 @@ class TestT012NoOpRegressionPins:
         _git(repo_root, "add", ".")
         _git(repo_root, "commit", "-q", "-m", "WP01 fixture: no-tasks/-dir plan mission")
 
-        result = rb._should_advance_wp_step(
+        result = bridge_guards._should_advance_wp_step(
             "implement",
             feature_dir,
             repo_root=repo_root,
@@ -309,11 +310,11 @@ class TestAnchoringRequiresExplicitMissionSlug:
 
     def test_repo_root_without_mission_slug_fails_closed(self, tmp_path: Path) -> None:
         with pytest.raises(ValueError, match="mission_slug is required when repo_root"):
-            rb._should_advance_wp_step("implement", tmp_path, repo_root=tmp_path)
+            bridge_guards._should_advance_wp_step("implement", tmp_path, repo_root=tmp_path)
 
     def test_unanchored_call_is_unaffected(self, tmp_path: Path) -> None:
         # No repo_root -> no anchoring -> no raise (an empty dir has no tasks/).
-        assert rb._should_advance_wp_step("implement", tmp_path) is True
+        assert bridge_guards._should_advance_wp_step("implement", tmp_path) is True
 
 
 class TestCompositionPhaseNeverSeesPendingWp:

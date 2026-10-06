@@ -70,7 +70,7 @@ De-godding effort: https://github.com/Priivacy-ai/spec-kitty/issues/2531
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
@@ -313,7 +313,9 @@ class RequirementGrammarLike(Protocol):
     @property
     def FAILING_REASONS(self) -> frozenset[str]: ...
 
-    def find_all(self, text: str, *, spec_scan: bool) -> list[_RequirementIdLike]: ...
+    # ``Sequence`` (covariant), not ``list``: the cores only iterate the result,
+    # and the grammar module returns ``list[RequirementId]`` (#2560 type-check).
+    def find_all(self, text: str, *, spec_scan: bool) -> Sequence[_RequirementIdLike]: ...
 
     def classify(self, raw: str, declared: AbstractSet[str]) -> _AcceptedLike | _RejectedLike: ...
 

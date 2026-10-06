@@ -183,7 +183,7 @@ class TestMergedMissionAdvancingMode:
                 return_value=primary_dir,
             ),
             patch(
-                "runtime.next.runtime_bridge._resolve_runtime_feature_dir",
+                "runtime.next.runtime_bridge_identity._resolve_runtime_feature_dir",
                 return_value=coord_dir,
             ),
         ):
@@ -257,7 +257,7 @@ class TestMergedMissionConflict:
                 return_value=primary_dir,
             ),
             patch(
-                "runtime.next.runtime_bridge._resolve_runtime_feature_dir",
+                "runtime.next.runtime_bridge_identity._resolve_runtime_feature_dir",
                 return_value=coord_dir,
             ),
         ):
@@ -434,7 +434,7 @@ class TestBlockedConflictRemediationAffordance:
                 return_value=primary_dir,
             ),
             patch(
-                "runtime.next.runtime_bridge._resolve_runtime_feature_dir",
+                "runtime.next.runtime_bridge_identity._resolve_runtime_feature_dir",
                 return_value=coord_dir,
             ),
         ):

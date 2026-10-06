@@ -23,12 +23,14 @@ Sole home of:
 - :func:`_resolve_mission_ulid` — reads the canonical ULID ``mission_id`` from
   ``meta.json`` via the identity SSOT (:func:`resolve_mission_identity`),
   fail-closed (``None``, never the slug, when absent — FR-004).
+- :func:`_resolve_runtime_feature_dir` — the topology-aware mission dir the
+  runtime reads (moved here from the bridge by #2560, so ``runtime_bridge_io``
+  reads it without a back-edge into the bridge).
 
-**KEEP-IN-PLACE / not moved.** ``_wrap_with_decision_git_log`` and
-``_mission_routes_through_coordination`` stay in the residual
-(``runtime_bridge.py``) per research.md §Compat -- they are the *callers* of
-this cluster, not part of it. The residual calls the three functions below on
-this seam (``_identity_seam.<name>``); it defines none of them.
+**Callers.** ``_wrap_with_decision_git_log`` and
+``_mission_routes_through_coordination`` call this cluster from
+``runtime_bridge_decision_log`` (#2560); the bridge calls these functions on
+this seam (``_identity_seam.<name>``) and defines none of them.
 
 **Patch point.** ``_primary_runtime_feature_dir`` is called directly by
 ``_resolve_coordination_branch`` and ``_resolve_mission_ulid`` (module-global
@@ -37,9 +39,9 @@ lookup), so a test that replaces it patches
 steers both, plus ``committed_authority``'s merged-mission short-circuit,
 which imports it from here.
 
-Import DAG (research.md §Import DAG): this module may import
-``runtime_bridge_io`` (not needed today -- none of the three functions above
-requires an I/O-port call); it must NOT be imported by ``runtime_bridge_
+Import DAG (research.md §Import DAG): this module is a leaf -- it imports no
+other ``runtime_bridge*`` module (``runtime_bridge_io`` imports it at module
+scope, so importing io back would be a cycle); it must NOT be imported by ``runtime_bridge_
 cores`` (``tests/architectural/test_bridge_cores_import_boundary.py`` keeps
 ``runtime_bridge_cores`` free of seam imports). No top-level
 ``decision.py -> runtime_bridge*`` edge is
@@ -130,3 +132,32 @@ def _resolve_mission_ulid(mission_slug: str, repo_root: Path) -> str | None:
     # str | None (follow_imports = "skip" mypy override, see the note above).
     mission_id: str | None = resolve_mission_identity(feature_dir).mission_id
     return mission_id
+
+
+def _resolve_runtime_feature_dir(repo_root: Path, mission_slug: str) -> Path:
+    """Resolve a mission dir for runtime reads without importing CLI context.
+
+    Routes through the single guarded read-side seam
+    (:func:`resolve_handle_to_read_path`, WP01/IC-01): it reads the PRIMARY
+    ``meta.json``, runs the ONE sanctioned mid8 cascade (``resolve_declared_mid8``)
+    and returns the existence-gated topology-aware dir — folding away the bespoke
+    ``_resolve_mission_ulid`` → ``resolve_mid8`` cascade here (FR-002, C-007).
+
+    Boundary-safe fold-in (C-007): the runtime layer already imports
+    ``specify_cli.missions._read_path_resolver`` (the bridge, for
+    ``MissionSelectorAmbiguous``), so consuming ``resolve_handle_to_read_path``
+    from the same module adds NO new package-boundary edge.
+
+    Subsumption note (T013): the retired body derived ``mid8`` as
+    ``resolve_mid8(slug, mission_id=<declared ULID or None>)`` — exactly tier 2 of
+    the seam's ``resolve_declared_mid8``. The seam additionally honours an explicit
+    declared ``meta.mid8`` (tier 1) before that and the ``mid8_from_slug`` heuristic
+    (tier 3) after, so it resolves the SAME dir for any meta the old body handled
+    while also covering the explicit-mid8 case the old body silently skipped.
+    """
+    from specify_cli.missions._read_path_resolver import (
+        resolve_handle_to_read_path as _resolve_handle,
+    )
+
+    feature_dir: Path = _resolve_handle(repo_root, mission_slug)
+    return feature_dir

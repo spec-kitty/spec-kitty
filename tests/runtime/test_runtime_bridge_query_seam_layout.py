@@ -1,33 +1,35 @@
-"""Module-layout contract for the runtime_bridge query/answer split (#2560).
+"""Module-layout contract for the runtime_bridge split (#2560).
 
-Mission ``runtime-bridge-query-seam-01M490EQ`` moved the read path and the
-decision mapping it shares with the advance path out of ``runtime_bridge.py``:
+Mission ``runtime-bridge-query-seam-01M490EQ`` moved code out of
+``runtime_bridge.py`` into four new seams:
 
-* ``runtime_bridge_decision_mapping`` -- the lower module both paths (and the
-  engine adapter) use to turn a runtime ``NextDecision`` into a CLI
-  ``Decision``;
+* ``runtime_bridge_decision_mapping`` -- the lower module the advance path,
+  the engine adapter and the read path use to turn a runtime ``NextDecision``
+  into a CLI ``Decision``;
 * ``runtime_bridge_decision_log`` -- the coordination-aware decision-log
   wrapper used by the advance path and the answer path;
-* ``runtime_bridge_query`` -- query mode and answer mode.
+* ``runtime_bridge_query`` -- query mode and answer mode;
+* ``runtime_bridge_guards`` -- the guard facts io reads and the WP-advance
+  guard composition reads (``_resolve_runtime_feature_dir`` went to
+  ``runtime_bridge_identity``).
 
-This file pins the contract in ``contracts/module-layout.md``: who owns each
-moved name, that the public names on the bridge are the very same objects
-(no forwarding delegate), and the import direction (no module below the
-bridge imports it back; the mapping module imports nothing above it). The
-import check walks function-local imports too, so a deferred back-edge such
-as the engine's former ``from runtime.next import runtime_bridge as _rb`` is
-caught. A planted forbidden import is reported (self-mutation test).
+The canonical no-forwarder gate (``tests/runtime/test_bridge_no_compat_delegates.py``)
+owns the moved-name table (``REMOVED``), "the bridge neither defines, exposes
+nor reads back a moved name" and the re-export identity. This file pins the
+rest of ``contracts/module-layout.md`` over the same table:
 
-Contract §5's "ruff F401 clean on runtime_bridge.py" has no row here: the
-repository's ruff gate (CI and ``ruff check``) enforces it. Known scanner
-limits, none of which these modules use: ``importlib.import_module(...)``,
-``import runtime.next`` followed by attribute access, and definitions nested
-in a top-level ``if``/``try`` block.
+* every moved name is *defined* in its owning seam, not merely re-imported
+  there;
+* the bridge's ``__all__`` is unchanged;
+* the import direction: no ``runtime_bridge_*`` module imports the bridge at
+  all, and the lower seams import nothing above them. The scan walks
+  function-local imports too, so a deferred back-edge such as the engine's
+  former ``from runtime.next import runtime_bridge as _rb`` is caught. A
+  planted forbidden import is reported (self-mutation test).
 
-``_EXTRACTED`` records which owner module the mission has extracted so far.
-Every row that depends on a not-yet-extracted owner is a strict xfail: it
-documents the red state and fails the run if it starts passing before its
-owner is flipped. Each extraction WP flips one key.
+Known scanner limits, none of which these modules use:
+``importlib.import_module(...)``, ``import runtime.next`` followed by
+attribute access, and definitions nested in a top-level ``if``/``try`` block.
 """
 
 from __future__ import annotations
@@ -39,6 +41,8 @@ from types import GenericAlias, ModuleType
 
 import pytest
 
+from tests.runtime.test_bridge_no_compat_delegates import REMOVED
+
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _NEXT_DIR = Path(__file__).resolve().parents[2] / "src" / "runtime" / "next"
@@ -47,77 +51,19 @@ _BRIDGE = "runtime_bridge"
 _QUERY = "runtime_bridge_query"
 _MAPPING = "runtime_bridge_decision_mapping"
 _DECISION_LOG = "runtime_bridge_decision_log"
+_GUARDS = "runtime_bridge_guards"
 _ENGINE = "runtime_bridge_engine"
 _COMPOSITION = "runtime_bridge_composition"
+_IO = "runtime_bridge_io"
+_IDENTITY = "runtime_bridge_identity"
 
-#: Owner module -> extracted yet? Flipped by the WP that creates the module.
-_EXTRACTED: dict[str, bool] = {
-    _MAPPING: True,
-    _DECISION_LOG: True,
-    _QUERY: True,
-}
-
-#: Owner module -> names it must define (contracts/module-layout.md §1).
+#: The names #2560 moved, by owning module (from the canonical ``REMOVED`` table).
 _OWNED: dict[str, tuple[str, ...]] = {
-    _QUERY: (
-        "query_current_state",
-        "answer_decision_via_runtime",
-        "QueryModeValidationError",
-        "MissionNotFoundError",
-        "_is_read_path_error",
-        "_READ_PATH_ERROR_CODES",
-        "_build_finalized_override_query_decision",
-        "_build_initial_query_decision",
-        "_build_decision_required_query",
-        "_build_runtime_query_decision",
-        "_query_resolve_mission_context",
-        "_query_read_runtime_plan",
-        "_query_dispatch_decision",
-    ),
-    _MAPPING: (
-        "_prompt_exists",
-        "_materialize_decision",
-        "TASKS_GLOB",
-        "_WP_ITERATION_STEPS",
-        "_is_wp_iteration_step",
-        "_has_claimable_planned_wp",
-        "_finalized_task_board_override_step",
-        "_reduced_wp_lane",
-        "_count_wp_endings",
-        "_MERGED_MISSION_DONE_REASON",
-        "_merged_mission_short_circuit",
-        "_WpIterationResolution",
-        "_WpBoardAction",
-        "_WP_BOARD_DECLINE",
-        "_inspect_board_recovery_command",
-        "_wp_blocked_action",
-        "_wp_task_surface_error",
-        "_wp_dispatch_action",
-        "_resolve_wp_board_implement_action",
-        "_resolve_wp_board_review_action",
-        "_resolve_wp_board_action",
-        "_wp_iteration_action_and_state",
-        "_build_wp_iteration_decision",
-        "_build_decision_required_prompt_file",
-        "_map_wp_step_decision",
-        "_map_non_wp_step_decision",
-        "_map_runtime_decision",
-    ),
-    _DECISION_LOG: (
-        "DecisionGitLogUnavailable",
-        "_mission_routes_through_coordination",
-        "_is_owned_coordination_unavailable",
-        "_wrap_with_decision_git_log",
-    ),
-}
-
-#: Public names the bridge keeps as plain re-exports (contracts §2).
-_REEXPORTS: dict[str, str] = {
-    "query_current_state": _QUERY,
-    "answer_decision_via_runtime": _QUERY,
-    "QueryModeValidationError": _QUERY,
-    "MissionNotFoundError": _QUERY,
-    "DecisionGitLogUnavailable": _DECISION_LOG,
+    _MAPPING: REMOVED["decision_mapping"],
+    _DECISION_LOG: REMOVED["decision_log"],
+    _QUERY: REMOVED["query"],
+    _GUARDS: REMOVED["guards"],
+    _IDENTITY: ("_resolve_runtime_feature_dir",),
 }
 
 _BRIDGE_ALL = {
@@ -131,25 +77,17 @@ _BRIDGE_ALL = {
     "query_current_state",
 }
 
-#: Module -> sibling modules it must never import (contracts §4).
+#: Module -> sibling modules it must never import, on top of the bridge itself,
+#: which no ``runtime_bridge_*`` module may import (contracts §4).
 _FORBIDDEN_IMPORTS: dict[str, frozenset[str]] = {
-    _MAPPING: frozenset({_BRIDGE, _QUERY, _ENGINE, _DECISION_LOG, _COMPOSITION}),
-    _DECISION_LOG: frozenset({_BRIDGE, _QUERY, _MAPPING, _ENGINE}),
-    _QUERY: frozenset({_BRIDGE}),
-    _ENGINE: frozenset({_BRIDGE, _QUERY}),
+    _MAPPING: frozenset({_QUERY, _ENGINE, _DECISION_LOG, _COMPOSITION, _GUARDS, _IO}),
+    _DECISION_LOG: frozenset({_QUERY, _MAPPING, _ENGINE, _GUARDS}),
+    _GUARDS: frozenset({_IO, _COMPOSITION, _ENGINE, _QUERY, _DECISION_LOG}),
+    _ENGINE: frozenset({_QUERY}),
 }
 
-
-def _pending(*owners: str) -> list[pytest.MarkDecorator]:
-    """Strict-xfail mark while any of *owners* is not extracted yet."""
-    waiting = [owner for owner in owners if not _EXTRACTED.get(owner, True)]
-    if not waiting:
-        return []
-    return [pytest.mark.xfail(strict=True, reason=f"{', '.join(waiting)} not extracted yet (#2560)")]
-
-
-def _row(*values: object, owners: tuple[str, ...]) -> object:
-    return pytest.param(*values, marks=_pending(*owners))
+#: Every seam module that exists on disk (the bridge-import ban covers all of them).
+_SEAMS = sorted(path.stem for path in _NEXT_DIR.glob("runtime_bridge_*.py"))
 
 
 def _module(name: str) -> ModuleType:
@@ -196,7 +134,8 @@ def imported_siblings(source: str) -> set[str]:
 
 
 def forbidden_import_violations(module: str, source: str) -> list[str]:
-    return sorted(imported_siblings(source) & _FORBIDDEN_IMPORTS[module])
+    forbidden = _FORBIDDEN_IMPORTS.get(module, frozenset()) | {_BRIDGE}
+    return sorted(imported_siblings(source) & forbidden)
 
 
 # ---------------------------------------------------------------------------
@@ -204,37 +143,12 @@ def forbidden_import_violations(module: str, source: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(("owner", "name"), [_row(owner, name, owners=(owner,)) for owner, names in _OWNED.items() for name in names])
+@pytest.mark.parametrize(("owner", "name"), [(owner, name) for owner, names in _OWNED.items() for name in names])
 def test_moved_name_is_defined_by_its_owner(owner: str, name: str) -> None:
     assert name in _top_level_defined_names(_NEXT_DIR / f"{owner}.py"), f"{name} must be defined in {owner}.py"
     value = getattr(_module(owner), name)
     if callable(value) and not isinstance(value, GenericAlias):
         assert value.__module__ == f"{_PKG}.{owner}", f"{name} is defined in {value.__module__}, expected {owner}"
-
-
-@pytest.mark.parametrize("owner", [_row(owner, owners=(owner,)) for owner in _OWNED])
-def test_bridge_defines_none_of_the_moved_names(owner: str) -> None:
-    """§3: no delegate, self-alias or second definition is left in the bridge."""
-    bridge_defs = _top_level_defined_names(_NEXT_DIR / f"{_BRIDGE}.py")
-    assert sorted(bridge_defs & set(_OWNED[owner])) == []
-
-
-@pytest.mark.parametrize("owner", [_row(owner, owners=(owner,)) for owner in _OWNED])
-def test_bridge_keeps_no_attribute_for_private_moved_names(owner: str) -> None:
-    """§5: a stale ``runtime_bridge.<moved private name>`` patch raises AttributeError."""
-    bridge = _module(_BRIDGE)
-    leaked = sorted(name for name in _OWNED[owner] if name not in _REEXPORTS and hasattr(bridge, name))
-    assert leaked == []
-
-
-# ---------------------------------------------------------------------------
-# §2 Re-export identity
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(("name", "owner"), [_row(name, owner, owners=(owner,)) for name, owner in sorted(_REEXPORTS.items())])
-def test_public_name_is_the_owner_object(name: str, owner: str) -> None:
-    assert getattr(_module(_BRIDGE), name) is getattr(_module(owner), name)
 
 
 def test_bridge_all_is_unchanged() -> None:
@@ -246,26 +160,25 @@ def test_bridge_all_is_unchanged() -> None:
 # ---------------------------------------------------------------------------
 
 
-#: A module that does not exist yet cannot import anything; its row waits for it.
-_IMPORT_ROW_OWNERS: dict[str, tuple[str, ...]] = {
-    _MAPPING: (_MAPPING,),
-    _DECISION_LOG: (_DECISION_LOG,),
-    _QUERY: (_QUERY,),
-    _ENGINE: (_MAPPING,),  # the engine's bridge back-edge goes away with the mapping module
-}
+def test_seam_scan_is_non_vacuous() -> None:
+    """Floor: the bridge-import scan covers every seam, old and new."""
+    assert {_MAPPING, _DECISION_LOG, _QUERY, _GUARDS, _ENGINE, _IO, _IDENTITY, _COMPOSITION} <= set(_SEAMS)
 
 
-@pytest.mark.parametrize("module", [_row(module, owners=_IMPORT_ROW_OWNERS[module]) for module in sorted(_FORBIDDEN_IMPORTS)])
+@pytest.mark.parametrize("module", _SEAMS)
 def test_no_forbidden_sibling_import(module: str) -> None:
     source = (_NEXT_DIR / f"{module}.py").read_text(encoding="utf-8")
     assert forbidden_import_violations(module, source) == []
 
 
-@pytest.mark.parametrize("_unused", [_row(None, owners=(_MAPPING,))])
-def test_engine_calls_mapping_directly(_unused: None) -> None:
-    """The engine adapter's former ``_rb`` back-edge now targets the mapping module."""
-    source = (_NEXT_DIR / f"{_ENGINE}.py").read_text(encoding="utf-8")
-    assert _MAPPING in imported_siblings(source)
+@pytest.mark.parametrize(
+    ("module", "owner"),
+    [(_ENGINE, _MAPPING), (_IO, _GUARDS), (_IO, _IDENTITY), (_COMPOSITION, _GUARDS)],
+)
+def test_former_back_edge_imports_the_owning_seam(module: str, owner: str) -> None:
+    """Each seam that used to read a name off the bridge imports its owner instead."""
+    source = (_NEXT_DIR / f"{module}.py").read_text(encoding="utf-8")
+    assert owner in imported_siblings(source)
 
 
 @pytest.mark.parametrize(
@@ -283,9 +196,14 @@ def test_planted_back_edge_is_reported(planted: str) -> None:
     """Self-mutation: each import shape of the bridge is caught on its own.
 
     The planted snippet is scanned alone (a neutral source), so the row cannot
-    pass on the strength of a bridge import already present in the engine.
+    pass on the strength of an import already present in a real module.
     """
     assert forbidden_import_violations(_ENGINE, planted) == [_BRIDGE]
+
+
+def test_planted_upward_import_is_reported() -> None:
+    """Self-mutation: a lower seam importing a seam above it is caught."""
+    assert forbidden_import_violations(_GUARDS, "from runtime.next import runtime_bridge_io as _io\n") == [_IO]
 
 
 def test_neutral_source_reports_nothing() -> None:

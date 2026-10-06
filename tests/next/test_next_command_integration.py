@@ -551,7 +551,7 @@ class TestNextCommandKnownBlockedMissions:
             patch("runtime.next.runtime_bridge._compute_wp_progress", return_value=None),
             patch("runtime.next._internal_runtime.engine._read_snapshot", return_value=Snapshot()),
             patch(
-                "runtime.next.runtime_bridge._should_advance_wp_step",
+                "runtime.next.runtime_bridge_guards._should_advance_wp_step",
                 side_effect=CanonicalStatusNotFoundError(
                     "Canonical status not found for feature '042-test-feature'. "
                     "Run 'spec-kitty agent mission finalize-tasks --mission "

@@ -718,7 +718,7 @@ def test_runtime_bridge_corrupt_wps_manifest_gets_a_specific_typed_finding(
     every other failure in the shared try block. Post-fix, it is caught
     narrowly via `_load_wps_manifest_findings` (`WpsManifestReadError`) and
     gets its own distinguishable finding, naming the manifest specifically."""
-    from runtime.next.runtime_bridge import _check_requirement_mapping_ready
+    from runtime.next.runtime_bridge_guards import _check_requirement_mapping_ready
 
     feature_dir = _seed_requirement_mapping_feature(tmp_path)
     (feature_dir / "wps.yaml").write_bytes(b"\xff\xfe\x00work_packages:")
@@ -744,7 +744,7 @@ def test_runtime_bridge_companion_assertion_other_three_operations_unaffected(tm
     test_requirement_mapping_preflight_wraps_unexpected_errors` pin) and
     confirms it STILL falls into the SAME broad `except Exception` ->
     generic-message contract, completely unchanged by this WP."""
-    from runtime.next.runtime_bridge import _check_requirement_mapping_ready
+    from runtime.next.runtime_bridge_guards import _check_requirement_mapping_ready
     from specify_cli import requirement_mapping as rm
 
     feature_dir = _seed_requirement_mapping_feature(tmp_path)
@@ -767,7 +767,7 @@ def test_load_wps_manifest_findings_returns_none_manifest_when_absent(tmp_path: 
     """D5, at the runtime_bridge seam: an absent wps.yaml still resolves to
     `(None, None)` -- the legacy tasks.md-prose-fallback branch, never a
     finding."""
-    from runtime.next.runtime_bridge import _load_wps_manifest_findings
+    from runtime.next.runtime_bridge_guards import _load_wps_manifest_findings
 
     feature_dir = tmp_path / "kitty-specs" / "legacy-mission-no-wps-yaml"
     feature_dir.mkdir(parents=True)

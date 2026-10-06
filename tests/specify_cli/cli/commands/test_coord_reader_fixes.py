@@ -137,7 +137,7 @@ class TestResolveMissionReadPath:
 
     def test_runtime_bridge_uses_transitional_public_resolver(self, tmp_path: Path) -> None:
         """``spec-kitty next`` reads primary during create→first-write window."""
-        from runtime.next.runtime_bridge import _resolve_runtime_feature_dir
+        from runtime.next.runtime_bridge_identity import _resolve_runtime_feature_dir
 
         mission_slug = "my-feature-01KT3YBD"
         primary_mission_dir = tmp_path / "kitty-specs" / mission_slug

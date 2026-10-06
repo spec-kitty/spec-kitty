@@ -37,12 +37,12 @@ on the bridge.
 ``_feature_runs_path`` / ``save_feature_runs`` and the handful of helpers
 nothing patches are plain internal helpers.
 
-Names still owned by ``runtime_bridge`` (``_resolve_runtime_feature_dir``,
-``_has_raw_dependencies_field``, ``_check_requirement_mapping_ready``,
-``_check_bare_prose_requirements_ready``, ``_occurrence_gate_failures``) are
-reached through a local, deferred import of ``runtime_bridge`` (``from
-runtime.next import runtime_bridge as _rb``): ``runtime_bridge`` imports this
-module at its own top level, so a top-level back-import would be circular.
+This module never reads a name off ``runtime_bridge`` (#2560): the guard facts
+``gather_artifact_presence`` needs (``_has_raw_dependencies_field``,
+``_check_requirement_mapping_ready``, ``_check_bare_prose_requirements_ready``,
+``_occurrence_gate_failures``) are owned by ``runtime_bridge_guards`` and
+``_resolve_runtime_feature_dir`` by ``runtime_bridge_identity``; both sit below
+this module and are imported at the top level.
 Names owned by ``runtime_bridge_composition`` (``_resolve_step_agent_profile``,
 ``_count_source_documented_events``, ``_publication_approved``,
 ``_has_generated_docs``) are looked up on the composition seam through a
@@ -84,6 +84,7 @@ from runtime.next._internal_runtime.schema import (
     load_mission_template_file,
 )
 from runtime.next import run_index
+from runtime.next import runtime_bridge_guards as _guards
 from runtime.next import runtime_bridge_identity as _identity
 from runtime.next.run_index import FEATURE_RUNS_FILENAME
 from runtime.next.run_index import RunDirOutsideRepoError as RunDirOutsideRepoError  # re-export
@@ -664,10 +665,8 @@ def _workflow_runtime_template(
 
     Untracked (no test binds this name on ``runtime_bridge``).
     """
-    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
-
     del mission_type
-    mission_dir = _rb._resolve_runtime_feature_dir(repo_root, mission_slug)
+    mission_dir = _identity._resolve_runtime_feature_dir(repo_root, mission_slug)
     # FR-007 / #3162: routed through the ONE fail-closed reader — a missing
     # meta.json still absorbs to None; a corrupt or non-object one raises the
     # typed MissionMetaReadError instead of a raw ValueError.
@@ -1431,7 +1430,6 @@ def gather_artifact_presence(
     resolving a home degrades to the supplied directory rather than raising
     (:class:`_ArtifactPresenceHomes`).
     """
-    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
     from runtime.next import runtime_bridge_composition as _composition  # noqa: PLC0415 — deferred; composition imports this module at top level
 
     homes = _ArtifactPresenceHomes(feature_dir, _artifact_presence_seam(feature_dir, repo_root, owned=owned))
@@ -1481,7 +1479,7 @@ def gather_artifact_presence(
             # tests/next/test_runtime_bridge_unit.py::TestAtomicTaskSteps,
             # tests/next/test_occurrence_gate_next_loop.py).
             wp_lane_raw[wp_id] = ""
-        has_dependencies_field = bool(_rb._has_raw_dependencies_field(wp_file))
+        has_dependencies_field = bool(_guards._has_raw_dependencies_field(wp_file))
         wp_dependencies_present[wp_id] = has_dependencies_field
         wp_dependency_records.append((wp_file.stem, has_dependencies_field))
 
@@ -1491,9 +1489,9 @@ def gather_artifact_presence(
         "wp_lane_raw": wp_lane_raw,
         "wp_dependencies_present": wp_dependencies_present,
         "wp_dependency_records": tuple(wp_dependency_records),
-        "requirement_mapping_failures": tuple(_rb._check_requirement_mapping_ready(planning_dir)),
-        "bare_prose_requirement_failures": tuple(_rb._check_bare_prose_requirements_ready(planning_dir)),
-        "occurrence_gate_failures": tuple(_rb._occurrence_gate_failures(planning_dir)),
+        "requirement_mapping_failures": tuple(_guards._check_requirement_mapping_ready(planning_dir)),
+        "bare_prose_requirement_failures": tuple(_guards._check_bare_prose_requirements_ready(planning_dir)),
+        "occurrence_gate_failures": tuple(_guards._occurrence_gate_failures(planning_dir)),
         "source_documented_count": _composition._count_source_documented_events(feature_dir),
         "publication_approved": bool(_composition._publication_approved(feature_dir)),
         "has_generated_docs": has_generated_docs,

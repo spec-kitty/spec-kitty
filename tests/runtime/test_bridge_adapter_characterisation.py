@@ -25,11 +25,12 @@ from typing import cast
 
 import pytest
 
-from runtime.next import runtime_bridge, runtime_bridge_cores, runtime_bridge_io
+from runtime.next import runtime_bridge_cores, runtime_bridge_io
 from runtime.next._internal_runtime import MissionRunRef
 from runtime.next.runtime_bridge_cores import RequirementGrammarLike
 from specify_cli.requirement_mapping import grammar
 from tests.runtime._next_mission_scaffold import scaffold_software_dev
+from runtime.next import runtime_bridge_guards as bridge_guards
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -136,12 +137,12 @@ def _tasks_md(**refs_by_wp: str) -> str:
 def test_preflight_accepts_suffixed_and_success_criterion_refs_from_tasks_md(tmp_path: Path) -> None:
     """Needs the injected grammar: a hand-rolled pattern misses ``SC-001`` and ``FR-006a``."""
     feature_dir = _seed_tasks_md_mission(tmp_path, _tasks_md(WP01="FR-001, SC-001", WP02="FR-006a", WP03="FR-001"))
-    assert runtime_bridge._check_requirement_mapping_ready(feature_dir) == []
+    assert bridge_guards._check_requirement_mapping_ready(feature_dir) == []
 
 
 def test_preflight_reports_an_unknown_ref_read_from_tasks_md(tmp_path: Path) -> None:
     feature_dir = _seed_tasks_md_mission(tmp_path, _tasks_md(WP01="FR-001, SC-001", WP02="FR-006a", WP03="FR-999"))
-    (finding,) = runtime_bridge._check_requirement_mapping_ready(feature_dir)
+    (finding,) = bridge_guards._check_requirement_mapping_ready(feature_dir)
     assert "WP03: FR-999 (unknown_spec_id)" in finding
     assert "WP01" not in finding
     assert "WP02" not in finding
@@ -149,7 +150,7 @@ def test_preflight_reports_an_unknown_ref_read_from_tasks_md(tmp_path: Path) -> 
 
 def test_preflight_reports_a_wp_whose_tasks_md_refs_are_all_malformed(tmp_path: Path) -> None:
     feature_dir = _seed_tasks_md_mission(tmp_path, _tasks_md(WP01="FR-001, SC-001", WP02="FR-006a", WP03="bogus, FR-"))
-    (finding,) = runtime_bridge._check_requirement_mapping_ready(feature_dir)
+    (finding,) = bridge_guards._check_requirement_mapping_ready(feature_dir)
     assert "missing refs for WPs: WP03" in finding
 
 
