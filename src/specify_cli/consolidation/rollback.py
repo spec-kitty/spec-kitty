@@ -125,6 +125,12 @@ _UNRECORDED_MOVE_REASON = "moved since the snapshot but no post-mutation tip was
 _KEPT_WARNING = "may contain this consolidation's unverified changes"
 _ADOPTED_NOTE = "adopted interrupted advance"
 _COORD_CHECKOUT_NOT_RESYNCED = "coordination checkout left as found (its status files may differ from the branch tip)"
+#: Operator remedy for a refused resync: the refusal means a NON-residue edit is present, which is never discarded.
+_COORD_RESYNC_REMEDY = (
+    "Remedy: commit or stash the listed change in the coordination worktree "
+    "(`git -C <coordination worktree> stash`), then re-run `spec-kitty consolidate --resume` "
+    "or `--abort`; the rollback then resyncs its status files to the branch tip."
+)
 
 
 class BranchOutcomeKind(StrEnum):
@@ -779,7 +785,7 @@ def _resync_kept_coord_checkout(repo_root: Path, state: ConsolidationState, outc
     try:
         resync_checkouts_to_tip(repo_root, coord_ref, is_residue=is_toolchain_generated_churn)
     except (RefAdvanceDirtyWorktreeError, RefAdvanceError) as exc:
-        return str(exc)
+        return f"{exc}\n  {_COORD_RESYNC_REMEDY}"
     return None
 
 

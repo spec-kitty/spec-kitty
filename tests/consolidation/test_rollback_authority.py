@@ -611,7 +611,9 @@ def test_coord_not_restored_keeps_an_operator_edit_and_its_status_bytes(tmp_path
     assert _kinds(report)[coord] is BranchOutcomeKind.NOT_RESTORED
     assert (worktree / "other-actor-on-coord.txt").read_text() == "operator edit\n"
     assert (worktree / _COORD_STATUS).read_text() == '{"to_lane":"approved"}\n'
-    assert "coordination checkout" in report.render(), "a resync that was refused must be reported"
+    rendered = report.render()
+    assert "coordination checkout" in rendered, "a resync that was refused must be reported"
+    assert "commit or stash" in rendered and "consolidate --resume" in rendered, "the refusal must carry an operator remedy"
 
 
 # -------------------------------------------------------------------- render
