@@ -826,6 +826,39 @@ def restore_branch_ref(
     )
 
 
+def resync_checkouts_to_tip(
+    repo_root: Path,
+    branch: str,
+    *,
+    is_residue: Callable[[str], bool] | None = None,
+    env: dict[str, str] | None = None,
+) -> list[Path]:
+    """Bring every checkout of ``branch`` back to the branch's CURRENT tip; the ref never moves (#5638).
+
+    For a branch a rollback left where it is: a checkout whose tracked files
+    differ from the tip only in toolchain residue (``is_residue``) is reset to
+    the tip through the shared :func:`_resync_checkouts`. Every checkout is
+    dirty-checked first exactly as :func:`advance_branch_ref` does, so any
+    non-residue change refuses before anything is reset.
+
+    Returns:
+        The checkouts that were reset (already-consistent ones are left alone).
+
+    Raises:
+        RefAdvanceDirtyWorktreeError: a checkout holds a non-residue change; nothing was reset.
+        RefAdvanceError: the branch or its checkouts could not be read.
+        RefResyncError: a reset failed.
+    """
+    tip_result = _run_git(repo_root, ["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"], env=env)
+    if tip_result.returncode != 0:
+        raise RefAdvanceError(f"Could not resolve {branch!r} to resync its checkouts: {tip_result.stderr.strip() or 'no such branch'}")
+    tip = tip_result.stdout.strip()
+    checkouts = _checkouts_ready_for(repo_root, branch, tip, env, is_residue, old_sha=tip)
+    needs_reset = [worktree for worktree in checkouts if not _checkout_content_equals(worktree, tip, env)]
+    _resync_checkouts(needs_reset, branch, env, context=f"Kept {branch} at {tip[:12]}")
+    return needs_reset
+
+
 def delete_branch_ref(
     repo_root: Path,
     branch: str,

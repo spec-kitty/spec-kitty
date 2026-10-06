@@ -7,6 +7,8 @@ write built on those bytes commits a log that no longer holds the strand: the
 event is silently lost. The transactional door calls
 :func:`committed_events_missing_from_worktree` before it opens a coordination
 write and refuses, rather than build on a tree that diverges from HEAD this way.
+Since #5638 the rollback authority resyncs that checkout to the coordination tip
+it leaves in place, so this guard is the backstop for whatever path it misses.
 
 Only *loss* is refused: a worktree log that holds extra, uncommitted lines (an
 interrupted write the surgical truncate rollback owns) is not a divergence here.

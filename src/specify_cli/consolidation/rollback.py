@@ -84,6 +84,7 @@ from specify_cli.git.ref_advance import (
     RefAdvanceError,
     RefRestoreError,
     restore_branch_ref,
+    resync_checkouts_to_tip,
 )
 from specify_cli.lanes.compute import lane_created_branch
 from specify_cli.lanes.models import LanesManifest
@@ -123,6 +124,7 @@ _LANE_REPORT_ONLY_REASON = "lane branch: not moved by consolidation"
 _UNRECORDED_MOVE_REASON = "moved since the snapshot but no post-mutation tip was recorded (interrupted phase?); inspect before re-running"
 _KEPT_WARNING = "may contain this consolidation's unverified changes"
 _ADOPTED_NOTE = "adopted interrupted advance"
+_COORD_CHECKOUT_NOT_RESYNCED = "coordination checkout left as found (its status files may differ from the branch tip)"
 
 
 class BranchOutcomeKind(StrEnum):
@@ -169,6 +171,8 @@ _OK_KINDS = frozenset(
 )
 #: Outcomes that settle a run-movable branch (FR-003).
 _SETTLING_KINDS = frozenset({BranchOutcomeKind.RESTORED, BranchOutcomeKind.ALREADY_AT_SNAPSHOT, BranchOutcomeKind.KEPT_BY_OPERATOR})
+#: #5638: a coordination branch the rollback did not move keeps its tip; its checkout must match it.
+_COORD_KEPT_KINDS = frozenset({BranchOutcomeKind.NOT_RESTORED, BranchOutcomeKind.KEPT_BY_OPERATOR})
 
 
 @dataclass(frozen=True)
@@ -178,6 +182,9 @@ class RollbackReport:
     outcomes: tuple[BranchOutcome, ...] = ()
     refused_verified_landing: bool = False
     reason: str | None = None
+    # #5638: why the checkout of a coordination branch left in place could not be
+    # brought back to that branch's tip (None when it was, or nothing needed it).
+    coord_checkout_note: str | None = None
 
     @property
     def fully_restored(self) -> bool:
@@ -208,6 +215,8 @@ class RollbackReport:
         lines = [self._header()]
         width = max((len(o.branch) for o in self.outcomes), default=0)
         lines.extend(_render_outcome(o, width) for o in self.outcomes)
+        if self.coord_checkout_note:
+            lines.append(f"  {_COORD_CHECKOUT_NOT_RESYNCED}: {self.coord_checkout_note}")
         return "\n".join(lines)
 
 
@@ -744,6 +753,29 @@ def _clear_bookkeeping(state: ConsolidationState, outcomes: Iterable[BranchOutco
     state.release_reasons = {}
 
 
+def _resync_kept_coord_checkout(repo_root: Path, state: ConsolidationState, outcomes: Iterable[BranchOutcome]) -> str | None:
+    """Bring the checkout of a coordination branch the rollback left in place back to its tip (#5638).
+
+    The bookkeeping byte-restore writes the pre-``done`` status bytes into the
+    coordination worktree. A RESTORED coordination branch is resynced by its
+    restore; one left in place (NOT_RESTORED, or kept by the operator) still
+    carries the committed ``done``, so its checkout would stay dirty against its
+    own HEAD and every later status write would refuse. Only toolchain residue
+    is discarded; any other change refuses the resync and the checkout is left
+    as found. The committed strand stays, recorded by the reconcile marker.
+
+    Returns the reason the checkout was left as found, or ``None``.
+    """
+    coord_ref = state.pre_mutation_coord_ref
+    if not coord_ref or not any(o.branch == coord_ref and o.kind in _COORD_KEPT_KINDS and o.observed_sha for o in outcomes):
+        return None
+    try:
+        resync_checkouts_to_tip(repo_root, coord_ref, is_residue=is_toolchain_generated_churn)
+    except (RefAdvanceDirtyWorktreeError, RefAdvanceError) as exc:
+        return str(exc)
+    return None
+
+
 def rollback_to_snapshot(repo_root: Path, state: ConsolidationState, *, target_branch: str) -> RollbackReport:
     """Undo this attempt's mutation by CAS-restoring every snapshotted branch; persist the settle bookkeeping."""
     if not state.pre_mutation_refs:
@@ -756,7 +788,7 @@ def rollback_to_snapshot(repo_root: Path, state: ConsolidationState, *, target_b
         replace(outcome, resume_seeded=outcome.branch in seeded)
         for outcome in (_rollback_branch(repo_root, state, branch, snapshot) for branch, snapshot in state.pre_mutation_refs.items())
     )
-    report = RollbackReport(outcomes=outcomes)
+    report = RollbackReport(outcomes=outcomes, coord_checkout_note=_resync_kept_coord_checkout(repo_root, state, outcomes))
     _settle_outcomes(state, outcomes)
     if any(o.branch == target_branch and o.kind is BranchOutcomeKind.RESTORED for o in outcomes):
         # F4: the target left the landing the PASS anchor verified; never keep a stale anchor.

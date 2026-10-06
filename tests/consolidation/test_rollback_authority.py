@@ -557,6 +557,63 @@ def test_coord_cas_conflict_keeps_pending_coord_reconcile(tmp_path: Path) -> Non
     assert env.state.pending_coord_reconcile == {"coord_ref": coord}, "the marker must survive a coord ref that was NOT restored"
 
 
+_COORD_STATUS = f"kitty-specs/{_SLUG}/status.events.jsonl"
+
+
+def _stranded_coord_checkout(env: Env) -> tuple[str, Path]:
+    """#5638: a coord branch the rollback cannot restore, its worktree byte-restored to pre-``done`` bytes.
+
+    The run commits a ``done`` line on the coordination branch, the bookkeeping
+    byte-restore writes the pre-``done`` bytes back into the coordination
+    worktree, and another actor commits on the branch so the CAS restore refuses.
+    """
+    coord = "kitty/coord-x"
+    _git(env.repo, "branch", coord)
+    worktree = env.repo.parent / "coord-wt"
+    _git(env.repo, "worktree", "add", "-q", str(worktree), coord)
+    status = worktree / _COORD_STATUS
+    status.parent.mkdir(parents=True)
+    status.write_text('{"to_lane":"approved"}\n')
+    _git(worktree, "add", "-A")
+    _git(worktree, "commit", "-qm", "approved")
+    env.state.pre_mutation_coord_ref = coord
+    _snapshot_and_begin(env, coord_ref=coord)
+    status.write_text('{"to_lane":"approved"}\n{"to_lane":"done"}\n')
+    _git(worktree, "commit", "-qam", "done bake")
+    _advance_run(env)
+    _commit(worktree, "other-actor-on-coord")
+    status.write_text('{"to_lane":"approved"}\n')  # the bookkeeping byte-restore
+    return coord, worktree
+
+
+def test_coord_not_restored_leaves_its_checkout_status_files_at_the_coord_tip(tmp_path: Path) -> None:
+    """#5638: the coordination checkout ends consistent with the coordination tip the rollback ends on."""
+    env = make_env(tmp_path)
+    coord, worktree = _stranded_coord_checkout(env)
+    tip = _rev(env.repo, coord)
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    assert _kinds(report)[coord] is BranchOutcomeKind.NOT_RESTORED
+    assert _rev(env.repo, coord) == tip, "the coordination ref must never move when it is not restored"
+    assert _git(worktree, "status", "--porcelain") == "", "the coordination checkout must not be left dirty against its own HEAD"
+    assert '"done"' in (worktree / _COORD_STATUS).read_text(), "the committed `done` must be what the checkout shows"
+
+
+def test_coord_not_restored_keeps_an_operator_edit_and_its_status_bytes(tmp_path: Path) -> None:
+    """#5638: a non-toolchain edit in the coordination checkout blocks the resync; nothing there is discarded."""
+    env = make_env(tmp_path)
+    coord, worktree = _stranded_coord_checkout(env)
+    (worktree / "other-actor-on-coord.txt").write_text("operator edit\n")
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    assert _kinds(report)[coord] is BranchOutcomeKind.NOT_RESTORED
+    assert (worktree / "other-actor-on-coord.txt").read_text() == "operator edit\n"
+    assert (worktree / _COORD_STATUS).read_text() == '{"to_lane":"approved"}\n'
+    assert "coordination checkout" in report.render(), "a resync that was refused must be reported"
+
+
 # -------------------------------------------------------------------- render
 
 

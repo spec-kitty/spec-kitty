@@ -3,7 +3,7 @@ title: 'ADR: Terminus-Safety Invariant — gate-then-mutate-with-rollback across
 description: 'Terminus-safety invariant: completion commands gate-then-mutate with rollback on failure, enforced by one shared terminal-readiness authority.'
 status: Accepted
 date: '2026-09-19'
-updated: '2026-10-05'
+updated: '2026-10-06'
 ---
 
 ## Context and Problem Statement
@@ -335,8 +335,11 @@ names one teardown refusal.
   (`_recover_behind_head_primary_on_resume`), now on four checkout roles: repository root
   checkout, coordination worktree, mission worktree and lane worktree.
 - **Residuals (named, not closed).**
-  - The rollback's byte-restore leaves the coordination worktree's status files dirty; the
-    status-write guard refuses on them, the rollback does not clean them.
+  - ~~The rollback's byte-restore leaves the coordination worktree's status files dirty; the
+    status-write guard refuses on them, the rollback does not clean them.~~ Closed by #5638:
+    `rollback_to_snapshot` brings the checkout of a coordination branch it leaves in place
+    back to that branch's tip (`ref_advance.resync_checkouts_to_tip`, toolchain residue only);
+    the guard stays as the backstop.
   - Lane-branch deletes still use `git branch -D`.
   - A corrupt `state.json` falls back to the generic dirty-checkout advice.
   - The repository root checkout with a lag plus an operator edit keeps the stock "Commit,

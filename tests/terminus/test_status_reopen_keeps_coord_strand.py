@@ -2,11 +2,13 @@
 repair on both entry points (``doctor coordination --fix`` and ``consolidate --resume``).
 
 A rolled-back consolidation byte-restores the coordination worktree's status files
-while the coordination branch still carries the committed ``done`` strand. Before the
-fix, a reviewer's reopen (``agent status emit WP01 --to in_progress --force``) built on
-those stale bytes, printed OK and silently dropped the stranded ``done``. Now the status
-write refuses with ``COORD_STATUS_SURFACE_DIVERGED``; after the reviewer takes the
-printed remedy, the reopen lands and the strand repair leaves it alone.
+while the coordination branch still carries the committed ``done`` strand. Before
+#5572, a reviewer's reopen (``agent status emit WP01 --to in_progress --force``) built
+on those stale bytes, printed OK and silently dropped the stranded ``done``; #5633 made
+that write refuse with ``COORD_STATUS_SURFACE_DIVERGED``. Since #5638 the rollback
+authority brings the coordination checkout back to the coordination tip it leaves in
+place, so the reopen lands on top of the committed ``done`` with no hand repair, and
+the strand repair leaves it alone.
 
 Fixture (REAL failed consolidation, nothing hand-written):
 
@@ -167,19 +169,8 @@ def _emit_reopen(mission: CoordMission) -> subprocess.CompletedProcess[str]:
 def _reopen(stranded: Stranded) -> str:
     """REAL reviewer reopen of WP01; returns the coordination commit it landed."""
     mission = stranded.mission
-    # Real path, nothing hand-cleaned: the rollback's byte-restore left the coordination
-    # worktree's status files dirty, so the first emit REFUSES (pinned on its own by
-    # ``test_5572_real_path_reopen_on_the_rolled_back_tree_never_drops_the_strand``). The
-    # reviewer then takes the remedy that refusal prints -- discard the stale working-tree
-    # bytes, keeping the committed ``done`` -- and retries.
-    refused = _emit_reopen(mission)
-    assert refused.returncode != 0 and _DIVERGED_CODE in flat(refused), f"fixture precondition: the dirty-tree emit must refuse. output={flat(refused)}"
-    rel = f"kitty-specs/{mission.slug}"
-    subprocess.run(
-        ["git", "-C", str(stranded.coord_worktree), "checkout", "HEAD", "--", f"{rel}/status.events.jsonl", f"{rel}/status.json"],
-        check=True,
-        capture_output=True,
-    )
+    # Real path, nothing hand-cleaned: the rollback left the coordination checkout at the
+    # coordination tip (#5638), so the reopen lands on the first try.
     before = git_rev(mission.repo, mission.coord_branch)
     emit = _emit_reopen(mission)
     assert emit.returncode == 0, f"fixture precondition: the reopen must succeed. output={flat(emit)}"
@@ -231,26 +222,48 @@ def _assert_refused(
     assert after == before, "a refusal must leave the coordination event log and ref byte-identical"
 
 
+def _coord_status_diff(stranded: Stranded) -> str:
+    """``git status`` of the coordination worktree's status files (empty when they equal HEAD)."""
+    rel = f"kitty-specs/{stranded.mission.slug}"
+    return subprocess.run(
+        ["git", "-C", str(stranded.coord_worktree), "status", "--porcelain", "--", f"{rel}/status.events.jsonl", f"{rel}/status.json"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+
+
+def test_5638_rollback_leaves_the_coord_checkout_at_the_coord_tip(tmp_path: Path) -> None:
+    """No hand-cleaning: the rollback could not restore the coordination branch (another
+    actor committed on it), so it keeps the committed ``done``. The coordination checkout
+    must match that tip, not the pre-``done`` bytes the bookkeeping byte-restore wrote.
+    """
+    stranded = _failed_consolidation(tmp_path)
+
+    assert _coord_status_diff(stranded) == "", (
+        f"the rollback left the coordination worktree's status files dirty against HEAD (#5638): {_coord_status_diff(stranded)!r}"
+    )
+    assert _lane(stranded.mission, _STRANDED_WP) == "done"
+
+
 def test_5572_real_path_reopen_on_the_rolled_back_tree_never_drops_the_strand(tmp_path: Path) -> None:
-    """No hand-cleaning: after the rollback the coordination worktree's status files differ
-    from HEAD (the byte-restore wrote the pre-``done`` bytes over the committed ``done``). A
-    reviewer's real ``agent status emit`` must not build on those bytes and silently drop the
-    committed ``done`` -- it must refuse, naming the divergence, with the log and ref untouched.
+    """No hand-cleaning: a reviewer's real ``agent status emit`` after the rollback must not
+    drop the committed ``done``. Since #5638 it lands on the coordination tip, so it no longer
+    needs the ``COORD_STATUS_SURFACE_DIVERGED`` refusal (the guard stays as the backstop).
     """
     stranded = _failed_consolidation(tmp_path)
     mission = stranded.mission
     assert _lane(mission, _STRANDED_WP) == "done"
-    before = (event_log_bytes(mission, mission.coord_branch), git_rev(mission.repo, mission.coord_branch))
 
     result = _emit_reopen(mission)
 
-    assert _lane(mission, _STRANDED_WP) == "done", (
-        f"the reopen silently dropped the committed `done` of {_STRANDED_WP} (now {_lane(mission, _STRANDED_WP)!r}) — output={flat(result)} (#5572)"
-    )
     out = flat(result)
-    assert result.returncode != 0 and _DIVERGED_CODE in out, f"the emit must refuse with {_DIVERGED_CODE}. output={out}"
-    after = (event_log_bytes(mission, mission.coord_branch), git_rev(mission.repo, mission.coord_branch))
-    assert after == before, "the refusal must leave the coordination event log and ref byte-identical"
+    assert _DIVERGED_CODE not in out, f"the rolled-back coordination checkout must not diverge from its tip (#5638). output={out}"
+    assert result.returncode == 0, f"the reopen must land. output={out}"
+    assert _lane(mission, _STRANDED_WP) == "done", (
+        f"the reopen silently dropped the committed `done` of {_STRANDED_WP} (now {_lane(mission, _STRANDED_WP)!r}) — output={out} (#5572)"
+    )
+    assert _lane(mission, _REOPENED_WP) == "in_progress"
 
 
 def test_5572_reopen_survives_the_strand_repair(tmp_path: Path, entry: str = "resume") -> None:
