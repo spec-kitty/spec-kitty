@@ -179,6 +179,14 @@ def test_never_installed_pack_skill_is_missing_per_agent(project: Path) -> None:
     assert all(f.skill_name == RENDERED for f in findings)
 
 
+def test_agent_with_an_absent_tool_folder_is_not_reported_missing(project: Path) -> None:
+    """A removed tool folder is one ``no_tool_folder`` cause, not one ``missing`` finding per skill."""
+    (project / ".kittify" / "skills-manifest.json").unlink()
+    shutil.rmtree(project / ".claude")
+    findings = find_pack_skill_findings(project)
+    assert {f.installed_path.split("/")[0] for f in findings} == {".agents"}
+
+
 def test_nothing_in_force_yields_no_missing_finding(project: Path) -> None:
     (project / ".kittify" / "skills-manifest.json").unlink()
     support.write_config(project, None, extra=CONFIG)

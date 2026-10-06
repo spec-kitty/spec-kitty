@@ -118,7 +118,11 @@ def find_pack_skill_findings(project_path: Path) -> tuple[PackSkillFinding, ...]
 
 
 def _missing_findings(project_path: Path, entries: list[ManagedFileEntry], current: dict[str, str]) -> list[PackSkillFinding]:
-    """One ``missing`` finding per installable-agent skill path with no pack entry for a skill in force."""
+    """One ``missing`` finding per installable-agent skill path with no pack entry for a skill in force.
+
+    An agent whose tool folder (``.claude``, ``.agents``, ...) is absent is skipped: the
+    ``no_tool_folder`` finding already reports that single cause (FR-006).
+    """
     if not current:
         return []
     covered = {entry.installed_path for entry in entries if entry.skill_name in current}
@@ -126,7 +130,7 @@ def _missing_findings(project_path: Path, entries: list[ManagedFileEntry], curre
     seen: set[str] = set()
     for agent in installable_agent_keys(project_path):
         root = get_primary_project_skill_root(agent)
-        if root is None:
+        if root is None or not (project_path / Path(root).parts[0]).is_dir():
             continue
         for name in sorted(current):
             path = (Path(root) / name / "SKILL.md").as_posix()
