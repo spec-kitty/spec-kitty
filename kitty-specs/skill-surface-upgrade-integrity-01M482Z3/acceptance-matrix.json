@@ -1,0 +1,79 @@
+{
+  "mission_slug": "skill-surface-upgrade-integrity-01M482Z3",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_upgrade_absent_tool_folder_4275.py (real init --ai claude,codex, rm .claude, upgrade --yes; red on base, green on HEAD); tests/specify_cli/tool_surface/test_operations.py merge cases (WP01, reviewer-renata)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator-claude",
+      "verified_at": "2026-10-06T09:57:58.007774+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tool_surface/test_operations.py mode/phase divergence raise with both owners + differing fields; test_managed_skills unsupported-overlap message (WP01)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator-claude",
+      "verified_at": "2026-10-06T09:58:04.180991+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_upgrade_version_restore_4275.py surface-repair failure restores version trio, migration + no-migration paths (red on base, green on HEAD); #3334/#1158 suites 63 passed (WP02)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator-claude",
+      "verified_at": "2026-10-06T09:58:09.633080+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_skills_missing_5801.py (red on base); tests/specify_cli/skills/test_pack_skill_drift.py missing/absent-file cases (WP03)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator-claude",
+      "verified_at": "2026-10-06T09:58:15.755569+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_doctor_skills_missing_5801.py --fix projects and re-check exits 0; drift copy byte-identical after --fix; _repair_pack_skills OSError case (WP03)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator-claude",
+      "verified_at": "2026-10-06T09:58:22.025424+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_doctor_skills_missing_5801.py no_tool_folder with both folders absent -> exit 1; one folder present -> no finding (WP03)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator-claude",
+      "verified_at": "2026-10-06T09:58:28.194602+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "review",
+      "evidence": "WP04 reviewer-renata verified how-to, ADR amendment and CHANGELOG against lane code; check_docs_freshness errors=0; test_no_legacy_terminology 96 passed",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator-claude",
+      "verified_at": "2026-10-06T09:58:34.445927+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

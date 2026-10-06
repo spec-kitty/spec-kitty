@@ -1,0 +1,35 @@
+{
+  "accept_commit": "2c6127b60284e785c4345bfd78d4889f1e7d8ea9",
+  "acceptance_history": [
+    {
+      "accept_commit": "2c6127b60284e785c4345bfd78d4889f1e7d8ea9",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-06T09:58:42.319600+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "f536fd6bb6d41fb21a3d7423bf3e558694eb52ed"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-06T09:58:42.319600+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "f536fd6bb6d41fb21a3d7423bf3e558694eb52ed",
+  "baseline_merge_commit": "8f0e10cd816304ce9e0a1212c1364d0d915d7156",
+  "created_at": "2026-10-06T07:48:35.955871+00:00",
+  "flattened": true,
+  "friendly_name": "Skill surface and upgrade integrity",
+  "merged_at": "2026-10-06T10:01:46.925318+00:00",
+  "merged_commit": "112616ecdffbef87445a7636aedaae6bc820d13a",
+  "mid8": "01M482Z3",
+  "mission_id": "01M482Z3Z4FWNBZAT3JSE7DQ0J",
+  "mission_number": 219,
+  "mission_slug": "skill-surface-upgrade-integrity-01M482Z3",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Two defects leave teams without the commands their packs share: upgrade aborts with an owner-effect conflict (and stamps the version anyway) when .claude is absent, and doctor skills reports healthy while in-force pack skills were never projected. Addresses #4275 and #5801.",
+  "purpose_tldr": "Make upgrade succeed on projects without a .claude directory and make doctor skills report pack skills that were never installed.",
+  "slug": "skill-surface-upgrade-integrity-01M482Z3",
+  "status_phase": "1",
+  "target_branch": "ccr-11788f1f-qu75jg",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-06T08:08:45.166591+00:00"
+}

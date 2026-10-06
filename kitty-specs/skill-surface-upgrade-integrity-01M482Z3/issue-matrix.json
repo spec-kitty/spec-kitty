@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#1158": {
+      "evidence_ref": "Context-only: C-004 requires the existing #1158 schema-stamp repair to keep working; no work owed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3334": {
+      "evidence_ref": "Context-only: WP02 extends the existing #3334 metadata restore pattern; no work owed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4275": {
+      "evidence_ref": "WP01 coalesce_effects merge (tests/upgrade/test_upgrade_absent_tool_folder_4275.py red->green) + WP02 VersionStamp restore (tests/upgrade/test_upgrade_version_restore_4275.py red->green)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5801": {
+      "evidence_ref": "WP03 missing kind + doctor skills --fix projection + no_tool_folder (tests/specify_cli/cli/commands/test_doctor_skills_missing_5801.py red->green)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    }
+  },
+  "schema_version": 1
+}

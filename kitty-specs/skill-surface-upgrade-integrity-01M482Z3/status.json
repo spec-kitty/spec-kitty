@@ -1,0 +1,85 @@
+{
+  "event_count": 33,
+  "last_event_id": "01M48AJ8C0PDPF0FASHVCFHDBH",
+  "materialized_at": "2026-10-06T10:01:22.048105+00:00",
+  "mission_number": "",
+  "mission_slug": "skill-surface-upgrade-integrity-01M482Z3",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M48AHTKRXVP957S6CRV1DGVJ",
+      "last_transition_at": "2026-10-06T10:01:07.960162+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261006",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 4938,
+      "shell_pid_created_at": "1791276614.34"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M48AJ4HA809SQFM3JQAS5F6S",
+      "last_transition_at": "2026-10-06T10:01:18.122734+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261006",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 16465,
+      "shell_pid_created_at": "1791277304.64"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M48AJ0406P3PP08BTJCE8V5N",
+      "last_transition_at": "2026-10-06T10:01:13.600261+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261006",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 8234,
+      "shell_pid_created_at": "1791274120.1"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M48AJ8C0PDPF0FASHVCFHDBH",
+      "last_transition_at": "2026-10-06T10:01:22.048105+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261006",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 12634,
+      "shell_pid_created_at": "1791280178.63"
+    }
+  }
+}

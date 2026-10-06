@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "mission_slug": "skill-surface-upgrade-integrity-01M482Z3",
+  "mission_id": "01M482Z3Z4FWNBZAT3JSE7DQ0J",
+  "mission_branch": "kitty/mission-skill-surface-upgrade-integrity-01M482Z3",
+  "target_branch": "ccr-11788f1f-qu75jg",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/tool_surface/operations.py",
+        "src/specify_cli/tool_surface/providers/managed_skills.py",
+        "tests/specify_cli/skills/test_crlf_skill_render_4998.py",
+        "tests/specify_cli/tool_surface/providers/test_managed_skills.py",
+        "tests/specify_cli/tool_surface/test_operations.py",
+        "tests/upgrade/test_upgrade_absent_tool_folder_4275.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_command_surface_doctor.py",
+        "src/specify_cli/skills/pack_skill_drift.py",
+        "tests/architectural/test_json_contract_enumeration.py",
+        "tests/cli_gate/test_doctor_modes.py",
+        "tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py",
+        "tests/specify_cli/cli/commands/test_doctor_json_not_in_project.py",
+        "tests/specify_cli/cli/commands/test_doctor_skills.py",
+        "tests/specify_cli/cli/commands/test_doctor_skills_missing_5801.py",
+        "tests/specify_cli/cli/commands/test_doctor_slash_commands.py",
+        "tests/specify_cli/cli/commands/test_doctor_tool_surfaces_config_error.py",
+        "tests/specify_cli/skills/test_pack_skill_drift.py",
+        "tests/specify_cli/skills/test_vibe_config.py",
+        "tests/specify_cli/tool_surface/integration/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/upgrade.py",
+        "src/specify_cli/upgrade/runner.py",
+        "tests/upgrade/test_failed_upgrade_recoverable.py",
+        "tests/upgrade/test_upgrade_version_restore_4275.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-09-27-1-pack-skills-share-commands-through-charter-packs.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/docs-retrieval-index.yaml",
+        "docs/development/how-to/create-a-pack-skill.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-06T08:07:12.775731+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP04"
+  ],
+  "planning_commit_sha": "e13ef41cfe7547fc67a635a99254d1da147db67f"
+}

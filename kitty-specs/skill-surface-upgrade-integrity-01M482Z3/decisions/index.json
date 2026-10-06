@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-06T07:49:02.819137Z",
+      "decision_id": "01M482ZZ73BDZYM0K2R1CD0SE3",
+      "final_answer": "Project it in --fix via project_pack_skills, then re-check. Additionally: doctor must fail when NO configured (charter-supported) harness folder exists locally; at least one is required, not all.",
+      "input_key": "doctor_fix_behaviour",
+      "mission_id": "01M482Z3Z4FWNBZAT3JSE7DQ0J",
+      "mission_slug": "skill-surface-upgrade-integrity-01M482Z3",
+      "opened_by": "cli",
+      "options": [
+        "Project it in --fix (recommended)",
+        "Report only, name spec-kitty upgrade",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "When doctor skills finds an in-force pack skill that is missing, should --fix project it itself (via project_pack_skills) or only report it and name spec-kitty upgrade?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T07:53:47.230668Z",
+      "resolved_by": null,
+      "slot_key": "specify.fix.doctor-fix-behaviour",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M482Z3Z4FWNBZAT3JSE7DQ0J",
+  "version": 1
+}
