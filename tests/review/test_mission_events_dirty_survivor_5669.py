@@ -71,14 +71,6 @@ def test_mission_events_one_level_too_deep_stays_blocking() -> None:
     assert benign == []
 
 
-def test_genuine_source_path_stays_blocking() -> None:
-    """A genuinely-owned source edit is still real, blocking dirt."""
-    path = "src/specify_cli/review/dirty_classifier.py"
-    blocking, benign = classify_dirty_paths([path], wp_id="WP01", mission_slug=_SLUG)
-    assert blocking == [path]
-    assert benign == []
-
-
 def test_mission_events_benign_alongside_real_dirt() -> None:
     """The survivor is scoped: a co-dirty operator file still blocks the handoff."""
     source = "src/specify_cli/review/dirty_classifier.py"
