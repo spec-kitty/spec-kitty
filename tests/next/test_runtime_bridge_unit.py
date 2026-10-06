@@ -241,12 +241,13 @@ class TestWorkflowRuntimeTemplate:
         )
 
         from runtime.next import runtime_bridge
+        from runtime.next import runtime_bridge_retrospective
         from runtime.next.decision import DecisionKind
 
         monkeypatch.setattr(
             runtime_bridge,
             "runtime_emitter_for_mission",
-            lambda **_: runtime_bridge._BufferingRuntimeEmitter(),
+            lambda **_: runtime_bridge_retrospective._BufferingRuntimeEmitter(),
         )
 
         runtime_bridge.decide_next_via_runtime(

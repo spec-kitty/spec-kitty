@@ -1,35 +1,19 @@
 """Retrospective-seam tests for ``runtime_bridge_retrospective`` (#2531 WP04, FR-006).
 
-Three independent concerns:
+Two independent concerns:
 
-1. **Architecture boundary** (``test_only_seam_imports_retrospective_package``)
-   — asserts ``runtime_bridge.py`` no longer imports ``specify_cli.retrospective.*``
-   directly; the seam module is the sole owner of that import surface (mirrors
-   the WP03 engine-adapter's FR-013 boundary, scoped to this WP's cluster).
-   A non-vacuousness check
-   (``test_seam_defines_every_relocated_symbol``) guards against the "residual
-   doesn't import it" assertion passing for the wrong reason (nobody needing
-   the cluster at all).
-
-2. **Focused unit tests (FR-006)** against the moved cluster in isolation —
+1. **Focused unit tests (FR-006)** against the cluster in isolation --
    stubbing ``specify_cli.retrospective.*`` at its source (never the real
    generator/writer/lifecycle_events), mirroring the stub-at-source scenario-
-   builder pattern used across the bridge seam test family. These pin the
-   behavior-preserving move (C-001): identical branching, identical
-   retrospective ``Confirm.ask`` gate semantics.
+   builder pattern used across the bridge seam test family.
 
-3. **Retrospective-pair live-lookup regression** (the WP04-specific risk
-   flagged in ``research.md`` §Compat and ``contracts/compat-surface.md``):
-   now that the whole cluster lives together in one seam module, an
-   intra-cluster call between two compat-guarded symbols (e.g.
-   ``_run_retrospective_learning_capture`` -> ``_build_retrospective_facilitator_callback``;
-   the built facilitator -> ``_classify_and_emit_failure`` -> ``_classify_exc``/
-   ``_remediation_hint``) MUST resolve via a live lookup back through
-   ``runtime_bridge`` (never a bare intra-module call), or a
-   ``monkeypatch.setattr(runtime_bridge, "<name>", …)`` becomes a no-op
-   (false-green). ``test_*_uses_live_lookup_for_*`` pin this by patching the
-   callee on ``runtime_bridge`` and asserting the (unpatched) caller in the
-   seam still observes it.
+2. **Intra-module patch points** (#2561): the cluster's members call each
+   other as plain module-level calls (``_run_retrospective_learning_capture``
+   -> ``_build_retrospective_facilitator_callback``; the built facilitator ->
+   ``_classify_and_emit_failure`` -> ``_classify_exc``/``_remediation_hint``),
+   so ``runtime.next.runtime_bridge_retrospective`` is the one binding they
+   look up. ``test_*_observes_patch_on_seam_for_*`` pin that by patching the
+   callee on this module and asserting the (unpatched) caller sees it.
 """
 
 from __future__ import annotations
@@ -45,43 +29,7 @@ from runtime.next import runtime_bridge_retrospective as retro
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # ---------------------------------------------------------------------------
-# 1. Architecture boundary (non-vacuousness-checked)
-# ---------------------------------------------------------------------------
-
-_RUNTIME_BRIDGE_PATH = Path(__file__).resolve().parents[2] / "src" / "runtime" / "next" / "runtime_bridge.py"
-
-# The 9 compat-guarded symbols (contracts/compat-surface.md) that MUST stay
-# natively defined in runtime_bridge.py as thin delegates (never a plain
-# re-export) -- see runtime_bridge_retrospective's module docstring for why.
-_COMPAT_GUARDED_NAMES = frozenset(
-    {
-        "_BufferingRuntimeEmitter",
-        "_rich_hic_prompt",
-        "_resolve_mission_id_for_terminus",
-        "_build_retrospective_facilitator_callback",
-        "_resolve_retrospective_policy_for_runtime",
-        "_run_retrospective_learning_capture",
-        "_classify_exc",
-        "_remediation_hint",
-        "_classify_and_emit_failure",
-    }
-)
-
-# The one symbol in the cluster that is NOT part of the WP02 compat guard's
-# tracked inventory (nothing patches it). WP18 (#2561) retired its
-# ``runtime_bridge`` façade re-export -- every caller now reaches it directly
-# on this seam (``runtime_bridge.py`` and ``runtime_bridge_engine.py`` both
-# call ``_retrospective_seam._retrospective_blocks_completion``). It stays a
-# genuine seam-owned symbol, verified re-export-free below.
-_INTERNAL_ONLY_NAME = "_retrospective_blocks_completion"
-
-
-
-
-
-
-# ---------------------------------------------------------------------------
-# 2a. _BufferingRuntimeEmitter
+# 1a. _BufferingRuntimeEmitter
 # ---------------------------------------------------------------------------
 
 
@@ -149,7 +97,7 @@ def test_buffering_runtime_emitter_flush_skips_unknown_target_methods() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 2b. _rich_hic_prompt
+# 1b. _rich_hic_prompt
 # ---------------------------------------------------------------------------
 
 
@@ -170,7 +118,7 @@ def test_rich_hic_prompt_requires_non_empty_skip_reason(monkeypatch: pytest.Monk
 
 
 # ---------------------------------------------------------------------------
-# 2c. _resolve_mission_id_for_terminus
+# 1c. _resolve_mission_id_for_terminus
 # ---------------------------------------------------------------------------
 
 
@@ -191,7 +139,7 @@ def test_resolve_mission_id_for_terminus_falls_back_on_missing_or_bad_meta(tmp_p
 
 
 # ---------------------------------------------------------------------------
-# 2d. _resolve_retrospective_policy_for_runtime / _retrospective_blocks_completion
+# 1d. _resolve_retrospective_policy_for_runtime / _retrospective_blocks_completion
 # ---------------------------------------------------------------------------
 
 
@@ -251,7 +199,7 @@ def test_retrospective_blocks_completion_matrix(
 
 
 # ---------------------------------------------------------------------------
-# 2e. _classify_exc / _remediation_hint
+# 1e. _classify_exc / _remediation_hint
 # ---------------------------------------------------------------------------
 
 
@@ -275,7 +223,7 @@ def test_remediation_hint_branches() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 2f/3. _classify_and_emit_failure -- behavior + retrospective-pair live lookup
+# 1f/2. _classify_and_emit_failure -- behavior + intra-module patch point
 # ---------------------------------------------------------------------------
 
 
@@ -318,17 +266,12 @@ def test_classify_and_emit_failure_swallows_emit_failure(tmp_path: Path, caplog:
     )
 
 
-def test_classify_and_emit_failure_uses_live_lookup_for_classify_and_hint(
+def test_classify_and_emit_failure_observes_patch_on_seam_for_classify_and_hint(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Retrospective-pair risk regression: ``_classify_and_emit_failure`` must
-    resolve ``_classify_exc``/``_remediation_hint`` via a live lookup through
-    ``runtime_bridge`` -- a bare intra-module call to this module's own
-    functions would silently bypass a patch applied to
-    ``runtime_bridge.<name>`` (the exact false-green mechanism
-    contracts/compat-surface.md warns about)."""
-    from runtime.next import runtime_bridge as rb
-
+    """``_classify_and_emit_failure`` calls ``_classify_exc`` /
+    ``_remediation_hint`` as module-level names of this seam, so a patch on
+    the seam is the one it observes."""
     calls: list[str] = []
 
     def _spy_classify(exc: Exception) -> str:
@@ -339,8 +282,8 @@ def test_classify_and_emit_failure_uses_live_lookup_for_classify_and_hint(
         calls.append("hint")
         return "patched-hint"
 
-    monkeypatch.setattr(rb, "_classify_exc", _spy_classify)
-    monkeypatch.setattr(rb, "_remediation_hint", _spy_hint)
+    monkeypatch.setattr(retro, "_classify_exc", _spy_classify)
+    monkeypatch.setattr(retro, "_remediation_hint", _spy_hint)
 
     captured: dict[str, Any] = {}
     retro._classify_and_emit_failure(
@@ -359,19 +302,16 @@ def test_classify_and_emit_failure_uses_live_lookup_for_classify_and_hint(
 
 
 # ---------------------------------------------------------------------------
-# 2g/3. _run_retrospective_learning_capture -- behavior + live lookup
+# 1g/2. _run_retrospective_learning_capture -- behavior + intra-module patch point
 # ---------------------------------------------------------------------------
 
 
-def test_run_retrospective_learning_capture_uses_live_lookup_for_facilitator_builder(
+def test_run_retrospective_learning_capture_observes_patch_on_seam_for_facilitator_builder(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Retrospective-pair risk regression: the (unpatched, real)
-    ``_run_retrospective_learning_capture`` must invoke
-    ``_build_retrospective_facilitator_callback`` via a live lookup through
-    ``runtime_bridge`` -- see module docstring."""
-    from runtime.next import runtime_bridge as rb
-
+    """``_run_retrospective_learning_capture`` invokes
+    ``_build_retrospective_facilitator_callback`` as a module-level name of
+    this seam, so a patch on the seam is the one it observes."""
     build_calls: list[dict[str, Any]] = []
     facilitator_calls: list[dict[str, Any]] = []
 
@@ -383,7 +323,7 @@ def test_run_retrospective_learning_capture_uses_live_lookup_for_facilitator_bui
 
         return _facilitator
 
-    monkeypatch.setattr(rb, "_build_retrospective_facilitator_callback", _fake_builder)
+    monkeypatch.setattr(retro, "_build_retrospective_facilitator_callback", _fake_builder)
 
     retro._run_retrospective_learning_capture(
         mission_id="mission-9",
@@ -400,12 +340,10 @@ def test_run_retrospective_learning_capture_uses_live_lookup_for_facilitator_bui
 def test_run_retrospective_learning_capture_swallows_failure_by_default(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    from runtime.next import runtime_bridge as rb
-
     def _raising_callback(*, mission_id: str, feature_dir: Path, repo_root: Path, **_kw: Any) -> None:
         raise RuntimeError("generator exploded")
 
-    monkeypatch.setattr(rb, "_build_retrospective_facilitator_callback", lambda **_kw: _raising_callback)
+    monkeypatch.setattr(retro, "_build_retrospective_facilitator_callback", lambda **_kw: _raising_callback)
 
     # Must not raise -- best-effort default (block_on_failure=False).
     retro._run_retrospective_learning_capture(
@@ -420,12 +358,10 @@ def test_run_retrospective_learning_capture_swallows_failure_by_default(
 def test_run_retrospective_learning_capture_reraises_when_blocking(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    from runtime.next import runtime_bridge as rb
-
     def _raising_callback(*, mission_id: str, feature_dir: Path, repo_root: Path, **_kw: Any) -> None:
         raise RuntimeError("strict gate failure")
 
-    monkeypatch.setattr(rb, "_build_retrospective_facilitator_callback", lambda **_kw: _raising_callback)
+    monkeypatch.setattr(retro, "_build_retrospective_facilitator_callback", lambda **_kw: _raising_callback)
 
     with pytest.raises(RuntimeError, match="strict gate failure"):
         retro._run_retrospective_learning_capture(
@@ -438,8 +374,8 @@ def test_run_retrospective_learning_capture_reraises_when_blocking(
 
 
 # ---------------------------------------------------------------------------
-# 2h/3. _build_retrospective_facilitator_callback / _facilitator -- behavior +
-# live lookup to _classify_and_emit_failure
+# 1h/2. _build_retrospective_facilitator_callback / _facilitator -- behavior +
+# intra-module patch point for _classify_and_emit_failure
 # ---------------------------------------------------------------------------
 
 
@@ -489,15 +425,12 @@ def test_facilitator_happy_path_writes_and_emits(monkeypatch: pytest.MonkeyPatch
     assert emit_calls == [sentinel_record]
 
 
-def test_facilitator_uses_live_lookup_for_classify_and_emit_failure(
+def test_facilitator_observes_patch_on_seam_for_classify_and_emit_failure(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Retrospective-pair risk regression: the ``_facilitator`` closure built
-    by (unpatched, real) ``_build_retrospective_facilitator_callback`` must
-    invoke ``_classify_and_emit_failure`` via a live lookup through
-    ``runtime_bridge`` when the generator raises -- see module docstring."""
-    from runtime.next import runtime_bridge as rb
-
+    """The ``_facilitator`` closure built by ``_build_retrospective_facilitator_callback``
+    calls ``_classify_and_emit_failure`` as a module-level name of this seam
+    when the generator raises, so a patch on the seam is the one it observes."""
     class _EnabledPolicy:
         enabled = True
 
@@ -513,7 +446,7 @@ def test_facilitator_uses_live_lookup_for_classify_and_emit_failure(
 
     monkeypatch.setattr("specify_cli.retrospective.generator.generate_retrospective", _raise_missing)
     monkeypatch.setattr(
-        rb,
+        retro,
         "_classify_and_emit_failure",
         lambda **kwargs: classify_calls.append(kwargs),
     )

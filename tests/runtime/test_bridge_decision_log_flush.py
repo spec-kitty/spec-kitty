@@ -186,9 +186,9 @@ class _Harness:
 def strict_bridge(monkeypatch: pytest.MonkeyPatch) -> None:
     """Stub the bridge so ``_dn_decision_materialize`` runs the strict gate path
     without touching the retrospective package or mission metadata."""
-    monkeypatch.setattr(rb, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (_strict_policy(), {}, None))
-    monkeypatch.setattr(rb, "_resolve_mission_id_for_terminus", lambda feature_dir: None)
-    monkeypatch.setattr(rb, "_run_retrospective_learning_capture", lambda **kwargs: None)
+    monkeypatch.setattr(_retrospective_seam, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (_strict_policy(), {}, None))
+    monkeypatch.setattr(_retrospective_seam, "_resolve_mission_id_for_terminus", lambda feature_dir: None)
+    monkeypatch.setattr(_retrospective_seam, "_run_retrospective_learning_capture", lambda **kwargs: None)
 
 
 def _decision_required(run_id: str = RUN_ID) -> NextDecision:
@@ -313,7 +313,7 @@ def test_strict_policy_refused_terminal_gate_writes_nothing(monkeypatch: pytest.
 
     rollbacks: list[tuple[Any, ...]] = []
     monkeypatch.setattr(rb, "runtime_next_step", fake_terminal_step)
-    monkeypatch.setattr(rb, "_run_retrospective_learning_capture", refuse)
+    monkeypatch.setattr(_retrospective_seam, "_run_retrospective_learning_capture", refuse)
     monkeypatch.setattr(rb, "_dn_rollback_buffered_run_state", lambda *args: rollbacks.append(args))
 
     decision = rb._dn_decision_materialize(h.ctx)
@@ -335,12 +335,12 @@ def test_gated_flush_does_not_duplicate(monkeypatch: pytest.MonkeyPatch, tmp_pat
     _install_decision_required_engine(monkeypatch)
     buffers: list[Any] = []
 
-    class _SpyBuffer(rb._BufferingRuntimeEmitter):
+    class _SpyBuffer(_retrospective_seam._BufferingRuntimeEmitter):
         def __init__(self) -> None:
             super().__init__()
             buffers.append(self)
 
-    monkeypatch.setattr(rb, "_BufferingRuntimeEmitter", _SpyBuffer)
+    monkeypatch.setattr(_retrospective_seam, "_BufferingRuntimeEmitter", _SpyBuffer)
 
     rb._dn_decision_materialize(h.ctx)
 

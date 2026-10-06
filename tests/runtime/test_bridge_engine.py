@@ -318,7 +318,7 @@ class _MapDecisionRecorder:
 def _stub_map_runtime_decision(monkeypatch: pytest.MonkeyPatch) -> _MapDecisionRecorder:
     """Stub ``runtime_bridge._map_runtime_decision``.
 
-    The adapter calls back into ``runtime_bridge`` via a local, live module
+    The adapter calls back into ``runtime_bridge`` via a deferred module
     import for this symbol (it is not an engine-private and stays owned by
     ``runtime_bridge.py`` — see ``runtime_bridge_engine.py`` module
     docstring), so patching it on the ``runtime_bridge`` module is the
@@ -487,7 +487,7 @@ def test_advance_run_state_terminal_runs_retrospective_gate(
     retrospective policy/terminus helpers on ``runtime_bridge`` — stubbed here
     via a live module patch, exactly as the WP02 compat guard's sentinel
     mechanism relies on."""
-    from runtime.next import runtime_bridge as rb
+    from runtime.next import runtime_bridge_retrospective as retrospective_seam
 
     run_dir = tmp_path / "run-4"
     run_dir.mkdir()
@@ -505,19 +505,17 @@ def test_advance_run_state_terminal_runs_retrospective_gate(
     # A non-blocking policy: ``enabled`` but neither ``timing="before_completion"``
     # nor ``failure_policy="block"``, so the REAL ``_retrospective_blocks_completion``
     # returns False on its own (getattr-default None on both). We deliberately do
-    # NOT monkeypatch ``_retrospective_blocks_completion`` — that would add a fresh
-    # ``runtime_bridge`` compat binding to the WP02 grep-derived inventory (which
-    # is a frozen gate we must not force to grow), and driving the real predicate
-    # is stronger coverage anyway.
+    # NOT monkeypatch ``_retrospective_blocks_completion``: driving the real
+    # predicate is stronger coverage.
     class _Policy:
         enabled = True
         timing = "post_completion"
         failure_policy = "warn"
 
     retro_calls: list[dict[str, Any]] = []
-    monkeypatch.setattr(rb, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (_Policy(), {}, None))
-    monkeypatch.setattr(rb, "_resolve_mission_id_for_terminus", lambda feature_dir: "mission-id-4")
-    monkeypatch.setattr(rb, "_run_retrospective_learning_capture", lambda **kwargs: retro_calls.append(kwargs))
+    monkeypatch.setattr(retrospective_seam, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (_Policy(), {}, None))
+    monkeypatch.setattr(retrospective_seam, "_resolve_mission_id_for_terminus", lambda feature_dir: "mission-id-4")
+    monkeypatch.setattr(retrospective_seam, "_run_retrospective_learning_capture", lambda **kwargs: retro_calls.append(kwargs))
 
     sync_emitter = _FakeSyncEmitter()
     run_ref = MissionRunRef(run_id="run-4", run_dir=str(run_dir), mission_key="software-dev")
@@ -548,7 +546,7 @@ def test_advance_run_state_terminal_skipped_when_no_step_completed(
 ) -> None:
     """A ``terminal`` decision on a re-poll (no step just completed) must NOT
     re-emit ``MissionRunCompleted`` or re-run the retrospective gate."""
-    from runtime.next import runtime_bridge as rb
+    from runtime.next import runtime_bridge_retrospective as retrospective_seam
 
     run_dir = tmp_path / "run-5"
     run_dir.mkdir()
@@ -557,7 +555,7 @@ def test_advance_run_state_terminal_skipped_when_no_step_completed(
     _stub_engine_and_planner(monkeypatch, read_snapshot_returns=snapshot_in, plan_next_returns=decision)
 
     monkeypatch.setattr(
-        rb,
+        retrospective_seam,
         "_resolve_retrospective_policy_for_runtime",
         lambda repo_root: (_ for _ in ()).throw(AssertionError("must not consult retrospective policy")),
     )

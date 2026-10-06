@@ -1232,7 +1232,7 @@ def test_advancement_helper_runs_default_post_completion_retrospective(
             ),
         ),
         patch(
-            "runtime.next.runtime_bridge._run_retrospective_learning_capture",
+            "runtime.next.runtime_bridge_retrospective._run_retrospective_learning_capture",
             side_effect=lambda **kwargs: captures.append(dict(kwargs)),
         ),
     ):
@@ -1296,11 +1296,11 @@ def test_advancement_helper_runs_strict_retrospective_before_completion(
             ),
         ),
         patch(
-            "runtime.next.runtime_bridge._resolve_retrospective_policy_for_runtime",
+            "runtime.next.runtime_bridge_retrospective._resolve_retrospective_policy_for_runtime",
             return_value=(strict_policy, {"enabled": "test"}, None),
         ),
         patch(
-            "runtime.next.runtime_bridge._run_retrospective_learning_capture",
+            "runtime.next.runtime_bridge_retrospective._run_retrospective_learning_capture",
             side_effect=lambda **kwargs: captures.append(dict(kwargs)),
         ),
     ):
@@ -1360,7 +1360,7 @@ def test_advancement_helper_raises_policy_error_for_strict_retrospective(
             ),
         ),
         patch(
-            "runtime.next.runtime_bridge._resolve_retrospective_policy_for_runtime",
+            "runtime.next.runtime_bridge_retrospective._resolve_retrospective_policy_for_runtime",
             return_value=(strict_policy, {"enabled": "test"}, policy_error),
         ),
         pytest.raises(RuntimeError, match="bad retrospective policy"),

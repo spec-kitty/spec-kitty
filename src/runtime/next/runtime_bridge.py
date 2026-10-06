@@ -525,103 +525,6 @@ class MissionNotFoundError(Exception):
 TASKS_GLOB = "WP*.md"
 
 
-class _BufferingRuntimeEmitter(_retrospective_seam._BufferingRuntimeEmitter):
-    """Thin compat delegate (native ``class`` statement; FR-012 compat
-    surface, #2531 WP04). Real implementation lives in
-    :class:`runtime_bridge_retrospective._BufferingRuntimeEmitter` — inherited
-    unchanged (no override). Kept as a native subclass definition (not a
-    plain re-export alias) so ``_BufferingRuntimeEmitter.__module__`` stays
-    ``runtime_bridge`` — the WP02 compat guard's identity/relocated-symbol
-    check only tolerates the pre-existing ``runtime.next.decision``-origin
-    cross-module symbols; see the module-level #2531 comment block above and
-    ``runtime_bridge_retrospective``'s docstring."""
-
-
-def _rich_hic_prompt() -> tuple[bool, str | None]:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_retrospective._rich_hic_prompt` (FR-012 compat
-    surface, #2531 WP04; see module-level comment above)."""
-    return _retrospective_seam._rich_hic_prompt()
-
-
-def _resolve_mission_id_for_terminus(feature_dir: Path) -> str:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_retrospective._resolve_mission_id_for_terminus`."""
-    return _retrospective_seam._resolve_mission_id_for_terminus(feature_dir)
-
-
-def _build_retrospective_facilitator_callback(
-    mission_slug: str,
-    repo_root: Path,
-    provenance_kind: str = "runtime_post_completion",
-) -> Any:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_retrospective._build_retrospective_facilitator_callback`."""
-    return _retrospective_seam._build_retrospective_facilitator_callback(mission_slug, repo_root, provenance_kind)
-
-
-def _resolve_retrospective_policy_for_runtime(
-    repo_root: Path,
-) -> tuple[Any, dict[str, str], Exception | None]:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_retrospective._resolve_retrospective_policy_for_runtime`."""
-    return _retrospective_seam._resolve_retrospective_policy_for_runtime(repo_root)
-
-
-def _run_retrospective_learning_capture(
-    *,
-    mission_id: str,
-    mission_slug: str,
-    feature_dir: Path,
-    repo_root: Path,
-    block_on_failure: bool,
-) -> None:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_retrospective._run_retrospective_learning_capture`."""
-    _retrospective_seam._run_retrospective_learning_capture(
-        mission_id=mission_id,
-        mission_slug=mission_slug,
-        feature_dir=feature_dir,
-        repo_root=repo_root,
-        block_on_failure=block_on_failure,
-    )
-
-
-def _classify_exc(exc: Exception) -> str:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_retrospective._classify_exc`."""
-    return _retrospective_seam._classify_exc(exc)
-
-
-def _remediation_hint(exc: Exception, source_map: dict[str, str]) -> str | None:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_retrospective._remediation_hint`."""
-    return _retrospective_seam._remediation_hint(exc, source_map)
-
-
-def _classify_and_emit_failure(
-    *,
-    mission_id: str,
-    mission_slug: str,
-    repo_root: Path,
-    exc: Exception,
-    source_map: dict[str, str],
-    provenance_kind: str,
-    emit_capture_failed: Any,
-) -> None:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_retrospective._classify_and_emit_failure`."""
-    _retrospective_seam._classify_and_emit_failure(
-        mission_id=mission_id,
-        mission_slug=mission_slug,
-        repo_root=repo_root,
-        exc=exc,
-        source_map=source_map,
-        provenance_kind=provenance_kind,
-        emit_capture_failed=emit_capture_failed,
-    )
-
-
 def _load_feature_runs(repo_root: Path) -> dict[str, _io_seam._FeatureRunEntry]:
     """Thin compat delegate — forwards to :func:`runtime_bridge_io.load_feature_runs`
     (via the repo_root -> path resolver :func:`runtime_bridge_io._feature_runs_path`)."""
@@ -2354,7 +2257,7 @@ def _dn_rollback_buffered_run_state(
 def _dn_terminal_retrospective_gate(
     ctx: DecideNextContext,
     policy_error: Exception | None,
-    buffer: _BufferingRuntimeEmitter | None,
+    buffer: _retrospective_seam._BufferingRuntimeEmitter | None,
     pre_state_bytes: bytes | None,
     pre_events_size: int | None,
 ) -> Decision | None:
@@ -2368,12 +2271,12 @@ def _dn_terminal_retrospective_gate(
     to keep that phase's own complexity down — pure orchestration plumbing
     local to this phase, not a re-extraction of WP04's retrospective seam.
     """
-    mission_id = _resolve_mission_id_for_terminus(ctx.feature_dir)
+    mission_id = _retrospective_seam._resolve_mission_id_for_terminus(ctx.feature_dir)
     config_root = ctx.owned.owned_root if ctx.owned is not None else ctx.repo_root
     try:
         if policy_error is not None:
             raise policy_error
-        _run_retrospective_learning_capture(
+        _retrospective_seam._run_retrospective_learning_capture(
             mission_id=mission_id,
             mission_slug=ctx.mission_slug,
             feature_dir=ctx.feature_dir,
@@ -2485,7 +2388,7 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
     # Root discipline (FR-009): retrospective policy is a P-local governance
     # read for an owned mission.
     config_root = ctx.owned.owned_root if ctx.owned is not None else ctx.repo_root
-    policy, _source_map, policy_error = _resolve_retrospective_policy_for_runtime(config_root)
+    policy, _source_map, policy_error = _retrospective_seam._resolve_retrospective_policy_for_runtime(config_root)
     retrospective_enabled = bool(getattr(policy, "enabled", False))
     block_on_retrospective = _retrospective_seam._retrospective_blocks_completion(policy)
 
@@ -2499,7 +2402,7 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
     # Use the DecisionGitLog-wrapped emitter as the engine's emitter so that
     # decision events are durably committed to the coordination branch.
     engine_emitter: Any = ctx.emitter_for_engine
-    buffer: _BufferingRuntimeEmitter | None = None
+    buffer: _retrospective_seam._BufferingRuntimeEmitter | None = None
 
     if block_on_retrospective:
         captured = _dn_capture_pre_speculative_state(ctx.run_dir)
@@ -2521,7 +2424,7 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
                 )
             )
         pre_state_bytes, pre_events_size = captured
-        buffer = _BufferingRuntimeEmitter()
+        buffer = _retrospective_seam._BufferingRuntimeEmitter()
         engine_emitter = buffer
 
     # Advance via runtime
@@ -2558,8 +2461,8 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
         buffer.flush(ctx.emitter_for_engine)
 
     if retrospective_enabled and not block_on_retrospective and runtime_decision.kind == DecisionKind.terminal:
-        mission_id = _resolve_mission_id_for_terminus(ctx.feature_dir)
-        _run_retrospective_learning_capture(
+        mission_id = _retrospective_seam._resolve_mission_id_for_terminus(ctx.feature_dir)
+        _retrospective_seam._run_retrospective_learning_capture(
             mission_id=mission_id,
             mission_slug=ctx.mission_slug,
             feature_dir=ctx.feature_dir,

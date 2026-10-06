@@ -69,7 +69,7 @@ def _scaffold_minimal_mission(tmp_path: Path, mission_slug: str) -> tuple[Path, 
 @pytest.mark.integration
 def test_classify_exc_record_exists_error() -> None:
     """_classify_exc returns 'other' for RecordExistsError."""
-    from runtime.next.runtime_bridge import _classify_exc
+    from runtime.next.runtime_bridge_retrospective import _classify_exc
     from specify_cli.retrospective.writer import RecordExistsError
 
     exc = RecordExistsError(Path("/some/path"))
@@ -79,7 +79,7 @@ def test_classify_exc_record_exists_error() -> None:
 @pytest.mark.integration
 def test_classify_exc_file_not_found() -> None:
     """_classify_exc returns 'missing_artifacts' for FileNotFoundError."""
-    from runtime.next.runtime_bridge import _classify_exc
+    from runtime.next.runtime_bridge_retrospective import _classify_exc
 
     assert _classify_exc(FileNotFoundError("missing")) == "missing_artifacts"
 
@@ -87,7 +87,7 @@ def test_classify_exc_file_not_found() -> None:
 @pytest.mark.integration
 def test_classify_exc_is_a_directory() -> None:
     """_classify_exc returns 'missing_artifacts' for IsADirectoryError."""
-    from runtime.next.runtime_bridge import _classify_exc
+    from runtime.next.runtime_bridge_retrospective import _classify_exc
 
     assert _classify_exc(IsADirectoryError("is a dir")) == "missing_artifacts"
 
@@ -95,7 +95,7 @@ def test_classify_exc_is_a_directory() -> None:
 @pytest.mark.integration
 def test_classify_exc_generic_exception() -> None:
     """_classify_exc returns 'generator_exception' for generic exceptions."""
-    from runtime.next.runtime_bridge import _classify_exc
+    from runtime.next.runtime_bridge_retrospective import _classify_exc
 
     assert _classify_exc(RuntimeError("oops")) == "generator_exception"
     assert _classify_exc(ValueError("bad value")) == "generator_exception"
@@ -109,7 +109,7 @@ def test_classify_exc_generic_exception() -> None:
 @pytest.mark.integration
 def test_remediation_hint_record_exists() -> None:
     """_remediation_hint returns overwrite hint for RecordExistsError."""
-    from runtime.next.runtime_bridge import _remediation_hint
+    from runtime.next.runtime_bridge_retrospective import _remediation_hint
     from specify_cli.retrospective.writer import RecordExistsError
 
     exc = RecordExistsError(Path("/some/path"))
@@ -121,7 +121,7 @@ def test_remediation_hint_record_exists() -> None:
 @pytest.mark.integration
 def test_remediation_hint_file_not_found() -> None:
     """_remediation_hint returns migrate hint for FileNotFoundError."""
-    from runtime.next.runtime_bridge import _remediation_hint
+    from runtime.next.runtime_bridge_retrospective import _remediation_hint
 
     hint = _remediation_hint(FileNotFoundError("missing"), {})
     assert hint is not None
@@ -131,7 +131,7 @@ def test_remediation_hint_file_not_found() -> None:
 @pytest.mark.integration
 def test_remediation_hint_generic_uses_source_map() -> None:
     """_remediation_hint returns source-map info for generic exceptions."""
-    from runtime.next.runtime_bridge import _remediation_hint
+    from runtime.next.runtime_bridge_retrospective import _remediation_hint
 
     source_map = {"enabled": "<default>", "timing": ".kittify/config.yaml#retrospective.timing"}
     hint = _remediation_hint(RuntimeError("oops"), source_map)
@@ -142,7 +142,7 @@ def test_remediation_hint_generic_uses_source_map() -> None:
 @pytest.mark.integration
 def test_remediation_hint_empty_source_map() -> None:
     """_remediation_hint handles empty source_map gracefully."""
-    from runtime.next.runtime_bridge import _remediation_hint
+    from runtime.next.runtime_bridge_retrospective import _remediation_hint
 
     hint = _remediation_hint(RuntimeError("oops"), {})
     assert hint is not None
@@ -159,7 +159,7 @@ def test_record_exists_error_is_non_fatal(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """RecordExistsError on write is non-fatal: callback continues and emits Captured."""
-    from runtime.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from runtime.next.runtime_bridge_retrospective import _build_retrospective_facilitator_callback
     from specify_cli.retrospective.writer import RecordExistsError
     from specify_cli.retrospective import writer as writer_mod
 
@@ -208,7 +208,7 @@ def test_policy_resolution_error_is_re_raised(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """PolicyResolutionError from resolve_policy is re-raised by the callback."""
-    from runtime.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from runtime.next.runtime_bridge_retrospective import _build_retrospective_facilitator_callback
     from specify_cli.retrospective import policy as policy_mod
     from specify_cli.retrospective.policy import PolicyResolutionError
 
@@ -243,7 +243,7 @@ def test_write_io_error_emits_failure_and_re_raises(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Generic exception on write_gen_record: CaptureFailed emitted, exception re-raised."""
-    from runtime.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from runtime.next.runtime_bridge_retrospective import _build_retrospective_facilitator_callback
     from specify_cli.retrospective import writer as writer_mod
 
     mission_slug = "write-io-error-test-01KQ"

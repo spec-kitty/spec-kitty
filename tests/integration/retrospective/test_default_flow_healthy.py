@@ -92,7 +92,7 @@ def _scaffold_minimal_mission(tmp_path: Path, mission_slug: str) -> tuple[Path, 
 @pytest.mark.integration
 def test_default_flow_healthy_writes_record_and_emits_captured(tmp_path: Path) -> None:
     """Default flow: healthy mission → record on disk + RetrospectiveCaptured event."""
-    from runtime.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from runtime.next.runtime_bridge_retrospective import _build_retrospective_facilitator_callback
 
     mission_slug = "default-flow-healthy-01KQ"
     feature_dir, mission_id = _scaffold_minimal_mission(tmp_path, mission_slug)

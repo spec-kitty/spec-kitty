@@ -51,7 +51,7 @@ def _write_disabled_config(tmp_path: Path) -> None:
 @pytest.mark.integration
 def test_opt_out_no_events_no_record(tmp_path: Path) -> None:
     """enabled=false → callback returns None, no events, no record."""
-    from runtime.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from runtime.next.runtime_bridge_retrospective import _build_retrospective_facilitator_callback
 
     _write_disabled_config(tmp_path)
 

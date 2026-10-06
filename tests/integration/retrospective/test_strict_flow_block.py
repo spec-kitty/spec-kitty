@@ -84,7 +84,7 @@ def test_strict_flow_block_raises_when_generator_fails(
 
     monkeypatch.setattr(gen_mod, "generate_retrospective", _broken_generate)
 
-    from runtime.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from runtime.next.runtime_bridge_retrospective import _build_retrospective_facilitator_callback
 
     operator_actor = ActorRef(kind="agent", id="test-agent", profile_id=None)
 

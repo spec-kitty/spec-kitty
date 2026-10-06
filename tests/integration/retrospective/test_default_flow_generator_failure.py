@@ -55,7 +55,7 @@ def test_default_flow_generator_failure_emits_capture_failed(
     (a) Call emit_capture_failed before re-raising.
     (b) Re-raise so the terminus can handle the non-blocking warn path.
     """
-    from runtime.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from runtime.next.runtime_bridge_retrospective import _build_retrospective_facilitator_callback
 
     mission_slug = "default-flow-failure-01KQ"
     feature_dir, mission_id = _scaffold_minimal_mission(tmp_path, mission_slug)

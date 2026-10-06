@@ -7,49 +7,19 @@
 ``_classify_exc``, ``_remediation_hint``, ``_classify_and_emit_failure`` — moved
 here verbatim (identical call semantics, C-001) from ``runtime_bridge.py``.
 
-``runtime_bridge.py`` keeps a **native thin compat delegate** under each of the
-9 names that the WP02 compat guard binds (``_BufferingRuntimeEmitter``,
-``_rich_hic_prompt``, ``_resolve_mission_id_for_terminus``,
-``_build_retrospective_facilitator_callback``,
-``_resolve_retrospective_policy_for_runtime``,
-``_run_retrospective_learning_capture``, ``_classify_exc``,
-``_remediation_hint``, ``_classify_and_emit_failure`` — see
-contracts/compat-surface.md). This mirrors the WP03 precedent for
-``_advance_run_state_after_composition`` ("logic in the adapter, compat shim
-in the residual") for a structural reason specific to this guard: the WP02
-static guard (``tests/runtime/test_bridge_compat_surface.py::
-test_guard_b_identity_reexport_for_relocated_symbols``) asserts the set of
-compat symbols whose ``__module__`` differs from ``runtime_bridge`` equals a
-**hardcoded 3-element baseline** (the pre-existing ``runtime.next.decision``-
-origin symbols). A plain re-export of any of the 9 symbols above would flip
-that assertion and fail deterministically — so each stays **natively defined**
-in ``runtime_bridge.py`` (a real ``def``/``class`` statement, not an
-``import`` alias), forwarding to the implementation here via a live
-module-attribute lookup. ``_retrospective_blocks_completion`` is NOT in the
-compat guard's tracked symbol set (nothing patches it), so it is re-exported
-as a plain module-level import in ``runtime_bridge.py`` instead.
+The bridge (``runtime_bridge.py``) no longer carries any forwarding delegate
+for these names (#2561): its call sites reach them on this module
+(``_retrospective_seam.<name>(...)``), and callers outside the package import
+them from here. ``_retrospective_blocks_completion`` is read the same way.
 
-**The retrospective-pair intra-cluster risk (research.md §Compat).** Several
-of the 9 compat-guarded symbols call each other (e.g.
-``_run_retrospective_learning_capture`` calls
+**Intra-cluster calls are direct.** Several of the 9 names call each other
+(``_run_retrospective_learning_capture`` calls
 ``_build_retrospective_facilitator_callback``; the built facilitator's
 ``_facilitator`` closure calls ``_classify_and_emit_failure``; that in turn
-calls ``_classify_exc``/``_remediation_hint``). Now that the whole cluster
-lives together in this module, a bare intra-module call between two of them
-would resolve via *this* module's own globals — bypassing a
-``monkeypatch.setattr(runtime_bridge, "<name>", …)`` applied to the
-``runtime_bridge`` compat delegate (the exact false-green mechanism
-contracts/compat-surface.md warns about). Every such intra-cluster call is
-therefore routed through a **local, live import of ``runtime_bridge``**
-(``from runtime.next import runtime_bridge as _rb; _rb.<name>(...)``,
-deferred to function scope to avoid the circular top-level import —
-``runtime_bridge`` imports this module at its own top level) so the WP02
-compat guard's per-symbol sentinel patches are still observed exactly as
-before the extraction. This is the same pattern
-``runtime_bridge_engine.py``'s ``_emit_terminal`` already uses to call back
-into this cluster (unaffected by this move — it calls ``_rb.<name>``, which
-still resolves via the compat delegate regardless of where the real body
-lives).
+calls ``_classify_exc``/``_remediation_hint``). Each is a plain module-level
+call inside this module, so a test that wants to intercept one patches it on
+``runtime.next.runtime_bridge_retrospective``, the single binding the code
+looks up. Nothing here reads a name back off ``runtime_bridge``.
 """
 
 from __future__ import annotations
@@ -243,18 +213,12 @@ def _build_retrospective_facilitator_callback(
         **_kwargs: Any,
     ) -> Any:
         """WP04 facilitator: policy-resolve → generate → write → emit."""
-        # Deferred, live lookup back into ``runtime_bridge`` (not a bare
-        # intra-module call to this module's own ``_classify_and_emit_failure``)
-        # so a monkeypatch.setattr(runtime_bridge, "_classify_and_emit_failure", …)
-        # is still observed — see module docstring §retrospective-pair risk.
-        from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
-
         # Step 1: Resolve policy.
         try:
             policy, source_map = resolve_policy(repo_root)
         except PolicyResolutionError as exc:
             source_map = _resolution_error_source_map()
-            _rb._classify_and_emit_failure(
+            _classify_and_emit_failure(
                 mission_id=mission_id,
                 mission_slug=mission_slug,
                 repo_root=repo_root,
@@ -279,7 +243,7 @@ def _build_retrospective_facilitator_callback(
                 policy_source=source_map,
             )
         except FileNotFoundError as exc:
-            _rb._classify_and_emit_failure(
+            _classify_and_emit_failure(
                 mission_id=mission_id,
                 mission_slug=mission_slug,
                 repo_root=repo_root,
@@ -291,7 +255,7 @@ def _build_retrospective_facilitator_callback(
             raise
 
         except Exception as exc:  # noqa: BLE001
-            _rb._classify_and_emit_failure(
+            _classify_and_emit_failure(
                 mission_id=mission_id,
                 mission_slug=mission_slug,
                 repo_root=repo_root,
@@ -313,7 +277,7 @@ def _build_retrospective_facilitator_callback(
                 mission_slug,
             )
         except Exception as exc:  # noqa: BLE001
-            _rb._classify_and_emit_failure(
+            _classify_and_emit_failure(
                 mission_id=mission_id,
                 mission_slug=mission_slug,
                 repo_root=repo_root,
@@ -348,7 +312,7 @@ def _build_retrospective_facilitator_callback(
                 mission_slug,
                 exc_info=exc,
             )
-            _rb._classify_and_emit_failure(
+            _classify_and_emit_failure(
                 mission_id=mission_id,
                 mission_slug=mission_slug,
                 repo_root=repo_root,
@@ -413,15 +377,10 @@ def _run_retrospective_learning_capture(
     before (``runtime_strict_gate`` under the strict gate, else
     ``runtime_post_completion``).
     """
-    # Deferred, live lookup back into ``runtime_bridge`` so a
-    # monkeypatch.setattr(runtime_bridge, "_build_retrospective_facilitator_callback", …)
-    # is still observed — see module docstring §retrospective-pair risk.
-    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
-
     resolved_provenance: ProvenanceKind = provenance_kind or (
         "runtime_strict_gate" if block_on_failure else "runtime_post_completion"
     )
-    callback = _rb._build_retrospective_facilitator_callback(
+    callback = _build_retrospective_facilitator_callback(
         mission_slug=mission_slug,
         repo_root=repo_root,
         provenance_kind=resolved_provenance,
@@ -476,13 +435,8 @@ def _classify_and_emit_failure(
     """Classify ``exc`` and emit a ``RetrospectiveCaptureFailed`` event."""
     from specify_cli.retrospective.lifecycle_events import Actor as RetroActor  # noqa: PLC0415
 
-    # Deferred, live lookup back into ``runtime_bridge`` so patches on
-    # runtime_bridge._classify_exc / ._remediation_hint are still observed —
-    # see module docstring §retrospective-pair risk.
-    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
-
-    failure_category = _rb._classify_exc(exc)
-    hint = _rb._remediation_hint(exc, source_map)
+    failure_category = _classify_exc(exc)
+    hint = _remediation_hint(exc, source_map)
     runtime_actor = RetroActor(kind="runtime", id="spec-kitty-generator")
 
     # Trim message — no stack traces in events (T019).

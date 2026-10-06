@@ -92,7 +92,7 @@ def _read_retro_events(feature_dir: Path) -> list[dict[str, Any]]:
 @pytest.mark.integration
 def test_captured_event_has_non_empty_policy_source_defaults_only(tmp_path: Path) -> None:
     """No charter, no config → all policy_source leaf values are '<default>'."""
-    from runtime.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from runtime.next.runtime_bridge_retrospective import _build_retrospective_facilitator_callback
 
     mission_slug = "attribution-defaults-01KQ"
     feature_dir, mission_id = _scaffold_minimal_mission(tmp_path, mission_slug)
@@ -135,7 +135,7 @@ def test_all_retro_events_have_policy_source_after_callback(
     Triggers both captured AND capture_failed by running two scenarios and
     checking all emitted events.
     """
-    from runtime.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from runtime.next.runtime_bridge_retrospective import _build_retrospective_facilitator_callback
     from specify_cli.retrospective import generator as gen_mod
 
     # --- Scenario 1: Healthy (produces RetrospectiveCaptured) ---

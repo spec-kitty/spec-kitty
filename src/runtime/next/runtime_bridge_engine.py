@@ -27,25 +27,23 @@ patches ``_internal_runtime.engine._append_event`` / ``._write_snapshot`` /
 attribute lookup observes that patch regardless of which module performs the
 call — a snapshotted ``from module import name`` would not.
 
-``_advance_run_state_after_composition`` (bridge:1800, CC23) duplicates the
-engine's own ``next_step`` success branch to enforce the single-dispatch
-invariant (FR-001) for composition-backed actions. Its body is **adapter-owned
-logic** (moved here, reduced to CC<=15 via the ``_mark_step_completed`` /
-``_apply_decision_effects`` / ``_emit_step_issued`` / ``_emit_decision_required``
-/ ``_emit_terminal`` helpers below) — ``runtime_bridge.py`` keeps only a thin
-residual compat delegate that forwards to :func:`advance_run_state_after_composition`
-so its heavy monkeypatch surface (8x patch + 9x attr, contracts/compat-surface.md)
-still intercepts at the delegate.
+``advance_run_state_after_composition`` duplicates the engine's own
+``next_step`` success branch to enforce the single-dispatch invariant (FR-001)
+for composition-backed actions. Its body is **adapter-owned logic** (reduced to
+CC<=15 via the ``_mark_step_completed`` / ``_apply_decision_effects`` /
+``_emit_step_issued`` / ``_emit_decision_required`` / ``_emit_terminal``
+helpers below). This module owns it outright: the bridge calls
+``_engine_adapter.advance_run_state_after_composition`` directly and holds no
+forwarding delegate, so a test that replaces it patches
+``runtime_bridge_engine.advance_run_state_after_composition``.
 
-That function also calls back into five symbols that stay owned by
-``runtime_bridge.py`` (``_map_runtime_decision``, ``_resolve_retrospective_policy_for_runtime``,
-``_retrospective_blocks_completion``, ``_resolve_mission_id_for_terminus``,
-``_run_retrospective_learning_capture`` — none are engine-privates, so none move
-in this WP). Those calls are made through a **local, live import of the
-``runtime_bridge`` module** (never a module-level import — ``runtime_bridge``
-imports this adapter at its own top level, so a top-level back-import here
-would be circular) so the WP02 compat guard's per-symbol sentinel patches on
-``runtime_bridge.<name>`` are observed exactly as before the extraction.
+That function also calls back into two symbols that stay owned by
+``runtime_bridge.py`` (``_is_wp_iteration_step`` and ``_map_runtime_decision``,
+reached through a deferred import of the ``runtime_bridge`` module because the
+bridge imports this adapter at its own top level and a module-level back-import
+would be circular). The retrospective names it needs are owned by
+``runtime_bridge_retrospective`` and are called there directly, so a test that
+intercepts one patches it on that module.
 """
 
 from __future__ import annotations
@@ -163,7 +161,7 @@ def resolve_workflow_for_mission(mission_dir: Path) -> WorkflowSequence:
 
 
 # ---------------------------------------------------------------------------
-# T012 — ``_advance_run_state_after_composition`` body (CC23 -> <=15)
+# T012 — ``advance_run_state_after_composition`` body (CC23 -> <=15)
 # ---------------------------------------------------------------------------
 
 
@@ -276,29 +274,25 @@ def _emit_terminal(
 ) -> None:
     """Run the retrospective gate (if configured) and emit ``MissionRunCompleted``.
 
-    Calls back into ``runtime_bridge`` via a local, live module import — these
-    five symbols are not engine-privates and stay owned by ``runtime_bridge.py``
-    (see module docstring); the local import keeps the WP02 compat guard's
-    sentinel patches on ``runtime_bridge.<name>`` observed unchanged.
+    The retrospective policy, mission-id and capture calls go straight to
+    ``runtime_bridge_retrospective``, which owns them (see module docstring).
 
     owned-checkout-lifecycle-authority WP11 (FR-009): retrospective policy is
     a P-local governance read for an owned mission.
     """
-    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415 — deferred to avoid the circular top-level import (runtime_bridge imports this adapter)
-
     config_root = owned.owned_root if owned is not None else repo_root
-    policy, _source_map, policy_error = _rb._resolve_retrospective_policy_for_runtime(config_root)
+    policy, _source_map, policy_error = _retrospective._resolve_retrospective_policy_for_runtime(config_root)
     retrospective_enabled = bool(getattr(policy, "enabled", False))
     # WP18 (#2561): _retrospective_blocks_completion is reached directly from
     # its owning seam now that the runtime_bridge façade re-export was retired
     # (nothing patches ``runtime_bridge._retrospective_blocks_completion``).
     block_on_retrospective = _retrospective._retrospective_blocks_completion(policy)
-    mission_id = _rb._resolve_mission_id_for_terminus(feature_dir)
+    mission_id = _retrospective._resolve_mission_id_for_terminus(feature_dir)
 
     if retrospective_enabled and block_on_retrospective:
         if policy_error is not None:
             raise policy_error
-        _rb._run_retrospective_learning_capture(
+        _retrospective._run_retrospective_learning_capture(
             mission_id=mission_id,
             mission_slug=mission_slug,
             feature_dir=feature_dir,
@@ -312,7 +306,7 @@ def _emit_terminal(
     sync_emitter.emit_mission_run_completed(payload)
 
     if retrospective_enabled and not block_on_retrospective:
-        _rb._run_retrospective_learning_capture(
+        _retrospective._run_retrospective_learning_capture(
             mission_id=mission_id,
             mission_slug=mission_slug,
             feature_dir=feature_dir,
