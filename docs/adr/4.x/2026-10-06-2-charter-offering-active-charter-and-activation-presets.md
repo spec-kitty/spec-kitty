@@ -49,6 +49,8 @@ The charter has two sides, matching the existing package split `src/charter/offe
 
 ### 2. Applying a preset is an activation
 
+This section and section 4 describe the target CLI of the #3732 mission. `charter activate` has no `--pack` or `--preset` option yet.
+
 ```
 spec-kitty charter activate --pack <pack> --preset <preset>
 ```
@@ -128,4 +130,4 @@ Earlier renames kept the old names working for backwards compatibility. The resu
 
 ## Execution
 
-The rename runs as the #3732 governed mission. Its occurrence map is the classification ledger from the 2026-10-06 run (posted on #3732); this ADR is the naming contract the map binds to.
+The rename runs as the #3732 governed mission. Its occurrence map is the classification ledger from the 2026-10-06 run (posted on #3732); this ADR is the naming contract the map binds to. The glossary (`docs/context/charter.md`) still defines **Pack Default Charter** and the guard that "active" never describes bundle state; those entries change in that mission, together with the code, not ahead of it.
