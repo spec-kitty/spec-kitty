@@ -1,0 +1,19 @@
+schema_version: "1.0"
+id: mission-from-issue
+title: Run a Mission from GitHub issues
+description: Use to take one or more GitHub issues through a full governed Mission (spec, plan, tasks, implementation, review) to a green pull request flipped to ready for review, which a maintainer then merges.
+triggers: ["mission from issue", "run a mission for this issue", "drive issue to PR"]
+form: prompt
+body_path: mission-from-issue.skill.md
+parameters:
+  - name: issues
+    required: true
+    description: One or more issue numbers on spec-kitty/spec-kitty
+  - name: guidance
+    required: false
+    description: Optional guidance after the issue numbers (scope limits, order, specific concerns); record it in the Mission spec
+invocation:
+  user_invocable: true
+  side_effects: [git-push, gh-write]
+version: 1.0.0
+maintainers: ["@spec-kitty/core"]

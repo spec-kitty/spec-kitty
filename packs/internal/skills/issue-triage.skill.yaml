@@ -1,0 +1,16 @@
+schema_version: "1.0"
+id: issue-triage
+title: Triage GitHub issues
+description: Use to triage a batch of open GitHub issues on spec-kitty/spec-kitty (default, those opened in the last 7 days). Sets type, priority, domain, parent and milestone, and reports stale, duplicate or clustered issues for an operator decision.
+triggers: ["triage issues", "triage the tracker", "triage new issues"]
+form: prompt
+body_path: issue-triage.skill.md
+parameters:
+  - name: scope
+    required: false
+    description: "Which issues: a list of numbers, a time window such as 14d (open issues created in that window), a label filter such as label:status:triage, or a plain-language selection. Default: open issues created in the last 7 days."
+invocation:
+  user_invocable: true
+  side_effects: [gh-write]
+version: 1.0.0
+maintainers: ["@spec-kitty/core"]

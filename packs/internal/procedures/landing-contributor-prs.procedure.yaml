@@ -3,119 +3,371 @@ id: landing-contributor-prs
 name: Landing Contributor PRs
 purpose: >
   The maintainer workflow for taking a contributor PR from "open with red CI" to
-  "merge-ready": claimed, rebased onto current upstream/main, every red check
-  adjudicated, fixes folded onto the contributor branch, evidence posted, and
-  landing-order constraints stated — so the operator can merge without
-  re-deriving the adjudication. Distilled from docs/development/how-to/pr-landing.md.
+  "merge-ready": sized up, claimed, rebased onto the current main of the canonical
+  repository, every red check adjudicated, fixes added to the contributor branch,
+  independently reviewed, documented, and handed off with evidence, so the operator
+  can merge without re-deriving the adjudication. Distilled from
+  docs/development/how-to/pr-landing.md, which holds the command-level detail.
+  The `land-pr` pack skill is the thin entry point to this procedure.
+  Terms used here. The operator is the human in charge of the run: the maintainer
+  who invoked it. The canonical remote is the git remote that points at
+  `spec-kitty/spec-kitty`; its name differs per clone, so find it with
+  `git remote -v`. A landing fix (called a "fold" in the runbook) is one commit that
+  the landing pass adds to the PR branch. A companion change is an edit that a gate
+  requires next to your change, such as a regenerated index or a removed exclude
+  entry. A review squad is a small set of reviewer subagents, each given a different
+  focus; adversarial-squad-deployment owns how one is run.
 entry_condition: >
-  A contributor (or older maintainer) PR is open, typically with red or stale CI,
-  and has been assigned to a maintainer for a landing pass. The maintainer is NOT
-  the operator; the deliverable of this procedure is a merge-ready PR, never a merge.
+  A contributor (or older maintainer) PR is open and ready for review, typically with
+  red or stale CI, and a maintainer has been asked to land it. A PR that is still a
+  draft has not been handed off to the maintainers yet: say so and ask the operator
+  before landing it. The maintainer is NOT the operator for merge purposes; the
+  deliverable of this procedure is a merge-ready PR.
 exit_condition: >
-  The PR is rebased onto current upstream/main, green (or its remaining reds are
-  documented as pre-existing known-P0 with proof of green-on-base), un-drafted,
-  carries a full evidence trail in its comment thread, and names any landing-order
-  constraints. Hand-off is posted; the operator merges.
+  The PR is rebased onto the current main of the canonical remote, green (or its
+  remaining reds are documented as pre-existing with proof of green-on-base and a
+  filed issue), carries a full evidence trail in its comment thread, and names any
+  landing-order constraints. The hand-off is posted and the operator has the merge.
 steps:
+  - title: Check the PR is handed off before anything else
+    description: >
+      Run `gh pr view <N> --repo spec-kitty/spec-kitty --json
+      isDraft,author,statusCheckRollup`. If `isDraft` is true, stop before you touch
+      the branch. The first thing in your reply to the operator is a prominent warning
+      that the PR is STILL A DRAFT AND NOT HANDED OFF FOR LANDING, with its author and
+      its CI state, and the question whether to land it anyway. Do not rebase, push or
+      comment on a draft PR without the operator's explicit go-ahead. A draft is
+      handed off only when its author flips it to ready for review; that flip signals
+      that a landing pass is safe to start. Continue only when the PR is ready for
+      review, or the operator told you to land it anyway.
+    actor: agent
+    on_failure: >
+      If you cannot read the draft state, stop and ask the operator.
+
+  - title: Decide whether the PR is worth landing
+    description: >
+      Read-only. Size the PR on two axes before investing in it. Old: its base is far
+      behind main, or it is an aging contributor branch. Substantive: it changes
+      behaviour (a capability, a fix or a contract change) rather than being a
+      mechanical chore (a version bump, a dependency pin, a regenerated file, a typo).
+      When unsure, treat it as old and substantive.
+      Old or substantive: run the full check. (1) Superseded: did another PR or
+      mission already land the change? Search the changelog, `git log -S`, and the
+      issues the PR references. (2) Compatible: does its approach still fit the
+      current design, or did a seam it depends on move? (3) Still needed: does the
+      problem still reproduce on current main? Post the recommendation as a PR
+      comment, with evidence: LAND as is, RESCOPE (keep the durable part), or CLOSE
+      (superseded or moot). Continue only on LAND. On RESCOPE or CLOSE, stop and
+      report the recommendation to the operator, and continue only when they answer.
+      Recent and mechanical: run the short check instead. Is the change accurate
+      (correct and coherent), desirable (actually wanted) and aligned with current
+      conventions? If so, record the LAND call in your first comment and continue.
+    actor: agent
+
   - title: Claim before touching
     description: >
-      Post a claim comment on the PR before any rebase or review work: what you are
-      picking up, in which landing queue, and what you plan to do. Prevents duplicated
-      maintainer effort and surprise commits on the contributor's branch.
+      Post a claim comment on the PR before any rebase or review work: that a
+      maintainer landing pass has started, what you will do, and in which landing
+      queue. Assign the PR to the operator (`gh api user -q .login` gives the login
+      of the maintainer who invoked the run; if the run names someone else, or you
+      are unsure, ask). Prevents duplicated maintainer effort and surprise commits on
+      the contributor's branch. Use `--repo spec-kitty/spec-kitty` on every `gh`
+      command; in a fork clone `origin` is the fork. If `gh` reports missing token
+      scopes, retry with `unset GITHUB_TOKEN`.
     actor: agent
 
   - title: One isolated worktree per PR
     description: >
-      Check the PR branch out into its own dedicated worktree. Never share a worktree
-      across PRs or mix a landing pass with hand-edits — concurrent work in one
-      worktree silently reverts changes. See built-in tactic pr-agent-worktree-isolation.
+      Fetch the canonical remote's main, then check the PR branch out into its own
+      dedicated worktree. Leave the maintainer's current checkout untouched. Never
+      share a worktree across PRs or mix a landing pass with hand-edits: concurrent
+      work in one worktree silently reverts changes. See built-in tactic
+      pr-agent-worktree-isolation.
     actor: agent
     on_failure: >
       If a worktree is stale or points at a missing gitdir, create a fresh standalone
       checkout rather than reusing the broken one.
 
-  - title: Rebase onto current upstream/main first
+  - title: Rebase onto current main of the canonical remote first
     description: >
-      Fetch and rebase the PR branch onto the latest upstream/main before classifying
-      any failure, so you never adjudicate reds that main already fixed or introduced.
+      Fetch and rebase the PR branch onto the latest main of the canonical remote
+      before classifying any failure, so you never adjudicate reds that main already
+      fixed or introduced. Keep each commit's original author. Where
+      docs/changelog/CHANGELOG.md conflicts, keep both sides' entries.
+      Then regenerate what the rebase made stale. A generated surface that the PR
+      branch last built against an older main is missing what other PRs added since,
+      and it reds a freshness gate although nothing in the PR is wrong. Run
+      `uv run python -m scripts.docs.check_docs_freshness --ci` to see which surface
+      is stale, then regenerate it with its own script, for example
+      `uv run python -m scripts.docs.docs_index --write` (docs retrieval index) and
+      `uv run python -m scripts.docs.freshen_adr_inventory` (ADR and page inventory).
+      This is part of landing, not scope creep.
+      Never recapture `.github/ci-shard-timings.json`, and never put a recapture in a
+      subagent brief: a scheduled CI job owns that file (pr-landing.md, Gotchas). On a
+      rebase conflict in that file, keep the rows from main. Note a count drift in the
+      hand-off as owned by automation.
+      If the PR was prepared by the SkyKitty agent fleet (a `squad:*` or
+      `ready-for-squad` label, or a bot author; see docs/development/agent-fleet.md),
+      a `squad:passed` label means its review passed against the base the PR had at
+      that time, not that it is ready now. Also search for the follow-up issues the
+      fleet files for its smaller findings (`gh issue list --repo
+      spec-kitty/spec-kitty --search "#<PR number>"`, plus the PR's own comments and
+      links). Fix each one in this landing, or at least make the PR-body correction it
+      asks for, and add `Closes #<n>` to the PR body next to the PR's own issue line.
     actor: agent
 
   - title: Classify every red check
     description: >
-      For each failing check decide: (a) pre-existing known-P0 red honestly on main —
-      leave red, prove green-on-base; (b) CI-environment-only failure (auth, sync
-      toggles) — not the PR's fault; (c) stale-install false red — reinstall and
-      re-run; or (d) genuinely caused by this PR — must be fixed. Only red-on-branch
-      AND green-on-base failures are the PR's to fold.
+      On the rebased tip, put each failing check in exactly one bin (pr-landing.md,
+      section 4, has the commands and the full rules):
+      (a) defect in this PR: fix it on the branch;
+      (b) a contract the PR legitimately crosses (a rule changed on main since its
+      base): re-pin the contract in the same PR, with a dated rationale;
+      (c) already failing on main: fold the fix in by default, except a
+      `p0_repro`-marked red-first test (leave it red) and a fix that is mission
+      scope (file or find the P0 issue and pin the test to it). Failures that are not
+      the PR's fault but only look red belong here too: an environment-only failure
+      such as authentication, a stale install or a stale virtualenv (CLAUDE.md,
+      baseline-red gotcha), or an open P0 reproduction;
+      (d) timing-sensitive test that fails intermittently: note it, watch for
+      recurrence, tune the budget at the root, never retry to green.
+      Start from main's own CI run at the merge base. Only a failure that is red on
+      the branch and green on the base is the PR's to fix.
+      File an issue for each pre-existing red that has none, and cite its number in
+      the remediation summary (charter, Pre-existing Failure Reporting Rule).
     actor: agent
     on_failure: >
-      If you cannot attribute a failure, reproduce it on the merge-base before
-      treating it as the PR's; never green-wash a category-1 known-P0 red.
+      If you cannot attribute a failure, reproduce it on the merge base before
+      treating it as the PR's; never green-wash a known P0 red.
 
-  - title: Fold remediation commits onto the contributor branch
+  - title: Fix what blocks the PR, one landing fix per commit
     description: >
-      Apply fixes (rebase resolution, test corrections, bounded campsite cleanup) as
-      commits on the contributor's branch, preserving their authorship. Keep folds
-      in-scope; do not open-ended refactor.
-    actor: agent
-
-  - title: Consolidate history and prefer per-commit greenness for the rebase-merge model
-    description: >
-      This repo lands via rebase-merge, so each commit lands on main individually. The
-      ENFORCED merge bar is the PR head (the whole PR) going green — individual intermediate
-      commits are NOT held to that bar and MAY land stale on a gate (e.g. a regenerated
-      docs-index or pack manifest that only reconciles at the tip). Do not rewrite history
-      solely to make every intermediate commit green. Per-commit greenness is a PREFERRED
-      target for bisect readability, not a merge requirement, and two techniques help reach it
-      when it is worthwhile: (1) when a red-first regression repro must land in a different
-      commit from its fix, mark the repro ``@pytest.mark.xfail(strict=True)`` so intermediate
-      commits stay green — the fix commit removes the marker and ``strict`` forces the
-      flip-to-green (a still-red test then fails loudly, so the marker can never be silently
-      left behind). (2) To consolidate a churn-heavy branch into clean logical commits,
-      ``git reset --soft <base>`` (then unstage) and re-commit in groups — and verify the
-      working tree is BYTE-IDENTICAL before and after (``git rev-parse HEAD^{tree}``), so it is
-      a pure commit-boundary change, never a content change smuggled into a "cleanup". Both are
-      model-level (rebase-merge) techniques, independent of the lane/worktree implementation.
+      Apply each remediation as its own commit on the contributor's branch, with the
+      subject `<type>(landing): <summary>` (a Conventional Commits type from
+      commitlint.config.cjs). Keep fixes in scope; do not refactor open-endedly.
+      Delegate a fix that needs more than a few edits to a subagent. The subagent
+      loads its agent profile with `spec-kitty agent profile show <id>` and
+      `spec-kitty charter context --action implement --include agent-profile:<id>`,
+      never a raw profile file. Use the cheaper model tier for grounded
+      implementation and the stronger tier for review (model-task-routing). Give each
+      subagent its own worktree and an explicit list of files it must not touch.
+      Test economy. Add a test only when it guards real behaviour or a standing
+      invariant through the existing entry point, with realistic data, and would fail
+      on a real regression (DIRECTIVE_041, and the keep, retire or split rubric of
+      development-assist-test-cleanup). Prefer strengthening an existing test over a
+      new one; at most one focused test per landing fix unless a second covers a
+      different failure mode. Do not add a duplicate assertion, a second planted
+      control where one already proves the test can fail, a test that pins code shape,
+      or a test that is inert once the fix lands. A red-first demonstration that is
+      not worth keeping goes in the agent's report as evidence (command and failing
+      output), not in the commit. Put these rules and both references in every
+      implementer and reviewer brief, and ask each implementer for a table of every
+      test it added or changed: the fix, the regression it catches, the existing
+      coverage.
+      Local runs. Read the PR's CI results first (`gh pr checks`); a green shard is
+      authoritative for the files it ran, so do not repeat it locally. Run locally
+      only what CI cannot show: a new reproduction, a red-first swap, a comparison
+      against the merge base, and the targeted gates and changed-file tests of your
+      own commits. Never run a full heavy suite (NO_FULL_HEAVY_SUITES_IN_MISSION).
+      A workflow that runs only after a merge (`ci-aggregate.yml` is
+      `workflow_run`-triggered and runs from the default-branch checkout) does not
+      exercise a PR's edit to that workflow or to a `scripts/ci/*` file it calls
+      before the merge. When the PR edits such a script, run it as the workflow does
+      (`python3 scripts/ci/<name>.py` from the repository root with `PYTHONPATH`
+      unset) and confirm it starts, and add a test that runs it as a subprocess.
+      Formatting. Format only with `uv run --frozen ruff format --force-exclude
+      <files>` (or check with `make format-check-files FILES=<paths>`). If you
+      deliberately format a file listed in `[tool.ruff.format].exclude` clean, remove
+      its entry in the same commit and run
+      tests/architectural/test_ruff_format_exclude_ratchet.py afterwards. A whole-repo
+      `ruff format --check .` does not catch a stale entry.
     actor: agent
 
   - title: Red-first verification for bugfix PRs
     description: >
       For a bugfix, confirm the test is RED against the unpatched code before the fix,
-      then green after — proving the test captures the defect rather than passing
-      vacuously.
+      then green after, proving the test captures the defect rather than passing
+      vacuously (pr-landing.md, section 6). A repro for an open P0 bug carries
+      `@pytest.mark.p0_repro(issue=N)` until the fix; the `regression` marker is for
+      bugs that are already fixed.
     actor: agent
 
-  - title: Review beyond CI and run an adversarial squad where warranted
+  - title: Independent review of the integrated diff
     description: >
-      Review intent, risk, and API-surface impact beyond what CI covers. For
-      architectural or API-surface PRs, deploy an adversarial squad so independent
-      doctrine lenses converge on findings one reviewer would miss.
+      Skip only for a mechanical chore. For any substantive, architectural, contract
+      or API-surface PR, dispatch a review squad (adversarial-squad-deployment) over
+      the rebased diff: for example correctness and failure handling, boundaries and
+      overlap with existing code, plus a design reviewer when the PR adds a new
+      authority or seam. Reviewers use the stronger model tier and load their
+      profiles as above. Ask each reviewer to flag superfluous tests in the PR's diff
+      (duplicates, inert self-compares, shape pins, redundant planted controls), and
+      for each fix it suggests to say whether an existing test should be strengthened
+      instead of a new one added. An existing review comment on the PR is input, not
+      a substitute for a fresh pass.
+      Fix every finding (major, minor and note) as its own landing fix, with three
+      exceptions: a finding that is highly impactful, one that takes significant
+      effort, or one that needs a significant operator decision. Leave those out of
+      this PR. File an issue for each the same day, parented under a functional epic,
+      and name it in the PR's `## Deferred` section with the reason.
+    actor: agent
+
+  - title: Tidy the commit history only when it is needed
+    description: >
+      This repo lands by rebase, so each commit lands on main individually. The merge
+      bar is the PR head going green. An intermediate commit may fail a gate that only
+      reconciles at the tip (a regenerated docs index, say), so do not rewrite history
+      only to make each commit green; per-commit greenness is a preferred target, not
+      a requirement. Rewrite only for readability or to remove personal data: collapse
+      status-only churn into one commit, remove machine-local paths from the commit
+      that introduced them, reword non-conventional subjects, and keep genuinely
+      separate code changes as separate commits (clean-linear-commit-history tactic;
+      pr-landing.md, section 5, has the regroup recipe for a very long history).
+      Keep the contributor's authorship; re-author only a maintainer-owned branch.
+      Rewrite non-interactively. The one guarantee before any force-push: the rebuilt
+      tree is byte-identical to the pre-cleanup head (`git rev-parse HEAD^{tree}`
+      equal, `git diff <old> <new>` empty). If it prints anything, do not push.
+    actor: agent
+
+  - title: Vet the tests the landing added
+    description: >
+      Before hand-off, dispatch a reviewer who is not the implementer (stronger model
+      tier; for example profile `reviewer-renata`), read-only on the landing worktree.
+      It applies development-assist-test-cleanup to every test that the landing added
+      or changed (not the contributor's tests, which the independent review covers,
+      and not tests that predate the PR). One verdict per test: KEEP (a real
+      regression guard or standing invariant), RETIRE (inert once the fix lands,
+      duplicates a broader guard, or pins transient code shape) or SPLIT-BY-KIND. The
+      reviewer checks each KEEP goes red when the fix is reverted, and each RETIRE
+      against the trap of coverage disguised as a duplicate: if the standing guard
+      does not assert it, it was not a duplicate. Execute the verdicts as their own
+      `test(landing):` commit. An issue-named test file (`test_issue_NNNN*`,
+      `test_repro_NNNN*`) always gets a fold-or-keep verdict.
+    actor: agent
+
+  - title: Update the PR body, changelog and docs
+    description: >
+      What to update depends on the outcome. LAND: all of the following. RESCOPE:
+      the changelog entry covers the kept part only. CLOSE: a closing rationale in the
+      PR body instead of a changelog entry. A trivial change may need no separate
+      changelog entry when the change is its own record.
+      PR body: start from .github/PULL_REQUEST_TEMPLATE.md. Exactly five sections in
+      order (Issue, Change, Tests run with a `Self-review:` block, Blast radius with
+      `Discovery:` and `Files:`, Deferred). Lead `## Change` with what changes for a
+      user or operator and the symptom they saw, then the fix. Title `[#<n>] <what
+      changes>`. Run `python packs/internal/assets/validate-pr-body.py body.md`.
+      Changelog: for any user-facing change, add an entry under [Unreleased] in
+      docs/changelog/CHANGELOG.md (the root CHANGELOG.md is a symlink to it), in the
+      right section. A bold lead sentence with the user-facing impact and the
+      reference, then a short before and after. Match the existing style, name the
+      symptom the user saw, and stay under 1,200 characters (the changelog style
+      test). Commit it as its own `docs(landing):` commit.
+      Docs: update the affected docs when the change alters documented behaviour, adds
+      a CLI surface, or introduces a pack-author or extension seam. If you add or
+      rename a page or an ADR, regenerate the retrieval index and the ADR inventory
+      (commands above). A governance or process decision can be an ADR in
+      `docs/adr/4.x/YYYY-MM-DD-N-<slug>.md` with status Accepted; check the day's
+      highest `-N-` on main first. The frontmatter `description` must be 50 to 180
+      characters (`python -m scripts.docs.description_length_check`); re-run
+      `docs_index --write` if you edit it again.
+      After any prose, changelog or doc edit, run
+      tests/architectural/test_no_legacy_terminology.py and
+      `uv run python -m scripts.docs.check_docs_freshness --ci` (expect errors=0;
+      external-link warnings are fine). Write plain language, active voice, impact
+      first.
     actor: agent
 
   - title: Push with discipline
     description: >
-      Push folds to the contributor's fork remote (over SSH where HTTPS auth fails).
-      Never force-push to origin/main; never push directly to a protected branch.
+      SSH is the preferred transport to GitHub, including for a force-push with
+      lease; use an SSH remote by default. Push to the contributor's fork branch (a
+      branch on the canonical repository itself is directly pushable with maintain
+      rights). Group related landing fixes into one push: each push starts a full CI
+      run and cancels the previous one. Never push to `main` and never force-push
+      `main`. Follow pr-landing.md, section 9, for the lease: fetch the branch into an
+      explicit `refs/remotes/<remote>/<branch>` and take the lease sha from
+      `git rev-parse` on that ref immediately before the push, and cherry-pick any
+      commit you have not seen rather than overwriting it.
     actor: agent
     on_failure: >
-      If a force-push is required and blocked by the classifier, hand it to the
-      operator rather than working around protection.
+      If a permission prompt or safety classifier refuses a push that follows these
+      rules, stop and hand the push to the operator; do not look for a different
+      route around the protection.
 
   - title: Post the remediation summary
     description: >
-      Post a full evidence trail in the PR thread: what was rebased, each red's
-      classification, folds applied, verification performed, and any landing-order
-      constraints. This is what lets the operator merge without re-deriving.
+      Post one structured comment in the PR thread: the review verdict; what was
+      rebased; each red's classification; each landing fix with its why; the verdicts
+      of the independent review; the test verdict table from the vetting step (each
+      test the landing added or changed, its KEEP, RETIRE or SPLIT verdict, and the
+      regression a KEEP catches; no table means the vetting did not happen);
+      verification performed, with counts; pre-existing failures with their filed
+      issue numbers; landing-order constraints; and every check still failing with
+      the reason it is not caused by this PR. Add contributor-education notes
+      addressed to the author.
     actor: agent
 
-  - title: Hand off — the operator merges
+  - title: Hand off and arm auto-merge when the PR is complete
     description: >
-      Un-draft the PR and hand off. The maintainer never merges; the operator merges
-      once the evidence trail and constraints are posted.
-    actor: human
+      The PR must be green (or green apart from documented reds), with the evidence
+      trail posted. Merging into `main` on the canonical repository is the operator's
+      decision. The operator's standing ruling (2026-09-23; ADR
+      2026-09-23-1-auto-merge-required-checks-gate) makes arming auto-merge the
+      default hand-off once the PR is merge-ready and complete: run
+      `gh pr merge <N> --repo spec-kitty/spec-kitty --rebase --auto`, which queues the
+      merge until the three required checks (`router gate`, `CI Modules gate`, `Clean
+      install verification`) pass and refuses on any red. Arm it only when the PR has
+      its complete fix pushed: auto-merge fires on the first green, so a later commit
+      would be left behind. Then confirm it armed and did not merge at once:
+      `gh pr view <N> --repo spec-kitty/spec-kitty --json state,autoMergeRequest` must
+      show `state: OPEN` and a non-null `autoMergeRequest` while checks are pending.
+      If the PR merged at once, tell the operator. If the operator has said not to arm
+      it for this PR, hand off without arming. Never merge by any other route, and
+      never change the repository's branch protection or required checks.
+      While it waits, a `cancelled` check is not a failure: a new push cancels the
+      previous run, and branch protection uses the latest run per check. Only
+      `failure` and `timed_out` on the current head are real. A required check that is
+      absent on the head (no run at all, status BLOCKED with everything else green)
+      is a configuration problem to report to the operator, not something to wait out.
+    actor: agent
+
+  - title: After the PR is merged
+    description: >
+      Verify the merge landed cleanly (your landing fixes are present, authorship is
+      right). Watch the CI of `main` on the merge commit for new reds. A green PR does
+      not cover the workflows that run only on `main` (`CI Aggregate`, nightly): if the
+      PR touched a script they run, confirm they pass on the merge commit. A
+      `CI Aggregate` failure on the merge commit is a regression to fix; the "PR is
+      closed" error from the `CI Fleet Verdict` reporter is not. If a red appears on
+      `main`, fix it promptly in a new PR, red-first, and hand that off. Then remove
+      the worktree, the local branch and the merged PR branch (`delete_branch_on_merge`
+      is off; if a plain `git push --delete` errors, use
+      `gh api -X DELETE repos/spec-kitty/spec-kitty/git/refs/heads/<branch>`).
+    actor: agent
 
   - title: Follow-up hygiene
     description: >
-      Close claim comments, note follow-up issues for any deferred debt, and leave the
-      landing queue in a state the next maintainer can read.
+      Close your claim comments, file a tracked issue the same day for every deferred
+      item (parented under a functional epic, never a meta-tracker), and leave the
+      landing queue in a state the next maintainer can read. Run a triage pass on the
+      new issues so the next landing pass starts from a clean queue.
     actor: agent
+
+anti_patterns:
+  - name: Landing a draft PR without asking
+    description: >
+      A draft has not been handed off to the maintainers. Ask the operator first.
+  - name: Rewriting history to make every commit green
+    description: >
+      The merge bar is the PR head. Rewrite only for readability or to remove personal
+      data, and always prove the tree is byte-identical before a force-push.
+  - name: Arming auto-merge before the fix is complete
+    description: >
+      Auto-merge fires on the first green, so commits pushed afterwards miss the merge.
+  - name: Tests for the sake of tests
+    description: >
+      A landing test that duplicates an existing assertion, pins code shape, or is
+      inert once the fix lands adds cost and no protection.
+  - name: Recapturing the shard-timing file during a landing
+    description: >
+      A scheduled CI job owns it; a local recapture costs 18 to 30 minutes for a
+      count drift that cannot block the PR.

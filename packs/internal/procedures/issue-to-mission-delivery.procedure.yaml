@@ -1,0 +1,215 @@
+schema_version: "1.0"
+id: issue-to-mission-delivery
+name: Issue-to-Mission Delivery
+purpose: >
+  Take one or more GitHub issues in `spec-kitty/spec-kitty` through a full governed
+  Spec Kitty Mission (specify, plan, tasks, implement, review, accept, consolidate)
+  to a pull request that is green and flipped from draft to ready for review. The
+  procedure adds what is specific to starting from tracker issues: grounding the
+  issues against current main, claiming them, and following the PR draft-first
+  lifecycle. The close-out sequence itself belongs to mission-wrap-up-sequence. The
+  `mission-from-issue` pack skill is the thin entry point to this procedure.
+  Terms used here. The operator is the human in charge of the run: the maintainer who
+  invoked it. The canonical remote is the git remote that points at
+  `spec-kitty/spec-kitty`; find it with `git remote -v`. A review squad is a small
+  set of reviewer subagents, each given a different focus; adversarial-squad-deployment
+  owns when, who and how. The three tracer files are the Mission's running logs
+  (tooling-friction.md, approach.md and design-decisions.md under the Mission's
+  `traces/` directory; see mission-tracer-files).
+entry_condition: >
+  The operator named one or more issues, optionally followed by guidance (scope
+  limits, order, specific concerns). If no issue is named, ask which to run. Record
+  the guidance in the Mission spec. Scale the review effort to the work: a small fix
+  gets a couple of reviewers per round; a governance, contract or API-surface change
+  gets the full adversarial treatment.
+exit_condition: >
+  A pull request for the issues exists on the canonical repository, its CI is green
+  (or green apart from documented pre-existing reds), it is labelled
+  `ready-for-squad` and has been flipped from draft to ready for review, and the
+  operator has the hand-off report. Nothing has been merged.
+steps:
+  - title: Start from the current main of the canonical remote
+    description: >
+      Find the canonical remote (`git remote -v`) and fetch it. Bring local `main` to
+      `<canonical-remote>/main` with a fast-forward only; if the working tree has
+      uncommitted changes or `main` cannot fast-forward, stop and report. Push
+      nothing. If the update changed files under `src/`, or the CLI may be stale, run
+      `uv sync --frozen --all-extras` (CLAUDE.md, stale-install and stale-venv false
+      reds). Read the project charter (.kittify/charter/charter.md) and, before each
+      workflow step (specify, plan, tasks, implement, review), load
+      `spec-kitty charter context --action <step>`. The charter wins over any other
+      guidance.
+    actor: agent
+
+  - title: Ground the issues before specifying
+    description: >
+      Read every named issue in full: body, comments, native sub-issues, `blocked_by`
+      links, and the issues its comments reference. Dispatch a review squad of
+      subagents, each loading its profile with `spec-kitty agent profile show <id>`
+      and `spec-kitty charter context --action <action> --include agent-profile:<id>`
+      (never a raw profile file; naming a profile in the prompt does not apply its
+      rules). One reviewer confirms each issue still reproduces on current main (a
+      brief reproduction) and was not superseded by a merged PR or an ADR (search
+      `git log -S`, the changelog, referenced ADRs), and maps overlaps and
+      dependencies between the issues. Another proposes the Mission boundary: which
+      issues belong in one Mission, which are separate, and which are already closed
+      or moot. Where an issue uses a term with several meanings in this repository
+      (for example "primary", "merge" or "routing"), state which meaning applies
+      before you scope the work. If every issue is resolved or superseded, stop and
+      report. If only some are, report them, drop them from the scope and ask the
+      operator to confirm the remaining scope before you continue.
+    actor: agent
+
+  - title: Claim every issue before any planning artifact
+    description: >
+      Before you write any planning artifact, claim every issue in scope, so no one
+      else starts the same work (charter, Tracker Ticket Assignment Rule). For each
+      issue: (1) comment that a Mission is being opened for it, with the intended
+      scope in two or three sentences, and add the Mission slug in a follow-up comment
+      once the specify step has created it; (2) assign the issue to the operator
+      (`gh api user -q .login` gives the login of the maintainer who invoked the run;
+      if the run names someone else, or you are unsure, ask) with `gh issue edit <n>
+      --repo spec-kitty/spec-kitty --add-assignee <login>`, keeping existing
+      assignees; if the issue is assigned to someone else who is active on it, stop
+      and ask; (3) add the labels `status:claimed` and `taken-by-human` and comment
+      `claimed by <harness>/<model> on <machine>`; the fleet's dispatcher reads those
+      labels, and without them a fleet VM can pick up the same issue
+      (docs/development/how-to/manage-issue-tracker.md, "The `status:*` lifecycle").
+      Then re-read `gh issue view <n> --repo spec-kitty/spec-kitty --json
+      assignees,labels` for every issue and confirm the operator and both labels are
+      present. If any claim failed, stop and report. If `gh` reports missing token
+      scopes, retry with `unset GITHUB_TOKEN`.
+    actor: agent
+    on_failure: >
+      Do not begin the specify step with an unclaimed issue.
+
+  - title: Specify, plan and tasks through the canonical commands
+    description: >
+      Run the specify, plan and tasks steps (`/spec-kitty.specify`,
+      `/spec-kitty.plan`, `/spec-kitty.tasks`, or your tool's equivalent), then
+      `spec-kitty agent mission finalize-tasks`. Never hand-build a path the resolver
+      provides, and never copy structure from an older Mission. Add one row per issue
+      to the Mission's issue matrix (the record of each referenced issue, its claim
+      and its final verdict; `spec-kitty agent issue-verdict` sets a verdict). Create
+      the three tracer files during planning and add to them with
+      `spec-kitty agent tracer-append --mission <slug> --category
+      approach|design-decisions|tooling-friction --entry "<text>"` as work proceeds
+      (mission-tracer-files). After the spec and again after the tasks, have a review
+      squad challenge the artifact (after tasks: look for work the tasks skip or
+      under-specify), and update the artifact for each accepted finding.
+    actor: agent
+
+  - title: Survey the existing code, then implement
+    description: >
+      Before implementing, have a scout squad survey the code each work package will
+      touch: the files and lines, other callers of the same code, places where the
+      same fix would have to be repeated field by field, and places where a second
+      source of truth could appear. Drive the work packages with
+      `spec-kitty next --agent <name> --mission <slug>`; the per-work-package command
+      is `spec-kitty agent action implement <WP> --agent <name>`. Never build a
+      workspace path by hand. Fix each defect red-first through the pre-existing entry
+      point (charter, ATDD-First Discipline; DIRECTIVE_034, test-first-bug-fixing). A
+      repro for an open `priority:P0` bug carries `@pytest.mark.p0_repro(issue=N)` and
+      the fix removes the marker; decide at wrap-up which repros stay as `regression`
+      tests (development-assist-test-cleanup). Implementation uses the cheaper model
+      tier and review the stronger tier (model-task-routing); every dispatched agent
+      loads its profile as above. Add tests for new branches and helpers in the same
+      PR (the diff-cover gate in CI requires at least 90 percent on changed lines;
+      Sonar is reported, not required), and add a test only where it guards real
+      behaviour or a standing invariant (DIRECTIVE_041). Follow the repository's code
+      rules in CLAUDE.md. If a work package is rejected twice or blocked, stop and
+      report. Never run a full heavy suite (NO_FULL_HEAVY_SUITES_IN_MISSION).
+    actor: agent
+
+  - title: Run the close-out sequence
+    description: >
+      Run the mission-wrap-up-sequence procedure: accept, retire or split the Mission's
+      development-assist tests, resolve every issue verdict to a terminal state,
+      review the aggregate diff, consolidate (`spec-kitty consolidate --mission
+      <slug>`; this lands locally and publishes nothing), compact the history and
+      rebase onto the canonical remote's `main`. Compaction follows the
+      clean-linear-commit-history tactic. The merge bar is the PR head going green,
+      not each commit: an intermediate commit may fail a gate that only reconciles at
+      the tip (a regenerated docs index, say), so do not rewrite history only to make
+      each commit green. Remove personal data and machine-local paths from the commit
+      that introduced them. Before any force-push, the rebuilt tree must be
+      byte-identical to the pre-cleanup head (`git rev-parse HEAD^{tree}` equal).
+      Rebase so the branch has no git merge commits, keep each commit's author, and
+      keep both sides' entries when docs/changelog/CHANGELOG.md conflicts. Push over
+      SSH, which is the preferred transport, with a lease on an explicit
+      `refs/remotes/<remote>/<branch>` ref. Never push `main`.
+    actor: agent
+
+  - title: Review the integrated diff and fix every finding
+    description: >
+      Run a review squad over the integrated diff (correctness, and boundaries and
+      overlap with existing code), using the stronger model tier. Fix every finding
+      in this PR as its own commit, delegated to a subagent on the cheaper tier with
+      its profile loaded, with three exceptions: a finding that is highly impactful,
+      one that takes significant effort, or one that needs a significant operator
+      decision. File an issue for each the same day, parented under a functional
+      epic, and name it in the PR's `## Deferred` section with the reason.
+      File an issue for each pre-existing red that has none, and cite it in the
+      hand-off (charter, Pre-existing Failure Reporting Rule).
+    actor: agent
+
+  - title: Update the changelog and docs
+    description: >
+      For any user-facing change add an entry under [Unreleased] in
+      docs/changelog/CHANGELOG.md (the root CHANGELOG.md is a symlink to it): a bold
+      impact-first lead with the `(#issue)` reference, then before and after, under
+      1,200 characters. Update the affected docs. If you add an ADR or a doc page,
+      run `uv run python -m scripts.docs.docs_index --write` and
+      `uv run python -m scripts.docs.freshen_adr_inventory`, then
+      `uv run python -m scripts.docs.check_docs_freshness --ci` (expect errors=0) and
+      tests/architectural/test_no_legacy_terminology.py.
+    actor: agent
+
+  - title: Open a draft PR, follow it to green, then flip it to ready for review
+    description: >
+      Open the PR as a draft against `spec-kitty/spec-kitty`, from the branch
+      `issue-<n>-<slug>`. Start from .github/PULL_REQUEST_TEMPLATE.md: exactly five
+      sections in order (Issue, Change, Tests run with a `Self-review:` block, Blast
+      radius with `Discovery:` and `Files:`, Deferred); title `[#<n>] <what
+      changes>`; lead `## Change` with what changes for a user or operator, then the
+      fix, the red-first proof and any remaining SonarCloud review that needs the
+      Sonar web interface. Run `python packs/internal/assets/validate-pr-body.py
+      body.md` before opening. Follow CI on the draft until it is green. A new push
+      cancels the previous run, so read the newest run on the head SHA; `cancelled` is
+      not a failure. Classify every red against the merge base: pre-existing P0
+      reds, CI-environment failures and stale-install false reds are not your diff.
+      Fix what is yours.
+      Then flip the PR to ready for review. The flip is the hand-off to the
+      maintainers: it signals that a landing pass is safe to start. Flip only when the
+      PR is green and complete. Never flip a PR that is red or still being changed.
+      When the scope is complete and the tests have run, label the PR
+      `ready-for-squad` (docs/development/agent-fleet.md).
+    actor: agent
+
+  - title: Report and stop
+    description: >
+      Report to the operator: the PR link, the issues it closes, what each review
+      round changed, and every check still failing with the reason it is not caused by
+      this PR. Then stop. Merging is the operator's decision; do not merge or arm
+      auto-merge on your own initiative. If you are asked to follow up after the PR
+      has merged, confirm the commits are on the canonical remote's `main` and remove
+      the worktrees and branches.
+    actor: agent
+
+anti_patterns:
+  - name: Specifying before the claim
+    description: >
+      An unclaimed issue invites a second runner (a fleet VM or a person) onto the
+      same work. Claim and verify first.
+  - name: Starting from a stale or wrong remote
+    description: >
+      A fork's `origin/main` can lag the canonical repository. Ground on the canonical
+      remote, and push nothing to `main`.
+  - name: Flipping a red or still-changing PR to ready for review
+    description: >
+      Undrafting hands the PR to the maintainers. Do it only when it is green and
+      complete.
+  - name: Per-commit green as a requirement
+    description: >
+      The merge bar is the PR head. Do not rewrite history only to make each commit
+      pass a gate.

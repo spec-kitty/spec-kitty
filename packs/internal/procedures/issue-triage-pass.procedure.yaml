@@ -1,0 +1,164 @@
+schema_version: "1.0"
+id: issue-triage-pass
+name: Issue Triage Pass
+purpose: >
+  Run a governed triage pass over a set of open GitHub issues in
+  `spec-kitty/spec-kitty`, so that each issue is correctly typed, prioritised,
+  labelled by domain, parented, linked to what blocks it and (when obvious) given a
+  milestone, and so deprecated, inconsistent, duplicate or clustering issues are
+  reported instead of being mis-triaged in silence. The pass is run by an
+  orchestrator that dispatches triage subagents; it is a batch pass, not the
+  backlog-wide restructuring that tracker-organisation-workflow describes. The
+  `issue-triage` pack skill is the thin entry point to this procedure.
+  Terms used here. The operator is the human in charge of the run: the maintainer who
+  invoked it. The canonical remote is the git remote that points at
+  `spec-kitty/spec-kitty`; find it with `git remote -v`. The fleet is the SkyKitty
+  agent fleet (docs/development/agent-fleet.md), whose bots own the `status:*`,
+  `squad:*` and `needs:*` labels.
+entry_condition: >
+  The operator has asked for a set of issues to be triaged: an explicit list of
+  numbers, a time window such as `14d` (open issues created in the last 14 days), a
+  label filter such as `label:status:triage`, or a natural-language selection. With
+  no selection, the scope is every open issue created in the last 7 days.
+exit_condition: >
+  Every issue in scope is triaged or listed as "not triaged" with the reason, every
+  flagged item has been put to the operator and its ruling applied (or reported as
+  still open), and the operator has one consolidated report.
+steps:
+  - title: Read the tracker guide and fix the rules for the pass
+    description: >
+      Read docs/development/how-to/manage-issue-tracker.md in full and treat it as
+      binding. Apply the tracker-organisation-workflow procedure and the
+      spec-kitty-tracker-labels styleguide. Two rules are decision points and belong
+      in every subagent brief. First, never apply `priority:P0` yourself: when an
+      issue meets a P0 criterion, name the criterion and flag it for the operator.
+      Second, flag rather than guess on anything ambiguous (non-obvious parent or
+      milestone, a possible duplicate or deprecation). When a priority is a guess,
+      set `priority:P2` together with `triage:needs-revision`.
+    actor: agent
+
+  - title: Resolve the work list and the shared inputs
+    description: >
+      Record the start time of the pass (UTC). Enumerate the issues the scope selects
+      yourself, so every subagent works from one fixed list; if the scope selects no
+      issue, report "no issues in scope" and stop. Example for the default window
+      (GNU `date`; on macOS use `date -v-7d +%Y-%m-%d`):
+      `gh issue list --repo spec-kitty/spec-kitty --state open --search
+      "created:>=$(date -d '7 days ago' +%Y-%m-%d)" --limit 200 --json
+      number,title,labels,createdAt`. Pull the milestones
+      (`gh api repos/spec-kitty/spec-kitty/milestones --jq '.[] | {number, title,
+      description}'`) and the functional epics (`gh issue list --repo
+      spec-kitty/spec-kitty --state open --label epic --limit 100 --json
+      number,title`) once, so each subagent does not re-derive them. If `gh` reports
+      missing token scopes, retry with `unset GITHUB_TOKEN`.
+      Fix the code baseline. Check every claim that behaviour "still exists", "already
+      shipped" or "was removed" against the main branch of `spec-kitty/spec-kitty`,
+      fetched now. A personal fork's `origin/main` can be far behind, which makes
+      shipped work look missing and new code look removed. Find the canonical remote,
+      fetch its `main`, measure the gap to `origin/main`
+      (`git rev-list --count origin/main..<canonical-remote>/main`), and pass
+      `<canonical-remote>/main` to every subagent as the ref to check against. Accept
+      "resolved" only when the fix is present on that ref (`git grep <needle>
+      <canonical-remote>/main`). If `origin` lags, say so in the report.
+    actor: agent
+
+  - title: Dispatch the triage subagents
+    description: >
+      Give each subagent 3 to 5 issues and run at most 4 at once. When the scope holds
+      more than 20 issues, run further rounds until the list is done. Launch the
+      subagents of a round in parallel, each loading the `planner-priti` profile.
+      Every subagent gets the same shared context (the rules from the first step, the
+      milestones, the epics, the baseline ref and the start time) and the brief below.
+      Do not triage inline: each subagent loads the planner profile and its doctrine,
+      and your own context stays free for aggregation.
+      Brief, before you start: (1) load the profile with
+      `spec-kitty agent profile show planner-priti` and
+      `spec-kitty charter context --action plan --include agent-profile:planner-priti
+      --json`, never a raw profile file; (2) disclose in your report which profile and
+      which directives, tactics and procedures you loaded and will apply; (3) use the
+      baseline ref for every code-state check and disclose it.
+      Brief, for each issue: read the full body and comments
+      (`gh issue view <N> --repo spec-kitty/spec-kitty --comments`). Immediately
+      before changing anything, re-read the state
+      (`--json state,closedAt,stateReason`); if it closed since enumeration, do not
+      touch it and report "closed mid-pass by <PR>". Then set the native type
+      (`--type Bug|Feature|Task`; `Feature` is the tracker's type name, not a
+      Mission). Apply one `priority:P*` label under the P0 rule above. Assign the
+      `domain:*` label from the guide's Domain labels section. Add `good first issue`
+      only for its real meaning. Parent the issue under a functional epic with a
+      native sub-issue link when it clearly belongs there, never under a
+      meta-tracker; leave it and flag it when parentage is ambiguous. Add a native
+      `blocked_by` link when it cannot start until another issue or open PR lands
+      (for a PR, link the issue the PR closes); for a related twin, comment a
+      cross-reference on both issues. Assign a milestone only when obvious, per
+      docs/plans/4-0-0-milestone-roadmap.md (`4.0.0 release scope` only for a true GA
+      blocker); otherwise leave it unset and say so. Do not add or remove `status:*`,
+      `squad:*`, `needs:*` or `ready-for-squad` labels: the fleet owns them as leases,
+      so report one that looks stale and leave it.
+      Brief, health scan: flag with evidence descriptions that are deprecated or
+      superseded (mark `triage:repro-needed` if the issue may already be fixed, or
+      `triage:stale` if it may be dead), internal inconsistencies between title, body
+      and labels, emerging clusters (several issues circling one cause or surface),
+      and duplicates (mark a suspected one `triage:maybe-duplicate` and cross-reference
+      the twin; on a confirmed duplicate keep the community-authored issue). Mark an
+      unadjudicated root cause `triage:needs-investigation`. Consult docs/architecture,
+      docs/adr and docs/plans when you need context, and cite what you relied on.
+      Brief, report: per issue, the number, title, before and after (type, priority,
+      domain, parent, milestone), the doctrine disclosure, the baseline ref, the
+      health-scan findings and every item flagged for an operator decision.
+      Make only defensible, evidence-grounded changes.
+    actor: agent
+
+  - title: Re-check, aggregate and report
+    description: >
+      The tracker and main move during a pass: a PR can close an issue while the
+      subagents work. First re-check the state of every issue you will report or ask
+      about, list the PRs merged since the start time
+      (`gh pr list --repo spec-kitty/spec-kitty --state merged --search
+      "merged:>=<start time>" --json number,closingIssuesReferences`), and re-fetch
+      the canonical remote's `main`, so a fix that landed mid-pass is not split out or
+      re-filed as new work. Then write one consolidated report: a table of each issue
+      (number, title, what changed in type, priority, domain, parent, milestone); a
+      section "Needs an operator decision" with each flagged item, the reasoning and
+      the cited docs; every subagent's doctrine disclosure; the baseline ref used,
+      with a note if `origin` lags and a caveat on any verdict that could not be
+      confirmed against it; and counts of issues triaged, retyped, reprioritised,
+      parented, given a milestone and flagged.
+    actor: agent
+
+  - title: Put the flagged items to the operator and apply their rulings
+    description: >
+      End the pass in one of two ways. No flagged items: report and stop. Flagged
+      items: present the report and ask the operator about each item. Give each
+      question enough context to decide without opening the issue: what the issue is,
+      the concrete evidence (file and line, PR, sibling issues), the blast radius and
+      what each option means. After each ruling, re-check the issue's state and apply
+      it yourself, then report the final state. Once the operator confirms a P0 Bug,
+      the red-first reproduction test goes in a PR labelled `pr:p0-repro`, with
+      `Refs #<n>` and not `Closes`, and the test carries
+      `@pytest.mark.p0_repro(issue=<n>)` (docs/development/how-to/manage-issue-tracker.md,
+      "A P0 bug should carry a failing reproduction test"). Do not mark the pass
+      complete while flagged items are unresolved.
+    actor: human
+    on_failure: >
+      If a subagent fails or a write is refused, list the affected issues as "not
+      triaged" with the error. Retry at most once.
+
+anti_patterns:
+  - name: Setting priority:P0 silently
+    description: >
+      P0 on a Bug halts the release train. Escalation is the operator's decision.
+  - name: Judging liveness against a stale origin
+    description: >
+      A lagging fork makes shipped work look missing and new code look removed. Check
+      against the canonical remote's main and require positive presence of the fix.
+  - name: Writing to an issue that closed mid-pass
+    description: >
+      Re-read the state immediately before each write.
+  - name: Touching fleet-owned labels
+    description: >
+      `status:*`, `squad:*` and `needs:*` are leases and queue state owned by the
+      fleet. Report a stale one; do not remove it.
+  - name: Parenting under a meta-tracker or in a body checklist
+    description: >
+      Parent real work under a functional epic with a native sub-issue link.

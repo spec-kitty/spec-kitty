@@ -130,6 +130,30 @@ nodes:
     kind: procedures
     title: "Cloud Session Dispatch (hand tracker issues to an autonomous cloud runner)"
     body_path: procedures/cloud-session-dispatch.procedure.yaml
+  # Backlog-triage pass and issue-to-Mission delivery: batch procedures that sit
+  # behind the issue-triage and mission-from-issue pack skills.
+  - id: issue-triage-pass
+    kind: procedures
+    title: "Issue Triage Pass (orchestrated batch triage of open GitHub issues)"
+    body_path: procedures/issue-triage-pass.procedure.yaml
+  - id: issue-to-mission-delivery
+    kind: procedures
+    title: "Issue-to-Mission Delivery (issues to a green, ready-for-review PR)"
+    body_path: procedures/issue-to-mission-delivery.procedure.yaml
+  # Pack skills (ADR 2026-09-27-1): thin entry points that require the procedure
+  # carrying the substance. Rendered as kitty-<id>.
+  - id: land-pr
+    kind: skills
+    title: "Land a PR (maintainer landing pass)"
+    body_path: skills/land-pr.skill.yaml
+  - id: issue-triage
+    kind: skills
+    title: "Triage GitHub issues"
+    body_path: skills/issue-triage.skill.yaml
+  - id: mission-from-issue
+    kind: skills
+    title: "Run a Mission from GitHub issues"
+    body_path: skills/mission-from-issue.skill.yaml
 edges:
   # Reference-not-duplicate: the landing runbook refines built-in doctrine that
   # already ships publicly, rather than re-authoring it. Targets are
@@ -293,4 +317,100 @@ edges:
     relation: suggests
   - source: cloud-session-dispatch
     target: "procedure:test-suite-quality-assessment"
+    relation: suggests
+  # Triage pass: binds the label scheme and the backlog workflow rather than
+  # restating them.
+  - source: issue-triage-pass
+    target: "styleguide:spec-kitty-tracker-labels"
+    relation: requires
+  - source: issue-triage-pass
+    target: "procedure:tracker-organisation-workflow"
+    relation: suggests
+  - source: issue-triage-pass
+    target: "tactic:model-task-routing"
+    relation: suggests
+  - source: issue-triage-pass
+    target: "agent_profile:planner-priti"
+    relation: suggests
+  # Issue-to-Mission delivery: the close-out sequence and the squad, tracer-file,
+  # red-first and test doctrine are owned elsewhere; this procedure binds them.
+  - source: issue-to-mission-delivery
+    target: "procedure:mission-wrap-up-sequence"
+    relation: requires
+  - source: issue-to-mission-delivery
+    target: "directive:NO_FULL_HEAVY_SUITES_IN_MISSION"
+    relation: requires
+  - source: issue-to-mission-delivery
+    target: "procedure:adversarial-squad-deployment"
+    relation: suggests
+  - source: issue-to-mission-delivery
+    target: "procedure:mission-tracer-files"
+    relation: suggests
+  - source: issue-to-mission-delivery
+    target: "procedure:test-first-bug-fixing"
+    relation: suggests
+  - source: issue-to-mission-delivery
+    target: "directive:DIRECTIVE_041"
+    relation: suggests
+  - source: issue-to-mission-delivery
+    target: "tactic:model-task-routing"
+    relation: suggests
+  - source: issue-to-mission-delivery
+    target: "tactic:clean-linear-commit-history"
+    relation: suggests
+  - source: issue-to-mission-delivery
+    target: "agent_profile:planner-priti"
+    relation: suggests
+  # The landing procedure binds the doctrine its steps name.
+  - source: landing-contributor-prs
+    target: "directive:NO_FULL_HEAVY_SUITES_IN_MISSION"
+    relation: requires
+  - source: landing-contributor-prs
+    target: "directive:DIRECTIVE_041"
+    relation: suggests
+  - source: landing-contributor-prs
+    target: "directive:DIRECTIVE_045"
+    relation: suggests
+  - source: landing-contributor-prs
+    target: "procedure:adversarial-squad-deployment"
+    relation: suggests
+  - source: landing-contributor-prs
+    target: "procedure:development-assist-test-cleanup"
+    relation: suggests
+  - source: landing-contributor-prs
+    target: "tactic:clean-linear-commit-history"
+    relation: suggests
+  - source: landing-contributor-prs
+    target: "tactic:model-task-routing"
+    relation: suggests
+  - source: landing-contributor-prs
+    target: "agent_profile:reviewer-renata"
+    relation: suggests
+  # Pack skills: each requires the procedure that carries its substance.
+  - source: "skill:land-pr"
+    target: "procedure:landing-contributor-prs"
+    relation: requires
+  - source: "skill:land-pr"
+    target: "directive:NO_FULL_HEAVY_SUITES_IN_MISSION"
+    relation: requires
+  - source: "skill:land-pr"
+    target: "directive:DIRECTIVE_045"
+    relation: suggests
+  - source: "skill:issue-triage"
+    target: "procedure:issue-triage-pass"
+    relation: requires
+  - source: "skill:issue-triage"
+    target: "styleguide:spec-kitty-tracker-labels"
+    relation: requires
+  - source: "skill:issue-triage"
+    target: "agent_profile:planner-priti"
+    relation: suggests
+  - source: "skill:mission-from-issue"
+    target: "procedure:issue-to-mission-delivery"
+    relation: requires
+  - source: "skill:mission-from-issue"
+    target: "procedure:mission-wrap-up-sequence"
+    relation: requires
+  - source: "skill:mission-from-issue"
+    target: "agent_profile:planner-priti"
     relation: suggests
