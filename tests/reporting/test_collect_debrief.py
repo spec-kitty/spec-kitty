@@ -16,16 +16,16 @@ import subprocess
 
 import pytest
 
-from _asset_loader import DEBRIEF_ASSET_DIR, load_asset
+from _asset_loader import asset_path, load_asset
 
 pytestmark = pytest.mark.unit
 
 # The debrief scripts are internal-pack assets (hyphenated file names), so they
 # are loaded by path rather than imported as a package.
-_ASSET = DEBRIEF_ASSET_DIR / "collect-debrief.py"
+_ASSET = asset_path("debrief-collector")
 
 
-cd = load_asset("collect_debrief_asset", _ASSET)
+cd = load_asset("collect_debrief_asset", "debrief-collector")
 
 
 def _fake_gh(responses: dict[str, object]):
