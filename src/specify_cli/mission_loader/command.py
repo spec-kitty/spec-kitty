@@ -201,7 +201,7 @@ def run_custom_mission(
 
 
 def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
-    """Mirror :func:`runtime_bridge._build_discovery_context`.
+    """Mirror :func:`runtime_bridge_io._build_discovery_context`.
 
     The runtime bridge's helper is module-private; we duplicate the
     construction here so this module does not depend on a private

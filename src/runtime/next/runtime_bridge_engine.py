@@ -283,9 +283,9 @@ def _emit_terminal(
     config_root = owned.owned_root if owned is not None else repo_root
     policy, _source_map, policy_error = _retrospective._resolve_retrospective_policy_for_runtime(config_root)
     retrospective_enabled = bool(getattr(policy, "enabled", False))
-    # WP18 (#2561): _retrospective_blocks_completion is reached directly from
-    # its owning seam now that the runtime_bridge façade re-export was retired
-    # (nothing patches ``runtime_bridge._retrospective_blocks_completion``).
+    # WP18 (#2561): _retrospective_blocks_completion lives in
+    # runtime_bridge_retrospective and is reached directly on that seam;
+    # runtime_bridge carries no re-export of it.
     block_on_retrospective = _retrospective._retrospective_blocks_completion(policy)
     mission_id = _retrospective._resolve_mission_id_for_terminus(feature_dir)
 

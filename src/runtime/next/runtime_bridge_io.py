@@ -1447,9 +1447,8 @@ def gather_artifact_presence(
     if wp_files:
         present.add("tasks_wp_files")
 
-    # WP18 (#2561): reach _has_generated_docs directly from its owning seam now
-    # that the runtime_bridge façade re-export was retired (nothing patches
-    # ``runtime_bridge._has_generated_docs``).
+    # WP18 (#2561): _has_generated_docs lives in runtime_bridge_composition and is
+    # reached directly on that seam; runtime_bridge carries no re-export of it.
     has_generated_docs = bool(_composition._has_generated_docs(feature_dir))
     if has_generated_docs:
         present.add("generated_docs")

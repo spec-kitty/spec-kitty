@@ -211,12 +211,12 @@ def _invoke_capture(
     ``runtime.next.runtime_bridge_retrospective`` seam — does NOT duplicate the
     implementation. ``block_on_failure=False`` keeps the merge/close fail-open.
 
-    The seam is imported directly (rather than through the thin
-    ``runtime_bridge`` compat delegate) so the ``provenance_kind`` override
-    (#3716) reaches the facilitator: the delegate's signature is a fixed
-    five-kwarg forward that cannot carry the new argument. The seam's own
-    intra-cluster calls still route through the live ``runtime_bridge`` lookup,
-    so per-symbol monkeypatch observation is unchanged.
+    The owning seam (``runtime_bridge_retrospective``) is the only home of
+    ``_run_retrospective_learning_capture``; ``runtime_bridge`` carries no
+    forwarding delegate for it. Calling the seam directly lets the
+    ``provenance_kind`` override (#3716) reach the facilitator. The seam's own
+    intra-cluster calls are plain module-level lookups, so a test intercepts
+    one by patching it on ``runtime.next.runtime_bridge_retrospective``.
     """
     from runtime.next.runtime_bridge_retrospective import (  # noqa: PLC0415
         _run_retrospective_learning_capture,

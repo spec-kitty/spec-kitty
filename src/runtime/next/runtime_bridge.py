@@ -12,6 +12,9 @@ Maps the CLI's Decision dataclass to the runtime's NextDecision by:
 4. Enforcing CLI-level guards (artifact checks, WP status)
 5. Preserving the existing JSON output contract
 
+Underscore-prefixed functions in the ``runtime_bridge_*`` seam modules that the
+bridge calls are a package-internal seam API, not module-private.
+
 Run state is stored locally under ``.kittify/runtime/runs/<run_id>/``.
 A tracked-mission-to-run compatibility index currently lives at
 ``.kittify/runtime/feature-runs.json``.
@@ -147,7 +150,10 @@ from runtime.next import runtime_bridge_identity as _identity_seam
 from runtime.next import runtime_bridge_io as _io_seam
 
 # Public names kept for callers outside this package (CLI modules look them up
-# here); they are the very same objects the io seam owns.
+# here); they are the very same objects the io seam owns. Runtime-internal calls
+# go through ``runtime_bridge_io`` (``_io_seam.get_or_start_run(...)``), so patch
+# ``runtime_bridge_io`` to intercept the runtime's own calls; patching these
+# names here only affects the CLI callers that import them from the bridge.
 from runtime.next.runtime_bridge_io import build_operational_context_for_claim, get_or_start_run
 from runtime.next import runtime_bridge_retrospective as _retrospective_seam
 
