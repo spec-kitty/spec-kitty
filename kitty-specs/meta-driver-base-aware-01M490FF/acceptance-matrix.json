@@ -1,0 +1,119 @@
+{
+  "mission_slug": "meta-driver-base-aware-01M490FF",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_discard_survives_a_teammates_unrelated_edit + real-git test_ordinary_merge_keeps_a_discard_next_to_a_teammates_edit green at 08a7db229 (red at 6c4cacc69); e2e reproducer RESULTS trigger=kept",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-06T21:13:26.092336+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "same fixtures: vcs/vcs_locked_at taken from the teammate side; test_one_sided_change_survives_from_the_ours_side",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-06T21:13:28.921505+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "genuine-conflict precedence unit test + golden base-both-changed-precedence (status\u2192ours, purpose_tldr\u2192theirs, mission_number guard)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-06T21:13:31.765726+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "same-key-added-on-both-sides unit test",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-06T21:13:34.608881+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_acceptance_history_dropped_on_one_side_is_still_unioned",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-06T21:13:37.417611+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "goldens base-absent/field-union/identical-sides/malformed-json/path-injection byte-identical (git diff empty); base-empty-file golden; whitespace-ancestor unit test",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-06T21:13:40.251901+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_malformed_ancestor_fails_loud_and_writes_nothing (MergeDriverError naming %O, A unchanged)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-06T21:13:43.113618+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "reviewer verified RED at 6c4cacc69 (11 content-assertion failures, rebase control green) and GREEN 40/40 at lane HEAD; p0_repro markers removed in 5e7b0eab3",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-06T21:13:45.932076+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "3 new golden cases, base-absent note refreshed, docstrings in drivers.py/merge_driver.py, CHANGELOG [Unreleased] Fixed bullet (08a7db229)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-06T21:13:48.790029+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "flatten-triple / merged_* / acceptance-stamp group unit tests; reviewer mutation probe: removing flatten or stamp group fails a test (merged_* test strengthened at landing)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-06T21:13:51.651821+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_squash_pipeline_sets_the_two_way_opt_out_on_its_merge_subprocess + shell opt-out test; _make_merge_env untouched (ratchet green)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-06T21:13:54.504680+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

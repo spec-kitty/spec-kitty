@@ -1,0 +1,58 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M49H2Z8DNRD54NSZZ54ZHQ4G",
+  "materialized_at": "2026-10-06T21:14:35.661647+00:00",
+  "mission_number": "220",
+  "mission_slug": "meta-driver-base-aware-01M490FF",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M49H2Z8DNRD54NSZZ54ZHQ4G",
+      "last_transition_at": "2026-10-06T21:14:35.661647+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Approved: red at 6c4cacc69 for content reasons (11 red, rebase control green), 40/40 green at HEAD; rule matches data-model; opt-out only on the squash; gates/ruff/mypy clean. MINOR: merged_* group test non-discriminating; changelog 'consolidate is unchanged' overbroad (folded at landing)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261006",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 511808,
+      "shell_pid_created_at": "1791320437.57",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      },
+      "tracker_refs": [
+        "#5460"
+      ]
+    }
+  }
+}

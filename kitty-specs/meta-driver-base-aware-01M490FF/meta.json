@@ -1,0 +1,38 @@
+{
+  "accept_commit": "bcccd06d1a28596542923fe1bbfac6b531761e92",
+  "acceptance_history": [
+    {
+      "accept_commit": "bcccd06d1a28596542923fe1bbfac6b531761e92",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-06T21:14:00.203237+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "09ade6968194f623d19a5170ab55f38a58e3734f"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-06T21:14:00.203237+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "09ade6968194f623d19a5170ab55f38a58e3734f",
+  "baseline_merge_commit": "c5832b9c6e584da5df1bdc4d0d9e6a098da93f24",
+  "contracts": "none",
+  "contracts_rationale": "Bug fix inside the meta merge-driver body; no interface, endpoint or payload is added and the driver's argv/exit-code contract is unchanged.",
+  "created_at": "2026-10-06T16:24:19.947297+00:00",
+  "flattened": false,
+  "friendly_name": "meta.json merge driver honours the merge base",
+  "merged_at": "2026-10-06T21:14:35.016364+00:00",
+  "merged_commit": "10c3bacb00fccd1ee30982969fd0b7f08b749078",
+  "mid8": "01M490FF",
+  "mission_id": "01M490FFMQHW7JZNBG6PNJS7CQ",
+  "mission_number": 220,
+  "mission_slug": "meta-driver-base-aware-01M490FF",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The kitty-specs meta.json git merge driver reconciles two sides without looking at the merge base, so a clone that discarded a mission and then pulls a teammate's change gets the discard reverted with exit 0 and pushes it. This mission makes the field merge base-aware so a change made on only one side survives, keeping today's precedence only for genuine conflicts.",
+  "purpose_tldr": "Stop an ordinary git pull from silently undoing a mission discard by making the meta.json merge driver base-aware (#5460).",
+  "slug": "meta-driver-base-aware-01M490FF",
+  "status_phase": "1",
+  "target_branch": "fix/meta-driver-base-aware",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-06T20:33:08.132149+00:00"
+}

@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-06T16:24:22.096210Z",
+      "decision_id": "01M490FHTGTH51TAD3KNPVMG8H",
+      "final_answer": "win only on genuine conflict (base-aware, recommended)",
+      "input_key": "target_authoritative_precedence",
+      "mission_id": "01M490FFMQHW7JZNBG6PNJS7CQ",
+      "mission_slug": "meta-driver-base-aware-01M490FF",
+      "opened_by": "cli",
+      "options": [
+        "win only on genuine conflict (base-aware, recommended)",
+        "always win (today rule, base ignored for these keys)",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "In the mission-to-target squash context, should target-authoritative meta.json keys (acceptance/VCS provenance, mission_number, status, merged_*) win only on a genuine both-sides conflict (base-aware; a mission-only change to such a key then survives), or always win as today?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T17:06:16.698584Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.target-authoritative-precedence",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-06T17:14:30.899758Z",
+      "decision_id": "01M493BC3KPSC4FT6XSC7ESNDN",
+      "final_answer": "squash keeps the 2-way rule explicitly (recommended)",
+      "input_key": "squash_ancestor_policy",
+      "mission_id": "01M490FFMQHW7JZNBG6PNJS7CQ",
+      "mission_slug": "meta-driver-base-aware-01M490FF",
+      "opened_by": "cli",
+      "options": [
+        "squash keeps the 2-way rule explicitly (recommended)",
+        "3-way everywhere, stale-ancestor residual pinned",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "The mission-to-target squash records no ancestry, so after a reopen and a second consolidate git hands the driver the original fork point as %O; a 3-way merge then resurrects target-side content the mission removed. Should the squash path keep today's 2-way rule explicitly (consolidation opts out of base-awareness for its own merge; 3-way only for real merges/pulls), or should the 3-way rule apply everywhere with the stale-ancestor case recorded as a pinned residual?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T20:25:34.666883Z",
+      "resolved_by": null,
+      "slot_key": "plan.scope.squash-ancestor",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M490FFMQHW7JZNBG6PNJS7CQ",
+  "version": 1
+}

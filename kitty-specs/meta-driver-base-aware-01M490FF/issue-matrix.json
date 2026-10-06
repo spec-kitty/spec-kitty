@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#4169": {
+      "evidence_ref": "out of scope per C-003 (flatten commit when the target branch is gone); no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4316": {
+      "evidence_ref": "out of scope per C-003 (reopen after discard); no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4900": {
+      "evidence_ref": "closed before this mission; its mission_number rule is reused unchanged (context only)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4933": {
+      "evidence_ref": "closed before this mission; dirty-tree exemption, unrelated to the merge driver (context only)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5292": {
+      "evidence_ref": "out of scope per C-003 (attribute glob depth); no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5460": {
+      "evidence_ref": "mission meta-driver-base-aware-01M490FF opened 2026-10-06; fix in WP01",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
