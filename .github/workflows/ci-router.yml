@@ -948,10 +948,14 @@ jobs:
   # Packs' advisory corpus run deselects exactly these selections, so nothing
   # runs twice. Pinned by tests/ci/test_corpus_blocking_home.py; a tests/contract module that
   # neither this job nor the tool-test job runs fails tests/ci/test_contracts_workflows.py.
+  # Budget (2026-10-06, #5838): 20 minutes. On 25c03e3549 the job passed 877 tests in 5m47s
+  # and was still cancelled at the old 10-minute cap: setup took ~3.7 min, collection
+  # ~1.5 min, and the reality-check fixture alone 157 s for 575 Missions. Runtime grows with
+  # the corpus (4.5 -> 7.2 -> 10.1 min on recent main tips); #5838 tracks bounding that cost.
   tests-corpus-blocking:
     name: tests (corpus-blocking)
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     needs: [changes]
     if: ${{ needs.changes.outputs.corpus == 'true' }}
     steps:
