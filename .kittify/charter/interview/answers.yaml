@@ -17,7 +17,8 @@ answers:
   languages_frameworks: >
     Python 3.11+ for all CLI and library code. Key dependencies: typer,
     rich, ruamel.yaml, pytest, mypy (strict mode). Cross-platform: Linux,
-    macOS, Windows 10+.
+    macOS, Windows 10+. Java (Maven, JUnit 5) for planned Java-based
+    modules.
   testing_requirements: >
     90%+ test coverage for new code. mypy --strict must pass.
     Integration tests for CLI commands; unit tests for core logic.

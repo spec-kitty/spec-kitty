@@ -350,6 +350,7 @@ catalog:
   mission: software-dev
   template_set: software-dev-default
   languages:
+  - java
   - python
   references:
   - id: AGENT_PROFILE:analyst-annie
@@ -400,6 +401,12 @@ catalog:
     summary: External-agent onboarding and doctrine artifact curation specialist
     source_path: ''
     local_path: _LIBRARY/agent_profile-doctrine-daphne.md
+  - id: AGENT_PROFILE:frontend-freddy
+    kind: agent_profile
+    title: frontend-freddy
+    summary: "Definition unavailable in bundled doctrine. Reason: scope_filtered — artifact 'frontend-freddy' is present but its applies_to_languages scope does not include the active language set ('java', 'python'). Add the active language to the artifact's applies_to_languages field, or remove the field to make it always-applicable."
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-frontend-freddy.md
   - id: AGENT_PROFILE:generic-agent
     kind: agent_profile
     title: Generic Agent
@@ -418,6 +425,12 @@ catalog:
     summary: General-purpose software implementation specialist
     source_path: ''
     local_path: _LIBRARY/agent_profile-implementer-ivan.md
+  - id: AGENT_PROFILE:java-jenny
+    kind: agent_profile
+    title: Java Jenny
+    summary: Java-specialist implementer applying ATDD/TDD discipline, Maven build tooling, and idiomatic Java style enforcement
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-java-jenny.md
   - id: AGENT_PROFILE:lexical-larry
     kind: agent_profile
     title: Lexical Larry
@@ -430,6 +443,12 @@ catalog:
     summary: "Meeting minutes specialist who converts VTT transcripts from Teams or Zoom into structured, validated Markdown and posts that Markdown as the assistant response in the originating chat. Minutes Mahad first asks which of two formats to produce — DECISION MINUTES (Attendance / Minutes table / Action Items) for decision- and action-oriented meetings, or DISCUSSION NOTES (Attendance / per-topic bullet summaries / optional Action Items) that stand alone as a briefing for someone who was not there. Extraction uses Scribe Sally identity and strict neutrality, then renders one stand-alone Markdown response using the template matching the selected format. The attribution rule (every action item present must have a named owner) is a hard gate: unresolved attribution gaps are asked about in the same chat before any final minutes are returned or handed off. In discussion notes the Action Items section is optional and may be omitted when nothing actionable arose. Executive brevity so minutes are readable in 1–2 minutes. Wiki/knowledge-base publication is optional and human-operated: the agent reuses the same validated Markdown and hands a rendered page to the human. Chat-only delivery requires no publish credentials. Minutes Mahad does not perform editorial interpretation, does not invent content not present in the transcript, and does not return minutes that have not passed the validation gate.\n"
     source_path: ''
     local_path: _LIBRARY/agent_profile-minutes-mahad.md
+  - id: AGENT_PROFILE:node-norris
+    kind: agent_profile
+    title: node-norris
+    summary: "Definition unavailable in bundled doctrine. Reason: scope_filtered — artifact 'node-norris' is present but its applies_to_languages scope does not include the active language set ('java', 'python'). Add the active language to the artifact's applies_to_languages field, or remove the field to make it always-applicable."
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-node-norris.md
   - id: AGENT_PROFILE:paula-patterns
     kind: agent_profile
     title: Paula Patterns
@@ -940,6 +959,12 @@ catalog:
     summary: 'A scenario has three parts: Given (the precondition/context), When (the single trigger), Then (the observable outcome). This is the same behavioural skeleton the specs in this repository already use — one scenario describes one behaviour.'
     source_path: ''
     local_path: _LIBRARY/styleguide-given-when-then-authoring.md
+  - id: STYLEGUIDE:java-conventions
+    kind: styleguide
+    title: Java Conventions Styleguide
+    summary: 'Naming conventions: classes and interfaces in PascalCase; methods, fields, and local variables in camelCase; constants in UPPER_SNAKE_CASE; packages in lowercase dot-separated segments.'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-java-conventions.md
   - id: STYLEGUIDE:kitty-glossary-writing
     kind: styleguide
     title: Kitty Glossary Writing Styleguide
@@ -1153,7 +1178,7 @@ catalog:
   - id: TACTIC:chain-of-responsibility-rule-pipeline
     kind: tactic
     title: Chain of Responsibility — Rule-Based Pipeline
-    summary: "Express a complex multi-step rule application as a pipeline of small, pure, independently-testable functions instead of as one large branching function. Each rule decides on its own applicability, executes its narrow piece of work, and returns a result object that the runner threads to the next rule. The pattern keeps cognitive complexity per function low, makes the rule set readable as a sequence, and lets new rules slot in without re-reading the whole pipeline.\nThis is an accepted way of dealing with stacks of related but independent rules — validators, classifiers, canonicalizers, scorers, audit detectors. The shape typically recurs in audit detectors, lint check registries, migration canonicalizers and candidate scorers. New code that composes 4+ independent decisions over the same input should reach for this pattern by default.\n"
+    summary: "Express a complex multi-step rule application as a pipeline of small, pure, independently-testable functions instead of as one large branching function. Each rule decides on its own applicability, executes its narrow piece of work, and returns a result object that the runner threads to the next rule. The pattern keeps cognitive complexity per function low, makes the rule set readable as a sequence, and lets new rules slot in without re-reading the whole pipeline.\nThis is an accepted way of dealing with stacks of related but independent rules — validators, classifiers, canonicalizers, scorers, audit detectors. The shape typically recurs in audit detectors, lint check registries, state canonicalizers and candidate scorers. New code that composes 4+ independent decisions over the same input should reach for this pattern by default.\n"
     source_path: ''
     local_path: _LIBRARY/tactic-chain-of-responsibility-rule-pipeline.md
   - id: TACTIC:change-apply-smallest-viable-diff
@@ -1591,7 +1616,7 @@ catalog:
   - id: TACTIC:secure-regex-catastrophic-backtracking
     kind: tactic
     title: Secure Regex — Avoid Catastrophic Backtracking
-    summary: "Secure coding practice for designing and reviewing regular expressions so they cannot be driven into pathological matching times by adversarial input (Regular-expression Denial of Service / ReDoS). Backtracking engines may run in exponential or polynomial time when a vulnerable pattern is paired with an input that forces repeated re-matching. This tactic codifies the patterns to avoid, the rewrites that make them linear, and the escape hatches when a linear rewrite is not possible.\nPattern is vulnerable only when the problematic sub-pattern is followed by something that can fail. End-of-input counts as \"something that can fail\" for any full-match (e.g. ``re.fullmatch``). Partial-match APIs (``re.search``, ``re.split``, ``re.findall``) widen the attack surface because the engine retries from the next index on every failure.\n"
+    summary: "Secure coding practice for designing and reviewing regular expressions so they cannot be driven into pathological matching times by adversarial input (Regular-expression Denial of Service / ReDoS). Backtracking engines may run in exponential or polynomial time when a vulnerable pattern is paired with an input that forces repeated re-matching. This tactic codifies the patterns to avoid, the rewrites that make them linear, and the escape hatches when a linear rewrite is not possible.\nPattern is vulnerable only when the problematic sub-pattern is followed by something that can fail. End-of-input counts as \"something that can fail\" for any full-match API. Partial-match APIs (search, split and find-all style calls) widen the attack surface because the engine retries from the next index on every failure.\n"
     source_path: ''
     local_path: _LIBRARY/tactic-secure-regex-catastrophic-backtracking.md
   - id: TACTIC:stakeholder-alignment
@@ -1738,6 +1763,24 @@ catalog:
     summary: "Driving the GitHub issue tracker from the CLI — native sub-issues (parent/child), issue types, parent-chain walks, auth, the rate-limit and node-id-vs-db-id gotchas that bite bulk tracker work, and the closing-keyword trap where \"Closes #A,#B\" links only the first issue.\n"
     source_path: ''
     local_path: _LIBRARY/toolguide-github-tracker.md
+  - id: TOOLGUIDE:java-supply-chain
+    kind: toolguide
+    title: Java Supply-Chain Install Safety
+    summary: "Ecosystem-specific commands and file names for the Java Maven/Gradle stack: Maven Central resolution, checksum verification against the serving repository (Maven) or against committed hashes (Gradle), and Gradle's lockfile-driven reproducible installs. This guide carries the mechanics; the `supply-chain-install-safety` tactic (ecosystem-neutral) owns the checklist shape and the evidence a reviewer requires. Grounded in the existing Java profile guidance for Maven Central resolution and transitive-CVE exclusion, which this guide extends to the full five-control checklist.\n"
+    source_path: ''
+    local_path: _LIBRARY/toolguide-java-supply-chain.md
+  - id: TOOLGUIDE:javascript-supply-chain
+    kind: toolguide
+    title: javascript-supply-chain
+    summary: "Definition unavailable in bundled doctrine. Reason: scope_filtered — artifact 'javascript-supply-chain' is present but its applies_to_languages scope does not include the active language set ('java', 'python'). Add the active language to the artifact's applies_to_languages field, or remove the field to make it always-applicable."
+    source_path: ''
+    local_path: _LIBRARY/toolguide-javascript-supply-chain.md
+  - id: TOOLGUIDE:maven-review-checks
+    kind: toolguide
+    title: Maven Review Checks
+    summary: "Catalog of automated checks a reviewer should run or verify have been run before approving Java code. Organized by category: compilation, tests, coverage, style, static analysis, architecture, security, and mutation testing.\n"
+    source_path: ''
+    local_path: _LIBRARY/toolguide-maven-review-checks.md
   - id: TOOLGUIDE:mermaid-diagramming
     kind: toolguide
     title: Mermaid Diagramming
@@ -1774,42 +1817,12 @@ catalog:
     summary: "Operator reference for SonarQube static analysis and its quality gate. Covers the four measure families (new-code coverage, code smells / maintainability, security hotspots and vulnerabilities, duplication), why the gate is evaluated on NEW code rather than the whole project, and the loopback-safe handling of a local Sonar or control-plane URL (do not force HTTPS on 127.0.0.1).\n"
     source_path: ''
     local_path: _LIBRARY/toolguide-sonar.md
-  - id: STYLEGUIDE:java-conventions
-    kind: styleguide
-    title: java-conventions
-    summary: Definition unavailable in bundled doctrine.
-    source_path: ''
-    local_path: _LIBRARY/styleguide-java-conventions.md
-  - id: TOOLGUIDE:maven-review-checks
-    kind: toolguide
-    title: maven-review-checks
-    summary: Definition unavailable in bundled doctrine.
-    source_path: ''
-    local_path: _LIBRARY/toolguide-maven-review-checks.md
   - id: TOOLGUIDE:typescript-mutation-tools
     kind: toolguide
     title: typescript-mutation-tools
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Definition unavailable in bundled doctrine. Reason: scope_filtered — artifact 'typescript-mutation-tools' is present but its applies_to_languages scope does not include the active language set ('java', 'python'). Add the active language to the artifact's applies_to_languages field, or remove the field to make it always-applicable."
     source_path: ''
     local_path: _LIBRARY/toolguide-typescript-mutation-tools.md
-  - id: AGENT_PROFILE:frontend-freddy
-    kind: agent_profile
-    title: frontend-freddy
-    summary: Definition unavailable in bundled doctrine.
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-frontend-freddy.md
-  - id: AGENT_PROFILE:java-jenny
-    kind: agent_profile
-    title: java-jenny
-    summary: Definition unavailable in bundled doctrine.
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-java-jenny.md
-  - id: AGENT_PROFILE:node-norris
-    kind: agent_profile
-    title: node-norris
-    summary: Definition unavailable in bundled doctrine.
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-node-norris.md
   - id: USER:PROJECT_PROFILE
     kind: user_profile
     title: User Project Profile
@@ -1818,7 +1831,7 @@ catalog:
     local_path: _LIBRARY/user-project-profile.md
 overrides: {}
 metadata:
-  generated_at: '2026-09-28T16:28:05Z'
+  generated_at: '2026-10-06T12:11:11Z'
   bundle_schema_version: 2
 activated_directives:
 - 001-architectural-integrity-standard
@@ -1855,6 +1868,8 @@ activated_directives:
 - 052-prefer-durable-fixes
 - use-mutation-testing-to-validate-test-quality
 - 053-choose-op-or-mission-before-starting
+- 051-supply-chain-install-safety
+- disciplined-refactoring
 activated_tactics:
 - acceptance-test-first
 - adr-drafting-workflow
@@ -1966,6 +1981,8 @@ activated_tactics:
 - model-task-routing
 - op-or-mission-selection
 - bdd-scenario-formulation
+- acceptance-criteria-non-vacuity
+- supply-chain-install-safety
 activated_styleguides:
 - aggregate-design-rules
 - deployable-skill-authoring
@@ -2002,6 +2019,9 @@ activated_toolguides:
 - github-tracker
 - gherkin
 - sonar
+- java-supply-chain
+- javascript-supply-chain
+- python-supply-chain
 activated_paradigms:
 - atomic-design
 - behaviour-driven-development
@@ -2031,6 +2051,7 @@ activated_procedures:
 - mission-wrap-up-sequence
 - red-main-release-discipline
 - glossary-maintenance-workflow
+- development-assist-test-cleanup
 mission_type_activations:
 - software-dev
 - documentation
