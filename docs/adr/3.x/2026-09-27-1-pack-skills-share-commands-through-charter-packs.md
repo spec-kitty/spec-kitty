@@ -257,6 +257,22 @@ skill directories to document its proof. This flow acts only on what it can prov
   stops loading is refused instead of dropped, and the projection deletes nothing. Names that start with a reserved prefix, collide
   with a built-in skill name, or are not a single safe path segment are refused the same way.
 
+### Amendment 2026-10-06 (mission `skill-surface-upgrade-integrity-01M482Z3`)
+
+- **New finding kind `missing`.** `doctor skills` now reports a pack skill that is in force for a
+  configured tool that accepts skill files but is not installed, whether it was never projected or
+  its installed copy was deleted. Before, the health check could pass while the skill was absent.
+  The `drift`, `stale`, `orphaned` and `unresolvable` kinds are unchanged.
+- **`doctor skills --fix` projects missing skills.** It calls the same `project_pack_skills`
+  installer as `charter activate` and `upgrade`. The projected paths appear in `repaired_agents`.
+  `--fix` still never repairs `drift`.
+- **`no_tool_folder`.** When none of the configured agents' tool folders exists, `doctor skills`
+  fails and lists the finding under `tool_folders`.
+- **Upgrade pre-check.** `spec-kitty upgrade` uses the same findings function, so it also warns
+  `pack_skill_missing`.
+- **Rationale.** Issue #5801: the projection and the health check disagreed about what "installed"
+  means. Deferred: the installer verifier and the assessment surface still do not read `missing`.
+
 ### Consequences
 
 #### Positive

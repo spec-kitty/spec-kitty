@@ -3268,6 +3268,7 @@ pages:
     - {slug: "rendering-and-installation", text: "Rendering and installation", level: 3}
     - {slug: "namespaces-and-trust", text: "Namespaces and trust", level: 3}
     - {slug: "ownership-proof", text: "Ownership proof", level: 3}
+    - {slug: "amendment-2026-10-06-mission-skill-surface-upgrade-integrity-01m482z3", text: "Amendment 2026-10-06 (mission `skill-surface-upgrade-integrity-01M482Z3`)", level: 3}
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "delivery-slices", text: "Delivery slices", level: 2}

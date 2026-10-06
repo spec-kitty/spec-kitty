@@ -218,16 +218,23 @@ Things to know:
 spec-kitty doctor skills
 ```
 
-`doctor skills` exits 1 when it finds a problem with a pack skill. It reports four kinds of finding.
-The first three name the pack source file. With `--json`, the same findings appear in a `pack_skills`
+`doctor skills` exits 1 when it finds a problem with a pack skill. It reports five kinds of finding.
+The first four name the pack source file. With `--json`, the same findings appear in a `pack_skills`
 list. That key is additive: existing keys are unchanged.
 
 | Finding | What it means | What to do |
 | --- | --- | --- |
 | `drift` | Someone edited the rendered `SKILL.md`. Spec Kitty keeps the edited copy. | Make the change in the pack source file instead. To drop the local edit, delete the copied file and run `spec-kitty upgrade`. |
 | `stale` | The pack source changed after the copy was written. | Run `spec-kitty upgrade`. It refreshes the copy. |
+| `missing` | A pack skill is in force for a configured tool that accepts skill files, but it is not installed: it was never projected, or someone deleted the installed copy. | Run `spec-kitty doctor skills --fix`. It installs the copy. `--fix` lists each installed path under `repaired_agents` in the `--json` output. `--fix` never repairs `drift`: it keeps your edited copy. |
 | `orphaned` | The manifest lists a copy that the current pack no longer provides: the skill was removed or deactivated, or the namespace changed so the skill renders under a new name. | Run `spec-kitty upgrade` to retire the old copy, or activate the skill again. |
 | `unresolvable` | Spec Kitty could not resolve the pack skills in force, so it projected no pack skill and checked no installed copy for staleness or orphaning. The message gives the reason: a missing or invalid `skill_namespace`, a pack that does not load, two packs with the same skill id. | Fix the cause the message names, then run `spec-kitty doctor skills` again. |
+
+`doctor skills` also fails with a `no_tool_folder` finding when none of the tool folders your
+configured agents use exists (for example, no `.claude/` directory at all). The `--json` output lists it
+under a `tool_folders` key, with a `message` that names the folders. Run `spec-kitty upgrade` to recreate
+the configured folders, or `spec-kitty agent config remove <agent>` to drop a tool you no longer use.
+`spec-kitty upgrade` also warns `pack_skill_missing` for a skill in force that is not installed.
 
 The rendered file is read-only by default. Edit the pack source, not the copy.
 
