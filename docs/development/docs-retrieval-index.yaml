@@ -10888,6 +10888,7 @@ pages:
     abstract: "Prepare a Claude Code cloud session so the Spec Kitty CLI, the test package and CodeGraph are ready before you run a Mission or an Op."
     anchors:
     - {slug: "step-1-add-the-environment-setup-script", text: "Step 1: Add the environment setup script", level: 2}
+    - {slug: "optional-environment-variables", text: "Optional: environment variables", level: 3}
     - {slug: "step-2-run-the-repository-script-in-each-session", text: "Step 2: Run the repository script in each session", level: 2}
     - {slug: "why-this-is-not-a-committed-sessionstart-hook", text: "Why this is not a committed SessionStart hook", level: 3}
     - {slug: "step-3-check-the-result", text: "Step 3: Check the result", level: 2}

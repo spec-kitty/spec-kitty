@@ -41,6 +41,52 @@ The `codegraph install` line has not been tested end to end, so it ends in
 `|| true`: a failure there does not stop the container build. If the CodeGraph
 tools are missing later, see [Troubleshooting](#troubleshooting).
 
+### Optional: environment variables
+
+In the same environment settings, under **Environment variables**, you can set:
+
+```
+PWHEADLESS=1
+CODEGRAPH_TELEMETRY=0
+SPEC_KITTY_NO_NAG=1
+SPEC_KITTY_NO_UPGRADE_CHECK=1
+```
+
+- `PWHEADLESS=1` runs Playwright tests headless.
+- `CODEGRAPH_TELEMETRY=0` turns off CodeGraph usage reporting.
+- `SPEC_KITTY_NO_NAG=1` hides the "newer version on PyPI" banner. The CLI
+  comes from your checkout, so the banner does not apply.
+- `SPEC_KITTY_NO_UPGRADE_CHECK=1` skips the PyPI version check and its network
+  call.
+
+The repository script also sets the first two for each session. Setting them
+here makes them hold even when nobody runs the script.
+
+Do not set these:
+
+- `SPEC_KITTY_SKIP_PRE_REVIEW_GATE`: it bypasses a governance gate.
+- `SPEC_KITTY_RUN_P0_REPRO` or `SPEC_KITTY_RUN_QUARANTINE`: they add test
+  suites that are expected to fail.
+- `SPEC_KITTY_ENABLE_SAAS_SYNC`: it is left over from the retired sync
+  transport and does nothing.
+
+#### What `SPEC_KITTY_NON_INTERACTIVE` does
+
+This page does not recommend a value for `SPEC_KITTY_NON_INTERACTIVE`. It
+controls whether spec-kitty may stop and wait for a person to answer a prompt,
+such as a confirmation or an interview question. The CLI decides in this order
+(`is_interactive()` in `src/specify_cli/core/env.py`):
+
+1. `SPEC_KITTY_FORCE_INTERACTIVE` set to a true value: prompts are allowed.
+2. `SPEC_KITTY_NON_INTERACTIVE` set to a true value: prompts are skipped.
+3. Otherwise, prompts are allowed only when stdin is a terminal.
+
+Setting `SPEC_KITTY_NON_INTERACTIVE=0` is the same as leaving it unset, so the
+CLI falls through to the terminal check. Commands an agent runs in a cloud
+session usually have no terminal on stdin, so prompts are skipped there either
+way. Forcing prompts on with `SPEC_KITTY_FORCE_INTERACTIVE=1` in an agent
+session can make a command wait forever, because nobody can type an answer.
+
 ## Step 2: Run the repository script in each session
 
 From the repository root:
