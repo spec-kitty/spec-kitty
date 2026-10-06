@@ -112,21 +112,11 @@ def _live_doc_scan_targets() -> list[tuple[Path, str]]:
     for path_pattern in AGENT_DOC_GLOBS:
         for path in _glob(path_pattern):
             relative_path = path.relative_to(REPO_ROOT).as_posix()
-            # docs/migrations/, docs/adr/, the relocated archival sub-areas of
-            # docs/plans/, and docs/reports/ are historical/immutable surfaces,
-            # not live first-party docs (docs/adr/ holds byte-invariant ADR
-            # records; docs/reports/ holds dated point-in-time snapshots --
-            # see FORBIDDEN_SCAN_ROOTS above).
-            if relative_path.startswith(
-                (
-                    "docs/migrations/",
-                    "docs/adr/",
-                    "docs/archive/",
-                    "docs/plans/engineering-notes/",
-                    "docs/plans/initiatives/",
-                    "docs/reports/",
-                )
-            ):
+            # Historical/immutable surfaces (docs/migrations/, docs/adr/, docs/archive/,
+            # the archival sub-areas of docs/plans/, docs/reports/) are not live
+            # first-party docs; their roots are FORBIDDEN_SCAN_ROOTS (see
+            # tests/_support/terminology_scope.py for the rationale of each).
+            if relative_path.startswith(FORBIDDEN_SCAN_ROOTS):
                 continue
             # The relocated canonical CHANGELOG is handled like root CHANGELOG.md
             # below (only the Unreleased section is scanned; historical version
@@ -568,7 +558,7 @@ def test_no_feature_alias_in_internal_command_cluster() -> None:
 
 @pytest.mark.fast
 def test_terminology_exemption_policy_doc_is_present_and_consistent() -> None:
-    """The exemption policy doc exists, is referenced from this file, and covers all five exemptions.
+    """The exemption policy doc exists, is referenced from this file, and covers every exemption.
 
     Confirms that the policy rationale captured in the comment above
     FORBIDDEN_SCAN_ROOTS is also reflected in a human-readable policy document,
@@ -590,19 +580,14 @@ def test_terminology_exemption_policy_doc_is_present_and_consistent() -> None:
         "Authority: FR-013. The link must appear in the guard test itself."
     )
 
-    # The policy doc must cover ALL five exempt surfaces in FORBIDDEN_SCAN_ROOTS.
-    # Each token is a substring that must appear in the document to confirm
-    # coverage — keeps the doc honest if a future exemption is added/dropped.
+    # The policy doc must cover EVERY docs/ exempt root in FORBIDDEN_SCAN_ROOTS
+    # (plus the Unreleased-only CHANGELOG scan). Each token is a substring that
+    # must appear in the document to confirm coverage -- derived from the shared
+    # list so a newly exempted root cannot be left undocumented.
     policy_content = policy_doc.read_text(encoding="utf-8")
-    required_tokens = (
-        "docs/adr/",
-        "docs/migrations/",
-        "docs/plans/engineering-notes/",
-        "docs/reports/",
-        "Unreleased",
-    )
+    required_tokens = (*(root for root in FORBIDDEN_SCAN_ROOTS if root.startswith("docs/")), "Unreleased")
     for token in required_tokens:
         assert token in policy_content, (
             f"docs/development/terminology-exemptions.md must contain exemption token {token!r}. "
-            "Authority: FR-013. All five exempt surfaces must be documented."
+            "Authority: FR-013. Every exempt surface must be documented."
         )

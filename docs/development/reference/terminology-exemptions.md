@@ -1,6 +1,6 @@
 ---
 title: Terminology Guard Exemption Policy
-description: "Policy for the five surfaces exempt from spec-kitty terminology guards: ADRs, migrations, archival plans, dated reports and the Unreleased-only CHANGELOG scan."
+description: "Policy for the six surfaces exempt from spec-kitty terminology guards: ADRs, migrations, the retired-page archive, archival plans, dated reports and the Unreleased-only CHANGELOG scan."
 doc_status: active
 updated: '2026-10-06'
 audience: docs/context/audience/internal/maintainer.md
@@ -30,7 +30,7 @@ doctrine skills, and live documentation — stay aligned with the canonical
 vocabulary. They scan live surfaces only; surfaces that are historical records or
 archival snapshots are deliberately out of scope.
 
-Five categories of surfaces are currently exempt from the live-doc component of
+Six categories of surfaces are currently exempt from the live-doc component of
 the guards. Each is described below.
 
 ---
@@ -215,6 +215,31 @@ silently kept.
 
 ---
 
+## Exempt Surface 6: `docs/archive/` — Retired Pages
+
+### What is excluded
+
+All files under `docs/archive/` are excluded from the live-doc scan in
+`_live_doc_scan_targets()` in `tests/contract/test_terminology_guards.py`
+(`FORBIDDEN_SCAN_ROOTS`).
+
+### Why it is exempt
+
+`docs/archive/` holds pages retired from the live tree and relocated here by
+#5428 ("archive retired pages and neutralize 3.x-anchored names"). They are
+immutable historical snapshots that legitimately retain era-correct wording
+(`--feature`, the main-centric workflow), exactly like `docs/adr/`; the
+Terminology Canon permits legacy wording in explicitly archived artifacts. The
+relocation did not exempt the new root at first, so the scan began flagging
+archived initiative records; #5488 restored the exemption.
+
+### Scope boundary
+
+Only `docs/archive/` is exempt. All other live `docs/` pages remain fully
+scanned.
+
+---
+
 ## Shared Exempt-Root List and the Operator-Surface Gates
 
 The exempt roots above are one list, `FORBIDDEN_SCAN_ROOTS` in
@@ -237,7 +262,7 @@ for the reason given:
 | `docs/changelog/` (both gates) | both | A changelog entry's **Before** quotes the old key or command. The live-doc guard's Unreleased-only scan does not fit here, because the Unreleased section is exactly where those Before quotes live. |
 | `docs/plans/` | migrated-command gate | Plans and design reviews record how past work was planned and delivered (for example a work-package row recording that it added a subcommand to the `doctrine` group). Rewriting a delivered work package's command would falsify the record. |
 | `docs/api/cli-commands.md`, `docs/development/docs-retrieval-index.yaml` | migrated-command gate | Generated outputs: they regenerate from the CLI's help text and from the docs they index. |
-| Python docstrings and comments | migrated-command gate | They describe code, including the deprecated group itself; they do not instruct an operator. Every other string literal in `src/` is scanned. |
+| Python docstrings and comments | migrated-command gate | They describe code, including the deprecated group itself; they do not instruct an operator. The exception is the docstring of a callback registered as a `charter` command or group: Typer prints it as that command's `--help`, so it is scanned. Every other string literal in `src/` is scanned. |
 
 ## Invariant: Exemptions Must Stay Narrow
 
