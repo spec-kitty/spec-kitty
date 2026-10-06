@@ -99,12 +99,11 @@ def merge_driver_meta(
     ours_path: str = typer.Argument(..., metavar="OURS"),
     theirs_path: str = typer.Argument(..., metavar="THEIRS"),
 ) -> None:
-    """Field-merge conflicting ``meta.json`` blobs; write result to ``ours``.
-
-    Base-aware (reads ``%O``) unless the consolidation pipeline's squash set
-    ``META_DRIVER_TWO_WAY_ENV=1`` (#5460). The environment is read here, in the
-    shell, never in the driver body.
-    """
+    """Field-merge conflicting ``meta.json`` blobs; write result to ``ours``."""
+    # Base-aware (reads ``%O``) unless the consolidation pipeline's squash set the
+    # two-way opt-out variable (#5460). The environment is read here, in the shell,
+    # never in the driver body. Kept as a comment, not docstring text: the docstring
+    # is the command's help and is pinned by the committed completion manifest.
     two_way = os.environ.get(META_DRIVER_TWO_WAY_ENV) == "1"
     _run(partial(run_meta_driver, two_way=two_way), base_path, ours_path, theirs_path)
 
