@@ -373,6 +373,37 @@ def test_run_retrospective_learning_capture_reraises_when_blocking(
         )
 
 
+@pytest.mark.parametrize(("block_on_failure", "raises"), [(False, False), (True, True)], ids=["best-effort", "blocking"])
+def test_run_retrospective_learning_capture_treats_a_callback_build_failure_like_a_capture_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, block_on_failure: bool, raises: bool
+) -> None:
+    """A failure while building the capture (e.g. a broken late import) follows the policy (#2562 pre-PR squad).
+
+    The best-effort capture runs after the run is already terminal; letting this
+    raise turned a completed advance into a false ``blocked`` Decision.
+    """
+
+    def _raising_builder(**_kw: Any) -> Any:
+        raise ImportError("retrospective writer unavailable")
+
+    monkeypatch.setattr(retro, "_build_retrospective_facilitator_callback", _raising_builder)
+
+    def _capture() -> None:
+        retro._run_retrospective_learning_capture(
+            mission_id="m",
+            mission_slug="s",
+            feature_dir=tmp_path,
+            repo_root=tmp_path,
+            block_on_failure=block_on_failure,
+        )
+
+    if raises:
+        with pytest.raises(ImportError, match="retrospective writer unavailable"):
+            _capture()
+    else:
+        _capture()
+
+
 # ---------------------------------------------------------------------------
 # 1h/2. _build_retrospective_facilitator_callback / _facilitator -- behavior +
 # intra-module patch point for _classify_and_emit_failure
