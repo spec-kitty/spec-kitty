@@ -78,6 +78,10 @@ pyproject.local.toml
 .kittify/logs/
 # Per-machine skill install ledger (timestamps, hashes, delivery_mode) — #2412.
 .kittify/skills-manifest.json
+# Per-machine command-skill install ledger. It records hashes of the generated
+# files under .agents/skills/, which are ignored below and rewritten by every
+# `spec-kitty upgrade`; a tracked copy goes stale and turns `doctor skills` red.
+.kittify/command-skills-manifest.json
 
 # Local performance cache; durable Op records live in kitty-ops/<op-id>.jsonl.
 kitty-ops/ops-index.jsonl
