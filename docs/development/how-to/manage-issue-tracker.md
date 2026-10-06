@@ -2,7 +2,7 @@
 title: Managing the Issue Tracker
 description: 'Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, sub-issue parenting, dependencies, triage, the label taxonomy, and the label-driven fleet workflow.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-06'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -237,6 +237,24 @@ carry real blast radius despite being a good entry point), require maintainer
 concurrence on the chosen approach **before** implementation — normal PR review
 then covers the rest.
 
+### Running a triage pass over a batch of issues
+
+A maintainer pass over a batch of open issues (by default those created in the last
+7 days) is run by the `issue-triage-pass` procedure, which the `issue-triage` pack skill
+starts. The orchestrator fixes the work list and the code baseline, dispatches triage
+subagents that load the `planner-priti` profile, re-checks every issue before each write,
+and puts the flagged items to the operator. The rules above are what each subagent
+applies. Three points are easy to miss:
+
+- **Never set `priority:P0` in a pass.** Name the criterion the issue meets and flag
+  it; escalation is the operator's decision.
+- **Do not touch `status:*`, `squad:*` or `needs:*` labels.** The fleet owns them as
+  leases and queue state (see [Label-driven fleet workflow](#label-driven-fleet-workflow)).
+  Report one that looks stale.
+- **Check liveness against the canonical remote.** Judge "still exists" or "already
+  shipped" against `main` of `spec-kitty/spec-kitty`, fetched now, not a fork's
+  `origin/main`, which can lag far behind.
+
 ## Milestones and release cycles
 
 Milestones carry release scope; labels carry kind, priority, and domain. The
@@ -403,6 +421,10 @@ handshake; the rest are workflow state.
   scope or to work whose tests have not run — the label is the fleet's contract that the
   PR is finished and independently testable. See
   [The `ready-for-squad` handshake](../agent-fleet.md#the-ready-for-squad-handshake).
+- `pr:p0-repro` — the PR lands the red-first reproduction test for a confirmed open
+  P0 `Bug`. Reference the issue with `Refs #<n>`, not `Closes`, and mark the test
+  `@pytest.mark.p0_repro(issue=<n>)` (see
+  [A P0 bug should carry a failing reproduction test](#a-p0-bug-should-carry-a-failing-reproduction-test)).
 - `pr:needs-refresh` — PR branch drifted from `main`; rebase/refresh before review
   or merge.
 - `pr:needs-revision` — PR has unresolved review findings that must be addressed

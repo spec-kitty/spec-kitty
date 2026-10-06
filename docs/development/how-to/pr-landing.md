@@ -2,7 +2,7 @@
 title: 'Landing Contributor PRs: The Maintainer Runbook'
 description: 'The maintainer workflow for landing contributor PRs: claim, worktree isolation, rebase, red classification, folds, red-first verification, push discipline, and hand-off.'
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-06'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -42,6 +42,57 @@ re-deriving the adjudication. The maintainer never merges
 10. [Post the remediation summary](#10-post-the-remediation-summary)
 11. [Hand-off — the operator merges](#11-hand-off--the-operator-merges)
 12. [Follow-up hygiene](#12-follow-up-hygiene)
+
+## Before you claim: check the PR is handed off and worth landing
+
+Start with two read-only checks.
+
+**Is it handed off?** A new PR is opened as a draft, followed, fixed to green, and
+then flipped to "ready for review". The flip is the hand-off to the maintainers: it
+signals that a landing pass is safe to start. A draft PR is not handed off. Run
+`gh pr view <N> --repo spec-kitty/spec-kitty --json isDraft,author,statusCheckRollup`;
+if `isDraft` is true, stop, tell the operator that the PR is still a draft (with its
+author and CI state), and rebase, push or comment only after an explicit go-ahead.
+
+**Is it worth landing?** Size the PR on two axes: old (its base is far behind
+`main`, an aging contributor branch) and substantive (a capability, a fix or a
+contract change, as opposed to a version bump, a dependency pin, a regenerated file
+or a typo). When unsure, treat it as old and substantive.
+
+- **Old or substantive: run the full check.** Was the change already landed by
+  another PR or Mission (search the changelog, `git log -S` and the referenced
+  issues)? Does its approach still fit the current design, or did a seam it depends
+  on move? Does the problem still reproduce on current `main`? Post the result as a
+  PR comment, with evidence: **LAND** as is, **RESCOPE** (keep the durable part) or
+  **CLOSE** (superseded or moot). Continue only on LAND; otherwise report the
+  recommendation to the operator and wait for the answer.
+- **Recent and mechanical: run the short check.** Is the change accurate (correct and
+  coherent), desirable (actually wanted) and aligned with current conventions? If so,
+  record the LAND call in your first comment and continue.
+
+What you update at the end depends on the outcome. A RESCOPE gets a changelog entry
+for the kept part only; a CLOSE gets a closing rationale in the PR body instead of a
+changelog entry.
+
+### PRs prepared by the SkyKitty fleet
+
+A `squad:passed` label (see [the agent fleet](../agent-fleet.md)) means the fleet's
+review passed against the base the PR had at that time. It does not mean the PR is
+ready now. After the rebase:
+
+- **Regenerate stale generated surfaces.** Run
+  `uv run python -m scripts.docs.check_docs_freshness --ci` to see which one is
+  stale, and regenerate it with its own script, for example
+  `uv run python -m scripts.docs.docs_index --write` (docs retrieval index) and
+  `uv run python -m scripts.docs.freshen_adr_inventory` (ADR and page inventory). A
+  command that another PR added after this branch's base is missing from them and
+  reds the freshness gates although nothing in the diff is wrong. This is part of
+  landing, not scope creep.
+- **Fix the fleet's follow-up issues.** The fleet files its smaller findings as
+  separate issues that reference the PR. Search for them
+  (`gh issue list --repo spec-kitty/spec-kitty --search "#<N>"`, plus the PR's own
+  comments), fix each one in this landing (or at least make the PR-body correction it
+  asks for), and add `Closes #<n>` to the PR body next to the PR's own issue line.
 
 ## 1. Claim before touching
 
@@ -316,6 +367,23 @@ changes. That is not the target. When landing a contributor PR:
 This governs the *contributor's* commits. Landing folds (above) are always
 their own single-purpose `<type>(landing): ...` commits regardless.
 
+### Regroup a very long history
+
+For a very long history of status churn, tracer files and review artifacts, rebuild a
+clean few-commit shape instead of replaying every commit. Branch off the current
+`main`, run `git merge --squash <pr-branch>` (it integrates the branch and resolves
+conflicts once, all staged), commit a snapshot, then `git reset --mixed <main>` and
+re-commit logical path groups: the code as reviewable commits plus one consolidated
+`chore(mission)` commit for everything under `kitty-specs/**`. The one guarantee
+before you force-push is that the rebuilt tree is byte-identical to the old head
+(`git rev-parse HEAD^{tree}` equal, `git diff <old> <new>` empty). Keep the
+contributor's authorship on their commits; maintainer landing fixes are separate,
+maintainer-authored commits on top.
+
+The merge bar is the PR head going green, not each commit: an intermediate commit may
+fail a gate that only reconciles at the tip (a regenerated docs index, say). Do not
+rewrite history only to make every commit green.
+
 ## 6. Red-first verification for bugfix PRs
 
 A fix whose test is green before and after the fix captures nothing. Prove
@@ -440,6 +508,11 @@ Mechanics that make a parallel pass work, learned on 2026-08-04 (24+ folds,
   reason is worth more than one marked `pass` without proof.
 
 ## 9. Push discipline
+
+SSH is the preferred transport to GitHub, including for a force-push with lease:
+use an SSH remote by default. Never push to `main`. If a permission prompt or safety
+classifier refuses a push that follows these rules, stop and hand the push to the
+operator.
 
 Before any force-push to a fork branch, check for commits you have not seen —
 Copilot-review commits and parallel-session commits get cherry-picked, never
@@ -602,20 +675,19 @@ been fixed, the end-state is stated instead of the trap.
   along with its body). Prove the assertion is wrong *before* changing it, by
   showing the expected behaviour genuinely changed. If the test is right, fix
   the product even when that is the larger job.
-- **`scripts/` invocations need `PYTHONPATH=.`.** The docs scripts import
-  `scripts.docs.*` as a package; without it they crash with
-  `ModuleNotFoundError: scripts`:
+- **Run doc scripts as modules.** The docs scripts import `scripts.docs.*` as a
+  package; run `uv run python -m scripts.docs.<x>`, never the bare
+  `scripts/docs/<x>.py` path, which crashes with `ModuleNotFoundError: scripts`:
 
   ```bash
-  PYTHONPATH=. uv run python scripts/docs/check_docs_freshness.py --ci
+  uv run python -m scripts.docs.check_docs_freshness --ci
   ```
 
-- **`build_cli_reference.py` defaults to the wrong output path.** Its
-  defaults write `docs/reference/`, while the live canonical reference is
-  `docs/api/cli-commands.md`. Always pass the outputs explicitly:
+- **Regenerating the CLI reference.** The canonical reference is
+  `docs/api/cli-commands.md`; pass the outputs explicitly:
 
   ```bash
-  PYTHONPATH=. uv run python scripts/docs/build_cli_reference.py \
+  uv run python -m scripts.docs.build_cli_reference \
     --output docs/api/cli-commands.md \
     --agent-output docs/api/agent-subcommands.md
   ```
@@ -653,6 +725,31 @@ been fixed, the end-state is stated instead of the trap.
   correct place to overturn a frozen snapshot's stale claims. Reproduce the gate
   locally before pushing any fold that touches `kitty-specs/**`.
 
+- **A script that only a post-merge workflow runs is not exercised by PR CI.**
+  `ci-aggregate.yml` is `workflow_run`-triggered. It runs for pull requests too, but
+  from the default-branch checkout, so a PR's change to that workflow, or to a
+  `scripts/ci/*` file it calls, is first exercised after the merge, and its check
+  does not attach to the PR head. When a PR edits such a script, run it the way the
+  workflow does before merge: `python3 scripts/ci/<name>.py` from the repository root
+  with `PYTHONPATH` unset, and confirm it starts. A direct-run script must insert the
+  repository root on `sys.path` before importing `scripts.*` or `kernel.*` (see
+  `scripts/ci/select_source_artifacts.py`). Add a test that runs it as a subprocess.
+- **Formatting an excluded file is a companion change.** `[tool.ruff.format].exclude`
+  in `pyproject.toml` is a shrink-only list of files with formatter debt. Format only
+  with `uv run --frozen ruff format --force-exclude <files>` (or check with
+  `make format-check-files FILES=<paths>`). If you deliberately format a listed file
+  clean, its entry is stale: remove it in the same commit, and run
+  `tests/architectural/test_ruff_format_exclude_ratchet.py` after the reformat, not
+  only before. A whole-repo `ruff format --check .` skips excluded files, so it does
+  not catch the stale entry.
+- **Docs checks that fail only in CI.** The frontmatter `description` must be 50 to
+  180 characters (`uv run python -m scripts.docs.description_length_check`), and a
+  changelog entry over 1,200 characters fails `tests/docs/test_changelog_style.py`.
+  Re-run `docs_index --write` after you edit a description again, since the retrieval
+  index stores it. A new ADR for a governance or process decision goes in
+  `docs/adr/4.x/YYYY-MM-DD-N-<slug>.md` with status Accepted; check the day's highest
+  `-N-` on `main` first. Markdownlint is advisory in CI, so do not spend landing time
+  on a file's pre-existing findings.
 ## PR-body contract
 
 Spec Kitty PRs use a fixed body shape; an ad-hoc body (Summary/Changes/Why/…) draws a

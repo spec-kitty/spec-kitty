@@ -10983,6 +10983,7 @@ pages:
     - {slug: "priority-and-what-makes-a-p0", text: "Priority, and what makes a P0", level: 3}
     - {slug: "a-p0-bug-should-carry-a-failing-reproduction-test", text: "A P0 bug should carry a failing reproduction test", level: 3}
     - {slug: "what-good-first-issue-means-here", text: "What \"good first issue\" means here", level: 3}
+    - {slug: "running-a-triage-pass-over-a-batch-of-issues", text: "Running a triage pass over a batch of issues", level: 3}
     - {slug: "milestones-and-release-cycles", text: "Milestones and release cycles", level: 2}
     - {slug: "label-taxonomy", text: "Label taxonomy", level: 2}
     - {slug: "classification-labels-what-kind-of-work-it-is", text: "Classification labels — what *kind of work* it is", level: 3}
@@ -11003,6 +11004,8 @@ pages:
     abstract: "The maintainer workflow for landing contributor PRs: claim, worktree isolation, rebase, red classification, folds, red-first verification, push discipline, and hand-off."
     anchors:
     - {slug: "the-workflow-at-a-glance", text: "The workflow at a glance", level: 2}
+    - {slug: "before-you-claim-check-the-pr-is-handed-off-and-worth-landing", text: "Before you claim: check the PR is handed off and worth landing", level: 2}
+    - {slug: "prs-prepared-by-the-skykitty-fleet", text: "PRs prepared by the SkyKitty fleet", level: 3}
     - {slug: "1-claim-before-touching", text: "1. Claim before touching", level: 2}
     - {slug: "2-one-isolated-worktree-per-pr", text: "2. One isolated worktree per PR", level: 2}
     - {slug: "3-rebase-onto-current-upstream-main-first", text: "3. Rebase onto current upstream/main first", level: 2}
@@ -11011,6 +11014,7 @@ pages:
     - {slug: "stale-stack-diagnostic-two-dot-vs-three-dot-diff", text: "Stale-stack diagnostic: two-dot vs three-dot diff", level: 3}
     - {slug: "5-folds-remediation-commits-on-the-contributor-branch", text: "5. Folds: remediation commits on the contributor branch", level: 2}
     - {slug: "clean-history-compress-bookkeeping-keep-code-separate", text: "Clean history: compress bookkeeping, keep code separate", level: 3}
+    - {slug: "regroup-a-very-long-history", text: "Regroup a very long history", level: 3}
     - {slug: "6-red-first-verification-for-bugfix-prs", text: "6. Red-first verification for bugfix PRs", level: 2}
     - {slug: "7-review-focus-areas-beyond-ci", text: "7. Review focus areas beyond CI", level: 2}
     - {slug: "8-adversarial-squad-for-architectural-or-api-surface-prs", text: "8. Adversarial squad for architectural or API-surface PRs", level: 2}

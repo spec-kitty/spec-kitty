@@ -21,16 +21,23 @@ It is loaded as an **org-tier** pack (registered in `.kittify/config.yaml` under
 
 ```
 packs/internal/
-├── org-charter.yaml                                 # pack name + required_* activation lists
+├── org-charter.yaml                                 # pack name, skill_namespace (kitty) + required_* activation lists
 ├── drg/fragment.yaml                                # SINGLE DRG fragment (org tier), not sharded *.graph.yaml;
 │                                                    #   declares every node and edge below
 ├── directives/
 │   ├── operator-signal-contract.directive.yaml      # OPERATOR_SIGNAL_CONTRACT — a path that decides must also signal
 │   └── no-full-heavy-suites-in-mission.directive.yaml  # NO_FULL_HEAVY_SUITES_IN_MISSION — no full architectural/e2e/perf/test-full runs during mission work
+├── skills/
+│   ├── land-pr.skill.yaml                           # kitty-land-pr: thin entry point to landing-contributor-prs
+│   ├── issue-triage.skill.yaml                      # kitty-issue-triage: thin entry point to issue-triage-pass
+│   ├── mission-from-issue.skill.yaml                # kitty-mission-from-issue: thin entry point to issue-to-mission-delivery
+│   └── *.skill.md                                   # their prompt bodies (goal, inputs, ordered pointers, stop conditions)
 ├── glossary_packs/
 │   └── spk-internal.glossary-pack.yaml              # spk-internal-glossary — maintainer/engineering glossary
 ├── procedures/
-│   ├── landing-contributor-prs.procedure.yaml       # maintainer PR-landing runbook
+│   ├── landing-contributor-prs.procedure.yaml       # maintainer PR-landing runbook (behind kitty-land-pr)
+│   ├── issue-triage-pass.procedure.yaml             # orchestrated batch triage of open issues (behind kitty-issue-triage)
+│   ├── issue-to-mission-delivery.procedure.yaml     # issues to a green, ready-for-review PR (behind kitty-mission-from-issue)
 │   ├── memory-curation-and-escalation.procedure.yaml  # agent-memory curation and escalation
 │   ├── project-evolution-postmortem.procedure.yaml  # cycle postmortem: research squads + branded report
 │   ├── test-suite-quality-assessment.procedure.yaml # static triage, domain review squads, shrink-only follow-through
@@ -76,6 +83,17 @@ asset, and it `suggests` the built-in test doctrine it applies
 (`test-desiderata-and-boundaries`, `testing-principles`, `DIRECTIVE_041`,
 `development-assist-test-cleanup`, `adversarial-squad-deployment`). Kick off a
 run with `make test-quality-scan`.
+
+## Pack skills
+
+The three skills in `skills/` are the team-shared maintainer commands. Each is a thin
+entry point that carries no doctrine of its own: a `requires` edge in
+`drg/fragment.yaml` points it at the procedure that holds the rules, and the rendered
+`SKILL.md` tells the agent to load that procedure with
+`spec-kitty charter context --include <urn>`. The namespace is `kitty`, so they
+render as `kitty-land-pr`, `kitty-issue-triage` and `kitty-mission-from-issue`, and
+`required_skills` puts all three in force for every project that registers this pack.
+See [Create and activate a pack skill](../../docs/development/how-to/create-a-pack-skill.md).
 
 ## Reference, don't duplicate
 
