@@ -106,7 +106,7 @@ def _python_offenders(source: str) -> list[tuple[int, str]]:
     found: list[tuple[int, str]] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in docstrings:
-            found.extend((node.lineno + offset, token) for offset, token in _offenders(node.value))
+            found.extend((node.lineno + offset - 1, token) for offset, token in _offenders(node.value))
     return found
 
 
@@ -152,4 +152,4 @@ def test_gate_flags_a_planted_python_message_but_not_a_docstring() -> None:
         '    """Mirrors ``spec-kitty doctrine validate`` for the deprecated group."""\n'
         '    return f"Run spec-kitty doctrine validate {path} to confirm."\n'
     )
-    assert [token for _, token in _python_offenders(source)] == ["spec-kitty doctrine validate"]
+    assert _python_offenders(source) == [(3, "spec-kitty doctrine validate")]
