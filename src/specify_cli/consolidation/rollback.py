@@ -764,6 +764,13 @@ def _resync_kept_coord_checkout(repo_root: Path, state: ConsolidationState, outc
     is discarded; any other change refuses the resync and the checkout is left
     as found. The committed strand stays, recorded by the reconcile marker.
 
+    Residue is decided by ``is_toolchain_generated_churn``, which counts
+    ``kitty-specs/*/status.events.jsonl`` and ``status.json`` as residue. An
+    uncommitted status-log line in the checkout (for example from an interrupted
+    write) is therefore reset with the rest. Those bytes were already overwritten
+    by the rollback's own byte-restore, so no operator-authored work is lost, but
+    the reset is silent. The predicate is deliberately unchanged.
+
     Returns the reason the checkout was left as found, or ``None``.
     """
     coord_ref = state.pre_mutation_coord_ref

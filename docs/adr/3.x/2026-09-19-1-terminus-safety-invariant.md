@@ -339,7 +339,13 @@ names one teardown refusal.
     status-write guard refuses on them, the rollback does not clean them.~~ Closed by #5638:
     `rollback_to_snapshot` brings the checkout of a coordination branch it leaves in place
     back to that branch's tip (`ref_advance.resync_checkouts_to_tip`, toolchain residue only);
-    the guard stays as the backstop.
+    the guard stays as the backstop. A non-residue edit in that checkout refuses the resync;
+    the report then names the change and the remedy (commit or stash it, re-run `--resume` or
+    `--abort`). Residue is `is_toolchain_generated_churn`, which counts
+    `kitty-specs/*/status.events.jsonl` and `status.json`: an uncommitted status-log line there
+    (for example from an interrupted write) is reset by the resync. Those bytes were already
+    overwritten by the rollback's own byte-restore, so no operator-authored work is lost, but
+    the reset is silent. The predicate is unchanged.
   - Lane-branch deletes still use `git branch -D`.
   - A corrupt `state.json` falls back to the generic dirty-checkout advice.
   - The repository root checkout with a lag plus an operator edit keeps the stock "Commit,
