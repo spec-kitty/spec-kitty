@@ -111,9 +111,9 @@ def test_load_feature_runs_of_a_missing_index_is_empty(tmp_path: Path) -> None:
 
 
 def test_build_run_ref_defaults_to_the_current_run_ref_class() -> None:
-    ref = runtime_bridge_io._build_run_ref(run_id="r1", run_dir="/tmp/r1", mission_type=_MISSION_TYPE)
+    ref = runtime_bridge_io._build_run_ref(run_id="r1", run_dir="runs/r1", mission_type=_MISSION_TYPE)
     assert isinstance(ref, MissionRunRef)
-    assert (ref.run_id, ref.run_dir, ref.mission_key) == ("r1", "/tmp/r1", _MISSION_TYPE)
+    assert (ref.run_id, ref.run_dir, ref.mission_key) == ("r1", "runs/r1", _MISSION_TYPE)
 
 
 def test_build_run_ref_honours_an_explicit_run_ref_cls() -> None:
@@ -124,8 +124,8 @@ def test_build_run_ref_honours_an_explicit_run_ref_cls() -> None:
         calls.append(kwargs)
         return MissionRunRef(**kwargs)
 
-    ref = runtime_bridge_io._build_run_ref(run_id="r2", run_dir="/tmp/r2", mission_type=_MISSION_TYPE, run_ref_cls=factory)
-    assert calls == [{"run_id": "r2", "run_dir": "/tmp/r2", "mission_key": _MISSION_TYPE}]
+    ref = runtime_bridge_io._build_run_ref(run_id="r2", run_dir="runs/r2", mission_type=_MISSION_TYPE, run_ref_cls=factory)
+    assert calls == [{"run_id": "r2", "run_dir": "runs/r2", "mission_key": _MISSION_TYPE}]
     assert ref.run_id == "r2"
 
 
@@ -136,8 +136,8 @@ def test_build_run_ref_falls_back_to_the_legacy_mission_type_keyword() -> None:
         def __init__(self, *, run_id: str, run_dir: str, mission_type: str) -> None:
             seen.append({"run_id": run_id, "run_dir": run_dir, "mission_type": mission_type})
 
-    runtime_bridge_io._build_run_ref(run_id="r3", run_dir="/tmp/r3", mission_type=_MISSION_TYPE, run_ref_cls=cast("Any", LegacyRunRef))
-    assert seen == [{"run_id": "r3", "run_dir": "/tmp/r3", "mission_type": _MISSION_TYPE}]
+    runtime_bridge_io._build_run_ref(run_id="r3", run_dir="runs/r3", mission_type=_MISSION_TYPE, run_ref_cls=cast("Any", LegacyRunRef))
+    assert seen == [{"run_id": "r3", "run_dir": "runs/r3", "mission_type": _MISSION_TYPE}]
 
 
 # ---------------------------------------------------------------------------
