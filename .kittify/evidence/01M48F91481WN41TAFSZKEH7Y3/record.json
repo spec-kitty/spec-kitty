@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01M48F91481WN41TAFSZKEH7Y3",
+  "completed_at": "2026-10-06T12:01:21.248836+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "PR https://github.com/spec-kitty/spec-kitty/pull/5813 green on 0d537113"
+}
