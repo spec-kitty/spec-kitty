@@ -15,7 +15,7 @@ related:
 doctrine styleguide
 [`packs/internal/styleguides/executive-debrief.styleguide.yaml`](../../../packs/internal/styleguides/executive-debrief.styleguide.yaml).
 This page is that artifact's detailed layout, palette and print-treatment reference.
-**Applies to:** the reports produced by the `spk-report-debrief` skill — the
+**Applies to:** the reports produced by the `kitty-report-debrief` pack skill — the
 time-window "what landed since <T>" debrief and the milestone/label open-issue
 snapshot. One-pager examples: [`examples/`](examples/).
 
@@ -26,7 +26,7 @@ snapshot. One-pager examples: [`examples/`](examples/).
 | Use when | counts and a few labelled clusters answer the question | readers need a mechanism explained, a trend shown, or a decision prepared |
 | Length | 1 to 2 pages | about 5 to 12 pages |
 | Source | a slot object (JSON) | one Markdown file |
-| Renderer | `scripts/reporting/render_debrief.py` + `debrief_template.html`, printed with a headless browser | `packs/internal/assets/spec-kitty-branded-pdf.py` (pandoc + WeasyPrint) |
+| Renderer | `packs/internal/assets/debrief/render-debrief.py` + `debrief-template.html`, printed with a headless browser | `packs/internal/assets/spec-kitty-branded-pdf.py` (pandoc + WeasyPrint) |
 | Status shown by | pills and tiles | words and tables |
 | Reference check | the renderer fails closed on a `#ref` outside `valid_refs` | the writer checks every `#ref` against the collector output and the saved supplemental files |
 
@@ -118,7 +118,7 @@ files. A fact that was not saved does not go in.
 The look is taken from **`@spec-kitty/tokens`** in the sibling
 **`spec-kitty-design`** repo (the `packages/tokens` package, ADR-003
 `--sk-<category>-<name>` naming). The debrief template
-(`scripts/reporting/debrief_template.html`) inlines a **curated light-theme
+(`packs/internal/assets/debrief/debrief-template.html`) inlines a **curated light-theme
 subset** of those tokens; when a value here and a token there ever disagree,
 the token package wins — re-sync the subset, don't fork it.
 
@@ -183,9 +183,45 @@ so the dark-theme tokens are never used here.
 - Scale: title 40px, section heading 24px, tile number 34px, body 15px, lede
   17px, eyebrow/label 12px.
 
+## One-pager slot contract
+
+The one-pager's synthesis step produces exactly one JSON object, the slots the
+renderer fills into the template, and nothing else. Every `#NNNN` in any slot
+must appear in the collector's `valid_refs`; the renderer fails closed on any
+other. Meta-line values come from the collector's `meta`, tile numbers from its
+`metrics`, and `method` is copied from `meta.method` (extend it only with true
+caveats).
+
+```jsonc
+{
+  "eyebrow": "SPEC KITTY · EXECUTIVE OVERVIEW",
+  "title": "What landed since Friday morning",
+  "meta_line": "Window: … · main at <sha> · Repos: …",   // built from meta
+  "lede": "1–3 sentence synthesis of the window or scope.",
+  "tiles": [{"n": "47", "label": "pull requests merged", "class": ""},
+            {"n": "18", "label": "P0 issues still open", "class": "alert"}],
+  "highlights_heading": "The bottom line",                // or "Key takeaways"
+  "highlights": [{"pill": "SHIPPED", "pill_class": "shipped", "text": "…"},
+                 {"pill": "WATCH",   "pill_class": "watch",   "text": "…"}],
+  "body_heading": "What shipped, by theme",               // or "By cluster"
+  "sections": [{"title": "1. Protecting user work", "count": "8 PRs · 9 P0s",
+                "intro": "…", "items": [{"pill": "P0", "text": "…", "refs": "#5050"}]}],
+  "decisions_heading": "What's next and needs a decision", // window mode only
+  "decisions": [{"item": "…", "status": "PR OPEN", "owner": "Stijn"}],
+  "authors_line": "Stijn authored 40 of 46 engine PRs; …",
+  "method": "<copy meta.method verbatim>"
+}
+```
+
+The collector's JSON carries `meta` (mode, filters, `main_shas`, the generated
+`method` line), `metrics`, `authors`, `pull_requests`, `closed_issues`,
+`open_issues` and `valid_refs`. The template dialect is `{{ SLOT }}` for a
+scalar, `<!-- @each NAME -->` to repeat a block and `<!-- @if NAME -->` to keep
+one when the value is non-empty.
+
 ## One-pager layout grammar (fixed order)
 
-0. **Brand mark** — the Spec Kitty logo (`assets/logo.png`, mirrored from
+0. **Brand mark** — the Spec Kitty logo (`packs/internal/assets/debrief/logo.png`, mirrored from
    `@spec-kitty/tokens`) top-left, ~52px. The PNG carries a light baked
    background; `mix-blend-mode: multiply` dissolves it into the cream so only
    the line-art shows.

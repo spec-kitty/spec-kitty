@@ -44,12 +44,20 @@ steps:
     actor: agent
   - title: Collect the facts deterministically
     description: >
-      Run the collector (scripts/reporting/collect_debrief.py) in the chosen
-      mode with GITHUB_TOKEN unset so it uses the keyring token. It emits one
-      JSON document — metrics, authors, pull_requests, closed_issues,
-      open_issues, and valid_refs — which is the sole input to synthesis. Never
-      count by hand; the collector owns every number and every reference. If a
-      gh query fails, it fails closed; do not paper over a missing count.
+      Run the debrief collector asset (spec-kitty doctrine asset path
+      debrief-collector; packs/internal/assets/debrief/collect-debrief.py) in
+      the chosen mode with GITHUB_TOKEN unset so it uses the keyring token. Window
+      mode takes the repositories and a UTC range, for example `collect-debrief.py
+      window --repo spec-kitty/spec-kitty --since 2026-09-26T06:00:00Z --until
+      2026-09-28T05:50:00Z --out work/debrief.json`; scope mode takes a milestone,
+      label or query, for example `collect-debrief.py scope --repo
+      spec-kitty/spec-kitty --milestone 11 --out work/milestone.json`. Repeat
+      --repo for each repository. It emits one JSON document: meta (mode,
+      filters, main SHAs, a generated method line), metrics (the tiles), authors,
+      pull_requests, closed_issues, open_issues, and valid_refs (every #ref it
+      saw). That document is the sole input to synthesis. Never count by hand;
+      the collector owns every number and every reference. If a gh query fails,
+      it fails closed; do not paper over a missing count.
       A long-form debrief may need facts the collector does not return (open
       P0s, milestone counts, nightly runs, git statistics, file sizes). Read
       each with gh or git into a file under raw/ beside the collector output,
@@ -61,13 +69,25 @@ steps:
       reason in the Method footer rather than estimating it.
   - title: Synthesize
     description: >
-      Read only the collected files. Apply the customer-impact and
-      issue-valuation lenses and the executive-debrief styleguide: write the
-      lede, the tiles (from metrics), the SHIPPED/WATCH highlights, four-to-six
-      clustered sections, and — window mode: the decision table, release mode:
-      "what it takes to tag". Name the "silent and exit 0" class where it fits.
-      Every #ref written must be in the collector's valid_refs. That is the
-      one-pager's slot contract. For the long form, write one Markdown file in
+      Load the review context first: spec-kitty charter context --action
+      review --include agent-profile:synthesizer-sam --include
+      agent-profile:comms-cleo. Read only the collected files. Apply the
+      launch-blocker customer-impact lens (a release or MVP report foregrounds
+      defects that reach consumers and fail silently) and the issue-valuation
+      rubric (irreversibility, silence, blast radius), and the
+      executive-debrief styleguide: write the lede, the tiles (from metrics),
+      the SHIPPED/WATCH highlights, four-to-six clustered sections, and — window
+      mode: the decision table, release mode: "what it takes to tag". Name the
+      "silent and exit 0" class where it fits. Take author attribution from the
+      PR author field, never from a guess. Say "closed", not "fixed", for a
+      specific issue whose collected verified_fixed value is null (GitHub's
+      state_reason is not proof of a shipped fix). In scope mode, mark impact
+      tags as a preliminary read of each issue's own description until checked
+      against the code, and offer a research-squad verification pass before
+      dropping that caveat. Every #ref written must be in the collector's
+      valid_refs. For the one-pager, produce exactly the slot object documented
+      in docs/development/reporting/debrief-styleguide.md under "One-pager slot
+      contract", and nothing else. For the long form, write one Markdown file in
       the styleguide's order: executive summary (bottom line, headline table,
       what happened, what we need from leadership), lettered parts, open risks,
       appendix. Write the summary for the least technical named reader. Before
@@ -81,12 +101,18 @@ steps:
   - title: Render the branded PDF
     description: >
       One-pager: fill the debrief template with the renderer
-      (scripts/reporting/render_debrief.py), which enforces the ref-guard and
-      fails closed on any invented reference, then print to PDF with the
-      design-repo fonts and logo alongside. It uses its own structured renderer
+      (the debrief-renderer asset; packs/internal/assets/debrief/render-debrief.py
+      with --synthesis, --collector and --out), which enforces the ref-guard and
+      fails closed on any invented reference, then print the HTML to PDF with a
+      headless browser. The template, the logo and the Falling Sky fonts sit
+      beside the renderer in packs/internal/assets/debrief/ and the template
+      loads them by relative path, so keep them together when you copy the
+      template elsewhere. Do not restyle the template per report; the
+      consistency is the point. It uses its own structured renderer
       because its dashboard layout (metric tiles, pill-tagged cluster cards) is
       not Markdown prose. Long form: render the Markdown with the
-      spec-kitty-branded-pdf generator (packs/internal/assets), passing the
+      spec-kitty-branded-pdf generator (packs/internal/assets), which needs pandoc,
+      WeasyPrint and the sibling spec-kitty-design repository, passing the
       cover through --eyebrow, --title, --subtitle, --lede, --footer-center and
       three --meta chips (AS OF, SCOPE, FOR). Do not hand-build a cover, a
       footer or a stylesheet. The generator draws a first-level heading as a
@@ -100,7 +126,14 @@ steps:
     actor: agent
   - title: Verify, review, and hand off
     description: >
-      Do not ship on a zero exit code alone. Confirm the PDF renders (pdfinfo),
+      Before handing over, check that every tile or table number came from
+      metrics or a saved raw/ file; every #ref is in valid_refs (long form: or in
+      a saved raw/ file); the readers are named and, for the long form, the
+      summary ends with what they must decide; the Method names the exact scope
+      and as-of from the collector's meta; the closed-versus-fixed distinction
+      holds for any issue singled out; and scope-mode impact tags are marked
+      preliminary unless a verification pass ran. Do not ship on a zero exit
+      code alone. Confirm the PDF renders (pdfinfo),
       rasterise and inspect the pages, and for an audience-facing debrief run a
       designer review pass on the light cream/paper treatment led by the
       signature yellow. Fold findings back into the synthesis or the renderer and

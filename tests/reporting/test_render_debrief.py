@@ -2,11 +2,32 @@
 
 from __future__ import annotations
 
+import importlib.util
+import re
+import sys
+from pathlib import Path
+from types import ModuleType
+
 import pytest
 
-from scripts.reporting import render_debrief as rd
-
 pytestmark = pytest.mark.unit
+
+# The debrief scripts are internal-pack assets (hyphenated file names), so they
+# are loaded by path rather than imported as a package.
+_ASSET = Path(__file__).resolve().parents[2] / "packs" / "internal" / "assets" / "debrief" / "render-debrief.py"
+
+
+def _load_asset(name: str, path: Path) -> ModuleType:
+    spec = importlib.util.spec_from_file_location(name, path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+rd = _load_asset("render_debrief_asset", _ASSET)
 
 
 def test_nested_each_and_scalars():
@@ -76,3 +97,13 @@ def test_ref_guard_catches_invented_ref_hidden_in_style_block():
     with pytest.raises(rd.RenderError) as exc:
         rd.enforce_ref_guard(rendered, valid_refs=["#5045"])
     assert "#9999" in str(exc.value)
+
+
+def test_template_loads_its_logo_and_fonts_from_beside_it():
+    """The template links its logo and fonts by relative path, so they must sit next to it."""
+    template = (_ASSET.parent / "debrief-template.html").read_text(encoding="utf-8")
+    linked = re.findall(r"""(?:src=["']|url\(['"])((?:fonts/)?[\w.-]+\.(?:png|otf))""", template)
+    assert "logo.png" in linked
+    assert sum(1 for name in linked if name.startswith("fonts/")) == 3
+    for relative in linked:
+        assert (_ASSET.parent / relative).is_file(), relative

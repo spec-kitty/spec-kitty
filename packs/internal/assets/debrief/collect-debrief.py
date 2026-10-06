@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Deterministic data collector for "WTF happened" executive debriefs.
 
-Stage A of the debrief pipeline (see scripts/reporting/skill/SKILL.md). This
+Stage A of the debrief pipeline (the executive-debrief-generation procedure). This
 module NEVER makes editorial judgements — it queries GitHub and emits a single
 JSON document of facts. Every number in a rendered debrief must trace back to a
 field here; the synthesis stage may only cluster, narrate and label these
@@ -21,13 +21,13 @@ discipline the maintainer runbook prescribes.
 Usage
 -----
     # window mode (across both repos)
-    python scripts/reporting/collect_debrief.py window \
+    python packs/internal/assets/debrief/collect-debrief.py window \
         --repo spec-kitty/spec-kitty --repo spec-kitty/spec-kitty-planning \
         --since 2026-09-26T06:00:00Z --until 2026-09-28T05:50:00Z \
         --out debrief.json
 
     # scope mode (a milestone)
-    python scripts/reporting/collect_debrief.py scope \
+    python packs/internal/assets/debrief/collect-debrief.py scope \
         --repo spec-kitty/spec-kitty --milestone 11 --out milestone-11.json
 
 The emitted JSON is the sole input to the synthesis stage.
@@ -46,9 +46,10 @@ from typing import Any
 
 # Route timestamps through the kernel clock door (FR-012a/b — no raw stdlib
 # datetime or wall-clock reads outside kernel.clock). Resolve src/ from the
-# script path so the bare `python scripts/reporting/collect_debrief.py`
-# invocation still works with PYTHONPATH unset.
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+# script path (this file sits at packs/internal/assets/debrief/) so the bare
+# `python packs/internal/assets/debrief/collect-debrief.py` invocation still
+# works with PYTHONPATH unset.
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "src"))
 from kernel.clock import now_utc, now_utc_iso  # noqa: E402
 
 #: gh JSON fields we pull for a PR / issue. Kept narrow and explicit so the
@@ -361,7 +362,7 @@ def main(argv: list[str] | None = None) -> int:
                 raise CollectorError("scope mode needs --milestone, --label, or --query")
             payload = collect_scope(args.repos, args.milestone, args.label, args.query)
     except CollectorError as exc:
-        print(f"collect_debrief: {exc}", file=sys.stderr)
+        print(f"collect-debrief: {exc}", file=sys.stderr)
         return 1
 
     text = json.dumps(payload, indent=2, ensure_ascii=False)

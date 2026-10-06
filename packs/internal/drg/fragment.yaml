@@ -52,6 +52,36 @@ nodes:
     kind: procedures
     title: "Executive Debrief Generation (collect → synthesize → render)"
     body_path: procedures/executive-debrief-generation.procedure.yaml
+  # Executive-debrief tooling: the collector,
+  # the one-pager renderer and template, and the logo and fonts the template uses.
+  - id: debrief-collector
+    kind: assets
+    title: "Debrief collector (deterministic GitHub facts as one JSON document)"
+    body_path: assets/debrief/collect-debrief.py
+  - id: debrief-renderer
+    kind: assets
+    title: "One-pager debrief renderer (ref-guarded template fill)"
+    body_path: assets/debrief/render-debrief.py
+  - id: debrief-template
+    kind: assets
+    title: "One-pager debrief HTML template"
+    body_path: assets/debrief/debrief-template.html
+  - id: debrief-logo
+    kind: assets
+    title: "Spec Kitty logo for the one-pager debrief template"
+    body_path: assets/debrief/logo.png
+  - id: debrief-font-falling-sky-regular
+    kind: assets
+    title: "Falling Sky Regular (one-pager debrief display face)"
+    body_path: assets/debrief/fonts/FallingSky-Regular.otf
+  - id: debrief-font-falling-sky-bold
+    kind: assets
+    title: "Falling Sky Bold (one-pager debrief display face)"
+    body_path: assets/debrief/fonts/FallingSky-Bold.otf
+  - id: debrief-font-falling-sky-extrabold
+    kind: assets
+    title: "Falling Sky Extrabold (one-pager debrief display face)"
+    body_path: assets/debrief/fonts/FallingSky-Extrabold.otf
   - id: memory-curation-and-escalation
     kind: procedures
     title: "Agent-Memory Curation and Knowledge Escalation (classify, place, escalate)"
@@ -414,3 +444,30 @@ edges:
   - source: "skill:mission-from-issue"
     target: "agent_profile:planner-priti"
     relation: suggests
+  # Executive-debrief tooling: the procedure requires the collector and suggests the
+  # renderer and the long-form generator; the renderer requires the template, which
+  # requires the logo and the three font files it loads by relative path.
+  - source: executive-debrief-generation
+    target: "asset:debrief-collector"
+    relation: requires
+  - source: executive-debrief-generation
+    target: "asset:debrief-renderer"
+    relation: suggests
+  - source: executive-debrief-generation
+    target: "asset:spec-kitty-branded-pdf"
+    relation: suggests
+  - source: debrief-renderer
+    target: "asset:debrief-template"
+    relation: requires
+  - source: debrief-template
+    target: "asset:debrief-logo"
+    relation: requires
+  - source: debrief-template
+    target: "asset:debrief-font-falling-sky-regular"
+    relation: requires
+  - source: debrief-template
+    target: "asset:debrief-font-falling-sky-bold"
+    relation: requires
+  - source: debrief-template
+    target: "asset:debrief-font-falling-sky-extrabold"
+    relation: requires

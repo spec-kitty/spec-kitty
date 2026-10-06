@@ -1,0 +1,4 @@
+id: debrief-collector
+mime: text/x-python
+path: debrief/collect-debrief.py
+title: Debrief collector (deterministic GitHub facts for an executive debrief, emitted as one JSON document)

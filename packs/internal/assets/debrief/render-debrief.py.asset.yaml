@@ -1,0 +1,4 @@
+id: debrief-renderer
+mime: text/x-python
+path: debrief/render-debrief.py
+title: One-pager debrief renderer (fills the debrief template from a synthesis object and fails closed on an invented reference)

@@ -11258,6 +11258,7 @@ pages:
     - {slug: "provenance-this-is-the-design-system-s-style-not-ad-hoc", text: "Provenance — this is the design system's style, not ad-hoc", level: 2}
     - {slug: "palette-light-theme-these-are-printed-documents", text: "Palette (light theme — these are printed documents)", level: 2}
     - {slug: "typography", text: "Typography", level: 2}
+    - {slug: "one-pager-slot-contract", text: "One-pager slot contract", level: 2}
     - {slug: "one-pager-layout-grammar-fixed-order", text: "One-pager layout grammar (fixed order)", level: 2}
     - {slug: "pill-vocabulary-the-design-system-s-sk-tag", text: "Pill vocabulary (the design system's `.sk-tag`)", level: 2}
     - {slug: "voice-content-conventions", text: "Voice & content conventions", level: 2}

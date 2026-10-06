@@ -453,8 +453,8 @@ out_of_matrix_test_dirs:
   - tests/e2e
 
 - reason: >-
-    Maintainer-only debrief-tooling tests (guarding scripts/reporting/, not a shipped
-    src package). Enrolled in the nightly interpreter sweep via
+    Maintainer-only debrief-tooling tests (guarding the debrief assets in
+    packs/internal/assets/debrief/, not a shipped src package). Enrolled in the nightly interpreter sweep via
     _interpreter_shard_roster.py shard 3; per-PR module-row enrolment is tracked on
     spec-kitty#5275. No per-PR lane selects it by directory yet.
   dirs:

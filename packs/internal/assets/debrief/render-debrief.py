@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Stage C — deterministic render of a debrief.
 
-Fills `debrief_template.html` from a Stage-B synthesis object (the slot contract
-in scripts/reporting/skill/SKILL.md) and enforces the **ref-existence guard**:
+Fills `debrief-template.html` from a Stage-B synthesis object (the slot contract
+in docs/development/reporting/debrief-styleguide.md) and enforces the **ref-existence guard**:
 every `#NNNN` in the rendered output must appear in the collector's `valid_refs`.
 If synthesis invented an issue, this refuses rather than shipping a lie.
 
-    python scripts/reporting/render_debrief.py \
+    python packs/internal/assets/debrief/render-debrief.py \
         --synthesis synthesis.json --collector debrief.json --out report.html
 
 PDF is a separate step (headless browser print), so this stays dependency-free
@@ -133,7 +133,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--synthesis", required=True, help="Stage-B slot JSON.")
     parser.add_argument("--collector", required=True, help="Stage-A collector JSON (for valid_refs).")
-    parser.add_argument("--template", default=str(Path(__file__).parent / "debrief_template.html"))
+    parser.add_argument("--template", default=str(Path(__file__).parent / "debrief-template.html"))
     parser.add_argument("--out", default="-", help="Output HTML path, or '-' for stdout.")
     args = parser.parse_args(argv)
 
@@ -144,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
         rendered = render(template, build_context(synth))
         enforce_ref_guard(rendered, collector.get("valid_refs", []))
     except RenderError as exc:
-        print(f"render_debrief: {exc}", file=sys.stderr)
+        print(f"render-debrief: {exc}", file=sys.stderr)
         return 1
 
     if args.out == "-":
