@@ -134,8 +134,10 @@ def test_unrestorable_coordination_branch_keeps_the_marker_and_the_resume_heals(
     1. Pass 1: the pre-target ``done`` commits, the target advance fails, and
        another actor commits on the coordination branch before the door runs. The
        door reports the coordination branch NOT restored and keeps the record; the
-       committed ``done`` is stranded against the byte-restored ``approved`` and
-       the marker names the WP (recoverable, never silent).
+       committed ``done`` is stranded and the marker names the WP (recoverable,
+       never silent). Since #5638 the door brings the coordination checkout back to
+       the tip it keeps, so the working tree reads that ``done`` too, not the
+       byte-restored ``approved``.
     2. Pass 2 (``--resume``): the resume-start heal reverts the stranded ``done``;
        committed and working reductions agree and the marker is cleared. The
        other actor's commit survives.
@@ -156,9 +158,9 @@ def test_unrestorable_coordination_branch_keeps_the_marker_and_the_resume_heals(
     )
     assert load_state(repo, MISSION_ID) is not None, "a partial rollback keeps the record"
     committed_lane_pre, working_lane_pre = _reduce_coord_lanes(repo, feature_dir)
-    assert (committed_lane_pre, working_lane_pre) == (Lane.DONE, Lane.APPROVED), (
-        "precondition: the committed ``done`` is stranded against the byte-restored "
-        f"working tree; got committed={committed_lane_pre} working={working_lane_pre}"
+    assert (committed_lane_pre, working_lane_pre) == (Lane.DONE, Lane.DONE), (
+        "the committed ``done`` is stranded and the coordination checkout matches the kept tip (#5638); "
+        f"got committed={committed_lane_pre} working={working_lane_pre}"
     )
     assert _marker_wps(repo) == [WP_ID], "the strand must stay marked for the resume-start heal"
     foreign_tip = _git(repo, "rev-parse", COORD_BRANCH).stdout.strip()
