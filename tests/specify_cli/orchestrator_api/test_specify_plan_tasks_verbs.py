@@ -514,6 +514,30 @@ def test_specify_twice_for_same_slug_fails_closed_with_structured_error(tmp_path
     assert [p.name for p in feature_dir.parent.glob("wp03-scenario4-*")] == [feature_dir.name]
 
 
+def test_specify_twice_with_a_fresh_mid8_also_refuses_mission_already_exists(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5726: the second ``specify`` mints a mid8 in a different bucket.
+
+    The first mission's minted mission branch exists, so the #4033 guard treats
+    it as live and refuses with ``MISSION_ALREADY_EXISTS``; the protected mint's
+    dirty check on the first mission's untracked ``spec.md`` is never reached.
+    """
+    mission_ids = iter(["01M4563SAAAAAAAAAAAAAAAAAA", "01M4569ZBBBBBBBBBBBBBBBBBB"])
+    monkeypatch.setattr("specify_cli.core.mission_creation_identity.ULID", lambda: next(mission_ids))
+    repo = _init_repo(tmp_path)
+
+    first = _specify(repo, "wp03-scenario4")
+    assert first["success"] is True, first
+    feature_dir = Path(first["data"]["feature_dir"])
+    meta_before = (feature_dir / "meta.json").read_text(encoding="utf-8")
+
+    second = _specify(repo, "wp03-scenario4")
+
+    assert second["success"] is False, second
+    assert second["error_code"] == "MISSION_ALREADY_EXISTS", second
+    assert (feature_dir / "meta.json").read_text(encoding="utf-8") == meta_before
+    assert [p.name for p in feature_dir.parent.glob("wp03-scenario4-*")] == [feature_dir.name]
+
+
 # ---------------------------------------------------------------------------
 # PR-TESTS-001 (severity 3, R3-confirmed genuine coverage gap; production
 # verified correct by the refuter's own independent repro): specify/plan/
