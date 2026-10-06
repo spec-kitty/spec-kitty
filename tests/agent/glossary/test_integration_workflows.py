@@ -11,6 +11,7 @@ tests (test_pipeline_integration.py) which focus on individual pipeline
 features, these tests validate multi-step cross-module workflows.
 """
 
+import statistics
 import time
 
 import pytest
@@ -22,6 +23,7 @@ from glossary.pipeline import (
 )
 from glossary.strictness import Strictness
 from specify_cli.missions import PrimitiveExecutionContext
+from tests._perf_helpers import assert_timing_budget
 
 pytestmark = pytest.mark.fast
 # ---------------------------------------------------------------------------
@@ -1324,6 +1326,23 @@ class TestErrorHandlingEdgeCases:
 # ---------------------------------------------------------------------------
 
 
+#: Warm-up pipeline runs discarded before timing: the first run(s) pay one-time
+#: cache / pack resolution that is runner-bound, not the per-run cost this guards.
+_PERF_WARMUP_RUNS = 2
+#: Timed warm runs taken after the warm-up.
+_PERF_SAMPLE_RUNS = 10
+#: Samples at each edge whose median forms the head / tail figure (absorbs one spike).
+_PERF_EDGE_WINDOW = 3
+#: PROVISIONAL (ADR 2026-10-05-2 posture): a warm run's tail median must stay within
+#: this multiple of its head median. The clean ratio is ~1.0 locally (0.96 to 1.04
+#: over five runs, max/min <= 1.18); 3.0 leaves wide room for shared-runner noise
+#: while still catching a per-run accumulation that doubles the cost across the run.
+#: The ratio is recorded as an xunit property for nightly confirmation of the CI
+#: magnitude. Within-process, not a CLI spawn, so test_perf_limit_authority does not
+#: bind it (cf. tests/consolidation/test_canceled_content_benchmark.py's _BUDGET_SECONDS).
+_PERF_ACCUMULATION_RATIO_LIMIT = 3.0
+
+
 class TestIntegrationPerformance:
     """Verify integration test workflows complete within performance budget."""
 
@@ -1350,8 +1369,24 @@ class TestIntegrationPerformance:
         assert elapsed < 0.2, f"Pipeline too slow: {elapsed:.3f}s (expected < 0.2s)"
 
     @pytest.mark.performance
-    def test_ten_iterations_under_five_seconds(self, tmp_path, monkeypatch):
-        """10 full pipeline iterations with conflict resolution < 5 seconds total."""
+    def test_repeated_conflict_resolution_has_no_runaway_accumulation(self, tmp_path, monkeypatch, record_property):
+        """Repeated conflict-resolution runs stay flat -- a warm run's tail is not
+        pathologically slower than its head (#5419).
+
+        Replaces the former ``test_ten_iterations_under_five_seconds``, which
+        summed 10 cold iterations against an absolute 5.0 s wall-clock budget.
+        That budget measured the shared runner (cold filesystem / pack
+        resolution), not the code: it flaked at 5.23 s with no product change
+        while the same loop costs ~0.003 s locally. A warm *within-run ratio*
+        cancels machine speed -- the head and tail medians are sampled in the
+        same run on the same runner -- so it catches the real regression class
+        (per-run accumulation: caches not reused, a growing event log re-read,
+        pack re-resolution) without an absolute number of seconds.
+
+        The ratio limit is PROVISIONAL (ADR 2026-10-05-2 posture): the clean
+        ratio is ~1.0 locally; the head/tail medians and the ratio are recorded
+        as xunit properties so a nightly can confirm the CI magnitude.
+        """
         _setup_multi_scope_repo(tmp_path)
 
         def mock_prompt(conflict, candidates):
@@ -1363,31 +1398,49 @@ class TestIntegrationPerformance:
             mock_prompt,
         )
 
-        start = time.perf_counter()
-
-        for i in range(10):
+        def _run_once(index: int) -> float:
             ctx = PrimitiveExecutionContext(
-                step_id=f"perf-{i:03d}",
+                step_id=f"perf-{index:03d}",
                 mission_id="perf-test",
-                run_id=f"run-perf-{i:03d}",
-                inputs={
-                    "description": "Implement workspace and artifact handling",
-                },
-                metadata={
-                    "glossary_watch_terms": ["workspace"],
-                },
+                run_id=f"run-perf-{index:03d}",
+                inputs={"description": "Implement workspace and artifact handling"},
+                metadata={"glossary_watch_terms": ["workspace"]},
                 config={},
             )
-
             pipeline = create_standard_pipeline(
                 tmp_path,
                 runtime_strictness=Strictness.MAX,
                 interaction_mode="interactive",
             )
+            start = time.perf_counter()
             pipeline.process(ctx)
+            return time.perf_counter() - start
 
-        elapsed = time.perf_counter() - start
-        assert elapsed < 5.0, f"10 pipeline iterations too slow: {elapsed:.2f}s (expected < 5.0s)"
+        # Discard the cold run(s): one-time cache / pack resolution is runner-bound
+        # and not the per-run cost this test guards.
+        for index in range(_PERF_WARMUP_RUNS):
+            _run_once(index)
+
+        samples = [_run_once(_PERF_WARMUP_RUNS + index) for index in range(_PERF_SAMPLE_RUNS)]
+
+        # Medians of the first and last few samples absorb a single scheduler/GC
+        # spike; a systematic accumulation pushes the tail above the head.
+        head = statistics.median(samples[:_PERF_EDGE_WINDOW])
+        tail = statistics.median(samples[-_PERF_EDGE_WINDOW:])
+        ratio = tail / head if head > 0 else float("inf")
+
+        record_property("perf_head_median_s", round(head, 6))
+        record_property("perf_tail_median_s", round(tail, 6))
+        record_property("perf_accumulation_ratio", round(ratio, 4))
+        record_property("perf_samples_s", [round(value, 6) for value in samples])
+
+        # The tail median must stay within RATIO_LIMIT x the head median; runner
+        # speed cancels because both are sampled in this same run.
+        assert_timing_budget(
+            tail,
+            _PERF_ACCUMULATION_RATIO_LIMIT * head,
+            name=f"warm tail median vs {_PERF_ACCUMULATION_RATIO_LIMIT}x head median (s); ratio={ratio:.3f}",
+        )
 
     @pytest.mark.performance
     def test_hundred_watch_terms_under_200ms(self, tmp_path):
