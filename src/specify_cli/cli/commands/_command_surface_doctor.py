@@ -718,14 +718,17 @@ def _repair_pack_skills(
     """
     if not any(finding.kind == KIND_MISSING for finding in findings):
         return findings
+    from specify_cli.skills.catalog import PackSkillCatalogError
     from specify_cli.skills.installer import project_pack_skills
 
     try:
         projection = project_pack_skills(project_path)
-    except OSError as exc:
+    except (OSError, PackSkillCatalogError) as exc:
+        # A partial projection may have written some copies: recompute so the
+        # payload reports what is on disk now, not the pre-fix findings.
         repair_errors.append(f"pack skill projection failed: {exc}")
-        return findings
-    repaired.extend(projection.changed)
+    else:
+        repaired.extend(projection.changed)
     recomputed: tuple[PackSkillFinding, ...] = find_pack_skill_findings(project_path)
     return recomputed
 

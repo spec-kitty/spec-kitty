@@ -449,8 +449,25 @@ def test_repair_pack_skills_reports_projection_oserror(monkeypatch: pytest.Monke
         raise OSError("disk full")
 
     monkeypatch.setattr("specify_cli.skills.installer.project_pack_skills", _fail)
+    after = (_pack_finding(KIND_STALE),)
+    monkeypatch.setattr(doctor_surface, "find_pack_skill_findings", lambda _: after)
     findings = (_pack_finding(KIND_MISSING),)
     repaired: list[str] = []
     errors: list[str] = []
-    assert doctor_surface._repair_pack_skills(tmp_path, findings, repaired, errors) == findings
+    assert doctor_surface._repair_pack_skills(tmp_path, findings, repaired, errors) == after
     assert repaired == [] and errors == ["pack skill projection failed: disk full"]
+
+
+@pytest.mark.integration
+def test_repair_pack_skills_reports_a_catalog_error_instead_of_crashing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from specify_cli.skills.catalog import PackSkillCatalogError
+
+    def _fail(_: Path) -> None:
+        raise PackSkillCatalogError("unresolvable catalog")
+
+    monkeypatch.setattr("specify_cli.skills.installer.project_pack_skills", _fail)
+    monkeypatch.setattr(doctor_surface, "find_pack_skill_findings", lambda _: ())
+    findings = (_pack_finding(KIND_MISSING),)
+    errors: list[str] = []
+    assert doctor_surface._repair_pack_skills(tmp_path, findings, [], errors) == ()
+    assert errors == ["pack skill projection failed: unresolvable catalog"]
