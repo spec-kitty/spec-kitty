@@ -40,6 +40,11 @@ steps:
       handed off only when its author flips it to ready for review; that flip signals
       that a landing pass is safe to start. Continue only when the PR is ready for
       review, or the operator told you to land it anyway.
+      Then ask the operator once, before the landing work begins: arm auto-merge
+      (`gh pr merge <N> --rebase --auto`) when this PR is merge-ready, or hand off
+      for a manual merge? The default is not to arm it. No answer, or an unattended
+      run, means hand off. The answer holds for this landing run only; for a queue
+      of PRs, ask once for the queue.
     actor: agent
     on_failure: >
       If you cannot read the draft state, stop and ask the operator.
@@ -306,22 +311,23 @@ steps:
       addressed to the author.
     actor: agent
 
-  - title: Hand off and arm auto-merge when the PR is complete
+  - title: Hand off, and arm auto-merge only if the operator chose it
     description: >
       The PR must be green (or green apart from documented reds), with the evidence
       trail posted. Merging into `main` on the canonical repository is the operator's
-      decision. The operator's standing ruling (2026-09-23; ADR
-      2026-09-23-1-auto-merge-required-checks-gate) makes arming auto-merge the
-      default hand-off once the PR is merge-ready and complete: run
+      decision, made per landing run: the first step asked whether to arm auto-merge
+      at the end, and the default is not to. Without an explicit yes for this run,
+      hand off and stop; the operator merges. With a yes, and only once the PR is
+      merge-ready and has its complete fix pushed, run
       `gh pr merge <N> --repo spec-kitty/spec-kitty --rebase --auto`, which queues the
       merge until the three required checks (`router gate`, `CI Modules gate`, `Clean
-      install verification`) pass and refuses on any red. Arm it only when the PR has
-      its complete fix pushed: auto-merge fires on the first green, so a later commit
-      would be left behind. Then confirm it armed and did not merge at once:
+      install verification`) pass and refuses on any red (ADR
+      2026-09-23-1-auto-merge-required-checks-gate). Auto-merge fires on the first
+      green, so a commit pushed later would be left behind. Then confirm it armed
+      and did not merge at once:
       `gh pr view <N> --repo spec-kitty/spec-kitty --json state,autoMergeRequest` must
       show `state: OPEN` and a non-null `autoMergeRequest` while checks are pending.
-      If the PR merged at once, tell the operator. If the operator has said not to arm
-      it for this PR, hand off without arming. Never merge by any other route, and
+      If the PR merged at once, tell the operator. Never merge by any other route, and
       never change the repository's branch protection or required checks.
       While it waits, a `cancelled` check is not a failure: a new push cancels the
       previous run, and branch protection uses the latest run per check. Only

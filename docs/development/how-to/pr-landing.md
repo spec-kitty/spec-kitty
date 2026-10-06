@@ -560,8 +560,10 @@ changelog) go in this comment too, addressed to the author.
 
 ## 11. Hand-off — the operator merges
 
-The operator merges; the maintainer never runs `gh pr merge`. The hand-off
-deliverable is:
+The operator merges. A landing pass asks once at its start whether to arm
+auto-merge (`gh pr merge <N> --rebase --auto`) when the PR is merge-ready; the
+default is not to, and without an explicit yes for that run nobody but the
+operator runs `gh pr merge`. The hand-off deliverable is:
 
 - green CI;
 - the PR un-drafted;
