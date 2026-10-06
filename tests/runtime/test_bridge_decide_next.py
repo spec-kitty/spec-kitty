@@ -784,6 +784,71 @@ def test_composition_dispatch_returns_blocked_decision_when_advance_raises(tmp_p
     assert "tasks-outline" in (decision.reason or "")
 
 
+def test_composition_dispatch_blocks_on_an_unresolvable_significance_configuration(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """EDGE-003 (#2562): the composition advance now plans with the engine, so
+    a significance configuration the engine cannot evaluate (here a malformed
+    ``significance_band_cutoffs`` policy) fails the plan the way it fails the
+    engine path: a ``blocked`` Decision, nothing written, and the legacy
+    ``runtime_next_step`` is never entered."""
+    import yaml
+
+    from runtime.next._internal_runtime.schema import MissionPolicySnapshot, MissionRunSnapshot
+
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    snapshot = MissionRunSnapshot(
+        run_id="run-042",
+        mission_key="042-mission",
+        template_path="",
+        template_hash="h",
+        issued_step_id="plan",
+        policy_snapshot=MissionPolicySnapshot(extras={"significance_band_cutoffs": "not-a-mapping"}),
+    )
+    (run_dir / "state.json").write_text(json.dumps(snapshot.model_dump(mode="json")), encoding="utf-8")
+    template = {
+        "mission": {"key": "042-mission", "name": "Test", "version": "1.0.0"},
+        "steps": [{"id": "plan", "title": "Plan"}],
+        "audit_steps": [
+            {
+                "id": "gate",
+                "title": "Gate",
+                "depends_on": ["plan"],
+                "audit": {"trigger_mode": "manual", "enforcement": "blocking"},
+                "significance": {
+                    "dimensions": dict.fromkeys(
+                        (
+                            "user_customer_impact",
+                            "architectural_system_impact",
+                            "data_security_compliance_impact",
+                            "operational_reliability_impact",
+                            "financial_commercial_impact",
+                            "cross_team_blast_radius",
+                        ),
+                        1,
+                    )
+                },
+            }
+        ],
+    }
+    (run_dir / "mission_template_frozen.yaml").write_text(yaml.safe_dump(template), encoding="utf-8")
+    state_before = (run_dir / "state.json").read_bytes()
+    ctx = _make_ctx(tmp_path, current_step_id="plan", run_dir=run_dir)
+    monkeypatch.setattr(_composition_seam, "_should_dispatch_via_composition", lambda *a, **kw: True)
+    monkeypatch.setattr(_composition_seam, "_normalize_action_for_composition", lambda step: step)
+    monkeypatch.setattr(_composition_seam, "_composition_dispatch_inputs", lambda **kw: (None, None))
+    monkeypatch.setattr(_composition_seam, "_dispatch_via_composition", lambda **kw: [])
+    monkeypatch.setattr(rb, "runtime_next_step", _raising)
+    monkeypatch.setattr(_engine_adapter, "advance_run_state_after_composition", _raising)
+
+    decision = rb._dn_composition_dispatch(ctx)
+
+    assert decision is not None
+    assert decision.kind == DecisionKind.blocked
+    assert "significance_band_cutoffs" in (decision.reason or "")
+    assert (run_dir / "state.json").read_bytes() == state_before
+    assert not (run_dir / "run.events.jsonl").exists()
+
+
 # ---------------------------------------------------------------------------
 # 6. _dn_capture_pre_speculative_state / _dn_rollback_buffered_run_state
 # ---------------------------------------------------------------------------

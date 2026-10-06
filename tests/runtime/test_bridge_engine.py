@@ -47,6 +47,7 @@ import ast
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -651,3 +652,279 @@ def test_adapter_never_resolves_a_wp_workspace_itself_and_refuses_before_writing
     assert written == [] and appended == [], "nothing may be persisted"
     assert (run_dir / _STATE_FILE).read_bytes() == state_before
     assert not (run_dir / _EVENTS_FILE).exists()
+
+
+# ---------------------------------------------------------------------------
+# 2c. The composition commit is the engine's commit (#2562, FR-008..FR-010)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_composition_commit_refuses_a_stale_plan_and_writes_nothing(tmp_path: Path, _stub_map_runtime_decision: _MapDecisionRecorder) -> None:
+    """FR-010: a plan the run moved past is refused with ``StaleAdvancePlan``;
+    ``state.json`` keeps the newer state and no event is appended or emitted.
+    The bridge-level race (blocked Decision, no ``runtime_next_step``) is
+    pinned by ``test_composition_advance_alignment.py::
+    test_composition_advance_refuses_a_stale_plan``."""
+    run_dir = tmp_path / "run-stale"
+    snapshot_in = MissionRunSnapshot(run_id="run-stale", mission_key="software-dev", template_path="", template_hash="h", issued_step_id="plan")
+    _write_run(run_dir, snapshot_in)
+    run_ref = MissionRunRef(run_id="run-stale", run_dir=str(run_dir), mission_key="software-dev")
+    plan = engine_adapter.plan_advance(run_ref, "agent-1", "success")
+
+    # Another writer advances the run between the plan and its commit.
+    moved_on = snapshot_in.model_copy(update={"inputs": {"moved": True}})
+    (run_dir / _STATE_FILE).write_text(json.dumps(moved_on.model_dump(mode="json")), encoding="utf-8")
+    state_moved = (run_dir / _STATE_FILE).read_bytes()
+    sync_emitter = _FakeSyncEmitter()
+
+    with pytest.raises(engine_adapter.StaleAdvancePlan):
+        _advance(run_ref, tmp_path, sync_emitter, plan=plan, wp_resolution=("implement", "WP01", "/ws", "lane-a", "wp"))
+
+    assert (run_dir / _STATE_FILE).read_bytes() == state_moved, "the stale plan overwrote newer run state"
+    assert not (run_dir / _EVENTS_FILE).exists(), "the stale plan appended events"
+    assert [name for name in sync_emitter.order if name != "seed"] == [], "the stale plan emitted events"
+    assert _stub_map_runtime_decision.calls == []
+
+
+@pytest.mark.unit
+def test_composition_commit_seeds_the_emitter_before_the_first_emit(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, _stub_map_runtime_decision: _MapDecisionRecorder
+) -> None:
+    """FR-009: the emitter is seeded from the persisted run before any event is emitted."""
+    run_dir = tmp_path / "run-seed"
+    snapshot_in = MissionRunSnapshot(run_id="run-seed", mission_key="software-dev", template_path="", template_hash="h", issued_step_id="implement")
+    decision = NextDecision(
+        kind="decision_required", run_id="run-seed", mission_key="software-dev", decision_id="input:x", step_id="review", input_key="x", question="Value?"
+    )
+    rec = _real_run_with_planned_decision(monkeypatch, run_dir, snapshot=snapshot_in, plan_next_returns=decision)
+    sync_emitter = _FakeSyncEmitter()
+
+    _advance(MissionRunRef(run_id="run-seed", run_dir=str(run_dir), mission_key="software-dev"), tmp_path, sync_emitter)
+
+    assert rec.planned, "the plan_next stub never ran"
+    assert sync_emitter.order == ["seed", "NextStepAutoCompleted", "DecisionInputRequested"]
+    assert sync_emitter.seeded == [snapshot_in]
+
+
+class _StrictPolicy:
+    enabled = True
+    timing = "before_completion"
+    failure_policy = "block"
+
+
+@pytest.mark.unit
+def test_raising_strict_capture_aborts_before_run_completed_and_state_write(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, _stub_map_runtime_decision: _MapDecisionRecorder
+) -> None:
+    """FR-008: the blocking capture is the engine's ``before_run_completed``
+    guard. When it raises, ``MissionRunCompleted`` is neither appended nor
+    emitted and ``state.json`` is not written."""
+    from runtime.next import runtime_bridge_retrospective as retrospective_seam
+
+    run_dir = tmp_path / "run-strict"
+    snapshot_in = MissionRunSnapshot(
+        run_id="run-strict", mission_key="software-dev", template_path="", template_hash="h", issued_step_id="review", completed_steps=["plan", "implement"]
+    )
+    decision = NextDecision(kind="terminal", run_id="run-strict", mission_key="software-dev")
+    rec = _real_run_with_planned_decision(monkeypatch, run_dir, snapshot=snapshot_in, plan_next_returns=decision)
+    state_before = (run_dir / _STATE_FILE).read_bytes()
+
+    def _refuse(**_kwargs: Any) -> None:
+        raise RuntimeError("capture refused")
+
+    monkeypatch.setattr(retrospective_seam, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (_StrictPolicy(), {}, None))
+    monkeypatch.setattr(retrospective_seam, "_resolve_mission_id_for_terminus", lambda feature_dir: "mission-id")
+    monkeypatch.setattr(retrospective_seam, "_run_retrospective_learning_capture", _refuse)
+    sync_emitter = _FakeSyncEmitter()
+
+    with pytest.raises(RuntimeError, match="capture refused"):
+        _advance(MissionRunRef(run_id="run-strict", run_dir=str(run_dir), mission_key="software-dev"), tmp_path, sync_emitter)
+
+    assert rec.planned, "the plan_next stub never ran"
+    assert rec.written == [], "state.json must not be written when the strict capture refuses"
+    assert (run_dir / _STATE_FILE).read_bytes() == state_before
+    assert "MissionRunCompleted" not in _event_types(run_dir)
+    assert sync_emitter.run_completed == []
+    assert _stub_map_runtime_decision.calls == []
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("owned", [False, True], ids=["repo-root", "owned-checkout"])
+def test_retrospective_policy_root_is_the_owned_root_when_owned(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, _stub_map_runtime_decision: _MapDecisionRecorder, owned: bool
+) -> None:
+    """FR-009 (owned-checkout-lifecycle-authority WP11): the guard resolves the
+    retrospective policy, and both captures run, at the owned root when there is one."""
+    from runtime.next import runtime_bridge_retrospective as retrospective_seam
+
+    run_dir = tmp_path / "run-root"
+    snapshot_in = MissionRunSnapshot(run_id="run-root", mission_key="software-dev", template_path="", template_hash="h", issued_step_id="review")
+    decision = NextDecision(kind="terminal", run_id="run-root", mission_key="software-dev")
+    rec = _real_run_with_planned_decision(monkeypatch, run_dir, snapshot=snapshot_in, plan_next_returns=decision)
+    owned_root = tmp_path / "owned"
+    policy_roots: list[Path] = []
+    captures: list[dict[str, Any]] = []
+
+    def _resolve(root: Path) -> tuple[Any, dict[str, str], None]:
+        policy_roots.append(root)
+        return _StrictPolicy(), {}, None
+
+    monkeypatch.setattr(retrospective_seam, "_resolve_retrospective_policy_for_runtime", _resolve)
+    monkeypatch.setattr(retrospective_seam, "_resolve_mission_id_for_terminus", lambda feature_dir: "mission-id")
+    monkeypatch.setattr(retrospective_seam, "_run_retrospective_learning_capture", lambda **kwargs: captures.append(kwargs))
+    overrides: dict[str, Any] = {"owned": SimpleNamespace(owned_root=owned_root)} if owned else {}
+
+    _advance(MissionRunRef(run_id="run-root", run_dir=str(run_dir), mission_key="software-dev"), tmp_path, _FakeSyncEmitter(), **overrides)
+
+    expected_root = owned_root if owned else tmp_path
+    assert rec.planned, "the plan_next stub never ran"
+    assert policy_roots == [expected_root]
+    assert [capture["repo_root"] for capture in captures] == [expected_root]
+    assert captures[0]["block_on_failure"] is True
+
+
+@pytest.mark.unit
+def test_low_band_replan_to_terminal_runs_the_retrospective_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _stub_map_runtime_decision: _MapDecisionRecorder
+) -> None:
+    """A LOW-band gate whose re-plan reaches terminal completes the run through
+    the composition commit: significance recorded, ``MissionRunCompleted``
+    emitted, then the default (non-blocking) capture. Real planner, no stub."""
+    from runtime.next import runtime_bridge_retrospective as retrospective_seam
+
+    template = {
+        "mission": {"key": "software-dev", "name": "Test", "version": "1.0.0"},
+        "steps": [{"id": "plan", "title": "Plan"}],
+        "audit_steps": [
+            {
+                "id": "gate",
+                "title": "Gate",
+                "depends_on": ["plan"],
+                "audit": {"trigger_mode": "manual", "enforcement": "blocking"},
+                "significance": {"dimensions": _LOW_DIMENSIONS},
+            }
+        ],
+    }
+    run_dir = tmp_path / "run-low"
+    _write_run(run_dir, MissionRunSnapshot(run_id="run-low", mission_key="software-dev", template_path="", template_hash="h", issued_step_id="plan"), template)
+
+    class _DefaultPolicy:
+        enabled = True
+
+    captures: list[dict[str, Any]] = []
+    sync_emitter = _FakeSyncEmitter()
+
+    def _capture(**kwargs: Any) -> None:
+        captures.append(kwargs)
+        sync_emitter.order.append("capture")
+
+    monkeypatch.setattr(retrospective_seam, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (_DefaultPolicy(), {}, None))
+    monkeypatch.setattr(retrospective_seam, "_resolve_mission_id_for_terminus", lambda feature_dir: "mission-id")
+    monkeypatch.setattr(retrospective_seam, "_run_retrospective_learning_capture", _capture)
+    run_ref = MissionRunRef(run_id="run-low", run_dir=str(run_dir), mission_key="software-dev")
+    plan = engine_adapter.plan_advance(run_ref, "agent-1", "success")
+    assert plan.decision.kind == "terminal", "the LOW re-plan must reach terminal"
+
+    _advance(run_ref, tmp_path, sync_emitter, plan=plan)
+
+    assert sync_emitter.order == ["seed", "NextStepAutoCompleted", "SignificanceEvaluated", "MissionRunCompleted", "capture"]
+    assert _event_types(run_dir) == ["NextStepAutoCompleted", "SignificanceEvaluated", "MissionRunCompleted"]
+    assert captures[0]["block_on_failure"] is False
+    persisted = internal_engine._read_snapshot(run_dir)
+    assert persisted.completed_steps == ["plan", "gate"]
+    assert "significance:audit:gate" in persisted.decisions
+
+
+# ---------------------------------------------------------------------------
+# 2d. AST shape gate (FR-004 / FR-005 / SC-002): one planning authority
+# ---------------------------------------------------------------------------
+
+_ADAPTER_PATH = _SRC_RUNTIME_NEXT / "runtime_bridge_engine.py"
+_BRIDGE_PATH = _SRC_RUNTIME_NEXT / "runtime_bridge.py"
+#: Event payloads and requests the engine commit builds; the adapter must not.
+_ENGINE_OWNED_CONSTRUCTIONS = frozenset(
+    {
+        "NextStepAutoCompletedPayload",
+        "NextStepIssuedPayload",
+        "DecisionInputRequestedPayload",
+        "MissionRunCompletedPayload",
+        "DecisionRequest",
+    }
+)
+_RETIRED_DEFINITIONS = frozenset({"plan_composition_advance", "CompositionAdvancePlan"})
+
+
+def _call_name(func: ast.expr) -> str | None:
+    if isinstance(func, ast.Name):
+        return func.id
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    return None
+
+
+def _adapter_shape_violations(source: str) -> list[str]:
+    """Every way ``source`` re-grows a parallel planner or event code."""
+    tree = ast.parse(source)
+    violations: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.name in _RETIRED_DEFINITIONS:
+            violations.append(f"defines {node.name}")
+        if isinstance(node, ast.Call):
+            name = _call_name(node.func)
+            if name in _ENGINE_OWNED_CONSTRUCTIONS:
+                violations.append(f"constructs {name}")
+            elif name == "apply_result":
+                violations.append("calls apply_result")
+    wrapper_calls = sum(
+        1
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "plan_next"
+        for call in ast.walk(node)
+        if isinstance(call, ast.Call) and _call_name(call.func) == "plan_next"
+    )
+    all_calls = sum(1 for call in ast.walk(tree) if isinstance(call, ast.Call) and _call_name(call.func) == "plan_next")
+    if all_calls > wrapper_calls:
+        violations.append("calls plan_next outside its pinned wrapper")
+    return violations
+
+
+def test_adapter_has_no_parallel_planner_or_event_code() -> None:
+    """The adapter commits the engine's plan; it defines no planner of its own,
+    applies no result itself and builds none of the engine's events."""
+    assert _adapter_shape_violations(_ADAPTER_PATH.read_text(encoding="utf-8")) == []
+
+
+@pytest.mark.parametrize(
+    "planted",
+    [
+        "def plan_composition_advance(run_ref, agent):\n    return None\n",
+        "class CompositionAdvancePlan:\n    pass\n",
+        "def f(snapshot):\n    return apply_result(snapshot, 'success')\n",
+        "def f(snapshot):\n    return _engine.apply_result(snapshot, 'success')\n",
+        "payload = NextStepAutoCompletedPayload(run_id='r')\n",
+        "payload = NextStepIssuedPayload(run_id='r')\n",
+        "payload = DecisionInputRequestedPayload(run_id='r')\n",
+        "payload = MissionRunCompletedPayload(run_id='r')\n",
+        "request = DecisionRequest(decision_id='d')\n",
+        "def advance(snapshot):\n    return plan_next(snapshot, None, None)\n",
+    ],
+)
+def test_adapter_shape_gate_reports_a_planted_violation(planted: str) -> None:
+    """Self-mutation row: each planted construction is reported (the gate is not vacuous)."""
+    wrapper = "def plan_next(snapshot):\n    return _planner.plan_next(snapshot)\n"
+    assert _adapter_shape_violations(wrapper) == [], "the pinned plan_next wrapper itself is allowed"
+    assert _adapter_shape_violations(wrapper + planted) != []
+
+
+def test_bridge_plans_the_composition_advance_with_the_engine() -> None:
+    """``_dn_plan_composition_advance`` plans through ``_engine_adapter.plan_advance``."""
+    tree = ast.parse(_BRIDGE_PATH.read_text(encoding="utf-8"))
+    function = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "_dn_plan_composition_advance")
+    called = {
+        (call.func.value.id, call.func.attr)
+        for call in ast.walk(function)
+        if isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute) and isinstance(call.func.value, ast.Name)
+    }
+    assert ("_engine_adapter", "plan_advance") in called
+    assert all(attr != "plan_composition_advance" for _owner, attr in called)
