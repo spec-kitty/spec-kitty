@@ -238,7 +238,7 @@ class TestFormatCatalogMissStanza:
         assert "charter validate .kittify/doctrine" in joined
         assert "project, org, and built-in" in joined
 
-    def test_schema_failure_stanza_cites_doctrine_validate(self) -> None:
+    def test_schema_failure_stanza_cites_charter_validate(self) -> None:
         diagnosis = CatalogMissDiagnosis(
             cause=CatalogMissCause.SCHEMA_VALIDATION_SUSPECTED
         )
