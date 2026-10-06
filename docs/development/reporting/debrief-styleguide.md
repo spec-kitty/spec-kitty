@@ -207,8 +207,8 @@ caveats).
   "sections": [{"title": "1. Protecting user work", "count": "8 PRs · 9 P0s",
                 "intro": "…", "items": [{"pill": "P0", "text": "…", "refs": "#5050"}]}],
   "decisions_heading": "What's next and needs a decision", // window mode only
-  "decisions": [{"item": "…", "status": "PR OPEN", "owner": "Stijn"}],
-  "authors_line": "Stijn authored 40 of 46 engine PRs; …",
+  "decisions": [{"item": "…", "status": "PR OPEN", "owner": "the maintainer"}],
+  "authors_line": "One maintainer authored 40 of 46 engine PRs; …",
   "method": "<copy meta.method verbatim>"
 }
 ```

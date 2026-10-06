@@ -34,7 +34,7 @@ steps:
     description: >
       Decide window mode (a time range: "since Friday", a tag, a quarter) or
       scope mode (a milestone, a label, a query). For window mode convert the
-      local time to UTC — Brussels is CEST/UTC+2 until late October. Name the
+      requester's local time to UTC (mind their daylight-saving offset). Name the
       target repositories; add the planning repo only when the request covers it.
       Record who the debrief is for, as the requester named them. Pick the
       layout: the one-pager when counts and a few labelled clusters answer the
@@ -107,7 +107,9 @@ steps:
       headless browser. The template, the logo and the Falling Sky fonts sit
       beside the renderer in packs/internal/assets/debrief/ and the template
       loads them by relative path, so keep them together when you copy the
-      template elsewhere. Do not restyle the template per report; the
+      template elsewhere. The rendered HTML keeps those relative links too: write
+      it into the asset folder, or copy `logo.png` and `fonts/` beside it before
+      you print it to PDF, or the logo and fonts are missing. Do not restyle the template per report; the
       consistency is the point. It uses its own structured renderer
       because its dashboard layout (metric tiles, pill-tagged cluster cards) is
       not Markdown prose. Long form: render the Markdown with the

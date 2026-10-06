@@ -8,7 +8,7 @@ body_path: report-debrief.skill.md
 parameters:
   - name: scope
     required: true
-    description: "What the debrief covers: a time window (for example 'since Friday 08:00 Brussels time') or a milestone, label or query"
+    description: "What the debrief covers: a time window (for example 'since Friday 08:00', read in the requester's local time and converted to UTC) or a milestone, label or query"
   - name: repos
     required: false
     description: "Repositories to cover. Default: spec-kitty/spec-kitty; add spec-kitty/spec-kitty-planning only when the request covers it"
