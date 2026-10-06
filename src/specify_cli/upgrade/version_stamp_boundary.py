@@ -15,6 +15,8 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
+from click.exceptions import Exit
+
 from .metadata import VersionStamp
 from .outcome import UpgradeOutcome, UpgradeOutcomeKind
 
@@ -43,6 +45,8 @@ def version_stamp_boundary(
     ``on_restored`` is called with the restore notice when a failed outcome's
     restore actually rewrote ``metadata.yaml``: the restore is uncommitted.
     """
+    # This outer snapshot is authoritative over the MigrationRunner's own inner
+    # ``VersionStamp.capture`` (runner.py): it is taken before any stamp write.
     stamp = None if dry_run else VersionStamp.capture(kittify_dir)
 
     def settle(outcome: UpgradeOutcome) -> None:
@@ -53,8 +57,9 @@ def version_stamp_boundary(
 
     try:
         yield settle
-    except BaseException:
-        if stamp is not None:
+    except BaseException as exc:
+        # ``Exit(0)`` is an orderly early finish, not a failure: keep the stamp.
+        if stamp is not None and not (isinstance(exc, Exit) and exc.exit_code == 0):
             _restore_keeping_original_error(stamp, kittify_dir)
         raise
 

@@ -244,6 +244,29 @@ def test_boundary_restores_and_reraises_when_the_body_raises(tmp_path: Path) -> 
     assert (kittify / "metadata.yaml").read_text(encoding="utf-8") == _BASE
 
 
+@pytest.mark.parametrize(
+    "exc,restored",
+    [
+        (typer.Exit(0), False),
+        (typer.Exit(1), True),
+        (typer.Abort(), True),
+        (KeyboardInterrupt(), True),
+    ],
+    ids=["exit-0-kept", "exit-1", "abort", "interrupt"],
+)
+def test_boundary_keeps_the_stamp_only_for_an_orderly_exit(tmp_path: Path, exc: BaseException, restored: bool) -> None:
+    kittify = _kittify(tmp_path, _BASE)
+
+    def _body() -> None:
+        with version_stamp_boundary(kittify, dry_run=False):
+            _bump(kittify)
+            raise exc
+
+    with pytest.raises(type(exc)):
+        _body()
+    assert ((kittify / "metadata.yaml").read_text(encoding="utf-8") == _BASE) is restored
+
+
 def test_boundary_keeps_the_original_error_when_the_restore_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     kittify = _kittify(tmp_path, _BASE)
 
