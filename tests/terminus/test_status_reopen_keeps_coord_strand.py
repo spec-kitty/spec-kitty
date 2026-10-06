@@ -233,19 +233,6 @@ def _coord_status_diff(stranded: Stranded) -> str:
     ).stdout
 
 
-def test_5638_rollback_leaves_the_coord_checkout_at_the_coord_tip(tmp_path: Path) -> None:
-    """No hand-cleaning: the rollback could not restore the coordination branch (another
-    actor committed on it), so it keeps the committed ``done``. The coordination checkout
-    must match that tip, not the pre-``done`` bytes the bookkeeping byte-restore wrote.
-    """
-    stranded = _failed_consolidation(tmp_path)
-
-    assert _coord_status_diff(stranded) == "", (
-        f"the rollback left the coordination worktree's status files dirty against HEAD (#5638): {_coord_status_diff(stranded)!r}"
-    )
-    assert _lane(stranded.mission, _STRANDED_WP) == "done"
-
-
 def test_5572_real_path_reopen_on_the_rolled_back_tree_never_drops_the_strand(tmp_path: Path) -> None:
     """No hand-cleaning: a reviewer's real ``agent status emit`` after the rollback must not
     drop the committed ``done``. Since #5638 it lands on the coordination tip, so it no longer
@@ -254,6 +241,12 @@ def test_5572_real_path_reopen_on_the_rolled_back_tree_never_drops_the_strand(tm
     stranded = _failed_consolidation(tmp_path)
     mission = stranded.mission
     assert _lane(mission, _STRANDED_WP) == "done"
+    # The rollback could not restore the coordination branch (another actor committed on
+    # it), so it keeps the committed `done`; the checkout must match that tip, not the
+    # pre-`done` bytes the bookkeeping byte-restore wrote.
+    assert _coord_status_diff(stranded) == "", (
+        f"the rollback left the coordination worktree's status files dirty against HEAD (#5638): {_coord_status_diff(stranded)!r}"
+    )
 
     result = _emit_reopen(mission)
 
@@ -264,6 +257,13 @@ def test_5572_real_path_reopen_on_the_rolled_back_tree_never_drops_the_strand(tm
         f"the reopen silently dropped the committed `done` of {_STRANDED_WP} (now {_lane(mission, _STRANDED_WP)!r}) — output={out} (#5572)"
     )
     assert _lane(mission, _REOPENED_WP) == "in_progress"
+
+    # Backstop (#5572): the guard still refuses a worktree log that lost a committed event.
+    log = stranded.coord_worktree / "kitty-specs" / mission.slug / "status.events.jsonl"
+    lines = log.read_bytes().splitlines(keepends=True)
+    log.write_bytes(b"".join(lines[:-1]))
+    before = (event_log_bytes(mission, mission.coord_branch), git_rev(mission.repo, mission.coord_branch))
+    _assert_refused(stranded, _emit_reopen(mission), _DIVERGED_CODE, before)
 
 
 def test_5572_reopen_survives_the_strand_repair(tmp_path: Path, entry: str = "resume") -> None:
