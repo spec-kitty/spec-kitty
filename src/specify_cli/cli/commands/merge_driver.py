@@ -8,10 +8,14 @@ so target-newer canonical state is reconciled rather than clobbered or
 hard-conflicting (#2709 / FR-003 / FR-004 / FR-008):
 
 - ``merge-driver-event-log``         — ``status.events.jsonl`` union (append-only log).
-- ``merge-driver-meta``              — ``meta.json`` field merge: acceptance/VCS keys
-  target-authoritative (the accepted-newer ``ours`` side), ``acceptance_history``
-  unioned, all other (planning) keys mission-authoritative (``theirs``; preserves
-  the #1732 planning-artifact authority — mission keys win).
+- ``merge-driver-meta``              — ``meta.json`` field merge, base-aware for
+  ordinary merges (a key changed or deleted on one side only survives; on a
+  genuine conflict acceptance/VCS/lifecycle keys are target-authoritative (the
+  accepted-newer ``ours`` side) and planning keys mission-authoritative
+  (``theirs``; preserves the #1732 planning-artifact authority); coupled key
+  groups move as one unit; ``acceptance_history`` unioned). The consolidation
+  pipeline's mission→target squash opts into the two-way rule through the
+  ``META_DRIVER_TWO_WAY_ENV`` environment variable, read here (#5460).
 - ``merge-driver-traces``            — ``traces/*.md`` markdown union: order-preserving
   line-level dedup so both sides' sections survive without duplication.
 - ``merge-driver-acceptance-matrix`` — ``acceptance-matrix.json`` row-aware,
@@ -50,12 +54,17 @@ but call its body and translate the body's
 
 from __future__ import annotations
 
+import os
+from functools import partial
+
 import typer
 
 from specify_cli.consolidation.drivers import (
+    META_DRIVER_TWO_WAY_ENV,
     MERGE_DRIVER_BODIES,
     MergeDriverBody,
     MergeDriverError,
+    run_meta_driver,
 )
 
 
@@ -90,8 +99,14 @@ def merge_driver_meta(
     ours_path: str = typer.Argument(..., metavar="OURS"),
     theirs_path: str = typer.Argument(..., metavar="THEIRS"),
 ) -> None:
-    """Field-merge conflicting ``meta.json`` blobs; write result to ``ours``."""
-    _run(MERGE_DRIVER_BODIES["merge-driver-meta"], base_path, ours_path, theirs_path)
+    """Field-merge conflicting ``meta.json`` blobs; write result to ``ours``.
+
+    Base-aware (reads ``%O``) unless the consolidation pipeline's squash set
+    ``META_DRIVER_TWO_WAY_ENV=1`` (#5460). The environment is read here, in the
+    shell, never in the driver body.
+    """
+    two_way = os.environ.get(META_DRIVER_TWO_WAY_ENV) == "1"
+    _run(partial(run_meta_driver, two_way=two_way), base_path, ours_path, theirs_path)
 
 
 def merge_driver_traces(

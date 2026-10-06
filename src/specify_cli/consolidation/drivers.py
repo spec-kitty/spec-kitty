@@ -8,10 +8,15 @@ so target-newer canonical state is reconciled rather than clobbered or
 hard-conflicting (#2709 / FR-003 / FR-004 / FR-008):
 
 - ``merge-driver-event-log``         — ``status.events.jsonl`` union (append-only log).
-- ``merge-driver-meta``              — ``meta.json`` field merge: acceptance/VCS keys
-  target-authoritative (the accepted-newer ``ours`` side), ``acceptance_history``
-  unioned, all other (planning) keys mission-authoritative (``theirs``; preserves
-  the #1732 planning-artifact authority — mission keys win).
+- ``merge-driver-meta``              — ``meta.json`` field merge, base-aware for
+  ordinary merges (a key changed or deleted on one side only survives from that
+  side; on a genuine conflict acceptance/VCS/lifecycle keys are
+  target-authoritative (the accepted-newer ``ours`` side) and planning keys are
+  mission-authoritative (``theirs``; preserves the #1732 planning-artifact
+  authority); coupled key groups move as one unit; ``acceptance_history`` is
+  unioned). The consolidation pipeline's mission→target squash records no
+  ancestry, so it opts into the two-way rule via :data:`META_DRIVER_TWO_WAY_ENV`
+  (#5460).
 - ``merge-driver-traces``            — ``traces/*.md`` markdown union: order-preserving
   line-level dedup so both sides' sections survive without duplication.
 - ``merge-driver-acceptance-matrix`` — ``acceptance-matrix.json`` row-aware,
@@ -75,7 +80,7 @@ from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any
+from typing import Any, Final
 
 from pydantic import ValidationError
 
@@ -119,6 +124,27 @@ _TARGET_AUTHORITATIVE_META_FIELDS: tuple[str, ...] = (
     "merged_strategy",
     "merged_push",
     "merged_commit",
+)
+_TARGET_AUTHORITATIVE_META_SET: frozenset[str] = frozenset(_TARGET_AUTHORITATIVE_META_FIELDS)
+
+#: Environment switch set to ``"1"`` by the consolidation pipeline's mission→target
+#: squash subprocess. That ``git merge --squash`` records no ancestry, so ``%O`` is
+#: the stale fork point after a reopen and a base-aware merge would resurrect
+#: removed content; with the switch set ``merge-driver-meta`` ignores ``%O`` and
+#: applies the two-way rule. Never set it for an ordinary merge, where ``%O`` is
+#: the true merge base (#5460).
+META_DRIVER_TWO_WAY_ENV: Final = "SPEC_KITTY_META_MERGE_TWO_WAY"
+
+# Distinguishes "key absent on this side" from an explicit JSON ``null``.
+_MISSING: Final = object()
+
+# Keys written together by one writer, merged as ONE unit so a record is never
+# half-flattened / half-recorded. ``vcs`` / ``vcs_locked_at`` stay individual keys
+# (independent provenance, both target-authoritative).
+_META_COUPLED_KEY_GROUPS: tuple[frozenset[str], ...] = (
+    frozenset({"coordination_branch", "topology", "flattened"}),
+    frozenset({"merged_at", "merged_by", "merged_into", "merged_strategy", "merged_push", "merged_commit"}),
+    frozenset(ACCEPTANCE_PROVENANCE_FIELDS) - {"vcs", "vcs_locked_at"},
 )
 
 
@@ -287,28 +313,11 @@ def _union_acceptance_history(
     return combined
 
 
-def reconcile_meta_payloads(
+def _reconcile_meta_two_way(
     ours: dict[str, Any],
     theirs: dict[str, Any],
 ) -> dict[str, Any]:
-    """Field-merge two ``meta.json`` payloads for the squash driver (FR-004).
-
-    ``ours`` is the target checkout (accepted-newer authority for acceptance/VCS
-    provenance); ``theirs`` is the mission branch (planning-key authority — the
-    #1732 mission-authoritative planning intent). Acceptance/VCS scalar keys are taken from ``ours``
-    when present; ``acceptance_history`` is unioned; every other key falls back to
-    ``theirs`` so mission-authoritative planning state is preserved.
-
-    ``mission_number`` is a deliberate exception to the "present (even null)
-    wins" rule above (#4900): an UNASSIGNED target-owned value (``null``,
-    missing, non-integer, 0 or negative — see
-    :func:`specify_cli.consolidation.mission_number.is_assigned_mission_number`)
-    is treated as UNSET, so it never overrides a genuinely-assigned
-    mission-side number with the not-yet-minted placeholder every mission
-    starts with. Every other target-authoritative field keeps the pre-existing
-    rule unchanged (research: only ``mission_number`` is minted null pre-merge;
-    widening this exception to other fields is out of scope).
-    """
+    """Two-way field merge (no ancestor): the pre-#5460 rule, byte-for-byte."""
     result = dict(theirs)  # mission-authoritative baseline (C-002 / #1732).
     for key in _TARGET_AUTHORITATIVE_META_FIELDS:
         if key not in ours:
@@ -325,14 +334,122 @@ def reconcile_meta_payloads(
     return result
 
 
-def run_meta_driver(base_path: str, ours_path: str, theirs_path: str) -> MergeDriverOutcome:
-    """Field-merge conflicting ``meta.json`` blobs; write result to ``ours``."""
+def _meta_merge_units(keys: set[str]) -> list[tuple[str, ...]]:
+    """Group *keys* into merge units: one per touched coupled group, else one per key."""
+    units: list[tuple[str, ...]] = []
+    grouped: set[str] = {ACCEPTANCE_HISTORY_FIELD}  # unioned separately, never a unit
+    for group in _META_COUPLED_KEY_GROUPS:
+        if group & keys:
+            units.append(tuple(sorted(group)))
+            grouped |= group
+    units.extend((key,) for key in sorted(keys - grouped))
+    return units
+
+
+def _resolve_meta_unit(
+    unit: tuple[str, ...],
+    base: dict[str, Any],
+    ours: dict[str, Any],
+    theirs: dict[str, Any],
+) -> tuple[Any, ...]:
+    """Three-way resolve one unit; returns the winning side's member values."""
+    base_value = tuple(base.get(key, _MISSING) for key in unit)
+    ours_value = tuple(ours.get(key, _MISSING) for key in unit)
+    theirs_value = tuple(theirs.get(key, _MISSING) for key in unit)
+    if ours_value == theirs_value or theirs_value == base_value:
+        return ours_value
+    if ours_value == base_value:
+        return theirs_value
+    # Genuine conflict: today's precedence (target-authoritative -> ours, else theirs).
+    return ours_value if _TARGET_AUTHORITATIVE_META_SET.intersection(unit) else theirs_value
+
+
+def _apply_mission_number_guard(
+    result: dict[str, Any],
+    ours: dict[str, Any],
+    theirs: dict[str, Any],
+) -> None:
+    """An unassigned ``mission_number`` never replaces an assigned one (#4900)."""
+    if is_assigned_mission_number(result.get("mission_number")):
+        return
+    for side in (ours, theirs):
+        if is_assigned_mission_number(side.get("mission_number")):
+            result["mission_number"] = side["mission_number"]
+            return
+
+
+def reconcile_meta_payloads(
+    ours: dict[str, Any],
+    theirs: dict[str, Any],
+    base: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Field-merge two ``meta.json`` payloads for the ``merge-driver-meta`` driver.
+
+    Two rules, selected by *base* (git's ``%O`` ancestor):
+
+    **Ordinary merge (non-empty *base*): per-unit three-way.** A merge unit is a
+    single key, or a coupled key group that moves as one (the flatten triple
+    ``coordination_branch``/``topology``/``flattened``; the ``merged_*`` block;
+    the acceptance stamps). A unit changed, deleted or added on ONE side only
+    survives from that side, so a teammate's unrelated edit can no longer revert
+    ``mission close --discard`` (#5460); equal changes collapse. Only a genuine
+    both-sides conflict falls back to the precedence below. ``None`` (JSON
+    ``null``) is a value and an absent key is the private ``_MISSING`` sentinel,
+    so "removed" and "changed to null" stay distinct.
+
+    **Empty or absent *base*, or the consolidation pipeline's opt-out
+    (:data:`META_DRIVER_TWO_WAY_ENV`): two-way.** ``ours`` is the target checkout
+    (accepted-newer authority for acceptance/VCS provenance); ``theirs`` is the
+    mission branch (planning-key authority, the #1732 mission-authoritative
+    planning intent). Target-authoritative keys are taken from ``ours`` when
+    present; every other key falls back to ``theirs``. The mission→target squash
+    records no ancestry, so it must not trust ``%O``.
+
+    In both rules ``acceptance_history`` is the deduplicated, time-ordered union
+    of both sides, and ``mission_number`` is a deliberate exception to "present
+    (even null) wins" (#4900): an UNASSIGNED value (``null``, missing,
+    non-integer, 0 or negative; see
+    :func:`specify_cli.consolidation.mission_number.is_assigned_mission_number`)
+    never replaces a genuinely assigned one, whichever side it came from.
+    """
+    if not base:
+        return _reconcile_meta_two_way(ours, theirs)
+    result: dict[str, Any] = {}
+    keys = set(base) | set(ours) | set(theirs)
+    for unit in _meta_merge_units(keys):
+        for key, value in zip(unit, _resolve_meta_unit(unit, base, ours, theirs), strict=True):
+            if value is not _MISSING:
+                result[key] = value
+    _apply_mission_number_guard(result, ours, theirs)
+    unioned_history = _union_acceptance_history(
+        theirs.get(ACCEPTANCE_HISTORY_FIELD),
+        ours.get(ACCEPTANCE_HISTORY_FIELD),
+    )
+    if unioned_history:
+        result[ACCEPTANCE_HISTORY_FIELD] = unioned_history
+    return result
+
+
+def run_meta_driver(
+    base_path: str,
+    ours_path: str,
+    theirs_path: str,
+    *,
+    two_way: bool = False,
+) -> MergeDriverOutcome:
+    """Field-merge conflicting ``meta.json`` blobs; write result to ``ours``.
+
+    Reads the ``%O`` ancestor unless *two_way* (the consolidation pipeline's
+    mission→target squash opt-out) is set. An empty/absent ancestor selects the
+    two-way rule; a malformed one fails loud and named, like a malformed side.
+    """
     base, ours, theirs = _resolve_merge_driver_paths(base_path, ours_path, theirs_path)
-    _ = base  # %O ancestor: git always passes it, but the field merge is 2-way.
     try:
+        base_payload = {} if two_way else _load_json_object(base)
         merged = reconcile_meta_payloads(
             _load_json_object(ours),
             _load_json_object(theirs),
+            base_payload,
         )
     except (json.JSONDecodeError, EventLogMergeError) as exc:
         raise MergeDriverError(str(exc)) from exc
@@ -1333,7 +1450,9 @@ MERGE_DRIVER_BODIES: Mapping[str, MergeDriverBody] = MappingProxyType(
 )
 
 # Scoped to the symbols another src/ module actually imports by name
-# (cli/commands/merge_driver.py, consolidation/git_probes.py) -- everything else this
+# (cli/commands/merge_driver.py, lanes/consolidation.py, consolidation/git_probes.py;
+# ``run_meta_driver`` and ``META_DRIVER_TWO_WAY_ENV`` are consumed by the CLI shell
+# and the consolidation pipeline respectively) -- everything else this
 # module defines (MergeDriverOutcome, MergeDriverPathError,
 # RowMatrixMergeError, the run_*_driver bodies, the reconcile_* / trace-union
 # helpers) is intra-module-consumed-only from src's perspective (the
@@ -1345,4 +1464,6 @@ __all__ = [
     "MergeDriverError",
     "MergeDriverBody",
     "MERGE_DRIVER_BODIES",
+    "META_DRIVER_TWO_WAY_ENV",
+    "run_meta_driver",
 ]

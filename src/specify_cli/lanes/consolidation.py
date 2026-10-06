@@ -33,6 +33,7 @@ from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.lanes.stale_check import StaleCheckResult, check_lane_staleness
 from specify_cli.consolidation._constants import TARGET_BRANCH_CONTENT_CONFLICT
 from specify_cli.consolidation.config import MergeStrategy
+from specify_cli.consolidation.drivers import META_DRIVER_TWO_WAY_ENV
 from specify_cli.state.contract import is_target_owned_path
 
 
@@ -1079,12 +1080,16 @@ def _run_squash_merge(
     Raises :class:`_SquashMergeConflict` when a genuine conflict remains, and
     ``RuntimeError`` for a non-conflict failure or an unreadable conflict set.
     """
+    # The squash records no ancestry: ``%O`` is the stale fork point after a reopen,
+    # so the meta driver must keep its two-way rule here (#5460). Only this
+    # subprocess opts out; every other pipeline git call stays base-aware.
+    squash_env = {**env, META_DRIVER_TWO_WAY_ENV: "1"}
     result = subprocess.run(
         ["git", "merge", "--squash", source_branch],
         cwd=str(worktree),
         capture_output=True,
         text=True,
-        env=env,
+        env=squash_env,
     )
     if result.returncode == 0:
         return False
