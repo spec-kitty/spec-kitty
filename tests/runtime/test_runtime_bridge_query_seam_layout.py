@@ -144,10 +144,17 @@ def test_seam_scan_is_non_vacuous() -> None:
 
 
 def test_bridge_seam_map_names_every_seam() -> None:
-    """A seam added under ``runtime_bridge_*.py`` must be listed in the bridge's seam-map comment."""
-    source = (_NEXT_DIR / f"{_BRIDGE}.py").read_text(encoding="utf-8")
-    comments = "\n".join(line for line in source.splitlines() if line.startswith("#"))
-    assert [seam for seam in _SEAMS if seam not in comments] == []
+    """Every ``runtime_bridge_*.py`` seam has a row in the bridge's seam-map block.
+
+    Only the block from ``# Seam map`` up to ``# RULES`` counts, and a row names the
+    seam's file (``<seam>.py``), so neither another comment that mentions a seam nor a
+    longer identifier that contains its name can satisfy the check.
+    """
+    lines = (_NEXT_DIR / f"{_BRIDGE}.py").read_text(encoding="utf-8").splitlines()
+    start = next(i for i, line in enumerate(lines) if line.startswith("# Seam map"))
+    end = next(i for i, line in enumerate(lines) if i > start and line.startswith("# RULES"))
+    seam_map = "\n".join(lines[start:end])
+    assert [seam for seam in _SEAMS if f"{seam}.py" not in seam_map] == []
 
 
 @pytest.mark.parametrize("module", _SEAMS)

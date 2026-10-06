@@ -440,7 +440,11 @@ def test_no_thin_compat_delegate_docstring_left_on_the_bridge() -> None:
 
 
 def _top_level_defined_names(path: Path) -> set[str]:
-    """Names bound by a top-level ``def``/``class``/assignment in *path*."""
+    """Names bound by a top-level ``def``/``class``/assignment in *path*.
+
+    A definition nested inside a top-level ``if``/``try`` block is not seen, so such a
+    name is reported as missing: the scan fails closed rather than passing it.
+    """
     names: set[str] = set()
     for node in ast.parse(path.read_text(encoding="utf-8")).body:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
