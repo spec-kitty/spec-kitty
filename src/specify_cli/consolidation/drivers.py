@@ -84,6 +84,7 @@ from typing import Any, Final
 
 from pydantic import ValidationError
 
+from kernel.vcs_lock import VCS_LOCK_META_FIELDS
 from specify_cli.acceptance import (
     ACCEPTANCE_HISTORY_FIELD,
     ACCEPTANCE_PROVENANCE_FIELDS,
@@ -144,7 +145,7 @@ _MISSING: Final = object()
 _META_COUPLED_KEY_GROUPS: tuple[frozenset[str], ...] = (
     frozenset({"coordination_branch", "topology", "flattened"}),
     frozenset({"merged_at", "merged_by", "merged_into", "merged_strategy", "merged_push", "merged_commit"}),
-    frozenset(ACCEPTANCE_PROVENANCE_FIELDS) - {"vcs", "vcs_locked_at"},
+    frozenset(ACCEPTANCE_PROVENANCE_FIELDS) - VCS_LOCK_META_FIELDS,
 )
 
 
