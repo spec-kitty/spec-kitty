@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import json
+import stat
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
 import specify_cli.cli.commands.doctor as doctor_mod
+from specify_cli.cli.commands import _command_surface_doctor as doctor_surface
 from specify_cli.cli.commands.doctor import app
 from specify_cli.skills import command_installer, manifest_store
+from specify_cli.skills.pack_skill_drift import KIND_DRIFT, KIND_MISSING, KIND_STALE, PackSkillFinding
+from tests.charter import skill_pack_support as support
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -275,6 +279,7 @@ def test_doctor_skills_json_error_schema_stable(tmp_path: Path, monkeypatch: pyt
     # authoritatively (drops the old `.kittify`-present precondition).
     controlled_root = tmp_path / "controlled-empty-root"
     controlled_root.mkdir()
+    (controlled_root / ".claude").mkdir()  # one configured tool folder keeps ``tool_folders`` empty
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(controlled_root))
     # Run from an unrelated cwd to prove resolution does NOT depend on it.
     monkeypatch.chdir(tmp_path)
@@ -305,6 +310,8 @@ def test_doctor_skills_json_error_schema_stable(tmp_path: Path, monkeypatch: pyt
         # Additive (#5193 / #5694): pack-skill drift, stale, orphaned and unresolvable
         # findings. Empty for a project with no pack skill.
         "pack_skills": [],
+        # Additive (#5801): ``no_tool_folder`` finding; empty when any configured tool folder exists.
+        "tool_folders": [],
         "ok": True,
         "slash_commands": {
             "configured_agents": [],
@@ -338,3 +345,112 @@ def test_doctor_skills_not_in_project_envelope_frozen(
             "message": "Not in a spec-kitty project",
         },
     }
+
+
+# --- pack skills and tool folders --------------------------------------------
+
+PACK_SKILL_ID = "deploy-helper"
+PACK_SKILL_RENDERED = "acme-deploy-helper"
+PACK_SKILL_CONFIG = "agents:\n  available:\n    - claude\n    - codex\n"
+
+
+@pytest.fixture
+def pack_skill_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    pack = tmp_path / "pack"
+    pack.mkdir()
+    support.write_skill(pack, PACK_SKILL_ID)
+    support.write_org_charter(pack, required_skills=[PACK_SKILL_ID], namespace="acme")
+    root = tmp_path / "project"
+    root.mkdir()
+    support.write_config(root, pack, extra=PACK_SKILL_CONFIG)
+    (root / ".claude").mkdir()  # one configured tool folder exists
+    monkeypatch.setattr("specify_cli.cli.commands.doctor.locate_project_root", lambda: root)
+    return root
+
+
+def _doctor_skills_json(*args: str) -> tuple[int, dict[str, object]]:
+    result = runner.invoke(app, ["skills", "--json", *args])
+    return result.exit_code, json.loads(result.output[result.output.index("{") :])
+
+
+@pytest.mark.integration
+def test_required_pack_skill_never_installed_is_reported_missing_then_projected_by_fix(pack_skill_project: Path) -> None:
+    code, payload = _doctor_skills_json()
+    assert code == 1
+    pack_skills = payload["pack_skills"]
+    assert isinstance(pack_skills, list) and pack_skills
+    assert pack_skills[0]["kind"] == "missing"
+
+    code, payload = _doctor_skills_json("--fix")
+    assert (pack_skill_project / ".claude" / "skills" / PACK_SKILL_RENDERED / "SKILL.md").is_file()
+    assert payload["repaired_agents"]
+
+    code, payload = _doctor_skills_json()
+    assert code == 0, payload
+    assert payload["pack_skills"] == []
+
+
+@pytest.mark.integration
+def test_doctor_reports_no_tool_folder_when_no_configured_agent_folder_exists(pack_skill_project: Path) -> None:
+    (pack_skill_project / ".claude").rmdir()
+    code, payload = _doctor_skills_json()
+    assert code == 1
+    folders = payload["tool_folders"]
+    assert isinstance(folders, list) and folders[0]["kind"] == "no_tool_folder"
+    assert sorted(folders[0]["configured_agents"]) == ["claude", "codex"]
+
+
+@pytest.mark.integration
+def test_doctor_reports_no_tool_folder_findings_as_empty_when_one_configured_folder_exists(pack_skill_project: Path) -> None:
+    _, payload = _doctor_skills_json()
+    assert payload["tool_folders"] == []
+
+
+@pytest.mark.integration
+def test_fix_projects_missing_pack_skills_but_never_repairs_drift(pack_skill_project: Path) -> None:
+    _doctor_skills_json("--fix")
+    claude = pack_skill_project / ".claude" / "skills" / PACK_SKILL_RENDERED / "SKILL.md"
+    claude.chmod(claude.stat().st_mode | stat.S_IWUSR)
+    claude.write_text("edited locally\n", encoding="utf-8")
+    codex = pack_skill_project / ".agents" / "skills" / PACK_SKILL_RENDERED / "SKILL.md"
+    codex.chmod(codex.stat().st_mode | stat.S_IWUSR)
+    codex.unlink()
+
+    _, payload = _doctor_skills_json("--fix")
+
+    assert claude.read_text(encoding="utf-8") == "edited locally\n"
+    assert codex.is_file()
+    assert [item["kind"] for item in payload["pack_skills"]] == [KIND_DRIFT]
+
+
+def _pack_finding(kind: str) -> PackSkillFinding:
+    return PackSkillFinding(kind, PACK_SKILL_RENDERED, f".claude/skills/{PACK_SKILL_RENDERED}/SKILL.md", "")
+
+
+@pytest.mark.integration
+def test_repair_pack_skills_skips_projection_without_missing_findings(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def _boom(_: Path) -> None:
+        raise AssertionError("must not project")
+
+    monkeypatch.setattr("specify_cli.skills.installer.project_pack_skills", _boom)
+    findings = (_pack_finding(KIND_DRIFT), _pack_finding(KIND_STALE))
+    repaired: list[str] = []
+    errors: list[str] = []
+    assert doctor_surface._repair_pack_skills(tmp_path, findings, repaired, errors) == findings
+    assert repaired == [] and errors == []
+
+
+@pytest.mark.integration
+def test_repair_pack_skills_reports_projection_oserror(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def _fail(_: Path) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr("specify_cli.skills.installer.project_pack_skills", _fail)
+    findings = (_pack_finding(KIND_MISSING),)
+    repaired: list[str] = []
+    errors: list[str] = []
+    assert doctor_surface._repair_pack_skills(tmp_path, findings, repaired, errors) == findings
+    assert repaired == [] and errors == ["pack skill projection failed: disk full"]

@@ -33,7 +33,7 @@ from specify_cli.core.checkout_identity import (
     resolve_checkout_identity,
 )
 from specify_cli.core.paths import locate_project_root
-from specify_cli.skills.pack_skill_drift import find_pack_skill_findings
+from specify_cli.skills.pack_skill_drift import KIND_MISSING, PackSkillFinding, find_pack_skill_findings
 
 from . import _doctor_shared
 from ._doctor_shared import (
@@ -627,6 +627,8 @@ def run_skills_audit(
     )
     _print_slash_command_payload(slash_payload_for_print, fix)
     _print_pack_skill_findings(cast(list[dict[str, str]], payload["pack_skills"]))
+    for folder in cast(list[dict[str, object]], payload["tool_folders"]):
+        console.print(f"\n  ! [{folder['kind']}] {folder['message']}", markup=False)
 
     raise typer.Exit(0 if payload["ok"] else 1)
 
@@ -693,10 +695,59 @@ def _assemble_skills_payload(
 
     slash_payload = _load_and_optionally_repair_slash_commands(project_path, fix)
     payload["slash_commands"] = slash_payload
-    pack_findings = [finding.to_dict() for finding in find_pack_skill_findings(project_path)]
-    payload["pack_skills"] = pack_findings
-    payload["ok"] = bool(payload["ok"]) and bool(slash_payload["ok"]) and not pack_findings
+    pack_findings = find_pack_skill_findings(project_path)
+    if fix:
+        pack_findings = _repair_pack_skills(project_path, pack_findings, cast(list[str], payload["repaired_agents"]), cast(list[str], payload["repair_errors"]))
+    payload["pack_skills"] = [finding.to_dict() for finding in pack_findings]
+    tool_folders = _tool_folder_findings(project_path)
+    payload["tool_folders"] = tool_folders
+    payload["ok"] = bool(payload["ok"]) and bool(slash_payload["ok"]) and not pack_findings and not tool_folders
     return payload
+
+
+def _repair_pack_skills(
+    project_path: Path,
+    findings: tuple[PackSkillFinding, ...],
+    repaired: list[str],
+    repair_errors: list[str],
+) -> tuple[PackSkillFinding, ...]:
+    """Project missing pack skills (``--fix``); ``drift`` is never repaired. Returns the recomputed findings.
+
+    Projection can also retire orphaned copies the catalog no longer provides; those paths are
+    listed in *repaired* like any other projected path.
+    """
+    if not any(finding.kind == KIND_MISSING for finding in findings):
+        return findings
+    from specify_cli.skills.installer import project_pack_skills
+
+    try:
+        projection = project_pack_skills(project_path)
+    except OSError as exc:
+        repair_errors.append(f"pack skill projection failed: {exc}")
+        return findings
+    repaired.extend(projection.changed)
+    recomputed: tuple[PackSkillFinding, ...] = find_pack_skill_findings(project_path)
+    return recomputed
+
+
+def _tool_folder_findings(project_path: Path) -> list[dict[str, object]]:
+    """One ``no_tool_folder`` finding when none of the configured agents' root folders exists (FR-006)."""
+    from specify_cli.agent_utils.directories import get_agent_dirs_for_project
+
+    roots = {agent_root for agent_root, _subdir in get_agent_dirs_for_project(project_path)}
+    if not roots or any((project_path / root).is_dir() for root in roots):
+        return []
+    agents = _configured_tool_keys(project_path)
+    return [
+        {
+            "kind": "no_tool_folder",
+            "configured_agents": agents,
+            "message": (
+                f"none of the configured tool folders exists ({', '.join(sorted(roots))}) for agents {', '.join(agents)}; "
+                "run `spec-kitty upgrade` to recreate configured folders, or `spec-kitty agent config remove <agent>` to drop a tool"
+            ),
+        }
+    ]
 
 
 # --- tool-surfaces -----------------------------------------------------------

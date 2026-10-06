@@ -1256,7 +1256,7 @@ class PackSkillProjection:
     preserved: tuple[tuple[str, str], ...] = ()
 
 
-def _installable_agent_keys(project_path: Path) -> tuple[str, ...]:
+def installable_agent_keys(project_path: Path) -> tuple[str, ...]:
     """Configured agents that accept project skill files."""
     return tuple(
         sorted(
@@ -1287,7 +1287,7 @@ def project_pack_skills(project_path: Path, *, registry: SkillRegistry | None = 
     manifest-owned pack entries, which are retired when no longer in force).
     Raises :class:`OSError` when the batch cannot be prepared or applied.
     """
-    agents = _installable_agent_keys(project_path)
+    agents = installable_agent_keys(project_path)
     if not agents:
         return PackSkillProjection()  # nothing to project into: do not even stage
     catalog = registry if registry is not None else resolve_project_skill_catalog(project_path)

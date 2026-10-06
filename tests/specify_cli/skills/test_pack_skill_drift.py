@@ -21,7 +21,7 @@ from specify_cli.skills import catalog
 from specify_cli.skills.catalog import resolve_project_skill_catalog
 from specify_cli.skills.installer import install_all_skills
 from specify_cli.skills.manifest import ORIGIN_PACK, load_manifest, save_manifest
-from specify_cli.skills.pack_skill_drift import KIND_DRIFT, KIND_ORPHANED, KIND_STALE, KIND_UNRESOLVABLE, find_pack_skill_findings
+from specify_cli.skills.pack_skill_drift import KIND_DRIFT, KIND_MISSING, KIND_ORPHANED, KIND_STALE, KIND_UNRESOLVABLE, find_pack_skill_findings
 from specify_cli.tool_surface.operations import ApplyConsent
 from specify_cli.upgrade.assessment import prepare_upgrade_repairs
 from tests.charter import skill_pack_support as support
@@ -143,7 +143,8 @@ def test_old_manifest_without_provenance_gives_no_false_drift(project: Path, pac
     (pack / "skills" / f"{SKILL_ID}.skill.md").write_text("changed\n", encoding="utf-8")
     _edit_installed(_rendered(project), "edited\n")
 
-    assert find_pack_skill_findings(project) == ()
+    # Untracked (builtin-origin) entries yield no drift or staleness; the skills in force are simply not installed.
+    assert {f.kind for f in find_pack_skill_findings(project)} == {KIND_MISSING}
 
 
 def test_pack_entry_without_source_hash_is_not_stale(project: Path, pack: Path) -> None:
@@ -163,9 +164,32 @@ def test_no_manifest_and_retired_skill_yield_nothing(tmp_path: Path, project: Pa
     assert [f for f in find_pack_skill_findings(project) if f.kind == KIND_STALE] == []
 
 
-def test_absent_installed_file_is_not_drift(project: Path) -> None:
+def test_absent_installed_file_is_missing(project: Path) -> None:
     _rendered(project).unlink()
-    assert [f for f in find_pack_skill_findings(project) if f.installed_path.startswith(".claude/")] == []
+    findings = [f for f in find_pack_skill_findings(project) if f.installed_path.startswith(".claude/")]
+    assert [(f.kind, f.skill_name) for f in findings] == [(KIND_MISSING, RENDERED)]
+    assert "doctor skills --fix" in findings[0].message
+
+
+def test_never_installed_pack_skill_is_missing_per_agent(project: Path) -> None:
+    (project / ".kittify" / "skills-manifest.json").unlink()
+    findings = find_pack_skill_findings(project)
+    assert {f.kind for f in findings} == {KIND_MISSING}
+    assert {f.installed_path.split("/")[0] for f in findings} == {".claude", ".agents"}
+    assert all(f.skill_name == RENDERED for f in findings)
+
+
+def test_nothing_in_force_yields_no_missing_finding(project: Path) -> None:
+    (project / ".kittify" / "skills-manifest.json").unlink()
+    support.write_config(project, None, extra=CONFIG)
+    assert find_pack_skill_findings(project) == ()
+
+
+def test_agent_without_skill_support_is_never_missing(project: Path) -> None:
+    """A configured tool that takes no skill files (``q``: wrapper-only) gets no ``missing`` finding."""
+    (project / ".kittify" / "skills-manifest.json").unlink()
+    support.write_config(project, project.parent / "pack", extra=f"agents:\n  available:\n    - q\nactivated_skills:\n  - {SKILL_ID}\n")
+    assert [f for f in find_pack_skill_findings(project) if f.kind == KIND_MISSING] == []
 
 
 def test_read_only_resolution_reuses_one_parent_and_keeps_earlier_registries_valid(project: Path, pack: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -237,7 +261,7 @@ def test_legacy_bare_hex_source_hash_is_stale_once_then_clean(project: Path) -> 
 def test_namespace_change_orphans_the_old_copies_on_every_surface(project: Path, pack: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     support.write_org_charter(pack, namespace="beta")  # skill now renders as beta-deploy-helper
 
-    findings = find_pack_skill_findings(project)
+    findings = [f for f in find_pack_skill_findings(project) if f.kind != KIND_MISSING]  # beta- copies are new, not installed
     assert {f.kind for f in findings} == {KIND_ORPHANED}
     assert len(findings) == 2  # claude + codex copies, one orphaned finding each
     assert {f.skill_name for f in findings} == {RENDERED}
@@ -247,10 +271,10 @@ def test_namespace_change_orphans_the_old_copies_on_every_surface(project: Path,
 
     code, payload = _doctor(project, monkeypatch)
     assert code == 1
-    assert {item["kind"] for item in payload["pack_skills"]} == {KIND_ORPHANED}
+    assert {item["kind"] for item in payload["pack_skills"]} == {KIND_ORPHANED, KIND_MISSING}
 
     messages = _diagnostic_codes(project)
-    assert set(messages) == {"pack_skill_orphaned"}
+    assert set(messages) == {"pack_skill_orphaned", "pack_skill_missing"}  # the new-namespace copies are not installed
     assert source_ref in messages["pack_skill_orphaned"]
 
     # A namespace removed altogether makes the catalog unresolvable: say so once, with the reason,
