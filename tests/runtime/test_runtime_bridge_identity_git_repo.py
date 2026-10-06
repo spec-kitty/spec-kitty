@@ -28,7 +28,7 @@ from pathlib import Path
 
 import pytest
 
-from runtime.next.runtime_bridge import _mission_routes_through_coordination
+from runtime.next.runtime_bridge_decision_log import _mission_routes_through_coordination
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 

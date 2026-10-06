@@ -53,7 +53,7 @@ _COMPOSITION = "runtime_bridge_composition"
 #: Owner module -> extracted yet? Flipped by the WP that creates the module.
 _EXTRACTED: dict[str, bool] = {
     _MAPPING: True,
-    _DECISION_LOG: False,
+    _DECISION_LOG: True,
     _QUERY: False,
 }
 

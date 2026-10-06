@@ -368,7 +368,7 @@ class TestOwnedDecisionGitLogAnchor:
 
     def test_coordless_owned_anchors_at_p_and_never_writes_r(self, make_owned_checkouts, make_r_snapshot) -> None:
         from runtime.next._internal_runtime.events import NullEmitter
-        from runtime.next.runtime_bridge import _wrap_with_decision_git_log
+        from runtime.next.runtime_bridge_decision_log import _wrap_with_decision_git_log
 
         checkouts = make_owned_checkouts(topology="single_branch")
         _provision_charter(checkouts)
@@ -388,7 +388,7 @@ class TestOwnedDecisionGitLogAnchor:
 
     def test_coord_routing_owned_keeps_the_coordination_worktree_under_r(self, make_owned_checkouts) -> None:
         from runtime.next._internal_runtime.events import NullEmitter
-        from runtime.next.runtime_bridge import _wrap_with_decision_git_log
+        from runtime.next.runtime_bridge_decision_log import _wrap_with_decision_git_log
         from specify_cli.coordination.workspace import CoordinationWorkspace
 
         checkouts, fact = _coord_owned_with_removed_worktree(make_owned_checkouts)

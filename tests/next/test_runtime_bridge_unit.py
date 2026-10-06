@@ -23,6 +23,7 @@ from tests.lane_test_utils import write_single_lane_manifest
 from runtime.next.decision import DecisionKind
 from runtime.next._internal_runtime import DiscoveryContext
 from runtime.next import runtime_bridge_decision_mapping as decision_mapping
+from runtime.next import runtime_bridge_decision_log as decision_log
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -1989,7 +1990,7 @@ class TestMissionRoutesThroughCoordinationOwnedCheckout:
     def test_owned_checkout_reads_topology_off_the_fact_without_consulting_mission_context_for(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         import mission_runtime
         from tests._owned_fixtures import mint_test_fact
-        from runtime.next.runtime_bridge import _mission_routes_through_coordination
+        from runtime.next.runtime_bridge_decision_log import _mission_routes_through_coordination
 
         owned_root = tmp_path / "owned-checkout"
         feature_dir = owned_root / "kitty-specs" / "owned-mission"
@@ -2070,10 +2071,9 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
         proves nothing is re-composed in the bridge."""
         from mission_runtime import Establishment, WriteLocation
         from mission_runtime.artifacts import TopologySurface
-        from runtime.next import runtime_bridge
         from tests._owned_fixtures import mint_test_fact
 
-        monkeypatch.setattr(runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True)
+        monkeypatch.setattr(decision_log, "_mission_routes_through_coordination", lambda *_a, **_k: True)
         primary_metadata_dir = tmp_path / "primary-metadata"
         primary_metadata_dir.mkdir()
         mission_id = "01K3PW7QRSTVXYZ23456789ABC"
@@ -2105,7 +2105,7 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
             mission_slug=mission_slug,
             write_branch="codex/owned",
         )
-        wrapped = runtime_bridge._wrap_with_decision_git_log(SimpleNamespace(), mission_slug, tmp_path, owned=owned)
+        wrapped = decision_log._wrap_with_decision_git_log(SimpleNamespace(), mission_slug, tmp_path, owned=owned)
 
         assert seen == [owned], "the owned fact must reach the placement seam"
         assert wrapped._worktree_root == coord_root
@@ -2120,7 +2120,7 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
         from runtime.next import runtime_bridge
         from tests._owned_fixtures import mint_test_fact
 
-        monkeypatch.setattr(runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True)
+        monkeypatch.setattr(decision_log, "_mission_routes_through_coordination", lambda *_a, **_k: True)
         primary_metadata_dir = tmp_path / "primary-metadata"
         primary_metadata_dir.mkdir()
         mission_slug = "owned-primary-surface-mission"
@@ -2149,17 +2149,16 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
         )
 
         with pytest.raises(runtime_bridge.DecisionGitLogUnavailable, match="PRIMARY surface"):
-            runtime_bridge._wrap_with_decision_git_log(SimpleNamespace(), mission_slug, tmp_path, owned=owned)
+            decision_log._wrap_with_decision_git_log(SimpleNamespace(), mission_slug, tmp_path, owned=owned)
 
     def test_owned_arm_propagates_the_typed_coordination_unavailable_refusal(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """``write_dir``'s typed owned refusal propagates UNWRAPPED (never
         folded into ``DecisionGitLogUnavailable``) so ``_dn_bootstrap`` can map
         it to the typed ``blocked`` Decision (#4867 / T062)."""
         from mission_runtime import ActionContextError, OwnedRefusalCode
-        from runtime.next import runtime_bridge
         from tests._owned_fixtures import mint_test_fact
 
-        monkeypatch.setattr(runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True)
+        monkeypatch.setattr(decision_log, "_mission_routes_through_coordination", lambda *_a, **_k: True)
         primary_metadata_dir = tmp_path / "primary-metadata"
         primary_metadata_dir.mkdir()
         mission_slug = "owned-unavailable-mission"
@@ -2191,7 +2190,7 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
         )
 
         with pytest.raises(ActionContextError) as excinfo:
-            runtime_bridge._wrap_with_decision_git_log(SimpleNamespace(), mission_slug, tmp_path, owned=owned)
+            decision_log._wrap_with_decision_git_log(SimpleNamespace(), mission_slug, tmp_path, owned=owned)
         assert excinfo.value is refusal
 
     @staticmethod
@@ -2221,7 +2220,7 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
         from mission_runtime.artifacts import TopologySurface
         from runtime.next import runtime_bridge
 
-        monkeypatch.setattr(runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True)
+        monkeypatch.setattr(decision_log, "_mission_routes_through_coordination", lambda *_a, **_k: True)
         mission_id = "01K3PW7QRSTVXYZ23456789ABC"
         mission_slug = "non-owned-unmaterialized-mission"
         monkeypatch.setattr(
@@ -2243,7 +2242,7 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
         self._patch_placement_seam(monkeypatch, location)
 
         emitter = SimpleNamespace()
-        wrapped = runtime_bridge._wrap_with_decision_git_log(emitter, mission_slug, tmp_path)
+        wrapped = decision_log._wrap_with_decision_git_log(emitter, mission_slug, tmp_path)
 
         assert wrapped._worktree_root == coord_root
 

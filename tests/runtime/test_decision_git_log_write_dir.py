@@ -51,10 +51,12 @@ import pytest
 
 from mission_runtime import MissionArtifactKind, MissionTopology, OwnedCheckout, TopologySurface, placement_seam
 from runtime.next._internal_runtime.events import RuntimeEventEmitter
-from runtime.next.runtime_bridge import DecisionGitLogUnavailable, _wrap_with_decision_git_log
+from runtime.next.runtime_bridge import DecisionGitLogUnavailable
+from runtime.next.runtime_bridge_decision_log import _wrap_with_decision_git_log
 from specify_cli.events.decision_log import DecisionGitLog
 from specify_cli.lanes.branch_naming import coord_mission_dir_name
 from tests._factories.coord_mission import COORD_TOPOLOGIES, make_prefix_coord_mission
+from runtime.next import runtime_bridge_decision_log as decision_log
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -195,10 +197,9 @@ def test_wrap_refuses_when_write_dir_resolves_primary_under_coord_topology(tmp_p
     import mission_runtime
     from mission_runtime import Establishment, WriteLocation
     from mission_runtime import placement_seam as _real_placement_seam
-    from runtime.next import runtime_bridge
 
     coord = make_prefix_coord_mission(tmp_path, MissionTopology.COORD, worktree="empty")
-    monkeypatch.setattr(runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True)
+    monkeypatch.setattr(decision_log, "_mission_routes_through_coordination", lambda *_a, **_k: True)
     fake_location = WriteLocation(
         path=coord.repo_root / "kitty-specs" / coord.mission_dir_name,
         surface_root=coord.repo_root,

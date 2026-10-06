@@ -1540,8 +1540,8 @@ def resolve_commit_target(
     "Pure; no filesystem touch" — it only composes the path string. The ONE
     still-I/O-bearing decision — whether ``CoordinationWorkspace.resolve()``'s
     verify-or-create side effects must run before trusting the candidate — is
-    left to the caller (``_wrap_with_decision_git_log``, KEEP-IN-PLACE in the
-    residual), which performs the ``.exists()`` stat itself: on success,
+    left to the caller (``runtime_bridge_decision_log._wrap_with_decision_git_log``),
+    which performs the ``.exists()`` stat itself: on success,
     ``CoordinationWorkspace.resolve()`` always returns the identical path this
     function already computed (its ``path = cls.worktree_path(...)`` is the
     first line of every one of its branches), so deciding the FINAL
@@ -1550,8 +1550,9 @@ def resolve_commit_target(
     first, never a different resulting value on success.
 
     Returns ``(mid8, worktree_root_candidate, decision_target)``. Raises
-    :class:`runtime_bridge.DecisionGitLogUnavailable` (deferred import — the
-    residual defines it; a top-level import here would be circular) when
+    :class:`runtime_bridge_decision_log.DecisionGitLogUnavailable` (deferred
+    import — that module imports this one at its top level, so a top-level
+    import here would be circular; #2560) when
     ``coord_routing_topology`` is True and no ``mid8`` can be resolved,
     exactly as the pre-extraction inline code did (still caught by the
     enclosing ``try/except`` in ``_wrap_with_decision_git_log``, so the
@@ -1560,7 +1561,7 @@ def resolve_commit_target(
     """
     mid8 = resolve_mid8(mission_slug, mission_id=mission_id)
     if coord_routing_topology and not mid8:
-        from runtime.next.runtime_bridge import DecisionGitLogUnavailable  # noqa: PLC0415
+        from runtime.next.runtime_bridge_decision_log import DecisionGitLogUnavailable  # noqa: PLC0415
 
         raise DecisionGitLogUnavailable(
             f"Cannot resolve mid8 for coordination-topology mission "

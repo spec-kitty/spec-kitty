@@ -29,10 +29,8 @@ from unittest.mock import patch
 
 import pytest
 
-from runtime.next.runtime_bridge import (
-    DecisionGitLogUnavailable,
-    _wrap_with_decision_git_log,
-)
+from runtime.next.runtime_bridge import DecisionGitLogUnavailable
+from runtime.next.runtime_bridge_decision_log import _wrap_with_decision_git_log
 from runtime.next.runtime_bridge_identity import _resolve_mission_ulid
 from runtime.next._internal_runtime.events import NullEmitter
 
@@ -154,7 +152,7 @@ class TestWrapWithDecisionGitLogIdentityContract:
                 return_value=feature_dir,
             ),
             patch(
-                "runtime.next.runtime_bridge._mission_routes_through_coordination",
+                "runtime.next.runtime_bridge_decision_log._mission_routes_through_coordination",
                 return_value=False,
             ),
             patch(
@@ -192,7 +190,7 @@ class TestWrapWithDecisionGitLogIdentityContract:
                 return_value=feature_dir,
             ),
             patch(
-                "runtime.next.runtime_bridge._mission_routes_through_coordination",
+                "runtime.next.runtime_bridge_decision_log._mission_routes_through_coordination",
                 return_value=False,
             ),
             patch(
@@ -229,7 +227,7 @@ class TestWrapWithDecisionGitLogIdentityContract:
                 return_value=feature_dir,
             ),
             patch(
-                "runtime.next.runtime_bridge._mission_routes_through_coordination",
+                "runtime.next.runtime_bridge_decision_log._mission_routes_through_coordination",
                 return_value=True,  # coord topology
             ),
             patch(

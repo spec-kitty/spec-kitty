@@ -121,14 +121,16 @@ _PRE_WRITE_DIR_ADOPTED_MODULES: tuple[Path, ...] = (
 #: HERE, to the ``write_dir`` consumers, rather than there. Use
 #: ``WriteLocation.surface_root`` instead of a ``.parent.parent`` walk.
 #:
-#: ``src/runtime/next/runtime_bridge.py`` lives outside ``_SRC`` (it is under
-#: ``src/runtime``), so every path here is spelled from ``_REPO_ROOT``.
+#: ``src/runtime/next/runtime_bridge_decision_log.py`` lives outside ``_SRC`` (it
+#: is under ``src/runtime``), so its path is spelled from ``_REPO_ROOT``. It
+#: replaced ``runtime_bridge.py`` here when ``_wrap_with_decision_git_log`` (the
+#: bridge's only ``write_dir`` call) moved to it (#2560).
 _WRITE_DIR_CONSUMER_MODULES: tuple[Path, ...] = (
     _SRC / "decisions" / "emit.py",
     _SRC / "decisions" / "service.py",
     _SRC / "decisions" / "fork.py",
     _SRC / "events" / "decision_log.py",
-    _REPO_ROOT / "src" / "runtime" / "next" / "runtime_bridge.py",
+    _REPO_ROOT / "src" / "runtime" / "next" / "runtime_bridge_decision_log.py",
     _SRC / "review" / "cycle.py",
     _SRC / "cli" / "commands" / "accept.py",
     _SRC / "cli" / "commands" / "_decisions_doctor.py",
@@ -1399,7 +1401,8 @@ _COORD_WRITER_CENSUS: tuple[tuple[str, str], ...] = (
     ("src/specify_cli/coordination/status_transition.py", "_emit_on_coord_then_commit"),
     ("src/specify_cli/coordination/transaction.py", "BookkeepingTransaction._acquire_locked"),
     ("src/specify_cli/coordination/transaction.py", "BookkeepingTransaction.preflight_refusal"),
-    ("src/runtime/next/runtime_bridge.py", "_wrap_with_decision_git_log"),
+    # #2560: re-pointed; ``_wrap_with_decision_git_log`` moved verbatim to the decision-log seam.
+    ("src/runtime/next/runtime_bridge_decision_log.py", "_wrap_with_decision_git_log"),
     ("src/specify_cli/cli/commands/accept.py", "_coord_status_feature_dir"),
     ("src/specify_cli/cli/commands/retrospect.py", "_canonical_events_write_path"),
     ("src/specify_cli/cli/commands/agent_retrospect.py", "_canonical_events_write_dir"),

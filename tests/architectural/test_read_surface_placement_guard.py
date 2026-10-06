@@ -324,9 +324,11 @@ def test_mission_context_primary_metadata_commit_target_is_non_none_and_inert(
     ``None``. This locks in BOTH halves of the CONFIRMED-INERT verdict WP02's
     T005 audit recorded and handed to WP07: (a) the flip landed at this
     consumer (non-None), and (b) it is a no-op for behaviour because nothing
-    branches on it — the only two ``MissionContext.artifact(...)`` production
-    callers (``runtime/next/runtime_bridge.py``) read ONLY ``.read_dir``, never
-    ``.commit_target`` (grep-verified; no consumer to regress).
+    branches on it for ``PRIMARY_METADATA``. (Wording corrected in #2560: the
+    runtime-bridge family's ``MissionContext.artifact(...)`` callers read
+    ``.read_dir`` for every kind, and ``.commit_target`` only for
+    ``STATUS_STATE`` in ``runtime_bridge_decision_log._wrap_with_decision_git_log``,
+    never for ``PRIMARY_METADATA``.)
     """
     _build_mission_flat(repo, topology=MissionTopology.SINGLE_BRANCH)
 

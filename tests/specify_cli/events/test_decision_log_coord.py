@@ -178,7 +178,7 @@ class TestWrapWithDecisionGitLogCoordRouting:
         ``WriteLocation.surface_root``/``.path`` into ``DecisionGitLog``
         unchanged.
         """
-        from runtime.next.runtime_bridge import _wrap_with_decision_git_log
+        from runtime.next.runtime_bridge_decision_log import _wrap_with_decision_git_log
 
         slug = "my-feature-01KT3YBD"
         base_slug = "my-feature"
@@ -262,7 +262,7 @@ class TestWrapWithDecisionGitLogCoordRouting:
 
     def test_repo_root_used_when_coord_absent(self, tmp_path: Path) -> None:
         """When coord worktree does not exist, repo_root becomes worktree_root (T019)."""
-        from runtime.next.runtime_bridge import _wrap_with_decision_git_log
+        from runtime.next.runtime_bridge_decision_log import _wrap_with_decision_git_log
 
         slug = "my-feature-01KT3YBD"
         inner = MagicMock(spec=RuntimeEventEmitter)
@@ -314,7 +314,7 @@ class TestWrapWithDecisionGitLogCoordRouting:
         directly rather than the retired ``CoordinationWorkspace.resolve``
         call this arm no longer makes.
         """
-        from runtime.next.runtime_bridge import _wrap_with_decision_git_log
+        from runtime.next.runtime_bridge_decision_log import _wrap_with_decision_git_log
 
         repo_root = tmp_path / "repo"
         slug = "my-feature-01KT3YBD"
@@ -366,10 +366,8 @@ class TestWrapWithDecisionGitLogCoordRouting:
         originates from ``write_dir`` (the one accessor this arm calls)
         instead of the retired ``CoordinationWorkspace.resolve``.
         """
-        from runtime.next.runtime_bridge import (
-            DecisionGitLogUnavailable,
-            _wrap_with_decision_git_log,
-        )
+        from runtime.next.runtime_bridge import DecisionGitLogUnavailable
+        from runtime.next.runtime_bridge_decision_log import _wrap_with_decision_git_log
 
         repo_root = tmp_path / "repo"
         slug = "my-feature-01KT3YBD"
@@ -424,7 +422,7 @@ class TestWorktreeRootPreservedThroughKindDrain:
         ref-only ``decision_target`` still carries the coordination branch ref (the
         carrier conversion changed only ``.kind``, never ``.ref``).
         """
-        from runtime.next.runtime_bridge import _wrap_with_decision_git_log
+        from runtime.next.runtime_bridge_decision_log import _wrap_with_decision_git_log
 
         slug = "my-feature-01KT3YBD"
         mid8 = "01KT3YBD"
@@ -585,7 +583,7 @@ class TestNFR004FallbackNoRaise:
 
     def test_decision_log_construction_does_not_abort_when_coord_worktree_missing(self, tmp_path: Path) -> None:
         """_wrap_with_decision_git_log never raises when coord worktree absent (NFR-004)."""
-        from runtime.next.runtime_bridge import _wrap_with_decision_git_log
+        from runtime.next.runtime_bridge_decision_log import _wrap_with_decision_git_log
 
         repo_root = tmp_path / "repo"
         repo_root.mkdir()
