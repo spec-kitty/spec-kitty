@@ -9,7 +9,8 @@ import pytest
 
 from mission_runtime import MissionTopology
 from runtime.next.decision import Decision, DecisionKind, _build_prompt_or_error, decide_next
-from runtime.next.runtime_bridge import _materialize_decision, decide_next_via_runtime, query_current_state
+from runtime.next.runtime_bridge import decide_next_via_runtime, query_current_state
+from runtime.next.runtime_bridge_decision_mapping import _materialize_decision
 from runtime.next.runtime_bridge_cores import DecisionEnvelope
 from tests.runtime._next_mission_scaffold import (
     advance_to_step,
@@ -110,7 +111,7 @@ def test_fresh_step_mapping_uses_primary_task_body(tmp_path: Path) -> None:
     """The DAG materialization route also reads the primary WP task."""
     repo_root, mission_slug, _, coordination_dir = _scaffold_lanes_with_coord_mission(tmp_path, lane="planned")
 
-    from runtime.next.runtime_bridge import _map_wp_step_decision
+    from runtime.next.runtime_bridge_decision_mapping import _map_wp_step_decision
 
     decision = _map_wp_step_decision(
         step_id="implement",

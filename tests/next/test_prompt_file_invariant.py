@@ -246,24 +246,24 @@ def _runtime_decision(
 )
 def test_issued_step_always_has_resolvable_prompt(tmp_path: Path, step_id: str) -> None:
     """For every public step kind, an issued decision must satisfy the contract."""
-    from runtime.next.runtime_bridge import _map_runtime_decision
+    from runtime.next.runtime_bridge_decision_mapping import _map_runtime_decision
 
     prompt_path = tmp_path / f"{step_id}-prompt.md"
     prompt_path.write_text(f"# prompt for {step_id}\n", encoding="utf-8")
 
     with (
         patch(
-            "runtime.next.runtime_bridge._state_to_action",
+            "runtime.next.runtime_bridge_decision_mapping._state_to_action",
             return_value=(step_id, None, None),
-        ),
+        ) as state_to_action,
         patch(
-            "runtime.next.runtime_bridge._is_wp_iteration_step",
+            "runtime.next.runtime_bridge_decision_mapping._is_wp_iteration_step",
             return_value=False,
         ),
         patch(
-            "runtime.next.runtime_bridge._build_prompt_or_error",
+            "runtime.next.runtime_bridge_decision_mapping._build_prompt_or_error",
             return_value=(str(prompt_path), None, None),
-        ),
+        ) as build_prompt,
     ):
         decision: Decision = _map_runtime_decision(
             decision=_runtime_decision(step_id=step_id),
@@ -276,6 +276,10 @@ def test_issued_step_always_has_resolvable_prompt(tmp_path: Path, step_id: str) 
             progress=None,
             origin={},
         )
+
+    # The fakes steer the mapping module, where _map_runtime_decision reads them (#2560).
+    state_to_action.assert_called()
+    build_prompt.assert_called()
 
     assert decision.kind == DecisionKind.step
     # Contract: issued steps MUST carry a non-empty resolvable prompt_file.
@@ -287,7 +291,7 @@ def test_issued_step_always_has_resolvable_prompt(tmp_path: Path, step_id: str) 
 @pytest.mark.parametrize("step_id", ["discovery", "research", "documentation"])
 def test_unresolvable_prompt_yields_structured_blocked(tmp_path: Path, step_id: str) -> None:
     """When prompt resolution fails, the response MUST be `blocked` with a non-empty `reason`."""
-    from runtime.next.runtime_bridge import _map_runtime_decision
+    from runtime.next.runtime_bridge_decision_mapping import _map_runtime_decision
 
     error_msg = (
         f"prompt resolution failed for action '{step_id}': "
@@ -295,17 +299,17 @@ def test_unresolvable_prompt_yields_structured_blocked(tmp_path: Path, step_id: 
     )
     with (
         patch(
-            "runtime.next.runtime_bridge._state_to_action",
+            "runtime.next.runtime_bridge_decision_mapping._state_to_action",
             return_value=(step_id, None, None),
-        ),
+        ) as state_to_action,
         patch(
-            "runtime.next.runtime_bridge._is_wp_iteration_step",
+            "runtime.next.runtime_bridge_decision_mapping._is_wp_iteration_step",
             return_value=False,
         ),
         patch(
-            "runtime.next.runtime_bridge._build_prompt_or_error",
+            "runtime.next.runtime_bridge_decision_mapping._build_prompt_or_error",
             return_value=(None, error_msg, None),
-        ),
+        ) as build_prompt,
     ):
         decision: Decision = _map_runtime_decision(
             decision=_runtime_decision(step_id=step_id),
@@ -318,6 +322,10 @@ def test_unresolvable_prompt_yields_structured_blocked(tmp_path: Path, step_id: 
             progress=None,
             origin={},
         )
+
+    # The fakes steer the mapping module, where _map_runtime_decision reads them (#2560).
+    state_to_action.assert_called()
+    build_prompt.assert_called()
 
     assert decision.kind == DecisionKind.blocked
     assert decision.reason is not None
@@ -330,24 +338,24 @@ def test_unresolvable_prompt_yields_structured_blocked(tmp_path: Path, step_id: 
 @pytest.mark.parametrize("step_id", ["implement", "review"])
 def test_wp_iteration_step_invariant_holds(tmp_path: Path, step_id: str) -> None:
     """Composed WP-iteration steps (implement/review) must satisfy the invariant too."""
-    from runtime.next.runtime_bridge import _map_runtime_decision
+    from runtime.next.runtime_bridge_decision_mapping import _map_runtime_decision
 
     prompt_path = tmp_path / f"{step_id}-prompt.md"
     prompt_path.write_text(f"# prompt for {step_id}\n", encoding="utf-8")
 
     with (
         patch(
-            "runtime.next.runtime_bridge._state_to_action",
+            "runtime.next.runtime_bridge_decision_mapping._state_to_action",
             return_value=(step_id, "WP01", str(tmp_path / ".worktrees" / "lane-a")),
-        ),
+        ) as state_to_action,
         patch(
-            "runtime.next.runtime_bridge._is_wp_iteration_step",
+            "runtime.next.runtime_bridge_decision_mapping._is_wp_iteration_step",
             return_value=True,
         ),
         patch(
-            "runtime.next.runtime_bridge._build_prompt_or_error",
+            "runtime.next.runtime_bridge_decision_mapping._build_prompt_or_error",
             return_value=(str(prompt_path), None, None),
-        ),
+        ) as build_prompt,
     ):
         decision = _map_runtime_decision(
             decision=_runtime_decision(step_id=step_id),
@@ -360,6 +368,10 @@ def test_wp_iteration_step_invariant_holds(tmp_path: Path, step_id: str) -> None
             progress=None,
             origin={},
         )
+
+    # The fakes steer the mapping module, where _map_runtime_decision reads them (#2560).
+    state_to_action.assert_called()
+    build_prompt.assert_called()
 
     assert decision.kind == DecisionKind.step
     assert decision.prompt_file is not None
@@ -369,21 +381,21 @@ def test_wp_iteration_step_invariant_holds(tmp_path: Path, step_id: str) -> None
 @pytest.mark.parametrize("step_id", ["implement", "review"])
 def test_wp_iteration_step_blocked_when_prompt_unresolvable(tmp_path: Path, step_id: str) -> None:
     """WP-iteration steps must also fall through to blocked when prompts fail."""
-    from runtime.next.runtime_bridge import _map_runtime_decision
+    from runtime.next.runtime_bridge_decision_mapping import _map_runtime_decision
 
     with (
         patch(
-            "runtime.next.runtime_bridge._state_to_action",
+            "runtime.next.runtime_bridge_decision_mapping._state_to_action",
             return_value=(step_id, "WP01", str(tmp_path / ".worktrees" / "lane-a")),
-        ),
+        ) as state_to_action,
         patch(
-            "runtime.next.runtime_bridge._is_wp_iteration_step",
+            "runtime.next.runtime_bridge_decision_mapping._is_wp_iteration_step",
             return_value=True,
         ),
         patch(
-            "runtime.next.runtime_bridge._build_prompt_or_error",
+            "runtime.next.runtime_bridge_decision_mapping._build_prompt_or_error",
             return_value=(None, f"prompt resolution failed for action '{step_id}'", None),
-        ),
+        ) as build_prompt,
     ):
         decision = _map_runtime_decision(
             decision=_runtime_decision(step_id=step_id),
@@ -396,6 +408,10 @@ def test_wp_iteration_step_blocked_when_prompt_unresolvable(tmp_path: Path, step
             progress=None,
             origin={},
         )
+
+    # The fakes steer the mapping module, where _map_runtime_decision reads them (#2560).
+    state_to_action.assert_called()
+    build_prompt.assert_called()
 
     assert decision.kind == DecisionKind.blocked
     assert decision.reason is not None
@@ -411,24 +427,24 @@ def test_third_state_does_not_exist(tmp_path: Path) -> None:
     of `_map_runtime_decision`'s step handler, the only outcomes are
     (issued + resolvable prompt) or (blocked + non-empty reason).
     """
-    from runtime.next.runtime_bridge import _map_runtime_decision
+    from runtime.next.runtime_bridge_decision_mapping import _map_runtime_decision
 
     for prompt_outcome in [
         (None, "prompt resolution failed for action 'discovery': FileNotFoundError: x", None),
     ]:
         with (
             patch(
-                "runtime.next.runtime_bridge._state_to_action",
+                "runtime.next.runtime_bridge_decision_mapping._state_to_action",
                 return_value=("discovery", None, None),
-            ),
+            ) as state_to_action,
             patch(
-                "runtime.next.runtime_bridge._is_wp_iteration_step",
+                "runtime.next.runtime_bridge_decision_mapping._is_wp_iteration_step",
                 return_value=False,
             ),
             patch(
-                "runtime.next.runtime_bridge._build_prompt_or_error",
+                "runtime.next.runtime_bridge_decision_mapping._build_prompt_or_error",
                 return_value=prompt_outcome,
-            ),
+            ) as build_prompt,
         ):
             decision = _map_runtime_decision(
                 decision=_runtime_decision(step_id="discovery"),
@@ -441,6 +457,10 @@ def test_third_state_does_not_exist(tmp_path: Path) -> None:
                 progress=None,
                 origin={},
             )
+
+        # The fakes steer the mapping module, where _map_runtime_decision reads them (#2560).
+        state_to_action.assert_called()
+        build_prompt.assert_called()
 
         # Forbidden combination: issued step with no resolvable prompt.
         is_issued_step = decision.kind == DecisionKind.step

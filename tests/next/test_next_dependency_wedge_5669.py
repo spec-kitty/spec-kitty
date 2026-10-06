@@ -34,7 +34,7 @@ def _walled_board(repo: Path) -> tuple[Path, str]:
 def test_override_reports_review_for_walled_planned_wp_5669(tmp_path: Path) -> None:
     feature_dir, _ = _walled_board(tmp_path / "repo")
 
-    from runtime.next.runtime_bridge import _finalized_task_board_override_step
+    from runtime.next.runtime_bridge_decision_mapping import _finalized_task_board_override_step
 
     assert _finalized_task_board_override_step(feature_dir, _compute_wp_progress(feature_dir)) == "review"
 
@@ -43,7 +43,7 @@ def test_dispatch_authority_resolves_review_for_walled_planned_wp_5669(tmp_path:
     repo = tmp_path / "repo"
     _, mission_slug = _walled_board(repo)
 
-    from runtime.next.runtime_bridge import _resolve_wp_board_action
+    from runtime.next.runtime_bridge_decision_mapping import _resolve_wp_board_action
 
     result = _resolve_wp_board_action(mission_slug=mission_slug, repo_root=repo)
 
@@ -78,7 +78,7 @@ def test_walled_planned_wp_alone_is_never_dispatched_for_implement_4860(tmp_path
         dependencies=_WALLED_BOARD_DEPS,
     )
 
-    from runtime.next.runtime_bridge import _resolve_wp_board_action
+    from runtime.next.runtime_bridge_decision_mapping import _resolve_wp_board_action
 
     result = _resolve_wp_board_action(mission_slug=mission_slug, repo_root=repo)
 
@@ -93,7 +93,7 @@ def test_claimable_planned_wp_still_routes_to_implement(tmp_path: Path) -> None:
     repo.mkdir()
     feature_dir, _ = _scaffold(repo, {"WP01": Lane.FOR_REVIEW, "WP02": Lane.PLANNED})
 
-    from runtime.next.runtime_bridge import _finalized_task_board_override_step
+    from runtime.next.runtime_bridge_decision_mapping import _finalized_task_board_override_step
 
     assert _finalized_task_board_override_step(feature_dir, _compute_wp_progress(feature_dir)) == "implement"
 
@@ -111,7 +111,7 @@ def test_board_authority_preempts_state_to_action_fallback_for_walled_board(tmp_
         dependencies=_WALLED_BOARD_DEPS,
     )
 
-    from runtime.next.runtime_bridge import _wp_iteration_action_and_state
+    from runtime.next.runtime_bridge_decision_mapping import _wp_iteration_action_and_state
 
     action, wp_id, _workspace, blocked_reason, _state = _wp_iteration_action_and_state("implement", mission_slug, "software-dev", feature_dir, repo)
 

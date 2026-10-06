@@ -39,6 +39,7 @@ from runtime.next._internal_runtime.schema import NextDecision
 from runtime.next.decision import Decision, DecisionKind
 from charter.activation.invocation_context import OperationalContext
 from specify_cli.status import CanonicalStatusNotFoundError
+from runtime.next import runtime_bridge_decision_mapping as decision_mapping
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -107,7 +108,7 @@ def _make_ctx(
 def _sentinel_decision(reason: str) -> Decision:
     """A realistic ``Decision`` test double built through the real WP07
     builder (not a bespoke fake shape)."""
-    return rb._materialize_decision(
+    return decision_mapping._materialize_decision(
         _cores.DecisionEnvelope(
             kind=DecisionKind.terminal,
             agent="agent-x",
@@ -447,7 +448,7 @@ def test_bootstrap_preserves_phase_and_guards_when_optional_seed_unavailable(
     assert ctx.current_step_id == "implement"
     assert context_calls[0]["step_id"] == "implement"
     assert context_calls[0]["mission_state"] == "implement"
-    monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda _: True)
+    monkeypatch.setattr(decision_mapping, "_is_wp_iteration_step", lambda _: True)
 
     def unavailable_status(*args: Any, **kwargs: Any) -> bool:
         raise CanonicalStatusNotFoundError("guard still active")
@@ -499,7 +500,7 @@ def test_bootstrap_defaults_current_step_id_to_none_when_snapshot_read_fails(tmp
 
 def test_dependency_gate_returns_none_when_result_not_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _make_ctx(tmp_path, result="failed")
-    monkeypatch.setattr(rb, "_is_wp_iteration_step", _raising)
+    monkeypatch.setattr(decision_mapping, "_is_wp_iteration_step", _raising)
     monkeypatch.setattr(rb, "_check_cli_guards", _raising)
 
     assert rb._dn_dependency_gate(ctx) is None
@@ -507,14 +508,14 @@ def test_dependency_gate_returns_none_when_result_not_success(tmp_path: Path, mo
 
 def test_dependency_gate_returns_none_without_current_step(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _make_ctx(tmp_path, current_step_id=None)
-    monkeypatch.setattr(rb, "_is_wp_iteration_step", _raising)
+    monkeypatch.setattr(decision_mapping, "_is_wp_iteration_step", _raising)
 
     assert rb._dn_dependency_gate(ctx) is None
 
 
 def test_dependency_gate_returns_blocked_decision_on_status_lookup_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _make_ctx(tmp_path, current_step_id="implement")
-    monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: True)
+    monkeypatch.setattr(decision_mapping, "_is_wp_iteration_step", lambda step: True)
 
     def _raise(*_a: Any, **_kw: Any) -> bool:
         raise CanonicalStatusNotFoundError("no status file")
@@ -531,7 +532,7 @@ def test_dependency_gate_returns_blocked_decision_on_status_lookup_failure(tmp_p
 
 def test_dependency_gate_stays_in_step_when_wps_remain(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _make_ctx(tmp_path, current_step_id="implement")
-    monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: True)
+    monkeypatch.setattr(decision_mapping, "_is_wp_iteration_step", lambda step: True)
     monkeypatch.setattr(rb, "_should_advance_wp_step", lambda step, fd, **kw: False)
     monkeypatch.setattr(rb, "_check_cli_guards", _raising)
 
@@ -542,7 +543,7 @@ def test_dependency_gate_stays_in_step_when_wps_remain(tmp_path: Path, monkeypat
         captured["kw"] = kw
         return sentinel
 
-    monkeypatch.setattr(rb, "_build_wp_iteration_decision", _fake_wp_iteration)
+    monkeypatch.setattr(decision_mapping, "_build_wp_iteration_decision", _fake_wp_iteration)
 
     decision = rb._dn_dependency_gate(ctx)
 
@@ -552,7 +553,7 @@ def test_dependency_gate_stays_in_step_when_wps_remain(tmp_path: Path, monkeypat
 
 def test_dependency_gate_stays_in_step_with_guard_failures_on_advance(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _make_ctx(tmp_path, current_step_id="implement")
-    monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: True)
+    monkeypatch.setattr(decision_mapping, "_is_wp_iteration_step", lambda step: True)
     monkeypatch.setattr(rb, "_should_advance_wp_step", lambda step, fd, **kw: True)
     monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd, **kw: ["missing artifact"])
 
@@ -563,7 +564,7 @@ def test_dependency_gate_stays_in_step_with_guard_failures_on_advance(tmp_path: 
         captured["kw"] = kw
         return sentinel
 
-    monkeypatch.setattr(rb, "_build_wp_iteration_decision", _fake_wp_iteration)
+    monkeypatch.setattr(decision_mapping, "_build_wp_iteration_decision", _fake_wp_iteration)
 
     decision = rb._dn_dependency_gate(ctx)
 
@@ -573,7 +574,7 @@ def test_dependency_gate_stays_in_step_with_guard_failures_on_advance(tmp_path: 
 
 def test_dependency_gate_falls_through_when_wp_step_advances_cleanly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _make_ctx(tmp_path, current_step_id="implement")
-    monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: True)
+    monkeypatch.setattr(decision_mapping, "_is_wp_iteration_step", lambda step: True)
     monkeypatch.setattr(rb, "_should_advance_wp_step", lambda step, fd, **kw: True)
     monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd, **kw: [])
 
@@ -582,7 +583,7 @@ def test_dependency_gate_falls_through_when_wp_step_advances_cleanly(tmp_path: P
 
 def test_dependency_gate_returns_step_decision_for_non_wp_guard_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _make_ctx(tmp_path, current_step_id="specify")
-    monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: False)
+    monkeypatch.setattr(decision_mapping, "_is_wp_iteration_step", lambda step: False)
     monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd, **kw: ["spec incomplete"])
     monkeypatch.setattr(rb, "_state_to_action", lambda step, slug, fd, root, mission, **_kw: ("specify", None, None))
     prompt_path = tmp_path / "prompt.md"
@@ -606,7 +607,7 @@ def test_dependency_gate_uses_ctx_mission_type_when_feature_dir_has_no_meta(tmp_
     feature_dir.mkdir(parents=True)
     ctx = dataclasses.replace(_make_ctx(tmp_path, current_step_id="specify"), feature_dir=feature_dir)
     assert rb.get_mission_type(ctx.feature_dir) == ""
-    monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: False)
+    monkeypatch.setattr(decision_mapping, "_is_wp_iteration_step", lambda step: False)
     monkeypatch.setattr(rb, "_state_to_action", lambda step, slug, fd, root, mission, **_kw: ("specify", None, None))
     prompt_path = tmp_path / "prompt.md"
     prompt_path.write_text("hello", encoding="utf-8")
@@ -625,7 +626,7 @@ def test_dependency_gate_uses_ctx_mission_type_when_feature_dir_has_no_meta(tmp_
 
 def test_dependency_gate_falls_back_to_blocked_when_no_action_mapped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _make_ctx(tmp_path, current_step_id="mystery_step")
-    monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: False)
+    monkeypatch.setattr(decision_mapping, "_is_wp_iteration_step", lambda step: False)
     monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd, **kw: ["blocked"])
     monkeypatch.setattr(rb, "_state_to_action", lambda *a, **kw: (None, None, None))
     monkeypatch.setattr(rb, "_build_prompt_or_error", _raising)
@@ -898,7 +899,7 @@ def test_decision_materialize_flushes_buffer_and_materializes_after_gate_passes(
         calls.append(args)
         return sentinel
 
-    monkeypatch.setattr(rb, "_map_runtime_decision", _fake_map)
+    monkeypatch.setattr(decision_mapping, "_map_runtime_decision", _fake_map)
 
     result = rb._dn_decision_materialize(ctx)
 
@@ -937,7 +938,7 @@ def test_decision_materialize_fires_non_blocking_retrospective_after_terminal(tm
     monkeypatch.setattr(_retrospective_seam, "_run_retrospective_learning_capture", _fake_capture)
 
     sentinel = _sentinel_decision("fire-and-forget")
-    monkeypatch.setattr(rb, "_map_runtime_decision", lambda *a, **kw: sentinel)
+    monkeypatch.setattr(decision_mapping, "_map_runtime_decision", lambda *a, **kw: sentinel)
 
     result = rb._dn_decision_materialize(ctx)
 
@@ -964,7 +965,7 @@ def test_decision_materialize_skips_retrospective_for_non_terminal_decision(tmp_
     monkeypatch.setattr(_retrospective_seam, "_resolve_mission_id_for_terminus", _raising)
 
     sentinel = _sentinel_decision("non-terminal")
-    monkeypatch.setattr(rb, "_map_runtime_decision", lambda *a, **kw: sentinel)
+    monkeypatch.setattr(decision_mapping, "_map_runtime_decision", lambda *a, **kw: sentinel)
 
     result = rb._dn_decision_materialize(ctx)
 

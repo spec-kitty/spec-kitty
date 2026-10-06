@@ -30,6 +30,7 @@ from specify_cli.core.owned_mission import NEXT_OWNED_TOPOLOGIES, resolve_owned_
 from tests._factories import provision_test_charter
 from tests.integration.conftest import OwnedCheckouts
 from tests.runtime._next_mission_scaffold import advance_to_step, seed_wp_lane
+from runtime.next import runtime_bridge_decision_mapping as decision_mapping
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -417,7 +418,6 @@ class TestFr008NoWedge:
         uncaught ``ValueError``). Deliberately does not drive the full
         specify->plan->tasks composition pipeline (WP12/WP13 territory,
         outside this WP's owned files) to reach ``implement``."""
-        from runtime.next import runtime_bridge
 
         checkouts = make_owned_checkouts(topology="single_branch")
         _provision_charter(checkouts)
@@ -426,7 +426,7 @@ class TestFr008NoWedge:
         before = snap.take()
         fact = _mint(checkouts)
 
-        action, wp_id, workspace_path, blocked_reason, mission_state = runtime_bridge._wp_iteration_action_and_state(
+        action, wp_id, workspace_path, blocked_reason, mission_state = decision_mapping._wp_iteration_action_and_state(
             "implement",
             checkouts.mission_slug,
             "software-dev",
@@ -547,7 +547,6 @@ class TestFr008RuntimeWalk:
         propagates (never a ``blocked`` wrapper) and NOTHING was persisted."""
         from mission_runtime import ActionContextError
         from runtime.next import decision as decision_mod
-        from runtime.next import runtime_bridge
 
         checkouts = make_owned_checkouts(topology="single_branch")
         fact = _walk_to_tasks(checkouts, monkeypatch)
@@ -558,7 +557,7 @@ class TestFr008RuntimeWalk:
         def _fails(*_a: Any, **_k: Any) -> Any:
             raise refusal
 
-        monkeypatch.setattr(runtime_bridge, "_wp_iteration_action_and_state", _fails)
+        monkeypatch.setattr(decision_mapping, "_wp_iteration_action_and_state", _fails)
 
         with pytest.raises(ActionContextError) as excinfo:
             decision_mod.decide_next("claude", checkouts.mission_slug, "success", checkouts.repository_root, owned=fact)
@@ -590,7 +589,6 @@ class TestPreFinalizeFallbackPin:
     and ``_state_to_action(owned=)`` reads P (never folds to R)."""
 
     def test_state_to_action_and_board_authority_resolve_p(self, make_owned_checkouts) -> None:
-        from runtime.next import runtime_bridge
         from runtime.next.decision import _state_to_action
 
         checkouts = make_owned_checkouts(topology="single_branch")
@@ -606,7 +604,7 @@ class TestPreFinalizeFallbackPin:
         assert (action, wp_id) == ("implement", "WP01")
         assert workspace is not None and Path(workspace).resolve() == fact.owned_root.resolve()
 
-        board = runtime_bridge._wp_iteration_action_and_state(
+        board = decision_mapping._wp_iteration_action_and_state(
             "implement", checkouts.mission_slug, "software-dev", feature_dir, checkouts.repository_root, owned=fact
         )
         assert board[0] == "implement" and board[3] is None

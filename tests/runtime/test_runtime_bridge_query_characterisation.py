@@ -48,13 +48,13 @@ _MISSION = "char-mission"
 
 #: Function name -> the ``runtime.next`` module that defines it today.
 _OWNERS: dict[str, str] = {
-    "_build_decision_required_prompt_file": "runtime_bridge",
-    "_reduced_wp_lane": "runtime_bridge",
-    "_count_wp_endings": "runtime_bridge",
-    "_resolve_wp_board_action": "runtime_bridge",
-    "_resolve_wp_board_review_action": "runtime_bridge",
-    "_WP_BOARD_DECLINE": "runtime_bridge",
-    "_finalized_task_board_override_step": "runtime_bridge",
+    "_build_decision_required_prompt_file": "runtime_bridge_decision_mapping",
+    "_reduced_wp_lane": "runtime_bridge_decision_mapping",
+    "_count_wp_endings": "runtime_bridge_decision_mapping",
+    "_resolve_wp_board_action": "runtime_bridge_decision_mapping",
+    "_resolve_wp_board_review_action": "runtime_bridge_decision_mapping",
+    "_WP_BOARD_DECLINE": "runtime_bridge_decision_mapping",
+    "_finalized_task_board_override_step": "runtime_bridge_decision_mapping",
     "_wrap_with_decision_git_log": "runtime_bridge",
     "DecisionGitLogUnavailable": "runtime_bridge",
     "answer_decision_via_runtime": "runtime_bridge",
@@ -250,7 +250,13 @@ def test_unowned_coordination_workspace_failure_becomes_decision_git_log_unavail
 
 
 def test_owned_coordination_workspace_failure_propagates_unwrapped(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """An owned caller gets the typed refusal itself, never DecisionGitLogUnavailable (#4867)."""
+    """An owned caller gets the typed refusal itself, never DecisionGitLogUnavailable (#4867).
+
+    This pins the outcome, not the arm: the refusal carries the owned
+    ``error_code``, so the generic ``except Exception`` arm would re-raise it
+    too (``_is_owned_coordination_unavailable``) if the dedicated
+    ``except CoordinationWorkspaceUnavailable`` arm were ever removed.
+    """
     refusal = CoordinationWorkspaceUnavailable(128, ["git", "worktree", "add"], stderr="fatal")
     resolves: list[str] = []
 

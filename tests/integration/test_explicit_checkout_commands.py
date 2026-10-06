@@ -23,6 +23,7 @@ from specify_cli.status.store import append_event
 
 from specify_cli.workspace.context import clear_workspace_resolution_caches
 from tests.status.test_transition_request_owned import claim_counter
+from runtime.next import runtime_bridge_decision_mapping as decision_mapping
 
 __all__ = ["claim_counter"]
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -223,7 +224,6 @@ def test_finalize_seeds_owned_status_only(checkouts):
 
 
 def test_finalized_owned_tasks_resolve_for_next_implementation(checkouts):
-    from runtime.next import runtime_bridge
     from runtime.next.decision import _state_to_action
 
     primary, owned, sibling = checkouts
@@ -241,7 +241,7 @@ def test_finalized_owned_tasks_resolve_for_next_implementation(checkouts):
     )
     assert (action, wp_id, workspace) == ("implement", "WP01", str(fact.owned_root))
     # The board authority (the single WP-iteration resolver) agrees.
-    board_action, board_wp, board_workspace, blocked_reason, _state = runtime_bridge._wp_iteration_action_and_state(
+    board_action, board_wp, board_workspace, blocked_reason, _state = decision_mapping._wp_iteration_action_and_state(
         "implement",
         SLUG,
         "software-dev",

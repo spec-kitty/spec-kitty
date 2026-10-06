@@ -632,7 +632,7 @@ def test_unmaterialized_coord_surfaces_typed_blocked_reason(tmp_path: Path) -> N
         check=True,
     )
 
-    from runtime.next.runtime_bridge import _resolve_wp_board_action
+    from runtime.next.runtime_bridge_decision_mapping import _resolve_wp_board_action
 
     board = _resolve_wp_board_action(mission_slug=result.mission_slug, repo_root=repo)
 
@@ -680,7 +680,7 @@ def test_deleted_coord_branch_surfaces_flatten_blocked_reason(tmp_path: Path) ->
         check=True,
     )
 
-    from runtime.next.runtime_bridge import _resolve_wp_board_action
+    from runtime.next.runtime_bridge_decision_mapping import _resolve_wp_board_action
 
     board = _resolve_wp_board_action(mission_slug=result.mission_slug, repo_root=repo)
 
@@ -735,7 +735,8 @@ def test_no_advancing_path_emits_unauthorized_step(tmp_path: Path) -> None:
     board authority (``_resolve_wp_board_action``) independently derives for
     the same repo state -- no advancing path may emit a step/WP the board
     authority did not produce."""
-    from runtime.next.runtime_bridge import _resolve_wp_board_action, decide_next_via_runtime
+    from runtime.next.runtime_bridge import decide_next_via_runtime
+    from runtime.next.runtime_bridge_decision_mapping import _resolve_wp_board_action
 
     cases: list[tuple[Path, str]] = []
 

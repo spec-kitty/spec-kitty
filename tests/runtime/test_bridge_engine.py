@@ -53,6 +53,7 @@ import pytest
 from runtime.next import runtime_bridge_engine as engine_adapter
 from runtime.next._internal_runtime.engine import MissionRunRef
 from runtime.next._internal_runtime.schema import MissionRunSnapshot, NextDecision
+from runtime.next import runtime_bridge_decision_mapping as decision_mapping
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -316,7 +317,7 @@ class _MapDecisionRecorder:
 
 @pytest.fixture()
 def _stub_map_runtime_decision(monkeypatch: pytest.MonkeyPatch) -> _MapDecisionRecorder:
-    """Stub ``runtime_bridge._map_runtime_decision``.
+    """Stub ``decision_mapping._map_runtime_decision``.
 
     The adapter calls back into ``runtime_bridge`` via a deferred module
     import for this symbol (it is not an engine-private and stays owned by
@@ -324,7 +325,6 @@ def _stub_map_runtime_decision(monkeypatch: pytest.MonkeyPatch) -> _MapDecisionR
     docstring), so patching it on the ``runtime_bridge`` module is the
     correct seam to stub for these contract tests.
     """
-    from runtime.next import runtime_bridge as rb
 
     recorder = _MapDecisionRecorder(calls=[], sentinel=object())
 
@@ -334,7 +334,7 @@ def _stub_map_runtime_decision(monkeypatch: pytest.MonkeyPatch) -> _MapDecisionR
         recorder.calls.append((decision, agent, mission_slug, mission_type, repo_root, feature_dir, timestamp, progress, origin))
         return recorder.sentinel
 
-    monkeypatch.setattr(rb, "_map_runtime_decision", _fake)
+    monkeypatch.setattr(decision_mapping, "_map_runtime_decision", _fake)
     return recorder
 
 

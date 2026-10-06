@@ -168,7 +168,7 @@ def _run_doctor_finding(repo: Path, mission_slug: str) -> str:
 
 
 def _run_runtime_bridge(repo: Path, mission_slug: str) -> str:
-    from runtime.next.runtime_bridge import _resolve_wp_board_action
+    from runtime.next.runtime_bridge_decision_mapping import _resolve_wp_board_action
 
     board = _resolve_wp_board_action(mission_slug=mission_slug, repo_root=repo)
     assert board.blocked_reason is not None, board

@@ -305,7 +305,7 @@ def test_advance_run_state_preserves_identity_through_autocomplete_reconstructio
             return_value=(None, {}, None),
         ),
         patch(
-            "runtime.next.runtime_bridge._map_runtime_decision",
+            "runtime.next.runtime_bridge_decision_mapping._map_runtime_decision",
             return_value=None,
         ),
     ):
@@ -396,7 +396,7 @@ def test_advance_run_state_preserves_identity_through_final_persist_reconstructi
             return_value=(None, {}, None),
         ),
         patch(
-            "runtime.next.runtime_bridge._map_runtime_decision",
+            "runtime.next.runtime_bridge_decision_mapping._map_runtime_decision",
             return_value=None,
         ),
     ):

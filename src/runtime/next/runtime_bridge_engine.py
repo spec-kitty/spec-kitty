@@ -37,11 +37,11 @@ helpers below). This module owns it outright: the bridge calls
 forwarding delegate, so a test that replaces it patches
 ``runtime_bridge_engine.advance_run_state_after_composition``.
 
-That function also calls back into two symbols that stay owned by
-``runtime_bridge.py`` (``_is_wp_iteration_step`` and ``_map_runtime_decision``,
-reached through a deferred import of the ``runtime_bridge`` module because the
-bridge imports this adapter at its own top level and a module-level back-import
-would be circular). The retrospective names it needs are owned by
+That function maps its result through ``runtime_bridge_decision_mapping``
+(``_is_wp_iteration_step`` and ``_map_runtime_decision``), imported at the top
+level: the mapping module sits below both the bridge and this adapter, so the
+deferred ``runtime_bridge`` back-import this adapter used before is gone
+(#2560). A test that steers the mapping patches it on that module. The retrospective names it needs are owned by
 ``runtime_bridge_retrospective`` and are called there directly, so a test that
 intercepts one patches it on that module.
 """
@@ -66,6 +66,7 @@ from runtime.next._internal_runtime.events import (
     seed_runtime_emitter,
 )
 from runtime.next._internal_runtime.schema import DecisionRequest, MissionPolicySnapshot, MissionRunSnapshot, MissionRuntimeError, MissionTemplate
+from runtime.next import runtime_bridge_decision_mapping as _mapping
 from runtime.next import runtime_bridge_retrospective as _retrospective
 from runtime.next.decision import DecisionKind
 from spec_kitty_events.mission_next import (
@@ -422,10 +423,8 @@ def advance_run_state_after_composition(
     The bridge's composition dispatch calls this function directly; a test
     that replaces it patches ``runtime_bridge_engine.advance_run_state_after_composition``.
     """
-    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415 — deferred to avoid the circular top-level import
-
     step_id = plan.decision.step_id
-    if wp_resolution is None and plan.decision.kind == "step" and step_id and _rb._is_wp_iteration_step(step_id):
+    if wp_resolution is None and plan.decision.kind == "step" and step_id and _mapping._is_wp_iteration_step(step_id):
         raise ValueError(
             f"advance_run_state_after_composition: the WP-iteration step {step_id!r} "
             "needs the caller's wp_resolution (resolved before the advance is persisted)"
@@ -452,7 +451,7 @@ def advance_run_state_after_composition(
     )
     _write_snapshot(run_dir, snapshot)
 
-    return _rb._map_runtime_decision(
+    return _mapping._map_runtime_decision(
         plan.decision,
         agent,
         mission_slug,

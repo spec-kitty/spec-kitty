@@ -43,6 +43,7 @@ from runtime.next._internal_runtime.events import NullEmitter
 from runtime.next._internal_runtime.schema import NextDecision
 from runtime.next.decision import Decision, DecisionKind
 from specify_cli.events.decision_log import DecisionGitLog
+from runtime.next import runtime_bridge_decision_mapping as decision_mapping
 
 pytestmark = [pytest.mark.regression, pytest.mark.unit, pytest.mark.fast]
 
@@ -398,7 +399,7 @@ def test_real_composition_advances_and_logs_despite_optional_seed_failure(
     persisted: list[Any] = []
     monkeypatch.setattr(engine, "_write_snapshot", lambda _, value: persisted.append(value))
     monkeypatch.setattr(
-        rb,
+        decision_mapping,
         "_map_runtime_decision",
         lambda decision, *args, **kwargs: Decision(
             kind=decision.kind,

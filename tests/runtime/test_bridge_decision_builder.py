@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import ast
 import inspect
+from pathlib import Path
 
 import pytest
 
@@ -32,6 +33,7 @@ from mission_runtime import OwnedRefusalCode
 from runtime.next import runtime_bridge as rb
 from runtime.next import runtime_bridge_cores as cores
 from runtime.next.decision import Decision, DecisionKind
+from runtime.next import runtime_bridge_decision_mapping as decision_mapping
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -340,7 +342,7 @@ def test_step_branch_succeeds_against_a_real_file(tmp_path: object) -> None:
         run_id="run-1",
         step_id="implement",
     )
-    decision = cores.step_or_blocked(envelope, [], prompt_exists=rb._prompt_exists)
+    decision = cores.step_or_blocked(envelope, [], prompt_exists=decision_mapping._prompt_exists)
     assert decision.kind == DecisionKind.step
     assert decision.prompt_file == str(real_prompt)
 
@@ -439,28 +441,57 @@ def _iter_calls(tree: ast.AST) -> list[ast.Call]:
     return [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
 
 
+#: The bridge plus the modules its decision paths were split into (#2560). The
+#: structural invariants below hold for the whole family, so code that moves
+#: out of ``runtime_bridge.py`` stays covered. A module not created yet is
+#: skipped (the family grows one module per extraction).
+_DECISION_FAMILY = (
+    "runtime_bridge",
+    "runtime_bridge_decision_mapping",
+    "runtime_bridge_decision_log",
+    "runtime_bridge_query",
+)
+
+
+def _family_trees() -> dict[str, ast.AST]:
+    trees: dict[str, ast.AST] = {}
+    for name in _DECISION_FAMILY:
+        path = Path(rb.__file__).with_name(f"{name}.py")
+        if path.is_file():
+            trees[name] = ast.parse(path.read_text(encoding="utf-8"))
+    return trees
+
+
+def _is_call_to(call: ast.Call, name: str) -> bool:
+    func = call.func
+    return (isinstance(func, ast.Name) and func.id == name) or (isinstance(func, ast.Attribute) and func.attr == name)
+
+
 def test_runtime_bridge_has_zero_raw_decision_constructions() -> None:
-    """The residual (``runtime_bridge.py``) must not construct ``Decision``
-    directly anywhere anymore — every construction is routed through
-    ``runtime_bridge_cores.step_or_blocked`` via ``_materialize_decision``."""
-    source = inspect.getsource(rb)
-    tree = ast.parse(source)
-    bare_decision_calls = [call for call in _iter_calls(tree) if isinstance(call.func, ast.Name) and call.func.id == "Decision"]
-    assert bare_decision_calls == [], "runtime_bridge.py must not construct Decision(...) directly; route through _materialize_decision/DecisionEnvelope instead"
+    """The residual (``runtime_bridge.py``) and the modules split out of it
+    must not construct ``Decision`` directly anywhere — every construction is
+    routed through ``runtime_bridge_cores.step_or_blocked`` via
+    ``_materialize_decision``."""
+    trees = _family_trees()
+    assert "runtime_bridge" in trees
+    offenders = {name: [call.lineno for call in _iter_calls(tree) if _is_call_to(call, "Decision")] for name, tree in trees.items()}
+    assert all(lines == [] for lines in offenders.values()), (
+        f"must not construct Decision(...) directly; route through _materialize_decision/DecisionEnvelope instead: {offenders}"
+    )
 
 
 def test_runtime_bridge_materializes_every_former_decision_site() -> None:
     """FR-007 (WP08 F3): the builder is actually used — at least one
-    ``_materialize_decision(...)`` call site exists in ``runtime_bridge.py``.
-    Re-pinned 7 times as the call count grew site-by-site (21 -> 29); the
-    real invariant this WP's own exact count does NOT re-derive is "zero
+    ``_materialize_decision(...)`` call site exists in the bridge family
+    (bare inside its owning module, ``_mapping._materialize_decision`` from the
+    bridge). Re-pinned 7 times as the call count grew site-by-site (21 -> 29);
+    the real invariant this WP's own exact count does NOT re-derive is "zero
     open-coded ``Decision(...)`` construction", pinned exactly by
     :func:`test_runtime_bridge_has_zero_raw_decision_constructions` above —
     THAT test is what catches a silent re-introduction of a bare
     ``Decision(...)`` bypassing the builder, not this floor."""
-    source = inspect.getsource(rb)
-    tree = ast.parse(source)
-    materialize_calls = [call for call in _iter_calls(tree) if isinstance(call.func, ast.Name) and call.func.id == "_materialize_decision"]
+    trees = _family_trees()
+    materialize_calls = [call for tree in trees.values() for call in _iter_calls(tree) if _is_call_to(call, "_materialize_decision")]
     assert len(materialize_calls) >= 1, (
         "non-vacuity: the builder must actually be used at least once; the real invariant is the zero-open-coded-Decision check above"
     )

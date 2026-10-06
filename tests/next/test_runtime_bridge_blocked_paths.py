@@ -30,6 +30,7 @@ from unittest.mock import patch
 import pytest
 
 from runtime.next.decision import DecisionKind
+from runtime.next import runtime_bridge_decision_mapping as decision_mapping
 
 pytestmark = pytest.mark.fast
 
@@ -70,19 +71,19 @@ class TestWPIterationDecisionBlockedBranch:
           - guard_failures forwarded (not dropped)
           - prompt_file is None
         """
-        from runtime.next.runtime_bridge import _build_wp_iteration_decision
+        from runtime.next.runtime_bridge_decision_mapping import _build_wp_iteration_decision
 
         run_ref = SimpleNamespace(run_id="run-blocked-01")
 
         with (
             patch(
-                "runtime.next.runtime_bridge._state_to_action",
+                "runtime.next.runtime_bridge_decision_mapping._state_to_action",
                 return_value=("implement", "WP01", str(tmp_path / ".worktrees" / "lane-a")),
-            ),
+            ) as state_to_action,
             patch(
-                "runtime.next.runtime_bridge._build_prompt_or_error",
+                "runtime.next.runtime_bridge_decision_mapping._build_prompt_or_error",
                 return_value=(None, "prompt resolution failed for action 'implement'", None),
-            ),
+            ) as build_prompt,
         ):
             decision = _build_wp_iteration_decision(
                 step_id="implement",
@@ -98,6 +99,9 @@ class TestWPIterationDecisionBlockedBranch:
                 guard_failures=["pre-existing guard"],
             )
 
+        # The fakes steer runtime_bridge_decision_mapping, where the code under test reads them (#2560).
+        state_to_action.assert_called()
+        build_prompt.assert_called()
         assert decision.kind == DecisionKind.blocked
         assert decision.reason
         assert "prompt resolution failed" in decision.reason
@@ -125,15 +129,15 @@ class TestMapRuntimeDecisionNoActionNoStepId:
         resolve a prompt (prompt_error is set inline) and must emit a
         blocked decision.
         """
-        from runtime.next.runtime_bridge import _map_runtime_decision
+        from runtime.next.runtime_bridge_decision_mapping import _map_runtime_decision
 
         with (
             patch(
-                "runtime.next.runtime_bridge._state_to_action",
+                "runtime.next.runtime_bridge_decision_mapping._state_to_action",
                 return_value=(None, None, None),
-            ),
+            ) as state_to_action,
             patch(
-                "runtime.next.runtime_bridge._is_wp_iteration_step",
+                "runtime.next.runtime_bridge_decision_mapping._is_wp_iteration_step",
                 return_value=False,
             ),
         ):
@@ -151,6 +155,8 @@ class TestMapRuntimeDecisionNoActionNoStepId:
                 origin={},
             )
 
+        # The fakes steer runtime_bridge_decision_mapping, where the code under test reads them (#2560).
+        state_to_action.assert_called()
         assert decision.kind == DecisionKind.blocked
         assert decision.reason
         assert "no action and no step_id" in decision.reason
@@ -206,7 +212,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
             patch("runtime.next.runtime_bridge_io.get_or_start_run", return_value=run_ref) as get_run,
             patch.object(rb, "_compute_wp_progress", return_value=None),
             patch.object(rb, "_check_cli_guards", return_value=["specify_guard_failure"]),
-            patch.object(rb, "_is_wp_iteration_step", return_value=False),
+            patch.object(decision_mapping, "_is_wp_iteration_step", return_value=False),
             patch.object(rb, "_state_to_action", return_value=("specify", None, None)),
             patch.object(
                 rb,
@@ -263,7 +269,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
             patch("runtime.next.runtime_bridge_io.get_or_start_run", return_value=run_ref) as get_run,
             patch.object(rb, "_compute_wp_progress", return_value=None),
             patch.object(rb, "_check_cli_guards", return_value=["specify_guard_failure"]),
-            patch.object(rb, "_is_wp_iteration_step", return_value=False),
+            patch.object(decision_mapping, "_is_wp_iteration_step", return_value=False),
             patch.object(rb, "_state_to_action", return_value=("specify", None, None)),
             patch.object(
                 rb,
@@ -316,7 +322,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
             patch("runtime.next.runtime_bridge_io.get_or_start_run", return_value=run_ref) as get_run,
             patch.object(rb, "_compute_wp_progress", return_value=None),
             patch.object(rb, "_check_cli_guards", return_value=["specify_guard_failure"]),
-            patch.object(rb, "_is_wp_iteration_step", return_value=False),
+            patch.object(decision_mapping, "_is_wp_iteration_step", return_value=False),
             patch.object(rb, "_state_to_action", return_value=("specify", None, None)),
             patch.object(
                 rb,
@@ -369,7 +375,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
             patch("runtime.next.runtime_bridge_io.get_or_start_run", return_value=run_ref) as get_run,
             patch.object(rb, "_compute_wp_progress", return_value=None),
             patch.object(rb, "_check_cli_guards", return_value=["exotic_guard_failure"]),
-            patch.object(rb, "_is_wp_iteration_step", return_value=False),
+            patch.object(decision_mapping, "_is_wp_iteration_step", return_value=False),
             patch.object(rb, "_state_to_action", return_value=(None, None, None)),
             patch(
                 "runtime.next._internal_runtime.engine._read_snapshot",
@@ -401,7 +407,7 @@ class TestResolvedPromptRaceFallbacks:
     def test_wp_iteration_blocks_if_resolved_prompt_disappears(
         self, tmp_path: Path
     ) -> None:
-        from runtime.next.runtime_bridge import _build_wp_iteration_decision
+        from runtime.next.runtime_bridge_decision_mapping import _build_wp_iteration_decision
 
         prompt_path = tmp_path / "implement-prompt.md"
         prompt_path.write_text("# implement\n", encoding="utf-8")
@@ -409,13 +415,13 @@ class TestResolvedPromptRaceFallbacks:
 
         with (
             patch(
-                "runtime.next.runtime_bridge._state_to_action",
+                "runtime.next.runtime_bridge_decision_mapping._state_to_action",
                 return_value=("implement", "WP01", str(tmp_path / ".worktrees" / "lane-a")),
-            ),
+            ) as state_to_action,
             patch(
-                "runtime.next.runtime_bridge._build_prompt_or_error",
+                "runtime.next.runtime_bridge_decision_mapping._build_prompt_or_error",
                 return_value=(str(prompt_path), None, None),
-            ),
+            ) as build_prompt,
             patch("pathlib.Path.is_file", return_value=False),
         ):
             decision = _build_wp_iteration_decision(
@@ -431,6 +437,9 @@ class TestResolvedPromptRaceFallbacks:
                 run_ref=run_ref,
             )
 
+        # The fakes steer runtime_bridge_decision_mapping, where the code under test reads them (#2560).
+        state_to_action.assert_called()
+        build_prompt.assert_called()
         assert decision.kind == DecisionKind.blocked
         assert decision.reason == "prompt_file_not_resolvable"
         assert decision.prompt_file is None
@@ -438,24 +447,24 @@ class TestResolvedPromptRaceFallbacks:
     def test_map_wp_step_blocks_if_resolved_prompt_disappears(
         self, tmp_path: Path
     ) -> None:
-        from runtime.next.runtime_bridge import _map_runtime_decision
+        from runtime.next.runtime_bridge_decision_mapping import _map_runtime_decision
 
         prompt_path = tmp_path / "implement-prompt.md"
         prompt_path.write_text("# implement\n", encoding="utf-8")
 
         with (
             patch(
-                "runtime.next.runtime_bridge._state_to_action",
+                "runtime.next.runtime_bridge_decision_mapping._state_to_action",
                 return_value=("implement", "WP01", str(tmp_path / ".worktrees" / "lane-a")),
-            ),
+            ) as state_to_action,
             patch(
-                "runtime.next.runtime_bridge._is_wp_iteration_step",
+                "runtime.next.runtime_bridge_decision_mapping._is_wp_iteration_step",
                 return_value=True,
             ),
             patch(
-                "runtime.next.runtime_bridge._build_prompt_or_error",
+                "runtime.next.runtime_bridge_decision_mapping._build_prompt_or_error",
                 return_value=(str(prompt_path), None, None),
-            ),
+            ) as build_prompt,
             patch("pathlib.Path.is_file", return_value=False),
         ):
             decision = _map_runtime_decision(
@@ -470,6 +479,9 @@ class TestResolvedPromptRaceFallbacks:
                 origin={},
             )
 
+        # The fakes steer runtime_bridge_decision_mapping, where the code under test reads them (#2560).
+        state_to_action.assert_called()
+        build_prompt.assert_called()
         assert decision.kind == DecisionKind.blocked
         assert decision.reason == "prompt_file_not_resolvable"
         assert decision.prompt_file is None
@@ -477,24 +489,24 @@ class TestResolvedPromptRaceFallbacks:
     def test_map_non_wp_step_blocks_if_resolved_prompt_disappears(
         self, tmp_path: Path
     ) -> None:
-        from runtime.next.runtime_bridge import _map_runtime_decision
+        from runtime.next.runtime_bridge_decision_mapping import _map_runtime_decision
 
         prompt_path = tmp_path / "specify-prompt.md"
         prompt_path.write_text("# specify\n", encoding="utf-8")
 
         with (
             patch(
-                "runtime.next.runtime_bridge._state_to_action",
+                "runtime.next.runtime_bridge_decision_mapping._state_to_action",
                 return_value=("specify", None, None),
-            ),
+            ) as state_to_action,
             patch(
-                "runtime.next.runtime_bridge._is_wp_iteration_step",
+                "runtime.next.runtime_bridge_decision_mapping._is_wp_iteration_step",
                 return_value=False,
             ),
             patch(
-                "runtime.next.runtime_bridge._build_prompt_or_error",
+                "runtime.next.runtime_bridge_decision_mapping._build_prompt_or_error",
                 return_value=(str(prompt_path), None, None),
-            ),
+            ) as build_prompt,
             patch("pathlib.Path.is_file", return_value=False),
         ):
             decision = _map_runtime_decision(
@@ -509,6 +521,9 @@ class TestResolvedPromptRaceFallbacks:
                 origin={},
             )
 
+        # The fakes steer runtime_bridge_decision_mapping, where the code under test reads them (#2560).
+        state_to_action.assert_called()
+        build_prompt.assert_called()
         assert decision.kind == DecisionKind.blocked
         assert decision.reason == "prompt_file_not_resolvable"
         assert decision.prompt_file is None

@@ -128,7 +128,7 @@ def test_finalized_for_review_routes_to_review(tmp_path: Path) -> None:
     repo.mkdir()
     feature_dir, _ = _scaffold(repo, {"WP01": Lane.FOR_REVIEW})
 
-    from runtime.next.runtime_bridge import _finalized_task_board_override_step
+    from runtime.next.runtime_bridge_decision_mapping import _finalized_task_board_override_step
     from runtime.next.decision import _compute_wp_progress
 
     assert _finalized_task_board_override_step(feature_dir, _compute_wp_progress(feature_dir)) == "review"
@@ -139,7 +139,7 @@ def test_finalized_done_is_terminal(tmp_path: Path) -> None:
     repo.mkdir()
     feature_dir, _ = _scaffold(repo, {"WP01": Lane.DONE, "WP02": Lane.DONE})
 
-    from runtime.next.runtime_bridge import _finalized_task_board_override_step
+    from runtime.next.runtime_bridge_decision_mapping import _finalized_task_board_override_step
     from runtime.next.decision import _compute_wp_progress
 
     assert _finalized_task_board_override_step(feature_dir, _compute_wp_progress(feature_dir)) == "done"
@@ -150,7 +150,7 @@ def test_finalized_in_review_is_blocked_not_discovery(tmp_path: Path) -> None:
     repo.mkdir()
     feature_dir, _ = _scaffold(repo, {"WP01": Lane.IN_REVIEW})
 
-    from runtime.next.runtime_bridge import _finalized_task_board_override_step
+    from runtime.next.runtime_bridge_decision_mapping import _finalized_task_board_override_step
     from runtime.next.decision import _compute_wp_progress
 
     assert _finalized_task_board_override_step(feature_dir, _compute_wp_progress(feature_dir)) == "blocked:review_in_progress"
@@ -160,7 +160,7 @@ def test_finalized_override_ignores_missing_progress(tmp_path: Path) -> None:
     feature_dir = tmp_path / "feature"
     feature_dir.mkdir()
 
-    from runtime.next.runtime_bridge import _finalized_task_board_override_step
+    from runtime.next.runtime_bridge_decision_mapping import _finalized_task_board_override_step
 
     assert _finalized_task_board_override_step(feature_dir, None) is None
     assert _finalized_task_board_override_step(feature_dir, {"total_wps": 0}) is None
@@ -170,7 +170,7 @@ def test_finalized_override_requires_finalized_task_artifacts(tmp_path: Path) ->
     feature_dir = tmp_path / "feature"
     feature_dir.mkdir()
 
-    from runtime.next.runtime_bridge import _finalized_task_board_override_step
+    from runtime.next.runtime_bridge_decision_mapping import _finalized_task_board_override_step
 
     assert _finalized_task_board_override_step(feature_dir, {"total_wps": 1}) is None
 
@@ -181,7 +181,7 @@ def test_finalized_active_implementation_lanes_route_to_implement(tmp_path: Path
     repo.mkdir()
     feature_dir, _ = _scaffold(repo, {"WP01": lane})
 
-    from runtime.next.runtime_bridge import _finalized_task_board_override_step
+    from runtime.next.runtime_bridge_decision_mapping import _finalized_task_board_override_step
     from runtime.next.decision import _compute_wp_progress
 
     assert _finalized_task_board_override_step(feature_dir, _compute_wp_progress(feature_dir)) == "implement"
@@ -192,7 +192,7 @@ def test_finalized_approved_wps_route_to_accept(tmp_path: Path) -> None:
     repo.mkdir()
     feature_dir, _ = _scaffold(repo, {"WP01": Lane.APPROVED, "WP02": Lane.DONE})
 
-    from runtime.next.runtime_bridge import _finalized_task_board_override_step
+    from runtime.next.runtime_bridge_decision_mapping import _finalized_task_board_override_step
     from runtime.next.decision import _compute_wp_progress
 
     assert _finalized_task_board_override_step(feature_dir, _compute_wp_progress(feature_dir)) == "accept"
@@ -203,7 +203,7 @@ def test_finalized_without_actionable_wp_blocks(tmp_path: Path) -> None:
     repo.mkdir()
     feature_dir, _ = _scaffold(repo, {"WP01": Lane.BLOCKED})
 
-    from runtime.next.runtime_bridge import _finalized_task_board_override_step
+    from runtime.next.runtime_bridge_decision_mapping import _finalized_task_board_override_step
     from runtime.next.decision import _compute_wp_progress
 
     assert _finalized_task_board_override_step(feature_dir, _compute_wp_progress(feature_dir)) == "blocked:no_actionable_wp"
@@ -236,7 +236,7 @@ def test_finalized_done_tally_cannot_promote_canceled_wp_to_done(tmp_path: Path)
         canceled_reason_source="operator",
     )
 
-    from runtime.next.runtime_bridge import _finalized_task_board_override_step
+    from runtime.next.runtime_bridge_decision_mapping import _finalized_task_board_override_step
 
     progress = {"total_wps": 2, "done_wps": 2}
 
@@ -278,7 +278,7 @@ def test_advance_authority_matches_finalized_step_for_planned_wp(tmp_path: Path)
     repo.mkdir()
     _, mission_slug = _scaffold(repo, {"WP01": Lane.PLANNED})
 
-    from runtime.next.runtime_bridge import _resolve_wp_board_action
+    from runtime.next.runtime_bridge_decision_mapping import _resolve_wp_board_action
 
     result = _resolve_wp_board_action(mission_slug=mission_slug, repo_root=repo)
 
@@ -293,7 +293,7 @@ def test_advance_authority_matches_finalized_step_for_review_wp(tmp_path: Path) 
     repo.mkdir()
     _, mission_slug = _scaffold(repo, {"WP01": Lane.FOR_REVIEW})
 
-    from runtime.next.runtime_bridge import _resolve_wp_board_action
+    from runtime.next.runtime_bridge_decision_mapping import _resolve_wp_board_action
 
     result = _resolve_wp_board_action(mission_slug=mission_slug, repo_root=repo)
 
@@ -309,7 +309,7 @@ def test_advance_authority_matches_finalized_step_for_active_implementation_lane
     repo.mkdir()
     _, mission_slug = _scaffold(repo, {"WP01": lane})
 
-    from runtime.next.runtime_bridge import _resolve_wp_board_action
+    from runtime.next.runtime_bridge_decision_mapping import _resolve_wp_board_action
 
     result = _resolve_wp_board_action(mission_slug=mission_slug, repo_root=repo)
 
@@ -321,7 +321,7 @@ def test_advance_authority_blocks_on_in_review_with_named_recovery(tmp_path: Pat
     repo.mkdir()
     _, mission_slug = _scaffold(repo, {"WP01": Lane.IN_REVIEW})
 
-    from runtime.next.runtime_bridge import _resolve_wp_board_action
+    from runtime.next.runtime_bridge_decision_mapping import _resolve_wp_board_action
 
     result = _resolve_wp_board_action(mission_slug=mission_slug, repo_root=repo)
 
@@ -337,7 +337,7 @@ def test_advance_authority_blocks_on_no_actionable_wp_with_named_recovery(tmp_pa
     repo.mkdir()
     _, mission_slug = _scaffold(repo, {"WP01": Lane.BLOCKED})
 
-    from runtime.next.runtime_bridge import _resolve_wp_board_action
+    from runtime.next.runtime_bridge_decision_mapping import _resolve_wp_board_action
 
     result = _resolve_wp_board_action(mission_slug=mission_slug, repo_root=repo)
 
@@ -357,7 +357,7 @@ def test_advance_authority_declines_on_accept_board_step(tmp_path: Path) -> None
     repo.mkdir()
     _, mission_slug = _scaffold(repo, {"WP01": Lane.APPROVED, "WP02": Lane.DONE})
 
-    from runtime.next.runtime_bridge import _resolve_wp_board_action
+    from runtime.next.runtime_bridge_decision_mapping import _resolve_wp_board_action
 
     result = _resolve_wp_board_action(mission_slug=mission_slug, repo_root=repo)
 

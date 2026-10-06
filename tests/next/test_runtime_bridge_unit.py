@@ -22,6 +22,7 @@ from tests._perf_helpers import assert_timing_budget
 from tests.lane_test_utils import write_single_lane_manifest
 from runtime.next.decision import DecisionKind
 from runtime.next._internal_runtime import DiscoveryContext
+from runtime.next import runtime_bridge_decision_mapping as decision_mapping
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -947,7 +948,7 @@ class TestFullLoop:
 
 class TestWPStepHelpers:
     def test_is_wp_iteration_step(self) -> None:
-        from runtime.next.runtime_bridge import _is_wp_iteration_step
+        from runtime.next.runtime_bridge_decision_mapping import _is_wp_iteration_step
 
         assert _is_wp_iteration_step("implement") is True
         assert _is_wp_iteration_step("review") is True
@@ -1033,13 +1034,21 @@ class TestWPStepHelpers:
         from runtime.next import runtime_bridge
         from runtime.next import committed_authority
 
-        monkeypatch.setattr(runtime_bridge, "get_all_wp_snapshots", lambda _: {"WP01": {"lane": "unknown"}})
+        snapshot_reads: list[Path] = []
+
+        def _unknown_lane_snapshots(status_dir: Path) -> dict[str, dict[str, str]]:
+            snapshot_reads.append(status_dir)
+            return {"WP01": {"lane": "unknown"}}
+
+        # _count_wp_endings reads the snapshots off the mapping module that owns it (#2560).
+        monkeypatch.setattr(decision_mapping, "get_all_wp_snapshots", _unknown_lane_snapshots)
         monkeypatch.setattr(
             committed_authority,
             "wp_ending",
             lambda *_: SimpleNamespace(lane="unknown", reason_source=None),
         )
-        assert runtime_bridge._count_wp_endings(feature_dir)[1] == 0
+        assert decision_mapping._count_wp_endings(feature_dir)[1] == 0
+        assert snapshot_reads, "the unknown-lane snapshot fake must be the one _count_wp_endings read"
         assert runtime_bridge._should_advance_wp_step("implement", feature_dir) is False
 
 
@@ -2309,7 +2318,7 @@ class TestResolveWpWorkspaceBeforePersistingTheAdvance:
         ctx, early = rb._dn_bootstrap("claude", slug, "success", repo)
         assert early is None and ctx is not None
         calls: list[str] = []
-        real_resolve = rb._wp_iteration_action_and_state
+        real_resolve = decision_mapping._wp_iteration_action_and_state
         real_next_step = rb.runtime_next_step
         real_commit = rb._engine_adapter.commit_advance
 
@@ -2325,7 +2334,7 @@ class TestResolveWpWorkspaceBeforePersistingTheAdvance:
             calls.append("persist")
             return real_commit(*args, **kwargs)
 
-        monkeypatch.setattr(rb, "_wp_iteration_action_and_state", _resolve)
+        monkeypatch.setattr(decision_mapping, "_wp_iteration_action_and_state", _resolve)
         monkeypatch.setattr(rb, "runtime_next_step", _next_step)
         monkeypatch.setattr(rb._engine_adapter, "commit_advance", _commit)
         return rb, ctx, calls
@@ -2354,7 +2363,7 @@ class TestResolveWpWorkspaceBeforePersistingTheAdvance:
             calls.append("resolve:failed")
             raise refusal
 
-        monkeypatch.setattr(rb, "_wp_iteration_action_and_state", _fails)
+        monkeypatch.setattr(decision_mapping, "_wp_iteration_action_and_state", _fails)
 
         with pytest.raises(ActionContextError) as excinfo:
             rb._dn_decision_materialize(ctx)
