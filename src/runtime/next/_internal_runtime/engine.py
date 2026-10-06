@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import re
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal, cast
 from uuid import uuid4
@@ -459,65 +460,109 @@ def _actor(agent_id: str) -> RuntimeActorIdentity:
     return RuntimeActorIdentity(actor_id=agent_id, actor_type="llm", provider=None, model=None, tool=None)
 
 
-def _commit_advance(run_ref: MissionRunRef, plan: AdvancePlan, agent_id: str, emitter: RuntimeEventEmitter) -> None:
-    """Persist + emit a plan: the events in their historical order, then the snapshot."""
+def _record_step_completed(run_dir: Path, run_id: str, step_id: str, agent_id: str, result: ResultType, emitter: RuntimeEventEmitter) -> None:
+    """Persist + emit ``NextStepAutoCompleted`` for the step the result closed."""
+    payload = NextStepAutoCompletedPayload(run_id=run_id, step_id=step_id, agent_id=agent_id, result=result, actor=_actor(agent_id))
+    _append_event(run_dir, NEXT_STEP_AUTO_COMPLETED, payload.model_dump(mode="json"))
+    emitter.emit_next_step_auto_completed(payload)
+
+
+def _record_significance(run_dir: Path, payload: SignificanceEvaluatedPayload, emitter: RuntimeEventEmitter) -> None:
+    """Persist + emit the ``SignificanceEvaluated`` event of an audit gate."""
+    _append_event(run_dir, "SignificanceEvaluated", payload.model_dump(mode="json"))
+    emitter.emit_significance_evaluated(payload)
+
+
+def _record_step_issued(run_dir: Path, run_id: str, step_id: str, agent_id: str, emitter: RuntimeEventEmitter) -> None:
+    """Persist + emit ``NextStepIssued`` for the step the plan issues."""
+    payload = NextStepIssuedPayload(run_id=run_id, step_id=step_id, agent_id=agent_id, actor=_actor(agent_id))
+    _append_event(run_dir, NEXT_STEP_ISSUED, payload.model_dump(mode="json"))
+    emitter.emit_next_step_issued(payload)
+
+
+def _request_decision_input(
+    run_dir: Path,
+    run_id: str,
+    decision: NextDecision,
+    agent_id: str,
+    pending: dict[str, Any],
+    emitter: RuntimeEventEmitter,
+) -> dict[str, Any]:
+    """Persist input-keyed decisions in ``pending`` so they are answerable.
+
+    Only records + emits on first occurrence (``decision.decision_id`` not yet
+    in ``pending``) to avoid duplicates on re-poll. Returns the pending map
+    (a new map when the request was added, ``pending`` itself otherwise)."""
+    assert decision.decision_id is not None
+    if decision.decision_id in pending:
+        return pending
+    actor = _actor(agent_id)
+    request = DecisionRequest(
+        decision_id=decision.decision_id,
+        step_id=decision.step_id or "",
+        question=decision.question or "",
+        options=decision.options or [],
+        requested_by=actor,
+        requested_at=now_utc(),
+    )
+    requested_payload = DecisionInputRequestedPayload(
+        run_id=run_id,
+        decision_id=decision.decision_id,
+        step_id=decision.step_id or "",
+        question=decision.question or "",
+        options=tuple(decision.options or []),
+        input_key=decision.input_key,
+        actor=actor,
+    )
+    _append_event(run_dir, DECISION_INPUT_REQUESTED, requested_payload.model_dump(mode="json"))
+    emitter.emit_decision_input_requested(requested_payload)
+    return {**pending, decision.decision_id: request.model_dump(mode="json")}
+
+
+def _record_run_completed(run_dir: Path, run_id: str, mission_key: str, agent_id: str, emitter: RuntimeEventEmitter) -> None:
+    """Persist + emit ``MissionRunCompleted`` (the transition into terminal)."""
+    payload = MissionRunCompletedPayload(run_id=run_id, mission_type=mission_key, actor=_actor(agent_id))
+    _append_event(run_dir, MISSION_RUN_COMPLETED, payload.model_dump(mode="json"))
+    emitter.emit_mission_run_completed(payload)
+
+
+def _commit_advance(
+    run_ref: MissionRunRef,
+    plan: AdvancePlan,
+    agent_id: str,
+    emitter: RuntimeEventEmitter,
+    *,
+    before_run_completed: Callable[[], None] | None = None,
+) -> None:
+    """Persist + emit a plan: the events in their historical order, then the snapshot.
+
+    ``before_run_completed`` is an abort-only guard: on the transition into
+    terminal it runs before ``MissionRunCompleted`` is recorded. If it raises,
+    the error propagates, events already appended (step completed,
+    significance) stay, ``MissionRunCompleted`` is not appended and
+    ``state.json`` is not written. It is not called on a re-poll of an
+    already-terminal run (no completed step)."""
     run_dir = Path(run_ref.run_dir)
     snapshot = plan.snapshot
     decision = plan.decision
-    actor = _actor(agent_id)
 
     if plan.completed_step_id is not None:
-        completed_payload = NextStepAutoCompletedPayload(
-            run_id=snapshot.run_id,
-            step_id=plan.completed_step_id,
-            agent_id=agent_id,
-            result=plan.result,
-            actor=actor,
-        )
-        _append_event(run_dir, NEXT_STEP_AUTO_COMPLETED, completed_payload.model_dump(mode="json"))
-        emitter.emit_next_step_auto_completed(completed_payload)
-
+        _record_step_completed(run_dir, snapshot.run_id, plan.completed_step_id, agent_id, plan.result, emitter)
     if plan.significance is not None:
-        _append_event(run_dir, "SignificanceEvaluated", plan.significance.model_dump(mode="json"))
-        emitter.emit_significance_evaluated(plan.significance)
+        _record_significance(run_dir, plan.significance, emitter)
 
     issued_step_id: str | None = None
     pending_decisions = dict(snapshot.pending_decisions)
     if decision.kind == "step" and decision.step_id:
         issued_step_id = decision.step_id
-        issued_payload = NextStepIssuedPayload(run_id=snapshot.run_id, step_id=decision.step_id, agent_id=agent_id, actor=actor)
-        _append_event(run_dir, NEXT_STEP_ISSUED, issued_payload.model_dump(mode="json"))
-        emitter.emit_next_step_issued(issued_payload)
+        _record_step_issued(run_dir, snapshot.run_id, decision.step_id, agent_id, emitter)
     elif decision.kind == "decision_required" and decision.decision_id:
-        # Persist input-keyed decisions in pending_decisions so they're answerable.
-        # Only emit event + persist on first occurrence to avoid duplicates on re-poll.
-        if decision.decision_id not in pending_decisions:
-            request = DecisionRequest(
-                decision_id=decision.decision_id,
-                step_id=decision.step_id or "",
-                question=decision.question or "",
-                options=decision.options or [],
-                requested_by=actor,
-                requested_at=now_utc(),
-            )
-            pending_decisions[decision.decision_id] = request.model_dump(mode="json")
-            requested_payload = DecisionInputRequestedPayload(
-                run_id=snapshot.run_id,
-                decision_id=decision.decision_id,
-                step_id=decision.step_id or "",
-                question=decision.question or "",
-                options=tuple(decision.options or []),
-                input_key=decision.input_key,
-                actor=actor,
-            )
-            _append_event(run_dir, DECISION_INPUT_REQUESTED, requested_payload.model_dump(mode="json"))
-            emitter.emit_decision_input_requested(requested_payload)
+        pending_decisions = _request_decision_input(run_dir, snapshot.run_id, decision, agent_id, pending_decisions, emitter)
     elif decision.kind == "terminal" and plan.completed_step_id is not None:
-        # Only emit on the transition into terminal (last step just completed),
-        # not on re-polls of an already-terminal run.
-        completed_run_payload = MissionRunCompletedPayload(run_id=snapshot.run_id, mission_type=snapshot.mission_key, actor=actor)
-        _append_event(run_dir, MISSION_RUN_COMPLETED, completed_run_payload.model_dump(mode="json"))
-        emitter.emit_mission_run_completed(completed_run_payload)
+        # Only on the transition into terminal (last step just completed), not on re-polls.
+        if before_run_completed is not None:
+            before_run_completed()
+        _record_run_completed(run_dir, snapshot.run_id, snapshot.mission_key, agent_id, emitter)
 
     _write_snapshot(
         run_dir,
@@ -550,7 +595,14 @@ class StaleAdvancePlan(MissionRuntimeError):
     """The run's persisted state changed after the plan was computed."""
 
 
-def commit_advance(run_ref: MissionRunRef, plan: AdvancePlan, agent_id: str, emitter: RuntimeEventEmitter | None = None) -> NextDecision:
+def commit_advance(
+    run_ref: MissionRunRef,
+    plan: AdvancePlan,
+    agent_id: str,
+    emitter: RuntimeEventEmitter | None = None,
+    *,
+    before_run_completed: Callable[[], None] | None = None,
+) -> NextDecision:
     """Commit a plan a caller already computed with :func:`plan_advance`.
 
     The caller planned first (the bridge resolves a WP-iteration step's
@@ -559,10 +611,16 @@ def commit_advance(run_ref: MissionRunRef, plan: AdvancePlan, agent_id: str, emi
     :class:`StaleAdvancePlan`, writing nothing, when the run's persisted state
     is no longer the state it was planned from: committing it would overwrite
     newer progress.
+
+    ``before_run_completed`` is an abort-only guard called on the transition
+    into terminal, before ``MissionRunCompleted`` is recorded; if it raises,
+    the error propagates, ``MissionRunCompleted`` is not appended and
+    ``state.json`` is not written (events already appended stay). It runs
+    after the stale-plan check, which still writes nothing.
     """
     if _read_snapshot(Path(run_ref.run_dir)) != plan.source:
         raise StaleAdvancePlan(f"Run '{plan.source.run_id}' changed after the advance was planned; plan again.")
-    _commit_advance(run_ref, plan, agent_id, emitter or NullEmitter())
+    _commit_advance(run_ref, plan, agent_id, emitter or NullEmitter(), before_run_completed=before_run_completed)
     return plan.decision
 
 
@@ -614,9 +672,7 @@ def _validate_audit_answer(band: str | None, answer: str) -> None:
     """WP05: significance-aware answer validation (T015 when no band was evaluated)."""
     if band == "medium":
         if answer not in _MEDIUM_BAND_ANSWERS:
-            raise MissionRuntimeError(
-                f"Medium-band decision requires one of {sorted(_MEDIUM_BAND_ANSWERS)}, got: {answer!r}"
-            )
+            raise MissionRuntimeError(f"Medium-band decision requires one of {sorted(_MEDIUM_BAND_ANSWERS)}, got: {answer!r}")
     elif band == "high":
         if answer not in ("approve", "reject"):
             raise MissionRuntimeError(f"High-band decision requires one of {{'approve', 'reject'}}, got: {answer!r}")
@@ -767,9 +823,7 @@ def provide_decision_answer(
 
     is_audit = decision_id.startswith(_AUDIT_PREFIX)
     if is_audit:
-        authority_role = _authorize_audit_answer(
-            run_dir, snapshot, decision_id, answer, actor, raci_source, raci_override_reason
-        )
+        authority_role = _authorize_audit_answer(run_dir, snapshot, decision_id, answer, actor, raci_source, raci_override_reason)
     elif actor.actor_type == "llm":
         authority_role, rationale_linkage = _authorize_llm_answer(inputs, decision_id, actor)
 
