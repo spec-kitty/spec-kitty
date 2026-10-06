@@ -14,7 +14,7 @@ Follow the `issue-to-mission-delivery` procedure. It carries the rules and the c
 6. Run the `mission-wrap-up-sequence` procedure: accept, issue verdicts, aggregate review, consolidate, compact, rebase.
 7. Review the integrated diff and fix every finding, except one that is highly impactful, takes significant effort, or needs a significant operator decision. Name each exception in the PR body with its reason.
 8. Update the changelog and docs.
-9. Open the PR as a draft, follow CI to green, then flip it to ready for review and label it `ready-for-squad`.
+9. Open the PR as a draft with the `taken-by-human` label, follow CI to green, then flip it to ready for review and label it `ready-for-squad`.
 
 Every subagent you dispatch first loads its profile with `spec-kitty agent profile show <id>`. Use the cheaper model tier for implementation and the stronger tier for review.
 

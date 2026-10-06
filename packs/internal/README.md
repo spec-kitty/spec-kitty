@@ -99,12 +99,18 @@ run with `make test-quality-scan`.
 ## Pack skills
 
 The four skills in `skills/` are the team-shared maintainer commands. Each is a thin
-entry point that carries no doctrine of its own: a `requires` edge in
+entry point: it states the goal, the order of the steps and the stop conditions, and
+leaves the rules to the procedure it requires. A `requires` edge in
 `drg/fragment.yaml` points it at the procedure that holds the rules, and the rendered
 `SKILL.md` tells the agent to load that procedure with
 `spec-kitty charter context --include <urn>`. The namespace is `kitty`, so they
 render as `kitty-land-pr`, `kitty-issue-triage`, `kitty-mission-from-issue` and
 `kitty-report-debrief`, and `required_skills` puts all four in force for every project that registers this pack.
+The `SKILL.md` files are not on disk until `spec-kitty upgrade` projects them into each
+configured tool's skill root (for example `.claude/skills/kitty-land-pr/`). In a fresh
+clone with no `.claude/` directory, run `mkdir .claude` first: today `upgrade` fails there
+with an "Owner effect conflict" on that directory. `spec-kitty doctor skills --fix` does
+not project pack skills.
 See [Create and activate a pack skill](../../docs/development/how-to/create-a-pack-skill.md).
 
 ## Reference, don't duplicate

@@ -6,8 +6,8 @@ purpose: >
   "merge-ready": sized up, claimed, rebased onto the current main of the canonical
   repository, every red check adjudicated, fixes added to the contributor branch,
   independently reviewed, documented, and handed off with evidence, so the operator
-  can merge without re-deriving the adjudication. Distilled from
-  docs/development/how-to/pr-landing.md, which holds the command-level detail.
+  can merge without re-deriving the adjudication. This procedure holds the rules;
+  docs/development/how-to/pr-landing.md holds the command-level detail.
   The `land-pr` pack skill is the thin entry point to this procedure.
   Terms used here. The operator is the human in charge of the run: the maintainer
   who invoked it. The canonical remote is the git remote that points at
@@ -16,7 +16,9 @@ purpose: >
   the landing pass adds to the PR branch. A companion change is an edit that a gate
   requires next to your change, such as a regenerated index or a removed exclude
   entry. A review squad is a small set of reviewer subagents, each given a different
-  focus; adversarial-squad-deployment owns how one is run.
+  focus; adversarial-squad-deployment owns how one is run. The landing queue is the
+  set of PRs the operator has asked maintainers to land in this run, in the order
+  they will be landed.
 entry_condition: >
   A contributor (or older maintainer) PR is open and ready for review, typically with
   red or stale CI, and a maintainer has been asked to land it. A PR that is still a

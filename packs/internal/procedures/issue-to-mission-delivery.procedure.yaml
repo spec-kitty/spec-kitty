@@ -101,7 +101,7 @@ steps:
 
   - title: Survey the existing code, then implement
     description: >
-      Before implementing, have a scout squad survey the code each work package will
+      Before implementing, have a squad of reviewer subagents survey the code each work package will
       touch: the files and lines, other callers of the same code, places where the
       same fix would have to be repeated field by field, and places where a second
       source of truth could appear. Drive the work packages with
@@ -179,6 +179,11 @@ steps:
       not a failure. Classify every red against the merge base: pre-existing P0
       reds, CI-environment failures and stale-install false reds are not your diff.
       Fix what is yours.
+      Add the `taken-by-human` label to the PR when you open it, and keep it on the
+      issues: the fleet's PR-routed fix and recovery lanes select on the PR's own
+      labels and never see the linked issue's `status:claimed`, so this label is
+      what keeps them off a human-driven PR
+      (docs/development/how-to/manage-issue-tracker.md).
       Then flip the PR to ready for review. The flip is the hand-off to the
       maintainers: it signals that a landing pass is safe to start. Flip only when the
       PR is green and complete. Never flip a PR that is red or still being changed.
