@@ -285,7 +285,9 @@ def test_boundary_keeps_the_original_error_when_the_restore_fails(tmp_path: Path
     assert "Could not restore" in caplog.text
 
 
-def test_boundary_logs_a_failed_restore_of_a_failed_outcome_without_raising(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+def test_boundary_logs_a_failed_restore_of_a_failed_outcome_without_raising(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     kittify = _kittify(tmp_path, _BASE)
     notices: list[str] = []
 

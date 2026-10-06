@@ -15,7 +15,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from click.exceptions import Exit
+import typer
 
 from .metadata import VersionStamp
 from .outcome import UpgradeOutcome, UpgradeOutcomeKind
@@ -60,7 +60,7 @@ def version_stamp_boundary(
         yield settle
     except BaseException as exc:
         # ``Exit(0)`` is an orderly early finish, not a failure: keep the stamp.
-        if stamp is not None and not (isinstance(exc, Exit) and exc.exit_code == 0):
+        if stamp is not None and not (isinstance(exc, typer.Exit) and exc.exit_code == 0):
             _restore_keeping_original_error(stamp, kittify_dir)
         raise
 

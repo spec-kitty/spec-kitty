@@ -289,7 +289,10 @@ def _file_create(owner: str, digest: str) -> PhysicalEffect:
 @pytest.mark.parametrize(
     "effects,match",
     [
-        ((_dir_create("managed_skills", mode=0o700), _dir_create("agent_profiles")), r"Owner effect conflict at /proj/\.claude: agent_profiles vs managed_skills \(differs in: owner, after\)"),
+        (
+            (_dir_create("managed_skills", mode=0o700), _dir_create("agent_profiles")),
+            r"Owner effect conflict at /proj/\.claude: agent_profiles vs managed_skills \(differs in: owner, after\)",
+        ),
         ((_dir_create("managed_skills", phase="provisioning"), _dir_create("agent_profiles")), "Owner effect conflict.*phase"),
         ((_file_create("a", "0" * 64), _file_create("b", "1" * 64)), "Owner effect conflict.*differs in: owner, after"),
     ],
