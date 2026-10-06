@@ -54,4 +54,5 @@ A user or an agent harness reading either surface was steered toward an offering
 - The visible-path baseline in `tests/docs/test_check_cli_reference_freshness.py` drops from 310 to 252.
 - In the charter, the SaaS Docker-mode rules bind only requested hosted work, and the CLI-to-SaaS contract section says no new hosted work starts unasked; a change to the hosted wire surface still updates the contract.
 - `docs/context/team-kitty.md` and the 4.0.0 declaration carry the support status.
+- Remediation messages on hosted-only paths still name `spec-kitty auth login`, which still runs by name. This is deliberate: a user who reaches a hosted path needs the real command. The sites are `_saas_error_hint` and the `tracker` authentication message (~759) in `src/specify_cli/cli/commands/tracker.py`, `_AUTH_LOGIN_REMEDIATION` in `src/specify_cli/readiness/render.py`, and the missing-auth remedy in `src/specify_cli/tracker/saas_readiness.py` (~85).
 - Reversible: removing a name from `_HOSTED_SURFACE_NAMES` and from the retired-skill set, and restoring the skill sources, brings a surface back.
