@@ -15,6 +15,12 @@ related:
 ---
 # Team Kitty (SaaS): the end-to-end hosted-sync flow
 
+> **Status (2026-10-06):** Team Kitty is no longer actively supported
+> ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md)).
+> This page describes code that still ships but is off by default; do not build
+> toward it unless the operator asks for hosted work.
+
+
 > **Historical record (3.x cycle).** This page describes the retired "sync"
 > transport (opt-in, project store, drain, `sync now`), which was deleted on
 > both the CLI and SaaS sides in August 2026. None of it is current. The live

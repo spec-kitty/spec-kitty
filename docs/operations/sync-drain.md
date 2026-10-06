@@ -13,6 +13,12 @@ related:
 
 # Sync-Drain Runbook: the 3-Gate Order and the Doctor False-Green Trap
 
+> **Status (2026-10-06):** Team Kitty is no longer actively supported
+> ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md)).
+> This page describes code that still ships but is off by default; do not build
+> toward it unless the operator asks for hosted work.
+
+
 > **Removed in 3.2.6; kept as historical record.** The CLI→SaaS sync transport
 > described here is gone. This page is scheduled for deletion in 3.2.7.
 

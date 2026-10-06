@@ -12,6 +12,12 @@ related:
 ---
 # CI Machine Authentication
 
+> **Status (2026-10-06):** Team Kitty is no longer actively supported
+> ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md)).
+> This page describes code that still ships but is off by default; do not build
+> toward it unless the operator asks for hosted work.
+
+
 A CI runner — a GitHub Actions job, an E2E harness, any unattended
 environment — can authenticate to the Spec Kitty SaaS with **no browser, no
 TTY, and no human approval step**, using a machine credential instead of a

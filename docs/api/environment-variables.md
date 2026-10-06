@@ -149,6 +149,11 @@ spec-kitty merge
 
 ## Hosted Auth and Sync
 
+> **Status (2026-10-06):** Team Kitty is no longer actively supported
+> ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md)).
+> The hosted and auth variables in this section describe code that still ships but is off by default; do not build
+> toward it unless the operator asks for hosted work.
+
 !!! warning "A shell `export` of either variable is machine-global"
 
     `SPEC_KITTY_ENABLE_SAAS_SYNC` and `SPEC_KITTY_SAAS_URL` are ordinary process

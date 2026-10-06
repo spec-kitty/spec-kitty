@@ -12,6 +12,12 @@ audience: internal / pre-launch operators
 ---
 # Internal Hosted-Readiness Mode (Pre-Launch)
 
+> **Status (2026-10-06):** Team Kitty is no longer actively supported
+> ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md)).
+> This page describes code that still ships but is off by default; do not build
+> toward it unless the operator asks for hosted work.
+
+
 > **Audience:** internal contributors and dev operators who are dogfooding
 > the hidden hosted-readiness path. This page is **not** for end users.
 > The public Spec Kitty experience remains local-first; see the

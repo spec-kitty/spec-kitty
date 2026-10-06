@@ -6,6 +6,12 @@ updated: '2026-08-27'
 ---
 # `auth whoami` output reference
 
+> **Status (2026-10-06):** Team Kitty is no longer actively supported
+> ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md)).
+> This page describes code that still ships but is off by default; do not build
+> toward it unless the operator asks for hosted work.
+
+
 The generated [`spec-kitty auth whoami`](cli-commands.md#spec-kitty-auth-whoami)
 section only carries the `--help` text, which still describes the original
 single-line contract: print the email and exit 0, or exit 1 if not

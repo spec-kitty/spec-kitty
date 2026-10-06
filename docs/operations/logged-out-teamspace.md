@@ -6,6 +6,12 @@ updated: '2026-08-23'
 ---
 # Recovery: Logged out on a connected teamspace
 
+> **Status (2026-10-06):** Team Kitty is no longer actively supported
+> ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md)).
+> This page describes code that still ships but is off by default; do not build
+> toward it unless the operator asks for hosted work.
+
+
 When a repository is connected to a Spec Kitty teamspace but the local CLI
 session is logged out (no credentials, or refresh token expired), every
 `spec-kitty sync ...` command surfaces a teamspace-aware recovery path
