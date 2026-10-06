@@ -57,7 +57,12 @@ from specify_cli.status_lanes import has_operator_provenance, is_acceptable_endi
 TASKS_GLOB = "WP*.md"
 
 
-_WP_ITERATION_STEPS = frozenset({"implement", "review"})
+_STEP_IMPLEMENT = "implement"
+_STEP_REVIEW = "review"
+_WP_ITERATION_STEPS = frozenset({_STEP_IMPLEMENT, _STEP_REVIEW})
+
+#: Fallback label for a decision id, step id or action the runtime did not name.
+_UNKNOWN = "unknown"
 
 
 def _is_wp_iteration_step(step_id: str) -> bool:
@@ -108,13 +113,13 @@ def _finalized_task_board_override_step(
         return None
 
     if _has_claimable_planned_wp(feature_dir, status_dir=status_dir):
-        return "implement"
+        return _STEP_IMPLEMENT
     if _find_first_wp_by_lane(feature_dir, "claimed", status_dir=status_dir) is not None:
-        return "implement"
+        return _STEP_IMPLEMENT
     if _find_first_wp_by_lane(feature_dir, "in_progress", status_dir=status_dir) is not None:
-        return "implement"
+        return _STEP_IMPLEMENT
     if _find_first_wp_by_lane(feature_dir, "for_review", status_dir=status_dir) is not None:
-        return "review"
+        return _STEP_REVIEW
     if _find_first_wp_by_lane(feature_dir, "in_review", status_dir=status_dir) is not None:
         return "blocked:review_in_progress"
 
@@ -398,11 +403,11 @@ def _resolve_wp_board_implement_action(
     if preview.wp_id is None:
         reason = preview.selection_reason or "no claimable work package"
         return _wp_blocked_action(
-            "implement",
+            _STEP_IMPLEMENT,
             f"{reason}. Inspect the board: `{_inspect_board_recovery_command(mission_slug)}`.",
         )
     workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, preview.wp_id, owned=owned).worktree_path)
-    return _wp_dispatch_action("implement", "implement", preview.wp_id, workspace_path)
+    return _wp_dispatch_action(_STEP_IMPLEMENT, _STEP_IMPLEMENT, preview.wp_id, workspace_path)
 
 
 def _resolve_wp_board_review_action(
@@ -423,11 +428,11 @@ def _resolve_wp_board_review_action(
         # A race between the board's own for_review probe and this re-read
         # — never a WP-less dispatch (FR-005); fall to the blocked floor.
         return _wp_blocked_action(
-            "review",
+            _STEP_REVIEW,
             f"Board reported a reviewable work package but none was found on re-read. Inspect the board: `{_inspect_board_recovery_command(mission_slug)}`.",
         )
     workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, wp_id, owned=owned).worktree_path)
-    return _wp_dispatch_action("review", "review", wp_id, workspace_path)
+    return _wp_dispatch_action(_STEP_REVIEW, _STEP_REVIEW, wp_id, workspace_path)
 
 
 def _resolve_wp_board_action(*, mission_slug: str, repo_root: Path, owned: OwnedCheckout | None = None) -> _WpBoardAction:
@@ -514,9 +519,9 @@ def _resolve_wp_board_action(*, mission_slug: str, repo_root: Path, owned: Owned
             board_step,
             f"No actionable work package ({sentinel.replace('_', ' ')}). Inspect the board: `{_inspect_board_recovery_command(mission_slug)}`.",
         )
-    if board_step == "implement":
+    if board_step == _STEP_IMPLEMENT:
         return _resolve_wp_board_implement_action(mission_slug, repo_root, task_board_dir, status_dir, owned=owned)
-    if board_step == "review":
+    if board_step == _STEP_REVIEW:
         return _resolve_wp_board_review_action(mission_slug, repo_root, task_board_dir, status_dir, owned=owned)
     return _WP_BOARD_DECLINE  # forward-compat: an unrecognized board step declines rather than guesses
 
@@ -675,7 +680,7 @@ def _build_decision_required_prompt_file(
         _, prompt_path = build_decision_prompt(
             question=decision.question,
             options=decision.options,
-            decision_id=decision.decision_id or "unknown",
+            decision_id=decision.decision_id or _UNKNOWN,
             mission_slug=mission_slug,
             repo_root=repo_root,
             agent=agent,
@@ -806,7 +811,7 @@ def _map_non_wp_step_decision(
     triad — template-resolution via ``_state_to_action`` +
     ``_build_prompt_or_error``, collapsed via ``step_or_blocked``."""
     action, wp_id, workspace_path = _state_to_action(
-        step_id or "unknown",
+        step_id or _UNKNOWN,
         mission_slug,
         feature_dir,
         repo_root,
@@ -818,7 +823,7 @@ def _map_non_wp_step_decision(
     prompt_error_code: str | None = None
     if action or step_id:
         prompt_file, prompt_error, prompt_error_code = _build_prompt_or_error(
-            action or step_id or "unknown",
+            action or step_id or _UNKNOWN,
             feature_dir,
             mission_slug,
             wp_id,
@@ -835,7 +840,7 @@ def _map_non_wp_step_decision(
             agent=agent,
             mission_slug=mission_slug,
             mission=mission_type,
-            mission_state=step_id or "unknown",
+            mission_state=step_id or _UNKNOWN,
             timestamp=timestamp,
             reason=prompt_error or "no_prompt_template",
             action=action or step_id,
@@ -911,7 +916,7 @@ def _map_runtime_decision(
                 agent=agent,
                 mission_slug=mission_slug,
                 mission=mission_type,
-                mission_state=step_id or "unknown",
+                mission_state=step_id or _UNKNOWN,
                 timestamp=timestamp,
                 reason=decision.reason,
                 progress=progress,
@@ -929,7 +934,7 @@ def _map_runtime_decision(
                 agent=agent,
                 mission_slug=mission_slug,
                 mission=mission_type,
-                mission_state=step_id or "unknown",
+                mission_state=step_id or _UNKNOWN,
                 timestamp=timestamp,
                 reason=decision.reason or "Decision required",
                 progress=progress,
