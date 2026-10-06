@@ -256,7 +256,7 @@ def _emit_doctrine_no_packs(
         return
     console.print("[yellow]No org doctrine configured.[/yellow]")
     console.print(
-        "Add a 'charter.offering.org' block to .kittify/config.yaml to register a pack."
+        "Add a 'charter_packs.org' block to .kittify/config.yaml to register a pack."
     )
     console.print()
     for line in _render_selection_block_lines(selection_block):
@@ -427,6 +427,10 @@ def _render_conflict_bullets(
         )
 
 
+#: Closing line of the Selections block: where the active charter is listed.
+_ACTIVE_CHARTER_POINTER = "Active charter (activated artifacts): spec-kitty charter list"
+
+
 def _render_selection_block_lines(
     selections: dict[str, list[dict[str, str]]],
 ) -> list[str]:
@@ -446,4 +450,7 @@ def _render_selection_block_lines(
         lines.append(f"  {kind}:")
         for entry in entries:
             lines.append(f"    - {entry['id']:<24}(source: {entry['source']})")
+    # Selections are not activations (#4836): point at the activation view so
+    # an operator checking an activation does not stop at "(none)".
+    lines.append(_ACTIVE_CHARTER_POINTER)
     return lines

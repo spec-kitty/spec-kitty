@@ -636,7 +636,7 @@ def _iso_now() -> str:
 
 
 # ----------------------------------------------------------------------
-# Pack-level fetch entry point (consumed by `spec-kitty doctrine fetch`).
+# Pack-level fetch entry point (consumed by `spec-kitty charter fetch`).
 # ----------------------------------------------------------------------
 def _build_source(pack: OrgPackConfig) -> OrgDoctrineSource:
     """Construct the fetch-source adapter for *pack*.

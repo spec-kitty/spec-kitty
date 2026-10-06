@@ -26,7 +26,7 @@ source for a project — the single git-tracked, structured file nesting
 `.kittify/charter/charter.md` is a curated, human-readable companion the
 runtime never parses or resolves policy from. A repository may also keep
 public governance docs outside `.kittify/`; those docs are human-facing
-authority unless `charter.yaml`'s `governance.charter.offering.governance_references`
+authority unless `charter.yaml`'s `governance.charter.governance_references`
 points at them. The doctrine layer (`src/charter/offering/`) provides the
 reusable knowledge artifacts (directives, tactics, paradigms, styleguides,
 toolguides, procedures, agent profiles, step contracts) that the charter
@@ -133,7 +133,7 @@ styleguide = service.styleguides.get("<a-styleguide-id>")
 
 To validate your project-layer doctrine artifacts run:
 ```bash
-spec-kitty doctrine validate .kittify/
+spec-kitty charter validate .kittify/doctrine
 ```
 
 ### Step 3 — Read the interview mapping to know what to generate
@@ -239,7 +239,7 @@ the runtime reads it without any parse/extract step in between.
    parses it for policy — it exists purely for human review/onboarding, and
    optionally to summarize `charter.yaml` or point at a public constitution.
    If the repository also has a public constitution or handbook, reference
-   it from `charter.yaml`'s `governance.charter.offering.governance_references` (or
+   it from `charter.yaml`'s `governance.charter.governance_references` (or
    `authority_paths`), not just from the companion prose.
 
 `.kittify/config.yaml` carries a single `charter:` pointer (default
@@ -477,15 +477,18 @@ directive = service.directives.get("DIRECTIVE_034")
 tactic = service.tactics.get("tdd-red-green-refactor")
 paradigm = service.paradigms.get("<paradigm-id>")
 # Shipped artifacts: packs/built-in/<kind>/
-# Project-local overrides: .kittify/<kind>/
+# Project-layer artifacts: .kittify/doctrine/<kind dir>/ (written by
+# `spec-kitty charter new`; see Step 4 for the per-kind directories)
 ```
 
 To validate project-layer artifacts:
 ```bash
-spec-kitty doctrine validate .kittify/
+spec-kitty charter validate .kittify/doctrine
 ```
 
-To list registered mission types:
+To list registered mission types (every visible type; this command still
+lives only under the deprecated `doctrine` group, so the deprecation banner
+it prints is expected, not a fault):
 ```bash
 spec-kitty doctrine mission-type list
 ```

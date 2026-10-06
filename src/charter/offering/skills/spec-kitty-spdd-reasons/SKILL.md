@@ -78,18 +78,19 @@ from charter.offering.spdd_reasons.activation import is_spdd_reasons_active
 active = is_spdd_reasons_active(repo_root)
 ```
 
-The helper inspects `.kittify/charter/governance.yaml` and
-`.kittify/charter/directives.yaml` and returns `True` iff any of the four
-selectors is present:
+The helper inspects the project's active charter -- the top-level
+`activated_paradigms`, `activated_tactics` and `activated_directives` keys in
+`.kittify/config.yaml`, or in the `charter.yaml` its `charter:` pointer names --
+and returns `True` iff any of the four selectors is present:
 
 - paradigm `structured-prompt-driven-development`
 - tactic `reasons-canvas-fill`
 - tactic `reasons-canvas-review`
 - directive `DIRECTIVE_038`
 
-Manual fallback: read `.kittify/charter/governance.yaml` directly and look
-for the same selectors under `charter.offering.selected_paradigms`,
-`charter.offering.selected_tactics`, or `charter.offering.selected_directives`.
+Manual fallback: read `.kittify/config.yaml` (or the `charter.yaml` its
+`charter:` pointer names) directly and look for the same selectors under
+`activated_paradigms`, `activated_tactics`, or `activated_directives`.
 
 ## How to author the canvas
 
@@ -171,7 +172,7 @@ so the canonical entry is updated once and propagated everywhere.
   `src/charter/offering/templates/fragments/reasons-canvas-template.md`
 - Activation helper:
   `src/charter/offering/spdd_reasons/activation.py` (`is_spdd_reasons_active`)
-- Charter governance config:
-  `.kittify/charter/governance.yaml`
+- Activation authority:
+  `.kittify/config.yaml` (or the `charter.yaml` its `charter:` pointer names)
 - Drift taxonomy:
   `kitty-specs/<mission>/data-model.md §Drift classification`

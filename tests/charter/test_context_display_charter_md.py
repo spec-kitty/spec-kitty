@@ -16,7 +16,7 @@ Coverage:
   ``charter.md`` prose content — flipping the companion's Policy Summary /
   section bodies does not change which directives resolve, because
   directive resolution is driven by the DRG graph + ``charter.yaml``'s
-  ``governance.charter.offering.selected_directives``, never by parsing
+  ``governance.charter.selected_directives``, never by parsing
   ``charter.md`` (T021, INV-3).
 * The compact-mode section-block renderer (``context._compact_section_block``)
   and the compact anchor extractor (``compact.render_compact_view``) degrade
@@ -117,7 +117,7 @@ _CHARTER_MD_WITH_DIFFERENT_PROSE = textwrap.dedent("""\
 def _write_fixture_repo(tmp_path: Path, *, charter_md: str | None) -> None:
     """Write a minimal repo with ``charter.yaml`` and (optionally) ``charter.md``.
 
-    ``charter.yaml`` always carries ``governance.charter.offering.selected_directives``
+    ``charter.yaml`` always carries ``governance.charter.selected_directives``
     so the WP04-repointed loader (``charter.activation.sync.load_governance_config``)
     resolves ``DIRECTIVE_001`` regardless of whether -- or what -- the
     companion ``charter.md`` says.
@@ -203,7 +203,7 @@ class TestBootstrapRendersCompanionProse:
 
 class TestGovernanceResolutionIndependentOfProse:
     """Directive resolution comes from the DRG graph + charter.yaml's
-    ``governance.charter.offering.selected_directives`` -- never from parsing
+    ``governance.charter.selected_directives`` -- never from parsing
     ``charter.md``. Swapping the companion's prose changes only the
     DISPLAY blocks, never which directives resolve."""
 

@@ -23,19 +23,33 @@ entry_condition: >
   example behaviour; the owner does not need to be technical. The pack validates cleanly before
   any new work begins.
 exit_condition: >
-  Pack validation reports zero errors (zero advisories preferred; residual advisories require
+  The chosen tier's validation reports zero errors (zero advisories preferred; residual advisories require
   documented justification). Every artifact extracted from the source agent is written under the
   correct pack subdirectory and registered in the DRG with appropriate edges. If a dedicated
   agent profile was warranted it is created; if not, the decision not to create one is recorded.
-  spec-kitty doctor doctrine reports the pack installed with the expected artifact counts.
+  For an org or built-in pack, spec-kitty doctor doctrine reports the pack installed with the
+  expected artifact counts; for the project tier, spec-kitty charter list shows the new
+  artifacts activated.
 steps:
-  - title: Confirm baseline validation passes
+  - title: Choose the target tier and confirm baseline validation passes
     actor: agent
     description: >
-      Before extracting anything, run the pack validation gate and record the result. If errors
-      exist, stop and fix them before proceeding — adding new artifacts on top of a broken
-      baseline compounds errors and obscures root cause. Record the baseline error and advisory
-      counts in the work log.
+      Decide which tier the onboarded artifacts belong to, because each tier is validated,
+      registered, and verified with different commands:
+
+        - Project tier — the artifacts govern only this repository. They are authored under
+          .kittify/doctrine/ with spec-kitty charter new and validated with
+          spec-kitty charter validate .kittify/doctrine.
+        - Org pack — the artifacts are shared across repositories through a pack directory
+          configured under charter_packs.org.packs in .kittify/config.yaml. The pack is validated
+          with spec-kitty charter org validate <pack-dir>.
+        - Built-in pack — the artifacts ship with Spec Kitty itself (maintainers only). The pack
+          is validated with spec-kitty doctrine pack validate packs/built-in.
+
+      Before extracting anything, run the validation command for the chosen tier and record the
+      result. If errors exist, stop and fix them before proceeding — adding new artifacts on top
+      of a broken baseline compounds errors and obscures root cause. Record the baseline error
+      and advisory counts in the work log.
   - title: Interview the agent owner and gather all source material and documentation
     actor: agent
     description: >
@@ -195,13 +209,24 @@ steps:
       specializes-from/enhances/overrides field on the artifact YAML; the validator rejects those
       fields.
 
-      The runtime reads the DRG fragment, but the committed compiled graph must be regenerated so
-      CI and the validator see the same node/edge set. Regenerate it per the pack's build tooling
-      and confirm the new nodes and edges appear in the regenerated graph.
+      How the edges are recorded and the graph refreshed depends on the tier chosen in the first
+      step:
+
+        - Built-in pack — edges go in the per-kind *.graph.yaml fragments; the committed graph
+          must be regenerated with spec-kitty doctrine regenerate-graph so CI and the validator
+          see the same node/edge set. Confirm the new nodes and edges appear in the output.
+        - Org pack — edges go in the pack's drg/fragment.yaml. The runtime reads that fragment
+          directly, so there is no compiled graph to regenerate.
+        - Project tier — there is no fragment to edit. Activate the new artifacts with
+          spec-kitty charter activate <kind> <id> --cascade all, which writes the project graph.
+          Project-graph edges are currently projected from agent-profile references only, so
+          wire each new artifact into the references of the profile that should carry it (the
+          one created or chosen in the profile-decision step).
   - title: Run validation and fix errors
     actor: agent
     description: >
-      After writing each artifact (or in batches of 3-5), run pack validation. Resolve schema
+      After writing each artifact (or in batches of 3-5), run the tier's validation command from
+      the first step. Resolve schema
       errors (id pattern violations, controlled-vocabulary fields, required example pairs on
       patterns/anti_patterns, disallowed extra fields). An id collision with a shipped built-in
       surfaces as an advisory; resolve it by declaring an enhances/overrides edge with rationale,
@@ -210,10 +235,14 @@ steps:
   - title: Final verification and handoff
     actor: human
     description: >
-      Run the full verification suite: pack validation (expect zero errors) and
-      spec-kitty doctor doctrine (expect the pack installed with matching counts). If
-      spec-kitty doctor doctrine is unavailable, verify manually that there are no duplicate ids
-      within a kind and that each new artifact has a DRG node and at least one edge.
+      Run the full verification suite for the chosen tier: the tier's validation command from the
+      first step (expect zero errors), then spec-kitty doctor doctrine (expect the pack installed
+      with matching counts, for an org or built-in pack). For the project tier, confirm the
+      artifacts are active with spec-kitty charter list, check the graph with
+      spec-kitty charter lint, and, if a profile was created, inspect it with
+      spec-kitty profiles show <profile-id>. If spec-kitty doctor doctrine is unavailable, verify
+      manually that there are no duplicate ids within a kind and that each new artifact has a
+      DRG node and at least one edge.
 
       Summarise the final artifact set using the onboarded-artifact-set-template: how many
       artifacts of each kind were created, whether a profile was added, and the final validation

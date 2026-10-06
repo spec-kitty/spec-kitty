@@ -287,12 +287,13 @@ Procedures live in `packs/built-in/procedures/` (shipped) or
 procedure = service.procedures.get("refactoring")
 # procedure.steps → ordered list of actions
 # procedure.prerequisites → what must be true before starting
-# All procedures: read packs/built-in/procedures/ or .kittify/procedures/
+# All procedures: read packs/built-in/procedures/ (built-in) or
+# .kittify/doctrine/procedure/ (project layer, written by `spec-kitty charter new`)
 ```
 
 To validate project-layer doctrine artifacts:
 ```bash
-spec-kitty doctrine validate .kittify/
+spec-kitty charter validate .kittify/doctrine
 ```
 
 ### Agent Profiles (Role-Based WP Assignment)
@@ -398,8 +399,11 @@ It's recorded in `meta.json` and cannot be changed after creation.
 **Commands:**
 
 ```bash
-# List available mission types
+# List available mission types (activated for this project)
 spec-kitty mission-type list
+# Every visible mission type, activated or not. This one still lives only
+# under the deprecated `doctrine` group, so it prints a deprecation banner;
+# the banner is expected, not a fault.
 spec-kitty doctrine mission-type list
 
 # Specify a mission with a specific mission type

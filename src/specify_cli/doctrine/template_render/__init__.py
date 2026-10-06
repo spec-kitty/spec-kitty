@@ -1,4 +1,4 @@
-"""Template render helpers for ``spec-kitty doctrine org init --template``.
+"""Template render helpers for ``spec-kitty charter org init --template``.
 
 WP01 delivers validation and TEMPLATE resolve. WP02 adds ignore-copy /
 substitute / pipeline.

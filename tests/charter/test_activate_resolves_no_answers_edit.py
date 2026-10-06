@@ -181,7 +181,7 @@ class TestSpddActivationDoesNotFlip:
 
     ``generate.py`` runs ``sync_charter`` right after ``compile_charter``;
     the compiler's ``## Governance Activation`` render feeds
-    ``governance.yaml`` ``charter.offering.selected_*``, which
+    ``governance.yaml`` ``charter.selected_*``, which
     :func:`charter.offering.spdd_reasons.activation.is_spdd_reasons_active` keys on
     (paradigm ``structured-prompt-driven-development``, tactics
     ``reasons-canvas-fill``/``reasons-canvas-review``, or directive

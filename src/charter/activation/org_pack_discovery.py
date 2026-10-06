@@ -128,7 +128,7 @@ def _missing_pack_diagnostic(repo_root: Path) -> str | None:
     ]
     for name, local_path in missing:
         lines.append(f"    - pack `{name}`: local_path `{local_path}` does not exist")
-    lines.append("  - Run `spec-kitty doctrine fetch --pack <name>` to populate the pack, or remove the entry from .kittify/config.yaml.")
+    lines.append("  - Run `spec-kitty charter fetch --pack <name>` to populate the pack, or remove the entry from .kittify/config.yaml.")
     return "\n".join(lines)
 
 
@@ -264,7 +264,7 @@ def require_org_skill_policy_readable(repo_root: Path, *, org_decides: bool) -> 
         if not pack_path.is_dir():
             raise SkillPreparationError(
                 f"org pack {name!r} is configured but its path is not an existing directory ({pack_path}); "
-                f"run `spec-kitty doctrine fetch --pack {name}`, or remove the pack from .kittify/config.yaml"
+                f"run `spec-kitty charter fetch --pack {name}`, or remove the pack from .kittify/config.yaml"
             )
         charter_path = pack_path / "org-charter.yaml"
         if org_decides and charter_path.exists():

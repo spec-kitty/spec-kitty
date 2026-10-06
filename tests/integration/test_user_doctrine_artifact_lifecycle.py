@@ -227,7 +227,7 @@ def _write_charter(repo_root: Path, body: str) -> Path:
 # charter-context path, so callers still write it too.
 
 
-# Global selection: charter.yaml governance.charter.offering.selected_styleguides.
+# Global selection: charter.yaml governance.charter.selected_styleguides.
 # ``catalog.languages`` is the authoritative #2773 source for the active
 # project language set (``charter.activation.language_scope.infer_repo_languages``). The
 # caveman styleguide is scoped ``applies_to_languages: [python, generic]``, so a

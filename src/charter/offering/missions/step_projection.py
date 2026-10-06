@@ -22,7 +22,7 @@ Scope fence (C-008, "whack-a-field"): this module projects **only** the
 ``dict[artifact_key, template_file]`` mapping derived from
 ``MissionStep.template`` (exposed as ``MissionType.template_set`` was,
 pre-cutover, and as ``ResolvedMissionType.template_set`` still is,
-per C-006). The unrelated charter/project ``charter.offering.template_set``
+per C-006). The unrelated charter/project ``governance.charter.template_set``
 **scalar** (``charter/resolver.py``, ``compiler.py``, ``compact.py``,
 ``generator.py``, ``catalog.py``, ``prompt_builder.py``,
 ``scope_router.py``, ``governance-profile.yaml``) is a different domain

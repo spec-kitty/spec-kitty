@@ -733,7 +733,7 @@ def new(
     target_path.write_text(stub_text, encoding="utf-8")
     console.print(
         f"[green]Created stub artifact:[/green] {target_path}\n"
-        f"Run [bold]spec-kitty doctrine validate {target_path}[/bold] to confirm."
+        f"Run [bold]spec-kitty charter validate {target_path}[/bold] to confirm."
     )
 
 
@@ -935,7 +935,7 @@ edges: []
 _ORG_PACK_README_STUB = """\
 # Org Doctrine Pack
 
-> Scaffolded by `spec-kitty doctrine org init`.
+> Scaffolded by `spec-kitty charter org init`.
 
 ## Contents
 
@@ -947,7 +947,7 @@ _ORG_PACK_README_STUB = """\
 ## Validation
 
 ```bash
-spec-kitty doctrine org validate .
+spec-kitty charter org validate .
 ```
 """
 
@@ -1034,7 +1034,7 @@ def _run_minimal_scaffold(pack_path: Path, *, force: bool) -> None:
     console.print("  drg/fragment.yaml")
     console.print("  README.md")
     console.print(
-        f"\nRun [bold]spec-kitty doctrine org validate {pack_path}[/bold] to confirm."
+        f"\nRun [bold]spec-kitty charter org validate {pack_path}[/bold] to confirm."
     )
 
 
@@ -1078,7 +1078,7 @@ def _run_template_render(
         "ORG_NAME / LOCAL_PATH tokens substituted."
     )
     console.print(
-        f"\nRun [bold]spec-kitty doctrine org validate {pack_path}/pack[/bold] "
+        f"\nRun [bold]spec-kitty charter org validate {pack_path}/pack[/bold] "
         "or your template's quality-check if applicable."
     )
 

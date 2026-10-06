@@ -467,7 +467,7 @@ def load_pack_registry(repo_root: Path, *, quiet: bool = False, strict: bool = F
     ``quiet=True`` demotes that one signal to a DEBUG-level log line instead.
 
     This does NOT weaken diagnosis of a *genuinely* misconfigured org pack:
-    a config that DOES declare ``charter_packs.org`` or ``charter.offering.org`` but
+    a config that DOES declare ``charter_packs.org`` or the legacy ``doctrine.org`` but
     fails schema validation (below) stays a loud ``UserWarning``
     unconditionally, on every calling surface, regardless of ``quiet`` --
     that operator has demonstrably opted in to org packs and deserves to
@@ -546,7 +546,7 @@ def save_pack_registry(repo_root: Path, registry: PackRegistry) -> None:
     CR-04 (mission ``charter-code-topology-01M152G1`` S4): writes only ever
     target the canonical ``charter_packs`` key now. A pre-existing legacy
     ``doctrine:`` section (if any) is left untouched -- this writer only
-    ever populated ``charter.offering.org``, never any other ``doctrine.*`` key, so
+    ever populated ``doctrine.org``, never any other ``doctrine.*`` key, so
     there is nothing of this module's own to migrate away; an operator still
     reading through the legacy key gets the CR-04 warn-once notice from
     :func:`load_pack_registry` on their next read, independent of this

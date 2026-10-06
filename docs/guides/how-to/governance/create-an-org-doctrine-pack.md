@@ -2,7 +2,7 @@
 title: How to Create an Org Doctrine Pack
 description: Author, validate, assemble, publish, and consume a spec-kitty org doctrine pack.
 doc_status: active
-updated: '2026-10-05'
+updated: '2026-10-06'
 type: how-to
 audience: docs/context/audience/external/tech-lead-evaluator.md
 related:
@@ -152,7 +152,7 @@ above as a bridge, not a durable authoring target.
 
 If your pack contributes typed graph relations (for example, a new directive that scopes
 to a specific mission action), declare them in a single `drg/fragment.yaml` — the
-`OrgDRGFragment` shape that `spec-kitty doctrine org init` scaffolds. An org pack's DRG
+`OrgDRGFragment` shape that `spec-kitty charter org init` scaffolds. An org pack's DRG
 is read only from `drg/fragment.yaml`; a `drg/*.graph.yaml` fragment is **not** consumed
 and `doctrine org validate` now rejects it (`drg_root_graph_missing`):
 
@@ -542,13 +542,13 @@ Then the consumer runs:
 
 ```bash
 # Fetch all configured packs
-uv run spec-kitty doctrine fetch
+uv run spec-kitty charter fetch
 
 # Or fetch a single pack
-uv run spec-kitty doctrine fetch --pack security
+uv run spec-kitty charter fetch --pack security
 
 # Preview without contacting any remote
-uv run spec-kitty doctrine fetch --dry-run
+uv run spec-kitty charter fetch --dry-run
 ```
 
 Verify the install:
@@ -604,7 +604,7 @@ built-in version.
 
 `doctor doctrine` found a built-in override that nothing sanctions. The `why` text on the finding says which case applies. Fix it in this order:
 
-1. **Pack root.** If the overriding pack should own the replacement, add the URN to the pack's `replaceable-builtins.yaml` (Step 3b) and refresh the pack with `spec-kitty doctrine fetch`. A directive needs a non-empty `reason`. The entry counts only for the pack that contributes the override.
+1. **Pack root.** If the overriding pack should own the replacement, add the URN to the pack's `replaceable-builtins.yaml` (Step 3b) and refresh the pack with `spec-kitty charter fetch`. A directive needs a non-empty `reason`. The entry counts only for the pack that contributes the override.
 2. **Consumer entry.** If you accept the replacement yourself, append `{urn, reason}` under `replaceable_builtins` in `.kittify/doctrine/replaceable-builtins.yaml`. Append the one entry; do not copy a whole file over yours.
 3. **Revoked.** If the finding says the pack sanction was revoked by the consumer file, remove the matching `revoked_pack_sanctions` entry, or use step 2.
 

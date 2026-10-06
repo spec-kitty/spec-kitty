@@ -58,7 +58,7 @@ def test_missing_pack_error_message_is_actionable(tmp_path: Path) -> None:
 
     message = str(excinfo.value)
     # The error MUST tell the operator how to recover.
-    assert "spec-kitty doctrine fetch --pack security-pack" in message
+    assert "spec-kitty charter fetch --pack security-pack" in message
     assert ".kittify/config.yaml" in message
 
 

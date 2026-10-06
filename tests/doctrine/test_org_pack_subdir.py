@@ -64,7 +64,7 @@ def _write_config_with_subdir(
 def _write_legacy_config_with_subdir(
     repo_root: Path, *, pack_path: str, subdir: str | None = None
 ) -> None:
-    """Write a legacy single-pack charter.offering.org inline config."""
+    """Write a legacy single-pack doctrine.org inline config."""
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
     subdir_line = f"\n    subdir: {subdir}" if subdir is not None else ""
@@ -397,7 +397,7 @@ class TestRoundTrip:
         assert loaded.packs[0].subdir is None
 
     def test_legacy_single_pack_shape_carries_subdir(self, tmp_path: Path) -> None:
-        """Legacy inline charter.offering.org shape with subdir is read correctly (T004)."""
+        """Legacy inline doctrine.org shape with subdir is read correctly (T004)."""
         pack_root = tmp_path / "legacy-pack"
         pack_root.mkdir()
         _write_legacy_config_with_subdir(
@@ -409,7 +409,7 @@ class TestRoundTrip:
         assert loaded.packs[0].subdir == "doctrine"
 
     def test_legacy_single_pack_no_subdir_stays_none(self, tmp_path: Path) -> None:
-        """Legacy inline charter.offering.org shape without subdir → subdir is None."""
+        """Legacy inline doctrine.org shape without subdir → subdir is None."""
         pack_root = tmp_path / "legacy-pack"
         pack_root.mkdir()
         _write_legacy_config_with_subdir(tmp_path, pack_path=str(pack_root))

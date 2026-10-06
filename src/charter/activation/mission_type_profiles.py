@@ -1170,7 +1170,7 @@ def _resolve_template_set_slot(
     resolved the same ``(mission_type, pack_context)`` pair in this process
     -- one filesystem walk serves both consumers. This is the *dict*
     template mapping (per-type template mapping), never the unrelated
-    ``charter.offering.template_set`` scalar (charter selection authority in
+    ``governance.charter.template_set`` scalar (charter selection authority in
     ``resolver.py``/``compiler.py``/etc.) — C-002 keeps those surfaces
     fenced off.
     """

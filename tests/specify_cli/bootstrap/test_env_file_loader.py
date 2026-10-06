@@ -431,7 +431,7 @@ class TestConfigEnvFilePointer:
 
         That model's ``model_config = ConfigDict(extra="forbid")``
         (src/charter/offering/drg/org_pack_config.py:307) validates ONLY the
-        ``charter.offering.org`` subsection of config.yaml -- a sibling top-level
+        ``charter_packs.org`` subsection of config.yaml -- a sibling top-level
         ``env_file:`` key must be invisible to it (C-LDR-5).
         """
         from charter.offering.drg.org_pack_config import load_pack_registry

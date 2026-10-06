@@ -303,7 +303,7 @@ class OrgPackMissingError(Exception):
     with an operator-actionable error. No silent fallback.
     """
 
-    REMEDIATION: ClassVar[str] = "Either fetch the pack (`spec-kitty doctrine fetch --pack <name>`) or remove the entry from `.kittify/config.yaml`."
+    REMEDIATION: ClassVar[str] = "Either fetch the pack (`spec-kitty charter fetch --pack <name>`) or remove the entry from `.kittify/config.yaml`."
 
     def __init__(self, pack_name: str, configured_path: str | Path):
         self.pack_name = pack_name

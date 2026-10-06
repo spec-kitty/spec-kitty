@@ -211,7 +211,7 @@ class MissingDoctrinePackError(RuntimeError):
     when an org pack referenced by ``.kittify/config.yaml`` has not been
     fetched (or the path is a typo).  Context resolution MUST fail loudly
     with the pack name and the missing path so the operator can either
-    run ``spec-kitty doctrine fetch --pack <name>`` or remove the entry
+    run ``spec-kitty charter fetch --pack <name>`` or remove the entry
     from the config.
 
     The exception message is also rendered into the bootstrap charter
@@ -226,7 +226,7 @@ class MissingDoctrinePackError(RuntimeError):
         super().__init__(
             f"Doctrine pack `{pack_name}` configured at "
             f"`{self.local_path}` does not exist on disk. Run "
-            f"`spec-kitty doctrine fetch --pack {pack_name}` to populate it, "
+            f"`spec-kitty charter fetch --pack {pack_name}` to populate it, "
             f"or remove the pack from .kittify/config.yaml."
         )
 

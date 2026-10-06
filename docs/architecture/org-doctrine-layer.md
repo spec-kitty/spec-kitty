@@ -2,7 +2,7 @@
 title: Understanding the Org Doctrine Layer
 description: How the three-layer doctrine model resolves built-in, org, and project artifacts, how provenance tracking works, and how org charter policy composes with the project charter.
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-06'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/charter-synthesis-drg.md
@@ -347,7 +347,7 @@ message naming the pack and the missing path:
 ```
 Doctrine pack `very-serious-developers` configured at
 `/home/alice/.kittify/org/very-serious-developers` does not exist on disk. Run
-`spec-kitty doctrine fetch --pack very-serious-developers` to populate it, or
+`spec-kitty charter fetch --pack very-serious-developers` to populate it, or
 remove the pack from .kittify/config.yaml.
 ```
 
@@ -361,7 +361,7 @@ in their own UIs.
 1. Run `spec-kitty doctor doctrine` to enumerate configured packs and their
    on-disk status.
 2. For each missing pack, either:
-   - `spec-kitty doctrine fetch --pack <name>` to populate the snapshot, or
+   - `spec-kitty charter fetch --pack <name>` to populate the snapshot, or
    - Remove the entry from `.kittify/config.yaml` under `doctrine.org.packs`.
 3. Re-run `spec-kitty doctor doctrine` to confirm a clean state before the next
    `charter context` build.

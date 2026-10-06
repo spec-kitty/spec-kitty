@@ -18,7 +18,7 @@ This module pins:
   without touching ``config.activated_*`` has NO effect on the compiled
   reference set -- answers are retired as an activation source.
 - **T016**: the promotion writes ONLY ``.kittify/config.yaml`` -- never
-  ``governance.yaml`` (the third ledger ``charter.offering.selected_*`` reads) or any
+  ``governance.yaml`` (the third ledger ``charter.selected_*`` reads) or any
   file :func:`charter.offering.spdd_reasons.activation.is_spdd_reasons_active`
   consults.
 """
@@ -450,7 +450,7 @@ class TestAnswersInertForActivation:
 
 
 # ---------------------------------------------------------------------------
-# T016 -- third ledger (governance.yaml charter.offering.selected_*) untouched
+# T016 -- third ledger (governance.yaml charter.selected_*) untouched
 # ---------------------------------------------------------------------------
 
 
