@@ -1,6 +1,6 @@
 ---
 title: 'Executive Debrief House Style'
-description: 'House style for Spec Kitty executive debriefs (what-happened reports): the long-form and one-pager layouts, readers and voice, pill vocabulary, brand palette, and light-chrome print treatment.'
+description: 'House style for Spec Kitty executive debriefs (what-happened reports): the long-form and one-pager layouts, readers and voice, brand palette, and print treatment.'
 doc_status: active
 updated: '2026-10-06'
 audience: docs/context/audience/internal/maintainer.md

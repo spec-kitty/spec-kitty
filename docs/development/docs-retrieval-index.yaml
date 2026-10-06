@@ -11242,7 +11242,7 @@ pages:
   - path: "docs/development/reporting/debrief-styleguide.md"
     title: "Executive Debrief House Style"
     divio_type: "reference"
-    abstract: "House style for Spec Kitty executive debriefs (what-happened reports): the long-form and one-pager layouts, readers and voice, pill vocabulary, brand palette, and light-chrome print treatment."
+    abstract: "House style for Spec Kitty executive debriefs (what-happened reports): the long-form and one-pager layouts, readers and voice, brand palette, and print treatment."
     anchors:
     - {slug: "two-layouts", text: "Two layouts", level: 2}
     - {slug: "long-form-debrief", text: "Long-form debrief", level: 2}
