@@ -81,7 +81,7 @@ active = is_spdd_reasons_active(repo_root)
 The helper inspects the project's active charter -- the top-level
 `activated_paradigms`, `activated_tactics` and `activated_directives` keys in
 `.kittify/config.yaml`, or in the `charter.yaml` its `charter:` pointer names --
-and returns `True` iff any of the four selectors is present:
+and returns `True` iff any of the four selectors is in force:
 
 - paradigm `structured-prompt-driven-development`
 - tactic `reasons-canvas-fill`
@@ -90,7 +90,11 @@ and returns `True` iff any of the four selectors is present:
 
 Manual fallback: read `.kittify/config.yaml` (or the `charter.yaml` its
 `charter:` pointer names) directly and look for the same selectors under
-`activated_paradigms`, `activated_tactics`, or `activated_directives`.
+`activated_paradigms`, `activated_tactics`, or `activated_directives`. An
+absent (or `null`) key means every built-in artifact of that kind is in force,
+so it counts as a match: a project with no `activated_paradigms` key has SPDD
+active. SPDD is off only when all three keys are present and none of them
+lists its selector (or when `.kittify/config.yaml` does not exist).
 
 ## How to author the canvas
 
