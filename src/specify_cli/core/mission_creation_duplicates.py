@@ -48,8 +48,7 @@ def _minted_mission_branch_is_live(repo_root: Path, meta: dict[str, object]) -> 
     mission_branch = meta.get("mission_branch")
     if not isinstance(mission_branch, str) or not mission_branch:
         return False
-    live: bool = _mc._local_branch_exists(repo_root, mission_branch)
-    return live
+    return bool(_mc._local_branch_exists(repo_root, mission_branch))
 
 
 def _prior_mission_is_abandoned(
