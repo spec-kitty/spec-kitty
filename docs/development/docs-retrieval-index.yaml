@@ -10882,6 +10882,17 @@ pages:
     - {slug: "declaring-a-new-category", text: "Declaring a new category", level: 3}
     - {slug: "3-verify", text: "3. Verify", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/development/how-to/cloud-session-setup.md"
+    title: "Set Up a Claude Code Cloud Session"
+    divio_type: "how-to"
+    abstract: "Prepare a Claude Code cloud session so the Spec Kitty CLI, the test package and CodeGraph are ready before you run a Mission or an Op."
+    anchors:
+    - {slug: "step-1-add-the-environment-setup-script", text: "Step 1: Add the environment setup script", level: 2}
+    - {slug: "step-2-run-the-repository-script-in-each-session", text: "Step 2: Run the repository script in each session", level: 2}
+    - {slug: "why-this-is-not-a-committed-sessionstart-hook", text: "Why this is not a committed SessionStart hook", level: 3}
+    - {slug: "step-3-check-the-result", text: "Step 3: Check the result", level: 2}
+    - {slug: "troubleshooting", text: "Troubleshooting", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/how-to/compress-mission-history.md"
     title: "Compress mission history: path-bucket snapshot-chain recipe"
     divio_type: "how-to"

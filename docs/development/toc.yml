@@ -20,6 +20,8 @@
       href: how-to/review-gates.md
     - name: Local overrides for cross-package development
       href: how-to/local-overrides.md
+    - name: Set up a Claude Code cloud session
+      href: how-to/cloud-session-setup.md
     - name: Managing the issue tracker
       href: how-to/manage-issue-tracker.md
     - name: Contract pinning workflow

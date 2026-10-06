@@ -51,6 +51,9 @@ Without running `make dev-setup`, planning commands like `/spec-kitty.specify`
 may be absent from your AI coding agent. `make dev-setup` always repairs this —
 it is idempotent, so running it multiple times is safe.
 
+Working in a Claude Code cloud session? See
+[Set up a Claude Code cloud session](how-to/cloud-session-setup.md).
+
 > **Windows users**: `make` requires WSL or a GNU Make equivalent.
 > Alternatively, run the setup steps manually:
 > ```bash
