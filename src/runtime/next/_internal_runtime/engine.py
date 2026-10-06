@@ -566,7 +566,176 @@ def commit_advance(run_ref: MissionRunRef, plan: AdvancePlan, agent_id: str, emi
     return plan.decision
 
 
-def provide_decision_answer(  # noqa: C901
+_AUDIT_PREFIX = "audit:"
+_INPUT_PREFIX = "input:"
+_MEDIUM_BAND_ANSWERS = frozenset({"decide_solo", "open_stand_up", "defer"})
+
+
+def _raci_binding(
+    decisions: dict[str, Any],
+    snapshot: MissionRunSnapshot,
+    decision_id: str,
+) -> tuple[str | None, str | None]:
+    """WP06: the persisted RACI ``(source, override_reason)`` for a decision's step."""
+    raci_step_id: str | None = None
+    if decision_id.startswith(_AUDIT_PREFIX):
+        raci_step_id = decision_id[len(_AUDIT_PREFIX) :]
+    elif decision_id.startswith(_INPUT_PREFIX):
+        # For input decisions, check if there's an issued step with RACI
+        raci_step_id = snapshot.issued_step_id
+    record = decisions.get(f"raci:{raci_step_id}") if raci_step_id else None
+    if isinstance(record, dict):
+        return record.get("source"), record.get("override_reason")
+    return None, None
+
+
+def _significance_band(decisions: dict[str, Any], decision_id: str) -> str | None:
+    """WP05: the effective significance band name recorded for an audit decision."""
+    sig_data = decisions.get(f"significance:{decision_id}")
+    if not isinstance(sig_data, dict):
+        return None
+    band = sig_data.get("effective_band")
+    return band.get("name") if isinstance(band, dict) else band
+
+
+def _audit_denial_reason(actor: ActorIdentity, inputs: dict[str, Any]) -> str | None:
+    """Why ``actor`` may not answer an audit decision, or ``None`` when allowed."""
+    mission_owner_id = _resolve_mission_owner_id(inputs)
+    if actor.actor_type != "human":
+        return "Audit decisions require a human actor"
+    if not mission_owner_id:
+        return "Audit decisions require mission_owner_id to be set in inputs"
+    if actor.actor_id != mission_owner_id:
+        return f"Audit decisions require mission owner '{mission_owner_id}'"
+    return None
+
+
+def _validate_audit_answer(band: str | None, answer: str) -> None:
+    """WP05: significance-aware answer validation (T015 when no band was evaluated)."""
+    if band == "medium":
+        if answer not in _MEDIUM_BAND_ANSWERS:
+            raise MissionRuntimeError(
+                f"Medium-band decision requires one of {sorted(_MEDIUM_BAND_ANSWERS)}, got: {answer!r}"
+            )
+    elif band == "high":
+        if answer not in ("approve", "reject"):
+            raise MissionRuntimeError(f"High-band decision requires one of {{'approve', 'reject'}}, got: {answer!r}")
+    elif answer not in ("approve", "reject"):
+        raise MissionRuntimeError(f"Invalid audit answer '{answer}': must be 'approve' or 'reject'")
+
+
+def _authorize_audit_answer(
+    run_dir: Path,
+    snapshot: MissionRunSnapshot,
+    decision_id: str,
+    answer: str,
+    actor: ActorIdentity,
+    raci_source: str | None,
+    raci_override_reason: str | None,
+) -> str:
+    """T014: audit owner checks, then answer validation. Returns the authority role.
+
+    A denial appends ``DecisionAuthorityDenied`` (``rationale_linkage`` null)
+    and raises; nothing else is written."""
+    authority_role = "mission_owner"
+    deny_reason = _audit_denial_reason(actor, snapshot.inputs)
+    if deny_reason is not None:
+        _append_event(
+            run_dir,
+            "DecisionAuthorityDenied",
+            {
+                "run_id": snapshot.run_id,
+                "decision_id": decision_id,
+                "actor_type": actor.actor_type,
+                "actor_id": actor.actor_id,
+                "authority_role": authority_role,
+                "rationale_linkage": None,
+                "reason": deny_reason,
+                "raci_source": raci_source,
+                "override_reason": raci_override_reason,
+            },
+        )
+        raise MissionRuntimeError(deny_reason)
+    _validate_audit_answer(_significance_band(snapshot.decisions, decision_id), answer)
+    return authority_role
+
+
+def _authorize_llm_answer(inputs: dict[str, Any], decision_id: str, actor: ActorIdentity) -> tuple[str, str]:
+    """An LLM answer needs a delegation with a rationale. Returns ``(role, rationale)``."""
+    delegation = _resolve_delegation_record(inputs, decision_id)
+    if delegation is None:
+        raise MissionRuntimeError(f"LLM actor '{actor.actor_id}' is not delegated for decision '{decision_id}'")
+
+    authority_role = delegation.get("authority_role") or "delegated_llm"
+    if not isinstance(authority_role, str):
+        authority_role = "delegated_llm"
+
+    rationale_raw = delegation.get("rationale_linkage")
+    rationale = rationale_raw.strip() if isinstance(rationale_raw, str) else ""
+    if not rationale:
+        raise MissionRuntimeError(f"LLM delegation for decision '{decision_id}' must include non-empty rationale_linkage")
+    return authority_role, rationale
+
+
+def _record_soft_gate(
+    decisions: dict[str, Any],
+    decision_id: str,
+    answer: str,
+    actor: ActorIdentity,
+) -> None:
+    """Medium band: persist the ``SoftGateDecision`` under ``soft_gate:<decision_id>``."""
+    # `answer` is validated upstream against the SoftGate action set
+    # (`decide_solo` / `open_stand_up` / `defer`); pydantic re-validates
+    # at SoftGateDecision construction so the cast is a typing assist
+    # rather than a trust boundary widening.
+    soft_gate_action = cast(Literal["decide_solo", "open_stand_up", "defer"], answer)
+    actor_type = cast(Literal["human", "llm", "service"], actor.actor_type)
+    soft_gate = SoftGateDecision(
+        decision_id=decision_id,
+        action=soft_gate_action,
+        actor=RACIRoleBinding(actor_type=actor_type, actor_id=actor.actor_id),
+        timestamp=now_utc(),
+        significance_score=SignificanceScore.model_validate(decisions[f"significance:{decision_id}"]),
+        outcome=soft_gate_action if answer == "decide_solo" else None,
+    )
+    decisions[f"soft_gate:{decision_id}"] = soft_gate.model_dump(mode="json")
+
+
+def _apply_audit_answer(
+    snapshot: MissionRunSnapshot,
+    decisions: dict[str, Any],
+    completed_steps: list[str],
+    pending: dict[str, Any],
+    decision_id: str,
+    answer: str,
+    actor: ActorIdentity,
+) -> str | None:
+    """WP05 significance-aware gate handling. Mutates the working maps in place.
+
+    Returns the (possibly new) ``blocked_reason``. The MEDIUM re-add of an
+    open gate reads the ORIGINAL ``snapshot.pending_decisions``."""
+    audit_step_id = decision_id[len(_AUDIT_PREFIX) :]
+    if _significance_band(decisions, decision_id) == "medium":
+        _record_soft_gate(decisions, decision_id, answer, actor)
+        if answer == "decide_solo":
+            # Gate clears -- add to completed_steps
+            if audit_step_id not in completed_steps:
+                completed_steps.append(audit_step_id)
+        else:
+            # open_stand_up / defer: gate stays open, re-add to pending
+            pending[decision_id] = snapshot.pending_decisions[decision_id]
+        return snapshot.blocked_reason
+    # HIGH band or no significance: existing behavior
+    if answer == "approve":
+        # T016: Add audit_step_id to completed_steps so DAG can advance.
+        if audit_step_id not in completed_steps:
+            completed_steps.append(audit_step_id)
+        return snapshot.blocked_reason
+    # T017: Set blocked_reason; run is permanently blocked.
+    return f"Audit step '{audit_step_id}' rejected by {actor.actor_id}"
+
+
+def provide_decision_answer(
     run_ref: MissionRunRef,
     decision_id: str,
     answer: str,
@@ -586,9 +755,7 @@ def provide_decision_answer(  # noqa: C901
 
     pending = dict(snapshot.pending_decisions)
     if decision_id not in pending:
-        raise MissionRuntimeError(
-            f"Decision '{decision_id}' not found in pending_decisions for run '{snapshot.run_id}'"
-        )
+        raise MissionRuntimeError(f"Decision '{decision_id}' not found in pending_decisions for run '{snapshot.run_id}'")
 
     decisions = dict(snapshot.decisions)
     inputs = dict(snapshot.inputs)
@@ -596,99 +763,15 @@ def provide_decision_answer(  # noqa: C901
     blocked_reason = snapshot.blocked_reason
     authority_role = actor.actor_type
     rationale_linkage: str | None = None
-    raci_source: str | None = None
-    raci_override_reason: str | None = None
+    raci_source, raci_override_reason = _raci_binding(decisions, snapshot, decision_id)
 
-    # WP06: Look up persisted RACI binding for the step associated with this decision.
-    _raci_step_id: str | None = None
-    if decision_id.startswith("audit:"):
-        _raci_step_id = decision_id[len("audit:"):]
-    elif decision_id.startswith("input:"):
-        # For input decisions, check if there's an issued step with RACI
-        _raci_step_id = snapshot.issued_step_id
-
-    raci_key = f"raci:{_raci_step_id}" if _raci_step_id else None
-    raci_record = decisions.get(raci_key) if raci_key else None
-    if isinstance(raci_record, dict):
-        raci_source = raci_record.get("source")
-        raci_override_reason = raci_record.get("override_reason")
-
-    # T014: Detect audit: prefix and validate answer before creating DecisionAnswer.
-    if decision_id.startswith("audit:"):
-        audit_step_id = decision_id[len("audit:"):]
-        mission_owner_id = _resolve_mission_owner_id(inputs)
-        authority_role = "mission_owner"
-
-        deny_reason: str | None = None
-        if actor.actor_type != "human":
-            deny_reason = "Audit decisions require a human actor"
-        elif not mission_owner_id:
-            deny_reason = "Audit decisions require mission_owner_id to be set in inputs"
-        elif actor.actor_id != mission_owner_id:
-            deny_reason = f"Audit decisions require mission owner '{mission_owner_id}'"
-
-        if deny_reason is not None:
-            _append_event(
-                run_dir,
-                "DecisionAuthorityDenied",
-                {
-                    "run_id": snapshot.run_id,
-                    "decision_id": decision_id,
-                    "actor_type": actor.actor_type,
-                    "actor_id": actor.actor_id,
-                    "authority_role": authority_role,
-                    "rationale_linkage": rationale_linkage,
-                    "reason": deny_reason,
-                    "raci_source": raci_source,
-                    "override_reason": raci_override_reason,
-                },
-            )
-            raise MissionRuntimeError(deny_reason)
-
-        # WP05: Significance-aware answer validation.
-        # Check if this audit decision has a significance evaluation.
-        _sig_key = f"significance:{decision_id}"
-        _sig_data = decisions.get(_sig_key)
-        _effective_band_name: str | None = None
-        if _sig_data is not None and isinstance(_sig_data, dict):
-            _eb = _sig_data.get("effective_band")
-            _effective_band_name = _eb.get("name") if isinstance(_eb, dict) else _eb
-
-        if _effective_band_name == "medium":
-            _valid_medium = {"decide_solo", "open_stand_up", "defer"}
-            if answer not in _valid_medium:
-                raise MissionRuntimeError(
-                    f"Medium-band decision requires one of {sorted(_valid_medium)}, got: {answer!r}"
-                )
-        elif _effective_band_name == "high":
-            if answer not in ("approve", "reject"):
-                raise MissionRuntimeError(
-                    f"High-band decision requires one of {{'approve', 'reject'}}, got: {answer!r}"
-                )
-        else:
-            # No significance evaluation — existing validation (T015).
-            if answer not in ("approve", "reject"):
-                raise MissionRuntimeError(
-                    f"Invalid audit answer '{answer}': must be 'approve' or 'reject'"
-                )
+    is_audit = decision_id.startswith(_AUDIT_PREFIX)
+    if is_audit:
+        authority_role = _authorize_audit_answer(
+            run_dir, snapshot, decision_id, answer, actor, raci_source, raci_override_reason
+        )
     elif actor.actor_type == "llm":
-        delegation = _resolve_delegation_record(inputs, decision_id)
-        if delegation is None:
-            raise MissionRuntimeError(
-                f"LLM actor '{actor.actor_id}' is not delegated for decision '{decision_id}'"
-            )
-
-        authority_role = delegation.get("authority_role") or "delegated_llm"
-        if not isinstance(authority_role, str):
-            authority_role = "delegated_llm"
-
-        rationale_raw = delegation.get("rationale_linkage")
-        if isinstance(rationale_raw, str):
-            rationale_linkage = rationale_raw.strip() or None
-        if rationale_linkage is None:
-            raise MissionRuntimeError(
-                f"LLM delegation for decision '{decision_id}' must include non-empty rationale_linkage"
-            )
+        authority_role, rationale_linkage = _authorize_llm_answer(inputs, decision_id, actor)
 
     answer_data = DecisionAnswer(
         decision_id=decision_id,
@@ -697,67 +780,23 @@ def provide_decision_answer(  # noqa: C901
         answered_at=now_utc(),
     )
     decision_record = answer_data.model_dump(mode="json")
-    decision_record.update(_authority_metadata(
-        actor, authority_role, rationale_linkage,
-        raci_source=raci_source,
-        override_reason=raci_override_reason,
-    ))
+    decision_record.update(
+        _authority_metadata(
+            actor,
+            authority_role,
+            rationale_linkage,
+            raci_source=raci_source,
+            override_reason=raci_override_reason,
+        )
+    )
     decisions[decision_id] = decision_record
     del pending[decision_id]
 
-    if decision_id.startswith("audit:"):
-        # WP05: Significance-aware gate handling.
-        _sig_key_handle = f"significance:{decision_id}"
-        _sig_data_handle = decisions.get(_sig_key_handle)
-        _eb_name_handle: str | None = None
-        if _sig_data_handle is not None and isinstance(_sig_data_handle, dict):
-            _eb_h = _sig_data_handle.get("effective_band")
-            _eb_name_handle = _eb_h.get("name") if isinstance(_eb_h, dict) else _eb_h
-
-        if _eb_name_handle == "medium":
-            # Medium-band: persist SoftGateDecision
-            _sig_score_obj = SignificanceScore.model_validate(_sig_data_handle)
-            # `answer` is validated upstream against the SoftGate action set
-            # (`decide_solo` / `open_stand_up` / `defer`); pydantic re-validates
-            # at SoftGateDecision construction so the cast is a typing assist
-            # rather than a trust boundary widening.
-            _soft_gate_action = cast(
-                Literal["decide_solo", "open_stand_up", "defer"], answer
-            )
-            _actor_type_lit = cast(
-                Literal["human", "llm", "service"], actor.actor_type
-            )
-            _soft_gate = SoftGateDecision(
-                decision_id=decision_id,
-                action=_soft_gate_action,
-                actor=RACIRoleBinding(actor_type=_actor_type_lit, actor_id=actor.actor_id),
-                timestamp=now_utc(),
-                significance_score=_sig_score_obj,
-                outcome=_soft_gate_action if answer == "decide_solo" else None,
-            )
-            decisions[f"soft_gate:{decision_id}"] = _soft_gate.model_dump(mode="json")
-
-            if answer == "decide_solo":
-                # Gate clears — add to completed_steps
-                if audit_step_id not in completed_steps:
-                    completed_steps.append(audit_step_id)
-            else:
-                # open_stand_up / defer: gate stays open, re-add to pending
-                pending[decision_id] = snapshot.pending_decisions[decision_id]
-        else:
-            # HIGH band or no significance: existing behavior
-            if answer == "approve":
-                # T016: Add audit_step_id to completed_steps so DAG can advance.
-                if audit_step_id not in completed_steps:
-                    completed_steps.append(audit_step_id)
-            else:
-                # T017: Set blocked_reason; run is permanently blocked.
-                blocked_reason = f"Audit step '{audit_step_id}' rejected by {actor.actor_id}"
-
-    elif decision_id.startswith("input:"):
+    if is_audit:
+        blocked_reason = _apply_audit_answer(snapshot, decisions, completed_steps, pending, decision_id, answer, actor)
+    elif decision_id.startswith(_INPUT_PREFIX):
         # For input-keyed decisions, write the answer into inputs so requires_inputs is satisfied.
-        input_key = decision_id[len("input:"):]
-        inputs[input_key] = answer
+        inputs[decision_id[len(_INPUT_PREFIX) :]] = answer
 
     snapshot = MissionRunSnapshot(
         run_id=snapshot.run_id,
@@ -778,7 +817,10 @@ def provide_decision_answer(  # noqa: C901
 
     # T018: Emit DECISION_INPUT_ANSWERED event for both approve and reject paths.
     da_payload = DecisionInputAnsweredPayload(
-        run_id=snapshot.run_id, decision_id=decision_id, answer=answer, actor=actor,
+        run_id=snapshot.run_id,
+        decision_id=decision_id,
+        answer=answer,
+        actor=actor,
     )
     _append_event(run_dir, DECISION_INPUT_ANSWERED, da_payload.model_dump(mode="json"))
     emitter.emit_decision_input_answered(da_payload)
