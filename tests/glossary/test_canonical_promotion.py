@@ -151,9 +151,20 @@ WP02_RELATED_FRONTMATTER_REFERRERS: tuple[str, ...] = (
 #: regression guard on the flip's cleanliness, not a permanent freeze against
 #: every later edit -- pinning a moved-on doc here would red main on accurate
 #: content (drg-completeness-2843-research.md, mission-nomenclature-reconciliation/README.md).
+#:
+#: The same holds for the two pages in ``_WP02_RELEASED_RELATED_REFERRERS``
+#: (#5765): the pack-skills work added the ``skill`` kind to both (c73ff1022c,
+#: 811321d3e3). They stay in ``WP02_RELATED_FRONTMATTER_REFERRERS`` for the
+#: dangling-``related:`` check, which still applies to them.
+_WP02_RELEASED_RELATED_REFERRERS = frozenset(
+    {
+        "docs/architecture/doctrine-kinds.md",
+        "docs/development/how-to/create-a-doctrine-artifact.md",
+    }
+)
 WP02_PATH_TOKEN_ONLY_REFERRERS: tuple[str, ...] = (
     "docs/adr/3.x/2026-07-21-1-in-tension-with-drg-edge.md",
-    *WP02_RELATED_FRONTMATTER_REFERRERS,
+    *(path for path in WP02_RELATED_FRONTMATTER_REFERRERS if path not in _WP02_RELEASED_RELATED_REFERRERS),
     "docs/plans/doctrine/org-doctrine-layer-architecture-review.md",
     "docs/plans/refactor/slice-f-mission-debrief.md",
     "src/charter/offering/README.md",
@@ -168,7 +179,6 @@ WP02_PATH_TOKEN_ONLY_REFERRERS: tuple[str, ...] = (
 WP02_CONTEXT_SOURCES_CONSOLIDATION_REFERRERS = frozenset(
     {
         "docs/api/agent_profiles/human-in-charge.md",
-        "docs/architecture/doctrine-kinds.md",
     }
 )
 
@@ -199,71 +209,7 @@ def _context_sources_consolidation_expected(rel_path: str, old_lines: list[str])
             "(`context-sources.doctrine-layers` is empty)",
             "(the profile declares no `directive-references` / `tactic-references`)",
         )
-    if rel_path == "docs/architecture/doctrine-kinds.md":
-        text = text.replace(
-            "src/charter/kind_vocabulary.py",
-            "src/charter/activation/kind_vocabulary.py",
-        )
-        text = text.replace(
-            "src/charter/context.py",
-            "src/charter/activation/context.py",
-        )
-        # Post-convergence doc-alignment wave 2 (#3964): the dead src/doctrine/
-        # pointers repointed to src/charter/offering/, and the one public blob
-        # link among them re-homed to the post-2026-09-07 repository name.
-        text = text.replace(
-            "https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/artifact_kinds.py",
-            "https://github.com/spec-kitty/spec-kitty/blob/main/src/charter/offering/artifact_kinds.py",
-        )
-        text = text.replace("src/doctrine/", "src/charter/offering/")
-        # Repo-move cleanup (#4562, 2026-09-16): the remaining public blob
-        # links on this page (kind_vocabulary.py, context.py) re-homed from
-        # the pre-2026-09-07 org name to spec-kitty/spec-kitty -- live nav
-        # links, not historical citations, so the rename is sanctioned here.
-        # Runs after the #3964 replacement above so that already-rehomed
-        # URL is untouched and only the old-org prefix flips.
-        text = text.replace(
-            "https://github.com/Priivacy-ai/spec-kitty/blob/main/",
-            "https://github.com/spec-kitty/spec-kitty/blob/main/",
-        )
-        text = text.replace(
-            '  context-sources: "<AgentContextSources | null>"\n',
-            "",
-        )
-        text = text.replace(
-            "The four unexpanded nested value objects (`context-sources`, `collaboration`,",
-            "The three unexpanded nested value objects (`collaboration`,",
-        )
-        text = text.replace(
-            "its `context-sources` pull in the\nparadigm/directive/tactic/procedure/styleguide layers plus specific directives",
-            "its `directive-references` name specific directives",
-        )
-        # Catalog-languages ADR (#5284, 2026-09-29): a related: edge to the new
-        # ADR and the reserved-language-token note. Additive prose; no
-        # path-token or term content changes.
-        text = text.replace(
-            "- docs/guides/how-to/governance/setup-governance.md\n---\n",
-            f"- docs/guides/how-to/governance/setup-governance.md\n- {_CATALOG_LANGUAGES_ADR}\n---\n",
-        )
-        text = text.replace(
-            "\n\n> **A note on `template`, `asset`, and `anti_pattern`",
-            f"\n\n{_RESERVED_LANGUAGE_TOKENS_NOTE}\n\n> **A note on `template`, `asset`, and `anti_pattern`",
-        )
     return text.splitlines()
-
-
-_CATALOG_LANGUAGES_ADR = "docs/adr/3.x/2026-09-29-1-catalog-languages-states-and-reserved-unknown.md"
-_RESERVED_LANGUAGE_TOKENS_NOTE = """\
-**Reserved language tokens in `applies_to_languages`.** The `applies_to_languages` field scopes an
-artifact to project languages. Three tokens are reserved and never name a real language:
-
-- `any` and `all` are rejected when you author an artifact (`spec-kitty charter validate`). If one
-  reaches runtime anyway, the artifact is treated as unscoped and loads for every project.
-- `unknown` is rejected at authoring time as well. At runtime it is ignored on both sides of the
-  match, so an artifact scoped only to `unknown` never loads. Spec Kitty itself writes `unknown`
-  into a project's active languages when the project declares a language that no installed doctrine
-  recognises (see the
-  [catalog-languages ADR](../adr/3.x/2026-09-29-1-catalog-languages-states-and-reserved-unknown.md))."""
 
 
 def _flip_path_token(line: str, *, allow_source_topology: bool) -> str:
