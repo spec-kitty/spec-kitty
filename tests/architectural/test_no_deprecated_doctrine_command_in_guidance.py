@@ -13,7 +13,8 @@ or exist only under ``doctrine`` (``regenerate-graph``, ``asset``) are not in
 the set, so guidance may still cite them until they get a successor. Nothing
 is hand-listed, so the gate needs no allowlist.
 
-Scope: shipped skills, both packs and the living docs, plus every string
+Scope: shipped skills, both packs, the living docs, the CI workflows and the two
+root guides (``README.md``, ``CONTRIBUTING.md``), plus every string
 literal in ``src/`` Python code -- remediation messages and hints are where an
 operator reads these commands. Python docstrings and comments are not scanned:
 they describe code (including the deprecated group itself), they do not
@@ -42,6 +43,9 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SCAN_ROOTS = ("src/charter/offering/skills", "packs", "docs", ".github/workflows")
+#: Root-level guides an operator reads first; kept in step with
+#: ``test_no_config_key_spelled_as_module_path.py``.
+_ROOT_FILES = ("README.md", "CONTRIBUTING.md")
 _SUFFIXES = frozenset({".md", ".yaml", ".yml", ".txt"})
 #: The shared terminology-exempt roots, plus three extras recorded in
 #: terminology-exemptions.md: design plans (records of how past work was planned
@@ -91,6 +95,7 @@ def _scanned_files() -> list[Path]:
             rel = path.relative_to(_REPO_ROOT).as_posix()
             if path.is_file() and path.suffix in _SUFFIXES and not rel.startswith(_EXCLUDED_PREFIXES):
                 files.append(path)
+    files.extend(_REPO_ROOT / name for name in _ROOT_FILES)
     return files
 
 
@@ -158,7 +163,9 @@ def test_guidance_names_the_charter_spelling_of_migrated_commands() -> None:
 
 
 def test_gate_reaches_a_real_file_count() -> None:
-    assert len(_scanned_files()) >= _MIN_FILES_SCANNED
+    scanned = _scanned_files()
+    assert len(scanned) >= _MIN_FILES_SCANNED
+    assert {_REPO_ROOT / name for name in _ROOT_FILES} <= set(scanned)
 
 
 def test_gate_flags_the_bare_backticked_form() -> None:

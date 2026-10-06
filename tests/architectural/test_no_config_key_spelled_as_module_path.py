@@ -21,7 +21,9 @@ keys), so there is nothing to hand-maintain and no allowlist. Real module
 references (``charter.offering.artifact_kinds``) and mentions of retired
 modules are untouched.
 
-Scope: ``src/``, ``packs/`` and the living docs. The immutable record roots
+Scope: ``src/``, ``packs/``, the living docs, the CI workflows and the two root
+guides (``README.md``, ``CONTRIBUTING.md``) -- the same roots as the sibling
+deprecated-command gate. The immutable record roots
 (ADRs, dated reports, the archive, migration runbooks, archival plans) are out
 of scope per ``docs/development/reference/terminology-exemptions.md``, and so
 is ``docs/changelog/``: its entries quote the old wrong text as the "Before".
@@ -40,7 +42,10 @@ from tests._support.terminology_scope import FORBIDDEN_SCAN_ROOTS
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_SCAN_ROOTS = ("src", "packs", "docs")
+_SCAN_ROOTS = ("src", "packs", "docs", ".github/workflows")
+#: Root-level guides an operator reads first; kept in step with
+#: ``test_no_deprecated_doctrine_command_in_guidance.py``.
+_ROOT_FILES = ("README.md", "CONTRIBUTING.md")
 _SUFFIXES = frozenset({".py", ".md", ".yaml", ".yml", ".toml", ".txt"})
 
 #: The shared terminology-exempt roots, plus the changelog, whose entries quote
@@ -67,6 +72,7 @@ def _scanned_files() -> list[Path]:
             if rel.startswith(_EXCLUDED_PREFIXES) or "/__pycache__/" in rel:
                 continue
             files.append(path)
+    files.extend(_REPO_ROOT / name for name in _ROOT_FILES)
     return files
 
 
@@ -93,7 +99,9 @@ def test_no_config_key_is_spelled_as_a_module_path() -> None:
 
 
 def test_gate_reaches_a_real_file_count() -> None:
-    assert len(_scanned_files()) >= _MIN_FILES_SCANNED
+    scanned = _scanned_files()
+    assert len(scanned) >= _MIN_FILES_SCANNED
+    assert {_REPO_ROOT / name for name in _ROOT_FILES} <= set(scanned)
 
 
 def test_config_key_set_is_derived_and_non_empty() -> None:
