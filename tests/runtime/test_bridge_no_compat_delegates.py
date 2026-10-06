@@ -10,9 +10,8 @@ very same objects).
 
 Every check is static (``ast``) except Check C (identity) and Check D (a
 runtime ``hasattr`` that sees every binding form an AST walk of top-level
-statements can miss). The checks run per seam so each migrating work package
-flips exactly its own rows from ``xfail(strict=True)`` to passing: remove the
-seam from ``_PENDING_SEAMS`` in the same diff that migrates it.
+statements can miss). The checks run per seam; this is a permanent guard, so a
+failing row names the seam (and name) that regressed.
 
 Non-vacuity (charter SO#5): the scanners are pure functions over source text
 and the self-mutation tests below feed them synthetic offenders.
@@ -95,23 +94,6 @@ _OWNER_NAME = {
     "_advance_run_state_after_composition": "advance_run_state_after_composition",
 }
 
-#: The work package that migrates each seam (xfail reason).
-_MIGRATING_WP = {
-    "identity": "WP02",
-    "cores": "WP02",
-    "engine": "WP02",
-    "retrospective": "WP03",
-    "composition": "WP04",
-    "io": "WP05",
-}
-
-#: Seams not yet migrated. Each migrating WP removes its seam in its own diff.
-_PENDING_SEAMS: set[str] = set()
-
-#: Rows whose check already holds on the pre-mission tree. They are a plain
-#: regression guard from day one (a strict xfail would XPASS and go red).
-_GREEN_TODAY: frozenset[tuple[str, str]] = frozenset({("B", "cores"), ("B", "engine")} | {("B'", seam) for seam in _SEAMS})
-
 _LEGACY_PHRASE = "Thin compat delegate"
 
 
@@ -122,16 +104,8 @@ def _names(seam: str, *, with_re_exports: bool = True) -> tuple[str, ...]:
     return tuple(n for n in names if n not in _KEPT_RE_EXPORTS)
 
 
-def _row(check: str, seam: str) -> object:
-    """A parametrize entry for ``seam``; strict-xfail while the seam is pending."""
-    if seam in _PENDING_SEAMS and (check, seam) not in _GREEN_TODAY:
-        mark = pytest.mark.xfail(strict=True, reason=f"migrated in {_MIGRATING_WP[seam]}")
-        return pytest.param(seam, marks=mark, id=seam)
-    return pytest.param(seam, id=seam)
-
-
-def _rows(check: str, seams: tuple[str, ...] = _SEAMS) -> list[object]:
-    return [_row(check, seam) for seam in seams]
+def _rows(seams: tuple[str, ...] = _SEAMS) -> list[object]:
+    return [pytest.param(seam, id=seam) for seam in seams]
 
 
 # ---------------------------------------------------------------------------
@@ -332,52 +306,44 @@ def test_removed_table_pins_36_names() -> None:
     assert len(flat) == len(set(flat)) == _EXPECTED_TOTAL
 
 
-@pytest.mark.parametrize("seam", _rows("A"))
+@pytest.mark.parametrize("seam", _rows())
 def test_check_a_bridge_defines_none_of_the_names(seam: str) -> None:
     assert scan_definitions(_bridge_source(), _names(seam)) == []
 
 
-@pytest.mark.parametrize("seam", _rows("A'"))
+@pytest.mark.parametrize("seam", _rows())
 def test_check_a_prime_bridge_loads_none_of_the_names(seam: str) -> None:
     assert scan_name_loads(_bridge_source(), _names(seam)) == []
 
 
-@pytest.mark.parametrize("seam", _rows("B"))
+@pytest.mark.parametrize("seam", _rows())
 def test_check_b_no_seam_reads_a_name_off_the_bridge(seam: str) -> None:
     assert _scan_files(_seam_sources(), scan_back_edges, _names(seam)) == []
 
 
-@pytest.mark.parametrize("seam", _rows("B'"))
+@pytest.mark.parametrize("seam", _rows())
 def test_check_b_prime_no_indirect_bridge_read_anywhere_in_src(seam: str) -> None:
     names = _names(seam, with_re_exports=False)  # CLI callers legitimately use the re-exports
     assert _scan_files(_src_sources(), scan_indirect_bridge_reads, names) == []
 
 
-@pytest.mark.parametrize("seam", _rows("D"))
+@pytest.mark.parametrize("seam", _rows())
 def test_check_d_bridge_has_no_attribute_for_any_name(seam: str) -> None:
     present = [n for n in _names(seam, with_re_exports=False) if hasattr(_bridge(), n)]
     assert present == []
 
 
-def _named_row(check: str, name: str) -> object:
-    """Like :func:`_row` but keyed on a re-exported name of the ``io`` seam."""
-    if "io" in _PENDING_SEAMS and (check, "io") not in _GREEN_TODAY:
-        return pytest.param(name, marks=pytest.mark.xfail(strict=True, reason=f"migrated in {_MIGRATING_WP['io']}"), id=name)
-    return pytest.param(name, id=name)
-
-
-@pytest.mark.parametrize("name", [_named_row("C", n) for n in _KEPT_RE_EXPORTS])
+@pytest.mark.parametrize("name", list(_KEPT_RE_EXPORTS))
 def test_check_c_re_export_is_the_owning_seam_object(name: str) -> None:
     assert getattr(_bridge(), name) is getattr(_owner_module("io"), name)
     assert name in _bridge().__all__
 
 
-@pytest.mark.parametrize("seam", _rows("call-style", ("io",)))
+@pytest.mark.parametrize("seam", _rows(("io",)))
 def test_call_style_bridge_calls_io_functions_on_the_seam(seam: str) -> None:
     assert scan_bare_calls(_bridge_source(), _names(seam)) == []
 
 
-@pytest.mark.xfail(strict=True, reason="WP06")
 def test_no_thin_compat_delegate_docstring_left_on_the_bridge() -> None:
     assert _bridge_source().count(_LEGACY_PHRASE) == 0
 

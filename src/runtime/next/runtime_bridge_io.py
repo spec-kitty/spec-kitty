@@ -19,9 +19,8 @@ Also hosts the two new port-shaped additions this WP introduces:
 - ``resolve_commit_target`` (T019) — the ONE pure decision that was
   interleaved inside ``_wrap_with_decision_git_log`` (mid8 derivation +
   fail-closed validation + ``CommitTarget``/worktree_root-candidate
-  selection). ``_wrap_with_decision_git_log`` itself is KEEP-IN-PLACE in the
-  residual (contracts/compat-surface.md) — only its pure selection moved
-  out; see that function's docstring for why the remaining ``.exists()``
+  selection). ``_wrap_with_decision_git_log`` itself stays in ``runtime_bridge`` —
+  only its pure selection moved out; see that function's docstring for why the remaining ``.exists()``
   check stays a residual I/O concern.
 
 This module owns the names it defines. Callers inside ``src/runtime/next/``
@@ -1175,13 +1174,12 @@ class ArtifactPresenceSnapshot:
 
     ``wp_advance_ready`` (WP06, T022) is deliberately NOT populated by
     :func:`gather_artifact_presence` — it defaults to ``None`` here and is
-    filled in by the residual guard delegates in ``runtime_bridge.py`` for
-    ``step_id``/``action`` in ``{"implement", "review"}`` via
-    ``dataclasses.replace(snapshot, wp_advance_ready=...)``, threading the
-    pre-existing (unmoved) ``_should_advance_wp_step`` I/O read through so
-    both its own WP02 compat reach AND this port's already-green
-    ``tests/runtime/test_bridge_io.py`` (which does not stub
-    ``_should_advance_wp_step``) stay intact.
+    set by ``_check_cli_guards`` (and ``_check_composed_action_guard``) from
+    the bridge-owned ``_should_advance_wp_step`` for ``step_id``/``action``
+    in ``{"implement", "review"}`` via
+    ``dataclasses.replace(snapshot, wp_advance_ready=...)``, so this port's
+    already-green ``tests/runtime/test_bridge_io.py`` (which does not stub
+    ``_should_advance_wp_step``) stays intact.
 
     ``blocking_artifact_names`` (WP01, FR-001/FR-002/FR-006, #3704 Part 1)
     IS populated by :func:`gather_artifact_presence` — ``None`` when no

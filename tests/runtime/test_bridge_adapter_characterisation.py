@@ -5,7 +5,9 @@ does not have on its own:
 
 * ``_load_feature_runs`` resolves the runs-index path from ``repo_root``
   (``load_feature_runs(_feature_runs_path(repo_root))``);
-* ``_build_run_ref`` threads an explicit ``run_ref_cls=``;
+* ``_build_run_ref`` threads an explicit ``run_ref_cls=`` (call-site coverage
+  of that argument cannot be patch-free, since the default class is the same;
+  it is WP05 T020's ``run_ref_cls=FakeRunRef`` test);
 * ``_parse_requirement_refs_from_tasks_md`` injects ``grammar=``.
 
 The mission deletes those delegates and moves their behaviour to the call

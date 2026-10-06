@@ -19,8 +19,9 @@ filesystem, no git, no ``meta.json`` reads. Two pure clusters live here:
 2. **The guard inversion** (T022/T023, FR-009) —
    ``evaluate_guards(snapshot) -> list[str]`` folds ALL THREE guard
    offenders (``_check_cli_guards``, ``_check_composed_action_guard``,
-   ``_check_requirement_mapping_ready`` — all three still *reachable* at
-   ``runtime_bridge.<name>``, but their branch-heavy decisions now live
+   ``_check_requirement_mapping_ready``; the first and last stay in
+   ``runtime_bridge``, ``_check_composed_action_guard`` is owned by
+   ``runtime_bridge_composition``, and their branch-heavy decisions live
    here) over the ``ArtifactPresenceSnapshot`` fact-port WP05's
    ``gather_artifact_presence`` (``runtime_bridge_io.py``) produces. The
    port gathers; this module decides. ``RequirementMappingFacts`` +
@@ -475,12 +476,11 @@ class _ArtifactPresenceSnapshotLike(Protocol):
     ``runtime_bridge_io`` import here). Satisfied structurally; mypy checks
     the match across modules with no runtime coupling either direction.
 
-    ``wp_advance_ready`` is populated by the residual guard delegates in
-    ``runtime_bridge.py`` (not by ``gather_artifact_presence`` itself) —
-    see their docstrings for why: it threads the pre-existing, unmoved
-    ``_should_advance_wp_step`` I/O read through so its own WP02 compat
-    reach stays intact, without adding a new gather concern to the WP05
-    port or its already-green test suite.
+    ``wp_advance_ready`` is populated by ``_check_cli_guards`` and
+    ``_check_composed_action_guard`` (not by ``gather_artifact_presence``
+    itself) from the bridge-owned ``_should_advance_wp_step`` I/O read,
+    without adding a new gather concern to the WP05 port or its
+    already-green test suite.
 
     ``blocking_artifact_names`` (WP01/WP02, FR-001/FR-002/FR-006, #3704
     Part 1) is ``frozenset[str] | None``: ``None`` means no expected-

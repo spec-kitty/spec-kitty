@@ -33,23 +33,20 @@ A tracked-mission-to-run compatibility index currently lives at
 #
 #   runtime_bridge_retrospective.py   sole home of the self-contained
 #                              Confirm.ask-gated retrospective / learning-
-#                              capture cluster (FR-006). This module keeps a
-#                              native thin compat delegate under each of the 9
-#                              symbols the WP02 compat guard binds (see the
-#                              seam module's docstring for why a plain
-#                              re-export is insufficient here — the guard's
-#                              identity check hardcodes the cross-module
-#                              baseline).
+#                              capture cluster (FR-006). The bridge calls the
+#                              cluster on the seam (``_retrospective_seam.<name>``)
+#                              and keeps no forwarder for it; a test patches a
+#                              retrospective symbol on the seam.
 #
 #   runtime_bridge_io.py       sole home of the narrow I/O ports (IC-04):
 #                              feature-runs.json index, template/pack
 #                              discovery, run lifecycle, the OperationalContext
 #                              builder, the FR-009 gather_artifact_presence
 #                              fact-port, and the pure resolve_commit_target
-#                              lifted out of _wrap_with_decision_git_log. Same
-#                              native-thin-delegate rule as the retrospective
-#                              seam applies to every compat-tracked symbol
-#                              moved there.
+#                              lifted out of _wrap_with_decision_git_log. The
+#                              bridge calls them on the seam and keeps no
+#                              forwarder; two names are re-exported here for
+#                              callers outside the package (see below).
 #
 #   runtime_bridge_cores.py    sole home of the pure, zero-dependency leaves
 #                              (FR-009): the tasks.md parse family and the
@@ -118,8 +115,8 @@ A tracked-mission-to-run compatibility index currently lives at
 #     from this module — go through ``runtime_bridge_engine`` (arch-guarded,
 #     see ``tests/runtime/test_bridge_engine.py``).
 #   * ``__all__`` (below) covers the 8 public names only (governs
-#     ``import *``); the ~50 private symbols tests patch stay preserved by the
-#     explicit guarded compat re-export block, not by ``__all__`` (FR-012).
+#     ``import *``). The bridge defines no forwarders for names a seam owns;
+#     a test patches a seam-owned name on its owning seam.
 #
 # De-godding effort: https://github.com/Priivacy-ai/spec-kitty/issues/2531
 # ─────────────────────────────────────────────────────────────────────────────
@@ -154,14 +151,10 @@ from runtime.next import runtime_bridge_io as _io_seam
 from runtime.next.runtime_bridge_io import build_operational_context_for_claim, get_or_start_run
 from runtime.next import runtime_bridge_retrospective as _retrospective_seam
 
-# WP18 (#2561) — the untracked self-alias re-exports that formerly lived here
-# (the five ``runtime_bridge_cores`` parse-family helpers, plus
-# ``_retrospective_blocks_completion`` / ``_composition_dispatch_inputs`` /
-# ``_has_generated_docs``) were retired now that no consumer patches them via
-# the ``runtime_bridge.<name>`` façade path. Their leaves are reached directly
-# from the owning seam (``_cores`` / ``_retrospective_seam`` / ``_composition``)
-# at each call site below; the seam ``_rb.<name>`` round-trips were repointed to
-# the owning seam in the same change.
+# The bridge keeps no forwarders or self-aliases for names the seams own: a
+# parse-family, retrospective or composition-input helper is called on its
+# owning seam (``_cores`` / ``_retrospective_seam`` / ``_composition``) at each
+# call site below, and a test patches it there.
 
 from specify_cli.core.constants import KITTY_SPECS_DIR, MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.mission import get_mission_type
@@ -781,13 +774,13 @@ def _check_cli_guards(
     repo_root: Path | None = None,
     owned: OwnedCheckout | None = None,
 ) -> list[str]:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_cores.evaluate_guards` over a
-    :func:`runtime_bridge_io.gather_artifact_presence` snapshot (#2531 WP06,
-    T022). ``wp_advance_ready`` is threaded through separately (not gathered
-    by the snapshot) for ``implement``/``review`` so the pre-existing,
-    unmoved :func:`_should_advance_wp_step` I/O read — and its own WP02
-    compat reach — stay exactly where they were.
+    """Evaluate the CLI guards for ``step_id`` and return the failures.
+
+    Gathers an :func:`runtime_bridge_io.gather_artifact_presence` snapshot and
+    folds it through :func:`runtime_bridge_cores.evaluate_guards_strict`, which
+    raises for an unregistered mission family. ``wp_advance_ready`` is not part
+    of the gathered snapshot: for ``implement``/``review`` it is read here from
+    the bridge-owned :func:`_should_advance_wp_step` and set on the snapshot.
 
     ``mission_family`` is supplied by runtime paths that already resolved the
     primary-anchored mission type. Direct callers may omit it to preserve the
@@ -3567,9 +3560,8 @@ def _map_runtime_decision(
 
 # ---------------------------------------------------------------------------
 # Public surface (FR-007 / #2531 WP03). Governs ``from runtime_bridge import *``
-# ONLY — it does NOT preserve the ~50 private symbols tests patch (those live
-# in the explicit guarded compat re-export block introduced as later WPs
-# relocate them; see contracts/compat-surface.md §``__all__``).
+# ONLY. It lists the 8 public names; seam-owned private names are not
+# re-exported here.
 # ---------------------------------------------------------------------------
 __all__ = [
     "DecisionGitLogUnavailable",

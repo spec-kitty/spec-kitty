@@ -4,10 +4,10 @@
 naming, mission-ULID resolution, and primary-feature-dir resolution. It
 carries the mission's fattest scar debt (#2091/#1978/#1918/#1814/#2069) and is
 correctness-critical: a malformed coord branch composed here eventually drives
-a ``git worktree`` call that exits 128. It is cut LAST (behind the fattest
-golden coverage: the WP01 parity oracle + WP02 compat guard, both proven green
-on every prior extraction) because a silent drift in this cluster is the most
-dangerous possible regression in the whole mission.
+a ``git worktree`` call that exits 128. It was cut LAST (behind the fattest
+golden coverage: the WP01 parity oracle and the extraction mission's surface
+guards, all green on every prior extraction) because a silent drift in this
+cluster is the most dangerous possible regression in the whole mission.
 
 Sole home of:
 
@@ -40,8 +40,8 @@ which imports it from here.
 Import DAG (research.md §Import DAG): this module may import
 ``runtime_bridge_io`` (not needed today -- none of the three functions above
 requires an I/O-port call); it must NOT be imported by ``runtime_bridge_
-cores`` (enforced by ``tests/runtime/test_runtime_bridge_family_arch.py``'s
-``test_identity_seam_not_imported_by_cores``). No top-level
+cores`` (``tests/architectural/test_bridge_cores_import_boundary.py`` keeps
+``runtime_bridge_cores`` free of seam imports). No top-level
 ``decision.py -> runtime_bridge*`` edge is
 introduced (C-007) -- this module imports neither ``runtime_bridge`` nor
 ``decision`` at module scope.
@@ -98,7 +98,6 @@ def _resolve_coordination_branch(mission_slug: str, repo_root: Path) -> str:
     malformed-coord-branch correctness path this WP is named for — preserved
     exactly, never swallowed here).
     """
-
     # load_meta_or_empty (post-#2091 silent contract) absorbs a missing or
     # malformed meta.json to {}, matching the prior try/except-{} absorption.
     meta: dict[str, Any] = load_meta_or_empty(_primary_runtime_feature_dir(repo_root, mission_slug))

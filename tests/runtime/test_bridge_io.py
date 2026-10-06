@@ -18,8 +18,9 @@ Four independent concerns:
    io seam owns its helpers, so a patch on THIS module is the one patch
    point, and the seam's own callers observe it. Each test proves its fake ran.
 
-4. **Mechanism tests** for the ``runtime_bridge`` re-exports and for
-   ``_build_run_ref``'s ``run_ref_cls`` default argument.
+4. The ``runtime_bridge`` re-exports and the absence of bridge forwarders are
+   pinned by ``tests/runtime/test_bridge_no_compat_delegates.py``; the
+   ``run_ref_cls`` call-site wiring by ``tests/next/test_runtime_bridge_unit.py``.
 """
 
 from __future__ import annotations

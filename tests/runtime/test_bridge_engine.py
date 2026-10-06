@@ -38,7 +38,7 @@ Two independent concerns:
    * ``advance_run_state_after_composition``'s three ``NextDecision.kind``
      branches (step / decision_required / terminal) plus the
      decision-required dedup-on-repoll path, contract-tested against a fake
-     ``sync_emitter`` and stubbed ``runtime_bridge`` retrospective callbacks.
+     ``sync_emitter`` and stubbed ``runtime_bridge_retrospective`` callbacks.
 """
 
 from __future__ import annotations
@@ -484,9 +484,8 @@ def test_advance_run_state_terminal_runs_retrospective_gate(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, _stub_map_runtime_decision: _MapDecisionRecorder
 ) -> None:
     """The ``terminal`` branch (after a step genuinely completed) consults the
-    retrospective policy/terminus helpers on ``runtime_bridge`` — stubbed here
-    via a live module patch, exactly as the WP02 compat guard's sentinel
-    mechanism relies on."""
+    retrospective policy/terminus helpers on ``runtime_bridge_retrospective``
+    — stubbed here with a patch on that seam, which is where they live."""
     from runtime.next import runtime_bridge_retrospective as retrospective_seam
 
     run_dir = tmp_path / "run-4"

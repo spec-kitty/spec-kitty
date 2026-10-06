@@ -93,19 +93,20 @@ def test_builtin_software_dev_all_composed_actions_return_true() -> None:
 
 
 def test_builtin_software_dev_short_circuits_without_run_dir(tmp_path: Path) -> None:
-    """The charter fast path MUST NOT call ``_resolve_step_agent_profile``.
+    """The charter fast path MUST NOT call ``_resolve_step_binding``.
 
     Critical regression trap: the charter lookup (``charter.resolve_mission_type_context``)
     is the fast path for built-in missions since WP07. It short-circuits before any
     frozen-template I/O, preserving the PR #797 invariant that built-in dispatch
     correctness does not depend on template-on-disk state.
-    We patch ``_resolve_step_agent_profile`` and assert it was never called.
+    We patch ``_resolve_step_binding`` (what ``_should_dispatch_via_composition``
+    actually calls on the frozen-template path) and assert it was never called.
     """
     with patch(
-        "runtime.next.runtime_bridge_composition._resolve_step_agent_profile"
+        "runtime.next.runtime_bridge_composition._resolve_step_binding"
     ) as mock_resolve:
         # Charter lookup returns True for software-dev/specify before
-        # _resolve_step_agent_profile (frozen-template path) is ever reached.
+        # _resolve_step_binding (frozen-template path) is ever reached.
         result = _should_dispatch_via_composition(
             "software-dev", "specify", run_dir=tmp_path, repo_root=_REPO_ROOT
         )

@@ -179,9 +179,8 @@ def _resolve_step_binding(run_dir: Path, step_id: str) -> tuple[str | None, str 
     ``None`` values so callers fail closed through the legacy path or the
     executor's structured error surface.
 
-    Not part of the WP02 compat guard's tracked symbol inventory (nothing
-    imports/patches it), so this is a plain internal helper — no residual
-    delegate needed.
+    Owned by this seam; a test that replaces it patches it here
+    (``_should_dispatch_via_composition`` looks it up on this module).
     """
     try:
         template = _engine_adapter._load_frozen_template(run_dir)
@@ -298,10 +297,9 @@ def _composition_dispatch_inputs(
     of that table, so this exception never narrows FR-001's guarantee that
     a custom type's own action reaches ``PromptStep.agent_profile``.
 
-    Not part of the WP02 compat guard's tracked symbol inventory (nothing
-    patches it), so it is a plain internal helper re-exported into the
-    residual (``decide_next_via_runtime`` still calls it bare) — no native
-    delegate needed.
+    Owned by this seam; the bridge calls it as
+    ``_composition._composition_dispatch_inputs(...)``, so a test that
+    replaces it patches it here.
 
     """
     try:
@@ -419,10 +417,9 @@ def _publication_approved(feature_dir: Path) -> bool:
 def _has_generated_docs(feature_dir: Path) -> bool:
     """Return True iff at least one *.md file exists under feature_dir / 'docs'.
 
-    Used by the documentation `generate` guard branch (D6 of plan.md). Not
-    part of the WP02 compat guard's tracked symbol inventory (nothing patches
-    it); ``runtime_bridge_io.gather_artifact_presence`` reaches it directly
-    from this seam (the ``runtime_bridge`` façade re-export is gone).
+    Used by the documentation `generate` guard branch (D6 of plan.md).
+    ``runtime_bridge_io.gather_artifact_presence`` reaches it directly from
+    this seam.
     """
     docs_root = feature_dir / "docs"
     if not docs_root.is_dir():
@@ -498,9 +495,9 @@ def _check_composed_action_guard(
         owned=owned,
     )
     if mission == "software-dev" and action in ("implement", "review"):
-        # _should_advance_wp_step stays defined in the residual (untouched by
-        # this WP) -- reached via a live lookup so a monkeypatch on
-        # runtime_bridge._should_advance_wp_step is still observed from here.
+        # _should_advance_wp_step is owned by the bridge (its move is #2560's
+        # job), so it is reached through a deferred import of the bridge to
+        # avoid a top-level cycle; a test patches it on ``runtime_bridge``.
         from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
         # Intentionally NOT anchored (no repo_root=/mission_slug= forwarded), even
