@@ -68,7 +68,7 @@ def version_stamp_boundary(
 def _restore_keeping_original_error(stamp: VersionStamp, kittify_dir: Path) -> bool:
     """Restore the stamp without masking the failure being reported; True when it rewrote the file."""
     try:
-        return stamp.restore(kittify_dir)
+        return bool(stamp.restore(kittify_dir))
     except OSError as exc:
         logger.warning("Could not restore %s/metadata.yaml after a failed upgrade: %s", kittify_dir, exc)
         return False
