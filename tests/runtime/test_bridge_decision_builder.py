@@ -441,25 +441,17 @@ def _iter_calls(tree: ast.AST) -> list[ast.Call]:
     return [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
 
 
-#: The bridge plus the modules its decision paths were split into (#2560). The
-#: structural invariants below hold for the whole family, so code that moves
-#: out of ``runtime_bridge.py`` stays covered. A module not created yet is
-#: skipped (the family grows one module per extraction).
-_DECISION_FAMILY = (
-    "runtime_bridge",
-    "runtime_bridge_decision_mapping",
-    "runtime_bridge_decision_log",
-    "runtime_bridge_query",
-)
+#: Every ``runtime_bridge*.py`` module except cores, derived from disk so a new
+#: seam is covered the day it is created (#2560). ``runtime_bridge_cores`` is the
+#: one module allowed to construct ``Decision`` (pinned below), so it is not
+#: scanned for raw constructions.
+_CORES_MODULE = "runtime_bridge_cores"
 
 
 def _family_trees() -> dict[str, ast.AST]:
-    trees: dict[str, ast.AST] = {}
-    for name in _DECISION_FAMILY:
-        path = Path(rb.__file__).with_name(f"{name}.py")
-        if path.is_file():
-            trees[name] = ast.parse(path.read_text(encoding="utf-8"))
-    return trees
+    return {
+        path.stem: ast.parse(path.read_text(encoding="utf-8")) for path in sorted(Path(rb.__file__).parent.glob("runtime_bridge*.py")) if path.stem != _CORES_MODULE
+    }
 
 
 def _is_call_to(call: ast.Call, name: str) -> bool:
@@ -474,8 +466,14 @@ def test_runtime_bridge_has_zero_raw_decision_constructions() -> None:
     ``_materialize_decision``."""
     trees = _family_trees()
     # The family must actually be scanned: a renamed or moved module would
-    # otherwise drop out silently (the scan skips files not created yet).
-    assert {"runtime_bridge", "runtime_bridge_decision_mapping", "runtime_bridge_decision_log"} <= set(trees)
+    # otherwise drop out silently.
+    assert {
+        "runtime_bridge",
+        "runtime_bridge_decision_mapping",
+        "runtime_bridge_decision_log",
+        "runtime_bridge_query",
+        "runtime_bridge_guards",
+    } <= set(trees)
     offenders = {name: [call.lineno for call in _iter_calls(tree) if _is_call_to(call, "Decision")] for name, tree in trees.items()}
     assert all(lines == [] for lines in offenders.values()), (
         f"must not construct Decision(...) directly; route through _materialize_decision/DecisionEnvelope instead: {offenders}"
