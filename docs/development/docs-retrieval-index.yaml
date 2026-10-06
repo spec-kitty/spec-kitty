@@ -10952,6 +10952,17 @@ pages:
     - {slug: "registering-it-as-a-required-check-operator-action", text: "Registering it as a required check (operator action)", level: 2}
     - {slug: "the-skipped-required-check-footgun", text: "The skipped-required-check footgun", level: 3}
     - {slug: "local-verification-ci-equivalent-simulation", text: "Local verification (CI-equivalent simulation)", level: 2}
+  - path: "docs/development/how-to/enable-the-internal-pack.md"
+    title: "How to enable the internal charter and skills"
+    divio_type: "how-to"
+    abstract: "Register the internal org pack in your clone, project the four kitty-* maintainer skills into each tool, verify them, and work around two known defects."
+    anchors:
+    - {slug: "step-1-register-the-pack", text: "Step 1: Register the pack", level: 2}
+    - {slug: "step-2-project-the-skills", text: "Step 2: Project the skills", level: 2}
+    - {slug: "step-3-verify", text: "Step 3: Verify", level: 2}
+    - {slug: "known-defects", text: "Known defects", level: 2}
+    - {slug: "after-pulling-the-change-that-untracked-the-command-skill-ledger", text: "After pulling the change that untracked the command-skill ledger", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/how-to/index.md"
     title: "How-to (contributor & maintainer tasks)"
     divio_type: "none"

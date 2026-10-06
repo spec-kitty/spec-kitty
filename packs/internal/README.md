@@ -3,7 +3,7 @@
 This is Spec Kitty's own **internal** doctrine pack: the doctrine that governs
 *contributors, maintainers, and the core team* of the Spec Kitty project itself.
 It is loaded as an **org-tier** pack (registered in `.kittify/config.yaml` under
-`doctrine.org.packs`), overlaying the public `packs/built-in/` product doctrine.
+`charter_packs.org.packs`), overlaying the public `packs/built-in/` product doctrine.
 
 ## Why this is a separate pack — and why it is NOT built-in
 
@@ -121,7 +121,8 @@ longer tracked. Pulling the change that untracked it deletes your local copy, an
 `doctor skills --fix` then refuses because it sees unmanaged files. Remove the generated
 `.agents/skills/spec-kitty.*` directories and run `spec-kitty doctor skills --fix` once.
 
-See [Create and activate a pack skill](../../docs/development/how-to/create-a-pack-skill.md).
+See [How to enable the internal charter and skills](../../docs/development/how-to/enable-the-internal-pack.md)
+for the setup steps and [Create and activate a pack skill](../../docs/development/how-to/create-a-pack-skill.md).
 
 ## Reference, don't duplicate
 

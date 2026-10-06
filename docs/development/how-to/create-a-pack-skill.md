@@ -283,6 +283,7 @@ project registers a pack.
 ## See also
 
 - [Internal pack README](../../../packs/internal/README.md) — a worked org pack: the four `kitty-*` maintainer skills, each requiring the procedure that holds its rules.
+- [How to enable the internal charter and skills](enable-the-internal-pack.md) — register the internal pack and project its `kitty-*` skills.
 - [Doctrine artifact kinds: Skill](../../architecture/doctrine-kinds.md#skill) — what the kind is for.
 - [ADR 2026-09-27-1](../../adr/3.x/2026-09-27-1-pack-skills-share-commands-through-charter-packs.md)
   — the decision, and the ownership proof for the files Spec Kitty writes.

@@ -3662,6 +3662,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/development/how-to/enable-the-internal-pack.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/how-to/index.md
   tag: current
   divio_type: none

@@ -28,6 +28,8 @@
       href: how-to/cutover-guard.md
     - name: Create a doctrine artifact
       href: how-to/create-a-doctrine-artifact.md
+    - name: Enable the internal charter and skills
+      href: how-to/enable-the-internal-pack.md
     - name: Add an exemption to an architectural gate
       href: how-to/add-architectural-gate-exemption.md
     - name: Compress mission history
