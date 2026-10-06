@@ -34,7 +34,6 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -249,10 +248,10 @@ def _init_lane_repo(repo: Path) -> None:
     _git(repo, "commit", "-q", "-m", "seed")
 
 
-def test_create_lane_workspace_prints_backup_path_when_foreign_hook_preserved(
+def test_create_lane_workspace_returns_backup_path_when_foreign_hook_preserved(
     tmp_path: Path,
 ) -> None:
-    """``implement`` surfaces the backup sidecar path (#4895 T012).
+    """``create_lane_workspace`` returns the backup sidecar path (#4895 T012).
 
     Drives the REAL ``create_lane_workspace`` -- the exact function this
     WP's ``owned_files`` surface (``lanes/implement_support.py``) modifies
@@ -260,8 +259,9 @@ def test_create_lane_workspace_prints_backup_path_when_foreign_hook_preserved(
     ``.git/hooks/pre-commit`` pre-installed. Proves the whole chain: the
     hook is preserved (via ``install_commit_guard``) AND the operator sees
     the sidecar path: ``create_lane_workspace`` returns it on its result
-    (#5715: the lanes seam never prints) and the ``implement`` allocate
-    phase's own reporter prints it.
+    (#5715: the lanes seam never prints). That ``implement`` prints it is
+    pinned through the real ``allocate`` phase in
+    ``tests/specify_cli/cli/commands/test_implement_phases.py``.
     """
     from kernel.clock import now_utc_iso
     from specify_cli.lanes.implement_support import create_lane_workspace
@@ -337,15 +337,5 @@ def test_create_lane_workspace_prints_backup_path_when_foreign_hook_preserved(
     assert len(sidecars) == 1, f"expected exactly one backup sidecar, found {sidecars}"
     assert sidecars[0].read_bytes() == FOREIGN_HOOK_BODY.encode("utf-8")
 
-    # The seam returns the sidecar path as typed data (#5715: it never prints)...
+    # The seam returns the sidecar path as typed data (#5715: it never prints).
     assert result.hook_backup_path == sidecars[0]
-
-    # ...and the command layer tells the operator about it (the #4895 harm:
-    # nothing was ever printed).
-    from specify_cli.cli.commands import implement_phases
-
-    with patch.object(implement_phases.console, "print") as mock_print:
-        implement_phases._report_hook_backup(result)
-
-    printed_lines = [str(call.args[0]) for call in mock_print.call_args_list if call.args]
-    assert any(sidecars[0].name in line for line in printed_lines), f"backup sidecar {sidecars[0]} was not surfaced in implement's output: {printed_lines}"
