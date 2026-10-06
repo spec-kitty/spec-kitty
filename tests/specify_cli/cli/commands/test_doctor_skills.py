@@ -426,23 +426,16 @@ def test_fix_projects_missing_pack_skills_but_never_repairs_drift(pack_skill_pro
     assert claude.read_text(encoding="utf-8") == "edited locally\n"
     assert codex.is_file()
     assert [item["kind"] for item in payload["pack_skills"]] == [KIND_DRIFT]
+    assert any(path.endswith(f"{PACK_SKILL_RENDERED}/SKILL.md") for path in payload["repaired_paths"])
+
+    # Only drift is left: a further --fix has nothing missing to project and reports nothing repaired.
+    _, payload = _doctor_skills_json("--fix")
+    assert payload["repaired_paths"] == []
+    assert claude.read_text(encoding="utf-8") == "edited locally\n"
 
 
 def _pack_finding(kind: str) -> PackSkillFinding:
     return PackSkillFinding(kind, PACK_SKILL_RENDERED, f".claude/skills/{PACK_SKILL_RENDERED}/SKILL.md", "")
-
-
-@pytest.mark.integration
-def test_repair_pack_skills_skips_projection_without_missing_findings(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    def _boom(_: Path) -> None:
-        raise AssertionError("must not project")
-
-    monkeypatch.setattr("specify_cli.skills.installer.project_pack_skills", _boom)
-    findings = (_pack_finding(KIND_DRIFT), _pack_finding(KIND_STALE))
-    repaired: list[str] = []
-    errors: list[str] = []
-    assert doctor_surface._repair_pack_skills(tmp_path, findings, repaired, errors) == findings
-    assert repaired == [] and errors == []
 
 
 @pytest.mark.integration

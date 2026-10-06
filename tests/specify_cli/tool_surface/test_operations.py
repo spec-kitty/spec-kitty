@@ -261,51 +261,40 @@ def _dir_create(owner: str, *, mode: int = 0o755, phase: str = "surface_repair",
     )
 
 
-def test_identical_directory_create_from_two_owners_coalesces_once() -> None:
-    merged = coalesce_effects((_dir_create("managed_skills"), _dir_create("agent_profiles")))
+@pytest.mark.parametrize("owners", [("managed_skills", "agent_profiles"), ("codex", "vibe", "pi")], ids=["two-owners", "three-owners"])
+def test_identical_directory_create_from_several_owners_coalesces_once(owners: tuple[str, ...]) -> None:
+    merged = coalesce_effects(tuple(_dir_create(owner) for owner in owners))
 
     assert len(merged) == 1
-    assert merged[0].owner == "agent_profiles"
-    assert set(merged[0].logical_owners) == {"managed_skills", "agent_profiles"}
-    assert {p.reference for p in merged[0].ownership} == {"managed_skills", "agent_profiles"}
+    assert merged[0].owner == min(owners)
+    assert set(merged[0].logical_owners) == set(owners)
+    assert {p.reference for p in merged[0].ownership} == set(owners)
 
 
-def test_directory_create_with_differing_mode_still_conflicts() -> None:
-    with pytest.raises(ValueError, match=r"Owner effect conflict at /proj/\.claude: agent_profiles vs managed_skills \(differs in: owner, after\)"):
-        coalesce_effects((_dir_create("managed_skills", mode=0o700), _dir_create("agent_profiles")))
+def _file_create(owner: str, digest: str) -> PhysicalEffect:
+    return PhysicalEffect(
+        owner=owner,
+        phase="surface_repair",
+        root=OperationRoot("project", "project", Path("/proj")),
+        path="f.md",
+        action="create",
+        before=FileState("absent"),
+        after=FileState("file", sha256=digest, mode=0o644),
+        reason="w",
+        ownership=(OwnershipProof("manifest", owner),),
+        logical_owners=(owner,),
+    )
 
 
-def test_directory_create_with_differing_phase_still_conflicts() -> None:
-    other_phase = "provisioning"
-    with pytest.raises(ValueError, match="Owner effect conflict.*phase"):
-        coalesce_effects((_dir_create("managed_skills", phase=other_phase), _dir_create("agent_profiles")))
-
-
-def test_file_writes_with_different_content_still_conflict() -> None:
-    root = OperationRoot("project", "project", Path("/proj"))
-
-    def write(owner: str, digest: str) -> PhysicalEffect:
-        return PhysicalEffect(
-            owner=owner,
-            phase="surface_repair",
-            root=root,
-            path="f.md",
-            action="create",
-            before=FileState("absent"),
-            after=FileState("file", sha256=digest, mode=0o644),
-            reason="w",
-            ownership=(OwnershipProof("manifest", owner),),
-            logical_owners=(owner,),
-        )
-
-    with pytest.raises(ValueError, match="Owner effect conflict.*differs in: owner, after"):
-        coalesce_effects((write("a", "0" * 64), write("b", "1" * 64)))
-
-
-def test_shared_agent_skills_parent_from_three_effects_merges() -> None:
-    effects = (_dir_create("codex", path=".agents/skills"), _dir_create("vibe", path=".agents/skills"), _dir_create("pi", path=".agents/skills"))
-
-    merged = coalesce_effects(effects)
-
-    assert len(merged) == 1
-    assert set(merged[0].logical_owners) == {"codex", "vibe", "pi"}
+@pytest.mark.parametrize(
+    "effects,match",
+    [
+        ((_dir_create("managed_skills", mode=0o700), _dir_create("agent_profiles")), r"Owner effect conflict at /proj/\.claude: agent_profiles vs managed_skills \(differs in: owner, after\)"),
+        ((_dir_create("managed_skills", phase="provisioning"), _dir_create("agent_profiles")), "Owner effect conflict.*phase"),
+        ((_file_create("a", "0" * 64), _file_create("b", "1" * 64)), "Owner effect conflict.*differs in: owner, after"),
+    ],
+    ids=["directory-mode", "directory-phase", "file-content"],
+)
+def test_effects_that_differ_beyond_the_owner_still_conflict(effects: tuple[PhysicalEffect, ...], match: str) -> None:
+    with pytest.raises(ValueError, match=match):
+        coalesce_effects(effects)
