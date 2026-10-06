@@ -1,0 +1,33 @@
+{
+  "accept_commit": "432b99329d74fa1b5871953a55326c69dee49b59",
+  "acceptance_history": [
+    {
+      "accept_commit": "432b99329d74fa1b5871953a55326c69dee49b59",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-06T20:04:59.943650+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "c86ae3d2ab416f60135682a634101927875bca84"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-06T20:04:59.943650+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "c86ae3d2ab416f60135682a634101927875bca84",
+  "created_at": "2026-10-06T16:23:56.387387+00:00",
+  "flattened": false,
+  "friendly_name": "Extract the runtime_bridge query/answer decision-builder seam",
+  "mid8": "01M490EQ",
+  "mission_id": "01M490EQ8BHZ37PH92FXHHFBF5",
+  "mission_number": null,
+  "mission_slug": "runtime-bridge-query-seam-01M490EQ",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The runtime bridge still holds about a thousand lines of query and answer logic plus the decision-mapping helpers that both the query path and the advance path use. This mission moves that logic into a lower decision-mapping module and a query module on top of it, removes the engine's back-reference into the bridge, and keeps the bridge's public entry points working unchanged for the CLI. Behaviour does not change.",
+  "purpose_tldr": "Move the read-side query and answer logic out of the runtime bridge into its own modules so each part of the bridge has one clear owner.",
+  "slug": "runtime-bridge-query-seam-01M490EQ",
+  "status_phase": "1",
+  "target_branch": "issue-2560-runtime-bridge-query-seam",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-06T16:47:07.736027+00:00"
+}

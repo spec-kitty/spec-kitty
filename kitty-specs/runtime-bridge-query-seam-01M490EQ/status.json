@@ -1,0 +1,212 @@
+{
+  "event_count": 42,
+  "last_event_id": "01M49CZNVVFTSNV6BGP1R9RMP9",
+  "materialized_at": "2026-10-06T20:02:53.435560+00:00",
+  "mission_number": "",
+  "mission_slug": "runtime-bridge-query-seam-01M490EQ",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 6,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "approved",
+      "last_event_id": "01M493WDFZPDZE00VNFZMTTS8E",
+      "last_transition_at": "2026-10-06T17:23:49.375448+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Layout gate (strict-xfail rows) + 13 characterisation tests, commit 647514d4e",
+        "Review cycle 1: REJECT (1 blocking, 3 should-fix, 4 nits)",
+        "Cycle 2: review findings 1-8 folded in 3ab…",
+        "Cycle 2 APPROVE (opus reviewer-renata): 23 passed / 60 xfailed at 8a1ddb807; all 8 cycle-1 findings resolved"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261006",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 30217,
+      "shell_pid_created_at": "1791305221.73",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "approved",
+      "last_event_id": "01M496J104CX1XKV9MXG7M7M4X",
+      "last_transition_at": "2026-10-06T18:10:34.628891+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "APPROVE (opus reviewer-renata): verbatim AST match for 27 defs; independent call-count probe found no dead patch; 2570 passed/0 failed. Should-fix 1,4,5,6 folded after rebase; 2 = WP05 T020; 3 = Deferred"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261006",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 6449,
+      "shell_pid_created_at": "1791307442.33",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
+    },
+    "WP03": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "approved",
+      "last_event_id": "01M498700AY6MFHQBHDGWZH9F5",
+      "last_transition_at": "2026-10-06T18:39:30.314207+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "APPROVE (opus reviewer-renata): verbatim AST match (one behaviour-neutral Optional narrowing verified); call-count probe 306/306 identical; folds: pass-through wrapper patches get counters, stale prose"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261006",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 22999,
+      "shell_pid_created_at": "1791310256.0",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
+    },
+    "WP04": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "approved",
+      "last_event_id": "01M49AKPTHRVVNYRP94WVJ1BE9",
+      "last_transition_at": "2026-10-06T19:21:24.049200+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "APPROVE (opus reviewer-renata): verbatim (dict typing + explicit ActorIdentity defaults only); call-count probe over 66 targets: no dropped count; gates 195 passed / 0 xfailed; finding 1 done in WP06, nit 2 folded, nit 3 for PR body"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261006",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 22134,
+      "shell_pid_created_at": "1791312498.17",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
+    },
+    "WP05": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "implement-command",
+      "lane": "approved",
+      "last_event_id": "01M49CZNVVFTSNV6BGP1R9RMP9",
+      "last_transition_at": "2026-10-06T20:02:53.435560+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP05 work committed across 0673f7a95 (docs/seam map), 275ae063f (changelog + R-6), bb5cf3e25 (changelog shape), and the probe-results commit; T019 probe end-to-end 655->648 pairs, no steering loss; T022 make test-fast 2280 passed, ruff/format/C901 clean, mypy 21 (=main)",
+        "Review cycle 1: REJECT (3 doc blockers, 2 should-fix, 2 nits)",
+        "Cycle 2: all 7 findings folded in 5271ff57e",
+        "Cycle 2 APPROVE (opus reviewer-renata): all 7 cycle-1 findings folded (5271ff57e); FR-001..FR-010 verified"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261006",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 15682,
+      "shell_pid_created_at": "1791315962.4",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
+    },
+    "WP06": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "implement-command",
+      "lane": "approved",
+      "last_event_id": "01M49C0ET1F7GRT0ZKGAESKC6H",
+      "last_transition_at": "2026-10-06T19:45:50.401857+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementation committed before the claim (6c18bbdb0, while WP04 was in review; the claim waited on WP04's approval). Verified: 3250 passed + the 2 load-timeout reds pass alone on a clean tree (44 passed).",
+        "APPROVE (opus reviewer-renata): verbatim (3 recorded neutral deltas); 22 import-order runs clean; probe 683/683 keys identical (one concurrency-race count); should-fix floor 36->92 and 2 nits folded"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP06:20261006",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 29924,
+      "shell_pid_created_at": "1791314508.1",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
+    }
+  }
+}

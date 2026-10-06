@@ -1,0 +1,108 @@
+{
+  "mission_slug": "runtime-bridge-query-seam-01M490EQ",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_runtime_bridge_query_seam_layout.py::test_moved_name_is_defined_by_its_owner[runtime_bridge_query-*] (13 names) + test_bridge_no_compat_delegates.py query row (checks A', B, B', D); WP04 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T20:03:25.998813+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_runtime_bridge_query_seam_layout.py ownership rows for runtime_bridge_decision_mapping (27 names) + no-compat gate decision_mapping row; WP02 approved (AST-verbatim)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T20:03:33.776076+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_bridge_no_compat_delegates.py::test_check_c_re_export_is_the_owning_seam_object (7 re-exports incl. 5 public #2560 names, is-identity) + test_bridge_all_is_unchanged",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T20:03:41.972733+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_runtime_bridge_query_seam_layout.py::test_no_forbidden_sibling_import[*] (every runtime_bridge_* seam; bridge banned) + test_former_back_edge_imports_the_owning_seam + planted-edge mutation battery",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T20:03:49.174757+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "ruff check src/runtime/next (F401) clean; test_bridge_no_compat_delegates check D (no attribute for any moved private name on the bridge)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T20:03:56.648391+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Dead-patch probe end-to-end (baseline 836f890e vs final): 656->649 pairs, no steering patch lost calls (traces/approach.md, research.md R-6); per-WP reviewer probes; 45 static go-silent sites dispositioned",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T20:04:03.765134+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_runtime_bridge_query_characterisation.py (15 tests) landed before any move (WP01, approved cycle 2)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T20:04:11.264021+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "src/runtime/next/runtime_bridge_decision_log.py; plan D-2; layout gate decision_log rows + import rules",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T20:04:18.717599+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_no_write_side_rederivation.py census/consumer repoint, test_runtime_emitter_seam.py S8 per-module + mutation rows, test_coord_read_residuals_closeout.py _BRIDGE_READ_FILES; all green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T20:04:27.952847+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "No runtime_bridge_* seam module imports runtime_bridge (no back-edge into the bridge)",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -rnE 'from runtime\\.next import runtime_bridge( |$)|from runtime\\.next\\.runtime_bridge import|import runtime\\.next\\.runtime_bridge( |$)' src/runtime/next/runtime_bridge_*.py",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches"
+    }
+  ]
+}

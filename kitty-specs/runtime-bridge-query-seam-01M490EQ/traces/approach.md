@@ -1,0 +1,11 @@
+# Approach — runtime-bridge-query-seam-01M490EQ
+
+Starting approach (from spec + grounding): strangler-style move of the query/answer cluster out of `runtime_bridge.py` into a query module, over a lower decision-mapping module that the advance path and the engine adapter also import. Characterisation first where coverage is thin. A dead-patch probe run before and after the move catches test patches that silently stop intercepting.
+
+- 2026-10-06 · claude · Baseline taken on the stacked base (mission-1 head 836f890e): probe + coverage over the 111-path surface.
+- 2026-10-06 · claude · Plan-point-cut squad (architect + reviewer lenses) found 3 blocking test-integrity gaps (T-1/T-2/T-4). All were folded into plan D-5: call-count probe, static go-silent cross-check, and the same-block patch review rule.
+- 2026-10-06 · claude · Post-tasks squad skipped (advisory): the tasks map 1:1 onto the plan's concerns, which the plan squad had just reviewed.
+- 2026-10-06 · claude · WP01 rejected in cycle 1 (owned decision-log arm untested anywhere; vacuous mutation battery) and approved in cycle 2.
+- 2026-10-06 · claude · WP02 mechanics: an AST mover cut 27 blocks verbatim and rewrote 37 bridge references to `_mapping.<name>`. The first surface run gave 86 failed + 8 errors, all loud (AttributeError/ImportError) except the T-1 siblings found by grep. Repointing was scripted for import/string forms; module-object forms and shared-name siblings were reviewed by hand.
+- 2026-10-06 · claude · WP05 T019, end-to-end dead-patch probe: baseline (stacked base 836f890e) against the final tree. 656 → 649 unique (test, name) pairs, call counts summed across the runtime_bridge* modules so repointed patches match. One count dropped: `_load_run_index` in `test_same_mission_concurrent_start_yields_one_run`, 4 → 3, a concurrency race; the WP06 reviewer saw it move 3 → 4. Ten patches were removed from surviving tests, all with 0 calls on the base (the 9 dead `get_mission_type` patches and one dead `_is_wp_iteration_step` fake). No test vanished. SC-003 met. Probe surface run: 2915 passed, 0 failed.
+- 2026-10-06 · claude · The missing `status_phase` stamp that tripped CI cutover-guard is filed as #5835 (P0, at the operator's direction) via a planner-priti subagent; it cross-references #5300.

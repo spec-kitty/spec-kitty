@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "mission_slug": "runtime-bridge-query-seam-01M490EQ",
+  "mission_id": "01M490EQ8BHZ37PH92FXHHFBF5",
+  "mission_branch": "issue-2560-runtime-bridge-query-seam",
+  "target_branch": "issue-2560-runtime-bridge-query-seam",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP06",
+        "WP05"
+      ],
+      "write_scope": [
+        "src/runtime/next/decision.py",
+        "src/runtime/next/runtime_bridge.py",
+        "src/runtime/next/runtime_bridge_*.py",
+        "src/runtime/next/runtime_bridge_composition.py",
+        "src/runtime/next/runtime_bridge_decision_log.py",
+        "src/runtime/next/runtime_bridge_decision_mapping.py",
+        "src/runtime/next/runtime_bridge_engine.py",
+        "src/runtime/next/runtime_bridge_guards.py",
+        "src/runtime/next/runtime_bridge_identity.py",
+        "src/runtime/next/runtime_bridge_io.py",
+        "src/runtime/next/runtime_bridge_query.py",
+        "tests/architectural/test_coord_read_residuals_closeout.py",
+        "tests/architectural/test_no_write_side_rederivation.py",
+        "tests/architectural/test_read_surface_placement_guard.py",
+        "tests/architectural/test_runtime_emitter_seam.py",
+        "tests/integration/**",
+        "tests/next/**",
+        "tests/runtime/**",
+        "tests/runtime/next/**",
+        "tests/runtime/test_bridge_decide_next.py",
+        "tests/runtime/test_bridge_decision_builder.py",
+        "tests/runtime/test_bridge_decision_log_flush.py",
+        "tests/runtime/test_bridge_engine.py",
+        "tests/runtime/test_decision_git_log_write_dir.py",
+        "tests/runtime/test_runtime_bridge_query_*.py",
+        "tests/runtime/test_runtime_bridge_query_characterisation.py",
+        "tests/runtime/test_runtime_bridge_query_seam_layout.py",
+        "tests/specify_cli/cli/commands/**",
+        "tests/specify_cli/events/**",
+        "tests/specify_cli/next/**",
+        "tests/specify_cli/orchestrator_api/**",
+        "tests/unit/mission_loader/**"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-06T18:15:06.618908+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "8f93fcf3bc5a9f86cb30567959418af7610ca009"
+}

@@ -1,0 +1,78 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-06T16:24:15.298973Z",
+      "decision_id": "01M490FB62VCMW1T35FQ6T5M4T",
+      "final_answer": "query+answer+shared mapping seam only (operator brief): move the query/answer cluster and the decision-mapping helpers it shares with the decide path; #2562 (engine run-advance dedup, significance/RACI gap, provide_decision_answer noqa) stays out; stay inside src/runtime/next and its tests",
+      "input_key": "scope_boundary",
+      "mission_id": "01M490EQ8BHZ37PH92FXHHFBF5",
+      "mission_slug": "runtime-bridge-query-seam-01M490EQ",
+      "opened_by": "cli",
+      "options": [
+        "query+answer+shared mapping seam only (operator brief)",
+        "also #2562 engine dedup",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "What is the mission boundary: which runtime_bridge clusters move, and what stays out?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T16:24:26.868701Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.boundary",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-06T16:24:31.421854Z",
+      "decision_id": "01M490FTXXXY8SZ4WYV2F414P1",
+      "final_answer": "plain re-exports (same objects), no delegates: query_current_state, answer_decision_via_runtime, QueryModeValidationError, MissionNotFoundError, DecisionGitLogUnavailable stay importable from runtime.next.runtime_bridge; mission 1 (#2561) retired forwarding delegates and they must not return",
+      "input_key": "public_surface",
+      "mission_id": "01M490EQ8BHZ37PH92FXHHFBF5",
+      "mission_slug": "runtime-bridge-query-seam-01M490EQ",
+      "opened_by": "cli",
+      "options": [
+        "plain re-exports (same objects), no delegates",
+        "forwarding delegates",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How do the public query/answer names stay reachable from runtime_bridge after the move?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T16:24:35.651179Z",
+      "resolved_by": null,
+      "slot_key": "specify.compat.public_surface",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-06T16:24:40.297722Z",
+      "decision_id": "01M490G3K9WRBMAQTNVQWK4300",
+      "final_answer": "drop unused imports so stale patches fail loudly, then review remaining shared-name patches by call path and repoint with proof the fake ran (operator brief acceptance criterion)",
+      "input_key": "false_green_policy",
+      "mission_id": "01M490EQ8BHZ37PH92FXHHFBF5",
+      "mission_slug": "runtime-bridge-query-seam-01M490EQ",
+      "opened_by": "cli",
+      "options": [
+        "drop unused imports so stale patches fail loudly, then review remaining shared-name patches by call path and repoint with proof the fake ran",
+        "leave as-is",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How are test patches of runtime_bridge names that stop intercepting after the move handled?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T16:24:44.595656Z",
+      "resolved_by": null,
+      "slot_key": "specify.tests.false_green",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M490EQ8BHZ37PH92FXHHFBF5",
+  "version": 1
+}
