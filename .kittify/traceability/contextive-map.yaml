@@ -31,8 +31,8 @@ scopes:
     contexts:
       - orchestration
 
-  - path: "src/specify_cli/merge"
-    description: "Feature merge workflow and preflight validation"
+  - path: "src/specify_cli/consolidation"
+    description: "Mission consolidation workflow and preflight validation"
     contexts:
       - orchestration
 
