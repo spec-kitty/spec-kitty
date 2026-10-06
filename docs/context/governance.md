@@ -124,7 +124,7 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 
 | | |
 |---|---|
-| **Definition** | The single activation filter applied by `charter.resolver.DoctrineService` (the activation-aware wrapper). It enforces the project charter's per-kind activation state on a doctrine service's `paradigms`, `procedures`, and `agent_profiles` surfaces, so every profile-resolving path passes through one consistent filter rather than re-implementing activation logic. The factory `specify_cli.doctrine_service_factory.build_activation_aware_doctrine_service` is the single construction seam that routes callers through this chokepoint. |
+| **Definition** | The single activation filter applied by `charter.activation.resolver.DoctrineService` (the activation-aware wrapper). It enforces the project charter's per-kind activation state on a doctrine service's `paradigms`, `procedures`, and `agent_profiles` surfaces, so every profile-resolving path passes through one consistent filter rather than re-implementing activation logic. The factory `specify_cli.doctrine_service_factory.build_activation_aware_doctrine_service` is the single construction seam that routes callers through this chokepoint. |
 | **Context** | Governance |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
