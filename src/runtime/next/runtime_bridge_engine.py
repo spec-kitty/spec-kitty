@@ -1,21 +1,15 @@
 """Engine-adapter seam for ``runtime.next.runtime_bridge`` (FR-013, #2531 WP03).
 
-**Sole home of the FR-013 grep-complete ``_internal_runtime`` engine/planner
-private surface** — the five names ``_read_snapshot`` / ``_load_frozen_template``
-(from ``_internal_runtime.engine``), ``_append_event`` / ``_write_snapshot``, and
-``plan_next`` (from ``_internal_runtime.planner``), plus the sixth name,
-``_resolve_workflow_for_mission`` (also from ``_internal_runtime.planner``),
-concentrated here via the ``resolve_workflow_for_mission`` wrapper as the
-retro follow-up to the WP03 boundary from ``data-model.md`` §Engine-adapter
-surface. ``prompt_builder.py`` now routes through that wrapper instead of
-importing the planner private directly — the concentration is complete.
-Concentrates every one of the five call sites that used to live scattered across
-``runtime_bridge.py`` into a single seam — the grep-complete site list from
-``data-model.md`` §Engine-adapter surface: ``:1322``/``:1375``
-(``_load_frozen_template``, the classic misses) plus ``:1800``/``:1840``/
-``:2606``/``:3261``/``:3416``. No other module under ``src/runtime/next/`` may
-import or attribute-access these two ``_internal_runtime`` submodules — enforced
-by the architecture guard in ``tests/runtime/test_bridge_engine.py``.
+**Sole home of the ``_internal_runtime`` engine/planner private surface.** No
+other module under ``src/runtime/next/`` may import or attribute-access the
+``_internal_runtime.engine`` / ``.planner`` submodules -- enforced by the
+architecture guard in ``tests/runtime/test_bridge_engine.py``. The adapter
+wraps the reads and the planning the bridge and its seams need
+(``_read_snapshot``, ``_load_frozen_template``, ``plan_next``,
+``resolve_workflow_for_mission`` for ``prompt_builder.py``, ``plan_advance``)
+and the engine's one commit path (``commit_advance``). It writes no run event
+and no snapshot of its own: the run-event journal and ``state.json`` are
+written only by the engine's commit (#2562).
 
 Each wrapper below re-exposes the identical private name it wraps and delegates
 via a **live module-attribute lookup** (``_engine.<name>(...)`` /
@@ -76,23 +70,13 @@ if TYPE_CHECKING:
     from runtime.next._internal_runtime.events import RuntimeEventEmitter
 
 # ---------------------------------------------------------------------------
-# T011 — grep-complete engine/planner private-access wrappers
+# T011 — engine/planner private-access wrappers (reads and planning)
 # ---------------------------------------------------------------------------
-
-
-def _append_event(run_dir: Path, event_type: str, payload: dict[str, Any]) -> None:
-    """Wrap ``_internal_runtime.engine._append_event`` (live attribute lookup)."""
-    _engine._append_event(run_dir, event_type, payload)
 
 
 def _read_snapshot(run_dir: Path) -> MissionRunSnapshot:
     """Wrap ``_internal_runtime.engine._read_snapshot`` (live attribute lookup)."""
     return _engine._read_snapshot(run_dir)
-
-
-def _write_snapshot(run_dir: Path, snapshot: MissionRunSnapshot) -> None:
-    """Wrap ``_internal_runtime.engine._write_snapshot`` (live attribute lookup)."""
-    _engine._write_snapshot(run_dir, snapshot)
 
 
 def _load_frozen_template(run_dir: Path) -> MissionTemplate:

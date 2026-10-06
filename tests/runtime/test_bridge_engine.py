@@ -22,16 +22,18 @@ Two independent concerns:
      of importing the planner private directly — the retro follow-up that
      completed the concentration this WP started.
 
-   A non-vacuousness check (``test_adapter_defines_all_six_engine_planner_wrappers``)
+   A non-vacuousness check (``test_adapter_defines_a_wrapper_for_each_concentrated_read_and_planner_private``)
    guards against the "no other module reaches in" assertion passing for the
-   wrong reason (e.g. if the adapter itself stopped wrapping one of the 6).
+   wrong reason (e.g. if the adapter itself stopped wrapping one of them). The
+   two engine writers are not wrapped: since #2562 only the engine's commit
+   writes a run (``test_adapter_wraps_no_engine_writer``).
 
 2. **Focused unit tests (FR-006)** against ``_internal_runtime.engine`` /
    ``.planner`` *stubs* (monkeypatched), never the real runtime — that
    characterization is the WP01 parity oracle's job
    (``tests/runtime/test_bridge_parity.py``). These tests pin:
 
-   * the 5 low-level wrappers delegate via a **live module-attribute lookup**
+   * the low-level wrappers delegate via a **live module-attribute lookup**
      (not a cached ``from ... import name`` binding) — the same property the
      WP01 oracle's ``capture_side_effects`` and the WP02 compat guard rely on
      when patching ``_internal_runtime.engine``/``runtime_bridge`` directly;
@@ -179,14 +181,26 @@ def test_no_sibling_module_accesses_engine_planner_privates() -> None:
     )
 
 
-def test_adapter_defines_all_six_engine_planner_wrappers() -> None:
+# The engine's commit writes the run-event journal and ``state.json``; since
+# #2562 the adapter commits through it and wraps neither writer (a wrapper
+# with no production caller is dead code). The writers stay in the
+# concentrated set above, so no sibling may reach them either.
+_ENGINE_WRITERS = frozenset({"_append_event", "_write_snapshot"})
+
+
+def test_adapter_defines_a_wrapper_for_each_concentrated_read_and_planner_private() -> None:
     """Non-vacuousness check: the "no sibling reaches in" assertion above is
-    only meaningful if the adapter itself still wraps all 6 concentrated
-    names -- guards against it passing for the wrong reason (e.g. the
-    adapter silently dropping a wrapper)."""
-    for name in _ENGINE_PLANNER_PRIVATE_NAMES:
+    only meaningful if the adapter itself still wraps the concentrated reads
+    and planner names -- guards against it passing for the wrong reason (e.g.
+    the adapter silently dropping a wrapper)."""
+    for name in _ENGINE_PLANNER_PRIVATE_NAMES - _ENGINE_WRITERS:
         wrapper_name = _ADAPTER_WRAPPER_NAME.get(name, name)
         assert hasattr(engine_adapter, wrapper_name), f"runtime_bridge_engine no longer defines a wrapper for {name!r} (expected attribute {wrapper_name!r})"
+
+
+def test_adapter_wraps_no_engine_writer() -> None:
+    """The run is written only by the engine's commit (#2562)."""
+    assert not [name for name in _ENGINE_WRITERS if hasattr(engine_adapter, name)]
 
 
 # ---------------------------------------------------------------------------
@@ -219,23 +233,6 @@ def test_load_frozen_template_delegates_via_live_lookup(monkeypatch: pytest.Monk
     sentinel = object()
     monkeypatch.setattr("runtime.next.runtime_bridge_engine._engine._load_frozen_template", lambda run_dir: sentinel)
     assert engine_adapter._load_frozen_template(tmp_path) is sentinel
-
-
-@pytest.mark.unit
-def test_append_event_delegates_via_live_lookup(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    calls: list[tuple[Any, ...]] = []
-    monkeypatch.setattr("runtime.next.runtime_bridge_engine._engine._append_event", lambda *a: calls.append(a))
-    engine_adapter._append_event(tmp_path, "SomeEvent", {"k": "v"})
-    assert calls == [(tmp_path, "SomeEvent", {"k": "v"})]
-
-
-@pytest.mark.unit
-def test_write_snapshot_delegates_via_live_lookup(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    snapshot = MissionRunSnapshot(run_id="r1", mission_key="software-dev", template_path="t", template_hash="h")
-    calls: list[tuple[Any, ...]] = []
-    monkeypatch.setattr("runtime.next.runtime_bridge_engine._engine._write_snapshot", lambda rd, s: calls.append((rd, s)))
-    engine_adapter._write_snapshot(tmp_path, snapshot)
-    assert calls == [(tmp_path, snapshot)]
 
 
 @pytest.mark.unit
@@ -849,6 +846,7 @@ _ENGINE_OWNED_CONSTRUCTIONS = frozenset(
         "NextStepIssuedPayload",
         "DecisionInputRequestedPayload",
         "MissionRunCompletedPayload",
+        "SignificanceEvaluatedPayload",
         "DecisionRequest",
     }
 )
@@ -876,6 +874,8 @@ def _adapter_shape_violations(source: str) -> list[str]:
                 violations.append(f"constructs {name}")
             elif name == "apply_result":
                 violations.append("calls apply_result")
+            elif name in _ENGINE_WRITERS:
+                violations.append(f"calls {name}")
     wrapper_calls = sum(
         1
         for node in tree.body
@@ -907,6 +907,9 @@ def test_adapter_has_no_parallel_planner_or_event_code() -> None:
         "payload = DecisionInputRequestedPayload(run_id='r')\n",
         "payload = MissionRunCompletedPayload(run_id='r')\n",
         "request = DecisionRequest(decision_id='d')\n",
+        "payload = SignificanceEvaluatedPayload(run_id='r')\n",
+        "def f(run_dir):\n    _engine._append_event(run_dir, 'NextStepIssued', {})\n",
+        "def f(run_dir, snapshot):\n    _write_snapshot(run_dir, snapshot)\n",
         "def advance(snapshot):\n    return plan_next(snapshot, None, None)\n",
     ],
 )
