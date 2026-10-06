@@ -466,3 +466,15 @@ def test_repair_pack_skills_reports_a_catalog_error_instead_of_crashing(monkeypa
     errors: list[str] = []
     assert doctor_surface._repair_pack_skills(tmp_path, findings, [], errors) == ()
     assert errors == ["pack skill projection failed: unresolvable catalog"]
+
+
+def test_repair_pack_skills_skips_projection_without_missing_findings(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def _boom(_: Path) -> None:
+        raise AssertionError("must not project")
+
+    monkeypatch.setattr("specify_cli.skills.installer.project_pack_skills", _boom)
+    findings = (_pack_finding(KIND_DRIFT), _pack_finding(KIND_STALE))
+    repaired: list[str] = []
+    errors: list[str] = []
+    assert doctor_surface._repair_pack_skills(tmp_path, findings, repaired, errors) == findings
+    assert repaired == [] and errors == []
