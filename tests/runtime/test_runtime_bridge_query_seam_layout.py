@@ -15,22 +15,21 @@ Mission ``runtime-bridge-query-seam-01M490EQ`` moved code out of
 
 The canonical no-forwarder gate (``tests/runtime/test_bridge_no_compat_delegates.py``)
 owns the moved-name table (``REMOVED``), "the bridge neither defines, exposes
-nor reads back a moved name" and the re-export identity. This file pins the
-rest of ``contracts/module-layout.md`` over the same table:
+nor reads back a moved name", the re-export identity and "every moved name is
+*defined* in its owning seam, not merely re-imported there". This file pins the
+rest of ``contracts/module-layout.md``:
 
-* every moved name is *defined* in its owning seam, not merely re-imported
-  there;
 * the bridge's ``__all__`` is unchanged;
 * the import direction: no ``runtime_bridge_*`` module imports the bridge at
   all, the lower seams import nothing above them, and the leaf seams
-  (identity, cores, retrospective) import no ``runtime_bridge_*`` sibling. The scan walks
-  function-local imports too, so a deferred back-edge such as the engine's
-  former ``from runtime.next import runtime_bridge as _rb`` is caught. A
-  planted forbidden import is reported (self-mutation test).
+  (identity, cores, retrospective) import no ``runtime_bridge_*`` sibling. The
+  scan walks function-local imports too, so a deferred back-edge such as the
+  engine's former ``from runtime.next import runtime_bridge as _rb`` is
+  caught. A planted forbidden import is reported (self-mutation test).
 
 Known scanner limits, none of which these modules use:
-``importlib.import_module(...)``, ``import runtime.next`` followed by
-attribute access, and definitions nested in a top-level ``if``/``try`` block.
+``importlib.import_module(...)`` and ``import runtime.next`` followed by
+attribute access.
 """
 
 from __future__ import annotations
@@ -38,11 +37,9 @@ from __future__ import annotations
 import ast
 import importlib
 from pathlib import Path
-from types import GenericAlias, ModuleType
+from types import ModuleType
 
 import pytest
-
-from tests.runtime.test_bridge_no_compat_delegates import REMOVED
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -59,15 +56,6 @@ _IO = "runtime_bridge_io"
 _IDENTITY = "runtime_bridge_identity"
 _CORES = "runtime_bridge_cores"
 _RETROSPECTIVE = "runtime_bridge_retrospective"
-
-#: The names #2560 moved, by owning module (from the canonical ``REMOVED`` table).
-_OWNED: dict[str, tuple[str, ...]] = {
-    _MAPPING: REMOVED["decision_mapping"],
-    _DECISION_LOG: REMOVED["decision_log"],
-    _QUERY: REMOVED["query"],
-    _GUARDS: REMOVED["guards"],
-    _IDENTITY: ("_resolve_runtime_feature_dir",),
-}
 
 _BRIDGE_ALL = {
     "DecisionGitLogUnavailable",
@@ -101,19 +89,6 @@ _LEAF_SEAMS = frozenset({_IDENTITY, _CORES, _RETROSPECTIVE})
 
 def _module(name: str) -> ModuleType:
     return importlib.import_module(f"{_PKG}.{name}")
-
-
-def _top_level_defined_names(path: Path) -> set[str]:
-    """Names bound by a top-level ``def``/``class``/assignment in *path*."""
-    names: set[str] = set()
-    for node in ast.parse(path.read_text(encoding="utf-8")).body:
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            names.add(node.name)
-        elif isinstance(node, ast.Assign):
-            names.update(t.id for t in node.targets if isinstance(t, ast.Name))
-        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-            names.add(node.target.id)
-    return names
 
 
 def imported_siblings(source: str) -> set[str]:
@@ -150,16 +125,8 @@ def forbidden_import_violations(module: str, source: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# §1 Ownership
+# §1 Public surface
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(("owner", "name"), [(owner, name) for owner, names in _OWNED.items() for name in names])
-def test_moved_name_is_defined_by_its_owner(owner: str, name: str) -> None:
-    assert name in _top_level_defined_names(_NEXT_DIR / f"{owner}.py"), f"{name} must be defined in {owner}.py"
-    value = getattr(_module(owner), name)
-    if callable(value) and not isinstance(value, GenericAlias):
-        assert value.__module__ == f"{_PKG}.{owner}", f"{name} is defined in {value.__module__}, expected {owner}"
 
 
 def test_bridge_all_is_unchanged() -> None:
@@ -187,16 +154,6 @@ def test_bridge_seam_map_names_every_seam() -> None:
 def test_no_forbidden_sibling_import(module: str) -> None:
     source = (_NEXT_DIR / f"{module}.py").read_text(encoding="utf-8")
     assert forbidden_import_violations(module, source) == []
-
-
-@pytest.mark.parametrize(
-    ("module", "owner"),
-    [(_ENGINE, _MAPPING), (_IO, _GUARDS), (_IO, _IDENTITY), (_COMPOSITION, _GUARDS)],
-)
-def test_former_back_edge_imports_the_owning_seam(module: str, owner: str) -> None:
-    """Each seam that used to read a name off the bridge imports its owner instead."""
-    source = (_NEXT_DIR / f"{module}.py").read_text(encoding="utf-8")
-    assert owner in imported_siblings(source)
 
 
 @pytest.mark.parametrize(

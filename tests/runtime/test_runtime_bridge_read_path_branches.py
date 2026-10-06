@@ -1,32 +1,26 @@
-"""Characterisation of the runtime_bridge read path and decision mapping (#2560).
+"""Branch coverage for the runtime_bridge read path and decision mapping (#2560).
 
-Mission ``runtime-bridge-query-seam-01M490EQ`` moves these functions out of
-``runtime_bridge.py`` verbatim. Baseline coverage over the runtime_bridge test
-surface left the branches below unexercised, so they are pinned here before
-the move and must stay green after it.
+Each test drives one branch of a function that lives in its own seam module
+(``runtime_bridge_decision_mapping``, ``runtime_bridge_decision_log``,
+``runtime_bridge_query``) and was left unexercised by the rest of the
+runtime_bridge test surface. The functions are imported from the module that
+defines them; the bridge is never patched.
 
-Two rules keep these tests honest across the move:
-
-* every function under test is reached through :func:`_owner`, one lookup
-  table that names the module currently defining it (each extraction WP
-  repoints its rows), never by patching an attribute of ``runtime_bridge``;
-* collaborators are faked only on modules BELOW the moved code
-  (``mission_runtime``, ``runtime.next.prompt_builder``,
-  ``runtime_bridge_identity``, ``runtime_bridge_engine``) and through the
-  deferred imports the moved code performs at call time, so a fake keeps
-  intercepting wherever the function lives. Each fake records that it ran.
+Collaborators are faked only on modules BELOW the code under test
+(``mission_runtime``, ``runtime.next.prompt_builder``,
+``runtime_bridge_identity``, ``runtime_bridge_engine``) and through the
+deferred imports that code performs at call time. Each fake records that it ran.
 
 Not repeated here because an existing test already pins it without patching
 the bridge: the ephemeral query run store is removed after a query
 (``tests/next/test_query_mode_unit.py::test_fresh_run_query_omits_ephemeral_run_id``,
 which fakes ``runtime_bridge_io``). ``_map_wp_step_decision``'s blocked-reason
 branch needs a full WP-iteration fixture and is covered by the mapping's
-blocked-path tests once they are repointed; it is left out on purpose.
+blocked-path tests; it is left out on purpose.
 """
 
 from __future__ import annotations
 
-import importlib
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -35,6 +29,17 @@ import pytest
 
 from mission_runtime import ActionContextError
 from runtime.next._internal_runtime.schema import MissionRuntimeError, NextDecision
+from runtime.next.runtime_bridge_decision_log import DecisionGitLogUnavailable, _wrap_with_decision_git_log
+from runtime.next.runtime_bridge_decision_mapping import (
+    _WP_BOARD_DECLINE,
+    _build_decision_required_prompt_file,
+    _count_wp_endings,
+    _finalized_task_board_override_step,
+    _reduced_wp_lane,
+    _resolve_wp_board_action,
+    _resolve_wp_board_review_action,
+)
+from runtime.next.runtime_bridge_query import QueryModeValidationError, _query_read_runtime_plan, answer_decision_via_runtime
 from specify_cli.coordination.workspace import CoordinationWorkspaceUnavailable
 from specify_cli.status import Lane
 from specify_cli.status.models import StatusEvent
@@ -45,26 +50,6 @@ from tests.lane_test_utils import write_single_lane_manifest
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _MISSION = "char-mission"
-
-#: Function name -> the ``runtime.next`` module that defines it today.
-_OWNERS: dict[str, str] = {
-    "_build_decision_required_prompt_file": "runtime_bridge_decision_mapping",
-    "_reduced_wp_lane": "runtime_bridge_decision_mapping",
-    "_count_wp_endings": "runtime_bridge_decision_mapping",
-    "_resolve_wp_board_action": "runtime_bridge_decision_mapping",
-    "_resolve_wp_board_review_action": "runtime_bridge_decision_mapping",
-    "_WP_BOARD_DECLINE": "runtime_bridge_decision_mapping",
-    "_finalized_task_board_override_step": "runtime_bridge_decision_mapping",
-    "_wrap_with_decision_git_log": "runtime_bridge_decision_log",
-    "DecisionGitLogUnavailable": "runtime_bridge_decision_log",
-    "answer_decision_via_runtime": "runtime_bridge_query",
-    "_query_read_runtime_plan": "runtime_bridge_query",
-    "QueryModeValidationError": "runtime_bridge_query",
-}
-
-
-def _owner(name: str) -> Any:
-    return getattr(importlib.import_module(f"runtime.next.{_OWNERS[name]}"), name)
 
 
 def _decision_required(question: str | None) -> NextDecision:
@@ -88,7 +73,7 @@ class TestDecisionRequiredPromptFile:
         calls: list[dict[str, Any]] = []
         monkeypatch.setattr("runtime.next.prompt_builder.build_decision_prompt", lambda **kw: calls.append(kw))
 
-        result = _owner("_build_decision_required_prompt_file")(_decision_required(None), _MISSION, tmp_path, "claude")
+        result = _build_decision_required_prompt_file(_decision_required(None), _MISSION, tmp_path, "claude")
 
         assert result is None
         assert calls == []
@@ -103,7 +88,7 @@ class TestDecisionRequiredPromptFile:
 
         monkeypatch.setattr("runtime.next.prompt_builder.build_decision_prompt", _fake_build)
 
-        result = _owner("_build_decision_required_prompt_file")(_decision_required("Proceed?"), _MISSION, tmp_path, "claude")
+        result = _build_decision_required_prompt_file(_decision_required("Proceed?"), _MISSION, tmp_path, "claude")
 
         assert result == str(prompt)
         assert calls == [
@@ -126,20 +111,20 @@ class TestDecisionRequiredPromptFile:
 
         monkeypatch.setattr("runtime.next.prompt_builder.build_decision_prompt", _boom)
 
-        assert _owner("_build_decision_required_prompt_file")(_decision_required("Proceed?"), _MISSION, tmp_path, "claude") is None
+        assert _build_decision_required_prompt_file(_decision_required("Proceed?"), _MISSION, tmp_path, "claude") is None
         assert calls == ["Proceed?"]
 
 
 def test_reduced_wp_lane_without_snapshot_is_uninitialized() -> None:
-    assert _owner("_reduced_wp_lane")(None) == str(Lane.UNINITIALIZED)
+    assert _reduced_wp_lane(None) == str(Lane.UNINITIALIZED)
 
 
 def test_reduced_wp_lane_without_lane_key_is_genesis() -> None:
-    assert _owner("_reduced_wp_lane")({}) == str(Lane.GENESIS)
+    assert _reduced_wp_lane({}) == str(Lane.GENESIS)
 
 
 def test_count_wp_endings_without_tasks_dir_is_zero(tmp_path: Path) -> None:
-    assert _owner("_count_wp_endings")(tmp_path) == (0, 0)
+    assert _count_wp_endings(tmp_path) == (0, 0)
 
 
 def test_wp_board_action_declines_when_mission_context_is_unresolvable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -152,9 +137,9 @@ def test_wp_board_action_declines_when_mission_context_is_unresolvable(monkeypat
 
     monkeypatch.setattr("mission_runtime.placement_seam", lambda *args, **kwargs: _UnresolvableSeam())
 
-    action = _owner("_resolve_wp_board_action")(mission_slug=_MISSION, repo_root=tmp_path)
+    action = _resolve_wp_board_action(mission_slug=_MISSION, repo_root=tmp_path)
 
-    assert action == _owner("_WP_BOARD_DECLINE")
+    assert action == _WP_BOARD_DECLINE
     assert len(probes) == 1
 
 
@@ -187,7 +172,7 @@ def test_wp_board_action_declines_a_finished_board(monkeypatch: pytest.MonkeyPat
 
     feature_dir = tmp_path / "kitty-specs" / _MISSION
     _all_done_board(feature_dir)
-    assert _owner("_finalized_task_board_override_step")(feature_dir, _compute_wp_progress(feature_dir), status_dir=feature_dir) == "done"
+    assert _finalized_task_board_override_step(feature_dir, _compute_wp_progress(feature_dir), status_dir=feature_dir) == "done"
     contexts: list[str] = []
 
     class _Seam:
@@ -201,9 +186,9 @@ def test_wp_board_action_declines_a_finished_board(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr("mission_runtime.placement_seam", lambda *args, **kwargs: _Seam())
     monkeypatch.setattr("mission_runtime.mission_context_for", _context)
 
-    action = _owner("_resolve_wp_board_action")(mission_slug=_MISSION, repo_root=tmp_path)
+    action = _resolve_wp_board_action(mission_slug=_MISSION, repo_root=tmp_path)
 
-    assert action == _owner("_WP_BOARD_DECLINE")
+    assert action == _WP_BOARD_DECLINE
     assert contexts == [_MISSION]
 
 
@@ -211,7 +196,7 @@ def test_wp_board_review_action_blocks_when_reviewable_wp_vanished_on_reread(tmp
     board = tmp_path / "tasks"
     board.mkdir()
 
-    action = _owner("_resolve_wp_board_review_action")(_MISSION, tmp_path, board, tmp_path)
+    action = _resolve_wp_board_review_action(_MISSION, tmp_path, board, tmp_path)
 
     assert action.board_step == "review"
     assert action.wp_id is None
@@ -240,8 +225,8 @@ def test_unowned_coordination_workspace_failure_becomes_decision_git_log_unavail
     monkeypatch.setattr("mission_runtime.placement_seam", lambda *args, **kwargs: _PrimarySeam())
     monkeypatch.setattr("runtime.next.runtime_bridge_identity._resolve_coordination_branch", _unavailable)
 
-    with pytest.raises(_owner("DecisionGitLogUnavailable")) as excinfo:
-        _owner("_wrap_with_decision_git_log")(object(), _MISSION, tmp_path)
+    with pytest.raises(DecisionGitLogUnavailable) as excinfo:
+        _wrap_with_decision_git_log(object(), _MISSION, tmp_path)
 
     assert "DecisionGitLog construction failed for declared coordination topology mission" in str(excinfo.value)
     assert excinfo.value.__suppress_context__ is True
@@ -275,7 +260,7 @@ def test_owned_coordination_workspace_failure_propagates_unwrapped(monkeypatch: 
     )
 
     with pytest.raises(CoordinationWorkspaceUnavailable) as excinfo:
-        _owner("_wrap_with_decision_git_log")(object(), _MISSION, tmp_path, owned=owned)
+        _wrap_with_decision_git_log(object(), _MISSION, tmp_path, owned=owned)
 
     assert excinfo.value is refusal
     assert resolves == [_MISSION]
@@ -298,7 +283,7 @@ class TestAnswerDecisionPreconditions:
         monkeypatch.setattr("mission_runtime.resolve_action_context", _resolve)
 
         with pytest.raises(MissionRuntimeError) as excinfo:
-            _owner("answer_decision_via_runtime")(_MISSION, "dec-1", "yes", "claude", tmp_path)
+            answer_decision_via_runtime(_MISSION, "dec-1", "yes", "claude", tmp_path)
 
         assert str(excinfo.value) == f"Mission {_MISSION!r} not found; cannot answer decision 'dec-1'"
         assert resolved == ["tasks"]
@@ -312,7 +297,7 @@ class TestAnswerDecisionPreconditions:
         monkeypatch.setattr("mission_runtime.resolve_action_context", _resolve)
 
         with pytest.raises(ActionContextError) as excinfo:
-            _owner("answer_decision_via_runtime")(_MISSION, "dec-1", "yes", "claude", tmp_path)
+            answer_decision_via_runtime(_MISSION, "dec-1", "yes", "claude", tmp_path)
 
         assert excinfo.value is error
         assert excinfo.value.code == "COORDINATION_BRANCH_DELETED"
@@ -320,7 +305,7 @@ class TestAnswerDecisionPreconditions:
 
 class TestQueryReadRuntimePlan:
     def test_query_validation_error_is_reraised_unwrapped(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        validation_error = _owner("QueryModeValidationError")("template drifted")
+        validation_error = QueryModeValidationError("template drifted")
         reads: list[Path] = []
 
         def _read_snapshot(run_dir: Path) -> object:
@@ -329,8 +314,8 @@ class TestQueryReadRuntimePlan:
 
         monkeypatch.setattr("runtime.next.runtime_bridge_engine._read_snapshot", _read_snapshot)
 
-        with pytest.raises(_owner("QueryModeValidationError")) as excinfo:
-            _owner("_query_read_runtime_plan")(SimpleNamespace(run_dir=str(tmp_path)), _MISSION, "software-dev", tmp_path)
+        with pytest.raises(QueryModeValidationError) as excinfo:
+            _query_read_runtime_plan(SimpleNamespace(run_dir=str(tmp_path)), _MISSION, "software-dev", tmp_path)
 
         assert excinfo.value is validation_error
         assert reads == [tmp_path]
@@ -343,8 +328,8 @@ class TestQueryReadRuntimePlan:
 
         monkeypatch.setattr("runtime.next.runtime_bridge_engine._read_snapshot", _read_snapshot)
 
-        with pytest.raises(_owner("QueryModeValidationError")) as excinfo:
-            _owner("_query_read_runtime_plan")(SimpleNamespace(run_dir=str(tmp_path)), _MISSION, "software-dev", tmp_path)
+        with pytest.raises(QueryModeValidationError) as excinfo:
+            _query_read_runtime_plan(SimpleNamespace(run_dir=str(tmp_path)), _MISSION, "software-dev", tmp_path)
 
         assert str(excinfo.value) == f"Could not read query state for mission '{_MISSION}': snapshot unreadable"
         assert excinfo.value.__cause__ is cause

@@ -29,7 +29,7 @@ import importlib
 from collections.abc import Callable, Iterator
 from functools import lru_cache
 from pathlib import Path
-from types import ModuleType
+from types import GenericAlias, ModuleType
 
 import pytest
 
@@ -439,11 +439,40 @@ def test_no_thin_compat_delegate_docstring_left_on_the_bridge() -> None:
     assert _bridge_source().count(_LEGACY_PHRASE) == 0
 
 
+def _top_level_defined_names(path: Path) -> set[str]:
+    """Names bound by a top-level ``def``/``class``/assignment in *path*."""
+    names: set[str] = set()
+    for node in ast.parse(path.read_text(encoding="utf-8")).body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(node.name)
+        elif isinstance(node, ast.Assign):
+            names.update(t.id for t in node.targets if isinstance(t, ast.Name))
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            names.add(node.target.id)
+    return names
+
+
 @pytest.mark.parametrize("seam", [pytest.param(s, id=s) for s in _SEAMS])
-def test_floor_every_removed_name_exists_on_its_owning_seam(seam: str) -> None:
+def test_every_removed_name_is_defined_by_its_owning_seam(seam: str) -> None:
+    """The single ownership floor: each moved name is *defined* in its owner.
+
+    A name merely re-imported into the owner (so ``hasattr`` still holds) does
+    not count: the name must be bound by a top-level definition in the owner's
+    source, and a callable it binds must report the owner as its ``__module__``.
+    """
     owner = _owner_module(seam)
-    missing = [n for n in REMOVED[seam] if not hasattr(owner, _OWNER_NAME.get(n, n))]
-    assert missing == []
+    defined = _top_level_defined_names(_NEXT / f"runtime_bridge_{seam}.py")
+    not_defined = []
+    wrong_module = []
+    for name in REMOVED[seam]:
+        owner_name = _OWNER_NAME.get(name, name)
+        if owner_name not in defined:
+            not_defined.append(owner_name)
+            continue
+        value = getattr(owner, owner_name)
+        if callable(value) and not isinstance(value, GenericAlias) and getattr(value, "__module__", owner.__name__) != owner.__name__:
+            wrong_module.append(owner_name)
+    assert (not_defined, wrong_module) == ([], [])
 
 
 # ---------------------------------------------------------------------------
