@@ -11,8 +11,8 @@ authority-derived alias map advertised it — a self-contradicting rejection. Th
 kind vocabulary lived in several hand-kept lists that drifted apart, guarded
 only by a brittle three-way equality assertion between three of the mirrors.
 
-This replaces that drift guard with a **structural invariant**: no module-level
-kind-vocabulary *literal* may exist under ``src/charter`` outside
+This replaces that drift guard with a **structural invariant**: no
+kind-vocabulary *literal* may exist anywhere under ``src/`` outside
 ``artifact_kinds.py``. Every such set/map must instead be *derived* from
 ``ArtifactKind`` (a comprehension over the enum, or a reference to an
 authority-owned constant), so drift is impossible by construction rather than
@@ -22,10 +22,19 @@ Per the ratchet policy (Stijn, 2026-09-30) this gate closes with an **empty
 allowlist**: allowlist ratchets are expensive CI debt, so every mirror was
 migrated in the #5409 mission rather than grandfathered.
 
+Scope (#5538): the #5409 gate scanned only ``src/charter`` and only module- and
+class-level assignments, so a mirror in a consumer package
+(``specify_cli/doctrine/pack_validator.py``'s plural→singular map) or inside a
+function body survived ungoverned. The gate now scans **every package under
+``src/``** and **every collection display at any depth** — module, class,
+function-local, and bare ``return``/subscript displays alike. A mirror cannot
+escape by moving into a function. ``scripts/`` is not a package and stays out
+of scope.
+
 What counts as a forbidden "kind-vocabulary mirror literal"
 -----------------------------------------------------------
-A **module-level** assignment under ``src/charter`` (excluding
-``artifact_kinds.py``) whose right-hand side is one of:
+Any collection display under ``src/`` (excluding ``artifact_kinds.py``) that is
+one of:
 
 * **R1 — universe membership literal**: a ``set`` / ``frozenset`` / ``tuple`` /
   ``list`` *display* — or a ``frozenset``/``set``/``tuple``/``list`` constructor
@@ -43,9 +52,12 @@ A **module-level** assignment under ``src/charter`` (excluding
 Deliberately NOT flagged (a different concern, not the kind universe):
 per-kind dispatch tables whose values are callables / ``NodeKind`` members /
 ``activated_<kind>`` field names (only the *keys* are kinds); small curated
-plural subsets (``< 8``) used for ordered rendering; singular→singular subdir
-maps; and function-local inline dicts. These do not restate the kind universe
-or its singular↔plural relationship, so they are not drift mirrors.
+plural subsets (``< 8``) used for ordered rendering; and singular→singular
+subdir maps. These do not restate the kind universe or its singular↔plural
+relationship, so they are not drift mirrors. Known shapes the rules do not yet
+recognise (hyphenated operator-token maps, ``ArtifactKind``→``NodeKind``
+identity maps, glob-valued maps, universe sets padded with one non-kind
+string) are tracked as a follow-up rather than allowlisted here.
 """
 
 from __future__ import annotations
@@ -60,8 +72,14 @@ from charter.offering.artifact_kinds import ArtifactKind
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
-_CHARTER_SRC = Path(artifact_kinds.__file__).resolve().parent.parent  # src/charter
-_AUTHORITY_FILE = "artifact_kinds.py"
+_SRC_ROOT = Path(artifact_kinds.__file__).resolve().parents[2]  # src/
+_AUTHORITY_FILE = Path(artifact_kinds.__file__).resolve()
+
+#: Non-vacuity floor: the packages the gate must reach. A scan that silently
+#: stopped covering one of them (a moved root, a broken glob) fails loudly
+#: instead of passing over nothing.
+_REQUIRED_PACKAGES = frozenset({"charter", "specify_cli", "kernel", "glossary", "runtime", "mission_runtime"})
+_MIN_FILES_SCANNED = 1000
 
 _KIND_SINGULARS: frozenset[str] = frozenset(k.value for k in ArtifactKind)
 _KIND_PLURALS: frozenset[str] = frozenset(k.plural for k in ArtifactKind)
@@ -130,43 +148,65 @@ def _violation(value: ast.expr) -> str | None:
     return None
 
 
-def _scan_file(path: Path) -> list[tuple[int, str, str]]:
-    tree = ast.parse(path.read_text(encoding="utf-8"), str(path))
-    findings: list[tuple[int, str, str]] = []
-    # Module-level statements plus class-body attributes (both plausible homes
-    # for a named vocabulary constant). Function-local dicts are deliberately
-    # NOT scanned: they sit next to their single use and are curated dispatch
-    # tables, not drift-prone shared vocabularies.
-    statements: list[ast.stmt] = list(tree.body)
-    for node in tree.body:
-        if isinstance(node, ast.ClassDef):
-            statements.extend(node.body)
-    for node in statements:
-        targets: list[ast.expr] = []
-        value: ast.expr | None = None
+def _assignment_names(tree: ast.AST) -> dict[int, str]:
+    """Map the ``id()`` of each assigned value node to its target name."""
+    names: dict[int, str] = {}
+    for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
-            targets, value = node.targets, node.value
+            name = next((t.id for t in node.targets if isinstance(t, ast.Name)), None)
+            value: ast.expr | None = node.value
         elif isinstance(node, ast.AnnAssign) and node.value is not None:
-            targets, value = [node.target], node.value
-        if value is None:
+            name = node.target.id if isinstance(node.target, ast.Name) else None
+            value = node.value
+        else:
             continue
-        reason = _violation(value)
+        if name is None or value is None:
+            continue
+        names[id(value)] = name
+        # ``frozenset({...})``: the display inside the constructor is the node
+        # the walk classifies, so bind the name to it as well.
+        if isinstance(value, ast.Call) and value.args:
+            names[id(value.args[0])] = name
+    return names
+
+
+#: Constructor calls are not walked separately: the display they wrap is
+#: reached by the walk on its own, so classifying both would double-report.
+_DISPLAY_NODES = (ast.Set, ast.Tuple, ast.List, ast.Dict)
+
+
+def _scan_source(source: str, filename: str = "<planted>") -> list[tuple[int, str, str]]:
+    """Return ``(lineno, name, reason)`` for every mirror display in *source*.
+
+    Walks every expression node, so a display is classified wherever it sits:
+    module or class attribute, function-local variable, or a bare ``return``
+    / subscript display that is never bound to a name at all.
+    """
+    tree = ast.parse(source, filename)
+    names = _assignment_names(tree)
+    findings: list[tuple[int, str, str]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, _DISPLAY_NODES):
+            continue
+        reason = _violation(node)
         if reason is None:
             continue
-        name = next(
-            (t.id for t in targets if isinstance(t, ast.Name)),
-            "<module-level>",
-        )
-        findings.append((node.lineno, name, reason))
+        findings.append((node.lineno, names.get(id(node), "<unbound display>"), reason))
     return findings
 
 
-def test_no_hand_authored_kind_vocabulary_literal_under_charter() -> None:
+def _scan_file(path: Path) -> list[tuple[int, str, str]]:
+    return _scan_source(path.read_text(encoding="utf-8"), str(path))
+
+
+def _scanned_files() -> list[Path]:
+    return [path for path in sorted(_SRC_ROOT.rglob("*.py")) if path.resolve() != _AUTHORITY_FILE]
+
+
+def test_no_hand_authored_kind_vocabulary_literal_under_src() -> None:
     violations: list[str] = []
-    for path in sorted(_CHARTER_SRC.rglob("*.py")):
-        if path.name == _AUTHORITY_FILE:
-            continue
-        rel = path.relative_to(_CHARTER_SRC.parent).as_posix()
+    for path in _scanned_files():
+        rel = path.relative_to(_SRC_ROOT.parent).as_posix()
         if rel in _ALLOWLIST:
             continue
         for lineno, name, reason in _scan_file(path):
@@ -178,6 +218,14 @@ def test_no_hand_authored_kind_vocabulary_literal_under_charter() -> None:
         "literal. Replace each with a comprehension over ArtifactKind or a "
         "reference to an authority-owned constant. Offenders:\n  " + "\n  ".join(violations)
     )
+
+
+def test_gate_reaches_every_package_under_src() -> None:
+    """Non-vacuity floor: the scan covers every package and a real file count."""
+    files = _scanned_files()
+    packages = {path.relative_to(_SRC_ROOT).parts[0] for path in files}
+    assert _REQUIRED_PACKAGES <= packages, sorted(_REQUIRED_PACKAGES - packages)
+    assert len(files) >= _MIN_FILES_SCANNED, len(files)
 
 
 def test_allowlist_is_empty() -> None:
@@ -212,3 +260,34 @@ def test_gate_detects_planted_constructor_and_singular_to_plural_map() -> None:
     pairs = ", ".join(f'"{k.value}": "{k.plural}"' for k in ArtifactKind if k.activatable)
     s2p = "X = {" + pairs + "}"
     assert _violation(ast.parse(s2p).body[0].value) is not None  # type: ignore[attr-defined]
+
+
+def _planted_plural_to_singular_map() -> str:
+    pairs = ", ".join(f'"{k.plural}": "{k.value}"' for k in ArtifactKind if k.activatable)
+    return "{" + pairs + "}"
+
+
+@pytest.mark.parametrize(
+    ("scope", "template"),
+    [
+        ("module level", "MAPPING = {display}\n"),
+        ("class body", "class Holder:\n    MAPPING = {display}\n"),
+        ("function local", "def lookup(plural):\n    mapping = {display}\n    return mapping.get(plural)\n"),
+        ("bare return", "def lookup():\n    return {display}\n"),
+        ("subscripted display", "def lookup(plural):\n    return {display}[plural]\n"),
+    ],
+)
+def test_gate_detects_a_mirror_at_any_depth(scope: str, template: str) -> None:
+    """Self-mutation (#5538): a mirror is caught wherever it is written.
+
+    The #5538 mirror was a function-local dict, the one placement the #5409
+    gate skipped. Each placement here must be flagged.
+    """
+    source = template.format(display=_planted_plural_to_singular_map())
+    assert _scan_source(source), f"gate must flag a {scope} mirror"
+
+
+def test_gate_leaves_a_derived_map_alone() -> None:
+    """The derived form the gate asks for is not itself flagged."""
+    source = "MAPPING = {k.plural: k.value for k in ArtifactKind}\n"
+    assert _scan_source(source) == []
