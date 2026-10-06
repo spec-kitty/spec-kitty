@@ -10,6 +10,7 @@ Covers:
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -369,17 +370,29 @@ class TestRunGlobalChecks:
 # ---------------------------------------------------------------------------
 
 
-def test_template_fallback_hint_names_the_real_charter_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The hint used to say ``charter.offering.template_set`` (a module path, not a key)."""
-    from types import SimpleNamespace
+def test_template_fallback_hint_names_the_real_charter_key(tmp_path: Path) -> None:
+    """The hint used to say ``charter.offering.template_set`` (a module path, not a key).
 
+    Follow the hint on a real project: with no template set selected the check
+    warns and names ``governance.charter.template_set``; writing exactly that key
+    clears the warning.
+    """
     from specify_cli.runtime import doctor
 
-    resolution = SimpleNamespace(template_set="software-dev-default", metadata={"template_set_source": "fallback"})
-    monkeypatch.setattr(doctor, "resolve_project_governance", lambda _project_dir: resolution)
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)  # the resolver requires a git-tracked project root
 
-    check = doctor.check_governance_resolution(tmp_path)
+    before = doctor.check_governance_resolution(tmp_path)
 
-    assert check.passed
-    assert "Set governance.charter.template_set in .kittify/charter/charter.yaml" in check.message
-    assert "charter.offering" not in check.message
+    assert before.passed
+    assert before.severity == "warning"
+    assert "Set governance.charter.template_set in .kittify/charter/charter.yaml" in before.message
+
+    charter_yaml = tmp_path / ".kittify" / "charter" / "charter.yaml"
+    charter_yaml.parent.mkdir(parents=True)
+    charter_yaml.write_text("governance:\n  charter:\n    template_set: software-dev-default\n", encoding="utf-8")
+
+    after = doctor.check_governance_resolution(tmp_path)
+
+    assert after.passed
+    assert after.severity == "info"
+    assert "template_set=software-dev-default" in after.message

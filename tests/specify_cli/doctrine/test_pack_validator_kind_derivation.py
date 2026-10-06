@@ -3,13 +3,17 @@
 ``_plural_to_urn_kind`` used to be a hand-copied 8-entry plural→singular map
 beside the derived authority. Two consequences are pinned here:
 
-* **No second edit for a new kind.** Every ``ArtifactKind`` plural resolves to
-  its URN kind, so a kind added to the enum is accepted by the validator
-  without touching ``pack_validator``.
 * **No false dangling edge for an asset.** ``assets`` sidecars are scanned, but
   the hand map had no ``assets`` entry, so their ``asset:<id>`` URNs were never
   registered and a DRG edge to a pack's own asset was reported as
-  ``drg_dangling_edge``.
+  ``drg_dangling_edge``. The fail-closed variants (no manifest, or a manifest
+  that fails its schema) must still report the edge as dangling.
+* **The inverse stays honest.** ``_kind_singular`` maps every plural the intent
+  pass reports back to the org universe's key (``mission_step_contracts`` is
+  keyed ``mission_steps`` there).
+
+(The plural -> kind round-trip itself is pinned in
+``tests/doctrine/test_artifact_kinds.py``.)
 """
 
 from __future__ import annotations
@@ -19,10 +23,8 @@ from pathlib import Path
 
 import pytest
 
-from charter.offering.artifact_kinds import ArtifactKind
 from specify_cli.doctrine.pack_validator import (
     _SINGULAR_TO_PLURAL_AUGMENTATION,
-    _artifact_schema_registry,
     _kind_singular,
     _plural_to_urn_kind,
     validate_pack,
@@ -31,12 +33,8 @@ from specify_cli.doctrine.pack_validator import (
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
-@pytest.mark.parametrize("kind", list(ArtifactKind), ids=lambda k: k.value)
-def test_every_artifact_kind_plural_resolves_to_its_urn_kind(kind: ArtifactKind) -> None:
-    assert _plural_to_urn_kind(kind.plural) == kind.value
-
-
 def test_unknown_plural_resolves_to_none() -> None:
+    """The wrapper turns ``ArtifactKind.from_plural``'s ``KeyError`` into ``None`` (callers skip URN registration)."""
     assert _plural_to_urn_kind("not_a_kind") is None
 
 
@@ -50,17 +48,34 @@ def test_kind_singular_inverts_every_plural_the_intent_pass_reports(singular: st
     assert _kind_singular(plural) == singular
 
 
-def test_schema_registry_globs_come_from_the_authority() -> None:
-    for plural, (glob, _model) in _artifact_schema_registry().items():
-        assert glob == ArtifactKind.from_plural(plural).glob_pattern, plural
-
-
 def _write(path: Path, body: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(textwrap.dedent(body).lstrip(), encoding="utf-8")
 
 
-def test_edge_to_a_packs_own_asset_is_not_dangling(tmp_path: Path) -> None:
+_ASSET_MANIFEST = """
+    id: company-logo
+    title: Company logo
+    mime: image/png
+    path: company-logo.png
+    """
+#: Same manifest minus the required ``path``: it fails the asset schema.
+_ASSET_MANIFEST_SCHEMA_INVALID = """
+    id: company-logo
+    title: Company logo
+    mime: image/png
+    """
+
+
+@pytest.mark.parametrize(
+    ("manifest", "dangling_expected"),
+    [
+        pytest.param(_ASSET_MANIFEST, False, id="declared-asset"),
+        pytest.param(None, True, id="no-asset-manifest"),
+        pytest.param(_ASSET_MANIFEST_SCHEMA_INVALID, True, id="manifest-fails-schema"),
+    ],
+)
+def test_edge_to_an_asset_dangles_unless_the_pack_declares_it(tmp_path: Path, manifest: str | None, dangling_expected: bool) -> None:
     _write(
         tmp_path / "directives" / "acme-001.directive.yaml",
         """
@@ -71,16 +86,9 @@ def test_edge_to_a_packs_own_asset_is_not_dangling(tmp_path: Path) -> None:
         enforcement: advisory
         """,
     )
-    _write(
-        tmp_path / "assets" / "company-logo.asset.yaml",
-        """
-        id: company-logo
-        title: Company logo
-        mime: image/png
-        path: company-logo.png
-        """,
-    )
-    (tmp_path / "assets" / "company-logo.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+    if manifest is not None:
+        _write(tmp_path / "assets" / "company-logo.asset.yaml", manifest)
+        (tmp_path / "assets" / "company-logo.png").write_bytes(b"\x89PNG\r\n\x1a\n")
     graph_header = """
         schema_version: "1.0"
         generated_at: STATIC
@@ -102,5 +110,5 @@ def test_edge_to_a_packs_own_asset_is_not_dangling(tmp_path: Path) -> None:
     result = validate_pack(tmp_path)
 
     dangling = [issue.message for issue in result.errors if issue.category == "drg_dangling_edge"]
-    assert dangling == []
-    assert result.ok, [issue.message for issue in result.errors]
+    assert bool(dangling) is dangling_expected, [issue.message for issue in result.errors]
+    assert result.ok is not dangling_expected

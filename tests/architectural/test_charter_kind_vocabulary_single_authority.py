@@ -269,23 +269,27 @@ def _planted_plural_to_singular_map() -> str:
 
 
 @pytest.mark.parametrize(
-    ("scope", "template"),
+    ("scope", "template", "bound_name"),
     [
-        ("module level", "MAPPING = {display}\n"),
-        ("class body", "class Holder:\n    MAPPING = {display}\n"),
-        ("function local", "def lookup(plural):\n    mapping = {display}\n    return mapping.get(plural)\n"),
-        ("bare return", "def lookup():\n    return {display}\n"),
-        ("subscripted display", "def lookup(plural):\n    return {display}[plural]\n"),
+        ("plain assignment", "MAPPING = {display}\n", "MAPPING"),
+        (
+            "annotated function local",
+            "def lookup(plural):\n    mapping: dict[str, str] = {display}\n    return mapping.get(plural)\n",
+            "mapping",
+        ),
+        ("bare return", "def lookup():\n    return {display}\n", "<unbound display>"),
     ],
 )
-def test_gate_detects_a_mirror_at_any_depth(scope: str, template: str) -> None:
-    """Self-mutation (#5538): a mirror is caught wherever it is written.
+def test_gate_detects_a_mirror_at_any_depth(scope: str, template: str, bound_name: str) -> None:
+    """Self-mutation (#5538): a mirror is caught wherever it is written, under its binding name.
 
     The #5538 mirror was a function-local dict, the one placement the #5409
-    gate skipped. Each placement here must be flagged.
+    gate skipped. The walk is uniform, so the placements that matter are the
+    ones that reach ``_assignment_names`` differently: an ``Assign``, an
+    ``AnnAssign`` and a display bound to no name at all.
     """
     source = template.format(display=_planted_plural_to_singular_map())
-    assert _scan_source(source), f"gate must flag a {scope} mirror"
+    assert [name for _, name, _ in _scan_source(source)] == [bound_name], f"gate must flag a {scope} mirror"
 
 
 def test_gate_leaves_a_derived_map_alone() -> None:
