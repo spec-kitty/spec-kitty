@@ -12,3 +12,4 @@ Selections (active globally-selected artifacts):
   procedures: (none)
   mission_step_contracts: (none)
   agent_profiles: (none)
+Active charter (activated artifacts): spec-kitty charter list

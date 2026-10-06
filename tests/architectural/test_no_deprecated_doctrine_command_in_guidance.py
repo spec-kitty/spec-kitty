@@ -14,7 +14,8 @@ the set, so guidance may still cite them until they get a successor. Nothing
 is hand-listed, so the gate needs no allowlist.
 
 Scope: shipped skills, both packs and the living docs. The immutable record
-roots (terminology-exemptions.md) and the changelog are out of scope.
+roots (terminology-exemptions.md), design plans, the changelog and generated
+outputs are out of scope.
 """
 
 from __future__ import annotations
@@ -37,11 +38,15 @@ _EXCLUDED_PREFIXES = (
     "docs/reports/",
     "docs/archive/",
     "docs/migrations/",
-    "docs/plans/engineering-notes/",
-    "docs/plans/initiatives/",
+    # Plans are design records of how past work was planned and delivered,
+    # not instructions; rewriting a delivered work package's command would
+    # falsify the record.
+    "docs/plans/",
     "docs/changelog/",
-    # Generated from the CLI's own help text by the docs build.
+    # Generated outputs: the CLI reference from the CLI's own help text, the
+    # retrieval index from the docs it indexes.
     "docs/api/cli-commands.md",
+    "docs/development/docs-retrieval-index.yaml",
 )
 
 

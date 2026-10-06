@@ -783,7 +783,7 @@ def test_rich_markup_in_paths_and_reasons_is_printed_literally(tmp_path: Path) -
 
 _NO_PACKS_HUMAN = """\
 No org doctrine configured.
-Add a 'charter.offering.org' block to .kittify/config.yaml to register a pack.
+Add a 'charter_packs.org' block to .kittify/config.yaml to register a pack.
 
 Selections (active globally-selected artifacts):
   directives: (none)
@@ -794,6 +794,7 @@ Selections (active globally-selected artifacts):
   procedures: (none)
   mission_step_contracts: (none)
   agent_profiles: (none)
+Active charter (activated artifacts): spec-kitty charter list
 """
 _NO_PACKS_ORG_DRG: dict[str, object] = {
     "configured_packs": [],
