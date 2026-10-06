@@ -1,0 +1,126 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-06T11:57:26.900409Z",
+      "decision_id": "01M48H6SZMJV0ZQKQRHDBAB839",
+      "final_answer": "Keep as public plain re-exports (same function objects). Operator brief: repointing callers outside src/runtime/next is out of scope; test_no_dead_symbols pins the facade names.",
+      "input_key": "facade_reexports",
+      "mission_id": "01M48H5ERAT3HASKRHRWDRWGA0",
+      "mission_slug": "retire-runtime-bridge-delegates-01M48H5E",
+      "opened_by": "cli",
+      "options": [
+        "Keep as public plain re-exports (same function objects)",
+        "Repoint CLI callers and delete",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Do get_or_start_run and build_operational_context_for_claim stay on runtime_bridge, or are their CLI callers repointed at runtime_bridge_io?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T11:57:29.891396Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.facade-reexports",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-06T11:57:32.913593Z",
+      "decision_id": "01M48H6ZVH2RS5Y1XEAZX1B82P",
+      "final_answer": "Run #2561 first (operator orchestration ruling: mission 1 of 3). Editing the tracker blockedBy link is out of scope; the orchestrator reports it.",
+      "input_key": "sequencing_2560",
+      "mission_id": "01M48H5ERAT3HASKRHRWDRWGA0",
+      "mission_slug": "retire-runtime-bridge-delegates-01M48H5E",
+      "opened_by": "cli",
+      "options": [
+        "Run #2561 first; #2560 and #2562 follow as separate missions",
+        "Wait for #2560",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "The tracker says #2561 is blockedBy #2560. Run #2561 first or wait?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T11:57:36.171654Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.sequencing-2560",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-06T11:59:57.004827Z",
+      "decision_id": "01M48HBCJCBVXXZNQ6JAA7SFN4",
+      "final_answer": "Module-qualified on the owning seam (seam.name) everywhere inside src/runtime/next, including the bridge's own calls to get_or_start_run/build_operational_context_for_claim. The two bridge re-exports exist only for callers outside the package. Every test that patches the bridge re-export while driving a bridge-internal path is repointed (GROUNDING hazard 1).",
+      "input_key": "internal_call_style",
+      "mission_id": "01M48H5ERAT3HASKRHRWDRWGA0",
+      "mission_slug": "retire-runtime-bridge-delegates-01M48H5E",
+      "opened_by": "cli",
+      "options": [
+        "Module-qualified on the owning seam (one patch point = the owner)",
+        "Bare imported name",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Inside src/runtime/next, how does code call a seam-owned name after its delegate is deleted?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T12:00:00.125937Z",
+      "resolved_by": null,
+      "slot_key": "plan.design.internal-call-style",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-06T12:00:03.336881Z",
+      "decision_id": "01M48HBJR8J78X2WW4H5HW2J9S",
+      "final_answer": "No. Each repoint needs call-path judgement (which binding the code under test looks up), adapters need behaviour preservation, and mechanism-only tests are deleted rather than renamed. A uniform string rename would be wrong at many sites; the acceptance gate test (static scan) is the guardrail instead of an occurrence map.",
+      "input_key": "bulk_edit",
+      "mission_id": "01M48H5ERAT3HASKRHRWDRWGA0",
+      "mission_slug": "retire-runtime-bridge-delegates-01M48H5E",
+      "opened_by": "cli",
+      "options": [
+        "No: per-site semantic refactor with call-path review",
+        "Yes",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Is this mission a bulk edit (change_mode: bulk_edit with an occurrence map)?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T12:00:06.514672Z",
+      "resolved_by": null,
+      "slot_key": "plan.design.bulk-edit-classification",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-06T12:00:10.026065Z",
+      "decision_id": "01M48HBS9AE91PP7ERKWK2ACGE",
+      "final_answer": "A static acceptance test parametrized per seam (no delegate definitions in the bridge, no _rb back-edges to delegated names, re-export identity) lands first; seams not yet migrated are xfail(strict=True) and each seam WP removes its own xfail. Adapter characterisation tests land first and stay green throughout.",
+      "input_key": "acceptance_gate",
+      "mission_id": "01M48H5ERAT3HASKRHRWDRWGA0",
+      "mission_slug": "retire-runtime-bridge-delegates-01M48H5E",
+      "opened_by": "cli",
+      "options": [
+        "Static acceptance test per seam, strict-xfail until that seam is done, plus adapter characterisation tests",
+        "Only behaviour tests",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How is red-first ATDD done for a deletion refactor?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T12:00:13.216190Z",
+      "resolved_by": null,
+      "slot_key": "plan.design.acceptance-gate",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M48H5ERAT3HASKRHRWDRWGA0",
+  "version": 1
+}

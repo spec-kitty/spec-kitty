@@ -1,0 +1,34 @@
+{
+  "accept_commit": "e3d6e8510e131a4958b6459f6f73cd21487115f1",
+  "acceptance_history": [
+    {
+      "accept_commit": "e3d6e8510e131a4958b6459f6f73cd21487115f1",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-06T14:58:42.658840+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "003bd9f9baaae6a5c36cabbf6087846c2a2eb4ed"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-06T14:58:42.658840+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "003bd9f9baaae6a5c36cabbf6087846c2a2eb4ed",
+  "baseline_merge_commit": "08b1b1353e9b2818b37a3eaad7c5231390a29f75",
+  "created_at": "2026-10-06T11:56:44.233839+00:00",
+  "flattened": false,
+  "friendly_name": "Retire the runtime_bridge compat-delegate layer",
+  "merged_at": "2026-10-06T14:59:10.924315+00:00",
+  "merged_commit": "08b1b1353e9b2818b37a3eaad7c5231390a29f75",
+  "mid8": "01M48H5E",
+  "mission_id": "01M48H5ERAT3HASKRHRWDRWGA0",
+  "mission_number": 219,
+  "mission_slug": "retire-runtime-bridge-delegates-01M48H5E",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "An earlier decomposition of the runtime bridge left 36 thin forwarding functions behind so old test patches kept working. They serve no production caller, hide where logic really lives, and make tests silently patch the wrong place. This mission removes them, repoints every test and internal call at the owning seam, and keeps the two public entry points other parts of the CLI rely on.",
+  "purpose_tldr": "Delete the thin forwarding layer in the runtime bridge so every runtime seam owns its own symbols and tests patch the real owner.",
+  "slug": "retire-runtime-bridge-delegates-01M48H5E",
+  "status_phase": "1",
+  "target_branch": "issue-2561-retire-runtime-bridge-delegates",
+  "topology": "single_branch"
+}

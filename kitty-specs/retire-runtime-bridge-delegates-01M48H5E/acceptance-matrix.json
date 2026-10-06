@@ -1,0 +1,118 @@
+{
+  "mission_slug": "retire-runtime-bridge-delegates-01M48H5E",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_bridge_no_compat_delegates.py (Checks A, A', D per seam: 36 names undefined on the bridge; 58 passed) + grep -c 'Thin compat delegate' src/runtime/next/runtime_bridge.py == 0",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T14:57:18.862916+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_bridge_no_compat_delegates.py docstring check passes; _check_cli_guards kept (runtime_bridge.py:769) with docstring rewritten in WP06 (approved cycle 3)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T14:57:24.184591+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_bridge_no_compat_delegates.py Checks B and B' per seam: no _rb.<removed name>, no ImportFrom/getattr/dotted read of a removed name across src/",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T14:57:29.405268+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_bridge_no_compat_delegates.py self-mutation positive control (_should_advance_wp_step not flagged); remaining _rb back-edges only to bridge-owned names (engine, composition, io), verified in WP02-WP05 reviews",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T14:57:35.190863+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_bridge_no_compat_delegates.py Check C: runtime_bridge.get_or_start_run / build_operational_context_for_claim 'is' runtime_bridge_io's, both in __all__; tests/architectural/test_no_dead_symbols.py green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T14:57:40.548741+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "runtime_bridge test surface 3241 passed / 4 skipped / 0 failed (WP06 T025); T026 false-green sweep: 243 bridge patch targets, 0 leftovers",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T14:57:46.091074+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "WP05 T021 classification table (12 bridge-internal sites repointed to runtime_bridge_io and asserting the fake ran; CLI-lookup patches kept), re-derived independently by the WP05 reviewer",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T14:57:51.476093+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_bridge_adapter_characterisation.py (12 tests, patch-free) green from WP01 through WP06; reviewer mutation proofs: wrong runs path and lost grammar= each fail 3 tests",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T14:57:56.872616+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "4 mechanism-only tests deleted (WP02 x3, WP05 x1), others rewritten as owner patch-point tests; listed in WP Activity Logs; pass count reconciles 3175+70-4=3241",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T14:58:02.091374+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "WP06 stale-prose sweeps (3 review cycles): git grep for compat delegate/compat guard/residual delegate in src/runtime/next returns only the identity history line",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T14:58:07.752539+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "No 'Thin compat delegate' docstring remains in the runtime bridge",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -n 'Thin compat delegate' src/runtime/next/runtime_bridge.py",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches"
+    }
+  ]
+}
