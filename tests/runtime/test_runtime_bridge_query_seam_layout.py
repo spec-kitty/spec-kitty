@@ -84,6 +84,7 @@ _FORBIDDEN_IMPORTS: dict[str, frozenset[str]] = {
     _DECISION_LOG: frozenset({_QUERY, _MAPPING, _ENGINE, _GUARDS}),
     _GUARDS: frozenset({_IO, _COMPOSITION, _ENGINE, _QUERY, _DECISION_LOG}),
     _ENGINE: frozenset({_QUERY}),
+    _IO: frozenset({_DECISION_LOG, _QUERY}),
 }
 
 #: Every seam module that exists on disk (the bridge-import ban covers all of them).

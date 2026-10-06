@@ -4,7 +4,7 @@
 ``feature-runs.json`` tracked-mission-to-run index (``load_feature_runs`` /
 ``save_feature_runs``), mission-runtime template/pack discovery, run
 lifecycle (start / lookup), and the OperationalContext (OC) builder cluster.
-Also hosts the two new port-shaped additions this WP introduces:
+Also hosts the port-shaped addition this WP introduced:
 
 - ``gather_artifact_presence`` (T018, FR-009) — the fact-gathering counterpart
   of the guard inversion WP06 completes. It reads the SAME filesystem /
@@ -16,12 +16,11 @@ Also hosts the two new port-shaped additions this WP introduces:
   (WP06) can decide pass/fail without doing I/O itself. This function
   GATHERS ONLY — it makes no pass/fail decisions, and nothing in the current
   production call graph invokes it yet (wiring it in is WP06's job).
-- ``resolve_commit_target`` (T019) — the ONE pure decision that was
-  interleaved inside ``_wrap_with_decision_git_log`` (mid8 derivation +
-  fail-closed validation + ``CommitTarget``/worktree_root-candidate
-  selection). ``_wrap_with_decision_git_log`` itself lives in
-  ``runtime_bridge_decision_log`` (#2560) — only its pure selection moved here; see that function's docstring for why the remaining ``.exists()``
-  check stays a residual I/O concern.
+
+``resolve_commit_target`` (T019) -- the pure commit-target selection lifted out
+of ``_wrap_with_decision_git_log`` -- lives with its only caller in
+``runtime_bridge_decision_log`` (#2560), which keeps this module free of any
+dependency on it.
 
 This module owns the names it defines. Callers inside ``src/runtime/next/``
 look a seam-owned name up on this module (``runtime_bridge`` does so through
@@ -64,7 +63,6 @@ from typing import TYPE_CHECKING, Any, TypedDict
 import yaml
 from mission_runtime import (
     ActionContextError,
-    CommitTarget,
     MissionArtifactKind,
     OwnedCheckout,
     PlacementSeam,
@@ -88,9 +86,7 @@ from runtime.next import runtime_bridge_guards as _guards
 from runtime.next import runtime_bridge_identity as _identity
 from runtime.next.run_index import FEATURE_RUNS_FILENAME
 from runtime.next.run_index import RunDirOutsideRepoError as RunDirOutsideRepoError  # re-export
-from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
-from specify_cli.lanes.branch_naming import resolve_mid8
 from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous, StatusReadPathNotFound
 from specify_cli.status import CanonicalStatusNotFoundError, get_wp_lane
@@ -1511,66 +1507,3 @@ def gather_artifact_presence(
         legacy_step_id=legacy_step_id,
         blocking_artifact_names=blocking_artifact_names,
     )
-
-
-# ---------------------------------------------------------------------------
-# T019 — resolve_commit_target: the pure decision lifted out of
-# _wrap_with_decision_git_log (data-model.md §Ports)
-# ---------------------------------------------------------------------------
-
-
-def resolve_commit_target(
-    *,
-    coord_routing_topology: bool,
-    mission_slug: str,
-    mission_id: str | None,
-    coordination_branch: str,
-    repo_root: Path,
-) -> tuple[str, Path, CommitTarget]:
-    """Pure decision lifted out of ``_wrap_with_decision_git_log`` (T019, #2531 WP05).
-
-    Derives ``mid8`` (:func:`specify_cli.lanes.branch_naming.resolve_mid8`, a
-    pure string derivation), enforces the fail-closed mid8-required invariant
-    for a coordination-routing mission, and computes the ``CommitTarget`` plus
-    the worktree_root CANDIDATE the caller should land decisions on.
-
-    No disk I/O: ``CoordinationWorkspace.worktree_path`` is documented as
-    "Pure; no filesystem touch" — it only composes the path string. The ONE
-    still-I/O-bearing decision — whether ``CoordinationWorkspace.resolve()``'s
-    verify-or-create side effects must run before trusting the candidate — is
-    left to the caller (``runtime_bridge_decision_log._wrap_with_decision_git_log``),
-    which performs the ``.exists()`` stat itself: on success,
-    ``CoordinationWorkspace.resolve()`` always returns the identical path this
-    function already computed (its ``path = cls.worktree_path(...)`` is the
-    first line of every one of its branches), so deciding the FINAL
-    ``worktree_root`` value here is safe — the caller's ``.exists()``-gated
-    call only decides whether verification/creation side effects must happen
-    first, never a different resulting value on success.
-
-    Returns ``(mid8, worktree_root_candidate, decision_target)``. Raises
-    :class:`runtime_bridge_decision_log.DecisionGitLogUnavailable` (deferred
-    import — that module imports this one at its top level, so a top-level
-    import here would be circular; #2560) when
-    ``coord_routing_topology`` is True and no ``mid8`` can be resolved,
-    exactly as the pre-extraction inline code did (still caught by the
-    enclosing ``try/except`` in ``_wrap_with_decision_git_log``, so the
-    existing double-wrap-into-DecisionGitLogUnavailable behavior for that
-    path is unchanged).
-    """
-    mid8 = resolve_mid8(mission_slug, mission_id=mission_id)
-    if coord_routing_topology and not mid8:
-        from runtime.next.runtime_bridge_decision_log import DecisionGitLogUnavailable  # noqa: PLC0415
-
-        raise DecisionGitLogUnavailable(
-            f"Cannot resolve mid8 for coordination-topology mission "
-            f"{mission_slug!r} (mission_id unresolvable); refusing to compose "
-            "a malformed coordination branch without durable decision evidence."
-        )
-
-    decision_target = CommitTarget(ref=coordination_branch)
-
-    if not coord_routing_topology:
-        return mid8, repo_root, decision_target
-
-    worktree_root_candidate = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
-    return mid8, worktree_root_candidate, decision_target

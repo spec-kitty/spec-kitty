@@ -10,9 +10,8 @@ Four independent concerns:
 2. **Focused unit tests (FR-006)** against the ports in isolation -- stubbing
    the underlying I/O (tmp_path fixtures, patches on this module's own
    names) rather than driving the real runtime. These pin the feature-runs
-   index, template/pack discovery, run lifecycle, the OC builder,
-   ``gather_artifact_presence`` (T018), and ``resolve_commit_target`` (T019,
-   tested as a pure no-I/O function per NFR-003).
+   index, template/pack discovery, run lifecycle, the OC builder, and
+   ``gather_artifact_presence`` (T018).
 
 3. **Seam patch-point tests** (``test_*_observes_a_patch_on_the_seam``): the
    io seam owns its helpers, so a patch on THIS module is the one patch
@@ -65,7 +64,6 @@ _SEAM_OWNED_NAMES = frozenset(
         "_build_operational_context_for_decision",
         "get_or_start_run",
         "build_operational_context_for_claim",
-        "resolve_commit_target",
         "gather_artifact_presence",
         "load_feature_runs",
         "save_feature_runs",
@@ -1062,53 +1060,6 @@ def test_gather_artifact_presence_never_decides_only_gathers(tmp_path: Path, mon
     assert snapshot.status_facts["requirement_mapping_failures"] == ("missing refs for WPs: WP01",)
     assert not hasattr(snapshot, "guards_passed")
     assert not hasattr(snapshot, "guard_failures")
-
-
-# ---------------------------------------------------------------------------
-# 4. T019 — resolve_commit_target (pure, no I/O -- NFR-003)
-# ---------------------------------------------------------------------------
-
-
-def test_resolve_commit_target_non_coord_topology_lands_on_repo_root(tmp_path: Path) -> None:
-    mid8, worktree_root, target = io_seam.resolve_commit_target(
-        coord_routing_topology=False,
-        mission_slug="042-mission",
-        mission_id="01HULIDXXXXXXXXXXXXXXXXXXX",
-        coordination_branch="kitty/mission-042-mission",
-        repo_root=tmp_path,
-    )
-    assert worktree_root == tmp_path
-    assert target.ref == "kitty/mission-042-mission"
-    assert mid8 == "01HULIDX"
-
-
-def test_resolve_commit_target_coord_topology_computes_candidate_worktree_path(tmp_path: Path) -> None:
-    mission_id = "01HULIDXXXXXXXXXXXXXXXXXXX"
-    mid8, worktree_root_candidate, target = io_seam.resolve_commit_target(
-        coord_routing_topology=True,
-        mission_slug="042-mission",
-        mission_id=mission_id,
-        coordination_branch="kitty/mission-042-mission-01hulidx-coord",
-        repo_root=tmp_path,
-    )
-    assert mid8 == "01hulidx".upper()[:8].lower() or mid8 == mission_id[:8]
-    assert worktree_root_candidate == tmp_path / ".worktrees" / f"042-mission-{mid8}-coord"
-    assert target.ref == "kitty/mission-042-mission-01hulidx-coord"
-    # No disk I/O performed: the candidate path need not exist on disk.
-    assert not worktree_root_candidate.exists()
-
-
-def test_resolve_commit_target_raises_when_coord_topology_has_no_resolvable_mid8(tmp_path: Path) -> None:
-    from runtime.next.runtime_bridge import DecisionGitLogUnavailable
-
-    with pytest.raises(DecisionGitLogUnavailable):
-        io_seam.resolve_commit_target(
-            coord_routing_topology=True,
-            mission_slug="bare-slug-no-tail",
-            mission_id=None,
-            coordination_branch="kitty/mission-bare-slug-no-tail",
-            repo_root=tmp_path,
-        )
 
 
 # ---------------------------------------------------------------------------

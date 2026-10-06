@@ -869,7 +869,7 @@ _CHECKOUT_GRAMMAR_ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
     # -- WP06 (T029) additions: newly in scope once the 17-module allowlist
     # was replaced by the whole-tree scan. -----------------------------------
     ContentDescriptor(
-        rel_path="src/runtime/next/runtime_bridge_io.py",
+        rel_path="src/runtime/next/runtime_bridge_decision_log.py",
         qualname="resolve_commit_target",
         token_substring="CommitTarget ( ref = coordination_branch )",
         occurrence=None,

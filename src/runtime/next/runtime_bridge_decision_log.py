@@ -9,6 +9,11 @@ Mission ``runtime-bridge-query-seam-01M490EQ`` moved this cluster out of
   topology, the primary or owned checkout otherwise), or refuses with
   ``DecisionGitLogUnavailable`` when a coordination-routed mission cannot get
   durable decision evidence;
+* ``resolve_commit_target`` is the pure commit-target selection (mid8
+  derivation, fail-closed validation, ``CommitTarget`` and worktree-root
+  candidate) the wrapper calls; it was lifted out of the wrapper by #2531 WP05,
+  lived in ``runtime_bridge_io`` and moved here with its only caller so io no
+  longer needs this module;
 * ``_mission_routes_through_coordination`` reads the stored topology that
   decides that routing;
 * ``_is_owned_coordination_unavailable`` recognises the typed owned refusal
@@ -20,11 +25,9 @@ here. ``DecisionGitLogUnavailable`` stays importable from
 ``runtime.next.runtime_bridge`` as the same class.
 
 Import rule (pinned by ``tests/runtime/test_runtime_bridge_query_seam_layout.py``):
-this module imports the identity and io seams, which sit below it, and never
-the bridge, the query module, the decision-mapping module or the engine
-adapter. ``runtime_bridge_io.resolve_commit_target`` raises
-``DecisionGitLogUnavailable`` through a deferred import of this module (a
-top-level one would be circular, since this module imports io).
+this module imports the identity seam, which sits below it, and never the
+bridge, the query module, the decision-mapping module or the engine adapter.
+The io seam never imports this module (no cycle).
 """
 
 from __future__ import annotations
@@ -33,17 +36,71 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from mission_runtime import OwnedCheckout, OwnedRefusalCode, routes_through_coordination
+from mission_runtime import CommitTarget, OwnedCheckout, OwnedRefusalCode, routes_through_coordination
 from runtime.next import runtime_bridge_identity as _identity_seam
-from runtime.next import runtime_bridge_io as _io_seam
 from runtime.next._internal_runtime.events import RuntimeEventEmitter
+from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.lanes.branch_naming import resolve_mid8
 
 logger = logging.getLogger(__name__)
 
 
 class DecisionGitLogUnavailable(RuntimeError):
     """Decision audit logging cannot be made durable for a modern mission."""
+
+
+def resolve_commit_target(
+    *,
+    coord_routing_topology: bool,
+    mission_slug: str,
+    mission_id: str | None,
+    coordination_branch: str,
+    repo_root: Path,
+) -> tuple[str, Path, CommitTarget]:
+    """Pure decision lifted out of ``_wrap_with_decision_git_log`` (T019, #2531 WP05; moved here by #2560).
+
+    Derives ``mid8`` (:func:`specify_cli.lanes.branch_naming.resolve_mid8`, a
+    pure string derivation), enforces the fail-closed mid8-required invariant
+    for a coordination-routing mission, and computes the ``CommitTarget`` plus
+    the worktree_root CANDIDATE the caller should land decisions on.
+
+    No disk I/O: ``CoordinationWorkspace.worktree_path`` is documented as
+    "Pure; no filesystem touch" — it only composes the path string. The ONE
+    still-I/O-bearing decision — whether ``CoordinationWorkspace.resolve()``'s
+    verify-or-create side effects must run before trusting the candidate — is
+    left to the caller (:func:`_wrap_with_decision_git_log`),
+    which performs the ``.exists()`` stat itself: on success,
+    ``CoordinationWorkspace.resolve()`` always returns the identical path this
+    function already computed (its ``path = cls.worktree_path(...)`` is the
+    first line of every one of its branches), so deciding the FINAL
+    ``worktree_root`` value here is safe — the caller's ``.exists()``-gated
+    call only decides whether verification/creation side effects must happen
+    first, never a different resulting value on success.
+
+    Returns ``(mid8, worktree_root_candidate, decision_target)``. Raises
+    :class:`DecisionGitLogUnavailable` when
+    ``coord_routing_topology`` is True and no ``mid8`` can be resolved,
+    exactly as the pre-extraction inline code did (still caught by the
+    enclosing ``try/except`` in ``_wrap_with_decision_git_log``, so the
+    existing double-wrap-into-DecisionGitLogUnavailable behavior for that
+    path is unchanged).
+    """
+    mid8 = resolve_mid8(mission_slug, mission_id=mission_id)
+    if coord_routing_topology and not mid8:
+        raise DecisionGitLogUnavailable(
+            f"Cannot resolve mid8 for coordination-topology mission "
+            f"{mission_slug!r} (mission_id unresolvable); refusing to compose "
+            "a malformed coordination branch without durable decision evidence."
+        )
+
+    decision_target = CommitTarget(ref=coordination_branch)
+
+    if not coord_routing_topology:
+        return mid8, repo_root, decision_target
+
+    worktree_root_candidate = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
+    return mid8, worktree_root_candidate, decision_target
 
 
 def _mission_routes_through_coordination(
@@ -147,12 +204,12 @@ def _wrap_with_decision_git_log(
         # T019 (#2531 WP05): mid8 derivation + the fail-closed mid8-required
         # validation + CommitTarget/worktree_root-candidate selection is the
         # ONE pure decision that used to live inline here — lifted into
-        # runtime_bridge_io.resolve_commit_target (data-model.md §Ports). See
+        # resolve_commit_target above (data-model.md §Ports). See
         # that function's docstring for why this call raises
         # DecisionGitLogUnavailable identically to the pre-extraction inline
         # code (still caught by the except below) and why the .exists()-gated
         # branch remains here as the one genuinely I/O-bearing decision.
-        _mid8, worktree_root_candidate, decision_target = _io_seam.resolve_commit_target(
+        _mid8, worktree_root_candidate, decision_target = resolve_commit_target(
             coord_routing_topology=coord_routing_topology,
             mission_slug=mission_slug,
             mission_id=mission_id,
