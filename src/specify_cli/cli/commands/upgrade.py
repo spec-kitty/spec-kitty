@@ -86,6 +86,7 @@ from specify_cli.upgrade.outcome import (
     UpgradeOutcomeKind,
 )
 from specify_cli.upgrade.runner import UpgradeResult
+from specify_cli.upgrade.version_stamp_boundary import version_stamp_boundary
 
 
 _PROJECT_COMPAT_CHECK_COMMAND = ("__project_compat_check__",)
@@ -1828,88 +1829,97 @@ def upgrade(
     migrations_needed = MigrationRegistry.get_applicable(version_for_migration, target_version, project_path=project_path)
 
     manual_review_paths: list[str] = []
-    if not migrations_needed:
-        outcome = _build_no_migrations_outcome(
-            project_path=project_path,
-            kittify_dir=kittify_dir,
-            current_version=current_version,
-            target_version=target_version,
-            dry_run=dry_run,
-            no_worktrees=no_worktrees,
-        )
-    else:
-        _show_migration_plan_and_confirm(
-            migrations_needed,
-            project_path=project_path,
-            json_output=json_output,
-            dry_run=dry_run,
-            verbose=verbose,
-            confirm=confirm,
-        )
+    # #4275: every write of the version trio below (runner, no-migrations stamp, final
+    # surface repair) happens inside one boundary that puts the pre-run stamp back when
+    # the run fails or raises, so a failed upgrade never leaves the new version recorded.
+    with version_stamp_boundary(
+        kittify_dir,
+        dry_run=dry_run,
+        on_restored=None if json_output else lambda notice: console.print(f"[yellow]{notice}[/yellow]"),
+    ) as settle_version_stamp:
+        if not migrations_needed:
+            outcome = _build_no_migrations_outcome(
+                project_path=project_path,
+                kittify_dir=kittify_dir,
+                current_version=current_version,
+                target_version=target_version,
+                dry_run=dry_run,
+                no_worktrees=no_worktrees,
+            )
+        else:
+            _show_migration_plan_and_confirm(
+                migrations_needed,
+                project_path=project_path,
+                json_output=json_output,
+                dry_run=dry_run,
+                verbose=verbose,
+                confirm=confirm,
+            )
 
-        # auto_commit: the runner commits each worktree's upgrade churn on its
-        # own branch (#2385) so a later `spec-kitty merge` isn't blocked by
-        # dirty coord/lane worktrees. D-10: the worktree-scope decision, not a
-        # bare `not dry_run`. The main checkout is committed by the finalizer
-        # below.
-        result = MigrationRunner(project_path, console).upgrade(
-            target_version,
-            dry_run=dry_run,
-            force=confirm,  # pass the unified confirm flag
-            include_worktrees=not no_worktrees,
-            auto_commit=should_auto_commit_for_worktree(project_path, dry_run=dry_run),
-        )
-        manual_review_paths = _collect_manual_review_paths(result.migration_results)
-        if manual_review_paths:
-            result.warnings.append("Skipped auto-commit because the upgrade preserved customized files that require manual review.")
-        outcome = UpgradeOutcome(
-            result=result,
-            manual_review_paths=[Path(p) for p in manual_review_paths],
-            worktree_failures=list(result.worktree_failures),
-            had_migrations=True,
-            project_root=project_path,
-        )
+            # auto_commit: the runner commits each worktree's upgrade churn on its
+            # own branch (#2385) so a later `spec-kitty merge` isn't blocked by
+            # dirty coord/lane worktrees. D-10: the worktree-scope decision, not a
+            # bare `not dry_run`. The main checkout is committed by the finalizer
+            # below.
+            result = MigrationRunner(project_path, console).upgrade(
+                target_version,
+                dry_run=dry_run,
+                force=confirm,  # pass the unified confirm flag
+                include_worktrees=not no_worktrees,
+                auto_commit=should_auto_commit_for_worktree(project_path, dry_run=dry_run),
+            )
+            manual_review_paths = _collect_manual_review_paths(result.migration_results)
+            if manual_review_paths:
+                result.warnings.append("Skipped auto-commit because the upgrade preserved customized files that require manual review.")
+            outcome = UpgradeOutcome(
+                result=result,
+                manual_review_paths=[Path(p) for p in manual_review_paths],
+                worktree_failures=list(result.worktree_failures),
+                had_migrations=True,
+                project_root=project_path,
+            )
 
-    # T017/C4 — one shared tail: wire the finalizer with the step
-    # implementations as injected callables (the finalizer itself does not
-    # import cli.commands — see upgrade/finalize.py's module docstring).
-    should_commit_main = should_auto_commit(project_path, dry_run=dry_run, manual_review=bool(outcome.manual_review_paths))
-    render_ctx = _FinalizerRenderContext()
-    preparation_errors: tuple[str, ...] = ()
-    if not dry_run and outcome.result.success:
-        preparation_errors = _prepare_finalizer_repairs(project_path, render_ctx)
+        # T017/C4 — one shared tail: wire the finalizer with the step
+        # implementations as injected callables (the finalizer itself does not
+        # import cli.commands — see upgrade/finalize.py's module docstring).
+        should_commit_main = should_auto_commit(project_path, dry_run=dry_run, manual_review=bool(outcome.manual_review_paths))
+        render_ctx = _FinalizerRenderContext()
+        preparation_errors: tuple[str, ...] = ()
+        if not dry_run and outcome.result.success:
+            preparation_errors = _prepare_finalizer_repairs(project_path, render_ctx)
 
-    from specify_cli.upgrade.finalize import finalize_upgrade
+        from specify_cli.upgrade.finalize import finalize_upgrade
 
-    outcome = finalize_upgrade(
-        outcome,
-        provision_activations=functools.partial(_finalizer_step_provision, project_path, dry_run=dry_run, prepared=render_ctx.prepared_repairs),
-        run_surface_repair=functools.partial(
-            _finalizer_step_surface_repair,
+        outcome = finalize_upgrade(
             outcome,
-            render_ctx,
-            project_path=project_path,
-            dry_run=dry_run,
-            json_output=json_output,
-        ),
-        commit_churn=functools.partial(
-            _finalizer_step_commit_churn,
-            outcome,
-            render_ctx,
-            project_path=project_path,
-            baseline_changed_paths=baseline_changed_paths,
-        ),
-        offer_repair=functools.partial(
-            _finalizer_step_offer_repair,
-            outcome,
-            project_path=project_path,
-            confirm=confirm,
-            dry_run=dry_run,
-            json_output=json_output,
-        ),
-        should_commit=should_commit_main,
-        repair_preflight=_finalizer_repair_preflight(render_ctx.prepared_repairs, preparation_errors),
-    )
+            provision_activations=functools.partial(_finalizer_step_provision, project_path, dry_run=dry_run, prepared=render_ctx.prepared_repairs),
+            run_surface_repair=functools.partial(
+                _finalizer_step_surface_repair,
+                outcome,
+                render_ctx,
+                project_path=project_path,
+                dry_run=dry_run,
+                json_output=json_output,
+            ),
+            commit_churn=functools.partial(
+                _finalizer_step_commit_churn,
+                outcome,
+                render_ctx,
+                project_path=project_path,
+                baseline_changed_paths=baseline_changed_paths,
+            ),
+            offer_repair=functools.partial(
+                _finalizer_step_offer_repair,
+                outcome,
+                project_path=project_path,
+                confirm=confirm,
+                dry_run=dry_run,
+                json_output=json_output,
+            ),
+            should_commit=should_commit_main,
+            repair_preflight=_finalizer_repair_preflight(render_ctx.prepared_repairs, preparation_errors),
+        )
+        settle_version_stamp(outcome)
 
     surface_repair_summary = render_ctx.surface_repair_summary
     if render_ctx.commit_warning:

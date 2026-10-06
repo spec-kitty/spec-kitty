@@ -18,15 +18,12 @@ from specify_cli.core.constants import KITTIFY_DIR, WORKTREES_DIR
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.gitignore_manager import GitignorePathError
 from specify_cli.lanes.branch_naming import parse_mission_slug_from_branch
-from specify_cli.migration.schema_version import (
-    REQUIRED_SCHEMA_VERSION,
-    get_project_schema_version,
-)
+from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
 
 from . import autocommit
 from .autocommit import capture_upgrade_baseline
 from .detector import VersionDetector
-from .metadata import ProjectMetadata
+from .metadata import ProjectMetadata, VersionStamp
 from .migrations.base import BaseMigration, MigrationResult, MigrationStateUnreadableError
 from .registry import MigrationRegistry
 
@@ -212,7 +209,7 @@ class MigrationRunner:
             norm_changes = metadata.normalize_and_save_legacy_ids(self.kittify_dir)
             result.warnings.extend(norm_changes)
 
-        # FR-002 (#3334): capture the on-disk schema_version BEFORE the loop.
+        # FR-002 (#3334): capture the on-disk version trio BEFORE the loop.
         # A failed migration's _record_migration_result -> save() rewrites
         # metadata.yaml from a fixed dict and, on the mid-loop break, the
         # success-guarded stamp below never runs -- so without this capture the
@@ -221,7 +218,9 @@ class MigrationRunner:
         # failure, never REQUIRED_SCHEMA_VERSION: re-stamping the target onto a
         # half-migrated project would open the gate on a corpus the migration
         # never finished (the exact dishonest-state bug this mission closes).
-        pre_run_schema_version = get_project_schema_version(self.project_path)
+        # ``VersionStamp`` is the one restore authority (#4275): the CLI reuses
+        # it for a failure in the final surface repair.
+        pre_run_stamp = VersionStamp.capture(self.kittify_dir)
 
         # Apply each migration to main project
         for migration in migrations:
@@ -248,7 +247,7 @@ class MigrationRunner:
 
         # Update and save metadata for main project
         if not dry_run:
-            self._finalize_main_metadata(metadata, target_version, result, pre_run_schema_version)
+            self._finalize_main_metadata(metadata, target_version, result, pre_run_stamp)
 
         # Handle worktrees
         if include_worktrees:
@@ -726,7 +725,7 @@ class MigrationRunner:
         metadata: ProjectMetadata,
         target_version: str,
         result: UpgradeResult,
-        pre_run_schema_version: int | None,
+        pre_run_stamp: VersionStamp,
     ) -> None:
         """Persist metadata and settle ``schema_version`` after the loop.
 
@@ -735,11 +734,10 @@ class MigrationRunner:
         ``ProjectMetadata.save()`` reconstructs the YAML from a fixed dict, so a
         stamp written first would be clobbered (FR-002 / #705).
 
-        On **failure** (FR-002 / #3334): restore the captured pre-run
-        ``schema_version`` so a failed migration NEVER advances -- or erases --
-        the schema the project actually satisfies. A legacy project (captured
-        value ``None``) is intentionally left unstamped so it is never advanced
-        to the target.
+        On **failure** (FR-002 / #3334): restore the captured pre-run version
+        trio so a failed migration NEVER advances -- or erases -- the schema the
+        project actually satisfies. A legacy project (captured value absent) is
+        intentionally left unstamped so it is never advanced to the target.
         """
         if result.success:
             metadata.version = target_version
@@ -747,8 +745,8 @@ class MigrationRunner:
             metadata.save(self.kittify_dir)
             if REQUIRED_SCHEMA_VERSION is not None:
                 self._stamp_schema_version(self.kittify_dir, REQUIRED_SCHEMA_VERSION)
-        elif pre_run_schema_version is not None:
-            self._stamp_schema_version(self.kittify_dir, pre_run_schema_version)
+        else:
+            pre_run_stamp.restore(self.kittify_dir)
 
     @staticmethod
     def _stamp_schema_version(kittify_dir: Path, schema_version: int) -> None:
