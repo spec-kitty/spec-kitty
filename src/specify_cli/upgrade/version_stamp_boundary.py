@@ -10,12 +10,15 @@ when the run fails or raises, via :class:`~specify_cli.upgrade.metadata.VersionS
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
 from .metadata import VersionStamp
 from .outcome import UpgradeOutcome, UpgradeOutcomeKind
+
+logger = logging.getLogger(__name__)
 
 
 def restored_notice(old_version: str | None) -> str:
@@ -52,5 +55,13 @@ def version_stamp_boundary(
         yield settle
     except BaseException:
         if stamp is not None:
-            stamp.restore(kittify_dir)
+            _restore_keeping_original_error(stamp, kittify_dir)
         raise
+
+
+def _restore_keeping_original_error(stamp: VersionStamp, kittify_dir: Path) -> None:
+    """Restore the stamp for a raising body without masking the body's own exception."""
+    try:
+        stamp.restore(kittify_dir)
+    except OSError as exc:
+        logger.warning("Could not restore %s/metadata.yaml after a failed upgrade: %s", kittify_dir, exc)

@@ -20,7 +20,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands import upgrade as upgrade_module
 from specify_cli.migration.schema_version import MAX_SUPPORTED_SCHEMA
 from specify_cli.upgrade import assessment
-from specify_cli.upgrade.metadata import ProjectMetadata
+from specify_cli.upgrade.metadata import ProjectMetadata, VersionStamp
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.outcome import SurfaceRepairReport, UpgradeOutcome
 from specify_cli.upgrade.registry import MigrationRegistry
@@ -242,6 +242,24 @@ def test_boundary_restores_and_reraises_when_the_body_raises(tmp_path: Path) -> 
     with pytest.raises(RuntimeError, match="boom"):
         _body()
     assert (kittify / "metadata.yaml").read_text(encoding="utf-8") == _BASE
+
+
+def test_boundary_keeps_the_original_error_when_the_restore_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    kittify = _kittify(tmp_path, _BASE)
+
+    def _restore_fails(self: object, _: Path) -> bool:
+        raise OSError("read-only file system")
+
+    monkeypatch.setattr(VersionStamp, "restore", _restore_fails)
+
+    def _body() -> None:
+        with version_stamp_boundary(kittify, dry_run=False):
+            _bump(kittify)
+            raise RuntimeError("boom")
+
+    with caplog.at_level("WARNING"), pytest.raises(RuntimeError, match="boom"):
+        _body()
+    assert "Could not restore" in caplog.text
 
 
 def test_boundary_never_restores_a_dry_run(tmp_path: Path) -> None:
