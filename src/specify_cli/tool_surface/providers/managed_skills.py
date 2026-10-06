@@ -64,7 +64,7 @@ from ..findings import (
     make_finding,
 )
 from ..model import SurfaceDefinition, SurfaceInstance, SurfaceSelection
-from ..operations import ApplyConsent, AssessmentInputs, Diagnostic, FileState, OperationRoot, OwnerAssessment, OwnerApplyResult, PhysicalEffect, coalesce_effects
+from ..operations import ApplyConsent, AssessmentInputs, Diagnostic, OperationRoot, OwnerAssessment, OwnerApplyResult, PhysicalEffect, coalesce_effects
 from ..repair import RepairResult
 from ..bundles.projection import SelectedSkillBundle, completed_selected_skill_bundle, selected_skill_bundle_guard
 from ..bundles.model import PreparedBundle
@@ -121,28 +121,8 @@ class SkillCommandComposition:
     @property
     def effects(self) -> tuple[PhysicalEffect, ...]:
         """Unique physical effects, retaining both owners' logical claims."""
-        project = self.installation.project_skills
-        commands = {e.destination: e for e in self.commands.effects}
-        effects = list(self.installation.global_assets.effects)
-        for effect in project.effects:
-            command = commands.get(effect.destination)
-            if command is None:
-                effects.append(effect)
-                continue
-            if (command.action, command.before, command.after, command.phase) != (
-                "create",
-                FileState("absent"),
-                FileState("directory", mode=0o755),
-                effect.phase,
-            ) or (effect.action, effect.before, effect.after) != (command.action, command.before, command.after):
-                raise ValueError(f"Unsupported shared skill effect: {effect.destination}")
-            commands[effect.destination] = replace(
-                command,
-                ownership=command.ownership + effect.ownership,
-                logical_owners=command.logical_owners + effect.logical_owners,
-                surface_ids=command.surface_ids + effect.surface_ids,
-            )
-        combined: tuple[PhysicalEffect, ...] = coalesce_effects(tuple(effects) + tuple(commands.values()))
+        effects = (*self.installation.global_assets.effects, *self.installation.project_skills.effects, *self.commands.effects)
+        combined: tuple[PhysicalEffect, ...] = coalesce_effects(effects)
         return combined
 
 

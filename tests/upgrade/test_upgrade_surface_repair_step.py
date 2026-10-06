@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,7 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
+from specify_cli import app as root_app
 from specify_cli.cli.commands import upgrade as upgrade_module
 from specify_cli.core.agent_config import AgentConfigError
 from specify_cli.migration.schema_version import MAX_SUPPORTED_SCHEMA
@@ -145,3 +147,26 @@ def test_surface_repair_is_skipped_after_a_failed_migration(tmp_path: Path, monk
 
     assert result.exit_code == 1, result.output
     assert spies.apply_calls == 0
+
+
+@pytest.mark.slow
+def test_upgrade_recreates_a_deleted_tool_folder_without_an_owner_effect_conflict(tmp_path: Path) -> None:
+    """#4275: managed skills and agent profiles both plan ``create .claude``; it must be planned once."""
+    project = tmp_path / "project"
+    project.mkdir()
+    with contextlib.chdir(project):
+        init_result = _runner.invoke(root_app, ["init", "--ai", "claude,codex", "--non-interactive"], catch_exceptions=False)
+    assert init_result.exit_code == 0, init_result.output
+    assert (project / ".claude").is_dir()
+    assert (project / ".agents" / "skills").is_dir()
+
+    shutil.rmtree(project / ".claude")
+
+    with contextlib.chdir(project):
+        result = _runner.invoke(root_app, ["upgrade", "--yes"], catch_exceptions=False)
+
+    assert result.exit_code == 0, result.output
+    assert "Owner effect conflict" not in result.output
+    assert (project / ".claude").is_dir()
+    assert any((project / ".claude").iterdir())
+    assert (project / ".agents" / "skills").is_dir()

@@ -208,9 +208,12 @@ class AgentProfilesProvider:
         prepared = _prepared(assessment)
         try:
             current = _input_states(prepared.input_roots)
+            planned_dirs = _planned_directory_creates(assessment.effects)
             for path, state in prepared.destinations:
                 confined_path(path, assessment.root.path)
                 observed = observe_node(path)
+                if _sibling_created_planned_dir(state, observed, planned_dirs.get(path)):
+                    observed = state
                 # Sibling owners may create files in a retained parent during
                 # the same guarded composition. Directory mtime is not an
                 # ownership or confinement identity; kind/mode still are.
@@ -806,12 +809,29 @@ def _valid_entry(entry: NativeAgentProfile, root: Path) -> bool:
     return bool(renderer.output_path(entry.tool_key, _ProfileName(name), root) == entry.output_path)
 
 
+def _planned_directory_creates(effects: tuple[PhysicalEffect, ...]) -> dict[Path, FileState]:
+    """Planned ``create`` directory effects, keyed by destination."""
+    return {e.destination: e.after for e in effects if e.action == "create" and e.after.kind == "directory"}
+
+
+def _sibling_created_planned_dir(before: FileState, observed: FileState, planned: FileState | None) -> bool:
+    """True when a sibling owner made the identical planned directory first (#4275).
+
+    Only the exact shape is accepted: planned absent -> directory, now an existing
+    directory with the planned mode.
+    """
+    return planned is not None and planned.kind == "directory" and before.kind == "absent" and observed.kind == "directory" and observed.mode == planned.mode
+
+
 def _write_profile_effect(effect: PhysicalEffect, content: bytes | None) -> None:
     from specify_cli.core.no_follow import chmod_fd
 
     path = effect.destination
     confined_path(path, effect.root.path)
-    if observe_node(path) != effect.before:
+    observed = observe_node(path)
+    if effect.action == "create" and _sibling_created_planned_dir(effect.before, observed, effect.after):
+        return  # a sibling owner already created the identical shared directory (#4275)
+    if observed != effect.before:
         raise FileExistsError(f"Prepared profile destination changed before write: {path}")
     if effect.after.kind == "directory":
         path.mkdir(mode=effect.after.mode or 0o755)

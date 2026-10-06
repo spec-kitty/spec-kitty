@@ -162,6 +162,29 @@ class PhysicalEffect:
         return PHASES.index(self.phase), self.owner, self.root.root_id, self.path
 
 
+_CONFLICT_FIELDS = ("owner", "phase", "action", "before", "after")
+
+
+def _differing_fields(previous: PhysicalEffect, effect: PhysicalEffect) -> tuple[str, ...]:
+    """Names of the identity fields on which two effects at one destination disagree."""
+    return tuple(name for name in _CONFLICT_FIELDS if getattr(previous, name) != getattr(effect, name))
+
+
+def _is_shared_directory_create(previous: PhysicalEffect, effect: PhysicalEffect) -> bool:
+    """True when two owners plan the identical ``create absent -> directory`` effect.
+
+    Only the owner may differ; the merged effect keeps both owners' claims.
+    """
+    return (
+        previous.action == effect.action == "create"
+        and previous.phase == effect.phase
+        and previous.before == effect.before
+        and previous.before.kind == "absent"
+        and previous.after == effect.after
+        and previous.after.kind == "directory"
+    )
+
+
 def coalesce_effects(effects: tuple[PhysicalEffect, ...]) -> tuple[PhysicalEffect, ...]:
     """Deduplicate equivalent intent; never synthesize a writer across owners."""
     destinations: dict[Path, PhysicalEffect] = {}
@@ -174,14 +197,9 @@ def coalesce_effects(effects: tuple[PhysicalEffect, ...]) -> tuple[PhysicalEffec
         if previous is None:
             destinations[effect.destination] = effect
             continue
-        if (previous.owner, previous.phase, previous.action, previous.before, previous.after) != (
-            effect.owner,
-            effect.phase,
-            effect.action,
-            effect.before,
-            effect.after,
-        ):
-            raise ValueError(f"Owner effect conflict at {effect.destination}")
+        differing = _differing_fields(previous, effect)
+        if differing and not _is_shared_directory_create(previous, effect):
+            raise ValueError(f"Owner effect conflict at {effect.destination}: {previous.owner} vs {effect.owner} (differs in: {', '.join(differing)})")
         destinations[effect.destination] = replace(
             previous,
             logical_owners=previous.logical_owners + effect.logical_owners,

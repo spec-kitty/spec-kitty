@@ -1018,3 +1018,119 @@ def test_diagnose_code_reaches_doctor_tool_surfaces_json(tmp_path: Path) -> None
     assert isinstance(findings, list)
     json_codes = {finding["code"] for finding in findings}
     assert "profile-sentinel-skipped" in json_codes
+
+
+# --- #4275: a sibling owner may create the identical planned directory first ---
+
+
+@pytest.mark.parametrize(
+    "before_kind,observed_kind,observed_mode,planned_mode,expected",
+    [
+        ("absent", "directory", 0o755, 0o755, True),
+        ("absent", "directory", 0o700, 0o755, False),
+        ("absent", "file", 0o755, 0o755, False),
+        ("file", "directory", 0o755, 0o755, False),
+        ("absent", "directory", 0o755, None, False),
+    ],
+)
+def test_sibling_created_planned_dir_shape(before_kind: str, observed_kind: str, observed_mode: int, planned_mode: int | None, expected: bool) -> None:
+    from specify_cli.tool_surface.operations import FileState
+    from specify_cli.tool_surface.providers.agent_profiles import _sibling_created_planned_dir
+
+    before = FileState(before_kind) if before_kind == "absent" else FileState("file", sha256="0" * 64, mode=0o644)
+    observed = FileState(observed_kind, mode=observed_mode) if observed_kind == "directory" else FileState("file", sha256="0" * 64, mode=0o644)
+    planned = None if planned_mode is None else FileState("directory", mode=planned_mode)
+
+    assert _sibling_created_planned_dir(before, observed, planned) is expected
+
+
+def test_planned_directory_creates_keeps_only_directory_creates(tmp_path: Path) -> None:
+    from specify_cli.tool_surface.providers.agent_profiles import _planned_directory_creates
+
+    assessment = _assess_real(tmp_path)
+    planned = _planned_directory_creates(assessment.effects)
+
+    assert planned
+    assert all(e.after.kind == "directory" for e in assessment.effects if e.destination in planned)
+    assert all(e.action == "create" for e in assessment.effects if e.destination in planned)
+    assert not any(e.after.kind == "file" and e.destination in planned for e in assessment.effects)
+
+
+def test_profile_recheck_accepts_sibling_created_planned_directory(tmp_path: Path) -> None:
+    assessment = _assess_real(tmp_path)
+    claude = next(e for e in assessment.effects if e.destination == tmp_path / ".claude")
+    (tmp_path / ".claude").mkdir(mode=claude.after.mode or 0o755)
+    (tmp_path / ".claude").chmod(claude.after.mode or 0o755)
+
+    with AgentProfilesProvider().recheck(assessment) as diagnostics:
+        assert diagnostics == ()
+
+
+def test_profile_recheck_refuses_sibling_directory_with_different_mode(tmp_path: Path) -> None:
+    assessment = _assess_real(tmp_path)
+    (tmp_path / ".claude").mkdir()
+    (tmp_path / ".claude").chmod(0o700)
+
+    with AgentProfilesProvider().recheck(assessment) as diagnostics:
+        assert [d.code for d in diagnostics] == ["precondition_changed"]
+
+
+def test_profile_recheck_refuses_file_where_directory_was_planned(tmp_path: Path) -> None:
+    assessment = _assess_real(tmp_path)
+    (tmp_path / ".claude").write_text("racing file", encoding="utf-8")
+
+    with AgentProfilesProvider().recheck(assessment) as diagnostics:
+        assert [d.code for d in diagnostics] == ["precondition_changed"]
+
+
+def _planned_dir_effect(tmp_path: Path) -> PhysicalEffect:
+    from specify_cli.tool_surface.operations import FileState, OperationRoot, OwnershipProof
+
+    return PhysicalEffect(
+        owner="agent_profiles",
+        phase="surface_repair",
+        root=OperationRoot("project", "project", tmp_path),
+        path=".claude",
+        action="create",
+        before=FileState("absent"),
+        after=FileState("directory", mode=0o755),
+        reason="Create profile supporting directory",
+        ownership=(OwnershipProof("manifest", "agent_profiles"),),
+        logical_owners=("claude",),
+    )
+
+
+def test_write_profile_effect_skips_identical_sibling_directory(tmp_path: Path) -> None:
+    from specify_cli.tool_surface.providers.agent_profiles import _write_profile_effect
+
+    (tmp_path / ".claude").mkdir()
+    (tmp_path / ".claude").chmod(0o755)
+    marker = tmp_path / ".claude" / "keep"
+    marker.write_text("x", encoding="utf-8")
+
+    _write_profile_effect(_planned_dir_effect(tmp_path), None)
+
+    assert marker.read_text(encoding="utf-8") == "x"
+
+
+def test_write_profile_effect_creates_absent_directory(tmp_path: Path) -> None:
+    from specify_cli.tool_surface.providers.agent_profiles import _write_profile_effect
+
+    _write_profile_effect(_planned_dir_effect(tmp_path), None)
+
+    assert (tmp_path / ".claude").is_dir()
+
+
+@pytest.mark.parametrize("occupant", ["file", "other_mode_dir"])
+def test_write_profile_effect_still_refuses_non_identical_occupant(tmp_path: Path, occupant: str) -> None:
+    from specify_cli.tool_surface.providers.agent_profiles import _write_profile_effect
+
+    target = tmp_path / ".claude"
+    if occupant == "file":
+        target.write_text("racing", encoding="utf-8")
+    else:
+        target.mkdir()
+        target.chmod(0o700)
+
+    with pytest.raises(FileExistsError):
+        _write_profile_effect(_planned_dir_effect(tmp_path), None)

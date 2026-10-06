@@ -1260,12 +1260,11 @@ def test_shared_parent_composition_cold_real_owners(
     )
     owners = (installation.global_assets, installation.project_skills, commands)
     effects = tuple(e for a in owners for e in a.effects)
-    # Ordinary coalescing must still reject unrelated executable owners.
-    if parents:
-        coalesce_effects(effects)
-    else:
-        with pytest.raises(ValueError, match="Owner effect conflict"):
-            coalesce_effects(effects)
+    # Ordinary coalescing merges identical shared directory creates, keeping both owners.
+    merged = coalesce_effects(effects)
+    if not parents:
+        shared_dirs = [e for e in merged if e.destination == roots["project"] / ".agents"]
+        assert len(shared_dirs) == 1
     with _shared_write_observer() as writes:
         composition = provider.compose_installation(installation, commands)
     assert not writes
@@ -1444,7 +1443,7 @@ def test_shared_parent_composition_rejects_unsupported_overlap(tmp_path: Path, m
     project = installation.project_skills
     shared = roots["project"] / ".agents"
     altered = replace(project, effects=tuple(replace(e, after=FileState("directory", mode=0o700)) if e.destination == shared else e for e in project.effects))
-    with pytest.raises(ValueError, match="Unsupported shared skill effect"):
+    with pytest.raises(ValueError, match="Owner effect conflict.*differs in: owner, after"):
         provider.compose_installation(replace(installation, project_skills=altered), commands)
     with pytest.raises(ValueError, match="Complete commands"):
         provider.compose_installation(installation, replace(commands, complete=False))

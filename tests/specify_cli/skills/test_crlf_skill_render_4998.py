@@ -519,10 +519,9 @@ def test_doctrine_skill_repair_converges_via_real_upgrade_cli(tmp_path: Path, mo
     ``spec-kitty upgrade --yes`` CLI on a REAL project (not the hand-built
     ``_make_project`` fixture other tests in this module use).
 
-    A real ``spec-kitty init``-built project is required: the hand-built
-    ``_make_project`` fixture trips an "Owner effect conflict"
-    (``tool_surface/operations.py::coalesce_effects``) under ``upgrade``
-    that a real project does not. On a real project,
+    A real ``spec-kitty init``-built project is used because the hand-built
+    ``_make_project`` fixture does not carry the full installed surface a real
+    ``upgrade`` plans against. On a real project,
     ``spec-kitty upgrade --yes`` repairs doctrine skills through
     ``upgrade.assessment.prepare_upgrade_repairs``/``apply_upgrade_repairs``
     (the ``ManagedSkillsProvider``, ``kinds=(DOCTRINE_SKILL,)``) on EVERY
