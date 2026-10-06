@@ -22,7 +22,8 @@ rest of ``contracts/module-layout.md`` over the same table:
   there;
 * the bridge's ``__all__`` is unchanged;
 * the import direction: no ``runtime_bridge_*`` module imports the bridge at
-  all, and the lower seams import nothing above them. The scan walks
+  all, the lower seams import nothing above them, and the leaf seams
+  (identity, cores, retrospective) import no ``runtime_bridge_*`` sibling. The scan walks
   function-local imports too, so a deferred back-edge such as the engine's
   former ``from runtime.next import runtime_bridge as _rb`` is caught. A
   planted forbidden import is reported (self-mutation test).
@@ -56,6 +57,8 @@ _ENGINE = "runtime_bridge_engine"
 _COMPOSITION = "runtime_bridge_composition"
 _IO = "runtime_bridge_io"
 _IDENTITY = "runtime_bridge_identity"
+_CORES = "runtime_bridge_cores"
+_RETROSPECTIVE = "runtime_bridge_retrospective"
 
 #: The names #2560 moved, by owning module (from the canonical ``REMOVED`` table).
 _OWNED: dict[str, tuple[str, ...]] = {
@@ -89,6 +92,11 @@ _FORBIDDEN_IMPORTS: dict[str, frozenset[str]] = {
 
 #: Every seam module that exists on disk (the bridge-import ban covers all of them).
 _SEAMS = sorted(path.stem for path in _NEXT_DIR.glob("runtime_bridge_*.py"))
+
+#: Leaf seams (the seam map in ``runtime_bridge.py`` calls identity a "leaf" and
+#: cores "pure leaves"; retrospective is one too): they import no
+#: ``runtime_bridge_*`` sibling at all, at any depth.
+_LEAF_SEAMS = frozenset({_IDENTITY, _CORES, _RETROSPECTIVE})
 
 
 def _module(name: str) -> ModuleType:
@@ -136,6 +144,8 @@ def imported_siblings(source: str) -> set[str]:
 
 def forbidden_import_violations(module: str, source: str) -> list[str]:
     forbidden = _FORBIDDEN_IMPORTS.get(module, frozenset()) | {_BRIDGE}
+    if module in _LEAF_SEAMS:
+        forbidden |= set(_SEAMS)
     return sorted(imported_siblings(source) & forbidden)
 
 
@@ -202,9 +212,16 @@ def test_planted_back_edge_is_reported(planted: str) -> None:
     assert forbidden_import_violations(_ENGINE, planted) == [_BRIDGE]
 
 
-def test_planted_upward_import_is_reported() -> None:
-    """Self-mutation: a lower seam importing a seam above it is caught."""
-    assert forbidden_import_violations(_GUARDS, "from runtime.next import runtime_bridge_io as _io\n") == [_IO]
+@pytest.mark.parametrize(
+    ("module", "planted", "expected"),
+    [
+        (_GUARDS, "from runtime.next import runtime_bridge_io as _io\n", [_IO]),
+        (_IDENTITY, "def f():\n    from runtime.next import runtime_bridge_cores\n", [_CORES]),
+    ],
+)
+def test_planted_upward_import_is_reported(module: str, planted: str, expected: list[str]) -> None:
+    """Self-mutation: a lower seam, or a leaf seam, importing a sibling above it is caught."""
+    assert forbidden_import_violations(module, planted) == expected
 
 
 def test_neutral_source_reports_nothing() -> None:
