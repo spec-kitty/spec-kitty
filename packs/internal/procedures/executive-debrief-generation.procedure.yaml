@@ -107,9 +107,8 @@ steps:
       headless browser. The template, the logo and the Falling Sky fonts sit
       beside the renderer in packs/internal/assets/debrief/ and the template
       loads them by relative path, so keep them together when you copy the
-      template elsewhere. The rendered HTML keeps those relative links too: write
-      it into the asset folder, or copy `logo.png` and `fonts/` beside it before
-      you print it to PDF, or the logo and fonts are missing. Do not restyle the template per report; the
+      template elsewhere. The renderer rewrites those links to absolute file://
+      links, so write the HTML anywhere. Do not restyle the template per report; the
       consistency is the point. It uses its own structured renderer
       because its dashboard layout (metric tiles, pill-tagged cluster cards) is
       not Markdown prose. Long form: render the Markdown with the

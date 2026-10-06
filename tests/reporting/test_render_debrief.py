@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
+from urllib.parse import urlparse
 
 import pytest
 
@@ -95,3 +97,22 @@ def test_template_loads_its_logo_and_fonts_from_beside_it():
     assert sum(1 for name in linked if name.startswith("fonts/")) == 3
     for relative in linked:
         assert (_ASSET.parent / relative).is_file(), relative
+
+
+def test_output_written_elsewhere_links_its_logo_and_fonts_by_absolute_path(tmp_path):
+    synthesis = tmp_path / "synthesis.json"
+    synthesis.write_text("{}", encoding="utf-8")
+    collector = tmp_path / "collector.json"
+    collector.write_text('{"valid_refs": []}', encoding="utf-8")
+    out = tmp_path / "elsewhere" / "report.html"
+    out.parent.mkdir()
+
+    assert rd.main(["--synthesis", str(synthesis), "--collector", str(collector), "--out", str(out)]) == 0
+
+    html = out.read_text(encoding="utf-8")
+    linked = re.findall(r"""(?:src=["']|url\(['"])(file://[^"')]+\.(?:png|otf))""", html)
+    assert sum(1 for link in linked if link.endswith("logo.png")) == 1
+    assert sum(1 for link in linked if "/fonts/" in link) == 3
+    assert not re.search(r"""(?:src=["']|url\(['"])(?:fonts/)?[\w.-]+\.(?:png|otf)""", html), "no relative link may remain"
+    for link in linked:
+        assert Path(urlparse(link).path).is_file(), link

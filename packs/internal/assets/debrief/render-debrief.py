@@ -129,6 +129,18 @@ def enforce_ref_guard(rendered: str, valid_refs: list[str]) -> None:
         raise RenderError(f"synthesis cited refs not present in the collected data (invented / out of scope): {', '.join(invented)}")
 
 
+# The template links its logo and fonts by a path relative to itself (`src="logo.png"`,
+# `url('fonts/X.otf')`). Output written anywhere else would lose them, so the renderer
+# rewrites each to an absolute file:// link to the file beside the template.
+_ASSET_LINK = re.compile(r"""(src=["']|url\(['"])((?:fonts/)?[\w.-]+\.(?:png|otf))""")
+
+
+def absolutize_asset_links(rendered: str, asset_dir: Path) -> str:
+    """Point the template's relative logo and font links at the files in *asset_dir*."""
+    base = asset_dir.resolve()
+    return _ASSET_LINK.sub(lambda m: m.group(1) + (base / m.group(2)).as_uri(), rendered)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--synthesis", required=True, help="Stage-B slot JSON.")
@@ -143,6 +155,7 @@ def main(argv: list[str] | None = None) -> int:
         template = Path(args.template).read_text(encoding="utf-8")
         rendered = render(template, build_context(synth))
         enforce_ref_guard(rendered, collector.get("valid_refs", []))
+        rendered = absolutize_asset_links(rendered, Path(args.template).parent)
     except RenderError as exc:
         print(f"render-debrief: {exc}", file=sys.stderr)
         return 1
