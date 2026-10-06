@@ -23,12 +23,14 @@ related:
 where this workflow was run end-to-end and its friction points were logged.
 
 The deliverable of a landing pass is never a merge. It is a PR that is green,
-un-drafted, carries a full evidence trail in its comment thread, and states
+carries a full evidence trail in its comment thread, and states
 any landing-order constraints — so the operator can merge it without
 re-deriving the adjudication. The maintainer never merges
 (see [step 11](#11-hand-off--the-operator-merges)).
 
 ## The workflow at a glance
+
+Before step 1, [check the PR is handed off and worth landing](#before-you-claim-check-the-pr-is-handed-off-and-worth-landing).
 
 1. [Claim before touching](#1-claim-before-touching)
 2. [One isolated worktree per PR](#2-one-isolated-worktree-per-pr)
@@ -51,8 +53,10 @@ Start with two read-only checks.
 then flipped to "ready for review". The flip is the hand-off to the maintainers: it
 signals that a landing pass is safe to start. A draft PR is not handed off. Run
 `gh pr view <N> --repo spec-kitty/spec-kitty --json isDraft,author,statusCheckRollup`;
-if `isDraft` is true, stop, tell the operator that the PR is still a draft (with its
-author and CI state), and rebase, push or comment only after an explicit go-ahead.
+if `isDraft` is true, stop before you touch the branch. The first thing in your reply
+to the operator is a prominent warning that the PR is STILL A DRAFT AND NOT HANDED
+OFF FOR LANDING, with its author and CI state, and the question whether to land it
+anyway. Rebase, push or comment only after an explicit go-ahead.
 
 **Is it worth landing?** Size the PR on two axes: old (its base is far behind
 `main`, an aging contributor branch) and substantive (a capability, a fix or a
@@ -441,14 +445,14 @@ read-only access to the landing worktree.
   easy fixes rot on a backlog and how the same finding gets re-raised on the next
   pass. Do not triage-by-severity into fold-vs-defer — fold by default.
 - **File a follow-up issue only as the exception**, when folding is genuinely the
-  wrong call for one of two reasons: (a) the finding's **scope is too large** to
-  fold cleanly into this PR (wide blast radius, many files, a refactor that would
-  swamp the review), or (b) its **impact is severe enough that the remediation
-  needs its own mission or design pass** — a spec, an ADR, or an operator
-  decision before any code moves. In those cases file the issue, parent it under
-  the relevant functional epic, and say in the remediation summary why it was not
-  folded. Severity alone never justifies deferral; only unfoldable scope or a
-  required design pass does.
+  wrong call for one of three reasons: (a) the finding is **highly impactful**
+  (it changes a contract, a shared seam or behaviour the PR does not own);
+  (b) it **takes significant effort** (wide blast radius, many files, a refactor
+  that would swamp the review); or (c) it **needs a significant operator
+  decision** — a spec, an ADR, or a ruling before any code moves. In those cases
+  file the issue the same day, parent it under the relevant functional epic, and
+  name it in the PR's `## Deferred` section with the reason. Every other finding,
+  whatever its severity, is folded.
 
 ### Delegate remediation to subagents
 
@@ -566,7 +570,8 @@ default is not to, and without an explicit yes for that run nobody but the
 operator runs `gh pr merge`. The hand-off deliverable is:
 
 - green CI;
-- the PR un-drafted;
+- the PR ready for review (the author flipped it, or the operator told you to land
+  it while it was still a draft);
 - the evidence trail on the PR;
 - landing-order constraints stated explicitly — for example, a structural
   cutover riding one PR forces an order on the rest of the pass.
@@ -575,8 +580,8 @@ operator runs `gh pr merge`. The hand-off deliverable is:
 
 Most of what a landing pass discovers should be **folded, not filed** — see the
 fold-first default in [step 8](#8-adversarial-squad-for-architectural-or-api-surface-prs).
-What genuinely cannot be folded — a finding whose scope is too large for this PR,
-or whose impact needs its own mission or design pass — gets a tracked home **the
+What genuinely cannot be folded — a finding that is highly impactful, takes
+significant effort, or needs a significant operator decision — gets a tracked home **the
 same day**: filed, labeled, and parented under a functional epic (never a meta
 rollup). New issues get processed by a triage pass immediately, so the next
 landing pass starts from a clean queue.
