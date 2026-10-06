@@ -31,6 +31,8 @@ if TYPE_CHECKING:
 
 import yaml
 
+from charter.drg import CORE_KIND_PLURALS
+
 from .sources.protocol import FetchResult, OrgDoctrineSource
 
 # ``OrgPackConfig`` is imported lazily inside helpers to avoid a circular import
@@ -38,19 +40,7 @@ from .sources.protocol import FetchResult, OrgDoctrineSource
 
 
 # Recognised artifact subdirectories per the pack-layout contract.
-_RECOGNISED_ARTIFACT_DIRS: frozenset[str] = frozenset(
-    {
-        "directives",
-        "tactics",
-        "styleguides",
-        "toolguides",
-        "paradigms",
-        "procedures",
-        "agent_profiles",
-        "mission_step_contracts",
-        "drg",
-    }
-)
+_RECOGNISED_ARTIFACT_DIRS: frozenset[str] = frozenset(CORE_KIND_PLURALS) | {"drg"}
 
 # Suffix → artifact-count bucket name for ``pack-manifest.yaml``.
 _ARTIFACT_BUCKETS: dict[str, str] = {
