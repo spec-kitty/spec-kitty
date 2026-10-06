@@ -466,13 +466,18 @@ class TestQueryCurrentStateErrorPaths:
         mock_run_ref.run_dir = str(tmp_path / "run")
 
         with (
-            patch("runtime.next.runtime_bridge.get_or_start_run", return_value=mock_run_ref),
+            # query_current_state resolves the run through the io seam's _existing_run_ref
+            # (it never calls get_or_start_run).
+            patch("runtime.next.runtime_bridge_io._existing_run_ref", return_value=mock_run_ref),
             patch("runtime.next.runtime_bridge.get_mission_type", return_value="software-dev"),
             patch("runtime.next.runtime_bridge._compute_wp_progress", return_value=None),
-            patch("runtime.next._internal_runtime.engine._read_snapshot", side_effect=Exception("snapshot read failed")),
+            patch("runtime.next._internal_runtime.engine._read_snapshot", side_effect=Exception("snapshot read failed")) as read_snapshot,
         ):
             with pytest.raises(QueryModeValidationError, match="Could not read query state"):
                 query_current_state("claude", "069-test", tmp_path)
+
+        # The error came from the snapshot read of the run the fake supplied, not from run bootstrap.
+        read_snapshot.assert_called_once()
 
     def test_invalid_first_step_raises_clear_validation_error(self, tmp_path: Path) -> None:
         from runtime.next.runtime_bridge import QueryModeValidationError, query_current_state
@@ -711,7 +716,7 @@ class TestQueryCurrentStateErrorPaths:
         assert decision.is_query is True
 
     def test_existing_run_ref_raises_when_state_json_missing(self, tmp_path: Path) -> None:
-        from runtime.next.runtime_bridge import _existing_run_ref
+        from runtime.next.runtime_bridge_io import _existing_run_ref
         from runtime.next.runtime_bridge_io import RunStateMissing
 
         index = {
@@ -734,7 +739,7 @@ class TestQueryCurrentStateErrorPaths:
 
     def test_start_ephemeral_query_run_cleans_up_on_bootstrap_failure(self, tmp_path: Path) -> None:
         """If start_mission_run raises, the freshly created temp dir is removed."""
-        from runtime.next.runtime_bridge import _start_ephemeral_query_run
+        from runtime.next.runtime_bridge_io import _start_ephemeral_query_run
 
         created_dirs: list[Path] = []
         original_mkdtemp = __import__("tempfile").mkdtemp
@@ -745,13 +750,8 @@ class TestQueryCurrentStateErrorPaths:
             return path
 
         with (
-            # #2531 decomposition: the real implementation (and its
-            # ``tempfile``/``start_mission_run`` bindings) now lives in
-            # ``runtime_bridge_io`` -- ``runtime_bridge._start_ephemeral_query_run``
-            # is a thin compat delegate that forwards to it. ``_runtime_template_key``
-            # / ``_build_discovery_context`` are still resolved via the io module's
-            # ``_rb`` (``runtime_bridge``) back-reference, so those two patch targets
-            # are unchanged.
+            # ``_start_ephemeral_query_run`` and the helpers it calls live in
+            # ``runtime_bridge_io``; patch them there.
             patch("runtime.next.runtime_bridge_io.tempfile.mkdtemp", side_effect=tracking_mkdtemp),
             patch("runtime.next.runtime_bridge_io._runtime_template_key", return_value="software-dev"),
             patch("runtime.next.runtime_bridge_io._build_discovery_context", return_value=None),

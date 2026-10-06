@@ -106,7 +106,7 @@ _MIGRATING_WP = {
 }
 
 #: Seams not yet migrated. Each migrating WP removes its seam in its own diff.
-_PENDING_SEAMS = {"io"}
+_PENDING_SEAMS: set[str] = set()
 
 #: Rows whose check already holds on the pre-mission tree. They are a plain
 #: regression guard from day one (a strict xfail would XPASS and go red).

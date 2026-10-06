@@ -1,35 +1,25 @@
-"""I/O-port seam tests for ``runtime_bridge_io`` (#2531 WP05, FR-006).
+"""I/O-port seam tests for ``runtime_bridge_io`` (#2531 WP05, FR-006; #2561 WP05).
 
 Four independent concerns:
 
-1. **Non-vacuousness / compat-guard checks** — the seam actually defines every
-   symbol T017-T019 relocated. Native-delegate status for the `_`-prefixed
-   compat-guarded set was verified by a dedicated frozen family guard (which
-   hardcoded the tolerated cross-module baseline to the 3 pre-existing
-   ``runtime.next.decision``-origin names), retired in #3285; this file
-   additionally guards the
-   two PUBLIC relocated names (``get_or_start_run``,
-   ``build_operational_context_for_claim``) that grep-derived guard does not
-   cover (it only tracks leading-underscore names).
+1. **Non-vacuousness checks** -- the seam actually defines every symbol the
+   io cluster owns. That the bridge keeps no forwarder for them, and that the
+   two public names are the very same objects on the bridge, is pinned by the
+   acceptance gate ``tests/runtime/test_bridge_no_compat_delegates.py``.
 
-2. **Focused unit tests (FR-006)** against the moved ports in isolation —
-   stubbing the underlying I/O (tmp_path fixtures, monkeypatched
-   ``runtime_bridge`` guard-helpers) rather than driving the real runtime.
-   These pin the behavior-preserving move (C-001) for: the feature-runs
+2. **Focused unit tests (FR-006)** against the ports in isolation -- stubbing
+   the underlying I/O (tmp_path fixtures, patches on this module's own
+   names) rather than driving the real runtime. These pin the feature-runs
    index, template/pack discovery, run lifecycle, the OC builder,
    ``gather_artifact_presence`` (T018), and ``resolve_commit_target`` (T019,
    tested as a pure no-I/O function per NFR-003).
 
-3. **Intra-seam / cross-seam live-lookup regression** (the WP05-specific risk
-   flagged in ``research.md`` §Compat and ``contracts/compat-surface.md``):
-   now that the moved cluster lives together in one seam module (plus calls
-   back into compat-tracked names that stay in the residual), a bare
-   intra-module/direct call would resolve via the seam's own globals (or fail
-   to resolve at all) — bypassing a ``monkeypatch.setattr(runtime_bridge,
-   "<name>", …)``. ``test_*_uses_live_lookup_for_*`` pin this by patching the
-   callee on ``runtime_bridge`` and asserting the (unpatched) caller in the
-   seam still observes it. ``_build_discovery_context`` is the grounded 🔴
-   high-risk case research.md names explicitly.
+3. **Seam patch-point tests** (``test_*_observes_a_patch_on_the_seam``): the
+   io seam owns its helpers, so a patch on THIS module is the one patch
+   point, and the seam's own callers observe it. Each test proves its fake ran.
+
+4. **Mechanism tests** for the ``runtime_bridge`` re-exports and for
+   ``_build_run_ref``'s ``run_ref_cls`` default argument.
 """
 
 from __future__ import annotations
@@ -54,16 +44,13 @@ _IO_SEAM_LOGGER_NAME = "runtime.next.runtime_bridge_io"
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # ---------------------------------------------------------------------------
-# 1. Non-vacuousness / compat-guard checks
+# 1. Non-vacuousness checks
 # ---------------------------------------------------------------------------
 
-# Every symbol T017-T019 relocated to runtime_bridge_io.py that the WP02
-# compat guard bound (ALL_COMPAT_SYMBOLS / REACH -- that dedicated guard was
-# retired in #3285) -- MUST stay a native def/class on runtime_bridge, never a
-# plain re-export (see module docstring above).
-_COMPAT_GUARDED_NAMES = frozenset(
+# Every name the io cluster owns (the gate pins that the bridge defines none of
+# them; this pins that the seam really does, so the gate cannot pass vacuously).
+_SEAM_OWNED_NAMES = frozenset(
     {
-        "_load_feature_runs",
         "_build_run_ref",
         "_mission_key_for_run_ref",
         "_build_discovery_context",
@@ -74,56 +61,21 @@ _COMPAT_GUARDED_NAMES = frozenset(
         "_resolve_run_dir_for_mission",
         "_resolve_tech_stack_for_profile",
         "_build_operational_context_for_decision",
-    }
-)
-
-# Public (non-underscore) names moved by this WP. Not part of the WP02 guard's
-# tracked `_`-prefixed inventory (that guard's grep only matches leading-
-# underscore names), but heavily monkeypatched directly on `runtime_bridge` by
-# OTHER (non-frozen) test files -- e.g. tests/unit/mission_loader/test_command.py,
-# tests/integration/test_mission_run_command.py. Kept as native thin delegates
-# for the same safety, even though not strictly required by guard B.
-_PUBLIC_RELOCATED_NAMES = frozenset({"get_or_start_run", "build_operational_context_for_claim"})
-
-
-def test_seam_defines_every_relocated_symbol() -> None:
-    """Non-vacuousness check: the seam must actually define every relocated
-    name, or the native-thin-delegate assertion below would pass for the
-    wrong reason (nobody needing the port at all).
-
-    ``_load_feature_runs`` is deliberately excluded here: its "body" on the
-    seam is the composition ``load_feature_runs(_feature_runs_path(repo_root))``
-    (the textbook path-based port + the repo_root -> path resolver), not a
-    literal ``_load_feature_runs`` name on ``runtime_bridge_io`` -- only the
-    residual keeps that exact repo_root-keyed compat name.
-    """
-    seam_names = (_COMPAT_GUARDED_NAMES - {"_load_feature_runs"}) | _PUBLIC_RELOCATED_NAMES | {
+        "get_or_start_run",
+        "build_operational_context_for_claim",
         "resolve_commit_target",
         "gather_artifact_presence",
         "load_feature_runs",
         "save_feature_runs",
         "_feature_runs_path",
     }
-    for name in sorted(seam_names):
-        assert hasattr(io_seam, name), f"seam is missing relocated symbol {name!r}"
+)
 
 
-def test_runtime_bridge_keeps_native_thin_delegates_for_public_relocated_names() -> None:
-    """The two PUBLIC relocated names must stay a NATIVE ``def`` statement in
-    runtime_bridge.py (a thin delegate), never a plain ``import`` alias. The
-    frozen family guard's grep-derived inventory only tracks leading-
-    underscore (``_``-prefixed) symbols, so it does NOT cover these two public
-    names -- this is their only native-delegate guard."""
-    from runtime.next import runtime_bridge as rb
-
-    for name in sorted(_PUBLIC_RELOCATED_NAMES):
-        obj = getattr(rb, name)
-        assert obj.__module__ == rb.__name__, (
-            f"{name!r} on runtime_bridge is NOT natively defined there "
-            f"(__module__={obj.__module__!r}) -- it must be a native thin "
-            "delegate, not a plain re-export; unlike the `_`-prefixed compat "
-            "set, no other guard covers this public name."
-        )
+def test_seam_defines_every_owned_symbol() -> None:
+    """Non-vacuousness check: the seam must actually define every name it owns."""
+    for name in sorted(_SEAM_OWNED_NAMES):
+        assert hasattr(io_seam, name), f"seam is missing owned symbol {name!r}"
 
 
 def test_runtime_bridge_no_longer_owns_feature_runs_file_constants() -> None:
@@ -800,9 +752,7 @@ def test_runtime_template_key_no_org_pack_configured_emits_no_new_warnings(
 
 
 def test_existing_run_ref_returns_none_when_slug_absent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from runtime.next import runtime_bridge as rb
-
-    monkeypatch.setattr(rb, "_load_feature_runs", lambda repo_root: {})
+    monkeypatch.setattr(io_seam, "load_feature_runs", lambda path: {})
     assert io_seam._existing_run_ref("missing-mission", tmp_path, "software-dev") is None
 
 
@@ -810,14 +760,12 @@ def test_existing_run_ref_raises_when_state_file_absent(tmp_path: Path, monkeypa
     """WP05 / FR-016: a live index entry whose ``state.json`` is gone is a loud
     ``RunStateMissing``, never ``None`` (which used to let the caller start a
     fresh run over the orphaned history)."""
-    from runtime.next import runtime_bridge as rb
-
     run_dir = tmp_path / "runs" / "r1"
     run_dir.mkdir(parents=True)
     monkeypatch.setattr(
-        rb,
-        "_load_feature_runs",
-        lambda repo_root: {"042-mission": {"run_id": "r1", "run_dir": str(run_dir)}},
+        io_seam,
+        "load_feature_runs",
+        lambda path: {"042-mission": {"run_id": "r1", "run_dir": str(run_dir)}},
     )
     with pytest.raises(io_seam.RunStateMissing) as excinfo:
         io_seam._existing_run_ref("042-mission", tmp_path, "software-dev")
@@ -826,15 +774,13 @@ def test_existing_run_ref_raises_when_state_file_absent(tmp_path: Path, monkeypa
 
 
 def test_existing_run_ref_builds_ref_when_state_file_present(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from runtime.next import runtime_bridge as rb
-
     run_dir = tmp_path / "runs" / "r1"
     run_dir.mkdir(parents=True)
     (run_dir / "state.json").write_text("{}", encoding="utf-8")
     monkeypatch.setattr(
-        rb,
-        "_load_feature_runs",
-        lambda repo_root: {
+        io_seam,
+        "load_feature_runs",
+        lambda path: {
             "042-mission": {"run_id": "r1", "run_dir": str(run_dir), "mission_key": "software-dev"}
         },
     )
@@ -849,15 +795,13 @@ def test_get_or_start_run_returns_existing_ref_without_starting_new_run(
 ) -> None:
     """get_or_start_run must not call start_mission_run when a valid existing
     run is on record (mirrors the pre-extraction inline behavior)."""
-    from runtime.next import runtime_bridge as rb
-
     run_dir = tmp_path / "runs" / "r1"
     run_dir.mkdir(parents=True)
     (run_dir / "state.json").write_text("{}", encoding="utf-8")
     monkeypatch.setattr(
-        rb,
-        "_load_feature_runs",
-        lambda repo_root: {
+        io_seam,
+        "load_feature_runs",
+        lambda path: {
             "042-mission": {"run_id": "r1", "run_dir": str(run_dir), "mission_key": "software-dev"}
         },
     )
@@ -877,19 +821,15 @@ def test_get_or_start_run_returns_existing_ref_without_starting_new_run(
 
 
 def test_resolve_run_dir_for_mission_none_when_no_run_recorded(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from runtime.next import runtime_bridge as rb
-
-    monkeypatch.setattr(rb, "_load_feature_runs", lambda repo_root: {})
+    monkeypatch.setattr(io_seam, "load_feature_runs", lambda path: {})
     assert io_seam._resolve_run_dir_for_mission(tmp_path, "042-mission") is None
 
 
 def test_resolve_run_dir_for_mission_returns_recorded_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from runtime.next import runtime_bridge as rb
-
     monkeypatch.setattr(
-        rb,
-        "_load_feature_runs",
-        lambda repo_root: {"042-mission": {"run_dir": str(tmp_path / "runs" / "r1")}},
+        io_seam,
+        "load_feature_runs",
+        lambda path: {"042-mission": {"run_dir": str(tmp_path / "runs" / "r1")}},
     )
     assert io_seam._resolve_run_dir_for_mission(tmp_path, "042-mission") == tmp_path / "runs" / "r1"
 
@@ -933,12 +873,11 @@ def test_resolve_tech_stack_for_profile_bare_repo_resolves_python_pedro(tmp_path
 def test_build_operational_context_for_claim_resolves_profile_from_run_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from runtime.next import runtime_bridge as rb
     from runtime.next import runtime_bridge_composition as composition_seam
 
-    monkeypatch.setattr(rb, "_resolve_run_dir_for_mission", lambda repo_root, mission_slug: tmp_path)
+    monkeypatch.setattr(io_seam, "_resolve_run_dir_for_mission", lambda repo_root, mission_slug: tmp_path)
     monkeypatch.setattr(composition_seam, "_resolve_step_agent_profile", lambda run_dir, activity: "python-pedro")
-    monkeypatch.setattr(rb, "_resolve_tech_stack_for_profile", lambda repo_root, profile_id: frozenset({"python"}))
+    monkeypatch.setattr(io_seam, "_resolve_tech_stack_for_profile", lambda repo_root, profile_id: frozenset({"python"}))
 
     oc = io_seam.build_operational_context_for_claim(
         repo_root=tmp_path,
@@ -958,13 +897,11 @@ def test_build_operational_context_for_claim_resolves_profile_from_run_dir(
 def test_build_operational_context_for_claim_explicit_profile_skips_resolution(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from runtime.next import runtime_bridge as rb
-
     def _should_not_resolve(*_a: Any, **_k: Any) -> Any:
         raise AssertionError("must not resolve run_dir when active_profile is explicit")
 
-    monkeypatch.setattr(rb, "_resolve_run_dir_for_mission", _should_not_resolve)
-    monkeypatch.setattr(rb, "_resolve_tech_stack_for_profile", lambda repo_root, profile_id: frozenset())
+    monkeypatch.setattr(io_seam, "_resolve_run_dir_for_mission", _should_not_resolve)
+    monkeypatch.setattr(io_seam, "_resolve_tech_stack_for_profile", lambda repo_root, profile_id: frozenset())
 
     oc = io_seam.build_operational_context_for_claim(
         repo_root=tmp_path,
@@ -1150,43 +1087,36 @@ def test_resolve_commit_target_raises_when_coord_topology_has_no_resolvable_mid8
 
 
 # ---------------------------------------------------------------------------
-# Live-lookup regressions (the WP05-specific false-green risk)
+# 3. Seam patch points: a patch on this module is observed by its own callers
 # ---------------------------------------------------------------------------
 
 
-def test_runtime_template_key_uses_live_lookup_for_build_discovery_context(
+def test_runtime_template_key_observes_a_patch_on_build_discovery_context(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The grounded 🔴 high-risk case research.md §Compat names explicitly:
-    ``_build_discovery_context`` is patched in production tests
-    (``test_query_mode_unit.py:751``) and reached only via intra-seam movers
-    -- ``_runtime_template_key`` must resolve it via a live lookup through
-    ``runtime_bridge``, never a bare intra-module call."""
-    from runtime.next import runtime_bridge as rb
-
+    """``_build_discovery_context`` is patched in production tests and reached
+    only via intra-seam callers: ``_runtime_template_key`` calls it as a module
+    global, so one patch on ``runtime_bridge_io`` intercepts it."""
     calls: list[Path] = []
-    sentinel_context = rb._build_discovery_context(tmp_path)
+    sentinel_context = io_seam._build_discovery_context(tmp_path)
 
     def _spy(repo_root: Path) -> Any:
         calls.append(repo_root)
         return sentinel_context
 
-    monkeypatch.setattr(rb, "_build_discovery_context", _spy)
-    monkeypatch.setattr(rb, "_resolve_runtime_template_in_root", lambda root, mission_type: None)
+    monkeypatch.setattr(io_seam, "_build_discovery_context", _spy)
+    monkeypatch.setattr(io_seam, "_resolve_runtime_template_in_root", lambda root, mission_type: None)
 
     io_seam._runtime_template_key("software-dev", tmp_path)
 
     assert calls == [tmp_path]
 
 
-def test_runtime_template_key_uses_live_lookup_for_resolve_runtime_template_in_root(
+def test_runtime_template_key_observes_a_patch_on_resolve_runtime_template_in_root(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Same false-green risk for ``_resolve_runtime_template_in_root`` --
-    both it and its caller ``_runtime_template_key`` moved into this same
-    seam module."""
-    from runtime.next import runtime_bridge as rb
-
+    """Same patch point for ``_resolve_runtime_template_in_root``, called by
+    ``_runtime_template_key`` in this same module."""
     resolved = tmp_path / "mission.yaml"
     calls: list[str] = []
 
@@ -1194,43 +1124,41 @@ def test_runtime_template_key_uses_live_lookup_for_resolve_runtime_template_in_r
         calls.append(mission_type)
         return resolved
 
-    monkeypatch.setattr(rb, "_resolve_runtime_template_in_root", _spy)
+    monkeypatch.setattr(io_seam, "_resolve_runtime_template_in_root", _spy)
 
     result = io_seam._runtime_template_key("software-dev", tmp_path)
 
-    assert calls, "the patched runtime_bridge._resolve_runtime_template_in_root was never invoked"
+    assert calls, "the patched runtime_bridge_io._resolve_runtime_template_in_root was never invoked"
     assert result == str(resolved)
 
 
-def test_existing_run_ref_uses_live_lookup_for_load_feature_runs_and_build_run_ref(
+def test_existing_run_ref_observes_a_patch_on_load_feature_runs_and_build_run_ref(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from runtime.next import runtime_bridge as rb
-
     run_dir = tmp_path / "runs" / "r1"
     run_dir.mkdir(parents=True)
     (run_dir / "state.json").write_text("{}", encoding="utf-8")
 
     load_calls: list[Path] = []
     build_calls: list[dict[str, Any]] = []
+    real_build_run_ref = io_seam._build_run_ref
 
-    def _spy_load(repo_root: Path) -> dict[str, Any]:
-        load_calls.append(repo_root)
+    def _spy_load(path: Path) -> dict[str, Any]:
+        load_calls.append(path)
         return {"042-mission": {"run_id": "r1", "run_dir": str(run_dir)}}
 
     def _spy_build(*, run_id: str, run_dir: str, mission_type: str) -> Any:
         build_calls.append({"run_id": run_id, "run_dir": run_dir, "mission_type": mission_type})
-        # Call the seam's real implementation directly -- NOT rb._build_run_ref,
-        # which this very monkeypatch has replaced (calling it here would spy
-        # on itself and recurse forever).
-        return io_seam._build_run_ref(run_id=run_id, run_dir=run_dir, mission_type=mission_type)
+        # The real implementation was captured before the patch: calling the
+        # patched name here would spy on itself and recurse forever.
+        return real_build_run_ref(run_id=run_id, run_dir=run_dir, mission_type=mission_type)
 
-    monkeypatch.setattr(rb, "_load_feature_runs", _spy_load)
-    monkeypatch.setattr(rb, "_build_run_ref", _spy_build)
+    monkeypatch.setattr(io_seam, "load_feature_runs", _spy_load)
+    monkeypatch.setattr(io_seam, "_build_run_ref", _spy_build)
 
     ref = io_seam._existing_run_ref("042-mission", tmp_path, "software-dev")
 
-    assert load_calls == [tmp_path]
+    assert load_calls == [io_seam._feature_runs_path(tmp_path)]
     assert build_calls == [{"run_id": "r1", "run_dir": str(run_dir), "mission_type": "software-dev"}]
     assert ref is not None
 
@@ -1240,10 +1168,8 @@ def test_get_or_start_run_resolves_mission_ulid_on_the_identity_seam(
 ) -> None:
     """``get_or_start_run`` reads the mission ULID off the identity seam
     (``runtime_bridge_identity._resolve_mission_ulid``), the one patch point."""
-    from runtime.next import runtime_bridge as rb
-
-    monkeypatch.setattr(rb, "_load_feature_runs", lambda repo_root: {})
-    monkeypatch.setattr(rb, "_runtime_template_key", lambda mission_type, repo_root: "software-dev")
+    monkeypatch.setattr(io_seam, "load_feature_runs", lambda path: {})
+    monkeypatch.setattr(io_seam, "_runtime_template_key", lambda mission_type, repo_root: "software-dev")
     monkeypatch.setattr(io_seam, "_workflow_runtime_template", lambda *a, **k: (None, None))
 
     class _FakeRunRef:
@@ -1267,14 +1193,13 @@ def test_get_or_start_run_resolves_mission_ulid_on_the_identity_seam(
     assert calls == ["042-mission"]
 
 
-def test_build_operational_context_for_claim_uses_live_lookup_for_resolve_tech_stack(
+def test_build_operational_context_for_claim_observes_a_patch_on_resolve_tech_stack(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Intra-seam risk: ``build_operational_context_for_claim`` and
-    ``_resolve_tech_stack_for_profile`` both moved into this seam module."""
-    from runtime.next import runtime_bridge as rb
-
-    monkeypatch.setattr(rb, "_resolve_run_dir_for_mission", lambda repo_root, mission_slug: None)
+    """``build_operational_context_for_claim`` and
+    ``_resolve_tech_stack_for_profile`` live in this seam module, so a patch on
+    ``runtime_bridge_io`` is the one patch point."""
+    monkeypatch.setattr(io_seam, "_resolve_run_dir_for_mission", lambda repo_root, mission_slug: None)
 
     calls: list[str | None] = []
 
@@ -1282,7 +1207,7 @@ def test_build_operational_context_for_claim_uses_live_lookup_for_resolve_tech_s
         calls.append(profile_id)
         return frozenset({"python"})
 
-    monkeypatch.setattr(rb, "_resolve_tech_stack_for_profile", _spy)
+    monkeypatch.setattr(io_seam, "_resolve_tech_stack_for_profile", _spy)
 
     oc = io_seam.build_operational_context_for_claim(
         repo_root=tmp_path,

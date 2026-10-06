@@ -547,7 +547,7 @@ class TestNextCommandKnownBlockedMissions:
             issued_step_id = "implement"
 
         with (
-            patch("runtime.next.runtime_bridge.get_or_start_run", return_value=RunRef()),
+            patch("runtime.next.runtime_bridge_io.get_or_start_run", return_value=RunRef()) as get_run,
             patch("runtime.next.runtime_bridge._compute_wp_progress", return_value=None),
             patch("runtime.next._internal_runtime.engine._read_snapshot", return_value=Snapshot()),
             patch(
@@ -561,6 +561,8 @@ class TestNextCommandKnownBlockedMissions:
         ):
             decision = decide_next_via_runtime("test-agent", "042-test-feature", "success", repo_root)
 
+        # decide_next_via_runtime looks the run up on the io seam: prove the fake was that binding.
+        get_run.assert_called_once()
         assert decision.kind == DecisionKind.blocked
         assert any("finalize-tasks" in failure for failure in decision.guard_failures)
 

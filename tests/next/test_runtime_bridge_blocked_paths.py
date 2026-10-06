@@ -203,7 +203,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
         with (
             patch.object(rb, "get_mission_type", return_value="software-dev"),
             patch.object(rb, "runtime_emitter_for_mission") as sync_factory,
-            patch.object(rb, "get_or_start_run", return_value=run_ref),
+            patch("runtime.next.runtime_bridge_io.get_or_start_run", return_value=run_ref) as get_run,
             patch.object(rb, "_compute_wp_progress", return_value=None),
             patch.object(rb, "_check_cli_guards", return_value=["specify_guard_failure"]),
             patch.object(rb, "_is_wp_iteration_step", return_value=False),
@@ -228,6 +228,8 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
                 repo_root=tmp_path,
             )
 
+        # decide_next_via_runtime looks the run up on the io seam: prove the fake was that binding.
+        get_run.assert_called_once()
         assert decision.kind == DecisionKind.blocked
         assert decision.reason
         assert "prompt resolution failed" in decision.reason
@@ -258,7 +260,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
         with (
             patch.object(rb, "get_mission_type", return_value="software-dev"),
             patch.object(rb, "runtime_emitter_for_mission") as sync_factory,
-            patch.object(rb, "get_or_start_run", return_value=run_ref),
+            patch("runtime.next.runtime_bridge_io.get_or_start_run", return_value=run_ref) as get_run,
             patch.object(rb, "_compute_wp_progress", return_value=None),
             patch.object(rb, "_check_cli_guards", return_value=["specify_guard_failure"]),
             patch.object(rb, "_is_wp_iteration_step", return_value=False),
@@ -287,6 +289,8 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
         # still structured (blocked OR step depending on policy). The
         # critical contract is: guard_failures are surfaced, and any
         # `prompt_file` attached must point to a real file.
+        # decide_next_via_runtime looks the run up on the io seam: prove the fake was that binding.
+        get_run.assert_called_once()
         assert decision.guard_failures == ["specify_guard_failure"]
         if decision.prompt_file is not None:
             assert Path(decision.prompt_file).exists()
@@ -309,7 +313,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
         with (
             patch.object(rb, "get_mission_type", return_value="software-dev"),
             patch.object(rb, "runtime_emitter_for_mission") as sync_factory,
-            patch.object(rb, "get_or_start_run", return_value=run_ref),
+            patch("runtime.next.runtime_bridge_io.get_or_start_run", return_value=run_ref) as get_run,
             patch.object(rb, "_compute_wp_progress", return_value=None),
             patch.object(rb, "_check_cli_guards", return_value=["specify_guard_failure"]),
             patch.object(rb, "_is_wp_iteration_step", return_value=False),
@@ -335,6 +339,8 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
                 repo_root=tmp_path,
             )
 
+        # decide_next_via_runtime looks the run up on the io seam: prove the fake was that binding.
+        get_run.assert_called_once()
         assert decision.kind == DecisionKind.blocked
         assert decision.reason == "prompt_file_not_resolvable"
         assert decision.guard_failures == ["specify_guard_failure"]
@@ -360,7 +366,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
         with (
             patch.object(rb, "get_mission_type", return_value="software-dev"),
             patch.object(rb, "runtime_emitter_for_mission") as sync_factory,
-            patch.object(rb, "get_or_start_run", return_value=run_ref),
+            patch("runtime.next.runtime_bridge_io.get_or_start_run", return_value=run_ref) as get_run,
             patch.object(rb, "_compute_wp_progress", return_value=None),
             patch.object(rb, "_check_cli_guards", return_value=["exotic_guard_failure"]),
             patch.object(rb, "_is_wp_iteration_step", return_value=False),
@@ -380,6 +386,8 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
                 repo_root=tmp_path,
             )
 
+        # decide_next_via_runtime looks the run up on the io seam: prove the fake was that binding.
+        get_run.assert_called_once()
         assert decision.kind == DecisionKind.blocked
         assert decision.reason
         assert "no action mapped" in decision.reason

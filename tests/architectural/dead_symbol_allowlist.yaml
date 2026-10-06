@@ -1392,7 +1392,7 @@ widened_grandfathered_470:
       ``run_index.save_index`` directly, which tokenizes + locks. Kept as a thin
       delegate over ``run_index.write_index_file`` for the existing monkeypatch seam
       and test symmetry with its sibling ``load_feature_runs`` (which still has a
-      live src/ caller via ``runtime_bridge._load_feature_runs``); exercised directly
+      live src/ caller in ``runtime_bridge_io._load_run_index``); exercised directly
       by tests/runtime/test_bridge_io.py.'
   - module: specify_cli.agent_tasks_ports
     name: default_ports

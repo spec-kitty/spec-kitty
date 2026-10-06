@@ -250,7 +250,7 @@ def _envelope(result: Result) -> dict[str, Any]:
 
 
 def _run_dir_for(repo_root: Path, mission_slug: str) -> Path:
-    from runtime.next.runtime_bridge import _resolve_run_dir_for_mission
+    from runtime.next.runtime_bridge_io import _resolve_run_dir_for_mission
 
     run_dir = _resolve_run_dir_for_mission(repo_root, mission_slug)
     assert run_dir is not None, f"no run directory resolved for {mission_slug!r}"

@@ -40,11 +40,11 @@ from charter.activation.invocation_context import (
     OperationalContext,
 )
 from runtime.next import runtime_bridge, runtime_bridge_io
-from runtime.next.runtime_bridge import (
+from runtime.next.runtime_bridge import build_operational_context_for_claim
+from runtime.next.runtime_bridge_io import (
     _build_operational_context_for_decision,
     _resolve_run_dir_for_mission,
     _resolve_tech_stack_for_profile,
-    build_operational_context_for_claim,
 )
 
 
@@ -286,20 +286,16 @@ class TestWiringIsLive:
         assert "_build_operational_context_for_decision" in called
 
     def test_decision_helper_calls_pure_assembler(self) -> None:
-        # #2531 WP09 (runtime-bridge-degod): the real _build_operational_context_for_decision
-        # body moved into the runtime_bridge_io seam; runtime_bridge keeps a thin delegate.
-        # Two-hop check (mirrors test_decide_next_calls_decision_helper above): delegate ->
-        # io seam -> the pure assembler. Preserves the original single-hop guarantee.
-        assert "_build_operational_context_for_decision" in _calls_in(
-            _build_operational_context_for_decision
-        )
+        # The helper's body lives in the runtime_bridge_io seam, which
+        # decide_next_via_runtime reaches through _dn_bootstrap (see
+        # test_decide_next_calls_decision_helper above). The helper calls the
+        # pure assembler.
         called = _calls_in(runtime_bridge_io._build_operational_context_for_decision)
         assert "build_operational_context" in called
 
     def test_claim_helper_calls_pure_assembler(self) -> None:
-        # #2531 WP09: build_operational_context_for_claim's body moved into the io seam.
-        assert "build_operational_context_for_claim" in _calls_in(
-            build_operational_context_for_claim
-        )
+        # build_operational_context_for_claim lives in the io seam; the bridge
+        # re-exports the same object for callers outside the package.
+        assert build_operational_context_for_claim is runtime_bridge_io.build_operational_context_for_claim
         called = _calls_in(runtime_bridge_io.build_operational_context_for_claim)
         assert "build_operational_context" in called

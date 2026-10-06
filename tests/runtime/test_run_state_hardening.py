@@ -107,11 +107,9 @@ class _FakeEngine:
 @pytest.fixture
 def fake_engine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> _FakeEngine:
     """Stub template discovery + engine start so ``get_or_start_run`` exercises only the store."""
-    from runtime.next import runtime_bridge as rb
-
     engine = _FakeEngine(tmp_path)
     monkeypatch.setattr(io_seam, "start_mission_run", engine)
-    monkeypatch.setattr(rb, "_runtime_template_key", lambda mission_type, repo_root: mission_type)
+    monkeypatch.setattr(io_seam, "_runtime_template_key", lambda mission_type, repo_root: mission_type)
     monkeypatch.setattr(io_seam, "_workflow_runtime_template", lambda *a, **k: (None, None))
     return engine
 

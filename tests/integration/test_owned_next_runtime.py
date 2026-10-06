@@ -691,7 +691,8 @@ class TestOwnedRunIdentity:
         ownership verification ``RunIdentityMigrationRequired`` asks for."""
         import json
 
-        from runtime.next.runtime_bridge import _existing_run_ref, get_or_start_run
+        from runtime.next.runtime_bridge import get_or_start_run
+        from runtime.next.runtime_bridge_io import _existing_run_ref
 
         checkouts = owned_checkouts
         _provision_charter(checkouts)

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from runtime.next.runtime_bridge import _resolve_runtime_template_in_root
+from runtime.next.runtime_bridge_io import _resolve_runtime_template_in_root
 
 
 import pytest

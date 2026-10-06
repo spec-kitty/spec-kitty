@@ -253,7 +253,7 @@ def test_bootstrap_returns_blocked_decision_when_run_start_fails(tmp_path: Path,
     def _raise_start(*_a: Any, **_kw: Any) -> MissionRunRef:
         raise RuntimeError("cannot start run")
 
-    monkeypatch.setattr(rb, "get_or_start_run", _raise_start)
+    monkeypatch.setattr(_io_seam, "get_or_start_run", _raise_start)
 
     ctx, decision = rb._dn_bootstrap("agent-x", "042-mission", "success", tmp_path)
 
@@ -288,7 +288,7 @@ def test_bootstrap_returns_terminal_before_run_for_merged_mission(tmp_path: Path
 
     monkeypatch.setattr(rb, "runtime_emitter_for_mission", _raise_assertion)
     monkeypatch.setattr(rb, "_wrap_with_decision_git_log", _raising)
-    monkeypatch.setattr(rb, "get_or_start_run", _raising)
+    monkeypatch.setattr(_io_seam, "get_or_start_run", _raising)
 
     ctx, decision = rb._dn_bootstrap("agent-x", slug, "success", tmp_path)
 
@@ -366,7 +366,7 @@ def test_bootstrap_builds_full_context_on_happy_path(tmp_path: Path, monkeypatch
     monkeypatch.setattr(rb, "get_mission_type", lambda fd: "software-dev")
     monkeypatch.setattr(rb, "runtime_emitter_for_mission", lambda **_: fake_emitter)
     monkeypatch.setattr(rb, "_wrap_with_decision_git_log", lambda emitter, slug, repo_root: wrapped_sentinel)
-    monkeypatch.setattr(rb, "get_or_start_run", lambda slug, repo_root, mission_type, *, emitter, owned=None: run_ref)
+    monkeypatch.setattr(_io_seam, "get_or_start_run", lambda slug, repo_root, mission_type, *, emitter, owned=None: run_ref)
     monkeypatch.setattr(_engine_adapter, "_read_snapshot", lambda rd: SimpleNamespace(issued_step_id="implement"))
     monkeypatch.setattr(_io_seam, "_build_operational_context_for_decision", lambda **_kw: OperationalContext())
 
@@ -426,7 +426,7 @@ def test_bootstrap_preserves_phase_and_guards_when_optional_seed_unavailable(
     monkeypatch.setattr(rb, "get_mission_type", lambda *_: "software-dev")
     monkeypatch.setattr(rb, "runtime_emitter_for_mission", lambda **_: producer)
     monkeypatch.setattr(rb, "_wrap_with_decision_git_log", lambda emitter, *_: emitter)
-    monkeypatch.setattr(rb, "get_or_start_run", lambda *_, **__: run_ref)
+    monkeypatch.setattr(_io_seam, "get_or_start_run", lambda *_, **__: run_ref)
     monkeypatch.setattr(_engine_adapter, "_read_snapshot", lambda _: SimpleNamespace(issued_step_id="implement"))
     context_calls: list[dict[str, Any]] = []
 
@@ -443,6 +443,7 @@ def test_bootstrap_preserves_phase_and_guards_when_optional_seed_unavailable(
     ctx, decision = rb._dn_bootstrap("agent-x", "042-mission", "success", tmp_path)
     assert decision is None
     assert ctx is not None
+    assert ctx.run_ref is run_ref, "the patched io-seam get_or_start_run was not the one _dn_bootstrap called"
     assert ctx.current_step_id == "implement"
     assert context_calls[0]["step_id"] == "implement"
     assert context_calls[0]["mission_state"] == "implement"
@@ -475,7 +476,7 @@ def test_bootstrap_defaults_current_step_id_to_none_when_snapshot_read_fails(tmp
     monkeypatch.setattr(rb, "get_mission_type", lambda fd: "software-dev")
     monkeypatch.setattr(rb, "runtime_emitter_for_mission", lambda **_: _FakeSyncEmitter())
     monkeypatch.setattr(rb, "_wrap_with_decision_git_log", lambda emitter, slug, repo_root: emitter)
-    monkeypatch.setattr(rb, "get_or_start_run", lambda slug, repo_root, mission_type, *, emitter, owned=None: run_ref)
+    monkeypatch.setattr(_io_seam, "get_or_start_run", lambda slug, repo_root, mission_type, *, emitter, owned=None: run_ref)
 
     def _raise_snapshot(*_a: Any, **_kw: Any) -> Any:
         raise RuntimeError("state.json unreadable")
@@ -487,6 +488,7 @@ def test_bootstrap_defaults_current_step_id_to_none_when_snapshot_read_fails(tmp
 
     assert decision is None
     assert ctx is not None
+    assert ctx.run_ref is run_ref, "the patched io-seam get_or_start_run was not the one _dn_bootstrap called"
     assert ctx.current_step_id is None
 
 

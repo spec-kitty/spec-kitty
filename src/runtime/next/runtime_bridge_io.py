@@ -24,52 +24,30 @@ Also hosts the two new port-shaped additions this WP introduces:
   out; see that function's docstring for why the remaining ``.exists()``
   check stays a residual I/O concern.
 
-``runtime_bridge.py`` keeps a **native thin compat delegate** — a real
-``def``/``class`` statement, never a plain ``import`` alias — under every one
-of the moved symbols the WP02 compat guard binds. This is mandatory, not
-stylistic: ``tests/runtime/test_bridge_compat_surface.py::
-test_guard_b_identity_reexport_for_relocated_symbols`` (a FROZEN gate file)
-asserts that the set of compat symbols whose ``__module__`` differs from
-``runtime_bridge`` equals a **hardcoded 3-element baseline** (the
-pre-existing ``runtime.next.decision``-origin symbols). A plain re-export of
-any OTHER compat-tracked symbol would flip that assertion and fail
-deterministically — the exact mechanism WP04's ``runtime_bridge_retrospective``
-docstring documents for its own 9 symbols. ``_feature_runs_path`` /
-``save_feature_runs`` and the handful of names nothing patches (see each
-function's docstring below) are untracked and therefore fine as plain
-internal helpers with no residual shim at all.
+This module owns the names it defines. Callers inside ``src/runtime/next/``
+look a seam-owned name up on this module (``runtime_bridge`` does so through
+its ``_io_seam`` alias); a seam calls its own functions directly. The bridge
+keeps no forwarder for any of them. Two names are public and reached from
+outside the package, so the bridge re-exports them as the very same objects
+(``from runtime.next.runtime_bridge_io import get_or_start_run,
+build_operational_context_for_claim``): CLI modules look them up on the
+bridge. A test replaces a seam-owned function by patching THIS module; a patch
+on the bridge's re-export intercepts only the callers that look the name up
+on the bridge.
 
-**The intra-seam live-lookup risk (research.md §Compat / WP03-WP04
-precedent).** Several of the moved, compat-tracked symbols call each other
-now that they live together in this module (``get_or_start_run`` ->
-``_load_feature_runs`` / ``_build_run_ref`` / ``_mission_key_for_run_ref`` /
-``_runtime_template_key`` / ``_build_discovery_context``;
-``_runtime_template_key`` -> ``_build_discovery_context`` /
-``_resolve_runtime_template_in_root``; ``_start_ephemeral_query_run`` ->
-``_runtime_template_key`` / ``_build_discovery_context``;
-``_existing_run_ref`` -> ``_load_feature_runs`` / ``_build_run_ref``;
-``build_operational_context_for_claim`` -> ``_resolve_run_dir_for_mission`` /
-``_resolve_tech_stack_for_profile``; ``_build_operational_context_for_decision``
--> ``_resolve_tech_stack_for_profile``). Several ALSO call back into
-compat-tracked names reachable at ``runtime_bridge.<name>`` — some still
-natively defined in the residual (``_resolve_runtime_feature_dir``, ``_has_raw_dependencies_field``,
-``_check_requirement_mapping_ready``, ``_occurrence_gate_failures``), others
-owned by ``runtime_bridge_composition`` (``_resolve_step_agent_profile``,
+``_feature_runs_path`` / ``save_feature_runs`` and the handful of helpers
+nothing patches are plain internal helpers.
+
+Names still owned by ``runtime_bridge`` (``_resolve_runtime_feature_dir``,
+``_has_raw_dependencies_field``, ``_check_requirement_mapping_ready``,
+``_check_bare_prose_requirements_ready``, ``_occurrence_gate_failures``) are
+reached through a local, deferred import of ``runtime_bridge`` (``from
+runtime.next import runtime_bridge as _rb``): ``runtime_bridge`` imports this
+module at its own top level, so a top-level back-import would be circular.
+Names owned by ``runtime_bridge_composition`` (``_resolve_step_agent_profile``,
 ``_count_source_documented_events``, ``_publication_approved``,
-``_has_generated_docs``; #2561). Those four are looked up on the composition
-seam through a deferred import (composition imports this module at top level).
-The bridge-owned names are routed through a
-**local, live import of ``runtime_bridge``**
-(``from runtime.next import runtime_bridge as _rb; _rb.<name>(...)``,
-deferred to function scope — ``runtime_bridge`` imports this module at its
-own top level, so a top-level back-import here would be circular) so a
-``monkeypatch.setattr(runtime_bridge, "<name>", …)`` is still observed
-exactly as before the extraction — the same false-green mitigation WP03's
-``runtime_bridge_engine`` and WP04's ``runtime_bridge_retrospective`` already
-apply. ``_build_discovery_context`` is the grounded high-risk case flagged by
-``research.md`` §Compat (patched at ``test_query_mode_unit.py:751``, reached
-only via intra-seam movers); the rule above closes it the same way it closes
-every other compat-tracked intra-seam call in this module.
+``_has_generated_docs``) are looked up on the composition seam through a
+deferred import, because composition imports this module at top level.
 """
 
 from __future__ import annotations
@@ -259,9 +237,8 @@ def _canonicalize_run_index(
 
 def _load_run_index(repo_root: Path) -> tuple[dict[str, _FeatureRunEntry], bool]:
     """Load the index through the canonical view; report whether it needed rekeying."""
-    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
-    return _canonicalize_run_index(_rb._load_feature_runs(repo_root))
+    return _canonicalize_run_index(load_feature_runs(_feature_runs_path(repo_root)))
 
 
 def _is_unbound_run_of(candidate: _FeatureRunEntry, mission_slug: str) -> bool:
@@ -355,13 +332,13 @@ def load_feature_runs(path: Path) -> dict[str, _FeatureRunEntry]:
     """Textbook narrow port: read the feature->run index JSON file at ``path``.
 
     ``data-model.md`` §Ports names this the canonical path-based port
-    signature; ``runtime_bridge._load_feature_runs`` (repo_root-keyed,
-    compat-tracked) is a thin residual delegate over this + :func:`_feature_runs_path`.
-    See :class:`_FeatureRunEntry` for why ``mission_id`` alone is ``str | None``.
+    signature; callers that hold a ``repo_root`` resolve the path with
+    :func:`_feature_runs_path` first. See :class:`_FeatureRunEntry` for why
+    ``mission_id`` alone is ``str | None``.
 
     Thin delegate over the RunIndex port's sole file reader (the port owns the
-    only open site); kept under this name so existing monkeypatch seams (which
-    target ``runtime_bridge_io.load_feature_runs``) still work.
+    only open site); kept under this name so a test can patch
+    ``runtime_bridge_io.load_feature_runs``.
     """
     loaded: dict[str, _FeatureRunEntry] = run_index.read_index_file(path)
     return loaded
@@ -398,19 +375,17 @@ def _build_run_ref(
 ) -> MissionRunRef:
     """Construct MissionRunRef across runtime versions.
 
-    ``run_ref_cls`` defaults to this module's own :class:`MissionRunRef` import
-    but callers (notably the ``runtime_bridge._build_run_ref`` compat delegate)
-    pass their own module-level binding through explicitly. This is load-bearing:
-    ``tests/next/test_runtime_bridge_unit.py::
-    test_build_run_ref_falls_back_when_runtime_uses_mission_type`` monkeypatches
-    ``runtime_bridge.MissionRunRef`` to a fake class and expects the delegate to
-    honor that substitution rather than closing over this module's own import.
+    ``run_ref_cls`` defaults to this module's own :class:`MissionRunRef` import.
+    The default is bound when the function is defined, so patching
+    ``runtime_bridge_io.MissionRunRef`` afterwards is never seen here: a test
+    that wants a substitute class passes it as ``run_ref_cls=`` explicitly.
 
     Typed as ``Callable[..., MissionRunRef]`` rather than ``type[MissionRunRef]``
     deliberately: the ``except TypeError`` fallback below calls it with a
     ``mission_type=`` keyword that the *current* ``MissionRunRef`` field
     (``mission_key``) does not accept — that branch exists for legacy/fake
-    run-ref constructors from other runtime versions (see the test above), so
+    run-ref constructors from other runtime versions (pinned by
+    ``test_build_run_ref_falls_back_when_runtime_uses_mission_type``), so
     pinning the parameter to the exact present-day field shape would make
     mypy correctly reject a call this function must support duck-typed.
     """
@@ -649,9 +624,8 @@ def _runtime_template_key(mission_type: str, repo_root: Path) -> str:
     from earlier installs must not reintroduce the legacy tasks_* DAG, while
     explicit, env, and project-scoped overrides remain honored.
     """
-    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
-    context = _rb._build_discovery_context(repo_root)
+    context = _build_discovery_context(repo_root)
     env_value = os.environ.get(context.env_var_name, "")
     # Org tier (FR-009) sits immediately after the project-legacy entry
     # (`.kittify/missions`) and before the project-config/global/builtin
@@ -673,7 +647,7 @@ def _runtime_template_key(mission_type: str, repo_root: Path) -> str:
 
     for roots in tiers:
         for root in roots:
-            resolved = _rb._resolve_runtime_template_in_root(root, mission_type)
+            resolved = _resolve_runtime_template_in_root(root, mission_type)
             if resolved is not None:
                 return str(resolved)
 
@@ -710,7 +684,7 @@ def _workflow_runtime_template(
     from runtime.next._internal_runtime.planner import compose_template_with_workflow
     from runtime.next._internal_runtime.workflow_registry import get_workflow
 
-    context = _rb._build_discovery_context(repo_root)
+    context = _build_discovery_context(repo_root)
     base_template = load_mission_template(template_key, context=context)
     workflow = get_workflow(str(workflow_id), project_root=repo_root)
     template = compose_template_with_workflow(base_template, workflow)
@@ -737,7 +711,6 @@ def _existing_run_ref(
     ``feature-runs.json``. A live entry with a missing cursor raises
     :class:`RunStateMissing` (FR-016) rather than masquerading as "no run".
     """
-    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
     mission_id = _run_mission_id(mission_slug, repo_root, owned)
     index, _rekeyed = _load_run_index(repo_root)
@@ -749,7 +722,7 @@ def _existing_run_ref(
     run_dir = _require_run_state(entry, mission_slug=mission_slug, mission_id=mission_id, repo_root=repo_root)
 
     stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
-    return _rb._build_run_ref(
+    return _build_run_ref(
         run_id=entry["run_id"],
         run_dir=str(run_dir),
         mission_type=stored_mission_type,
@@ -768,13 +741,12 @@ def _start_ephemeral_query_run(
     snapshot/bootstrap behavior. The temp run store is cleaned up if any
     bootstrap step raises so we never leak directories on failure paths.
     """
-    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
     run_store = Path(tempfile.mkdtemp(prefix="spec-kitty-query-run-"))
     try:
-        template_key = _rb._runtime_template_key(mission_type, repo_root)
+        template_key = _runtime_template_key(mission_type, repo_root)
         template_override, template_path_override = _workflow_runtime_template(mission_slug, mission_type, repo_root, template_key)
-        context = _rb._build_discovery_context(repo_root)
+        context = _build_discovery_context(repo_root)
 
         run_ref = start_mission_run(
             template_key=template_key,
@@ -805,11 +777,10 @@ def _run_ref_for_entry(
     The cursor is verified and the stored ``run_dir`` token is resolved to an
     ABSOLUTE, containment-checked path against ``repo_root`` (adversarial review
     C1: consumers always see an absolute ``run_ref.run_dir``)."""
-    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
     run_dir = _require_run_state(entry, mission_slug=mission_slug, mission_id=mission_id, repo_root=repo_root)
     stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
-    return _rb._build_run_ref(run_id=entry["run_id"], run_dir=str(run_dir), mission_type=stored_mission_type)
+    return _build_run_ref(run_id=entry["run_id"], run_dir=str(run_dir), mission_type=stored_mission_type)
 
 
 def _start_new_run(
@@ -819,12 +790,11 @@ def _start_new_run(
     emitter: Any | None,
 ) -> MissionRunRef:
     """Start a fresh run in the repo-local run store (no index write here)."""
-    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
     run_store = run_index.runs_root(repo_root)
-    template_key = _rb._runtime_template_key(mission_type, repo_root)
+    template_key = _runtime_template_key(mission_type, repo_root)
     template_override, template_path_override = _workflow_runtime_template(mission_slug, mission_type, repo_root, template_key)
-    context = _rb._build_discovery_context(repo_root)
+    context = _build_discovery_context(repo_root)
     return start_mission_run(
         template_key=template_key,
         inputs={"mission_slug": mission_slug},
@@ -861,7 +831,6 @@ def get_or_start_run(
     :class:`RunStateMissing`; a ``run_dir`` outside the invoking repo raises
     :class:`RunDirOutsideRepoError` — neither is silently replaced by a fresh run.
     """
-    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
     resolved_mission_id = _run_mission_id(mission_slug, repo_root, owned)
     index_key = run_index_key(mission_slug, resolved_mission_id)
@@ -896,7 +865,7 @@ def get_or_start_run(
             # cursor is missing / out-of-repo), then reuse the winner's run.
             shutil.rmtree(run_ref.run_dir, ignore_errors=True)
             return _run_ref_for_entry(existing, mission_slug=mission_slug, mission_id=resolved_mission_id, mission_type=mission_type, repo_root=repo_root)
-        resolved_mission_type = _rb._mission_key_for_run_ref(run_ref, mission_type)
+        resolved_mission_type = _mission_key_for_run_ref(run_ref, mission_type)
         index[index_key] = {
             "run_id": run_ref.run_id,
             "run_dir": run_ref.run_dir,
@@ -1019,13 +988,12 @@ def build_operational_context_for_claim(
         A populated :class:`~charter.activation.invocation_context.OperationalContext`.
     """
     from charter.activation.invocation_context import build_operational_context  # noqa: PLC0415
-    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
     from runtime.next import runtime_bridge_composition as _composition  # noqa: PLC0415 — deferred; composition imports this module at top level
 
     resolved_profile = active_profile
     if resolved_profile is None:
         try:
-            run_dir = _rb._resolve_run_dir_for_mission(repo_root, mission_slug)
+            run_dir = _resolve_run_dir_for_mission(repo_root, mission_slug)
             if run_dir is not None:
                 resolved_profile = _composition._resolve_step_agent_profile(run_dir, current_activity)
         except Exception:
@@ -1036,7 +1004,7 @@ def build_operational_context_for_claim(
         active_profile=resolved_profile,
         active_role=active_role or actor,
         current_activity=current_activity or wp_id,
-        tech_stack=_rb._resolve_tech_stack_for_profile(repo_root, resolved_profile),
+        tech_stack=_resolve_tech_stack_for_profile(repo_root, resolved_profile),
     )
 
 
@@ -1058,7 +1026,6 @@ def _build_operational_context_for_decision(
     tech stack from the resolved profile. Read-only; no side effects (NFR-004).
     """
     from charter.activation.invocation_context import build_operational_context  # noqa: PLC0415
-    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
     from runtime.next import runtime_bridge_composition as _composition  # noqa: PLC0415 — deferred; composition imports this module at top level
 
     activity = step_id or mission_state
@@ -1074,7 +1041,7 @@ def _build_operational_context_for_decision(
         active_profile=resolved_profile,
         active_role=agent,
         current_activity=activity,
-        tech_stack=_rb._resolve_tech_stack_for_profile(repo_root, resolved_profile),
+        tech_stack=_resolve_tech_stack_for_profile(repo_root, resolved_profile),
     )
 
 

@@ -132,15 +132,11 @@ import re
 import shutil
 from collections.abc import Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from kernel.clock import now_utc_iso
 
-if TYPE_CHECKING:
-    from charter.activation.invocation_context import OperationalContext as OperationalContextT
-
 from runtime.next._internal_runtime import (
-    DiscoveryContext,
     MissionRunRef,
     NextDecision,
     next_step as runtime_next_step,
@@ -152,6 +148,10 @@ from runtime.next import runtime_bridge_cores as _cores
 from runtime.next import runtime_bridge_engine as _engine_adapter
 from runtime.next import runtime_bridge_identity as _identity_seam
 from runtime.next import runtime_bridge_io as _io_seam
+
+# Public names kept for callers outside this package (CLI modules look them up
+# here); they are the very same objects the io seam owns.
+from runtime.next.runtime_bridge_io import build_operational_context_for_claim, get_or_start_run
 from runtime.next import runtime_bridge_retrospective as _retrospective_seam
 
 # WP18 (#2561) — the untracked self-alias re-exports that formerly lived here
@@ -513,8 +513,7 @@ class MissionNotFoundError(Exception):
 
 
 # ---------------------------------------------------------------------------
-# Feature → Run index — bodies moved to runtime_bridge_io.py (T017); see
-# ``_load_feature_runs`` below for the residual thin compat delegate.
+# Feature → Run index — owned by runtime_bridge_io.py (T017).
 #
 # tasks.md parse family — bodies moved to runtime_bridge_cores.py (#2531
 # WP06, T021; verbatim, zero-dependency pure leaf). ``TASKS_GLOB`` stays
@@ -523,27 +522,6 @@ class MissionNotFoundError(Exception):
 # ---------------------------------------------------------------------------
 
 TASKS_GLOB = "WP*.md"
-
-
-def _load_feature_runs(repo_root: Path) -> dict[str, _io_seam._FeatureRunEntry]:
-    """Thin compat delegate — forwards to :func:`runtime_bridge_io.load_feature_runs`
-    (via the repo_root -> path resolver :func:`runtime_bridge_io._feature_runs_path`)."""
-    return _io_seam.load_feature_runs(_io_seam._feature_runs_path(repo_root))
-
-
-def _mission_key_for_run_ref(run_ref: MissionRunRef, default: str) -> str:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_io._mission_key_for_run_ref`."""
-    return _io_seam._mission_key_for_run_ref(run_ref, default)
-
-
-def _build_run_ref(*, run_id: str, run_dir: str, mission_type: str) -> MissionRunRef:
-    """Thin compat delegate — forwards to :func:`runtime_bridge_io._build_run_ref`.
-
-    Passes this module's own ``MissionRunRef`` binding through explicitly
-    (rather than letting the io module close over its own import) so tests
-    that monkeypatch ``runtime_bridge.MissionRunRef`` observe the substitution."""
-    return _io_seam._build_run_ref(run_id=run_id, run_dir=run_dir, mission_type=mission_type, run_ref_cls=MissionRunRef)
 
 
 # ---------------------------------------------------------------------------
@@ -1112,140 +1090,6 @@ def _has_raw_dependencies_field(wp_file: Path) -> bool:
 # ``runtime_bridge_engine.advance_run_state_after_composition``.
 #
 # ---------------------------------------------------------------------------
-# Run management
-# ---------------------------------------------------------------------------
-
-
-def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_io._build_discovery_context`. Flagged 🔴 high-risk in
-    research.md §Compat (patched at ``test_query_mode_unit.py:751``, reached
-    only via intra-seam movers in ``runtime_bridge_io.py``) — every one of
-    those intra-seam callers routes back through this delegate via a live
-    lookup rather than a bare intra-module call; see the seam module's
-    docstring."""
-    return _io_seam._build_discovery_context(repo_root)
-
-
-def _resolve_runtime_template_in_root(root: Path, mission_type: str) -> Path | None:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_io._resolve_runtime_template_in_root`."""
-    return _io_seam._resolve_runtime_template_in_root(root, mission_type)
-
-
-def _runtime_template_key(mission_type: str, repo_root: Path) -> str:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_io._runtime_template_key`."""
-    return _io_seam._runtime_template_key(mission_type, repo_root)
-
-
-def _existing_run_ref(
-    mission_slug: str,
-    repo_root: Path,
-    mission_type: str,
-    *,
-    owned: OwnedCheckout | None = None,
-) -> MissionRunRef | None:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_io._existing_run_ref`."""
-    return _io_seam._existing_run_ref(mission_slug, repo_root, mission_type, owned=owned)
-
-
-def _start_ephemeral_query_run(
-    mission_slug: str,
-    mission_type: str,
-    repo_root: Path,
-) -> tuple[MissionRunRef, Path]:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_io._start_ephemeral_query_run`."""
-    return _io_seam._start_ephemeral_query_run(mission_slug, mission_type, repo_root)
-
-
-def get_or_start_run(
-    mission_slug: str,
-    repo_root: Path,
-    mission_type: str,
-    *,
-    emitter: Any | None = None,
-    owned: OwnedCheckout | None = None,
-) -> MissionRunRef:
-    """Thin compat delegate — forwards to :func:`runtime_bridge_io.get_or_start_run`.
-
-    Run mapping stored in .kittify/runtime/feature-runs.json:
-    { "042-test-feature": { "run_id": "abc", "run_dir": "..." } }
-    """
-    return _io_seam.get_or_start_run(mission_slug, repo_root, mission_type, emitter=emitter, owned=owned)
-
-
-# ---------------------------------------------------------------------------
-# OperationalContext wiring (FR-017, NFR-004) — bodies live in
-# runtime_bridge_io.py (T017); these are native thin compat delegates.
-# ---------------------------------------------------------------------------
-
-
-def _resolve_run_dir_for_mission(repo_root: Path, mission_slug: str) -> Path | None:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_io._resolve_run_dir_for_mission`."""
-    return _io_seam._resolve_run_dir_for_mission(repo_root, mission_slug)
-
-
-def _resolve_tech_stack_for_profile(repo_root: Path, profile_id: str | None) -> frozenset[str]:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_io._resolve_tech_stack_for_profile`."""
-    return _io_seam._resolve_tech_stack_for_profile(repo_root, profile_id)
-
-
-def build_operational_context_for_claim(
-    *,
-    repo_root: Path,
-    feature_dir: Path,
-    mission_slug: str,
-    wp_id: str,
-    actor: str | None,
-    active_model: str | None,
-    active_role: str | None,
-    current_activity: str = "implement",
-    active_profile: str | None = None,
-) -> OperationalContextT:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_io.build_operational_context_for_claim`. See that
-    function's docstring for the full OC-builder contract (shared by the two
-    claim entry points, ``implement.py`` and ``agent/workflow.py``)."""
-    return _io_seam.build_operational_context_for_claim(
-        repo_root=repo_root,
-        feature_dir=feature_dir,
-        mission_slug=mission_slug,
-        wp_id=wp_id,
-        actor=actor,
-        active_model=active_model,
-        active_role=active_role,
-        current_activity=current_activity,
-        active_profile=active_profile,
-    )
-
-
-def _build_operational_context_for_decision(
-    *,
-    agent: str,
-    run_ref: MissionRunRef,
-    feature_dir: Path,
-    repo_root: Path,
-    step_id: str | None,
-    mission_state: str | None = None,
-) -> OperationalContextT:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_io._build_operational_context_for_decision`."""
-    return _io_seam._build_operational_context_for_decision(
-        agent=agent,
-        run_ref=run_ref,
-        feature_dir=feature_dir,
-        repo_root=repo_root,
-        step_id=step_id,
-        mission_state=mission_state,
-    )
-
-
-# ---------------------------------------------------------------------------
 # Main bridge functions
 # ---------------------------------------------------------------------------
 
@@ -1532,7 +1376,7 @@ def _dn_bootstrap(
     # Get or start runtime run (before result handling so failed/blocked
     # decisions include canonical run_id, step_id, and mission_state)
     try:
-        run_ref = get_or_start_run(mission_slug, config_root, mission_type, emitter=emitter_for_engine, owned=owned)
+        run_ref = _io_seam.get_or_start_run(mission_slug, config_root, mission_type, emitter=emitter_for_engine, owned=owned)
     except Exception as exc:
         return None, _materialize_decision(
             _cores.DecisionEnvelope(
@@ -1563,7 +1407,7 @@ def _dn_bootstrap(
     # boundary via the extracted helper (keeps the bootstrap phase flat). The
     # builder is read-only — it never allocates a worktree or emits a status
     # event (NFR-004).
-    operational_context = _build_operational_context_for_decision(
+    operational_context = _io_seam._build_operational_context_for_decision(
         agent=agent,
         run_ref=run_ref,
         feature_dir=feature_dir,
@@ -2756,7 +2600,7 @@ def query_current_state(
     # Root discipline: the run store (and the template/policy reads that start
     # an ephemeral preview run) live at P for an owned mission.
     config_root = owned.owned_root if owned is not None else repo_root
-    run_ref = _existing_run_ref(mission_slug, config_root, mission_type, owned=owned)
+    run_ref = _io_seam._existing_run_ref(mission_slug, config_root, mission_type, owned=owned)
     ephemeral_run_store: Path | None = None
 
     # Read current step WITHOUT calling next_step(). When no step has been
@@ -2847,7 +2691,7 @@ def _query_read_runtime_plan(
     ephemeral_run_store: Path | None = None
     try:
         if run_ref is None:
-            run_ref, ephemeral_run_store = _start_ephemeral_query_run(
+            run_ref, ephemeral_run_store = _io_seam._start_ephemeral_query_run(
                 mission_slug,
                 mission_type,
                 repo_root,
@@ -2999,7 +2843,7 @@ def answer_decision_via_runtime(
         raise MissionRuntimeError(f"Mission {mission_slug!r} not found; cannot answer decision {decision_id!r}")
     mission_type = get_mission_type(feature_dir)
     config_root = owned.owned_root if owned is not None else repo_root
-    run_ref = get_or_start_run(mission_slug, config_root, mission_type, owned=owned)
+    run_ref = _io_seam.get_or_start_run(mission_slug, config_root, mission_type, owned=owned)
     # E3 (#3929): same bridge-entry registration as the decide path.
     from specify_cli.status import ensure_runtime_moment_producer  # noqa: PLC0415
 
