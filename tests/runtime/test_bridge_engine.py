@@ -44,13 +44,16 @@ Two independent concerns:
 from __future__ import annotations
 
 import ast
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
 from runtime.next import runtime_bridge_engine as engine_adapter
+from runtime.next._internal_runtime import engine as internal_engine
 from runtime.next._internal_runtime.engine import MissionRunRef
 from runtime.next._internal_runtime.schema import MissionRunSnapshot, NextDecision
 from runtime.next import runtime_bridge_decision_mapping as decision_mapping
@@ -252,24 +255,29 @@ def test_plan_next_delegates_via_live_lookup(monkeypatch: pytest.MonkeyPatch, tm
     assert captured["args"] == (snap, template, policy, {"a": 1}, tmp_path)
 
 
+# The adapter's former ``_live_template_path`` was a one-line delegate to the
+# engine's ``existing_template_path``; it was deleted with the parallel planner
+# (#2562). Its three assertions now pin the engine function the plan uses.
+
+
 @pytest.mark.unit
-def test_live_template_path_none_when_blank() -> None:
+def test_existing_template_path_none_when_blank() -> None:
     snapshot = MissionRunSnapshot(run_id="r", mission_key="m", template_path="", template_hash="h")
-    assert engine_adapter._live_template_path(snapshot) is None
+    assert internal_engine.existing_template_path(snapshot) is None
 
 
 @pytest.mark.unit
-def test_live_template_path_none_when_missing_on_disk(tmp_path: Path) -> None:
+def test_existing_template_path_none_when_missing_on_disk(tmp_path: Path) -> None:
     snapshot = MissionRunSnapshot(run_id="r", mission_key="m", template_path=str(tmp_path / "does-not-exist.yaml"), template_hash="h")
-    assert engine_adapter._live_template_path(snapshot) is None
+    assert internal_engine.existing_template_path(snapshot) is None
 
 
 @pytest.mark.unit
-def test_live_template_path_present_when_exists(tmp_path: Path) -> None:
+def test_existing_template_path_present_when_exists(tmp_path: Path) -> None:
     template_file = tmp_path / "template.yaml"
     template_file.write_text("x", encoding="utf-8")
     snapshot = MissionRunSnapshot(run_id="r", mission_key="m", template_path=str(template_file), template_hash="h")
-    assert engine_adapter._live_template_path(snapshot) == template_file
+    assert internal_engine.existing_template_path(snapshot) == template_file
 
 
 # ---------------------------------------------------------------------------
@@ -278,28 +286,40 @@ def test_live_template_path_present_when_exists(tmp_path: Path) -> None:
 
 
 class _FakeSyncEmitter:
-    """Records calls; stands in for ``SyncRuntimeEventEmitter`` (FR-006 stub)."""
+    """Records calls; stands in for ``SyncRuntimeEventEmitter`` (FR-006 stub).
+    ``order`` records every call name in sequence (seed and emits)."""
 
     def __init__(self) -> None:
+        self.order: list[str] = []
         self.seeded: list[Any] = []
         self.auto_completed: list[Any] = []
         self.step_issued: list[Any] = []
         self.decision_requested: list[Any] = []
+        self.significance: list[Any] = []
         self.run_completed: list[Any] = []
 
     def seed_from_snapshot(self, snapshot: Any) -> None:
+        self.order.append("seed")
         self.seeded.append(snapshot)
 
     def emit_next_step_auto_completed(self, payload: Any) -> None:
+        self.order.append("NextStepAutoCompleted")
         self.auto_completed.append(payload)
 
+    def emit_significance_evaluated(self, payload: Any) -> None:
+        self.order.append("SignificanceEvaluated")
+        self.significance.append(payload)
+
     def emit_next_step_issued(self, payload: Any) -> None:
+        self.order.append("NextStepIssued")
         self.step_issued.append(payload)
 
     def emit_decision_input_requested(self, payload: Any) -> None:
+        self.order.append("DecisionInputRequested")
         self.decision_requested.append(payload)
 
     def emit_mission_run_completed(self, payload: Any) -> None:
+        self.order.append("MissionRunCompleted")
         self.run_completed.append(payload)
 
 
@@ -319,11 +339,9 @@ class _MapDecisionRecorder:
 def _stub_map_runtime_decision(monkeypatch: pytest.MonkeyPatch) -> _MapDecisionRecorder:
     """Stub ``decision_mapping._map_runtime_decision``.
 
-    The adapter calls back into ``runtime_bridge`` via a deferred module
-    import for this symbol (it is not an engine-private and stays owned by
-    ``runtime_bridge.py`` — see ``runtime_bridge_engine.py`` module
-    docstring), so patching it on the ``runtime_bridge`` module is the
-    correct seam to stub for these contract tests.
+    The adapter maps its result through ``runtime_bridge_decision_mapping``
+    (see the ``runtime_bridge_engine.py`` module docstring), so patching it on
+    that module is the correct seam to stub for these contract tests.
     """
 
     recorder = _MapDecisionRecorder(calls=[], sentinel=object())
@@ -338,23 +356,101 @@ def _stub_map_runtime_decision(monkeypatch: pytest.MonkeyPatch) -> _MapDecisionR
     return recorder
 
 
-def _stub_engine_and_planner(
+#: A minimal real frozen template (#2562 re-seam): the engine's
+#: ``plan_advance`` loads and walks the frozen template itself, so these tests
+#: run on a real one instead of an ``object()`` stand-in.
+_MINIMAL_TEMPLATE: dict[str, Any] = {
+    "mission": {"key": "software-dev", "name": "Test", "version": "1.0.0"},
+    "steps": [{"id": "plan", "title": "Plan"}, {"id": "implement", "title": "Implement"}, {"id": "review", "title": "Review"}],
+}
+_STATE_FILE = "state.json"
+_EVENTS_FILE = "run.events.jsonl"
+_LOW_DIMENSIONS = {
+    "user_customer_impact": 0,
+    "architectural_system_impact": 0,
+    "data_security_compliance_impact": 0,
+    "operational_reliability_impact": 0,
+    "financial_commercial_impact": 0,
+    "cross_team_blast_radius": 0,
+}
+
+
+def _write_run(run_dir: Path, snapshot: MissionRunSnapshot, template: dict[str, Any] | None = None) -> None:
+    """Persist ``snapshot`` as ``state.json`` and a real frozen template in ``run_dir``."""
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / _STATE_FILE).write_text(json.dumps(snapshot.model_dump(mode="json")), encoding="utf-8")
+    (run_dir / "mission_template_frozen.yaml").write_text(yaml.safe_dump(template or _MINIMAL_TEMPLATE, sort_keys=False), encoding="utf-8")
+
+
+def _event_types(run_dir: Path) -> list[str]:
+    events_file = run_dir / _EVENTS_FILE
+    if not events_file.exists():
+        return []
+    return [json.loads(line)["event_type"] for line in events_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+@dataclass
+class _RunRecorder:
+    """What the engine commit persisted (spied, then passed through to disk)
+    and the arguments the planner stub ran with."""
+
+    written: list[Any]
+    appended: list[tuple[Any, ...]]
+    planned: list[tuple[Any, ...]]
+
+
+def _real_run_with_planned_decision(
     monkeypatch: pytest.MonkeyPatch,
+    run_dir: Path,
     *,
-    read_snapshot_returns: MissionRunSnapshot,
+    snapshot: MissionRunSnapshot,
     plan_next_returns: NextDecision,
-) -> tuple[list[Any], list[tuple[Any, ...]]]:
-    """Patch the adapter's engine/planner module references (via monkeypatch's
-    string-path form — see the delegation tests above for why); return
-    (written_snapshots, appended_events) recorder lists."""
-    written: list[Any] = []
-    appended: list[tuple[Any, ...]] = []
-    monkeypatch.setattr("runtime.next.runtime_bridge_engine._engine._read_snapshot", lambda run_dir: read_snapshot_returns)
-    monkeypatch.setattr("runtime.next.runtime_bridge_engine._engine._load_frozen_template", lambda run_dir: object())
-    monkeypatch.setattr("runtime.next.runtime_bridge_engine._engine._write_snapshot", lambda run_dir, snap: written.append(snap))
-    monkeypatch.setattr("runtime.next.runtime_bridge_engine._engine._append_event", lambda *a: appended.append(a))
-    monkeypatch.setattr("runtime.next.runtime_bridge_engine._planner.plan_next", lambda *a, **k: plan_next_returns)
-    return written, appended
+) -> _RunRecorder:
+    """Write a real run (snapshot + minimal frozen template) and stub only the
+    planner's decision: ``plan_next`` as bound in the engine module, which is
+    the name ``plan_advance`` calls. ``_write_snapshot`` / ``_append_event``
+    are spied and still write to disk."""
+    _write_run(run_dir, snapshot)
+    recorder = _RunRecorder(written=[], appended=[], planned=[])
+    real_write = internal_engine._write_snapshot
+    real_append = internal_engine._append_event
+
+    def _write(target: Path, snap: MissionRunSnapshot) -> None:
+        recorder.written.append(snap)
+        real_write(target, snap)
+
+    def _append(*args: Any) -> None:
+        recorder.appended.append(args)
+        real_append(*args)
+
+    def _plan_next(*args: Any, **_kwargs: Any) -> NextDecision:
+        recorder.planned.append(args)
+        return plan_next_returns
+
+    monkeypatch.setattr("runtime.next._internal_runtime.engine._write_snapshot", _write)
+    monkeypatch.setattr("runtime.next._internal_runtime.engine._append_event", _append)
+    monkeypatch.setattr("runtime.next._internal_runtime.engine.plan_next", _plan_next)
+    return recorder
+
+
+def _advance(run_ref: MissionRunRef, tmp_path: Path, sync_emitter: Any, **overrides: Any) -> Any:
+    """Plan with the engine (as the bridge does), then commit through the adapter."""
+    kwargs: dict[str, Any] = {
+        "run_ref": run_ref,
+        "agent": "agent-1",
+        "mission_slug": "mission-1",
+        "mission_type": "software-dev",
+        "repo_root": tmp_path,
+        "feature_dir": tmp_path,
+        "timestamp": "2026-01-01T00:00:00Z",
+        "progress": None,
+        "origin": {},
+        "sync_emitter": sync_emitter,
+    }
+    kwargs.update(overrides)
+    if "plan" not in kwargs:
+        kwargs["plan"] = engine_adapter.plan_advance(run_ref, "agent-1", "success")
+    return engine_adapter.advance_run_state_after_composition(**kwargs)
 
 
 @pytest.mark.unit
@@ -363,29 +459,22 @@ def test_advance_run_state_step_decision_no_prior_step(monkeypatch: pytest.Monke
     auto-complete; the ``step`` decision stamps the new ``issued_step_id`` and
     emits ``NextStepIssued`` only."""
     run_dir = tmp_path / "run-1"
-    run_dir.mkdir()
     snapshot_in = MissionRunSnapshot(run_id="run-1", mission_key="software-dev", template_path="", template_hash="h")
     decision = NextDecision(kind="step", run_id="run-1", mission_key="software-dev", step_id="implement")
-    written, appended = _stub_engine_and_planner(monkeypatch, read_snapshot_returns=snapshot_in, plan_next_returns=decision)
+    rec = _real_run_with_planned_decision(monkeypatch, run_dir, snapshot=snapshot_in, plan_next_returns=decision)
+    written, appended = rec.written, rec.appended
 
     sync_emitter = _FakeSyncEmitter()
     run_ref = MissionRunRef(run_id="run-1", run_dir=str(run_dir), mission_key="software-dev")
 
-    result = engine_adapter.advance_run_state_after_composition(
-        run_ref=run_ref,
-        agent="agent-1",
-        mission_slug="mission-1",
-        mission_type="software-dev",
-        repo_root=tmp_path,
-        feature_dir=tmp_path,
-        timestamp="2026-01-01T00:00:00Z",
-        progress=None,
-        origin={},
-        sync_emitter=sync_emitter,
-        plan=engine_adapter.plan_composition_advance(run_ref, "agent-1"),
+    result = _advance(
+        run_ref,
+        tmp_path,
+        sync_emitter,
         wp_resolution=("implement", "WP01", "/ws", "lane-a", "wp"),  # the bridge resolved this before the advance
     )
 
+    assert rec.planned, "the plan_next stub never ran"
     assert result is _stub_map_runtime_decision.sentinel
     assert sync_emitter.seeded == [snapshot_in]
     assert sync_emitter.auto_completed == []
@@ -402,7 +491,6 @@ def test_advance_run_state_marks_prior_step_complete_then_decision_required(
     """A step WAS in flight — it gets auto-completed first (NextStepAutoCompleted),
     then the ``decision_required`` branch persists + emits DecisionInputRequested."""
     run_dir = tmp_path / "run-2"
-    run_dir.mkdir()
     snapshot_in = MissionRunSnapshot(run_id="run-2", mission_key="software-dev", template_path="", template_hash="h", issued_step_id="implement")
     decision = NextDecision(
         kind="decision_required",
@@ -413,25 +501,15 @@ def test_advance_run_state_marks_prior_step_complete_then_decision_required(
         question="Proceed?",
         options=["yes", "no"],
     )
-    written, appended = _stub_engine_and_planner(monkeypatch, read_snapshot_returns=snapshot_in, plan_next_returns=decision)
+    rec = _real_run_with_planned_decision(monkeypatch, run_dir, snapshot=snapshot_in, plan_next_returns=decision)
+    written, appended = rec.written, rec.appended
 
     sync_emitter = _FakeSyncEmitter()
     run_ref = MissionRunRef(run_id="run-2", run_dir=str(run_dir), mission_key="software-dev")
 
-    engine_adapter.advance_run_state_after_composition(
-        run_ref=run_ref,
-        agent="agent-1",
-        mission_slug="mission-1",
-        mission_type="software-dev",
-        repo_root=tmp_path,
-        feature_dir=tmp_path,
-        timestamp="2026-01-01T00:00:00Z",
-        progress=None,
-        origin={},
-        sync_emitter=sync_emitter,
-        plan=engine_adapter.plan_composition_advance(run_ref, "agent-1"),
-    )
+    _advance(run_ref, tmp_path, sync_emitter)
 
+    assert rec.planned, "the plan_next stub never ran"
     assert len(sync_emitter.auto_completed) == 1
     assert sync_emitter.auto_completed[0].step_id == "implement"
     assert len(sync_emitter.decision_requested) == 1
@@ -446,7 +524,6 @@ def test_advance_run_state_decision_required_dedups_on_repoll(
 ) -> None:
     """A decision already pending must not be re-emitted/re-persisted on re-poll."""
     run_dir = tmp_path / "run-3"
-    run_dir.mkdir()
     snapshot_in = MissionRunSnapshot(
         run_id="run-3",
         mission_key="software-dev",
@@ -455,25 +532,15 @@ def test_advance_run_state_decision_required_dedups_on_repoll(
         pending_decisions={"audit:review": {"already": "there"}},
     )
     decision = NextDecision(kind="decision_required", run_id="run-3", mission_key="software-dev", decision_id="audit:review", step_id="review")
-    written, appended = _stub_engine_and_planner(monkeypatch, read_snapshot_returns=snapshot_in, plan_next_returns=decision)
+    rec = _real_run_with_planned_decision(monkeypatch, run_dir, snapshot=snapshot_in, plan_next_returns=decision)
+    written, appended = rec.written, rec.appended
 
     sync_emitter = _FakeSyncEmitter()
     run_ref = MissionRunRef(run_id="run-3", run_dir=str(run_dir), mission_key="software-dev")
 
-    engine_adapter.advance_run_state_after_composition(
-        run_ref=run_ref,
-        agent="agent-1",
-        mission_slug="mission-1",
-        mission_type="software-dev",
-        repo_root=tmp_path,
-        feature_dir=tmp_path,
-        timestamp="2026-01-01T00:00:00Z",
-        progress=None,
-        origin={},
-        sync_emitter=sync_emitter,
-        plan=engine_adapter.plan_composition_advance(run_ref, "agent-1"),
-    )
+    _advance(run_ref, tmp_path, sync_emitter)
 
+    assert rec.planned, "the plan_next stub never ran"
     assert sync_emitter.decision_requested == []
     assert appended == []  # no step was in flight, and the decision is a dedup no-op
     assert written[-1].pending_decisions == {"audit:review": {"already": "there"}}
@@ -489,7 +556,6 @@ def test_advance_run_state_terminal_runs_retrospective_gate(
     from runtime.next import runtime_bridge_retrospective as retrospective_seam
 
     run_dir = tmp_path / "run-4"
-    run_dir.mkdir()
     snapshot_in = MissionRunSnapshot(
         run_id="run-4",
         mission_key="software-dev",
@@ -499,7 +565,7 @@ def test_advance_run_state_terminal_runs_retrospective_gate(
         completed_steps=["implement"],
     )
     decision = NextDecision(kind="terminal", run_id="run-4", mission_key="software-dev")
-    _stub_engine_and_planner(monkeypatch, read_snapshot_returns=snapshot_in, plan_next_returns=decision)
+    rec = _real_run_with_planned_decision(monkeypatch, run_dir, snapshot=snapshot_in, plan_next_returns=decision)
 
     # A non-blocking policy: ``enabled`` but neither ``timing="before_completion"``
     # nor ``failure_policy="block"``, so the REAL ``_retrospective_blocks_completion``
@@ -519,20 +585,9 @@ def test_advance_run_state_terminal_runs_retrospective_gate(
     sync_emitter = _FakeSyncEmitter()
     run_ref = MissionRunRef(run_id="run-4", run_dir=str(run_dir), mission_key="software-dev")
 
-    engine_adapter.advance_run_state_after_composition(
-        run_ref=run_ref,
-        agent="agent-1",
-        mission_slug="mission-1",
-        mission_type="software-dev",
-        repo_root=tmp_path,
-        feature_dir=tmp_path,
-        timestamp="2026-01-01T00:00:00Z",
-        progress=None,
-        origin={},
-        sync_emitter=sync_emitter,
-        plan=engine_adapter.plan_composition_advance(run_ref, "agent-1"),
-    )
+    _advance(run_ref, tmp_path, sync_emitter)
 
+    assert rec.planned, "the plan_next stub never ran"
     assert len(sync_emitter.run_completed) == 1
     assert len(retro_calls) == 1
     assert retro_calls[0]["mission_id"] == "mission-id-4"
@@ -548,10 +603,9 @@ def test_advance_run_state_terminal_skipped_when_no_step_completed(
     from runtime.next import runtime_bridge_retrospective as retrospective_seam
 
     run_dir = tmp_path / "run-5"
-    run_dir.mkdir()
     snapshot_in = MissionRunSnapshot(run_id="run-5", mission_key="software-dev", template_path="", template_hash="h", issued_step_id=None)
     decision = NextDecision(kind="terminal", run_id="run-5", mission_key="software-dev")
-    _stub_engine_and_planner(monkeypatch, read_snapshot_returns=snapshot_in, plan_next_returns=decision)
+    rec = _real_run_with_planned_decision(monkeypatch, run_dir, snapshot=snapshot_in, plan_next_returns=decision)
 
     monkeypatch.setattr(
         retrospective_seam,
@@ -562,20 +616,9 @@ def test_advance_run_state_terminal_skipped_when_no_step_completed(
     sync_emitter = _FakeSyncEmitter()
     run_ref = MissionRunRef(run_id="run-5", run_dir=str(run_dir), mission_key="software-dev")
 
-    engine_adapter.advance_run_state_after_composition(
-        run_ref=run_ref,
-        agent="agent-1",
-        mission_slug="mission-1",
-        mission_type="software-dev",
-        repo_root=tmp_path,
-        feature_dir=tmp_path,
-        timestamp="2026-01-01T00:00:00Z",
-        progress=None,
-        origin={},
-        sync_emitter=sync_emitter,
-        plan=engine_adapter.plan_composition_advance(run_ref, "agent-1"),
-    )
+    _advance(run_ref, tmp_path, sync_emitter)
 
+    assert rec.planned, "the plan_next stub never ran"
     assert sync_emitter.run_completed == []
 
 
@@ -590,29 +633,21 @@ def test_adapter_never_resolves_a_wp_workspace_itself_and_refuses_before_writing
     from runtime.next import runtime_bridge as rb
 
     run_dir = tmp_path / "run-wp"
-    run_dir.mkdir()
     snapshot_in = MissionRunSnapshot(run_id="run-wp", mission_key="software-dev", template_path="", template_hash="h", issued_step_id="tasks")
     decision = NextDecision(kind="step", run_id="run-wp", mission_key="software-dev", step_id="implement")
-    written, appended = _stub_engine_and_planner(monkeypatch, read_snapshot_returns=snapshot_in, plan_next_returns=decision)
+    rec = _real_run_with_planned_decision(monkeypatch, run_dir, snapshot=snapshot_in, plan_next_returns=decision)
+    written, appended = rec.written, rec.appended
     resolved: list[str] = []
     monkeypatch.setattr(rb, "_resolve_planned_wp_workspace", lambda *a, **k: resolved.append("resolved"))
     run_ref = MissionRunRef(run_id="run-wp", run_dir=str(run_dir), mission_key="software-dev")
-    plan = engine_adapter.plan_composition_advance(run_ref, "agent-1")
+    plan = engine_adapter.plan_advance(run_ref, "agent-1", "success")
+    state_before = (run_dir / _STATE_FILE).read_bytes()
 
     with pytest.raises(ValueError, match="wp_resolution"):
-        engine_adapter.advance_run_state_after_composition(
-            run_ref=run_ref,
-            agent="agent-1",
-            mission_slug="mission-1",
-            mission_type="software-dev",
-            repo_root=tmp_path,
-            feature_dir=tmp_path,
-            timestamp="2026-01-01T00:00:00Z",
-            progress=None,
-            origin={},
-            sync_emitter=_FakeSyncEmitter(),
-            plan=plan,
-        )
+        _advance(run_ref, tmp_path, _FakeSyncEmitter(), plan=plan)
 
+    assert rec.planned, "the plan_next stub never ran"
     assert resolved == [], "the adapter must not resolve the workspace itself"
     assert written == [] and appended == [], "nothing may be persisted"
+    assert (run_dir / _STATE_FILE).read_bytes() == state_before
+    assert not (run_dir / _EVENTS_FILE).exists()

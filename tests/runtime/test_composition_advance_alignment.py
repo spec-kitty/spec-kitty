@@ -184,9 +184,7 @@ def test_composition_advance_records_the_issued_steps_raci_binding(project: Path
     [(_DIMS_HIGH, ["approve", "reject"]), (_DIMS_MEDIUM, ["decide_solo", "open_stand_up", "defer"])],
     ids=["high", "medium"],
 )
-def test_composition_advance_evaluates_an_audit_gates_significance(
-    project: Path, tmp_path: Path, dimensions: dict[str, int], options: list[str]
-) -> None:
+def test_composition_advance_evaluates_an_audit_gates_significance(project: Path, tmp_path: Path, dimensions: dict[str, int], options: list[str]) -> None:
     """FR-002: reaching a significance-declaring audit gate records the evaluation as the engine does."""
     decision, run_dir, twin_dir, offset = _advance_both(project, tmp_path, dimensions)
 
@@ -207,6 +205,7 @@ def test_composition_advance_auto_proceeds_a_low_band_gate(project: Path, tmp_pa
     decision, run_dir, twin_dir, offset = _advance_both(project, tmp_path, _DIMS_LOW)
 
     assert decision.kind == DecisionKind.step
+    assert decision.step_id == "plan", "the issued step must be the one the LOW re-plan resolved"
     composed = _state(run_dir)
     assert _GATE_ID in composed["completed_steps"]
     assert composed["issued_step_id"] == "plan"

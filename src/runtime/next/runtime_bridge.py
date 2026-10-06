@@ -912,8 +912,9 @@ def _advance_failed_decision(ctx: DecideNextContext, composed_action: str, exc: 
 
 
 def _dn_plan_composition_advance(ctx: DecideNextContext, composed_action: str) -> tuple[Any, _mapping._WpIterationResolution | None] | Decision:
-    """Plan (pure) the run-state advance after a successful composed action and
-    resolve a planned WP step's workspace BEFORE anything is persisted (FR-008).
+    """Plan (pure; the engine's own :func:`plan_advance`, #2562) the run-state
+    advance after a successful composed action and resolve a planned WP step's
+    workspace BEFORE anything is persisted (FR-008).
 
     Returns ``(plan, wp_resolution)`` for :func:`_dn_composition_dispatch` to
     commit, or the EDGE-003 ``blocked`` Decision when the plan itself cannot be
@@ -921,7 +922,7 @@ def _dn_plan_composition_advance(ctx: DecideNextContext, composed_action: str) -
     propagates unwrapped, and because nothing has been written the run stays
     untouched."""
     try:
-        plan = _engine_adapter.plan_composition_advance(ctx.run_ref, ctx.agent)
+        plan = _engine_adapter.plan_advance(ctx.run_ref, ctx.agent, "success")
     except Exception as exc:  # noqa: BLE001 — EDGE-003: a planning failure is a structured blocked Decision
         return _advance_failed_decision(ctx, composed_action, exc)
     wp_resolution = _resolve_planned_wp_workspace(

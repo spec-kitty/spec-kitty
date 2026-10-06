@@ -103,6 +103,13 @@ def _mission(tmp_path: Path, slug: str = SLUG) -> tuple[Path, Path]:
     return feature_dir, run_dir
 
 
+#: A minimal real frozen template for the composition re-seam: the engine's
+#: ``plan_advance`` loads it from the run directory.
+_MINIMAL_FROZEN_TEMPLATE = (
+    "mission:\n  key: software-dev\n  name: Test\n  version: 1.0.0\nsteps:\n  - id: plan\n    title: Plan\n  - id: review\n    title: Review\n"
+)
+
+
 def _decision_log(tmp_path: Path, inner: NullEmitter, slug: str = SLUG) -> DecisionGitLog:
     return DecisionGitLog(
         repo_root=tmp_path,
@@ -251,17 +258,19 @@ def test_composition_dispatch_decision_required_reaches_decision_log(monkeypatch
     """F2: ``_dn_composition_dispatch`` must hand the decision-log wrap to
     ``advance_run_state_after_composition`` regardless of policy. The spy
     mirrors the real helper's first two emitter calls (seed, then the
-    decision request raised by ``_emit_decision_required``)."""
+    decision request the engine commit raises)."""
     h = _Harness(tmp_path)
     monkeypatch.setattr(rb._composition, "_should_dispatch_via_composition", lambda *args, **kwargs: True)
     monkeypatch.setattr(rb._composition, "_normalize_action_for_composition", lambda step_id: step_id)
     monkeypatch.setattr(rb._composition, "_composition_dispatch_inputs", lambda **kwargs: (None, None))
     monkeypatch.setattr(rb._composition, "_dispatch_via_composition", lambda **kwargs: [])
-    monkeypatch.setattr(
-        rb._engine_adapter,
-        "plan_composition_advance",
-        lambda run_ref, agent: SimpleNamespace(decision=SimpleNamespace(kind="terminal", step_id=None)),
-    )
+    planned: list[tuple[Any, ...]] = []
+
+    def _plan(run_ref: Any, agent: Any, result: Any) -> SimpleNamespace:
+        planned.append((run_ref, agent, result))
+        return SimpleNamespace(decision=SimpleNamespace(kind="terminal", step_id=None))
+
+    monkeypatch.setattr(rb._engine_adapter, "plan_advance", _plan)
 
     expected = Decision(
         kind=DecisionKind.decision_required,
@@ -285,6 +294,7 @@ def test_composition_dispatch_decision_required_reaches_decision_log(monkeypatch
 
     decision = rb._dn_composition_dispatch(h.ctx)
 
+    assert planned == [(h.ctx.run_ref, "tester", "success")], "the plan_advance stub never ran"
     assert seen["emitter"] is h.ctx.emitter_for_engine, "composition dispatch must emit through the decision-log wrap"
     assert h.request_count() == 1
     assert decision is expected, f"advancement helper must not be short-circuited into a blocked decision: {decision.reason!r}"
@@ -356,7 +366,7 @@ def test_gated_flush_does_not_duplicate(monkeypatch: pytest.MonkeyPatch, tmp_pat
 def test_real_composition_advances_and_logs_despite_optional_seed_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, seed_mode: str, caplog: pytest.LogCaptureFixture
 ) -> None:
-    from runtime.next import runtime_bridge_engine as engine
+    from runtime.next._internal_runtime import engine as internal_engine
     from runtime.next._internal_runtime.schema import MissionRunSnapshot
 
     h = _Harness(tmp_path)
@@ -380,13 +390,16 @@ def test_real_composition_advances_and_logs_despite_optional_seed_failure(
     monkeypatch.setattr(rb._composition, "_normalize_action_for_composition", lambda step_id: step_id)
     monkeypatch.setattr(rb._composition, "_composition_dispatch_inputs", lambda **kwargs: (None, None))
     monkeypatch.setattr(rb._composition, "_dispatch_via_composition", lambda **kwargs: [])
+    # A real run on disk: the engine's plan_advance/commit_advance read the
+    # snapshot and the frozen template themselves (#2562 re-seam).
     snapshot = MissionRunSnapshot(run_id=RUN_ID, mission_key=MISSION_TYPE, template_path="", template_hash="h", issued_step_id="plan")
-    monkeypatch.setattr(engine, "_read_snapshot", lambda _: snapshot)
-    monkeypatch.setattr(engine, "_load_frozen_template", lambda _: object())
-    monkeypatch.setattr(
-        engine,
-        "plan_next",
-        lambda *args, **kwargs: NextDecision(
+    (h.run_dir / rb.STATE_FILE).write_text(json.dumps(snapshot.model_dump(mode="json")), encoding="utf-8")
+    (h.run_dir / "mission_template_frozen.yaml").write_text(_MINIMAL_FROZEN_TEMPLATE, encoding="utf-8")
+    planned: list[Any] = []
+
+    def _plan_next(*args: Any, **kwargs: Any) -> NextDecision:
+        planned.append(args)
+        return NextDecision(
             kind=DecisionKind.decision_required,
             run_id=RUN_ID,
             mission_key=MISSION_TYPE,
@@ -394,10 +407,18 @@ def test_real_composition_advances_and_logs_despite_optional_seed_failure(
             decision_id=DECISION_ID,
             question="Proceed?",
             options=["yes", "no"],
-        ),
-    )
+        )
+
+    # plan_advance calls the plan_next name bound in the engine module.
+    monkeypatch.setattr(internal_engine, "plan_next", _plan_next)
     persisted: list[Any] = []
-    monkeypatch.setattr(engine, "_write_snapshot", lambda _, value: persisted.append(value))
+    real_write_snapshot = internal_engine._write_snapshot
+
+    def _spy_write_snapshot(run_dir: Path, value: Any) -> None:
+        persisted.append(value)
+        real_write_snapshot(run_dir, value)
+
+    monkeypatch.setattr(internal_engine, "_write_snapshot", _spy_write_snapshot)
     monkeypatch.setattr(
         decision_mapping,
         "_map_runtime_decision",
@@ -412,6 +433,7 @@ def test_real_composition_advances_and_logs_despite_optional_seed_failure(
         ),
     )
     decision = rb._dn_composition_dispatch(h.ctx)
+    assert planned, "the plan_next stub never ran"
     assert decision is not None
     assert decision.kind == DecisionKind.decision_required
     assert h.request_count() == 1, "real composition must durably record its decision request once"

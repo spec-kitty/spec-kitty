@@ -134,15 +134,20 @@ def _sentinel_decision(reason: str) -> Decision:
     )
 
 
-def _stub_composition_plan(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The composition advance now plans (pure) before it commits; these unit
-    tests run on a synthetic run dir, so the plan is stubbed to a terminal
-    (non-WP) decision -- nothing to resolve before persisting."""
-    monkeypatch.setattr(
-        _engine_adapter,
-        "plan_composition_advance",
-        lambda run_ref, agent: SimpleNamespace(decision=NextDecision(kind="terminal", run_id="run-042", mission_key="042-mission")),
-    )
+def _stub_composition_plan(monkeypatch: pytest.MonkeyPatch) -> list[tuple[Any, ...]]:
+    """The composition advance plans (pure; the engine's ``plan_advance``)
+    before it commits; these unit tests run on a synthetic run dir, so the plan
+    is stubbed to a terminal (non-WP) decision -- nothing to resolve before
+    persisting. Returns the recorded ``(run_ref, agent, result)`` calls so a
+    test can assert the stub ran."""
+    calls: list[tuple[Any, ...]] = []
+
+    def _plan(run_ref: Any, agent: Any, result: Any) -> SimpleNamespace:
+        calls.append((run_ref, agent, result))
+        return SimpleNamespace(decision=NextDecision(kind="terminal", run_id="run-042", mission_key="042-mission"))
+
+    monkeypatch.setattr(_engine_adapter, "plan_advance", _plan)
+    return calls
 
 
 def _raising(*_args: Any, **_kwargs: Any) -> Any:
@@ -737,7 +742,7 @@ def test_composition_dispatch_advances_run_state_on_success(tmp_path: Path, monk
     monkeypatch.setattr(_composition_seam, "_normalize_action_for_composition", lambda step: "tasks-outline")
     monkeypatch.setattr(_composition_seam, "_composition_dispatch_inputs", lambda **kw: (None, {"contract": True}))
     monkeypatch.setattr(_composition_seam, "_dispatch_via_composition", lambda **kw: [])
-    _stub_composition_plan(monkeypatch)
+    planned = _stub_composition_plan(monkeypatch)
 
     sentinel = _sentinel_decision("advanced")
     captured_kwargs: dict[str, Any] = {}
@@ -751,6 +756,7 @@ def test_composition_dispatch_advances_run_state_on_success(tmp_path: Path, monk
     decision = rb._dn_composition_dispatch(ctx)
 
     assert decision is sentinel
+    assert planned == [(ctx.run_ref, ctx.agent, "success")], "the composition advance must plan with the engine's plan_advance"
     assert captured_kwargs["run_ref"] == ctx.run_ref
     # WP02 (ADR 2026-09-06-2 (c)): composition dispatch must emit through the decision-log wrap.
     assert captured_kwargs["sync_emitter"] is ctx.emitter_for_engine
@@ -762,7 +768,7 @@ def test_composition_dispatch_returns_blocked_decision_when_advance_raises(tmp_p
     monkeypatch.setattr(_composition_seam, "_normalize_action_for_composition", lambda step: "tasks-outline")
     monkeypatch.setattr(_composition_seam, "_composition_dispatch_inputs", lambda **kw: (None, {"contract": True}))
     monkeypatch.setattr(_composition_seam, "_dispatch_via_composition", lambda **kw: [])
-    _stub_composition_plan(monkeypatch)
+    planned = _stub_composition_plan(monkeypatch)
 
     def _raise_advance(**_kw: Any) -> Decision:
         raise RuntimeError("advance boom")
@@ -771,6 +777,7 @@ def test_composition_dispatch_returns_blocked_decision_when_advance_raises(tmp_p
 
     decision = rb._dn_composition_dispatch(ctx)
 
+    assert planned == [(ctx.run_ref, ctx.agent, "success")], "the plan_advance stub never ran"
     assert decision is not None
     assert decision.kind == DecisionKind.blocked
     assert "advance boom" in (decision.reason or "")

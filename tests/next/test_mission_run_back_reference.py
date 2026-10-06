@@ -261,7 +261,7 @@ def test_advance_run_state_preserves_identity_through_autocomplete_reconstructio
     """
     from runtime.next._internal_runtime.engine import _read_snapshot
     from runtime.next._internal_runtime.schema import NextDecision
-    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_composition_advance
+    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_advance
 
     run_dir = tmp_path / "run"
     run_dir.mkdir()
@@ -292,14 +292,15 @@ def test_advance_run_state_preserves_identity_through_autocomplete_reconstructio
 
     with (
         patch(
-            "runtime.next._internal_runtime.planner.plan_next",
+            # plan_advance calls the plan_next name bound in engine.py.
+            "runtime.next._internal_runtime.engine.plan_next",
             return_value=NextDecision(
                 kind="step",
                 run_id="test-run-id-001",
                 mission_key="software-dev",
                 step_id="plan",
             ),
-        ),
+        ) as fake_plan_next,
         patch(
             "runtime.next.runtime_bridge_retrospective._resolve_retrospective_policy_for_runtime",
             return_value=(None, {}, None),
@@ -320,8 +321,9 @@ def test_advance_run_state_preserves_identity_through_autocomplete_reconstructio
             progress={},
             origin={},
             sync_emitter=_NullSyncEmitter(),  # type: ignore[arg-type]
-            plan=plan_composition_advance(run_ref, "test-agent"),
+            plan=plan_advance(run_ref, "test-agent", "success"),
         )
+    assert fake_plan_next.called, "the plan_next stub never ran"
 
     persisted = _read_snapshot(run_dir)
     assert persisted.mission_id == "01REGR001TEST000000000000", (
@@ -351,7 +353,7 @@ def test_advance_run_state_preserves_identity_through_final_persist_reconstructi
     """
     from runtime.next._internal_runtime.engine import _read_snapshot
     from runtime.next._internal_runtime.schema import NextDecision
-    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_composition_advance
+    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_advance
 
     run_dir = tmp_path / "run2"
     run_dir.mkdir()
@@ -383,14 +385,15 @@ def test_advance_run_state_preserves_identity_through_final_persist_reconstructi
 
     with (
         patch(
-            "runtime.next._internal_runtime.planner.plan_next",
+            # plan_advance calls the plan_next name bound in engine.py.
+            "runtime.next._internal_runtime.engine.plan_next",
             return_value=NextDecision(
                 kind="step",
                 run_id="test-run-id-001",
                 mission_key="software-dev",
                 step_id="specify",
             ),
-        ),
+        ) as fake_plan_next,
         patch(
             "runtime.next.runtime_bridge_retrospective._resolve_retrospective_policy_for_runtime",
             return_value=(None, {}, None),
@@ -411,8 +414,9 @@ def test_advance_run_state_preserves_identity_through_final_persist_reconstructi
             progress={},
             origin={},
             sync_emitter=_NullSyncEmitter(),  # type: ignore[arg-type]
-            plan=plan_composition_advance(run_ref, "test-agent"),
+            plan=plan_advance(run_ref, "test-agent", "success"),
         )
+    assert fake_plan_next.called, "the plan_next stub never ran"
 
     persisted = _read_snapshot(run_dir)
     assert persisted.mission_id == "01REGR002TEST000000000000", (

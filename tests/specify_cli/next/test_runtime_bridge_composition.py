@@ -1171,11 +1171,14 @@ def test_advancement_helper_persists_decision_required_branch(
             return_value=fake_result,
         ),
         patch(
-            "runtime.next._internal_runtime.planner.plan_next",
+            # The engine's plan_advance calls the plan_next name bound in
+            # engine.py at import, so the planner module patch would be dead.
+            "runtime.next._internal_runtime.engine.plan_next",
             return_value=synthetic_decision,
-        ),
+        ) as fake_plan_next,
     ):
         decision = decide_next_via_runtime("test", mission_slug, "success", repo_root)
+    assert fake_plan_next.called, "the synthetic plan_next stub never ran"
 
     # 1. pending_decisions persisted in the snapshot.
     snapshot_after = _read_snapshot(run_dir)
@@ -1204,13 +1207,14 @@ def test_advancement_helper_runs_default_post_completion_retrospective(
 
     from runtime.next._internal_runtime.engine import _read_snapshot
     from runtime.next._internal_runtime.schema import NextDecision
-    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_composition_advance
+    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_advance
     from runtime.next.runtime_bridge import get_or_start_run
 
     run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
     snapshot_before = _read_snapshot(Path(run_ref.run_dir))
     captures: list[dict[str, object]] = []
     emitted_completed: list[object] = []
+    order: list[str] = []
 
     class _Emitter:
         def seed_from_snapshot(self, snapshot: object) -> None:
@@ -1221,19 +1225,24 @@ def test_advancement_helper_runs_default_post_completion_retrospective(
 
         def emit_mission_run_completed(self, payload: object) -> None:
             emitted_completed.append(payload)
+            order.append("MissionRunCompleted")
+
+    def _capture(**kwargs: object) -> None:
+        captures.append(dict(kwargs))
+        order.append("capture")
 
     with (
         patch(
-            "runtime.next._internal_runtime.planner.plan_next",
+            "runtime.next._internal_runtime.engine.plan_next",
             return_value=NextDecision(
                 kind="terminal",
                 run_id=snapshot_before.run_id,
                 mission_key=snapshot_before.mission_key,
             ),
-        ),
+        ) as fake_plan_next,
         patch(
             "runtime.next.runtime_bridge_retrospective._run_retrospective_learning_capture",
-            side_effect=lambda **kwargs: captures.append(dict(kwargs)),
+            side_effect=_capture,
         ),
     ):
         decision = advance_run_state_after_composition(
@@ -1247,12 +1256,15 @@ def test_advancement_helper_runs_default_post_completion_retrospective(
             progress={},
             origin={},
             sync_emitter=_Emitter(),  # type: ignore[arg-type]
-            plan=plan_composition_advance(run_ref, "test-agent"),
+            plan=plan_advance(run_ref, "test-agent", "success"),
         )
 
+    assert fake_plan_next.called, "the terminal plan_next stub never ran"
     assert decision.kind == DecisionKind.terminal
     assert emitted_completed
     assert captures and captures[0]["block_on_failure"] is False
+    # FR-008: the default (non-blocking) capture runs after MissionRunCompleted.
+    assert order == ["MissionRunCompleted", "capture"]
 
 
 def test_advancement_helper_runs_strict_retrospective_before_completion(
@@ -1263,12 +1275,13 @@ def test_advancement_helper_runs_strict_retrospective_before_completion(
 
     from runtime.next._internal_runtime.engine import _read_snapshot
     from runtime.next._internal_runtime.schema import NextDecision
-    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_composition_advance
+    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_advance
     from runtime.next.runtime_bridge import get_or_start_run
 
     run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
     snapshot_before = _read_snapshot(Path(run_ref.run_dir))
     captures: list[dict[str, object]] = []
+    order: list[str] = []
 
     class _Emitter:
         def seed_from_snapshot(self, snapshot: object) -> None:
@@ -1278,7 +1291,11 @@ def test_advancement_helper_runs_strict_retrospective_before_completion(
             return None
 
         def emit_mission_run_completed(self, payload: object) -> None:
-            return None
+            order.append("MissionRunCompleted")
+
+    def _capture(**kwargs: object) -> None:
+        captures.append(dict(kwargs))
+        order.append("capture")
 
     strict_policy = type(
         "StrictPolicy",
@@ -1288,20 +1305,20 @@ def test_advancement_helper_runs_strict_retrospective_before_completion(
 
     with (
         patch(
-            "runtime.next._internal_runtime.planner.plan_next",
+            "runtime.next._internal_runtime.engine.plan_next",
             return_value=NextDecision(
                 kind="terminal",
                 run_id=snapshot_before.run_id,
                 mission_key=snapshot_before.mission_key,
             ),
-        ),
+        ) as fake_plan_next,
         patch(
             "runtime.next.runtime_bridge_retrospective._resolve_retrospective_policy_for_runtime",
             return_value=(strict_policy, {"enabled": "test"}, None),
         ),
         patch(
             "runtime.next.runtime_bridge_retrospective._run_retrospective_learning_capture",
-            side_effect=lambda **kwargs: captures.append(dict(kwargs)),
+            side_effect=_capture,
         ),
     ):
         decision = advance_run_state_after_composition(
@@ -1315,11 +1332,14 @@ def test_advancement_helper_runs_strict_retrospective_before_completion(
             progress={},
             origin={},
             sync_emitter=_Emitter(),  # type: ignore[arg-type]
-            plan=plan_composition_advance(run_ref, "test-agent"),
+            plan=plan_advance(run_ref, "test-agent", "success"),
         )
 
+    assert fake_plan_next.called, "the terminal plan_next stub never ran"
     assert decision.kind == DecisionKind.terminal
     assert captures and captures[0]["block_on_failure"] is True
+    # FR-008: the strict (blocking) capture runs before MissionRunCompleted.
+    assert order == ["capture", "MissionRunCompleted"]
 
 
 def test_advancement_helper_raises_policy_error_for_strict_retrospective(
@@ -1330,7 +1350,7 @@ def test_advancement_helper_raises_policy_error_for_strict_retrospective(
 
     from runtime.next._internal_runtime.engine import _read_snapshot
     from runtime.next._internal_runtime.schema import NextDecision
-    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_composition_advance
+    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_advance
     from runtime.next.runtime_bridge import get_or_start_run
 
     run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
@@ -1352,13 +1372,13 @@ def test_advancement_helper_raises_policy_error_for_strict_retrospective(
 
     with (
         patch(
-            "runtime.next._internal_runtime.planner.plan_next",
+            "runtime.next._internal_runtime.engine.plan_next",
             return_value=NextDecision(
                 kind="terminal",
                 run_id=snapshot_before.run_id,
                 mission_key=snapshot_before.mission_key,
             ),
-        ),
+        ) as fake_plan_next,
         patch(
             "runtime.next.runtime_bridge_retrospective._resolve_retrospective_policy_for_runtime",
             return_value=(strict_policy, {"enabled": "test"}, policy_error),
@@ -1376,8 +1396,9 @@ def test_advancement_helper_raises_policy_error_for_strict_retrospective(
             progress={},
             origin={},
             sync_emitter=_Emitter(),  # type: ignore[arg-type]
-            plan=plan_composition_advance(run_ref, "test-agent"),
+            plan=plan_advance(run_ref, "test-agent", "success"),
         )
+    assert fake_plan_next.called, "the terminal plan_next stub never ran"
 
 
 def test_decision_shape_unchanged_for_composed_action(
