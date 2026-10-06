@@ -176,6 +176,13 @@ def test_seam_scan_is_non_vacuous() -> None:
     assert {_MAPPING, _DECISION_LOG, _QUERY, _GUARDS, _ENGINE, _IO, _IDENTITY, _COMPOSITION} <= set(_SEAMS)
 
 
+def test_bridge_seam_map_names_every_seam() -> None:
+    """A seam added under ``runtime_bridge_*.py`` must be listed in the bridge's seam-map comment."""
+    source = (_NEXT_DIR / f"{_BRIDGE}.py").read_text(encoding="utf-8")
+    comments = "\n".join(line for line in source.splitlines() if line.startswith("#"))
+    assert [seam for seam in _SEAMS if seam not in comments] == []
+
+
 @pytest.mark.parametrize("module", _SEAMS)
 def test_no_forbidden_sibling_import(module: str) -> None:
     source = (_NEXT_DIR / f"{module}.py").read_text(encoding="utf-8")
