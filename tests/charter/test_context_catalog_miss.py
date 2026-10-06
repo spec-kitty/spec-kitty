@@ -235,7 +235,7 @@ class TestFormatCatalogMissStanza:
         assert "tactic:ghost-tactic" in joined
         assert "Cause: missing_artifact" in joined
         # Missing-artifact stanza must mention BOTH possible causes.
-        assert "doctrine validate" in joined
+        assert "charter validate" in joined
         assert "project, org, and built-in" in joined
 
     def test_schema_failure_stanza_cites_doctrine_validate(self) -> None:
@@ -368,7 +368,7 @@ class TestRendererIntegration:
 
     def test_missing_artifact_case_renders_dual_hint_and_warns(self) -> None:
         # No close match available — cause is MISSING_ARTIFACT, stanza
-        # suggests both layer-check and `doctrine validate`.
+        # suggests both layer-check and `charter validate`.
         service = _StubService(
             styleguides=_StubRepo(
                 items={
@@ -386,7 +386,7 @@ class TestRendererIntegration:
 
         assert "styleguide:totally-distinct-name" in joined
         assert "Cause: missing_artifact" in joined
-        assert "doctrine validate" in joined
+        assert "charter validate" in joined
         assert "project, org, and built-in" in joined
 
         miss = [
@@ -401,7 +401,7 @@ class TestRendererIntegration:
         # From the renderer's perspective, the catalog simply doesn't
         # carry the ID — but because no close match is available either,
         # the MISSING_ARTIFACT stanza's dual-hint (which includes the
-        # `doctrine validate` advice) is exactly the surface we need.
+        # `charter validate` advice) is exactly the surface we need.
         service = _StubService(styleguides=_StubRepo(items={}))
         with warnings.catch_warnings(record=True) as captured:
             warnings.simplefilter("always")
