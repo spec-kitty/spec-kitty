@@ -227,6 +227,23 @@ class ArtifactKind(StrEnum):
         return self in _SELECTION_OVERLAYABLE_KINDS
 
     @property
+    def core(self) -> bool:
+        """Whether this is one of the eight core kinds (#5538).
+
+        The core kinds are the eight that predate the later additions
+        (``GLOSSARY_PACK``, ``ASSET``, ``SKILL``, ``TEMPLATE``,
+        ``ANTI_PATTERN``): directive, tactic, styleguide, toolguide, paradigm,
+        procedure, agent profile and mission step contract. Several surfaces
+        still cover exactly this set -- the org-layer override lint, the
+        ``doctor doctrine`` org-pack directory count and collision scan, and
+        the API source's fallback type list. They read it from here instead of
+        restating it; a surface that should also cover a later kind switches
+        to a broader predicate rather than editing this set. Backs
+        :data:`CORE_KIND_PLURALS`.
+        """
+        return self in _CORE_KINDS
+
+    @property
     def effective_when_absent(self) -> Literal["all", "required"]:
         """What is in force for this kind while its activation key is absent.
 
@@ -305,6 +322,23 @@ class ArtifactKind(StrEnum):
 #: (not every available artifact). Single home of the fact behind
 #: :attr:`ArtifactKind.effective_when_absent`.
 _REQUIRED_WHEN_ABSENT_KINDS: frozenset[ArtifactKind] = frozenset({ArtifactKind.SKILL})
+
+#: The eight core members. Single home of the fact behind :attr:`ArtifactKind.core`.
+_CORE_KINDS: frozenset[ArtifactKind] = frozenset(
+    {
+        ArtifactKind.DIRECTIVE,
+        ArtifactKind.TACTIC,
+        ArtifactKind.STYLEGUIDE,
+        ArtifactKind.TOOLGUIDE,
+        ArtifactKind.PARADIGM,
+        ArtifactKind.PROCEDURE,
+        ArtifactKind.AGENT_PROFILE,
+        ArtifactKind.MISSION_STEP_CONTRACT,
+    }
+)
+
+#: Plurals of the core kinds, in :class:`ArtifactKind` declaration order.
+CORE_KIND_PLURALS: tuple[str, ...] = tuple(kind.plural for kind in ArtifactKind if kind.core)
 
 #: Members for which an org pack may declare ``required_<plural>`` (mirroring the ``OrgCharterPolicy.required_*`` fields; pinned by
 #: ``tests/architectural/test_kind_table_derivation.py``). Single home of the
@@ -507,6 +541,7 @@ __all__ = [
     "CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR",
     "CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL",
     "CHARTER_KIND_TOKENS",
+    "CORE_KIND_PLURALS",
     "DIRECT_WRITE_KINDS",
     "MISSION_TYPE_TOKEN",
     "ORG_REQUIRABLE_KIND_FIELDS",

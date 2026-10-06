@@ -21,7 +21,9 @@ import pytest
 
 from charter.offering.artifact_kinds import ArtifactKind
 from specify_cli.doctrine.pack_validator import (
+    _SINGULAR_TO_PLURAL_AUGMENTATION,
     _artifact_schema_registry,
+    _kind_singular,
     _plural_to_urn_kind,
     validate_pack,
 )
@@ -36,6 +38,16 @@ def test_every_artifact_kind_plural_resolves_to_its_urn_kind(kind: ArtifactKind)
 
 def test_unknown_plural_resolves_to_none() -> None:
     assert _plural_to_urn_kind("not_a_kind") is None
+
+
+@pytest.mark.parametrize(
+    ("singular", "plural"),
+    sorted(_SINGULAR_TO_PLURAL_AUGMENTATION.items()),
+    ids=lambda value: value,
+)
+def test_kind_singular_inverts_every_plural_the_intent_pass_reports(singular: str, plural: str) -> None:
+    """``mission_step_contracts`` is the trap: the org universe keys it on ``mission_steps``."""
+    assert _kind_singular(plural) == singular
 
 
 def test_schema_registry_globs_come_from_the_authority() -> None:

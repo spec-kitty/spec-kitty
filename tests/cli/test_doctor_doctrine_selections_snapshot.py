@@ -147,3 +147,17 @@ def test_doctor_doctrine_selections_snapshot(tmp_path: Path, monkeypatch: pytest
         "If this change is intentional, regenerate with: "
         f"UPDATE_SNAPSHOTS=1 pytest {__file__}"
     )
+
+
+def test_selection_kinds_are_the_selection_overlayable_kinds() -> None:
+    """The render's ordered kind list covers exactly the authority's set (#5538).
+
+    The reading order is curated, so the list is spelled out; this pins its
+    membership so a kind made selection-overlayable in ``ArtifactKind`` cannot
+    be silently left out of the Selections block.
+    """
+    from charter.offering.artifact_kinds import SELECTION_OVERLAYABLE_KIND_FIELDS
+    from specify_cli.cli.commands._profile_health_render import _SELECTION_KIND_PLURALS
+
+    assert len(_SELECTION_KIND_PLURALS) == len(set(_SELECTION_KIND_PLURALS))
+    assert set(_SELECTION_KIND_PLURALS) == set(SELECTION_OVERLAYABLE_KIND_FIELDS)

@@ -28,6 +28,8 @@ import json
 from typing import TYPE_CHECKING
 
 from rich.console import Console
+
+from charter.offering.artifact_kinds import ArtifactKind
 from specify_cli.cli.console import console
 
 if TYPE_CHECKING:
@@ -52,19 +54,26 @@ __all__ = [
 #: Shared Rich console singleton for the ``doctor`` command surface.  ``doctor.py``
 #: re-imports this name so both modules emit through the same instance.
 
-#: Canonical artifact-kind plurals as surfaced by ``doctor doctrine`` in the
-#: Selections section.  Ordering is the operator-facing reading order from
-#: the WP09 plan (directives first, agent_profiles last so the audit ends
-#: on the "who can drive" surface).
-_SELECTION_KIND_PLURALS: tuple[str, ...] = (
-    "directives",
-    "tactics",
-    "paradigms",
-    "styleguides",
-    "toolguides",
-    "procedures",
-    "mission_step_contracts",
-    "agent_profiles",
+#: Artifact-kind plurals surfaced by ``doctor doctrine`` in the Selections
+#: section: the selection-overlayable kinds (a ``selected_<plural>`` charter
+#: field that org-required lists union into). Ordering is the operator-facing
+#: reading order from the WP09 plan (directives first, agent_profiles last so
+#: the audit ends on the "who can drive" surface), so it is spelled as
+#: ``ArtifactKind`` members rather than derived; its membership is pinned to
+#: ``SELECTION_OVERLAYABLE_KIND_FIELDS`` by
+#: ``tests/cli/test_doctor_doctrine_selections_snapshot.py`` (#5538).
+_SELECTION_KIND_PLURALS: tuple[str, ...] = tuple(
+    kind.plural
+    for kind in (
+        ArtifactKind.DIRECTIVE,
+        ArtifactKind.TACTIC,
+        ArtifactKind.PARADIGM,
+        ArtifactKind.STYLEGUIDE,
+        ArtifactKind.TOOLGUIDE,
+        ArtifactKind.PROCEDURE,
+        ArtifactKind.MISSION_STEP_CONTRACT,
+        ArtifactKind.AGENT_PROFILE,
+    )
 )
 
 

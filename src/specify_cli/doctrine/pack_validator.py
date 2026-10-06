@@ -211,15 +211,17 @@ def _artifact_schema_registry() -> dict[str, tuple[str, type[BaseModel]]]:
     from charter.offering.tactics.models import Tactic
     from charter.offering.toolguides.models import Toolguide
 
-    return {
-        "directives": ("*.directive.yaml", Directive),
-        "tactics": ("*.tactic.yaml", Tactic),
-        "styleguides": ("*.styleguide.yaml", Styleguide),
-        "toolguides": ("*.toolguide.yaml", Toolguide),
-        "paradigms": ("*.paradigm.yaml", Paradigm),
-        "procedures": ("*.procedure.yaml", Procedure),
-        "agent_profiles": ("*.agent.yaml", AgentProfile),
-        "mission_step_contracts": ("*.step-contract.yaml", MissionStepContract),
+    # Only the schema model is curated per kind; the directory plural and the
+    # file glob come from ArtifactKind (#5538).
+    models: dict[ArtifactKind, type[BaseModel]] = {
+        ArtifactKind.DIRECTIVE: Directive,
+        ArtifactKind.TACTIC: Tactic,
+        ArtifactKind.STYLEGUIDE: Styleguide,
+        ArtifactKind.TOOLGUIDE: Toolguide,
+        ArtifactKind.PARADIGM: Paradigm,
+        ArtifactKind.PROCEDURE: Procedure,
+        ArtifactKind.AGENT_PROFILE: AgentProfile,
+        ArtifactKind.MISSION_STEP_CONTRACT: MissionStepContract,
         # ASSET is a loose-contract kind (FR-005/FR-011): the manifest is the
         # validated surface, the referenced blob itself is never scanned.
         # There is deliberately no "skip the blob schema" branch — the glob
@@ -227,8 +229,9 @@ def _artifact_schema_registry() -> dict[str, tuple[str, type[BaseModel]]]:
         # validated exactly like the other nine kinds' YAML. The additional
         # containment/mime safety checks live in a separate pass
         # (_validate_asset_manifests), not here.
-        "assets": ("*.asset.yaml", AssetManifest),
+        ArtifactKind.ASSET: AssetManifest,
     }
+    return {kind.plural: (kind.glob_pattern, model) for kind, model in models.items()}
 
 
 # ---------------------------------------------------------------------------
@@ -546,18 +549,17 @@ _DRG_GRAPH_GLOB = "*.graph.yaml"
 
 
 def _plural_to_urn_kind(plural: str) -> str | None:
-    """Return the DRG ``NodeKind`` string matching this artifact plural."""
-    mapping = {
-        "directives": "directive",
-        "tactics": "tactic",
-        "styleguides": "styleguide",
-        "toolguides": "toolguide",
-        "paradigms": "paradigm",
-        "procedures": "procedure",
-        "agent_profiles": "agent_profile",
-        "mission_step_contracts": "mission_step_contract",
-    }
-    return mapping.get(plural)
+    """Return the DRG ``NodeKind`` string matching this artifact plural.
+
+    Derived from :class:`ArtifactKind` (#5538), so every kind the schema
+    registry scans registers its URNs -- including ``assets``, which a former
+    hand-copied map omitted, making a DRG edge to a pack's own asset read as
+    dangling. ``None`` for a plural that names no artifact kind.
+    """
+    try:
+        return ArtifactKind.from_plural(plural).value
+    except KeyError:
+        return None
 
 
 def _validate_org_fragment(pack_dir: Path) -> list[ValidationIssue]:
@@ -1166,12 +1168,19 @@ def _check_profile_skipped_diagnostics(
 
 
 def _kind_singular(plural: str) -> str:
-    """Return the singular form of an artifact plural for human-facing messages."""
-    if plural == "agent_profiles":
-        return "agent_profile"
-    if plural == "mission_step_contracts":
-        return "mission_step_contract"
-    return plural[:-1] if plural.endswith("s") else plural
+    """Return the singular form of an artifact plural for human-facing messages.
+
+    Resolved through :class:`ArtifactKind`, then the org-pack universe map
+    for the one plural outside the enum (``mission_types``), never a suffix
+    heuristic (#5538). The org map alone is not enough: it keys mission steps
+    on the canonical ``mission_steps``, not the ``mission_step_contracts``
+    directory plural this module scans. An unknown plural is echoed back.
+    """
+    urn_kind = _plural_to_urn_kind(plural)
+    if urn_kind is not None:
+        return urn_kind
+    singular: str = ORG_PLURAL_TO_SINGULAR_KIND.get(plural, plural)
+    return singular
 
 
 def _load_built_in_ids_per_kind() -> dict[str, set[str]]:

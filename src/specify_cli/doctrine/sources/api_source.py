@@ -22,6 +22,8 @@ from typing import Any
 
 import requests
 
+from charter.offering.artifact_kinds import CORE_KIND_PLURALS
+
 from .protocol import FetchResult
 
 # Only plain filenames (letters, digits, dots, underscores, hyphens) are
@@ -46,16 +48,7 @@ def _validate_server_filename(filename: str) -> None:
         )
 
 # Default artifact type list used when /artifact-types is unavailable (404).
-DEFAULT_ARTIFACT_TYPES: tuple[str, ...] = (
-    "directives",
-    "tactics",
-    "styleguides",
-    "toolguides",
-    "paradigms",
-    "procedures",
-    "agent_profiles",
-    "mission_step_contracts",
-)
+DEFAULT_ARTIFACT_TYPES: tuple[str, ...] = CORE_KIND_PLURALS
 
 
 @dataclass

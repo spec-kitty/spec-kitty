@@ -224,7 +224,7 @@ def test_gate_reaches_every_package_under_src() -> None:
     """Non-vacuity floor: the scan covers every package and a real file count."""
     files = _scanned_files()
     packages = {path.relative_to(_SRC_ROOT).parts[0] for path in files}
-    assert _REQUIRED_PACKAGES <= packages, sorted(_REQUIRED_PACKAGES - packages)
+    assert packages >= _REQUIRED_PACKAGES, sorted(_REQUIRED_PACKAGES - packages)
     assert len(files) >= _MIN_FILES_SCANNED, len(files)
 
 

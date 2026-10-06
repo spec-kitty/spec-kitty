@@ -24,11 +24,13 @@ from collections.abc import Mapping
 
 from ruamel.yaml import YAML
 
+from charter.offering.artifact_kinds import ArtifactKind
 from kernel.clock import from_epoch
 
 from .adapter import AdapterOutput
 from .errors import GeneratedArtifactLoadError, GeneratedArtifactMissingError
 from .request import SynthesisRequest
+from .topic_resolver import _SYNTHESIZABLE_KINDS
 
 __all__ = [
     "GeneratedArtifactAdapter",
@@ -50,12 +52,11 @@ class GeneratedArtifactAdapter:
 
     def _path_for_target(self, request: SynthesisRequest) -> Path:
         target = request.target
-        subdir = {
-            "directive": "directives",
-            "tactic": "tactics",
-            "styleguide": "styleguides",
-        }[target.kind]
-        return self._input_root / subdir / target.filename
+        if target.kind not in _SYNTHESIZABLE_KINDS:
+            raise KeyError(target.kind)
+        subdir = ArtifactKind(target.kind).plural
+        path: Path = self._input_root / subdir / target.filename
+        return path
 
     def _load_body(self, path: Path) -> Mapping[str, Any]:
         yaml = YAML(typ="safe")
