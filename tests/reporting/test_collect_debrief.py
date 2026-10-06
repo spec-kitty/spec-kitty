@@ -13,31 +13,19 @@ from __future__ import annotations
 
 import json
 import subprocess
-import importlib.util
-import sys
-from pathlib import Path
-from types import ModuleType
 
 import pytest
+
+from _asset_loader import DEBRIEF_ASSET_DIR, load_asset
 
 pytestmark = pytest.mark.unit
 
 # The debrief scripts are internal-pack assets (hyphenated file names), so they
 # are loaded by path rather than imported as a package.
-_ASSET = Path(__file__).resolve().parents[2] / "packs" / "internal" / "assets" / "debrief" / "collect-debrief.py"
+_ASSET = DEBRIEF_ASSET_DIR / "collect-debrief.py"
 
 
-def _load_asset(name: str, path: Path) -> ModuleType:
-    spec = importlib.util.spec_from_file_location(name, path)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-cd = _load_asset("collect_debrief_asset", _ASSET)
+cd = load_asset("collect_debrief_asset", _ASSET)
 
 
 def _fake_gh(responses: dict[str, object]):

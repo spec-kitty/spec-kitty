@@ -2,32 +2,20 @@
 
 from __future__ import annotations
 
-import importlib.util
 import re
-import sys
-from pathlib import Path
-from types import ModuleType
 
 import pytest
+
+from _asset_loader import DEBRIEF_ASSET_DIR, load_asset
 
 pytestmark = pytest.mark.unit
 
 # The debrief scripts are internal-pack assets (hyphenated file names), so they
 # are loaded by path rather than imported as a package.
-_ASSET = Path(__file__).resolve().parents[2] / "packs" / "internal" / "assets" / "debrief" / "render-debrief.py"
+_ASSET = DEBRIEF_ASSET_DIR / "render-debrief.py"
 
 
-def _load_asset(name: str, path: Path) -> ModuleType:
-    spec = importlib.util.spec_from_file_location(name, path)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-rd = _load_asset("render_debrief_asset", _ASSET)
+rd = load_asset("render_debrief_asset", _ASSET)
 
 
 def test_nested_each_and_scalars():
