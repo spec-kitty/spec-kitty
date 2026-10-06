@@ -426,7 +426,17 @@ def allocate(ctx: ImplementContext, wp_id: str, selection: WorkspaceSelection, b
         base=effective_base,
         occupancy_verified=occupancy_verified,
     )
+    _report_hook_backup(result)
     return AllocationResult(result, effective_base)
+
+
+def _report_hook_backup(result: LaneWorkspaceResult) -> None:
+    """Tell the operator where a foreign pre-commit hook was backed up (#4895; printed here, #5715)."""
+    if result.hook_backup_path is None:
+        return
+    console.print(
+        f"[yellow]⚠ Existing .git/hooks/pre-commit was not spec-kitty-managed; backed up to {result.hook_backup_path} before installing the commit guard.[/yellow]"
+    )
 
 
 def record_claim(ctx: ImplementContext, wp_id: str, effective_actor: str, allocation: AllocationResult, status_execution_mode: str) -> Any:

@@ -290,6 +290,10 @@ class LaneWorkspaceResult:
     # mission_slug + lane_id. Empty for planning-artifact resolutions
     # (no per-lane test DB needed when there is no per-lane worktree).
     lane_test_env: dict[str, str] | None = None
+    # #4895/#5715: where a foreign (non-spec-kitty) ``.git/hooks/pre-commit``
+    # was backed up before the commit guard replaced it. ``None`` when nothing
+    # was backed up. The command layer prints the notice; this seam never does.
+    hook_backup_path: Path | None = None
 
     def __post_init__(self) -> None:
         if self.lane_test_env is None:
@@ -437,17 +441,11 @@ def create_lane_workspace(
     # ``allocate_lane_worktree`` itself (worktree_allocator.py), the single
     # choke point every route/caller passes through -- not duplicated here.
     # #4895: a foreign (non-spec-kitty) pre-existing hook was backed up
-    # before being overwritten -- surface the sidecar path in `implement`'s
-    # output so the operator can recover it, instead of leaving the
-    # preservation silent (the original harm: nothing printed).
-    if hook_guard_record is not None and hook_guard_record.backup_path is not None:
-        from specify_cli.cli.console import console
-
-        console.print(
-            f"[yellow]⚠ Existing .git/hooks/pre-commit was not spec-kitty-managed; "
-            f"backed up to {hook_guard_record.backup_path} before installing the "
-            f"commit guard.[/yellow]"
-        )
+    # before being overwritten -- carry the sidecar path on the result so
+    # `implement` surfaces it and the operator can recover it, instead of
+    # leaving the preservation silent (the original harm: nothing printed).
+    # #5715: this seam returns the path; the command layer prints it.
+    hook_backup_path = hook_guard_record.backup_path if hook_guard_record is not None else None
 
     # FR-011 / C-001: record the ACTUAL honored parent, not always
     # ``mission_branch``. ``base`` when supplied (the allocator parented the
@@ -529,6 +527,7 @@ def create_lane_workspace(
         # FR-006: derive a lane-suffixed test DB name so two parallel lanes
         # (e.g. SaaS / Django) cannot collide on a shared test database.
         lane_test_env=lane_test_env(mission_slug, lane_id),
+        hook_backup_path=hook_backup_path,
     )
 
 

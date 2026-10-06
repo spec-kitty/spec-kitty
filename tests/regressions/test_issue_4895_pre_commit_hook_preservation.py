@@ -252,15 +252,16 @@ def _init_lane_repo(repo: Path) -> None:
 def test_create_lane_workspace_prints_backup_path_when_foreign_hook_preserved(
     tmp_path: Path,
 ) -> None:
-    """``create_lane_workspace`` prints the backup sidecar path (#4895 T012).
+    """``implement`` surfaces the backup sidecar path (#4895 T012).
 
     Drives the REAL ``create_lane_workspace`` -- the exact function this
     WP's ``owned_files`` surface (``lanes/implement_support.py``) modifies
     -- through a minimal legacy-topology lane allocation, with a foreign
     ``.git/hooks/pre-commit`` pre-installed. Proves the whole chain: the
     hook is preserved (via ``install_commit_guard``) AND the operator sees
-    the sidecar path in the console output the function itself produces,
-    not a re-implementation of its wiring.
+    the sidecar path: ``create_lane_workspace`` returns it on its result
+    (#5715: the lanes seam never prints) and the ``implement`` allocate
+    phase's own reporter prints it.
     """
     from kernel.clock import now_utc_iso
     from specify_cli.lanes.implement_support import create_lane_workspace
@@ -317,19 +318,16 @@ def test_create_lane_workspace_prints_backup_path_when_foreign_hook_preserved(
     # Plant the operator's foreign hook BEFORE the guard install runs.
     hook_path = _write_foreign_hook(repo)
 
-    from specify_cli.cli import console as console_module
-
-    with patch.object(console_module.console, "print") as mock_print:
-        create_lane_workspace(
-            repo_root=repo,
-            mission_slug=mission_slug,
-            wp_id=wp_id,
-            wp_file=wp_file,
-            resolved_workspace=resolved_workspace,
-            lanes_manifest=lanes_manifest,
-            declared_deps=[],
-            vcs_backend_value="git",
-        )
+    result = create_lane_workspace(
+        repo_root=repo,
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        wp_file=wp_file,
+        resolved_workspace=resolved_workspace,
+        lanes_manifest=lanes_manifest,
+        declared_deps=[],
+        vcs_backend_value="git",
+    )
 
     # The guard replaced the foreign hook with the spec-kitty guard...
     assert SPEC_KITTY_SIGNATURE in hook_path.read_text(encoding="utf-8")
@@ -339,7 +337,15 @@ def test_create_lane_workspace_prints_backup_path_when_foreign_hook_preserved(
     assert len(sidecars) == 1, f"expected exactly one backup sidecar, found {sidecars}"
     assert sidecars[0].read_bytes() == FOREIGN_HOOK_BODY.encode("utf-8")
 
-    # And the operator was actually told about it (the #4895 harm: nothing
-    # was ever printed).
+    # The seam returns the sidecar path as typed data (#5715: it never prints)...
+    assert result.hook_backup_path == sidecars[0]
+
+    # ...and the command layer tells the operator about it (the #4895 harm:
+    # nothing was ever printed).
+    from specify_cli.cli.commands import implement_phases
+
+    with patch.object(implement_phases.console, "print") as mock_print:
+        implement_phases._report_hook_backup(result)
+
     printed_lines = [str(call.args[0]) for call in mock_print.call_args_list if call.args]
     assert any(sidecars[0].name in line for line in printed_lines), f"backup sidecar {sidecars[0]} was not surfaced in implement's output: {printed_lines}"

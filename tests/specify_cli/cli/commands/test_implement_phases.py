@@ -555,6 +555,37 @@ def test_allocate_locks_the_vcs_and_creates_the_lane_worktree(repo: Path) -> Non
     assert mission.meta()["vcs"] == "git"
 
 
+def test_allocate_reports_where_a_foreign_pre_commit_hook_was_backed_up(repo: Path) -> None:
+    """#4895/#5715: the lanes seam returns the backup path and ``allocate`` prints it.
+
+    Planted break (proven red): drop the ``_report_hook_backup`` call in ``allocate``.
+    """
+    build_mission(repo, SLUG, MISSION_ID)
+    hook = Path(git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir")) / "hooks" / "pre-commit"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text("#!/bin/sh\n# operator-managed hook\nexit 0\n", encoding="utf-8")
+    ctx = implement_phases.detect_context(SLUG, "WP01", repo, False, json_mode=False)
+    preflight = implement_phases.claim_preflight(ctx, "WP01")
+    selection = implement_phases.select_workspace(ctx, "WP01", preflight)
+
+    with console.capture() as capture:
+        allocation = implement_phases.allocate(ctx, "WP01", selection, None)
+
+    backup = allocation.result.hook_backup_path
+    assert backup is not None and backup.is_file()
+    text = _flat(capture.get())
+    assert "Existing .git/hooks/pre-commit was not spec-kitty-managed" in text
+    assert backup.name in text
+
+
+def test_the_hook_backup_report_is_silent_without_a_backup(repo: Path) -> None:
+    """No backup, no notice: ``_report_hook_backup`` prints nothing for a result without one."""
+    with console.capture() as capture:
+        implement_phases._report_hook_backup(_lane_result(repo))
+
+    assert capture.get() == ""
+
+
 def test_a_lane_claim_records_a_worktree_workspace_context(repo: Path) -> None:
     """The claim hands the status pipeline ``workspace_context="worktree:<lane worktree path>"`` for a lane WP.
 

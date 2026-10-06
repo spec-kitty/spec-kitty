@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import ast
 import importlib
+import pkgutil
 from pathlib import Path
 
 import pytest
@@ -150,32 +151,15 @@ _NO_CLI_SEAM_MODULES: tuple[str, ...] = (
     # WP04: planning-commit decisions (partition, guard, demotion verdict, identifiers)
     "specify_cli.coordination.planning_commit",
     # WP05: git_stdout (public leaf the planning-commit adapter and the base-ref code import).
-    # The module's pre-existing lazy ``cli.console`` import is the one recorded exception below.
+    # #5715 drained its last lazy ``cli.console`` import: the guard now has no exceptions.
     "specify_cli.lanes.implement_support",
     # WP08: claim_policy_metadata (the claim triple shared by implement and the workflow executor)
     "specify_cli.status.emit",
 )
 
-# The single documented exception to the guard above, mirroring the ``specify_cli.cli.console``
-# carve-out ``tests/architectural/test_layer_rules.py`` grants ``specify_cli/consolidation/**``
-# (a presentation-only singleton). ``lanes/implement_support.py`` imports it lazily to print the
-# #4895 foreign-pre-commit-hook backup notice. The module -> allowed import is shrink-only: the
-# guard below fails when the import is gone (remove the entry) and when a second one appears.
-# TODO(#5715): drain this import (return the notice as a typed result, print in the command
-# package) and delete the entry.
-_NO_CLI_CONSOLE_CARVE_OUTS: dict[str, str] = {
-    "specify_cli.lanes.implement_support": "specify_cli.cli.console",
-}
-
-
 #: Third-party packages that are presentation by nature: ``typer`` (exits, prompts) and ``rich``
 #: (console rendering, C-004 forbids printing below the command package).
 _CLI_TOP_LEVEL_PACKAGES = frozenset({"typer", "rich"})
-
-
-def _is_carve_out(offender: str, allowed: str) -> bool:
-    """True when *offender* (``"line N: <module>"``) is exactly the allowed carve-out import."""
-    return offender.partition(": ")[2] == allowed
 
 
 def _resolve_relative_module(node: ast.ImportFrom, package: str) -> str:
@@ -226,15 +210,19 @@ def _seam_cli_layer_imports(module_name: str) -> list[str]:
     return _cli_layer_imports(Path(spec.origin).read_text(encoding="utf-8"), spec.parent or "")
 
 
+def _lanes_package_modules() -> list[str]:
+    """Every module of the ``specify_cli.lanes`` package, the package ``__init__`` included."""
+    import specify_cli.lanes as lanes_package
+
+    return ["specify_cli.lanes", *sorted(info.name for info in pkgutil.walk_packages(lanes_package.__path__, "specify_cli.lanes."))]
+
+
 class TestSeamModulesHaveNoCliImports:
     """The seams the ``implement`` command delegates to stay free of CLI-layer imports."""
 
     @pytest.mark.parametrize("module_name", _NO_CLI_SEAM_MODULES)
     def test_seam_module_imports_no_cli_layer(self, module_name: str) -> None:
         offenders = _seam_cli_layer_imports(module_name)
-        allowed = _NO_CLI_CONSOLE_CARVE_OUTS.get(module_name)
-        if allowed is not None:
-            offenders = [offender for offender in offenders if not _is_carve_out(offender, allowed)]
 
         assert not offenders, (
             f"{module_name} imports the CLI layer (C-004: lower packages return typed results or "
@@ -265,29 +253,22 @@ class TestSeamModulesHaveNoCliImports:
         is ``specify_cli.cli.step_tracker`` (CLI layer), not ``specify_cli.step_tracker``."""
         assert "line 10: specify_cli.cli.step_tracker" in _seam_cli_layer_imports("specify_cli.cli")
 
-    @pytest.mark.parametrize(("module_name", "allowed"), sorted(_NO_CLI_CONSOLE_CARVE_OUTS.items()))
-    def test_console_carve_out_is_exactly_one_live_import(self, module_name: str, allowed: str) -> None:
-        """Shrink-only: the carve-out names one import that still exists (no stale or widened entry)."""
+    @pytest.mark.parametrize("module_name", _lanes_package_modules())
+    def test_lanes_package_imports_no_cli_layer(self, module_name: str) -> None:
+        """#5715: no module of ``specify_cli.lanes`` imports the CLI layer (empty allow-list).
+
+        The lanes seam returns typed results (e.g. ``LaneWorkspaceResult.hook_backup_path``) and the
+        ``implement`` command package prints them.
+        """
         offenders = _seam_cli_layer_imports(module_name)
-        carved = [offender for offender in offenders if _is_carve_out(offender, allowed)]
 
-        assert len(carved) == 1, f"{module_name}: expected exactly one live {allowed} import, found {carved!r}; update _NO_CLI_CONSOLE_CARVE_OUTS (#5715)"
+        assert not offenders, (
+            f"{module_name} imports the CLI layer (#5715: the lanes seam returns typed results; the command layer prints):\n  " + "\n  ".join(offenders)
+        )
 
-    @pytest.mark.parametrize(
-        "offender",
-        [
-            "line 3: specify_cli.cli.commands.implement",
-            "line 3: specify_cli.cli",
-            "line 3: typer",
-            "line 3: specify_cli.cli.console.extra",
-        ],
-    )
-    def test_carve_out_forgives_only_the_console_import(self, offender: str) -> None:
-        """Non-vacuity: the carve-out never excuses any other CLI-layer import."""
-        assert not _is_carve_out(offender, "specify_cli.cli.console")
-
-    def test_carve_out_matches_the_console_import(self) -> None:
-        assert _is_carve_out("line 400: specify_cli.cli.console", "specify_cli.cli.console")
+    def test_lanes_package_scan_is_not_vacuous(self) -> None:
+        """Non-vacuity: the lanes sweep covers the seam ``implement`` delegates to."""
+        assert "specify_cli.lanes.implement_support" in _lanes_package_modules()
 
     @pytest.mark.parametrize(
         "source",
