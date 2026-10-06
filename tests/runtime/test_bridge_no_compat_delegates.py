@@ -63,6 +63,8 @@ REMOVED: dict[str, tuple[str, ...]] = {
     "cores": (
         "_parse_wp_sections_from_tasks_md",
         "_parse_requirement_refs_from_tasks_md",
+        "SPEC_ARTIFACT",  # #2560: the guards seam reads them from here
+        "TASKS_ARTIFACT",
     ),
     "engine": ("_advance_run_state_after_composition",),
     "retrospective": (
@@ -156,8 +158,6 @@ REMOVED: dict[str, tuple[str, ...]] = {
     ),
     # #2560: the guard facts io reads and the WP-advance guard composition reads.
     "guards": (
-        "SPEC_ARTIFACT",
-        "TASKS_ARTIFACT",
         "_should_advance_wp_step",
         "_wp_blocks_step",
         "_occurrence_gate_failures",
@@ -171,7 +171,8 @@ REMOVED: dict[str, tuple[str, ...]] = {
 }
 _SEAMS = tuple(REMOVED)
 #: 36 names retired by #2561 plus 56 moved by #2560 (decision_mapping 27,
-#: decision_log 4, query 13, guards 11, identity 1).
+#: decision_log 4, query 13, guards 9, identity 1, and the two artifact file
+#: names, which cores owns once and guards reads from it).
 _EXPECTED_TOTAL = 92
 
 # Floor and uniqueness: a shrinking or duplicated table must not make the gate vacuous.

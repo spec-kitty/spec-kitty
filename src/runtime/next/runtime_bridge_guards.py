@@ -9,8 +9,8 @@ without reaching back into the bridge:
   ``_check_bare_prose_requirements_ready``, ``_occurrence_gate_failures``,
   ``_has_raw_dependencies_field``) with their helpers
   (``_load_wps_manifest_findings``, ``_log_requirement_extraction_warnings``,
-  ``_log_requirement_extraction_warnings_safely``) and the ``SPEC_ARTIFACT`` /
-  ``TASKS_ARTIFACT`` file names;
+  ``_log_requirement_extraction_warnings_safely``); the ``spec.md`` /
+  ``tasks.md`` file names are read from ``runtime_bridge_cores``;
 * the WP-advance guard ``_should_advance_wp_step`` (with ``_wp_blocks_step``)
   that the bridge's CLI guards, its dependency gate and the composition seam's
   composed-action guard consult.
@@ -167,12 +167,6 @@ def _wp_blocks_step(step_id: str, state: Any, has_provenance: bool = False) -> b
     return False
 
 
-SPEC_ARTIFACT = "spec.md"
-
-
-TASKS_ARTIFACT = "tasks.md"
-
-
 def _occurrence_gate_failures(feature_dir: Path) -> list[str]:
     """Bulk-edit occurrence-map gate errors (empty when not bulk_edit or map is valid).
 
@@ -299,7 +293,7 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
     ``read_all_wp_raw_requirement_refs``, and the ``tasks_md.read_text`` prose
     fallback).
     """
-    spec_md = feature_dir / SPEC_ARTIFACT
+    spec_md = feature_dir / _cores.SPEC_ARTIFACT
     if not spec_md.exists():
         return []
 
@@ -332,7 +326,7 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
         wp_requirement_refs = read_all_wp_raw_requirement_refs(tasks_dir)
 
         if wps_manifest is None:
-            tasks_md = feature_dir / TASKS_ARTIFACT
+            tasks_md = feature_dir / _cores.TASKS_ARTIFACT
             if tasks_md.exists():
                 tasks_md_refs = _cores._parse_requirement_refs_from_tasks_md(tasks_md.read_text(encoding="utf-8"), grammar=grammar)
                 for wp_id, refs in tasks_md_refs.items():
@@ -376,7 +370,7 @@ def _check_bare_prose_requirements_ready(feature_dir: Path) -> list[str]:
     ``except Exception as exc: return [...]`` shape one function up, never
     a bare traceback and never downgraded to a log line.
     """
-    spec_md = feature_dir / SPEC_ARTIFACT
+    spec_md = feature_dir / _cores.SPEC_ARTIFACT
     if not spec_md.exists():
         return []
 
