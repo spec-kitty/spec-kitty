@@ -20,5 +20,6 @@ parameters:
     description: "one-pager or long-form. Default: choose by the rule in the executive-debrief styleguide"
 invocation:
   user_invocable: true
+  side_effects: [gh-read, file-write]
 version: 1.0.0
 maintainers: ["@spec-kitty/core"]
