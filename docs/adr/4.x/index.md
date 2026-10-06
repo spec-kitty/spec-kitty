@@ -58,3 +58,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-05 | [owned-checkout and start-up performance tests assert runner-relative ratios](2026-10-05-2-runner-relative-performance-budgets.md) |
 | 2026-10-05 | [org packs ship their own built-in override sanction](2026-10-05-3-org-packs-ship-their-builtin-override-sanction.md) |
 | 2026-10-06 | [the Team Kitty surfaces are hidden unless hosted drain is on](2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md) |
+| 2026-10-06 | [charter offering, active charter and activation presets](2026-10-06-2-charter-offering-active-charter-and-activation-presets.md) |

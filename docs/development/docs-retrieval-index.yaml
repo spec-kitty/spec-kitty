@@ -3553,6 +3553,22 @@ pages:
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
+  - path: "docs/adr/4.x/2026-10-06-2-charter-offering-active-charter-and-activation-presets.md"
+    title: "ADR: charter offering, active charter and activation presets"
+    divio_type: "none"
+    abstract: "A Charter Pack bundles charter components with activation presets applied by charter activate; the doctrine names are cut over with no aliases or shims."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "1-the-model-charter-offering-and-active-charter", text: "1. The model: charter offering and active charter", level: 3}
+    - {slug: "2-applying-a-preset-is-an-activation", text: "2. Applying a preset is an activation", level: 3}
+    - {slug: "3-presets-are-pack-data", text: "3. Presets are pack data", level: 3}
+    - {slug: "4-the-cli", text: "4. The CLI", level: 3}
+    - {slug: "5-skills", text: "5. Skills", level: 3}
+    - {slug: "6-names-that-stay", text: "6. Names that stay", level: 3}
+    - {slug: "7-full-cutover-no-aliases-no-shims", text: "7. Full cutover: no aliases, no shims", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "execution", text: "Execution", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
