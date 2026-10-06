@@ -17,17 +17,22 @@ Scope: shipped skills, both packs and the living docs, plus every string
 literal in ``src/`` Python code -- remediation messages and hints are where an
 operator reads these commands. Python docstrings and comments are not scanned:
 they describe code (including the deprecated group itself), they do not
-instruct an operator. The immutable record roots (terminology-exemptions.md),
+instruct an operator -- with one exception: the docstring of a callback registered
+as a command or group under the ``charter`` app *is* the ``--help`` text Typer
+prints for it, so those docstrings are scanned. The immutable record roots (terminology-exemptions.md),
 design plans, the changelog and generated outputs are out of scope.
 """
 
 from __future__ import annotations
 
 import ast
+import inspect
 import re
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
+import typer
 
 from specify_cli.cli.commands.charter._app import charter_app
 from tests._support.terminology_scope import FORBIDDEN_SCAN_ROOTS
@@ -110,6 +115,27 @@ def _python_offenders(source: str) -> list[tuple[int, str]]:
     return found
 
 
+def _charter_help_callbacks(app: typer.Typer, path: str = "charter") -> Iterator[tuple[str, Callable[..., object]]]:
+    """Every callback registered as a command or group callback under ``app``, recursively."""
+    group_callback = app.registered_callback
+    if group_callback is not None and group_callback.callback is not None:
+        yield path, group_callback.callback
+    for command in app.registered_commands:
+        if command.callback is not None:
+            yield f"{path} {command.name or command.callback.__name__}", command.callback
+    for group in app.registered_groups:
+        yield from _charter_help_callbacks(group.typer_instance, f"{path} {group.name}")
+
+
+def _charter_help_offenders() -> list[str]:
+    """Offending invocations in the ``--help`` text (docstrings) of the ``charter`` surface."""
+    return [
+        f"`{command}` --help ({callback.__module__}.{callback.__qualname__})  {token}"
+        for command, callback in _charter_help_callbacks(charter_app)
+        for _, token in _offenders(inspect.getdoc(callback) or "")
+    ]
+
+
 def test_migrated_set_is_derived_from_the_cli() -> None:
     """Non-vacuity floor: the four shared handlers are found; name-only clashes are not."""
     assert {"new", "validate", "fetch", "org"} <= _MIGRATED
@@ -127,6 +153,7 @@ def test_guidance_names_the_charter_spelling_of_migrated_commands() -> None:
         rel = path.relative_to(_REPO_ROOT).as_posix()
         for lineno, token in _python_offenders(path.read_text(encoding="utf-8")):
             violations.append(f"{rel}:{lineno}  {token}")
+    violations.extend(_charter_help_offenders())
     assert not violations, "Use `spec-kitty charter <command>` for doctrine commands that moved to the charter group (same handler):\n  " + "\n  ".join(violations)
 
 

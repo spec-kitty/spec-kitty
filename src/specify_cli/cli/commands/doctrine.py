@@ -677,7 +677,7 @@ def new(
     """Scaffold a stub doctrine artifact YAML (FR-016).
 
     The scaffolder pre-fills the canonical schema's required fields with
-    ``TODO …`` placeholders so the file passes ``doctrine validate`` on
+    ``TODO …`` placeholders so the file passes ``charter validate`` on
     first emit.  Refuses to overwrite an existing file.
     """
     artifact_kind = _resolve_scaffoldable_kind(kind)
