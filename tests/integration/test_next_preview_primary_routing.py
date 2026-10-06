@@ -2,7 +2,7 @@
 primary routing (WP03).
 
 The out-of-loop ``spec-kitty next`` query path builds a finalized-override Decision
-via ``runtime_bridge._build_finalized_override_query_decision``.  When the override
+via ``runtime_bridge_query._build_finalized_override_query_decision``.  When the override
 step is ``implement`` it previews which WP ``agent action implement`` would claim.
 
 Before WP03 the preview read used the *caller's* ``feature_dir`` directly, which —
@@ -42,10 +42,8 @@ import pytest
 from mission_runtime import MissionArtifactKind, mission_context_for
 from runtime.next.decision import Decision, DecisionKind
 from runtime.next.discovery import preview_claimable_wp
-from runtime.next.runtime_bridge import (
-    _build_finalized_override_query_decision,
-    query_current_state,
-)
+from runtime.next.runtime_bridge import query_current_state
+from runtime.next.runtime_bridge_query import _build_finalized_override_query_decision
 from tests.integration.coord_topology_fixture import (
     CoordTopologyContext,
     coord_topology_mission,
@@ -100,7 +98,7 @@ def _build_implement_override_decision(ctx: CoordTopologyContext) -> Decision:
     """Drive the real finalized-override builder for the ``implement`` step.
 
     Mirrors the single production call site
-    (``runtime_bridge.query_current_state`` → ``_build_finalized_override_query_decision``)
+    (``runtime_bridge_query.query_current_state`` → ``_build_finalized_override_query_decision``)
     with ``finalized_override="implement"`` so the routed preview leg executes.
     """
     return _build_finalized_override_query_decision(

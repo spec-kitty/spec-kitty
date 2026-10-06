@@ -448,11 +448,11 @@ class TestQueryCurrentStateErrorPaths:
         with (
             patch("runtime.next.runtime_bridge_io._existing_run_ref", return_value=None),
             patch("runtime.next.runtime_bridge_io._start_ephemeral_query_run", side_effect=RuntimeError("run init failed")),
-            patch("runtime.next.runtime_bridge.get_mission_type", return_value="software-dev"),
-            patch("runtime.next.runtime_bridge._compute_wp_progress", return_value=None),
+            patch("runtime.next.runtime_bridge_query._compute_wp_progress", return_value=None) as compute_progress,
         ):
             with pytest.raises(QueryModeValidationError, match="Could not read query state"):
                 query_current_state("claude", "069-test", tmp_path)
+        compute_progress.assert_called()
 
     def test_read_snapshot_exception_raises_validation_error(self, tmp_path: Path) -> None:
         """Corrupted runtime state should fail query mode loudly, not return unknown."""
@@ -469,12 +469,12 @@ class TestQueryCurrentStateErrorPaths:
             # query_current_state resolves the run through the io seam's _existing_run_ref
             # (it never calls get_or_start_run).
             patch("runtime.next.runtime_bridge_io._existing_run_ref", return_value=mock_run_ref),
-            patch("runtime.next.runtime_bridge.get_mission_type", return_value="software-dev"),
-            patch("runtime.next.runtime_bridge._compute_wp_progress", return_value=None),
+            patch("runtime.next.runtime_bridge_query._compute_wp_progress", return_value=None) as compute_progress,
             patch("runtime.next._internal_runtime.engine._read_snapshot", side_effect=Exception("snapshot read failed")) as read_snapshot,
         ):
             with pytest.raises(QueryModeValidationError, match="Could not read query state"):
                 query_current_state("claude", "069-test", tmp_path)
+        compute_progress.assert_called()
 
         # The error came from the snapshot read of the run the fake supplied, not from run bootstrap.
         read_snapshot.assert_called_once()
@@ -503,14 +503,15 @@ class TestQueryCurrentStateErrorPaths:
 
         with (
             patch("runtime.next.runtime_bridge_io._existing_run_ref", return_value=mock_run_ref),
-            patch("runtime.next.runtime_bridge.get_mission_type", return_value="software-dev"),
-            patch("runtime.next.runtime_bridge._compute_wp_progress", return_value=None),
+            patch("runtime.next.runtime_bridge_query._compute_wp_progress", return_value=None) as compute_progress,
             patch("runtime.next._internal_runtime.engine._read_snapshot", return_value=snapshot),
-            patch("runtime.next.runtime_bridge.load_mission_template_file", return_value=MagicMock()),
+            patch("runtime.next.runtime_bridge_query.load_mission_template_file", return_value=MagicMock()) as load_template,
             patch("runtime.next._internal_runtime.planner.plan_next", return_value=blocked),
         ):
             with pytest.raises(QueryModeValidationError, match="has no issuable first step"):
                 query_current_state("claude", "069-test", tmp_path)
+        compute_progress.assert_called()
+        load_template.assert_called()
 
     def test_pending_decision_metadata_is_preserved_in_query_mode(self, tmp_path: Path) -> None:
         from runtime.next.runtime_bridge import query_current_state
@@ -540,13 +541,14 @@ class TestQueryCurrentStateErrorPaths:
 
         with (
             patch("runtime.next.runtime_bridge_io._existing_run_ref", return_value=mock_run_ref),
-            patch("runtime.next.runtime_bridge.get_mission_type", return_value="software-dev"),
-            patch("runtime.next.runtime_bridge._compute_wp_progress", return_value=None),
+            patch("runtime.next.runtime_bridge_query._compute_wp_progress", return_value=None) as compute_progress,
             patch("runtime.next._internal_runtime.engine._read_snapshot", return_value=snapshot),
-            patch("runtime.next.runtime_bridge.load_mission_template_file", return_value=MagicMock()),
+            patch("runtime.next.runtime_bridge_query.load_mission_template_file", return_value=MagicMock()) as load_template,
             patch("runtime.next._internal_runtime.planner.plan_next", return_value=decision_required),
         ):
             decision = query_current_state("claude", "069-test", tmp_path)
+        compute_progress.assert_called()
+        load_template.assert_called()
 
         assert decision.mission_state == "collect_input"
         assert decision.step_id == "collect_input"
@@ -592,13 +594,14 @@ class TestQueryCurrentStateErrorPaths:
                 "runtime.next.runtime_bridge_io._start_ephemeral_query_run",
                 return_value=(ephemeral_ref, ephemeral_store),
             ),
-            patch("runtime.next.runtime_bridge.get_mission_type", return_value="software-dev"),
-            patch("runtime.next.runtime_bridge._compute_wp_progress", return_value=None),
+            patch("runtime.next.runtime_bridge_query._compute_wp_progress", return_value=None) as compute_progress,
             patch("runtime.next._internal_runtime.engine._read_snapshot", return_value=snapshot),
-            patch("runtime.next.runtime_bridge.load_mission_template_file", return_value=MagicMock()),
+            patch("runtime.next.runtime_bridge_query.load_mission_template_file", return_value=MagicMock()) as load_template,
             patch("runtime.next._internal_runtime.planner.plan_next", return_value=first_step),
         ):
             decision = query_current_state(None, "069-test", tmp_path)
+        compute_progress.assert_called()
+        load_template.assert_called()
 
         assert decision.mission_state == "not_started"
         assert decision.preview_step == "discovery"
@@ -634,13 +637,14 @@ class TestQueryCurrentStateErrorPaths:
 
         with (
             patch("runtime.next.runtime_bridge_io._existing_run_ref", return_value=persisted_ref),
-            patch("runtime.next.runtime_bridge.get_mission_type", return_value="software-dev"),
-            patch("runtime.next.runtime_bridge._compute_wp_progress", return_value=None),
+            patch("runtime.next.runtime_bridge_query._compute_wp_progress", return_value=None) as compute_progress,
             patch("runtime.next._internal_runtime.engine._read_snapshot", return_value=snapshot),
-            patch("runtime.next.runtime_bridge.load_mission_template_file", return_value=MagicMock()),
+            patch("runtime.next.runtime_bridge_query.load_mission_template_file", return_value=MagicMock()) as load_template,
             patch("runtime.next._internal_runtime.planner.plan_next", return_value=next_step),
         ):
             decision = query_current_state(None, "069-test", tmp_path)
+        compute_progress.assert_called()
+        load_template.assert_called()
 
         # Real persisted run → run_id is the real one (callers can advance against it).
         assert decision.run_id == "real-run-id-456"
@@ -668,10 +672,9 @@ class TestQueryCurrentStateErrorPaths:
 
         with (
             patch("runtime.next.runtime_bridge_io._existing_run_ref", return_value=mock_run_ref),
-            patch("runtime.next.runtime_bridge.get_mission_type", return_value="software-dev"),
-            patch("runtime.next.runtime_bridge._compute_wp_progress", return_value=None),
+            patch("runtime.next.runtime_bridge_query._compute_wp_progress", return_value=None) as compute_progress,
             patch("runtime.next._internal_runtime.engine._read_snapshot", return_value=snapshot),
-            patch("runtime.next.runtime_bridge.load_mission_template_file", return_value=MagicMock()),
+            patch("runtime.next.runtime_bridge_query.load_mission_template_file", return_value=MagicMock()) as load_template,
             patch(
                 "runtime.next._internal_runtime.planner.plan_next",
                 side_effect=QueryModeValidationError("planner contract violation"),
@@ -679,6 +682,8 @@ class TestQueryCurrentStateErrorPaths:
         ):
             with pytest.raises(QueryModeValidationError, match="planner contract violation"):
                 query_current_state(None, "069-test", tmp_path)
+        compute_progress.assert_called()
+        load_template.assert_called()
 
     def test_terminal_runtime_decision_renders_done_mission_state(self, tmp_path: Path) -> None:
         from runtime.next.runtime_bridge import query_current_state
@@ -704,13 +709,14 @@ class TestQueryCurrentStateErrorPaths:
 
         with (
             patch("runtime.next.runtime_bridge_io._existing_run_ref", return_value=mock_run_ref),
-            patch("runtime.next.runtime_bridge.get_mission_type", return_value="software-dev"),
-            patch("runtime.next.runtime_bridge._compute_wp_progress", return_value=None),
+            patch("runtime.next.runtime_bridge_query._compute_wp_progress", return_value=None) as compute_progress,
             patch("runtime.next._internal_runtime.engine._read_snapshot", return_value=snapshot),
-            patch("runtime.next.runtime_bridge.load_mission_template_file", return_value=MagicMock()),
+            patch("runtime.next.runtime_bridge_query.load_mission_template_file", return_value=MagicMock()) as load_template,
             patch("runtime.next._internal_runtime.planner.plan_next", return_value=terminal),
         ):
             decision = query_current_state(None, "069-test", tmp_path)
+        compute_progress.assert_called()
+        load_template.assert_called()
 
         assert decision.mission_state == "done"
         assert decision.is_query is True
@@ -791,13 +797,14 @@ class TestQueryCurrentStateErrorPaths:
 
         with (
             patch("runtime.next.runtime_bridge_io._existing_run_ref", return_value=mock_run_ref),
-            patch("runtime.next.runtime_bridge.get_mission_type", return_value="software-dev"),
-            patch("runtime.next.runtime_bridge._compute_wp_progress", return_value=None),
+            patch("runtime.next.runtime_bridge_query._compute_wp_progress", return_value=None) as compute_progress,
             patch("runtime.next._internal_runtime.engine._read_snapshot", return_value=snapshot),
-            patch("runtime.next.runtime_bridge.load_mission_template_file", return_value=MagicMock()),
+            patch("runtime.next.runtime_bridge_query.load_mission_template_file", return_value=MagicMock()) as load_template,
             patch("runtime.next._internal_runtime.planner.plan_next", return_value=blocked),
         ):
             decision = query_current_state("claude", "069-test", tmp_path)
+        compute_progress.assert_called()
+        load_template.assert_called()
 
         assert decision.mission_state == "collect_input"
         assert decision.step_id == "collect_input"

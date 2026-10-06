@@ -54,7 +54,7 @@ _COMPOSITION = "runtime_bridge_composition"
 _EXTRACTED: dict[str, bool] = {
     _MAPPING: True,
     _DECISION_LOG: True,
-    _QUERY: False,
+    _QUERY: True,
 }
 
 #: Owner module -> names it must define (contracts/module-layout.md §1).

@@ -24,6 +24,7 @@ from runtime.next.decision import DecisionKind
 from runtime.next._internal_runtime import DiscoveryContext
 from runtime.next import runtime_bridge_decision_mapping as decision_mapping
 from runtime.next import runtime_bridge_decision_log as decision_log
+from runtime.next import runtime_bridge_query
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -621,17 +622,29 @@ class TestAnswerDecisionViaRuntime:
             def seed_from_snapshot(self, snapshot) -> None:
                 emitter_calls.append(("seed", snapshot))
 
-        monkeypatch.setattr(runtime_bridge, "get_mission_type", lambda path: "software-dev")
-        # answer_decision_via_runtime looks the run up on the io seam, so that is the binding to patch.
+        mission_type_reads: list[object] = []
+        emitters_built: list[FakeEmitter] = []
+
+        def fake_mission_type(path: object) -> str:
+            mission_type_reads.append(path)
+            return "software-dev"
+
+        def fake_emitter_factory(**_: object) -> FakeEmitter:
+            emitters_built.append(FakeEmitter())
+            return emitters_built[-1]
+
+        # answer_decision_via_runtime lives in runtime_bridge_query (#2560): it reads
+        # these names there, and looks the run up on the io seam.
+        monkeypatch.setattr(runtime_bridge_query, "get_mission_type", fake_mission_type)
         monkeypatch.setattr(runtime_bridge_io, "get_or_start_run", lambda mission_slug, repo_root, mission_type, owned=None: fake_run_ref)
-        monkeypatch.setattr(runtime_bridge, "runtime_emitter_for_mission", lambda **_: FakeEmitter())
+        monkeypatch.setattr(runtime_bridge_query, "runtime_emitter_for_mission", fake_emitter_factory)
 
         provided: list[tuple[object, str, str, object, object]] = []
 
         def fake_provide(run_ref, decision_id, answer, actor, *, emitter) -> None:
             provided.append((run_ref, decision_id, answer, actor, emitter))
 
-        monkeypatch.setattr(runtime_bridge, "runtime_provide_decision_answer", fake_provide)
+        monkeypatch.setattr(runtime_bridge_query, "runtime_provide_decision_answer", fake_provide)
         monkeypatch.setattr(
             runtime_engine,
             "_read_snapshot",
@@ -646,6 +659,10 @@ class TestAnswerDecisionViaRuntime:
             repo_root,
         )
 
+        # Positive controls: the fakes are the ones the answer path read, so the
+        # "never seeded" assertion below is about the fake emitter, not a real one.
+        assert mission_type_reads, "the patched get_mission_type was not the one the answer path read"
+        assert len(emitters_built) == 1, "the patched emitter factory was not the one the answer path called"
         assert emitter_calls == []
         assert len(provided) == 1
         run_ref_used, decision_id, answer, actor, _ = provided[0]
@@ -876,6 +893,8 @@ class TestFullLoop:
         from runtime.next._internal_runtime.events import NullEmitter
 
         monkeypatch.setattr(runtime_bridge, "runtime_emitter_for_mission", lambda **_: NullEmitter())
+        # The answer/query path builds its emitter in runtime_bridge_query (#2560).
+        monkeypatch.setattr(runtime_bridge_query, "runtime_emitter_for_mission", lambda **_: NullEmitter())
 
     def test_full_loop_step_to_terminal(self, tmp_path: Path) -> None:
         """Drive mission from start to terminal through all steps."""
@@ -2260,6 +2279,8 @@ class TestDecideNextViaRuntimeOwnedCheckout:
         from runtime.next._internal_runtime.events import NullEmitter
 
         monkeypatch.setattr(runtime_bridge, "runtime_emitter_for_mission", lambda **_: NullEmitter())
+        # The answer/query path builds its emitter in runtime_bridge_query (#2560).
+        monkeypatch.setattr(runtime_bridge_query, "runtime_emitter_for_mission", lambda **_: NullEmitter())
 
     def test_owned_checkout_resolves_and_advances_the_mission(self, tmp_path: Path) -> None:
         from runtime.next.runtime_bridge import decide_next_via_runtime

@@ -204,6 +204,13 @@ _RUNTIME_NEXT_IDENTITY_READ_FLOOR = 2
 _IDENTITY_CALLSHAPE_KNOWN_RESIDUALS: frozenset[str] = frozenset(
     {"src/runtime/next/runtime_bridge_io.py::_run_mission_id"}
 )
+#: The files that hold runtime_bridge.py's former ``get_mission_type(feature_dir)``
+#: reads after the #2560 split (FR-003 disposition: clean/routed, never pinned).
+_BRIDGE_READ_FILES: tuple[str, ...] = (
+    "runtime_bridge.py",
+    "runtime_bridge_decision_mapping.py",
+    "runtime_bridge_query.py",
+)
 # LANES census — empty: every in-scope lanes.json read is routed/clean.
 _LANES_CALLSHAPE_KNOWN_RESIDUALS: frozenset[str] = frozenset()
 
@@ -538,7 +545,10 @@ def test_fr003_runtime_bridge_get_mission_type_reads_are_clean_not_pinned() -> N
     offenders = _live_callshape_offenders(
         (_RUNTIME_NEXT_DIR,), (), _IDENTITY_READ_FUNCS
     )
-    runtime_bridge_flags = {k for k in offenders if "runtime_bridge.py" in k}
+    # The bridge's former reads: the read path and the decision mapping moved
+    # out of runtime_bridge.py into sibling modules (#2560), so all three files
+    # are checked (runtime_bridge_io.py's census pin is a separate matter).
+    runtime_bridge_flags = {k for k in offenders if any(f"runtime/next/{name}::" in k for name in _BRIDGE_READ_FILES)}
     assert not runtime_bridge_flags, (
         "runtime_bridge.py identity reads unexpectedly flagged — their FR-003 "
         f"disposition is CLEAN/ROUTED, not pinned: {runtime_bridge_flags}. If a real "
@@ -546,7 +556,7 @@ def test_fr003_runtime_bridge_get_mission_type_reads_are_clean_not_pinned() -> N
     )
     # And they are not (incorrectly) carried as census pins.
     assert not any(
-        "runtime_bridge.py" in entry for entry in _IDENTITY_CALLSHAPE_KNOWN_RESIDUALS
+        any(f"runtime/next/{name}::" in entry for name in _BRIDGE_READ_FILES) for entry in _IDENTITY_CALLSHAPE_KNOWN_RESIDUALS
     ), "runtime_bridge.py reads must NOT be census pins — they are clean (ROUTED)."
 
 

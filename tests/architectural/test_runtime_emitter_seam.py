@@ -30,6 +30,7 @@ _ADR = "docs/adr/3.x/2026-09-06-2-runtime-event-emitter-disposition.md"
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _RUNTIME_NEXT = _REPO_ROOT / "src" / "runtime" / "next"
 _BRIDGE = _RUNTIME_NEXT / "runtime_bridge.py"
+_QUERY = _RUNTIME_NEXT / "runtime_bridge_query.py"
 _CANONICAL_SEAM = "src/runtime/next/_internal_runtime/events.py"
 _THIS_FILE = Path(__file__).resolve()
 
@@ -132,16 +133,20 @@ def test_deleted_event_emitter_module_is_not_imported() -> None:
 
 
 def test_bridge_obtains_seam_only_through_factory() -> None:
-    """S8: the bridge imports ``runtime_emitter_for_mission`` by name and never constructs a concrete class."""
-    source = _BRIDGE.read_text(encoding="utf-8")
-    tree = ast.parse(source)
-    assert any(
-        isinstance(node, ast.ImportFrom)
-        and node.module == "runtime.next._internal_runtime.events"
-        and any(alias.name == "runtime_emitter_for_mission" and alias.asname is None for alias in node.names)
-        for node in tree.body
-    ), f"bridge must import the canonical factory by name; see {_ADR}"
-    for name in ("_dn_bootstrap", "answer_decision_via_runtime"):
+    """S8: each bridge-family entry imports ``runtime_emitter_for_mission`` by name and never constructs a concrete class.
+
+    ``_dn_bootstrap`` lives in the bridge; ``answer_decision_via_runtime`` moved
+    to ``runtime_bridge_query.py`` (#2560), so each is checked in its own module.
+    """
+    for path, name in ((_BRIDGE, "_dn_bootstrap"), (_QUERY, "answer_decision_via_runtime")):
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        assert any(
+            isinstance(node, ast.ImportFrom)
+            and node.module == "runtime.next._internal_runtime.events"
+            and any(alias.name == "runtime_emitter_for_mission" and alias.asname is None for alias in node.names)
+            for node in tree.body
+        ), f"{_relative(path)} must import the canonical factory by name; see {_ADR}"
         assignments = [
             node
             for node in ast.walk(_bridge_function(source, name))
@@ -150,9 +155,9 @@ def test_bridge_obtains_seam_only_through_factory() -> None:
         assert [ast.unparse(node.value.func) if isinstance(node.value, ast.Call) else None for node in assignments] == ["runtime_emitter_for_mission"], (
             f"{name} must construct its seam once through the factory; see {_ADR}"
         )
-    assert not any(isinstance(node, ast.Call) and ast.unparse(node.func) == "RuntimeEventEmitter" for node in ast.walk(tree)), (
-        f"bridge must not construct the Protocol; see {_ADR}"
-    )
+        assert not any(isinstance(node, ast.Call) and ast.unparse(node.func) == "RuntimeEventEmitter" for node in ast.walk(tree)), (
+            f"{_relative(path)} must not construct the Protocol; see {_ADR}"
+        )
 
 
 @pytest.mark.parametrize("needle", _BRIDGE_BYPASS_NEEDLES)
@@ -296,6 +301,24 @@ def test_bridge_guards_reject_semantic_mutations(tmp_path: Path, monkeypatch: py
             test_bridge_obtains_seam_only_through_factory()
         else:
             test_bridge_never_hands_engine_paths_the_plain_seam("flush(ctx.sync_emitter)" if guard == "flush" else "sync_emitter=ctx.sync_emitter")
+
+
+@pytest.mark.parametrize(
+    ("before", "after"),
+    [
+        ("sync_emitter = runtime_emitter_for_mission(", "sync_emitter = NullEmitter.for_mission("),
+        ("sync_emitter = runtime_emitter_for_mission(", "unrelated = runtime_emitter_for_mission("),
+    ],
+)
+def test_query_factory_guard_rejects_semantic_mutations(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, before: str, after: str) -> None:
+    """The answer path's factory check bites in its own module too (#2560)."""
+    source = _QUERY.read_text(encoding="utf-8")
+    assert before in source
+    mutant = tmp_path / "runtime_bridge_query.py"
+    mutant.write_text(source.replace(before, after), encoding="utf-8")
+    monkeypatch.setattr(sys.modules[__name__], "_QUERY", mutant)
+    with pytest.raises(AssertionError):
+        test_bridge_obtains_seam_only_through_factory()
 
 
 @pytest.mark.parametrize("target", ["\n            ctx.emitter_for_engine,\n        ", "target=ctx.emitter_for_engine"])

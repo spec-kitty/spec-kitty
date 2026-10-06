@@ -57,9 +57,9 @@ _OWNERS: dict[str, str] = {
     "_finalized_task_board_override_step": "runtime_bridge_decision_mapping",
     "_wrap_with_decision_git_log": "runtime_bridge_decision_log",
     "DecisionGitLogUnavailable": "runtime_bridge_decision_log",
-    "answer_decision_via_runtime": "runtime_bridge",
-    "_query_read_runtime_plan": "runtime_bridge",
-    "QueryModeValidationError": "runtime_bridge",
+    "answer_decision_via_runtime": "runtime_bridge_query",
+    "_query_read_runtime_plan": "runtime_bridge_query",
+    "QueryModeValidationError": "runtime_bridge_query",
 }
 
 
