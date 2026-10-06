@@ -1399,6 +1399,7 @@ class TestIntegrationPerformance:
         )
 
         def _run_once(index: int) -> float:
+            start = time.perf_counter()
             ctx = PrimitiveExecutionContext(
                 step_id=f"perf-{index:03d}",
                 mission_id="perf-test",
@@ -1412,7 +1413,6 @@ class TestIntegrationPerformance:
                 runtime_strictness=Strictness.MAX,
                 interaction_mode="interactive",
             )
-            start = time.perf_counter()
             pipeline.process(ctx)
             return time.perf_counter() - start
 
