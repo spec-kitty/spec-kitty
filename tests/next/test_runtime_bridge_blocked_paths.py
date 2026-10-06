@@ -9,10 +9,10 @@ prompt-file-invariant tests:
   must build a structured ``blocked`` decision (with the resolvable prompt
   attached when one is available, or with the prompt-resolution error
   threaded into the reason when not).
-- ``runtime_bridge.py:2156`` — ``_build_wp_iteration_decision`` with a
+- ``runtime_bridge_decision_mapping._build_wp_iteration_decision`` with a
   prompt-resolution error must yield a structured ``blocked`` instead of a
   partial step.
-- ``runtime_bridge.py:2364`` — ``_map_runtime_decision`` non-WP step branch
+- ``runtime_bridge_decision_mapping._map_runtime_decision`` non-WP step branch
   with neither ``action`` nor ``step_id`` mapped must short-circuit to a
   structured ``blocked`` with a populated reason (no template lookup).
 
@@ -56,7 +56,7 @@ def _runtime_decision(**overrides: object) -> SimpleNamespace:
 
 
 class TestWPIterationDecisionBlockedBranch:
-    """runtime_bridge.py:2152-2172 (`_build_wp_iteration_decision` blocked path)."""
+    """``runtime_bridge_decision_mapping._build_wp_iteration_decision`` blocked path."""
 
     def test_wp_iteration_blocked_when_prompt_unresolvable_with_guard_failures(
         self, tmp_path: Path
@@ -117,12 +117,12 @@ class TestWPIterationDecisionBlockedBranch:
 
 
 class TestMapRuntimeDecisionNoActionNoStepId:
-    """runtime_bridge.py:2363-2364 (no-action AND no-step_id branch)."""
+    """``runtime_bridge_decision_mapping._map_runtime_decision`` no-action AND no-step_id branch."""
 
     def test_map_runtime_decision_emits_blocked_when_no_action_and_no_step_id(
         self, tmp_path: Path
     ) -> None:
-        """Drive the `else` branch on line 2363-2364.
+        """Drive the no-action `else` branch of the non-WP step mapping.
 
         Pre-condition: `_state_to_action` returns (None, None, None) AND
         `decision.step_id` is None. The map function must NOT attempt to
@@ -136,13 +136,9 @@ class TestMapRuntimeDecisionNoActionNoStepId:
                 "runtime.next.runtime_bridge_decision_mapping._state_to_action",
                 return_value=(None, None, None),
             ) as state_to_action,
-            patch(
-                "runtime.next.runtime_bridge_decision_mapping._is_wp_iteration_step",
-                return_value=False,
-            ),
         ):
             # step_id=None forces the `if action or step_id` guard to fall
-            # through to the `else` branch on line 2363.
+            # through to the no-action `else` branch.
             decision = _map_runtime_decision(
                 decision=_runtime_decision(step_id=None),
                 agent="claude",

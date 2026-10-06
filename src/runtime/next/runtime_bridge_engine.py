@@ -41,9 +41,10 @@ That function maps its result through ``runtime_bridge_decision_mapping``
 (``_is_wp_iteration_step`` and ``_map_runtime_decision``), imported at the top
 level: the mapping module sits below both the bridge and this adapter, so the
 deferred ``runtime_bridge`` back-import this adapter used before is gone
-(#2560). A test that steers the mapping patches it on that module. The retrospective names it needs are owned by
-``runtime_bridge_retrospective`` and are called there directly, so a test that
-intercepts one patches it on that module.
+(#2560). A test that steers the mapping patches it on that module. The
+retrospective names it needs are owned by ``runtime_bridge_retrospective`` and
+are called there directly, so a test that intercepts one patches it on that
+module.
 """
 
 from __future__ import annotations

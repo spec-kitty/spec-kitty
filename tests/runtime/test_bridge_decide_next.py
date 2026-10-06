@@ -66,6 +66,16 @@ _DN_SYMBOLS = (
 )
 
 
+def _recording_pass_through(calls: list[str]) -> Any:
+    """A pass-through ``_wrap_with_decision_git_log`` fake that records each call (#2560 T-1)."""
+
+    def _wrap(emitter: Any, slug: str, *_args: Any, **_kwargs: Any) -> Any:
+        calls.append(slug)
+        return emitter
+
+    return _wrap
+
+
 def _make_run_ref(run_dir: Path) -> MissionRunRef:
     return MissionRunRef(run_id="run-042", run_dir=str(run_dir), mission_key="042-mission")
 
@@ -245,7 +255,8 @@ def test_bootstrap_returns_blocked_decision_when_run_start_fails(tmp_path: Path,
     feature_dir.mkdir(parents=True)
     monkeypatch.setattr(rb, "_resolve_runtime_feature_dir", lambda repo_root, slug: feature_dir)
     monkeypatch.setattr(rb, "get_mission_type", lambda fd: "software-dev")
-    monkeypatch.setattr(decision_log, "_wrap_with_decision_git_log", lambda emitter, slug, repo_root: emitter)
+    wrap_calls: list[str] = []
+    monkeypatch.setattr(decision_log, "_wrap_with_decision_git_log", _recording_pass_through(wrap_calls))
 
     class _FakeSyncEmitter:
         pass
@@ -259,6 +270,7 @@ def test_bootstrap_returns_blocked_decision_when_run_start_fails(tmp_path: Path,
 
     ctx, decision = rb._dn_bootstrap("agent-x", "042-mission", "success", tmp_path)
 
+    assert wrap_calls, "the decision-log wrapper fake (runtime_bridge_decision_log) must be the one the bridge called"
     assert ctx is None
     assert decision is not None
     assert decision.kind == DecisionKind.blocked
@@ -427,7 +439,8 @@ def test_bootstrap_preserves_phase_and_guards_when_optional_seed_unavailable(
     monkeypatch.setattr(rb._identity_seam, "_primary_runtime_feature_dir", lambda *_: None)
     monkeypatch.setattr(rb, "get_mission_type", lambda *_: "software-dev")
     monkeypatch.setattr(rb, "runtime_emitter_for_mission", lambda **_: producer)
-    monkeypatch.setattr(decision_log, "_wrap_with_decision_git_log", lambda emitter, *_: emitter)
+    wrap_calls: list[str] = []
+    monkeypatch.setattr(decision_log, "_wrap_with_decision_git_log", _recording_pass_through(wrap_calls))
     monkeypatch.setattr(_io_seam, "get_or_start_run", lambda *_, **__: run_ref)
     monkeypatch.setattr(_engine_adapter, "_read_snapshot", lambda _: SimpleNamespace(issued_step_id="implement"))
     context_calls: list[dict[str, Any]] = []
@@ -443,6 +456,7 @@ def test_bootstrap_preserves_phase_and_guards_when_optional_seed_unavailable(
 
     monkeypatch.setattr("specify_cli.runtime.resolver.resolve_mission", no_template)
     ctx, decision = rb._dn_bootstrap("agent-x", "042-mission", "success", tmp_path)
+    assert wrap_calls, "the decision-log wrapper fake (runtime_bridge_decision_log) must be the one the bridge called"
     assert decision is None
     assert ctx is not None
     assert ctx.run_ref is run_ref, "the patched io-seam get_or_start_run was not the one _dn_bootstrap called"
@@ -477,7 +491,8 @@ def test_bootstrap_defaults_current_step_id_to_none_when_snapshot_read_fails(tmp
     monkeypatch.setattr(rb, "_resolve_runtime_feature_dir", lambda repo_root, slug: feature_dir)
     monkeypatch.setattr(rb, "get_mission_type", lambda fd: "software-dev")
     monkeypatch.setattr(rb, "runtime_emitter_for_mission", lambda **_: _FakeSyncEmitter())
-    monkeypatch.setattr(decision_log, "_wrap_with_decision_git_log", lambda emitter, slug, repo_root: emitter)
+    wrap_calls: list[str] = []
+    monkeypatch.setattr(decision_log, "_wrap_with_decision_git_log", _recording_pass_through(wrap_calls))
     monkeypatch.setattr(_io_seam, "get_or_start_run", lambda slug, repo_root, mission_type, *, emitter, owned=None: run_ref)
 
     def _raise_snapshot(*_a: Any, **_kw: Any) -> Any:
@@ -488,6 +503,7 @@ def test_bootstrap_defaults_current_step_id_to_none_when_snapshot_read_fails(tmp
 
     ctx, decision = rb._dn_bootstrap("agent-x", "042-mission", "success", tmp_path)
 
+    assert wrap_calls, "the decision-log wrapper fake (runtime_bridge_decision_log) must be the one the bridge called"
     assert decision is None
     assert ctx is not None
     assert ctx.run_ref is run_ref, "the patched io-seam get_or_start_run was not the one _dn_bootstrap called"

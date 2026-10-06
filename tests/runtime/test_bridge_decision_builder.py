@@ -473,7 +473,9 @@ def test_runtime_bridge_has_zero_raw_decision_constructions() -> None:
     routed through ``runtime_bridge_cores.step_or_blocked`` via
     ``_materialize_decision``."""
     trees = _family_trees()
-    assert "runtime_bridge" in trees
+    # The family must actually be scanned: a renamed or moved module would
+    # otherwise drop out silently (the scan skips files not created yet).
+    assert {"runtime_bridge", "runtime_bridge_decision_mapping", "runtime_bridge_decision_log"} <= set(trees)
     offenders = {name: [call.lineno for call in _iter_calls(tree) if _is_call_to(call, "Decision")] for name, tree in trees.items()}
     assert all(lines == [] for lines in offenders.values()), (
         f"must not construct Decision(...) directly; route through _materialize_decision/DecisionEnvelope instead: {offenders}"

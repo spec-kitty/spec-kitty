@@ -97,7 +97,7 @@ def test_resolve_coordination_branch_malformed_modern_mission_fails_closed(
     must raise :class:`BranchIdentityUnresolved` -- NEVER silently compose a
     malformed ``kitty/mission-<slug>-`` branch (the historical #2091-class
     ``git worktree`` exit-128 scar). This is not swallowed anywhere in this
-    seam; only ``_wrap_with_decision_git_log`` (KEEP-IN-PLACE, unmoved)
+    seam; only ``runtime_bridge_decision_log._wrap_with_decision_git_log``
     decides whether to convert it to ``DecisionGitLogUnavailable`` or a
     warning-logged fallback."""
     feature_dir = tmp_path / "kitty-specs" / "my-mission"

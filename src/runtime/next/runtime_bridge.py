@@ -759,10 +759,9 @@ def _resolve_runtime_feature_dir(repo_root: Path, mission_slug: str) -> Path:
     ``_resolve_mission_ulid`` → ``resolve_mid8`` cascade here (FR-002, C-007).
 
     Boundary-safe fold-in (C-007): ``runtime_bridge`` already imports
-    ``specify_cli.missions._read_path_resolver`` (see
-    ``_mission_routes_through_coordination`` above; ``_primary_runtime_
-    feature_dir`` moved to ``runtime_bridge_identity`` at #2531 WP10 but keeps
-    the same import), so consuming ``resolve_handle_to_read_path`` from the
+    ``specify_cli.missions._read_path_resolver`` (for
+    ``MissionSelectorAmbiguous``; ``_primary_runtime_feature_dir`` moved to
+    ``runtime_bridge_identity`` at #2531 WP10 but keeps the same import), so consuming ``resolve_handle_to_read_path`` from the
     same module adds NO new package-boundary edge.
 
     Subsumption note (T013): the retired body derived ``mid8`` as
@@ -925,7 +924,7 @@ def _dn_bootstrap(
     # type off the coord-aware ``feature_dir`` yields an empty meta -> the neutral
     # ``""`` from ``get_mission_type`` (post-#883 no software-dev default), which
     # then breaks runtime template resolution. Anchor the type read on the primary
-    # dir, mirroring ``_mission_routes_through_coordination`` above (FR-001).
+    # dir, mirroring ``runtime_bridge_decision_log._mission_routes_through_coordination`` (FR-001).
     from mission_runtime import MissionArtifactKind, placement_seam  # noqa: PLC0415
 
     mission_type = get_mission_type(

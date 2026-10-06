@@ -68,7 +68,7 @@ def _fake_write_location(*, checkout_root: Path, path: Path) -> Any:
     on-disk ``.exists()`` ladder (``CoordinationWorkspace.resolve`` /
     ``_resolve_owned_coordination_workspace``). Tests that used to fake the
     ladder by creating a coord directory on disk now patch
-    ``runtime.next.runtime_bridge.placement_seam`` to return this double.
+    ``mission_runtime.placement_seam`` (the wrapper imports it at call time) to return this double.
     """
     from mission_runtime import Establishment, WriteLocation
     from mission_runtime.artifacts import TopologySurface

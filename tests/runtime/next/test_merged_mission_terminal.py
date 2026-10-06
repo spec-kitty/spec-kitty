@@ -337,7 +337,7 @@ class TestMissionNumberAssignedEventLogAbsent:
     test_merged_mission_returns_terminal_and_creates_no_run``) already pins
     the sibling "number present + folded log all-accepted -> terminal" case;
     this test only adds the absent-log leg of that same short-circuit
-    (``_merged_mission_short_circuit`` in ``runtime_bridge.py`` returns
+    (``_merged_mission_short_circuit`` in ``runtime_bridge_decision_mapping.py`` returns
     ``None`` for a ``"none"`` verdict, F5), so a future merge-fold change to
     the short-circuit or to ``mission_terminal_verdict`` cannot silently
     re-open #2947 by treating an absent log as terminal/blocked instead of
