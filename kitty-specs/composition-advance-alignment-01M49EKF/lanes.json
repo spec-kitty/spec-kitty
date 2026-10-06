@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "mission_slug": "composition-advance-alignment-01M49EKF",
+  "mission_id": "01M49EKFM19MS44HH9Z1J0AGEV",
+  "mission_branch": "issue-2562-composition-advance-alignment",
+  "target_branch": "issue-2562-composition-advance-alignment",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/runtime/next/_internal_runtime/engine.py",
+        "src/runtime/next/runtime_bridge.py",
+        "src/runtime/next/runtime_bridge_engine.py",
+        "tests/next/test_engine_commit_primitives.py",
+        "tests/next/test_mission_run_back_reference.py",
+        "tests/next/test_provide_decision_answer_characterisation.py",
+        "tests/runtime/test_bridge_decide_next.py",
+        "tests/runtime/test_bridge_decision_log_flush.py",
+        "tests/runtime/test_bridge_engine.py",
+        "tests/runtime/test_composition_advance_alignment.py",
+        "tests/specify_cli/next/test_runtime_bridge_composition.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-06T20:41:34.954857+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "3e3c9aac7f8c8028d8ef2605aa941b10c1da3fbc"
+}

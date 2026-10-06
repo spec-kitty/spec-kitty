@@ -1,0 +1,86 @@
+{
+  "event_count": 12,
+  "last_event_id": "01M49KFQXW2A6N12GRWHT4AKFY",
+  "materialized_at": "2026-10-06T21:56:31.292726+00:00",
+  "mission_number": "",
+  "mission_slug": "composition-advance-alignment-01M49EKF",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 2,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M49GKEJB7YFRCEEAXV5W3SHJ",
+      "last_transition_at": "2026-10-06T21:06:07.051803+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review passed (reviewer-renata): T001 characterisation (2319512a7) committed alone, 24/24 green on the unchanged base engine c47d7cd7a. provide_decision_answer split is behaviour-preserving by field-level diff (denial payload incl. rationale_linkage null, MEDIUM re-add from original snapshot.pending_decisions, error texts, snapshot write then DECISION_INPUT_ANSWERED). Primitives' payloads match the base _commit_advance; guard only on terminal-with-completed-step, raising guard leaves MissionRunCompleted absent and state.json unwritten; next_step passes no guard; StaleAdvancePlan check precedes writes. Mutation probe: 9/10 killed by the new tests; the survivor (actor in NextStepIssued payload) also survives the wider suite: MINOR pre-existing payload-pinning gap, expected to be covered by the WP02 twin-run. C901 clean, no noqa C901, ruff clean, mypy 21 (=base). Suite: 930 passed, 3 skipped. No shared-file overlap with WP02 (engine.py owned by WP01 only)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261006",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 16344,
+      "shell_pid_created_at": "1791320335.59",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M49KFQXW2A6N12GRWHT4AKFY",
+      "last_transition_at": "2026-10-06T21:56:31.292726+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: composition advance plans/commits through engine plan_advance/commit_advance; parallel planner deleted; re-seamed adapter tests onto a real frozen template; stale-plan/seed/retrospective-order/AST shape gates; changelog",
+        "Review passed: red->green verified (base 9260431e8: 5 failed for the right reasons; HEAD green); FR-001..FR-010/FR-012 covered; re-seam kept every assertion (only the 3 _live_template_path asserts moved onto engine.existing_template_path), every repatched plan_next/plan_advance stub asserts it ran, patches target engine.plan_next; 9/9 mutations killed; tests/runtime+next+specify_cli/next 2159 passed/4 skipped; gates+test_engine_plan_advance+17 integration files 534 passed; ruff/format/C901 clean, mypy 13<=21. Re-seamed tests for PR body: test_bridge_engine.py (step_decision_no_prior_step, marks_prior_step_complete_then_decision_required, decision_required_dedups_on_repoll, terminal_runs_retrospective_gate, terminal_skipped_when_no_step_completed, never_resolves_a_wp_workspace_itself), test_bridge_decision_log_flush.py (decision_required_reaches_decision_log, real_composition_advances_and_logs_despite_optional_seed_failure), test_bridge_decide_next.py (_stub_composition_plan users), test_runtime_bridge_composition.py (decision_required_branch, default/strict retrospective, policy_error), test_mission_run_back_reference.py (autocomplete + final_persist identity). Minors: 2 extra blank lines in runtime_bridge_engine.py (~157, format-ratchet file); activity log lacks re-seam list; PR must note non-blocking capture now runs after state.json write; adapter _append_event/_write_snapshot wrappers are now production-unused (kept by the six-wrapper pin)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261006",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3920,
+      "shell_pid_created_at": "1791323295.94",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    }
+  }
+}

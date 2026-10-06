@@ -1,0 +1,77 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-06T20:31:37.787223Z",
+      "decision_id": "01M49EM9SVFGVEY6AJ5BCRDJ1H",
+      "final_answer": "close the gap (specified behaviour change): a composition-backed advance records SignificanceEvaluated + the LOW re-plan + raci:<step> exactly as engine.plan_advance does (operator ruling, dispatch 2026-10-06 and #2562 claim comment)",
+      "input_key": "behaviour_change",
+      "mission_id": "01M49EKFM19MS44HH9Z1J0AGEV",
+      "mission_slug": "composition-advance-alignment-01M49EKF",
+      "opened_by": "cli",
+      "options": [
+        "close the gap (specified behaviour change)",
+        "behaviour-preserving dedup only",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Is the composition path's missing audit-significance and RACI recording a defect to close (behaviour change) or should the dedup preserve today's behaviour?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T20:31:40.331193Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.behaviour_change",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-06T20:31:42.930298Z",
+      "decision_id": "01M49EMETJ74TJGENGYVVSN8XD",
+      "final_answer": "src/runtime/next (incl. _internal_runtime) and their tests, plus the CHANGELOG: close the gap, dedup the per-event emit primitives, clear the provide_decision_answer noqa: C901. Out: #5817, #5835, making the underscore seam API public, mission-create/consolidation/lanes",
+      "input_key": "scope_boundary",
+      "mission_id": "01M49EKFM19MS44HH9Z1J0AGEV",
+      "mission_slug": "composition-advance-alignment-01M49EKF",
+      "opened_by": "cli",
+      "options": [
+        "src/runtime/next (+_internal_runtime) and tests, plus CHANGELOG",
+        "wider",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "What is the mission boundary?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T20:31:45.617675Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.boundary",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-06T20:31:48.264778Z",
+      "decision_id": "01M49EMM184E93VBESHZZHRCHJ",
+      "final_answer": "FR-001 single dispatch (never re-enter the legacy DAG dispatch), FR-008 plan-first/commit-second refusal of a WP-iteration plan without wp_resolution, the terminal retrospective gate (blocking capture -> MissionRunCompleted -> non-blocking capture), emitter seeding, and the StaleAdvancePlan guarantee when routing through commit_advance",
+      "input_key": "invariants",
+      "mission_id": "01M49EKFM19MS44HH9Z1J0AGEV",
+      "mission_slug": "composition-advance-alignment-01M49EKF",
+      "opened_by": "cli",
+      "options": [
+        "FR-001 single dispatch, FR-008 plan-first, retrospective gate, emitter seeding, stale-plan guarantee",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which invariants must the aligned composition path preserve?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T20:31:50.804111Z",
+      "resolved_by": null,
+      "slot_key": "specify.invariants.preserved",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M49EKFM19MS44HH9Z1J0AGEV",
+  "version": 1
+}

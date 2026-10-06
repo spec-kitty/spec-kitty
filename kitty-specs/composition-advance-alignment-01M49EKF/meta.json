@@ -1,0 +1,33 @@
+{
+  "accept_commit": "89399eb4b27a131cbb0704021ff2a3b34d7f764f",
+  "acceptance_history": [
+    {
+      "accept_commit": "89399eb4b27a131cbb0704021ff2a3b34d7f764f",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-06T22:17:11.353895+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "1545f65bfd4ab3dc30ba0606fa81f447b7cf24ac"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-06T22:17:11.353895+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "1545f65bfd4ab3dc30ba0606fa81f447b7cf24ac",
+  "contracts": "none",
+  "contracts_rationale": "Internal runtime refactor plus a run-state behaviour change; no new or changed interface. Event payload schemas, the Decision shape and the orchestrator-api contract are unchanged (spec C-005).",
+  "created_at": "2026-10-06T20:31:12.592695+00:00",
+  "flattened": false,
+  "friendly_name": "Align the composition-backed run advance with the engine advance",
+  "mid8": "01M49EKF",
+  "mission_id": "01M49EKFM19MS44HH9Z1J0AGEV",
+  "mission_number": null,
+  "mission_slug": "composition-advance-alignment-01M49EKF",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "When spec-kitty next advances a software-dev (or any composition-backed) action, it uses a separate planner that skips two records the engine's own advance writes: the audit-significance evaluation of an audit gate and the RACI binding of the step it issues. This mission closes that gap as a specified behaviour change, routes both advances through the engine's single planning and commit authority, keeps the composition path's retrospective gate, single-dispatch and plan-first guarantees, and removes the last complexity suppression in the runtime engine.",
+  "purpose_tldr": "Make a composition-backed step advance record the same audit-significance and RACI evidence as the engine's own advance, and share one set of event-recording code between the two.",
+  "slug": "composition-advance-alignment-01M49EKF",
+  "status_phase": "1",
+  "target_branch": "issue-2562-composition-advance-alignment",
+  "topology": "single_branch"
+}

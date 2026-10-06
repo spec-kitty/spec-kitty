@@ -1,0 +1,129 @@
+{
+  "mission_slug": "composition-advance-alignment-01M49EKF",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_composition_advance_alignment.py::test_composition_advance_records_the_issued_steps_raci_binding (red at 1c725454b-equivalent gate commit, green at HEAD)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T22:16:05.742281+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_composition_advance_alignment.py::test_composition_advance_evaluates_an_audit_gates_significance[high|medium]",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T22:16:10.928412+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_composition_advance_alignment.py::test_composition_advance_auto_proceeds_a_low_band_gate; tests/runtime/test_bridge_engine.py::test_low_band_replan_to_terminal_runs_the_retrospective_path",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T22:16:16.282563+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_bridge_engine.py::test_adapter_has_no_parallel_planner_or_event_code + test_bridge_plans_the_composition_advance_with_the_engine + planted rows",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T22:16:21.182717+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/next/test_engine_commit_primitives.py; tests/runtime/test_bridge_engine.py::test_adapter_shape_gate_reports_a_planted_violation; twin-run parity in tests/runtime/test_composition_advance_alignment.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T22:16:26.477489+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/next/test_runtime_bridge_composition.py::test_composition_success_skips_legacy_dispatch; tests/runtime/test_composition_advance_alignment.py (runtime_next_step asserted not called in every case)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T22:16:31.816607+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_bridge_engine.py::test_adapter_never_resolves_a_wp_workspace_itself_and_refuses_before_writing",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T22:16:36.940201+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/next/test_runtime_bridge_composition.py strict/default retrospective order + policy_error tests; tests/runtime/test_bridge_engine.py strict-capture abort + owned policy-root tests; tests/runtime/test_bridge_retrospective.py capture-build failure",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T22:16:42.161457+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_bridge_engine.py seeding-before-first-emit test; tests/runtime/test_bridge_decide_next.py seed tests",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T22:16:47.087437+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_composition_advance_alignment.py::test_composition_advance_refuses_a_stale_plan (red first); tests/runtime/test_bridge_engine.py stale-plan adapter test",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T22:16:52.384279+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/next/test_provide_decision_answer_characterisation.py (green on base and head); ruff --select C901 clean, no noqa C901 in engine.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T22:16:57.634931+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "docs/changelog/CHANGELOG.md [Unreleased] Changed + Upgrade Notes entries (#2562); check_changelog_style 0 errors",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T22:17:02.810907+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
