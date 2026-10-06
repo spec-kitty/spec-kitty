@@ -11200,7 +11200,7 @@ pages:
   - path: "docs/development/reference/terminology-exemptions.md"
     title: "Terminology Guard Exemption Policy"
     divio_type: "reference"
-    abstract: "Policy for the six surfaces exempt from spec-kitty terminology guards: ADRs, migrations, the retired-page archive, archival plans, dated reports and the Unreleased-only CHANGELOG scan."
+    abstract: "Policy for the six surfaces exempt from spec-kitty terminology guards: ADRs, migrations, the page archive, archival plans, dated reports and the Unreleased-only CHANGELOG scan."
     anchors:
     - {slug: "background", text: "Background", level: 2}
     - {slug: "exempt-surface-1-docs-adr-immutable-architectural-decision-records", text: "Exempt Surface 1: `docs/adr/` — Immutable Architectural Decision Records", level: 2}
