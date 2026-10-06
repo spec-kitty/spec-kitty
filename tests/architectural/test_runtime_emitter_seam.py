@@ -171,7 +171,10 @@ def test_bridge_never_hands_engine_paths_the_plain_seam(needle: str) -> None:
         targets = [
             next((ast.unparse(kw.value) for kw in call.keywords if kw.arg == "sync_emitter"), None)
             for call in calls
-            if isinstance(call.func, ast.Name) and call.func.id == "_advance_run_state_after_composition"
+            if isinstance(call.func, ast.Attribute)
+            and isinstance(call.func.value, ast.Name)
+            and call.func.value.id == "_engine_adapter"
+            and call.func.attr == "advance_run_state_after_composition"
         ]
     assert targets == ["ctx.emitter_for_engine"], f"{function_name} must pass the wrapped emitter exactly once; see {_ADR}"
     hits = _bridge_bypass_hits(source, needle)
@@ -278,7 +281,7 @@ def test_bridge_bypass_scan_locates_reintroduced_lines(needle: str) -> None:
         ("buffer.flush(ctx.emitter_for_engine)", "buffer.flush(target=ctx.sync_emitter)", "flush"),
         ("buffer.flush(ctx.emitter_for_engine)", "buffer.flush(ctx.emitter_for_engine); buffer.flush(ctx.emitter_for_engine)", "flush"),
         ("sync_emitter=ctx.emitter_for_engine", "sync_emitter = ctx.sync_emitter", "composition"),
-        ("_advance_run_state_after_composition(\n", "replacement_advance(\n", "composition"),
+        ("_engine_adapter.advance_run_state_after_composition(\n", "replacement_advance(\n", "composition"),
     ],
 )
 def test_bridge_guards_reject_semantic_mutations(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, before: str, after: str, guard: str) -> None:

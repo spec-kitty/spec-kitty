@@ -53,8 +53,7 @@ now that they live together in this module (``get_or_start_run`` ->
 ``_resolve_tech_stack_for_profile``; ``_build_operational_context_for_decision``
 -> ``_resolve_tech_stack_for_profile``). Several ALSO call back into
 compat-tracked names reachable at ``runtime_bridge.<name>`` — some still
-natively defined in the residual (``_resolve_mission_ulid``,
-``_resolve_runtime_feature_dir``, ``_has_raw_dependencies_field``,
+natively defined in the residual (``_resolve_runtime_feature_dir``, ``_has_raw_dependencies_field``,
 ``_check_requirement_mapping_ready``, ``_occurrence_gate_failures``), others
 now thin compat delegates onto ``runtime_bridge_composition`` after #2531
 WP08 (``_resolve_step_agent_profile``, ``_count_source_documented_events``,
@@ -108,6 +107,7 @@ from runtime.next._internal_runtime.schema import (
     load_mission_template_file,
 )
 from runtime.next import run_index
+from runtime.next import runtime_bridge_identity as _identity
 from runtime.next.run_index import FEATURE_RUNS_FILENAME
 from runtime.next.run_index import RunDirOutsideRepoError as RunDirOutsideRepoError  # re-export
 from specify_cli.coordination.workspace import CoordinationWorkspace
@@ -306,9 +306,7 @@ def _run_mission_id(mission_slug: str, repo_root: Path, owned: OwnedCheckout | N
 
         owned_mission_id: str | None = resolve_mission_identity(owned.mission_dir).mission_id
         return owned_mission_id
-    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
-
-    return _rb._resolve_mission_ulid(mission_slug, repo_root)
+    return _identity._resolve_mission_ulid(mission_slug, repo_root)
 
 
 def _adopt_verified_unbound_run(index: dict[str, _FeatureRunEntry], *, mission_slug: str, mission_id: str | None) -> bool:
@@ -926,9 +924,7 @@ def _resolve_run_dir_for_mission(repo_root: Path, mission_slug: str) -> Path | N
     free of any run-start side effect (NFR-004). The canonical (rekeyed) view
     is computed in memory only; nothing is persisted here.
     """
-    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
-
-    mission_id = _rb._resolve_mission_ulid(mission_slug, repo_root)
+    mission_id = _identity._resolve_mission_ulid(mission_slug, repo_root)
     index, _rekeyed = _load_run_index(repo_root)
     entry = _entry_for_mission(index, mission_slug=mission_slug, mission_id=mission_id)
     if not entry:

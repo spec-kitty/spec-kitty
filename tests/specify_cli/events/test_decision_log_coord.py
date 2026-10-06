@@ -241,7 +241,7 @@ class TestWrapWithDecisionGitLogCoordRouting:
         PRIMARY surface and return the ULID. RED on the unfixed code (returns the
         slug), GREEN once the identity read is primary-anchored.
         """
-        from runtime.next.runtime_bridge import _resolve_mission_ulid
+        from runtime.next.runtime_bridge_identity import _resolve_mission_ulid
 
         slug = "my-feature-01KT3YBD"
         mid8 = "01KT3YBD"

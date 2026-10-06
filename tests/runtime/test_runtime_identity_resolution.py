@@ -12,7 +12,6 @@ from typing import Any
 import pytest
 
 from mission_runtime import MissionArtifactKind
-from runtime.next import runtime_bridge as rb
 from runtime.next import runtime_bridge_identity as identity
 from specify_cli.lanes.branch_naming import BranchIdentityUnresolved
 
@@ -64,7 +63,7 @@ def test_resolve_coordination_branch_returns_declared_branch_from_meta(
         json.dumps({"coordination_branch": "kitty/mission-my-mission-01KWDABC-lane-a"}),
         encoding="utf-8",
     )
-    monkeypatch.setattr(rb, "_primary_runtime_feature_dir", lambda repo_root, mission_slug: feature_dir)
+    monkeypatch.setattr(identity, "_primary_runtime_feature_dir", lambda repo_root, mission_slug: feature_dir)
 
     branch = identity._resolve_coordination_branch("my-mission-01KWDABC", tmp_path)
 
@@ -82,7 +81,7 @@ def test_resolve_coordination_branch_composes_when_undeclared(
         json.dumps({"mission_id": "01KWDABC1234567890ABCDEFGH"}),
         encoding="utf-8",
     )
-    monkeypatch.setattr(rb, "_primary_runtime_feature_dir", lambda repo_root, mission_slug: feature_dir)
+    monkeypatch.setattr(identity, "_primary_runtime_feature_dir", lambda repo_root, mission_slug: feature_dir)
 
     branch = identity._resolve_coordination_branch("my-mission-01KWDABC", tmp_path)
 
@@ -104,7 +103,7 @@ def test_resolve_coordination_branch_malformed_modern_mission_fails_closed(
     feature_dir = tmp_path / "kitty-specs" / "my-mission"
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text(json.dumps({}), encoding="utf-8")
-    monkeypatch.setattr(rb, "_primary_runtime_feature_dir", lambda repo_root, mission_slug: feature_dir)
+    monkeypatch.setattr(identity, "_primary_runtime_feature_dir", lambda repo_root, mission_slug: feature_dir)
 
     with pytest.raises(BranchIdentityUnresolved):
         identity._resolve_coordination_branch("my-mission", tmp_path)
@@ -117,7 +116,7 @@ def test_resolve_mission_ulid_returns_ulid_when_present(
     feature_dir.mkdir(parents=True)
     ulid = "01KWDABC1234567890ABCDEFGH"
     (feature_dir / "meta.json").write_text(json.dumps({"mission_id": ulid}), encoding="utf-8")
-    monkeypatch.setattr(rb, "_primary_runtime_feature_dir", lambda repo_root, mission_slug: feature_dir)
+    monkeypatch.setattr(identity, "_primary_runtime_feature_dir", lambda repo_root, mission_slug: feature_dir)
 
     assert identity._resolve_mission_ulid("my-mission-01KWDABC", tmp_path) == ulid
 
@@ -130,7 +129,7 @@ def test_resolve_mission_ulid_returns_none_when_absent_fail_closed(
     feature_dir = tmp_path / "kitty-specs" / "my-mission-01KWDABC"
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text(json.dumps({}), encoding="utf-8")
-    monkeypatch.setattr(rb, "_primary_runtime_feature_dir", lambda repo_root, mission_slug: feature_dir)
+    monkeypatch.setattr(identity, "_primary_runtime_feature_dir", lambda repo_root, mission_slug: feature_dir)
 
     result = identity._resolve_mission_ulid("my-mission-01KWDABC", tmp_path)
 

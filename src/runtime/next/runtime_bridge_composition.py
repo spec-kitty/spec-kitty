@@ -18,12 +18,10 @@ The inversion that will route through this seam is gates mission #2535's own
 WP14, landing *after* this mission — this WP leaves the seam clean; it does
 not wire it.
 
-``_advance_run_state_after_composition`` (bridge:1800, CC23) is explicitly OUT
-of scope for this move: its logic already lives in the WP03 engine adapter
-(``runtime_bridge_engine.advance_run_state_after_composition``), and
-``runtime_bridge.py`` already keeps the thin residual compat delegate for its
-heavy 8x-patch/9x-attr surface. Nothing about that symbol changes here — it
-stays natively defined in the residual, unmoved by this WP.
+``advance_run_state_after_composition`` is explicitly OUT of scope for this
+move: its logic lives in the engine seam
+(``runtime_bridge_engine.advance_run_state_after_composition``), which the
+bridge calls directly.
 
 ``runtime_bridge.py`` keeps a **native thin compat delegate** — a real
 ``def`` statement, never a plain ``import`` alias — under every one of the
@@ -582,7 +580,7 @@ def _dispatch_via_composition(
     Returns:
       - ``None`` on success (composition succeeded AND post-action guard
         passed). On the live ``decide_next_via_runtime`` path the caller then
-        invokes :func:`_advance_run_state_after_composition` to progress run
+        invokes :func:`runtime_bridge_engine.advance_run_state_after_composition` to progress run
         state without entering the legacy DAG dispatch handler
         (single-dispatch, FR-001/FR-002).
       - A non-empty list of failure descriptions if the executor raised
@@ -595,8 +593,7 @@ def _dispatch_via_composition(
     ``ProfileInvocationExecutor`` directly.
 
     The follow-up advancement is performed by
-    ``runtime_bridge._advance_run_state_after_composition`` (a thin residual
-    compat delegate onto the WP03 engine adapter), which reuses the same
+    :func:`runtime_bridge_engine.advance_run_state_after_composition`, which reuses the same
     primitives ``runtime_next_step(...)`` uses internally for state, lane,
     and prompt progression. The legacy ``runtime_next_step`` is **not**
     called for composition-backed actions (FR-001).

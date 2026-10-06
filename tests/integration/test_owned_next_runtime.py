@@ -642,7 +642,11 @@ class TestFr009CompositionSeams:
 
         monkeypatch.setattr(composition, "_composition_dispatch_inputs", _spy("inputs", composition._composition_dispatch_inputs))
         monkeypatch.setattr(runtime_bridge, "_dispatch_via_composition", _spy("dispatch", runtime_bridge._dispatch_via_composition))
-        monkeypatch.setattr(runtime_bridge, "_advance_run_state_after_composition", _spy("advance", runtime_bridge._advance_run_state_after_composition))
+        monkeypatch.setattr(
+            runtime_bridge._engine_adapter,
+            "advance_run_state_after_composition",
+            _spy("advance", runtime_bridge._engine_adapter.advance_run_state_after_composition),
+        )
 
         decision_mod.decide_next("claude", checkouts.mission_slug, "success", checkouts.repository_root, owned=fact)
 

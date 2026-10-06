@@ -8,7 +8,7 @@ WP05 (FR-024/FR-025/FR-026/FR-027/FR-028/FR-029/FR-030):
 - Existing on-disk state.json files (no mission_id/mission_slug) load with None defaults
 
 WP11 (#1663, FR-025/FR-026/FR-027, SC-006):
-- runtime_bridge._advance_run_state_after_composition preserves mission_id/mission_slug
+- runtime_bridge_engine.advance_run_state_after_composition preserves mission_id/mission_slug
   through both snapshot reconstruction sites (auto-complete and final persist).
 """
 
@@ -231,7 +231,7 @@ def _make_snapshot_with_identity(
 
 
 class _NullSyncEmitter:
-    """Minimal sync emitter that satisfies _advance_run_state_after_composition."""
+    """Minimal sync emitter that satisfies advance_run_state_after_composition."""
 
     def seed_from_snapshot(self, snapshot: object) -> None:
         return None
@@ -253,7 +253,7 @@ def test_advance_run_state_preserves_identity_through_autocomplete_reconstructio
     tmp_path: Path,
 ) -> None:
     """Regression for #1663: the auto-complete snapshot reconstruction (site 1)
-    in _advance_run_state_after_composition must carry mission_id/mission_slug.
+    in advance_run_state_after_composition must carry mission_id/mission_slug.
 
     Before the fix, ``issued_step_id is not None`` triggered a MissionRunSnapshot(...)
     that omitted both identity fields, resetting them to None.  This test asserts
@@ -261,8 +261,7 @@ def test_advance_run_state_preserves_identity_through_autocomplete_reconstructio
     """
     from runtime.next._internal_runtime.engine import _read_snapshot
     from runtime.next._internal_runtime.schema import NextDecision
-    from runtime.next.runtime_bridge import _advance_run_state_after_composition
-    from runtime.next.runtime_bridge_engine import plan_composition_advance
+    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_composition_advance
 
     run_dir = tmp_path / "run"
     run_dir.mkdir()
@@ -310,7 +309,7 @@ def test_advance_run_state_preserves_identity_through_autocomplete_reconstructio
             return_value=None,
         ),
     ):
-        _advance_run_state_after_composition(
+        advance_run_state_after_composition(
             run_ref=run_ref,
             agent="test-agent",
             mission_slug="regression-test-1663",
@@ -344,7 +343,7 @@ def test_advance_run_state_preserves_identity_through_final_persist_reconstructi
     tmp_path: Path,
 ) -> None:
     """Regression for #1663: the final-persist snapshot reconstruction (site 2)
-    in _advance_run_state_after_composition must carry mission_id/mission_slug.
+    in advance_run_state_after_composition must carry mission_id/mission_slug.
 
     This covers the Step 4 reconstruction that happens whether or not there was
     an issued_step_id.  Before the fix, both fields were reset to None in the
@@ -352,8 +351,7 @@ def test_advance_run_state_preserves_identity_through_final_persist_reconstructi
     """
     from runtime.next._internal_runtime.engine import _read_snapshot
     from runtime.next._internal_runtime.schema import NextDecision
-    from runtime.next.runtime_bridge import _advance_run_state_after_composition
-    from runtime.next.runtime_bridge_engine import plan_composition_advance
+    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_composition_advance
 
     run_dir = tmp_path / "run2"
     run_dir.mkdir()
@@ -402,7 +400,7 @@ def test_advance_run_state_preserves_identity_through_final_persist_reconstructi
             return_value=None,
         ),
     ):
-        _advance_run_state_after_composition(
+        advance_run_state_after_composition(
             run_ref=run_ref,
             agent="test-agent",
             mission_slug="regression-test-1663-site2",

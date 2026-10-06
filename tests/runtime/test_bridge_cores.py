@@ -123,25 +123,6 @@ def test_parse_requirement_refs_from_tasks_md_collects_per_wp_refs() -> None:
     assert refs["WP03"] == []
 
 
-def test_bridge_parse_requirement_refs_delegate_reaches_cores_wp_sections(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Regression pin for the intra-seam live-lookup fix (research.md
-    §Compat): the bridge's native ``_parse_requirement_refs_from_tasks_md``
-    delegate must call through ITS OWN ``_parse_wp_sections_from_tasks_md``
-    (patchable), not the cores-internal one -- verified behaviorally by
-    monkeypatching the bridge-level symbol and observing the delegate's
-    output change."""
-    sentinel_sections = {"WP99": "sentinel body"}
-
-    def _fake(_tasks_content: str) -> dict[str, str]:
-        return sentinel_sections
-
-    monkeypatch.setattr(rb, "_parse_wp_sections_from_tasks_md", _fake)
-    result = rb._parse_requirement_refs_from_tasks_md("irrelevant content")
-    assert set(result) == {"WP99"}
-
-
 # ---------------------------------------------------------------------------
 # 3. RequirementMappingFacts / _evaluate_requirement_mapping
 # ---------------------------------------------------------------------------

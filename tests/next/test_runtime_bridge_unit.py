@@ -700,9 +700,17 @@ class TestGuardChecks:
         assert len(failures) == 0
 
 
+def _parse_requirement_refs_from_tasks_md(tasks_md: str) -> dict[str, list[str]]:
+    """The call shape the bridge uses: the cores parser with the requirement grammar injected."""
+    from runtime.next import runtime_bridge_cores
+    from specify_cli.requirement_mapping import grammar
+
+    return runtime_bridge_cores._parse_requirement_refs_from_tasks_md(tasks_md, grammar=grammar)
+
+
 class TestTasksMarkdownParsing:
     def test_parse_wp_sections_preserves_same_line_suffix(self) -> None:
-        from runtime.next.runtime_bridge import _parse_wp_sections_from_tasks_md
+        from runtime.next.runtime_bridge_cores import _parse_wp_sections_from_tasks_md
 
         tasks_md = "## Work Package WP01: Build parser\nRequirements Refs: FR-001, NFR-002\n### WP02\nRequirements: FR-003\n"
 
@@ -713,23 +721,17 @@ class TestTasksMarkdownParsing:
         assert sections["WP02"] == "\nRequirements: FR-003\n"
 
     def test_parse_wp_sections_accepts_legacy_work_package_spacing(self) -> None:
-        from runtime.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
-
         tasks_md = "## Work Package    WP01: Build parser\nRequirements Refs: FR-001, NFR-002\n"
 
         assert _parse_requirement_refs_from_tasks_md(tasks_md) == {"WP01": ["FR-001", "NFR-002"]}
 
     def test_parse_requirement_refs_supports_heading_bullet_format(self) -> None:
-        from runtime.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
-
         tasks_md = "## Work Package WP01: Build parser\n### Requirement Refs\n- FR-001, nfr-002\n"
 
         assert _parse_requirement_refs_from_tasks_md(tasks_md) == {"WP01": ["FR-001", "NFR-002"]}
 
     def test_parse_requirement_refs_on_adversarial_input(self) -> None:
         """Functional half of the #4015 split: parses correctly under adversarial input."""
-        from runtime.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
-
         filler = "".join("#### Not a work package heading\n" for _ in range(100_000))
         tasks_md = f"{filler}## Work Package WP01: Harden parser\nRequirements Refs: FR-001, fr-002, C-003\n"
 
@@ -740,8 +742,6 @@ class TestTasksMarkdownParsing:
     @pytest.mark.performance
     def test_parse_requirement_refs_completes_under_budget_on_adversarial_input(self) -> None:
         """#4015 split: regex/backtracking budget on adversarial tasks.md input."""
-        from runtime.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
-
         filler = "".join("#### Not a work package heading\n" for _ in range(100_000))
         tasks_md = f"{filler}## Work Package WP01: Harden parser\nRequirements Refs: FR-001, fr-002, C-003\n"
 
@@ -2203,11 +2203,11 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
         mission_id = "01K3PW7QRSTVXYZ23456789ABC"
         mission_slug = "non-owned-unmaterialized-mission"
         monkeypatch.setattr(
-            runtime_bridge,
+            runtime_bridge._identity_seam,
             "_resolve_coordination_branch",
             lambda *_a, **_k: "kitty/mission-non-owned-unmaterialized",
         )
-        monkeypatch.setattr(runtime_bridge, "_resolve_mission_ulid", lambda *_a, **_k: mission_id)
+        monkeypatch.setattr(runtime_bridge._identity_seam, "_resolve_mission_ulid", lambda *_a, **_k: mission_id)
         coord_root = tmp_path / "resolved-via-write-dir"
         coord_mission_dir = coord_root / "kitty-specs" / mission_slug
         location = WriteLocation(

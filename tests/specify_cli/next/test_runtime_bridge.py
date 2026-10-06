@@ -257,7 +257,8 @@ def test_should_advance_implement_one_synthetic_canceled(feature_dir: Path) -> N
 
 def test_parse_requirement_refs_handles_markdown_label_without_regex_backtracking() -> None:
     """Requirement refs parser accepts bold markdown labels and dedupes refs."""
-    from runtime.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
+    from runtime.next.runtime_bridge_cores import _parse_requirement_refs_from_tasks_md
+    from specify_cli.requirement_mapping import grammar
 
     tasks_md = """
 ## Work Package WP01
@@ -268,7 +269,7 @@ Ignored line
 Requirement Refs: C-003, FR-004
 """.strip()
 
-    assert _parse_requirement_refs_from_tasks_md(tasks_md) == {
+    assert _parse_requirement_refs_from_tasks_md(tasks_md, grammar=grammar) == {
         "WP01": ["FR-001", "NFR-002"],
         "WP02": ["C-003", "FR-004"],
     }
@@ -276,7 +277,8 @@ Requirement Refs: C-003, FR-004
 
 def test_parse_requirement_refs_supports_heading_and_bullet_list_format() -> None:
     """Requirement refs parser accepts the documented heading + bullet form."""
-    from runtime.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
+    from runtime.next.runtime_bridge_cores import _parse_requirement_refs_from_tasks_md
+    from specify_cli.requirement_mapping import grammar
 
     tasks_md = """
 ## Work Package WP01
@@ -285,7 +287,7 @@ def test_parse_requirement_refs_supports_heading_and_bullet_list_format() -> Non
 - nfr-001
 """.strip()
 
-    assert _parse_requirement_refs_from_tasks_md(tasks_md) == {
+    assert _parse_requirement_refs_from_tasks_md(tasks_md, grammar=grammar) == {
         "WP01": ["FR-999", "NFR-001"],
     }
 

@@ -1233,12 +1233,11 @@ def test_existing_run_ref_uses_live_lookup_for_load_feature_runs_and_build_run_r
     assert ref is not None
 
 
-def test_get_or_start_run_uses_live_lookup_for_resolve_mission_ulid(
+def test_get_or_start_run_resolves_mission_ulid_on_the_identity_seam(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Cross-seam-to-residual risk: ``_resolve_mission_ulid`` stays on the
-    identity cluster in the residual (not moved by this WP); ``get_or_start_run``
-    (moved) must still reach it via a live lookup, not a stale cached import."""
+    """``get_or_start_run`` reads the mission ULID off the identity seam
+    (``runtime_bridge_identity._resolve_mission_ulid``), the one patch point."""
     from runtime.next import runtime_bridge as rb
 
     monkeypatch.setattr(rb, "_load_feature_runs", lambda repo_root: {})
@@ -1259,7 +1258,7 @@ def test_get_or_start_run_uses_live_lookup_for_resolve_mission_ulid(
         calls.append(mission_slug)
         return "01HULIDXXXXXXXXXXXXXXXXXXX"
 
-    monkeypatch.setattr(rb, "_resolve_mission_ulid", _spy_resolve_mission_ulid)
+    monkeypatch.setattr(io_seam._identity, "_resolve_mission_ulid", _spy_resolve_mission_ulid)
 
     io_seam.get_or_start_run("042-mission", tmp_path, "software-dev")
 

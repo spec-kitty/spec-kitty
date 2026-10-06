@@ -26,56 +26,24 @@ Sole home of:
 
 **KEEP-IN-PLACE / not moved.** ``_wrap_with_decision_git_log`` and
 ``_mission_routes_through_coordination`` stay in the residual
-(``runtime_bridge.py``) per research.md §Compat — they are the *callers* of
-this cluster, not part of it, and moving them is neither requested by this WP
-nor necessary (their bare intra-module calls to the thin delegates below
-already resolve correctly against ``runtime_bridge``'s own patchable globals,
-since caller and patch target share a module).
+(``runtime_bridge.py``) per research.md §Compat -- they are the *callers* of
+this cluster, not part of it. The residual calls the three functions below on
+this seam (``_identity_seam.<name>``); it defines none of them.
 
-**The 🔴 grounded false-green minefield this seam exists to close (research.md
-§Compat).** ``_primary_runtime_feature_dir`` is patched 6x
-(``tests/runtime/test_runtime_bridge_identity.py:71-222``) via
-``monkeypatch``/``unittest.mock.patch("runtime.next.runtime_bridge.
-_primary_runtime_feature_dir", ...)``. Before this WP, its two callers
-(``_resolve_coordination_branch`` / ``_resolve_mission_ulid``) lived in the
-SAME module as the patch target, so their bare calls resolved against that
-module's own globals — patchable by construction. Now that all three symbols
-live together in *this* seam module, a bare intra-seam call from either caller
-to ``_primary_runtime_feature_dir`` would resolve against **this module's**
-globals instead, making every one of those 6 patches a silent no-op (the exact
-mechanism ``tests/runtime/test_bridge_compat_surface.py``'s module docstring
-names as the guard's reason for existing). Both callers therefore route their
-``_primary_runtime_feature_dir`` lookup through a **live, deferred import of
-``runtime_bridge`` itself** (``from runtime.next import runtime_bridge as _rb``,
-function-scoped — the same ``_rb.<name>(...)`` lazy-accessor idiom
-``runtime_bridge_io``/``runtime_bridge_composition``/``runtime_bridge_
-retrospective`` already use for their own intra-seam-call risks), so
-``monkeypatch.setattr(runtime_bridge, "_primary_runtime_feature_dir", ...)``
-is observed identically to the pre-extraction behavior. The deferred (not
-top-level) import also breaks the residual<->identity import cycle:
-``runtime_bridge`` imports this module at its own top level to source the
-thin compat delegates below, so a top-level back-import here would be
-circular.
-
-``runtime_bridge.py`` keeps a **native thin compat delegate** — a real
-``def`` statement, never a plain ``import`` alias — under each of these three
-names. This is mandatory, not stylistic: a plain re-export changes the
-symbol's ``__module__`` to ``runtime_bridge_identity``, which would flip
-``tests/runtime/test_bridge_compat_surface.py::
-test_guard_b_identity_reexport_for_relocated_symbols`` (a FROZEN gate file
-that asserts the cross-module compat surface is EXACTLY the pre-existing
-3-symbol ``runtime.next.decision`` baseline) — the same mechanism WP03's
-``runtime_bridge_engine``, WP04's ``runtime_bridge_retrospective``, WP05's
-``runtime_bridge_io``, and WP08's ``runtime_bridge_composition`` docstrings
-each document for their own relocated symbols.
+**Patch point.** ``_primary_runtime_feature_dir`` is called directly by
+``_resolve_coordination_branch`` and ``_resolve_mission_ulid`` (module-global
+lookup), so a test that replaces it patches
+``runtime.next.runtime_bridge_identity._primary_runtime_feature_dir`` and
+steers both, plus ``committed_authority``'s merged-mission short-circuit,
+which imports it from here.
 
 Import DAG (research.md §Import DAG): this module may import
-``runtime_bridge_io`` (not needed today — none of the three functions above
+``runtime_bridge_io`` (not needed today -- none of the three functions above
 requires an I/O-port call); it must NOT be imported by ``runtime_bridge_
 cores`` (enforced by ``tests/runtime/test_runtime_bridge_family_arch.py``'s
 ``test_identity_seam_not_imported_by_cores``). No top-level
 ``decision.py -> runtime_bridge*`` edge is
-introduced (C-007) — this module imports neither ``runtime_bridge`` nor
+introduced (C-007) -- this module imports neither ``runtime_bridge`` nor
 ``decision`` at module scope.
 
 De-godding effort: https://github.com/Priivacy-ai/spec-kitty/issues/2531
@@ -130,13 +98,10 @@ def _resolve_coordination_branch(mission_slug: str, repo_root: Path) -> str:
     malformed-coord-branch correctness path this WP is named for — preserved
     exactly, never swallowed here).
     """
-    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415 — deferred: breaks the residual<->identity import cycle AND routes the intra-seam _primary_runtime_feature_dir call through runtime_bridge's patchable namespace (module docstring — the identity-trio's grounded false-green trap)
 
     # load_meta_or_empty (post-#2091 silent contract) absorbs a missing or
     # malformed meta.json to {}, matching the prior try/except-{} absorption.
-    meta: dict[str, Any] = load_meta_or_empty(
-        _rb._primary_runtime_feature_dir(repo_root, mission_slug)
-    )
+    meta: dict[str, Any] = load_meta_or_empty(_primary_runtime_feature_dir(repo_root, mission_slug))
     branch = meta.get("coordination_branch")
     if isinstance(branch, str) and branch.strip():
         return branch.strip()
@@ -159,10 +124,9 @@ def _resolve_mission_ulid(mission_slug: str, repo_root: Path) -> str | None:
     Returns the ULID string when present, or ``None`` when absent — fail-closed:
     callers must NOT substitute the slug for the absent ULID.
     """
-    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415 — deferred: breaks the residual<->identity import cycle AND routes the intra-seam _primary_runtime_feature_dir call through runtime_bridge's patchable namespace (module docstring — the identity-trio's grounded false-green trap)
     from specify_cli.mission_metadata import resolve_mission_identity  # noqa: PLC0415
 
-    feature_dir = _rb._primary_runtime_feature_dir(repo_root, mission_slug)
+    feature_dir = _primary_runtime_feature_dir(repo_root, mission_slug)
     # Local annotation re-narrows the specify_cli.* import from Any back to
     # str | None (follow_imports = "skip" mypy override, see the note above).
     mission_id: str | None = resolve_mission_identity(feature_dir).mission_id

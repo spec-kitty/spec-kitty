@@ -12,7 +12,7 @@ raised on those paths never reached
 * F1 — the strict-retrospective-policy buffer flush
   (``_dn_decision_materialize``).
 * F2 — composition dispatch (``_dn_composition_dispatch`` ->
-  ``_advance_run_state_after_composition``).
+  ``advance_run_state_after_composition``).
 
 The harness is engine-free: the engine step / advancement helper are
 replaced by fakes that emit into whichever emitter the bridge hands them,
@@ -248,7 +248,7 @@ def test_strict_policy_decision_required_reaches_decision_log(monkeypatch: pytes
 
 def test_composition_dispatch_decision_required_reaches_decision_log(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """F2: ``_dn_composition_dispatch`` must hand the decision-log wrap to
-    ``_advance_run_state_after_composition`` regardless of policy. The spy
+    ``advance_run_state_after_composition`` regardless of policy. The spy
     mirrors the real helper's first two emitter calls (seed, then the
     decision request raised by ``_emit_decision_required``)."""
     h = _Harness(tmp_path)
@@ -280,7 +280,7 @@ def test_composition_dispatch_decision_required_reaches_decision_log(monkeypatch
         emitter.emit_decision_input_requested(_requested_payload())
         return expected
 
-    monkeypatch.setattr(rb, "_advance_run_state_after_composition", spy_advance)
+    monkeypatch.setattr(rb._engine_adapter, "advance_run_state_after_composition", spy_advance)
 
     decision = rb._dn_composition_dispatch(h.ctx)
 

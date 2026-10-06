@@ -307,7 +307,7 @@ def test_owned_composition_policy_reaches_executor_before_advancing(checkouts, m
 
     monkeypatch.setattr(rb._composition, "_composition_dispatch_inputs", inputs)
     monkeypatch.setattr(rb, "_dispatch_via_composition", execute)
-    monkeypatch.setattr(rb, "_advance_run_state_after_composition", advance)
+    monkeypatch.setattr(rb._engine_adapter, "advance_run_state_after_composition", advance)
     # The plan step (post-WP11) needs a live run; the composition-policy contract under test is the
     # root handed to the executor and the fact handed to the advance, so stub the pure planner.
     monkeypatch.setattr(rb, "_dn_plan_composition_advance", lambda _ctx, _action: (None, None))

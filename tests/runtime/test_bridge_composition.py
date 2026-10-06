@@ -43,7 +43,6 @@ import yaml
 
 from runtime.next import runtime_bridge_composition as composition
 from runtime.next import runtime_bridge_cores as cores_seam
-from runtime.next import runtime_bridge_engine as engine_seam
 from runtime.next import runtime_bridge_io as io_seam
 from tests.specify_cli.mission_step_contracts.test_executor import (
     ORG_FIXTURE_CONTRACT_ID,
@@ -1205,44 +1204,3 @@ def test_dispatch_via_composition_warns_on_unresolved_delegation_candidates(
 
     assert failures is None
     assert not any(r.levelno == logging.WARNING for r in caplog.records)
-
-
-# ---------------------------------------------------------------------------
-# 5. _advance_run_state_after_composition residual delegate -- untouched by
-#    this WP, but pinned here so a future edit to the surrounding module
-#    cannot silently break the compat surface WP03 established.
-# ---------------------------------------------------------------------------
-
-
-def test_advance_run_state_after_composition_delegate_still_forwards_to_engine_adapter(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    from runtime.next import runtime_bridge as rb
-
-    captured: dict[str, Any] = {}
-    sentinel_decision = object()
-
-    def _fake_advance(**kwargs: Any) -> Any:
-        captured.update(kwargs)
-        return sentinel_decision
-
-    monkeypatch.setattr(engine_seam, "advance_run_state_after_composition", _fake_advance)
-
-    from runtime.next._internal_runtime import MissionRunRef
-
-    run_ref = MissionRunRef(run_id="run-1", run_dir=str(tmp_path), mission_key="software-dev")
-    result = rb._advance_run_state_after_composition(
-        run_ref=run_ref,
-        agent="agent-1",
-        mission_slug="mission-1",
-        mission_type="software-dev",
-        repo_root=tmp_path,
-        feature_dir=tmp_path,
-        timestamp="2026-01-01T00:00:00Z",
-        progress=None,
-        origin={},
-        sync_emitter=object(),
-        plan=object(),
-    )
-
-    assert result is sentinel_decision
-    assert captured["run_ref"] is run_ref
-    assert captured["mission_slug"] == "mission-1"

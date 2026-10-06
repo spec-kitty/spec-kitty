@@ -884,7 +884,7 @@ def test_dispatch_threads_legacy_step_id_to_guard(feature_dir: Path, tmp_path: P
 #   1. After a successful composition, ``runtime_next_step`` (the legacy DAG
 #      dispatch handler) MUST NOT be called for the same action attempt.
 #   2. Run-state advancement still happens — via
-#      ``_advance_run_state_after_composition``.
+#      ``advance_run_state_after_composition``.
 #   3. ``Decision`` shape is unchanged.
 #   4. Non-composed actions still flow through ``runtime_next_step``.
 #   5. If the advancement helper raises, the error surfaces via the existing
@@ -1028,7 +1028,7 @@ def test_composition_success_skips_legacy_dispatch(composed_software_dev_project
     sentinel_decision = Decision(
         # WP02 / #844: kind=step now requires a non-null, on-disk-resolvable
         # prompt_file. This sentinel is only used as the return value of a
-        # patched ``_advance_run_state_after_composition`` and the test does
+        # patched ``advance_run_state_after_composition`` and the test does
         # not assert on its ``kind`` — switch to ``terminal`` so the
         # construction-time validator is not tripped.
         kind=DecisionKind.terminal,
@@ -1204,11 +1204,8 @@ def test_advancement_helper_runs_default_post_completion_retrospective(
 
     from runtime.next._internal_runtime.engine import _read_snapshot
     from runtime.next._internal_runtime.schema import NextDecision
-    from runtime.next.runtime_bridge_engine import plan_composition_advance
-    from runtime.next.runtime_bridge import (
-        _advance_run_state_after_composition,
-        get_or_start_run,
-    )
+    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_composition_advance
+    from runtime.next.runtime_bridge import get_or_start_run
 
     run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
     snapshot_before = _read_snapshot(Path(run_ref.run_dir))
@@ -1239,7 +1236,7 @@ def test_advancement_helper_runs_default_post_completion_retrospective(
             side_effect=lambda **kwargs: captures.append(dict(kwargs)),
         ),
     ):
-        decision = _advance_run_state_after_composition(
+        decision = advance_run_state_after_composition(
             run_ref=run_ref,
             agent="test-agent",
             mission_slug=mission_slug,
@@ -1266,11 +1263,8 @@ def test_advancement_helper_runs_strict_retrospective_before_completion(
 
     from runtime.next._internal_runtime.engine import _read_snapshot
     from runtime.next._internal_runtime.schema import NextDecision
-    from runtime.next.runtime_bridge_engine import plan_composition_advance
-    from runtime.next.runtime_bridge import (
-        _advance_run_state_after_composition,
-        get_or_start_run,
-    )
+    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_composition_advance
+    from runtime.next.runtime_bridge import get_or_start_run
 
     run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
     snapshot_before = _read_snapshot(Path(run_ref.run_dir))
@@ -1310,7 +1304,7 @@ def test_advancement_helper_runs_strict_retrospective_before_completion(
             side_effect=lambda **kwargs: captures.append(dict(kwargs)),
         ),
     ):
-        decision = _advance_run_state_after_composition(
+        decision = advance_run_state_after_composition(
             run_ref=run_ref,
             agent="test-agent",
             mission_slug=mission_slug,
@@ -1336,11 +1330,8 @@ def test_advancement_helper_raises_policy_error_for_strict_retrospective(
 
     from runtime.next._internal_runtime.engine import _read_snapshot
     from runtime.next._internal_runtime.schema import NextDecision
-    from runtime.next.runtime_bridge_engine import plan_composition_advance
-    from runtime.next.runtime_bridge import (
-        _advance_run_state_after_composition,
-        get_or_start_run,
-    )
+    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_composition_advance
+    from runtime.next.runtime_bridge import get_or_start_run
 
     run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
     snapshot_before = _read_snapshot(Path(run_ref.run_dir))
@@ -1374,7 +1365,7 @@ def test_advancement_helper_raises_policy_error_for_strict_retrospective(
         ),
         pytest.raises(RuntimeError, match="bad retrospective policy"),
     ):
-        _advance_run_state_after_composition(
+        advance_run_state_after_composition(
             run_ref=run_ref,
             agent="test-agent",
             mission_slug=mission_slug,
@@ -1603,7 +1594,7 @@ class TestCustomMissionComposition:
         sentinel_decision = Decision(
             # WP02 / #844: kind=step now requires a non-null, on-disk-resolvable
             # prompt_file. This sentinel is only used as the return value of a
-            # patched ``_advance_run_state_after_composition`` and the test does
+            # patched ``advance_run_state_after_composition`` and the test does
             # not assert on its ``kind`` — switch to ``terminal`` so the
             # construction-time validator is not tripped.
             kind=DecisionKind.terminal,
@@ -1660,7 +1651,7 @@ class TestCustomMissionComposition:
         sentinel_decision = Decision(
             # WP02 / #844: kind=step now requires a non-null, on-disk-resolvable
             # prompt_file. This sentinel is only used as the return value of a
-            # patched ``_advance_run_state_after_composition`` and the test does
+            # patched ``advance_run_state_after_composition`` and the test does
             # not assert on its ``kind`` — switch to ``terminal`` so the
             # construction-time validator is not tripped.
             kind=DecisionKind.terminal,
@@ -1756,7 +1747,7 @@ class TestCustomMissionComposition:
                 # WP02 / #844: kind=step now requires a non-null,
                 # on-disk-resolvable prompt_file. This sentinel is only the
                 # return value of a patched
-                # ``_advance_run_state_after_composition`` and the test does
+                # ``advance_run_state_after_composition`` and the test does
                 # not assert on ``kind`` — use ``terminal`` so the
                 # construction-time validator is not tripped.
                 kind=DecisionKind.terminal,

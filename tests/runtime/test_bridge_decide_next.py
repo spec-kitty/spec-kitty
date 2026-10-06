@@ -422,7 +422,7 @@ def test_bootstrap_preserves_phase_and_guards_when_optional_seed_unavailable(
         if name.startswith("emit_"):
             setattr(producer, name, lambda payload: None)
     monkeypatch.setattr(rb, "_resolve_runtime_feature_dir", lambda *_: feature_dir)
-    monkeypatch.setattr(rb, "_primary_runtime_feature_dir", lambda *_: None)
+    monkeypatch.setattr(rb._identity_seam, "_primary_runtime_feature_dir", lambda *_: None)
     monkeypatch.setattr(rb, "get_mission_type", lambda *_: "software-dev")
     monkeypatch.setattr(rb, "runtime_emitter_for_mission", lambda **_: producer)
     monkeypatch.setattr(rb, "_wrap_with_decision_git_log", lambda emitter, *_: emitter)

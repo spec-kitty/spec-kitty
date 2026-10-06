@@ -425,8 +425,8 @@ def advance_run_state_after_composition(
     plan handed over without its resolution is refused up front with
     ``ValueError``, nothing persisted.
 
-    ``runtime_bridge._advance_run_state_after_composition`` is a thin residual
-    compat delegate that forwards here (contracts/compat-surface.md).
+    The bridge's composition dispatch calls this function directly; a test
+    that replaces it patches ``runtime_bridge_engine.advance_run_state_after_composition``.
     """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415 — deferred to avoid the circular top-level import
 

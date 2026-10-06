@@ -27,11 +27,9 @@ A tracked-mission-to-run compatibility index currently lives at
 #   runtime_bridge_engine.py   sole home of ``_internal_runtime`` engine /
 #                              planner private access (FR-013); also owns the
 #                              ``advance_run_state_after_composition`` logic
-#                              (former CC23 ``_advance_run_state_after_composition``
-#                              body, reduced to <=15) — this module keeps only
-#                              a thin residual compat delegate under the same
-#                              name so its 8x-patch/9x-attr monkeypatch surface
-#                              still intercepts (contracts/compat-surface.md).
+#                              (former CC23 body, reduced to <=15); callers
+#                              here and in the composition seam call it on the
+#                              engine seam, and a test patches it there.
 #
 #   runtime_bridge_retrospective.py   sole home of the self-contained
 #                              Confirm.ask-gated retrospective / learning-
@@ -60,15 +58,11 @@ A tracked-mission-to-run compatibility index currently lives at
 #                              `_check_composed_action_guard` /
 #                              `_check_requirement_mapping_ready`'s decision
 #                              tail over the WP05 `ArtifactPresenceSnapshot`
-#                              fact-port). Same native-thin-delegate rule for
-#                              every compat-tracked symbol moved there; two
-#                              symbols (`_parse_wp_sections_from_tasks_md` /
-#                              `_parse_requirement_refs_from_tasks_md`) use a
-#                              same-module live-lookup between their two
-#                              residual delegates rather than forwarding to
-#                              the cores-internal call, closing the
-#                              intra-seam false-green trap for their mutual
-#                              call (see their docstrings below).
+#                              fact-port). The bridge calls the parse family
+#                              on the cores seam; `_parse_requirement_refs_
+#                              from_tasks_md` takes the requirement grammar as
+#                              a ``grammar=`` argument, which the bridge call
+#                              site supplies.
 #
 #   runtime_bridge_cores.py    ALSO owns the Decision-builder (FR-011,
 #                              WP07): ``DecisionEnvelope`` + ``step_or_
@@ -100,10 +94,6 @@ A tracked-mission-to-run compatibility index currently lives at
 #                              predicate for a future WP14 consumer to route
 #                              through. Same native-thin-delegate rule for
 #                              every compat-tracked symbol moved there.
-#                              ``_advance_run_state_after_composition``
-#                              (WP03) is unaffected — its logic already lives
-#                              in the engine adapter and its thin residual
-#                              delegate stays defined right here, unmoved.
 #
 #   runtime_bridge_identity.py   sole home of the hottest fracture line
 #                              (WP10, LAST): coord-branch naming
@@ -111,14 +101,11 @@ A tracked-mission-to-run compatibility index currently lives at
 #                              resolution (``_resolve_mission_ulid``), and
 #                              primary-feature-dir resolution
 #                              (``_primary_runtime_feature_dir``) — the scars
-#                              #2091/#1978/#1918/#1814/#2069 cluster. Same
-#                              native-thin-delegate rule for every compat-
-#                              tracked symbol moved there; both intra-seam
-#                              callers of ``_primary_runtime_feature_dir``
-#                              (patched 6x) route back through THIS module's
-#                              own delegate via a live, deferred lookup rather
-#                              than a bare intra-seam call (research.md
-#                              §Compat's grounded false-green trap).
+#                              #2091/#1978/#1918/#1814/#2069 cluster. The
+#                              bridge calls them on the identity seam, and the
+#                              two callers of ``_primary_runtime_feature_dir``
+#                              inside the seam call it directly, so a test
+#                              patches it on ``runtime_bridge_identity``.
 #                              ``_wrap_with_decision_git_log`` (the cluster's
 #                              caller) and ``_mission_routes_through_
 #                              coordination`` are KEEP-IN-PLACE here, unmoved.
@@ -206,36 +193,6 @@ class DecisionGitLogUnavailable(RuntimeError):
     """Decision audit logging cannot be made durable for a modern mission."""
 
 
-def _primary_runtime_feature_dir(repo_root: Path, mission_slug: str) -> Path:
-    """Thin compat delegate (native ``def``; FR-012 compat surface, #2531
-    WP10) — forwards to :func:`runtime_bridge_identity._primary_runtime_feature_dir`.
-    Patched 6x by ``tests/runtime/test_runtime_bridge_identity.py`` — kept as a
-    native ``def`` (never a plain re-export) so this name's ``__module__``
-    stays ``runtime_bridge``, and both intra-seam callers of the real
-    implementation (:func:`runtime_bridge_identity._resolve_coordination_branch`
-    / ``._resolve_mission_ulid``) route back through THIS delegate via a live,
-    deferred lookup rather than a bare intra-seam call — see
-    ``runtime_bridge_identity``'s module docstring for the false-green
-    mechanism this closes."""
-    return _identity_seam._primary_runtime_feature_dir(repo_root, mission_slug)
-
-
-def _resolve_coordination_branch(mission_slug: str, repo_root: Path) -> str:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_identity._resolve_coordination_branch` (FR-012
-    compat surface, #2531 WP10; see module-level comment above and
-    ``runtime_bridge_identity``'s docstring)."""
-    return _identity_seam._resolve_coordination_branch(mission_slug, repo_root)
-
-
-def _resolve_mission_ulid(mission_slug: str, repo_root: Path) -> str | None:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_identity._resolve_mission_ulid` (FR-012 compat
-    surface, #2531 WP10; see module-level comment above and
-    ``runtime_bridge_identity``'s docstring)."""
-    return _identity_seam._resolve_mission_ulid(mission_slug, repo_root)
-
-
 def _mission_routes_through_coordination(
     mission_slug: str,
     repo_root: Path,
@@ -313,8 +270,8 @@ def _wrap_with_decision_git_log(
         from specify_cli.events.decision_log import DecisionGitLog
 
         if not is_owned_call:
-            coordination_branch = _resolve_coordination_branch(mission_slug, repo_root)
-            mission_id = _resolve_mission_ulid(mission_slug, repo_root)  # str | None
+            coordination_branch = _identity_seam._resolve_coordination_branch(mission_slug, repo_root)
+            mission_id = _identity_seam._resolve_mission_ulid(mission_slug, repo_root)  # str | None
         else:
             from mission_runtime import mission_context_for
             from specify_cli.mission_metadata import resolve_mission_identity
@@ -566,41 +523,6 @@ class MissionNotFoundError(Exception):
 # ---------------------------------------------------------------------------
 
 TASKS_GLOB = "WP*.md"
-
-
-def _parse_wp_sections_from_tasks_md(tasks_content: str) -> dict[str, str]:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_cores._parse_wp_sections_from_tasks_md`."""
-    return _cores._parse_wp_sections_from_tasks_md(tasks_content)
-
-
-def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[str]]:
-    """Thin compat delegate — parse requirement references per WP.
-
-    Composed via THIS module's own :func:`_parse_wp_sections_from_tasks_md`
-    delegate (bare call, resolved against ``runtime_bridge``'s own globals)
-    rather than forwarding to :func:`runtime_bridge_cores._parse_requirement_
-    refs_from_tasks_md` (whose internal call to the cores-local
-    ``_parse_wp_sections_from_tasks_md`` would resolve against
-    ``runtime_bridge_cores``'s globals instead). Both symbols are WP02
-    compat-tracked and patched independently
-    (``tests/runtime/test_bridge_compat_surface.py``'s ``REACH`` map); a
-    blind forward here would make ``monkeypatch.setattr(runtime_bridge,
-    "_parse_wp_sections_from_tasks_md", ...)`` a no-op false-green for any
-    scenario that reaches it only through this function (the exact
-    intra-seam-call trap research.md §Compat documents for
-    ``_primary_runtime_feature_dir``).
-
-    WP04 (C-002): the signature stays one-argument -- the grammar is
-    resolved lazily here (the existing edge to ``specify_cli.requirement_
-    mapping``, no new layer-ledger key) and threaded into the cores call as
-    ``grammar=``."""
-    from specify_cli.requirement_mapping import grammar
-
-    return {
-        wp_id: _cores._collect_requirement_refs_for_section(section_content, grammar=grammar)
-        for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items()
-    }
 
 
 class _BufferingRuntimeEmitter(_retrospective_seam._BufferingRuntimeEmitter):
@@ -1182,7 +1104,7 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
         if wps_manifest is None:
             tasks_md = feature_dir / TASKS_ARTIFACT
             if tasks_md.exists():
-                tasks_md_refs = _parse_requirement_refs_from_tasks_md(tasks_md.read_text(encoding="utf-8"))
+                tasks_md_refs = _cores._parse_requirement_refs_from_tasks_md(tasks_md.read_text(encoding="utf-8"), grammar=grammar)
                 for wp_id, refs in tasks_md_refs.items():
                     if refs and not wp_requirement_refs.get(wp_id):
                         wp_requirement_refs[wp_id] = refs
@@ -1406,54 +1328,10 @@ def _dispatch_via_composition(
 # Single-dispatch invariant (FR-001 / phase6-composition-stabilization-01KQ2JAS):
 # After a composition-backed software-dev action succeeds, run state must still
 # advance through the next public step — but the legacy ``runtime_next_step``
-# DAG dispatch handler MUST NOT be invoked for the same action attempt.
+# DAG dispatch handler MUST NOT be invoked for the same action attempt. The
+# advancement itself is owned by
+# ``runtime_bridge_engine.advance_run_state_after_composition``.
 #
-# THIN RESIDUAL COMPAT DELEGATE (#2531 WP03, FR-013): the logic that used to
-# live here now lives at ``runtime_bridge_engine.advance_run_state_after_composition``
-# (adapter-owned — it reuses the same engine primitives ``runtime_next_step``
-# uses internally: ``_read_snapshot``, ``_append_event``, ``_load_frozen_template``,
-# ``plan_next``, ``_write_snapshot``). This delegate exists ONLY so the heavy
-# monkeypatch surface tests bind to (8x ``monkeypatch.setattr``/``mocker.patch``
-# + 9x bare-attribute reads across the suite, per contracts/compat-surface.md)
-# keeps resolving against ``runtime_bridge._advance_run_state_after_composition``
-# unchanged. Do not add logic here — extend the adapter instead.
-def _advance_run_state_after_composition(
-    *,
-    run_ref: MissionRunRef,
-    agent: str,
-    mission_slug: str,
-    mission_type: str,
-    repo_root: Path,
-    feature_dir: Path,
-    timestamp: str,
-    progress: dict[str, int | float] | None,
-    origin: dict[str, Any],
-    sync_emitter: RuntimeEventEmitter,
-    plan: Any,
-    owned: OwnedCheckout | None = None,
-    wp_resolution: _WpIterationResolution | None = None,
-) -> Decision:
-    """Thin compat delegate — forwards to
-    :func:`runtime_bridge_engine.advance_run_state_after_composition`. See the
-    module-level comment above for why this delegate must stay (FR-012 compat
-    surface) even though the logic itself moved (FR-013)."""
-    return _engine_adapter.advance_run_state_after_composition(
-        run_ref=run_ref,
-        agent=agent,
-        mission_slug=mission_slug,
-        mission_type=mission_type,
-        repo_root=repo_root,
-        feature_dir=feature_dir,
-        timestamp=timestamp,
-        progress=progress,
-        origin=origin,
-        sync_emitter=sync_emitter,
-        owned=owned,
-        plan=plan,
-        wp_resolution=wp_resolution,
-    )
-
-
 # ---------------------------------------------------------------------------
 # Run management
 # ---------------------------------------------------------------------------
@@ -1757,7 +1635,7 @@ def _dn_bootstrap(
 
     if not is_owned_call:
         feature_dir = _resolve_runtime_feature_dir(repo_root, mission_slug)
-        primary_metadata_dir: Path | None = _primary_runtime_feature_dir(repo_root, mission_slug)
+        primary_metadata_dir: Path | None = _identity_seam._primary_runtime_feature_dir(repo_root, mission_slug)
     else:
         from mission_runtime import MissionArtifactKind, mission_context_for
 
@@ -2401,7 +2279,7 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
             return planned
         plan, wp_resolution = planned
         try:
-            return _advance_run_state_after_composition(
+            return _engine_adapter.advance_run_state_after_composition(
                 run_ref=ctx.run_ref,
                 agent=agent,
                 mission_slug=ctx.mission_slug,
@@ -2728,7 +2606,7 @@ def _merged_mission_short_circuit(
     merged mission is recognized from committed truth instead of a stale/
     artifact-missing coordination workspace fabricating an unstarted run
     (D9). ``mission_type`` is resolved off the same PRIMARY surface
-    (:func:`_primary_runtime_feature_dir`) — never via workspace selection.
+    (:func:`runtime_bridge_identity._primary_runtime_feature_dir`) — never via workspace selection.
 
     ``terminal_kind`` lets the two callers diverge on the ONE dimension D13
     requires: :func:`decide_next_via_runtime` passes ``DecisionKind.terminal``
