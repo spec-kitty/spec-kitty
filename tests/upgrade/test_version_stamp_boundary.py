@@ -285,6 +285,23 @@ def test_boundary_keeps_the_original_error_when_the_restore_fails(tmp_path: Path
     assert "Could not restore" in caplog.text
 
 
+def test_boundary_logs_a_failed_restore_of_a_failed_outcome_without_raising(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    kittify = _kittify(tmp_path, _BASE)
+    notices: list[str] = []
+
+    def _restore_fails(self: object, _: Path) -> bool:
+        raise OSError("read-only file system")
+
+    monkeypatch.setattr(VersionStamp, "restore", _restore_fails)
+
+    with caplog.at_level("WARNING"), version_stamp_boundary(kittify, dry_run=False, on_restored=notices.append) as settle:
+        _bump(kittify)
+        settle(_outcome(success=False))
+
+    assert "Could not restore" in caplog.text
+    assert notices == []
+
+
 def test_boundary_never_restores_a_dry_run(tmp_path: Path) -> None:
     kittify = _kittify(tmp_path, _BASE)
     with version_stamp_boundary(kittify, dry_run=True) as settle:

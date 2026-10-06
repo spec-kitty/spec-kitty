@@ -52,7 +52,8 @@ def version_stamp_boundary(
     def settle(outcome: UpgradeOutcome) -> None:
         if stamp is None or outcome.kind is not UpgradeOutcomeKind.FAILED:
             return
-        if stamp.restore(kittify_dir) and on_restored is not None:
+        # A failed restore must not replace the FAILED exit with a traceback.
+        if _restore_keeping_original_error(stamp, kittify_dir) and on_restored is not None:
             on_restored(restored_notice(stamp.version))
 
     try:
@@ -64,9 +65,10 @@ def version_stamp_boundary(
         raise
 
 
-def _restore_keeping_original_error(stamp: VersionStamp, kittify_dir: Path) -> None:
-    """Restore the stamp for a raising body without masking the body's own exception."""
+def _restore_keeping_original_error(stamp: VersionStamp, kittify_dir: Path) -> bool:
+    """Restore the stamp without masking the failure being reported; True when it rewrote the file."""
     try:
-        stamp.restore(kittify_dir)
+        return stamp.restore(kittify_dir)
     except OSError as exc:
         logger.warning("Could not restore %s/metadata.yaml after a failed upgrade: %s", kittify_dir, exc)
+        return False
