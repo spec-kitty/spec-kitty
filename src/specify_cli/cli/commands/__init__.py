@@ -180,12 +180,12 @@ _LIVE_WORK_GROUP_HELP = "Live Work harness capture: tools, files, tests and dele
 #: manifest and the generated CLI reference never offer them; each one still
 #: runs when invoked by name. :func:`reveal_hosted_surfaces` lists them again
 #: for a checkout whose hosted drain posture is on.
-HOSTED_SURFACE_NAMES = frozenset({"auth", "issue-search", "live-work", "moments", "routes", "zeitgeist"})
+_HOSTED_SURFACE_NAMES = frozenset({"auth", "issue-search", "live-work", "moments", "routes", "zeitgeist"})
 
 
 def _hosted_surface_entries(app: typer.Typer) -> list[CommandInfo | TyperInfo]:
-    commands: list[CommandInfo | TyperInfo] = [info for info in app.registered_commands if _command_name(info) in HOSTED_SURFACE_NAMES]
-    groups = [info for info in app.registered_groups if _top_level_group_name(info) in HOSTED_SURFACE_NAMES]
+    commands: list[CommandInfo | TyperInfo] = [info for info in app.registered_commands if _command_name(info) in _HOSTED_SURFACE_NAMES]
+    groups = [info for info in app.registered_groups if _top_level_group_name(info) in _HOSTED_SURFACE_NAMES]
     return [*commands, *groups]
 
 
@@ -822,4 +822,4 @@ def register_commands(app: typer.Typer) -> None:
     make_leaf_commands_mission_agnostic(app)
 
 
-__all__ = ["HOSTED_SURFACE_NAMES", "register_commands", "reveal_hosted_surfaces"]
+__all__ = ["register_commands", "reveal_hosted_surfaces"]

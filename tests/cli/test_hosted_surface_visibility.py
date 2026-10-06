@@ -18,7 +18,7 @@ import typer
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands import (
-    HOSTED_SURFACE_NAMES,
+    _HOSTED_SURFACE_NAMES,
     _command_name,
     _top_level_group_name,
     register_commands,
@@ -59,8 +59,8 @@ def _listed(output: str, name: str) -> bool:
 def test_every_hosted_surface_registers_hidden(monkeypatch: pytest.MonkeyPatch) -> None:
     flags = _hidden_by_name(_registered_root(monkeypatch))
 
-    assert set(HOSTED_SURFACE_NAMES) <= flags.keys(), "a hosted surface name no longer matches a registered command"
-    assert {name for name in HOSTED_SURFACE_NAMES if not flags[name]} == set()
+    assert set(_HOSTED_SURFACE_NAMES) <= flags.keys(), "a hosted surface name no longer matches a registered command"
+    assert {name for name in _HOSTED_SURFACE_NAMES if not flags[name]} == set()
 
 
 def test_non_hosted_commands_stay_visible(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -78,7 +78,7 @@ def test_drain_off_keeps_hosted_surfaces_out_of_root_help(monkeypatch: pytest.Mo
     reveal_hosted_surfaces(app, _ROOT_HELP_ARGV)
     output = _root_listing(app)
 
-    assert [name for name in sorted(HOSTED_SURFACE_NAMES) if _listed(output, name)] == []
+    assert [name for name in sorted(_HOSTED_SURFACE_NAMES) if _listed(output, name)] == []
     assert _listed(output, "tracker")
 
 
@@ -89,7 +89,7 @@ def test_drain_on_lists_hosted_surfaces_in_root_help(monkeypatch: pytest.MonkeyP
     reveal_hosted_surfaces(app, _ROOT_HELP_ARGV)
     output = _root_listing(app)
 
-    assert [name for name in sorted(HOSTED_SURFACE_NAMES) if not _listed(output, name)] == []
+    assert [name for name in sorted(_HOSTED_SURFACE_NAMES) if not _listed(output, name)] == []
 
 
 def test_single_command_invocation_does_not_read_the_posture(monkeypatch: pytest.MonkeyPatch) -> None:
