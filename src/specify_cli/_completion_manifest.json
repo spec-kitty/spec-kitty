@@ -386,7 +386,7 @@
   },
   "auth": {
    "help": "Authentication commands",
-   "hidden": false,
+   "hidden": true,
    "deprecated": false,
    "commands": {
     "login": {
@@ -937,7 +937,7 @@
   },
   "issue-search": {
    "help": "Search tracker issues via the hosted read path",
-   "hidden": false,
+   "hidden": true,
    "deprecated": false
   },
   "lint": {
@@ -947,7 +947,7 @@
   },
   "live-work": {
    "help": "Live Work harness capture: tools, files, tests and delegation as live relay frames (#4268).",
-   "hidden": false,
+   "hidden": true,
    "deprecated": false,
    "commands": {
     "hook": {
@@ -1135,7 +1135,7 @@
      "deprecated": true
     },
     "list": {
-     "help": "List activated mission types for the current project (FR-016).\n\nAlias for ``spec-kitty charter mission-type list``.\n\nReturns only mission types that are explicitly activated in this\nproject's charter (activation-filtered).  For all doctrine-layer\ntypes regardless of activation, use ``spec-kitty doctrine mission-type list``.",
+     "help": "List activated mission types for the current project (FR-016).\n\nAlias for ``spec-kitty charter mission-type list``.\n\nReturns only mission types that are explicitly activated in this\nproject's charter (activation-filtered).  For all doctrine-layer\ntypes regardless of activation, use\n``spec-kitty charter mission-type list --include-inactive``.",
      "hidden": false,
      "deprecated": false
     },
@@ -1192,7 +1192,7 @@
      "deprecated": true
     },
     "list": {
-     "help": "List activated mission types for the current project (FR-016).\n\nAlias for ``spec-kitty charter mission-type list``.\n\nReturns only mission types that are explicitly activated in this\nproject's charter (activation-filtered).  For all doctrine-layer\ntypes regardless of activation, use ``spec-kitty doctrine mission-type list``.",
+     "help": "List activated mission types for the current project (FR-016).\n\nAlias for ``spec-kitty charter mission-type list``.\n\nReturns only mission types that are explicitly activated in this\nproject's charter (activation-filtered).  For all doctrine-layer\ntypes regardless of activation, use\n``spec-kitty charter mission-type list --include-inactive``.",
      "hidden": false,
      "deprecated": false
     },
@@ -1205,7 +1205,7 @@
   },
   "moments": {
    "help": "Control which Zeitgeist status moments reach agent context (off / mine / team), per developer and per repo.",
-   "hidden": false,
+   "hidden": true,
    "deprecated": false,
    "commands": {
     "off": {
@@ -1476,7 +1476,7 @@
   },
   "routes": {
    "help": "Show which team admits this checkout and which relay carries its moments.",
-   "hidden": false,
+   "hidden": true,
    "deprecated": false
   },
   "safe-commit": {
@@ -1515,7 +1515,7 @@
    "deprecated": false,
    "commands": {
     "providers": {
-     "help": "List supported tracker providers, categorized by backend type.\n\nSaaS-backed providers authenticate through ``spec-kitty auth login`` and\nroute sync operations through the Spec Kitty SaaS control plane.\n\nLocal providers use direct connectors with locally stored credentials.\n\nThis command is purely informational and prints the hard-coded provider\ncategories.  It does **not** consult hosted readiness — ``tracker_callback``\nis the sole rollout gate for the tracker Typer app, which is all the\ngating this static output needs.",
+     "help": "List supported tracker providers, categorized by backend type.\n\nSaaS-backed providers need a hosted Team Kitty sign-in, which is no\nlonger actively supported (ADR 2026-10-06-1), and\nroute sync operations through the Spec Kitty SaaS control plane.\n\nLocal providers use direct connectors with locally stored credentials.\n\nThis command is purely informational and prints the hard-coded provider\ncategories.  It does **not** consult hosted readiness — ``tracker_callback``\nis the sole rollout gate for the tracker Typer app, which is all the\ngating this static output needs.",
      "hidden": false,
      "deprecated": false
     },
@@ -1525,7 +1525,7 @@
      "deprecated": false
     },
     "bind": {
-     "help": "Bind the current project to an issue tracker.\n\nFor SaaS-backed providers (linear, jira, github, gitlab):\n  Uses discovery to find bindable resources automatically.\n  Use --bind-ref for CI/automation, --select N for non-interactive.\n  Authentication via ``spec-kitty auth login``.\n\nFor local providers (beads, fp):\n  Requires --provider, --workspace, and --credential flags.",
+     "help": "Bind the current project to an issue tracker.\n\nFor SaaS-backed providers (linear, jira, github, gitlab):\n  Uses discovery to find bindable resources automatically.\n  Use --bind-ref for CI/automation, --select N for non-interactive.\n  Needs a hosted Team Kitty sign-in (no longer actively supported).\n\nFor local providers (beads, fp):\n  Requires --provider, --workspace, and --credential flags.",
      "hidden": false,
      "deprecated": false
     },
@@ -1634,7 +1634,7 @@
   },
   "zeitgeist": {
    "help": "Access to one team's live Zeitgeist presence/focus stream and status-moment events, authored peer messaging (#4269), a local human-gated prose approval surface, and operability drills.",
-   "hidden": false,
+   "hidden": true,
    "deprecated": false,
    "commands": {
     "status": {

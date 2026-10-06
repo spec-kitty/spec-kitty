@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import inspect
 import sys
+import warnings
 from collections.abc import Callable
 
 import click
 import typer
 from typer.core import TyperGroup
-from typer.models import DefaultPlaceholder, TyperInfo
+from typer.models import CommandInfo, DefaultPlaceholder, TyperInfo
 
 
 class HelpOnEmptyTopLevelGroup(TyperGroup):
@@ -172,6 +173,46 @@ def _is_live_work_hook_fast_path(argv: list[str]) -> bool:
 
 
 _LIVE_WORK_GROUP_HELP = "Live Work harness capture: tools, files, tests and delegation as live relay frames (#4268)."
+
+#: Top-level commands and groups that only serve the hosted Team Kitty
+#: surface, which is no longer actively supported (ADR 2026-10-06-1). They are
+#: registered hidden, so the default ``--help`` listing, the completion
+#: manifest and the generated CLI reference never offer them; each one still
+#: runs when invoked by name. :func:`reveal_hosted_surfaces` lists them again
+#: for a checkout whose hosted drain posture is on.
+HOSTED_SURFACE_NAMES = frozenset({"auth", "issue-search", "live-work", "moments", "routes", "zeitgeist"})
+
+
+def _hosted_surface_entries(app: typer.Typer) -> list[CommandInfo | TyperInfo]:
+    commands: list[CommandInfo | TyperInfo] = [info for info in app.registered_commands if _command_name(info) in HOSTED_SURFACE_NAMES]
+    groups = [info for info in app.registered_groups if _top_level_group_name(info) in HOSTED_SURFACE_NAMES]
+    return [*commands, *groups]
+
+
+def _set_hosted_surfaces_hidden(app: typer.Typer, *, hidden: bool) -> None:
+    for entry in _hosted_surface_entries(app):
+        entry.hidden = hidden
+
+
+def reveal_hosted_surfaces(app: typer.Typer, argv: list[str]) -> None:
+    """List the hosted surfaces in the root ``--help`` when drain is on.
+
+    Only the root listing reads the ``hidden`` flag, so the drain posture is
+    read only when *argv* does not resolve to one top-level command; a normal
+    command invocation pays no extra config read. The posture reader warns on
+    an unparseable config file; that warning is silenced here because the
+    listing falls back to hidden, the same fail-closed answer the hosted edges
+    give, and the edges themselves still report the file when invoked.
+    """
+    if _resolve_single_leaf_command(argv, app) is not None:
+        return
+    from specify_cli.core import hosted_posture
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        enabled = hosted_posture.drain_posture().enabled
+    if enabled:
+        _set_hosted_surfaces_hidden(app, hidden=False)
 
 
 _CommandRegistrar = Callable[[typer.Typer], None]
@@ -776,8 +817,9 @@ def register_commands(app: typer.Typer) -> None:
 
     _sort_root_command_metadata(app)
     _enforce_top_level_empty_group_help(app)
+    _set_hosted_surfaces_hidden(app, hidden=True)
     _apply_short_help_options(app)
     make_leaf_commands_mission_agnostic(app)
 
 
-__all__ = ["register_commands"]
+__all__ = ["HOSTED_SURFACE_NAMES", "register_commands", "reveal_hosted_surfaces"]

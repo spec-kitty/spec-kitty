@@ -531,9 +531,16 @@ def test_checkout_without_an_origin_is_told_to_add_one(clone: Path) -> None:
 
 
 def test_routes_is_registered_at_the_top_level() -> None:
-    result = runner.invoke(app, ["--help"])
+    # A hosted surface: registered and runnable, but hidden from the default
+    # root listing (ADR 2026-10-06-1; tests/cli/test_hosted_surface_visibility.py
+    # covers the drain-on reveal).
+    result = runner.invoke(app, ["routes", "--help"])
     assert result.exit_code == 0
-    assert "routes" in result.stdout
+    assert "Usage:" in result.stdout
+
+    root = runner.invoke(app, ["--help"])
+    assert root.exit_code == 0
+    assert not any(line.strip("│ ").startswith("routes ") for line in root.stdout.splitlines())
 
 
 # --- --json -----------------------------------------------------------------

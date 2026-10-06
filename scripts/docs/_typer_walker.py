@@ -18,7 +18,8 @@ Surface decisions match ``cli-audit-3-2.md``:
   (mirrors ``tests/architectural/test_safety_registry_completeness.py``).
 * Hidden detection: respects Typer's ``DefaultPlaceholder`` sentinels by
   falling back through (command attr ``hidden``) → (group attr ``hidden``)
-  → (group's ``typer_instance.info.hidden``).
+  → (group's ``typer_instance.info.hidden``). A path under a hidden group
+  is hidden too: ``--help`` never lists it.
 * Deprecation detection: respects Typer's ``deprecated`` flag and a
   case-insensitive ``"Deprecated"`` prefix on the help summary.
 * ``requires_saas_sync``: any path under ``tracker`` and the
@@ -158,7 +159,7 @@ def walk(app: typer.Typer) -> list[CommandPathEntry]:
     out: list[CommandPathEntry] = []
     seen: set[tuple[tuple[str, ...], CommandKind]] = set()
 
-    def _recurse(typer_app: typer.Typer, prefix: tuple[str, ...]) -> None:
+    def _recurse(typer_app: typer.Typer, prefix: tuple[str, ...], parent_hidden: bool) -> None:
         for cmd in typer_app.registered_commands:
             name = cmd.name or (
                 cmd.callback.__name__.replace("_", "-")
@@ -172,7 +173,9 @@ def walk(app: typer.Typer) -> list[CommandPathEntry]:
             if key in seen:
                 continue
             seen.add(key)
-            hidden = _resolve_flag(cmd.hidden)
+            # A command under a hidden group is not reachable from --help
+            # either, so it inherits the group's hidden flag.
+            hidden = parent_hidden or _resolve_flag(cmd.hidden)
             help_text = _resolve_text(cmd.help, cmd.short_help)
             callback_help = inspect.getdoc(cmd.callback) if cmd.callback else ""
             help_body = _resolve_text(cmd.help, callback_help, cmd.short_help)
@@ -221,7 +224,7 @@ def walk(app: typer.Typer) -> list[CommandPathEntry]:
                 if grp.typer_instance is not None
                 else None
             )
-            hidden = _resolve_flag(grp.hidden, info_hidden)
+            hidden = parent_hidden or _resolve_flag(grp.hidden, info_hidden)
             callback = grp.callback or (
                 grp.typer_instance.info.callback
                 if grp.typer_instance is not None
@@ -250,8 +253,8 @@ def walk(app: typer.Typer) -> list[CommandPathEntry]:
                 )
             )
             if grp.typer_instance is not None:
-                _recurse(grp.typer_instance, path)
+                _recurse(grp.typer_instance, path, hidden)
 
-    _recurse(app, ())
+    _recurse(app, (), False)
     out.sort(key=lambda e: (e.path, e.kind))
     return out

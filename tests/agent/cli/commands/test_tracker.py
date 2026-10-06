@@ -77,12 +77,17 @@ def _build_root_app(*, enabled: bool, monkeypatch) -> typer.Typer:
 
 
 def test_tracker_registered_when_flag_enabled(monkeypatch) -> None:
-    """Tracker sub-command appears in help when SAAS_SYNC flag is on."""
+    """Tracker sub-command appears in help when SAAS_SYNC flag is on.
+
+    ``issue-search`` is a hosted surface (ADR 2026-10-06-1): registered and
+    runnable, but left out of the default root listing.
+    """
     app = _build_root_app(enabled=True, monkeypatch=monkeypatch)
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
     assert "tracker" in result.output
-    assert "issue-search" in result.output
+    assert "issue-search" not in result.output
+    assert runner.invoke(app, ["issue-search", "--help"]).exit_code == 0
 
 
 def test_tracker_direct_invocation_fails_when_flag_disabled(monkeypatch) -> None:

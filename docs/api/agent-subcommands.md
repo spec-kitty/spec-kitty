@@ -1332,43 +1332,6 @@ _Mission lifecycle commands for AI agents_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## spec-kitty agent profile list
-
-```
- Usage: spec-kitty agent profile list [OPTIONS]
-
- List agent profiles (activated-only by default; --all for the full catalog).
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json                      Output JSON array.                               │
-│ --all                       Show every profile across all source layers      │
-│                             (annotated by source layer and                   │
-│                             activated|available state). Supersedes the       │
-│                             activated-only default and --show-available.     │
-│ --show-available            Also show available-but-not-activated profiles   │
-│                             (annotated by state).                            │
-│ --help            -h        Show this message and exit.                      │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty agent profile show
-
-```
- Usage: spec-kitty agent profile show [OPTIONS] PROFILE_ID
-
- Show the full resolved definition of an agent profile (FR-013/014/015).
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    profile_id      TEXT  Profile ID to show. [required]                    │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Output JSON object.                                        │
-│ --all             Bypass the activation gate for inspection (show            │
-│                   non-activated profiles).                                   │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
 ## spec-kitty agent release
 
 _Release packaging commands for AI agents_

@@ -416,7 +416,11 @@ def _assemble_app() -> typer.Typer:
         _get_console().print(f"[red]{EventAdapter.get_missing_library_error()}[/red]")
         raise typer.Exit(1)
 
-    return _get_app()
+    from specify_cli.cli.commands import reveal_hosted_surfaces
+
+    app = _get_app()
+    reveal_hosted_surfaces(app, sys.argv)
+    return app
 
 
 def _invoke_unguarded(operation: Callable[[], T], **_kwargs: Any) -> T:

@@ -552,7 +552,8 @@ def providers_command(
 ) -> None:
     """List supported tracker providers, categorized by backend type.
 
-    SaaS-backed providers authenticate through ``spec-kitty auth login`` and
+    SaaS-backed providers need a hosted Team Kitty sign-in, which is no
+    longer actively supported (ADR 2026-10-06-1), and
     route sync operations through the Spec Kitty SaaS control plane.
 
     Local providers use direct connectors with locally stored credentials.
@@ -723,7 +724,7 @@ def bind_command(
     For SaaS-backed providers (linear, jira, github, gitlab):
       Uses discovery to find bindable resources automatically.
       Use --bind-ref for CI/automation, --select N for non-interactive.
-      Authentication via ``spec-kitty auth login``.
+      Needs a hosted Team Kitty sign-in (no longer actively supported).
 
     For local providers (beads, fp):
       Requires --provider, --workspace, and --credential flags.
