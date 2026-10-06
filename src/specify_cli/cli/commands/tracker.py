@@ -3,7 +3,8 @@
 Dispatches to SaaS-backed providers (linear, jira, github, gitlab) via the
 Spec Kitty SaaS control plane, or to local providers (beads, fp) via
 direct connectors.  Provider credentials are never accepted for SaaS-backed
-providers -- authentication flows through ``spec-kitty auth login``.
+providers -- they need a hosted Team Kitty sign-in, which is no longer
+actively supported.
 """
 
 from __future__ import annotations
@@ -574,7 +575,7 @@ def providers_command(
 
         typer.echo("Supported providers:")
         typer.echo("")
-        typer.echo("  SaaS-backed (authenticate via spec-kitty auth login):")
+        typer.echo("  SaaS-backed (need a hosted Team Kitty sign-in, no longer actively supported):")
         for p in saas:
             typer.echo(f"    - {p}")
         typer.echo("")
