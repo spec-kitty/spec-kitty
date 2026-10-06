@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01M48VKRTV2GZ6QCPBN0125ZV9",
+  "completed_at": "2026-10-06T17:15:58.714093+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "/tmp/claude-0/-home-user-spec-kitty/f9460057-6c9a-5dbf-a006-51ed9650d09d/scratchpad/evidence-5538.md"
+}
