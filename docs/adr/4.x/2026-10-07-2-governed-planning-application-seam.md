@@ -1,12 +1,12 @@
 ---
 title: 'ADR: governed planning application seam and status integration'
 description: 'Close the external planning artifact handoff while preserving native workflow, decision, status and commit authorities.'
-status: Proposed
+status: Accepted
 date: '2026-10-07'
 ---
 # Governed planning application seam and status integration
 
-Status: Proposed for this PR. Date: 2026-10-07.
+Status: Accepted. Date: 2026-10-07.
 
 The existing external API creates specification and plan scaffolds and finalizes work packages, but its clients still need to materialize and commit the intervening artifacts. Gokitty3's amended Orchestrator 2 contract explicitly covers that missing design lifecycle. Mainline also has Stijn's concern-module decomposition and an accepted plan for status-read convergence; this delivery must extend those authorities.
 
@@ -48,3 +48,8 @@ An external client can discover context, record interviews, create and read auth
 Status contract integration is prepared and documented. The unfinished Java service and the broader #5532/#5631 port convergence remain separate tracked work; this PR does not claim to complete them.
 
 Completion validation reads the native persisted `issued_step_id` through the query service’s read-only context/index/snapshot seam. A pending input may name the upcoming design stage before its prompt is issued; answering that input is issuance, and cannot require completed stage artifacts. Missing live cursors fail closed.
+
+## Residuals
+
+- The stale and unfinished-content refusal runs only on the orchestrator-api `next` and finalize path. Native `spec-kitty next --result success` and the agent lifecycle commands do not run `validate_stage` for an API-authored Mission. Enforcing it natively is follow-up work.
+- `authoring_lock` is cooperative. Native status writes and native finalize-tasks do not take it, so `require_unfinalized` can race a native finalize.

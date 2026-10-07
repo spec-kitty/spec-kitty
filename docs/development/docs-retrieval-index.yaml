@@ -3603,6 +3603,7 @@ pages:
     anchors:
     - {slug: "status-api-reconciliation", text: "Status API reconciliation", level: 2}
     - {slug: "consequences-and-proof", text: "Consequences and proof", level: 2}
+    - {slug: "residuals", text: "Residuals", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
