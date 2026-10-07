@@ -208,9 +208,22 @@ _APPEND_ONLY_SPINE_EXCEPTIONS: frozenset[str] = frozenset({"kitty-specs/common-d
 #   dead weight and should be removed to restore the byte-freeze on the corrected
 #   files (#5608). Owner: stijn-dejongh; drain by 2026-12-31. This set is not
 #   governed by tests/architectural/_baselines.yaml, so the pricing lives here.
+#
+# - kitty-specs/composition-advance-alignment-01M49EKF/status.json
+#   (2026-10-07, operator decision by stijn-dejongh in session, #5862): the
+#   committed snapshot never caught up with the WP01/WP02 `tracker_refs` that the
+#   runtime-state backfill seeded into the event log, a SNAPSHOT_DRIFT teamspace
+#   blocker surfaced by test_public_witnesses.py :: ...no_teamspace_blockers. The
+#   correction is a deterministic reducer re-materialization via
+#   `spec-kitty agent status materialize`; only the WP01/WP02 `tracker_refs` were
+#   added. The event log is untouched.
+#   Follow-up: once this correction is in main's baseline, this entry is dead
+#   weight and should be removed to restore the byte-freeze on the corrected
+#   file (same convention as the #4972 and #5579 entries above).
 _OPERATOR_SANCTIONED_CORRECTIONS: frozenset[str] = frozenset(
     {
         "kitty-specs/acceptance-matrix-merge-fail-closed-01M34HG8/status.json",
+        "kitty-specs/composition-advance-alignment-01M49EKF/status.json",
         "kitty-specs/coord-read-fail-closed-01M38VVH/status.json",
         "kitty-specs/silent-write-hardening-residuals-01M37QN4/status.json",
         "kitty-specs/025-cli-event-log-integration/tasks/WP01-git-dependency-setup-and-library-integration.md",
