@@ -10,10 +10,13 @@ hard-conflicting (#2709 / FR-003 / FR-004 / FR-008):
 - ``merge-driver-event-log``         — ``status.events.jsonl`` union (append-only log).
 - ``merge-driver-meta``              — ``meta.json`` field merge, base-aware for
   ordinary merges (a key changed or deleted on one side only survives; on a
-  genuine conflict acceptance/VCS/lifecycle keys are target-authoritative (the
-  accepted-newer ``ours`` side) and planning keys mission-authoritative
-  (``theirs``; preserves the #1732 planning-artifact authority); coupled key
-  groups move as one unit; ``acceptance_history`` unioned). The consolidation
+  genuine conflict the acceptance stamps and VCS lock, ``mission_number``,
+  ``status``, ``baseline_merge_commit`` and the ``merged_*`` block are
+  target-authoritative (the accepted-newer ``ours`` side) and every other key,
+  ``discarded_at`` and the ``coordination_branch``/``topology``/``flattened``
+  triple included, mission-authoritative (``theirs``; preserves the #1732
+  planning-artifact authority); coupled key groups move as one unit;
+  ``acceptance_history`` unioned). The consolidation
   pipeline's mission→target squash opts into the two-way rule through the
   ``META_DRIVER_TWO_WAY_ENV`` environment variable, read here (#5460).
 - ``merge-driver-traces``            — ``traces/*.md`` markdown union: order-preserving

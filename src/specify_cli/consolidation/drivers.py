@@ -10,8 +10,11 @@ hard-conflicting (#2709 / FR-003 / FR-004 / FR-008):
 - ``merge-driver-event-log``         — ``status.events.jsonl`` union (append-only log).
 - ``merge-driver-meta``              — ``meta.json`` field merge, base-aware for
   ordinary merges (a key changed or deleted on one side only survives from that
-  side; on a genuine conflict acceptance/VCS/lifecycle keys are
-  target-authoritative (the accepted-newer ``ours`` side) and planning keys are
+  side; on a genuine conflict the keys in ``_TARGET_AUTHORITATIVE_META_FIELDS``
+  (the acceptance stamps and VCS lock, ``mission_number``, ``status``,
+  ``baseline_merge_commit`` and the ``merged_*`` block) take the accepted-newer
+  ``ours`` side, and every other key, including ``discarded_at`` and the
+  ``coordination_branch``/``topology``/``flattened`` triple, is
   mission-authoritative (``theirs``; preserves the #1732 planning-artifact
   authority); coupled key groups move as one unit; ``acceptance_history`` is
   unioned). The consolidation pipeline's mission→target squash records no

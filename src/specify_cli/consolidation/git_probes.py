@@ -784,8 +784,10 @@ def _resolve_registered_driver_callable(config_key: str) -> MergeDriverBody:
     import: avoids paying the ``consolidation.drivers`` module's own dependency import cost (and any
     load-order risk) unless a caller actually needs to replay a driver. Resolving from
     ``MERGE_DRIVER_BODIES`` (rather than the pre-#5119 ``cli.commands.merge_driver`` module)
-    means this replay executes the exact same body a real subprocess invocation would
-    (FR-004) — and this module no longer imports the CLI command layer at all
+    means this replay executes the same body a real subprocess invocation would
+    (FR-004), with one exception: ``merge-driver-meta`` runs two-way in the real
+    mission→target squash (``SPEC_KITTY_META_MERGE_TWO_WAY``, #5460) but base-aware here,
+    so a replayed ``meta.json`` is not byte-comparable with the squash result — and this module no longer imports the CLI command layer at all
     (:class:`~tests.architectural.test_layer_rules.TestMergeCliBoundary`).
     """
     from specify_cli.lanes.consolidation import _MERGE_DRIVERS

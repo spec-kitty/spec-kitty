@@ -703,6 +703,9 @@ def _post_checkpoint_mission_paths(main_repo: Path, mission_slug: str, checkpoin
     #     fill with the coord branch's stale finalize-time placeholder.
     # A ``None`` kind that is NOT ``meta.json`` stays projected (coord bookkeeping).
     excluded_kinds = {MissionArtifactKind.ISSUE_MATRIX, MissionArtifactKind.ACCEPTANCE_MATRIX}
+    # ``meta.json`` stays excluded on purpose (load-bearing, #5460): the driver replay runs the
+    # registry body base-aware, while the real squash runs the meta driver two-way
+    # (``SPEC_KITTY_META_MERGE_TWO_WAY``), so a replayed meta.json would not match the squash bytes.
     status_and_primary_basenames = {_STATUS_EVENTS_FILENAME, _STATUS_FILENAME, "meta.json"}
     paths: list[str] = []
     for changed in post_checkpoint_changes:
