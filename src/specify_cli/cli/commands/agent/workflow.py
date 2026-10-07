@@ -75,6 +75,7 @@ if TYPE_CHECKING:
     from mission_runtime import PlacementSeam
     from specify_cli.bulk_edit.gate import DiffCheckResult
     from specify_cli.coordination.transaction import BookkeepingTransaction
+    from specify_cli.git.origin_freshness import ReviewLaneAction
     from specify_cli.invocation.record import OpStartedEvent
 
 from charter.activation.context import build_charter_context
@@ -1952,13 +1953,172 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> str | None:
     return None
 
 
+def _refuse_review_lane(message: str) -> typer.Exit:
+    """Print a lane-freshness refusal (rich-escaped, #4163) and return the ``Exit(1)`` to raise."""
+    from rich.markup import escape
+
+    from specify_cli.cli.console import console
+
+    console.print(f"[red]{escape(message)}[/red]")
+    return typer.Exit(1)
+
+
+def _foreign_review_lock_message(workspace: ResolvedWorkspace, agent: str | None) -> str | None:
+    """Refusal text when another agent holds a live review lock in *workspace*; ``None`` when it is free to move."""
+    from specify_cli.review.lock import ReviewLock
+
+    if not workspace.exists:
+        return None
+    lock = ReviewLock.load(Path(workspace.worktree_path))
+    if lock is None or lock.is_stale() or lock.agent == (agent or "unknown"):
+        return None
+    return (
+        f"Refusing to update the lane: {workspace.worktree_path} has an active review by agent '{lock.agent}' "
+        f"on {lock.wp_id} (PID {lock.pid}). Wait for it to finish, then re-run."
+    )
+
+
+def _lane_ff_target(main_repo_root: Path, branch: str, action: ReviewLaneAction) -> tuple[str, str]:
+    """``(local_sha, remote_sha)`` once the remote tip provably descends from the local lane, else a refusal.
+
+    ``action.remote_sha`` is what ``ls-remote`` listed BEFORE the fetch: under a
+    concurrent force-push it can be absent locally or no longer descend from the
+    local lane. :func:`advance_branch_ref` would refuse a non-descendant with a
+    generic non-fast-forward error; this guard maps a missing or unknown remote sha
+    (and a non-descendant) to the ``ORIGIN_LANE_DIVERGED`` refusal instead, so the
+    lane is never advanced to it unchecked (fail closed).
+    """
+    from specify_cli.git.origin_freshness import ORIGIN_LANE_DIVERGED
+
+    remote_ref = (action.remote_ref or "").removeprefix("refs/remotes/")
+    local = _git_capture(["git", "rev-parse", "--verify", f"refs/heads/{branch}"], main_repo_root)
+    remote_sha = action.remote_sha
+    local_sha = local.stdout.strip() if local.returncode == 0 else ""
+    present = bool(remote_sha) and _git_capture(["git", "cat-file", "-e", f"{remote_sha}^{{commit}}"], main_repo_root).returncode == 0
+    descends = present and bool(local_sha) and _git_capture(["git", "merge-base", "--is-ancestor", local_sha, str(remote_sha)], main_repo_root).returncode == 0
+    if not (present and descends and remote_sha):
+        raise _refuse_review_lane(
+            f"{ORIGIN_LANE_DIVERGED}: {branch} cannot be fast-forwarded to {remote_ref} (the remote changed while it was read).\n"
+            f"  Inspect: git log {branch}...{remote_ref}\n  Reconcile the lane in its worktree, then re-run."
+        )
+    return local_sha, remote_sha
+
+
+def _fast_forward_review_lane(workspace: ResolvedWorkspace, main_repo_root: Path, branch: str, action: ReviewLaneAction, agent: str | None) -> None:
+    """Move the strictly-behind local lane to the remote tip, or refuse (exit 1) before any lock or status change."""
+    from specify_cli.git.ref_advance import RefAdvanceDirtyWorktreeError, RefAdvanceError, RefAdvanceNonFastForwardError, RefResyncError, advance_branch_ref
+    from specify_cli.lanes.lane_tip import record_tip
+
+    local_sha, remote_sha = _lane_ff_target(main_repo_root, branch, action)
+    lock_message = _foreign_review_lock_message(workspace, agent)
+    if lock_message is not None:
+        raise _refuse_review_lane(lock_message)
+    try:
+        advance_branch_ref(main_repo_root, branch, remote_sha, expected_old_sha=local_sha)
+    except RefAdvanceDirtyWorktreeError as exc:
+        raise _refuse_review_lane(f"{exc}\n  Then re-run the review.") from exc
+    except RefAdvanceNonFastForwardError as exc:
+        raise _refuse_review_lane(f"ORIGIN_LANE_DIVERGED: {exc}") from exc
+    except RefResyncError as exc:
+        # The ref write succeeded (it is ours); only a checkout resync failed.
+        record_tip(main_repo_root, branch, remote_sha)
+        raise _refuse_review_lane(
+            f"{branch} was advanced to the remote tip, but a checkout could not be resynced: {exc}\n"
+            "  Fix that checkout (for example `git -C <worktree> reset --hard HEAD` once it holds no work you need), then re-run the review."
+        ) from exc
+    except RefAdvanceError as exc:
+        raise _refuse_review_lane(f"Could not update {branch} (it changed while it was being updated): {exc}") from exc
+    record_tip(main_repo_root, branch, remote_sha)
+    count = _git_capture(["git", "rev-list", "--count", f"{local_sha}..{remote_sha}"], main_repo_root).stdout.strip() or "?"
+    remote_ref = (action.remote_ref or "").removeprefix("refs/remotes/")
+    noun = "commit" if count == "1" else "commits"
+    print(f"Updated {branch} from {remote_ref} ({count} {noun})")
+
+
+def _reconcile_review_lane(workspace: ResolvedWorkspace, main_repo_root: Path, wp_id: str, agent: str | None) -> str | None:
+    """Bring the WP's lane to the remote's view before review (#5758); return the ref a missing lane is cut from.
+
+    Runs before the bulk-edit gate and the review claim, so a refusal leaves the
+    WP status untouched. A workspace that is a checkout root (planning lane,
+    ``single_branch``) is skipped: its branch is the status evidence branch.
+    """
+    from specify_cli.git.origin_freshness import ReviewLaneKind, plan_review_lane
+
+    branch = workspace.branch_name
+    if workspace.runs_in_checkout_root or workspace.is_husk or not branch:
+        return None
+    action = plan_review_lane(main_repo_root, branch)
+    if action.kind is ReviewLaneKind.REFUSE:
+        raise _refuse_review_lane(action.message or f"{branch} diverged from its remote")
+    if action.kind is ReviewLaneKind.WARN:
+        print(f"Warning: {action.message}; reviewing the last-known {branch} ({wp_id}).")
+    elif action.kind is ReviewLaneKind.FAST_FORWARD:
+        _fast_forward_review_lane(workspace, main_repo_root, branch, action, agent)
+    elif action.kind is ReviewLaneKind.CREATE_FROM and not workspace.exists:
+        return action.remote_ref
+    return None
+
+
+def _git_capture(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    """Run ``git`` with captured, replace-decoded text output; never raises on a non-zero exit."""
+    return subprocess.run(args, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
+
+
+def _create_review_worktree(
+    workspace: ResolvedWorkspace,
+    main_repo_root: Path,
+    wp_id: str,
+    *,
+    start_point: str | None,
+) -> None:
+    """Create the review worktree for *workspace*, or exit 1 with the rendered reason.
+
+    An existing local branch is checked out as is. A missing branch is created
+    with ``-b``; *start_point* (a ref) is where it is cut from, ``None`` meaning
+    the current HEAD.
+    """
+    workspace_path = workspace.worktree_path
+    # Ensure .worktrees directory exists
+    (main_repo_root / ".worktrees").mkdir(parents=True, exist_ok=True)
+
+    branch_name = workspace.branch_name
+    if branch_name is None:
+        print(f"Error: cannot create review workspace {workspace_path} for {wp_id}: resolved workspace has no branch name.")
+        raise typer.Exit(1)
+    if _git_capture(["git", "rev-parse", "--verify", branch_name], main_repo_root).returncode == 0:
+        worktree_cmd = ["git", "worktree", "add", str(workspace_path), branch_name]
+    else:
+        worktree_cmd = ["git", "worktree", "add", str(workspace_path), "-b", branch_name]
+        if start_point is not None:
+            worktree_cmd.append(start_point)
+    result = _git_capture(worktree_cmd, main_repo_root)
+    if result.returncode != 0:
+        print(
+            f"Error: could not create review workspace {workspace_path} for {wp_id}: "
+            f"`{' '.join(worktree_cmd)}` failed: {result.stderr.strip()}"
+        )
+        raise typer.Exit(1)
+
+    print(f"✓ Created workspace: {workspace_path}")
+    if not workspace.exists:
+        print(f"Error: workspace creation reported success but {workspace_path} is not a git worktree.")
+        raise typer.Exit(1)
+    if start_point is not None and "-b" in worktree_cmd:
+        print(f"Created review workspace from {start_point.removeprefix('refs/remotes/')}")
+
+
 def _prepare_review_workspace(
     workspace: ResolvedWorkspace,
     main_repo_root: Path,
     wp_id: str,
     agent: str | None,
+    *,
+    create_from: str | None = None,
 ) -> ResolvedWorkspace:
     """Validate/create the review workspace, then acquire review isolation.
+
+    ``create_from`` is the remote-tracking ref a missing lane branch is cut from
+    (:func:`_reconcile_review_lane`, #5758); ``None`` cuts it from HEAD.
 
     Order is load-bearing (#1833 AC-D2): ``ReviewLock`` persists its lock file
     INSIDE the workspace (``.spec-kitty/review-lock.json``), so acquiring it
@@ -1976,40 +2136,7 @@ def _prepare_review_workspace(
         raise typer.Exit(1)
 
     if not workspace.exists:
-        # Ensure .worktrees directory exists
-        worktrees_dir = main_repo_root / ".worktrees"
-        worktrees_dir.mkdir(parents=True, exist_ok=True)
-
-        branch_name = workspace.branch_name
-        if branch_name is None:
-            print(f"Error: cannot create review workspace {workspace_path} for {wp_id}: resolved workspace has no branch name.")
-            raise typer.Exit(1)
-        branch_exists = subprocess.run(
-            ["git", "rev-parse", "--verify", branch_name],
-            cwd=main_repo_root,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-        )
-        if branch_exists.returncode == 0:
-            worktree_cmd = ["git", "worktree", "add", str(workspace_path), branch_name]
-        else:
-            worktree_cmd = ["git", "worktree", "add", str(workspace_path), "-b", branch_name]
-        result = subprocess.run(worktree_cmd, cwd=main_repo_root, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
-
-        if result.returncode != 0:
-            print(
-                f"Error: could not create review workspace {workspace_path} for {wp_id}: "
-                f"`{' '.join(worktree_cmd)}` failed: {result.stderr.strip()}"
-            )
-            raise typer.Exit(1)
-
-        print(f"✓ Created workspace: {workspace_path}")
-        if not workspace.exists:
-            print(f"Error: workspace creation reported success but {workspace_path} is not a git worktree.")
-            raise typer.Exit(1)
+        _create_review_worktree(workspace, main_repo_root, wp_id, start_point=create_from)
 
     # Concurrent review isolation: acquire review lock or apply env-var
     # isolation — only after the workspace is proven to exist.
@@ -2104,6 +2231,11 @@ def review(
         review_workspace = lane_ctx.review_workspace
         status_execution_mode = lane_ctx.status_execution_mode
 
+        # #5758: the lane is brought to the remote's view BEFORE the bulk-edit
+        # gate judges it and before the review claim, so a refusal leaves the
+        # WP status untouched.
+        review_create_from = _reconcile_review_lane(review_workspace, main_repo_root, normalized_wp_id, agent)
+
         # Bulk edit occurrence classification + per-file diff compliance gate (FR-006/7/8).
         _executor.review_enforce_bulk_edit_gate(
             feature_dir=feature_dir,
@@ -2142,7 +2274,7 @@ def review(
         )
 
         workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
-        workspace = _prepare_review_workspace(workspace, main_repo_root, normalized_wp_id, agent)
+        workspace = _prepare_review_workspace(workspace, main_repo_root, normalized_wp_id, agent, create_from=review_create_from)
         workspace_path = workspace.worktree_path
 
         # Resolve git context (branch name, base branch, commit count)
