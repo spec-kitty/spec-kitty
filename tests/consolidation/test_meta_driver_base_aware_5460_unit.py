@@ -168,17 +168,32 @@ def test_genuine_conflict_keeps_target_authoritative_precedence(tmp_path: Path) 
     assert merged == {"purpose_tldr": "c", "status": "accepted"}
 
 
-def test_malformed_ancestor_fails_loud_and_writes_nothing(tmp_path: Path) -> None:
-    a_path = tmp_path / "A"
-    (tmp_path / "O").write_text("{ not json", encoding="utf-8")
-    a_path.write_text(json.dumps({"k": 1}), encoding="utf-8")
-    (tmp_path / "B").write_text(json.dumps({"k": 2}), encoding="utf-8")
+@pytest.mark.parametrize(
+    ("broken", "content", "named"),
+    [
+        pytest.param("O", b"{ not json", "malformed meta.json", id="malformed-ancestor"),
+        pytest.param("A", b"", "ours meta.json is empty", id="zero-byte-ours"),
+        pytest.param("B", b"\n  \n", "theirs meta.json is empty", id="whitespace-only-theirs"),
+    ],
+)
+def test_malformed_ancestor_fails_loud_and_writes_nothing(tmp_path: Path, broken: str, content: bytes, named: str) -> None:
+    """A malformed ancestor, or an empty side of a base-aware merge, is refused by name.
+
+    An empty ``%A``/``%B`` must never read as "deleted every key": the three-way merge
+    would otherwise write a few surviving keys at exit 0.
+    """
+    paths = {"O": tmp_path / "O", "A": tmp_path / "A", "B": tmp_path / "B"}
+    for name, payload in {"O": ANCESTOR, "A": DISCARDING, "B": TEAMMATE}.items():
+        paths[name].write_text(json.dumps(payload), encoding="utf-8")
+    paths[broken].write_bytes(content)
+    ours_before = paths["A"].read_bytes()
 
     with pytest.raises(MergeDriverError) as excinfo:
-        run_meta_driver(str(tmp_path / "O"), str(a_path), str(tmp_path / "B"))
+        run_meta_driver(str(paths["O"]), str(paths["A"]), str(paths["B"]))
 
-    assert str(tmp_path / "O") in str(excinfo.value)
-    assert json.loads(a_path.read_text(encoding="utf-8")) == {"k": 1}
+    assert str(paths[broken]) in str(excinfo.value)
+    assert named in str(excinfo.value)
+    assert paths["A"].read_bytes() == ours_before
 
 
 def test_whitespace_only_ancestor_selects_the_two_way_rule(tmp_path: Path) -> None:

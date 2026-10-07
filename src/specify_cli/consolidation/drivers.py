@@ -261,8 +261,13 @@ def _blob_meta_error(path: Path, exc: ValueError) -> EventLogMergeError:
     return EventLogMergeError(f"{path}: malformed meta.json ({exc})")
 
 
-def _load_json_object(path: Path) -> dict[str, Any]:
+def _load_json_object(path: Path, *, empty_side: str | None = None) -> dict[str, Any]:
     """Load a ``meta.json`` object from *path*; empty/missing yields ``{}``.
+
+    When *empty_side* names the side being read (``"ours"`` / ``"theirs"``) an
+    empty or whitespace-only file raises instead: during a base-aware merge a
+    real ``meta.json`` is never empty, and ``{}`` would read as "deleted every
+    key" and silently drop the other side's keys (#5460).
 
     Decoding routes through the public L2 reader
     :func:`specify_cli.mission_metadata.parse_meta_file` (``on_malformed="raise"``)
@@ -275,6 +280,8 @@ def _load_json_object(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
     if not path.read_text(encoding="utf-8").strip():
+        if empty_side is not None:
+            raise EventLogMergeError(f"{path}: {empty_side} meta.json is empty; refusing a base-aware merge that would treat it as deleting every key")
         return {}
     try:
         data = parse_meta_file(path, on_malformed="raise")
@@ -443,13 +450,17 @@ def run_meta_driver(
     Reads the ``%O`` ancestor unless *two_way* (the consolidation pipeline's
     mission→target squash opt-out) is set. An empty/absent ancestor selects the
     two-way rule; a malformed one fails loud and named, like a malformed side.
+    With a non-empty ancestor an empty or whitespace-only ``%A``/``%B`` is refused
+    (named, nothing written) rather than read as "every key deleted".
     """
     base, ours, theirs = _resolve_merge_driver_paths(base_path, ours_path, theirs_path)
     try:
         base_payload = {} if two_way else _load_json_object(base)
+        # Base-aware merge only: an empty side would read as "deleted every key".
+        empty_ours, empty_theirs = ("ours", "theirs") if base_payload else (None, None)
         merged = reconcile_meta_payloads(
-            _load_json_object(ours),
-            _load_json_object(theirs),
+            _load_json_object(ours, empty_side=empty_ours),
+            _load_json_object(theirs, empty_side=empty_theirs),
             base_payload,
         )
     except (json.JSONDecodeError, EventLogMergeError) as exc:
