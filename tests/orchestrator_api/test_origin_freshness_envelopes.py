@@ -12,9 +12,12 @@ import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+from specify_cli.git.origin_freshness import ORIGIN_REMOTE_AMBIGUOUS
+from specify_cli.orchestrator_api import consolidation as orchestrator_consolidation
 from tests.terminus.conftest import CoordMission, _event, build_coord_mission, run_terminus
 from tests.terminus.lanes_fixture import build_lanes_mission
 from tests._support.two_clone import attach_and_push, clone_from, isolated_git_env, make_bare_remote, unreachable_remote
@@ -22,7 +25,7 @@ from tests._support.two_clone import attach_and_push, clone_from, isolated_git_e
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _STATUS_LOG = "status.events.jsonl"
-_ORIGIN_CODES = ("ORIGIN_STATUS_STALE", "ORIGIN_LANE_STALE", "ORIGIN_UNREACHABLE")
+_ORIGIN_CODES = ("ORIGIN_STATUS_STALE", "ORIGIN_LANE_STALE", "ORIGIN_UNREACHABLE", ORIGIN_REMOTE_AMBIGUOUS)
 _CONTRACT_VERSION = "1.11.0"
 
 
@@ -272,3 +275,31 @@ def test_consolidate_mission_planning_only_honours_warn_and_contacts_origin_once
     assert "ORIGIN_STATUS_STALE" in stderr, "the orchestrator gate warns on stderr in warn mode"
     assert "Planning-artifact closeout failed" not in json.dumps(envelope), envelope
     assert _ls_remote_calls(trace) == 1
+
+
+def test_orchestrator_gate_selects_every_lane_and_threads_the_merge_record(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """This path has no resume (``resume=False``) and passes the persisted merge record on to the remedy."""
+    seam = SimpleNamespace(repo_root=tmp_path, mission_slug="terminus-01M5001A")
+    lane = "kitty/mission-terminus-01M5001A-lane-a"
+    resume_flags: list[bool] = []
+    gate_kwargs: dict[str, object] = {}
+
+    def fake_lane_branches(passed_seam: object, *, resume: bool) -> list[str]:
+        resume_flags.append(resume)
+        return [lane]
+
+    def fake_gate(repo_root: Path, slug: str, **kwargs: object) -> list[str]:
+        gate_kwargs.update(kwargs)
+        return []
+
+    monkeypatch.setattr(orchestrator_consolidation, "placement_seam", lambda repo_root, slug: seam)
+    monkeypatch.setattr(orchestrator_consolidation, "origin_lane_branches", fake_lane_branches)
+    monkeypatch.setattr(orchestrator_consolidation, "merge_record_may_exist", lambda passed_seam: True)
+    monkeypatch.setattr(orchestrator_consolidation, "run_origin_gate", fake_gate)
+
+    result = orchestrator_consolidation._origin_gate(tmp_path, tmp_path, "terminus-01M5001A", "warn", with_lanes=True)
+
+    assert result.refusal_message is None
+    assert resume_flags == [False]
+    assert gate_kwargs["lane_branches"] == [lane]
+    assert gate_kwargs["merge_record_exists"] is True

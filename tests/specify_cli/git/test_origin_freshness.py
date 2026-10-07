@@ -58,6 +58,12 @@ _ENFORCE_SETTING = OriginCheckSetting(OriginCheckMode.ENFORCE, "default")
 _OPT_OUT_LINE = "Opt out (not recommended): --origin-check warn, or SPEC_KITTY_ORIGIN_CHECK=warn."
 
 
+@pytest.fixture(autouse=True)
+def _origin_check_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An operator's exported ``SPEC_KITTY_ORIGIN_CHECK`` must not flip the default-mode assertions here."""
+    monkeypatch.delenv(ORIGIN_CHECK_ENV, raising=False)
+
+
 def _status_evidence(repo: Path, slug: str) -> FreshnessVerdict:
     """The status evidence verdict alone: the evidence half of ``check_mission_branches`` with no lanes."""
     evidence = check_mission_branches(repo, slug, lane_branches=()).evidence
@@ -137,6 +143,13 @@ def test_no_remote_when_repository_has_no_remotes(tmp_path: Path, monkeypatch: p
     assert ambiguous.state is FreshnessState.REMOTE_AMBIGUOUS
     assert ambiguous.remote is None
     assert ambiguous.detail == "alpha, beta"
+
+    # Review prep keeps the lane and warns with the same code, rather than guessing a remote.
+    action = plan_review_lane(repo, "main", _ENFORCE_SETTING)
+
+    assert action.kind is ReviewLaneKind.WARN
+    assert action.code == ORIGIN_REMOTE_AMBIGUOUS
+    assert action.verdict is not None and action.verdict.state is FreshnessState.REMOTE_AMBIGUOUS
 
 
 def test_remote_missing_when_the_remote_answers_without_the_branch(world: World) -> None:
@@ -871,7 +884,7 @@ def test_review_lane_keeps_a_diverged_lane_in_warn_mode(world: World) -> None:
     assert "origin check is warn, source: environment" in (action.message or "")
 
 
-def test_review_lane_warns_when_the_remote_is_unreachable(world: World) -> None:
+def test_review_lane_warns_when_the_remote_is_unreachable(world: World, monkeypatch: pytest.MonkeyPatch) -> None:
     _git(world.a, "branch", "lane-u", "main")
     unreachable_remote(world.a)
 
@@ -882,6 +895,7 @@ def test_review_lane_warns_when_the_remote_is_unreachable(world: World) -> None:
     assert action.verdict is not None and action.verdict.state is FreshnessState.UNREACHABLE
 
     # off: the same dead remote is not even asked; the lane is kept with the not-checked warning.
+    monkeypatch.setattr(kernel_remote, "_contact", lambda *args, **kwargs: pytest.fail("off contacted the remote"))
     off = plan_review_lane(world.a, "lane-u", resolve_origin_check_mode("off"))
     assert off.kind is ReviewLaneKind.WARN and off.verdict.state is FreshnessState.NOT_CHECKED
     assert off.message is not None and "not checked" in off.message

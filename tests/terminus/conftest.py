@@ -1365,6 +1365,8 @@ def _cli_env(home: Path) -> dict[str, str]:
     process_env["HOME"] = str(home)
     process_env["SPEC_KITTY_NO_UPGRADE_CHECK"] = "1"
     process_env.pop("VIRTUAL_ENV", None)
+    # An operator's exported origin-check mode must not change a CLI run; a test that needs one overlays it with ``env=``.
+    process_env.pop("SPEC_KITTY_ORIGIN_CHECK", None)
     return process_env
 
 

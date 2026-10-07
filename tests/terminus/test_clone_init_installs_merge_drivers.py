@@ -184,6 +184,15 @@ def test_init_on_a_fresh_clone_installs_the_same_merge_config(world: _World) -> 
     assert _INSTALLED_LINE not in second.stdout, "an already-configured clone must print nothing new"
     assert _git(clone, "config", "--local", "--list").stdout == before
 
+    # A driver value the operator set themselves is kept, and init says so by naming the key.
+    custom_key = "merge.spec-kitty-meta.driver"
+    custom = "my-meta-merge %O %A %B"
+    _git(clone, "config", "--local", custom_key, custom)
+    third = world.cli(clone, "init", ".", "--ai", "claude", "--non-interactive")
+    assert third.returncode == 0, third.stdout + third.stderr
+    assert _git(clone, "config", "--local", "--get", custom_key).stdout.strip() == custom
+    assert f"Kept your customized git config {custom_key}" in " ".join(third.stdout.split())
+
 
 def test_pull_of_divergent_mission_artifacts_merges_after_init_on_the_clone(world: _World) -> None:
     clone = world.clone("pull-arm")

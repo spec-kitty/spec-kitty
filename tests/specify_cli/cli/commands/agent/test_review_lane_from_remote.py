@@ -78,6 +78,7 @@ class Setup:
 @pytest.fixture
 def setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Setup:
     isolated_git_env(monkeypatch, tmp_path)
+    monkeypatch.delenv("SPEC_KITTY_ORIGIN_CHECK", raising=False)  # an exported mode must not flip the default-mode arms
     repo = tmp_path / "repo"
     repo.mkdir()
     _git(repo, "init", "-qb", "main")

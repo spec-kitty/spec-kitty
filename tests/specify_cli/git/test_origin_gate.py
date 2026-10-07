@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from kernel.git import remote as kernel_remote
 from specify_cli.git.origin_freshness import (
     FreshnessState,
     FreshnessVerdict,
@@ -75,6 +76,7 @@ def test_lanes_evidence_and_lane_verdicts_refuse_in_enforce_warn_in_warn_and_con
     assert warnings and all("continuing" in warning for warning in warnings)
 
     # off: the remote is dead, yet nothing is contacted, nothing refuses, and one warning says origin was not checked.
+    monkeypatch.setattr(kernel_remote, "_contact", lambda *args, **kwargs: pytest.fail("off contacted the remote"))
     (not_checked,) = run_origin_gate(mission.repo, mission.slug, setting=OriginCheckSetting(OriginCheckMode.OFF, "flag"), lane_branches=lanes)
     assert "not checked" in not_checked and "stale evidence is accepted" in not_checked
 

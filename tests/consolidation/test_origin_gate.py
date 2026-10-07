@@ -64,6 +64,7 @@ def stub(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNamespace:
         record=False,
         holders=[],
         calls=[],
+        resume_flags=[],
     )
 
     def fake_check(repo: Path, slug: str, *, lane_branches: list[str], owned: object = None) -> MissionFreshness:
@@ -72,7 +73,12 @@ def stub(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNamespace:
         return result
 
     monkeypatch.setattr(shared_gate, "check_mission_branches", fake_check)
-    monkeypatch.setattr(origin_gate, "origin_lane_branches", lambda seam, *, resume: [_LANE])
+
+    def fake_lane_branches(seam: object, *, resume: bool) -> list[str]:
+        state.resume_flags.append(resume)
+        return [_LANE]
+
+    monkeypatch.setattr(origin_gate, "origin_lane_branches", fake_lane_branches)
     monkeypatch.setattr(shared_gate, "resolve_topology", lambda repo, slug: MissionTopology.COORD if state.coordination else MissionTopology.LANES)
     monkeypatch.setattr(origin_gate, "merge_record_may_exist", lambda seam: state.record)
     monkeypatch.setattr(shared_gate, "worktrees_with_branch_checked_out", lambda repo, branch: state.holders)
@@ -91,6 +97,7 @@ def _run(tmp_path: Path, outcome: _Outcome, origin_check: str | None = None) -> 
 def test_up_to_date_checks_once_and_prints_nothing(stub: SimpleNamespace, console: _Outcome, tmp_path: Path) -> None:
     _run(tmp_path, console)
     assert stub.calls == [[_LANE]]
+    assert stub.resume_flags == [True]  # consolidate may be a resume: the lanes a record already consolidated are skipped
     assert console.lines == []
 
 
