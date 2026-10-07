@@ -376,6 +376,26 @@ def test_no_prompt_env_honours_core_ssh_command(monkeypatch: pytest.MonkeyPatch,
     assert no_prompt_env(cwd=repo)["GIT_SSH_COMMAND"] == "ssh -i /work/key -o BatchMode=yes"
 
 
+def test_no_prompt_env_for_clone_ignores_the_cwd_repository_config(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A clone reads no repository's local config, so the project's key must not leak into it."""
+    isolated_git_env(monkeypatch, tmp_path)
+    _clean_ssh_env(monkeypatch)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _git(repo, "config", "core.sshCommand", "ssh -i /work/key")
+    monkeypatch.chdir(repo)
+    assert no_prompt_env(clone=True)["GIT_SSH_COMMAND"] == "ssh -o BatchMode=yes"
+
+
+def test_no_prompt_env_for_clone_honours_global_ssh_command(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    isolated_git_env(monkeypatch, tmp_path)
+    _clean_ssh_env(monkeypatch)
+    _git(tmp_path, "config", "--global", "core.sshCommand", "ssh -i /global/key")
+    monkeypatch.chdir(tmp_path)
+    assert no_prompt_env(clone=True)["GIT_SSH_COMMAND"] == "ssh -i /global/key -o BatchMode=yes"
+
+
 def test_no_prompt_env_env_command_beats_core_ssh_command(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     isolated_git_env(monkeypatch, tmp_path)
     monkeypatch.setenv("GIT_SSH_COMMAND", "ssh -i /env")

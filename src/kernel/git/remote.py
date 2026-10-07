@@ -53,9 +53,21 @@ _LOCAL_REMOTE = "."
 _DEFAULT_REMOTE = "origin"
 
 
-def _configured_ssh_command(cwd: Path) -> str | None:
-    """Read ``core.sshCommand`` from the local/global git config of *cwd* (no network)."""
-    result = run_git(cwd, "config", "--get", "core.sshCommand", timeout=LS_REMOTE_TIMEOUT, check=False)
+def _configured_ssh_command(cwd: Path | None) -> str | None:
+    """Read ``core.sshCommand`` from git config (no network).
+
+    With a *cwd*, every scope git itself would read there (repository-local,
+    global, system). With ``None`` (a clone, which reads no repository's local
+    config), only the global and system scopes, so the caller's own project
+    repository never lends its transport choice to an unrelated clone.
+    """
+    if cwd is not None:
+        return _read_ssh_command(cwd, ())
+    return _read_ssh_command(Path.cwd(), ("--global",)) or _read_ssh_command(Path.cwd(), ("--system",))
+
+
+def _read_ssh_command(cwd: Path, scope: tuple[str, ...]) -> str | None:
+    result = run_git(cwd, "config", *scope, "--get", "core.sshCommand", timeout=LS_REMOTE_TIMEOUT, check=False)
     if result.returncode != 0:
         return None
     return result.stdout.decode("utf-8", "replace").strip() or None
@@ -70,7 +82,7 @@ def _is_ssh_like(command: str) -> bool:
     return bool(words) and PurePath(words[0]).name.lower() in _SSH_LIKE_PROGRAMS
 
 
-def no_prompt_env(base: Mapping[str, str] | None = None, *, cwd: Path | None = None) -> dict[str, str]:
+def no_prompt_env(base: Mapping[str, str] | None = None, *, cwd: Path | None = None, clone: bool = False) -> dict[str, str]:
     """Build the subprocess environment for a non-interactive git contact.
 
     ``GIT_TERMINAL_PROMPT=0`` refuses any interactive credential prompt
@@ -91,11 +103,13 @@ def no_prompt_env(base: Mapping[str, str] | None = None, *, cwd: Path | None = N
         base: Environment to extend; ``None`` uses ``os.environ``.
         cwd: Directory whose git config is read for ``core.sshCommand``;
             ``None`` uses the process working directory.
+        clone: The contact is a clone, which reads no repository's local
+            config: only the global and system ``core.sshCommand`` apply.
     """
     source = os.environ if base is None else base
     env = dict(source)
     env["GIT_TERMINAL_PROMPT"] = "0"
-    command = source.get("GIT_SSH_COMMAND", "").strip() or _configured_ssh_command(cwd or Path.cwd())
+    command = source.get("GIT_SSH_COMMAND", "").strip() or _configured_ssh_command(None if clone else (cwd or Path.cwd()))
     if command is None and source.get("GIT_SSH", "").strip():
         return env
     command = command or _DEFAULT_SSH_PROGRAM
@@ -268,7 +282,7 @@ def clone_repository(
     argv.extend([url, str(dest)])
     # Run from the process cwd: a relative *url* or *dest* resolves exactly as it
     # does for the doctrine git source's inherited cwd (no ``-C``).
-    return run_git(Path.cwd(), *argv, env=no_prompt_env(env), timeout=timeout, check=False)
+    return run_git(Path.cwd(), *argv, env=no_prompt_env(env, clone=True), timeout=timeout, check=False)
 
 
 def fetch_tags(cwd: Path, remote: str, *, timeout: float = FETCH_TIMEOUT, env: Mapping[str, str] | None = None) -> GitResult:
