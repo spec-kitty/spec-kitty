@@ -225,6 +225,7 @@ def test_llm_delegated_records_authority_role_and_rationale(tmp_path: Path) -> N
     assert record["rationale_linkage"] == "owner approved"
     assert record["actor_type"] == "llm"
     assert state["inputs"]["topic"] == "gamma"
+    assert state["pending_decisions"] == {}
     assert "DecisionInputAnswered" in _event_types(run_ref)
 
 

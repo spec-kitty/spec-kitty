@@ -806,7 +806,9 @@ _ALLOWED_ENGINE_ACCESS: dict[str, frozenset[str]] = {
 }
 #: Type-only imports the adapter may take from the engine submodule.
 _TYPE_ONLY_ENGINE_IMPORTS = frozenset({"AdvancePlan", "ResultType"})
-_FORBIDDEN_REFERENCES = _ENGINE_OWNED_CONSTRUCTIONS | _ENGINE_WRITERS | {"apply_result", "model_copy"}
+#: Names the adapter may take from the ``_internal_runtime`` package itself (type-only today).
+_ALLOWED_PACKAGE_IMPORTS = frozenset({"MissionRunRef", "NextDecision"})
+_FORBIDDEN_REFERENCES = _ENGINE_OWNED_CONSTRUCTIONS | _ENGINE_WRITERS | {"apply_result", "model_copy", "import_module", "__import__"}
 
 
 def _call_name(func: ast.expr) -> str | None:
@@ -844,9 +846,14 @@ def _import_violations(tree: ast.Module) -> list[str]:
                 if id(node) not in type_only or not {alias.name for alias in node.names} <= _TYPE_ONLY_ENGINE_IMPORTS:
                     violations.append(f"imports from {module}")
             elif module.endswith("_internal_runtime"):
-                violations.extend(
-                    f"imports {alias.name} as {alias.asname}" for alias in node.names if alias.name in ("engine", "planner") and alias.asname != f"_{alias.name}"
-                )
+                for alias in node.names:
+                    if alias.name in ("engine", "planner"):
+                        if alias.asname != f"_{alias.name}":
+                            violations.append(f"imports {alias.name} as {alias.asname}")
+                    elif alias.name not in _ALLOWED_PACKAGE_IMPORTS:
+                        violations.append(f"imports {alias.name} from {module}")
+            elif any(alias.name == "_internal_runtime" for alias in node.names):
+                violations.append(f"imports _internal_runtime from {module}")
     return violations
 
 
@@ -927,6 +934,9 @@ def test_adapter_has_no_parallel_planner_or_event_code() -> None:
         ("def f(r, a):\n    return _engine.next_step(r, a)\n", "_engine.next_step"),
         ("def f(snapshot):\n    return getattr(_planner, 'plan_next')(snapshot)\n", "uses _planner other than as"),
         ("from spec_kitty_events.mission_next import NextStepIssuedPayload as _P\n", "imports from spec_kitty_events.mission_next"),
+        ("from runtime.next._internal_runtime import next_step as _ns\n", "imports next_step from runtime.next._internal_runtime"),
+        ("from runtime.next import _internal_runtime as _ir\n", "imports _internal_runtime from runtime.next"),
+        ("import importlib\n\ndef f():\n    return importlib.import_module('x')\n", "references import_module"),
     ],
 )
 def test_adapter_shape_gate_reports_a_planted_violation(planted: str, expected: str) -> None:

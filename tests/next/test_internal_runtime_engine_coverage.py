@@ -7,6 +7,8 @@ parity / decision / runtime-bridge / query-mode suites do not cover.
 
 from __future__ import annotations
 
+import json
+
 from pathlib import Path
 from typing import Any
 
@@ -249,4 +251,5 @@ def test_input_decision_re_poll_does_not_duplicate_event(tmp_path: Path) -> None
     assert decision.kind == "decision_required"
     assert decision.input_key == "topic"
     journal = (Path(run_ref.run_dir) / "run.events.jsonl").read_text(encoding="utf-8")
-    assert journal.count('"event_type": "DecisionInputRequested"') == 1
+    event_types = [json.loads(line)["event_type"] for line in journal.splitlines() if line.strip()]
+    assert event_types.count("DecisionInputRequested") == 1
