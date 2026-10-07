@@ -1174,6 +1174,16 @@ def test_coord_seed_commit_targets_coord_branch_via_real_placement_port(tmp_path
 
     monkeypatch.setattr(write_target_degrade, "resolve_placement_only", _spy_resolve_placement_only)
 
+    # #5862: a tracked ``status.json`` the seed phase refreshed sits dirty beside
+    # the events log; the seed commit must carry it too, or the teardown guard
+    # refuses on the leftover dirty snapshot.
+    snapshot_rel = f"kitty-specs/{slug}/status.json"
+    snapshot_path = status_feature_dir / "status.json"
+    snapshot_path.write_text('{"work_packages": {}}\n', encoding="utf-8")
+    _git(coord_worktree, "add", snapshot_rel)
+    _git(coord_worktree, "commit", "-m", "test: track a stale status.json")
+    snapshot_path.write_text('{"work_packages": {"WP01": {"lane": "planned"}}}\n', encoding="utf-8")
+
     _commit_coord_seed_events(run, status_feature_dir)
 
     # The placement port was consulted exactly once, with the COORD-partition
@@ -1189,6 +1199,8 @@ def test_coord_seed_commit_targets_coord_branch_via_real_placement_port(tmp_path
     assert "birth-cutover seed events reconciled" in subject
     tracked = _git(coord_worktree, "show", "HEAD:kitty-specs/" + slug + "/status.events.jsonl").stdout
     assert "01JSEEDBIRTHCUTOVER0000000" in tracked
+    committed_snapshot = _git(coord_worktree, "show", f"HEAD:{snapshot_rel}").stdout
+    assert '"WP01"' in committed_snapshot, "refreshed status.json must ride the seed commit"
 
     # (b) The falsifiable assertion the finding demands: the placement port
     # itself resolves the COORD-partition STATUS_STATE kind to the coord
