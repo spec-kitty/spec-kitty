@@ -322,6 +322,12 @@ modules:
   # cov_target covers it, so the tree is enrolled here for per-PR execution
   # (same precedent as the bootstrap/config/live_work enrolments above).
   - tests/specify_cli/workspace
+  # governed planning (#5846): the specify_cli.design package's own tests. They
+  # lived under the out-of-matrix tests/specify_cli/orchestrator_api tree, which
+  # left the new package in_matrix_dark (a shrink-only baseline). No row roots
+  # src/specify_cli/design/**; this row's `specify_cli` cov_target covers it, so
+  # the tree is enrolled here for per-PR execution (same precedent as above).
+  - tests/specify_cli/design
 - module: unit
   roots:
   - src/specify_cli/status/**
