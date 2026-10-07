@@ -22,7 +22,7 @@ Planning answers (confirmed by the operator on 2026-10-06): one work package; st
 **Target Platform**: Linux/macOS developer machines and CI; the driver is a git subprocess entry point (`spec-kitty merge-driver-meta %O %A %B`) and an in-process body (`MERGE_DRIVER_BODIES`)
 **Project Type**: single project (CLI library)
 **Performance Goals**: driver invocation on a `meta.json` under 4 KiB stays well under 1 s including interpreter start (NFR-003); the three-way pass is O(keys)
-**Constraints**: byte-stable output via the unchanged `_META_JSON_KWARGS` (NFR-001); the five existing golden directories must show zero diff (SC-002); surface limited to `drivers.py`, the shell `cli/commands/merge_driver.py` (reads the opt-out), one line in `lanes/consolidation.py::_make_merge_env` (sets it), tests, goldens, docs (C-001); no change to `.gitattributes` writers, `init`, migrations, strategy selection
+**Constraints**: byte-stable output via the unchanged `_META_JSON_KWARGS` (NFR-001); the five existing golden directories must show zero diff (SC-002); surface limited to `drivers.py`, the shell `cli/commands/merge_driver.py` (reads the opt-out), one overlay line in `lanes/consolidation.py::_run_squash_merge` (sets it), tests, goldens, docs (C-001); no change to `.gitattributes` writers, `init`, migrations, strategy selection
 **Scale/Scope**: one module, ~120 lines of product change, 3 new golden cases, 1 new test module, 1 changelog entry
 
 ## Charter Check
@@ -65,7 +65,7 @@ src/specify_cli/
 ├── cli/commands/
 │   └── merge_driver.py                # merge-driver-meta shell: reads the opt-out and passes two_way=True
 └── lanes/
-    └── consolidation.py               # _make_merge_env(): sets the opt-out for the lane-merge pipeline only
+    └── consolidation.py               # _run_squash_merge(): sets the opt-out on its one merge subprocess; _make_merge_env() strips it
 
 tests/consolidation/
 ├── test_meta_driver_base_aware_5460.py        # NEW: unit (file-level via run_meta_driver) + real-git merge/rebase tests
