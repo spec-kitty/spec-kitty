@@ -13,7 +13,7 @@ import typer
 import specify_cli.cli.commands.upgrade as upgrade_cmd
 from specify_cli.upgrade import autocommit
 from specify_cli.upgrade.migrations.base import MigrationResult
-from specify_cli.upgrade.outcome import RepairOutcome
+from specify_cli.upgrade.outcome import MissionStateReportOutcome
 from specify_cli.upgrade.runner import UpgradeResult
 
 
@@ -1019,7 +1019,7 @@ def test_upgrade_no_migrations_surfaces_teamspace_mission_state_report(
     def _fake_offer(project_path: Path, **kwargs):
         kwargs["project_path"] = project_path
         calls.append(kwargs)
-        return RepairOutcome(pending=True)
+        return MissionStateReportOutcome(pending=True)
 
     monkeypatch.setattr(
         upgrade_cmd,

@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.upgrade.outcome import (
-    RepairOutcome,
+    MissionStateReportOutcome,
     SurfaceRepairReport,
     UpgradeFailureReason,
     UpgradeOutcome,
@@ -188,9 +188,11 @@ def test_repair_failure_with_two_drifted_files_is_failed_and_reports_both() -> N
     assert outcome.exit_code == 1
 
 
-@pytest.mark.parametrize("repair", [RepairOutcome(reported=True), RepairOutcome(failed=True, message="boom"), RepairOutcome(pending=True)])
+@pytest.mark.parametrize(
+    "repair", [MissionStateReportOutcome(reported=True), MissionStateReportOutcome(failed=True, message="boom"), MissionStateReportOutcome(pending=True)]
+)
 @pytest.mark.parametrize("had_migrations", [False, True])
-def test_mission_state_repair_never_adds_a_reason_or_an_error(repair: RepairOutcome, had_migrations: bool) -> None:
+def test_mission_state_repair_never_adds_a_reason_or_an_error(repair: MissionStateReportOutcome, had_migrations: bool) -> None:
     outcome = _build(frozenset(), had_migrations=had_migrations, dry_run=False)
     before = (outcome.kind, outcome.reasons, outcome.errors(), outcome.status, outcome.closing_line())
     outcome.repair = repair
@@ -202,16 +204,16 @@ def test_mission_state_repair_never_adds_a_reason_or_an_error(repair: RepairOutc
 def test_mission_state_repair_failure_the_gate_did_not_show_is_a_warning_only() -> None:
     outcome = _build(frozenset(), had_migrations=False, dry_run=False)
     outcome.result.warnings.append("a run warning")
-    outcome.repair = RepairOutcome(failed=True, message="Mission-state repair boundary raised: boom", surface_message=True)
+    outcome.repair = MissionStateReportOutcome(failed=True, message="Mission-state report boundary raised: boom", surface_message=True)
 
-    assert outcome.warnings() == ["a run warning", "Mission-state repair boundary raised: boom"]
+    assert outcome.warnings() == ["a run warning", "Mission-state report boundary raised: boom"]
     assert outcome.kind is UpgradeOutcomeKind.NO_OP
     assert outcome.errors() == []
 
 
 def test_mission_state_repair_failure_the_gate_already_showed_is_not_repeated() -> None:
     outcome = _build(frozenset(), had_migrations=False, dry_run=False)
-    outcome.repair = RepairOutcome(failed=True, message="gate printed this itself")
+    outcome.repair = MissionStateReportOutcome(failed=True, message="gate printed this itself")
 
     assert outcome.warnings() == []
 

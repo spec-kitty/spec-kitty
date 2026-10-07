@@ -693,11 +693,11 @@ def test_preflight_of_an_incomplete_assessment_reports_its_errors_and_never_its_
 def test_mission_state_report_gate_is_not_run_after_a_failed_commit_recovery(
     path: str, recovery_fails: bool, gate_calls: int, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, quiet: None
 ) -> None:
-    from specify_cli.upgrade.outcome import RepairOutcome
+    from specify_cli.upgrade.outcome import MissionStateReportOutcome
 
     row = _Row("gate", ("commit_recovery_failure",) if recovery_fails else (), "failed" if recovery_fails else "applied", (), yes=True)
     (root,), args = _prepare_state(tmp_path, monkeypatch, row, path, "gate")
-    gate = MagicMock(return_value=RepairOutcome())
+    gate = MagicMock(return_value=MissionStateReportOutcome())
     monkeypatch.setattr(upgrade_module, "report_teamspace_mission_state_blockers", gate)
 
     result = _invoke(root, args)

@@ -20,7 +20,7 @@ import typer
 
 import specify_cli.cli.commands.upgrade as upgrade_cmd
 from specify_cli.cli.commands._confirm import safe_confirm
-from specify_cli.upgrade.outcome import RepairOutcome, UpgradeOutcome
+from specify_cli.upgrade.outcome import MissionStateReportOutcome, UpgradeOutcome
 from specify_cli.upgrade.runner import UpgradeResult
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -94,7 +94,7 @@ def _up_to_date_outcome() -> UpgradeOutcome:
 def test_finalizer_step_reports_without_any_consent_parameter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The step hands the gate only the project and a console: no --yes,
     no opt-in, no dry-run flag can reach a repair because none exists."""
-    spy = MagicMock(name="report_teamspace_mission_state_blockers", return_value=RepairOutcome(reported=True))
+    spy = MagicMock(name="report_teamspace_mission_state_blockers", return_value=MissionStateReportOutcome(reported=True))
     monkeypatch.setattr(upgrade_cmd, "report_teamspace_mission_state_blockers", spy)
 
     upgrade_cmd._finalizer_step_report_mission_state(_up_to_date_outcome(), project_path=tmp_path, json_output=False)
@@ -206,11 +206,11 @@ def test_show_migration_plan_confirm_eof_cancels_cleanly_not_uncaught_abort(tmp_
 
 def test_repair_reported_or_failed_never_flips_effective_success() -> None:
     outcome = _up_to_date_outcome()
-    outcome.repair = RepairOutcome(reported=True)
+    outcome.repair = MissionStateReportOutcome(reported=True)
     assert outcome.effective_success is True
     assert outcome.exit_code == 0
 
     outcome2 = _up_to_date_outcome()
-    outcome2.repair = RepairOutcome(failed=True, message="boom")
+    outcome2.repair = MissionStateReportOutcome(failed=True, message="boom")
     assert outcome2.effective_success is True
     assert outcome2.exit_code == 0

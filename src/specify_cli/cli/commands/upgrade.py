@@ -80,7 +80,7 @@ from specify_cli.upgrade.autocommit import (
 )
 from specify_cli.upgrade.outcome import (
     SUCCESS_KINDS,
-    RepairOutcome,
+    MissionStateReportOutcome,
     SurfaceRepairReport,
     UpgradeOutcome,
     UpgradeOutcomeKind,
@@ -993,7 +993,7 @@ class _FinalizerRenderContext:
     """Mutable side-channel for the finalizer's injected callables (T017/T018-21).
 
     ``finalize_upgrade``'s step contracts return only what the exit-code
-    computation needs (``list[str]``/``bool``/``RepairOutcome`` — see C4).
+    computation needs (``list[str]``/``bool``/``MissionStateReportOutcome`` — see C4).
     The renderers additionally need the surface-repair summary object and the
     concrete committed paths, which are not part of that contract — this
     small holder threads them out of the ``functools.partial``-bound step
@@ -1257,8 +1257,8 @@ def _finalizer_step_report_mission_state(
     *,
     project_path: Path,
     json_output: bool,
-) -> RepairOutcome:
-    """Injected ``offer_repair`` step (C4 order position 4): report only.
+) -> MissionStateReportOutcome:
+    """Injected ``report_mission_state`` step (C4 order position 4): report only.
 
     ``upgrade`` never runs the mission-state repair and never prompts, so
     ``--yes`` stays fully non-interactive (ADR 2026-10-07-1). Under hosted
@@ -1268,7 +1268,7 @@ def _finalizer_step_report_mission_state(
     failed commit recovery (the checkout's staging restore just failed).
     """
     if json_output or not outcome.result.success or outcome.commit_recovery_failed:
-        return RepairOutcome(pending=True, message="Mission-state report skipped (json output, failed migration or failed commit recovery).")
+        return MissionStateReportOutcome(pending=True, message="Mission-state report skipped (json output, failed migration or failed commit recovery).")
     return report_teamspace_mission_state_blockers(project_path, console=console)
 
 
@@ -1892,7 +1892,7 @@ def upgrade(
                 project_path=project_path,
                 baseline_changed_paths=baseline_changed_paths,
             ),
-            offer_repair=functools.partial(
+            report_mission_state=functools.partial(
                 _finalizer_step_report_mission_state,
                 outcome,
                 project_path=project_path,

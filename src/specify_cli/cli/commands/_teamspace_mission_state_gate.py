@@ -11,7 +11,7 @@ import typer
 
 from specify_cli.core import hosted_posture
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.upgrade.outcome import RepairOutcome
+from specify_cli.upgrade.outcome import MissionStateReportOutcome
 
 
 @dataclass(frozen=True)
@@ -140,7 +140,7 @@ def enforce_teamspace_mission_state_ready(*, console: Console, command_name: str
     raise typer.Exit(1)
 
 
-def report_teamspace_mission_state_blockers(project_path: Path, *, console: Console) -> RepairOutcome:
+def report_teamspace_mission_state_blockers(project_path: Path, *, console: Console) -> MissionStateReportOutcome:
     """Report (never repair) TeamSpace mission-state blockers for ``upgrade``.
 
     ``spec-kitty upgrade``, including ``--yes``, never runs the mission-state
@@ -151,11 +151,11 @@ def report_teamspace_mission_state_blockers(project_path: Path, *, console: Cons
     ``typer.Exit`` (D-9, C3), so a reported blocker never changes the exit code.
     """
     if not hosted_posture.drain_posture(project_root=project_path).enabled:
-        return RepairOutcome(pending=True, message="Hosted drain is off: mission-state readiness was not evaluated.")
+        return MissionStateReportOutcome(pending=True, message="Hosted drain is off: mission-state readiness was not evaluated.")
 
     readiness = check_teamspace_mission_state_readiness(project_path)
     if not readiness.blocked:
-        return RepairOutcome(pending=True, message="No TeamSpace mission-state blockers found.")
+        return MissionStateReportOutcome(pending=True, message="No TeamSpace mission-state blockers found.")
 
     _print_notice(
         readiness,
@@ -165,8 +165,8 @@ def report_teamspace_mission_state_blockers(project_path: Path, *, console: Cons
     )
     console.print("[dim]`spec-kitty upgrade` never repairs mission state; only `spec-kitty doctor mission-state --fix` does.[/dim]")
     if readiness.audit_error:
-        return RepairOutcome(
+        return MissionStateReportOutcome(
             reported=True,
             message=f"Could not verify TeamSpace mission-state readiness: {readiness.audit_error}",
         )
-    return RepairOutcome(reported=True, message="TeamSpace mission-state blockers reported; not repaired.")
+    return MissionStateReportOutcome(reported=True, message="TeamSpace mission-state blockers reported; not repaired.")

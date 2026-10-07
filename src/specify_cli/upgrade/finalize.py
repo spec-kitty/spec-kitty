@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager, nullcontext
 
-from .outcome import RepairOutcome, SurfaceRepairReport, UpgradeOutcome
+from .outcome import MissionStateReportOutcome, SurfaceRepairReport, UpgradeOutcome
 
 
 def finalize_upgrade(
@@ -29,7 +29,7 @@ def finalize_upgrade(
     *,
     provision_activations: Callable[[], Sequence[str]],
     run_surface_repair: Callable[[], SurfaceRepairReport],
-    offer_repair: Callable[[], RepairOutcome],
+    report_mission_state: Callable[[], MissionStateReportOutcome],
     commit_churn: Callable[[], bool],
     should_commit: bool,
     repair_preflight: AbstractContextManager[Sequence[str]] | None = None,
@@ -50,9 +50,9 @@ def finalize_upgrade(
          (the decision from ``should_auto_commit``, C2). Surface-repair
          writes from step 2 land INSIDE this commit; mission-state repair
          (step 4) never does (D-4, #2491/SC-008).
-      4. ``offer_repair()`` — the report-only mission-state gate (it never
+      4. ``report_mission_state()`` — the report-only mission-state gate (it never
          repairs; ADR 2026-10-07-1), run inside a failure-isolating boundary
-         (see :func:`_run_repair_isolated`) whose outcome does NOT feed
+         (see :func:`_run_report_isolated`) whose outcome does NOT feed
          ``exit_code`` (FR-014).
 
     The exit code is not computed here: ``UpgradeOutcome.exit_code`` derives it from
@@ -71,20 +71,20 @@ def finalize_upgrade(
     if should_commit and not outcome.repair_preparation_errors and not outcome.activation_errors:
         outcome.committed = bool(commit_churn())
 
-    outcome.repair = _run_repair_isolated(offer_repair)
+    outcome.repair = _run_report_isolated(report_mission_state)
     return outcome
 
 
-def _run_repair_isolated(offer_repair: Callable[[], RepairOutcome]) -> RepairOutcome:
+def _run_report_isolated(report_mission_state: Callable[[], MissionStateReportOutcome]) -> MissionStateReportOutcome:
     """Run the scoped consent/repair step inside a failure-isolating boundary.
 
     A repair failure — or an unexpected exception raised by the injected
     callable itself — must never sink an otherwise-completed upgrade
-    (FR-014): it is folded into ``RepairOutcome.failed`` here, and
+    (FR-014): it is folded into ``MissionStateReportOutcome.failed`` here, and
     ``finalize_upgrade`` never lets it feed ``exit_code``. The gate never saw
     this failure, so its message is flagged for the outcome to list as a warning.
     """
     try:
-        return offer_repair()
+        return report_mission_state()
     except Exception as exc:  # noqa: BLE001 - isolation boundary: repair must not crash the upgrade tail
-        return RepairOutcome(failed=True, message=f"Mission-state repair boundary raised: {exc}", surface_message=True)
+        return MissionStateReportOutcome(failed=True, message=f"Mission-state report boundary raised: {exc}", surface_message=True)

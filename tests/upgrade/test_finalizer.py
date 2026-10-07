@@ -16,7 +16,7 @@ import pytest
 
 from specify_cli.upgrade.finalize import finalize_upgrade
 from specify_cli.upgrade.outcome import (
-    RepairOutcome,
+    MissionStateReportOutcome,
     SurfaceRepairReport,
     UpgradeFailureReason,
     UpgradeOutcome,
@@ -94,21 +94,21 @@ def test_finalizer_runs_steps_in_contract_order(tmp_path: Path) -> None:
         calls.append("commit_churn")
         return True
 
-    def _offer_repair() -> RepairOutcome:
-        calls.append("offer_repair")
-        return RepairOutcome(pending=True)
+    def _offer_repair() -> MissionStateReportOutcome:
+        calls.append("report_mission_state")
+        return MissionStateReportOutcome(pending=True)
 
     outcome = UpgradeOutcome(result=_synthesized_result())
     finalize_upgrade(
         outcome,
         provision_activations=_provision,
         run_surface_repair=_surface_repair,
-        offer_repair=_offer_repair,
+        report_mission_state=_offer_repair,
         commit_churn=_commit_churn,
         should_commit=True,
     )
 
-    assert calls == ["provision", "surface_repair", "commit_churn", "offer_repair"]
+    assert calls == ["provision", "surface_repair", "commit_churn", "report_mission_state"]
 
 
 def test_finalizer_skips_commit_when_should_commit_is_false(tmp_path: Path) -> None:
@@ -120,7 +120,7 @@ def test_finalizer_skips_commit_when_should_commit_is_false(tmp_path: Path) -> N
         outcome,
         provision_activations=lambda: [],
         run_surface_repair=SurfaceRepairReport,
-        offer_repair=lambda: RepairOutcome(pending=True),
+        report_mission_state=lambda: MissionStateReportOutcome(pending=True),
         commit_churn=_commit_churn,
         should_commit=False,
     )
@@ -140,7 +140,7 @@ def test_successful_upgrade_derives_exit_code_zero() -> None:
         outcome,
         provision_activations=lambda: [],
         run_surface_repair=SurfaceRepairReport,
-        offer_repair=lambda: RepairOutcome(pending=True),
+        report_mission_state=lambda: MissionStateReportOutcome(pending=True),
         commit_churn=lambda: True,
         should_commit=True,
     )
@@ -156,7 +156,7 @@ def test_failed_migration_result_derives_exit_code_one_no_typer_exit() -> None:
         outcome,
         provision_activations=lambda: [],
         run_surface_repair=SurfaceRepairReport,
-        offer_repair=lambda: RepairOutcome(pending=True),
+        report_mission_state=lambda: MissionStateReportOutcome(pending=True),
         commit_churn=lambda: False,
         should_commit=False,
     )
@@ -173,7 +173,7 @@ def test_worktree_failures_flip_exit_code_nonzero() -> None:
         outcome,
         provision_activations=lambda: [],
         run_surface_repair=SurfaceRepairReport,
-        offer_repair=lambda: RepairOutcome(pending=True),
+        report_mission_state=lambda: MissionStateReportOutcome(pending=True),
         commit_churn=lambda: False,
         should_commit=False,
     )
@@ -188,7 +188,7 @@ def test_optional_repair_failure_does_not_flip_a_successful_exit_code() -> None:
         outcome,
         provision_activations=lambda: [],
         run_surface_repair=SurfaceRepairReport,
-        offer_repair=lambda: RepairOutcome(failed=True, message="repair blew up"),
+        report_mission_state=lambda: MissionStateReportOutcome(failed=True, message="repair blew up"),
         commit_churn=lambda: True,
         should_commit=True,
     )
@@ -201,10 +201,10 @@ def test_optional_repair_failure_does_not_flip_a_successful_exit_code() -> None:
 
 def test_offer_repair_exception_is_isolated_and_does_not_flip_exit_code() -> None:
     """The repair step runs inside a failure-isolating boundary (FR-014): an
-    exception escaping the injected ``offer_repair`` callable must not crash
+    exception escaping the injected ``report_mission_state`` callable must not crash
     the finalizer nor affect the exit code."""
 
-    def _boom() -> RepairOutcome:
+    def _boom() -> MissionStateReportOutcome:
         raise RuntimeError("unexpected repair blowup")
 
     outcome = UpgradeOutcome(result=_synthesized_result(success=True))
@@ -212,14 +212,14 @@ def test_offer_repair_exception_is_isolated_and_does_not_flip_exit_code() -> Non
         outcome,
         provision_activations=lambda: [],
         run_surface_repair=SurfaceRepairReport,
-        offer_repair=_boom,
+        report_mission_state=_boom,
         commit_churn=lambda: True,
         should_commit=True,
     )
     assert result.repair.failed is True
     assert result.exit_code == 0
     # The gate never saw this failure, so the outcome lists it as a warning (and nothing else changes).
-    assert result.warnings() == ["Mission-state repair boundary raised: unexpected repair blowup"]
+    assert result.warnings() == ["Mission-state report boundary raised: unexpected repair blowup"]
     assert result.kind is UpgradeOutcomeKind.NO_OP
 
 
@@ -229,7 +229,7 @@ def test_activation_errors_stop_the_surface_repair_step_and_fail_the_outcome() -
         outcome,
         provision_activations=lambda: ["mission-type X activation failed"],
         run_surface_repair=lambda: pytest.fail("surface repair must not run after an activation error"),
-        offer_repair=lambda: RepairOutcome(pending=True),
+        report_mission_state=lambda: MissionStateReportOutcome(pending=True),
         commit_churn=lambda: False,
         should_commit=False,
     )
@@ -246,7 +246,7 @@ def test_unresolved_drift_is_recorded_and_derives_exit_code_one() -> None:
         UpgradeOutcome(result=_synthesized_result(success=True)),
         provision_activations=lambda: [],
         run_surface_repair=lambda: SurfaceRepairReport(drifted_paths=drifted),
-        offer_repair=lambda: RepairOutcome(pending=True),
+        report_mission_state=lambda: MissionStateReportOutcome(pending=True),
         commit_churn=lambda: False,
         should_commit=False,
     )
@@ -264,7 +264,7 @@ def test_unapplied_repair_is_recorded_as_a_failure_not_as_drift() -> None:
         UpgradeOutcome(result=_synthesized_result(success=True)),
         provision_activations=lambda: [],
         run_surface_repair=lambda: report,
-        offer_repair=lambda: RepairOutcome(pending=True),
+        report_mission_state=lambda: MissionStateReportOutcome(pending=True),
         commit_churn=lambda: False,
         should_commit=False,
     )
@@ -292,7 +292,7 @@ def test_provisioning_refusal_prevents_dependent_writes_and_commit(tmp_path: Pat
         UpgradeOutcome(result=_synthesized_result()),
         provision_activations=lambda: ["Provisioning inputs changed"],
         run_surface_repair=repair_surface,
-        offer_repair=lambda: RepairOutcome(pending=True),
+        report_mission_state=lambda: MissionStateReportOutcome(pending=True),
         commit_churn=commit,
         should_commit=True,
     )
@@ -325,16 +325,16 @@ def test_finalizer_keeps_preflight_around_writes_not_commit_or_mission_repair() 
         calls.append("commit")
         return True
 
-    def repair() -> RepairOutcome:
+    def repair() -> MissionStateReportOutcome:
         calls.append("mission")
-        return RepairOutcome()
+        return MissionStateReportOutcome()
 
     result = finalize_upgrade(
         UpgradeOutcome(result=_synthesized_result()),
         provision_activations=provision,
         run_surface_repair=surfaces,
         commit_churn=commit,
-        offer_repair=repair,
+        report_mission_state=repair,
         should_commit=True,
         repair_preflight=preflight(),
     )
@@ -368,7 +368,7 @@ def test_single_churn_commit_excludes_mission_state_repair_paths(tmp_path: Path)
         )
         return True
 
-    def _offer_repair() -> RepairOutcome:
+    def _offer_repair() -> MissionStateReportOutcome:
         # Mission-state repair's own, separately-scoped commit (D-4) — must
         # never be folded into the churn commit above.
         (tmp_path / "repair_repo_output.txt").write_text("repaired-state\n", encoding="utf-8")
@@ -378,14 +378,14 @@ def test_single_churn_commit_excludes_mission_state_repair_paths(tmp_path: Path)
             cwd=tmp_path,
             check=True,
         )
-        return RepairOutcome(reported=True, message="repaired")
+        return MissionStateReportOutcome(reported=True, message="repaired")
 
     outcome = UpgradeOutcome(result=_synthesized_result())
     result = finalize_upgrade(
         outcome,
         provision_activations=lambda: [],
         run_surface_repair=_surface_repair,
-        offer_repair=_offer_repair,
+        report_mission_state=_offer_repair,
         commit_churn=_commit_churn,
         should_commit=True,
     )

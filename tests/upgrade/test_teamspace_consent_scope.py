@@ -19,7 +19,7 @@ from rich.console import Console
 
 from specify_cli.cli.commands import _teamspace_mission_state_gate as gate
 from specify_cli.cli.commands._teamspace_mission_state_gate import (
-    RepairOutcome,
+    MissionStateReportOutcome,
     TeamspaceMissionStateReadiness,
     report_teamspace_mission_state_blockers,
 )
@@ -50,7 +50,7 @@ def _arm(monkeypatch: pytest.MonkeyPatch, readiness: TeamspaceMissionStateReadin
     return readiness_spy, repair_spy
 
 
-def _run(project: Path) -> tuple[RepairOutcome, str]:
+def _run(project: Path) -> tuple[MissionStateReportOutcome, str]:
     buffer = io.StringIO()
     outcome = report_teamspace_mission_state_blockers(project, console=Console(file=buffer, width=200))
     return outcome, buffer.getvalue()

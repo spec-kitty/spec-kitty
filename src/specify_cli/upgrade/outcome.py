@@ -16,7 +16,7 @@ step: it separates the three conditions a single boolean used to carry
 (unresolved drift, a repair that was not applied, an incomplete dry-run
 preview) so each is reported for what it is.
 
-``RepairOutcome`` is the return contract for the report-only mission-state
+``MissionStateReportOutcome`` is the return contract for the report-only mission-state
 gate (``_teamspace_mission_state_gate.report_teamspace_mission_state_blockers``,
 D-9; ADR 2026-10-07-1). ``upgrade`` never repairs mission state: ``reported``
 is set only when drain is on and blockers were printed; ``pending`` means
@@ -130,7 +130,7 @@ class SurfaceRepairReport:
 
 
 @dataclass(frozen=True)
-class RepairOutcome:
+class MissionStateReportOutcome:
     """Return contract for the report-only mission-state gate (D-9).
 
     ``surface_message`` marks an outcome whose ``message`` was NOT already shown
@@ -151,8 +151,8 @@ class UpgradeOutcome:
 
     Composes ``UpgradeResult`` rather than replacing it (see module docstring).
     A mission-state ``repair`` outcome never contributes a reason (FR-014): it
-    is an optional, separately-consented step that must not sink an otherwise
-    completed upgrade.
+    is a report-only step (upgrade never repairs) that must not sink an
+    otherwise completed upgrade.
     """
 
     result: UpgradeResult
@@ -160,7 +160,7 @@ class UpgradeOutcome:
     worktree_failures: list[str] = field(default_factory=list)
     activation_errors: list[str] = field(default_factory=list)
     repair_preparation_errors: list[str] = field(default_factory=list)
-    repair: RepairOutcome = field(default_factory=RepairOutcome)
+    repair: MissionStateReportOutcome = field(default_factory=MissionStateReportOutcome)
     committed: bool = False
     had_migrations: bool = False
     drifted_paths: list[Path] = field(default_factory=list)
