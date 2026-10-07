@@ -20,7 +20,7 @@ from specify_cli.core.atomic import atomic_write
 from specify_cli.core.wps_manifest import WpsManifest, WpsManifestReadError, load_wps_manifest
 from specify_cli.design.errors import DesignError
 from .models import ABSENT, MAX_ACTOR_BYTES, MAX_ARTIFACT_BYTES, MAX_BATCH_BYTES, MAX_REQUEST_BYTES, ArtifactInput, Receipt, ReceiptSet, Submission
-from specify_cli.design.receipts import authoring_lock, content_digest, enable_authoring, read_receipts, save_receipts
+from specify_cli.design.receipts import authoring_lock, content_digest, enable_authoring, read_bounded, read_receipts, save_receipts
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.mission import get_mission_type
 from specify_cli.runtime.resolver import ArtifactNameConfigurationError, resolve_configured_artifact_name
@@ -143,10 +143,7 @@ def read_artifact(repo_root: Path, mission_slug: str, kind: str, artifact_id: st
         content = None
         digest = ABSENT
         if path.exists():
-            with path.open("rb") as handle:
-                body = handle.read(MAX_ARTIFACT_BYTES + 1)
-            if len(body) > MAX_ARTIFACT_BYTES:
-                raise DesignError("DESIGN_BOUNDS_EXCEEDED", "Artifact content exceeds the inline read bound")
+            body = read_bounded(path)
             content = body.decode("utf-8")
             digest = sha256_digest(body).removeprefix("sha256:")
         return {"kind": kind, "artifact_id": artifact_id, "sha256": digest, "content": content}

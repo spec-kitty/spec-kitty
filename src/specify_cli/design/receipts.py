@@ -19,12 +19,21 @@ from pydantic import ValidationError
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.checkout_file_lock import LOCK_DIRECTORY
 from specify_cli.design.errors import DesignError
-from specify_cli.design.models import ABSENT, ReceiptSet
+from specify_cli.design.models import ABSENT, MAX_ARTIFACT_BYTES, ReceiptSet
+
+
+def read_bounded(path: Path) -> bytes:
+    """Read at most ``MAX_ARTIFACT_BYTES``; an oversize file is a refusal, never a full read."""
+    with path.open("rb") as handle:
+        body = handle.read(MAX_ARTIFACT_BYTES + 1)
+    if len(body) > MAX_ARTIFACT_BYTES:
+        raise DesignError("DESIGN_BOUNDS_EXCEEDED", "Artifact content exceeds the inline read bound")
+    return body
 
 
 def content_digest(path: Path) -> str:
     """Return exact-byte revision, or the explicit first-submission sentinel."""
-    return sha256_digest(path.read_bytes()).removeprefix("sha256:") if path.exists() else ABSENT
+    return sha256_digest(read_bounded(path)).removeprefix("sha256:") if path.exists() else ABSENT
 
 
 def _paths(repo_root: Path, mission_slug: str) -> tuple[Path, Path]:

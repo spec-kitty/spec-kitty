@@ -130,6 +130,15 @@ def test_invalid_submission_has_no_content_or_commit_effect(mission: tuple[Path,
     assert not receipts.api_authoring_enabled(repo, slug)
 
 
+def test_oversize_artifact_on_disk_is_refused_not_read_whole(mission: tuple[Path, str]) -> None:
+    repo, slug = mission
+    request = _request(repo, slug, "specification", _SUBSTANTIVE_SPEC)
+    authoring.artifact_path(repo, slug, "specification").write_bytes(b"x" * (256 * 1024 + 1))
+    with pytest.raises(DesignError) as caught:
+        authoring.submit_artifacts(repo, slug, request, "author")
+    assert caught.value.code == "DESIGN_BOUNDS_EXCEEDED"
+
+
 @pytest.mark.parametrize("kind", ["metadata", "tasks.md", "status", "decision", "../specification"])
 def test_unregistered_authority_is_not_an_artifact(mission: tuple[Path, str], kind: str) -> None:
     repo, slug = mission
