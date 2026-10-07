@@ -31,6 +31,7 @@ from packaging.version import Version
 from pydantic import BaseModel, ConfigDict
 
 from kernel.git import GitCommandError, is_tracked, status_entries
+from specify_cli.context.mission_resolver import is_mission_dir, tracked_mission_paths
 from kernel.locks import LockNotAcquired, SyncMachineFileLock, machine_file_lock
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.checkout_identity import (
@@ -394,6 +395,9 @@ class RepairReport:
     # ``<audit-root>/quarantine/<run_id>``. Set only when >=1 row was
     # quarantined; ``None`` otherwise. Consumed by the ``--fix`` exit summary.
     quarantine_root_path: str | None = None
+    # #5812: ``kitty-specs/`` children that are not Missions (only untracked or
+    # gitignored residue). Reported, never repaired; non-blocking.
+    residue_directories: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -414,6 +418,7 @@ class RepairReport:
                 "missions_error": sum(1 for m in self.missions if m.status == "error"),
                 "quarantined_rows": sum(m.quarantined_rows for m in self.missions),
             },
+            "residue_directories": list(self.residue_directories),
             "missions": [mission.to_dict() for mission in self.missions],
         }
 
@@ -732,7 +737,7 @@ def repair_repo(
     # primary. No-ops for owner invocations and explicit-root-from-non-lane-cwd
     # callers (tests/fixtures); see ``enforce_primary_write_ownership``.
     enforce_primary_write_ownership(Path.cwd(), resolved_repo_root)
-    mission_dirs = _select_mission_dirs(resolved_repo_root, scan_root=scan_root, mission=mission)
+    mission_dirs, residue_dirs = _select_mission_dirs(resolved_repo_root, scan_root=scan_root, mission=mission)
     if not mission_dirs:
         raise MissionStateRepairError("No mission directories found to repair.")
 
@@ -787,6 +792,7 @@ def repair_repo(
             generated_ids=sorted(set(generated_ids)),
             policy=_build_policy(),
             quarantine_root_path=quarantine_root_path,
+            residue_directories=[p.name for p in residue_dirs],
         )
         atomic_write(manifest_abs, report.to_json(), mkdir=True)
         return report
@@ -963,7 +969,7 @@ def teamspace_dry_run(
 ) -> TeamspaceDryRunReport:
     """Synthesize TeamSpace envelopes from local status logs and validate them."""
     event_cls, validate_event, package_version = _load_events_contract()
-    mission_dirs = _select_mission_dirs(repo_root.resolve(), scan_root=scan_root, mission=mission)
+    mission_dirs, _ = _select_mission_dirs(repo_root.resolve(), scan_root=scan_root, mission=mission)
     audit_errors = _teamspace_audit_blockers(repo_root.resolve(), scan_root=scan_root, mission_dirs=mission_dirs)
     audit_errors = [error for error in audit_errors if not _is_nonfatal_side_log_record(error)]
     if audit_errors:
@@ -2671,20 +2677,38 @@ def _canonicalize_status_row(
     return _CanonicalRowResult.from_pipeline(result)
 
 
-def _select_mission_dirs(repo_root: Path, *, scan_root: Path | None, mission: str | None) -> list[Path]:
+def _select_mission_dirs(repo_root: Path, *, scan_root: Path | None, mission: str | None) -> tuple[list[Path], list[Path]]:
+    """Return ``(mission_dirs, residue_dirs)`` for the repair/dry-run selection.
+
+    WP03 owns the selection rule (WP02 owned the rest of this file and has
+    landed in this lane). Without ``mission=``, the default ``kitty-specs/``
+    tree is filtered through :func:`is_mission_dir` (#5812): a directory holding
+    only untracked or gitignored residue is returned as residue and never
+    repaired. A custom ``scan_root`` (fixtures) keeps every directory. An
+    explicit ``mission=`` is a deliberate operator act and keeps matching by
+    handle, but a match with no Mission artifact at all (no ``spec.md`` or
+    ``meta.json`` on disk) is refused: identity is never minted into a
+    directory that holds no Mission.
+    """
     root = (scan_root or repo_root / "kitty-specs").resolve()
     if not root.exists():
-        return []
+        return [], []
     all_dirs = sorted(path for path in root.iterdir() if path.is_dir())
     if mission is None:
-        return all_dirs
+        if scan_root is not None:
+            return all_dirs, []
+        tracked = tracked_mission_paths(repo_root)
+        flags = [(path, is_mission_dir(path, repo_root=repo_root, tracked=tracked)) for path in all_dirs]
+        return [path for path, real in flags if real], [path for path, real in flags if not real]
     matches = [path for path in all_dirs if _mission_handle_matches(path, mission)]
     if not matches:
         raise MissionStateRepairError(f"Mission not found: {mission!r}")
     if len(matches) > 1:
         candidates = ", ".join(path.name for path in matches)
         raise MissionStateRepairError(f"Ambiguous mission handle {mission!r}: {candidates}")
-    return matches
+    if not any((matches[0] / name).exists() for name in ("spec.md", "meta.json")):
+        raise MissionStateRepairError(f"{matches[0].name!r} holds no Mission artifact (no spec.md or meta.json); refusing to create one.")
+    return matches, []
 
 
 def _mission_handle_matches(path: Path, handle: str) -> bool:

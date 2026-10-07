@@ -45,6 +45,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
+from kernel.git import GitCommandError, is_tracked, tracked_paths
 from mission_runtime import MissionResolver
 from specify_cli.lanes.branch_naming import resolve_mid8, strip_numeric_prefix
 from specify_cli.mission_metadata import load_meta
@@ -235,6 +236,62 @@ def _iter_mission_dirs(repo_root: Path) -> Iterator[Path]:
     for entry in sorted(specs_dir.iterdir()):
         if entry.is_dir():
             yield entry
+
+
+_MISSION_MARKER_FILES = ("spec.md", "meta.json")
+
+
+def tracked_mission_paths(repo_root: Path) -> frozenset[str] | None:
+    """Return every git-tracked path under ``kitty-specs/`` (repo-relative, ``/``-joined).
+
+    One batch ``git ls-files`` for the whole tree, so :func:`is_mission_dir`
+    needs no subprocess per directory. ``None`` when *repo_root* is not a git
+    repository (or git is unavailable); callers pass it as ``tracked=`` and the
+    predicate then degrades to its existence rule.
+    """
+    try:
+        return frozenset(str(path) for path in tracked_paths(repo_root, pathspecs=[KITTY_SPECS_DIR]))
+    except (GitCommandError, OSError):
+        return None
+
+
+def _carries_identity(path: Path) -> bool:
+    """True when ``path/meta.json`` parses and holds a non-empty string ``mission_id``."""
+    data = load_meta(path, on_malformed="none")
+    mission_id = data.get("mission_id") if data else None
+    return isinstance(mission_id, str) and bool(mission_id)
+
+
+def is_mission_dir(path: Path, *, repo_root: Path, tracked: frozenset[str] | None = None) -> bool:
+    """Whether the ``kitty-specs/`` child *path* is a Mission rather than residue (#5812).
+
+    A directory holding only untracked or gitignored files (a stray ``*.lock``,
+    a deleted Mission's leftovers) is not a Mission. The rule, in order:
+
+    1. ``meta.json`` parses and carries a non-empty ``mission_id`` -> True. A
+       fresh ``mission create`` writes this before anything is committed, so a
+       genuine uncommitted Mission is never residue; residue never has one.
+    2. ``spec.md`` or ``meta.json`` is git-tracked -> True. *tracked* is an
+       optional precomputed set from :func:`tracked_mission_paths` (batch use);
+       without it each marker is probed with ``git ls-files``.
+    3. Otherwise False.
+
+    Outside a git repository, or when git cannot answer, rule 2 falls back to
+    the population rule of :func:`list_missions_for_selection` (``spec.md`` or
+    ``meta.json`` exists), so a non-git scan root never errors out of
+    enumeration. This is a per-directory test applied to what
+    :func:`_iter_mission_dirs` yields, never a second scan.
+    """
+    if _carries_identity(path):
+        return True
+    try:
+        base = repo_root.resolve()
+        rels = [(path.resolve() / name).relative_to(base).as_posix() for name in _MISSION_MARKER_FILES]
+        if tracked is not None:
+            return any(rel in tracked for rel in rels)
+        return any(is_tracked(base, rel) for rel in rels)
+    except (GitCommandError, OSError, ValueError):
+        return any((path / name).exists() for name in _MISSION_MARKER_FILES)
 
 
 def _build_index(repo_root: Path) -> list[ResolvedMission]:

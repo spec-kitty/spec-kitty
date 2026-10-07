@@ -25,8 +25,6 @@ from specify_cli.status.store import append_event
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.git_repo,
-    pytest.mark.regression,
-    pytest.mark.p0_repro(issue=5812),
 ]
 
 _GHOST = "ghost-01ABCDEF"
@@ -81,10 +79,8 @@ def test_residue_directory_is_not_reported_as_identity_missing(tmp_path: Path, m
 
     assert result.exit_code == 0, result.output
     report = json.loads(result.stdout)
-    ghost_findings = [
-        (mission["mission_slug"], finding["code"]) for mission in report["missions"] if _GHOST in mission["mission_slug"] for finding in mission["findings"]
-    ]
-    assert not ghost_findings, f"residue directory {_GHOST} audited as a Mission: {ghost_findings} (expected no IDENTITY_MISSING)"
+    ghost_codes = [finding["code"] for mission in report["missions"] if _GHOST in mission["mission_slug"] for finding in mission["findings"]]
+    assert ghost_codes == ["RESIDUE_DIRECTORY"], f"residue directory {_GHOST} audited as a Mission: {ghost_codes}"
 
 
 def test_fix_does_not_materialise_mission_files_in_residue_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

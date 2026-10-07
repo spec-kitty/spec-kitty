@@ -30,6 +30,10 @@ TEAMSPACE_BLOCKER_CODES: frozenset[str] = frozenset(
     }
 )
 
+#: A ``kitty-specs/`` child holding only untracked or gitignored residue (#5812).
+#: Reported at INFO and deliberately absent from ``TEAMSPACE_BLOCKER_CODES``.
+RESIDUE_DIRECTORY = "RESIDUE_DIRECTORY"
+
 _MISSION_ROOT_DIRNAME = KITTY_SPECS_DIR
 
 

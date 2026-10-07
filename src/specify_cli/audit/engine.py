@@ -29,7 +29,9 @@ from typing import Any
 from specify_cli.context.mission_resolver import (
     AmbiguousHandleError,  # noqa: F401  (re-exported for CLI callers via engine)
     MissionNotFoundError,  # noqa: F401
+    is_mission_dir,
     resolve_mission,
+    tracked_mission_paths,
 )
 from specify_cli.status import IdentityState, audit_repo, find_ambiguous_selectors, find_duplicate_prefixes
 
@@ -47,7 +49,9 @@ from .models import (
     AuditOptions,
     MissionAuditResult,
     MissionFinding,
+    RESIDUE_DIRECTORY,
     RepoAuditReport,
+    Severity,
     is_teamspace_blocker,
 )
 
@@ -102,6 +106,7 @@ def _scan_missions(
     scan_root: Path,
     allowed_dirs: frozenset[Path] | None,
     identity_index: dict[str, Any],
+    repo_root: Path | None = None,
 ) -> list[MissionAuditResult]:
     """Walk *scan_root* and classify each mission directory.
 
@@ -112,6 +117,11 @@ def _scan_missions(
         identity_index: Mapping of ``{mission_slug: IdentityState}`` built from
             ``audit_repo()``.  Used to call ``identity_state_to_findings()``
             without re-reading ``meta.json`` for each mission.
+        repo_root: When given (the default ``kitty-specs/`` scan), a directory
+            that is not a Mission per :func:`is_mission_dir` gets one INFO
+            ``RESIDUE_DIRECTORY`` finding and is not classified (#5812).
+            ``None`` (a custom scan root such as audit fixtures) treats every
+            directory as a Mission.
 
     Returns:
         List of :class:`~specify_cli.audit.models.MissionAuditResult`, one per
@@ -135,10 +145,11 @@ def _scan_missions(
         return []
 
     results: list[MissionAuditResult] = []
+    tracked = tracked_mission_paths(repo_root) if repo_root is not None else None
 
     for candidate in candidates:
         try:
-            is_mission_dir = safe_is_dir(candidate)
+            candidate_is_dir = safe_is_dir(candidate)
         except OSError:
             # Same fail-soft posture as the `scan_root` probe above: one
             # unreadable candidate must not abort the audit for every other
@@ -146,10 +157,14 @@ def _scan_missions(
             # for "not a directory" the way the bare `Path.is_dir()` this
             # replaces did on 3.14 (see `safe_is_dir`'s docstring).
             continue
-        if not is_mission_dir:
+        if not candidate_is_dir:
             continue
 
         if allowed_dirs is not None and candidate not in allowed_dirs:
+            continue
+
+        if repo_root is not None and not is_mission_dir(candidate, repo_root=repo_root, tracked=tracked):
+            results.append(_residue_result(candidate))
             continue
 
         identity_state = identity_index.get(candidate.name)
@@ -195,6 +210,17 @@ def _scan_missions(
         )
 
     return results
+
+
+def _residue_result(candidate: Path) -> MissionAuditResult:
+    """The result for a directory that is not a Mission: one non-blocking finding."""
+    finding = MissionFinding(
+        code=RESIDUE_DIRECTORY,
+        severity=Severity.INFO,
+        artifact_path=".",
+        detail="directory holds no tracked spec.md or meta.json and no mission_id; not a Mission",
+    )
+    return MissionAuditResult(mission_slug=candidate.name, mission_dir=candidate, findings=[finding])
 
 
 # ---------------------------------------------------------------------------
@@ -451,7 +477,8 @@ def run_audit(options: AuditOptions) -> RepoAuditReport:
     )
 
     # Per-mission classification
-    mission_results = _scan_missions(scan_root, allowed_dirs, identity_index)
+    default_scan = scan_root == options.repo_root / KITTY_SPECS_DIR
+    mission_results = _scan_missions(scan_root, allowed_dirs, identity_index, repo_root=options.repo_root if default_scan else None)
 
     # Repo-level findings with explicit slug attribution
     attributed = _compute_repo_findings_by_slug(
