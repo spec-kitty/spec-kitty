@@ -356,19 +356,37 @@ def _headline(code: str, verdict: FreshnessVerdict) -> str:
     return f"{code}: {verdict.branch} is {verdict.state.value} ({verdict.behind} behind / {verdict.ahead} ahead of {where})"
 
 
-def _status_remedy(verdict: FreshnessVerdict, checkout: Path | None, *, merge_record_exists: bool) -> list[str]:
-    """Update the evidence branch where it lives; with a merge record, abort first.
+def _status_update_steps(verdict: FreshnessVerdict, checkout: Path | None) -> list[str]:
+    """The commands that bring the evidence branch level with the remote, by state and holder.
 
-    A checkout that holds the branch pulls it. With none, fast-forward the local
-    branch ref (``fetch <remote> <b>:<b>``, refuses a non-fast-forward): a bare
-    ``git pull`` would merge the branch into whatever the repository root has checked out.
+    A strictly behind branch fast-forwards: ``pull`` in a holding checkout, else
+    ``fetch <remote> <b>:<b>`` (a bare ``git pull`` would merge the branch into
+    whatever the repository root has checked out). A diverged branch cannot
+    fast-forward (the fetch refspec is rejected as non-fast-forward) and a plain
+    ``pull`` aborts on git >= 2.33 without ``pull.rebase``, so it is merged
+    explicitly with ``pull --no-rebase`` in a checkout that holds it.
     """
-    holder_pull = f"git -C {checkout} pull {verdict.remote} {verdict.branch}"
-    ref_update = f"git fetch {verdict.remote} {verdict.branch}:{verdict.branch}"
-    pull = ref_update if checkout is None else holder_pull
+    remote, branch = verdict.remote, verdict.branch
+    if verdict.state is not FreshnessState.DIVERGED:
+        return [f"git fetch {remote} {branch}:{branch}" if checkout is None else f"git -C {checkout} pull {remote} {branch}"]
+    if checkout is not None:
+        return [f"git -C {checkout} pull --no-rebase {remote} {branch}"]
+    return [f"git worktree add <path> {branch}    (or: git switch {branch})", f"git pull --no-rebase {remote} {branch}    (in that checkout)"]
+
+
+def _status_remedy(verdict: FreshnessVerdict, checkout: Path | None, *, merge_record_exists: bool) -> list[str]:
+    """Update the evidence branch where it lives; with a merge record, abort first."""
+    steps = _status_update_steps(verdict, checkout)
     if merge_record_exists:
-        return ["  A consolidation record exists. Recover with:", "    spec-kitty consolidate --abort", f"    {pull}", "    spec-kitty consolidate"]
-    return [f"  Update it with: {pull}", _RERUN_LINE]
+        return [
+            "  A consolidation record exists. Recover with:",
+            "    spec-kitty consolidate --abort",
+            *(f"    {step}" for step in steps),
+            "    spec-kitty consolidate",
+        ]
+    if len(steps) == 1:
+        return [f"  Update it with: {steps[0]}", _RERUN_LINE]
+    return ["  Update it with:", *(f"    {step}" for step in steps), _RERUN_LINE]
 
 
 def _diverged_lane_remedy(remote: str | None, lane: str) -> list[str]:

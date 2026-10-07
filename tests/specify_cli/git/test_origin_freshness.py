@@ -595,6 +595,37 @@ def test_status_refusal_with_a_merge_record_and_no_checkout_still_aborts_first()
     assert lines[3] == "    git fetch origin develop:develop"
 
 
+def test_diverged_status_with_a_holding_checkout_merges_explicitly() -> None:
+    """A plain `git pull` aborts on git >= 2.33 without pull.rebase, so a diverged branch is pulled with --no-rebase."""
+    with pytest.raises(OriginFreshnessRefused) as caught:
+        _gate(evidence=_verdict(FreshnessState.DIVERGED, "develop", behind=1, ahead=2), evidence_checkout=Path("/work/repo"))
+
+    text = str(caught.value)
+    assert "git -C /work/repo pull --no-rebase origin develop" in text
+    assert "git fetch origin develop:develop" not in text
+
+
+def test_diverged_status_without_a_holder_says_to_check_the_branch_out_first() -> None:
+    with pytest.raises(OriginFreshnessRefused) as caught:
+        _gate(evidence=_verdict(FreshnessState.DIVERGED, "kitty/mission-x", behind=1, ahead=1), evidence_checkout=None)
+
+    text = str(caught.value)
+    assert "git worktree add <path> kitty/mission-x" in text
+    assert "git switch kitty/mission-x" in text
+    assert text.index("git worktree add") < text.index("git pull --no-rebase origin kitty/mission-x")
+    assert "git fetch origin kitty/mission-x:kitty/mission-x" not in text
+
+
+def test_diverged_status_with_a_merge_record_still_aborts_first() -> None:
+    with pytest.raises(OriginFreshnessRefused) as caught:
+        _gate(evidence=_verdict(FreshnessState.DIVERGED, "develop", behind=1, ahead=1), merge_record_exists=True, evidence_checkout=Path("/work/repo"))
+
+    lines = str(caught.value).splitlines()
+    assert lines[2] == "    spec-kitty consolidate --abort"
+    assert lines[3] == "    git -C /work/repo pull --no-rebase origin develop"
+    assert lines[4] == "    spec-kitty consolidate"
+
+
 def test_lane_refusal_text_gives_fetch_and_branch_force_remedy() -> None:
     with pytest.raises(OriginFreshnessRefused) as caught:
         _gate(lanes=(_verdict(FreshnessState.BEHIND, "kitty/lane-a", behind=1),))
