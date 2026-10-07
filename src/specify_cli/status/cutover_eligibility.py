@@ -40,6 +40,7 @@ that one exemption; it is fail-closed (any undecidable input declines it).
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
@@ -81,6 +82,7 @@ REASON_TERMINAL_UNSTAMPED = f"{_NOT_FLIPPED}: mission is accepted/merged but sta
 REASON_TERMINAL_MALFORMED = f"{_NOT_FLIPPED}: accepted_at/merged_at in meta.json is not a non-empty string"
 REASON_LEGACY_FRONTMATTER = f"{_NOT_FLIPPED}: WP frontmatter carries legacy runtime to migrate"
 REASON_ABSENT_MISSION_ID = "absent mission_id"
+REASON_META_DUPLICATE_KEYS = "meta.json has a duplicate top-level key (ambiguous: the last value would win)"
 REASON_PHASE_MALFORMED = "status_phase is malformed (not an integer)"
 REASON_LEGACY_UNDECIDABLE = f"{_NOT_FLIPPED}: legacy WP runtime could not be read to decide the pre-accept exemption"
 
@@ -302,12 +304,36 @@ def _carries_frontmatter_runtime(mission_dir: Path) -> bool | None:
         return None
 
 
+def _meta_has_duplicate_keys(mission_dir: Path) -> bool:
+    """True iff ``meta.json`` repeats a top-level key, or cannot be re-read to prove it does not.
+
+    The canonical reader (:func:`_read_meta`) lets the last duplicate win, so
+    ``{"accepted_at": "2026-01-01", "accepted_at": ""}`` reads as no terminal evidence.
+    That reader is shared, so the check lives here, local to the exemption decision: a raw
+    re-parse whose ``object_pairs_hook`` notes duplicates. The hook fires innermost-first, so
+    the LAST call is the top-level object; a repeated key in a nested object is not decision input.
+    """
+    top_level_duplicates: list[str] = []
+
+    def _hook(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        keys = [key for key, _ in pairs]
+        top_level_duplicates[:] = sorted({key for key in keys if keys.count(key) > 1})
+        return dict(pairs)
+
+    try:
+        text = (mission_dir / "meta.json").read_text(encoding="utf-8-sig")
+        json.JSONDecoder(object_pairs_hook=_hook).decode(text)
+    except (OSError, ValueError):
+        return True
+    return bool(top_level_duplicates)
+
+
 def pre_accept_exemption(mission_dir: Path) -> PreAcceptDecision:
     """Decide the pre-accept exemption for a mission with event-log runtime evidence.
 
     Exempt (``note`` set) only when ``meta.json`` reads (through :func:`_read_meta`, so a
     missing, empty or unparsable file has no ``mission_id`` and declines) with a ``mission_id``, ``status_phase`` is
-    absent or a well-formed integer ``0``, there is no terminal evidence
+    absent or a well-formed integer ``0``, no top-level key is duplicated, there is no terminal evidence
     (``accepted_at`` / ``merged_at`` / ``accept_commit`` / ``merged_commit`` / ``acceptance_history`` / ``mission_number``;
     a malformed ``accepted_at`` / ``merged_at`` declines), and no WP file
     carries legacy frontmatter runtime. Every undecidable input declines the
@@ -316,6 +342,8 @@ def pre_accept_exemption(mission_dir: Path) -> PreAcceptDecision:
     meta = _read_meta(mission_dir)
     if not str(meta.get("mission_id") or "").strip():
         return PreAcceptDecision(block_reason=REASON_ABSENT_MISSION_ID)
+    if _meta_has_duplicate_keys(mission_dir):
+        return PreAcceptDecision(block_reason=REASON_META_DUPLICATE_KEYS)
     phase_state = _raw_phase_state(meta)
     if phase_state == "malformed":
         return PreAcceptDecision(block_reason=REASON_PHASE_MALFORMED)

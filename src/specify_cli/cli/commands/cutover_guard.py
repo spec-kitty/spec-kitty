@@ -55,6 +55,7 @@ from specify_cli.status import (
     REASON_ABSENT_MISSION_ID,
     REASON_LEGACY_FRONTMATTER,
     REASON_LEGACY_UNDECIDABLE,
+    REASON_META_DUPLICATE_KEYS,
     REASON_PHASE_MALFORMED,
     REASON_TERMINAL_MALFORMED,
     REASON_TERMINAL_UNSTAMPED,
@@ -73,6 +74,7 @@ _REMEDY_BY_REASON: dict[str, str] = {
     REASON_LEGACY_FRONTMATTER: _REMEDY_TEMPLATE,
     REASON_PHASE_MALFORMED: 'fix meta.json status_phase in kitty-specs/{slug}/ (expected an integer, e.g. "1"), then rerun',
     REASON_TERMINAL_MALFORMED: "set accepted_at / merged_at in kitty-specs/{slug}/meta.json to an ISO-8601 string (or remove the key), then rerun",
+    REASON_META_DUPLICATE_KEYS: "remove the repeated key from kitty-specs/{slug}/meta.json so each key appears once, then rerun",
     REASON_LEGACY_UNDECIDABLE: "repair the unreadable WP file under kitty-specs/{slug}/tasks/, then rerun",
     REASON_ABSENT_MISSION_ID: "repair kitty-specs/{slug}/meta.json if it is missing or not valid JSON; otherwise run spec-kitty migrate backfill-identity",
 }
