@@ -249,7 +249,7 @@ def test_init_tolerates_merge_driver_git_config_failure(
     def fake_copy(local_repo: Path, project_path: Path) -> Path:
         commands_dir = project_path / ".templates"
         commands_dir.mkdir(parents=True, exist_ok=True)
-        (project_path / ".git").mkdir()
+        subprocess.run(["git", "init", "-q", str(project_path)], check=True)
         return TemplateCopyResult(commands_dir, templates_created=True)
 
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
