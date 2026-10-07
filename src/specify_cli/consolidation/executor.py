@@ -73,6 +73,7 @@ from specify_cli.consolidation.done_bookkeeping import (
     _resolve_merge_actor,
     acceptably_canceled_wp_ids,
 )
+from specify_cli.consolidation.origin_gate import check_origin_before_status_dir
 from specify_cli.consolidation.preflight import (
     _check_mission_branch,
     _effective_push_requested,
@@ -610,6 +611,34 @@ def _report_rollback(run: _MergeRunState, *, anchor_before: str | None) -> None:
     console.print(report.render(), markup=False)
 
 
+def _load_lanes_manifest(
+    main_repo: Path,
+    mission_slug: str,
+    *,
+    lanes_read_dir: Path,
+    status_feature_dir: Path,
+    primary_meta_dir: Path,
+    skip_lanes: bool,
+    target_override: str | None,
+) -> LanesManifest:
+    """The run's lanes manifest: read, or (``--skip-lanes`` with none) synthesized, then retargeted by ``--target``."""
+    if skip_lanes:
+        manifest = read_lanes_json(lanes_read_dir)
+        if manifest is None:
+            manifest = _synthesize_no_lane_manifest(
+                main_repo=main_repo,
+                mission_slug=mission_slug,
+                status_feature_dir=status_feature_dir,
+                primary_meta_dir=primary_meta_dir,
+                target_override=target_override,
+            )
+    else:
+        manifest = _require_lanes_json_naming_mission_branch(main_repo, lanes_read_dir)
+    if target_override:
+        manifest.target_branch = target_override
+    return manifest
+
+
 def _run_lane_based_consolidation(
     repo_root: Path,
     mission_slug: str,
@@ -627,6 +656,7 @@ def _run_lane_based_consolidation(
     attest_canceled_superseded: tuple[str, ...] = (),
     attest_reason: str | None = None,
     attest_approved_reviewed: tuple[str, ...] = (),
+    origin_check: str | None = None,
 ) -> None:
     """Execute the lane-only merge flow with ConsolidationState lifecycle for recovery.
 
@@ -651,6 +681,8 @@ def _run_lane_based_consolidation(
             (FR-008). The commit-layer backstop (WP01) still fires under this
             override — it is NOT disabled by this flag. Use of this override is
             logged via ``require_no_sparse_checkout``.
+        origin_check: ``--origin-check`` value (``enforce``/``warn``) or ``None`` to
+            defer to ``SPEC_KITTY_ORIGIN_CHECK``; see :mod:`.origin_gate` (#5780).
         skip_lanes: T021 (FR-012, FOLD 1) — the executor capability behind
             ``merge --skip-lanes``/``--no-lanes``. When ``True`` AND
             ``lanes.json`` is genuinely absent, synthesizes a NO-LANE
@@ -668,6 +700,9 @@ def _run_lane_based_consolidation(
     # WRITE accessor (ruling Q4, FR-003), never from a read resolver: this is where
     # the done bookkeeping, the birth cutover and the status reads land.
     seam = placement_seam(main_repo, mission_slug)
+    # #5780: the origin freshness check runs BEFORE the status dir is resolved (that
+    # resolution can seed or commit the coordination surface) and before any branch moves.
+    check_origin_before_status_dir(main_repo, seam, origin_check)
     feature_dir = _resolve_run_status_dir(seam)
     # PRIMARY-partition reads (FR-002 #2185), routed per-leg DIRECTLY (NOT threaded
     # from the ``:887`` ``target_feature_dir`` anchor in the *locked* function): the
@@ -698,20 +733,15 @@ def _run_lane_based_consolidation(
     from specify_cli.lanes.compute import is_planning_artifact_only
     from specify_cli.lanes.single_branch_landing import lands_mission_branch
 
-    if skip_lanes:
-        lanes_manifest = read_lanes_json(lanes_read_dir)
-        if lanes_manifest is None:
-            lanes_manifest = _synthesize_no_lane_manifest(
-                main_repo=main_repo,
-                mission_slug=mission_slug,
-                status_feature_dir=feature_dir,
-                primary_meta_dir=primary_meta_dir,
-                target_override=target_override,
-            )
-    else:
-        lanes_manifest = _require_lanes_json_naming_mission_branch(main_repo, lanes_read_dir)
-    if target_override:
-        lanes_manifest.target_branch = target_override
+    lanes_manifest = _load_lanes_manifest(
+        main_repo,
+        mission_slug,
+        lanes_read_dir=lanes_read_dir,
+        status_feature_dir=feature_dir,
+        primary_meta_dir=primary_meta_dir,
+        skip_lanes=skip_lanes,
+        target_override=target_override,
+    )
     planning_artifact_only = is_planning_artifact_only(lanes_manifest) and not lands_mission_branch(main_repo, lanes_manifest)
 
     # -- Resolve canonical mission_id from meta.json (WP04/FR-004) --

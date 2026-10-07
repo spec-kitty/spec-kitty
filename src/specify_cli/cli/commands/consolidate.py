@@ -67,6 +67,7 @@ import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple, NoReturn
 
+import click
 import typer
 from rich.markup import escape
 
@@ -81,6 +82,7 @@ from specify_cli.core.paths import (
     get_main_repo_root,
     resolve_merge_retention,
 )
+from specify_cli.git.origin_freshness import ORIGIN_CHECK_ENV, OriginCheckMode
 from specify_cli.git.sparse_checkout import (
     SparseCheckoutPreflightError,
 )
@@ -810,6 +812,7 @@ def _run_real_merge(
     attest_canceled_superseded: tuple[str, ...] = (),
     attest_reason: str | None = None,
     attest_approved_reviewed: tuple[str, ...] = (),
+    origin_check: str | None = None,
 ) -> None:
     """Run the real lane-based merge + post-merge retrospective / next-step hints."""
     try:
@@ -829,6 +832,7 @@ def _run_real_merge(
             attest_canceled_superseded=attest_canceled_superseded,
             attest_reason=attest_reason,
             attest_approved_reviewed=attest_approved_reviewed,
+            origin_check=origin_check,
         )
     except SparseCheckoutPreflightError as exc:
         # WP05/T020: surface sparse-checkout preflight as a user-facing error and
@@ -980,6 +984,7 @@ class ConsolidateOptions:
     attest_reason: str | None = None
     release_branch: list[str] | None = None
     release_reason: str | None = None
+    origin_check: str | None = None
 
 
 @require_main_repo
@@ -1092,6 +1097,16 @@ def consolidate(
         "--release-reason",
         help="Why the released branches are kept, printed in the --abort report (required with --release-branch).",
     ),
+    origin_check: str | None = typer.Option(
+        None,
+        "--origin-check",
+        click_type=click.Choice([mode.value for mode in OriginCheckMode]),
+        help=(
+            "Origin freshness check before anything lands: enforce (the default) refuses when the remote's "
+            "status log or an approved lane branch of this Mission is ahead of this clone, or the remote cannot be reached; "
+            f"warn reports the same findings and continues. Overrides {ORIGIN_CHECK_ENV}."
+        ),
+    ),
 ) -> None:
     """Consolidate a lane-based mission into its target branch.
 
@@ -1125,6 +1140,7 @@ def consolidate(
             attest_approved_reviewed=attest_approved_reviewed,
             release_branch=release_branch,
             release_reason=release_reason,
+            origin_check=origin_check,
         )
     )
 
@@ -1155,6 +1171,7 @@ def run_consolidate(options: ConsolidateOptions) -> None:
     skip_lanes = options.skip_lanes
     attest_canceled_superseded = options.attest_canceled_superseded
     attest_reason = options.attest_reason
+    origin_check = options.origin_check
 
     del context_token, keep_workspace
     attested_wps = _validated_attestation_flags(attest_canceled_superseded, attest_reason, options.attest_approved_reviewed)
@@ -1343,6 +1360,7 @@ def run_consolidate(options: ConsolidateOptions) -> None:
         attest_canceled_superseded=attested_wps,
         attest_reason=attest_reason if (attested_wps or approved_attested_wps) else None,
         attest_approved_reviewed=approved_attested_wps,
+        origin_check=origin_check if isinstance(origin_check, str) else None,
     )
 
 
