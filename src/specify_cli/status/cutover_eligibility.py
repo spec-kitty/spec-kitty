@@ -44,7 +44,7 @@ import logging
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from specify_cli.mission_metadata import load_meta
 from specify_cli.status.lane_head import LANE_HEAD_KEY
@@ -78,6 +78,7 @@ _NOT_FLIPPED = "status_phase not flipped despite event-log runtime evidence"
 #: Block reasons (reused by the guard's remedy text). The terminal and legacy
 #: reasons keep the historical ``status_phase not flipped ...`` prefix.
 REASON_TERMINAL_UNSTAMPED = f"{_NOT_FLIPPED}: mission is accepted/merged but status_phase is not stamped"
+REASON_TERMINAL_MALFORMED = f"{_NOT_FLIPPED}: accepted_at/merged_at in meta.json is not a non-empty string"
 REASON_LEGACY_FRONTMATTER = f"{_NOT_FLIPPED}: WP frontmatter carries legacy runtime to migrate"
 REASON_ABSENT_MISSION_ID = "absent mission_id"
 REASON_PHASE_MALFORMED = "status_phase is malformed (not an integer)"
@@ -228,16 +229,43 @@ class PreAcceptDecision:
         return self.note is not None
 
 
-def _terminal_evidence(meta: Mapping[str, Any], slug: str) -> bool:
-    """True iff *meta* shows the mission was accepted/merged/numbered (``0`` counts)."""
+#: ``meta.json`` timestamps ``accept`` / ``merge`` stamp; a present value must be a non-empty string.
+_TERMINAL_TIME_KEYS = ("accepted_at", "merged_at")
+#: Commit / history markers ``accept`` and ``merge`` also write; a non-empty value is terminal evidence.
+_TERMINAL_MARKER_KEYS = ("accept_commit", "merged_commit", "acceptance_history")
+
+
+def _is_nonempty_string(value: object) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _marker_present(value: object) -> bool:
+    """True for any value that is not ``None`` / empty (a wrong-typed value still counts: fail closed)."""
+    if isinstance(value, str):
+        return bool(value.strip())
+    return value is not None and value != [] and value != {}
+
+
+def _terminal_evidence(meta: Mapping[str, Any], slug: str) -> Literal["none", "terminal", "malformed"]:
+    """Classify *meta*'s terminal evidence: ``"terminal"`` (accepted/merged/numbered, ``0`` counts), ``"malformed"`` or ``"none"``.
+
+    ``"malformed"`` is a present, non-``None`` ``accepted_at`` / ``merged_at`` that is not a
+    non-empty string (``1700000000``, ``true``, ``""``): the backfill's resolver would read it as
+    absent, which would be a false green here, so it declines instead (fail closed). A non-empty
+    ``accept_commit`` / ``merged_commit`` / ``acceptance_history`` is terminal evidence on its own.
+    """
     # Local import: same circular-import rationale as ``is_cut_over``.
     from specify_cli.migration.wp_status_backfill import resolve_terminal_evidence  # noqa: PLC0415
 
+    if any(meta.get(key) is not None and not _is_nonempty_string(meta.get(key)) for key in _TERMINAL_TIME_KEYS):
+        return "malformed"
     if resolve_terminal_evidence(meta, slug, None) is not None:
-        return True
+        return "terminal"
+    if any(_marker_present(meta.get(key)) for key in _TERMINAL_MARKER_KEYS):
+        return "terminal"
     # ``mission_number`` is a consolidate-time marker, not terminal evidence for the backfill's
     # resolver; the cut-over guard deliberately ALSO treats it as terminal (fail closed: ``0`` counts).
-    return meta.get("mission_number") is not None
+    return "terminal" if meta.get("mission_number") is not None else "none"
 
 
 def _raw_phase_state(meta: Mapping[str, Any]) -> str:
@@ -280,7 +308,8 @@ def pre_accept_exemption(mission_dir: Path) -> PreAcceptDecision:
     Exempt (``note`` set) only when ``meta.json`` reads (through :func:`_read_meta`, so a
     missing, empty or unparsable file has no ``mission_id`` and declines) with a ``mission_id``, ``status_phase`` is
     absent or a well-formed integer ``0``, there is no terminal evidence
-    (``accepted_at`` / ``merged_at`` / ``mission_number``), and no WP file
+    (``accepted_at`` / ``merged_at`` / ``accept_commit`` / ``merged_commit`` / ``acceptance_history`` / ``mission_number``;
+    a malformed ``accepted_at`` / ``merged_at`` declines), and no WP file
     carries legacy frontmatter runtime. Every undecidable input declines the
     exemption with a ``block_reason`` (fail closed, FR-005).
     """
@@ -292,7 +321,10 @@ def pre_accept_exemption(mission_dir: Path) -> PreAcceptDecision:
         return PreAcceptDecision(block_reason=REASON_PHASE_MALFORMED)
     if phase_state == "stamped":
         return PreAcceptDecision(block_reason=_NOT_FLIPPED)
-    if _terminal_evidence(meta, mission_dir.name):
+    terminal = _terminal_evidence(meta, mission_dir.name)
+    if terminal == "malformed":
+        return PreAcceptDecision(block_reason=REASON_TERMINAL_MALFORMED)
+    if terminal == "terminal":
         return PreAcceptDecision(block_reason=REASON_TERMINAL_UNSTAMPED)
     carries = _carries_frontmatter_runtime(mission_dir)
     if carries is None:
