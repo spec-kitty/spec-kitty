@@ -12,7 +12,7 @@
 
 ## R3 — Terminal evidence
 - **Decision**: non-empty `accepted_at` / `merged_at`, non-null `mission_number`.
-- **Rationale**: same fields as `migrate backfill-wp-status`; `accept` writes `accepted_at` (`mission_metadata.py` `record_acceptance`) and stamps best-effort, so "accepted, not stamped" is reachable and must stay red.
+- **Rationale**: a superset of the fields `migrate backfill-wp-status` uses (`accepted_at`, `merged_at` via `resolve_terminal_evidence`): the guard adds `mission_number` and the `accept_commit` / `merged_commit` / `acceptance_history` markers, and treats a malformed `accepted_at`/`merged_at` as undecidable; `accept` writes `accepted_at` (`mission_metadata.py` `record_acceptance`) and stamps best-effort, so "accepted, not stamped" is reachable and must stay red.
 
 ## R4 — Second consumer
 - **Decision**: `eligible_runtime_missions` excludes exempt Missions.

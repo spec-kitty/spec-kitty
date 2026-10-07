@@ -2,7 +2,7 @@
 title: 'Cut-over guard: fail-closed pre-merge gate for runtime-state cut-over'
 description: What `spec-kitty cutover-guard` checks, how it is wired into CI so it cannot be silently skipped, and how to register it as a required status check.
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-07'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 ---
@@ -68,16 +68,31 @@ these hold:
 
 - it has event-log evidence of runtime state;
 - `meta.json` has no `status_phase`, or a well-formed one below `1`;
-- it has no terminal evidence: no `accepted_at`, `merged_at` or `mission_number`;
-- no work package carries legacy WP-frontmatter runtime state;
+- it has no terminal evidence: no `accepted_at`, `merged_at`, `accept_commit`,
+  `merged_commit`, `acceptance_history` or `mission_number`;
+- no work package carries legacy claim runtime in its WP frontmatter;
 - it has a `mission_id`.
 
-The guard lists exempt Missions in a separate section of the report and in the
-`exempt` key of `--json`. It does not call them cut over.
+**What counts as legacy claim runtime.** Only a non-empty `shell_pid`,
+`shell_pid_created_at` or `assignee`, or a completed review override, in a WP
+file. `agent`, `agent_profile`, `role`, `model` and `tracker_refs` do not count:
+the canonical tasks-packages step writes them at planning time, before any claim
+(operator ruling of 2026-10-07). Checked `tasks.md` subtask rows do not count
+either. `spec-kitty migrate backfill-runtime-state` still seeds all of them.
 
-The exemption fails closed. A malformed or negative `status_phase`, a missing or
-unparsable `meta.json` (reported as an absent `mission_id`), or a WP file the
-guard cannot read to rule out legacy runtime makes the Mission fail, never pass.
+The guard lists exempt Missions in a separate section of the report and in the
+`exempt` key of `--json`. It does not call them cut over. Each `exempt` item is
+`{"slug": "<mission slug>", "reasons": ["<pre-accept note>"]}`. The key is
+additive: consumers that ignore unknown keys are unaffected.
+
+The exemption fails closed. Each of these makes the Mission fail, never pass:
+
+- a malformed or negative `status_phase`;
+- a missing or unparsable `meta.json` (reported as an absent `mission_id`);
+- an `accepted_at` or `merged_at` that is present but not a non-empty string;
+- a top-level key repeated in `meta.json` (the last value would win);
+- a `tasks/`, `tasks.md` or WP file the guard cannot read to rule out legacy
+  runtime. The failure reason names the file and the error.
 
 ### Remedies
 
@@ -92,8 +107,8 @@ guard cannot read to rule out legacy runtime makes the Mission fail, never pass.
 
 ### Known limits
 
-- A Mission merged mid-flight without accept, and with no legacy runtime state,
-  is not caught: nothing marks it terminal.
+- A Mission merged to `main` without accept, and with no legacy runtime state,
+  stays exempt: nothing marks it terminal ([#5850](https://github.com/spec-kitty/spec-kitty/issues/5850)).
 - A coordination-topology Mission's event log may be absent from a PR head.
   This is pre-existing; a follow-up tracks it.
 

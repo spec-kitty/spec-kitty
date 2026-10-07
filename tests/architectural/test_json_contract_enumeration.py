@@ -325,7 +325,7 @@ DEFERRED: dict[str, tuple[tuple[str, ...], str, str]] = {
     "cutover-guard": (
         ("--base-ref", "missing"),
         "outside",
-        "cutover_guard.py:288; valid --base-ref; missing project emits only stderr diagnostic; Follow-up: #4664",
+        "cutover_guard.py:389; valid --base-ref; missing project emits only stderr diagnostic; Follow-up: #4664",
     ),
     "dispatch": (
         ("missing", "--dry-run"),

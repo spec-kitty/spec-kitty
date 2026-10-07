@@ -36,7 +36,7 @@ flowchart LR
 
 | Charter rule | Status |
 |---|---|
-| Single canonical authority | PASS — one exemption helper consumed by both verdict paths; legacy detection is a predicate on the existing `LegacyWPRuntime` record; terminal-evidence fields match `migrate backfill-wp-status`. |
+| Single canonical authority | PASS — one exemption helper consumed by both verdict paths; legacy detection is a predicate on the existing `LegacyWPRuntime` record; terminal evidence reuses `resolve_terminal_evidence` and adds `mission_number` and the commit/history markers (a superset of `migrate backfill-wp-status`'s fields). |
 | Fail closed / no green-wash (SO #4, #9) | PASS — undecidable → no exemption; P0 gets a red-first repro. |
 | ATDD-first / red-first (ADR `2026-07-17-1`) | PASS — repro lands red on the base before the fix, then is converted to a focused test. |
 | Architectural gate discipline (SO #5) | PASS — no allowlist added; strict branches pinned by paired fixtures (non-vacuity). |

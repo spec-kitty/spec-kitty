@@ -78,7 +78,7 @@ _NOT_FLIPPED = "status_phase not flipped despite event-log runtime evidence"
 
 #: Block reasons (reused by the guard's remedy text). The terminal and legacy
 #: reasons keep the historical ``status_phase not flipped ...`` prefix.
-REASON_TERMINAL_UNSTAMPED = f"{_NOT_FLIPPED}: mission is accepted/merged but status_phase is not stamped"
+REASON_TERMINAL_UNSTAMPED = f"{_NOT_FLIPPED}: mission is accepted, merged or numbered but status_phase is not stamped"
 REASON_TERMINAL_MALFORMED = f"{_NOT_FLIPPED}: accepted_at/merged_at in meta.json is not a non-empty string"
 REASON_LEGACY_FRONTMATTER = f"{_NOT_FLIPPED}: WP frontmatter carries legacy runtime to migrate"
 REASON_ABSENT_MISSION_ID = "absent mission_id"
