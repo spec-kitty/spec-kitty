@@ -204,7 +204,7 @@ def test_adapter_wraps_no_engine_writer() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 2a. Focused unit tests — the 5 wrapper functions (FR-006)
+# 2a. Focused unit tests — the engine/planner wrapper functions (FR-006)
 # ---------------------------------------------------------------------------
 
 
@@ -838,8 +838,8 @@ def test_low_band_replan_to_terminal_runs_the_retrospective_path(
 # ---------------------------------------------------------------------------
 
 _ADAPTER_PATH = _SRC_RUNTIME_NEXT / "runtime_bridge_engine.py"
-_BRIDGE_PATH = _SRC_RUNTIME_NEXT / "runtime_bridge.py"
-#: Event payloads and requests the engine commit builds; the adapter must not.
+#: Event payloads and requests the engine commit builds; the adapter must not
+#: mention them at all (a constructor, ``model_validate``, an alias).
 _ENGINE_OWNED_CONSTRUCTIONS = frozenset(
     {
         "NextStepAutoCompletedPayload",
@@ -850,7 +850,16 @@ _ENGINE_OWNED_CONSTRUCTIONS = frozenset(
         "DecisionRequest",
     }
 )
-_RETIRED_DEFINITIONS = frozenset({"plan_composition_advance", "CompositionAdvancePlan"})
+#: The ONLY engine / planner attributes the adapter reaches, exactly the set it
+#: uses today. Anything else (``next_step``, ``_commit_advance``, ``apply_result``,
+#: a writer, a new planner) is a new door and must be added here deliberately.
+_ALLOWED_ENGINE_ACCESS: dict[str, frozenset[str]] = {
+    "_engine": frozenset({"_read_snapshot", "_load_frozen_template", "plan_advance", "commit_advance", "StaleAdvancePlan"}),
+    "_planner": frozenset({"plan_next", "_resolve_workflow_for_mission"}),
+}
+#: Type-only imports the adapter may take from the engine submodule.
+_TYPE_ONLY_ENGINE_IMPORTS = frozenset({"AdvancePlan", "ResultType"})
+_FORBIDDEN_REFERENCES = _ENGINE_OWNED_CONSTRUCTIONS | _ENGINE_WRITERS | {"apply_result", "model_copy"}
 
 
 def _call_name(func: ast.expr) -> str | None:
@@ -861,21 +870,73 @@ def _call_name(func: ast.expr) -> str | None:
     return None
 
 
-def _adapter_shape_violations(source: str) -> list[str]:
-    """Every way ``source`` re-grows a parallel planner or event code."""
-    tree = ast.parse(source)
+def _is_private_runtime_module(module: str) -> bool:
+    return module.split(".")[-2:] in (["_internal_runtime", "engine"], ["_internal_runtime", "planner"])
+
+
+def _import_violations(tree: ast.Module) -> list[str]:
+    """Imports that reach past the two aliased modules: a name taken straight from
+    the engine/planner submodule (aliased or not) or from the events package."""
+    type_only = {
+        id(node)
+        for block in tree.body
+        if isinstance(block, ast.If) and isinstance(block.test, ast.Name) and block.test.id == "TYPE_CHECKING"
+        for node in block.body
+    }
     violations: list[str] = []
     for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.name in _RETIRED_DEFINITIONS:
-            violations.append(f"defines {node.name}")
-        if isinstance(node, ast.Call):
-            name = _call_name(node.func)
-            if name in _ENGINE_OWNED_CONSTRUCTIONS:
-                violations.append(f"constructs {name}")
-            elif name == "apply_result":
-                violations.append("calls apply_result")
-            elif name in _ENGINE_WRITERS:
-                violations.append(f"calls {name}")
+        if isinstance(node, ast.Import):
+            violations.extend(
+                f"imports {alias.name}" for alias in node.names if _is_private_runtime_module(alias.name) or alias.name.startswith("spec_kitty_events")
+            )
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            if module.startswith("spec_kitty_events"):
+                violations.append(f"imports from {module}")
+            elif _is_private_runtime_module(module):
+                if id(node) not in type_only or not {alias.name for alias in node.names} <= _TYPE_ONLY_ENGINE_IMPORTS:
+                    violations.append(f"imports from {module}")
+            elif module.endswith("_internal_runtime"):
+                violations.extend(
+                    f"imports {alias.name} as {alias.asname}" for alias in node.names if alias.name in ("engine", "planner") and alias.asname != f"_{alias.name}"
+                )
+    return violations
+
+
+def _access_violations(tree: ast.Module) -> list[str]:
+    """``_engine`` / ``_planner`` are reached only as ``<alias>.<allowlisted attr>``."""
+    violations: list[str] = []
+    attribute_bases: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id in _ALLOWED_ENGINE_ACCESS:
+            attribute_bases.add(id(node.value))
+            if node.attr not in _ALLOWED_ENGINE_ACCESS[node.value.id]:
+                violations.append(f"reaches {node.value.id}.{node.attr}, which is not on the allowlist")
+    violations.extend(
+        f"uses {node.id} other than as {node.id}.<attr>"
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Name) and node.id in _ALLOWED_ENGINE_ACCESS and id(node) not in attribute_bases
+    )
+    return violations
+
+
+def _reference_violations(tree: ast.Module) -> list[str]:
+    """Names the adapter must never mention: engine events and writers, ``apply_result``,
+    ``model_copy`` (editing a plan) and any ``emit_*`` (emitting an event itself)."""
+    violations: list[str] = []
+    for node in ast.walk(tree):
+        name = node.id if isinstance(node, ast.Name) else node.attr if isinstance(node, ast.Attribute) else None
+        if name is None:
+            continue
+        if name in _FORBIDDEN_REFERENCES:
+            violations.append(f"references {name}")
+        elif name.startswith("emit_"):
+            violations.append(f"calls {name}")
+    return violations
+
+
+def _plan_next_violations(tree: ast.Module) -> list[str]:
+    """``plan_next`` is called only inside its own pinned wrapper."""
     wrapper_calls = sum(
         1
         for node in tree.body
@@ -884,50 +945,46 @@ def _adapter_shape_violations(source: str) -> list[str]:
         if isinstance(call, ast.Call) and _call_name(call.func) == "plan_next"
     )
     all_calls = sum(1 for call in ast.walk(tree) if isinstance(call, ast.Call) and _call_name(call.func) == "plan_next")
-    if all_calls > wrapper_calls:
-        violations.append("calls plan_next outside its pinned wrapper")
-    return violations
+    return ["calls plan_next outside its pinned wrapper"] if all_calls > wrapper_calls else []
+
+
+def _adapter_shape_violations(source: str) -> list[str]:
+    """Every way ``source`` re-grows a parallel planner, writer or event code."""
+    tree = ast.parse(source)
+    return [*_import_violations(tree), *_access_violations(tree), *_reference_violations(tree), *_plan_next_violations(tree)]
 
 
 def test_adapter_has_no_parallel_planner_or_event_code() -> None:
-    """The adapter commits the engine's plan; it defines no planner of its own,
-    applies no result itself and builds none of the engine's events."""
+    """The adapter commits the engine's plan: it reaches only the allowlisted engine
+    and planner attributes, applies no result, emits nothing and builds none of the
+    engine's events."""
     assert _adapter_shape_violations(_ADAPTER_PATH.read_text(encoding="utf-8")) == []
 
 
 @pytest.mark.parametrize(
-    "planted",
+    ("planted", "expected"),
     [
-        "def plan_composition_advance(run_ref, agent):\n    return None\n",
-        "class CompositionAdvancePlan:\n    pass\n",
-        "def f(snapshot):\n    return apply_result(snapshot, 'success')\n",
-        "def f(snapshot):\n    return _engine.apply_result(snapshot, 'success')\n",
-        "payload = NextStepAutoCompletedPayload(run_id='r')\n",
-        "payload = NextStepIssuedPayload(run_id='r')\n",
-        "payload = DecisionInputRequestedPayload(run_id='r')\n",
-        "payload = MissionRunCompletedPayload(run_id='r')\n",
-        "request = DecisionRequest(decision_id='d')\n",
-        "payload = SignificanceEvaluatedPayload(run_id='r')\n",
-        "def f(run_dir):\n    _engine._append_event(run_dir, 'NextStepIssued', {})\n",
-        "def f(run_dir, snapshot):\n    _write_snapshot(run_dir, snapshot)\n",
-        "def advance(snapshot):\n    return plan_next(snapshot, None, None)\n",
+        # The writer / constructor / planner bans the gate always had.
+        ("payload = NextStepIssuedPayload(run_id='r')\n", "references NextStepIssuedPayload"),
+        ("def f(run_dir, snapshot):\n    _write_snapshot(run_dir, snapshot)\n", "references _write_snapshot"),
+        ("def advance(snapshot):\n    return plan_next(snapshot, None, None)\n", "calls plan_next outside its pinned wrapper"),
+        # Bypasses of the old name-matching denylist.
+        (
+            "from runtime.next._internal_runtime.engine import apply_result as _ar\n\ndef f(s):\n    return _ar(s, 'success')\n",
+            "imports from runtime.next._internal_runtime.engine",
+        ),
+        ("def f(r, p, a, e):\n    return _engine._commit_advance(r, p, a, e)\n", "_engine._commit_advance"),
+        ("def f(sync_emitter, p):\n    sync_emitter.emit_next_step_issued(p)\n", "calls emit_next_step_issued"),
+        ("payload = NextStepIssuedPayload.model_validate({'run_id': 'r'})\n", "references NextStepIssuedPayload"),
+        ("def f(r, plan, a, e):\n    return commit_advance(r, plan.model_copy(update={'issued_step_id': None}), a, e)\n", "references model_copy"),
+        ("def f(r, a):\n    return _engine.next_step(r, a)\n", "_engine.next_step"),
+        ("def f(snapshot):\n    return getattr(_planner, 'plan_next')(snapshot)\n", "uses _planner other than as"),
+        ("from spec_kitty_events.mission_next import NextStepIssuedPayload as _P\n", "imports from spec_kitty_events.mission_next"),
     ],
 )
-def test_adapter_shape_gate_reports_a_planted_violation(planted: str) -> None:
-    """Self-mutation row: each planted construction is reported (the gate is not vacuous)."""
+def test_adapter_shape_gate_reports_a_planted_violation(planted: str, expected: str) -> None:
+    """Self-mutation row: each planted bypass is reported by the rule meant to catch it
+    (the gate is not vacuous, and not satisfied by an unrelated rule)."""
     wrapper = "def plan_next(snapshot):\n    return _planner.plan_next(snapshot)\n"
     assert _adapter_shape_violations(wrapper) == [], "the pinned plan_next wrapper itself is allowed"
-    assert _adapter_shape_violations(wrapper + planted) != []
-
-
-def test_bridge_plans_the_composition_advance_with_the_engine() -> None:
-    """``_dn_plan_composition_advance`` plans through ``_engine_adapter.plan_advance``."""
-    tree = ast.parse(_BRIDGE_PATH.read_text(encoding="utf-8"))
-    function = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "_dn_plan_composition_advance")
-    called = {
-        (call.func.value.id, call.func.attr)
-        for call in ast.walk(function)
-        if isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute) and isinstance(call.func.value, ast.Name)
-    }
-    assert ("_engine_adapter", "plan_advance") in called
-    assert all(attr != "plan_composition_advance" for _owner, attr in called)
+    assert any(expected in violation for violation in _adapter_shape_violations(wrapper + planted))
