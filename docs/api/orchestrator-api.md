@@ -116,9 +116,20 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
 - `1.12.0` — adds governed context/interviews, bounded artifact authoring and
   native `next`, plus the truthful Python delivery profile and capability probe.
   Existing commands and envelope fields remain. For API-authored Missions,
-  successful design completion/finalization now checks accepted provenance and
-  canonical prerequisites; stale or unfinished inputs refuse. See
-  [Governed planning delivery](#governed-planning-delivery-python-profile).
+  successful design completion/finalization through orchestrator-api now checks
+  accepted provenance and canonical prerequisites; stale or unfinished inputs
+  refuse. Native `spec-kitty next --result success` and the agent lifecycle
+  commands do not run that check. New `error_code` values: `DESIGN_ARTIFACT_UNSUPPORTED`,
+  `DESIGN_BOUNDS_EXCEEDED`, `DESIGN_COMMIT_FAILED`, `DESIGN_CONTEXT_FAILED`,
+  `DESIGN_CONTEXT_STALE`, `DESIGN_FINALIZED`, `DESIGN_INTERVIEW_FAILED`,
+  `DESIGN_INTERVIEW_INCOMPLETE`, `DESIGN_INTERVIEW_INVALID`, `DESIGN_IO_FAILED`,
+  `DESIGN_LOCK_TIMEOUT`, `DESIGN_PARENT_STALE`, `DESIGN_PATH_REFUSED`,
+  `DESIGN_PREREQUISITES_FAILED`, `DESIGN_RECEIPT_UNREADABLE`,
+  `DESIGN_REQUEST_INVALID`, `DESIGN_REVISION_CONFLICT`,
+  `DESIGN_STATUS_EVENT_LOG_UNREADABLE`, `RUNTIME_NEXT_FAILED`, `RUNTIME_BLOCKED`
+  and `UNSUPPORTED_CAPABILITY`. Behaviour change: `plan` now fails when its
+  delegate payload result is `blocked` or `error` instead of emitting success.
+  See [Governed planning delivery](#governed-planning-delivery-python-profile).
 
 ## Response Envelope
 

@@ -91,8 +91,20 @@ from kernel.clock import now_utc_iso
 # 1.12.0: added ``artifact-read``, ``artifact-submit``, ``design-validate``,
 # ``design-context``, ``interview-record`` and ``next`` for governed planning.
 # Existing envelope/verbs remain; the Python delivery profile explicitly lists
-# translated semantics and unavailable Go guarantees. API-authored stage
-# completion/finalization now refuses stale or unfinished content.
+# translated semantics and unavailable Go guarantees. Through orchestrator-api,
+# API-authored stage completion/finalization now refuses stale or unfinished
+# content (native ``next --result success`` and the agent lifecycle commands do
+# not run that check). New ``error_code`` values:
+# DESIGN_ARTIFACT_UNSUPPORTED, DESIGN_BOUNDS_EXCEEDED, DESIGN_COMMIT_FAILED,
+# DESIGN_CONTEXT_FAILED, DESIGN_CONTEXT_STALE, DESIGN_FINALIZED,
+# DESIGN_INTERVIEW_FAILED, DESIGN_INTERVIEW_INCOMPLETE,
+# DESIGN_INTERVIEW_INVALID, DESIGN_IO_FAILED, DESIGN_LOCK_TIMEOUT,
+# DESIGN_PARENT_STALE, DESIGN_PATH_REFUSED, DESIGN_PREREQUISITES_FAILED,
+# DESIGN_RECEIPT_UNREADABLE, DESIGN_REQUEST_INVALID, DESIGN_REVISION_CONFLICT,
+# DESIGN_STATUS_EVENT_LOG_UNREADABLE, RUNTIME_NEXT_FAILED, RUNTIME_BLOCKED and
+# UNSUPPORTED_CAPABILITY.
+# Behaviour change: ``plan`` now fails when its delegate payload result is
+# ``blocked`` or ``error`` (or ``success`` is false) instead of emitting success.
 CONTRACT_VERSION = "1.12.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
