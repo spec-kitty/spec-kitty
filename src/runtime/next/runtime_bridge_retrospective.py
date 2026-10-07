@@ -430,14 +430,10 @@ def _emit_build_failure(
 
     Goes through :func:`_classify_and_emit_failure`, the one place a capture
     failure is turned into the event. No policy was resolved yet, so the source map
-    is empty. When the emitter itself cannot be imported there is nothing to
-    emit with; that is logged, never raised.
+    is empty.
     """
-    try:
-        from specify_cli.retrospective.lifecycle_events import emit_capture_failed
-    except Exception:
-        logger.warning("Cannot emit RetrospectiveCaptureFailed for mission %s", mission_slug, exc_info=True)
-        return
+    from specify_cli.retrospective.lifecycle_events import emit_capture_failed
+
     _classify_and_emit_failure(
         mission_id=mission_id,
         mission_slug=mission_slug,
