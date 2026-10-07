@@ -10930,6 +10930,9 @@ pages:
     anchors:
     - {slug: "what-the-guard-does", text: "What the guard does", level: 2}
     - {slug: "exit-behavior", text: "Exit behavior", level: 3}
+    - {slug: "pre-accept-missions", text: "Pre-accept Missions", level: 2}
+    - {slug: "remedies", text: "Remedies", level: 3}
+    - {slug: "known-limits", text: "Known limits", level: 3}
     - {slug: "how-it-is-invoked", text: "How it is invoked", level: 2}
     - {slug: "how-it-triggers-in-ci-the-corpus-only-pr-requirement", text: "How it triggers in CI (the corpus-only-PR requirement)", level: 2}
     - {slug: "registering-it-as-a-required-check-operator-action", text: "Registering it as a required check (operator action)", level: 2}

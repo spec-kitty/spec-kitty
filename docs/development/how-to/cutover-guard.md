@@ -20,7 +20,8 @@ type: how-to
 
 `spec-kitty cutover-guard` is a diff-scoped, fail-closed check that blocks a
 pull request unless every `kitty-specs/<mission>/` corpus touched by that PR's
-diff has been **cut over** to event-log-authoritative runtime state.
+diff has been **cut over** to event-log-authoritative runtime state, or is a
+[pre-accept Mission](#pre-accept-missions), which is exempt from the stamp check.
 
 "Cut over" is decided using the same event-log-evidence authority the
 dogfood corpus lock uses
@@ -37,7 +38,8 @@ fork of the decision logic.
 
 ### Exit behavior
 
-- **Exit 0** — every mission touched by the diff is cut over (including the
+- **Exit 0** — every mission touched by the diff is cut over or pre-accept
+  (including the
   vacuous case where the diff touches no `kitty-specs/` mission at all).
 - **Exit 1** — one or more touched missions are un-cut-over, OR the diff
   itself could not be determined (unknown base ref, unreadable
@@ -46,12 +48,52 @@ fork of the decision logic.
   `mission_id`, or missing mission directory is treated as a failure, not a
   skip.
 
-On failure the guard prints the un-cut-over mission slug(s) and the exact
-remedy:
+On failure the guard prints the un-cut-over mission slug(s) and a remedy
+specific to the reason (see [Remedies](#remedies)). The default remedy is:
 
 ```
 spec-kitty migrate backfill-runtime-state --mission <slug>
 ```
+
+## Pre-accept Missions
+
+A Mission driven only by the canonical commands carries event-log runtime
+evidence from its first claim, but the `status_phase` stamp is written only at
+accept/consolidate, by design (#2917). Before this exemption, every in-flight
+Mission failed the guard on its first push (#5835, #5300).
+
+A Mission is exempt, and passes with the note
+`pre-accept: status_phase stamp deferred to accept/consolidate`, when all of
+these hold:
+
+- it has event-log evidence of runtime state;
+- `meta.json` has no `status_phase`, or a well-formed one below `1`;
+- it has no terminal evidence: no `accepted_at`, `merged_at` or `mission_number`;
+- no work package carries legacy WP-frontmatter runtime state;
+- it has a `mission_id`.
+
+The guard lists exempt Missions in a separate section of the report and in the
+`exempt` key of `--json`. It does not call them cut over.
+
+The exemption fails closed. A malformed `status_phase`, an unreadable
+`meta.json`, or a WP file the guard cannot read to rule out legacy runtime makes
+the Mission fail, never pass.
+
+### Remedies
+
+| Reason | Remedy |
+|---|---|
+| Accepted or merged, but no stamp; or legacy WP frontmatter | `spec-kitty migrate backfill-runtime-state --mission <slug>` |
+| `status_phase` malformed | fix `status_phase` in `kitty-specs/<slug>/meta.json` (expected an integer, for example `"1"`), then rerun |
+| `meta.json` or a WP file unreadable | repair `kitty-specs/<slug>/meta.json` or the unreadable WP file, then rerun |
+| Absent `mission_id` | `spec-kitty migrate backfill-identity` |
+
+### Known limits
+
+- A Mission merged mid-flight without accept, and with no legacy runtime state,
+  is not caught: nothing marks it terminal.
+- A coordination-topology Mission's event log may be absent from a PR head.
+  This is pre-existing; a follow-up tracks it.
 
 ## How it is invoked
 

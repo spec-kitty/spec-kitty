@@ -191,7 +191,7 @@ jobs:
   #     top-level `on.pull_request.paths` (above) so a corpus-only PR
   #     triggers the workflow at all;
   #   - must be registered as a REQUIRED status check in branch protection
-  #     (see docs/development/cutover-guard.md) for the fail-closed guarantee
+  #     (see docs/development/how-to/cutover-guard.md) for the fail-closed guarantee
   #     to hold — an unregistered check can be ignored by a merge button.
   # ---------------------------------------------------------------------------
   cutover-guard:
