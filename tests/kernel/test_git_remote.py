@@ -5,6 +5,7 @@ from __future__ import annotations
 import subprocess
 import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -21,7 +22,7 @@ from kernel.git.remote import (
     resolve_remote,
     tracking_ref,
 )
-from kernel.git.runner import GitCommandError
+from kernel.git.runner import GitCommandError, GitResult
 from tests.terminus.two_clone_support import (
     attach_and_push,
     clone_from,
@@ -201,6 +202,24 @@ def test_describe_remote_head_passes_non_prompting_env_to_transport(world: tuple
     recorded = log.read_text(encoding="utf-8")
     assert "BatchMode=yes" in recorded
     assert "PROMPT: 0" in recorded
+
+
+def test_fetch_branches_never_recurses_into_submodules(world: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    """A submodule fetch would contact further remotes outside the one bounded contact."""
+    _, work = world
+    seen: list[tuple[str, ...]] = []
+    real_run_git = git_remote.run_git
+
+    def recording(cwd: Path, *args: str, **kwargs: Any) -> GitResult:
+        seen.append(args)
+        return real_run_git(cwd, *args, **kwargs)
+
+    monkeypatch.setattr(git_remote, "run_git", recording)
+    fetch_branches(work, "origin", ["main"])
+
+    (fetch_argv,) = [argv for argv in seen if argv[:1] == ("fetch",)]
+    assert "--no-recurse-submodules" in fetch_argv
+    assert fetch_argv.index("--no-recurse-submodules") < fetch_argv.index("origin")
 
 
 @pytest.mark.parametrize("call", ["remote_heads", "fetch_branches"])

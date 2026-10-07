@@ -188,7 +188,8 @@ def remote_heads(cwd: Path, remote: str, branches: Sequence[str], *, timeout: fl
 def fetch_branches(cwd: Path, remote: str, branches: Sequence[str], *, timeout: float = FETCH_TIMEOUT) -> None:
     """Fetch *branches* into ``refs/remotes/<remote>/<b>``; never writes ``refs/heads``.
 
-    Uses explicit forced refspecs and ``--no-tags``. Empty *branches* does not contact.
+    Uses explicit forced refspecs, ``--no-tags`` and ``--no-recurse-submodules`` (a submodule fetch would contact
+    further remotes). Empty *branches* does not contact.
 
     Raises:
         RemoteUnreachable: the fetch failed or timed out.
@@ -196,7 +197,7 @@ def fetch_branches(cwd: Path, remote: str, branches: Sequence[str], *, timeout: 
     if not branches:
         return
     refspecs = [f"+refs/heads/{name}:{tracking_ref(remote, name)}" for name in branches]
-    _contact(cwd, remote, timeout, "fetch", "--no-tags", remote, *refspecs)
+    _contact(cwd, remote, timeout, "fetch", "--no-tags", "--no-recurse-submodules", remote, *refspecs)
 
 
 @dataclass(frozen=True)
