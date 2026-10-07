@@ -72,7 +72,7 @@ def stub(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNamespace:
         return result
 
     monkeypatch.setattr(shared_gate, "check_mission_branches", fake_check)
-    monkeypatch.setattr(origin_gate, "_lane_branches", lambda seam: [_LANE])
+    monkeypatch.setattr(origin_gate, "origin_lane_branches", lambda seam, *, resume: [_LANE])
     monkeypatch.setattr(shared_gate, "resolve_topology", lambda repo, slug: MissionTopology.COORD if state.coordination else MissionTopology.LANES)
     monkeypatch.setattr(origin_gate, "merge_record_may_exist", lambda seam: state.record)
     monkeypatch.setattr(shared_gate, "worktrees_with_branch_checked_out", lambda repo, branch: state.holders)
@@ -177,18 +177,18 @@ def test_unknown_environment_value_enforces_and_warns(stub: SimpleNamespace, con
 # --- lane selection inputs ---------------------------------------------------------------
 
 
-def test_lane_branches_are_empty_without_a_readable_manifest(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_origin_lane_branches_are_empty_without_a_readable_manifest(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(origin_gate, "read_lanes_json", lambda directory: None)
-    assert origin_gate._lane_branches(_seam(tmp_path)) == []
+    assert origin_gate.origin_lane_branches(_seam(tmp_path), resume=True) == []
 
     def corrupt(directory: Path) -> None:
         raise CorruptLanesError("bad")
 
     monkeypatch.setattr(origin_gate, "read_lanes_json", corrupt)
-    assert origin_gate._lane_branches(_seam(tmp_path)) == []
+    assert origin_gate.origin_lane_branches(_seam(tmp_path), resume=True) == []
 
 
-def test_lane_branches_pass_the_resume_progress_to_the_selection(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_origin_lane_branches_pass_the_resume_progress_only_when_resuming(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     seen: dict[str, object] = {}
     manifest = object()
     monkeypatch.setattr(origin_gate, "read_lanes_json", lambda directory: manifest)
@@ -199,8 +199,11 @@ def test_lane_branches_pass_the_resume_progress_to_the_selection(monkeypatch: py
         return [_LANE]
 
     monkeypatch.setattr(origin_gate, "approved_lane_branches", select)
-    assert origin_gate._lane_branches(_seam(tmp_path)) == [_LANE]
+    assert origin_gate.origin_lane_branches(_seam(tmp_path), resume=True) == [_LANE]
     assert seen == {"manifest": manifest, "completed": frozenset({"WP01"})}
+    # orchestrator-api consolidate-mission has no resume: it merges every lane, so every lane is checked.
+    assert origin_gate.origin_lane_branches(_seam(tmp_path), resume=False) == [_LANE]
+    assert seen["completed"] == frozenset()
 
 
 def _stub_identity(monkeypatch: pytest.MonkeyPatch, mission_id: str | None) -> None:

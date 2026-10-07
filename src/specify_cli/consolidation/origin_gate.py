@@ -29,7 +29,7 @@ from specify_cli.git.origin_gate import run_origin_gate
 from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
 from specify_cli.mission_metadata import resolve_mission_identity
 
-__all__ = ["check_origin_before_status_dir"]
+__all__ = ["check_origin_before_status_dir", "origin_lane_branches"]
 
 
 def _completed_wps(seam: PlacementSeam) -> frozenset[str]:
@@ -45,15 +45,24 @@ def _completed_wps(seam: PlacementSeam) -> frozenset[str]:
     return frozenset(state.completed_wps) if state is not None else frozenset()
 
 
-def _lane_branches(seam: PlacementSeam) -> list[str]:
-    """Code-lane branches the check covers; none when ``lanes.json`` is absent or unreadable (the entry reports that itself)."""
+def origin_lane_branches(seam: PlacementSeam, *, resume: bool) -> list[str]:
+    """Code-lane branches the freshness check covers: the one selection ``consolidate`` and orchestrator-api share.
+
+    Reads ``lanes.json`` through the placement seam; none when it is absent or
+    unreadable (the entry reports that itself). *resume* says whether this run
+    continues a persisted consolidation record: ``consolidate`` does, so lanes the
+    record already consolidated are left out; ``orchestrator-api consolidate-mission``
+    has no resume (it merges every lane it selects), so it passes ``False`` and
+    every lane that is not fully canceled is checked.
+    """
     try:
         manifest = read_lanes_json(seam.read_dir(MissionArtifactKind.LANE_STATE))
     except CorruptLanesError:
         return []
     if manifest is None:
         return []
-    branches: list[str] = approved_lane_branches(seam.repo_root, seam.mission_slug, manifest, completed_wps=_completed_wps(seam))
+    completed = _completed_wps(seam) if resume else frozenset()
+    branches: list[str] = approved_lane_branches(seam.repo_root, seam.mission_slug, manifest, completed_wps=completed)
     return branches
 
 
@@ -73,7 +82,7 @@ def check_origin_before_status_dir(main_repo: Path, seam: PlacementSeam, origin_
         main_repo,
         seam.mission_slug,
         setting=resolve_origin_check_mode(origin_check),
-        lane_branches=_lane_branches(seam),
+        lane_branches=origin_lane_branches(seam, resume=True),
         merge_record_exists=merge_record_may_exist(seam),
     )
     return warnings

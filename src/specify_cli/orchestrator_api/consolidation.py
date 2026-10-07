@@ -20,9 +20,12 @@ if TYPE_CHECKING:
 import click
 import typer
 
+from mission_runtime import placement_seam
+from specify_cli.consolidation.entry_preflight import merge_record_may_exist
+from specify_cli.consolidation.origin_gate import origin_lane_branches
 from specify_cli.core.contract_gate import is_allowed_error_code, validate_outbound_payload
 from specify_cli.git.destructive_guard import DestructiveOpRefused
-from specify_cli.git.origin_freshness import ORIGIN_CHECK_CHOICES, OriginFreshnessRefused, approved_lane_branches, resolve_origin_check_mode
+from specify_cli.git.origin_freshness import ORIGIN_CHECK_CHOICES, OriginFreshnessRefused, resolve_origin_check_mode
 from specify_cli.git.origin_gate import run_origin_gate, verdict_payloads
 from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
@@ -118,7 +121,7 @@ def _origin_gate(
     mission_slug: str,
     origin_check: str | None,
     *,
-    lane_branches: Sequence[str] = (),
+    with_lanes: bool = False,
     target_branch: str | None = None,
 ) -> _OriginGateResult:
     """Check origin freshness before any evidence is read or any lane moves (FR-004).
@@ -127,10 +130,20 @@ def _origin_gate(
     accept, ``PREFLIGHT_FAILED`` for consolidate); ``refusal_data`` carries the additive
     ``preflight_error_code(s)`` and ``origin_freshness`` (and ``target_branch`` when the
     caller resolved one, as every other consolidate refusal carries it). Warn-mode warnings also go to stderr.
+    *with_lanes* adds the approved lane branches to the check and a persisted consolidation record to the
+    remedy, through the same seam inputs ``consolidate`` uses; this path has no resume, so every lane that is
+    not fully canceled is checked (``origin_lane_branches(..., resume=False)``).
     """
     setting = resolve_origin_check_mode(origin_check)
+    seam = placement_seam(main_repo_root, mission_slug) if with_lanes else None
     try:
-        warnings = run_origin_gate(main_repo_root, mission_slug, setting=setting, lane_branches=lane_branches)
+        warnings = run_origin_gate(
+            main_repo_root,
+            mission_slug,
+            setting=setting,
+            lane_branches=origin_lane_branches(seam, resume=False) if seam is not None else (),
+            merge_record_exists=merge_record_may_exist(seam) if seam is not None else False,
+        )
     except OriginFreshnessRefused as exc:
         message = str(exc)
         data: dict[str, object] = {
@@ -146,18 +159,6 @@ def _origin_gate(
     for warning in warnings:
         typer.echo(f"Warning: {warning}", err=True)
     return _OriginGateResult(warnings)
-
-
-def _approved_lane_branches_for(main_repo_root: Path, mission_slug: str) -> list[str]:
-    """The lanes the freshness gate covers; an unreadable manifest selects none (the preflight reports it)."""
-    from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
-
-    try:
-        manifest = require_lanes_json(_planning_read_dir(main_repo_root, mission_slug))
-    except (MissingLanesError, CorruptLanesError):
-        return []
-    branches: list[str] = approved_lane_branches(main_repo_root, mission_slug, manifest)
-    return branches
 
 
 def _fail_from_destructive_op_refused(cmd: str, mission_dir: Path, target_branch: str, exc: DestructiveOpRefused) -> NoReturn:
@@ -841,7 +842,7 @@ def consolidate_mission(
         main_repo_root,
         mission,
         origin_check,
-        lane_branches=_approved_lane_branches_for(main_repo_root, mission),
+        with_lanes=True,
         target_branch=preflight.target_branch,
     )
     if origin.refusal_data is not None:
