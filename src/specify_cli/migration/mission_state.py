@@ -1672,6 +1672,214 @@ def _rebuild_lanes_if_wedged(
     return LANES_REBUILT_ACTION
 
 
+@dataclass
+class _RepairState:
+    """Mutable accumulator threaded through the ``_repair_mission`` phases.
+
+    Holds everything the final (or error-path) :class:`MissionRepairResult`
+    reports, so a later phase that raises still reports what earlier phases
+    already changed on disk (report-fidelity, #4780).
+    """
+
+    mission_slug: str
+    mission_id: str | None = None
+    file_changes: list[FileChange] = field(default_factory=list)
+    row_changes: list[RowTransformation] = field(default_factory=list)
+    validation_errors: list[str] = field(default_factory=list)
+    quarantined_rows: int = 0
+    # Whether the quarantine file was actually written to disk this run (as
+    # opposed to ``quarantined_rows``, a count of rows CLASSIFIED for
+    # quarantine that may be >0 even on the row-error early return).
+    quarantine_written: bool = False
+    meta_actions: tuple[str, ...] = ()
+
+    def record_change(self, repo_root: Path, path: Path, before: tuple[str | None, int | None]) -> None:
+        """Append a :class:`FileChange` when *path*'s fingerprint moved off *before*."""
+        after = _file_fingerprint(path)
+        if before != after:
+            self.file_changes.append(_file_change(repo_root, path, before, after))
+
+    def result(self, status: Literal["updated", "unchanged", "error"] | None = None) -> MissionRepairResult:
+        if status is None:
+            changed = self.file_changes or self.row_changes or self.quarantined_rows
+            status = "updated" if changed else "unchanged"
+        return MissionRepairResult(
+            mission_slug=self.mission_slug,
+            mission_id=self.mission_id,
+            status=status,
+            file_changes=self.file_changes,
+            row_transformations=self.row_changes,
+            quarantined_rows=self.quarantined_rows,
+            validation_errors=self.validation_errors,
+            meta_actions=list(self.meta_actions),
+            quarantine_written=self.quarantine_written,
+        )
+
+
+def _repair_meta_phase(
+    repo_root: Path,
+    mission_dir: Path,
+    raw_rows: Sequence[_RawJsonlRow],
+    state: _RepairState,
+    *,
+    generated_ids: list[str] | None,
+) -> dict[str, Any]:
+    """Canonicalize and persist ``meta.json``; return the canonical meta."""
+    meta, state.meta_actions = _canonicalize_meta(mission_dir, raw_rows, generated_ids=generated_ids)
+    state.mission_slug = str(meta.get("mission_slug") or state.mission_slug)
+    state.mission_id = str(meta.get("mission_id") or "")
+    before_meta = _file_fingerprint(mission_dir / META_FILENAME)
+    if state.meta_actions:
+        write_meta(mission_dir, meta)
+    state.record_change(repo_root, mission_dir / META_FILENAME, before_meta)
+    return meta
+
+
+def _repair_events_phase(
+    repo_root: Path,
+    status_path: Path,
+    raw_rows: Sequence[_RawJsonlRow],
+    canonical_rows: Sequence[dict[str, Any]],
+    state: _RepairState,
+) -> None:
+    """Write the canonical event log when its text changed."""
+    before_events = _file_fingerprint(status_path)
+    status_text = "".join(json.dumps(row, sort_keys=True) + "\n" for row in canonical_rows)
+    # Backstop (#2376): never silently empty a previously-populated event
+    # log. Legitimate non-lane events are now preserved in
+    # ``canonical_rows``, so an empty result despite non-empty input means
+    # every row was dropped as genuinely foreign — an extraordinary
+    # outcome that fails loud (recorded as a mission error with a reason)
+    # rather than wiping the canonical log. Originals remain in the
+    # quarantine directory.
+    if raw_rows and not canonical_rows:
+        raise MissionStateRepairError(
+            f"Refusing to empty {_repo_relpath(repo_root, status_path)}: "
+            f"all {len(raw_rows)} row(s) were dropped by repair. This "
+            "usually indicates a row-classification bug; the original "
+            "rows are preserved verbatim in the quarantine directory."
+        )
+    if status_path.read_text(encoding="utf-8") != status_text:
+        atomic_write(status_path, status_text)
+    state.record_change(repo_root, status_path, before_events)
+
+
+def _repair_quarantine_phase(
+    repo_root: Path,
+    run_id: str,
+    quarantine_lines: Sequence[str],
+    state: _RepairState,
+) -> None:
+    """Write the quarantine file for rows the repair removed from the log."""
+    state.quarantined_rows = len(quarantine_lines)
+    # FR-001: mission_slug may originate from untrusted meta.json content
+    # (meta.get("mission_slug")); validate before joining into the quarantine path.
+    safe_mission_slug = assert_safe_path_segment(state.mission_slug)
+    quarantine_path = repo_root / MISSION_STATE_AUDIT_ROOT / "quarantine" / run_id / safe_mission_slug / EVENTS_FILENAME
+    before_quarantine = _file_fingerprint(quarantine_path)
+    quarantine_text = "".join(line.rstrip("\n") + "\n" for line in quarantine_lines)
+    atomic_write(quarantine_path, quarantine_text, mkdir=True)
+    state.quarantine_written = True
+    state.record_change(repo_root, quarantine_path, before_quarantine)
+
+
+def _repair_status_json_phase(repo_root: Path, mission_dir: Path, state: _RepairState) -> StatusSnapshot:
+    """Refresh ``status.json`` from the log; return the materialized snapshot."""
+    status_json_path = mission_dir / STATUS_FILENAME
+    before_status = _file_fingerprint(status_json_path)
+    snapshot = materialize_snapshot(mission_dir)
+    status_json = materialize_to_json(snapshot)
+    if not status_json_path.exists() or status_json_path.read_text(encoding="utf-8") != status_json:
+        atomic_write(status_json_path, status_json)
+    state.record_change(repo_root, status_json_path, before_status)
+    return snapshot
+
+
+def _repair_lanes_phase(
+    repo_root: Path,
+    mission_dir: Path,
+    snapshot: StatusSnapshot,
+    meta: Mapping[str, Any],
+    state: _RepairState,
+) -> None:
+    """#4758 WP03: canonical-state RECOVERY of a wedged ``lanes.json``.
+
+    Reached only once the event log has canonicalized cleanly (a corrupt or
+    partial log already raised out of ``_canonicalize_status_rows`` /
+    ``_read_jsonl_rows`` and returned an "error" result -- fail-closed, never
+    a partial lanes.json).
+    """
+    from specify_cli.lanes.persistence import LANES_FILENAME
+
+    lanes_path = mission_dir / LANES_FILENAME
+    before_lanes = _file_fingerprint(lanes_path)
+    lanes_action = _rebuild_lanes_if_wedged(
+        repo_root,
+        mission_dir,
+        mission_slug=state.mission_slug,
+        mission_id=state.mission_id or None,
+        target_branch=str(meta.get("target_branch") or "main"),
+        snapshot=snapshot,
+        meta=meta,
+    )
+    state.record_change(repo_root, lanes_path, before_lanes)
+    if lanes_action is not None:
+        state.meta_actions = (*state.meta_actions, lanes_action)
+
+
+def _repair_status_log_phases(
+    repo_root: Path,
+    mission_dir: Path,
+    raw_rows: Sequence[_RawJsonlRow],
+    meta: Mapping[str, Any],
+    state: _RepairState,
+    *,
+    run_id: str,
+    generated_ids: list[str] | None,
+) -> bool:
+    """Canonicalize the event log and refresh the files derived from it.
+
+    Returns ``False`` when row-level errors stop the repair before anything
+    is written (the caller reports an ``error`` result), ``True`` otherwise.
+    """
+    status_path = mission_dir / EVENTS_FILENAME
+    canonical_rows, row_transforms, quarantine_lines, row_errors, surviving_event_ids = _canonicalize_status_rows(
+        repo_root,
+        mission_dir,
+        raw_rows,
+        mission_slug=state.mission_slug,
+        mission_id=state.mission_id or "",
+        generated_ids=generated_ids,
+    )
+    state.row_changes.extend(row_transforms)
+    # T010 (#4897) fail-closed guard: fold in any row(s) the shared
+    # registry says are authoritative but that ended up in
+    # quarantine_lines anyway, so the repair can never report a
+    # successful (errors=0) result while dropping one. See
+    # _row_level_repair_errors for why this is a backstop against a
+    # FUTURE divergence rather than a live path today (the T007-T009
+    # fix above already stops any current authoritative type from
+    # reaching quarantine_lines). #4938: a quarantined authoritative
+    # row whose event_id also landed in ``surviving_event_ids`` is a
+    # duplicate-event_id drop, not a loss — its byte-identical copy is
+    # already in canonical_rows — so it is excluded from the guard
+    # rather than hard-erroring a healthy, deduped repair.
+    combined_row_errors = _row_level_repair_errors(quarantine_lines, row_errors, surviving_event_ids)
+    state.validation_errors.extend(combined_row_errors)
+    if combined_row_errors:
+        # Nothing was written yet, so no quarantine file exists on disk
+        # despite ``quarantined_rows`` being nonzero.
+        state.quarantined_rows = len(quarantine_lines)
+        return False
+
+    _repair_events_phase(repo_root, status_path, raw_rows, canonical_rows, state)
+    if quarantine_lines:
+        _repair_quarantine_phase(repo_root, run_id, quarantine_lines, state)
+    snapshot = _repair_status_json_phase(repo_root, mission_dir, state)
+    _repair_lanes_phase(repo_root, mission_dir, snapshot, meta, state)
+    return True
+
+
 def _repair_mission(
     repo_root: Path,
     mission_dir: Path,
@@ -1685,176 +1893,22 @@ def _repair_mission(
     during the repair is appended for inclusion in the top-level manifest
     (Mission 8, Priivacy-ai/spec-kitty#930).
     """
-    mission_slug = mission_dir.name
-    mission_id: str | None = None
-    file_changes: list[FileChange] = []
-    row_changes: list[RowTransformation] = []
-    validation_errors: list[str] = []
-    quarantined_rows = 0
-    # Whether the quarantine file was actually written to disk this run (as
-    # opposed to `quarantined_rows`, a count of rows CLASSIFIED for
-    # quarantine that may be >0 even on the `combined_row_errors` early
-    # return below, which returns before the write block ever runs).
-    # Bound before the try, alongside `quarantined_rows`, so the outer
-    # `except` return can report it too.
-    quarantine_written = False
-    # Bind before the try so the except path can still report canonicalizer
-    # actions (e.g. normalized_change_mode) that were applied and persisted
-    # before a later step raised — an error result must not silently drop the
-    # record of what repair already changed on disk (report-fidelity, #4780).
-    meta_actions: tuple[str, ...] = ()
-
+    # The state is bound before the try so the except path can still report
+    # what was applied and persisted before a later step raised -- an error
+    # result must not silently drop the record of what repair already
+    # changed on disk (report-fidelity, #4780).
+    state = _RepairState(mission_slug=mission_dir.name)
     try:
         raw_rows = _read_jsonl_rows(mission_dir / EVENTS_FILENAME)
-        meta, meta_actions = _canonicalize_meta(mission_dir, raw_rows, generated_ids=generated_ids)
-        mission_slug = str(meta.get("mission_slug") or mission_slug)
-        mission_id = str(meta.get("mission_id") or "")
-        before_meta = _file_fingerprint(mission_dir / META_FILENAME)
-        if meta_actions:
-            write_meta(mission_dir, meta)
-        after_meta = _file_fingerprint(mission_dir / META_FILENAME)
-        if before_meta != after_meta:
-            file_changes.append(_file_change(repo_root, mission_dir / META_FILENAME, before_meta, after_meta))
-
-        status_path = mission_dir / EVENTS_FILENAME
-        if status_path.exists():
-            canonical_rows, row_transforms, quarantine_lines, row_errors, surviving_event_ids = _canonicalize_status_rows(
-                repo_root,
-                mission_dir,
-                raw_rows,
-                mission_slug=mission_slug,
-                mission_id=mission_id,
-                generated_ids=generated_ids,
-            )
-            row_changes.extend(row_transforms)
-            # T010 (#4897) fail-closed guard: fold in any row(s) the shared
-            # registry says are authoritative but that ended up in
-            # quarantine_lines anyway, so the repair can never report a
-            # successful (errors=0) result while dropping one. See
-            # _row_level_repair_errors for why this is a backstop against a
-            # FUTURE divergence rather than a live path today (the T007-T009
-            # fix above already stops any current authoritative type from
-            # reaching quarantine_lines). #4938: a quarantined authoritative
-            # row whose event_id also landed in ``surviving_event_ids`` is a
-            # duplicate-event_id drop, not a loss — its byte-identical copy is
-            # already in canonical_rows — so it is excluded from the guard
-            # rather than hard-erroring a healthy, deduped repair.
-            combined_row_errors = _row_level_repair_errors(quarantine_lines, row_errors, surviving_event_ids)
-            validation_errors.extend(combined_row_errors)
-            if combined_row_errors:
-                return MissionRepairResult(
-                    mission_slug=mission_slug,
-                    mission_id=mission_id,
-                    status="error",
-                    file_changes=file_changes,
-                    row_transformations=row_changes,
-                    quarantined_rows=len(quarantine_lines),
-                    validation_errors=validation_errors,
-                    meta_actions=list(meta_actions),
-                    # Nothing was written yet: this return is reached BEFORE
-                    # the `if quarantine_lines:` write block below, so no
-                    # quarantine file exists on disk despite `quarantined_rows`
-                    # being nonzero.
-                    quarantine_written=False,
-                )
-
-            before_events = _file_fingerprint(status_path)
-            status_text = "".join(json.dumps(row, sort_keys=True) + "\n" for row in canonical_rows)
-            # Backstop (#2376): never silently empty a previously-populated event
-            # log. Legitimate non-lane events are now preserved in
-            # ``canonical_rows``, so an empty result despite non-empty input means
-            # every row was dropped as genuinely foreign — an extraordinary
-            # outcome that fails loud (recorded as a mission error with a reason)
-            # rather than wiping the canonical log. Originals remain in the
-            # quarantine directory.
-            if raw_rows and not canonical_rows:
-                raise MissionStateRepairError(
-                    f"Refusing to empty {_repo_relpath(repo_root, status_path)}: "
-                    f"all {len(raw_rows)} row(s) were dropped by repair. This "
-                    "usually indicates a row-classification bug; the original "
-                    "rows are preserved verbatim in the quarantine directory."
-                )
-            if status_path.read_text(encoding="utf-8") != status_text:
-                atomic_write(status_path, status_text)
-            after_events = _file_fingerprint(status_path)
-            if before_events != after_events:
-                file_changes.append(_file_change(repo_root, status_path, before_events, after_events))
-
-            if quarantine_lines:
-                quarantined_rows = len(quarantine_lines)
-                # FR-001: mission_slug may originate from untrusted meta.json content
-                # (meta.get("mission_slug")); validate before joining into the quarantine path.
-                _safe_mission_slug = assert_safe_path_segment(mission_slug)
-                quarantine_path = repo_root / MISSION_STATE_AUDIT_ROOT / "quarantine" / run_id / _safe_mission_slug / EVENTS_FILENAME
-                before_quarantine = _file_fingerprint(quarantine_path)
-                quarantine_text = "".join(line.rstrip("\n") + "\n" for line in quarantine_lines)
-                atomic_write(quarantine_path, quarantine_text, mkdir=True)
-                quarantine_written = True
-                after_quarantine = _file_fingerprint(quarantine_path)
-                if before_quarantine != after_quarantine:
-                    file_changes.append(_file_change(repo_root, quarantine_path, before_quarantine, after_quarantine))
-
-            before_status = _file_fingerprint(mission_dir / STATUS_FILENAME)
-            snapshot = materialize_snapshot(mission_dir)
-            status_json = materialize_to_json(snapshot)
-            if not (mission_dir / STATUS_FILENAME).exists() or (mission_dir / STATUS_FILENAME).read_text(encoding="utf-8") != status_json:
-                atomic_write(mission_dir / STATUS_FILENAME, status_json)
-            after_status = _file_fingerprint(mission_dir / STATUS_FILENAME)
-            if before_status != after_status:
-                file_changes.append(_file_change(repo_root, mission_dir / STATUS_FILENAME, before_status, after_status))
-
-            # #4758 WP03: canonical-state RECOVERY. Reached only once the event
-            # log has canonicalized cleanly above (a corrupt/partial log already
-            # raised out of ``_canonicalize_status_rows``/``_read_jsonl_rows``
-            # and returned an "error" result before this point -- fail-closed,
-            # never a partial lanes.json).
-            from specify_cli.lanes.persistence import LANES_FILENAME
-
-            lanes_path = mission_dir / LANES_FILENAME
-            before_lanes = _file_fingerprint(lanes_path)
-            lanes_action = _rebuild_lanes_if_wedged(
-                repo_root,
-                mission_dir,
-                mission_slug=mission_slug,
-                mission_id=mission_id or None,
-                target_branch=str(meta.get("target_branch") or "main"),
-                snapshot=snapshot,
-                meta=meta,
-            )
-            after_lanes = _file_fingerprint(lanes_path)
-            if before_lanes != after_lanes:
-                file_changes.append(_file_change(repo_root, lanes_path, before_lanes, after_lanes))
-            if lanes_action is not None:
-                meta_actions = (*meta_actions, lanes_action)
-
-        return MissionRepairResult(
-            mission_slug=mission_slug,
-            mission_id=mission_id,
-            status="updated" if file_changes or row_changes or quarantined_rows else "unchanged",
-            file_changes=file_changes,
-            row_transformations=row_changes,
-            quarantined_rows=quarantined_rows,
-            validation_errors=validation_errors,
-            meta_actions=list(meta_actions),
-            quarantine_written=quarantine_written,
-        )
+        meta = _repair_meta_phase(repo_root, mission_dir, raw_rows, state, generated_ids=generated_ids)
+        if (mission_dir / EVENTS_FILENAME).exists() and not _repair_status_log_phases(
+            repo_root, mission_dir, raw_rows, meta, state, run_id=run_id, generated_ids=generated_ids
+        ):
+            return state.result("error")
+        return state.result()
     except Exception as exc:
-        validation_errors.append(str(exc))
-        return MissionRepairResult(
-            mission_slug=mission_slug,
-            mission_id=mission_id,
-            status="error",
-            file_changes=file_changes,
-            row_transformations=row_changes,
-            quarantined_rows=quarantined_rows,
-            validation_errors=validation_errors,
-            meta_actions=list(meta_actions),
-            # The write block may have run before a LATER step raised (e.g.
-            # lanes-rebuild); report the real on-disk outcome rather than
-            # assuming nothing was written just because this path returns
-            # `status="error"`.
-            quarantine_written=quarantine_written,
-        )
+        state.validation_errors.append(str(exc))
+        return state.result("error")
 
 
 def _canonicalize_meta(
