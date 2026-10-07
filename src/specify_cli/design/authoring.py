@@ -36,8 +36,11 @@ _KINDS = {
     "contract": MissionArtifactKind.CONTRACT,
 }
 _MANIFEST_KEYS = {
-    "specification": "input.spec.main", "plan": "output.plan.main",
-    "research": "evidence.research", "data_model": "evidence.data-model", "quickstart": "evidence.quickstart",
+    "specification": "input.spec.main",
+    "plan": "output.plan.main",
+    "research": "evidence.research",
+    "data_model": "evidence.data-model",
+    "quickstart": "evidence.quickstart",
 }
 _SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$", re.ASCII)
 
@@ -216,9 +219,13 @@ def _check_context_and_parents(repo_root: Path, mission_slug: str, request: Subm
 def _record_batch(receipts: ReceiptSet, prepared: list[PreparedArtifact], request: Submission, action: str, actor: str) -> None:
     for item in prepared:
         receipts.artifacts[artifact_key(item.request.kind, item.request.artifact_id)] = Receipt(
-            kind=item.request.kind, artifact_id=item.request.artifact_id, sha256=item.sha256,
+            kind=item.request.kind,
+            artifact_id=item.request.artifact_id,
+            sha256=item.sha256,
             parents={parent: digest for parent, digest in request.parents.items() if parent != item.request.kind},
-            context_sha256=request.context_sha256, context_action=action, actor=actor,
+            context_sha256=request.context_sha256,
+            context_action=action,
+            actor=actor,
         )
 
 
@@ -246,17 +253,25 @@ def submit_artifacts(repo_root: Path, mission_slug: str, raw: str, actor: str) -
         except OSError as exc:
             raise DesignError("DESIGN_IO_FAILED", "Artifact materialization requires reconciliation", {"effect_state": "reconciliation_required"}) from exc
         result = commit_for_mission(
-            repo_root=repo_root, mission_slug=mission_slug, files=tuple(item.path for item in prepared),
-            message=f"Record governed {action} content for {mission_slug} by {actor}", policy=policy, kind=_KINDS[prepared[0].request.kind],
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            files=tuple(item.path for item in prepared),
+            message=f"Record governed {action} content for {mission_slug} by {actor}",
+            policy=policy,
+            kind=_KINDS[prepared[0].request.kind],
         )
         if result.status not in ("committed", "unchanged"):
             raise DesignError(
-                "DESIGN_COMMIT_FAILED", "Authored content materialized but the host commit did not complete",
+                "DESIGN_COMMIT_FAILED",
+                "Authored content materialized but the host commit did not complete",
                 {"effect_state": "reconciliation_required", "commit_status": result.status, **commit_outcome_payload(result)},
             )
         _record_batch(receipts, prepared, request, action, actor)
         save_receipts(repo_root, mission_slug, receipts)
         return {
             "artifacts": [{"kind": item.request.kind, "artifact_id": item.request.artifact_id, "sha256": item.sha256} for item in prepared],
-            "commit_status": result.status, "commit_hash": result.commit_hash, "provenance": "host_local_nonportable", **commit_outcome_payload(result),
+            "commit_status": result.status,
+            "commit_hash": result.commit_hash,
+            "provenance": "host_local_nonportable",
+            **commit_outcome_payload(result),
         }

@@ -318,7 +318,9 @@ def plan(
     payload.setdefault("mission_slug", _common._mission_identity_payload(mission_dir)["mission_slug"])
     if payload.get("result") in ("blocked", "error") or payload.get("success") is False:
         error_code, message, error_data = _classify_delegate_error(
-            payload, raw_output, fallback_code=_PLAN_SETUP_FAILED_FALLBACK,
+            payload,
+            raw_output,
+            fallback_code=_PLAN_SETUP_FAILED_FALLBACK,
             fallback_message="plan prerequisites are blocked",
         )
         error_code, error_data = _plan_contract_error(error_code, error_data)

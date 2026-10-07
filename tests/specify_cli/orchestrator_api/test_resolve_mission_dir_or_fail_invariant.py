@@ -109,8 +109,7 @@ def test_every_mission_scoped_endpoint_routes_through_the_seam() -> None:
 
 def test_shared_helper_must_actually_call_the_seam() -> None:
     tree = ast.parse(
-        "def endpoint(mission):\n    return adapter(mission)\n"
-        "def adapter(mission):\n    return _common._resolve_mission_dir_or_fail('verb', root, mission)\n"
+        "def endpoint(mission):\n    return adapter(mission)\ndef adapter(mission):\n    return _common._resolve_mission_dir_or_fail('verb', root, mission)\n"
     )
     endpoint, adapter = tree.body
     assert isinstance(endpoint, ast.FunctionDef) and isinstance(adapter, ast.FunctionDef)

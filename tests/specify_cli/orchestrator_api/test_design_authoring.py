@@ -46,11 +46,15 @@ def _answers(repo: Path, slug: str, stage: str) -> str:
 
 def _request(repo: Path, slug: str, kind: str, content: str, *, parents: dict[str, str] | None = None, artifact_id: str | None = None) -> str:
     stage = authoring.artifact_action(kind)
-    return json.dumps({
-        "artifacts": [{"kind": kind, "artifact_id": artifact_id, "content": content,
-                       "expected_sha256": authoring.read_artifact(repo, slug, kind, artifact_id)["sha256"]}],
-        "parents": parents or {}, "context_sha256": _answers(repo, slug, stage),
-    })
+    return json.dumps(
+        {
+            "artifacts": [
+                {"kind": kind, "artifact_id": artifact_id, "content": content, "expected_sha256": authoring.read_artifact(repo, slug, kind, artifact_id)["sha256"]}
+            ],
+            "parents": parents or {},
+            "context_sha256": _answers(repo, slug, stage),
+        }
+    )
 
 
 def _submit_spec(repo: Path, slug: str) -> str:
@@ -102,8 +106,10 @@ def test_invalid_submission_has_no_content_or_commit_effect(mission: tuple[Path,
     repo, slug = mission
     request = json.loads(_request(repo, slug, "specification", _SUBSTANTIVE_SPEC))
     expected = {
-        "target": "DESIGN_REVISION_CONFLICT", "context": "DESIGN_CONTEXT_STALE",
-        "unknown_field": "DESIGN_REQUEST_INVALID", "too_big": "DESIGN_BOUNDS_EXCEEDED",
+        "target": "DESIGN_REVISION_CONFLICT",
+        "context": "DESIGN_CONTEXT_STALE",
+        "unknown_field": "DESIGN_REQUEST_INVALID",
+        "too_big": "DESIGN_BOUNDS_EXCEEDED",
     }
     if failure == "target":
         request["artifacts"][0]["expected_sha256"] = "0" * 64
@@ -290,13 +296,16 @@ def test_corrupt_manifest_read_returns_typed_refusal(mission: tuple[Path, str]) 
     assert str(repo) not in json.dumps(outcome)
 
 
-@pytest.mark.parametrize("kind,artifact_id,code", [
-    ("contract", None, "DESIGN_REQUEST_INVALID"),
-    ("contract", "../private.md", "DESIGN_PATH_REFUSED"),
-    ("outline", "caller-selected", "DESIGN_REQUEST_INVALID"),
-    ("specification", "caller-selected", "DESIGN_REQUEST_INVALID"),
-    ("work_package", "WP01", "DESIGN_PREREQUISITES_FAILED"),
-])
+@pytest.mark.parametrize(
+    "kind,artifact_id,code",
+    [
+        ("contract", None, "DESIGN_REQUEST_INVALID"),
+        ("contract", "../private.md", "DESIGN_PATH_REFUSED"),
+        ("outline", "caller-selected", "DESIGN_REQUEST_INVALID"),
+        ("specification", "caller-selected", "DESIGN_REQUEST_INVALID"),
+        ("work_package", "WP01", "DESIGN_PREREQUISITES_FAILED"),
+    ],
+)
 def test_artifact_identifiers_cannot_select_arbitrary_destinations(mission: tuple[Path, str], kind: str, artifact_id: str | None, code: str) -> None:
     repo, slug = mission
     with pytest.raises(DesignError) as caught:

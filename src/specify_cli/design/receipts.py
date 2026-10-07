@@ -66,7 +66,8 @@ def save_receipts(repo_root: Path, mission_slug: str, receipts: ReceiptSet) -> N
         atomic_write(path, receipts.model_dump_json(), mkdir=True)
     except OSError as exc:
         raise DesignError(
-            "DESIGN_RECEIPT_UNREADABLE", "Content committed but provenance requires reconciliation",
+            "DESIGN_RECEIPT_UNREADABLE",
+            "Content committed but provenance requires reconciliation",
             {"effect_state": "reconciliation_required"},
         ) from exc
 
