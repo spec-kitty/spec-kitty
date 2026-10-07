@@ -232,6 +232,7 @@ jobs:
               - '.kittify/glossaries/**'
               - '.kittify/doctrine/**'
               - 'contracts/**'
+              - 'kitty-ops/**'
             e2e:
               - 'tests/e2e/**'
               - 'tests/cross_cutting/**'
@@ -329,6 +330,7 @@ jobs:
               - '**/specify_cli/status/models.py'
               - '**/specify_cli/status/progress.py'
               - '**/specify_cli/status/reducer.py'
+              - '**/specify_cli/status/store.py'
               - '**/specify_cli/status/tail_reader.py'
               - '**/specify_cli/status/wp_metadata.py'
               - '**/specify_cli/status/wp_view.py'
@@ -981,7 +983,7 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
-          uv run --frozen pytest -m "corpus and not windows_ci" \
+          uv run --frozen pytest -rs -m "corpus and not windows_ci" \
             tests/contract/test_example_round_trip.py \
             tests/contract/test_mission_status_payloads.py \
             tests/contract/test_mission_status_reality.py \

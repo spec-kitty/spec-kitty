@@ -927,10 +927,12 @@ SLICE_ALLOWED: tuple[ScopeRule, ...] = (
     ScopeRule(EXACT, ROUTER_WORKFLOW_PATH, MODIFIED),
     ScopeRule(PREFIX, "tests/contract/", ADDED_OR_MODIFIED),
 )
-# the registrations of the new test modules: exactly these two paths, no wildcard
+# the registrations of the new test modules and of the router routing of the Op data: exactly these paths, no wildcard
 EXTRA_ALLOWED_REGISTRATIONS: tuple[ScopeRule, ...] = (
     ScopeRule(EXACT, PACKS_WORKFLOW_PATH, MODIFIED),
     ScopeRule(EXACT, "tests/architectural/test_ci_corpus_trigger_completeness.py", MODIFIED),
+    ScopeRule(EXACT, "tests/ci/test_contracts_routing.py", MODIFIED),
+    ScopeRule(EXACT, "tests/release/ci_retirement_scrub.json", MODIFIED),
 )
 # the slice allows no dependency change: no rule and no change may name a file of the dependency set
 DEPENDENCY_FILES = ("pyproject.toml", "uv.lock")
@@ -977,6 +979,8 @@ IN_SCOPE_CHANGES: tuple[tuple[str, str], ...] = (
 REGISTRATION_CHANGES: tuple[tuple[str, str], ...] = (
     ("M", PACKS_WORKFLOW_PATH),
     ("M", "tests/architectural/test_ci_corpus_trigger_completeness.py"),
+    ("M", "tests/ci/test_contracts_routing.py"),
+    ("M", "tests/release/ci_retirement_scrub.json"),
 )
 
 
@@ -1030,7 +1034,7 @@ def test_a_rename_is_a_deletion_plus_an_addition_and_the_deletion_is_reported() 
     assert scope_problems(changes, SLICE_ALLOWED) == ["out_of_scope: D contracts/mission-status/schemas/Project.yaml"]
 
 
-def test_the_two_registration_paths_are_reported_unless_their_rules_are_supplied() -> None:
+def test_the_registration_paths_are_reported_unless_their_rules_are_supplied() -> None:
     problems = scope_problems(REGISTRATION_CHANGES, SLICE_ALLOWED)
     assert problems == [f"out_of_scope: {status} {path}" for status, path in REGISTRATION_CHANGES]
     assert scope_problems(REGISTRATION_CHANGES, [*SLICE_ALLOWED, *EXTRA_ALLOWED_REGISTRATIONS]) == []
@@ -1084,8 +1088,8 @@ def test_the_slice_data_names_exactly_these_rules() -> None:
             ROUTER_WORKFLOW_PATH,
         ]
     )
-    assert len(EXTRA_ALLOWED_REGISTRATIONS) == 2
-    assert len(IN_SCOPE_CHANGES) == 19 and len(REGISTRATION_CHANGES) == 2
+    assert len(EXTRA_ALLOWED_REGISTRATIONS) == 4
+    assert len(IN_SCOPE_CHANGES) == 19 and len(REGISTRATION_CHANGES) == 4
 
 
 def dependency_problems(rules: Sequence[ScopeRule], changes: Sequence[tuple[str, str]]) -> list[str]:
@@ -1118,7 +1122,12 @@ def test_the_allowed_data_has_the_shape_the_proof_needs() -> None:
     assert all("*" not in rule.path and "?" not in rule.path for rule in every_rule), "no wildcard"
     assert all(rule.path.endswith("/") for rule in every_rule if rule.match == PREFIX), "a prefix rule ends with a slash"
     assert all(rule.statuses == MODIFIED for rule in every_rule if rule.match == EXACT), "an existing named file admits M only"
-    assert [rule.path for rule in EXTRA_ALLOWED_REGISTRATIONS] == [PACKS_WORKFLOW_PATH, "tests/architectural/test_ci_corpus_trigger_completeness.py"]
+    assert [rule.path for rule in EXTRA_ALLOWED_REGISTRATIONS] == [
+        PACKS_WORKFLOW_PATH,
+        "tests/architectural/test_ci_corpus_trigger_completeness.py",
+        "tests/ci/test_contracts_routing.py",
+        "tests/release/ci_retirement_scrub.json",
+    ]
     assert not any("required_examples" in rule.path for rule in every_rule), "the example-required guard lives in a test (OD-2)"
 
 
