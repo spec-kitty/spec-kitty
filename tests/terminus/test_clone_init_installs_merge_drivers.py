@@ -136,6 +136,8 @@ def world() -> Iterator[_World]:
 
             init = world.cli(original, "init", ".", "--ai", "claude", "--non-interactive")
             assert init.returncode == 0, init.stdout + init.stderr
+            # Positive control for the init arm: a normal ``init`` defines every driver.
+            assert _merge_key_count(original) >= _MIN_DRIVER_KEYS
             (original / _MISSION_DIR).mkdir(parents=True)
             (original / _EVENTS).write_text(_BASE_EVENT + "\n", encoding="utf-8")
             _write_meta(original)
@@ -163,11 +165,6 @@ def _local_progress_then_pull(world: _World, clone: Path, branch: str) -> subpro
     _write_meta(clone, status="local")
     _commit_all(clone, "local progress")
     return _git(clone, "pull", "--no-rebase", "origin", branch, check=False)
-
-
-def test_original_clone_has_the_driver_config(world: _World) -> None:
-    """Positive control for the init arm: a normal ``init`` defines every driver."""
-    assert _merge_key_count(world.original) >= _MIN_DRIVER_KEYS
 
 
 def test_init_on_a_fresh_clone_installs_the_same_merge_config(world: _World) -> None:

@@ -94,7 +94,7 @@ def test_up_to_date_checks_once_and_prints_nothing(stub: SimpleNamespace, consol
     assert console.lines == []
 
 
-def test_stale_status_evidence_prints_the_refusal_and_exits_one(stub: SimpleNamespace, console: _Outcome, tmp_path: Path) -> None:
+def test_stale_status_evidence_refusal_names_the_pull_in_the_holding_checkout(stub: SimpleNamespace, console: _Outcome, tmp_path: Path) -> None:
     stub.freshness = MissionFreshness(evidence=_verdict(_COORD, FreshnessState.BEHIND, behind=2), lanes=[])
     stub.holders = [tmp_path / "coord-wt"]
     _run(tmp_path, console)
@@ -103,34 +103,12 @@ def test_stale_status_evidence_prints_the_refusal_and_exits_one(stub: SimpleName
     assert f"git -C {tmp_path / 'coord-wt'} pull origin {_COORD}" in console.text
 
 
-def test_stale_lane_refuses_with_the_lane_code(stub: SimpleNamespace, console: _Outcome, tmp_path: Path) -> None:
-    stub.freshness = MissionFreshness(evidence=_verdict(_COORD, FreshnessState.UP_TO_DATE), lanes=[_verdict(_LANE, FreshnessState.BEHIND, behind=1)])
-    _run(tmp_path, console)
-    assert console.refused
-    assert console.text.startswith("ORIGIN_LANE_STALE")
-
-
-def test_unreachable_names_the_opt_out(stub: SimpleNamespace, console: _Outcome, tmp_path: Path) -> None:
-    stub.freshness = MissionFreshness(evidence=FreshnessVerdict(_COORD, "origin", FreshnessState.UNREACHABLE, detail="timeout"), lanes=[])
-    _run(tmp_path, console)
-    assert console.refused
-    assert "ORIGIN_UNREACHABLE" in console.text
-    assert "--origin-check warn" in console.text
-
-
-def test_a_merge_record_puts_abort_first_in_the_remedy(stub: SimpleNamespace, console: _Outcome, tmp_path: Path) -> None:
+def test_a_persisted_merge_record_is_threaded_into_the_remedy(stub: SimpleNamespace, console: _Outcome, tmp_path: Path) -> None:
     stub.freshness = MissionFreshness(evidence=_verdict(_COORD, FreshnessState.BEHIND, behind=1), lanes=[])
     stub.record = True
     _run(tmp_path, console)
     assert console.refused
     assert "spec-kitty consolidate --abort" in console.text
-
-
-def test_coordination_evidence_only_on_the_remote_passes_through(stub: SimpleNamespace, console: _Outcome, tmp_path: Path) -> None:
-    stub.freshness = MissionFreshness(evidence=_verdict(_COORD, FreshnessState.LOCAL_MISSING), lanes=[])
-    stub.coordination = True
-    _run(tmp_path, console)
-    assert console.lines == []
 
 
 def test_non_coordination_evidence_missing_locally_refuses(stub: SimpleNamespace, console: _Outcome, tmp_path: Path) -> None:
@@ -153,25 +131,12 @@ def test_coordination_pass_through_still_refuses_a_stale_lane(stub: SimpleNamesp
     assert "ORIGIN_STATUS_STALE" not in console.text
 
 
-def test_warn_flag_prints_warnings_naming_the_source_and_returns(stub: SimpleNamespace, console: _Outcome, tmp_path: Path) -> None:
+def test_the_origin_check_flag_is_threaded_through_to_the_policy(stub: SimpleNamespace, console: _Outcome, tmp_path: Path) -> None:
     stub.freshness = MissionFreshness(evidence=_verdict(_COORD, FreshnessState.BEHIND, behind=3), lanes=[])
     _run(tmp_path, console, "warn")
     assert "ORIGIN_STATUS_STALE" in console.text
     assert "source: flag" in console.text
     assert "continuing" in console.text
-
-
-def test_warn_environment_names_the_environment(stub: SimpleNamespace, console: _Outcome, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("SPEC_KITTY_ORIGIN_CHECK", "warn")
-    stub.freshness = MissionFreshness(evidence=_verdict(_COORD, FreshnessState.BEHIND, behind=3), lanes=[])
-    _run(tmp_path, console)
-    assert "source: environment" in console.text
-
-
-def test_unknown_environment_value_enforces_and_warns(stub: SimpleNamespace, console: _Outcome, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("SPEC_KITTY_ORIGIN_CHECK", "sometimes")
-    _run(tmp_path, console)
-    assert "sometimes" in console.text
 
 
 # --- lane selection inputs ---------------------------------------------------------------

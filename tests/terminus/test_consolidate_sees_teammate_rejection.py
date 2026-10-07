@@ -192,8 +192,12 @@ def test_stale_approved_lane_refuses(coord: tuple[CoordMission, Path], tmp_path:
     assert lane in _out(result)
 
 
-def test_up_to_date_lane_is_not_refused(coord: tuple[CoordMission, Path]) -> None:
+@pytest.mark.parametrize("remote", ["present", "removed"])
+def test_up_to_date_lane_is_not_refused(coord: tuple[CoordMission, Path], remote: str) -> None:
+    """Nothing stale, or no remote to be stale against (``no_remote``: nothing is contacted): consolidate lands as before."""
     m, _ = coord
+    if remote == "removed":
+        _git(m.repo, "remote", "remove", "origin")
     result = _consolidate(m)
     assert "ORIGIN_" not in _out(result), _out(result)
     assert result.returncode == 0, _out(result)
