@@ -19,17 +19,17 @@ __all__ = ["runtime_next"]
 
 
 def _decode(raw: str) -> dict[str, Any] | None:
-    decoder = json.JSONDecoder()
-    for position, character in enumerate(raw):
-        if character != "{":
-            continue
-        try:
-            value, _ = decoder.raw_decode(raw[position:])
-        except json.JSONDecodeError:
-            continue
-        if isinstance(value, dict):
-            return value
-    return None
+    """Return the payload only when stdout is exactly one JSON object.
+
+    Native ``next --json`` keeps stdout to a single document (its notices and
+    preflight output go to stderr), so any leading or trailing text, or a second
+    document, means the capture cannot be trusted and fails closed.
+    """
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    return value if isinstance(value, dict) else None
 
 
 def _run_native(arguments: dict[str, Any]) -> tuple[dict[str, Any] | None, bool]:

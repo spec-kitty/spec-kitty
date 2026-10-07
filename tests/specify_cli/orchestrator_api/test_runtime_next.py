@@ -131,9 +131,22 @@ def test_answer_byte_limit_refuses_before_native() -> None:
     assert payload["error_code"] == "RUNTIME_NEXT_FAILED"
 
 
-def test_native_malformed_output_fails_truthfully() -> None:
+_QUERY_DOC = json.dumps({"kind": "query", "mission_slug": "example", "is_query": True})
+
+
+@pytest.mark.parametrize(
+    "stdout",
+    [
+        "diagnostics only",
+        f"warning: noise\n{_QUERY_DOC}",
+        f"{_QUERY_DOC}\ntrailing noise",
+        f"{_QUERY_DOC}\n{_QUERY_DOC}",
+    ],
+    ids=["no-json", "leading-noise", "trailing-noise", "two-documents"],
+)
+def test_native_malformed_output_fails_truthfully(stdout: str) -> None:
     def delegate(**kwargs):
-        print("diagnostics only")
+        print(stdout)
 
     result, payload = invoke(["--mission", "example"], delegate)
     assert result.exit_code == 1
