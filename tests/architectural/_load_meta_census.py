@@ -179,6 +179,13 @@ ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     # `friendly_name`) rather than crashing the whole listing; a fail-closed
     # read would break `next`/plan/tasks discovery for ALL missions because one
     # mission has a malformed meta.
+    # #5812: `is_mission_dir` asks "does this kitty-specs/ child carry a
+    # mission_id?" as the first of two rules; a corrupt or non-object meta.json
+    # simply does not carry one and the predicate falls through to the git-tracked
+    # marker rule. A fail-closed read would crash enumeration (and `upgrade`'s
+    # report-only mission-state step) on the one Mission the report must still
+    # be able to name.
+    ("src/specify_cli/context/mission_resolver.py", "_carries_identity"): (1, "silent-by-contract"),
     ("src/specify_cli/context/mission_resolver.py", "list_missions_for_selection"): (1, "silent-by-contract"),
     ("src/specify_cli/coordination/commit_router.py", "_resolve_mid8"): (1, "silent-by-contract"),
     ("src/specify_cli/coordination/legacy_resolution.py", "_load_mission_meta"): (1, "silent-by-contract"),
