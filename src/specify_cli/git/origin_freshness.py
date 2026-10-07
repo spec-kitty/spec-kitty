@@ -201,11 +201,16 @@ def _scoped_content_identical(repo_root: Path, local_ref: str, remote_ref: str, 
 
 
 def _compare(repo_root: Path, remote: str, probe: _Probe, remote_sha: str) -> FreshnessVerdict:
-    """Compare a fetched, locally present branch with its tracking ref."""
+    """Compare a fetched, locally present branch with its tracking ref.
+
+    Both sides are fully qualified: a bare branch name would let a tag of the
+    same name outrank ``refs/heads`` and hide that the branch is behind.
+    """
+    local_ref = f"refs/heads/{probe.branch}"
     remote_ref = tracking_ref(remote, probe.branch)
-    total = divergence(repo_root, probe.branch, remote_ref)
-    behind = divergence(repo_root, probe.branch, remote_ref, paths=probe.scope).behind if probe.scope else total.behind
-    if behind > 0 and probe.scope and _scoped_content_identical(repo_root, probe.branch, remote_ref, probe.scope):
+    total = divergence(repo_root, local_ref, remote_ref)
+    behind = divergence(repo_root, local_ref, remote_ref, paths=probe.scope).behind if probe.scope else total.behind
+    if behind > 0 and probe.scope and _scoped_content_identical(repo_root, local_ref, remote_ref, probe.scope):
         behind = 0
     return FreshnessVerdict(
         branch=probe.branch,

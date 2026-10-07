@@ -154,6 +154,9 @@ def test_ahead_when_local_has_unpushed_commits(world: World) -> None:
 def test_behind_when_the_second_clone_pushed(world: World) -> None:
     _commit(world.b, "remote.txt")
     _git(world.b, "push", "-q", "origin", "main")
+    # A tag named like the branch outranks refs/heads for a bare name; the verdict must still judge the branch.
+    _git(world.a, "fetch", "-q", "origin")
+    _git(world.a, "tag", "main", tracking_ref("origin", "main"))
 
     verdict = _only(check_branches(world.a, ["main"]))
 
