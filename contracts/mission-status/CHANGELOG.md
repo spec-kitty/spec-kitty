@@ -73,7 +73,9 @@ pushed by a maintainer. Until then the breaking-change job has no baseline and r
   repairs; `scannedAt` is the time of the scan, the 200 carries `Cache-Control: no-store`, and a
   `missionId` that names no Mission is a 404 (`DriftMissionNotFound`) while a scan that cannot read a
   Mission is a 500 (`DriftScanUnreadable`), never a partial report. The stock coordination resolver may
-  query remotes, so the outcome depends on the network; `findings: []` means the scan ran and found none.
+  query remotes, so the outcome depends on the network. An unreachable remote leaves the Mission's own
+  directory as the read directory (a 200 with no fallback entry); a reachable remote that lacks the declared branch gives the
+  coordination_branch_deleted fallback; any other resolver error is a 500 drift_scan_unreadable. `findings: []` means the scan ran and found none.
 - The schemas `DriftReport`, `DriftFinding`, `LaneComparison`, `DriftKind` (three values:
   `snapshot_disagrees_with_event_log`, `snapshot_or_event_log_missing` and `lane_branch_missing`),
   `DriftSeverity` (`error`, `warning`), `DriftAuthority` (`event_log`, `git`), `DriftSide` (`status_json`,

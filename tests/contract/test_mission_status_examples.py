@@ -1547,10 +1547,13 @@ def test_the_drift_description_states_the_read_rules() -> None:
         "lag the coordination surface",
         "query remotes",
         "depends on the network",
-        "unreachable remote ends the scan in 500",
+        "An unreachable remote leaves the Mission's own directory as the read directory (a 200 with no fallback entry)",
+        "a reachable remote that lacks the declared branch gives the coordination_branch_deleted fallback",
+        "any other resolver error is a 500 drift_scan_unreadable",
         "findings: [] means the scan ran and found none",
     ):
         assert phrase in text, phrase
+    assert "ends the scan" not in text
 
 
 def test_the_drift_tag_is_described() -> None:
