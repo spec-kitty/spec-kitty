@@ -276,7 +276,9 @@ def remedy_for(verdict: CutOverVerdict) -> str:
 
     Maps the first reason; anything unrecognised keeps the backfill remedy.
     """
-    template = _REMEDY_BY_REASON.get(verdict.reasons[0] if verdict.reasons else "", _REMEDY_TEMPLATE)
+    template = _REMEDY_BY_REASON.get(verdict.reasons[0] if verdict.reasons else "")
+    if template is None:
+        return remedy_command(verdict.mission_slug)
     return template.format(slug=verdict.mission_slug)
 
 
