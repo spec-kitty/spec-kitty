@@ -151,7 +151,7 @@ def inventory(repo: Path) -> dict[str, tuple[int, int, str]]:
     return result
 
 
-def test_original_full_corpus_fails_then_recovered_and_landed_corpus_passes(
+def test_original_full_corpus_residue_then_recovered_and_landed_corpus_passes(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -161,18 +161,20 @@ def test_original_full_corpus_fails_then_recovered_and_landed_corpus_passes(
     original_inventory = inventory(repo)
     original_membership = original_corpus_membership()
     result, original = audit(repo, original_membership)
-    with pytest.raises(AssertionError, match="full corpus TeamSpace blockers remain"):
-        assert_zero(result, original)
-    assert result.returncode == 1
+    # #5812: the two dossiers below hold no tracked ``spec.md``/``meta.json``
+    # (only archived documents), so under the shared is-a-Mission predicate they
+    # are residue -- one non-blocking INFO RESIDUE_DIRECTORY, not an
+    # IDENTITY_MISSING blocker. The original corpus therefore audits clean; the
+    # recovery below still restores the cyclic dossier's identity, which makes
+    # it a Mission again (the post-recovery attack loop proves it is then a
+    # hard blocker when its tracked ``meta.json`` is removed).
+    assert_zero(result, original)
+    assert result.returncode == 0
     expected = {
-        "R2-T1-local-legacy-removal": "IDENTITY_MISSING",
-        "reject-cyclic-lane-graphs-01M0QCK4": "IDENTITY_MISSING",
-        # Both missions are completed (every WP reaches "done" in the event
-        # log), so their frozen status.json drift downgrades to the
-        # non-blocking SNAPSHOT_DRIFT_TERMINAL/WARNING code (corpus-tolerance
-        # fix) instead of the hard SNAPSHOT_DRIFT/ERROR teamspace blocker.
-        # ``assert_zero`` above still fails on this corpus because the two
-        # IDENTITY_MISSING findings remain hard blockers.
+        "R2-T1-local-legacy-removal": "RESIDUE_DIRECTORY",
+        "reject-cyclic-lane-graphs-01M0QCK4": "RESIDUE_DIRECTORY",
+        # Completed missions: frozen status.json drift is the non-blocking
+        # SNAPSHOT_DRIFT_TERMINAL/WARNING code (corpus-tolerance fix).
         "doctrine-drg-silent-drop-boundary-01M0PE7E": "SNAPSHOT_DRIFT_TERMINAL",
         "symbolkey-source-module-01M0B0SF": "SNAPSHOT_DRIFT_TERMINAL",
     }
@@ -180,6 +182,8 @@ def test_original_full_corpus_fails_then_recovered_and_landed_corpus_passes(
         name = mission["mission_slug"]
         if name in expected:
             assert expected[name] in {finding["code"] for finding in mission["findings"]}
+        if name in {"R2-T1-local-legacy-removal", "reject-cyclic-lane-graphs-01M0QCK4"}:
+            assert {f["code"] for f in mission["findings"]} == {"RESIDUE_DIRECTORY"}
     assert set(expected) <= {m["mission_slug"] for m in original["missions"]}
     assert inventory(repo) == original_inventory
     recover(repo)
@@ -303,12 +307,13 @@ def test_full_corpus_audit_rejects_real_scanner_membership_faults(
         scan_root: Path,
         allowed_dirs: frozenset[Path] | None,
         identity_index: dict[str, Any],
+        repo_root: Path | None = None,
     ) -> list[MissionAuditResult]:
         selected = members & defects if attack == "defect-only" else members - {omitted}
         if attack == "duplicate":
             selected = members
         allowed = frozenset(scan_root / name for name in selected)
-        rows: list[MissionAuditResult] = real_scan(scan_root, allowed if allowed_dirs is None else allowed & allowed_dirs, identity_index)
+        rows: list[MissionAuditResult] = real_scan(scan_root, allowed if allowed_dirs is None else allowed & allowed_dirs, identity_index, repo_root=repo_root)
         if attack == "duplicate":
             rows.append(rows[0])
         scans.append(tuple(row.mission_slug for row in rows))
