@@ -40,6 +40,7 @@ that one exemption; it is fail-closed (any undecidable input declines it).
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -49,6 +50,8 @@ from specify_cli.mission_metadata import load_meta
 from specify_cli.status.lane_head import LANE_HEAD_KEY
 from specify_cli.status.reducer import materialize_snapshot, wp_snapshot_state
 from specify_cli.status.store import StoreError, read_event_stream
+
+logger = logging.getLogger(__name__)
 
 #: Snapshot runtime slots seeded by the backfill. A WP whose reduced snapshot has
 #: any of these non-empty is a "runtime-carrying" WP.
@@ -263,6 +266,7 @@ def _carries_frontmatter_runtime(mission_dir: Path) -> bool | None:
         legacy = read_legacy_runtime(mission_dir)
         return any(row.has_frontmatter_runtime() for row in legacy.values())
     except Exception:  # noqa: BLE001 — fail closed on ANY read error (undecidable -> not exempt)
+        logger.debug("legacy runtime read failed for %s; pre-accept exemption declined", mission_dir, exc_info=True)
         return None
 
 
