@@ -6,6 +6,9 @@ files:
   - ArtifactSecretRefused.yaml
   - ArtifactTooLarge.yaml
   - ArtifactUnreadable.yaml
+  - DriftMissionNotFound.yaml
+  - DriftScanUnreadable.yaml
+  - OpsUnreadable.yaml
   - PageCursorRefused.yaml
   - StreamRefused.yaml
   - WorkPackageDetailNotFound.yaml

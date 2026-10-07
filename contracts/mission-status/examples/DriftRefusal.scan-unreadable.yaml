@@ -1,0 +1,5 @@
+type: about:blank
+title: The drift scan could not read a Mission
+status: 500
+code: drift_scan_unreadable
+detail: A Mission the scan had to read could not be read, so no report is returned.

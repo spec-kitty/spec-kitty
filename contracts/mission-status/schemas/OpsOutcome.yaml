@@ -1,0 +1,14 @@
+title: OpsOutcome
+description: >-
+  How a closed Op ended, done, failed or abandoned. An open Op has no outcome.
+type: string
+enum:
+  - done
+  - failed
+  - abandoned
+x-source:
+  path: src/specify_cli/invocation/record.py
+  symbol: OpCompletedEvent
+examples:
+  - done
+  - abandoned

@@ -1,11 +1,23 @@
-"""Pure proofs of the additive slice of the ``mission-status`` contract (FR-017 to FR-020, FR-024).
+"""Pure proofs of the additive slice of the ``mission-status`` contract (FR-017 to FR-020, FR-022, FR-023, FR-024, FR-027, FR-029).
 
 The module reads no release tag, no history and starts no subprocess: every proof is a pure function over a
 directory tree or a list, and every function has planted negatives on scratch data. The contract is unreleased
-(``1.0.0-SNAPSHOT``, never tagged) and this slice ships in that same release: there is no new version. The
-comparison of this tree with the contract tree on ``main`` is a recorded command of the wrap-up (the
-``--baseline-root`` recipe of the quickstart, over a scratch copy of the main tree whose version is lowered, because
-``breaking_check.py`` refuses any bundle change against a baseline of the same version), never a committed test.
+(``1.0.0-SNAPSHOT``, never tagged) and this slice ships in that same release: there is no new version.
+
+Which proofs are tests and which are wrap-up commands. Tests (this module, pure): the extended scratch pair (the
+candidate without the ``/drift`` and ``/ops/invocations`` path keys and the ``Drift`` and ``Ops`` tags, with the
+three frozen pre-slice ``Project`` files swapped in, is the baseline; byte identity for everything outside
+``CHANGED_ALLOWED``; the bundle comparison under the masking rule of ``_bundle_problems``), the section-scoped
+CHANGELOG checks (headings, deferred gaps, statements, the four qualified provisional names, every reported
+provisional token), the scope function over the slice data, the dependency check and the citation pins. Wrap-up
+commands (they need ``oasdiff``, full history and scratch copies this pure module lacks, and are recorded by the
+orchestrator): the ``git diff --exit-code <baseline sha> -- contracts/mission-status`` outside the slice file set,
+the ``--baseline-root`` runs of ``breaking_check.py`` over a scratch copy of the main tree (a lowered-major run that
+reports exactly the four breaking additions of ``Project`` and a same-major run that refuses them, because
+``breaking_check.py`` refuses any bundle change against a baseline of the same version), the ancestor check of the
+baseline commit, the scope check over the real ``git diff --name-status`` and the replay of the contract workflow
+jobs. The frozen copies under ``tests/contract/fixtures/mission_status_pre_slice/`` are ``git show`` of the baseline
+commit, never typed; ``cmp`` against it is a wrap-up command.
 
 Lifetime: the assertion that ``info.version`` equals the version on ``main`` (``1.0.0-SNAPSHOT``) belongs to this
 slice. The release process or the next Mission that changes the contract replaces it.
@@ -33,6 +45,9 @@ OPENAPI_FILE = "openapi.yaml"
 LEAK_PATTERNS_TOOL = "leak_patterns"
 LEAK_SCAN_PATH = "contracts/tools/leak_scan.py"
 PACKS_WORKFLOW_PATH = ".github/workflows/packs.yml"
+ROUTER_WORKFLOW_PATH = ".github/workflows/ci-router.yml"
+FIXTURE_BUILDER_PATH = "contracts/tools/fixture_builder.py"
+PROJECT_SCHEMA_PATH = "contracts/mission-status/schemas/Project.yaml"
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONTRACTS = REPO_ROOT / "contracts"
@@ -58,6 +73,19 @@ READ_BEHAVIOURS: dict[str, tuple[str, ...]] = {
     "invalid UTF-8 is a 415": ("invalid UTF-8", "415"),
     "root status records are not artifacts": ("status.events.jsonl", "status.json", "not artifacts"),
 }
+# statements of the Drift and Ops reads that the Added section must make (D-P11): each a tuple of strings that the
+# section's own text must hold; the checks read the Added section only, so the same words elsewhere do not satisfy them
+ADDED_STATEMENTS: dict[str, tuple[str, ...]] = {
+    "info is not carried": ("The `info` value", "is not carried"),
+    "missionId and artifactPath are non-null": ("`missionId` and `artifactPath` of `DriftFinding` are non-null",),
+    "the cap of 1000 findings": ("at most 1000 findings", "`truncated`"),
+    "derived_view_stale is not shipped, with its reason": ("`derived_view_stale`", "is not shipped", "no example exists"),
+    "a manifest without mission_slug is not evaluated": ("`mission_slug`", "is not evaluated for", "`lane_branch_missing`"),
+}
+# the qualified names of the provisional elements that a bare word of the previous slice also satisfies (friction F-4):
+# ``kind``, ``code`` and ``truncated`` are named by the artifact elements, so only the qualified text proves these four
+QUALIFIED_PROVISIONAL = ("DriftFinding.kind", "DriftReport.truncated", "DriftRefusal.code", "OpsRefusal.code")
+PROVISIONAL_ELEMENTS_COUNT = 34  # the elements the provisional check reports for the resolved tree (counts: provisional_elements=34)
 ISSUE_REFERENCE = "#5533"
 ROUTE_FAMILIES = ("/api/artifact/*", "/api/research/*", "/api/contracts/*", "/api/checklists/*", "/api/dossier/*")
 ROUTE_EXCLUSIONS = ("dossier overview", "snapshot export", "not covered")
@@ -138,7 +166,9 @@ def changelog_entry_problems(entry: str, provisional_tokens: Sequence[str]) -> l
         if not all(needle in added for needle in needles):
             problems.append(f"behaviour_missing: {behaviour}")
     problems += route_coverage_problems(entry)
+    problems += [f"statement_missing: {name}" for name, needles in ADDED_STATEMENTS.items() if not all(needle in added for needle in needles)]
     provisional = sections.get(PROVISIONAL_HEADING, "")
+    problems += [f"qualified_name_missing: {name}" for name in QUALIFIED_PROVISIONAL if not names_whole_word(provisional, name)]
     problems += [f"provisional_unnamed: {token}" for token in dict.fromkeys((*AD14_ELEMENTS, *provisional_tokens)) if not names_whole_word(provisional, token)]
     return problems
 
@@ -330,6 +360,92 @@ def test_a_reported_provisional_token_missing_from_the_section_is_refused() -> N
     _expect_problem("a reported token absent", changelog_entry_problems(_real_entry(), ["notInTheEntryAtAll"]), "provisional_unnamed: notInTheEntryAtAll")
 
 
+def test_the_entry_makes_every_statement_of_the_drift_and_ops_reads_under_added() -> None:
+    assert set(ADDED_STATEMENTS) == {
+        "info is not carried",
+        "missionId and artifactPath are non-null",
+        "the cap of 1000 findings",
+        "derived_view_stale is not shipped, with its reason",
+        "a manifest without mission_slug is not evaluated",
+    }
+    assert not _problems_of("statement_missing", changelog_entry_problems(_real_entry(), []))
+
+
+@pytest.mark.parametrize("statement", list(ADDED_STATEMENTS))
+def test_an_entry_missing_one_statement_under_added_is_refused(statement: str) -> None:
+    broken = _edit_section(_real_entry(), ADDED_HEADING, lambda text: _scrub(text, ADDED_STATEMENTS[statement]))
+    _expect_problem(f"statement {statement} removed", changelog_entry_problems(broken, []), f"statement_missing: {statement}")
+
+
+@pytest.mark.parametrize("statement", list(ADDED_STATEMENTS))
+def test_a_statement_made_only_outside_the_added_section_is_refused(statement: str) -> None:
+    """The check is scoped to its heading: the words in Deferred or Provisional do not satisfy it."""
+    needles = ADDED_STATEMENTS[statement]
+    stripped = _edit_section(_real_entry(), ADDED_HEADING, lambda text: _scrub(text, needles))
+    moved = _edit_section(stripped, DEFERRED_HEADING, lambda text: text + "\n" + "\n".join(needles))
+    _expect_problem(f"statement {statement} moved to Deferred", changelog_entry_problems(moved, []), f"statement_missing: {statement}")
+
+
+def test_the_cap_statement_is_the_findings_cap_and_not_the_artifact_listing_cap() -> None:
+    """The artifact listing also says 1000: only the findings sentence satisfies the Drift statement."""
+    broken = _edit_section(_real_entry(), ADDED_HEADING, lambda text: text.replace("at most 1000 findings", "at most 1000 entries"))
+    _expect_problem("the findings cap reworded", changelog_entry_problems(broken, []), "statement_missing: the cap of 1000 findings")
+
+
+def test_the_four_qualified_provisional_names_are_exactly_these() -> None:
+    assert QUALIFIED_PROVISIONAL == ("DriftFinding.kind", "DriftReport.truncated", "DriftRefusal.code", "OpsRefusal.code")
+
+
+def test_the_real_entry_names_the_four_qualified_names_inside_its_provisional_section() -> None:
+    provisional = entry_sections(_real_entry())[PROVISIONAL_HEADING]
+    assert [name for name in QUALIFIED_PROVISIONAL if not names_whole_word(provisional, name)] == []
+    assert not _problems_of("qualified_name_missing", changelog_entry_problems(_real_entry(), []))
+
+
+@pytest.mark.parametrize("name", QUALIFIED_PROVISIONAL)
+def test_an_entry_missing_one_qualified_name_is_refused_although_the_bare_word_is_still_named(name: str) -> None:
+    """The bare ``kind``, ``code`` and ``truncated`` are named by the artifact elements, so the word check cannot see this loss."""
+    broken = _edit_section(_real_entry(), PROVISIONAL_HEADING, lambda text: text.replace(name, "REDACTED-NEEDLE"))
+    problems = changelog_entry_problems(broken, [])
+    _expect_problem(f"{name} removed", problems, f"qualified_name_missing: {name}")
+    bare = name.split(".")[1]
+    assert f"provisional_unnamed: {bare}" not in problems, f"the plant must be invisible to the word check of {bare!r}"
+
+
+@pytest.mark.parametrize("name", QUALIFIED_PROVISIONAL)
+def test_a_qualified_name_named_only_outside_the_provisional_section_is_refused(name: str) -> None:
+    emptied = _edit_section(_real_entry(), PROVISIONAL_HEADING, lambda text: text.replace(name, "REDACTED-NEEDLE"))
+    moved = _edit_section(emptied, ADDED_HEADING, lambda text: text + "\n" + name)
+    _expect_problem(f"{name} moved to Added", changelog_entry_problems(moved, []), f"qualified_name_missing: {name}")
+
+
+def _schema_has_property(schema: str, member: str) -> bool:
+    document = _read_yaml(MODULE / "schemas" / f"{schema}.yaml")
+    parts = [document, *(part for part in document.get("allOf", []) if isinstance(part, dict))]
+    return any(member in part.get("properties", {}) for part in parts)
+
+
+@pytest.mark.parametrize("name", QUALIFIED_PROVISIONAL)
+def test_each_qualified_name_is_a_real_property_of_its_schema(name: str) -> None:
+    schema, member = name.split(".")
+    assert _schema_has_property(schema, member), f"{name} names a property its schema does not have"
+
+
+def test_a_property_that_is_not_in_the_schema_is_not_found() -> None:
+    assert not _schema_has_property("OpsRefusal", "notAProperty")
+
+
+def test_the_reported_provisional_elements_are_counted() -> None:
+    """The count of ``provisional_check.py`` for the tree; a changed list of elements changes it and this proof together."""
+    resolver = _tool("contract_resolver", syspath=True)
+    provisional = _tool("provisional_check", syspath=True)
+    elements = provisional._Walk(resolver.resolve(MODULE).tree).elements
+    assert len(elements) == PROVISIONAL_ELEMENTS_COUNT
+    reported = set(_reported_provisional_tokens())
+    assert {"kind", "code", "truncated"} <= reported, "the tool reports the bare words, which is why the qualified names are asserted literally"
+    assert not reported & set(QUALIFIED_PROVISIONAL), "the tool reports no qualified token: the four names are the contract's own addition"
+
+
 def test_the_scan_of_an_entry_that_does_not_exist_is_a_failure_not_a_pass() -> None:
     assert changelog_entry("# Changelog\n\n## 0.9.0\n\nOnly one.\n") is None
 
@@ -340,8 +456,14 @@ def test_the_scan_of_an_entry_that_does_not_exist_is_a_failure_not_a_pass() -> N
 
 MODULE_NAME = "mission-status"
 SHARED_NAME = "_shared"
-# the files of the module that may differ between the baseline and the candidate: the version and path map, the
-# four index files (new entries) and the CHANGELOG (the new entry); nothing else of the module or of _shared
+# the files of the module that may differ between the baseline and the candidate: the version, path map and tags,
+# the four index files (new entries), the CHANGELOG (the entry) and the three Project files this slice extends;
+# nothing else of the module or of _shared
+PROJECT_FILES = (
+    f"{MODULE_NAME}/schemas/Project.yaml",
+    f"{MODULE_NAME}/examples/Project.example.yaml",
+    f"{MODULE_NAME}/paths/project.yaml",
+)
 CHANGED_ALLOWED = frozenset(
     {
         f"{MODULE_NAME}/openapi.yaml",
@@ -350,14 +472,19 @@ CHANGED_ALLOWED = frozenset(
         f"{MODULE_NAME}/parameters/_index.yaml",
         f"{MODULE_NAME}/responses/_index.yaml",
         f"{MODULE_NAME}/schemas/_index.yaml",
+        *PROJECT_FILES,
     }
 )
-# the paths the three new operations add; a scratch baseline is the candidate without them (it stands for main)
+# the paths and the tags the two new operations add; a scratch baseline is the candidate without them (it stands for main)
 NEW_PATH_KEYS = (
-    "/missions/{missionId}/artifacts",
-    "/missions/{missionId}/artifacts/content",
-    "/missions/{missionId}/work-packages/{wpId}/detail",
+    "/drift",
+    "/ops/invocations",
 )
+NEW_TAGS = ("Drift", "Ops")
+# the pre-slice Project files: ``git show`` of the baseline commit into the source layout, never typed
+FROZEN_ROOT = Path(__file__).resolve().parent / "fixtures" / "mission_status_pre_slice"
+PROJECT_PATH_KEY = "/project"
+PROJECT_SCHEMA_NAME = "Project"
 EXISTING_PATH_FILE = f"{MODULE_NAME}/paths/missions_missionId.yaml"
 EXISTING_SCHEMA_FILE = f"{MODULE_NAME}/schemas/WorkPackage.yaml"
 SHARED_SCHEMA_FILE = f"{SHARED_NAME}/schemas/Problem.yaml"
@@ -396,8 +523,33 @@ def _byte_identity_problems(baseline: dict[str, bytes], candidate: dict[str, byt
     return problems
 
 
+MASKED_SCHEMA = {"masked": PROJECT_SCHEMA_NAME}
+
+
+def _project_200(tree: dict[str, Any]) -> dict[str, Any]:
+    """The media type object of the 200 response of ``getProject`` in a resolved tree (the resolver inlines every reference)."""
+    return tree["paths"][PROJECT_PATH_KEY]["get"]["responses"]["200"]["content"]["application/json"]
+
+
+def _masked_tree(tree: dict[str, Any]) -> dict[str, Any]:
+    """The resolved tree with the only two permitted masks: the ``Project`` schema and the description of ``getProject``.
+
+    The resolver inlines every reference, so the ``Project`` schema stands where ``getProject`` answers 200 and nowhere
+    else; it is masked only when its title is ``Project``, so a 200 that points to any other schema stays visible.
+    The rest of the ``/project`` path item stays: the ``operationId``, ``summary``, tags, parameters and every
+    response code are compared. A mask over the whole path item would hide a change to that operation.
+    """
+    masked = copy.deepcopy(tree)
+    operation = masked["paths"][PROJECT_PATH_KEY]["get"]
+    operation.pop("description", None)
+    media = _project_200(masked)
+    if media["schema"].get("title") == PROJECT_SCHEMA_NAME:
+        media["schema"] = dict(MASKED_SCHEMA)
+    return masked
+
+
 def _bundle_problems(baseline_root: Path, candidate_root: Path) -> list[str]:
-    """The candidate tree minus the new path keys, at the baseline version, must equal the baseline tree."""
+    """The resolved candidate minus the new operations and tags, at the baseline version, equals the resolved baseline except the two masks."""
     resolver = _resolver()
     try:
         baseline_tree = resolver.resolve(baseline_root / MODULE_NAME).tree
@@ -406,11 +558,19 @@ def _bundle_problems(baseline_root: Path, candidate_root: Path) -> list[str]:
         return [f"resolve_failed: {error}"]
     for key in set(candidate_tree["paths"]) - set(baseline_tree["paths"]):
         del candidate_tree["paths"][key]
+    baseline_tags = {tag["name"] for tag in baseline_tree.get("tags", [])}
+    candidate_tree["tags"] = [tag for tag in candidate_tree.get("tags", []) if tag["name"] in baseline_tags]
     candidate_tree["info"]["version"] = baseline_tree["info"]["version"]
-    if candidate_tree == baseline_tree:
+    try:
+        baseline_masked, candidate_masked = _masked_tree(baseline_tree), _masked_tree(candidate_tree)
+    except (KeyError, TypeError) as error:
+        return [f"bundle_changed: the masked part {error} is missing from a tree"]
+    if candidate_masked == baseline_masked:
         return []
-    base_paths, candidate_paths = baseline_tree["paths"], candidate_tree["paths"]
+    base_paths, candidate_paths = baseline_masked["paths"], candidate_masked["paths"]
     changed = sorted(key for key in set(base_paths) | set(candidate_paths) if base_paths.get(key) != candidate_paths.get(key))
+    if baseline_masked.get("tags") != candidate_masked.get("tags"):
+        changed.append("tags")
     return [f"bundle_changed: the existing operations differ: {changed}"]
 
 
@@ -433,7 +593,11 @@ def additive_proof_problems(baseline_root: Path, candidate_root: Path) -> list[s
 
 
 def _make_pair(tmp_path: Path) -> tuple[Path, Path]:
-    """A scratch (baseline, candidate): the candidate is this tree; the baseline is it without the three new operations, standing for main."""
+    """A scratch (baseline, candidate): the candidate is this tree; the baseline stands for main.
+
+    The baseline is the candidate without the two new path keys and the two new tags, and with the three frozen
+    pre-slice ``Project`` files swapped in.
+    """
     pair = []
     for name in ("baseline", "candidate"):
         root = tmp_path / name
@@ -445,8 +609,11 @@ def _make_pair(tmp_path: Path) -> tuple[Path, Path]:
     for key in NEW_PATH_KEYS:
         reference = document["paths"].pop(key)["$ref"]
         (baseline / MODULE_NAME / reference).unlink()
+    document["tags"] = [tag for tag in document["tags"] if tag["name"] not in NEW_TAGS]
     document["info"]["version"] = MAIN_VERSION
     _write_yaml(baseline / MODULE_NAME / OPENAPI_FILE, document)
+    for relative in PROJECT_FILES:
+        shutil.copyfile(FROZEN_ROOT / relative.removeprefix(f"{MODULE_NAME}/"), baseline / relative)
     return baseline, candidate
 
 
@@ -466,13 +633,41 @@ def pair(tmp_path: Path) -> tuple[Path, Path]:
     return _make_pair(tmp_path)
 
 
-def test_the_scratch_baseline_is_this_tree_without_exactly_the_three_new_operations(pair: tuple[Path, Path]) -> None:
+def test_the_scratch_baseline_is_this_tree_without_exactly_the_two_new_operations_and_tags(pair: tuple[Path, Path]) -> None:
     baseline, candidate = pair
     resolver = _resolver()
-    base_paths = set(resolver.resolve(baseline / MODULE_NAME).tree["paths"])
-    candidate_paths = set(resolver.resolve(candidate / MODULE_NAME).tree["paths"])
+    base_tree, candidate_tree = resolver.resolve(baseline / MODULE_NAME).tree, resolver.resolve(candidate / MODULE_NAME).tree
+    base_paths, candidate_paths = set(base_tree["paths"]), set(candidate_tree["paths"])
+    assert NEW_PATH_KEYS == ("/drift", "/ops/invocations")
     assert candidate_paths - base_paths == set(NEW_PATH_KEYS)
     assert base_paths < candidate_paths and len(base_paths) >= 5, "the baseline must keep the existing operations"
+    assert NEW_TAGS == ("Drift", "Ops")
+    assert {tag["name"] for tag in candidate_tree["tags"]} - {tag["name"] for tag in base_tree["tags"]} == set(NEW_TAGS)
+    assert {tag["name"] for tag in base_tree["tags"]} == {"Project", "Missions", "Events"}
+
+
+def test_the_scratch_baseline_holds_the_three_frozen_project_files_and_no_other_project_change(pair: tuple[Path, Path]) -> None:
+    baseline, candidate = pair
+    assert len(PROJECT_FILES) == 3
+    for relative in PROJECT_FILES:
+        assert (baseline / relative).read_bytes() == (FROZEN_ROOT / relative.removeprefix(f"{MODULE_NAME}/")).read_bytes()
+        assert (baseline / relative).read_bytes() != (candidate / relative).read_bytes(), f"{relative} was not extended by the slice"
+    assert set(PROJECT_FILES) <= CHANGED_ALLOWED
+
+
+def test_the_frozen_project_schema_is_the_pre_slice_shape() -> None:
+    """Before the slice a Project held its name and Mission count only: the five added properties are absent from the copy."""
+    frozen = _read_yaml(FROZEN_ROOT / "schemas" / "Project.yaml")
+    current = _read_yaml(MODULE / "schemas" / "Project.yaml")
+    assert set(frozen["properties"]) == {"name", "missionCount"}
+    assert set(current["properties"]) - set(frozen["properties"]) == {"specKittyVersion", "schemaVersion", "health", "currentBranch", "lastActivityAt"}
+    assert set(_read_yaml(FROZEN_ROOT / "examples" / "Project.example.yaml")) == {"name", "missionCount"}
+
+
+def test_no_two_frozen_names_in_one_directory_differ_only_by_case() -> None:
+    names = [path.relative_to(FROZEN_ROOT).as_posix() for path in sorted(FROZEN_ROOT.rglob("*")) if path.is_file()]
+    assert names == ["examples/Project.example.yaml", "paths/project.yaml", "schemas/Project.yaml"]
+    assert len({name.lower() for name in names}) == len(names)
 
 
 def test_this_tree_is_an_additive_change_over_its_scratch_baseline(pair: tuple[Path, Path]) -> None:
@@ -520,6 +715,99 @@ def test_a_409_added_to_an_existing_operation_fails_the_bundle_rule(pair: tuple[
     _write_yaml(path, operation)
     problems = additive_proof_problems(baseline, candidate)
     assert any(problem.startswith("bundle_changed") for problem in problems), f"{NOT_KILLED}: a 409 added: {problems}"
+
+
+PROJECT_PATH_FILE = f"{MODULE_NAME}/paths/project.yaml"
+PROJECT_SCHEMA_FILE = f"{MODULE_NAME}/schemas/Project.yaml"
+
+
+def _bundle_changed(problems: Sequence[str]) -> bool:
+    return any(problem.startswith("bundle_changed") for problem in problems)
+
+
+def test_the_unmutated_candidate_passes_with_only_the_two_permitted_masks(pair: tuple[Path, Path]) -> None:
+    """Control: the candidate differs from the baseline in the Project schema and in the getProject description, and nowhere else."""
+    baseline, candidate = pair
+    resolver = _resolver()
+    base_tree, candidate_tree = resolver.resolve(baseline / MODULE_NAME).tree, resolver.resolve(candidate / MODULE_NAME).tree
+    assert _project_200(base_tree)["schema"]["title"] == _project_200(candidate_tree)["schema"]["title"] == PROJECT_SCHEMA_NAME
+    assert _project_200(base_tree) != _project_200(candidate_tree)
+    assert base_tree["paths"][PROJECT_PATH_KEY]["get"]["description"] != candidate_tree["paths"][PROJECT_PATH_KEY]["get"]["description"]
+    assert _bundle_problems(baseline, candidate) == []
+
+
+def _mutate_project_operation(candidate: Path, mutate: Callable[[dict[str, Any]], None]) -> None:
+    path = candidate / PROJECT_PATH_FILE
+    document = _read_yaml(path)
+    mutate(document["get"])
+    _write_yaml(path, document)
+
+
+def test_an_extra_response_code_on_get_project_fails_the_bundle_rule(pair: tuple[Path, Path]) -> None:
+    baseline, candidate = pair
+    _mutate_project_operation(candidate, lambda operation: operation["responses"].update({"404": {"$ref": "../../_shared/responses/Problem.yaml"}}))
+    problems = _bundle_problems(baseline, candidate)
+    assert _bundle_changed(problems), f"{NOT_KILLED}: an extra response code on getProject: {problems}"
+
+
+def test_a_changed_200_schema_reference_on_get_project_fails_the_bundle_rule(pair: tuple[Path, Path]) -> None:
+    baseline, candidate = pair
+    _mutate_project_operation(
+        candidate, lambda operation: operation["responses"]["200"]["content"]["application/json"].update({"schema": {"$ref": "../schemas/WorkPackage.yaml"}})
+    )
+    problems = _bundle_problems(baseline, candidate)
+    assert _bundle_changed(problems), f"{NOT_KILLED}: a changed 200 schema reference on getProject: {problems}"
+
+
+def test_a_changed_operation_id_or_summary_of_get_project_fails_the_bundle_rule(pair: tuple[Path, Path]) -> None:
+    """Only the description is masked: the summary changed by the final edit would have to be unmasked on purpose."""
+    for member in ("operationId", "summary"):
+        baseline, candidate = _make_pair(pair[0].parent / f"mask-{member}")
+        _mutate_project_operation(candidate, lambda operation, member=member: operation.update({member: operation[member] + "X"}))
+        problems = _bundle_problems(baseline, candidate)
+        assert _bundle_changed(problems), f"{NOT_KILLED}: {member} of getProject changed: {problems}"
+
+
+def test_a_change_to_another_existing_schema_fails_the_bundle_rule(pair: tuple[Path, Path]) -> None:
+    baseline, candidate = pair
+    path = candidate / EXISTING_SCHEMA_FILE
+    document = _read_yaml(path)
+    document["description"] = str(document.get("description", "")) + " planted"
+    _write_yaml(path, document)
+    problems = additive_proof_problems(baseline, candidate)
+    assert _bundle_changed(problems), f"{NOT_KILLED}: another existing schema changed: {problems}"
+    assert any(f"byte_identity: {EXISTING_SCHEMA_FILE}" in problem for problem in problems)
+
+
+def test_a_changed_existing_tag_fails_the_bundle_rule(pair: tuple[Path, Path]) -> None:
+    baseline, candidate = pair
+    path = candidate / MODULE_NAME / OPENAPI_FILE
+    document = _read_yaml(path)
+    document["tags"][0]["description"] += " planted"
+    _write_yaml(path, document)
+    problems = _bundle_problems(baseline, candidate)
+    assert _bundle_changed(problems), f"{NOT_KILLED}: an existing tag changed: {problems}"
+
+
+def test_a_change_to_the_project_schema_or_the_get_project_description_alone_is_masked(pair: tuple[Path, Path]) -> None:
+    """The two masks do their job: a further edit of either is invisible to the bundle rule, and visible to nothing else."""
+    baseline, candidate = pair
+    project = _read_yaml(candidate / PROJECT_SCHEMA_FILE)
+    project["description"] = str(project.get("description", "")) + " further edit"
+    _write_yaml(candidate / PROJECT_SCHEMA_FILE, project)
+    _mutate_project_operation(candidate, lambda operation: operation.update({"description": "A further description."}))
+    assert additive_proof_problems(baseline, candidate) == []
+
+
+def test_the_mask_does_not_exclude_the_whole_project_path_item(pair: tuple[Path, Path]) -> None:
+    baseline, _ = pair
+    tree = _resolver().resolve(baseline / MODULE_NAME).tree
+    masked = _masked_tree(tree)
+    assert "description" not in masked["paths"][PROJECT_PATH_KEY]["get"]
+    assert set(masked["paths"][PROJECT_PATH_KEY]["get"]) == set(tree["paths"][PROJECT_PATH_KEY]["get"]) - {"description"}
+    assert _project_200(masked)["schema"] == MASKED_SCHEMA and _project_200(tree)["schema"] != MASKED_SCHEMA
+    assert set(masked["paths"]) == set(tree["paths"]), "no other path item is masked"
+    assert masked["paths"][PROJECT_PATH_KEY]["get"]["operationId"] == "getProject"
 
 
 def test_an_existing_operation_dropped_from_the_path_map_fails_the_bundle_rule_alone(pair: tuple[Path, Path]) -> None:
@@ -624,22 +912,19 @@ class ScopeRule(NamedTuple):
 SLICE_ALLOWED: tuple[ScopeRule, ...] = (
     ScopeRule(PREFIX, "contracts/mission-status/", ADDED),
     ScopeRule(EXACT, "contracts/mission-status/openapi.yaml", MODIFIED),
+    ScopeRule(EXACT, "contracts/mission-status/CHANGELOG.md", MODIFIED),
+    ScopeRule(EXACT, "contracts/mission-status/schemas/_index.yaml", MODIFIED),
     ScopeRule(EXACT, "contracts/mission-status/examples/_index.yaml", MODIFIED),
     ScopeRule(EXACT, "contracts/mission-status/parameters/_index.yaml", MODIFIED),
     ScopeRule(EXACT, "contracts/mission-status/responses/_index.yaml", MODIFIED),
-    ScopeRule(EXACT, "contracts/mission-status/schemas/_index.yaml", MODIFIED),
-    ScopeRule(EXACT, "contracts/mission-status/CHANGELOG.md", MODIFIED),
-    ScopeRule(EXACT, LEAK_SCAN_PATH, MODIFIED),
-    ScopeRule(EXACT, "contracts/tools/fixture_builder.py", MODIFIED),
+    ScopeRule(EXACT, PROJECT_SCHEMA_PATH, MODIFIED),
+    ScopeRule(EXACT, "contracts/mission-status/examples/Project.example.yaml", MODIFIED),
+    ScopeRule(EXACT, "contracts/mission-status/paths/project.yaml", MODIFIED),
+    ScopeRule(EXACT, FIXTURE_BUILDER_PATH, MODIFIED),
     ScopeRule(EXACT, "contracts/tools/negative_cases.json", MODIFIED),
     ScopeRule(EXACT, "contracts/tools/enum_pins.json", MODIFIED),
-    # the linear-time email matching of this Mission (a review-approved fold-in, outside the original four tools files)
-    ScopeRule(EXACT, "contracts/tools/leak_patterns.py", MODIFIED),
-    # the router path-group widening (an operator-approved scope widening): the src files the reader imports now select the tool-test job
-    ScopeRule(EXACT, ".github/workflows/ci-router.yml", MODIFIED),
-    # the documentation of that widening and the test that pins its globs (the same operator-approved scope widening, PR-GATES-001)
-    ScopeRule(EXACT, "docs/development/reference/ci-gate-mechanics.md", MODIFIED),
-    ScopeRule(EXACT, "tests/ci/test_contracts_workflows.py", MODIFIED),
+    # the router path-group globs of the contract tool tests (the reader modules the tools import select the job)
+    ScopeRule(EXACT, ROUTER_WORKFLOW_PATH, MODIFIED),
     ScopeRule(PREFIX, "tests/contract/", ADDED_OR_MODIFIED),
 )
 # the registrations of the new test modules: exactly these two paths, no wildcard
@@ -647,6 +932,8 @@ EXTRA_ALLOWED_REGISTRATIONS: tuple[ScopeRule, ...] = (
     ScopeRule(EXACT, PACKS_WORKFLOW_PATH, MODIFIED),
     ScopeRule(EXACT, "tests/architectural/test_ci_corpus_trigger_completeness.py", MODIFIED),
 )
+# the slice allows no dependency change: no rule and no change may name a file of the dependency set
+DEPENDENCY_FILES = ("pyproject.toml", "uv.lock")
 
 
 def _rule_admits(rule: ScopeRule, status: str, path: str) -> bool:
@@ -667,18 +954,25 @@ def scope_problems(changes: Sequence[tuple[str, str]], allowed: Sequence[ScopeRu
 
 # entries a branch of this Mission holds (the shape of the real diff, written as data)
 IN_SCOPE_CHANGES: tuple[tuple[str, str], ...] = (
-    ("A", "contracts/mission-status/schemas/ArtifactEntry.yaml"),
-    ("A", "contracts/mission-status/examples/ArtifactListing.populated.yaml"),
+    ("A", "contracts/mission-status/schemas/DriftReport.yaml"),
+    ("A", "contracts/mission-status/examples/OpsInvocation.open.yaml"),
+    ("A", "contracts/mission-status/paths/drift.yaml"),
     ("M", "contracts/mission-status/openapi.yaml"),
-    ("M", "contracts/mission-status/schemas/_index.yaml"),
     ("M", "contracts/mission-status/CHANGELOG.md"),
-    ("M", LEAK_SCAN_PATH),
+    ("M", "contracts/mission-status/schemas/_index.yaml"),
+    ("M", "contracts/mission-status/examples/_index.yaml"),
+    ("M", "contracts/mission-status/parameters/_index.yaml"),
+    ("M", "contracts/mission-status/responses/_index.yaml"),
+    ("M", PROJECT_SCHEMA_PATH),
+    ("M", "contracts/mission-status/examples/Project.example.yaml"),
+    ("M", "contracts/mission-status/paths/project.yaml"),
+    ("M", FIXTURE_BUILDER_PATH),
+    ("M", "contracts/tools/negative_cases.json"),
     ("M", "contracts/tools/enum_pins.json"),
-    ("A", "tests/contract/test_mission_status_artifacts.py"),
+    ("A", "tests/contract/test_mission_status_project.py"),
+    ("A", "tests/contract/fixtures/mission_status_pre_slice/schemas/Project.yaml"),
     ("M", "tests/contract/test_leak_scan.py"),
-    ("M", ".github/workflows/ci-router.yml"),
-    ("M", "docs/development/reference/ci-gate-mechanics.md"),
-    ("M", "tests/ci/test_contracts_workflows.py"),
+    ("M", ROUTER_WORKFLOW_PATH),
 )
 REGISTRATION_CHANGES: tuple[tuple[str, str], ...] = (
     ("M", PACKS_WORKFLOW_PATH),
@@ -706,21 +1000,24 @@ def test_a_modification_of_an_existing_contract_file_outside_the_named_ones_is_r
     _expect_problem(f"M under the new-files prefix {path}", scope_problems([("M", path)], SLICE_ALLOWED), f"out_of_scope: M {path}")
 
 
-@pytest.mark.parametrize("path", ["contracts/tools/breaking_check.py", "contracts/tools/leak_scan.py.orig", "contracts/tools/pins.json"])
+@pytest.mark.parametrize(
+    "path",
+    ["contracts/tools/breaking_check.py", LEAK_SCAN_PATH, "contracts/tools/leak_patterns.py", "contracts/tools/leak_scan.py.orig", "contracts/tools/pins.json"],
+)
 def test_a_modification_of_a_tools_file_that_is_not_one_of_the_named_ones_is_reported(path: str) -> None:
     _expect_problem(f"unnamed tools file {path}", scope_problems([("M", path)], SLICE_ALLOWED), f"out_of_scope: M {path}")
 
 
 @pytest.mark.parametrize(
     "path",
-    [LEAK_SCAN_PATH, "contracts/mission-status/openapi.yaml", "contracts/mission-status/schemas/Project.yaml", "tests/contract/test_leak_scan.py"],
+    [FIXTURE_BUILDER_PATH, "contracts/mission-status/openapi.yaml", PROJECT_SCHEMA_PATH, "tests/contract/test_leak_scan.py"],
 )
 def test_a_deletion_is_reported_for_every_path_even_a_named_one(path: str) -> None:
     _expect_problem(f"D entry {path}", scope_problems([("D", path)], [*SLICE_ALLOWED, *EXTRA_ALLOWED_REGISTRATIONS]), f"out_of_scope: D {path}")
 
 
 def test_an_addition_of_a_named_existing_file_is_reported() -> None:
-    _expect_problem("A for a named existing file", scope_problems([("A", LEAK_SCAN_PATH)], SLICE_ALLOWED), "out_of_scope: A contracts/tools/leak_scan.py")
+    _expect_problem("A for a named existing file", scope_problems([("A", FIXTURE_BUILDER_PATH)], SLICE_ALLOWED), f"out_of_scope: A {FIXTURE_BUILDER_PATH}")
 
 
 @pytest.mark.parametrize("path", ["contracts/mission-status-extra/a.yaml", "tests/contract_extra/a.py", "contracts/mission-statusX"])
@@ -746,13 +1043,69 @@ def test_a_registration_path_with_another_status_or_a_third_workflow_file_is_rep
     assert scope_problems([("A", ".github/workflows/ci-router.yml")], allowed) == ["out_of_scope: A .github/workflows/ci-router.yml"]
 
 
-@pytest.mark.parametrize("path", ["docs/development/reference/ci-gate-mechanics.md", "tests/ci/test_contracts_workflows.py"])
-def test_the_router_widening_companions_admit_a_modification_only(path: str) -> None:
-    assert scope_problems([("M", path)], SLICE_ALLOWED) == []
-    for status in ("A", "D"):
-        _expect_problem(f"{status} for a router widening companion {path}", scope_problems([(status, path)], SLICE_ALLOWED), f"out_of_scope: {status} {path}")
-    sibling = "docs/development/reference/ci-gate-mechanics.md.bak"
-    _expect_problem("a sibling of a companion", scope_problems([("M", sibling)], SLICE_ALLOWED), f"out_of_scope: M {sibling}")
+@pytest.mark.parametrize(
+    "path",
+    ["docs/development/reference/ci-gate-mechanics.md", "tests/ci/test_contracts_workflows.py", "src/specify_cli/status/drift.py", "pyproject.toml", "uv.lock"],
+)
+def test_a_file_this_slice_does_not_touch_is_reported_for_every_status(path: str) -> None:
+    """The previous slice's router companions are not in this slice's set, and neither is any ``src/`` file or dependency file."""
+    for status in ("A", "M", "D"):
+        _expect_problem(f"{status} for {path}", scope_problems([(status, path)], SLICE_ALLOWED), f"out_of_scope: {status} {path}")
+
+
+def test_a_planted_extra_file_and_a_planted_src_path_fail_the_scope_over_a_branch_inside_the_slice() -> None:
+    allowed = [*SLICE_ALLOWED, *EXTRA_ALLOWED_REGISTRATIONS]
+    inside = [*IN_SCOPE_CHANGES, *REGISTRATION_CHANGES]
+    assert scope_problems(inside, allowed) == []
+    extra, source = ("A", "notes/extra-file.md"), ("M", "src/specify_cli/status/store.py")
+    _expect_problem("a planted extra file", scope_problems([*inside, extra], allowed), f"out_of_scope: {extra[0]} {extra[1]}")
+    _expect_problem("a planted src path", scope_problems([*inside, source], allowed), f"out_of_scope: {source[0]} {source[1]}")
+    assert scope_problems([*inside, extra, source], allowed) == [f"out_of_scope: {extra[0]} {extra[1]}", f"out_of_scope: {source[0]} {source[1]}"]
+
+
+def test_the_slice_data_names_exactly_these_rules() -> None:
+    """A changed list of rules changes this pin and the data together: the Mission's file set is written once."""
+    assert len(SLICE_ALLOWED) == 15
+    assert [rule.path for rule in SLICE_ALLOWED if rule.match == PREFIX] == ["contracts/mission-status/", "tests/contract/"]
+    assert sorted(rule.path for rule in SLICE_ALLOWED if rule.match == EXACT) == sorted(
+        [
+            "contracts/mission-status/openapi.yaml",
+            "contracts/mission-status/CHANGELOG.md",
+            "contracts/mission-status/schemas/_index.yaml",
+            "contracts/mission-status/examples/_index.yaml",
+            "contracts/mission-status/parameters/_index.yaml",
+            "contracts/mission-status/responses/_index.yaml",
+            PROJECT_SCHEMA_PATH,
+            "contracts/mission-status/examples/Project.example.yaml",
+            "contracts/mission-status/paths/project.yaml",
+            FIXTURE_BUILDER_PATH,
+            "contracts/tools/negative_cases.json",
+            "contracts/tools/enum_pins.json",
+            ROUTER_WORKFLOW_PATH,
+        ]
+    )
+    assert len(EXTRA_ALLOWED_REGISTRATIONS) == 2
+    assert len(IN_SCOPE_CHANGES) == 19 and len(REGISTRATION_CHANGES) == 2
+
+
+def dependency_problems(rules: Sequence[ScopeRule], changes: Sequence[tuple[str, str]]) -> list[str]:
+    """Every rule or change that names a dependency file (at any depth); this slice adds no dependency."""
+    named = [f"dependency_rule: {rule.path}" for rule in rules if Path(rule.path).name in DEPENDENCY_FILES]
+    return named + [f"dependency_change: {status} {path}" for status, path in changes if Path(path).name in DEPENDENCY_FILES]
+
+
+def test_no_rule_and_no_change_of_the_slice_names_a_dependency_file() -> None:
+    assert DEPENDENCY_FILES == ("pyproject.toml", "uv.lock")
+    assert dependency_problems([*SLICE_ALLOWED, *EXTRA_ALLOWED_REGISTRATIONS], [*IN_SCOPE_CHANGES, *REGISTRATION_CHANGES]) == []
+
+
+@pytest.mark.parametrize("name", DEPENDENCY_FILES)
+def test_a_planted_added_dependency_fails_the_dependency_check(name: str) -> None:
+    rule = ScopeRule(EXACT, name, MODIFIED)
+    assert dependency_problems([*SLICE_ALLOWED, rule], []) == [f"dependency_rule: {name}"], f"{NOT_KILLED}: a rule for {name}"
+    assert dependency_problems([], [("M", name)]) == [f"dependency_change: M {name}"], f"{NOT_KILLED}: a change of {name}"
+    nested = f"packages/extra/{name}"
+    assert dependency_problems([], [("A", nested)]) == [f"dependency_change: A {nested}"], f"{NOT_KILLED}: a nested {name}"
 
 
 def test_an_empty_change_list_is_a_failure_not_a_pass() -> None:
@@ -1080,6 +1433,60 @@ def test_the_required_examples_are_the_new_examples_of_the_module() -> None:
         "StreamRefusal",
         "PageCursorRefusal",
         "MissionOverviewPage",
+        "DriftReport",
+        "DriftRefusal",
+        "OpsInvocationPage",
+        "OpsInvocation",
+        "OpsRefusal",
     )
     present = {path.name for path in (MODULE / "examples").glob("*.yaml") if not path.name.startswith(("_index", *[f"{old}." for old in old_schemas]))}
     assert present == set(REQUIRED_EXAMPLES)
+
+
+# --------------------------------------------------------------------------------------
+# Citation pins of the Ops read (FR-017, FR-020): the evidence members cite the field they derive from
+# --------------------------------------------------------------------------------------
+
+RECORD_SOURCE = "src/specify_cli/invocation/record.py"
+EVIDENCE_REFERENCE_SYMBOL = "OpCompletedEvent.evidence_ref"
+OPS_EVIDENCE_MEMBERS = ("kind", "value", "redacted")
+OPS_INVOCATION_MEMBER_COUNT = 13  # FR-017: thirteen members, all required, seven of them nullable ("twelve" elsewhere is a miscount)
+
+
+def record_symbol_problems(schema: dict[str, Any], members: Sequence[str], expected: str) -> list[str]:
+    """Every member of ``schema`` whose citation of the record module names a symbol other than ``expected``, or none at all."""
+    problems = []
+    for member in members:
+        inputs = schema["properties"][member]["x-derived"]["inputs"]
+        symbols = [entry["symbol"] for entry in inputs if isinstance(entry, dict) and entry.get("path") == RECORD_SOURCE]
+        if symbols != [expected]:
+            problems.append(f"citation: {member} cites {symbols!r} of {RECORD_SOURCE}, not [{expected!r}]")
+    return problems
+
+
+def test_the_evidence_members_cite_the_evidence_reference_of_the_completed_event() -> None:
+    schema = _read_yaml(MODULE / "schemas" / "OpsEvidence.yaml")
+    assert record_symbol_problems(schema, OPS_EVIDENCE_MEMBERS, EVIDENCE_REFERENCE_SYMBOL) == []
+    assert list(schema["properties"]) == list(OPS_EVIDENCE_MEMBERS)
+
+
+@pytest.mark.parametrize("member", OPS_EVIDENCE_MEMBERS)
+def test_a_bare_event_citation_on_an_evidence_member_is_refused(member: str) -> None:
+    schema = copy.deepcopy(_read_yaml(MODULE / "schemas" / "OpsEvidence.yaml"))
+    for entry in schema["properties"][member]["x-derived"]["inputs"]:
+        if isinstance(entry, dict) and entry.get("path") == RECORD_SOURCE:
+            entry["symbol"] = "OpCompletedEvent"
+    problems = record_symbol_problems(schema, OPS_EVIDENCE_MEMBERS, EVIDENCE_REFERENCE_SYMBOL)
+    assert len(problems) == 1 and problems[0].startswith(f"citation: {member} "), f"{NOT_KILLED}: a bare citation on {member}: {problems}"
+
+
+def test_an_evidence_member_without_a_citation_of_the_record_module_is_refused() -> None:
+    schema = copy.deepcopy(_read_yaml(MODULE / "schemas" / "OpsEvidence.yaml"))
+    schema["properties"]["value"]["x-derived"]["inputs"] = ["kind"]
+    assert len(record_symbol_problems(schema, OPS_EVIDENCE_MEMBERS, EVIDENCE_REFERENCE_SYMBOL)) == 1
+
+
+def test_an_ops_invocation_has_thirteen_members_all_required() -> None:
+    schema = _read_yaml(MODULE / "schemas" / "OpsInvocation.yaml")
+    assert len(schema["properties"]) == OPS_INVOCATION_MEMBER_COUNT == 13
+    assert sorted(schema["required"]) == sorted(schema["properties"])

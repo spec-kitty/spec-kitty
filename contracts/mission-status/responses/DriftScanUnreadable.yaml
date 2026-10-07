@@ -1,0 +1,7 @@
+description: >-
+  The scan could not read a Mission it had to read, refused with 500 and never answered as a
+  partial report. The body is a problem details object whose code is drift_scan_unreadable.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/DriftRefusal.yaml

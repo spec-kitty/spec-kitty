@@ -7,6 +7,18 @@
     "ArtifactRefusalCode": ["invalid_artifact_path", "not_found", "artifact_too_large", "artifact_not_text", "artifact_secret", "artifact_unreadable", "artifact_listing_unreadable"],
     "ChangeState": ["changed", "unchanged", "unknown"],
     "WorkPackageDetailRefusalCode": ["not_found", "source_unreadable"],
-    "ProjectHealth": ["healthy", "schema_drift"]
+    "ProjectHealth": ["healthy", "schema_drift"],
+    "DriftKind": ["snapshot_disagrees_with_event_log", "snapshot_or_event_log_missing", "lane_branch_missing"],
+    "DriftSeverity": ["error", "warning"],
+    "DriftAuthority": ["event_log", "git"],
+    "DriftSide": ["status_json", "lanes_json"],
+    "DriftRemedy": ["materialize_status"],
+    "DriftRefusalCode": ["mission_not_found", "drift_scan_unreadable"],
+    "OpsModeOfWork": ["task_execution", "advisory", "mission_step", "query"],
+    "OpsInvocationStatus": ["open", "closed"],
+    "OpsOutcome": ["done", "failed", "abandoned"],
+    "OpsClosedBy": ["agent", "doctor_sweep"],
+    "OpsEvidenceKind": ["repo_path", "url", "text"],
+    "OpsRefusalCode": ["ops_unreadable"]
   }
 }

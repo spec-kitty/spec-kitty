@@ -1,0 +1,39 @@
+title: OpsRefusal
+description: >-
+  The problem details body of a refused Ops read. It is a Problem whose code is ops_unreadable,
+  and the status is 500. The body carries no host path, no directory and no record content.
+  Consumers branch on code, never on title.
+type: object
+allOf:
+  - $ref: ../../_shared/schemas/Problem.yaml
+  - if:
+      required:
+        - code
+      properties:
+        code:
+          const: ops_unreadable
+    then:
+      required:
+        - status
+      properties:
+        status:
+          const: 500
+  - type: object
+    required:
+      - code
+    properties:
+      code:
+        $ref: OpsRefusalCode.yaml
+        description: >-
+          The reason of the refusal. The status is fixed by it, 500 for ops_unreadable.
+        x-derived:
+          rule: ops_unreadable is the reason that ends the read when the Ops directory or the closure spine exists but cannot be read.
+          inputs:
+            - path: src/specify_cli/invocation/writer.py
+              symbol: read_op_closures
+        x-provisional:
+          open_decision: >-
+            The one code and the status it takes are a proposal of this contract and are not yet
+            named by the service.
+examples:
+  - $ref: ../examples/OpsRefusal.ops-unreadable.yaml

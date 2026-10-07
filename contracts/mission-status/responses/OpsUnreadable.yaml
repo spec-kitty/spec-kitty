@@ -1,0 +1,7 @@
+description: >-
+  The Ops directory or the closure spine could not be read, refused with 500 and never answered as
+  an empty or partial page. The body is a problem details object whose code is ops_unreadable.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/OpsRefusal.yaml

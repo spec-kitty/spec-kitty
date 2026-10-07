@@ -1,0 +1,36 @@
+items:
+- invocationId: 01K6TZ8M3N4P5Q6R7S8T9V0W1X
+  profileId: python-pedro
+  action: implement
+  actor: claude
+  modeOfWork: task_execution
+  startedAt: '2026-10-05T14:20:00Z'
+  missionId: 01JZCB3C4D5E6F7G8H9JKMNPQT
+  wpId: WP03
+  status: open
+  outcome: null
+  closedBy: null
+  completedAt: null
+  evidence: null
+- invocationId: 01K6TY7H2J3K4M5N6P7Q8R9S0T
+  profileId: reviewer-renata
+  action: review
+  actor: codex
+  modeOfWork: mission_step
+  startedAt: '2026-10-05T11:02:30Z'
+  missionId: 01JZCB3C4D5E6F7G8H9JKMNPQT
+  wpId: WP02
+  status: closed
+  outcome: done
+  closedBy: agent
+  completedAt: '2026-10-05T11:41:10Z'
+  evidence:
+    kind: repo_path
+    value: docs/reports/review-summary.md
+    redacted: false
+pageInfo:
+  hasNextPage: true
+  nextPageCursor: cGFnZS0y
+  pageSize: 2
+totalCount: 5
+skippedCount: 1

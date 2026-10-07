@@ -1,0 +1,65 @@
+title: OpsInvocationPage
+description: >-
+  One page of Op invocations, ordered by startedAt descending with ties broken by invocationId
+  descending, plus the shared pagination state and two counts. totalCount is the number of served
+  Ops that match the profile filter and can lag the newest records. skippedCount is the number of
+  legacy or unreadable records that were skipped, over the same candidate set and independent of the
+  profile filter. Skipped records are in neither items nor totalCount. A project with no Ops
+  directory answers an empty page with both counts 0.
+type: object
+additionalProperties: false
+required: [items, pageInfo, totalCount, skippedCount]
+properties:
+  items:
+    type: array
+    description: The Ops of this page, in the order the operation defines.
+    items:
+      $ref: OpsInvocation.yaml
+    x-derived:
+      rule: The served Ops of the requested page, sorted by startedAt descending then invocationId descending.
+      inputs:
+        - OpsInvocation.startedAt
+        - OpsInvocation.invocationId
+  pageInfo:
+    $ref: ../../_shared/schemas/PageInfo.yaml
+    description: Whether another page follows and the token that fetches it.
+    x-derived:
+      rule: Computed by the service from the page size, the incoming page cursor and the number of served Ops that follow this page.
+      inputs:
+        - items
+  totalCount:
+    type: integer
+    minimum: 0
+    description: The number of served Ops that match the profile filter, over the candidate set. It can lag the newest records.
+    x-derived:
+      rule: The number of readable Ops of the candidate set that match the profile filter, skipped records excluded.
+      inputs:
+        - items
+        - path: src/specify_cli/cli/commands/invocations_cmd.py
+          symbol: _iter_index_reverse
+        - path: src/specify_cli/cli/commands/invocations_cmd.py
+          symbol: _iter_records_from_dir
+    x-provisional:
+      open_decision: >-
+        Whether the list carries a total, and that it may lag the newest records, are a proposal of
+        this contract.
+  skippedCount:
+    type: integer
+    minimum: 0
+    description: The number of legacy or unreadable records skipped over the candidate set, independent of the profile filter.
+    x-derived:
+      rule: The number of records of the candidate set that were legacy or unreadable and so skipped, whatever the profile filter.
+      inputs:
+        - items
+        - path: src/specify_cli/cli/commands/invocations_cmd.py
+          symbol: _iter_index_reverse
+        - path: src/specify_cli/cli/commands/invocations_cmd.py
+          symbol: _iter_records_from_dir
+    x-provisional:
+      open_decision: >-
+        Whether legacy and unreadable records are skipped and counted, rather than served or
+        refused, is a proposal of this contract.
+examples:
+  - $ref: ../examples/OpsInvocationPage.first.yaml
+  - $ref: ../examples/OpsInvocationPage.last.yaml
+  - $ref: ../examples/OpsInvocationPage.empty.yaml

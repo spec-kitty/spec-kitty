@@ -1,0 +1,16 @@
+invocationId: 01K6TV4Z9A0B1C2D3E4F5G6H7J
+profileId: reviewer-renata
+action: review
+actor: claude
+modeOfWork: task_execution
+startedAt: '2026-10-02T13:00:00Z'
+missionId: 01JZCB3C4D5E6F7G8H9JKMNPQT
+wpId: WP04
+status: closed
+outcome: failed
+closedBy: agent
+completedAt: '2026-10-02T13:25:00Z'
+evidence:
+  kind: url
+  value: https://example.org/reviews/42
+  redacted: false

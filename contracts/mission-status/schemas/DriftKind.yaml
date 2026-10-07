@@ -1,0 +1,48 @@
+title: DriftKind
+description: >-
+  What kind of drift a finding reports. Exactly three values. snapshot_disagrees_with_event_log:
+  the status snapshot (status.json) is not what the status event log gives when it is replayed
+  at the snapshot's own generation, or it is not a valid JSON object. snapshot_or_event_log_missing:
+  one of status.json and status.events.jsonl exists and the other does not. lane_branch_missing:
+  a code lane of a Mission that is not completed has a work package that holds an active status
+  lane (claimed, in_progress, for_review, in_review or approved) and its expected branch has no
+  local branch, or the Mission branch that the lane manifest relies on has no local branch. Two
+  checks sit behind that value: the lane branch of each expected code lane, and, when any lane is
+  expected, the one Mission branch (the coordination branch that meta.json names, else the Mission
+  branch of the manifest). A manifest that predates mission_slug is not evaluated for this kind,
+  and no finding is reported for it. The finding never names a branch, and no local branch means
+  no head of the local clone, not a remote reference. A fourth value, derived_view_stale (a view
+  under .kittify/derived/ that disagrees with the event log), was considered and is not shipped,
+  because a kind ships only with both an honest rule and a real example. The rule could be written,
+  but no example exists: that directory is ignored by git, untracked and written only on an
+  operator machine, so a fresh clone has none, and the product has retired its own check of derived
+  views. No scan reads that directory. This enum is provisional.
+type: string
+enum:
+  - snapshot_disagrees_with_event_log
+  - snapshot_or_event_log_missing
+  - lane_branch_missing
+x-derived:
+  rule: >-
+    snapshot_disagrees_with_event_log or snapshot_or_event_log_missing from the comparison of the
+    status snapshot with the status event log; lane_branch_missing from the local branch listing
+    for each expected lane of a Mission that is not completed.
+  inputs:
+    - path: src/specify_cli/audit/classifiers/status_json.py
+      symbol: classify_status_json
+    - path: src/specify_cli/status/validate.py
+      symbol: _validate_materialization_files
+    - path: src/specify_cli/lanes/models.py
+      symbol: LanesManifest
+    - path: src/specify_cli/lanes/_git.py
+      symbol: branch_exists
+    - path: src/specify_cli/status/lifecycle.py
+      symbol: is_mission_completed
+x-provisional:
+  open_decision: >-
+    The three kinds, the two checks behind lane_branch_missing and the decision not to ship
+    derived_view_stale are a proposal of this contract; the product has no drift report of this
+    shape yet.
+examples:
+  - snapshot_disagrees_with_event_log
+  - lane_branch_missing

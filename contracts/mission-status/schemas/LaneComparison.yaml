@@ -1,0 +1,41 @@
+title: LaneComparison
+description: >-
+  One work package whose status lane differs between the status snapshot and the replay of the
+  status event log. Both sides are status lanes, never a code lane. A work package on one side
+  only has the other side null, and a lane outside the nine display lanes (genesis,
+  uninitialized) reads as null.
+type: object
+additionalProperties: false
+required: [wpId, persistedStatusLane, derivedStatusLane]
+properties:
+  wpId:
+    $ref: WpId.yaml
+    description: The identifier of the work package inside the Mission of the finding.
+    x-source:
+      path: src/specify_cli/status/wp_metadata.py
+      symbol: WPMetadata
+  persistedStatusLane:
+    oneOf:
+      - $ref: StatusLane.yaml
+      - type: 'null'
+    description: The status lane the status snapshot (status.json) holds for the work package, or null when it holds none or one that is not a display lane.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusSnapshot
+  derivedStatusLane:
+    oneOf:
+      - $ref: StatusLane.yaml
+      - type: 'null'
+    description: The status lane the replay of the status event log gives for the work package, or null when it gives none or one that is not a display lane.
+    x-derived:
+      rule: The lane of the work package in the output of the reducer replay at the generation of the snapshot.
+      inputs:
+        - path: src/specify_cli/status/reducer.py
+          symbol: materialize_snapshot
+examples:
+  - wpId: WP01
+    persistedStatusLane: in_progress
+    derivedStatusLane: for_review
+  - wpId: WP02
+    persistedStatusLane: planned
+    derivedStatusLane: null

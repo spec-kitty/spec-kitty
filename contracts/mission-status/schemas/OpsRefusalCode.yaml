@@ -1,0 +1,19 @@
+title: OpsRefusalCode
+description: >-
+  Why an Ops read was refused. ops_unreadable: the Ops directory or the closure spine exists but
+  could not be read, so no page is returned and never a partial one (500). A consumer branches on
+  the code, never on the title.
+type: string
+enum:
+  - ops_unreadable
+x-derived:
+  rule: The reason that ended the read; the status follows from the code.
+  inputs:
+    - path: src/specify_cli/invocation/writer.py
+      symbol: read_op_closures
+x-provisional:
+  open_decision: >-
+    The one code and the status it takes are a proposal of this contract; no code of the service
+    names them yet.
+examples:
+  - ops_unreadable

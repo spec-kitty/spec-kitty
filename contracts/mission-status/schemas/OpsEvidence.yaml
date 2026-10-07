@@ -1,0 +1,47 @@
+title: OpsEvidence
+description: >-
+  The evidence a closed Op recorded, made safe to show: a class, a value of at most 512
+  characters and whether the value was changed. Host paths are replaced by [path], e-mail
+  addresses by [email], and the userinfo, query and fragment of an address are removed. A value
+  that holds a credential is never served at all, so the evidence of the Op is null instead.
+type: object
+additionalProperties: false
+required: [kind, value, redacted]
+properties:
+  kind:
+    $ref: OpsEvidenceKind.yaml
+    description: The class of the evidence, decided by the shape of the stored value.
+    x-derived:
+      rule: url for an address, repo_path for one whitespace-free relative path left unchanged by the redaction, text for anything else, and text for a value that was cut.
+      inputs:
+        - path: src/specify_cli/invocation/record.py
+          symbol: OpCompletedEvent.evidence_ref
+        - path: src/specify_cli/invocation/writer.py
+          symbol: normalise_ref
+  value:
+    type: string
+    maxLength: 512
+    description: The stored evidence with host paths, e-mail addresses and address userinfo removed, cut to at most 512 characters.
+    x-derived:
+      rule: The stored evidence reference after the removal of host paths, userinfo and e-mail addresses, cut to 512 characters.
+      inputs:
+        - path: src/specify_cli/invocation/record.py
+          symbol: OpCompletedEvent.evidence_ref
+        - path: contracts/tools/leak_patterns.py
+          symbol: redact_emails
+  redacted:
+    type: boolean
+    description: True exactly when value differs from the stored evidence reference, because something was removed or the text was cut.
+    x-derived:
+      rule: True exactly when the served value differs from the stored string.
+      inputs:
+        - value
+        - path: src/specify_cli/invocation/record.py
+          symbol: OpCompletedEvent.evidence_ref
+examples:
+  - kind: repo_path
+    value: docs/reports/summary.md
+    redacted: false
+  - kind: text
+    value: Reviewed the change with [email].
+    redacted: true

@@ -1,0 +1,19 @@
+title: DriftSide
+description: >-
+  Which derived file of the Mission holds the value that disagrees: status_json, the status
+  snapshot, for the two status-file kinds, or lanes_json, the lane manifest, for a missing lane
+  branch.
+type: string
+enum:
+  - status_json
+  - lanes_json
+x-derived:
+  rule: status_json for snapshot_disagrees_with_event_log and snapshot_or_event_log_missing; lanes_json for lane_branch_missing.
+  inputs:
+    - path: src/specify_cli/status/validate.py
+      symbol: _validate_materialization_files
+    - path: src/specify_cli/lanes/models.py
+      symbol: LanesManifest
+examples:
+  - status_json
+  - lanes_json

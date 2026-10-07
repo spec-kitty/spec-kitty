@@ -12,6 +12,12 @@ files:
   - ArtifactRefusal.artifact-unreadable.yaml
   - ArtifactRefusal.invalid-artifact-path.yaml
   - ArtifactRefusal.not-found.yaml
+  - DriftRefusal.mission-not-found.yaml
+  - DriftRefusal.scan-unreadable.yaml
+  - DriftReport.clean.yaml
+  - DriftReport.corrupt-json.yaml
+  - DriftReport.populated.yaml
+  - DriftReport.truncated.yaml
   - LogTruncatedEvent.content-mismatch.yaml
   - LogTruncatedEvent.size-shrink.yaml
   - MissionDetail.early.yaml
@@ -26,6 +32,19 @@ files:
   - MissionOverviewPage.first.yaml
   - MissionOverviewPage.last.yaml
   - MissionOverviewPage.middle.yaml
+  - OpsInvocation.closed-by-agent.yaml
+  - OpsInvocation.closed-by-doctor-sweep.yaml
+  - OpsInvocation.evidence-null.yaml
+  - OpsInvocation.evidence-repo-path.yaml
+  - OpsInvocation.evidence-text-redacted.yaml
+  - OpsInvocation.evidence-text.yaml
+  - OpsInvocation.evidence-url-redacted.yaml
+  - OpsInvocation.evidence-url.yaml
+  - OpsInvocation.open.yaml
+  - OpsInvocationPage.empty.yaml
+  - OpsInvocationPage.first.yaml
+  - OpsInvocationPage.last.yaml
+  - OpsRefusal.ops-unreadable.yaml
   - PageCursorRefusal.invalid.yaml
   - Project.all-null.yaml
   - Project.example.yaml

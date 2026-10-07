@@ -1,0 +1,13 @@
+invocationId: 01K6TQ0N5P6Q7R8S9T0V1W2X3Y
+profileId: architect-alphonso
+action: profiles.list
+actor: claude
+modeOfWork: query
+startedAt: '2026-09-28T12:00:00Z'
+missionId: null
+wpId: null
+status: closed
+outcome: done
+closedBy: agent
+completedAt: '2026-09-28T12:00:05Z'
+evidence: null

@@ -16,6 +16,10 @@ tags:
     description: Mission overviews.
   - name: Events
     description: The change stream of Missions.
+  - name: Drift
+    description: Where derived state disagrees with its source.
+  - name: Ops
+    description: The Op invocation records of the project.
 paths:
   /project:
     $ref: paths/project.yaml
@@ -33,3 +37,7 @@ paths:
     $ref: paths/missions_missionId_artifacts_content.yaml
   /events:
     $ref: paths/events.yaml
+  /drift:
+    $ref: paths/drift.yaml
+  /ops/invocations:
+    $ref: paths/ops_invocations.yaml

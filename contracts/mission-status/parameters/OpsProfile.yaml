@@ -1,0 +1,10 @@
+name: profile
+in: query
+required: false
+description: >-
+  Keeps only the Op invocations of one agent profile, by its profile id. A profile that matches no
+  Op gives an empty page, and a value that fails the pattern is refused with 400. A page cursor is
+  bound to the profile it was issued for.
+schema:
+  type: string
+  pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'

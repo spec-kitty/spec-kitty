@@ -1,0 +1,155 @@
+title: DriftFinding
+description: >-
+  One place where a derived file of a Mission disagrees with the record that decides it. A
+  Mission has at most one finding of a kind for a file. For the kind snapshot_disagrees_with_event_log
+  the disagreement is with the reducer replay of the event log at the snapshot's own generation,
+  not with the true event log: events appended after that generation are not part of the
+  comparison. A finding never carries a host path, a branch name, an exception text or the text of
+  a doctor message; its summary is one of six fixed sentences. missionId and artifactPath are never
+  null, because every shipped kind belongs to one Mission and names one file.
+type: object
+additionalProperties: false
+required: [kind, severity, missionId, artifactPath, summary, authority, derivedSide, laneComparison, remedy, sourceCode]
+properties:
+  kind:
+    $ref: DriftKind.yaml
+    description: What kind of drift the finding reports. This property is provisional, like the schema that carries it.
+    x-derived:
+      rule: >-
+        snapshot_disagrees_with_event_log or snapshot_or_event_log_missing from the comparison of
+        status.json with the replay of status.events.jsonl, and lane_branch_missing from the local
+        branch listing for each expected lane of a Mission that is not completed.
+      inputs:
+        - path: src/specify_cli/audit/classifiers/status_json.py
+          symbol: classify_status_json
+        - path: src/specify_cli/status/validate.py
+          symbol: _validate_materialization_files
+        - path: src/specify_cli/lanes/models.py
+          symbol: LanesManifest
+        - path: src/specify_cli/lanes/_git.py
+          symbol: branch_exists
+        - path: src/specify_cli/status/lifecycle.py
+          symbol: is_mission_completed
+    x-provisional:
+      open_decision: The three kinds and the decision not to ship a fourth are a proposal of this contract.
+  severity:
+    $ref: DriftSeverity.yaml
+    description: >-
+      How serious the finding is: error for SNAPSHOT_DRIFT and CORRUPT_JSON, warning for the two
+      variants of the disagreement (SNAPSHOT_DRIFT_PROVENANCE, SNAPSHOT_DRIFT_TERMINAL), for a
+      missing status file and for a missing lane branch.
+    x-source:
+      path: src/specify_cli/audit/models.py
+      symbol: Severity
+  missionId:
+    $ref: MissionId.yaml
+    description: The canonical machine identity of the Mission the finding belongs to. Never null.
+    x-derived:
+      rule: The missionId of the Mission scanned.
+      inputs:
+        - MissionHead.missionId
+  artifactPath:
+    $ref: ArtifactPath.yaml
+    description: >-
+      The file of the Mission directory the finding is about, relative to it: status.json,
+      status.events.jsonl or lanes.json. Never null.
+    x-derived:
+      rule: The relative path of the file of the Mission directory the finding is about, in the form the audit reports it.
+      inputs:
+        - path: src/specify_cli/audit/models.py
+          symbol: MissionFinding
+  summary:
+    type: string
+    minLength: 1
+    description: >-
+      Fixed text, one sentence for each pair of kind and sourceCode, and no other text. The six
+      sentences are: "The status snapshot disagrees with the event log." for
+      snapshot_disagrees_with_event_log with SNAPSHOT_DRIFT; "The status snapshot differs from
+      the event log only in provenance fields." for that kind with SNAPSHOT_DRIFT_PROVENANCE; "The
+      status snapshot differs from the event log and every work package is done." for that kind
+      with SNAPSHOT_DRIFT_TERMINAL; "The status snapshot is not a valid JSON object." for that
+      kind with CORRUPT_JSON; "One of the status snapshot and the event log is missing." for
+      snapshot_or_event_log_missing with a null sourceCode; and "An expected lane or Mission
+      branch has no local branch." for lane_branch_missing with a null sourceCode. A pair outside
+      this set is never produced.
+    x-derived:
+      rule: The fixed sentence of the pair of kind and sourceCode.
+      inputs:
+        - kind
+        - sourceCode
+  authority:
+    $ref: DriftAuthority.yaml
+    description: Which record decides the finding. Fixed by the kind.
+    x-derived:
+      rule: event_log for the two status-file kinds, git for lane_branch_missing.
+      inputs:
+        - kind
+  derivedSide:
+    $ref: DriftSide.yaml
+    description: Which derived file holds the value that disagrees. Fixed by the kind.
+    x-derived:
+      rule: status_json for the two status-file kinds, lanes_json for lane_branch_missing.
+      inputs:
+        - kind
+  laneComparison:
+    type: array
+    items:
+      $ref: LaneComparison.yaml
+    description: >-
+      One row for each work package whose status lane differs between the status snapshot and the
+      replay of the event log, sorted by wpId in byte order. A work package on one side only has the
+      other side null. Empty unless the kind is snapshot_disagrees_with_event_log and the files
+      differ in a lane, and empty for a status.json that is not a valid JSON object. This property is
+      provisional.
+    x-derived:
+      rule: The work packages of the union of the snapshot and the replay whose lane differs, each with the lane of both sides.
+      inputs:
+        - path: src/specify_cli/status/reducer.py
+          symbol: materialize_snapshot
+        - path: src/specify_cli/status/models.py
+          symbol: StatusSnapshot
+    x-provisional:
+      open_decision: Whether a finding carries the lane rows, and in this shape, is an open decision on the drift screen.
+  remedy:
+    oneOf:
+      - $ref: DriftRemedy.yaml
+      - type: 'null'
+    description: >-
+      The action that repairs the finding, or null when there is none to offer: for the two warning
+      variants of the disagreement, for a disagreement of a Mission that is merged to main, for a
+      missing event log, and for a missing lane branch. This property is provisional.
+    x-derived:
+      rule: >-
+        materialize_status for SNAPSHOT_DRIFT, for CORRUPT_JSON and for a missing status file whose
+        event log exists; null otherwise.
+      inputs:
+        - kind
+        - sourceCode
+        - path: src/specify_cli/status/doctor.py
+          symbol: check_drift
+    x-provisional:
+      open_decision: Whether a finding names its repair, and the one value of the vocabulary, are an open decision on the drift screen.
+  sourceCode:
+    type:
+      - string
+      - 'null'
+    pattern: '^[A-Z][A-Z0-9_]*$'
+    description: >-
+      The audit code behind a snapshot_disagrees_with_event_log finding: SNAPSHOT_DRIFT,
+      SNAPSHOT_DRIFT_PROVENANCE, SNAPSHOT_DRIFT_TERMINAL or CORRUPT_JSON. Null for the two other
+      kinds, which the audit has no code for. A string of capital letters, digits and underscores,
+      never free text.
+    x-source:
+      path: src/specify_cli/audit/models.py
+      symbol: MissionFinding
+examples:
+  - kind: lane_branch_missing
+    severity: warning
+    missionId: 01JZCB3C4D5E6F7G8H9JKMNPQT
+    artifactPath: lanes.json
+    summary: An expected lane or Mission branch has no local branch.
+    authority: git
+    derivedSide: lanes_json
+    laneComparison: []
+    remedy: null
+    sourceCode: null

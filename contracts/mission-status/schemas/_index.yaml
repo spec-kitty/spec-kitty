@@ -15,7 +15,17 @@ files:
   - Cancellation.yaml
   - ChangeState.yaml
   - DependencyRef.yaml
+  - DriftAuthority.yaml
+  - DriftFinding.yaml
+  - DriftKind.yaml
+  - DriftRefusal.yaml
+  - DriftRefusalCode.yaml
+  - DriftRemedy.yaml
+  - DriftReport.yaml
+  - DriftSeverity.yaml
+  - DriftSide.yaml
   - HistoryEntry.yaml
+  - LaneComparison.yaml
   - LifecycleStatus.yaml
   - LogTruncatedEvent.yaml
   - MissionDetail.yaml
@@ -27,6 +37,16 @@ files:
   - MissionPhase.yaml
   - MissionProgress.yaml
   - OwnedFile.yaml
+  - OpsClosedBy.yaml
+  - OpsEvidence.yaml
+  - OpsEvidenceKind.yaml
+  - OpsInvocation.yaml
+  - OpsInvocationPage.yaml
+  - OpsInvocationStatus.yaml
+  - OpsModeOfWork.yaml
+  - OpsOutcome.yaml
+  - OpsRefusal.yaml
+  - OpsRefusalCode.yaml
   - PageCursorRefusal.yaml
   - Project.yaml
   - ProjectHealth.yaml

@@ -1,0 +1,24 @@
+# A real truncated report holds exactly 1000 findings; this short list stands in for it.
+scannedAt: '2026-10-06T09:00:00Z'
+findings:
+  - kind: snapshot_or_event_log_missing
+    severity: warning
+    missionId: 01JZCB3C4D5E6F7G8H9JKMNPQT
+    artifactPath: status.json
+    summary: One of the status snapshot and the event log is missing.
+    authority: event_log
+    derivedSide: status_json
+    laneComparison: []
+    remedy: materialize_status
+    sourceCode: null
+  - kind: snapshot_or_event_log_missing
+    severity: warning
+    missionId: 01JZCB3D4E5F6G7H8J9KMNPQRS
+    artifactPath: status.events.jsonl
+    summary: One of the status snapshot and the event log is missing.
+    authority: event_log
+    derivedSide: status_json
+    laneComparison: []
+    remedy: null
+    sourceCode: null
+truncated: true

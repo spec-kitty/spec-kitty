@@ -1,0 +1,21 @@
+title: DriftRefusalCode
+description: >-
+  Why a drift read was refused. mission_not_found: the missionId names no Mission (404).
+  drift_scan_unreadable: the scan could not read a Mission it had to read, so no report is
+  returned and never a partial one (500). A consumer branches on the code, never on the title.
+type: string
+enum:
+  - mission_not_found
+  - drift_scan_unreadable
+x-derived:
+  rule: The reason that ended the read; the status follows from the code.
+  inputs:
+    - path: src/specify_cli/status/aggregate.py
+      symbol: MissionStatus
+x-provisional:
+  open_decision: >-
+    The two codes and the status each one takes are a proposal of this contract; no code of the
+    service names them yet.
+examples:
+  - mission_not_found
+  - drift_scan_unreadable

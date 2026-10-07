@@ -1,0 +1,29 @@
+title: Project
+description: >-
+  The project the service reports on. It carries a name and a count only; it never carries a
+  path, a worktree location or a credential.
+type: object
+additionalProperties: false
+required: [name, missionCount]
+properties:
+  name:
+    type: string
+    minLength: 1
+    description: The project slug, the short human-readable name of the repository the service reports on.
+    x-source:
+      path: .kittify/config.yaml
+      symbol: project.slug
+  missionCount:
+    type: integer
+    minimum: 0
+    description: >-
+      The number of overview records, that is the number of Missions the service lists on
+      GET /missions. It is defined by that listing and by nothing else.
+    x-derived:
+      rule: The number of overview records, that is of Missions the service lists on GET /missions.
+      inputs:
+        - MissionOverviewPage.items
+        - path: src/specify_cli/mission_metadata.py
+          symbol: load_meta
+examples:
+  - $ref: ../examples/Project.example.yaml

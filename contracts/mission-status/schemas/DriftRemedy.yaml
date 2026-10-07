@@ -1,0 +1,21 @@
+title: DriftRemedy
+description: >-
+  The one action that repairs a finding, as a name and not as text. materialize_status stands for
+  the command `spec-kitty agent status materialize --mission <slug>` (not `spec-kitty materialize`,
+  which writes only derived views). The client builds the text and takes the slug from
+  MissionHead.slug of the finding's missionId. The service never runs it: a scan reads and never
+  repairs. This enum is provisional.
+type: string
+enum:
+  - materialize_status
+x-derived:
+  rule: materialize_status when the status event log exists and the snapshot is missing, corrupt or disagrees with it in more than provenance, and the Mission is not merged to main.
+  inputs:
+    - path: src/specify_cli/status/doctor.py
+      symbol: check_drift
+x-provisional:
+  open_decision: >-
+    Whether a finding names its repair as a vocabulary value, and whether materialize_status is
+    the only value, is an open decision on the drift screen.
+examples:
+  - materialize_status

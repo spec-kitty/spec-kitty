@@ -1,0 +1,5 @@
+type: about:blank
+title: The Ops directory could not be read
+status: 500
+code: ops_unreadable
+detail: The Ops directory or the closure spine exists but could not be read, so no page is returned.
