@@ -356,6 +356,7 @@ def test_backfill_refreshes_an_existing_status_snapshot(tmp_path: Path) -> None:
     result = b.backfill_runtime_state(feature_dir)
 
     assert result.action == "wrote"
+    assert "JIRA-1" in snapshot_path.read_text(encoding="utf-8")
     assert snapshot_path.read_text(encoding="utf-8") == materialize_to_json(materialize_snapshot(feature_dir))
 
     # A repo whose seeds landed before the refresh existed: rerun self-heals (#5862).
