@@ -1,0 +1,179 @@
+{
+  "mission_slug": "second-clone-origin-reconciliation-01M48V8W",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_consolidate_sees_teammate_rejection.py (coord+lanes, plain/--push, placement arm; red on base 9/12); integrated lane-h run 2026-10-06: 303 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T21:30:00.151197+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_consolidate_sees_teammate_rejection.py::stale approved lane arm; tests/orchestrator_api/test_origin_freshness_envelopes.py; integrated lane-h run 2026-10-06: 303 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T21:30:07.484112+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_accept_sees_teammate_rejection.py (stale/unreachable refusals; read-only modes warn); integrated lane-h run 2026-10-06: 303 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T21:30:14.549044+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/orchestrator_api/test_origin_freshness_envelopes.py (MISSION_NOT_READY / PREFLIGHT_FAILED + preflight_error_code, contract 1.11.0); integrated lane-h run 2026-10-06: 303 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T21:30:21.635888+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_review_sees_teammate_fix.py (arms A/B/C + refused-review); tests/specify_cli/cli/commands/agent/test_review_lane_from_remote.py; integrated lane-h run 2026-10-06: 303 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T21:30:28.940073+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/git/test_origin_freshness.py (pushed-never-fetched + dead remote -> unreachable, never remote_missing); tests/kernel/test_git_remote.py; integrated lane-h run 2026-10-06: 303 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T21:30:35.866175+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/git/test_origin_freshness.py (no_remote / remote_missing pass); no-remote controls in terminus files; integrated lane-h run 2026-10-06: 303 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T21:30:42.832452+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "unreachable arms in test_consolidate_sees_teammate_rejection.py, test_accept_sees_teammate_rejection.py, test_origin_freshness_envelopes.py; integrated lane-h run 2026-10-06: 303 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T21:30:50.105865+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "flag/env opt-out arms (source named) in test_consolidate_sees_teammate_rejection.py and test_accept_sees_teammate_rejection.py; mode tests in test_origin_freshness.py; integrated lane-h run 2026-10-06: 303 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T21:30:57.394052+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "refusal-text tests in test_origin_freshness.py (codes, counts, remedies incl. abort-first and no-checkout fetch) + terminus arm 10 ordering; integrated lane-h run 2026-10-06: 303 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T21:31:04.732374+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_clone_init_installs_merge_drivers.py (init arm 0->14 keys, falsifiable pull arm with base control); integrated lane-h run 2026-10-06: 303 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T21:31:12.440005+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_clone_init_installs_merge_drivers.py upgrade arm; tests/upgrade/test_finalize_merge_driver_config.py; integrated lane-h run 2026-10-06: 303 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T21:31:19.955509+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_remote_contact_owner.py (empty allowlist, floor, 15+ planted forms); integrated lane-h run 2026-10-06: 303 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T21:31:28.314565+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_evidence_gates_check_origin.py (derived set, ast.Call reachability, planted omission; 6/6 reviewer mutants); integrated lane-h run 2026-10-06: 303 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T21:31:35.466983+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "FR-015 control arm (unrelated target commit proceeds) in test_consolidate_sees_teammate_rejection.py; tests/consolidation/test_push_preflight.py; integrated lane-h run 2026-10-06: 303 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T21:31:41.894608+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_repro_4969.py; tests/lanes/test_base_ref_tracking_ref_builder.py; integrated lane-h run 2026-10-06: 303 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T21:31:48.560076+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "Verify FR-017 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/kernel/test_git_remote.py resolve_remote matrix; non-origin remote cases in test_origin_freshness.py and test_base_ref_tracking_ref_builder.py; integrated lane-h run 2026-10-06: 303 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-06T21:31:55.655711+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

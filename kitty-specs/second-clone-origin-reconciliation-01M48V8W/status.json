@@ -1,0 +1,286 @@
+{
+  "event_count": 71,
+  "last_event_id": "01M49JC8DXZZKRNH1XAACWG046",
+  "materialized_at": "2026-10-06T21:37:08.542003+00:00",
+  "mission_number": "220",
+  "mission_slug": "second-clone-origin-reconciliation-01M48V8W",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 8,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M49JB6K24R9EPPKJVHZ3SKDE",
+      "last_transition_at": "2026-10-06T21:36:33.890358+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: kernel.git.remote + two-clone helper; red-first then green, 72 passed (test_git_remote+test_git_listing), layer rules 74 passed, ruff/format/mypy clean",
+        "Review cycle 1 fixed: clone cwd, non-vacuous NFR-002 env test, NFR-001 timeout tests, docstrings; 78 passed",
+        "Review passed (cycle 2, reviewer-renata): cycle-1 findings 1-4 fixed, all mutations red; run_git hang does not reproduce on POSIX (Windows follow-up)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP01:20261006",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 15037,
+      "shell_pid_created_at": "1791302318.21",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M49JBAYQR9SED7KVQWP7Y3Q0",
+      "last_transition_at": "2026-10-06T21:36:38.359952+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: census gate (no allowlist, red-first 9d8aff7f) + 5 sites drained onto kernel.git.remote (remote_probes, push_preflight, protection_policy, git_source x2) + both #4969 builders on tracking_ref/resolve_remote. Gate suite 179 passed (remote_contact_owner, git_path_listing_owner, layer_rules, no_dead_symbols); drained-module sweep 1882 passed/6 skipped/2 failed (tests/git/test_protection_config_honoring.py, red on base 823ac378 too); implement/lane-base set 302 passed; ruff/mypy clean.",
+        "Review cycle 1 fixed: git_source no longer surfaces exception text (fixed timeout/not-run messages, red-first), census registration skip narrowed + remote update/prune/set-head detected, blind spots documented, behaviour deltas in commit body. 184 passed (gate + git_path_listing + doctrine sources).",
+        "Review passed (cycle 2): git_source timeout/not-run paths now return fixed secret-free messages (hunter2 repro clean; mutation re-surfacing exc text turns 2 tests red); census skip narrowed to single-positional registration shape and detects remote update/prune/set-head -a; blind spots documented. Census gate non-vacuous (planted fetch/remote-show red, no allowlist, floor 1250/1389). push_preflight/protection_policy/remote_probes behaviour preserved; #4969 resolvers unchanged for origin-only. 388 targeted tests pass; ruff/format/mypy clean. protection_config_honoring 2 reds pre-existing on base."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20261006",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 31948,
+      "shell_pid_created_at": "1791308143.2",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M49JBFKMKP71PW3WJGGBVB5K",
+      "last_transition_at": "2026-10-06T21:36:43.124302+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: origin_freshness module (verdicts, check_mission_branches, approved_lane_branches, policy, plan_review_lane); 54 real-git tests pass, 100% module coverage, ruff/format/mypy clean; layer+terminology+kernel remote 204 pass",
+        "Review passed: red-first verified (739a882a collection-red: module missing); 54/54 own tests, 258 in prescribed set; 8/8 mutants killed (FR-006 unreachable->remote_missing, scope drop, per-probe contact NFR-001, unknown-env, abort-first, scoped-ahead, flag precedence, canceled skip); 100% line coverage; ruff/format/mypy/C901 clean; only kernel.git.remote for remote contact. Deviations accepted: (a) remote_sha = ls-remote tip - WP06 MUST verify local is an ancestor of remote_sha (merge-base --is-ancestor, fail closed) before advance_branch_ref, since counts are vs the post-fetch tracking ref and a force-push race can make remote_sha absent or non-descendant; docstring 'fetch can only move forward' is inexact under the + refspec; (b) over-select documented per fold; (c) evidence local_missing refusal + caller coord pass-through matches WP04 fold; (d) lane diverged->ORIGIN_LANE_STALE matches plan policy table. Nits for follow-up: rename test lane-sync/in_sync to up_to_date (C-006); contracts/origin-freshness.md + data-model.md stale vs implemented signatures (OriginCheckSetting, enforce_merge_gate kwargs, check_mission_branches, remote_sha, opt-out comma) - reconcile in WP08. Interim dead-symbol reds expected until WP04-06."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261006",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 7535,
+      "shell_pid_created_at": "1791304031.49",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M49JBRWC0G67FANHWAM0D43D",
+      "last_transition_at": "2026-10-06T21:36:52.620905+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: origin_gate before _resolve_run_status_dir, --origin-check; regression 12 arms green (9 red-first), origin_gate units 19, sweep 205+182+55 passed, make test-fast 2280 passed",
+        "Review cycle 1 addressed: placement + pass-through real-CLI arms (mutation-proven), no-checkout remedy fetch, arm 5/10 tightened; regression 14 passed, origin units 76 passed",
+        "Review passed (cycle 2): placement arm red under swap mutation, pass-through arm red under _evidence_for_gate mutation; no-checkout remedy is git fetch <remote> <b>:<b> (non-FF and checked-out refusals verified), 2 unit tests red-first; arm 5/10 tightened. 14/14 regression, 76 unit, terminus not-slow 192 passed; ruff/format clean; 4 mypy errors pre-existing at base."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP04:20261006",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 465,
+      "shell_pid_created_at": "1791314904.03",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M49JBXH2KKBF24EYEWXB36FD",
+      "last_transition_at": "2026-10-06T21:36:57.378935+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: accept + orchestrator-api accept/consolidate-mission origin gates via shared git/origin_gate.py; CONTRACT_VERSION 1.11.0; 23 new/targeted tests green, contract sweep 470 passed, orchestrator_api/acceptance sweep green after 2 caller fixes, make test-fast 2280 passed",
+        "Review passed (reviewer-renata): accept + orchestrator-api accept-mission/consolidate-mission refuse on stale/unreachable origin before any write (accept before summary/stamping; orchestrator before materialize and before _execute_lane_merge incl. planning-only arm); read-only accept modes warn only; envelope/JSON additive; CONTRACT_VERSION 1.11.0, vendored contract untouched. Red->green proven (13 red on base src, green after); mutants killed: coord local_missing pass-through, lane selection dropped, read-only forced off. 273 passed + 2 stale-venv errors (python -m build missing) on the requested set; ruff/format clean; 3 mypy errors pre-existing on base. git/origin_gate.py accepted as the shared authority (data-only, no typer/printing); closeout fold: consolidation/origin_gate.py (WP04) delegates to run_origin_gate and adopts resolve_topology, dropping its duplicated _evidence_checkout/topology read; WP08 registry must recognize specify_cli.git.origin_gate. Low notes: orchestrator warn-arm tests do not assert the warning text (pass on base); consolidate-mission origin refusal data omits target_branch; origin_freshness rows omit detail. Shared files: origin_gate.py is new outside owned_files, coordinated via design-decisions.md 2026-10-06 WP05 entry."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261006",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 31984,
+      "shell_pid_created_at": "1791309047.93",
+      "subtasks": {
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M49JC3G53WFFKE2H9J1EFVYX",
+      "last_transition_at": "2026-10-06T21:37:03.494032+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: #5758 fixed. _reconcile_review_lane in review (before bulk-edit gate and claim) ff/create-from/refuse/warn with ancestry guard; terminus 4 tests (3 arms + refusal) + 16 focused tests green; sweep 3172 passed; make test-fast 2280 passed",
+        "Review passed: lane reconciled from remote after lane gate and before bulk-edit gate + claim; arms A/B/C red on pre-fix src for the right reason, green after; placement, ancestry guard, record_tip, foreign-lock, own-lock and checkout-root mutants killed; 46/46 targeted tests pass; ruff/mypy clean. LOW nits: the docstring says advance_branch_ref does not check ancestry (it does); RefResyncError is reported as a plain refusal with no record_tip; the output says '(1 commits)'."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP06:20261006",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4115,
+      "shell_pid_created_at": "1791308197.24",
+      "subtasks": {
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M49JBMAQBBVXKVXCFGAA6XG9",
+      "last_transition_at": "2026-10-06T21:36:47.959675+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: #5759 closed. init (both early exits) and upgrade finalizer install clone-local merge config idempotently; red-first regression (init/pull/upgrade arms + no-config control) green; new tests 15 pass, make test-fast 2280 passed, init/agent-init 53 passed before and after extraction.",
+        "Review passed: #5759 regression (init, pull, upgrade arms) red at base a23fc7d6 with final test file (3 failed/2 passed: positive control + base control showing markers in both files without drivers), green at head; finalizer step independent of repair_preflight, outside commit_churn, dry-run skipped, failure warning-only; UpgradeOutcome field/notices/JSON key additive per ADR 2026-10-04-3; ruff/format/mypy/C901 clean. Non-blocking: non-git project reports merge_driver_config=present (should be skipped); test_init_idempotent _tree() could assert only merge.* keys changed in .git/config instead of excluding it."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP07:20261006",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 20515,
+      "shell_pid_created_at": "1791305353.24",
+      "subtasks": {
+        "T033": "done",
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done"
+      }
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M49JC8DXZZKRNH1XAACWG046",
+      "last_transition_at": "2026-10-06T21:37:08.542003+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: consolidate gate folded onto run_origin_gate; evidence-gate registry gate (5/5 mutants killed, planted self-tests, empty allowlist); ADR 2026-10-06-1 + docs; docs gates errors=0, 354 docs/arch tests pass; make test-fast 2280 passed; integrated sweep 291 pass after 2 cross-lane fixes",
+        "Review passed: dedup fold behaviour-preserving (only lane selection/record/render/exit left in consolidation/origin_gate.py); registry gate derives 6 entries (floor 5), ast.Call reachability, reviewer mutants on accept/orchestrator/review/executor and planted new _execute_lane_merge/collect_feature_summary commands all go red; no allowlist; ADR records amendment, cited ADRs, drift and residuals; docs/CHANGELOG/AGENTS accurate vs code; 556 passed, ruff/format/mypy clean, docs freshness errors=0. Non-blocking: contracts/origin-freshness.md still lists check_status_evidence; ADR omits deferred protection_policy ls-remote swap and linked-only issues; console ledger grew by one presentation module (accepted)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP08:20261006",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 21600,
+      "shell_pid_created_at": "1791321233.88",
+      "subtasks": {
+        "T038": "done",
+        "T039": "done",
+        "T040": "done",
+        "T041": "done",
+        "T042": "done"
+      }
+    }
+  }
+}

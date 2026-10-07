@@ -1,0 +1,198 @@
+{
+  "version": 1,
+  "mission_slug": "second-clone-origin-reconciliation-01M48V8W",
+  "mission_id": "01M48V8WFJFA0XJ2M2GSA1369N",
+  "mission_branch": "kitty/mission-second-clone-origin-reconciliation-01M48V8W",
+  "target_branch": "claude/happy-keller-r38xig",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/kernel/git/__init__.py",
+        "src/kernel/git/remote.py",
+        "tests/kernel/test_git_remote.py",
+        "tests/terminus/two_clone_support.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/push_preflight.py",
+        "src/specify_cli/doctrine/sources/git_source.py",
+        "src/specify_cli/git/protection_policy.py",
+        "src/specify_cli/git/remote_probes.py",
+        "src/specify_cli/lanes/implement_support.py",
+        "src/specify_cli/workspace/context.py",
+        "tests/architectural/_remote_contact_census.py",
+        "tests/architectural/test_remote_contact_owner.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/git/origin_freshness.py",
+        "tests/specify_cli/git/test_origin_freshness.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/init.py",
+        "src/specify_cli/cli/commands/upgrade.py",
+        "src/specify_cli/upgrade/finalize.py",
+        "src/specify_cli/upgrade/outcome.py",
+        "tests/terminus/test_clone_init_installs_merge_drivers.py",
+        "tests/upgrade/test_finalize_merge_driver_config.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/consolidate.py",
+        "src/specify_cli/consolidation/executor.py",
+        "src/specify_cli/consolidation/origin_gate.py",
+        "tests/consolidation/test_origin_gate.py",
+        "tests/terminus/test_consolidate_sees_teammate_rejection.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/accept.py",
+        "src/specify_cli/orchestrator_api/consolidation.py",
+        "src/specify_cli/orchestrator_api/envelope.py",
+        "tests/contract/test_breaking_check.py",
+        "tests/orchestrator_api/test_origin_freshness_envelopes.py",
+        "tests/specify_cli/orchestrator_api/test_contract_version.py",
+        "tests/terminus/test_accept_sees_teammate_rejection.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "tests/specify_cli/cli/commands/agent/test_review_lane_from_remote.py",
+        "tests/terminus/test_review_sees_teammate_fix.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "AGENTS.md",
+        "docs/adr/4.x/2026-10-06-3-evidence-gates-check-origin-freshness.md",
+        "docs/adr/4.x/index.md",
+        "docs/api/environment-variables.md",
+        "docs/api/orchestrator-api.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/context/orchestration.md",
+        "docs/development/docs-retrieval-index.yaml",
+        "docs/development/page-inventory.yaml",
+        "src/specify_cli/cli/commands/_env_file_doctor.py",
+        "tests/architectural/test_evidence_gates_check_origin.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-d",
+        "lane-e",
+        "lane-f",
+        "lane-g"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-10-06T15:25:08.831497+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "82c4aa91b5a299308d8ec8c5d58675a1b7283a29"
+}

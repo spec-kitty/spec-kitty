@@ -1,0 +1,56 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-06T14:53:36.574510Z",
+      "decision_id": "01M48V9BXYQ1R42R071S33MCDQ",
+      "final_answer": "Split by branch class",
+      "input_key": "origin_ahead_policy",
+      "mission_id": "01M48V8WFJFA0XJ2M2GSA1369N",
+      "mission_slug": "second-clone-origin-reconciliation-01M48V8W",
+      "opened_by": "cli",
+      "options": [
+        "Split by branch class",
+        "Refuse everywhere",
+        "Fast-forward everywhere",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "When a terminus gate finds origin ahead of the local view, what should it do?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T14:53:40.196428Z",
+      "resolved_by": null,
+      "slot_key": "specify.policy.origin-ahead",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-06T14:53:43.902091Z",
+      "decision_id": "01M48V9K2YY2V1DH37AT8DHP2S",
+      "final_answer": "Fail closed + opt-out, with an env variable to default opt-out of remote/local enforcement",
+      "input_key": "offline_policy",
+      "mission_id": "01M48V8WFJFA0XJ2M2GSA1369N",
+      "mission_slug": "second-clone-origin-reconciliation-01M48V8W",
+      "opened_by": "cli",
+      "options": [
+        "Fail closed + opt-out",
+        "Warn, use last fetch",
+        "Never fetch at gates",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": true,
+      "question": "When a remote is configured but unreachable at a terminus gate, what happens?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T14:53:47.406977Z",
+      "resolved_by": null,
+      "slot_key": "specify.policy.offline",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M48V8WFJFA0XJ2M2GSA1369N",
+  "version": 1
+}

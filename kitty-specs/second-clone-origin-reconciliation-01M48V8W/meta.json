@@ -1,0 +1,36 @@
+{
+  "accept_commit": "9a8b01fa0941c8a457deb44b3766e766cdb98e18",
+  "acceptance_history": [
+    {
+      "accept_commit": "9a8b01fa0941c8a457deb44b3766e766cdb98e18",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-06T21:32:15.260443+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "96b4373581d51c6291d01542818ec83ba83f7544"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-06T21:32:15.260443+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "96b4373581d51c6291d01542818ec83ba83f7544",
+  "baseline_merge_commit": "6cd281a9dd835d49a637cd8b87d1e870ddce0a11",
+  "created_at": "2026-10-06T14:53:22.538307+00:00",
+  "flattened": false,
+  "friendly_name": "Second clones reconcile with origin before every terminus gate",
+  "merged_at": "2026-10-06T21:36:32.088832+00:00",
+  "merged_commit": "6333b108347f0fb3cd712bb8d80b4d91abe9e4bf",
+  "mid8": "01M48V8W",
+  "mission_id": "01M48V8WFJFA0XJ2M2GSA1369N",
+  "mission_number": 220,
+  "mission_slug": "second-clone-origin-reconciliation-01M48V8W",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "In a two-person team each person works in their own clone. Today review, accept and consolidate trust the clone's local branches and never look at what teammates pushed, so a rejected work package can land as done and a reviewed fix can be dropped, with exit 0. A second clone also never gets the merge-driver settings, so its first pull corrupts mission files. This mission adds one origin check every terminus gate passes through, and makes init and upgrade install the clone-local settings.",
+  "purpose_tldr": "A teammate's clone checks origin before review, accept and consolidate trust its local copy, so a pushed rejection or fix is never silently ignored.",
+  "slug": "second-clone-origin-reconciliation-01M48V8W",
+  "status_phase": "1",
+  "target_branch": "claude/happy-keller-r38xig",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-06T15:28:02.340597+00:00"
+}
