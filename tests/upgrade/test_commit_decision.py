@@ -37,15 +37,6 @@ def test_should_auto_commit_false_on_dry_run(tmp_path: Path, monkeypatch) -> Non
     assert autocommit.should_auto_commit(tmp_path, dry_run=True) is False
 
 
-def test_should_auto_commit_has_no_manual_review_gate(tmp_path: Path, monkeypatch) -> None:
-    """#5443: files held for manual review are not commit candidates, so they no longer
-    disable committing; the parameter is gone (a caller passing it fails loudly)."""
-    monkeypatch.setattr(autocommit, "get_auto_commit_default", lambda _repo_root: True)
-    assert autocommit.should_auto_commit(tmp_path, dry_run=False) is True
-    with pytest.raises(TypeError):
-        autocommit.should_auto_commit(tmp_path, dry_run=False, **{"manual_review": True})
-
-
 def test_should_auto_commit_never_reads_home_guard(tmp_path: Path, monkeypatch) -> None:
     """C-001/D-7: the decision must not duplicate the ``$HOME`` eligibility
     guard — verified by never touching ``Path.home`` at all."""

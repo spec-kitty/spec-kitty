@@ -226,6 +226,29 @@ def test_upgraded_worktree_follows_main_rules(tmp_path: Path, case: str) -> None
     assert f"Worktree {_WORKTREE}: Skipped auto-commit" not in output
 
 
+@pytest.mark.regression
+def test_worktree_migration_error_commits_nothing_and_reports_reason(tmp_path: Path) -> None:
+    """A migration that raises in a worktree (a symlinked ``.gitignore`` makes ``detect`` raise
+    ``GitignorePathError``) is an errored run there: no commit lands on the worktree branch and
+    the failed-run reason is reported, while the main checkout still commits its own upgrade."""
+    project, env = build_legacy(tmp_path, agents=["claude"], gitignore="*.pyc\n", extra_files={_IMPLEMENT: MARKED_COMMAND_FILE})
+    worktree = _add_worktree(project, env, {"elsewhere.ignore": "*.pyc\n"})
+    (worktree / ".gitignore").unlink()
+    (worktree / ".gitignore").symlink_to("elsewhere.ignore")
+    git(worktree, env, "add", "--", ".gitignore")
+    git(worktree, env, "commit", "-q", "-m", "symlink the ignore file")
+    tip0 = git(project, env, "rev-parse", "lane-a").stdout.strip()
+    head0 = head(project, env)
+
+    result = run_upgrade(project, env)
+    output = flat(result.stdout + result.stderr)
+
+    assert "Cannot safely detect" in output, "the symlinked ignore file must make a worktree migration raise"
+    assert git(project, env, "rev-parse", "lane-a").stdout.strip() == tip0, "an errored worktree gets no commit"
+    assert f"Worktree {_WORKTREE}: {flat(_FAILED_RUN_REASON)}" in output
+    assert len(new_commits(project, env, head0)) == 1, "the main checkout's own commit is unaffected"
+
+
 # ---------------------------------------------------------------------------
 # autocommit exclusions, in-process on a real repository (not red-first: they
 # pin new branches of ``prepare_upgrade_commit_files`` / ``commit_touched_checkout``)
