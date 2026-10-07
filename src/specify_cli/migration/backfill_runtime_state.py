@@ -1487,6 +1487,10 @@ def _backfill_runtime_state_locked(
     )
 
     logger.info("Backfilled %d runtime seed event(s) for %s", seeded_count, slug)
+    # A persisted status.json must not outlive the seeds it predates (#5862).
+    _refreshed, refresh_error = _refresh_snapshot_if_present(feature_dir)
+    if refresh_error is not None:
+        warnings.append(refresh_error)
     return BackfillResult(feature_dir=feature_dir, slug=slug, action="wrote", seeded_count=seeded_count, warnings=warnings)
 
 
