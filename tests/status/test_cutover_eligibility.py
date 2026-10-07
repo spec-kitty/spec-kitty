@@ -300,15 +300,15 @@ def test_has_frontmatter_runtime(runtime: LegacyWPRuntime, expected: bool) -> No
 
 
 def test_pre_accept_exemption_declines_on_unreadable_meta(tmp_path: Path) -> None:
-    """Fail closed: a malformed ``meta.json`` never yields the exemption."""
-    from specify_cli.status.cutover_eligibility import REASON_META_UNREADABLE, pre_accept_exemption
+    """Fail closed: a malformed ``meta.json`` reads empty (no ``mission_id``) and never yields the exemption."""
+    from specify_cli.status.cutover_eligibility import REASON_ABSENT_MISSION_ID, pre_accept_exemption
 
     mission_dir = _born_mission(tmp_path, raw_meta="{not json")
 
     decision = pre_accept_exemption(mission_dir)
 
     assert decision.exempt is False
-    assert decision.block_reason == REASON_META_UNREADABLE
+    assert decision.block_reason == REASON_ABSENT_MISSION_ID
 
 
 def test_absent_mission_id_stays_eligible_and_fails_while_control_is_exempt(tmp_path: Path) -> None:

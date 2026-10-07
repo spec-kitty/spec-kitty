@@ -56,7 +56,6 @@ from specify_cli.status.cutover_eligibility import (
     REASON_ABSENT_MISSION_ID,
     REASON_LEGACY_FRONTMATTER,
     REASON_LEGACY_UNDECIDABLE,
-    REASON_META_UNREADABLE,
     REASON_PHASE_MALFORMED,
     REASON_TERMINAL_UNSTAMPED,
 )
@@ -71,7 +70,6 @@ _REMEDY_BY_REASON: dict[str, str] = {
     REASON_TERMINAL_UNSTAMPED: _REMEDY_TEMPLATE,
     REASON_LEGACY_FRONTMATTER: _REMEDY_TEMPLATE,
     REASON_PHASE_MALFORMED: 'fix meta.json status_phase in kitty-specs/{slug}/ (expected an integer, e.g. "1"), then rerun',
-    REASON_META_UNREADABLE: "repair kitty-specs/{slug}/meta.json or the unreadable WP file, then rerun",
     REASON_LEGACY_UNDECIDABLE: "repair kitty-specs/{slug}/meta.json or the unreadable WP file, then rerun",
     REASON_ABSENT_MISSION_ID: "spec-kitty migrate backfill-identity",
 }

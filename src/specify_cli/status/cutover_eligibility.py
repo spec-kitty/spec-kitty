@@ -78,7 +78,6 @@ REASON_TERMINAL_UNSTAMPED = f"{_NOT_FLIPPED}: mission is accepted/merged but sta
 REASON_LEGACY_FRONTMATTER = f"{_NOT_FLIPPED}: WP frontmatter carries legacy runtime to migrate"
 REASON_ABSENT_MISSION_ID = "absent mission_id"
 REASON_PHASE_MALFORMED = "status_phase is malformed (not an integer)"
-REASON_META_UNREADABLE = f"{_NOT_FLIPPED}: meta.json is missing or unreadable"
 REASON_LEGACY_UNDECIDABLE = f"{_NOT_FLIPPED}: legacy WP runtime could not be read to decide the pre-accept exemption"
 
 
@@ -258,18 +257,14 @@ def _carries_frontmatter_runtime(mission_dir: Path) -> bool | None:
 def pre_accept_exemption(mission_dir: Path) -> PreAcceptDecision:
     """Decide the pre-accept exemption for a mission with event-log runtime evidence.
 
-    Exempt (``note`` set) only when ``meta.json`` parses with a ``mission_id``, ``status_phase`` is
+    Exempt (``note`` set) only when ``meta.json`` reads (through :func:`_read_meta`, so a
+    missing, empty or unparsable file has no ``mission_id`` and declines) with a ``mission_id``, ``status_phase`` is
     absent or a well-formed integer ``< 1``, there is no terminal evidence
     (``accepted_at`` / ``merged_at`` / ``mission_number``), and no WP file
     carries legacy frontmatter runtime. Every undecidable input declines the
     exemption with a ``block_reason`` (fail closed, FR-005).
     """
-    try:
-        meta = load_meta(mission_dir, allow_missing=True, on_malformed="raise", encoding="utf-8-sig")
-    except Exception:  # noqa: BLE001 — fail closed: an unreadable meta.json is never exempt
-        meta = None
-    if not meta:
-        return PreAcceptDecision(block_reason=REASON_META_UNREADABLE)
+    meta = _read_meta(mission_dir)
     if not str(meta.get("mission_id") or "").strip():
         return PreAcceptDecision(block_reason=REASON_ABSENT_MISSION_ID)
     phase_state = _raw_phase_state(meta)
