@@ -4312,6 +4312,18 @@ _Machine-contract API for external orchestrators (JSON-first)_
 │                       no-state-transition, no-event-emission,                │
 │                       no-``--policy`` contract for the                       │
 │                       design pipeline instead of the WP loop.                │
+│ artifact-read         Read bounded canonical content and its exact revision  │
+│                       (absent is explicit).                                  │
+│ artifact-submit       Submit design content through host placement,          │
+│                       validators and commit authority.                       │
+│ design-validate       Check current canonical prerequisites without          │
+│                       completing a lifecycle step.                           │
+│ design-context        Read bounded resolved templates, governance and        │
+│                       required interview slots.                              │
+│ interview-record      Record incremental interview answers through the       │
+│                       existing decision service.                             │
+│ next                  Query or advance exactly the same authority and        │
+│                       lifecycle as native next.                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4380,6 +4392,40 @@ _Machine-contract API for external orchestrators (JSON-first)_
 │ *  --actor            TEXT  Actor identity [required]                        │
 │ *  --note             TEXT  History note to append [required]                │
 │    --help     -h            Show this message and exit.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty orchestrator-api artifact-read
+
+```
+ Usage: spec-kitty orchestrator-api artifact-read [OPTIONS]
+
+ Read bounded canonical content and its exact revision (absent is explicit).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission              TEXT  Mission slug [required]                      │
+│ *  --kind                 TEXT  Registered authoring artifact kind           │
+│                                 [required]                                   │
+│    --artifact-id          TEXT  Declared package key or contract basename    │
+│    --help         -h            Show this message and exit.                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty orchestrator-api artifact-submit
+
+```
+ Usage: spec-kitty orchestrator-api artifact-submit [OPTIONS]
+
+ Submit design content through host placement, validators and commit authority.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission               TEXT  Mission slug [required]                     │
+│ *  --request-json          TEXT  Closed bounded artifact batch JSON; '-'     │
+│                                  reads UTF-8 stdin                           │
+│                                  [required]                                  │
+│ *  --actor                 TEXT  Accountable author [required]               │
+│    --policy                TEXT  Policy metadata JSON (required)             │
+│    --help          -h            Show this message and exit.                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4465,9 +4511,12 @@ _Machine-contract API for external orchestrators (JSON-first)_
  commands.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --provider-version          TEXT  Caller's provider version; returns         │
-│                                   CONTRACT_VERSION_MISMATCH if below minimum │
-│ --help              -h            Show this message and exit.                │
+│ --provider-version            TEXT  Caller's provider version; returns       │
+│                                     CONTRACT_VERSION_MISMATCH if below       │
+│                                     minimum                                  │
+│ --require-capability          TEXT  Require a supported Python command       │
+│                                     before performing work                   │
+│ --help                -h            Show this message and exit.              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4492,6 +4541,21 @@ _Machine-contract API for external orchestrators (JSON-first)_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty orchestrator-api design-context
+
+```
+ Usage: spec-kitty orchestrator-api design-context [OPTIONS]
+
+ Read bounded resolved templates, governance and required interview slots.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --mission               TEXT  Mission handle; omitted before creation        │
+│ --stage                 TEXT  specify | plan | tasks [default: specify]      │
+│ --mission-type          TEXT  Activated mission type before creation         │
+│ --help          -h            Show this message and exit.                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty orchestrator-api design-status
 
 ```
@@ -4507,6 +4571,39 @@ _Machine-contract API for external orchestrators (JSON-first)_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission          TEXT  Mission slug [required]                          │
+│    --help     -h            Show this message and exit.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty orchestrator-api design-validate
+
+```
+ Usage: spec-kitty orchestrator-api design-validate [OPTIONS]
+
+ Check current canonical prerequisites without completing a lifecycle step.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission          TEXT  Mission slug [required]                          │
+│ *  --stage            TEXT  specify | plan | tasks [required]                │
+│    --help     -h            Show this message and exit.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty orchestrator-api interview-record
+
+```
+ Usage: spec-kitty orchestrator-api interview-record [OPTIONS]
+
+ Record incremental interview answers through the existing decision service.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission          TEXT  Mission handle [required]                        │
+│ *  --stage            TEXT  specify | plan [required]                        │
+│ *  --answers          TEXT  JSON mapping of canonical question IDs to        │
+│                             nonempty answers                                 │
+│                             [required]                                       │
+│ *  --actor            TEXT  Actor identity [required]                        │
+│    --policy           TEXT  Required orchestrator policy JSON                │
 │    --help     -h            Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -4534,6 +4631,24 @@ _Machine-contract API for external orchestrators (JSON-first)_
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission          TEXT  Mission slug [required]                          │
 │    --help     -h            Show this message and exit.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty orchestrator-api next
+
+```
+ Usage: spec-kitty orchestrator-api next [OPTIONS]
+
+ Query or advance exactly the same authority and lifecycle as native next.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission              TEXT  Mission handle [required]                    │
+│    --agent                TEXT  Agent required for advancement               │
+│    --result               TEXT  Prior result; omit for read-only query       │
+│    --answer               TEXT  Native pending decision answer               │
+│    --decision-id          TEXT  Native decision identity                     │
+│    --policy               TEXT  Policy JSON required for advancement         │
+│    --help         -h            Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

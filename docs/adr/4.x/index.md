@@ -61,3 +61,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-06 | [charter offering, active charter and activation presets](2026-10-06-2-charter-offering-active-charter-and-activation-presets.md) |
 | 2026-10-07 | [upgrade never runs the mission-state repair](2026-10-07-1-upgrade-never-runs-mission-state-repair.md) |
 | 2026-10-06 | [evidence gates check origin freshness before they trust local evidence](2026-10-06-3-evidence-gates-check-origin-freshness.md) |
+| 2026-10-07 | [governed planning application seam and status integration](2026-10-07-1-governed-planning-application-seam.md) |

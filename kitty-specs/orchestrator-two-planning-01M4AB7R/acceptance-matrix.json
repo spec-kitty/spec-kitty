@@ -1,0 +1,79 @@
+{
+  "mission_slug": "orchestrator-two-planning-01M4AB7R",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Public client journey: both single_branch and coordination fixtures author/commit/finalize through API only, no file/Git writes after setup; test_planning_client_journey.py all 11 cases pass.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-10-07T06:10:14.438987+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_design_context.py passes: activated Mission type discovery, bounded templates/doctrine/interview slots, stable read-only digest and immutable existing type.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-10-07T06:10:19.805946+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_design_authoring.py passes: exact content revision CAS, accepted parent/context receipts, host placement and commit, 256KiB artifact/1MiB batch/2MiB stdin bounds and no-effects invalid controls.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-10-07T06:10:25.110946+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Authoring/context/public journey tests pass: native substantive spec/plan/manifest gates, pending interviews and stale parents refuse, finalized/truncated-log proof fails closed.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-10-07T06:10:30.451436+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "74 targeted next/context/public/native-query-layout cases pass after a real red-first pending-specification-input regression. Fresh runtime_next coverage94%; native persisted issued step read, answer causes first prompt issuance, unfinished actual issued completion refuses unchanged, accepted spec advances. Strictmypy16/Ruff pass.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-10-07T06:23:27.798517+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "API/contract/docs compatibility cases pass, 1 existing skip: version 1.11 ledger/census and capability refusal preserve old commands/envelope. Python profile explicitly denies unimplemented Go guarantees.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-10-07T06:10:41.215088+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Extends Stijn merged #5664 concern registry. Shared native decisions/next/status-finalization authorities; Go/UI status mapping documented, #5532/#5631 and #5735 remain scoped follow-ups.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-10-07T06:10:46.592534+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

@@ -1,0 +1,116 @@
+{
+  "event_count": 38,
+  "last_event_id": "01M4AJ0HP0JTQDVCDKJSGVCFEZ",
+  "materialized_at": "2026-10-07T06:49:59.232912+00:00",
+  "mission_number": "221",
+  "mission_slug": "orchestrator-two-planning-01M4AB7R",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "codex-review",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "codex",
+      "lane": "done",
+      "last_event_id": "01M4AJ0E7SDFP9XX34VDZ53B0T",
+      "last_transition_at": "2026-10-07T06:49:55.705354+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP01 governed authoring and accepted lineage implemented; 41 targeted tests pass, Ruff and strict mypy pass. Commit 62ee876d1.",
+        "Independent reviewer-renata exact clean head review passed at 2a2bddb44: reproduced status-log truncation freeze bypass and corrupt-manifest API escape are fixed with paired RED regressions; shared native status proof is extracted once and reused by transport plus application, no app-to-transport import. Bounded byte-based UTF8 stdin permits large documents and refuses oversize/invalid input before effects; actor256-byte paired boundary checked. Owner reports56 scoped green plus2 actor cases, ruff/strict mypy6 sources; scoped coverage94 percent overall, authoring92 validation92 receipts98 adapter96 statusproof91. Anti-pattern checks dead-code PASS with dependent WP03 registry wiring explicit; synthetic-fixture PASS real native finalization; silent-empty PASS explicit absent/legacy states; FR-001/003/004/008 coverage PASS package seam; frozen-surface PASS; locked-decision PASS; shared-file ownership PASS root amended canonical status seam ownership and WP02 shared context imports coordinated; production-fragility PASS typed fail-closed refusal. Provenance remains host-local with persistent marker; commit/materialization effects explicitly non-atomic and cooperative lock excludes manual writers. Public registered API-only journey and topology integration remain WP03. No duplicate suite."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "2a2bddb44",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 34985,
+      "shell_pid_created_at": "1791043603.6",
+      "subtasks": {
+        "T001": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "codex-review",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "codex",
+      "lane": "done",
+      "last_event_id": "01M4AJ0FZM2SJ9H0C3Y63VP6YG",
+      "last_transition_at": "2026-10-07T06:49:57.492401+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for independent review: bounded semantic context and canonical interview decisions; native-next completion validates API provenance under shared lock. 163 targeted tests pass, strict mypy four modules and Ruff clean.",
+        "Independent reviewer-renata review passed at clean627d8b2c8: four code findings fixed in f9d627b98; truthful native interview partial effects; complete response bounds; immutable mission type; prompt path removal; shared application questions. Reviewed test-only supplement: real native early-research discovery issuance, specify scaffold completion refusal with issued step unchanged, accepted specification advances to plan; owner reports40green and context95%, APIcontext100%, next96%, ruff and strictmypy. Anti-pattern checks dead-code PASS with live registry wiring explicitly dependentWP03; synthetic-fixture PASS; silent-empty PASS; FR-002/005/006/007 coverage PASS; frozen-surface PASS; locked-decision PASS; shared-file ownership PASS (WP02 context/question seam, WP01 imports, WP03 registry); production-fragility PASS typed fail closed. Full public registered-client/topology cycle remains WP03; no duplicate suite.",
+        "Administrative consolidation reconciliation: forward original WP02 head627d8b2c8 to already reviewed aggregate87b506b310cd7f59735779f26620ba6e2c20ea0a; no new behavior; exact reviewed tree preserved; independent reapproval afterward. Required feedback records native dependency ancestry refusal and preserves original audits. No force or source editing.",
+        "Administrative reconciliation only: lane B fast-forwarded to already independently approved aggregate 87b506b310cd7f59735779f26620ba6e2c20ea0a. Full tracked tree and src/docs/tests working bytes equal approved C; 12 WP01 paths equal approved A2a2bddb44; original B627d8b2c8 and A remain ancestors. Lanes A/C unchanged, clean B. No source edits or repeated suites; retained original approvals and audit refs.",
+        "Independent administrative reapproval: lane B and previously approved lane C have exact tree 0658a5bf0a9a91f9c32d9430fbdbcd4bcbf5c880 at 87b506b310cd7f59735779f26620ba6e2c20ea0a. Original B 627d8b2c8 and approved A 2a2bddb44 are ancestors; all 12 WP01 owned paths match approved A; A and C heads are unchanged; lane B is clean. No source edits or repeated tests. This preserves the independently reviewed aggregate including the native issued-step correction and prior 74 passing affected tests. Original audits retained; administrative dependency reconciliation only.",
+        "Administrative consolidation reconciliation: preserve original WP02 first-parent authorship with original B 627d8b2c8 as first parent and approved C 87b506b310cd7f59735779f26620ba6e2c20ea0a as second parent; exact reviewed aggregate tree required; no source-content changes or repeated tests; independent exact-head reapproval afterward.",
+        "Administrative first-parent repair: real merge065cd80b816414d14651ff44c46ccbd5935d9881 has original approved B627d8b2c8 first parent and approved C87b506b3 second parent. Full tracked tree0658a5bf0a9a91f9c32d9430fbdbcd4bcbf5c880 equals C exactly; B is clean. All12 WP01 owned files equal approved A2a2bddb44; A/C heads unchanged. Previous approvals/commits retained as ancestors and audit refs. No source/verifier edits or test reruns; requesting exact-head independent reapproval.",
+        "Independent administrative reapproval: merge 065cd80b816414d14651ff44c46ccbd5935d9881 has original WP02 627d8b2c8298352e2fd2e649ac37023c81ccedb6 as first parent and approved aggregate 87b506b310cd7f59735779f26620ba6e2c20ea0a as second parent. Full tree 0658a5bf0a9a91f9c32d9430fbdbcd4bcbf5c880 exactly equals previously reviewed C. All 12 actual WP01 paths equal approved A; A and C tips unchanged and all three lanes clean. No source-content edits or repeated tests; original review and native issued-step correction evidence retained. Checklist: dead code, synthetic fixtures, silent failures, FR coverage, frozen surfaces, locked decisions and production fragility PASS by identical previously approved aggregate; shared ownership PASS with explicit administrative coordination and exact-tree proof. Parent-order reconciliation only."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "065cd80b816414d14651ff44c46ccbd5935d9881",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 34985,
+      "shell_pid_created_at": "1791043603.6",
+      "subtasks": {
+        "T002": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "codex-review",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "codex",
+      "lane": "done",
+      "last_event_id": "01M4AJ0HP0JTQDVCDKJSGVCFEZ",
+      "last_transition_at": "2026-10-07T06:49:59.232912+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "All292 distinct affected tests pass; one existing skip. Independent P2 test/doc fixes pass three-case rerun; new modules >=90% coverage; reconcile current mainline without changing reviewed API source or tests.",
+        "Independent reviewer-renata rejected exact c8d3b7ec for P1: native decision_required projection step_id is not actual issued_step_id; API-authored early research plus supported specify input causes answer refusal before first specify issuance. Real API-only counterexample confirmed and structured feedback supplied. Preserve actual issued-stage validation and use canonical read-only run/snapshot authority; paired RED must prove answer issuance, incomplete completion refusal, accepted spec advancement. Earlier documentation and runtime-index-proof P2 findings resolved; aggregate otherwise passes.",
+        "Red native-design input regression now passes: answer issues specify; incomplete issued completion refuses byte-identically; accepted spec advances. 74 context/next/public/query-layout cases pass, Ruff and strict mypy16 pass.",
+        "Independent reviewer-renata corrected exact-head aggregate review passed at 87b506b310cd7f59735779f26620ba6e2c20ea0a. Confirmed P1 pending-input/issued-action failure fixed through canonical native issued_step_id fact: existing Mission context, strict existing-run lookup, engine snapshot; no new cursor, parsing, allocation or reducer. Meaningful RED preceded fix; paired real API-only test answers pending specify input, issues prompt, refuses unfinished completion with unchanged runtime bytes, then advances accepted specification. Earlier command census and actual run-index proof P2s resolved. Root reports74 affected next/context/public/native-layout tests green, fresh runtime adapter coverage94 percent, Ruff and strict mypy16 green; prior unaffected API/contract/doc evidence remains. All8 anti-pattern checks PASS: live registry/native helper callers, real FR001-007 controls, documented absent states, frozen surfaces, locked decisions, root-declared shared ownership, typed fail-closed paths. Public finalization covers single_branch and coord; status map correctly distinguishes Go ProgressService projections/watch freshness and UI display/cursors, keeps5532/5631/5776 unfinished. Explicit unavailable Go journal, lease/fence/async/watch/replay guarantees; provenance host-local and persistence cooperative/non-atomic. No source edits or duplicate suite by reviewer; corrective whitespace check passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "87b506b310cd7f59735779f26620ba6e2c20ea0a",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 34985,
+      "shell_pid_created_at": "1791043603.6",
+      "subtasks": {
+        "T003": "done"
+      }
+    }
+  }
+}

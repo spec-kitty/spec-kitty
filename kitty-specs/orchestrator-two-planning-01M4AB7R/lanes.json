@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "mission_slug": "orchestrator-two-planning-01M4AB7R",
+  "mission_id": "01M4AB7RJA9CWRGX98J8H32RCX",
+  "mission_branch": "kitty/mission-orchestrator-two-planning-01M4AB7R",
+  "target_branch": "issue-5846-orchestrator-two",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py",
+        "src/specify_cli/design/__init__.py",
+        "src/specify_cli/design/authoring.py",
+        "src/specify_cli/design/errors.py",
+        "src/specify_cli/design/models.py",
+        "src/specify_cli/design/receipts.py",
+        "src/specify_cli/design/validation.py",
+        "src/specify_cli/orchestrator_api/design_authoring.py",
+        "src/specify_cli/orchestrator_api/design_phase.py",
+        "tests/specify_cli/design/**",
+        "tests/specify_cli/orchestrator_api/test_design_authoring.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/design/context.py",
+        "src/specify_cli/orchestrator_api/design_context.py",
+        "src/specify_cli/orchestrator_api/runtime_next.py",
+        "tests/specify_cli/orchestrator_api/test_design_context.py",
+        "tests/specify_cli/orchestrator_api/test_runtime_next.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/**",
+        "docs/api/orchestrator-api.md",
+        "src/specify_cli/core/upstream_contract.json",
+        "src/specify_cli/orchestrator_api/commands.py",
+        "src/specify_cli/orchestrator_api/envelope.py",
+        "tests/contract/test_orchestrator_api.py",
+        "tests/docs/test_orchestrator_api_verb_doc_presence.py",
+        "tests/specify_cli/orchestrator_api/test_planning_client_journey.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-07T04:58:30.235166+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "a90b493f3558a97648825cc7f1b1380cfcd40e48"
+}

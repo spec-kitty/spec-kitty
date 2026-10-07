@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#5231": {
+      "evidence_ref": "Context-only external API epic; this mission delivers #5846 planning slice, not closure of the whole epic. See spec.md scope and plan.md authority mapping.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5532": {
+      "evidence_ref": "Follow-up: #5532 owns status-read port convergence. This mission preserves the current native readers and documents the future Go/UI mapping; it does not implement or close that port.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#5631": {
+      "evidence_ref": "Follow-up: #5631 owns status-read execution topology integration; current native readers are preserved and this planning port only documents future status convergence.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#5664": {
+      "evidence_ref": "Merged PR reference, not work owed: Stijn's concern-module decomposition is already in baseline ecc257f40 (merge09a5ba12). New verbs extend its registry/modules; no replacement implementation.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5735": {
+      "evidence_ref": "Context-only separate shared implement-service issue. WP lifecycle commands are preserved; this mission authors planning artifacts and delegates native next without duplicating claim/workspace authority.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5846": {
+      "evidence_ref": "API/contract/doc selection: 284 passed, 1 skipped; 8 adapter fixture refusals corrected and adapter rerun 10 passed. All 292 unique affected cases pass. Coverage94%, every new module>=90%. Ruff and strict mypy15 pass, docs freshness0 findings. Aggregate reviewer Renata checks immutable lane-c.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP03"
+    }
+  },
+  "schema_version": 1
+}

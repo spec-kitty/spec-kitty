@@ -1,0 +1,36 @@
+{
+  "accept_commit": "8497977c64695c7468e840db8c2c0903e78e6be3",
+  "acceptance_history": [
+    {
+      "accept_commit": "8497977c64695c7468e840db8c2c0903e78e6be3",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-10-07T06:26:55.801772+00:00",
+      "accepted_by": "codex",
+      "accepted_from_commit": "17efaa590e43a654cbdbb81ac8fd04cd588f27fe"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-10-07T06:26:55.801772+00:00",
+  "accepted_by": "codex",
+  "accepted_from_commit": "17efaa590e43a654cbdbb81ac8fd04cd588f27fe",
+  "baseline_merge_commit": "4be1b6e42b094435d0a2228f8a42782a689c76ab",
+  "created_at": "2026-10-07T04:51:35.722467+00:00",
+  "flattened": false,
+  "friendly_name": "Orchestrator 2 governed mission and planning API",
+  "merged_at": "2026-10-07T06:49:54.908922+00:00",
+  "merged_commit": "b4ac1bf64aa8da901a7fd8087c8a3bdadbac58ed",
+  "mid8": "01M4AB7R",
+  "mission_id": "01M4AB7RJA9CWRGX98J8H32RCX",
+  "mission_number": 221,
+  "mission_slug": "orchestrator-two-planning-01M4AB7R",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Port the governed design lifecycle from Gokitty3 into mainline Python, retaining existing execution authorities and reconciling Stijn’s concern-module refactor. Issue #5846.",
+  "purpose_tldr": "External clients can create and plan a mission entirely through the API.",
+  "slug": "orchestrator-two-planning-01M4AB7R",
+  "status_phase": "1",
+  "target_branch": "issue-5846-orchestrator-two",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-07T04:59:00.303274+00:00"
+}

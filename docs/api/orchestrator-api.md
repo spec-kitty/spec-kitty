@@ -113,6 +113,12 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   [Origin freshness](#accept-mission-and-consolidate-mission-origin-freshness)), and a
   successful `warn` run gains `origin_warnings`. A call that used to succeed can now refuse,
   so a minor bump; every key is absent otherwise.
+- `1.11.0` — adds governed context/interviews, bounded artifact authoring and
+  native `next`, plus the truthful Python delivery profile and capability probe.
+  Existing commands and envelope fields remain. For API-authored Missions,
+  successful design completion/finalization now checks accepted provenance and
+  canonical prerequisites; stale or unfinished inputs refuse. See
+  [Governed planning delivery](#governed-planning-delivery-python-profile).
 
 ## Response Envelope
 
@@ -120,7 +126,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.0.0",
+  "contract_version": "1.11.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",
@@ -192,12 +198,20 @@ Removed at the CLI boundary:
 | `cancel-decision` | yes | Cancel a decision (contract >= 1.4.0). |
 | `design-status` | no | Read-only design-phase status query (contract >= 1.4.0). |
 | `answer-decision` | yes | Resolve a `spec-kitty next` `decision_required` moment, with full host-CLI event/lifecycle parity (contract >= 1.4.0). |
+| `artifact-read` | no | Read bounded canonical design content and its exact revision (contract >= 1.11.0). |
+| `artifact-submit` | yes | Author and commit bounded content with revision and lineage checks (contract >= 1.11.0). |
+| `design-validate` | no | Check canonical prerequisites without completing a step (contract >= 1.11.0). |
+| `design-context` | no | Discover resolved templates, governance and interview slots (contract >= 1.11.0). |
+| `interview-record` | yes | Record canonical specification or planning interview answers (contract >= 1.11.0). |
+| `next` | query: no; advancement: yes | Query or advance the native workflow authority (contract >= 1.11.0). |
 
 Legacy command names such as `feature-state`, `accept-feature`, and
 `merge-feature` are forbidden.
 
 See [Design-Phase Commands](#design-phase-commands) below for the full
-request/response/error-code contract of the 11 new verbs.
+request/response/error-code contract of the 1.4 design verbs, and
+[Governed Planning Delivery](#governed-planning-delivery-python-profile) for the six
+1.11 verbs.
 
 ## Required Flags
 
@@ -1015,3 +1029,208 @@ See also:
 - [Event Envelope Reference](event-envelope.md)
 - [Feature Flag Deprecation](../migrations/feature-flag-deprecation.md)
 - [Mission Type Flag Deprecation](../migrations/mission-type-flag-deprecation.md)
+
+## Governed planning delivery (Python profile)
+
+Contract `1.11.0` adds six verbs to Stijn's existing concern-module registry.
+It implements the Mission discovery, interview, authored specification/plan,
+task authoring and native lifecycle slice of
+`spec-kitty.orchestrator/2`. The transport remains the existing Python JSON
+envelope. It is a translation profile, with `full_go_conformance: false`;
+clients must not infer Go transport or transaction guarantees from the semantic
+family name. The corresponding [Go contract amendment](https://github.com/spec-kitty/spec-kitty-redesign/pull/9)
+defines the lifecycle coverage.
+
+`contract-version` now returns `data.delivery_profile`, including supported
+commands, translated operations, limits and unavailable capabilities.
+`contract-version --require-capability artifact-submit` probes a required
+capability without changing a Mission. Unknown or unavailable names return
+`UNSUPPORTED_CAPABILITY`. The provider-version handshake still applies.
+
+| Semantic operation | Python command or authority |
+| --- | --- |
+| Discover Mission types and resolved planning context | `design-context` |
+| Create a Mission | `specify` and native creation service |
+| Record specification/planning interviews | `interview-record` and native decision service |
+| Read or submit governed planning content | `artifact-read`, `artifact-submit` |
+| Check design prerequisites | `design-validate` and canonical validators |
+| Issue/complete runtime actions | `next` and native lifecycle authority |
+| Finalize task graph and seed ready work | `tasks` and native finalizer |
+| Read work progress | Existing `mission-state`, `list-ready`, `design-status` |
+
+Unavailable guarantees include GapDB atomic journals, runtime leases/fences,
+immutable Go WorkRevision generations, native asynchronous operations, watches,
+durable operation replay and remote serving. These verbs execute in the local
+host. Tracker publication remains a separate integration.
+
+### design-context
+
+Read-only, with `--stage specify|plan|tasks`. Before creation, omit `--mission`
+and explicitly select an activated `--mission-type`. For an
+existing Mission, its recorded Mission type governs context; an incompatible
+override is refused.
+
+```bash
+spec-kitty orchestrator-api design-context --mission-type software-dev --stage specify
+spec-kitty orchestrator-api design-context --mission "$MISSION" --stage plan
+```
+
+Data contains `mission_slug` (null before creation), `mission_type`, activated
+`mission_types`, resolved `templates`, canonical `questions`, `interview`
+status, action-scoped `governance`, `context_sha256` and published `limits`.
+Template keys retain the resolved template-set vocabulary (`spec` and `plan`
+for software-dev); artifact submission uses the separate closed kind vocabulary
+below. Each template includes bounded UTF-8 `content` and a SHA-256 revision. The
+context digest covers semantic template/governance inputs rather than session
+metadata or local absolute paths. Reading it does not mark doctrine as loaded
+or complete a workflow phase.
+
+### interview-record
+
+Mutation requires `--mission`, `--stage specify|plan`, `--answers` (a JSON
+mapping of canonical question IDs to nonempty answers), `--actor` and
+`--policy`. Discover the IDs with `design-context`; submit answers incrementally.
+The native decision ledger owns their identities and terminal states.
+
+```bash
+spec-kitty orchestrator-api interview-record --mission "$MISSION" --stage specify \
+  --answers '{"problem_statement":"Describe the actual problem"}' --actor client --policy "$POLICY"
+```
+
+Only resolved nonempty answers satisfy a required slot. Pending, deferred and
+canceled decisions remain incomplete. Retrying an identical resolved answer
+is idempotent; conflicting terminal answers refuse. `data.interview` contains
+`complete`, `incomplete`, `answers`, `questions` and `decision_ids`.
+If a native batch fails after earlier answers were applied, the failure reports
+those decision IDs and `reconciliation_required`; callers must reconcile that
+outcome before retrying. It does not claim transaction rollback.
+
+### artifact-read
+
+Read-only, with `--mission`, `--kind` and optional `--artifact-id`. Closed kinds:
+
+| Kind | Canonical content |
+| --- | --- |
+| `specification` | `spec.md` |
+| `plan` | `plan.md` |
+| `research` | `research.md` |
+| `data_model` | `data-model.md` |
+| `quickstart` | `quickstart.md` |
+| `contract` | Registered contract basename under `contracts/` |
+| `outline` | `wps.yaml` |
+| `work_package` | Prompt for a package declared in the outline |
+
+Contracts and work packages require a safe `--artifact-id`. Raw caller paths
+and undeclared packages are refused. Data includes `kind`, `artifact_id`,
+`content` and exact-byte `sha256`. Missing content is explicit: null content,
+revision `absent`. Reads use host-resolved artifact placement.
+
+### artifact-submit
+
+Mutation requires `--mission`, `--request-json`, `--actor` and `--policy`.
+The request is a closed object: unknown fields refuse.
+Use `--request-json -` to send bounded UTF-8 JSON on stdin; external CLI clients
+should use this form so content size does not depend on OS argument limits.
+Literal JSON remains supported for small requests.
+
+```json
+{
+  "artifacts": [{
+    "kind": "plan",
+    "content": "Authored substantive plan text",
+    "expected_sha256": "absent"
+  }],
+  "parents": {"specification": "<current 64-character SHA-256>"},
+  "context_sha256": "<current design-context digest for plan>"
+}
+```
+
+Use `artifact-read` for each expected target revision and required parent,
+and `design-context` for the stage digest. A plan pins its specification;
+an outline pins specification and plan; a package also pins its outline.
+Supporting plan artifacts use plan context. Early research uses specification
+context and can precede the first specification without a specification parent.
+Resolved required interview slots and substantive committed parent content are
+checked before writes. The complete bounded batch is validated before effects.
+
+Host-owned accepted lineage is checked again at validation/finalization:
+passing a new current parent digest cannot make an already stale plan or prompt
+current. Once the native task board is finalized, API design edits and plan
+scaffolding refuse with `DESIGN_FINALIZED`. This surface does not reopen work.
+
+Data contains accepted artifact identities/revisions and the actual host commit
+outcome, without echoing content. A cooperative host lock serializes API writers.
+It does not lock every existing CLI/manual writer. Files and Git commit effects
+precede receipt persistence; partial failures report materialized/committed
+effects or `reconciliation_required`. Inspect that outcome before retrying.
+Receipts live in the Git common directory, are shared between linked worktrees,
+and are not portable between clones. Missing/corrupt receipts while the separate
+persistent API-enabled marker remains present fail closed. The marker and
+receipts are trusted host metadata; deleting both or using another clone does
+not preserve the host's API provenance history.
+
+Bounds: 256 KiB per artifact, 1 MiB per batch, at most 64 artifacts. Context
+responses are at most 1 MiB; interview answers at most 16 KiB each and interview
+actor identity at most 1 KiB. Artifact submission actor identity is at most
+256 bytes. Artifact request JSON is at most 2 MiB (including JSON
+escaping and structure). Limits count UTF-8 bytes.
+
+### design-validate
+
+Read-only, with `--mission` and `--stage specify|plan|tasks`. Checks substantive,
+committed, current content, required resolved decisions and canonical stage
+requirements. Task checks include the declared graph, package prompts and
+requirement references. It does not mark a runtime action complete or finalize
+packages. `tasks` remains the finalization command and native `next` remains
+the completion authority. Legacy manual planning without API receipts retains
+its existing workflow.
+
+### next
+
+`next --mission "$MISSION"` queries the native runtime without starting a run
+or advancing an action, even when `--agent` is provided. Advancement requires
+`--agent`, `--result success|failed|blocked` and `--policy`. Optional `--answer`
+and `--decision-id` follow the native pending-decision rules.
+
+```bash
+spec-kitty orchestrator-api next --mission "$MISSION"
+spec-kitty orchestrator-api next --mission "$MISSION" --agent client \
+  --result success --policy "$POLICY"
+```
+
+The first advancement issues an action; later paired results complete the
+actually issued native action. For API-authored content, successful completion
+of specify/plan/tasks revalidates that stage under the authoring lock. An
+initial preview is not an issued action. Native lifecycle pairing, charter
+preflight, run index and decisions remain authoritative.
+
+Typed native query/step/decision-required/terminal data is preserved. Issued
+steps include bounded `prompt: {content, sha256, bytes}`; host absolute
+`prompt_file` is not exposed. Native errors return `RUNTIME_NEXT_FAILED`;
+blocked outcomes return `RUNTIME_BLOCKED`, both with nonzero exit. A
+decision-required state is a successful typed response requiring client action.
+
+### API-only planning sequence
+
+Discover context → `specify` → record specification interview → submit and
+validate specification → `plan` scaffold → record plan interview → submit and
+validate substantive plan → submit outline → submit declared prompts → validate
+tasks → `tasks` finalize → `list-ready`. Supporting artifacts may be submitted
+through the same governed seam. Clients that drive native actions also query
+and submit paired results through `next`; scaffolding alone never completes a
+design phase.
+
+### Status API and Go progress mapping
+
+Go already has a `ProgressService` with bounded Mission/list/get/watch
+projections and explicit authority, observation and freshness distinctions.
+Jeroen's [Mission UI](https://github.com/spec-kitty/spec-kitty-mission-ui) consumes
+a pinned display contract; its separate Java REST/SSE service is unfinished.
+Future orchestrator/UI readers should share the planned native status port
+([#5532](https://github.com/spec-kitty/spec-kitty/issues/5532), topology integration
+[#5631](https://github.com/spec-kitty/spec-kitty/issues/5631)). This PR preserves
+current native readers and adds no Java dependency or competing status reducer.
+Display artifact presence and provisional English `nextAction` must not become
+orchestrator completion authority. Go projection-revision cursors and UI JSONL
+offset/hash cursors require explicit versioned translation.
+See the [application seam ADR](../adr/4.x/2026-10-07-1-governed-planning-application-seam.md).

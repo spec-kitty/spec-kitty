@@ -1,0 +1,121 @@
+schema_version: 1
+mission_id: 01M4AB7RJA9CWRGX98J8H32RCX
+mission_slug: orchestrator-two-planning-01M4AB7R
+mission_number: 221
+friendly_name: Orchestrator 2 governed mission and planning API
+mission_type: software-dev
+target_branch: issue-5846-orchestrator-two
+created_at: '2026-10-07T06:50:21.380655+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-07T06:50:21.380655+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-002
+  category: doc
+  summary: analysis-report.md present with no recorded findings
+  evidence_refs:
+  - e-011
+  details: An analysis-report.md artifact is present and its frontmatter records zero findings with a resolved verdict —
+    the analysis raised nothing.
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-008
+not_helpful:
+- id: n-001
+  category: review_loop
+  summary: WP02 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-009
+  details: WP WP02 was sent back to an earlier lane with documented review feedback 2 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-010
+  details: WP WP03 was sent back to an earlier lane with documented review feedback 1 time(s).
+gaps:
+- id: g-001
+  category: doc
+  summary: research.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md is present but research.md is missing. Research artifacts help future maintainers understand design
+    decisions.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/orchestrator-two-planning-01M4AB7R/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/orchestrator-two-planning-01M4AB7R/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/orchestrator-two-planning-01M4AB7R/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/orchestrator-two-planning-01M4AB7R/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/orchestrator-two-planning-01M4AB7R/tasks/WP01-design-authoring.md
+- id: e-006
+  kind: file
+  path: kitty-specs/orchestrator-two-planning-01M4AB7R/tasks/WP02-context-next.md
+- id: e-007
+  kind: file
+  path: kitty-specs/orchestrator-two-planning-01M4AB7R/tasks/WP03-integration-proof.md
+- id: e-008
+  kind: file
+  path: kitty-specs/orchestrator-two-planning-01M4AB7R/status.events.jsonl
+- id: e-009
+  kind: event_range
+  path: kitty-specs/orchestrator-two-planning-01M4AB7R/status.events.jsonl
+  range: 01M4AH3DXSBZ4BJH89GP13GA1E..01M4AHQB11N5ZCDB6TC149KJ92
+- id: e-010
+  kind: event_range
+  path: kitty-specs/orchestrator-two-planning-01M4AB7R/status.events.jsonl
+  range: 01M4AG5R0SB702Q3BKD7T5MXV1
+- id: e-011
+  kind: file
+  path: kitty-specs/orchestrator-two-planning-01M4AB7R/analysis-report.md
+generator_version: '1.0'
+provenance_history: []
