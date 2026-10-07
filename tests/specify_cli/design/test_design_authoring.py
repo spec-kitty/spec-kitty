@@ -16,6 +16,7 @@ from specify_cli.orchestrator_api.design_authoring import artifact_read, artifac
 from specify_cli.design import authoring, receipts, validation
 from specify_cli.design.context import build_design_context, record_interview_answers
 from specify_cli.design.errors import DesignError
+from mission_runtime import MissionArtifactKind
 from specify_cli.coordination.commit_router import CommitRouterResult
 from tests.specify_cli.orchestrator_api.test_specify_plan_tasks_verbs import _POLICY, _SUBSTANTIVE_SPEC, _git, _init_repo, _specify
 from tests.specify_cli.missions.test_substantive_gate_formats import _BULLETED_REAL
@@ -257,6 +258,25 @@ def test_outline_package_native_finalization_and_frozen_content(mission: tuple[P
     assert caught.value.code == "DESIGN_FINALIZED"
     scaffold = _invoke(repo, ["plan", "--mission", slug, "--policy", _POLICY])
     assert scaffold["error_code"] == "DESIGN_FINALIZED"
+
+
+def test_batch_spanning_artifact_placements_is_refused_before_effects(mission: tuple[Path, str], monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, slug = mission
+    parents = _planning_parents(repo, slug)
+    request = json.loads(_request(repo, slug, "outline", _OUTLINE, parents=parents))
+    request["artifacts"].append({"kind": "work_package", "artifact_id": "WP01", "content": _PROMPT, "expected_sha256": "absent"})
+    real = authoring.placement_seam(repo, slug)
+
+    class Split:
+        def read_dir(self, kind: MissionArtifactKind) -> Path:
+            base = real.read_dir(kind)
+            return base / "elsewhere" if kind is authoring._KINDS["work_package"] else base
+
+    monkeypatch.setattr(authoring, "placement_seam", lambda *_: Split())
+    with pytest.raises(DesignError) as caught:
+        authoring.submit_artifacts(repo, slug, json.dumps(request), "author")
+    assert caught.value.code == "DESIGN_REQUEST_INVALID"
+    assert authoring.read_artifact(repo, slug, "outline")["sha256"] == "absent"
 
 
 @pytest.mark.parametrize("failure", ["cycle", "unknown_requirement", "outside_prompt", "duplicate"])

@@ -196,6 +196,9 @@ def _check_context_and_parents(repo_root: Path, mission_slug: str, request: Subm
     if len(actions) != 1:
         raise DesignError("DESIGN_REQUEST_INVALID", "A submission batch belongs to one design stage")
     action = actions.pop()
+    seam = placement_seam(repo_root, mission_slug)
+    if len({seam.read_dir(_KINDS[item.request.kind]) for item in prepared}) != 1:
+        raise DesignError("DESIGN_REQUEST_INVALID", "A submission batch cannot span artifact placements")
     if planning_context_digest(repo_root, mission_slug, action) != request.context_sha256:
         raise DesignError("DESIGN_CONTEXT_STALE", "Resolved template or governance context changed")
     resolved_interview_answers(repo_root, mission_slug, action)
