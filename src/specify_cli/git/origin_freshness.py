@@ -46,7 +46,6 @@ from specify_cli.status import StoreError, read_events, reduce
 __all__ = [
     "ORIGIN_CHECK_CHOICES",
     "ORIGIN_CHECK_ENV",
-    "ORIGIN_COMPARE_FAILED",
     "ORIGIN_LANE_DIVERGED",
     "READ_ONLY_ORIGIN_CHECK",
     "FreshnessState",
