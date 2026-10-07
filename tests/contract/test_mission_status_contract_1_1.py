@@ -47,11 +47,10 @@ ENTRY_HEADINGS = ("Added", "Changed", "Removed", "Provisional", "Deferred to the
 DEFERRED_HEADING = "Deferred to the next major version"
 PROVISIONAL_HEADING = "Provisional"
 ADDED_HEADING = "Added"
-# the four v1 gaps, each a tuple of strings the Deferred section must hold
+# the three gaps still deferred, each a tuple of strings the Deferred section must hold
 DEFERRED_GAPS: dict[str, tuple[str, ...]] = {
     "per-Mission staleness": ("per-Mission staleness", "MissionOverview"),
     "actor on WorkPackageSummary": ("actor on `WorkPackageSummary`",),
-    "project branch": ("project branch",),
     "lane weights": ("lane weights", "weightedPercentage"),
 }
 # the two behaviours of the artifact reads that a reader of the replaced dashboard routes should know
@@ -197,7 +196,17 @@ def test_the_entry_has_exactly_its_five_headings() -> None:
     assert not _problems_of("heading_", problems), problems
 
 
-def test_the_entry_names_the_four_deferred_gaps_in_its_deferred_section() -> None:
+def test_exactly_three_gaps_remain_deferred_and_the_project_branch_is_not_one() -> None:
+    assert set(DEFERRED_GAPS) == {"per-Mission staleness", "actor on WorkPackageSummary", "lane weights"}
+    assert len(DEFERRED_GAPS) == 3
+    assert "project branch" not in _real_entry_deferred()
+
+
+def _real_entry_deferred() -> str:
+    return entry_sections(_real_entry()).get(DEFERRED_HEADING, "")
+
+
+def test_the_entry_names_the_three_deferred_gaps_in_its_deferred_section() -> None:
     assert not _problems_of("gap_missing", changelog_entry_problems(_real_entry(), []))
 
 
@@ -263,8 +272,8 @@ def test_an_entry_missing_one_deferred_gap_is_refused(gap: str) -> None:
 
 
 def test_a_gap_named_only_outside_the_deferred_section_is_refused() -> None:
-    moved = _edit_section(_real_entry(), DEFERRED_HEADING, lambda text: "") + "\n".join(DEFERRED_GAPS["project branch"])
-    _expect_problem("the gaps named outside the Deferred section", changelog_entry_problems(moved, []), "gap_missing: project branch")
+    moved = _edit_section(_real_entry(), DEFERRED_HEADING, lambda text: "") + "\n".join(DEFERRED_GAPS["lane weights"])
+    _expect_problem("the gaps named outside the Deferred section", changelog_entry_problems(moved, []), "gap_missing: lane weights")
 
 
 @pytest.mark.parametrize("behaviour", list(READ_BEHAVIOURS))

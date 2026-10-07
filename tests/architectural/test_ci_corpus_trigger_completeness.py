@@ -135,6 +135,7 @@ _CORPUS_MARKED_MODULES = frozenset(
         "tests/contract/test_mission_status_detail.py",
         "tests/contract/test_mission_status_examples.py",
         "tests/contract/test_mission_status_payloads.py",
+        "tests/contract/test_mission_status_project.py",
         "tests/contract/test_mission_status_reality.py",
         "tests/contract/test_no_pytest_scan.py",
         "tests/contract/test_provisional_check.py",

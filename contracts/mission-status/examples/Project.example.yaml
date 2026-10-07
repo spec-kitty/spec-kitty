@@ -1,2 +1,7 @@
 name: example-project
 missionCount: 3
+specKittyVersion: 4.0.0
+schemaVersion: 3
+health: healthy
+currentBranch: main
+lastActivityAt: '2026-10-01T09:30:00Z'

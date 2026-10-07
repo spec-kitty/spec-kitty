@@ -226,14 +226,31 @@ def test_ready_to_start_needs_a_planned_lane_and_satisfied_dependencies(lane: st
     assert helper.derive_ready_to_start(lane, satisfied) is expected
 
 
-def _overview(mission_id: str, created: str, number: int | None = None) -> dict[str, Any]:
-    return {"missionId": mission_id, "createdAt": created, "displayNumber": number}
+def _overview(mission_id: str, created: str, number: int | None = None, active: str | None = None) -> dict[str, Any]:
+    return {"missionId": mission_id, "createdAt": created, "displayNumber": number, "lastActivityAt": active}
 
 
-def test_mission_count_is_the_number_of_overview_records() -> None:
+PROJECT_VALUES: dict[str, Any] = {"spec_kitty_version": "4.0.0", "schema_version": 3, "health": "healthy", "current_branch": "main"}
+
+
+def test_the_project_has_seven_properties_and_counts_the_overview_records() -> None:
     records = [_overview("A", "2026-09-01T00:00:00Z"), _overview("B", "2026-09-02T00:00:00Z")]
-    assert helper.derive_project("spec-kitty", records) == {"name": "spec-kitty", "missionCount": 2}
-    assert helper.derive_project("spec-kitty", [])["missionCount"] == 0
+    assert helper.derive_project("spec-kitty", records, **PROJECT_VALUES) == {
+        "name": "spec-kitty",
+        "missionCount": 2,
+        "specKittyVersion": "4.0.0",
+        "schemaVersion": 3,
+        "health": "healthy",
+        "currentBranch": "main",
+        "lastActivityAt": None,
+    }
+    assert helper.derive_project("spec-kitty", [], **PROJECT_VALUES)["missionCount"] == 0
+
+
+def test_the_project_activity_is_the_latest_instant_of_the_overviews_not_the_latest_text() -> None:
+    late_instant = "2026-09-01T09:00:00-05:00"
+    records = [_overview("A", "2026-09-01T00:00:00Z", active="2026-09-01T10:00:00+00:00"), _overview("B", "2026-09-02T00:00:00Z", active=late_instant)]
+    assert helper.derive_project("spec-kitty", records, **PROJECT_VALUES)["lastActivityAt"] == late_instant
 
 
 def test_overviews_order_by_created_instant_descending_then_mission_id_ascending() -> None:

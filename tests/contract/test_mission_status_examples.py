@@ -1386,3 +1386,44 @@ def test_the_review_cycle_pointer_pattern_is_no_wider_than_the_product_validator
         # The schema may never accept what the validator refuses; it need not refuse more.
         assert not matches or valid, f"the schema accepts {pointer!r}, which the validator refuses"
         assert matches == valid, f"the schema and the validator disagree on {pointer!r}"
+
+
+# --------------------------------------------------------------------------------------
+# Project: the five properties of the health, drift and ops slice (FR-001, FR-023)
+# --------------------------------------------------------------------------------------
+
+PROJECT_SCHEMA = "Project"
+PROJECT_REQUIRED = ["name", "missionCount", "specKittyVersion", "schemaVersion", "health", "currentBranch", "lastActivityAt"]
+PROJECT_NULLABLE = ["specKittyVersion", "schemaVersion", "currentBranch", "lastActivityAt"]
+PROJECT_EXAMPLE_FILES = ["Project.all-null.yaml", "Project.example.yaml", "Project.schema-drift.yaml"]
+
+
+def test_the_project_requires_its_five_new_properties_and_stays_closed() -> None:
+    schema = _read(MODULE / "schemas" / "Project.yaml")
+    assert sorted(schema["required"]) == sorted(PROJECT_REQUIRED)
+    assert sorted(schema["properties"]) == sorted(PROJECT_REQUIRED)
+    assert schema["additionalProperties"] is False
+
+
+def test_the_project_examples_cover_the_required_cases() -> None:
+    projects = _instances_of(PROJECT_SCHEMA)
+    assert sorted(projects) == PROJECT_EXAMPLE_FILES, sorted(projects)
+    assert all(sorted(project) == sorted(PROJECT_REQUIRED) for project in projects.values()), "an example lacks a required key"
+    _first(projects, lambda project: project["health"] == "healthy" and all(project[key] is not None for key in PROJECT_NULLABLE))
+    _first(projects, lambda project: project["health"] == "schema_drift" and all(project[key] is None for key in PROJECT_NULLABLE))
+    _first(projects, lambda project: project["health"] == "schema_drift" and project["schemaVersion"] is not None and project["lastActivityAt"] is not None)
+
+
+@pytest.mark.parametrize("missing", PROJECT_REQUIRED)
+def test_a_project_without_one_required_key_is_rejected_through_both_paths(missing: str) -> None:
+    instance = dict(_instances_of(PROJECT_SCHEMA)["Project.example.yaml"])
+    instance.pop(missing)
+    resolver_errors, library_errors = _both_paths(MODULE, PROJECT_SCHEMA, instance)
+    assert resolver_errors and library_errors, f"a Project without {missing} was accepted"
+
+
+def test_a_project_health_outside_the_two_values_is_rejected_through_both_paths() -> None:
+    for value in ("unhealthy", "schemaDrift", "SCHEMA_DRIFT", None):
+        instance = {**_instances_of(PROJECT_SCHEMA)["Project.example.yaml"], "health": value}
+        resolver_errors, library_errors = _both_paths(MODULE, PROJECT_SCHEMA, instance)
+        assert resolver_errors and library_errors, f"health {value!r} was accepted"

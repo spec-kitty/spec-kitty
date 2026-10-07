@@ -49,7 +49,9 @@ from specify_cli.review.artifacts import ReviewCycleArtifact
 from specify_cli.status.reducer import materialize_snapshot
 from tests.contract import _mission_status_artifacts as artifacts
 from tests.contract import _mission_status_detail as detail
+from tests.contract import _mission_status_memo as memo_module
 from tests.contract import _mission_status_payloads as helper
+from tests.contract import _mission_status_project as project_builder
 from tests.contract._mission_status_payloads import (
     FLOORS,
     EmptyCaseListError,
@@ -426,9 +428,19 @@ def test_overviews_order_strictly_and_missions_are_unique(tools: helper.Contract
 @pytest.mark.timeout(120)
 def test_the_project_counts_the_overview_records(tools: helper.ContractTools, contract: helper.Contract) -> None:
     overviews = [result.overview for result in _all_results(tools, contract).values()]
-    project = helper.derive_project(helper.read_project_name(REPO_ROOT), overviews)
+    built = project_builder.build_project(REPO_ROOT, memo_module.ResolverMemo(), leak=tools.leak)
+    project = built.body
     assert contract.errors(helper.SCHEMA_PROJECT, project) == []
     assert project["missionCount"] == len(overviews) == len(CASES)
+    # The v1 build of the same project is the control: its Mission count and its latest activity are the builder's.
+    assert project == helper.derive_project(
+        helper.read_project_name(REPO_ROOT),
+        overviews,
+        spec_kitty_version=project["specKittyVersion"],
+        schema_version=project["schemaVersion"],
+        health=project["health"],
+        current_branch=project["currentBranch"],
+    )
     assert helper.payload_leaks(project, tools) == []
 
 

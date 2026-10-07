@@ -1,10 +1,18 @@
 title: Project
 description: >-
-  The project the service reports on. It carries a name and a count only; it never carries a
-  path, a worktree location or a credential.
+  The project the service reports on: its name, the number of Missions it lists (missionCount),
+  and five properties of the project's state: specKittyVersion and schemaVersion (what the project
+  recorded), health (whether that schema is one the serving build supports), currentBranch (the
+  branch checked out) and lastActivityAt (the latest Mission activity). It never carries a path, a worktree location or a credential.
+  GET /project is read-only, side-effect-free and safe to call once per recent project; it runs no
+  drift scan, and health never depends on a drift finding. It is not free: missionCount and
+  lastActivityAt need every listed Mission, so the read resolves each Mission's read directory
+  through git queries, which can include network probes for a Mission whose declared coordination
+  branch is absent locally, and reduces its event log. The cost grows with the Mission count and,
+  for those Missions, with the network, so side-effect-free does not mean not network-free.
 type: object
 additionalProperties: false
-required: [name, missionCount]
+required: [name, missionCount, specKittyVersion, schemaVersion, health, currentBranch, lastActivityAt]
 properties:
   name:
     type: string
@@ -25,5 +33,89 @@ properties:
         - MissionOverviewPage.items
         - path: src/specify_cli/mission_metadata.py
           symbol: load_meta
+  specKittyVersion:
+    type:
+      - string
+      - 'null'
+    maxLength: 64
+    pattern: '^[0-9A-Za-z][0-9A-Za-z.+!_-]{0,63}$'
+    description: >-
+      The Spec Kitty version the project recorded in .kittify/metadata.yaml (spec_kitty.version).
+      Null when the file is absent, empty, unreadable or not the expected shape, when it records
+      no version, and when the recorded value is not a string of the pattern; the product's own
+      placeholder for a missing version never leaves the service. A strict field: projected or
+      null, never redacted.
+    x-source:
+      path: src/specify_cli/upgrade/metadata.py
+      symbol: ProjectMetadata
+  schemaVersion:
+    type:
+      - integer
+      - 'null'
+    description: >-
+      The schema version the project recorded (spec_kitty.schema_version), exactly as the command
+      line coerces it: a numeric string, a float and a boolean in the file are served as the
+      integer the CLI's coercion gives (the string "3" is 3, 3.9 is 3, true is 1). Null when the
+      file is absent or unreadable, the field is absent, or the value is not an integer after that
+      coercion.
+    x-source:
+      path: src/specify_cli/migration/schema_version.py
+      symbol: get_project_schema_version
+  health:
+    $ref: ProjectHealth.yaml
+    description: >-
+      healthy exactly when schemaVersion is not null and lies in the range of schema versions the
+      serving build supports; otherwise schema_drift. The range is that of the serving build, so
+      the same project reads healthy or schema_drift depending on which build serves it. It rolls
+      up the three non-compatible schema statuses (unmigrated, outdated, cli_outdated); the finer
+      split stays in schemaVersion. It never depends on a drift finding. This property is provisional.
+    x-derived:
+      rule: >-
+        healthy when schemaVersion is not null and MIN_SUPPORTED_SCHEMA <= schemaVersion <=
+        MAX_SUPPORTED_SCHEMA of the serving build; otherwise schema_drift.
+      inputs:
+        - schemaVersion
+        - path: src/specify_cli/migration/schema_version.py
+          symbol: MIN_SUPPORTED_SCHEMA
+        - path: src/specify_cli/migration/schema_version.py
+          symbol: MAX_SUPPORTED_SCHEMA
+        - path: src/specify_cli/migration/schema_version.py
+          symbol: check_compatibility
+    x-provisional:
+      open_decision: >-
+        Whether the two-value badge and its range rule (the serving build's, not the project's)
+        are the right health vocabulary is an open decision on the Projects screen.
+  currentBranch:
+    type:
+      - string
+      - 'null'
+    minLength: 1
+    maxLength: 255
+    pattern: '^[A-Za-z0-9][A-Za-z0-9._/-]*$'
+    description: >-
+      The branch the project's HEAD names, read from the HEAD file with no process started; an
+      unborn branch is its name. Null means no branch name this contract can carry: a detached
+      HEAD, no repository, an unreadable or unparseable HEAD, a name that fails the pattern or is
+      too long, or a name that is a host path. It does not separate those cases. A served name is
+      user-authored text served as stored, so it can carry a handle, as Workspace.laneBranch can.
+    x-source:
+      path: src/specify_cli/core/git_ops.py
+      symbol: get_current_branch
+  lastActivityAt:
+    type:
+      - string
+      - 'null'
+    format: date-time
+    description: >-
+      The latest MissionHead.lastActivityAt over exactly the Missions GET /missions lists, compared
+      as instants (different offsets are ordered by instant, not by text) and served as that
+      Mission's own string. Null when no Mission is listed and when every listed Mission has null
+      activity.
+    x-derived:
+      rule: The latest instant of lastActivityAt over the Missions GET /missions lists; null when none is listed or none has activity.
+      inputs:
+        - MissionHead.lastActivityAt
 examples:
   - $ref: ../examples/Project.example.yaml
+  - $ref: ../examples/Project.all-null.yaml
+  - $ref: ../examples/Project.schema-drift.yaml

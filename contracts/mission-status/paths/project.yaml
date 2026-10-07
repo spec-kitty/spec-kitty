@@ -1,7 +1,11 @@
 get:
   operationId: getProject
   summary: Read the project header.
-  description: Returns the project name and the number of Missions the service lists.
+  description: >-
+    Returns the project name, the number of Missions the service lists, the recorded Spec Kitty
+    and schema versions, the health badge, the current branch and the latest Mission activity.
+    The read is side-effect-free and runs no drift scan; its cost grows with the Mission count
+    (see the Project schema).
   tags:
     - Project
   responses:

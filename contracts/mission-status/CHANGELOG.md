@@ -122,6 +122,16 @@ pushed by a maintainer. Until then the breaking-change job has no baseline and r
 - `StatusTransitionEvent` names the `StatusEvent` fields it leaves out, so projecting one later
   is a visible contract change.
 
+- Pre-release shape change: `Project` gains five required properties: `specKittyVersion`,
+  `schemaVersion`, `health` (the new schema `ProjectHealth`: `healthy`, `schema_drift`),
+  `currentBranch` and `lastActivityAt`. Each is required and nullable except `health`, so an
+  absent key is never a valid answer. The `Project` description now states that the read is
+  side-effect-free but not free: its cost grows with the Mission count and its git queries can
+  include network probes. The breaking-change tooling reports the four non-provisional additions
+  (`specKittyVersion`, `schemaVersion`, `currentBranch`, `lastActivityAt`) as breaking, because
+  they add required properties to an existing, closed response; this is the one change of an
+  existing response, made before the contract is released, and `health` is provisional.
+
 ### Removed
 
 - Nothing. This is the initial version.
@@ -158,13 +168,13 @@ pushed by a maintainer. Until then the breaking-change job has no baseline and r
 - `WorkPackageDetailRefusalCode` (the schema) and `WorkPackageDetailRefusal` (the schema, with its
   `code`): the two codes and the status each takes are a proposal.
 - `kind` of `ArtifactReference`: it carries the provisional `ArtifactKind`.
+- `health` of `Project`: the two-value badge and the serving build's range rule are a proposal.
 
 ### Deferred to the next major version
 
-Four gaps are decided out of this release. Each would add a property to an existing, closed response, which the
+Three gaps are decided out of this release. Each would add a property to an existing, closed response, which the
 breaking-change check treats as breaking once the contract is released, so each waits for the next major version.
 
 - The per-Mission staleness on `MissionOverview`: a new property of an existing, closed response.
 - An actor on `WorkPackageSummary`: a new property of an existing, closed response.
-- The project branch: a new property of an existing, closed response.
 - The lane weights behind `weightedPercentage`: new properties of an existing, closed response.

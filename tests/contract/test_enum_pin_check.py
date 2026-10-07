@@ -149,7 +149,7 @@ def test_the_real_pin_file_pins_the_three_vocabularies() -> None:
 def test_the_real_mission_status_module_passes_against_the_default_pin_file() -> None:
     result = _run("--root", str(CONTRACTS), "--module", "mission-status")
     assert result.returncode == 0, result.stdout
-    assert result.stdout.splitlines()[-1] == "counts: enums=7 values=43"
+    assert result.stdout.splitlines()[-1] == "counts: enums=8 values=45"
 
 
 @pytest.fixture
@@ -177,3 +177,21 @@ def test_a_real_copy_without_a_topology_value_fails(module_copy: Path) -> None:
     result = _run("--root", str(module_copy), "--module", "mission-status")
     assert result.returncode == 1
     assert "ENUM_VALUE_REMOVED: mission-status:Topology" in result.stdout
+
+
+def test_the_project_health_enum_is_pinned_in_snake_case() -> None:
+    assert _real_pins()["mission-status"]["ProjectHealth"] == ["healthy", "schema_drift"]
+
+
+def test_a_camel_case_health_value_fails_the_pin_in_both_directions(module_copy: Path) -> None:
+    control = _run("--root", str(module_copy), "--module", "mission-status")
+    assert control.returncode == 0, control.stdout
+    target = module_copy / "mission-status" / "schemas" / "ProjectHealth.yaml"
+    document = yaml.safe_load(target.read_text(encoding="utf-8"))
+    assert "schema_drift" in document["enum"], "the plant would change nothing"
+    document["enum"] = ["schemaDrift" if value == "schema_drift" else value for value in document["enum"]]
+    target.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+    result = _run("--root", str(module_copy), "--module", "mission-status")
+    assert result.returncode == 1
+    assert "ENUM_VALUE_ADDED: mission-status:ProjectHealth" in result.stdout
+    assert "ENUM_VALUE_REMOVED: mission-status:ProjectHealth" in result.stdout

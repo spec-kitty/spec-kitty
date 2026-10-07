@@ -338,9 +338,29 @@ def derive_ready_to_start(status_lane: str | None, readiness_satisfied: bool) ->
     return status_lane == "planned" and readiness_satisfied
 
 
-def derive_project(name: str, overviews: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    """``missionCount`` is the number of overview records."""
-    return {"name": name, "missionCount": len(overviews)}
+def derive_project(
+    name: str,
+    overviews: Sequence[Mapping[str, Any]],
+    *,
+    spec_kitty_version: str | None,
+    schema_version: int | None,
+    health: str,
+    current_branch: str | None,
+) -> dict[str, Any]:
+    """The seven properties of ``Project``: ``missionCount`` is the number of overview records, ``lastActivityAt`` the latest instant of theirs.
+
+    The other four come from the project files, not from a Mission; the caller states them, so this stays the v1 derivation of the two
+    properties that depend on what ``GET /missions`` lists.
+    """
+    return {
+        "name": name,
+        "missionCount": len(overviews),
+        "specKittyVersion": spec_kitty_version,
+        "schemaVersion": schema_version,
+        "health": health,
+        "currentBranch": current_branch,
+        "lastActivityAt": _latest_instant(overview.get("lastActivityAt") for overview in overviews),
+    }
 
 
 def overview_order_key(overview: Mapping[str, Any]) -> tuple[Any, str]:

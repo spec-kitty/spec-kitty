@@ -6,6 +6,7 @@
     "ArtifactKind": ["review_cycle", "work_package_prompt", "spec", "plan", "tasks", "data_model", "quickstart", "analysis_report", "research", "contract", "checklist", "other"],
     "ArtifactRefusalCode": ["invalid_artifact_path", "not_found", "artifact_too_large", "artifact_not_text", "artifact_secret", "artifact_unreadable", "artifact_listing_unreadable"],
     "ChangeState": ["changed", "unchanged", "unknown"],
-    "WorkPackageDetailRefusalCode": ["not_found", "source_unreadable"]
+    "WorkPackageDetailRefusalCode": ["not_found", "source_unreadable"],
+    "ProjectHealth": ["healthy", "schema_drift"]
   }
 }

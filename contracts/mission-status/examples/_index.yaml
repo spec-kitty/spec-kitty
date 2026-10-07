@@ -27,7 +27,9 @@ files:
   - MissionOverviewPage.last.yaml
   - MissionOverviewPage.middle.yaml
   - PageCursorRefusal.invalid.yaml
+  - Project.all-null.yaml
   - Project.example.yaml
+  - Project.schema-drift.yaml
   - StatusTransitionEvent.first.yaml
   - StatusTransitionEvent.forced.yaml
   - StatusTransitionEvent.moved.yaml

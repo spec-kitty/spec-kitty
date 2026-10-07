@@ -1,0 +1,12 @@
+title: ProjectHealth
+description: >-
+  Whether the schema version a project recorded is one the serving build supports: healthy, or
+  schema_drift. The supported range is that of the serving build, and schema_drift rolls up the
+  three non-compatible schema statuses (unmigrated, outdated, cli_outdated).
+type: string
+enum:
+  - healthy
+  - schema_drift
+x-source:
+  path: src/specify_cli/migration/schema_version.py
+  symbol: CompatibilityStatus

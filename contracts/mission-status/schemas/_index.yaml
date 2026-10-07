@@ -29,6 +29,7 @@ files:
   - OwnedFile.yaml
   - PageCursorRefusal.yaml
   - Project.yaml
+  - ProjectHealth.yaml
   - Readiness.yaml
   - RelativeReference.yaml
   - Review.yaml
