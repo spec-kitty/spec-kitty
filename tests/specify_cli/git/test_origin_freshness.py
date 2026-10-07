@@ -313,6 +313,36 @@ def test_status_evidence_diverged_when_remote_status_moved_and_local_committed(m
     assert (verdict.state, verdict.behind, verdict.ahead) == (FreshnessState.DIVERGED, 1, 1)
 
 
+def _write_status_log(clone: Path, slug: str, event_ids: list[str]) -> None:
+    log = clone / "kitty-specs" / slug / _STATUS_LOG
+    log.write_text("".join(json.dumps({"event_id": event_id, "wp_id": "WP01"}) + "\n" for event_id in event_ids), encoding="utf-8")
+    _git(clone, "add", "-A")
+    _git(clone, "commit", "-q", "-m", f"status: {len(event_ids)} events")
+
+
+def test_status_evidence_squash_with_identical_log_content_is_up_to_date(mission: MissionWorld) -> None:
+    """The remote squashed the per-event commits into one: commits differ, the log content is identical."""
+    _write_status_log(mission.repo, mission.slug, ["01A"])
+    _write_status_log(mission.repo, mission.slug, ["01A", "01B"])
+    _write_status_log(mission.second, mission.slug, ["01A", "01B"])
+    _git(mission.second, "push", "-q", "origin", mission.target_branch)
+
+    verdict = _status_evidence(mission.repo, mission.slug)
+
+    assert verdict.state is FreshnessState.UP_TO_DATE
+    assert verdict.behind == 0
+
+
+def test_status_evidence_squash_with_different_log_content_still_diverges(mission: MissionWorld) -> None:
+    _write_status_log(mission.repo, mission.slug, ["01A"])
+    _write_status_log(mission.second, mission.slug, ["01A", "01B"])
+    _git(mission.second, "push", "-q", "origin", mission.target_branch)
+
+    verdict = _status_evidence(mission.repo, mission.slug)
+
+    assert (verdict.state, verdict.behind) == (FreshnessState.DIVERGED, 1)
+
+
 def test_status_evidence_unreachable(mission: MissionWorld) -> None:
     unreachable_remote(mission.repo)
 

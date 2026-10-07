@@ -22,6 +22,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Literal
 
+from kernel.git import GitCommandError, tree_entry
 from kernel.git.remote import RemoteUnreachable, divergence, fetch_branches, remote_heads, resolve_remote, tracking_ref
 from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam
 from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted, CoordinationWorktreeUnmaterialized
@@ -182,11 +183,30 @@ def _classify(behind: int, ahead: int, *, scoped: bool) -> FreshnessState:
     return FreshnessState.UP_TO_DATE
 
 
+def _scoped_content_identical(repo_root: Path, local_ref: str, remote_ref: str, scope: Sequence[str]) -> bool:
+    """``True`` when every scoped path has the same blob on both refs (absent on both counts as the same).
+
+    Local object reads only. A squash merge rewrites the commits that touched the
+    status log without changing its content, so the commit count alone would call
+    that branch behind. Any git error answers ``False``: the commit-count verdict stands.
+    """
+    try:
+        for path in scope:
+            local, remote = tree_entry(repo_root, local_ref, path), tree_entry(repo_root, remote_ref, path)
+            if (local.oid if local else None) != (remote.oid if remote else None):
+                return False
+    except GitCommandError:
+        return False
+    return True
+
+
 def _compare(repo_root: Path, remote: str, probe: _Probe, remote_sha: str) -> FreshnessVerdict:
     """Compare a fetched, locally present branch with its tracking ref."""
     remote_ref = tracking_ref(remote, probe.branch)
     total = divergence(repo_root, probe.branch, remote_ref)
     behind = divergence(repo_root, probe.branch, remote_ref, paths=probe.scope).behind if probe.scope else total.behind
+    if behind > 0 and probe.scope and _scoped_content_identical(repo_root, probe.branch, remote_ref, probe.scope):
+        behind = 0
     return FreshnessVerdict(
         branch=probe.branch,
         remote=remote,
