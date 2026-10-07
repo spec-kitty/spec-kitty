@@ -4,12 +4,13 @@ Covers:
 - T069-A: Full migration on clean legacy project: all steps succeed
 - T069-B: Mid-flight features: state preserved accurately
 - T069-C: Failure in step 3 (ownership): rollback to pre-migration state
-- T069-D: Failure in step 7 (schema version): rollback to pre-migration state
+- T069-D: Failure in the schema-version step: rollback to pre-migration state
 - T069-E: Dry run: no files modified
 - T069-F: Performance: 5 features / 50 WPs completes in < 30 seconds (CI-safe threshold)
 - T069-G: MigrationReport contains correct counters
 - T069-H: .gitignore entries added
 - T069-I: Schema version updated in metadata.yaml
+- #5443: the runner is git-free -- it never stages, commits, or moves HEAD or the index
 """
 
 from __future__ import annotations
@@ -113,7 +114,7 @@ def _make_legacy_project(
             )
             (tasks_dir / f"{wp_name}-title.md").write_text(content, encoding="utf-8")
 
-    # Git init (required for commit step)
+    # Git init (the runner itself never touches git; a repository lets tests prove that)
     if git_init:
         subprocess.run(["git", "init"], cwd=root, capture_output=True)
         subprocess.run(
@@ -124,7 +125,7 @@ def _make_legacy_project(
             ["git", "config", "user.name", "Test User"],
             cwd=root, capture_output=True,
         )
-        subprocess.run(["git", "add", "-A"], cwd=root, capture_output=True)
+        subprocess.run(["git", "add", "--", ".kittify", ".gitignore", "kitty-specs"], cwd=root, capture_output=True)
         subprocess.run(
             ["git", "commit", "-m", "initial"],
             cwd=root, capture_output=True,
@@ -319,7 +320,7 @@ class TestRollbackOnOwnershipFailure:
 
 
 # ---------------------------------------------------------------------------
-# T069-D: Rollback on step 7 failure (schema version update)
+# T069-D: Rollback on schema version update failure
 # ---------------------------------------------------------------------------
 
 
@@ -582,3 +583,40 @@ class TestBackupHelpers:
 
         restored = yaml.safe_load((kittify / "metadata.yaml").read_text(encoding="utf-8"))
         assert restored.get("original") is True
+
+
+# ---------------------------------------------------------------------------
+# #5443: the runner is git-free
+# ---------------------------------------------------------------------------
+
+
+def _git_out(root: Path, *args: str) -> str:
+    return subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=True).stdout
+
+
+class TestRunnerLeavesGitAlone:
+    def test_head_and_index_unchanged(self, tmp_path: Path) -> None:
+        """run_migration writes files only: HEAD and the operator's staged work are untouched."""
+        root = _make_legacy_project(tmp_path, features=[{"slug": "001-demo", "wps": [{"name": "WP01", "lane": "planned"}]}])
+        (root / "notes.txt").write_text("operator note\n", encoding="utf-8")
+        _git_out(root, "add", "--", "notes.txt")
+        head_before = _git_out(root, "rev-parse", "HEAD")
+        staged_before = _git_out(root, "diff", "--cached", "--name-only", "-z")
+        assert staged_before == "notes.txt\0"
+
+        report = run_migration(root)
+
+        assert report.success, report.errors
+        assert _git_out(root, "rev-parse", "HEAD") == head_before
+        assert _git_out(root, "diff", "--cached", "--name-only", "-z") == staged_before
+        migrated = yaml.safe_load((root / ".kittify" / "metadata.yaml").read_text(encoding="utf-8"))
+        assert migrated["spec_kitty"]["schema_version"] == 3
+
+    def test_migration_succeeds_outside_git(self, tmp_path: Path) -> None:
+        """No commit dependency: a project that is not a git repository migrates."""
+        root = _make_legacy_project(tmp_path, features=[{"slug": "001-demo", "wps": [{"name": "WP01", "lane": "planned"}]}], git_init=False)
+
+        report = run_migration(root)
+
+        assert report.success is True
+        assert report.failed_step is None

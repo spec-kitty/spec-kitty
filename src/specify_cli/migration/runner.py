@@ -1,8 +1,11 @@
 """Atomic migration orchestrator for canonical context architecture.
 
-Orchestrates all migration steps in the correct order with a single
-atomic git commit.  Any failure triggers a rollback to the pre-migration
-state via backup restoration.
+Orchestrates all migration steps in the correct order.  Any failure triggers a
+rollback to the pre-migration state via backup restoration.
+
+The runner writes files, rolls back on failure, and never touches git: it does
+not stage, commit, or move HEAD or the index.  ``spec-kitty upgrade`` owns the
+commit decision (its pre-run baseline, hooks honoured, only on success).
 
 Step order (must be maintained):
   1.  Backup
@@ -10,11 +13,11 @@ Step order (must be maintained):
   3.  Ownership backfill
   4.  State rebuild (event log)
   5.  Strip frontmatter  (AFTER state rebuild)
-  6.  Rewrite agent shims
-  7.  Update schema version in metadata.yaml
-  8.  Update .gitignore
-  9.  Move derived files (status.json → .kittify/derived/)
-  10. Commit
+  6.  Update schema version in metadata.yaml
+  7.  Update .gitignore
+  8.  Move derived files (status.json → .kittify/derived/)
+  9.  Rewrite agent shims (non-fatal; last, so a failure in steps 6-8 never
+      leaves rewritten shims outside ``.kittify/``, which the backup does not cover)
 
 Rollback on any failure: restore backup, report which step failed.
 """
@@ -23,12 +26,10 @@ from __future__ import annotations
 
 import logging
 import shutil
-import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from kernel.clock import now_utc_iso
-from kernel.git import GitCommandError, status_entries
 
 logger = logging.getLogger(__name__)
 
@@ -65,13 +66,22 @@ class MigrationReport:
 # ---------------------------------------------------------------------------
 
 _BACKUP_DIR_NAME = ".migration-backup"
+_KITTY_SPECS_BACKUP = "kitty-specs-backup"
+_GITIGNORE_BACKUP = "gitignore-backup"
+_GITIGNORE_ABSENT_SENTINEL = "gitignore-absent"
+# Entries of the backup directory that are NOT copies of ``.kittify/`` content: they are
+# restored to their real homes (``kitty-specs/``, ``.gitignore``) and must never be copied
+# back into ``.kittify/`` (#4763).
+_BACKUP_SIBLING_ENTRIES = frozenset({_KITTY_SPECS_BACKUP, _GITIGNORE_BACKUP, _GITIGNORE_ABSENT_SENTINEL})
 
 
 def _create_backup(repo_root: Path) -> Path | None:
     """Back up .kittify/, kitty-specs/, and .gitignore into .kittify/.migration-backup/.
 
     The migration mutates all three locations, so rollback must cover all of them.
-    Returns the backup directory path, or None if backup failed.
+    A missing ``.gitignore`` is recorded with an empty sentinel so rollback removes
+    the one the migration creates.  Returns the backup directory path, or None if
+    backup failed.
     """
     kittify = repo_root / ".kittify"
     if not kittify.exists():
@@ -96,12 +106,14 @@ def _create_backup(repo_root: Path) -> Path | None:
         # 2. Back up kitty-specs/ (migration modifies WP frontmatter and event logs)
         kitty_specs = repo_root / "kitty-specs"
         if kitty_specs.is_dir():
-            shutil.copytree(kitty_specs, backup_dir / "kitty-specs-backup")
+            shutil.copytree(kitty_specs, backup_dir / _KITTY_SPECS_BACKUP)
 
-        # 3. Back up .gitignore (migration modifies it)
+        # 3. Back up .gitignore (migration modifies or creates it)
         gitignore = repo_root / ".gitignore"
         if gitignore.is_file():
-            shutil.copy2(gitignore, backup_dir / "gitignore-backup")
+            shutil.copy2(gitignore, backup_dir / _GITIGNORE_BACKUP)
+        else:
+            (backup_dir / _GITIGNORE_ABSENT_SENTINEL).touch()
 
         logger.info("Backup created at %s (includes kitty-specs/ and .gitignore)", backup_dir)
         return backup_dir
@@ -110,27 +122,49 @@ def _create_backup(repo_root: Path) -> Path | None:
         return None
 
 
-def _restore_backup(repo_root: Path, backup_dir: Path) -> None:
-    """Restore .kittify/, kitty-specs/, and .gitignore from backup (used on rollback)."""
+def _restore_siblings(repo_root: Path, backup_dir: Path) -> bool:
+    """Restore ``kitty-specs/`` and ``.gitignore`` from their backup siblings."""
+    ok = True
+    kitty_specs_backup = backup_dir / _KITTY_SPECS_BACKUP
+    if kitty_specs_backup.is_dir():
+        kitty_specs = repo_root / "kitty-specs"
+        try:
+            if kitty_specs.is_dir():
+                shutil.rmtree(kitty_specs)
+            shutil.copytree(kitty_specs_backup, kitty_specs)
+            logger.info("Restored kitty-specs/ from backup")
+        except OSError as exc:
+            logger.warning("Could not restore kitty-specs/ during rollback: %s", exc)
+            ok = False
+
+    gitignore_backup = backup_dir / _GITIGNORE_BACKUP
+    try:
+        if gitignore_backup.is_file():
+            shutil.copy2(gitignore_backup, repo_root / ".gitignore")
+            logger.info("Restored .gitignore from backup")
+        elif (backup_dir / _GITIGNORE_ABSENT_SENTINEL).exists():
+            # There was no .gitignore before the run: the one present now is ours.
+            (repo_root / ".gitignore").unlink(missing_ok=True)
+            logger.info("Removed .gitignore created by the migration")
+    except OSError as exc:
+        logger.warning("Could not restore .gitignore during rollback: %s", exc)
+        ok = False
+    return ok
+
+
+def _restore_backup(repo_root: Path, backup_dir: Path) -> bool:
+    """Restore .kittify/, kitty-specs/, and .gitignore from backup (used on rollback).
+
+    Returns ``True`` only when every restore operation succeeded; after a partial
+    restore the backup is the only copy of what failed to come back, so the caller
+    must keep it.
+    """
     kittify = repo_root / ".kittify"
     if not backup_dir.exists():
         logger.error("Backup directory %s does not exist — cannot restore", backup_dir)
-        return
+        return False
 
-    # Restore kitty-specs/ if backed up
-    kitty_specs_backup = backup_dir / "kitty-specs-backup"
-    if kitty_specs_backup.is_dir():
-        kitty_specs = repo_root / "kitty-specs"
-        if kitty_specs.is_dir():
-            shutil.rmtree(kitty_specs)
-        shutil.copytree(kitty_specs_backup, kitty_specs)
-        logger.info("Restored kitty-specs/ from backup")
-
-    # Restore .gitignore if backed up
-    gitignore_backup = backup_dir / "gitignore-backup"
-    if gitignore_backup.is_file():
-        shutil.copy2(gitignore_backup, repo_root / ".gitignore")
-        logger.info("Restored .gitignore from backup")
+    ok = _restore_siblings(repo_root, backup_dir)
 
     # Remove current .kittify content (except the backup itself)
     for item in kittify.iterdir():
@@ -143,9 +177,12 @@ def _restore_backup(repo_root: Path, backup_dir: Path) -> None:
                 item.unlink()
         except OSError as exc:
             logger.warning("Could not remove %s during rollback: %s", item, exc)
+            ok = False
 
-    # Restore from backup
+    # Restore from backup (the siblings above are not .kittify content)
     for item in backup_dir.iterdir():
+        if item.name in _BACKUP_SIBLING_ENTRIES:
+            continue
         dest = kittify / item.name
         try:
             if item.is_dir():
@@ -154,19 +191,24 @@ def _restore_backup(repo_root: Path, backup_dir: Path) -> None:
                 shutil.copy2(item, dest)
         except OSError as exc:
             logger.warning("Could not restore %s during rollback: %s", item, exc)
+            ok = False
 
-    logger.info("Rollback complete: .kittify/ restored from backup")
+    if ok:
+        logger.info("Rollback complete: .kittify/ restored from backup")
+    return ok
 
 
-def _cleanup_backup(repo_root: Path) -> None:
-    """Remove the backup directory after a successful migration."""
+def _cleanup_backup(repo_root: Path) -> bool:
+    """Remove the backup directory; return ``False`` when it could not be removed."""
     backup_dir = repo_root / ".kittify" / _BACKUP_DIR_NAME
     if backup_dir.exists():
         try:
             shutil.rmtree(backup_dir)
-            logger.debug("Backup directory removed after successful migration")
+            logger.debug("Backup directory removed")
         except OSError as exc:
             logger.warning("Could not remove backup dir: %s", exc)
+            return False
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -230,16 +272,13 @@ _GITIGNORE_ADD_ENTRIES = [
     ".kittify/.migration-backup/",
 ]
 
-_GITIGNORE_REMOVE_ENTRIES = [
-    # Old workspaces location (now .kittify/runtime/workspaces/)
-    ".kittify/workspaces/",
-    # Old merge-state location
-    ".kittify/merge-state.json",
-]
+# Obsolete ignore lines (``.kittify/workspaces/``, ``.kittify/merge-state.json``) are
+# deliberately KEPT: removing them un-ignores operator runtime files that a later commit
+# would then pick up (same class as m_3_2_6rc3_narrow_cursor_gitignore).
 
 
 def _update_gitignore(repo_root: Path) -> list[str]:
-    """Add new entries and remove obsolete entries from .gitignore.
+    """Add new entries to .gitignore (obsolete entries are kept, never removed).
 
     Returns list of descriptions of changes made.
     """
@@ -262,15 +301,6 @@ def _update_gitignore(repo_root: Path) -> list[str]:
                 content += "\n"
             content += entry + "\n"
             changes.append(f"Added .gitignore entry: {entry}")
-
-    # Remove obsolete entries (only if present)
-    for obsolete in _GITIGNORE_REMOVE_ENTRIES:
-        if obsolete in content:
-            # Remove the line
-            lines = content.splitlines(keepends=True)
-            new_lines = [ln for ln in lines if ln.rstrip("\n\r") != obsolete]
-            content = "".join(new_lines)
-            changes.append(f"Removed obsolete .gitignore entry: {obsolete}")
 
     if content != original_content:
         gitignore_path.write_text(content, encoding="utf-8")
@@ -319,85 +349,30 @@ def _move_derived_files(repo_root: Path) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Git helpers
-# ---------------------------------------------------------------------------
-
-
-def _git_add_all(repo_root: Path) -> bool:
-    """Stage all changes (git add -A). Returns True on success."""
-    try:
-        result = subprocess.run(
-            ["git", "add", "-A"],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        return result.returncode == 0
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        logger.error("git add -A failed: %s", exc)
-        return False
-
-
-def _git_commit(repo_root: Path, message: str) -> bool:
-    """Create the migration commit. Retries once with --no-verify if needed.
-
-    Returns True on success.
-    """
-    # Check if there is anything to commit
-    try:
-        if not status_entries(repo_root, untracked=None, timeout=30):
-            logger.info("Nothing to commit — migration produced no file changes")
-            return True
-    except GitCommandError as exc:
-        # Advisory pre-check: if the probe fails, fall through and let the
-        # commit attempts below decide (as before).
-        logger.debug("git status pre-check failed: %s", exc)
-
-    # First attempt: normal commit (honours hooks)
-    try:
-        result = subprocess.run(
-            ["git", "-c", "commit.gpgsign=false", "commit", "-m", message],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-        if result.returncode == 0:
-            logger.info("Migration commit created successfully")
-            return True
-        logger.warning("git commit failed (attempt 1): %s", result.stderr.strip())
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        logger.warning("git commit exception (attempt 1): %s", exc)
-
-    # Second attempt: skip hooks (migration commits must succeed)
-    try:
-        result = subprocess.run(
-            ["git", "-c", "commit.gpgsign=false", "commit", "--no-verify", "-m", message],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-        if result.returncode == 0:
-            logger.info("Migration commit created with --no-verify")
-            return True
-        logger.error("git commit failed (attempt 2 --no-verify): %s", result.stderr.strip())
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        logger.error("git commit exception (attempt 2): %s", exc)
-
-    return False
-
-
-# ---------------------------------------------------------------------------
 # Main orchestrator
 # ---------------------------------------------------------------------------
+
+
+def _settle_failed_backup(repo_root: Path, backup_dir: Path, report: MigrationReport) -> None:
+    """Roll back after a failure and remove the backup, but only after a full restore.
+
+    The backup holds copies of everything under ``.kittify/`` (ignored operator files
+    included), so it must not outlive a successful rollback.  After a partial restore it
+    is the only copy of what failed to come back: keep it and say where it is.
+    """
+    if _restore_backup(repo_root, backup_dir):
+        if not _cleanup_backup(repo_root):
+            report.warnings.append(f"Rollback succeeded but the backup at {backup_dir} could not be removed; delete it by hand.")
+        return
+    report.warnings.append(
+        f"Rollback was incomplete: the backup at {backup_dir} holds the pre-migration state; restore from it by hand and then delete it."
+    )
 
 
 def run_migration(repo_root: Path, dry_run: bool = False) -> MigrationReport:  # noqa: C901
     """Orchestrate the full one-shot migration atomically.
 
-    Runs 10 ordered steps.  On any failure the backup is restored and
+    Runs 9 ordered steps.  On any failure the backup is restored and
     ``MigrationReport.failed_step`` is set.
 
     Args:
@@ -426,7 +401,7 @@ def run_migration(repo_root: Path, dry_run: bool = False) -> MigrationReport:  #
         report.errors.append(f"[{step}] {msg}")
         report.failed_step = step
         if backup_dir is not None and not dry_run:
-            _restore_backup(repo_root, backup_dir)
+            _settle_failed_backup(repo_root, backup_dir, report)
         return report
 
     if dry_run:
@@ -442,7 +417,7 @@ def run_migration(repo_root: Path, dry_run: bool = False) -> MigrationReport:  #
     # ------------------------------------------------------------------
     # Step 1: Backup
     # ------------------------------------------------------------------
-    logger.info("Migration step 1/10: Backup")
+    logger.info("Migration step 1/9: Backup")
     backup_dir = _create_backup(repo_root)
     if backup_dir is None:
         # Non-fatal: proceed without backup but warn loudly
@@ -451,7 +426,7 @@ def run_migration(repo_root: Path, dry_run: bool = False) -> MigrationReport:  #
     # ------------------------------------------------------------------
     # Step 2: Identity backfill
     # ------------------------------------------------------------------
-    logger.info("Migration step 2/10: Identity backfill")
+    logger.info("Migration step 2/9: Identity backfill")
     try:
         backfill_project_uuid(repo_root)
     except FileNotFoundError as exc:
@@ -484,7 +459,7 @@ def run_migration(repo_root: Path, dry_run: bool = False) -> MigrationReport:  #
     # ------------------------------------------------------------------
     # Step 3: Ownership backfill
     # ------------------------------------------------------------------
-    logger.info("Migration step 3/10: Ownership backfill")
+    logger.info("Migration step 3/9: Ownership backfill")
     for feature_dir in _discover_features(repo_root):
         slug = feature_dir.name
         try:
@@ -495,7 +470,7 @@ def run_migration(repo_root: Path, dry_run: bool = False) -> MigrationReport:  #
     # ------------------------------------------------------------------
     # Step 4: State rebuild
     # ------------------------------------------------------------------
-    logger.info("Migration step 4/10: State rebuild")
+    logger.info("Migration step 4/9: State rebuild")
     total_events_generated = 0
     for feature_dir in _discover_features(repo_root):
         slug = feature_dir.name
@@ -515,7 +490,7 @@ def run_migration(repo_root: Path, dry_run: bool = False) -> MigrationReport:  #
     # ------------------------------------------------------------------
     # Step 5: Strip frontmatter (AFTER state rebuild)
     # ------------------------------------------------------------------
-    logger.info("Migration step 5/10: Strip frontmatter")
+    logger.info("Migration step 5/9: Strip frontmatter")
     for feature_dir in _discover_features(repo_root):
         slug = feature_dir.name
         try:
@@ -524,28 +499,18 @@ def run_migration(repo_root: Path, dry_run: bool = False) -> MigrationReport:  #
             return _fail("strip_frontmatter", f"frontmatter strip failed for {slug}: {exc}")
 
     # ------------------------------------------------------------------
-    # Step 6: Rewrite agent shims
+    # Step 6: Update schema version
     # ------------------------------------------------------------------
-    logger.info("Migration step 6/10: Rewrite agent shims")
-    try:
-        rewrite_agent_shims(repo_root)
-    except Exception as exc:
-        # Shim failures are non-fatal — agent dirs may not exist in CI
-        report.warnings.append(f"Shim rewrite warning (non-fatal): {exc}")
-
-    # ------------------------------------------------------------------
-    # Step 7: Update schema version
-    # ------------------------------------------------------------------
-    logger.info("Migration step 7/10: Update schema version")
+    logger.info("Migration step 6/9: Update schema version")
     try:
         _update_schema_version(repo_root)
     except Exception as exc:
         return _fail("schema_version_update", f"schema version update failed: {exc}")
 
     # ------------------------------------------------------------------
-    # Step 8: Update .gitignore
+    # Step 7: Update .gitignore
     # ------------------------------------------------------------------
-    logger.info("Migration step 8/10: Update .gitignore")
+    logger.info("Migration step 7/9: Update .gitignore")
     try:
         changes = _update_gitignore(repo_root)
         for change in changes:
@@ -554,9 +519,9 @@ def run_migration(repo_root: Path, dry_run: bool = False) -> MigrationReport:  #
         return _fail("gitignore_update", f".gitignore update failed: {exc}")
 
     # ------------------------------------------------------------------
-    # Step 9: Move derived files
+    # Step 8: Move derived files
     # ------------------------------------------------------------------
-    logger.info("Migration step 9/10: Move derived files")
+    logger.info("Migration step 8/9: Move derived files")
     try:
         moved = _move_derived_files(repo_root)
         report.files_moved = moved
@@ -564,20 +529,21 @@ def run_migration(repo_root: Path, dry_run: bool = False) -> MigrationReport:  #
         return _fail("move_derived_files", f"derived file move failed: {exc}")
 
     # ------------------------------------------------------------------
-    # Step 10: Commit
+    # Step 9: Rewrite agent shims -- last, so a failure above never leaves rewritten
+    # shims behind (the backup covers .kittify/, kitty-specs/ and .gitignore only).
     # ------------------------------------------------------------------
-    logger.info("Migration step 10/10: Commit")
-    if not _git_add_all(repo_root):
-        return _fail("commit", "git add -A failed")
-
-    commit_msg = "chore: migrate to canonical context architecture (schema v3)"
-    if not _git_commit(repo_root, commit_msg):
-        return _fail("commit", "git commit failed after retry")
+    logger.info("Migration step 9/9: Rewrite agent shims")
+    try:
+        rewrite_agent_shims(repo_root)
+    except Exception as exc:
+        # Shim failures are non-fatal — agent dirs may not exist in CI
+        report.warnings.append(f"Shim rewrite warning (non-fatal): {exc}")
 
     # ------------------------------------------------------------------
     # Success: clean up backup
     # ------------------------------------------------------------------
-    _cleanup_backup(repo_root)
+    if not _cleanup_backup(repo_root):
+        report.warnings.append(f"Could not remove the migration backup at {repo_root / '.kittify' / _BACKUP_DIR_NAME}; delete it by hand.")
 
     features = _discover_features(repo_root)
     report.features_migrated = len(features)

@@ -14,7 +14,6 @@ from pathlib import Path, PurePosixPath
 import pytest
 
 from specify_cli.migration.mission_state import MissionStateRepairError, _assert_git_safe
-from specify_cli.migration.runner import _git_commit
 from specify_cli.upgrade import autocommit
 from specify_cli.upgrade.migrations.m_3_2_0rc35_sync_state_gitignore import _is_tracked
 from specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill import _untrack_tracked_paths
@@ -181,26 +180,6 @@ def test_heal_template_set_provenance_rejects_an_untracked_source(tmp_path: Path
     assert snapshot is not None
 
     assert _checkout_tracks_mission(repo, relative, snapshot) is False
-
-
-# ---------------------------------------------------------------------------
-# migration/runner._git_commit pre-check
-# ---------------------------------------------------------------------------
-
-
-def test_migration_commit_precheck_sees_a_clean_tree_and_a_staged_quoted_file(tmp_path: Path) -> None:
-    repo = _init(tmp_path / "repo")
-    _write(repo, "README.md")
-    _commit(repo)
-    head = _git(repo, "rev-parse", "HEAD")
-
-    assert _git_commit(repo, "noop") is True
-    assert _git(repo, "rev-parse", "HEAD") == head
-
-    _write(repo, "kitty-specs/café notes.md")
-    _git(repo, "add", "-A")
-    assert _git_commit(repo, "migrate") is True
-    assert _git(repo, "rev-parse", "HEAD") != head
 
 
 # ---------------------------------------------------------------------------

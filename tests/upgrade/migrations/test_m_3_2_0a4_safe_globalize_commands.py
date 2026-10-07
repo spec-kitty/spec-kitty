@@ -34,7 +34,7 @@ def _make_project(tmp_path: Path, agent_files: dict[str, str]) -> Path:
     return tmp_path
 
 
-def test_no_global_runtime_preserves_files_for_review(
+def test_generated_file_is_kept_without_review_when_global_runtime_is_absent(
     tmp_path: Path,
     migration: GlobalizeCommandsMigration | SafeGlobalizeCommandsMigration,
 ) -> None:
@@ -44,13 +44,28 @@ def test_no_global_runtime_preserves_files_for_review(
     with patch.object(migration, "_global_runtime_present", return_value=False):
         result = migration.apply(project)
     assert result.success
-    assert result.manual_review_required is True
-    assert result.preserved_paths == [".claude/commands/spec-kitty.implement.md"]
-    assert any("global runtime" in change for change in result.changes_made)
+    assert result.manual_review_required is False
+    assert result.preserved_paths == []
+    assert any("Kept" in change and "global runtime" in change for change in result.changes_made)
     assert (project / ".claude/commands/spec-kitty.implement.md").exists()
 
 
-def test_per_agent_skip_records_manual_review(
+def test_marker_less_file_is_held_even_without_runtime(
+    tmp_path: Path,
+    migration: GlobalizeCommandsMigration | SafeGlobalizeCommandsMigration,
+) -> None:
+    project = _make_project(tmp_path, {
+        ".claude/commands/spec-kitty.custom.md": "# hand written, no marker\n",
+    })
+    with patch.object(migration, "_global_runtime_present", return_value=False):
+        result = migration.apply(project)
+
+    assert result.manual_review_required is True
+    assert result.preserved_paths == [".claude/commands/spec-kitty.custom.md"]
+    assert (project / ".claude/commands/spec-kitty.custom.md").exists()
+
+
+def test_per_agent_skip_keeps_generated_file_without_review(
     tmp_path: Path,
     migration: GlobalizeCommandsMigration | SafeGlobalizeCommandsMigration,
 ) -> None:
@@ -67,8 +82,9 @@ def test_per_agent_skip_records_manual_review(
         result = migration.apply(project)
 
     assert result.success
-    assert result.manual_review_required is True
-    assert result.preserved_paths == [".claude/commands/spec-kitty.implement.md"]
+    assert result.manual_review_required is False
+    assert result.preserved_paths == []
+    assert any("Kept: .claude/commands/spec-kitty.implement.md" in change for change in result.changes_made)
     assert (project / ".claude/commands/spec-kitty.implement.md").exists()
     assert not (project / ".codex/prompts/spec-kitty.implement.md").exists()
 
@@ -128,8 +144,9 @@ def test_mixed_agents(
     assert not (project / ".claude/commands/spec-kitty.implement.md").exists()
     assert (project / ".codex/prompts/spec-kitty.implement.md").exists()
     assert not (project / ".opencode/command/spec-kitty.implement.md").exists()
-    assert result.manual_review_required is True
-    assert result.preserved_paths == [".codex/prompts/spec-kitty.implement.md"]
+    assert result.manual_review_required is False
+    assert result.preserved_paths == []
+    assert any("Kept: .codex/prompts/spec-kitty.implement.md" in change for change in result.changes_made)
 
 
 def test_detect_false_when_no_files(

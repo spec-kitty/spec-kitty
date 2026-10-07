@@ -63,20 +63,11 @@ class M300CanonicalContext(BaseMigration):
                 errors=[f"Migration failed with exception: {exc}"],
             )
 
-        # Treat commit failures as non-fatal — the file changes are what matter.
-        # In non-git environments (tests, CI) the commit step fails but the
-        # migration's file-level work is complete.
-        is_commit_failure = (
-            not report.success
-            and report.failed_step == "commit"
-        )
-        result = MigrationResult(success=report.success or is_commit_failure)
-        if is_commit_failure:
-            result.warnings = report.errors + report.warnings
-            result.errors = []
-        else:
-            result.errors = report.errors
-            result.warnings = report.warnings
+        # The runner never commits (the upgrade command owns that), so a failed report is
+        # always a real failure: success must mirror it exactly (FR-006/FR-007).
+        result = MigrationResult(success=report.success)
+        result.errors = report.errors
+        result.warnings = report.warnings
 
         if report.success:
             summary = (
