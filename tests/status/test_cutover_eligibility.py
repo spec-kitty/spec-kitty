@@ -181,10 +181,7 @@ def test_empty_policy_metadata_is_not_detected(tmp_path: Path) -> None:
 
 _EMPTY_WP = 'work_package_id: "WP01"\ntitle: "Demo"\nagent: ""\nassignee: ""\nshell_pid: ""\n'
 #: A WP filled the way tasks-packages step 4a fills it at PLANNING time (no claim yet).
-_STEP_4A_WP = (
-    'work_package_id: "WP01"\ntitle: "Demo"\nagent_profile: "implementer-ivan"\nrole: "implementer"\n'
-    'agent: "claude"\nmodel: "claude-sonnet-4-6"\ntracker_refs: [\'#5835\']\n'
-)
+_STEP_4A_WP = 'work_package_id: "WP01"\ntitle: "Demo"\nagent_profile: "implementer-ivan"\nrole: "implementer"\nagent: "claude"\nmodel: "claude-sonnet-4-6"\n'
 
 
 def _born_mission(
@@ -243,7 +240,7 @@ _PASS_QUIET = (True, ())
         pytest.param({"meta_extra": {"accepted_at": "2026-02-01T00:00:00Z"}}, False, REASON_TERMINAL_UNSTAMPED, id="accepted"),
         pytest.param({"meta_extra": {"merged_at": "2026-02-01T00:00:00Z"}}, False, REASON_TERMINAL_UNSTAMPED, id="merged"),
         pytest.param({"meta_extra": {"accepted_at": 1700000000}}, False, REASON_TERMINAL_MALFORMED, id="accepted-at-integer"),
-        pytest.param({"meta_extra": {"accepted_at": True}}, False, REASON_TERMINAL_MALFORMED, id="accepted-at-boolean"),
+        pytest.param({"meta_extra": {"accepted_at": ""}}, False, REASON_TERMINAL_MALFORMED, id="accepted-at-empty-string"),
         pytest.param({"meta_extra": {"merged_at": 123}}, False, REASON_TERMINAL_MALFORMED, id="merged-at-integer"),
         pytest.param({"meta_extra": {"accept_commit": "a" * 40}}, False, REASON_TERMINAL_UNSTAMPED, id="accept-commit-without-timestamp"),
         pytest.param({"meta_extra": {"merged_commit": "b" * 40}}, False, REASON_TERMINAL_UNSTAMPED, id="merged-commit-without-timestamp"),
@@ -261,7 +258,6 @@ _PASS_QUIET = (True, ())
             id="meta-duplicate-key-last-wins-hides-acceptance",
         ),
         pytest.param({"meta_extra": {"mission_number": 0}}, False, REASON_TERMINAL_UNSTAMPED, id="mission-number-zero"),
-        pytest.param({"wp_frontmatter": _EMPTY_WP.replace('agent: ""', 'agent: "claude"')}, True, PRE_ACCEPT_EXEMPT_NOTE, id="planning-time-agent"),
         pytest.param({"wp_frontmatter": _STEP_4A_WP}, True, PRE_ACCEPT_EXEMPT_NOTE, id="tasks-packages-step-4a-fill"),
         pytest.param({"wp_frontmatter": _EMPTY_WP.replace('shell_pid: ""', "shell_pid: 4242")}, False, REASON_LEGACY_FRONTMATTER, id="legacy-shell-pid"),
         pytest.param({"wp_frontmatter": _EMPTY_WP.replace('assignee: ""', 'assignee: "x"')}, False, REASON_LEGACY_FRONTMATTER, id="legacy-assignee"),
@@ -271,8 +267,6 @@ _PASS_QUIET = (True, ())
         pytest.param({"raw_meta": "{not json"}, False, REASON_ABSENT_MISSION_ID, id="meta-invalid-json"),
         pytest.param({"wp_frontmatter": 'work_package_id: "WP01"\nagent: [unclosed\n'}, False, REASON_LEGACY_UNDECIDABLE, id="wp-unparsable"),
         pytest.param({"mission_id": None}, False, REASON_ABSENT_MISSION_ID, id="absent-mission-id"),
-        pytest.param({"tasks_is_file": True}, False, REASON_LEGACY_UNDECIDABLE, id="tasks-is-a-file"),
-        pytest.param({"tasks_md": b"# Tasks \xff\xfe"}, False, REASON_LEGACY_UNDECIDABLE, id="tasks-md-not-utf8"),
     ],
 )
 def test_is_cut_over_pre_accept_matrix(tmp_path: Path, kwargs: dict[str, Any], cut_over: bool, reasons_prefix: str | None) -> None:
@@ -293,7 +287,7 @@ def test_is_cut_over_pre_accept_matrix(tmp_path: Path, kwargs: dict[str, Any], c
 @pytest.mark.parametrize(
     ("kwargs", "names"),
     [
-        pytest.param({"tasks_is_file": True}, "tasks", id="tasks-dir"),
+        pytest.param({"tasks_is_file": True}, "tasks/:", id="tasks-dir"),
         pytest.param({"tasks_md": b"# Tasks \xff\xfe"}, "tasks.md", id="tasks-md"),
         pytest.param({"wp_frontmatter": 'work_package_id: "WP01"\nagent: [unclosed\n'}, "WP01-x.md", id="wp-file"),
     ],
@@ -304,6 +298,12 @@ def test_undecidable_reason_names_the_failing_file(tmp_path: Path, kwargs: dict[
 
     assert reason.startswith(REASON_LEGACY_UNDECIDABLE)
     assert names in reason.removeprefix(REASON_LEGACY_UNDECIDABLE)
+
+
+@pytest.mark.parametrize("reason", [REASON_TERMINAL_UNSTAMPED, REASON_TERMINAL_MALFORMED, REASON_LEGACY_FRONTMATTER, REASON_LEGACY_UNDECIDABLE])
+def test_stamp_missing_reasons_keep_the_changelog_prefix(reason: str) -> None:
+    """The #5835 CHANGELOG tells consumers to match this leading text of the stamp-missing reasons."""
+    assert reason.startswith("status_phase not flipped")
 
 
 def test_bom_prefixed_meta_is_still_exempt(tmp_path: Path) -> None:

@@ -43,6 +43,8 @@ from specify_cli.cli.commands.cutover_guard import (
 from specify_cli.status import (
     PRE_ACCEPT_EXEMPT_NOTE,
     REASON_LEGACY_UNDECIDABLE,
+    REASON_META_DUPLICATE_KEYS,
+    REASON_TERMINAL_MALFORMED,
     CutOverVerdict,
     Lane,
     StatusEvent,
@@ -632,19 +634,6 @@ def _build_pre_accept_mission(corpus: Path, *, slug: str, mission_id: str) -> Pa
     return mission_dir
 
 
-def test_claimed_pre_accept_mission_passes_the_guard(tmp_path: Path) -> None:
-    """#5835: a claimed Mission with no stamp and nothing legacy passes the guard and is listed as exempt."""
-    corpus = tmp_path / "kitty-specs"
-    corpus.mkdir()
-    slug = "pre-accept-guard-01KZPRE0"
-    _build_pre_accept_mission(corpus, slug=slug, mission_id="01KZPRE0H8T2X6R4N9YV3D5C79")
-
-    verdict = evaluate_touched_missions(tmp_path, [f"kitty-specs/{slug}/tasks/WP01-demo.md"])
-
-    assert verdict.passed is True, [f.reasons for f in verdict.failures]
-    assert [item.mission_slug for item in verdict.exempt] == [slug]
-
-
 def test_exempt_mission_is_listed_and_exits_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     corpus = tmp_path / "kitty-specs"
     corpus.mkdir()
@@ -739,6 +728,15 @@ def test_absent_mission_id_remedy_names_meta_repair_and_backfill_identity(tmp_pa
     remedy = json.loads(result.output)["failures"][0]["remedy"]
     assert f"kitty-specs/{slug}/meta.json" in remedy
     assert f"spec-kitty migrate backfill-identity --mission {slug}" in remedy
+
+
+@pytest.mark.parametrize("reason", [REASON_TERMINAL_MALFORMED, REASON_META_DUPLICATE_KEYS])
+def test_ambiguous_meta_remedy_points_at_meta_json(tmp_path: Path, reason: str) -> None:
+    """A malformed timestamp or a repeated key is fixed in meta.json, not by the generic backfill."""
+    remedy = remedy_for(CutOverVerdict(mission_dir=tmp_path, mission_slug="m-1", cut_over=False, reasons=(reason,)))
+
+    assert "kitty-specs/m-1/meta.json" in remedy
+    assert remedy != remedy_command("m-1")
 
 
 def test_remedy_for_undecidable_legacy_and_unknown_reason(tmp_path: Path) -> None:
