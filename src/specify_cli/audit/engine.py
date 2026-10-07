@@ -481,7 +481,7 @@ def run_audit(options: AuditOptions) -> RepoAuditReport:
     )
 
     # Per-mission classification
-    default_scan = scan_root == options.repo_root / KITTY_SPECS_DIR
+    default_scan = scan_root.resolve() == (options.repo_root / KITTY_SPECS_DIR).resolve()
     mission_results = _scan_missions(scan_root, allowed_dirs, identity_index, repo_root=options.repo_root if default_scan else None)
 
     # Repo-level findings with explicit slug attribution
