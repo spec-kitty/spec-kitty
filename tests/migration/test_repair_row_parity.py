@@ -81,10 +81,11 @@ def test_every_optional_status_event_field_is_covered() -> None:
 
 
 # All absent, each optional field alone, all present: a field the serializer or a rule mishandles
-# fails in isolation, and the full row pins their interaction. (Every other subset adds nothing.)
+# fails in isolation; the review pair and the full row pin their interaction.
 _FIELD_SETS: dict[str, tuple[str, ...]] = {
     "none": (),
     **{f"only-{name}": (name,) for name in sorted(_OPTIONAL_VALUES)},
+    "evidence-and-review_ref": ("evidence", "review_ref"),
     "all": tuple(sorted(_OPTIONAL_VALUES)),
 }
 
