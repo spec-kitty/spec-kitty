@@ -1215,6 +1215,7 @@ def test_advancement_helper_runs_default_post_completion_retrospective(
     captures: list[dict[str, object]] = []
     emitted_completed: list[object] = []
     order: list[str] = []
+    states_at_capture: list[dict[str, object]] = []
 
     class _Emitter:
         def seed_from_snapshot(self, snapshot: object) -> None:
@@ -1227,9 +1228,14 @@ def test_advancement_helper_runs_default_post_completion_retrospective(
             emitted_completed.append(payload)
             order.append("MissionRunCompleted")
 
+    state_path = Path(run_ref.run_dir) / "state.json"
+
     def _capture(**kwargs: object) -> None:
         captures.append(dict(kwargs))
         order.append("capture")
+        # The best-effort capture runs once the commit is complete: the terminal
+        # snapshot is already on disk, not merely MissionRunCompleted emitted.
+        states_at_capture.append(json.loads(state_path.read_text(encoding="utf-8")))
 
     with (
         patch(
@@ -1265,6 +1271,8 @@ def test_advancement_helper_runs_default_post_completion_retrospective(
     assert captures and captures[0]["block_on_failure"] is False
     # FR-008: the default (non-blocking) capture runs after MissionRunCompleted.
     assert order == ["MissionRunCompleted", "capture"]
+    assert snapshot_before.issued_step_id is not None
+    assert [state["issued_step_id"] for state in states_at_capture] == [None]
 
 
 def test_advancement_helper_runs_strict_retrospective_before_completion(
