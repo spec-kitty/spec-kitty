@@ -537,14 +537,17 @@ def _commit_advance(
     """Persist + emit a plan: the events in their historical order, then the snapshot.
 
     ``before_run_completed`` is an abort-only guard: on the transition into
-    terminal it runs before ``MissionRunCompleted`` is recorded. If it raises,
-    the error propagates, events already appended (step completed,
-    significance) stay, ``MissionRunCompleted`` is not appended and
-    ``state.json`` is not written. It is not called on a re-poll of an
-    already-terminal run (no completed step)."""
+    terminal it runs first, before anything is appended or emitted. If it
+    raises, the error propagates and nothing was written -- no event, no
+    emission, no ``state.json`` -- so a retry starts from the run exactly as it
+    was. It is not called on a re-poll of an already-terminal run (no completed
+    step)."""
     run_dir = Path(run_ref.run_dir)
     snapshot = plan.snapshot
     decision = plan.decision
+
+    if before_run_completed is not None and decision.kind == "terminal" and plan.completed_step_id is not None:
+        before_run_completed()
 
     if plan.completed_step_id is not None:
         _record_step_completed(run_dir, snapshot.run_id, plan.completed_step_id, agent_id, plan.result, emitter)
@@ -560,8 +563,6 @@ def _commit_advance(
         pending_decisions = _request_decision_input(run_dir, snapshot.run_id, decision, agent_id, pending_decisions, emitter)
     elif decision.kind == "terminal" and plan.completed_step_id is not None:
         # Only on the transition into terminal (last step just completed), not on re-polls.
-        if before_run_completed is not None:
-            before_run_completed()
         _record_run_completed(run_dir, snapshot.run_id, snapshot.mission_key, agent_id, emitter)
 
     _write_snapshot(
@@ -613,10 +614,10 @@ def commit_advance(
     newer progress.
 
     ``before_run_completed`` is an abort-only guard called on the transition
-    into terminal, before ``MissionRunCompleted`` is recorded; if it raises,
-    the error propagates, ``MissionRunCompleted`` is not appended and
-    ``state.json`` is not written (events already appended stay). It runs
-    after the stale-plan check, which still writes nothing.
+    into terminal, after the stale-plan check and before anything is appended
+    or emitted; if it raises, the error propagates and nothing was written (no
+    event, no emission, no ``state.json``), so an abort leaves the run exactly
+    as it was.
     """
     if _read_snapshot(Path(run_ref.run_dir)) != plan.source:
         raise StaleAdvancePlan(f"Run '{plan.source.run_id}' changed after the advance was planned; plan again.")

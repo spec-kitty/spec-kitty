@@ -133,13 +133,11 @@ Payloads must be byte-identical to today's: actor via `_actor(agent_id)`, field 
 
 Add the keyword-only `before_run_completed: Callable[[], None] | None = None` to `_commit_advance` and `commit_advance`. `commit_advance` keeps the `StaleAdvancePlan` check before anything is written.
 
-On the terminal branch (`decision.kind == "terminal" and plan.completed_step_id is not None`), call the guard first, then `_record_run_completed`. If the guard raises:
+On a terminal plan with a completed step (`decision.kind == "terminal" and plan.completed_step_id is not None`), call the guard at the top of `_commit_advance`, before any append or emit (operator ruling 2026-10-07, landing fold; the first implementation called it after the step-completed record). If the guard raises:
 - the error propagates;
-- events already appended (step completed, significance) stay;
-- the run-completed event is not appended;
-- `state.json` is not written.
+- nothing is appended or emitted and `state.json` is not written, so a retry starts from the run as it was.
 
-This is exactly today's adapter semantics for a raising blocking retrospective capture. `next_step` passes no guard. Document the contract in the docstring.
+This matches the engine's own legacy strict path, which rolls back byte for byte. `next_step` passes no guard. Document the contract in the docstring.
 
 ### T005: Engine unit tests
 

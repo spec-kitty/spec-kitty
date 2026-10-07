@@ -157,7 +157,8 @@ class _TerminalRetrospective:
     non-terminal advance never reads it. :meth:`before_run_completed` is the
     engine's abort-only guard: under a blocking policy it raises the policy
     error, if any, else runs the blocking capture (a raising capture aborts
-    the commit before ``MissionRunCompleted`` and ``state.json``).
+    the commit before anything is written: no event, no emission, no
+    ``state.json``).
     :meth:`after_run_completed` runs the non-blocking capture once the commit
     has returned.
 

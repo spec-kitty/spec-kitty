@@ -182,33 +182,39 @@ def test_request_decision_input_emits_once_and_leaves_pending_on_repeat(tmp_path
     assert _event_types(run_ref) == [*before, "DecisionInputRequested"]
 
 
-def test_guard_runs_before_run_completed(tmp_path: Path) -> None:
+def test_guard_runs_before_the_commit_writes_anything(tmp_path: Path) -> None:
     run_ref = _at_last_step(tmp_path)
+    before = _event_types(run_ref)
     seen: list[list[str]] = []
     plan = plan_advance(run_ref, "a")
     commit_advance(run_ref, plan, "a", before_run_completed=lambda: seen.append(_event_types(run_ref)))
 
-    assert len(seen) == 1
-    assert seen[0][-1] == "NextStepAutoCompleted"
-    assert "MissionRunCompleted" not in seen[0]
-    assert _event_types(run_ref)[-1] == "MissionRunCompleted"
+    assert seen == [before]
+    assert _event_types(run_ref)[-2:] == ["NextStepAutoCompleted", "MissionRunCompleted"]
 
 
-def test_raising_guard_aborts_run_completed_and_snapshot(tmp_path: Path) -> None:
+def test_raising_guard_aborts_before_anything_is_written(tmp_path: Path) -> None:
+    """A strict retrospective capture that raises writes and emits nothing (operator ruling 2026-10-07).
+
+    The guard runs before the first journal append, so a retry does not stack a
+    second ``NextStepAutoCompleted`` on the journal of a run that never advanced.
+    """
     run_ref = _at_last_step(tmp_path)
-    state_before = _state_text(run_ref)
+    journal = Path(run_ref.run_dir) / "run.events.jsonl"
+    state_before, journal_before = _state_text(run_ref), journal.read_bytes()
     plan = plan_advance(run_ref, "a")
+    emitter = _RecordingEmitter()
 
     def _boom() -> None:
         raise RuntimeError("retrospective capture failed")
 
-    with pytest.raises(RuntimeError, match="retrospective capture failed"):
-        commit_advance(run_ref, plan, "a", before_run_completed=_boom)
+    for _attempt in range(2):
+        with pytest.raises(RuntimeError, match="retrospective capture failed"):
+            commit_advance(run_ref, plan, "a", emitter, before_run_completed=_boom)
 
-    types = _event_types(run_ref)
-    assert "MissionRunCompleted" not in types
-    assert types[-1] == "NextStepAutoCompleted"
+    assert journal.read_bytes() == journal_before
     assert _state_text(run_ref) == state_before
+    assert emitter.calls == []
 
 
 def test_guard_not_called_on_terminal_repoll_without_completed_step(tmp_path: Path) -> None:

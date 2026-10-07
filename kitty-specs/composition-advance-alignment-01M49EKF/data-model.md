@@ -9,12 +9,13 @@ No new entities. These existing structures change in what composition-backed run
 
 ## Commit order (both advances)
 
+0. On a terminal decision with a completed step: the `before_run_completed` guard, before anything is written (operator ruling 2026-10-07; a raising guard leaves the run untouched)
 1. `NextStepAutoCompleted`, when a step completed
 2. `SignificanceEvaluated`, when an audit gate was evaluated
 3. One of:
    - `NextStepIssued`;
    - `DecisionInputRequested`, first occurrence only;
-   - on a terminal decision with a completed step: `before_run_completed` guard, then `MissionRunCompleted`.
+   - on a terminal decision with a completed step: `MissionRunCompleted`.
 4. `state.json` written
 
 After this, the composition adapter alone runs the non-blocking retrospective capture.
