@@ -674,12 +674,6 @@ entries:
   name: r_uvlock_regenerate
   category: category_b_grandfathered_legacy
 - module: specify_cli.consolidation.state
-  name: MergeAmbiguousStateError
-  category: category_b_grandfathered_legacy
-  rationale: 'Still unwired from a second src/ module today; external consumers land with the Epic #5001
-    follow-ups.'
-  issue: '#5001'
-- module: specify_cli.consolidation.state
   name: detect_git_merge_state
   category: category_b_grandfathered_legacy
 - module: specify_cli.core.context_validation
