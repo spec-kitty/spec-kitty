@@ -42,9 +42,20 @@ def _result(repo: Path, slug: str) -> MissionAuditResult:
     return result
 
 
-def test_residue_yields_one_non_blocking_finding_and_no_identity_missing(repo: Path) -> None:
-    ghost = _result(repo, "ghost-01ABCDEF")
+@pytest.mark.parametrize("scan_root_form", ["default"])
+def test_residue_yields_one_non_blocking_finding_and_no_identity_missing(
+    repo: Path, tmp_path_factory: pytest.TempPathFactory, scan_root_form: str
+) -> None:
+    scan_root = None
+    if scan_root_form == "symlink":
+        # A symlinked scan root is still the default kitty-specs/ scan; it must keep filtering residue.
+        scan_root = tmp_path_factory.mktemp("link") / "specs"
+        scan_root.symlink_to(repo / "kitty-specs", target_is_directory=True)
+    report = run_audit(AuditOptions(repo_root=repo, scan_root=scan_root))
+    (ghost,) = (m for m in report.missions if m.mission_slug == "ghost-01ABCDEF")
     assert [f.code for f in ghost.findings] == ["RESIDUE_DIRECTORY"]
+    # The operator is told how to recover a pre-identity Mission that was mis-read as residue.
+    assert "spec-kitty migrate backfill-identity" in ghost.findings[0].detail
     assert not any(is_teamspace_blocker(f) for f in ghost.findings)
 
 

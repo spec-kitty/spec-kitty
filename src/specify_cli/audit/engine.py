@@ -218,7 +218,11 @@ def _residue_result(candidate: Path) -> MissionAuditResult:
         code=RESIDUE_DIRECTORY,
         severity=Severity.INFO,
         artifact_path=".",
-        detail="directory holds no tracked spec.md or meta.json and no mission_id; not a Mission",
+        detail=(
+            "directory holds no tracked spec.md or meta.json and no mission_id; not a Mission. "
+            "If this is a Mission created before identity existed, run "
+            "`spec-kitty migrate backfill-identity` (or commit its spec.md)"
+        ),
     )
     return MissionAuditResult(mission_slug=candidate.name, mission_dir=candidate, findings=[finding])
 
