@@ -655,10 +655,15 @@ def _make_merge_env() -> dict[str, str]:
     this helper — no inline ``os.environ`` copies with ad-hoc PATH/GIT_*
     mutations (FR-008b; ratchet in
     ``tests/architectural/test_merge_pipeline_ratchets.py``).
+
+    An exported ``META_DRIVER_TWO_WAY_ENV`` is dropped here: lane->mission merges
+    and auto-rebases must stay base-aware, so only :func:`_run_squash_merge`'s
+    overlay may set the two-way opt-out (#5460).
     """
     venv_bin = str(Path(sys.executable).parent)
     env = os.environ.copy()
     env["PATH"] = venv_bin + os.pathsep + env.get("PATH", "")
+    env.pop(META_DRIVER_TWO_WAY_ENV, None)
     return env
 
 

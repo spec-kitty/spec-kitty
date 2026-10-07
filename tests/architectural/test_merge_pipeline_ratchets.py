@@ -213,10 +213,13 @@ def test_lanes_merge_no_bare_os_environ_outside_helper() -> None:
 
 def test_make_merge_env_matches_historical_inline_construction() -> None:
     """T015 is refactor-only: the helper's env is byte-identical to the inline
-    construction it replaced (venv-bin PATH prepend over ``os.environ``)."""
+    construction it replaced (venv-bin PATH prepend over ``os.environ``), apart
+    from dropping an exported meta-driver two-way opt-out (#5460)."""
+    from specify_cli.consolidation.drivers import META_DRIVER_TWO_WAY_ENV
     from specify_cli.lanes.consolidation import _make_merge_env
 
     expected = os.environ.copy()
+    expected.pop(META_DRIVER_TWO_WAY_ENV, None)
     expected["PATH"] = (
         str(Path(sys.executable).parent) + os.pathsep + expected.get("PATH", "")
     )

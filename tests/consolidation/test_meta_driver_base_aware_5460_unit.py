@@ -197,7 +197,12 @@ def test_absent_and_empty_object_ancestors_select_the_two_way_rule(tmp_path: Pat
 
 
 def test_squash_pipeline_sets_the_two_way_opt_out_on_its_merge_subprocess(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The mission->target squash subprocess carries the opt-out; `_make_merge_env` does not."""
+    """The mission->target squash subprocess carries the opt-out; `_make_merge_env` does not.
+
+    An operator-exported value must not reach spec-kitty's own base-aware merges
+    (lane->mission merges, auto-rebase): only the squash overlay may set it.
+    """
+    monkeypatch.setenv(TWO_WAY_ENV, "1")
     seen: list[dict[str, str]] = []
 
     def fake_run(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
