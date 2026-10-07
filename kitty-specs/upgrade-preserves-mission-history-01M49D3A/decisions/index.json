@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-06T20:05:17.318465Z",
+      "decision_id": "01M49D42C6JSBGJBPMYM39MSVS",
+      "final_answer": "Confirm",
+      "input_key": "requirement_set_confirmed",
+      "mission_id": "01M49D3AQ7WPHVCMMHBXF5S3RB",
+      "mission_slug": "upgrade-preserves-mission-history-01M49D3A",
+      "opened_by": "cli",
+      "options": [
+        "Confirm",
+        "Amend",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Confirm the extracted requirement set (FR-001..FR-010, NFR-001..003, C-001..004) as the Mission scope?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T21:57:57.440151Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.requirement-set",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M49D3AQ7WPHVCMMHBXF5S3RB",
+  "version": 1
+}

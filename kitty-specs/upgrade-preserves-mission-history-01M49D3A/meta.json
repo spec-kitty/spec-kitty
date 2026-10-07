@@ -1,0 +1,39 @@
+{
+  "accept_commit": "85edc2722b13f8c486b6a0932379228bc9035a81",
+  "acceptance_history": [
+    {
+      "accept_commit": "85edc2722b13f8c486b6a0932379228bc9035a81",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-07T05:38:24.575073+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "45d27ce5c8ee32004e609f5235b76ed6f1f0baa7"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-07T05:38:24.575073+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "45d27ce5c8ee32004e609f5235b76ed6f1f0baa7",
+  "baseline_merge_commit": "6f3223e4b920bf3031114343be3766a60f3ea234",
+  "contracts": "none",
+  "contracts_rationale": "Behavioural fix to upgrade and the mission-state repair; no API, schema or contract surface is added or changed.",
+  "coordination_branch": "kitty/mission-upgrade-preserves-mission-history-01M49D3A",
+  "created_at": "2026-10-06T20:04:53.178925+00:00",
+  "flattened": false,
+  "friendly_name": "Upgrade must not rewrite healthy Mission history",
+  "merged_at": "2026-10-07T05:42:49.779614+00:00",
+  "merged_commit": "409d92bcd380e1261a10c932849e17835faca584",
+  "mid8": "01M49D3A",
+  "mission_id": "01M49D3AQ7WPHVCMMHBXF5S3RB",
+  "mission_number": 220,
+  "mission_slug": "upgrade-preserves-mission-history-01M49D3A",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Running upgrade --yes on an up-to-date project rewrote the append-only status event log of nearly every Mission and re-materialized snapshots, because a Team Kitty readiness repair ran repo-wide with a row shape that differs from the live writer, re-sorted rows, and treated residue directories as Missions. This mission makes upgrade report-only for that repair and makes the repair itself a byte-identical no-op on healthy history.",
+  "purpose_tldr": "A routine spec-kitty upgrade leaves every Mission's authoritative status history untouched.",
+  "slug": "upgrade-preserves-mission-history-01M49D3A",
+  "status_phase": "1",
+  "target_branch": "issue-5811-upgrade-preserves-mission-history",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-07T04:47:49.018891+00:00"
+}

@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "mission_slug": "upgrade-preserves-mission-history-01M49D3A",
+  "mission_id": "01M49D3AQ7WPHVCMMHBXF5S3RB",
+  "mission_branch": "kitty/mission-upgrade-preserves-mission-history-01M49D3A",
+  "target_branch": "issue-5811-upgrade-preserves-mission-history",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/integration/migration/test_noop_upgrade_history_untouched_5811.py",
+        "tests/integration/migration/test_residue_dir_not_mission_5812.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/migration/mission_state.py",
+        "src/specify_cli/status/store.py",
+        "tests/integration/migration/fixtures/**",
+        "tests/integration/migration/test_mission_state_repair_fidelity_e2e.py",
+        "tests/migration/test_mission_state_repair.py",
+        "tests/migration/test_repair_row_parity_5811.py",
+        "tests/status/test_authoritative_non_lane_registry_4897.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-07-1-upgrade-never-runs-mission-state-repair.md",
+        "src/specify_cli/cli/commands/_mission_state_doctor.py",
+        "src/specify_cli/cli/commands/_teamspace_mission_state_gate.py",
+        "src/specify_cli/cli/commands/upgrade.py",
+        "tests/architectural/test_mission_state_repair_sole_caller.py",
+        "tests/upgrade/test_mission_corpus_recovery.py",
+        "tests/upgrade/test_recovery_composition.py",
+        "tests/upgrade/test_teamspace_consent_scope.py",
+        "tests/upgrade/test_upgrade_auto_commit_unit.py",
+        "tests/upgrade/test_upgrade_outcome_rendering.py",
+        "tests/upgrade/test_yes_consent_exit_honesty.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/audit/engine.py",
+        "src/specify_cli/context/mission_resolver.py",
+        "tests/audit/test_residue_directory_finding.py",
+        "tests/context/test_is_mission_dir.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-07T04:45:41.591234+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "6dd21cb649dd5bbc59f8ace290cb4af1c2ef2704"
+}

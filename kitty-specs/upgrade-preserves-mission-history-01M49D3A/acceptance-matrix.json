@@ -1,0 +1,119 @@
+{
+  "mission_slug": "upgrade-preserves-mission-history-01M49D3A",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/migration/test_noop_upgrade_history_untouched_5811.py (WP04, green unmarked)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-07T05:37:53.642914+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_teamspace_consent_scope.py drain on/off cases (WP04)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-07T05:37:56.093638+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/migration/test_repair_row_parity_5811.py all 2^7 optional subsets (WP02)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-07T05:37:58.542941+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_repair_keeps_a_healthy_mission_byte_identical_and_preserves_order (WP02)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-07T05:38:01.017596+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/migration/test_repair_row_parity_5811.py derived-file guard cases (WP02)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-07T05:38:03.499551+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/context/test_is_mission_dir.py + tests/audit/test_residue_directory_finding.py + 5812 repro (WP03)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-07T05:38:05.966631+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/commands/test_doctor_mission_state.py never-claims-cleared + per-mission detail exit 1 (WP04)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-07T05:38:08.449387+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "repair suites tests/migration tests/integration/migration tests/unit/migration green; legacy backfill test (WP02/WP03)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-07T05:38:10.877127+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 repros red on base (review-cycle-1), green after fix",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-07T05:38:13.378702+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "docs/adr/4.x/2026-10-07-1-upgrade-never-runs-mission-state-repair.md (WP04 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-07T05:38:15.851603+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_mission_state_repair_sole_caller.py with self-mutation (WP04)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-07T05:38:18.314521+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
