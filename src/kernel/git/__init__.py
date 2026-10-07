@@ -1,4 +1,4 @@
-"""``kernel.git`` — the one owner of reading paths from git and of contacting a remote.
+"""``kernel.git`` — the one owner of reading paths from git and the owner of every remote read (push is excluded, FR-015).
 
 Split of responsibilities (mission git-paths-are-data, #5392/#5400):
 

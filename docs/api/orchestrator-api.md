@@ -2,7 +2,7 @@
 title: Orchestrator API Reference
 description: Machine-contract API for external orchestration providers.
 doc_status: active
-updated: '2026-10-06'
+updated: '2026-10-07'
 related:
 - docs/api/event-envelope.md
 - docs/migrations/feature-flag-deprecation.md
@@ -927,8 +927,10 @@ the command already used, `MISSION_NOT_READY` for `accept-mission` and `PREFLIGH
 | `data.preflight_error_code` | Meaning | What to do |
 |---|---|---|
 | `ORIGIN_STATUS_STALE` | The remote's status evidence branch has commits that change this Mission's `status.events.jsonl` and that your clone lacks (or the branch is diverged). | Run the `git pull` command the message names in the evidence checkout, then re-run. With a merge record present, abort first, as the message says. |
-| `ORIGIN_LANE_STALE` | `consolidate-mission` only: an approved lane's remote tip is ahead of, diverged from, or missing locally. | Update the local lane (`git fetch <remote> <lane> && git branch -f <lane> <remote>/<lane>`), then re-run. |
-| `ORIGIN_UNREACHABLE` | A remote resolved but could not be reached in this invocation. | Restore connectivity, or re-run with `--origin-check warn` (or set `SPEC_KITTY_ORIGIN_CHECK=warn`). |
+| `ORIGIN_LANE_STALE` (`state` `behind`) | `consolidate-mission` only: an approved lane's remote tip is ahead of the local lane, which has nothing origin lacks. | `git fetch <remote> <lane>`, then `git -C <lane worktree> merge --ff-only <remote>/<lane>` (or `git branch -f <lane> <remote>/<lane>` when no checkout holds the lane), then re-run. |
+| `ORIGIN_LANE_STALE` (`state` `local_missing`) | The approved lane exists on the remote but not locally. | `git branch <lane> <remote>/<lane>`, then re-run. |
+| `ORIGIN_LANE_STALE` (`state` `diverged`) | The lane has commits origin lacks and origin has commits the lane lacks. | Merge origin's lane in (`git -C <lane worktree> merge <remote>/<lane>`), or, if the local lane is the truth, merge or rebase it onto `<remote>/<lane>` first, then push. Never `git branch -f`: it drops the local commits. Then re-run. |
+| `ORIGIN_UNREACHABLE` | A remote resolved but could not be reached in this invocation: it timed out (5 s listing, 15 s fetch) or the transport failed. | A timeout may only be slowness: retry. Otherwise restore connectivity, or re-run with `--origin-check warn` (or set `SPEC_KITTY_ORIGIN_CHECK=warn`).
 | `ORIGIN_REMOTE_AMBIGUOUS` | The repository has remotes but none owns the branch: no `branch.<name>.remote`, not exactly one remote, and no `origin`. `data.origin_freshness[].detail` lists the remotes. | Run `git config branch.<name>.remote <remote>` for the branch, then re-run, or re-run with `--origin-check warn`. |
 
 `data.preflight_error_code` is the first code the message names and `data.preflight_error_codes`
@@ -949,7 +951,10 @@ lists every distinct code, as for the codes above.
 ```
 
 `state` is one of `up_to_date`, `behind`, `ahead`, `diverged`, `local_missing`,
-`remote_missing`, `unreachable`, `no_remote` or `remote_ambiguous`. `scope` names the status log the status
+`remote_missing`, `unreachable`, `no_remote` or `remote_ambiguous`. A `remote_missing`
+row is never a refusal; its `detail` is set when this clone once saw the branch on the remote
+and the remote no longer lists it (the branch may have been deleted there), and the same text
+is a warning. `scope` names the status log the status
 evidence row was judged on and is `null` for a lane. `detail` says why a remote was
 unreachable (the git error text), or lists the remotes of a `remote_ambiguous` branch, and is `null` otherwise. A `consolidate-mission` origin refusal
 also carries `data.target_branch`, like every other `PREFLIGHT_FAILED` of that command. With `--origin-check warn`, or

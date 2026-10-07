@@ -4,7 +4,7 @@ description: Canonical changelog for the Spec Kitty CLI and templates, following
 doc_status: active
 type: reference
 audience: docs/context/audience/external/project-owner.md
-updated: '2026-10-06'
+updated: '2026-10-07'
 ---
 # Changelog
 

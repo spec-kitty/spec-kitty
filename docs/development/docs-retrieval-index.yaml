@@ -12436,6 +12436,7 @@ pages:
     - {slug: "the-run-refused-before-moving-anything", text: "The Run Refused Before Moving Anything", level: 2}
     - {slug: "wrong-branch-or-uncommitted-changes", text: "Wrong branch or uncommitted changes", level: 3}
     - {slug: "target-branch-content-conflicts-during-squash", text: "Target-Branch Content Conflicts During Squash", level: 3}
+    - {slug: "origin-is-ahead-of-this-clone-origin-codes", text: "Origin is ahead of this clone (`ORIGIN_*` codes)", level: 3}
     - {slug: "not-synchronized-with-origin-only-with-push", text: "Not synchronized with origin (only with --push)", level: 3}
     - {slug: "the-run-stopped-after-moving-branches", text: "The Run Stopped After Moving Branches", level: 2}
     - {slug: "a-lane-failed-to-merge", text: "A lane failed to merge", level: 3}

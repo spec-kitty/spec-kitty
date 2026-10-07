@@ -2,7 +2,7 @@
 title: How to Troubleshoot Merge Issues
 description: 'How to troubleshoot spec-kitty consolidate with Spec Kitty 3.2: resume or abort a stopped run and fix the refusals operators meet most, each with its command.'
 doc_status: active
-updated: '2026-10-05'
+updated: '2026-10-07'
 audience: docs/context/audience/external/project-owner.md
 type: how-to
 related:
@@ -140,13 +140,27 @@ spec-kitty consolidate --dry-run
 spec-kitty consolidate
 ```
 
+### Origin is ahead of this clone (`ORIGIN_*` codes)
+
+Before anything moves, `consolidate` (and `accept`) asks the remote that owns each branch it is about to trust, so a teammate's pushed rejection cannot land as done. A refusal prints the code, the branch and the command to run; nothing was moved. Re-run `spec-kitty consolidate` after the fix. A repository with no remote, or a branch that was never pushed, is not checked.
+
+| Code | What it means | Fix |
+|---|---|---|
+| `ORIGIN_STATUS_STALE` | Origin has status events for this Mission that your clone lacks. | Run the printed `git pull` in the checkout that holds the branch (or `git fetch <remote> <branch>:<branch>`). With a consolidation record present, run `spec-kitty consolidate --abort` first, as the message says. |
+| `ORIGIN_LANE_STALE` | An approved lane branch is behind origin, diverged from it, or missing here. | Behind: `git fetch <remote> <lane>` then `git -C <lane worktree> merge --ff-only <remote>/<lane>`. Missing: `git branch <lane> <remote>/<lane>`. Diverged: merge origin's lane in or rebase onto it, then push. Do not `git branch -f` a diverged lane. |
+| `ORIGIN_UNREACHABLE` | The remote did not answer. The text says whether it timed out (maybe only slow: retry) or failed. | Retry, or check network access and credentials. |
+| `ORIGIN_REMOTE_AMBIGUOUS` | Several remotes exist and none owns the branch. | `git config branch.<name>.remote <remote>`. |
+| `ORIGIN_LANE_DIVERGED` | `spec-kitty agent action review` only: the reviewed lane diverged from origin. | Merge origin's lane in, or merge or rebase yours onto `<remote>/<lane>` and push. |
+
+To go on anyway, `--origin-check warn` (or `SPEC_KITTY_ORIGIN_CHECK=warn`) prints each finding as a warning and continues. `--origin-check off` (or `SPEC_KITTY_ORIGIN_CHECK=off`) contacts nothing and accepts stale evidence: use it only when you cannot reach the remote and accept that a rejection your teammate pushed can land as done. `agent action review` has no flag and honors only the variable; `ORIGIN_LANE_DIVERGED` is lifted only by `SPEC_KITTY_ORIGIN_CHECK=warn`, never by a flag. Any other value of the variable enforces and prints a warning.
+
 ### Not synchronized with origin (only with --push)
 
 ```text
 diagnostic_code: TARGET_BRANCH_NOT_SYNCHRONIZED
 ```
 
-This check runs only when `--push` is in effect. A plain `consolidate` does not need the target branch to match origin. The code means the local target branch is ahead of, behind or diverged from its tracking branch.
+This check runs only when `--push` is in effect. A plain `consolidate` does not need the target branch to match origin for push safety. (It does ask origin about the Mission's own status log and approved lanes: see [Origin is ahead](#origin-is-ahead-of-this-clone-origin_-codes).) The code means the local target branch is ahead of, behind or diverged from its tracking branch.
 
 Do not push the local target branch to satisfy the check; its extra commits may belong to other Missions. Choose one:
 

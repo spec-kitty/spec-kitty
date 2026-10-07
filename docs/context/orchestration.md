@@ -2,7 +2,7 @@
 title: 'Context: Orchestration'
 description: 'Glossary context for orchestration: lifecycle and runtime orchestration semantics, including the repository, project, and mission-run terms.'
 doc_status: active
-updated: '2026-10-06'
+updated: '2026-10-07'
 related:
 - docs/context/charter.md
 - docs/context/identity.md
@@ -621,7 +621,7 @@ Mission topology terms (the four topologies, write checkout, repo-root lane, cod
 
 | | |
 |---|---|
-| **Definition** | Refreshing the remote's view of a branch in the current invocation and classifying the local branch against it. The verdict is one of `up_to_date`, `behind`, `ahead`, `diverged`, `local_missing`, `remote_missing`, `unreachable` or `no_remote`. A gate refuses on `ORIGIN_STATUS_STALE`, `ORIGIN_LANE_STALE`, `ORIGIN_LANE_DIVERGED` or `ORIGIN_UNREACHABLE` unless the operator passes `--origin-check warn` (default `SPEC_KITTY_ORIGIN_CHECK`). Owned by `specify_cli.git.origin_freshness`; remote contact itself belongs to `kernel.git.remote`. See ADR [2026-10-06-3](../adr/4.x/2026-10-06-3-evidence-gates-check-origin-freshness.md). |
+| **Definition** | Refreshing the remote's view of a branch in the current invocation and classifying the local branch against it. The verdict is one of `up_to_date`, `behind`, `ahead`, `diverged`, `local_missing`, `remote_missing`, `unreachable`, `no_remote` or `remote_ambiguous`. A merge-path gate (`consolidate`, `accept`, the two `orchestrator-api` gates) refuses on `ORIGIN_STATUS_STALE`, `ORIGIN_LANE_STALE`, `ORIGIN_UNREACHABLE` or `ORIGIN_REMOTE_AMBIGUOUS` unless the operator passes `--origin-check warn` (default `SPEC_KITTY_ORIGIN_CHECK`); `off` contacts nothing and accepts stale evidence. `ORIGIN_LANE_DIVERGED` is `agent action review` only, which has no flag: only `SPEC_KITTY_ORIGIN_CHECK=warn` lifts it. Owned by `specify_cli.git.origin_freshness`; every remote read (listing, fetch, clone, `remote show`) belongs to `kernel.git.remote`, while push is excluded (FR-015, #5858). See ADR [2026-10-06-3](../adr/4.x/2026-10-06-3-evidence-gates-check-origin-freshness.md). |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `4.x` |

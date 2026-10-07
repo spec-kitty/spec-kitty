@@ -1,4 +1,6 @@
-"""The one owner of git commands that contact a remote (FR-013, FR-017, NFR-001, NFR-002).
+"""The owner of every remote read: the git commands that ask a remote (FR-013, FR-017, NFR-001, NFR-002).
+
+``push`` is not here (FR-015): it is excluded from this owner, tracked in #5858.
 
 This is the "how" layer for remote contact, the sibling of :mod:`kernel.git.listing`:
 it knows refs and remotes, never Missions, lanes or status (C-001). Every
