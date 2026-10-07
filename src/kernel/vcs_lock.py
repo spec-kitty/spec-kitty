@@ -15,11 +15,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-# NOTE: VCS_LOCK_META_FIELDS is an internal constant used by
-# is_vcs_lock_only_change; it is intentionally NOT in __all__ (no public
-# importer exists — exporting it would be a dead public symbol). Add it here
-# only when a runtime consumer imports the canonical set directly.
 __all__ = [
+    "VCS_LOCK_META_FIELDS",
     "is_vcs_lock_only_change",
 ]
 
