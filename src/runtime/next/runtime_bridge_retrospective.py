@@ -388,15 +388,65 @@ def _run_retrospective_learning_capture(
             repo_root=repo_root,
             provenance_kind=resolved_provenance,
         )
-        callback(mission_id=mission_id, feature_dir=feature_dir, repo_root=repo_root)
-    except Exception:
-        logger.exception(
-            "retrospective capture failed for mission %s (block_on_failure=%s)",
-            mission_slug,
-            block_on_failure,
+    except Exception as exc:
+        _log_capture_failure(mission_slug, block_on_failure)
+        # The built facilitator records its own failures as events; one that never
+        # got built cannot, so the event is recorded here.
+        _emit_build_failure(
+            exc,
+            mission_id=mission_id,
+            mission_slug=mission_slug,
+            repo_root=repo_root,
+            provenance_kind=resolved_provenance,
         )
         if block_on_failure:
             raise
+        return
+    try:
+        callback(mission_id=mission_id, feature_dir=feature_dir, repo_root=repo_root)
+    except Exception:
+        _log_capture_failure(mission_slug, block_on_failure)
+        if block_on_failure:
+            raise
+
+
+def _log_capture_failure(mission_slug: str, block_on_failure: bool) -> None:
+    logger.exception(
+        "retrospective capture failed for mission %s (block_on_failure=%s)",
+        mission_slug,
+        block_on_failure,
+    )
+
+
+def _emit_build_failure(
+    exc: Exception,
+    *,
+    mission_id: str,
+    mission_slug: str,
+    repo_root: Path,
+    provenance_kind: str,
+) -> None:
+    """Record a ``RetrospectiveCaptureFailed`` event for a capture that could not be built.
+
+    Goes through :func:`_classify_and_emit_failure`, the one place a capture
+    failure is turned into the event. No policy was resolved yet, so the source map
+    is empty. When the emitter itself cannot be imported there is nothing to
+    emit with; that is logged, never raised.
+    """
+    try:
+        from specify_cli.retrospective.lifecycle_events import emit_capture_failed
+    except Exception:
+        logger.warning("Cannot emit RetrospectiveCaptureFailed for mission %s", mission_slug, exc_info=True)
+        return
+    _classify_and_emit_failure(
+        mission_id=mission_id,
+        mission_slug=mission_slug,
+        repo_root=repo_root,
+        exc=exc,
+        source_map={},
+        provenance_kind=provenance_kind,
+        emit_capture_failed=emit_capture_failed,
+    )
 
 
 def _classify_exc(exc: Exception) -> str:

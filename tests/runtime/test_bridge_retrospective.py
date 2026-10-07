@@ -373,20 +373,29 @@ def test_run_retrospective_learning_capture_reraises_when_blocking(
         )
 
 
-@pytest.mark.parametrize(("block_on_failure", "raises"), [(False, False), (True, True)], ids=["best-effort", "blocking"])
+@pytest.mark.parametrize(
+    ("block_on_failure", "raises", "provenance"),
+    [(False, False, "runtime_post_completion"), (True, True, "runtime_strict_gate")],
+    ids=["best-effort", "blocking"],
+)
 def test_run_retrospective_learning_capture_treats_a_callback_build_failure_like_a_capture_failure(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, block_on_failure: bool, raises: bool
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, block_on_failure: bool, raises: bool, provenance: str
 ) -> None:
     """A failure while building the capture (e.g. a broken late import) follows the policy (#2562 pre-PR squad).
 
     The best-effort capture runs after the run is already terminal; letting this
-    raise turned a completed advance into a false ``blocked`` Decision.
+    raise turned a completed advance into a false ``blocked`` Decision. Like a
+    failure inside the capture, it is also recorded as a ``RetrospectiveCaptureFailed``
+    event, so the mission's event log shows the capture was attempted and failed.
     """
+    from specify_cli.retrospective import lifecycle_events
 
     def _raising_builder(**_kw: Any) -> Any:
         raise ImportError("retrospective writer unavailable")
 
+    emitted: list[dict[str, Any]] = []
     monkeypatch.setattr(retro, "_build_retrospective_facilitator_callback", _raising_builder)
+    monkeypatch.setattr(lifecycle_events, "emit_capture_failed", lambda *args, **kwargs: emitted.append({"args": args, **kwargs}))
 
     def _capture() -> None:
         retro._run_retrospective_learning_capture(
@@ -402,6 +411,13 @@ def test_run_retrospective_learning_capture_treats_a_callback_build_failure_like
             _capture()
     else:
         _capture()
+
+    assert len(emitted) == 1
+    assert emitted[0]["mission_id"] == "m"
+    assert emitted[0]["mission_slug"] == "s"
+    assert emitted[0]["failure_category"] == "generator_exception"
+    assert emitted[0]["failure_message"] == "retrospective writer unavailable"
+    assert emitted[0]["attempted_provenance_kind"] == provenance
 
 
 # ---------------------------------------------------------------------------
