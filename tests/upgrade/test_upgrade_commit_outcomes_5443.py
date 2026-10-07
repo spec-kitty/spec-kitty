@@ -9,6 +9,8 @@ Everything runs through ``python -m specify_cli upgrade --yes`` in a hermetic sa
 
 from __future__ import annotations
 
+import shutil
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
@@ -222,3 +224,104 @@ def test_upgraded_worktree_follows_main_rules(tmp_path: Path, case: str) -> None
     assert (worktree / _CUSTOM).read_text(encoding="utf-8") == _CUSTOM_BODY
     assert f"Worktree {_WORKTREE}: Held for manual review (not committed): {_CUSTOM}" in output
     assert f"Worktree {_WORKTREE}: Skipped auto-commit" not in output
+
+
+# ---------------------------------------------------------------------------
+# autocommit exclusions, in-process on a real repository (not red-first: they
+# pin new branches of ``prepare_upgrade_commit_files`` / ``commit_touched_checkout``)
+# ---------------------------------------------------------------------------
+
+
+def _hermetic_process_env(monkeypatch: pytest.MonkeyPatch, env: Mapping[str, str]) -> None:
+    """Point this process's git at the sandbox so in-process probes never see ambient config."""
+    import os
+
+    for key in [k for k in os.environ if k.startswith("GIT_")]:
+        monkeypatch.delenv(key)
+    for key in ("HOME", "GIT_CONFIG_NOSYSTEM", "GIT_CONFIG_GLOBAL", "GIT_TERMINAL_PROMPT"):
+        monkeypatch.setenv(key, env[key])
+
+
+def _in_process_project(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, gitignore: str, extra_files: Mapping[str, str] | None = None
+) -> tuple[Path, dict[str, str]]:
+    project, env = build_legacy(tmp_path, agents=["claude"], gitignore=gitignore, extra_files=extra_files)
+    _hermetic_process_env(monkeypatch, env)
+    return project, env
+
+
+def test_prepare_excludes_ignored_at_baseline_even_after_unignore(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    project, _env = _in_process_project(tmp_path, monkeypatch, gitignore="cache/\n")
+    (project / "cache").mkdir()
+    (project / "cache" / "a.txt").write_text("a\n", encoding="utf-8")
+    baseline = autocommit.capture_upgrade_baseline(project)
+    assert baseline is not None
+
+    (project / ".gitignore").write_text("*.pyc\n", encoding="utf-8")  # a migration un-ignores the directory
+    (project / "cache" / "b.txt").write_text("b\n", encoding="utf-8")
+
+    files = {path.as_posix() for path in autocommit.prepare_upgrade_commit_files(project, baseline)}
+    assert ".gitignore" in files
+    assert not {"cache/a.txt", "cache/b.txt"} & files
+
+
+def test_prepare_excludes_backup_copy_of_ignored_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    project, _env = _in_process_project(tmp_path, monkeypatch, gitignore=".kittify/workspaces/\n")
+    token = project / ".kittify" / "workspaces" / "token.json"
+    token.parent.mkdir(parents=True)
+    token.write_text("{}\n", encoding="utf-8")
+    baseline = autocommit.capture_upgrade_baseline(project)
+    assert baseline is not None
+
+    backup = project / "backup" / "workspaces"
+    backup.mkdir(parents=True)
+    shutil.copy2(token, backup / "token.json")
+    (project / "backup" / "kept.txt").write_text("not a copy of an ignored file\n", encoding="utf-8")
+
+    files = {path.as_posix() for path in autocommit.prepare_upgrade_commit_files(project, baseline)}
+    assert "backup/workspaces/token.json" not in files
+    assert "backup/kept.txt" in files
+
+
+def test_prepare_keeps_migration_untrack(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    skill = ".agents/skills/demo/SKILL.md"
+    project, env = _in_process_project(tmp_path, monkeypatch, gitignore="*.pyc\n", extra_files={skill: "# demo\n"})
+    baseline = autocommit.capture_upgrade_baseline(project)
+    assert baseline is not None
+    head0 = head(project, env)
+
+    git(project, env, "rm", "--cached", "-q", "--", skill)  # what the 3.2.5 gitignore backfill does
+
+    assert skill not in {path.as_posix() for path in autocommit.prepare_upgrade_commit_files(project, baseline)}
+    assert autocommit.commit_touched_checkout(project, baseline, "2.1.0", "4.0.0") == (False, [], None)
+    assert head(project, env) == head0
+    assert ("D ", skill) in status_z(project, env)
+    assert (project / skill).exists()
+
+
+def test_prepare_keeps_a_staged_deletion_whose_file_is_gone(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    project, env = _in_process_project(tmp_path, monkeypatch, gitignore="*.pyc\n")
+    baseline = autocommit.capture_upgrade_baseline(project)
+    assert baseline is not None
+
+    git(project, env, "rm", "-q", "--", "docs/old.md")
+
+    assert "docs/old.md" in {path.as_posix() for path in autocommit.prepare_upgrade_commit_files(project, baseline)}
+
+
+@pytest.mark.regression
+def test_metadata_dirty_at_baseline_is_left_out_with_reason(tmp_path: Path) -> None:
+    project, env = build_legacy(tmp_path, agents=["claude"], gitignore="*.pyc\n", extra_files={_IMPLEMENT: MARKED_COMMAND_FILE})
+    metadata = project / ".kittify" / "metadata.yaml"
+    metadata.write_text(metadata.read_text(encoding="utf-8") + "# operator note\n", encoding="utf-8")
+    head0 = head(project, env)
+
+    result = run_upgrade(project, env)
+
+    committed_paths = {path for _status, path in new_commit_files(project, env, head0)}
+    assert committed_paths, "the rest of the upgrade is still committed"
+    assert ".kittify/metadata.yaml" not in committed_paths
+    assert any(path == ".kittify/metadata.yaml" and "M" in xy for xy, path in status_z(project, env))
+    stamped = yaml.safe_load(metadata.read_text(encoding="utf-8"))
+    assert stamped["spec_kitty"]["schema_version"] == CURRENT_SCHEMA_VERSION
+    assert flat(autocommit.METADATA_DIRTY_AT_BASELINE_WARNING) in flat(result.stdout)

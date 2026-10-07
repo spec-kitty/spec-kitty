@@ -112,6 +112,45 @@ def _worktrees_to_upgrade(worktrees_dir: Path) -> list[Path]:
     return [worktree for worktree in sorted(worktrees_dir.iterdir(), key=lambda p: p.name) if worktree.is_dir() and not _is_integrating_worktree(worktree)]
 
 
+def _commit_worktree_churn(
+    worktree: Path,
+    *,
+    baseline: set[str] | None,
+    from_version: str,
+    to_version: str,
+    failed: bool,
+    held_paths: list[str],
+) -> list[str]:
+    """Commit one upgraded worktree's churn and return its warnings, each prefixed with its name.
+
+    Mirrors the main checkout (FR-019, FR-021, FR-023): a worktree whose migrations failed
+    commits nothing and says so (only when the run left changes there); an unavailable
+    baseline is reported instead of committed against; files held for manual review are
+    named, with the wording that depends on whether a commit landed; and a no-commit case
+    prints exactly one reason.
+    """
+    prefix = f"Worktree {worktree.name}: "
+    committed = False
+    reason: str | None = None
+    if baseline is None:
+        reason = autocommit.BASELINE_UNAVAILABLE_WARNING
+    elif failed:
+        if autocommit.prepare_upgrade_commit_files(worktree, baseline):
+            reason = autocommit.FAILED_RUN_LEFT_UNCOMMITTED_WARNING
+    else:
+        committed, _paths, reason = autocommit.commit_touched_checkout(worktree, baseline, from_version, to_version)
+    warnings = [prefix + reason] if reason else []
+    if held_paths and not failed:
+        joined = ", ".join(held_paths)
+        held = (
+            autocommit.HELD_FOR_REVIEW_NOT_COMMITTED_WARNING.format(paths=joined)
+            if committed
+            else autocommit.HELD_FOR_REVIEW_SKIPPED_COMMIT_WARNING.format(count=len(held_paths), paths=joined)
+        )
+        warnings.append(prefix + held)
+    return warnings
+
+
 class MigrationRunner:
     """Orchestrates the migration process."""
 
@@ -491,9 +530,15 @@ class MigrationRunner:
             # version-bump below never fires, the save is skipped, and the
             # self-healing path silently regresses (#1873, regression of #1857).
             worktree_metadata_dirty = wt_metadata_synthesized
-            worktree_manual_review = False
+            # Marker-less command files a migration preserved in THIS worktree: named in the
+            # output, never committed (they are not written by the run), and they do not
+            # suppress the commit of everything else (#5443).
+            worktree_held: set[str] = set()
+            # A migration that could not be evaluated or raised in this worktree: nothing is
+            # committed there, but (unlike ``worktree_failed``) the schema-stamp rules are unchanged.
+            worktree_errored = False
             # FR-009 (#3376): a NEW per-worktree flag distinct from
-            # ``worktree_metadata_dirty``/``worktree_manual_review`` above --
+            # ``worktree_metadata_dirty``/``worktree_held`` above --
             # the loop previously tracked no success/failure boolean at all.
             # Sticky for the remainder of this worktree's migrations: once any
             # migration fails here, the schema_version stamp below must stay
@@ -516,6 +561,7 @@ class MigrationRunner:
                 try:
                     migration_needed = migration.detect(worktree)
                 except (GitignorePathError, MigrationStateUnreadableError) as exc:
+                    worktree_errored = True
                     result["errors"].append(f"Worktree {worktree.name}: Cannot safely detect {migration.migration_id}: {exc}")
                     if not dry_run and self._record_migration_result(
                         wt_metadata,
@@ -549,10 +595,11 @@ class MigrationRunner:
                 try:
                     migration_result = migration.apply(worktree, dry_run=dry_run)
                 except (GitignorePathError, MigrationStateUnreadableError) as exc:
+                    worktree_errored = True
                     result["errors"].append(f"Worktree {worktree.name}: Cannot apply {migration.migration_id}: {exc}")
                     continue
                 if migration_result.manual_review_required:
-                    worktree_manual_review = True
+                    worktree_held.update(migration_result.preserved_paths)
 
                 if migration_result.success:
                     if not dry_run and self._record_migration_result(
@@ -602,23 +649,20 @@ class MigrationRunner:
                 if REQUIRED_SCHEMA_VERSION is not None and not worktree_failed:
                     self._stamp_schema_version(wt_kittify, REQUIRED_SCHEMA_VERSION)
 
-                # Commit this worktree's upgrade churn on its own branch
-                # (#2385); the baseline diff keeps pre-existing uncommitted
-                # work (e.g. in-flight WP edits) out of the commit.
+                # Commit this worktree's upgrade churn on its own branch (#2385) under the
+                # same rules as the main checkout: only a successful run commits, held files
+                # are named and never block the rest, and one explicit reason per no-commit case.
                 if auto_commit:
-                    if worktree_manual_review:
-                        result["warnings"].append(
-                            f"Worktree {worktree.name}: Skipped auto-commit because the upgrade preserved customized files that require manual review."
-                        )
-                    else:
-                        _committed, _paths, wt_commit_warning = autocommit.commit_touched_checkout(
+                    result["warnings"].extend(
+                        _commit_worktree_churn(
                             worktree,
-                            wt_baseline,
-                            wt_from_version,
-                            target_version,
+                            baseline=wt_baseline,
+                            from_version=wt_from_version,
+                            to_version=target_version,
+                            failed=worktree_failed or worktree_errored,
+                            held_paths=sorted(worktree_held),
                         )
-                        if wt_commit_warning:
-                            result["warnings"].append(f"Worktree {worktree.name}: {wt_commit_warning}")
+                    )
 
         return result
 

@@ -1223,6 +1223,9 @@ def _finalizer_step_commit_churn(
     """Injected ``commit_churn`` step (C4 order position 3) — the single
     main-checkout churn commit, run only when ``should_commit`` is True.
 
+    Commits the run's clean-at-baseline writes; held files are never written by
+    the run, so they are never candidates.
+
     A ``SafeCommitRecoveryFailed`` (#4888/FR-012) is never folded into the
     generic ``commit_warning`` skip message: it is a genuine failure that
     must flip the exit code non-zero and name the orphaned stash ref + landed
@@ -1262,22 +1265,104 @@ def _churn_left_uncommitted_by_config(
     User Story 2 scenario 1: "the command reports that changes were left
     uncommitted").
 
-    Deliberately excludes two other "not committed" paths that already
+    Deliberately excludes the other "not committed" paths that already
     report their own state and must not be double-warned: ``--dry-run``
     (nothing was ever meant to be written or committed, FR-003 scenario 3)
-    and manual-review preservation (its own warning is already appended to
-    ``result.warnings``, D-10). What remains — ``should_commit_main`` False
-    for neither of those reasons — can only be the config opt-out
-    (``autocommit.should_auto_commit``'s sole remaining gate, C2).
+    and a failed run (its own reason, ``FAILED_RUN_LEFT_UNCOMMITTED_WARNING``,
+    is appended by :func:`_report_commit_outcome`). What remains —
+    ``should_commit_main`` False for neither of those reasons — can only be the
+    config opt-out (``autocommit.should_auto_commit``'s sole remaining gate, C2).
 
     Uses :func:`autocommit.prepare_upgrade_commit_files` — the same,
     side-effect-free churn-detection routine ``commit_touched_checkout``
     itself uses — so "would there have been anything to commit" never
     duplicates or drifts from the real eligibility/baseline-diff rules.
     """
-    if dry_run or outcome.manual_review_paths or should_commit_main or outcome.committed:
+    if dry_run or not outcome.result.success or should_commit_main or outcome.committed:
         return False
     return bool(autocommit.prepare_upgrade_commit_files(project_path, baseline_changed_paths))
+
+
+def _no_commit_reason(
+    outcome: UpgradeOutcome,
+    *,
+    dry_run: bool,
+    should_commit_main: bool,
+    baseline_available: bool,
+    metadata_dirty_at_baseline: bool,
+    churn_present: bool,
+) -> str | None:
+    """Return the single explicit reason nothing was committed, or ``None`` (FR-023).
+
+    Precedence: dry run and a committed run need no reason; a failed run says its changes
+    were left uncommitted (only when there are changes); a project with ``auto_commit``
+    disabled is reported by :func:`_churn_left_uncommitted_by_config`; then an unavailable
+    baseline, activation or repair-preparation errors (``finalize_upgrade`` skips the commit
+    silently for those), and a ``.kittify/metadata.yaml`` that was dirty before the run.
+    Detached HEAD, branch-detection and ``safe_commit`` failures already carry their own
+    ``commit_warning``, and held files are named by :func:`_held_files_warning`.
+    """
+    if dry_run or outcome.committed:
+        return None
+    if not outcome.result.success:
+        return autocommit.FAILED_RUN_LEFT_UNCOMMITTED_WARNING if churn_present else None
+    if not should_commit_main:
+        return None
+    if not baseline_available:
+        return autocommit.BASELINE_UNAVAILABLE_WARNING
+    if outcome.activation_errors or outcome.repair_preparation_errors:
+        return autocommit.REPAIR_ERRORS_LEFT_UNCOMMITTED_WARNING
+    if metadata_dirty_at_baseline and not churn_present:
+        return autocommit.METADATA_DIRTY_AT_BASELINE_WARNING
+    return None
+
+
+def _held_files_warning(outcome: UpgradeOutcome, *, dry_run: bool) -> str | None:
+    """Name the files held for manual review, worded by whether a commit landed (FR-021).
+
+    Held files are never written by the run, so they are never commit candidates; this
+    only says so. Dry runs and failed runs print their own state instead.
+    """
+    if dry_run or not outcome.result.success or not outcome.manual_review_paths:
+        return None
+    paths = sorted(path.as_posix() for path in outcome.manual_review_paths)
+    joined = ", ".join(paths)
+    if outcome.committed:
+        return autocommit.HELD_FOR_REVIEW_NOT_COMMITTED_WARNING.format(paths=joined)
+    return autocommit.HELD_FOR_REVIEW_SKIPPED_COMMIT_WARNING.format(count=len(paths), paths=joined)
+
+
+def _report_commit_outcome(
+    outcome: UpgradeOutcome,
+    *,
+    dry_run: bool,
+    should_commit_main: bool,
+    project_path: Path,
+    baseline: set[str] | None,
+    commit_warned: bool,
+) -> None:
+    """Append the held-file warning and the one no-commit reason (FR-021, FR-023).
+
+    A commit that was attempted and failed already printed its own warning
+    (*commit_warned*): no second reason is added for it.
+    """
+    held = _held_files_warning(outcome, dry_run=dry_run)
+    if held:
+        outcome.result.warnings.append(held)
+    if commit_warned:
+        return
+    needs_churn_probe = not dry_run and not outcome.committed and baseline is not None
+    churn_present = bool(needs_churn_probe and autocommit.prepare_upgrade_commit_files(project_path, baseline))
+    reason = _no_commit_reason(
+        outcome,
+        dry_run=dry_run,
+        should_commit_main=should_commit_main,
+        baseline_available=baseline is not None,
+        metadata_dirty_at_baseline=baseline is not None and ".kittify/metadata.yaml" in baseline,
+        churn_present=churn_present,
+    )
+    if reason:
+        outcome.result.warnings.append(reason)
 
 
 def _finalizer_step_report_mission_state(
@@ -1569,7 +1654,7 @@ def _run_full_plan_json(
     payload["decision"] = "ready" if prepared.complete else "incomplete"
     payload["process_exit_code"] = 0 if prepared.complete else 1
     payload["commit_policy"] = {
-        "project_enabled": should_auto_commit(project_path, dry_run=False, manual_review=False),
+        "project_enabled": should_auto_commit(project_path, dry_run=False),
         "worktrees_enabled": include_worktrees,
         "mission_repair_included": False,
     }
@@ -1880,8 +1965,6 @@ def upgrade(
                 auto_commit=should_auto_commit_for_worktree(project_path, dry_run=dry_run),
             )
             manual_review_paths = _collect_manual_review_paths(result.migration_results)
-            if manual_review_paths:
-                result.warnings.append("Skipped auto-commit because the upgrade preserved customized files that require manual review.")
             outcome = UpgradeOutcome(
                 result=result,
                 manual_review_paths=[Path(p) for p in manual_review_paths],
@@ -1893,7 +1976,8 @@ def upgrade(
         # T017/C4 — one shared tail: wire the finalizer with the step
         # implementations as injected callables (the finalizer itself does not
         # import cli.commands — see upgrade/finalize.py's module docstring).
-        should_commit_main = should_auto_commit(project_path, dry_run=dry_run, manual_review=bool(outcome.manual_review_paths))
+        # A failed run commits nothing (FR-019); held files never suppress the commit (FR-021).
+        should_commit_main = outcome.result.success and should_auto_commit(project_path, dry_run=dry_run)
         render_ctx = _FinalizerRenderContext()
         preparation_errors: tuple[str, ...] = ()
         if not dry_run and outcome.result.success:
@@ -1934,6 +2018,14 @@ def upgrade(
     surface_repair_summary = render_ctx.surface_repair_summary
     if render_ctx.commit_warning:
         outcome.result.warnings.append(render_ctx.commit_warning)
+    _report_commit_outcome(
+        outcome,
+        dry_run=dry_run,
+        should_commit_main=should_commit_main,
+        project_path=project_path,
+        baseline=baseline_changed_paths,
+        commit_warned=bool(render_ctx.commit_warning),
+    )
     auto_commit_paths = list(render_ctx.commit_paths)
     # Human-mode-only (FR-003/US2 scenario 1): the JSON contract already
     # reports the config opt-out honestly via `auto_committed: false`, so

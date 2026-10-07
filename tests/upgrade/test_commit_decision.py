@@ -24,22 +24,26 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def test_should_auto_commit_false_when_config_disabled(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(autocommit, "get_auto_commit_default", lambda _repo_root: False)
-    assert autocommit.should_auto_commit(tmp_path, dry_run=False, manual_review=False) is False
+    assert autocommit.should_auto_commit(tmp_path, dry_run=False) is False
 
 
 def test_should_auto_commit_true_when_config_enabled(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(autocommit, "get_auto_commit_default", lambda _repo_root: True)
-    assert autocommit.should_auto_commit(tmp_path, dry_run=False, manual_review=False) is True
+    assert autocommit.should_auto_commit(tmp_path, dry_run=False) is True
 
 
 def test_should_auto_commit_false_on_dry_run(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(autocommit, "get_auto_commit_default", lambda _repo_root: True)
-    assert autocommit.should_auto_commit(tmp_path, dry_run=True, manual_review=False) is False
+    assert autocommit.should_auto_commit(tmp_path, dry_run=True) is False
 
 
-def test_should_auto_commit_false_on_manual_review(tmp_path: Path, monkeypatch) -> None:
+def test_should_auto_commit_has_no_manual_review_gate(tmp_path: Path, monkeypatch) -> None:
+    """#5443: files held for manual review are not commit candidates, so they no longer
+    disable committing; the parameter is gone (a caller passing it fails loudly)."""
     monkeypatch.setattr(autocommit, "get_auto_commit_default", lambda _repo_root: True)
-    assert autocommit.should_auto_commit(tmp_path, dry_run=False, manual_review=True) is False
+    assert autocommit.should_auto_commit(tmp_path, dry_run=False) is True
+    with pytest.raises(TypeError):
+        autocommit.should_auto_commit(tmp_path, dry_run=False, **{"manual_review": True})
 
 
 def test_should_auto_commit_never_reads_home_guard(tmp_path: Path, monkeypatch) -> None:
@@ -51,7 +55,7 @@ def test_should_auto_commit_never_reads_home_guard(tmp_path: Path, monkeypatch) 
         raise AssertionError("should_auto_commit must not consult Path.home()")
 
     monkeypatch.setattr(Path, "home", staticmethod(_boom))
-    assert autocommit.should_auto_commit(tmp_path, dry_run=False, manual_review=False) is True
+    assert autocommit.should_auto_commit(tmp_path, dry_run=False) is True
 
 
 # ---------------------------------------------------------------------------

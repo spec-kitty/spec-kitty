@@ -51,6 +51,33 @@ DETACHED_HEAD_WARNING = "Checkout is on a detached HEAD; skipped auto-committing
 
 BRANCH_DETECTION_FAILED_WARNING = "Could not determine the current branch; skipped auto-committing upgrade changes — please review and commit manually."
 
+# One explicit reason per no-commit case (FR-023). The emission points are in
+# ``cli.commands.upgrade`` (``_no_commit_reason``, the held-file warning) and in
+# ``MigrationRunner._upgrade_worktrees``; ``commit_touched_checkout`` itself only
+# returns METADATA_DIRTY_AT_BASELINE_WARNING (the baseline-unavailable reason is
+# produced by the caller, never returned here).
+FAILED_RUN_LEFT_UNCOMMITTED_WARNING = (
+    "The upgrade failed, so its changes were left uncommitted — review them, then re-run `spec-kitty upgrade` or commit them yourself."
+)
+
+BASELINE_UNAVAILABLE_WARNING = "Could not read the git status before the upgrade; nothing was committed — review the changes and commit them yourself."
+
+METADATA_DIRTY_AT_BASELINE_WARNING = (
+    ".kittify/metadata.yaml had uncommitted changes before the upgrade; its new schema stamp was left uncommitted — commit it yourself."
+)
+
+REPAIR_ERRORS_LEFT_UNCOMMITTED_WARNING = (
+    "Activation or repair preparation reported errors, so the upgrade changes were left uncommitted — review them and commit them yourself."
+)
+
+# Format strings: the first MUST start with ``Skipped auto-commit`` (a documented
+# substring of the held-files-and-no-commit message).
+HELD_FOR_REVIEW_SKIPPED_COMMIT_WARNING = "Skipped auto-commit of {count} file(s) held for manual review: {paths}"
+
+HELD_FOR_REVIEW_NOT_COMMITTED_WARNING = "Held for manual review (not committed): {paths}"
+
+_METADATA_PATH = ".kittify/metadata.yaml"
+
 
 class _GitStatusPaths(set[str]):
     """Porcelain paths plus rename/copy identity needed by commit selection."""
@@ -59,6 +86,11 @@ class _GitStatusPaths(set[str]):
         super().__init__()
         self.origins: dict[str, tuple[str, bool]] = {}
         self.mutation_sequence: int | None = None
+        #: Paths git reported as ignored (``!!``) when the baseline was captured; a
+        #: trailing ``/`` marks a collapsed directory. Never part of the set itself.
+        self.ignored: frozenset[str] = frozenset()
+        #: Paths whose porcelain index column is ``D`` (staged deletions).
+        self.index_deletions: frozenset[str] = frozenset()
 
     def record_origin(self, destination: str, source: str, *, is_rename: bool) -> None:
         """Record *source* identity and whether staging must include its deletion."""
@@ -171,17 +203,18 @@ def _normalize_status_path(path: str) -> str:
     return normalized[2:] if normalized.startswith("./") else normalized
 
 
-def should_auto_commit(repo_root: Path, *, dry_run: bool, manual_review: bool) -> bool:
+def should_auto_commit(repo_root: Path, *, dry_run: bool) -> bool:
     """Decide whether the **main** checkout should auto-commit upgrade churn.
 
     The sole gate consulted by the main-checkout commit path (C2, FR-003/
-    FR-004): dry-run and manual-review (preserved-customized-files) always
-    suppress the commit; otherwise the decision defers to the project's
-    configured ``auto_commit`` default. Deliberately does not read or
+    FR-004): dry-run always suppresses the commit; otherwise the decision
+    defers to the project's configured ``auto_commit`` default. Files held for
+    manual review no longer suppress it (#5443): a held file is one the run did
+    not write, so it is never a commit candidate. Deliberately does not read or
     duplicate the ``$HOME`` eligibility guard in
     :func:`is_upgrade_commit_eligible` (C-001, D-7) — that stays where it is.
     """
-    if dry_run or manual_review:
+    if dry_run:
         return False
     return bool(get_auto_commit_default(repo_root))
 
@@ -189,11 +222,9 @@ def should_auto_commit(repo_root: Path, *, dry_run: bool, manual_review: bool) -
 def should_auto_commit_for_worktree(repo_root: Path, *, dry_run: bool) -> bool:
     """Decide whether the **worktree fan-out** should auto-commit upgrade churn.
 
-    Deliberately excludes the main checkout's ``manual_review`` signal (D-10):
-    manual review is evaluated *per worktree* by the runner's own
-    ``worktree_manual_review`` gate, so folding the main checkout's
-    manual-review state into this decision would wrongly suppress every
-    worktree commit — an NFR-002 breach of observable (e).
+    Identical in shape to :func:`should_auto_commit` (D-10): neither consults
+    the main checkout's manual-review state. Held files are named per worktree
+    by the runner and never suppress that worktree's commit (#5443).
     """
     if dry_run:
         return False
@@ -214,6 +245,7 @@ def git_status_paths(repo_path: Path) -> set[str] | None:
         return None
 
     paths = _GitStatusPaths()
+    index_deletions: set[str] = set()
     for entry in entries:
         # A rename/copy lists the *destination* (new name) as ``entry.path``.
         # The public path set keeps it because that is what exists now
@@ -223,11 +255,14 @@ def git_status_paths(repo_path: Path) -> set[str] | None:
         if not normalized:
             continue
         paths.add(normalized)
+        if entry.xy[:1] == "D":
+            index_deletions.add(normalized)
         if entry.orig_path is not None:
             source = _normalize_status_path(str(entry.orig_path))
             if source:
                 paths.record_origin(normalized, source, is_rename="R" in entry.xy)
 
+    paths.index_deletions = frozenset(index_deletions)
     return paths
 
 
@@ -236,7 +271,39 @@ def capture_upgrade_baseline(repo_path: Path) -> set[str] | None:
     paths = git_status_paths(repo_path)
     if isinstance(paths, _GitStatusPaths):
         paths.mutation_sequence = _mutation_sequence()
+        paths.ignored = _ignored_paths(repo_path)
     return paths
+
+
+def _ignored_paths(repo_path: Path) -> frozenset[str]:
+    """Paths git reports as ignored (``!!``) right now; directories stay collapsed.
+
+    ``untracked="normal"`` (not ``"all"``) keeps an ignored ``node_modules/`` or ``.venv/``
+    a single ``dir/`` entry. A failed probe yields an empty set: it must never turn a
+    usable baseline into ``None``.
+    """
+    try:
+        entries = status_entries(repo_path, untracked="normal", ignored=True)
+    except GitCommandError:
+        return frozenset()
+    ignored: set[str] = set()
+    for entry in entries:
+        if entry.xy != "!!":
+            continue
+        normalized = _normalize_status_path(str(entry.path))
+        if normalized:
+            ignored.add(f"{normalized}/" if entry.is_directory else normalized)
+    return frozenset(ignored)
+
+
+def _under_ignored(path: str, ignored: frozenset[str]) -> bool:
+    """True when *path* equals an ignored entry or sits under an ignored directory entry."""
+    if not ignored:
+        return False
+    normalized = to_posix(path)
+    if normalized in ignored or f"{normalized}/" in ignored:
+        return True
+    return any(entry.endswith("/") and normalized.startswith(entry) for entry in ignored)
 
 
 def is_upgrade_commit_eligible(path: str, checkout: Path) -> bool:
@@ -301,6 +368,35 @@ def expand_upgrade_commit_path(checkout: Path, relative_path: str) -> list[Path]
     return [Path(normalized)]
 
 
+def _skip_candidate(
+    checkout: Path,
+    path: str,
+    source: str | None,
+    *,
+    baseline_paths: set[str],
+    ignored: frozenset[str],
+    index_deletions: frozenset[str],
+) -> bool:
+    """True when a changed path must not be part of the upgrade commit.
+
+    A path is skipped when it was dirty before the run (baseline), when it or the file
+    it was copied/moved from was ignored before the run (FR-020: never commit what the
+    operator ignored, directly or through a backup copy), when it is an index deletion
+    of a still-present file (the migration's own ``git rm --cached``: committing it
+    through ``safe_commit`` would ``git add --force`` the file back and revert the
+    untrack), or when it is not eligible.
+    """
+    if path in baseline_paths or (source is not None and source in baseline_paths):
+        return True
+    if _under_ignored(path, ignored) or (source is not None and _under_ignored(source, ignored)):
+        return True
+    if path in index_deletions and os.path.lexists(checkout / path):
+        return True
+    if not is_upgrade_commit_eligible(path, checkout):
+        return True
+    return source is not None and not is_upgrade_commit_eligible(source, checkout)
+
+
 def prepare_upgrade_commit_files(
     checkout: Path,
     baseline_paths: set[str] | None,
@@ -309,6 +405,8 @@ def prepare_upgrade_commit_files(
 
     Returns an empty list when *baseline_paths* is ``None`` (git status
     failed at baseline time) to avoid accidentally committing unrelated work.
+    A plain ``set`` baseline carries no ignored information, so nothing is
+    excluded as ignored for it.
     """
     if baseline_paths is None:
         return []
@@ -318,6 +416,8 @@ def prepare_upgrade_commit_files(
         return []
 
     origins = current_paths.origins if isinstance(current_paths, _GitStatusPaths) else {}
+    index_deletions = current_paths.index_deletions if isinstance(current_paths, _GitStatusPaths) else frozenset()
+    ignored = baseline_paths.ignored if isinstance(baseline_paths, _GitStatusPaths) else frozenset()
     mutation_sequence = baseline_paths.mutation_sequence if isinstance(baseline_paths, _GitStatusPaths) else None
     if not _mutation_history_available(mutation_sequence):
         return []
@@ -327,11 +427,7 @@ def prepare_upgrade_commit_files(
         if source is None:
             source, is_move = _recorded_origin(checkout, path, mutation_sequence)
             stage_source = is_move and source is not None and source in current_paths
-        if path in baseline_paths or (source is not None and source in baseline_paths):
-            continue
-        if not is_upgrade_commit_eligible(path, checkout):
-            continue
-        if source is not None and not is_upgrade_commit_eligible(source, checkout):
+        if _skip_candidate(checkout, path, source, baseline_paths=baseline_paths, ignored=ignored, index_deletions=index_deletions):
             continue
         new_paths.append((path, source, stage_source))
 
@@ -344,7 +440,7 @@ def prepare_upgrade_commit_files(
         for stage_path in paths_to_stage:
             for expanded_path in expand_upgrade_commit_path(checkout, stage_path):
                 normalized = to_posix(expanded_path)
-                if normalized in seen_paths:
+                if normalized in seen_paths or _under_ignored(normalized, ignored):
                     continue
                 seen_paths.add(normalized)
                 files_to_commit.append(Path(normalized))
@@ -433,4 +529,6 @@ def commit_touched_checkout(
             UPGRADE_COMMIT_SKIP_WARNING,
         )
 
-    return True, committed_paths, None
+    # The metadata stamp is left out when it was dirty at baseline (the baseline filter above),
+    # so say so rather than letting teammates re-run the schema-3 migration silently.
+    return True, committed_paths, METADATA_DIRTY_AT_BASELINE_WARNING if _METADATA_PATH in (baseline_paths or ()) else None
