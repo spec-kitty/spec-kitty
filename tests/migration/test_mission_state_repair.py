@@ -532,7 +532,8 @@ def test_repair_preserves_inert_partial_field_wpstatuschanged_row(tmp_path: Path
     assert partial_row in rows, "the partial-field row must be preserved verbatim"
 
 
-def test_repair_is_idempotent_after_first_canonicalization(tmp_path: Path) -> None:
+@pytest.mark.parametrize("log_shape", ["lf", "crlf", "no_final_newline"])
+def test_repair_is_idempotent_after_first_canonicalization(tmp_path: Path, log_shape: str) -> None:
     repo = tmp_path
     mission = repo / "kitty-specs" / "001-modern"
     mission.mkdir(parents=True)
@@ -576,12 +577,25 @@ def test_repair_is_idempotent_after_first_canonicalization(tmp_path: Path) -> No
         encoding="utf-8",
     )
 
+    log = mission / "status.events.jsonl"
+    if log_shape == "crlf":
+        log.write_bytes(log.read_bytes().replace(b"\n", b"\r\n"))
+    elif log_shape == "no_final_newline":
+        log.write_bytes(log.read_bytes().rstrip(b"\n"))
+    original = log.read_bytes()
+
     first = repair_repo(repo)
+    repaired = log.read_bytes()
     second = repair_repo(repo)
 
     assert first.missions[0].status == "updated"
+    assert repaired != original
+    # A real rewrite keeps the log's own line ending and final-newline state.
+    assert repaired.endswith(b"\r\n" if log_shape == "crlf" else b"\n") is (log_shape != "no_final_newline")
+    assert (b"\r\n" in repaired) is (log_shape == "crlf")
     assert second.missions[0].status == "unchanged"
     assert second.missions[0].row_transformations == []
+    assert log.read_bytes() == repaired
 
 
 def test_deterministic_repair_ids_follow_fork_seed_material(tmp_path: Path) -> None:

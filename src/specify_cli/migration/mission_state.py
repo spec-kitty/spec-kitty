@@ -1768,7 +1768,8 @@ def _repair_events_phase(
 ) -> bool:
     """Write the canonical event log when its text changed; return whether it did."""
     before_events = _file_fingerprint(status_path)
-    status_text = "".join(line + "\n" for line in canonical_lines)
+    original_bytes = status_path.read_bytes()
+    status_bytes = _render_event_log(canonical_lines, original_bytes)
     # Backstop (#2376): never silently empty a previously-populated event
     # log. Legitimate non-lane events are now preserved in
     # ``canonical_lines``, so an empty result despite non-empty input means
@@ -1783,11 +1784,26 @@ def _repair_events_phase(
             "usually indicates a row-classification bug; the original "
             "rows are preserved verbatim in the quarantine directory."
         )
-    if status_path.read_text(encoding="utf-8") != status_text:
-        atomic_write(status_path, status_text)
+    # Bytes, not text: universal newlines would hide a CRLF or missing-final-newline
+    # difference and make a healthy log look rewritten (or the reverse).
+    if original_bytes != status_bytes:
+        atomic_write(status_path, status_bytes)
     changes_before = len(state.file_changes)
     state.record_change(repo_root, status_path, before_events)
     return len(state.file_changes) > changes_before
+
+
+def _render_event_log(canonical_lines: Sequence[str], original: bytes) -> bytes:
+    """Serialize ``canonical_lines`` keeping the log's own line ending and final-newline state.
+
+    A healthy log must round-trip byte-for-byte: CRLF stays CRLF and a log with no
+    final newline keeps none, so only a real content change rewrites the file.
+    """
+    eol = "\r\n" if b"\r\n" in original else "\n"
+    body = eol.join(canonical_lines)
+    if canonical_lines and (original.endswith(b"\n") or not original):
+        body += eol
+    return body.encode("utf-8")
 
 
 def _repair_quarantine_phase(
