@@ -18,14 +18,15 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from kernel.git.remote import RemoteUnreachable
+from kernel.git.runner import GitCommandError, GitResult
 from specify_cli.git.remote_probes import (
     RemoteLookup,
     remote_branch_lookup,
-    _no_prompt_env,
     _reset_remote_branch_lookup_cache,
 )
 
@@ -85,80 +86,70 @@ def test_error_when_git_remote_times_out(tmp_path: Path) -> None:
 
 # ---------------------------------------------------------------------------
 # HIT / CLEAN_MISS / ERROR across ls-remote outcomes
+#
+# The ``git remote`` enumeration is mocked at the subprocess boundary; the
+# ls-remote arm is the kernel owner (``kernel.git.remote.remote_heads``), so
+# its outcomes are scripted at that seam (a mapping = answered, a raised
+# ``RemoteUnreachable`` = could not ask).
 # ---------------------------------------------------------------------------
+
+_BRANCH = "kitty/mission-x"
+
+
+def _unreachable(remote: str = "origin", *, timed_out: bool = False) -> RemoteUnreachable:
+    cause = GitCommandError(argv=("ls-remote",), cwd=Path("."), returncode=-1 if timed_out else 128, stderr="", timed_out=timed_out)
+    return RemoteUnreachable(remote, cause)
+
+
+def _lookup(tmp_path: Path, remotes_out: str, heads: list[object], branch: str = _BRANCH) -> tuple[RemoteLookup, MagicMock, MagicMock]:
+    """Run one lookup with ``git remote`` printing *remotes_out* and ``remote_heads`` scripted by *heads*."""
+    with (
+        patch("specify_cli.git.remote_probes.subprocess.run", return_value=_completed(0, stdout=remotes_out)) as mock_run,
+        patch("specify_cli.git.remote_probes.remote_heads", side_effect=heads) as mock_heads,
+    ):
+        result = remote_branch_lookup(tmp_path, branch)
+    return result, mock_run, mock_heads
 
 
 def test_hit_when_single_remote_lists_branch(tmp_path: Path) -> None:
-    with patch("specify_cli.git.remote_probes.subprocess.run") as mock_run:
-        mock_run.side_effect = [
-            _completed(0, stdout="origin\n"),
-            _completed(0, stdout="abc123\trefs/heads/kitty/mission-x\n"),
-        ]
-        result = remote_branch_lookup(tmp_path, "kitty/mission-x")
+    result, _, _ = _lookup(tmp_path, "origin\n", [{_BRANCH: "abc123"}])
     assert result is RemoteLookup.HIT
 
 
 def test_clean_miss_when_every_remote_reachable_and_empty(tmp_path: Path) -> None:
-    with patch("specify_cli.git.remote_probes.subprocess.run") as mock_run:
-        mock_run.side_effect = [
-            _completed(0, stdout="origin\nupstream\n"),
-            _completed(0, stdout=""),
-            _completed(0, stdout=""),
-        ]
-        result = remote_branch_lookup(tmp_path, "kitty/mission-x")
+    result, _, mock_heads = _lookup(tmp_path, "origin\nupstream\n", [{}, {}])
     assert result is RemoteLookup.CLEAN_MISS
+    assert mock_heads.call_count == 2
 
 
 def test_hit_short_circuits_without_probing_every_remote(tmp_path: Path) -> None:
     """A HIT on the first remote must not require probing the second."""
-    with patch("specify_cli.git.remote_probes.subprocess.run") as mock_run:
-        mock_run.side_effect = [
-            _completed(0, stdout="origin\nupstream\n"),
-            _completed(0, stdout="abc123\trefs/heads/kitty/mission-x\n"),
-        ]
-        result = remote_branch_lookup(tmp_path, "kitty/mission-x")
+    result, mock_run, mock_heads = _lookup(tmp_path, "origin\nupstream\n", [{_BRANCH: "abc123"}])
     assert result is RemoteLookup.HIT
-    assert mock_run.call_count == 2  # `git remote` + ONE ls-remote, not two
+    assert mock_run.call_count == 1  # `git remote` once
+    assert mock_heads.call_count == 1  # ONE ls-remote, not two
 
 
-def test_error_on_ls_remote_nonzero_exit(tmp_path: Path) -> None:
-    with patch("specify_cli.git.remote_probes.subprocess.run") as mock_run:
-        mock_run.side_effect = [
-            _completed(0, stdout="origin\n"),
-            _completed(128, stdout=""),
-        ]
-        result = remote_branch_lookup(tmp_path, "kitty/mission-x")
+def test_error_on_ls_remote_unreachable(tmp_path: Path) -> None:
+    result, _, _ = _lookup(tmp_path, "origin\n", [_unreachable()])
     assert result is RemoteLookup.ERROR
 
 
 def test_error_on_ls_remote_timeout(tmp_path: Path) -> None:
-    with patch("specify_cli.git.remote_probes.subprocess.run") as mock_run:
-        mock_run.side_effect = [
-            _completed(0, stdout="origin\n"),
-            subprocess.TimeoutExpired(cmd=["git", "ls-remote"], timeout=5),
-        ]
-        result = remote_branch_lookup(tmp_path, "kitty/mission-x")
+    result, _, _ = _lookup(tmp_path, "origin\n", [_unreachable(timed_out=True)])
     assert result is RemoteLookup.ERROR
 
 
-def test_error_on_ls_remote_oserror(tmp_path: Path) -> None:
-    with patch("specify_cli.git.remote_probes.subprocess.run") as mock_run:
-        mock_run.side_effect = [_completed(0, stdout="origin\n"), OSError("boom")]
-        result = remote_branch_lookup(tmp_path, "kitty/mission-x")
-    assert result is RemoteLookup.ERROR
+def test_a_returned_empty_mapping_is_a_miss_never_an_error(tmp_path: Path) -> None:
+    result, _, _ = _lookup(tmp_path, "origin\n", [{}])
+    assert result is RemoteLookup.CLEAN_MISS
 
 
 def test_error_from_one_remote_wins_over_clean_miss_from_another(tmp_path: Path) -> None:
     """FR-003: an ERROR from any remote must never be shadowed by a
     CLEAN_MISS from a different remote — never fabricate absence from a
     partial answer."""
-    with patch("specify_cli.git.remote_probes.subprocess.run") as mock_run:
-        mock_run.side_effect = [
-            _completed(0, stdout="origin\nupstream\n"),
-            _completed(0, stdout=""),  # origin: clean miss
-            _completed(1, stdout=""),  # upstream: error
-        ]
-        result = remote_branch_lookup(tmp_path, "kitty/mission-x")
+    result, _, _ = _lookup(tmp_path, "origin\nupstream\n", [{}, _unreachable("upstream")])
     assert result is RemoteLookup.ERROR
 
 
@@ -168,44 +159,37 @@ def test_error_from_one_remote_wins_over_clean_miss_from_another(tmp_path: Path)
 
 
 def test_memoized_per_process_by_repo_and_branch(tmp_path: Path) -> None:
-    with patch("specify_cli.git.remote_probes.subprocess.run") as mock_run:
-        mock_run.side_effect = [
-            _completed(0, stdout="origin\n"),
-            _completed(0, stdout="abc123\trefs/heads/kitty/mission-x\n"),
-        ]
-        first = remote_branch_lookup(tmp_path, "kitty/mission-x")
-        second = remote_branch_lookup(tmp_path, "kitty/mission-x")
+    with (
+        patch("specify_cli.git.remote_probes.subprocess.run", return_value=_completed(0, stdout="origin\n")) as mock_run,
+        patch("specify_cli.git.remote_probes.remote_heads", return_value={_BRANCH: "abc123"}) as mock_heads,
+    ):
+        first = remote_branch_lookup(tmp_path, _BRANCH)
+        second = remote_branch_lookup(tmp_path, _BRANCH)
     assert first is second is RemoteLookup.HIT
-    assert mock_run.call_count == 2, "second call must be served from cache, no new subprocess calls"
+    assert mock_run.call_count + mock_heads.call_count == 2, "second call must be served from cache, no new subprocess calls"
 
 
 def test_distinct_branch_is_not_served_from_the_other_branchs_cache_entry(tmp_path: Path) -> None:
-    with patch("specify_cli.git.remote_probes.subprocess.run") as mock_run:
-        mock_run.side_effect = [
-            _completed(0, stdout="origin\n"),
-            _completed(0, stdout="abc\trefs/heads/kitty/mission-a\n"),
-            _completed(0, stdout="origin\n"),
-            _completed(0, stdout=""),
-        ]
+    with (
+        patch("specify_cli.git.remote_probes.subprocess.run", return_value=_completed(0, stdout="origin\n")) as mock_run,
+        patch("specify_cli.git.remote_probes.remote_heads", side_effect=[{"kitty/mission-a": "abc"}, {}]) as mock_heads,
+    ):
         a = remote_branch_lookup(tmp_path, "kitty/mission-a")
         b = remote_branch_lookup(tmp_path, "kitty/mission-b")
     assert a is RemoteLookup.HIT
     assert b is RemoteLookup.CLEAN_MISS
-    assert mock_run.call_count == 4
+    assert mock_run.call_count + mock_heads.call_count == 4
 
 
 def test_reset_cache_forces_a_fresh_lookup(tmp_path: Path) -> None:
-    with patch("specify_cli.git.remote_probes.subprocess.run") as mock_run:
-        mock_run.side_effect = [
-            _completed(0, stdout="origin\n"),
-            _completed(0, stdout="abc\trefs/heads/kitty/mission-x\n"),
-            _completed(0, stdout="origin\n"),
-            _completed(0, stdout="abc\trefs/heads/kitty/mission-x\n"),
-        ]
-        remote_branch_lookup(tmp_path, "kitty/mission-x")
+    with (
+        patch("specify_cli.git.remote_probes.subprocess.run", return_value=_completed(0, stdout="origin\n")) as mock_run,
+        patch("specify_cli.git.remote_probes.remote_heads", return_value={_BRANCH: "abc"}) as mock_heads,
+    ):
+        remote_branch_lookup(tmp_path, _BRANCH)
         _reset_remote_branch_lookup_cache()
-        remote_branch_lookup(tmp_path, "kitty/mission-x")
-    assert mock_run.call_count == 4
+        remote_branch_lookup(tmp_path, _BRANCH)
+    assert mock_run.call_count + mock_heads.call_count == 4
 
 
 # ---------------------------------------------------------------------------
@@ -214,28 +198,26 @@ def test_reset_cache_forces_a_fresh_lookup(tmp_path: Path) -> None:
 
 
 def test_ls_remote_disables_terminal_prompt_and_uses_ssh_batchmode(tmp_path: Path) -> None:
-    with patch("specify_cli.git.remote_probes.subprocess.run") as mock_run:
-        mock_run.side_effect = [
-            _completed(0, stdout="origin\n"),
-            _completed(0, stdout=""),
-        ]
-        remote_branch_lookup(tmp_path, "kitty/mission-x")
+    """End to end through the kernel owner: the real ``remote_heads`` builds the no-prompt env."""
+    with (
+        patch("specify_cli.git.remote_probes.subprocess.run", return_value=_completed(0, stdout="origin\n")),
+        patch("kernel.git.remote.run_git", return_value=GitResult(returncode=0, stdout=b"", stderr=b"")) as kernel_run,
+    ):
+        remote_branch_lookup(tmp_path, _BRANCH)
 
-    ls_remote_call = mock_run.call_args_list[1]
-    env = ls_remote_call.kwargs["env"]
+    env = kernel_run.call_args.kwargs["env"]
     assert env["GIT_TERMINAL_PROMPT"] == "0"
     assert "BatchMode=yes" in env["GIT_SSH_COMMAND"]
 
 
 def test_ls_remote_and_remote_enumeration_pass_a_bounded_timeout(tmp_path: Path) -> None:
-    with patch("specify_cli.git.remote_probes.subprocess.run") as mock_run:
-        mock_run.side_effect = [
-            _completed(0, stdout="origin\n"),
-            _completed(0, stdout=""),
-        ]
-        remote_branch_lookup(tmp_path, "kitty/mission-x")
+    with (
+        patch("specify_cli.git.remote_probes.subprocess.run", return_value=_completed(0, stdout="origin\n")) as mock_run,
+        patch("kernel.git.remote.run_git", return_value=GitResult(returncode=0, stdout=b"", stderr=b"")) as kernel_run,
+    ):
+        remote_branch_lookup(tmp_path, _BRANCH)
 
-    for call in mock_run.call_args_list:
+    for call in [*mock_run.call_args_list, *kernel_run.call_args_list]:
         timeout = call.kwargs.get("timeout")
         assert timeout is not None and 0 < timeout <= 10
 
@@ -297,30 +279,3 @@ def test_exact_branch_match_is_a_hit(tmp_path: Path) -> None:
     result = remote_branch_lookup(repo, "coord")
 
     assert result is RemoteLookup.HIT
-
-
-# ---------------------------------------------------------------------------
-# _no_prompt_env — preserve an existing GIT_SSH_COMMAND (NFR-002)
-# ---------------------------------------------------------------------------
-
-
-def test_existing_ssh_command_is_preserved_with_batchmode_appended(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("GIT_SSH_COMMAND", "ssh -i /custom/key -p 2222")
-
-    env = _no_prompt_env()
-
-    assert "-i /custom/key" in env["GIT_SSH_COMMAND"]
-    assert "-p 2222" in env["GIT_SSH_COMMAND"]
-    assert "-o BatchMode=yes" in env["GIT_SSH_COMMAND"]
-    assert env["GIT_TERMINAL_PROMPT"] == "0"
-
-
-def test_default_ssh_command_used_when_unset(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("GIT_SSH_COMMAND", raising=False)
-
-    env = _no_prompt_env()
-
-    assert env["GIT_SSH_COMMAND"] == "ssh -o BatchMode=yes"
-    assert env["GIT_TERMINAL_PROMPT"] == "0"

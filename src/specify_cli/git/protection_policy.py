@@ -44,6 +44,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from kernel.git.remote import describe_remote_head
 from ruamel.yaml import YAML
 
 if TYPE_CHECKING:
@@ -464,9 +465,6 @@ def _remote_default_branch(repo_root: Path) -> str | None:
     if symbolic_ref and "/" in symbolic_ref:
         return symbolic_ref.rsplit("/", 1)[1]
 
-    remote_show = _run(["remote", "show", "origin"])
-    if remote_show:
-        for line in remote_show.splitlines():
-            if "HEAD branch:" in line:
-                return line.rsplit(":", 1)[1].strip() or None
-    return None
+    # The one remote contact here is the kernel owner's; it adds the timeout and
+    # no-prompt environment this call lacked, and yields ``None`` on any failure.
+    return describe_remote_head(repo_root, "origin")

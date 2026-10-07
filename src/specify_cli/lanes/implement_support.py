@@ -13,6 +13,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from kernel.clock import now_utc_iso
+from kernel.git.remote import resolve_remote, tracking_ref
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.core.errors import StructuredError
 from specify_cli.core.paths import load_meta_fail_closed
@@ -943,8 +944,11 @@ def resolve_base_ref(repo_root: Path, base_ref: str) -> tuple[str, str] | None:
     ``implement.py`` resolution site.
     """
     local_sha = _rev_parse_ref(repo_root, base_ref)
-    origin_ref = f"origin/{base_ref}"
-    origin_sha = _rev_parse_ref(repo_root, origin_ref)
+    remote = resolve_remote(repo_root, base_ref) or "origin"
+    # The effective ref NAME stays the short ``<remote>/<base>`` form callers and
+    # messages show; the probe uses the shared fully-qualified builder (FR-016).
+    origin_ref = f"{remote}/{base_ref}"
+    origin_sha = _rev_parse_ref(repo_root, tracking_ref(remote, base_ref))
     if origin_sha and (not local_sha or _is_ancestor(repo_root, local_sha, origin_sha)):
         return origin_ref, origin_sha
     if local_sha:

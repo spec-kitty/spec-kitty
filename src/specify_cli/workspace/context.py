@@ -1243,12 +1243,16 @@ def resolve_lane_base_ref(
     semantics of ``lanes.implement_support.resolve_base_ref`` (WP03) via the canonical
     :func:`specify_cli.lanes._git.ref_exists` helper, so the two base-resolution
     sites agree on what "the origin lane exists" means. The returned value is the
-    fully-qualified ``refs/remotes/origin/<lane_branch>`` ref, unambiguous
-    against a same-named tag.
+    fully-qualified ``refs/remotes/<remote>/<lane_branch>`` ref, unambiguous
+    against a same-named tag. The remote is the one that owns the lane branch
+    (:func:`kernel.git.remote.resolve_remote`; ``origin`` when none applies) and
+    the ref is built by :func:`kernel.git.remote.tracking_ref`, the same builder
+    ``lanes.implement_support.resolve_base_ref`` uses (FR-016).
     """
+    from kernel.git.remote import resolve_remote, tracking_ref
     from specify_cli.lanes._git import ref_exists
 
-    origin_ref = f"refs/remotes/origin/{lane_branch}"
+    origin_ref = tracking_ref(resolve_remote(repo_root, lane_branch) or "origin", lane_branch)
     if ref_exists(repo_root, origin_ref):
         return origin_ref
     return fallback_base

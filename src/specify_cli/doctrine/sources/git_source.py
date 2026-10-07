@@ -33,6 +33,8 @@ from pathlib import Path
 from urllib.parse import quote
 from uuid import uuid4
 
+from kernel.git.remote import CLONE_TIMEOUT, FETCH_TIMEOUT, clone_repository, fetch_tags
+from kernel.git.runner import GitCommandError
 from specify_cli.git import ref_advance
 
 from .protocol import FetchResult
@@ -85,11 +87,11 @@ class GitSource:
         target_dir.parent.mkdir(parents=True, exist_ok=True)
         tmp_dir = target_dir.parent / f".tmp-{uuid4().hex}"
 
-        clone_proc = self._run_git(["git", "clone", effective_url, str(tmp_dir)])
-        if clone_proc.returncode != 0:
+        clone_error = self._clone(effective_url, tmp_dir)
+        if clone_error is not None:
             # Remove ONLY the temp — target_dir is left exactly as found (#4960).
             shutil.rmtree(tmp_dir, ignore_errors=True)
-            return _error_result(_redact_git_tokens(clone_proc.stderr.strip()) or "git clone failed")
+            return _error_result(clone_error)
 
         if self.ref:
             checkout_proc = self._run_git(["git", "-C", str(tmp_dir), "checkout", self.ref])
@@ -143,10 +145,10 @@ class GitSource:
         return None
 
     def _update(self, target_dir: Path) -> FetchResult:
-        fetch_proc = self._run_git(["git", "-C", str(target_dir), "fetch", "--tags", "origin"])
-        if fetch_proc.returncode != 0:
+        fetch_error = self._fetch_tags(target_dir)
+        if fetch_error is not None:
             # Existing clone remains untouched on update failure.
-            return _error_result(_redact_git_tokens(fetch_proc.stderr.strip()) or "git fetch failed")
+            return _error_result(fetch_error)
 
         reset_target = self._resolve_reset_target(target_dir)
 
@@ -239,6 +241,49 @@ class GitSource:
         # Insert token as oauth2 user. URL-encode so reserved chars cannot
         # split the credential field; stderr is redacted before returning.
         return url.replace("https://", f"https://oauth2:{quote(token, safe='')}@", 1)
+
+    @staticmethod
+    def _contact_failure(exc: GitCommandError, action: str, timeout: float) -> str:
+        """Fixed, secret-free text for a kernel contact that raised.
+
+        ``GitCommandError.stderr`` is NOT git's stderr here: on a timeout the
+        runner stores ``str(TimeoutExpired)`` and on a launch failure ``str(OSError)``,
+        both of which carry the full argv, URL included. An operator-written
+        ``https://user:PAT@host/...`` is not the injected ``oauth2:<token>@`` form
+        that :func:`_redact_git_tokens` strips, so none of that text is surfaced.
+        """
+        if exc.timed_out:
+            return f"git {action} timed out after {timeout:g}s"
+        if exc.not_run:
+            return "git could not be run"
+        return f"git {action} failed"
+
+    @staticmethod
+    def _clone(effective_url: str, tmp_dir: Path) -> str | None:
+        """Clone through the kernel owner; the redacted error text, or ``None`` on success.
+
+        The kernel bounds the clone with a timeout, which raises; the raise is
+        reported with a fixed message (see :meth:`_contact_failure`), never the
+        exception text. A failed clone's real git stderr is token-redacted as before.
+        """
+        try:
+            result = clone_repository(effective_url, tmp_dir)
+        except GitCommandError as exc:
+            return GitSource._contact_failure(exc, action="clone", timeout=CLONE_TIMEOUT)
+        if result.returncode != 0:
+            return _redact_git_tokens(result.stderr.decode("utf-8", "replace").strip()) or "git clone failed"
+        return None
+
+    @staticmethod
+    def _fetch_tags(target_dir: Path) -> str | None:
+        """``fetch --tags origin`` through the kernel owner; the redacted error text, or ``None`` on success."""
+        try:
+            result = fetch_tags(target_dir, "origin")
+        except GitCommandError as exc:
+            return GitSource._contact_failure(exc, action="fetch", timeout=FETCH_TIMEOUT)
+        if result.returncode != 0:
+            return _redact_git_tokens(result.stderr.decode("utf-8", "replace").strip()) or "git fetch failed"
+        return None
 
     @staticmethod
     def _run_git(argv: list[str]) -> subprocess.CompletedProcess[str]:

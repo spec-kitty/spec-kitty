@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 import typer
 
 import specify_cli.consolidation.push_preflight as push_preflight_mod
+from kernel.git.runner import GitCommandError
 from specify_cli.cli.commands.consolidate import (
     _enforce_target_branch_sync_preflight,
     _target_branch_sync_payload,
@@ -139,16 +139,14 @@ def test_target_branch_preflight_reports_no_tracking_when_rev_list_fails(
     synced_repo: tuple[Path, Path],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # After WP01/WP02: _git lives in push_preflight, not preflight
+    # The ahead/behind count is the kernel owner's ``divergence``; a failing
+    # rev-list surfaces as GitCommandError (was: a non-zero ``_git`` result).
     repo, _origin = synced_repo
-    original_git = push_preflight_mod._git
 
-    def fake_git(_repo_root: Path, args: list[str]) -> SimpleNamespace:  # type: ignore[return]
-        if args[:2] == ["rev-list", "--left-right"]:
-            return SimpleNamespace(returncode=1, stdout="", stderr="bad revision")
-        return original_git(_repo_root, args)
+    def failing_divergence(*_args: object, **_kwargs: object) -> object:
+        raise GitCommandError(argv=("rev-list",), cwd=repo, returncode=128, stderr="bad revision")
 
-    monkeypatch.setattr(push_preflight_mod, "_git", fake_git)
+    monkeypatch.setattr(push_preflight_mod, "divergence", failing_divergence)
 
     status = inspect_target_branch_sync(repo, "main")
 

@@ -11,6 +11,12 @@ sites are refactored onto (WP01 T003/T004) — any future remote-branch check
 must consume it rather than hand-rolling another ``git remote`` /
 ``git ls-remote`` loop.
 
+:class:`RemoteLookup` is built from :func:`kernel.git.remote.remote_heads`
+outcomes (a returned mapping is a clean answer, :class:`~kernel.git.remote.RemoteUnreachable`
+is an error). Its all-remotes EXISTENCE semantics (a HIT on any remote wins)
+are deliberately distinct from the freshness rule that picks one owning remote
+(FR-017); do not use this lookup to decide which remote a branch tracks.
+
 Discriminates three ``git ls-remote --heads`` outcomes across every
 configured remote:
 
@@ -38,46 +44,24 @@ a single-branch/CI coordination checkout never materializes the coord
 worktree, so an unmemoized probe would re-fire the network arm on every coord
 read within one CLI invocation. Call :func:`_reset_remote_branch_lookup_cache`
 between independent probes in the same process (tests only — production never
-needs to invalidate the cache within one invocation).
+needs to invalidate the cache within one invocation). The cache is NEVER a
+freshness source: a fetch in the same process can make a memoized outcome stale.
 """
 
 from __future__ import annotations
 
 import enum
-import os
 import subprocess
 from pathlib import Path
+
+from kernel.git.remote import LS_REMOTE_TIMEOUT, RemoteUnreachable, remote_heads
 
 __all__ = [
     "RemoteLookup",
     "remote_branch_lookup",
 ]
 
-_LS_REMOTE_TIMEOUT_SECONDS = 5.0
-
-_DEFAULT_SSH_COMMAND = "ssh -o BatchMode=yes"
-
-
-def _no_prompt_env() -> dict[str, str]:
-    """Build the subprocess environment for a non-interactive git probe.
-
-    ``GIT_TERMINAL_PROMPT=0`` refuses any interactive credential prompt
-    outright; the SSH ``BatchMode`` mirrors that refusal for the ssh(1)
-    transport, which does not honor ``GIT_TERMINAL_PROMPT`` on its own
-    (NFR-002). A caller's own pre-set ``GIT_SSH_COMMAND`` (a custom identity
-    file, port, or proxy) is preserved by appending ``BatchMode=yes`` to it,
-    rather than clobbering it with the bare default — the old hand-rolled
-    ``_branch_resolvable`` loop inherited the plain environment, so replacing
-    a custom transport outright would be a behavioral regression.
-    """
-    env = dict(os.environ)
-    env["GIT_TERMINAL_PROMPT"] = "0"
-    existing_ssh_command = os.environ.get("GIT_SSH_COMMAND", "").strip()
-    if existing_ssh_command:
-        env["GIT_SSH_COMMAND"] = f"{existing_ssh_command} -o BatchMode=yes"
-    else:
-        env["GIT_SSH_COMMAND"] = _DEFAULT_SSH_COMMAND
-    return env
+_LS_REMOTE_TIMEOUT_SECONDS = LS_REMOTE_TIMEOUT
 
 
 class RemoteLookup(enum.Enum):
@@ -120,28 +104,13 @@ def _ls_remote_heads(repo_root: Path, remote: str, branch: str) -> bool | None:
     Returns ``True`` on an exact ``refs/heads/<branch>`` match, ``False`` on a
     clean (exit 0, no exact match) miss, and ``None`` on any error/timeout —
     the caller treats ``None`` as fail-closed ERROR, never as a vote toward
-    absence.
+    absence. The contact itself is :func:`kernel.git.remote.remote_heads`.
     """
-    env = _no_prompt_env()
-    target_ref = f"refs/heads/{branch}"
     try:
-        result = subprocess.run(
-            ["git", "-C", str(repo_root), "ls-remote", "--heads", remote, target_ref],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=_LS_REMOTE_TIMEOUT_SECONDS,
-            env=env,
-        )
-    except (OSError, subprocess.TimeoutExpired):
+        heads = remote_heads(repo_root, remote, [branch], timeout=_LS_REMOTE_TIMEOUT_SECONDS)
+    except RemoteUnreachable:
         return None
-    if result.returncode != 0:
-        return None
-    for line in result.stdout.splitlines():
-        _, _, ref = line.partition("\t")
-        if ref == target_ref:
-            return True
-    return False
+    return branch in heads
 
 
 def _lookup_uncached(repo_root: Path, branch: str) -> RemoteLookup:

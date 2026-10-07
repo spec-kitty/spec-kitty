@@ -19,6 +19,8 @@ from typing import Literal
 
 import typer
 
+from kernel.git.remote import FETCH_TIMEOUT, RemoteUnreachable, divergence, fetch_branches
+from kernel.git.runner import GitCommandError
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.cli.console import console
 from specify_cli.consolidation._constants import (
@@ -188,17 +190,10 @@ def refresh_target_branch_tracking_ref(
             success=True,
         )
 
-    fetch = _git(
-        repo_root,
-        [
-            "fetch",
-            "--quiet",
-            remote_name,
-            f"+refs/heads/{target_branch}:refs/remotes/{remote_name}/{target_branch}",
-        ],
-    )
-    if fetch.returncode != 0:
-        detail = (fetch.stderr or fetch.stdout or "").strip()
+    try:
+        fetch_branches(repo_root, remote_name, [target_branch], timeout=FETCH_TIMEOUT)
+    except RemoteUnreachable as exc:
+        detail = exc.stderr.strip()
         return TargetBranchRefreshStatus(
             target_branch=target_branch,
             remote_name=remote_name,
@@ -245,11 +240,9 @@ def inspect_target_branch_sync(
             state="no_tracking_branch",
         )
 
-    counts = _git(
-        repo_root,
-        ["rev-list", "--left-right", "--count", f"{target_branch}...{tracking_branch}"],
-    )
-    if counts.returncode != 0:
+    try:
+        counts = divergence(repo_root, target_branch, tracking_branch)
+    except GitCommandError:
         return TargetBranchSyncStatus(
             target_branch=target_branch,
             tracking_branch=tracking_branch,
@@ -258,8 +251,8 @@ def inspect_target_branch_sync(
             state="no_tracking_branch",
         )
 
-    left, right = (int(part) for part in counts.stdout.strip().split())
-    if left > 0 and right > 0:
+    left, right = counts.ahead, counts.behind
+    if counts.diverged:
         state: TargetBranchSyncState = "diverged"
     elif left > 0:
         state = "ahead"

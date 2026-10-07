@@ -282,3 +282,69 @@ def test_resolve_tracking_branch_still_resolves_real_upstream() -> None:
         result = _resolve_tracking_branch(Path("/fake/repo"), "main")
 
     assert result == "origin/main"
+
+
+# ---------------------------------------------------------------------------
+# The fetch is the kernel owner's ``fetch_branches``; the refresh payload is unchanged
+# ---------------------------------------------------------------------------
+
+
+def _unreachable(stderr: str) -> Exception:
+    from kernel.git.remote import RemoteUnreachable
+    from kernel.git.runner import GitCommandError
+
+    return RemoteUnreachable(
+        "origin", GitCommandError(argv=("fetch",), cwd=Path("/fake/repo"), returncode=128, stderr=stderr)
+    )
+
+
+def test_refresh_fetches_the_target_branch_through_the_kernel_with_the_fetch_timeout() -> None:
+    from kernel.git.remote import FETCH_TIMEOUT
+    from specify_cli.consolidation.push_preflight import refresh_target_branch_tracking_ref
+
+    with (
+        patch("specify_cli.consolidation.push_preflight._git", return_value=MagicMock(returncode=0)),
+        patch("specify_cli.consolidation.push_preflight.fetch_branches") as mock_fetch,
+    ):
+        status = refresh_target_branch_tracking_ref(Path("/fake/repo"), "main")
+
+    mock_fetch.assert_called_once_with(Path("/fake/repo"), "origin", ["main"], timeout=FETCH_TIMEOUT)
+    assert (status.attempted, status.success, status.error) == (True, True, None)
+
+
+def test_refresh_failure_carries_the_git_stderr_as_the_error() -> None:
+    from specify_cli.consolidation.push_preflight import refresh_target_branch_tracking_ref
+
+    with (
+        patch("specify_cli.consolidation.push_preflight._git", return_value=MagicMock(returncode=0)),
+        patch("specify_cli.consolidation.push_preflight.fetch_branches", side_effect=_unreachable("fatal: no route\n")),
+    ):
+        status = refresh_target_branch_tracking_ref(Path("/fake/repo"), "main")
+
+    assert (status.attempted, status.success, status.error) == (True, False, "fatal: no route")
+
+
+def test_refresh_failure_without_stderr_names_the_command() -> None:
+    from specify_cli.consolidation.push_preflight import refresh_target_branch_tracking_ref
+
+    with (
+        patch("specify_cli.consolidation.push_preflight._git", return_value=MagicMock(returncode=0)),
+        patch("specify_cli.consolidation.push_preflight.fetch_branches", side_effect=_unreachable("")),
+    ):
+        status = refresh_target_branch_tracking_ref(Path("/fake/repo"), "main", remote_name="origin")
+
+    assert status.error == "git fetch origin main failed"
+    assert status.success is False
+
+
+def test_refresh_without_the_remote_does_not_contact() -> None:
+    from specify_cli.consolidation.push_preflight import refresh_target_branch_tracking_ref
+
+    with (
+        patch("specify_cli.consolidation.push_preflight._git", return_value=MagicMock(returncode=2)),
+        patch("specify_cli.consolidation.push_preflight.fetch_branches") as mock_fetch,
+    ):
+        status = refresh_target_branch_tracking_ref(Path("/fake/repo"), "main")
+
+    mock_fetch.assert_not_called()
+    assert (status.attempted, status.success) == (False, True)

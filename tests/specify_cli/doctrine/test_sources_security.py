@@ -421,26 +421,27 @@ class TestHttpsBundleSourceSizeLimits:
 def test_git_source_redacts_injected_oauth_token_from_stderr(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    from kernel.git.runner import GitResult  # noqa: PLC0415
     from specify_cli.doctrine.sources.git_source import GitSource  # noqa: PLC0415
 
     token = "ghp_secret/with@reserved"
     monkeypatch.setenv("GIT_TOKEN", token)
     source = GitSource(url="https://github.com/acme/private-pack.git")
 
-    def _fake_git(argv: list[str]) -> subprocess.CompletedProcess[str]:
-        assert all(token not in part for part in argv)
-        assert any(quote(token, safe="") in part for part in argv)
-        return subprocess.CompletedProcess(
-            argv,
-            128,
-            stdout="",
+    def _fake_clone(url: str, dest: Path, **_kwargs: object) -> GitResult:
+        assert token not in url
+        assert quote(token, safe="") in url
+        return GitResult(
+            returncode=128,
+            stdout=b"",
             stderr=(
-                "fatal: unable to access "
-                "'https://oauth2:ghp_secret/with@reserved@github.com/acme/private-pack.git/'"
+                b"fatal: unable to access "
+                b"'https://oauth2:ghp_secret/with@reserved@github.com/acme/private-pack.git/'"
             ),
         )
 
-    monkeypatch.setattr(source, "_run_git", _fake_git)
+    # The clone is the kernel owner's (``kernel.git.remote.clone_repository``).
+    monkeypatch.setattr("specify_cli.doctrine.sources.git_source.clone_repository", _fake_clone)
 
     result = source.fetch(tmp_path / "clone")
 
@@ -448,3 +449,89 @@ def test_git_source_redacts_injected_oauth_token_from_stderr(
     error_text = " ".join(result.errors)
     assert token not in error_text
     assert "oauth2:<redacted>@" in error_text
+
+
+_OPERATOR_SECRET = "hunter2"
+_OPERATOR_URL = f"https://user:{_OPERATOR_SECRET}@git.example.test/acme/pack.git"
+
+
+def _time_out_like_a_real_git(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make the kernel runner's ``subprocess.run`` time out exactly as a stalled transport does.
+
+    ``run_git`` turns the real ``TimeoutExpired`` (whose ``str`` is the FULL argv,
+    URL included) into ``GitCommandError.stderr``; nothing here fakes that step.
+    """
+
+    def _stalled(argv: list[str], *, timeout: float, **_kwargs: object) -> object:
+        raise subprocess.TimeoutExpired(cmd=argv, timeout=timeout)
+
+    monkeypatch.setattr("kernel.git.runner.subprocess.run", _stalled)
+
+
+def test_git_source_clone_timeout_never_surfaces_an_operator_credentialed_url(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A credential written into the operator's own URL (not the injected oauth2 form) must not leak on timeout."""
+    from specify_cli.doctrine.sources.git_source import GitSource  # noqa: PLC0415
+
+    monkeypatch.delenv("GIT_TOKEN", raising=False)
+    _time_out_like_a_real_git(monkeypatch)
+
+    result = GitSource(url=_OPERATOR_URL).fetch(tmp_path / "clone")
+
+    assert result.ok is False
+    assert _OPERATOR_SECRET not in " ".join(result.errors)
+    assert result.errors == ["git clone timed out after 120s"]
+    assert not (tmp_path / "clone").exists()
+
+
+def test_git_source_update_fetch_timeout_never_surfaces_the_remote_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.doctrine.sources.git_source import GitSource  # noqa: PLC0415
+
+    (tmp_path / ".git").mkdir()
+    monkeypatch.delenv("GIT_TOKEN", raising=False)
+    _time_out_like_a_real_git(monkeypatch)
+
+    result = GitSource(url=_OPERATOR_URL).fetch(tmp_path)
+
+    assert result.ok is False
+    assert _OPERATOR_SECRET not in " ".join(result.errors)
+    assert result.errors == ["git fetch timed out after 15s"]
+    assert (tmp_path / ".git").is_dir()
+
+
+def test_git_source_git_not_runnable_reports_a_fixed_message(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.doctrine.sources.git_source import GitSource  # noqa: PLC0415
+
+    def _missing(argv: list[str], **_kwargs: object) -> object:
+        raise FileNotFoundError(2, "No such file or directory", " ".join(argv))
+
+    monkeypatch.setattr("kernel.git.runner.subprocess.run", _missing)
+
+    result = GitSource(url=_OPERATOR_URL).fetch(tmp_path / "clone")
+
+    assert result.ok is False
+    assert _OPERATOR_SECRET not in " ".join(result.errors)
+    assert result.errors == ["git could not be run"]
+
+
+def test_git_source_update_fetch_failure_is_redacted_and_leaves_the_clone(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from kernel.git.runner import GitResult  # noqa: PLC0415
+    from specify_cli.doctrine.sources.git_source import GitSource  # noqa: PLC0415
+
+    (tmp_path / ".git").mkdir()
+    source = GitSource(url="https://github.com/acme/private-pack.git")
+    seen: list[tuple[Path, str]] = []
+
+    def _failed_fetch(cwd: Path, remote: str, **_kwargs: object) -> GitResult:
+        seen.append((cwd, remote))
+        return GitResult(returncode=1, stdout=b"", stderr=b"fatal: unable to access 'https://oauth2:tok@github.com/x.git/'")
+
+    monkeypatch.setattr("specify_cli.doctrine.sources.git_source.fetch_tags", _failed_fetch)
+
+    result = source.fetch(tmp_path)
+
+    assert seen == [(tmp_path, "origin")]
+    assert result.ok is False
+    assert "tok" not in " ".join(result.errors)
+    assert (tmp_path / ".git").is_dir()
