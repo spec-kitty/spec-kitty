@@ -48,7 +48,10 @@
         "T003": "done",
         "T004": "done",
         "T005": "done"
-      }
+      },
+      "tracker_refs": [
+        "#2562"
+      ]
     },
     "WP02": {
       "actor": "claude-reviewer",
@@ -80,7 +83,10 @@
         "T008": "done",
         "T009": "done",
         "T010": "done"
-      }
+      },
+      "tracker_refs": [
+        "#2562"
+      ]
     }
   }
 }
