@@ -32,6 +32,13 @@ def _read_json(path: Path) -> dict[str, object]:
     return cast(dict[str, object], data)
 
 
+def _materialized_status(mission: Path) -> dict[str, object]:
+    """The snapshot the log reduces to (status.json is a derived file the repair never creates, #5811)."""
+    from specify_cli.status import materialize_snapshot, materialize_to_json
+
+    return cast(dict[str, object], json.loads(materialize_to_json(materialize_snapshot(mission))))
+
+
 def _init_git_repo(repo: Path) -> None:
     subprocess.run(["git", "init", "-q", "-b", "main"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.email", "repair-test@spec-kitty.test"], cwd=repo, check=True)
@@ -146,7 +153,8 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     # retrospective consumers — repair must preserve them untouched.
     assert rows[2] == retrospective_row
 
-    status = _read_json(mission / "status.json")
+    assert not (mission / "status.json").exists(), "repair must not create a derived file the Mission never had (#5811)"
+    status = _materialized_status(mission)
     status_summary = cast(dict[str, object], status["summary"])
     assert status_summary["in_review"] == 1
     quarantine = repo / ".kittify" / "mission-state-audit" / "quarantine" / report.run_id / "042-historical-shape" / "status.events.jsonl"
@@ -423,7 +431,7 @@ def test_repair_preserves_legacy_typed_wpstatuschanged_lane_transition(
     assert result.status == "updated"
 
     # status.json RETAINS the WP — the zero-WP regeneration is the #3066 defect.
-    status = _read_json(mission / "status.json")
+    status = _materialized_status(mission)
     work_packages = cast(dict[str, object], status["work_packages"])
     assert set(work_packages) == {"WP01"}
     status_summary = cast(dict[str, object], status["summary"])
@@ -437,7 +445,7 @@ def test_repair_preserves_legacy_typed_wpstatuschanged_lane_transition(
     canonical = lane_rows[0]
     assert canonical["from_lane"] == "in_progress"
     assert canonical["to_lane"] == "in_review"
-    # The typed discriminator is stripped by the _build_canonical_row allowlist.
+    # The typed discriminator is dropped by the StatusEvent round trip.
     assert "event_type" not in canonical
     assert retrospective_row in rows
     # The DecisionPoint mirror is preserved in place, untouched (#4897).
@@ -558,7 +566,9 @@ def test_repair_is_idempotent_after_first_canonicalization(tmp_path: Path) -> No
                 "review_ref": None,
                 "evidence": None,
                 "to_lane": "claimed",
-                "wp_id": "WP01",
+                # Legacy spelling, so the first repair has real work to do (a
+                # writer-shaped row is a byte-identical no-op since #5811).
+                "work_package_id": "WP01",
             },
             sort_keys=True,
         )

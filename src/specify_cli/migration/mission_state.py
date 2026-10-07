@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 from packaging.version import Version
 from pydantic import BaseModel, ConfigDict
 
-from kernel.git import GitCommandError, status_entries
+from kernel.git import GitCommandError, is_tracked, status_entries
 from kernel.locks import LockNotAcquired, SyncMachineFileLock, machine_file_lock
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.checkout_identity import (
@@ -1491,6 +1491,10 @@ def _count_jsonl_rows(path: Path) -> int:
 # ---------------------------------------------------------------------------
 
 LANES_REBUILT_ACTION = "lanes_rebuilt_from_event_log"
+#: ``status.json`` differs from a fresh materialization but was NOT rewritten
+#: (the event log was unchanged, or the file is untracked): reported, never
+#: silently "fixed" (#5811).
+STATUS_JSON_DRIFT_NOT_WRITTEN_ACTION = "status_json_drift_not_written"
 LANES_REBUILD_SKIPPED_NO_WP_FILES_ACTION = "lanes_rebuild_skipped_no_wp_files"
 LANES_REBUILD_SKIPPED_NO_OWNED_FILES_ACTION = "lanes_rebuild_skipped_no_owned_files"
 # #5100 IC-02 / T012: the rebuild refused because the mission is stamped
@@ -1602,7 +1606,7 @@ def _rebuild_lanes_if_wedged(
             the fail-closed path: never a partial rebuild that masks a
             corrupt/inconsistent WP ownership declaration.
     """
-    from mission_runtime import TopologyManifestMismatch
+    from mission_runtime import MissionTopology, TopologyManifestMismatch
 
     from specify_cli.core.vcs.git import capture_branch_tip
     from specify_cli.lanes.compute_and_persist import (
@@ -1618,6 +1622,15 @@ def _rebuild_lanes_if_wedged(
 
     if read_lanes_json(mission_dir) is not None:
         return None  # #3311 guard -- never rewrite existing lanes.
+    # Derived from the ALREADY-loaded `meta` (#5100 M3), see the note below.
+    topology = topology_from_meta(meta, mission_dir)
+    if topology is not MissionTopology.LANES:
+        # Only a ``lanes`` Mission is expected to carry ``lanes.json`` in this
+        # checkout: a coordination Mission keeps it on the coordination branch
+        # and a ``single_branch`` Mission has no lanes. Recreating it for them
+        # dirtied healthy history and drove the fail-closed lane-glob errors on
+        # historical Missions (#5811).
+        return None
 
     execution_has_begun = _execution_has_begun_in_snapshot(snapshot)
     if not is_execution_wedged(execution_has_begun=execution_has_begun, lanes_present=False):
@@ -1643,7 +1656,6 @@ def _rebuild_lanes_if_wedged(
     # call with `previous_lanes is None`, so that check is a structural
     # no-op here -- the `except TopologyManifestMismatch` below is retained
     # as a defensive, never-triggered-in-practice safety net.
-    topology = topology_from_meta(meta, mission_dir)
     raw_mission_branch = meta.get("mission_branch")
     resolved_mission_branch = raw_mission_branch if isinstance(raw_mission_branch, str) else None
 
@@ -1747,8 +1759,8 @@ def _repair_events_phase(
     raw_rows: Sequence[_RawJsonlRow],
     canonical_lines: Sequence[str],
     state: _RepairState,
-) -> None:
-    """Write the canonical event log when its text changed."""
+) -> bool:
+    """Write the canonical event log when its text changed; return whether it did."""
     before_events = _file_fingerprint(status_path)
     status_text = "".join(line + "\n" for line in canonical_lines)
     # Backstop (#2376): never silently empty a previously-populated event
@@ -1767,7 +1779,9 @@ def _repair_events_phase(
         )
     if status_path.read_text(encoding="utf-8") != status_text:
         atomic_write(status_path, status_text)
+    changes_before = len(state.file_changes)
     state.record_change(repo_root, status_path, before_events)
+    return len(state.file_changes) > changes_before
 
 
 def _repair_quarantine_phase(
@@ -1789,14 +1803,41 @@ def _repair_quarantine_phase(
     state.record_change(repo_root, quarantine_path, before_quarantine)
 
 
-def _repair_status_json_phase(repo_root: Path, mission_dir: Path, state: _RepairState) -> StatusSnapshot:
-    """Refresh ``status.json`` from the log; return the materialized snapshot."""
+def _is_tracked_derived_file(repo_root: Path, path: Path) -> bool:
+    """True when *path* exists on disk AND is tracked in git.
+
+    A derived file the Mission does not already track (absent, or present but
+    untracked) is never created or rewritten by the repair (#5811). A git
+    failure other than "not tracked" propagates as ``GitCommandError``.
+    """
+    return path.exists() and is_tracked(repo_root, _repo_relpath(repo_root, path))
+
+
+def _repair_status_json_phase(
+    repo_root: Path,
+    mission_dir: Path,
+    state: _RepairState,
+    *,
+    log_changed: bool,
+) -> StatusSnapshot:
+    """Refresh a tracked ``status.json`` after a log change; return the snapshot.
+
+    ``status.json`` is a derived file: it is rewritten only when this repair
+    changed the Mission's event log AND the file is already tracked. A
+    differing file with an unchanged log is reported as drift, not written.
+    """
     status_json_path = mission_dir / STATUS_FILENAME
-    before_status = _file_fingerprint(status_json_path)
     snapshot = materialize_snapshot(mission_dir)
+    if not status_json_path.exists():
+        return snapshot
     status_json = materialize_to_json(snapshot)
-    if not status_json_path.exists() or status_json_path.read_text(encoding="utf-8") != status_json:
-        atomic_write(status_json_path, status_json)
+    if status_json_path.read_text(encoding="utf-8") == status_json:
+        return snapshot
+    if not log_changed or not _is_tracked_derived_file(repo_root, status_json_path):
+        state.meta_actions = (*state.meta_actions, STATUS_JSON_DRIFT_NOT_WRITTEN_ACTION)
+        return snapshot
+    before_status = _file_fingerprint(status_json_path)
+    atomic_write(status_json_path, status_json)
     state.record_change(repo_root, status_json_path, before_status)
     return snapshot
 
@@ -1878,10 +1919,10 @@ def _repair_status_log_phases(
         state.quarantined_rows = len(quarantine_lines)
         return False
 
-    _repair_events_phase(repo_root, status_path, raw_rows, canonical_lines, state)
+    log_changed = _repair_events_phase(repo_root, status_path, raw_rows, canonical_lines, state)
     if quarantine_lines:
         _repair_quarantine_phase(repo_root, run_id, quarantine_lines, state)
-    snapshot = _repair_status_json_phase(repo_root, mission_dir, state)
+    snapshot = _repair_status_json_phase(repo_root, mission_dir, state, log_changed=log_changed)
     _repair_lanes_phase(repo_root, mission_dir, snapshot, meta, state)
     return True
 
@@ -1973,6 +2014,18 @@ def _canonicalize_meta(
     return meta, tuple(actions)
 
 
+def _canonical_line(row: _RawJsonlRow, canonical: Mapping[str, Any], *, verbatim: bool, actions: Sequence[str]) -> str:
+    """The line the repaired log carries for a surviving row.
+
+    A preserved non-lane / annotation row, and a lane row the pipeline did not
+    change (no actions, equal to the writer shape modulo omitted nulls), keep
+    their ORIGINAL text; any other lane row goes through the store's serializer.
+    """
+    if verbatim or (not actions and _is_semantically_canonical(row.data, canonical)):
+        return row.text
+    return str(serialize_event_line(canonical))
+
+
 def _canonicalize_status_rows(
     repo_root: Path,
     mission_dir: Path,
@@ -2049,7 +2102,7 @@ def _canonicalize_status_rows(
             )
             continue
         seen_event_ids.add(event_id or "")
-        new_text = row.text if result.verbatim else serialize_event_line(result.row)
+        new_text = _canonical_line(row, result.row, verbatim=result.verbatim, actions=actions)
         canonical_lines.append(new_text)
         if new_text != row.text or actions:
             row_changes.append(
@@ -2503,6 +2556,18 @@ def _coerce_scalar_types(new_row: _Row, new_actions: list[str]) -> None:
         new_actions.append("coerced_type:force")
 
 
+#: Keys ``StatusEvent.to_dict`` omits while they are ``None``. Earlier repair
+#: versions wrote them as explicit nulls; a row differing from the writer shape
+#: only by such nulls is semantically canonical and is kept byte-for-byte.
+_NULL_OMITTED_KEYS = frozenset({"reason_source", "review_result", "mission_id"})
+
+
+def _is_semantically_canonical(original: Mapping[str, Any], canonical: Mapping[str, Any]) -> bool:
+    """True when *original* equals *canonical* once writer-omitted nulls are ignored."""
+    trimmed = {key: value for key, value in original.items() if not (value is None and key in _NULL_OMITTED_KEYS)}
+    return trimmed == dict(canonical)
+
+
 def _round_trip_lane_row(new_row: _Row, new_actions: list[str]) -> _Row:
     """Round-trip a normalized lane row through ``StatusEvent`` (the writer shape).
 
@@ -2512,7 +2577,8 @@ def _round_trip_lane_row(new_row: _Row, new_actions: list[str]) -> _Row:
     manifest still lists every field the repair drops (FR-009).
     """
     canonical: _Row = dict(StatusEvent.from_dict(new_row).to_dict())
-    new_actions.extend(f"removed_field:{dropped}" for dropped in sorted(set(new_row) - set(canonical)))
+    dropped_keys = (key for key in sorted(set(new_row) - set(canonical)) if not (new_row[key] is None and key in _NULL_OMITTED_KEYS))
+    new_actions.extend(f"removed_field:{key}" for key in dropped_keys)
     return canonical
 
 
