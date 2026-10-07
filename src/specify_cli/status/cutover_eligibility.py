@@ -238,13 +238,18 @@ def _terminal_evidence(meta: Mapping[str, Any], slug: str) -> bool:
 
 
 def _raw_phase_state(meta: Mapping[str, Any]) -> str:
-    """Classify the raw ``status_phase``: ``"absent"``, ``"early"`` (int < 1), ``"stamped"`` or ``"malformed"``."""
+    """Classify the raw ``status_phase``: ``"absent"``, ``"early"`` (integer 0), ``"stamped"`` (>= 1) or ``"malformed"``.
+
+    A negative integer is malformed: only a well-formed ``0`` is the early state.
+    """
     raw = meta.get("status_phase")
     if raw is None:
         return "absent"
     try:
         value = int(str(raw).strip())
     except ValueError:
+        return "malformed"
+    if value < 0:
         return "malformed"
     return "early" if value < 1 else "stamped"
 
@@ -266,7 +271,7 @@ def pre_accept_exemption(mission_dir: Path) -> PreAcceptDecision:
 
     Exempt (``note`` set) only when ``meta.json`` reads (through :func:`_read_meta`, so a
     missing, empty or unparsable file has no ``mission_id`` and declines) with a ``mission_id``, ``status_phase`` is
-    absent or a well-formed integer ``< 1``, there is no terminal evidence
+    absent or a well-formed integer ``0``, there is no terminal evidence
     (``accepted_at`` / ``merged_at`` / ``mission_number``), and no WP file
     carries legacy frontmatter runtime. Every undecidable input declines the
     exemption with a ``block_reason`` (fail closed, FR-005).

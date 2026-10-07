@@ -232,6 +232,7 @@ _PASS_QUIET = (True, ())
         pytest.param({"wp_frontmatter": _EMPTY_WP.replace('assignee: ""', 'assignee: "x"')}, False, REASON_LEGACY_FRONTMATTER, id="legacy-assignee"),
         pytest.param({"wp_frontmatter": _EMPTY_WP + 'tracker_refs:\n  - "X-1"\n'}, False, REASON_LEGACY_FRONTMATTER, id="legacy-tracker-refs"),
         pytest.param({"meta_extra": {"status_phase": "abc"}}, False, REASON_PHASE_MALFORMED, id="phase-malformed"),
+        pytest.param({"meta_extra": {"status_phase": "-5"}}, False, REASON_PHASE_MALFORMED, id="phase-negative-malformed"),
         pytest.param({"raw_meta": "{not json"}, False, "absent mission_id", id="meta-invalid-json"),
         pytest.param({"wp_frontmatter": 'work_package_id: "WP01"\nagent: [unclosed\n'}, False, REASON_LEGACY_UNDECIDABLE, id="wp-unparsable"),
         pytest.param({"mission_id": None}, False, "absent mission_id", id="absent-mission-id"),
