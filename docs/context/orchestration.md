@@ -638,7 +638,7 @@ Mission topology terms (the four topologies, write checkout, repo-root lane, cod
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `4.x` |
-| **Do NOT use when** | The concept is the [COORD partition](#coord-partition) (a routing rule over artifact kinds), or "coord" generally: a `lanes` or `single_branch` Mission has no coordination branch but still has a status evidence branch. The concept is a lane's code branch — use [Lane](#lane). |
+| **Do NOT use when** | The concept is the [COORD partition](#coord-partition) (a placement rule over artifact kinds), or "coord" generally: a `lanes` or `single_branch` Mission has no coordination branch but still has a status evidence branch. The concept is a lane's code branch — use [Lane](#lane). |
 | **Related terms** | [Evidence gate](#evidence-gate), [origin freshness check](#origin-freshness-check), [COORD partition](#coord-partition), [PRIMARY partition](#primary-partition) |
 
 ---

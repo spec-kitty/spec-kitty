@@ -151,7 +151,8 @@ spec-kitty merge
 ### SPEC_KITTY_ORIGIN_CHECK
 
 Default for `--origin-check` on the evidence gates (`spec-kitty consolidate`,
-`spec-kitty accept` and `orchestrator-api accept-mission` / `consolidate-mission`).
+`spec-kitty accept` and `orchestrator-api accept-mission` / `consolidate-mission`), and the
+only opt-out for `spec-kitty agent action review`, which has no flag but honours this variable.
 Before it trusts a branch, each gate asks the branch's remote for its current tip and refuses when
 your clone is behind it, diverged from it, or cannot reach it (`ORIGIN_STATUS_STALE`,
 `ORIGIN_LANE_STALE`, `ORIGIN_UNREACHABLE`). See
@@ -161,9 +162,10 @@ your clone is behind it, diverged from it, or cannot reach it (`ORIGIN_STATUS_ST
 printed warning that names the verdict and where the setting came from (`flag` or
 `environment`), and the gate continues with your last-known view. An unrecognized value enforces
 and prints a warning. `agent action review` never refuses on an unreachable remote; it always
-warns.
+warns. With `warn`, review also keeps a diverged lane and warns instead of refusing
+`ORIGIN_LANE_DIVERGED`.
 
-**Precedence**: the `--origin-check` flag, then this variable, then `enforce`.
+**Precedence**: the `--origin-check` flag (where the command has one), then this variable, then `enforce`.
 
 **Not affected**: a project with no remote, or a branch that was never pushed, passes silently in
 either mode, and `consolidate --dry-run` runs no check.
@@ -642,7 +644,7 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 | `SPECIFY_TEMPLATE_REPO` | Use a custom remote template repo | `org/templates` |
 | `SPEC_KITTY_NON_INTERACTIVE` | Disable prompts | `1` |
 | `SPEC_KITTY_WORKTREE_REMOVAL_DELAY` | Delay worktree cleanup | `10` |
-| `SPEC_KITTY_ORIGIN_CHECK` | Default for `--origin-check` on the evidence gates: `enforce` (default) or `warn` | `warn` |
+| `SPEC_KITTY_ORIGIN_CHECK` | Default for `--origin-check` on the evidence gates, and the only opt-out for `agent action review`: `enforce` (default) or `warn` | `warn` |
 | `SPEC_KITTY_ENABLE_SAAS_SYNC` | Opt out of hosted sync/auth flows (on by default) | `0` |
 | `SPEC_KITTY_SAAS_URL` | Configures the hosted endpoint; no built-in default | `https://spec-kitty-dev.example.internal` |
 | `SPEC_KITTY_SYNC_DISABLE` | Process-wide kill switch for sync-adjacent work | `1` |
