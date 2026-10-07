@@ -40,8 +40,10 @@ from specify_cli.cli.commands.cutover_guard import (
     remedy_for,
     touched_mission_slugs,
 )
-from specify_cli.status.cutover_eligibility import PRE_ACCEPT_EXEMPT_NOTE
 from specify_cli.status import (
+    PRE_ACCEPT_EXEMPT_NOTE,
+    REASON_LEGACY_UNDECIDABLE,
+    CutOverVerdict,
     Lane,
     StatusEvent,
     build_claim_policy_metadata,
@@ -56,6 +58,36 @@ pytestmark = [pytest.mark.fast]
 #: commands so ``CliRunner`` has a real Typer instance to invoke.
 _guard_app = typer.Typer()
 _guard_app.command()(cutover_guard)
+
+
+# Verbatim from packs/built-in/missions/software-dev/templates/task-prompt-template.md:
+# the shipped WP template carries EMPTY claim fields (agent/assignee/shell_pid).
+_TEMPLATE_WP_FRONTMATTER = """---
+work_package_id: "WP01"
+subtasks:
+  - "T001"
+title: "Demo"
+task_type: "implement"
+phase: "Phase 1"
+execution_mode: "code_change"
+owned_files:
+  - "src/demo.py"
+authoritative_surface: "src/"
+create_intent: []
+agent_profile: ""
+role: ""
+agent: ""
+model: ""
+assignee: ""
+shell_pid: ""
+history:
+  - at: "2026-01-01T00:00:00Z"
+    actor: "system"
+    action: "Prompt generated via /spec-kitty.tasks"
+---
+
+# Work Package Prompt: WP01
+"""
 
 
 def _write_meta(mission_dir: Path, *, mission_id: str | None, status_phase: str | None) -> None:
@@ -98,10 +130,10 @@ def _seed_live_claim(mission_dir: Path, mission_id: str, *, event_id: str) -> No
 def _build_native_un_cut_over_mission(corpus: Path, *, slug: str, mission_id: str) -> Path:
     """A natively-born mission, accepted but unstamped (terminal evidence): real event-log claim, NO ``status_phase`` key.
 
-    No frontmatter runtime state anywhere on disk (the FR-008/WP05
-    authoring-retired shape), so ``verify_backfill`` reads vacuously ``ok``
-    with ``wp_count=0`` — the R2 vacuous-green trap this guard must not fall
-    into.
+    The WP file is the shipped template (empty claim fields) and ``tasks.md``
+    carries a checked authoring row: no legacy frontmatter runtime anywhere on
+    disk (the FR-008/WP05 authoring-retired shape), the R2 vacuous-green trap
+    this guard must not fall into.
     """
     mission_dir = corpus / slug
     _write_meta(mission_dir, mission_id=mission_id, status_phase=None)
@@ -113,11 +145,8 @@ def _build_native_un_cut_over_mission(corpus: Path, *, slug: str, mission_id: st
     meta_path.write_text(json.dumps(meta), encoding="utf-8")
     tasks = mission_dir / "tasks"
     tasks.mkdir()
-    (tasks / "WP01-demo.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: Demo\nexecution_mode: code_change\n---\n\n# WP01\n",
-        encoding="utf-8",
-    )
-    (mission_dir / "tasks.md").write_text("# Tasks\n\n## WP01 Demo\n\n", encoding="utf-8")
+    (tasks / "WP01-demo.md").write_text(_TEMPLATE_WP_FRONTMATTER, encoding="utf-8")
+    (mission_dir / "tasks.md").write_text("# Tasks\n\n## WP01 Demo\n\n- [x] T001 Authoring reference row\n", encoding="utf-8")
     _seed_live_claim(mission_dir, mission_id, event_id="01NATIVEUNCUTOVERAAAAAAAAA")
     return mission_dir
 
@@ -603,6 +632,19 @@ def _build_pre_accept_mission(corpus: Path, *, slug: str, mission_id: str) -> Pa
     return mission_dir
 
 
+def test_claimed_pre_accept_mission_passes_the_guard(tmp_path: Path) -> None:
+    """#5835: a claimed Mission with no stamp and nothing legacy passes the guard and is listed as exempt."""
+    corpus = tmp_path / "kitty-specs"
+    corpus.mkdir()
+    slug = "pre-accept-guard-01KZPRE0"
+    _build_pre_accept_mission(corpus, slug=slug, mission_id="01KZPRE0H8T2X6R4N9YV3D5C79")
+
+    verdict = evaluate_touched_missions(tmp_path, [f"kitty-specs/{slug}/tasks/WP01-demo.md"])
+
+    assert verdict.passed is True, [f.reasons for f in verdict.failures]
+    assert [item.mission_slug for item in verdict.exempt] == [slug]
+
+
 def test_exempt_mission_is_listed_and_exits_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     corpus = tmp_path / "kitty-specs"
     corpus.mkdir()
@@ -700,9 +742,6 @@ def test_absent_mission_id_remedy_names_meta_repair_and_backfill_identity(tmp_pa
 
 
 def test_remedy_for_undecidable_legacy_and_unknown_reason(tmp_path: Path) -> None:
-    from specify_cli.status import CutOverVerdict
-    from specify_cli.status.cutover_eligibility import REASON_LEGACY_UNDECIDABLE
-
     def verdict(*reasons: str) -> CutOverVerdict:
         return CutOverVerdict(mission_dir=tmp_path, mission_slug="m-1", cut_over=False, reasons=reasons)
 

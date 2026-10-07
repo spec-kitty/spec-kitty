@@ -8,7 +8,7 @@
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "tests/specify_cli/cli/commands/test_cutover_guard_pre_accept.py; lane-b targeted run 93 passed",
+      "evidence": "tests/specify_cli/cli/commands/test_cutover_guard.py (folded in from test_cutover_guard_pre_accept.py); lane-b targeted run 93 passed",
       "pass_fail": "pass",
       "verified_by": "claude",
       "verified_at": "2026-10-06T22:19:00.364221+00:00",

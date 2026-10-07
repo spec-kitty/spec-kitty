@@ -28,19 +28,22 @@ from typing import Any
 import pytest
 
 from specify_cli.migration.backfill_runtime_state import LegacyWPRuntime
-from specify_cli.status.cutover_eligibility import (
+from specify_cli.status import (
     PRE_ACCEPT_EXEMPT_NOTE,
+    REASON_ABSENT_MISSION_ID,
     REASON_LEGACY_FRONTMATTER,
     REASON_LEGACY_UNDECIDABLE,
     REASON_META_DUPLICATE_KEYS,
     REASON_PHASE_MALFORMED,
     REASON_TERMINAL_MALFORMED,
     REASON_TERMINAL_UNSTAMPED,
+    Lane,
+    ReviewOverride,
+    StatusEvent,
+    build_claim_policy_metadata,
     is_cut_over,
-    mission_carries_event_log_runtime,
 )
-from specify_cli.status.emit import build_claim_policy_metadata
-from specify_cli.status.models import Lane, ReviewOverride, StatusEvent
+from specify_cli.status.cutover_eligibility import eligible_runtime_missions, mission_carries_event_log_runtime
 from specify_cli.status.store import append_event
 
 pytestmark = pytest.mark.fast
@@ -177,7 +180,6 @@ def test_empty_policy_metadata_is_not_detected(tmp_path: Path) -> None:
 # --- pre-accept exemption (#5835 / #5300) ------------------------------------
 
 _EMPTY_WP = 'work_package_id: "WP01"\ntitle: "Demo"\nagent: ""\nassignee: ""\nshell_pid: ""\n'
-_NOT_FLIPPED = "status_phase not flipped despite event-log runtime evidence"
 #: A WP filled the way tasks-packages step 4a fills it at PLANNING time (no claim yet).
 _STEP_4A_WP = (
     'work_package_id: "WP01"\ntitle: "Demo"\nagent_profile: "implementer-ivan"\nrole: "implementer"\n'
@@ -266,15 +268,15 @@ _PASS_QUIET = (True, ())
         pytest.param({"wp_frontmatter": _EMPTY_WP + 'tracker_refs:\n  - "X-1"\n'}, True, PRE_ACCEPT_EXEMPT_NOTE, id="authored-tracker-refs"),
         pytest.param({"meta_extra": {"status_phase": "abc"}}, False, REASON_PHASE_MALFORMED, id="phase-malformed"),
         pytest.param({"meta_extra": {"status_phase": "-5"}}, False, REASON_PHASE_MALFORMED, id="phase-negative-malformed"),
-        pytest.param({"raw_meta": "{not json"}, False, "absent mission_id", id="meta-invalid-json"),
+        pytest.param({"raw_meta": "{not json"}, False, REASON_ABSENT_MISSION_ID, id="meta-invalid-json"),
         pytest.param({"wp_frontmatter": 'work_package_id: "WP01"\nagent: [unclosed\n'}, False, REASON_LEGACY_UNDECIDABLE, id="wp-unparsable"),
-        pytest.param({"mission_id": None}, False, "absent mission_id", id="absent-mission-id"),
+        pytest.param({"mission_id": None}, False, REASON_ABSENT_MISSION_ID, id="absent-mission-id"),
         pytest.param({"tasks_is_file": True}, False, REASON_LEGACY_UNDECIDABLE, id="tasks-is-a-file"),
         pytest.param({"tasks_md": b"# Tasks \xff\xfe"}, False, REASON_LEGACY_UNDECIDABLE, id="tasks-md-not-utf8"),
     ],
 )
 def test_is_cut_over_pre_accept_matrix(tmp_path: Path, kwargs: dict[str, Any], cut_over: bool, reasons_prefix: str | None) -> None:
-    """Only the first exempt cells change verdict versus the pre-fix predicate (NFR-001)."""
+    """Each cell pins the verdict and the reason constant (or the exemption note) that decided it."""
     verdict = is_cut_over(_born_mission(tmp_path, **kwargs))
 
     assert verdict.cut_over is cut_over, verdict.reasons
@@ -285,7 +287,7 @@ def test_is_cut_over_pre_accept_matrix(tmp_path: Path, kwargs: dict[str, Any], c
         assert verdict.reasons == (reasons_prefix,)
     else:
         assert verdict.reasons
-        assert verdict.reasons[0].startswith(reasons_prefix) or reasons_prefix in verdict.reasons[0]
+        assert verdict.reasons[0].startswith(reasons_prefix)
 
 
 @pytest.mark.parametrize(
@@ -313,19 +315,14 @@ def test_bom_prefixed_meta_is_still_exempt(tmp_path: Path) -> None:
     assert is_cut_over(mission_dir).reasons == (PRE_ACCEPT_EXEMPT_NOTE,)
 
 
-def test_legacy_reasons_keep_historical_prefix(tmp_path: Path) -> None:
-    mission_dir = _born_mission(tmp_path, meta_extra={"accepted_at": "2026-02-01T00:00:00Z"})
-
-    assert is_cut_over(mission_dir).reasons[0].startswith(_NOT_FLIPPED)
-
-
 def test_stamped_mission_keeps_strict_path(tmp_path: Path) -> None:
     """A stamped mission is never exempt: it still needs a snapshot that verifies."""
     mission_dir = _born_mission(tmp_path, meta_extra={"status_phase": "1"})
 
     verdict = is_cut_over(mission_dir)
 
-    assert PRE_ACCEPT_EXEMPT_NOTE not in verdict.reasons
+    assert verdict.cut_over is False
+    assert verdict.exempt is False
 
 
 @pytest.mark.parametrize(
@@ -358,26 +355,12 @@ def test_legacy_runtime_predicates(runtime: LegacyWPRuntime, frontmatter_runtime
     assert runtime.has_legacy_claim_runtime() is legacy_claim
 
 
-def test_pre_accept_exemption_declines_on_unreadable_meta(tmp_path: Path) -> None:
-    """Fail closed: a malformed ``meta.json`` reads empty (no ``mission_id``) and never yields the exemption."""
-    from specify_cli.status.cutover_eligibility import REASON_ABSENT_MISSION_ID, pre_accept_exemption
-
-    mission_dir = _born_mission(tmp_path, raw_meta="{not json")
-
-    decision = pre_accept_exemption(mission_dir)
-
-    assert decision.exempt is False
-    assert decision.block_reason == REASON_ABSENT_MISSION_ID
-
-
 def test_absent_mission_id_stays_eligible_and_fails_while_control_is_exempt(tmp_path: Path) -> None:
     """Both consumers agree: no ``mission_id`` withholds the exemption (FR-005).
 
     The same pre-accept fixture WITH a ``mission_id`` is exempt and not eligible
     (positive control), so the absent-id cell is not vacuous.
     """
-    from specify_cli.status.cutover_eligibility import eligible_runtime_missions
-
     no_id = _born_mission(tmp_path / "a", mission_id=None)
     with_id = _born_mission(tmp_path / "b")
 
