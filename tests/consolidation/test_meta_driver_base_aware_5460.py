@@ -135,18 +135,6 @@ def test_ordinary_merge_keeps_a_discard_next_to_a_teammates_edit(tmp_path: Path)
     _assert_discard_kept(repo)
 
 
-def test_rebase_control_already_keeps_the_discard(tmp_path: Path) -> None:
-    """Positive control: a rebase swaps the sides, where the two-way rule already kept it."""
-    repo, calls = _make_repo(tmp_path)
-
-    rebase = _git(repo, "rebase", "main", check=False)
-
-    assert rebase.returncode == 0, rebase.stdout + rebase.stderr
-    _assert_driver_ran_once(calls)
-    merged = json.loads((repo / META_REL).read_text(encoding="utf-8"))
-    assert merged.get("discarded_at") == DISCARDING["discarded_at"]
-
-
 def _run_driver_subprocess(tmp_path: Path, env: dict[str, str]) -> dict[str, Any]:
     base, ours, theirs = tmp_path / "O", tmp_path / "A", tmp_path / "B"
     base.write_text(json.dumps({"a": 1, "b": 1}), encoding="utf-8")

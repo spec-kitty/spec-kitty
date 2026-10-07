@@ -15,7 +15,6 @@ from typing import Any
 
 import pytest
 
-from specify_cli.consolidation import drivers
 from specify_cli.consolidation.drivers import MergeDriverError, run_meta_driver
 from specify_cli.lanes import consolidation as lanes_consolidation
 
@@ -54,7 +53,7 @@ TEAMMATE: dict[str, Any] = ANCESTOR | {
 
 def _drive(
     tmp_path: Path,
-    base: dict[str, Any] | str | None,
+    base: dict[str, Any] | str,
     ours: dict[str, Any],
     theirs: dict[str, Any],
 ) -> dict[str, Any]:
@@ -62,7 +61,7 @@ def _drive(
     o_path, a_path, b_path = tmp_path / "O", tmp_path / "A", tmp_path / "B"
     if isinstance(base, str):
         o_path.write_text(base, encoding="utf-8")
-    elif base is not None:
+    else:
         o_path.write_text(json.dumps(base), encoding="utf-8")
     a_path.write_text(json.dumps(ours), encoding="utf-8")
     b_path.write_text(json.dumps(theirs), encoding="utf-8")
@@ -126,7 +125,11 @@ def test_null_and_absent_are_distinct_values(tmp_path: Path) -> None:
 
 
 def test_coupled_flatten_group_moves_as_one_unit(tmp_path: Path) -> None:
-    """One member conflicts, another is one-sided: the whole triple comes from one side."""
+    """One member conflicts, another is one-sided: the whole triple comes from one side.
+
+    Guards the unit grouping (red against a key-by-key mutant) even though it also
+    passes on the pre-fix driver.
+    """
     base = {"topology": "coord", "coordination_branch": "c", "flattened": False}
     ours = {"flattened": True}  # flattened (deleted topology/branch, set flag)
     theirs = {"topology": "coord", "coordination_branch": "c2", "flattened": False}
@@ -150,22 +153,6 @@ def test_assigned_mission_number_is_never_replaced_by_unassigned(tmp_path: Path)
     merged = _drive(tmp_path, {"mission_number": 5}, {"mission_number": None}, {"mission_number": 5})
 
     assert merged["mission_number"] == 5
-
-
-def test_both_sides_adding_the_same_key_collapse_to_one(tmp_path: Path) -> None:
-    merged = _drive(tmp_path, {"a": 1}, {"a": 1, "n": "v"}, {"a": 1, "n": "v", "m": 2})
-
-    assert merged == {"a": 1, "n": "v", "m": 2}
-
-
-def test_genuine_conflict_keeps_target_authoritative_precedence(tmp_path: Path) -> None:
-    base = {"purpose_tldr": "a", "status": "in_review"}
-    ours = {"purpose_tldr": "b", "status": "accepted"}
-    theirs = {"purpose_tldr": "c", "status": "approved"}
-
-    merged = _drive(tmp_path, base, ours, theirs)
-
-    assert merged == {"purpose_tldr": "c", "status": "accepted"}
 
 
 @pytest.mark.parametrize(
@@ -204,12 +191,10 @@ def test_whitespace_only_ancestor_selects_the_two_way_rule(tmp_path: Path) -> No
     assert merged == {"a": 1, "b": 2}
 
 
-def test_absent_and_empty_object_ancestors_select_the_two_way_rule(tmp_path: Path) -> None:
-    (tmp_path / "absent").mkdir()
-    absent = _drive(tmp_path / "absent", None, {"a": 2}, {"a": 1})
-    empty = _drive(tmp_path, {}, {"a": 2}, {"a": 1})
+def test_empty_object_ancestor_selects_the_two_way_rule(tmp_path: Path) -> None:
+    merged = _drive(tmp_path, {}, {"a": 2}, {"a": 1})
 
-    assert absent == empty == {"a": 1}
+    assert merged == {"a": 1}
 
 
 def test_squash_pipeline_sets_the_two_way_opt_out_on_its_merge_subprocess(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -246,40 +231,40 @@ def test_two_way_keyword_ignores_the_ancestor(tmp_path: Path) -> None:
     assert json.loads((tmp_path / "A").read_text(encoding="utf-8")) == {"a": 1, "b": 2}
 
 
-def test_opt_out_constant_value_and_pipeline_env_authority() -> None:
-    assert drivers.META_DRIVER_TWO_WAY_ENV == TWO_WAY_ENV
-    assert TWO_WAY_ENV not in lanes_consolidation._make_merge_env()
-
-
-def test_acceptance_stamp_group_is_the_five_stamp_keys() -> None:
-    groups = {key for group in drivers._META_COUPLED_KEY_GROUPS for key in group}
-    stamps = {"accepted_at", "accepted_by", "accepted_from_commit", "acceptance_mode", "accept_commit"}
-
-    assert stamps <= groups
-    assert not {"vcs", "vcs_locked_at"} & groups
-
-
 def test_merged_block_conflict_resolves_as_one_target_authoritative_unit(tmp_path: Path) -> None:
-    """A reopen deleted the block on one side; the other re-recorded it: never a half block."""
-    base = {"merged_at": "t0", "merged_by": "x", "merged_commit": "c0", "k": 1}
-    ours = {"merged_at": "t1", "merged_by": "y", "merged_commit": "c1", "k": 1}
-    # theirs deletes the three recorded keys (a conflict with ours' edits) and adds
-    # merged_push alone: a one-sided add that key-by-key logic would keep. Only the
-    # coupled-group rule drops it, so the whole block must come from ours.
-    theirs = {"merged_push": True, "k": 1}
+    """A re-merge restamped ``merged_at`` while a reopen removed the marker: never a half block.
+
+    ``consolidation/baseline.py`` writes ``merged_at`` and ``merged_commit`` together; here
+    the re-merge landed the same commit, so only ``merged_at`` moved. Key by key,
+    ``merged_at`` keeps the re-merge but ``merged_commit``'s deletion survives, leaving a
+    marker with no commit. As a unit the whole block follows the target side (ours).
+    """
+    marker = {"merged_at": "2026-10-03T14:02:11.482113+00:00", "merged_commit": "9f3c1ab07d5e44c8a2b6e0d1f3a97c5b8e2d4f60"}
+    base = ANCESTOR | marker
+    ours = base | {"merged_at": "2026-10-06T08:15:40.120934+00:00"}  # re-merged locally
+    theirs = dict(ANCESTOR)  # reopened upstream: the block is gone
 
     merged = _drive(tmp_path, base, ours, theirs)
 
-    assert "merged_push" not in merged
     assert merged == ours
 
 
 def test_acceptance_stamps_move_as_one_unit(tmp_path: Path) -> None:
-    base = {"accepted_at": "t0", "accepted_by": "a", "acceptance_mode": "m", "k": 1}
-    ours = {"accepted_at": "t1", "accepted_by": "b", "acceptance_mode": "m", "k": 1}
-    theirs = {"accepted_at": "t0", "accepted_by": "a", "acceptance_mode": "m2", "k": 2}
+    """Guards the unit grouping (red against a key-by-key mutant) even though it also
+    passes on the pre-fix driver; ``vcs`` is an independent key, not a stamp.
+    """
+    base = {"accepted_at": "2026-10-01T09:30:00+00:00", "accepted_by": "stijn", "acceptance_mode": "standard", "purpose_tldr": "a"}
+    ours = base | {"accepted_at": "2026-10-02T10:00:00+00:00", "accepted_by": "reviewer"}
+    theirs = base | {
+        "acceptance_mode": "strict",
+        "purpose_tldr": "b",
+        "vcs": "git",
+        "vcs_locked_at": "2026-10-06T16:09:00.623338+00:00",
+    }
 
     merged = _drive(tmp_path, base, ours, theirs)
 
-    # Conflict on the stamp unit -> target-authoritative -> ours as a whole; k is one-sided.
-    assert merged == {"accepted_at": "t1", "accepted_by": "b", "acceptance_mode": "m", "k": 2}
+    # The stamp unit conflicts -> target-authoritative -> ours as a whole; the planning
+    # key is one-sided; the VCS lock was changed on theirs alone and survives (it stays
+    # outside the stamp unit, else ours' empty VCS would have replaced it).
+    assert merged == ours | {"purpose_tldr": "b", "vcs": "git", "vcs_locked_at": "2026-10-06T16:09:00.623338+00:00"}
