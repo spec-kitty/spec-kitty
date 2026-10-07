@@ -31,8 +31,8 @@ from packaging.version import Version
 from pydantic import BaseModel, ConfigDict
 
 from kernel.git import GitCommandError, is_tracked, status_entries
-from specify_cli.context.mission_resolver import is_mission_dir, tracked_mission_paths
 from kernel.locks import LockNotAcquired, SyncMachineFileLock, machine_file_lock
+from specify_cli.context.mission_resolver import is_mission_dir, tracked_mission_paths
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.checkout_identity import (
     FailClosedRefusal,

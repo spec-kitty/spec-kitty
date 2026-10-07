@@ -17,8 +17,6 @@ New flags (WP09):
   --project           Restrict to current-project compat + migrations (FR-015).
                       Errors when invoked outside a project.
   --yes / -y          Non-interactive confirmation; alias for --force (FR-017).
-                      Fully non-interactive: also opts into the mission-state
-                      repair sub-gate, so that prompt is skipped too (NFR-003).
   --no-nag            Suppress upgrade-nag output explicitly.
 
 Mutual exclusion:
@@ -1639,7 +1637,7 @@ def upgrade(
         False,
         "--yes",
         "-y",
-        help="Non-interactive confirmation; alias for --force (FR-017). Also opts into the mission-state repair sub-gate (NFR-003).",
+        help="Non-interactive confirmation; alias for --force (FR-017).",
     ),
     no_nag: bool = typer.Option(False, "--no-nag", help="Suppress upgrade-nag output explicitly"),
     agent_check: bool = typer.Option(False, "--agent-check", help="Emit agent-host upgrade prompt JSON", hidden=True),
@@ -1658,9 +1656,6 @@ def upgrade(
                     Errors outside a project.
       ``--yes``/``-y``  Non-interactive confirmation (alias for ``--force``).
                         Does NOT bypass schema-incompatibility blocks (CHK037/A-006).
-                        Fully non-interactive (FR-017): also opts into the
-                        mission-state repair sub-gate (NFR-003), which
-                        otherwise has its own separate consent.
       ``--no-nag``  Suppress upgrade-nag banner even when a CLI update exists.
 
     Mutual exclusion: ``--cli`` and ``--project`` together exit 2.

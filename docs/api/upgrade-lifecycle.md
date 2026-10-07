@@ -57,8 +57,9 @@ Project upgrade walks pending migrations in version order. For each migration, i
 Migrations are idempotent: re-running `spec-kitty upgrade` is a no-op when the schema is current.
 
 After migration selection, one guarded finalizer orders activation provisioning,
-managed-surface repair, and the generated-churn commit. The independently
-consented mission-state repair runs last and is never included in that commit.
+managed-surface repair, and the generated-churn commit. When hosted drain is on, upgrade
+only reports TeamSpace mission-state blockers (last, never committed); it never
+repairs. The repair runs only via `spec-kitty doctor mission-state --fix`.
 Owner preconditions are rechecked immediately before writes; a changed input
 requires reassessment rather than replaying stale prepared bytes.
 
