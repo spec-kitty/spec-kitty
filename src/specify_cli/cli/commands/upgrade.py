@@ -1640,8 +1640,7 @@ def upgrade(
         "--yes",
         "-y",
         help=(
-            "Non-interactive confirmation; alias for --force (FR-017). "
-            "Upgrade never runs the mission-state repair; use `spec-kitty doctor mission-state --fix`."
+            "Non-interactive confirmation; alias for --force (FR-017). Upgrade never runs the mission-state repair; use `spec-kitty doctor mission-state --fix`."
         ),
     ),
     no_nag: bool = typer.Option(False, "--no-nag", help="Suppress upgrade-nag output explicitly"),

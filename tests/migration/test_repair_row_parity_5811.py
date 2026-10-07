@@ -91,9 +91,7 @@ _FIELD_SETS: dict[str, tuple[str, ...]] = {
 
 @pytest.mark.parametrize("structured_actor", [False, True], ids=["string-actor", "structured-actor"])
 @pytest.mark.parametrize("field_set", list(_FIELD_SETS))
-def test_writer_shaped_rows_are_byte_identical_for_representative_optional_field_sets(
-    tmp_path: Path, field_set: str, structured_actor: bool
-) -> None:
+def test_writer_shaped_rows_are_byte_identical_for_representative_optional_field_sets(tmp_path: Path, field_set: str, structured_actor: bool) -> None:
     names = _FIELD_SETS[field_set]
     line = _line(_event(optional={name: _OPTIONAL_VALUES[name] for name in names}, structured_actor=structured_actor))
 

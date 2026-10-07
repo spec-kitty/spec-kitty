@@ -43,9 +43,7 @@ def _result(repo: Path, slug: str) -> MissionAuditResult:
 
 
 @pytest.mark.parametrize("scan_root_form", ["default", "symlink"])
-def test_residue_yields_one_non_blocking_finding_and_no_identity_missing(
-    repo: Path, tmp_path_factory: pytest.TempPathFactory, scan_root_form: str
-) -> None:
+def test_residue_yields_one_non_blocking_finding_and_no_identity_missing(repo: Path, tmp_path_factory: pytest.TempPathFactory, scan_root_form: str) -> None:
     scan_root = None
     if scan_root_form == "symlink":
         # A symlinked scan root is still the default kitty-specs/ scan; it must keep filtering residue.
