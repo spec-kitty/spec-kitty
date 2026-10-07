@@ -10,7 +10,8 @@ Coverage:
   _rule_reject_non_status_event  — happy (rejected), no-op (pass-through)
   _rule_apply_aliases            — happy (renamed), no-op (no legacy keys)
   _rule_strip_legacy_keys        — happy (stripped), no-op (no forbidden keys)
-  _rule_stamp_identity           — happy (stamped, uses ctx slug), no-op (already stamped)
+  _rule_stamp_identity           — happy (slug from ctx), no-op (already has slug)
+  _rule_backfill_legacy_mission_id — legacy rows only; never adds/overwrites on writer-shaped rows (#5811)
   _rule_mint_event_id            — happy (minted + appended), no-op (valid id present), side-effect (generated_ids None)
   _rule_default_at               — happy (defaulted), no-op (at present)
   _rule_default_from_lane        — happy (defaulted), no-op (from_lane present)
@@ -30,6 +31,7 @@ pytestmark = pytest.mark.fast
 from specify_cli.migration.canonicalization import CanonicalStepResult, MigrationContext
 from specify_cli.migration.mission_state import (
     _rule_apply_aliases,
+    _rule_backfill_legacy_mission_id,
     _rule_default_at,
     _rule_default_from_lane,
     _rule_mint_event_id,
@@ -195,21 +197,39 @@ def test_rule_strip_legacy_keys(row: _Row, expected_actions: tuple[str, ...], st
 
 
 @pytest.mark.parametrize(
-    "row, expected_mission_slug, expected_mission_id",
+    "row, expected_mission_slug",
     [
         # happy — missing mission_slug: falls back to ctx.mission_slug
-        ({"wp_id": "WP01"}, _MISSION_SLUG, _MISSION_ID),
+        ({"wp_id": "WP01"}, _MISSION_SLUG),
         # happy — existing mission_slug is preserved (not overwritten)
-        ({"mission_slug": "custom-slug", "wp_id": "WP01"}, "custom-slug", _MISSION_ID),
-        # always stamps mission_id
-        (_base_row(mission_id="old-id"), _MISSION_SLUG, _MISSION_ID),
+        ({"mission_slug": "custom-slug", "wp_id": "WP01"}, "custom-slug"),
     ],
 )
-def test_rule_stamp_identity(row: _Row, expected_mission_slug: str, expected_mission_id: str) -> None:
+def test_rule_stamp_identity(row: _Row, expected_mission_slug: str) -> None:
     result = _rule_stamp_identity(row, _ctx())
     assert result.error is None
     assert result.state["mission_slug"] == expected_mission_slug
-    assert result.state["mission_id"] == expected_mission_id
+    # #5811: slug stamping never touches mission_id.
+    assert result.state.get("mission_id") == row.get("mission_id")
+
+
+@pytest.mark.parametrize(
+    "row, expected_mission_id",
+    [
+        # legacy-shaped row without its own mission_id: backfilled
+        ({"feature_slug": "old", "wp_id": "WP01"}, _MISSION_ID),
+        # legacy-shaped row with its own mission_id: never overwritten
+        ({"feature_slug": "old", "mission_id": "old-id"}, "old-id"),
+        # writer-shaped row (no legacy key): neither added nor overwritten
+        ({"wp_id": "WP01"}, None),
+        (_base_row(mission_id="old-id"), "old-id"),
+    ],
+)
+def test_rule_backfill_legacy_mission_id(row: _Row, expected_mission_id: str | None) -> None:
+    result = _rule_backfill_legacy_mission_id(row, _ctx())
+    assert result.error is None
+    assert result.state.get("mission_id") == expected_mission_id
+    assert bool(result.actions) == (row.get("mission_id") != expected_mission_id)
 
 
 # ===========================================================================

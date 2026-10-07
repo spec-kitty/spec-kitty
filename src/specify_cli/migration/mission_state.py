@@ -63,7 +63,9 @@ from specify_cli.status import materialize_snapshot, materialize_to_json
 from specify_cli.status import (
     ANNOTATION_KIND,
     is_non_lane_event,
+    serialize_event_line,
 )
+from specify_cli.status.models import decode_actor
 
 logger = logging.getLogger(__name__)
 
@@ -488,6 +490,10 @@ class _CanonicalRowResult:
     row: dict[str, Any] | None
     actions: tuple[str, ...]
     error: str | None = None
+    # True for rows the repair keeps byte-for-byte (preserved non-lane and
+    # annotation rows): the caller emits the ORIGINAL line text, never a
+    # re-serialization (#5811).
+    verbatim: bool = False
 
     @classmethod
     def from_pipeline(cls, result: CanonicalPipelineResult[dict[str, Any]]) -> _CanonicalRowResult:
@@ -1739,20 +1745,20 @@ def _repair_events_phase(
     repo_root: Path,
     status_path: Path,
     raw_rows: Sequence[_RawJsonlRow],
-    canonical_rows: Sequence[dict[str, Any]],
+    canonical_lines: Sequence[str],
     state: _RepairState,
 ) -> None:
     """Write the canonical event log when its text changed."""
     before_events = _file_fingerprint(status_path)
-    status_text = "".join(json.dumps(row, sort_keys=True) + "\n" for row in canonical_rows)
+    status_text = "".join(line + "\n" for line in canonical_lines)
     # Backstop (#2376): never silently empty a previously-populated event
     # log. Legitimate non-lane events are now preserved in
-    # ``canonical_rows``, so an empty result despite non-empty input means
+    # ``canonical_lines``, so an empty result despite non-empty input means
     # every row was dropped as genuinely foreign — an extraordinary
     # outcome that fails loud (recorded as a mission error with a reason)
     # rather than wiping the canonical log. Originals remain in the
     # quarantine directory.
-    if raw_rows and not canonical_rows:
+    if raw_rows and not canonical_lines:
         raise MissionStateRepairError(
             f"Refusing to empty {_repo_relpath(repo_root, status_path)}: "
             f"all {len(raw_rows)} row(s) were dropped by repair. This "
@@ -1843,7 +1849,7 @@ def _repair_status_log_phases(
     is written (the caller reports an ``error`` result), ``True`` otherwise.
     """
     status_path = mission_dir / EVENTS_FILENAME
-    canonical_rows, row_transforms, quarantine_lines, row_errors, surviving_event_ids = _canonicalize_status_rows(
+    canonical_lines, row_transforms, quarantine_lines, row_errors, surviving_event_ids = _canonicalize_status_rows(
         repo_root,
         mission_dir,
         raw_rows,
@@ -1862,7 +1868,7 @@ def _repair_status_log_phases(
     # reaching quarantine_lines). #4938: a quarantined authoritative
     # row whose event_id also landed in ``surviving_event_ids`` is a
     # duplicate-event_id drop, not a loss — its byte-identical copy is
-    # already in canonical_rows — so it is excluded from the guard
+    # already in canonical_lines — so it is excluded from the guard
     # rather than hard-erroring a healthy, deduped repair.
     combined_row_errors = _row_level_repair_errors(quarantine_lines, row_errors, surviving_event_ids)
     state.validation_errors.extend(combined_row_errors)
@@ -1872,7 +1878,7 @@ def _repair_status_log_phases(
         state.quarantined_rows = len(quarantine_lines)
         return False
 
-    _repair_events_phase(repo_root, status_path, raw_rows, canonical_rows, state)
+    _repair_events_phase(repo_root, status_path, raw_rows, canonical_lines, state)
     if quarantine_lines:
         _repair_quarantine_phase(repo_root, run_id, quarantine_lines, state)
     snapshot = _repair_status_json_phase(repo_root, mission_dir, state)
@@ -1975,17 +1981,22 @@ def _canonicalize_status_rows(
     mission_slug: str,
     mission_id: str,
     generated_ids: list[str] | None = None,
-) -> tuple[list[dict[str, Any]], list[RowTransformation], list[str], list[str], set[str]]:
+) -> tuple[list[str], list[RowTransformation], list[str], list[str], set[str]]:
     """Canonicalize raw status rows.
 
-    Returns ``(canonical_rows, row_changes, quarantine_lines, errors,
-    seen_event_ids)``. ``seen_event_ids`` is every ``event_id`` that made it
-    into ``canonical_rows`` (i.e. has a surviving copy on disk); it lets a
+    Returns ``(canonical_lines, row_changes, quarantine_lines, errors,
+    seen_event_ids)``. ``canonical_lines`` are the surviving rows' log lines
+    (no trailing newline) in their ORIGINAL physical order: preserved non-lane
+    and annotation rows keep their original text, lane rows are re-emitted
+    through the store's own serializer (:func:`serialize_event_line`), so a
+    writer-shaped row is byte-identical. ``seen_event_ids`` is every
+    ``event_id`` that made it into ``canonical_lines`` (i.e. has a surviving
+    copy on disk); it lets a
     caller distinguish a quarantined row that is genuinely lost from one
     whose byte-identical duplicate survived elsewhere in the same repair pass
     (see :func:`_registry_authoritative_quarantine_violations`, #4938).
     """
-    canonical_rows: list[dict[str, Any]] = []
+    canonical_lines: list[str] = []
     row_changes: list[RowTransformation] = []
     quarantine_lines: list[str] = []
     errors: list[str] = []
@@ -2038,9 +2049,9 @@ def _canonicalize_status_rows(
             )
             continue
         seen_event_ids.add(event_id or "")
-        canonical_rows.append(result.row)
-        new_text = json.dumps(result.row, sort_keys=True)
-        if new_text != row.text.strip() or actions:
+        new_text = row.text if result.verbatim else serialize_event_line(result.row)
+        canonical_lines.append(new_text)
+        if new_text != row.text or actions:
             row_changes.append(
                 RowTransformation(
                     artifact_path=rel,
@@ -2052,8 +2063,7 @@ def _canonicalize_status_rows(
                 )
             )
 
-    sorted_rows = sorted(canonical_rows, key=_row_sort_key)
-    return sorted_rows, row_changes, quarantine_lines, errors, seen_event_ids
+    return canonical_lines, row_changes, quarantine_lines, errors, seen_event_ids
 
 
 # ---------------------------------------------------------------------------
@@ -2064,18 +2074,6 @@ def _canonicalize_status_rows(
 
 # Type alias for the row state used by all rules below.
 _Row = dict[str, Any]
-
-
-def _row_sort_key(item: Mapping[str, Any]) -> tuple[str, str]:
-    """Chronological sort key for a status-log row.
-
-    Lane rows date themselves with ``at``; the preserved non-lane rows
-    (lifecycle / retrospective envelopes) use ``timestamp``. Reading only ``at``
-    collapses every one of the latter to ``""`` and hoists them to the head of
-    an append-only log, so both spellings are honoured here.
-    """
-    when = item.get("at") or item.get("timestamp") or ""
-    return (str(when), str(item.get("event_id", "")))
 
 
 #: Denylist of ``event_type`` values whose sole ``status.events.jsonl`` copy is
@@ -2182,10 +2180,10 @@ def _registry_authoritative_quarantine_violations(
     #4938: ``quarantine_lines`` is fed from two distinct sources upstream in
     :func:`_canonicalize_status_rows` — a genuinely foreign/rejected row (no
     surviving copy anywhere) and a *duplicate*-``event_id`` drop, whose
-    byte-identical survivor is already in ``canonical_rows``. The guard
+    byte-identical survivor is already in ``canonical_lines``. The guard
     cannot tell these apart from the quarantined text alone, so a caller may
     pass ``surviving_event_ids`` (every ``event_id`` that reached
-    ``canonical_rows``) to exclude the second case: a reader-non-lane
+    ``canonical_lines``) to exclude the second case: a reader-non-lane
     quarantined row whose ``event_id`` has a surviving copy is a safe dedup,
     not data loss, and is skipped rather than reported. Passing ``None``
     (the default, used by direct/unit-level callers with no survivor
@@ -2216,7 +2214,7 @@ def _registry_authoritative_quarantine_violations(
             continue
         event_id = obj.get("event_id")
         if isinstance(event_id, str) and event_id in surviving:
-            # A byte-identical copy already reached canonical_rows (the
+            # A byte-identical copy already reached canonical_lines (the
             # duplicate-event_id drop path) — nothing was lost.
             continue
         violations.append(
@@ -2348,12 +2346,35 @@ def _rule_strip_legacy_keys(row: _Row, _ctx: MigrationContext) -> CanonicalStepR
     return CanonicalStepResult(state=new_row, actions=tuple(new_actions))
 
 
-def _rule_stamp_identity(row: _Row, ctx: MigrationContext) -> CanonicalStepResult[_Row]:
-    """Rule 4: stamp mission_slug and mission_id onto the row."""
+def _is_legacy_identity_row(row: Mapping[str, Any]) -> bool:
+    """True when *row* carries a legacy identity spelling (``feature_slug`` et al.)."""
+    return any(key in row for key in FORBIDDEN_LEGACY_KEYS | frozenset(STATUS_ROW_ALIASES))
+
+
+def _rule_backfill_legacy_mission_id(row: _Row, ctx: MigrationContext) -> CanonicalStepResult[_Row]:
+    """Rule 1b: backfill ``mission_id`` on a LEGACY-shaped row only (#5811).
+
+    A writer-shaped row (no legacy identity key) is never touched: this rule
+    neither adds a ``mission_id`` the row lacks nor overwrites one it has, so a
+    healthy log round-trips byte-identically. A legacy row (it carries
+    ``feature_slug`` / ``work_package_id`` / ...) that has no ``mission_id`` of
+    its own is stamped from the Mission's identity. Runs BEFORE the alias rule,
+    which removes the legacy spelling this predicate keys on.
+    """
+    if not ctx.mission_id or row.get("mission_id") or not _is_legacy_identity_row(row):
+        return CanonicalStepResult.passthrough(row)
     new_row = dict(row)
-    new_row["mission_slug"] = str(new_row.get("mission_slug") or ctx.mission_slug)
     new_row["mission_id"] = ctx.mission_id
-    return CanonicalStepResult(state=new_row, actions=())
+    return CanonicalStepResult(state=new_row, actions=("mission_id_backfilled",))
+
+
+def _rule_stamp_identity(row: _Row, ctx: MigrationContext) -> CanonicalStepResult[_Row]:
+    """Rule 4: backfill a missing ``mission_slug`` from the Mission's identity."""
+    if row.get("mission_slug"):
+        return CanonicalStepResult.passthrough(row)
+    new_row = dict(row)
+    new_row["mission_slug"] = ctx.mission_slug
+    return CanonicalStepResult(state=new_row, actions=("mission_slug_backfilled",))
 
 
 def _rule_mint_event_id(row: _Row, ctx: MigrationContext) -> CanonicalStepResult[_Row]:
@@ -2361,7 +2382,10 @@ def _rule_mint_event_id(row: _Row, ctx: MigrationContext) -> CanonicalStepResult
     if _valid_event_id(row.get("event_id")):
         return CanonicalStepResult.passthrough(row)
     new_row = dict(row)
-    minted = deterministic_ulid(json.dumps(new_row, sort_keys=True, default=str) + f":line:{ctx.line_number}")
+    # The seed keeps the Mission identity the pre-#5811 pipeline stamped before
+    # this rule, so an id minted for a legacy row is unchanged across versions.
+    seed_row = {**new_row, "mission_id": ctx.mission_id}
+    minted = deterministic_ulid(json.dumps(seed_row, sort_keys=True, default=str) + f":line:{ctx.line_number}")
     new_row["event_id"] = minted
     if ctx.generated_ids is not None:
         ctx.generated_ids.append(minted)
@@ -2416,10 +2440,28 @@ def _normalize_lane_keys(new_row: _Row, new_actions: list[str]) -> str | None:
     return None
 
 
+def _is_structured_actor(actor: Mapping[str, Any]) -> bool:
+    """True when *actor* is a writer-shaped structured binding (FR-015)."""
+    try:
+        decode_actor(dict(actor))
+    except ValueError:
+        return False
+    return True
+
+
 def _normalize_actor_field(new_row: _Row, new_actions: list[str]) -> None:
-    """Normalize the actor field in-place, recording any action taken."""
+    """Normalize the actor field in-place, recording any action taken.
+
+    A non-blank string actor and a structured resolved-binding actor are
+    writer-authored identity and are kept verbatim (#5811): rewriting their
+    case or punctuation would make a healthy log non-byte-identical. Only a
+    legacy dict shape is labelled, and only a blank / non-string actor is
+    defaulted.
+    """
     actor = new_row.get("actor")
     if isinstance(actor, Mapping):
+        if _is_structured_actor(actor):
+            return
         metadata = dict(new_row.get("policy_metadata") or {})
         metadata.setdefault("migration_original_actor", actor)
         new_row["policy_metadata"] = metadata
@@ -2429,11 +2471,6 @@ def _normalize_actor_field(new_row: _Row, new_actions: list[str]) -> None:
     if not isinstance(actor, str) or not actor.strip():
         new_row["actor"] = "migration"
         new_actions.append("actor_defaulted")
-        return
-    normalized_actor = _normalize_actor(actor)
-    if normalized_actor != actor:
-        new_row["actor"] = normalized_actor
-        new_actions.append("actor_normalized")
 
 
 def _default_force_and_mode(new_row: _Row, new_actions: list[str]) -> None:
@@ -2446,60 +2483,59 @@ def _default_force_and_mode(new_row: _Row, new_actions: list[str]) -> None:
         new_actions.append("execution_mode_defaulted")
 
 
-def _build_canonical_row(new_row: _Row, mission_id: str) -> _Row:
-    """Build the canonical shape from a normalized row.
+_STR_COERCED_KEYS = ("event_id", "mission_slug", "wp_id", "from_lane", "to_lane", "at", "execution_mode")
 
-    This is an allowlist: any ``StatusEvent`` field omitted here is dropped from
-    the repaired log. ``review_result`` in particular is a hard FSM guard input
-    (every transition out of ``in_review`` is rejected without it), so omitting
-    it silently converts valid history into unvalidatable events.
+
+def _coerce_scalar_types(new_row: _Row, new_actions: list[str]) -> None:
+    """Coerce legacy mistyped scalars to the writer's types, with a manifest action.
+
+    A value that already has the right type is left alone, so a writer-shaped
+    row is untouched; only a legacy mistyped value (e.g. an int ``at`` or a
+    ``"yes"`` ``force``) is coerced and reported (``coerced_type:<key>``).
     """
-    return {
-        "event_id": str(new_row["event_id"]),
-        "mission_slug": str(new_row["mission_slug"]),
-        "wp_id": str(new_row.get("wp_id") or ""),
-        "from_lane": str(new_row["from_lane"]),
-        "to_lane": str(new_row["to_lane"]),
-        "at": str(new_row["at"]),
-        "actor": str(new_row["actor"]),
-        "force": bool(new_row["force"]),
-        "execution_mode": str(new_row["execution_mode"]),
-        "reason": new_row.get("reason"),
-        "reason_source": new_row.get("reason_source"),
-        "review_ref": new_row.get("review_ref"),
-        "evidence": new_row.get("evidence"),
-        "review_result": new_row.get("review_result"),
-        "policy_metadata": new_row.get("policy_metadata"),
-        "mission_id": mission_id,
-    }
+    for key in _STR_COERCED_KEYS:
+        value = new_row.get(key)
+        if value is not None and not isinstance(value, str):
+            new_row[key] = str(value)
+            new_actions.append(f"coerced_type:{key}")
+    if "force" in new_row and not isinstance(new_row["force"], bool):
+        new_row["force"] = bool(new_row["force"])
+        new_actions.append("coerced_type:force")
 
 
-def _rule_normalize_lanes(row: _Row, ctx: MigrationContext) -> CanonicalStepResult[_Row]:
-    """Rule 10: normalize and validate lane values; also normalizes actor, force, execution_mode, builds canonical shape.
+def _round_trip_lane_row(new_row: _Row, new_actions: list[str]) -> _Row:
+    """Round-trip a normalized lane row through ``StatusEvent`` (the writer shape).
 
-    Applies LANE_ALIASES and validates both from_lane and to_lane against VALID_LANES.
-    Then normalizes the actor field, defaults force and execution_mode, and
-    builds the final canonical row dict, which is validated via StatusEvent.from_dict.
+    ``StatusEvent.from_dict(...).to_dict()`` is the single authority for the
+    lane-row shape (there is no second hand-written field list). Keys the
+    round trip does not carry are reported as ``removed_field:<key>`` so the
+    manifest still lists every field the repair drops (FR-009).
+    """
+    canonical: _Row = dict(StatusEvent.from_dict(new_row).to_dict())
+    new_actions.extend(f"removed_field:{dropped}" for dropped in sorted(set(new_row) - set(canonical)))
+    return canonical
+
+
+def _rule_normalize_lanes(row: _Row, _ctx: MigrationContext) -> CanonicalStepResult[_Row]:
+    """Rule 10: normalize and validate lane values; also normalizes actor, force, execution_mode.
+
+    Coerces legacy mistyped scalars, applies LANE_ALIASES and validates both
+    from_lane and to_lane against VALID_LANES, normalizes the actor field and
+    defaults force and execution_mode, then round-trips the row through
+    ``StatusEvent`` (see :func:`_round_trip_lane_row`), which also validates it.
     """
     new_row = dict(row)
     new_actions: list[str] = []
 
+    _coerce_scalar_types(new_row, new_actions)
     lane_error = _normalize_lane_keys(new_row, new_actions)
     if lane_error is not None:
         return CanonicalStepResult(state=new_row, actions=tuple(new_actions), error=lane_error)
 
     _normalize_actor_field(new_row, new_actions)
     _default_force_and_mode(new_row, new_actions)
-
-    canonical = _build_canonical_row(new_row, ctx.mission_id)
-    # FR-009 manifest honesty: ``_build_canonical_row`` is an allowlist, so any
-    # field present on the normalized row but absent from the canonical shape is
-    # dropped. Enumerate those removals so the manifest lists every field the
-    # repair touches — including removed fields — not just renames/normalizations.
-    for dropped in sorted(set(new_row) - set(canonical)):
-        new_actions.append(f"removed_field:{dropped}")
     try:
-        StatusEvent.from_dict(canonical)
+        canonical = _round_trip_lane_row(new_row, new_actions)
     except Exception as exc:
         return CanonicalStepResult(state=new_row, actions=tuple(new_actions), error=str(exc))
     return CanonicalStepResult(state=canonical, actions=tuple(new_actions))
@@ -2514,6 +2550,7 @@ _CANONICAL_STATUS_ROW_RULES: tuple[CanonicalRule[_Row], ...] = cast(
     "tuple[CanonicalRule[_Row], ...]",
     (
         _rule_reject_non_status_event,
+        _rule_backfill_legacy_mission_id,
         _rule_apply_aliases,
         _rule_strip_legacy_keys,
         _rule_stamp_identity,
@@ -2564,7 +2601,7 @@ def _canonicalize_status_row(
     # event log untouched — these rows are contracted data other subsystems
     # read back, not corruption (see _rule_reject_non_status_event).
     if result.error == "preserved_non_lane_event":
-        return _CanonicalRowResult(row=dict(data), actions=(), error=None)
+        return _CanonicalRowResult(row=dict(data), actions=(), error=None, verbatim=True)
     return _CanonicalRowResult.from_pipeline(result)
 
 

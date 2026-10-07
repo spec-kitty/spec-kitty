@@ -29,14 +29,13 @@
       "force": true,
       "execution_mode": "direct_repo",
       "reason": null,
-      "reason_source": null,
       "review_ref": null,
-      "review_result": null,
       "evidence": null,
       "policy_metadata": null,
       "mission_id": "TESTMISSIONID12345678901234"
     },
     "actions": [
+      "mission_id_backfilled",
       "renamed_key:feature_slug->mission_slug",
       "renamed_key:work_package_id->wp_id"
     ],

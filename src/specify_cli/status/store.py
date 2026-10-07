@@ -289,6 +289,16 @@ def _resolve_mission_id_from_dict(
     return None
 
 
+def serialize_event_line(event_dict: Mapping[str, Any]) -> str:
+    """Return the canonical single-line JSON for one event-log row (no newline).
+
+    The one authority for the on-disk row shape: every writer (append, batch
+    append) and the mission-state repair route through it, so they cannot
+    diverge (#5811).
+    """
+    return json.dumps(sanitize_event_for_log(event_dict), sort_keys=True)
+
+
 def append_event(feature_dir: Path, event: StatusEvent) -> None:
     """Atomically append a StatusEvent as a single JSON line.
 
@@ -297,8 +307,7 @@ def append_event(feature_dir: Path, event: StatusEvent) -> None:
     """
     path = _events_path(feature_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
-    sanitized = sanitize_event_for_log(event.to_dict())
-    line = json.dumps(sanitized, sort_keys=True)
+    line = serialize_event_line(event.to_dict())
     with path.open("a", encoding="utf-8") as fh:
         fh.write(line + "\n")
 
@@ -382,7 +391,7 @@ def append_raw_rows_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
     if existing and not existing.endswith("\n"):
         existing += "\n"
 
-    additions = "".join(json.dumps(sanitize_event_for_log(row), sort_keys=True) + "\n" for row in rows)
+    additions = "".join(serialize_event_line(row) + "\n" for row in rows)
     fd, raw_tmp_path = tempfile.mkstemp(
         prefix=f".{path.name}.",
         suffix=".tmp",

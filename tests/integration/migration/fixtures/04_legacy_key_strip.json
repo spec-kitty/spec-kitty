@@ -30,14 +30,13 @@
       "force": true,
       "execution_mode": "direct_repo",
       "reason": null,
-      "reason_source": null,
       "review_ref": null,
-      "review_result": null,
       "evidence": null,
       "policy_metadata": null,
       "mission_id": "TESTMISSIONID12345678901234"
     },
     "actions": [
+      "mission_id_backfilled",
       "removed_key:feature_number"
     ],
     "error": null,

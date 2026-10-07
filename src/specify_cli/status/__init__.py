@@ -50,6 +50,7 @@ from .rematerialize import (
 )
 from .store import (
     is_non_lane_event,
+    serialize_event_line,
     is_retrospective_lifecycle_event,
     ANNOTATION_KIND,
     EVENTS_FILENAME,
@@ -511,6 +512,7 @@ __all__ = [
     "format_post_mission_events",
     "has_non_bootstrap_status_history",
     "is_non_lane_event",
+    "serialize_event_line",
     "is_retrospective_lifecycle_event",
     "materialize_snapshot",
     "repo_root_for_lifecycle_log",

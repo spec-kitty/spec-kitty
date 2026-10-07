@@ -1,5 +1,5 @@
 {
-  "description": "Fully canonical row \u2014 passes through all rules with no changes",
+  "description": "Fully canonical writer-shaped row (StatusEvent.to_dict shape) \u2014 passes through all rules with no changes and no actions",
   "input": {
     "data": {
       "actor": "migration",
@@ -13,7 +13,6 @@
       "mission_slug": "test-mission",
       "policy_metadata": null,
       "reason": null,
-      "reason_source": null,
       "review_ref": null,
       "to_lane": "done",
       "wp_id": "WP01"
@@ -25,22 +24,20 @@
   },
   "expected": {
     "row": {
-      "event_id": "01KJ5V38J914TCB4CZF1N0S7WX",
-      "mission_slug": "test-mission",
-      "wp_id": "WP01",
-      "from_lane": "planned",
-      "to_lane": "done",
-      "at": "2025-11-02T16:58:36Z",
       "actor": "migration",
-      "force": true,
-      "execution_mode": "direct_repo",
-      "reason": null,
-      "reason_source": null,
-      "review_ref": null,
-      "review_result": null,
+      "at": "2025-11-02T16:58:36Z",
+      "event_id": "01KJ5V38J914TCB4CZF1N0S7WX",
       "evidence": null,
+      "execution_mode": "direct_repo",
+      "force": true,
+      "from_lane": "planned",
+      "mission_id": "TESTMISSIONID12345678901234",
+      "mission_slug": "test-mission",
       "policy_metadata": null,
-      "mission_id": "TESTMISSIONID12345678901234"
+      "reason": null,
+      "review_ref": null,
+      "to_lane": "done",
+      "wp_id": "WP01"
     },
     "actions": [],
     "error": null,

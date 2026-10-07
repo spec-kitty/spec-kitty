@@ -133,7 +133,9 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     assert row["wp_id"] == "WP01"
     assert row["from_lane"] == "in_progress"
     assert row["to_lane"] == "in_review"
-    assert row["actor"] == "claude-code"
+    # Actor identity is writer-authored and kept verbatim (#5811); the repair no
+    # longer lower-cases or re-punctuates a non-blank string actor.
+    assert row["actor"] == "Claude Code"
     assert "feature_slug" not in row
     assert "work_package_id" not in row
     assert "legacy_aggregate_id" not in row
@@ -1355,16 +1357,18 @@ def test_repair_preserves_review_result_on_in_review_transitions(tmp_path: Path)
     assert rows[0].get("review_result") == review_result
 
 
-def test_canonical_row_allowlist_covers_every_status_event_field() -> None:
-    """``_build_canonical_row`` is a closed allowlist over ``StatusEvent``.
+def test_canonical_row_round_trip_covers_every_status_event_field() -> None:
+    """A lane row round-trips through ``StatusEvent``, so no field can be dropped.
 
-    Any field added to the model but not to the allowlist is dropped silently,
-    with no error, no action string and no quarantine (#3003). This gate makes
-    that failure mode impossible to reintroduce unnoticed.
+    Re-pinned from the retired hand-written ``_build_canonical_row`` allowlist
+    (#5811): the lane-row shape now comes from ``StatusEvent.to_dict`` itself,
+    so a field added to the model rides the round trip automatically. This gate
+    asserts every ``StatusEvent`` field survives with a fully populated row
+    (#3003).
     """
     from dataclasses import fields
 
-    from specify_cli.migration.mission_state import _build_canonical_row
+    from specify_cli.migration.mission_state import _round_trip_lane_row
     from specify_cli.status.models import StatusEvent
 
     row = {
@@ -1377,17 +1381,29 @@ def test_canonical_row_allowlist_covers_every_status_event_field() -> None:
         "actor": "codex",
         "force": False,
         "execution_mode": "worktree",
+        "reason": "r",
+        "reason_source": "operator",
+        "review_ref": "ref",
+        "evidence": {"review": {"reviewer": "r", "verdict": "approved", "reference": "ref"}},
+        "review_result": {"reviewer": "r", "verdict": "approved", "reference": "ref"},
+        "policy_metadata": {"k": "v"},
+        "mission_id": "01KQHRB8GCFJAX7HM4ZY52AQGR",
     }
-    canonical = _build_canonical_row(row, "01KQHRB8GCFJAX7HM4ZY52AQGR")
+    actions: list[str] = []
+    canonical = _round_trip_lane_row(row, actions)
 
     assert {f.name for f in fields(StatusEvent)} <= set(canonical)
+    assert canonical == row
+    assert actions == []
 
 
-def test_repair_orders_lifecycle_rows_by_timestamp_not_to_the_top(tmp_path: Path) -> None:
-    """Rows carrying ``timestamp`` (not ``at``) must not be hoisted to the head.
+def test_repair_preserves_physical_order_of_lifecycle_rows(tmp_path: Path) -> None:
+    """The repair never re-orders an append-only log (#3003, re-pinned for #5811).
 
-    Lifecycle rows use a ``timestamp`` envelope. Sorting solely on ``at`` maps
-    them all to ``""``, which reorders an append-only log (#3003).
+    Lifecycle rows use a ``timestamp`` envelope. The old fix sorted on
+    ``at``/``timestamp``; the repair no longer sorts at all, so rows keep their
+    physical order whatever their timestamps say. Here the chronologically
+    LATER lifecycle row is physically FIRST and must stay first.
     """
     repo = tmp_path
     mission = repo / "kitty-specs" / "001-ordered"
@@ -1427,15 +1443,15 @@ def test_repair_orders_lifecycle_rows_by_timestamp_not_to_the_top(tmp_path: Path
         "timestamp": "2026-06-01T00:00:00Z",
     }
     (mission / "status.events.jsonl").write_text(
-        json.dumps(lane_row, sort_keys=True) + "\n" + json.dumps(lifecycle_row, sort_keys=True) + "\n",
+        json.dumps(lifecycle_row, sort_keys=True) + "\n" + json.dumps(lane_row, sort_keys=True) + "\n",
         encoding="utf-8",
     )
 
     repair_repo(repo)
 
     rows = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
-    # The lifecycle row is chronologically later; it must stay last.
-    assert [r.get("event_type", "lane") for r in rows] == ["lane", "WPCreated"]
+    # Physical order is kept even though the lifecycle row is chronologically later.
+    assert [r.get("event_type", "lane") for r in rows] == ["WPCreated", "lane"]
 
 
 def test_repair_quarantines_dropped_duplicate_event_rows(tmp_path: Path) -> None:
