@@ -84,9 +84,11 @@ guard cannot read to rule out legacy runtime makes the Mission fail, never pass.
 | Reason | Remedy |
 |---|---|
 | Accepted or merged, but no stamp; or legacy WP frontmatter | `spec-kitty migrate backfill-runtime-state --mission <slug>` |
-| `status_phase` malformed | fix `status_phase` in `kitty-specs/<slug>/meta.json` (expected an integer, for example `"1"`), then rerun |
-| A WP file unreadable | repair the unreadable WP file under `kitty-specs/<slug>/tasks/`, then rerun |
-| Absent `mission_id` (also a missing or unparsable `meta.json`) | repair `kitty-specs/<slug>/meta.json` if it is missing or not valid JSON; otherwise `spec-kitty migrate backfill-identity` |
+| `status_phase` malformed | remove the malformed `status_phase` from `kitty-specs/<slug>/meta.json` (accept and consolidate stamp it), or, for an accepted Mission, run `spec-kitty migrate backfill-runtime-state --mission <slug>` |
+| `accepted_at` or `merged_at` is not a non-empty string | set it to an ISO-8601 string (or remove the key) in `kitty-specs/<slug>/meta.json`, then rerun |
+| A top-level key repeats in `meta.json` | remove the repeated key from `kitty-specs/<slug>/meta.json`, then rerun |
+| A file unreadable (`tasks.md`, a WP file, or `tasks/` itself) | repair the file the reason names, then rerun |
+| Absent `mission_id` (also a missing or unparsable `meta.json`) | repair `kitty-specs/<slug>/meta.json` if it is missing or not valid JSON; otherwise `spec-kitty migrate backfill-identity --mission <slug>` |
 
 ### Known limits
 

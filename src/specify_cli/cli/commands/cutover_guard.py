@@ -53,12 +53,10 @@ from specify_cli.core.vcs.git import (
 from specify_cli.status import (
     PRE_ACCEPT_EXEMPT_NOTE,
     REASON_ABSENT_MISSION_ID,
-    REASON_LEGACY_FRONTMATTER,
     REASON_LEGACY_UNDECIDABLE,
     REASON_META_DUPLICATE_KEYS,
     REASON_PHASE_MALFORMED,
     REASON_TERMINAL_MALFORMED,
-    REASON_TERMINAL_UNSTAMPED,
     CutOverVerdict,
     is_cut_over,
 )
@@ -67,16 +65,19 @@ from specify_cli.status import (
 _REMEDY_TEMPLATE = "spec-kitty migrate backfill-runtime-state --mission {slug}"
 
 #: Reason-specific remedies (FR-007), keyed by the first reason of a failing
-#: verdict. Reasons not listed (including the legacy generic
+#: verdict. Reasons not listed (accepted/merged but unstamped, legacy WP runtime, and the generic
 #: ``status_phase not flipped...`` prefix) fall back to :data:`_REMEDY_TEMPLATE`.
 _REMEDY_BY_REASON: dict[str, str] = {
-    REASON_TERMINAL_UNSTAMPED: _REMEDY_TEMPLATE,
-    REASON_LEGACY_FRONTMATTER: _REMEDY_TEMPLATE,
-    REASON_PHASE_MALFORMED: 'fix meta.json status_phase in kitty-specs/{slug}/ (expected an integer, e.g. "1"), then rerun',
+    REASON_PHASE_MALFORMED: (
+        "remove the malformed status_phase from kitty-specs/{slug}/meta.json (accept and consolidate stamp it), "
+        "or, for an accepted Mission, run " + _REMEDY_TEMPLATE
+    ),
     REASON_TERMINAL_MALFORMED: "set accepted_at / merged_at in kitty-specs/{slug}/meta.json to an ISO-8601 string (or remove the key), then rerun",
     REASON_META_DUPLICATE_KEYS: "remove the repeated key from kitty-specs/{slug}/meta.json so each key appears once, then rerun",
     REASON_LEGACY_UNDECIDABLE: "repair the unreadable file the reason names (kitty-specs/{slug}/tasks.md or a WP file under kitty-specs/{slug}/tasks/), then rerun",
-    REASON_ABSENT_MISSION_ID: "repair kitty-specs/{slug}/meta.json if it is missing or not valid JSON; otherwise run spec-kitty migrate backfill-identity",
+    REASON_ABSENT_MISSION_ID: (
+        "repair kitty-specs/{slug}/meta.json if it is missing or not valid JSON; otherwise run spec-kitty migrate backfill-identity --mission {slug}"
+    ),
 }
 
 #: The artifacts whose presence at the merge-base places a directory INSIDE

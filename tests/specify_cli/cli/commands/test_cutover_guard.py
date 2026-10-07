@@ -680,8 +680,9 @@ def test_malformed_phase_remedy_names_meta_json(tmp_path: Path, monkeypatch: pyt
 
     assert result.exit_code == 1
     remedy = json.loads(result.output)["failures"][0]["remedy"]
-    assert "meta.json status_phase" in remedy
-    assert slug in remedy
+    assert f"kitty-specs/{slug}/meta.json" in remedy
+    assert remedy_command(slug) in remedy
+    assert '"1"' not in remedy  # never suggests hand-stamping status_phase (the stamp has one writer)
 
 
 def test_absent_mission_id_remedy_names_meta_repair_and_backfill_identity(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -694,7 +695,8 @@ def test_absent_mission_id_remedy_names_meta_repair_and_backfill_identity(tmp_pa
 
     assert result.exit_code == 1
     remedy = json.loads(result.output)["failures"][0]["remedy"]
-    assert remedy == f"repair kitty-specs/{slug}/meta.json if it is missing or not valid JSON; otherwise run spec-kitty migrate backfill-identity"
+    assert f"kitty-specs/{slug}/meta.json" in remedy
+    assert f"spec-kitty migrate backfill-identity --mission {slug}" in remedy
 
 
 def test_remedy_for_undecidable_legacy_and_unknown_reason(tmp_path: Path) -> None:
