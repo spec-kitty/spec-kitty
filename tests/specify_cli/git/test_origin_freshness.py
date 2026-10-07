@@ -135,6 +135,15 @@ def test_no_remote_when_repository_has_no_remotes(tmp_path: Path, monkeypatch: p
 
     assert verdict.state is FreshnessState.NO_REMOTE
     assert verdict.remote is None
+    # A repository that never had a remote passes in silence ...
+    assert _gate(evidence=verdict, lanes=(verdict,)) == []
+
+    # ... but a clone whose origin was removed (tracking refs left behind) passes with one warning, never a refusal.
+    _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    removed = _only(check_branches(repo, ["main"]))
+    assert removed.state is FreshnessState.NO_REMOTE
+    (note,) = _gate(evidence=removed, lanes=(removed,))
+    assert "remote was removed" in note
 
     # Remotes exist but none owns the branch (no branch.<b>.remote, not one remote, no origin): ambiguous, not "no remote".
     _git(repo, "remote", "add", "alpha", "/nonexistent-alpha")
@@ -609,7 +618,7 @@ def _gate(
     return warnings
 
 
-@pytest.mark.parametrize("state", [FreshnessState.UP_TO_DATE, FreshnessState.AHEAD, FreshnessState.REMOTE_MISSING, FreshnessState.NO_REMOTE])
+@pytest.mark.parametrize("state", [FreshnessState.UP_TO_DATE, FreshnessState.AHEAD, FreshnessState.REMOTE_MISSING])
 def test_gate_passes_for_non_stale_states(state: FreshnessState) -> None:
     assert _gate(evidence=_verdict(state, "develop"), lanes=(_verdict(state),)) == []
 

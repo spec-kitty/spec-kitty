@@ -957,7 +957,7 @@ row is never a refusal; its `detail` is set when this clone once saw the branch 
 and the remote no longer lists it (the branch may have been deleted there), and the same text
 is a warning. `scope` names the status log the status
 evidence row was judged on and is `null` for a lane. `detail` says why a remote was
-unreachable or could not be compared (the git error text), or lists the remotes of a `remote_ambiguous` branch, and is `null` otherwise. A `consolidate-mission` origin refusal
+unreachable or could not be compared (the git error text), lists the remotes of a `remote_ambiguous` branch, or notes that a `no_remote` clone still holds remote-tracking refs (its remote was removed; a warning, never a refusal), and is `null` otherwise. A `consolidate-mission` origin refusal
 also carries `data.target_branch`, like every other `PREFLIGHT_FAILED` of that command. With `--origin-check warn`, or
 `SPEC_KITTY_ORIGIN_CHECK=warn`, the command does not refuse: it continues, writes each warning to
 stderr, and a successful envelope carries them in `data.origin_warnings` (a list of strings). A

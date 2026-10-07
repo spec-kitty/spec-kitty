@@ -22,7 +22,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Literal
 
-from kernel.git import GitCommandError, tree_entry
+from kernel.git import GitCommandError, run_git, tree_entry
 from kernel.git.remote import (
     FETCH_TIMEOUT,
     LS_REMOTE_TIMEOUT,
@@ -292,6 +292,20 @@ def _check_remote(repo_root: Path, remote: str, probes: Sequence[_Probe]) -> lis
     return verdicts
 
 
+def _removed_remote_detail(repo_root: Path) -> str | None:
+    """A note when this clone still holds remote-tracking refs although no remote is configured (the remote was removed); local read.
+
+    A repository that never had a remote has no such refs and stays silent.
+    """
+    listed = run_git(repo_root, "for-each-ref", "--count=1", "--format=%(refname)", "refs/remotes/", check=False)
+    if listed.returncode != 0 or not listed.stdout.strip():
+        return None
+    return (
+        "This clone has remote-tracking refs but no remote is configured (the remote was removed?), so nothing was checked against origin: "
+        "a teammate's newer status evidence or lane work would not be seen"
+    )
+
+
 def _unresolved_remote_verdict(repo_root: Path, probe: _Probe) -> FreshnessVerdict:
     """No remote owns *probe*: ``no_remote`` when none is configured, ``remote_ambiguous`` when several are and none applies.
 
@@ -299,7 +313,7 @@ def _unresolved_remote_verdict(repo_root: Path, probe: _Probe) -> FreshnessVerdi
     """
     remotes = configured_remotes(repo_root)
     if not remotes:
-        return FreshnessVerdict(probe.branch, None, FreshnessState.NO_REMOTE, scope=_scope_text(probe))
+        return FreshnessVerdict(probe.branch, None, FreshnessState.NO_REMOTE, scope=_scope_text(probe), detail=_removed_remote_detail(repo_root))
     return FreshnessVerdict(probe.branch, None, FreshnessState.REMOTE_AMBIGUOUS, scope=_scope_text(probe), detail=", ".join(remotes))
 
 
@@ -583,10 +597,14 @@ def _violations(evidence: FreshnessVerdict | None, lanes: Iterable[FreshnessVerd
     return found
 
 
+_NOTED_STATES = frozenset({FreshnessState.REMOTE_MISSING, FreshnessState.NO_REMOTE})
+
+
 def _vanished_notes(evidence: FreshnessVerdict | None, lanes: Iterable[FreshnessVerdict]) -> list[str]:
-    """Warnings for branches the remote no longer lists although this clone once saw them there (not a refusal)."""
-    verdicts = [evidence, *lanes]
-    return [v.detail for v in verdicts if v is not None and v.state is FreshnessState.REMOTE_MISSING and v.detail]
+    """Warnings, never refusals: a branch the remote no longer lists although this clone once saw it there, and a clone whose remote was removed."""
+    verdicts = [v for v in (evidence, *lanes) if v is not None]
+    notes = [v.detail for v in verdicts if v.state in _NOTED_STATES and v.detail]
+    return list(dict.fromkeys(notes))
 
 
 def _warn_text(violation: _Violation, setting: OriginCheckSetting) -> str:
