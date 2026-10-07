@@ -152,7 +152,7 @@ spec-kitty merge
 
 Default for `--origin-check` on the evidence gates (`spec-kitty consolidate`,
 `spec-kitty accept` and `orchestrator-api accept-mission` / `consolidate-mission`), and the
-only opt-out for `spec-kitty agent action review`, which has no flag but honours this variable.
+only opt-out for `spec-kitty agent action review`, which has no flag but honors this variable.
 Before it trusts a branch, each gate asks the branch's remote for its current tip and refuses when
 your clone is behind it, diverged from it, or cannot reach it (`ORIGIN_STATUS_STALE`,
 `ORIGIN_LANE_STALE`, `ORIGIN_UNREACHABLE`). See
