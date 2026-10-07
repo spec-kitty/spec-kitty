@@ -63,10 +63,10 @@ from specify_cli.status import ULID_PATTERN, Lane, StatusEvent
 from specify_cli.status import materialize_snapshot, materialize_to_json
 from specify_cli.status import (
     ANNOTATION_KIND,
+    decode_actor,
     is_non_lane_event,
     serialize_event_line,
 )
-from specify_cli.status.models import decode_actor
 
 logger = logging.getLogger(__name__)
 

@@ -31,6 +31,7 @@ from .models import (
     VerificationResult,
     WPInnerStateDelta,
     actor_identity_str,
+    decode_actor,
     get_all_lanes,
     get_all_lane_values,
 )
@@ -565,6 +566,7 @@ __all__ = [
     "ReviewApproval",
     "SNAPSHOT_FILENAME",
     "StatusEvent",
+    "decode_actor",
     "StatusSnapshot",
     "StoreError",
     "TERMINAL_LANES",
