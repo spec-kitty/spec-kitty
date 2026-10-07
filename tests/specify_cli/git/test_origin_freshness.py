@@ -59,7 +59,9 @@ _OPT_OUT_LINE = "Opt out (not recommended): --origin-check warn, or SPEC_KITTY_O
 
 def _status_evidence(repo: Path, slug: str) -> FreshnessVerdict:
     """The status evidence verdict alone: the evidence half of ``check_mission_branches`` with no lanes."""
-    return check_mission_branches(repo, slug, lane_branches=()).evidence
+    evidence = check_mission_branches(repo, slug, lane_branches=()).evidence
+    assert evidence is not None
+    return evidence
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -369,6 +371,7 @@ def test_check_mission_branches_contacts_each_remote_once_for_evidence_and_lanes
     result = check_mission_branches(mission.repo, mission.slug, lane_branches=list(mission.lane_branches.values()))
 
     assert calls == {"heads": 1, "fetch": 1}
+    assert result.evidence is not None
     assert result.evidence.state is FreshnessState.UP_TO_DATE
     assert [v.state for v in result.lanes] == [FreshnessState.UP_TO_DATE, FreshnessState.UP_TO_DATE]
     assert [v.branch for v in result.lanes] == list(mission.lane_branches.values())
@@ -385,8 +388,26 @@ def test_check_mission_branches_scopes_evidence_but_not_lanes(mission: MissionWo
 
     result = check_mission_branches(mission.repo, mission.slug, lane_branches=[lane])
 
+    assert result.evidence is not None
     assert result.evidence.state is FreshnessState.UP_TO_DATE
     assert result.lanes[0].state is FreshnessState.BEHIND
+
+
+def test_check_mission_branches_leaves_an_unnameable_evidence_branch_to_the_caller(mission: MissionWorld, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A placement refusal (e.g. a deleted coordination branch) yields no evidence verdict; lanes are still checked."""
+    from mission_runtime import ActionContextError
+    from specify_cli.git import origin_freshness
+
+    def refusing_seam(*args: Any, **kwargs: Any) -> Any:
+        raise ActionContextError("COORDINATION_BRANCH_DELETED", "declared in meta.json but deleted from git")
+
+    monkeypatch.setattr(origin_freshness, "placement_seam", refusing_seam)
+    lane = mission.lane_branches["WP01"]
+
+    result = check_mission_branches(mission.repo, mission.slug, lane_branches=[lane])
+
+    assert result.evidence is None
+    assert [v.state for v in result.lanes] == [FreshnessState.UP_TO_DATE]
 
 
 def test_check_mission_branches_unreachable_marks_everything_unreachable(mission: MissionWorld) -> None:

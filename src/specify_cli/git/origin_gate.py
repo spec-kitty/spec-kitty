@@ -75,15 +75,19 @@ def run_origin_gate(
     Returns the warnings to surface (warn mode, read-only commands, a diagnostic
     on the opt-out input); raises :class:`~specify_cli.git.origin_freshness.OriginFreshnessRefused`
     in enforce mode. A coordination evidence branch missing locally is not judged
-    here: the caller's existing ``COORDINATION_WORKTREE_UNMATERIALIZED`` path owns it.
+    here: the caller's existing ``COORDINATION_WORKTREE_UNMATERIALIZED`` path owns it,
+    and neither is an evidence branch the placement seam refuses to name (the
+    caller's status-directory resolver renders that refusal).
     """
     fresh = check_mission_branches(repo_root, mission_slug, lane_branches=lane_branches, owned=owned)
-    evidence = None if _coordination_unmaterialized(repo_root, mission_slug, fresh.evidence) else fresh.evidence
+    evidence = fresh.evidence
+    if evidence is not None and _coordination_unmaterialized(repo_root, mission_slug, evidence):
+        evidence = None
     warnings: list[str] = enforce_merge_gate(
         evidence=evidence,
         lanes=fresh.lanes,
         setting=setting,
         merge_record_exists=merge_record_exists,
-        evidence_checkout=_evidence_checkout(repo_root, fresh.evidence.branch),
+        evidence_checkout=None if evidence is None else _evidence_checkout(repo_root, evidence.branch),
     )
     return warnings

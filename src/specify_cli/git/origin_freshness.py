@@ -24,7 +24,7 @@ from typing import Literal
 
 from kernel.git import GitCommandError, tree_entry
 from kernel.git.remote import RemoteUnreachable, divergence, fetch_branches, remote_heads, resolve_remote, tracking_ref
-from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam
+from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout, placement_seam
 from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted, CoordinationWorktreeUnmaterialized
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.lanes._git import branch_exists
@@ -158,7 +158,7 @@ class FreshnessVerdict:
 class MissionFreshness:
     """Status-evidence verdict plus one verdict per lane branch, from one contact per remote."""
 
-    evidence: FreshnessVerdict
+    evidence: FreshnessVerdict | None
     lanes: list[FreshnessVerdict]
 
 
@@ -258,9 +258,18 @@ def check_branches(repo_root: Path, branches: Sequence[str]) -> list[FreshnessVe
     return _check_probes(repo_root, [_Probe(branch) for branch in branches])
 
 
-def _evidence_probe(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> _Probe:
-    """Status evidence branch (side-effect-free seam read) and its alias-scoped status-log paths (ADR 2026-10-05-1)."""
-    branch = placement_seam(repo_root, mission_slug, owned=owned).write_target(MissionArtifactKind.STATUS_STATE).ref
+def _evidence_probe(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> _Probe | None:
+    """Status evidence branch (side-effect-free seam read) and its alias-scoped status-log paths (ADR 2026-10-05-1).
+
+    ``None`` when the placement seam itself refuses to name the branch (for
+    example a coordination branch declared in ``meta.json`` but deleted from
+    git): there is no branch to compare, and the caller's status-directory
+    resolver renders that refusal with its own remedy before anything moves.
+    """
+    try:
+        branch = placement_seam(repo_root, mission_slug, owned=owned).write_target(MissionArtifactKind.STATUS_STATE).ref
+    except ActionContextError:
+        return None
     aliases = sorted(mission_dir_aliases(repo_root, mission_slug))
     return _Probe(branch, tuple(f"{KITTY_SPECS_DIR}/{alias}/{_STATUS_LOG}" for alias in aliases))
 
@@ -280,8 +289,11 @@ def check_mission_branches(
     through to the existing ``COORDINATION_WORKTREE_UNMATERIALIZED`` path
     rather than refusing here.
     """
-    probes = [_evidence_probe(repo_root, mission_slug, owned), *(_Probe(branch) for branch in lane_branches)]
-    verdicts = _check_probes(repo_root, probes)
+    evidence_probe = _evidence_probe(repo_root, mission_slug, owned)
+    lane_probes = [_Probe(branch) for branch in lane_branches]
+    if evidence_probe is None:
+        return MissionFreshness(evidence=None, lanes=_check_probes(repo_root, lane_probes))
+    verdicts = _check_probes(repo_root, [evidence_probe, *lane_probes])
     return MissionFreshness(evidence=verdicts[0], lanes=verdicts[1:])
 
 
