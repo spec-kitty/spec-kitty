@@ -210,15 +210,7 @@ class LegacyWPRuntime:
 
     def has_evictable_state(self) -> bool:
         """True when this WP carries any runtime state that must be seeded."""
-        return bool(
-            self.shell_pid is not None
-            or self.shell_pid_created_at is not None
-            or self.agent is not None
-            or self.assignee is not None
-            or self.tracker_refs
-            or self.subtasks
-            or (self.review is not None and self.review.complete)
-        )
+        return self.has_frontmatter_runtime() or bool(self.subtasks)
 
     def has_frontmatter_runtime(self) -> bool:
         """True when the WP FILE carries runtime state (claim, assignee, tracker refs, completed review).
