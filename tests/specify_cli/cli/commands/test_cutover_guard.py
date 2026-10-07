@@ -28,6 +28,7 @@ from pathlib import Path
 
 import pytest
 import typer
+from click.testing import Result
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands import cutover_guard as cutover_guard_mod
@@ -36,8 +37,10 @@ from specify_cli.cli.commands.cutover_guard import (
     cutover_guard,
     evaluate_touched_missions,
     remedy_command,
+    remedy_for,
     touched_mission_slugs,
 )
+from specify_cli.status.cutover_eligibility import PRE_ACCEPT_EXEMPT_NOTE
 from specify_cli.status import (
     Lane,
     StatusEvent,
@@ -93,7 +96,7 @@ def _seed_live_claim(mission_dir: Path, mission_id: str, *, event_id: str) -> No
 
 
 def _build_native_un_cut_over_mission(corpus: Path, *, slug: str, mission_id: str) -> Path:
-    """A natively-born mission: real event-log claim, NO ``status_phase`` key at all.
+    """A natively-born mission, accepted but unstamped (terminal evidence): real event-log claim, NO ``status_phase`` key.
 
     No frontmatter runtime state anywhere on disk (the FR-008/WP05
     authoring-retired shape), so ``verify_backfill`` reads vacuously ``ok``
@@ -102,6 +105,12 @@ def _build_native_un_cut_over_mission(corpus: Path, *, slug: str, mission_id: st
     """
     mission_dir = corpus / slug
     _write_meta(mission_dir, mission_id=mission_id, status_phase=None)
+    # Accepted but never stamped: a still-pre-accept Mission is exempt (#5835), so
+    # terminal evidence is what keeps this fixture un-cut-over.
+    meta_path = mission_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["accepted_at"] = "2026-07-25T10:00:00+00:00"
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
     tasks = mission_dir / "tasks"
     tasks.mkdir()
     (tasks / "WP01-demo.md").write_text(
@@ -571,3 +580,130 @@ def test_relocation_passes_through_the_cli_with_base_ref(tmp_path: Path, monkeyp
     assert payload["passed"] is True
     assert payload["non_mission_slugs"] == ["legacy-notes"]
     assert payload["failures"] == []
+
+
+# --- #5835: pre-accept exemption surfaced, reason-specific remedies --------
+
+
+def _invoke_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, slug: str, *extra: str) -> Result:
+    (tmp_path / ".kittify").mkdir(exist_ok=True)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
+    paths_file = tmp_path / "changed-paths.txt"
+    paths_file.write_text(f"kitty-specs/{slug}/meta.json\n", encoding="utf-8")
+    return CliRunner().invoke(_guard_app, ["--paths-from", str(paths_file), *extra])
+
+
+def _build_pre_accept_mission(corpus: Path, *, slug: str, mission_id: str) -> Path:
+    """Claimed, never accepted, no stamp: the pre-accept shape."""
+    mission_dir = _build_native_un_cut_over_mission(corpus, slug=slug, mission_id=mission_id)
+    meta_path = mission_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    del meta["accepted_at"]
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+    return mission_dir
+
+
+def test_exempt_mission_is_listed_and_exits_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    corpus = tmp_path / "kitty-specs"
+    corpus.mkdir()
+    slug = "pre-accept-cli-01KZPRE1"
+    _build_pre_accept_mission(corpus, slug=slug, mission_id="01KZPRE1H8T2X6R4N9YV3D5C7A")
+
+    result = _invoke_guard(tmp_path, monkeypatch, slug)
+
+    assert result.exit_code == 0
+    out = " ".join(result.output.split())
+    assert f"{slug}: {PRE_ACCEPT_EXEMPT_NOTE}" in out
+    assert "Pre-accept (exempt) : 1" in out
+    assert "All diff-touched Missions pass the cut-over check." in out
+    assert "are cut over" not in out
+
+
+def test_exempt_mission_json_is_additive(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    corpus = tmp_path / "kitty-specs"
+    corpus.mkdir()
+    slug = "pre-accept-json-01KZPRE2"
+    _build_pre_accept_mission(corpus, slug=slug, mission_id="01KZPRE2H8T2X6R4N9YV3D5C7B")
+
+    result = _invoke_guard(tmp_path, monkeypatch, slug, "--json")
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["passed"] is True
+    assert payload["exempt"] == [{"slug": slug, "reasons": [PRE_ACCEPT_EXEMPT_NOTE]}]
+    assert {"touched_slugs", "non_mission_slugs", "failures"} <= payload.keys()
+    assert payload["failures"] == []
+
+
+def test_exempt_mission_listed_alongside_a_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    corpus = tmp_path / "kitty-specs"
+    corpus.mkdir()
+    exempt_slug = "pre-accept-mixed-01KZPRE3"
+    bad_slug = "accepted-unstamped-01KZPRE4"
+    _build_pre_accept_mission(corpus, slug=exempt_slug, mission_id="01KZPRE3H8T2X6R4N9YV3D5C7C")
+    _build_native_un_cut_over_mission(corpus, slug=bad_slug, mission_id="01KZPRE4H8T2X6R4N9YV3D5C7D")
+    (tmp_path / ".kittify").mkdir()
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
+    paths_file = tmp_path / "changed-paths.txt"
+    paths_file.write_text(f"kitty-specs/{exempt_slug}/meta.json\nkitty-specs/{bad_slug}/meta.json\n", encoding="utf-8")
+
+    result = CliRunner().invoke(_guard_app, ["--paths-from", str(paths_file)])
+
+    assert result.exit_code == 1
+    out = " ".join(result.output.split())
+    assert f"{exempt_slug}: {PRE_ACCEPT_EXEMPT_NOTE}" in out
+    assert remedy_command(bad_slug) in out
+
+
+def test_accepted_unstamped_mission_gets_the_backfill_remedy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    corpus = tmp_path / "kitty-specs"
+    corpus.mkdir()
+    slug = "accepted-unstamped-json-01KZPRE5"
+    _build_native_un_cut_over_mission(corpus, slug=slug, mission_id="01KZPRE5H8T2X6R4N9YV3D5C7E")
+
+    result = _invoke_guard(tmp_path, monkeypatch, slug, "--json")
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["failures"][0]["remedy"] == remedy_command(slug)
+    assert payload["exempt"] == []
+
+
+def test_malformed_phase_remedy_names_meta_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    corpus = tmp_path / "kitty-specs"
+    corpus.mkdir()
+    slug = "malformed-phase-01KZPRE6"
+    mission_dir = _build_pre_accept_mission(corpus, slug=slug, mission_id="01KZPRE6H8T2X6R4N9YV3D5C7F")
+    _write_meta(mission_dir, mission_id="01KZPRE6H8T2X6R4N9YV3D5C7F", status_phase="not-a-number")
+
+    result = _invoke_guard(tmp_path, monkeypatch, slug, "--json")
+
+    assert result.exit_code == 1
+    remedy = json.loads(result.output)["failures"][0]["remedy"]
+    assert "meta.json status_phase" in remedy
+    assert slug in remedy
+
+
+def test_absent_mission_id_remedy_is_backfill_identity(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    corpus = tmp_path / "kitty-specs"
+    corpus.mkdir()
+    slug = "no-mission-id-cli-01KZPRE7"
+    _build_missing_mission_id_mission(corpus, slug=slug)
+
+    result = _invoke_guard(tmp_path, monkeypatch, slug, "--json")
+
+    assert result.exit_code == 1
+    assert json.loads(result.output)["failures"][0]["remedy"] == "spec-kitty migrate backfill-identity"
+
+
+def test_remedy_for_unreadable_meta_and_unknown_reason(tmp_path: Path) -> None:
+    from specify_cli.status import CutOverVerdict
+    from specify_cli.status.cutover_eligibility import REASON_LEGACY_UNDECIDABLE, REASON_META_UNREADABLE
+
+    def verdict(*reasons: str) -> CutOverVerdict:
+        return CutOverVerdict(mission_dir=tmp_path, mission_slug="m-1", cut_over=False, reasons=reasons)
+
+    for reason in (REASON_META_UNREADABLE, REASON_LEGACY_UNDECIDABLE):
+        assert remedy_for(verdict(reason)) == "repair kitty-specs/m-1/meta.json or the unreadable WP file, then rerun"
+    assert remedy_for(verdict("status_phase not flipped despite event-log runtime evidence")) == remedy_command("m-1")
+    assert remedy_for(verdict()) == remedy_command("m-1")

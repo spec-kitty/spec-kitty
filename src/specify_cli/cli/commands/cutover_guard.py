@@ -51,9 +51,30 @@ from specify_cli.core.vcs.git import (
     git_merge_base,
 )
 from specify_cli.status import CutOverVerdict, is_cut_over
+from specify_cli.status.cutover_eligibility import (
+    PRE_ACCEPT_EXEMPT_NOTE,
+    REASON_ABSENT_MISSION_ID,
+    REASON_LEGACY_FRONTMATTER,
+    REASON_LEGACY_UNDECIDABLE,
+    REASON_META_UNREADABLE,
+    REASON_PHASE_MALFORMED,
+    REASON_TERMINAL_UNSTAMPED,
+)
 
 #: FR-003: the exact remedy string printed for every un-cut-over mission.
 _REMEDY_TEMPLATE = "spec-kitty migrate backfill-runtime-state --mission {slug}"
+
+#: Reason-specific remedies (FR-007), keyed by the first reason of a failing
+#: verdict. Reasons not listed (including the legacy generic
+#: ``status_phase not flipped...`` prefix) fall back to :data:`_REMEDY_TEMPLATE`.
+_REMEDY_BY_REASON: dict[str, str] = {
+    REASON_TERMINAL_UNSTAMPED: _REMEDY_TEMPLATE,
+    REASON_LEGACY_FRONTMATTER: _REMEDY_TEMPLATE,
+    REASON_PHASE_MALFORMED: 'fix meta.json status_phase in kitty-specs/{slug}/ (expected an integer, e.g. "1"), then rerun',
+    REASON_META_UNREADABLE: "repair kitty-specs/{slug}/meta.json or the unreadable WP file, then rerun",
+    REASON_LEGACY_UNDECIDABLE: "repair kitty-specs/{slug}/meta.json or the unreadable WP file, then rerun",
+    REASON_ABSENT_MISSION_ID: "spec-kitty migrate backfill-identity",
+}
 
 #: The artifacts whose presence at the merge-base places a directory INSIDE
 #: the guard's domain: mission identity (``meta.json``, read by the shared
@@ -83,6 +104,10 @@ class GuardVerdict:
     #: (a relocation or deletion of non-mission content) — outside the
     #: guard's domain, reported for transparency, never counted as failures.
     non_mission_slugs: tuple[str, ...] = ()
+    #: Touched Missions that pass only through the pre-accept exemption
+    #: (#5835): not yet accepted, no ``status_phase`` stamp by design. They
+    #: are not failures and are not claimed to be cut over.
+    exempt: tuple[CutOverVerdict, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -188,6 +213,7 @@ def evaluate_touched_missions(
     slugs = touched_mission_slugs(changed_paths)
 
     failures: list[CutOverVerdict] = []
+    exempt: list[CutOverVerdict] = []
     non_mission: list[str] = []
     for slug in slugs:
         # ``slug`` is diff-derived (``touched_mission_slugs`` takes it verbatim
@@ -229,18 +255,30 @@ def evaluate_touched_missions(
             continue
         if not verdict.cut_over:
             failures.append(verdict)
+        elif PRE_ACCEPT_EXEMPT_NOTE in verdict.reasons:
+            exempt.append(verdict)
 
     return GuardVerdict(
         passed=not failures,
         touched_slugs=slugs,
         failures=tuple(failures),
         non_mission_slugs=tuple(non_mission),
+        exempt=tuple(exempt),
     )
 
 
 def remedy_command(slug: str) -> str:
     """The exact FR-003 remedy command for an un-cut-over mission *slug*."""
     return _REMEDY_TEMPLATE.format(slug=slug)
+
+
+def remedy_for(verdict: CutOverVerdict) -> str:
+    """The reason-specific remedy for a failing *verdict* (FR-007).
+
+    Maps the first reason; anything unrecognised keeps the backfill remedy.
+    """
+    template = _REMEDY_BY_REASON.get(verdict.reasons[0] if verdict.reasons else "", _REMEDY_TEMPLATE)
+    return template.format(slug=verdict.mission_slug)
 
 
 def _error(message: str) -> None:
@@ -250,6 +288,7 @@ def _error(message: str) -> None:
 def _print_report(verdict: GuardVerdict) -> None:
     console.print("\n[bold]cutover-guard report[/bold]")
     console.print(f"  Missions touched by diff : {len(verdict.touched_slugs)}")
+    console.print(f"  Pre-accept (exempt)      : {len(verdict.exempt)}")
     console.print(f"  Un-cut-over              : {len(verdict.failures)}")
     if verdict.non_mission_slugs:
         console.print(f"  Removed non-mission dirs : {', '.join(verdict.non_mission_slugs)}")
@@ -258,15 +297,25 @@ def _print_report(verdict: GuardVerdict) -> None:
         console.print("\n[green]No kitty-specs/ missions touched by this diff.[/green]")
         return
 
+    _print_exempt(verdict)
+
     if verdict.passed:
-        console.print("\n[green]All diff-touched missions are cut over.[/green]")
+        console.print("\n[green]All diff-touched Missions pass the cut-over check.[/green]")
         return
 
-    console.print("\n[red]Un-cut-over mission(s) block this diff:[/red]")
+    console.print("\n[red]Un-cut-over Mission(s) block this diff:[/red]")
     for failure in verdict.failures:
         reason = "; ".join(failure.reasons) or "not cut over"
         console.print(f"  [red]{failure.mission_slug}[/red]: {reason}")
-        console.print(f"    remedy: {remedy_command(failure.mission_slug)}")
+        console.print(f"    remedy: {remedy_for(failure)}")
+
+
+def _print_exempt(verdict: GuardVerdict) -> None:
+    if not verdict.exempt:
+        return
+    console.print("\n[bold]Pre-accept Mission(s), exempt from the stamp check:[/bold]")
+    for exempt in verdict.exempt:
+        console.print(f"  {exempt.mission_slug}: {PRE_ACCEPT_EXEMPT_NOTE}")
 
 
 def _payload(verdict: GuardVerdict) -> dict[str, object]:
@@ -278,10 +327,11 @@ def _payload(verdict: GuardVerdict) -> dict[str, object]:
             {
                 "slug": failure.mission_slug,
                 "reasons": list(failure.reasons),
-                "remedy": remedy_command(failure.mission_slug),
+                "remedy": remedy_for(failure),
             }
             for failure in verdict.failures
         ],
+        "exempt": [{"slug": item.mission_slug, "reasons": list(item.reasons)} for item in verdict.exempt],
     }
 
 
