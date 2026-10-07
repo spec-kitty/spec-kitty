@@ -49,7 +49,24 @@ def _documents(root: Path) -> dict[str, Any]:
 
 
 OLD_KINDS = ("host-path-strict", "host-path-human", "email", "email-dotless", "github-token", "aws-key", "private-key", "forbidden-property")
-NEW_STRICT_NAMES = ("id", "laneId", "laneBranch", "planningBranch", "pattern", "feedbackReference", "reviewer", "kind", "mediaType", "changeState")
+NEW_STRICT_NAMES = (
+    "id",
+    "laneId",
+    "laneBranch",
+    "planningBranch",
+    "pattern",
+    "feedbackReference",
+    "reviewer",
+    "kind",
+    "mediaType",
+    "changeState",
+    "specKittyVersion",
+    "currentBranch",
+    "profileId",
+    "action",
+    "invocationId",
+    "sourceCode",
+)
 ARTIFACT_PATH_REASONS = (
     "empty",
     "too_long",
@@ -83,7 +100,7 @@ def scanner() -> Iterator[ModuleType]:
 def test_the_leak_kinds_are_offered(builder: ModuleType) -> None:
     expected = set(OLD_KINDS) | set(STRICT_KINDS) | set(ARTIFACT_PATH_KINDS) | set(REGRESSION_CONTROLS)
     assert set(builder.KINDS) == expected
-    assert len(builder.KINDS) == len(expected) == 34
+    assert len(builder.KINDS) == len(expected) == 40
     assert tuple(builder.KINDS[:8]) == OLD_KINDS
 
 

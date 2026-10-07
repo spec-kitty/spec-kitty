@@ -49,7 +49,7 @@ _OLD_KINDS: tuple[str, ...] = (
     "private-key",
     "forbidden-property",
 )
-# The strict-class names added for the Mission status contract 1.1 (title stays human text).
+# The strict-class names added for the Mission status contract 1.1 and the health, drift and ops slice (title stays human text).
 _NEW_STRICT_NAMES: tuple[str, ...] = (
     "id",
     "laneId",
@@ -61,6 +61,12 @@ _NEW_STRICT_NAMES: tuple[str, ...] = (
     "kind",
     "mediaType",
     "changeState",
+    "specKittyVersion",
+    "currentBranch",
+    "profileId",
+    "action",
+    "invocationId",
+    "sourceCode",
 )
 _STRICT_KIND_PREFIX = "strict-"
 _ARTIFACT_PATH_KIND_PREFIX = "artifact-path-"

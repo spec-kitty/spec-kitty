@@ -258,7 +258,24 @@ def test_the_manifest_holds_one_leak_scan_case_per_planted_kind_with_its_code() 
     leak_cases = {case["build"].removeprefix("leak:"): case for case in cases if case.get("build", "").startswith("leak:")}
     strict = {
         f"strict-{name}"
-        for name in ("id", "laneId", "laneBranch", "planningBranch", "pattern", "feedbackReference", "reviewer", "kind", "mediaType", "changeState")
+        for name in (
+            "id",
+            "laneId",
+            "laneBranch",
+            "planningBranch",
+            "pattern",
+            "feedbackReference",
+            "reviewer",
+            "kind",
+            "mediaType",
+            "changeState",
+            "specKittyVersion",
+            "currentBranch",
+            "profileId",
+            "action",
+            "invocationId",
+            "sourceCode",
+        )
     }
     artifact = {
         f"artifact-path-{name}"

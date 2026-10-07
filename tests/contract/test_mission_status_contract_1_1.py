@@ -29,12 +29,17 @@ from tests.contract._loader import load_tool
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
+OPENAPI_FILE = "openapi.yaml"
+LEAK_PATTERNS_TOOL = "leak_patterns"
+LEAK_SCAN_PATH = "contracts/tools/leak_scan.py"
+PACKS_WORKFLOW_PATH = ".github/workflows/packs.yml"
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONTRACTS = REPO_ROOT / "contracts"
 MODULE = CONTRACTS / "mission-status"
 TOOLS = CONTRACTS / "tools"
 CHANGELOG = MODULE / "CHANGELOG.md"
-OPENAPI = MODULE / "openapi.yaml"
+OPENAPI = MODULE / OPENAPI_FILE
 
 MAIN_VERSION = "1.0.0-SNAPSHOT"  # the version of the contract tree on main: this slice does not change it
 ENTRY_PREFIX = MAIN_VERSION
@@ -365,7 +370,7 @@ def _files_below(root: Path) -> dict[str, bytes]:
 
 
 def _version_of(root: Path) -> str | None:
-    document = _read_yaml(root / MODULE_NAME / "openapi.yaml")
+    document = _read_yaml(root / MODULE_NAME / OPENAPI_FILE)
     version = document.get("info", {}).get("version") if isinstance(document, dict) else None
     return version if isinstance(version, str) else None
 
@@ -427,12 +432,12 @@ def _make_pair(tmp_path: Path) -> tuple[Path, Path]:
         shutil.copytree(CONTRACTS / SHARED_NAME, root / SHARED_NAME)
         pair.append(root)
     baseline, candidate = pair
-    document = _read_yaml(baseline / MODULE_NAME / "openapi.yaml")
+    document = _read_yaml(baseline / MODULE_NAME / OPENAPI_FILE)
     for key in NEW_PATH_KEYS:
         reference = document["paths"].pop(key)["$ref"]
         (baseline / MODULE_NAME / reference).unlink()
     document["info"]["version"] = MAIN_VERSION
-    _write_yaml(baseline / MODULE_NAME / "openapi.yaml", document)
+    _write_yaml(baseline / MODULE_NAME / OPENAPI_FILE, document)
     return baseline, candidate
 
 
@@ -441,7 +446,7 @@ def _write_yaml(path: Path, document: Any) -> None:
 
 
 def _set_version(root: Path, version: str) -> None:
-    path = root / MODULE_NAME / "openapi.yaml"
+    path = root / MODULE_NAME / OPENAPI_FILE
     document = _read_yaml(path)
     document["info"]["version"] = version
     _write_yaml(path, document)
@@ -511,7 +516,7 @@ def test_a_409_added_to_an_existing_operation_fails_the_bundle_rule(pair: tuple[
 def test_an_existing_operation_dropped_from_the_path_map_fails_the_bundle_rule_alone(pair: tuple[Path, Path]) -> None:
     """The path map is an allowed file, so only the bundle rule can see this change (it is independent of the byte rule)."""
     baseline, candidate = pair
-    path = candidate / MODULE_NAME / "openapi.yaml"
+    path = candidate / MODULE_NAME / OPENAPI_FILE
     document = _read_yaml(path)
     del document["paths"]["/project"]
     _write_yaml(path, document)
@@ -522,7 +527,7 @@ def test_an_existing_operation_dropped_from_the_path_map_fails_the_bundle_rule_a
 
 def test_an_unresolvable_candidate_fails_loudly_instead_of_comparing(pair: tuple[Path, Path]) -> None:
     baseline, candidate = pair
-    path = candidate / MODULE_NAME / "openapi.yaml"
+    path = candidate / MODULE_NAME / OPENAPI_FILE
     document = _read_yaml(path)
     document["paths"]["/project"] = {"$ref": "paths/does_not_exist.yaml"}
     _write_yaml(path, document)
@@ -615,7 +620,7 @@ SLICE_ALLOWED: tuple[ScopeRule, ...] = (
     ScopeRule(EXACT, "contracts/mission-status/responses/_index.yaml", MODIFIED),
     ScopeRule(EXACT, "contracts/mission-status/schemas/_index.yaml", MODIFIED),
     ScopeRule(EXACT, "contracts/mission-status/CHANGELOG.md", MODIFIED),
-    ScopeRule(EXACT, "contracts/tools/leak_scan.py", MODIFIED),
+    ScopeRule(EXACT, LEAK_SCAN_PATH, MODIFIED),
     ScopeRule(EXACT, "contracts/tools/fixture_builder.py", MODIFIED),
     ScopeRule(EXACT, "contracts/tools/negative_cases.json", MODIFIED),
     ScopeRule(EXACT, "contracts/tools/enum_pins.json", MODIFIED),
@@ -630,7 +635,7 @@ SLICE_ALLOWED: tuple[ScopeRule, ...] = (
 )
 # the registrations of the new test modules: exactly these two paths, no wildcard
 EXTRA_ALLOWED_REGISTRATIONS: tuple[ScopeRule, ...] = (
-    ScopeRule(EXACT, ".github/workflows/packs.yml", MODIFIED),
+    ScopeRule(EXACT, PACKS_WORKFLOW_PATH, MODIFIED),
     ScopeRule(EXACT, "tests/architectural/test_ci_corpus_trigger_completeness.py", MODIFIED),
 )
 
@@ -658,7 +663,7 @@ IN_SCOPE_CHANGES: tuple[tuple[str, str], ...] = (
     ("M", "contracts/mission-status/openapi.yaml"),
     ("M", "contracts/mission-status/schemas/_index.yaml"),
     ("M", "contracts/mission-status/CHANGELOG.md"),
-    ("M", "contracts/tools/leak_scan.py"),
+    ("M", LEAK_SCAN_PATH),
     ("M", "contracts/tools/enum_pins.json"),
     ("A", "tests/contract/test_mission_status_artifacts.py"),
     ("M", "tests/contract/test_leak_scan.py"),
@@ -667,7 +672,7 @@ IN_SCOPE_CHANGES: tuple[tuple[str, str], ...] = (
     ("M", "tests/ci/test_contracts_workflows.py"),
 )
 REGISTRATION_CHANGES: tuple[tuple[str, str], ...] = (
-    ("M", ".github/workflows/packs.yml"),
+    ("M", PACKS_WORKFLOW_PATH),
     ("M", "tests/architectural/test_ci_corpus_trigger_completeness.py"),
 )
 
@@ -699,16 +704,14 @@ def test_a_modification_of_a_tools_file_that_is_not_one_of_the_named_ones_is_rep
 
 @pytest.mark.parametrize(
     "path",
-    ["contracts/tools/leak_scan.py", "contracts/mission-status/openapi.yaml", "contracts/mission-status/schemas/Project.yaml", "tests/contract/test_leak_scan.py"],
+    [LEAK_SCAN_PATH, "contracts/mission-status/openapi.yaml", "contracts/mission-status/schemas/Project.yaml", "tests/contract/test_leak_scan.py"],
 )
 def test_a_deletion_is_reported_for_every_path_even_a_named_one(path: str) -> None:
     _expect_problem(f"D entry {path}", scope_problems([("D", path)], [*SLICE_ALLOWED, *EXTRA_ALLOWED_REGISTRATIONS]), f"out_of_scope: D {path}")
 
 
 def test_an_addition_of_a_named_existing_file_is_reported() -> None:
-    _expect_problem(
-        "A for a named existing file", scope_problems([("A", "contracts/tools/leak_scan.py")], SLICE_ALLOWED), "out_of_scope: A contracts/tools/leak_scan.py"
-    )
+    _expect_problem("A for a named existing file", scope_problems([("A", LEAK_SCAN_PATH)], SLICE_ALLOWED), "out_of_scope: A contracts/tools/leak_scan.py")
 
 
 @pytest.mark.parametrize("path", ["contracts/mission-status-extra/a.yaml", "tests/contract_extra/a.py", "contracts/mission-statusX"])
@@ -729,7 +732,7 @@ def test_the_two_registration_paths_are_reported_unless_their_rules_are_supplied
 
 def test_a_registration_path_with_another_status_or_a_third_workflow_file_is_reported() -> None:
     allowed = [*SLICE_ALLOWED, *EXTRA_ALLOWED_REGISTRATIONS]
-    assert scope_problems([("A", ".github/workflows/packs.yml")], allowed) == ["out_of_scope: A .github/workflows/packs.yml"]
+    assert scope_problems([("A", PACKS_WORKFLOW_PATH)], allowed) == ["out_of_scope: A .github/workflows/packs.yml"]
     assert scope_problems([("M", ".github/workflows/ci-nightly.yml")], allowed) == ["out_of_scope: M .github/workflows/ci-nightly.yml"]
     assert scope_problems([("A", ".github/workflows/ci-router.yml")], allowed) == ["out_of_scope: A .github/workflows/ci-router.yml"]
 
@@ -753,7 +756,7 @@ def test_the_allowed_data_has_the_shape_the_proof_needs() -> None:
     assert all("*" not in rule.path and "?" not in rule.path for rule in every_rule), "no wildcard"
     assert all(rule.path.endswith("/") for rule in every_rule if rule.match == PREFIX), "a prefix rule ends with a slash"
     assert all(rule.statuses == MODIFIED for rule in every_rule if rule.match == EXACT), "an existing named file admits M only"
-    assert [rule.path for rule in EXTRA_ALLOWED_REGISTRATIONS] == [".github/workflows/packs.yml", "tests/architectural/test_ci_corpus_trigger_completeness.py"]
+    assert [rule.path for rule in EXTRA_ALLOWED_REGISTRATIONS] == [PACKS_WORKFLOW_PATH, "tests/architectural/test_ci_corpus_trigger_completeness.py"]
     assert not any("required_examples" in rule.path for rule in every_rule), "the example-required guard lives in a test (OD-2)"
 
 
@@ -891,26 +894,26 @@ def _credential_descriptions() -> dict[str, str]:
 
 
 def test_the_descriptions_name_every_credential_kind_of_the_secret_patterns() -> None:
-    patterns = _tool("leak_patterns").SECRET_PATTERNS
+    patterns = _tool(LEAK_PATTERNS_TOOL).SECRET_PATTERNS
     assert len(patterns) == 4, "a credential kind was added or removed: update the descriptions and this proof together"
     assert credential_description_problems(patterns, _credential_descriptions()) == []
 
 
 def test_the_pattern_sources_give_the_documented_words() -> None:
-    words = credential_words(_tool("leak_patterns").SECRET_PATTERNS)
+    words = credential_words(_tool(LEAK_PATTERNS_TOOL).SECRET_PATTERNS)
     assert words == ["ghp", "gho", "ghu", "ghs", "ghr", "github_pat", "AKIA", "ASIA", "PEM", "private key"]
 
 
 def test_a_credential_kind_added_to_the_patterns_but_not_to_the_descriptions_is_reported() -> None:
     extra = re.compile(r"(?<![A-Za-z0-9_])gh[pousrx]_[A-Za-z0-9]{36,}")
-    patterns = (extra, *_tool("leak_patterns").SECRET_PATTERNS[1:])
+    patterns = (extra, *_tool(LEAK_PATTERNS_TOOL).SECRET_PATTERNS[1:])
     problems = credential_description_problems(patterns, _credential_descriptions())
     assert "credential_word_missing: 'ghx' in ArtifactSecretRefused" in problems, f"{NOT_KILLED}: a new token prefix: {problems}"
 
 
 def test_a_description_that_drops_a_credential_kind_is_reported() -> None:
     descriptions = {name: text.replace("AKIA", "XXXX") for name, text in _credential_descriptions().items()}
-    problems = credential_description_problems(_tool("leak_patterns").SECRET_PATTERNS, descriptions)
+    problems = credential_description_problems(_tool(LEAK_PATTERNS_TOOL).SECRET_PATTERNS, descriptions)
     assert "credential_word_missing: 'AKIA' in ArtifactEntry.readable" in problems
 
 
@@ -921,7 +924,7 @@ def test_a_pattern_of_an_unknown_kind_fails_loudly() -> None:
 
 def test_the_representative_credentials_match_exactly_the_patterns_that_name_them() -> None:
     """The description is only as true as the patterns: each documented kind has one sample that its pattern matches."""
-    patterns = _tool("leak_patterns").SECRET_PATTERNS
+    patterns = _tool(LEAK_PATTERNS_TOOL).SECRET_PATTERNS
     samples = [
         "gh" + "p" + "_" + "A" * 36,
         GITHUB_FINE_GRAINED_PREFIX + "_" + "A" * 40,
