@@ -254,7 +254,7 @@ def evaluate_touched_missions(
             continue
         if not verdict.cut_over:
             failures.append(verdict)
-        elif PRE_ACCEPT_EXEMPT_NOTE in verdict.reasons:
+        elif verdict.exempt:
             exempt.append(verdict)
 
     return GuardVerdict(

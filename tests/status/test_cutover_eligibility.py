@@ -243,6 +243,7 @@ def test_is_cut_over_pre_accept_matrix(tmp_path: Path, kwargs: dict[str, Any], c
     verdict = is_cut_over(_born_mission(tmp_path, **kwargs))
 
     assert verdict.cut_over is cut_over, verdict.reasons
+    assert verdict.exempt is (reasons_prefix == PRE_ACCEPT_EXEMPT_NOTE)
     if reasons_prefix is None:
         assert verdict.reasons == ()
     elif cut_over:

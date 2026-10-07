@@ -332,7 +332,8 @@ class CutOverVerdict:
     human-readable, non-empty explanation whenever ``cut_over`` is False. A
     PASS is normally empty but carries one explanatory reason
     (:data:`PRE_ACCEPT_EXEMPT_NOTE`) for a pre-accept mission: consumers must
-    treat ``cut_over`` as the decision and ``reasons`` as explanation only. ``mission_slug`` is always the directory basename,
+    treat ``cut_over`` as the decision and ``reasons`` as explanation only;
+    ``exempt`` is the structured marker of that pre-accept PASS. ``mission_slug`` is always the directory basename,
     independent of whether ``mission_id`` could be read.
     """
 
@@ -340,6 +341,9 @@ class CutOverVerdict:
     mission_slug: str
     cut_over: bool
     reasons: tuple[str, ...] = ()
+    #: True only for a PASS granted by the pre-accept exemption (structured; consumers must
+    #: not infer it from the display note in ``reasons``).
+    exempt: bool = False
 
 
 def _early_phase_verdict(mission_dir: Path, slug: str) -> CutOverVerdict | None:
@@ -351,7 +355,7 @@ def _early_phase_verdict(mission_dir: Path, slug: str) -> CutOverVerdict | None:
         return CutOverVerdict(mission_dir=mission_dir, mission_slug=slug, cut_over=False, reasons=(REASON_PHASE_MALFORMED,))
     decision = pre_accept_exemption(mission_dir)
     if decision.note is not None:
-        return CutOverVerdict(mission_dir=mission_dir, mission_slug=slug, cut_over=True, reasons=(decision.note,))
+        return CutOverVerdict(mission_dir=mission_dir, mission_slug=slug, cut_over=True, reasons=(decision.note,), exempt=True)
     return CutOverVerdict(mission_dir=mission_dir, mission_slug=slug, cut_over=False, reasons=(decision.block_reason or _NOT_FLIPPED,))
 
 
