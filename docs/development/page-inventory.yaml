@@ -1250,6 +1250,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/4.x/2026-10-06-3-evidence-gates-check-origin-freshness.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/4.x/2026-10-07-1-upgrade-never-runs-mission-state-repair.md
   tag: current
   divio_type: none

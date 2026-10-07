@@ -3569,13 +3569,30 @@ pages:
     - {slug: "7-full-cutover-no-aliases-no-shims", text: "7. Full cutover: no aliases, no shims", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "execution", text: "Execution", level: 2}
+  - path: "docs/adr/4.x/2026-10-06-3-evidence-gates-check-origin-freshness.md"
+    title: "ADR: evidence gates check origin freshness before they trust local evidence"
+    divio_type: "none"
+    abstract: "Remote contact has one owner; review, accept and consolidate refresh and classify the branches they trust against origin before any mutation, with an explicit opt-out."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "amendment-to-adr-2026-06-05-1", text: "Amendment to ADR 2026-06-05-1", level: 3}
+    - {slug: "the-remote-rule", text: "The remote rule", level: 3}
+    - {slug: "the-check", text: "The check", level: 3}
+    - {slug: "the-policy", text: "The policy", level: 3}
+    - {slug: "operator-rulings", text: "Operator rulings", level: 3}
+    - {slug: "surfaces", text: "Surfaces", level: 3}
+    - {slug: "two-architectural-gates-both-with-empty-allowlists", text: "Two architectural gates, both with empty allowlists", level: 3}
+    - {slug: "pre-existing-drift-this-records", text: "Pre-existing drift this records", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "residuals", text: "Residuals", level: 2}
   - path: "docs/adr/4.x/2026-10-07-1-upgrade-never-runs-mission-state-repair.md"
     title: "ADR: upgrade never runs the mission-state repair"
     divio_type: "none"
     abstract: "spec-kitty upgrade, including --yes, only reports TeamSpace mission-state blockers (and only when hosted drain is on); doctor mission-state --fix is the sole repair consent path."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
-    - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
@@ -4210,6 +4227,7 @@ pages:
     - {slug: "specify-template-repo", text: "SPECIFY_TEMPLATE_REPO", level: 3}
     - {slug: "spec-kitty-non-interactive", text: "SPEC_KITTY_NON_INTERACTIVE", level: 3}
     - {slug: "spec-kitty-worktree-removal-delay", text: "SPEC_KITTY_WORKTREE_REMOVAL_DELAY", level: 3}
+    - {slug: "spec-kitty-origin-check", text: "SPEC_KITTY_ORIGIN_CHECK", level: 3}
     - {slug: "hosted-auth-and-sync", text: "Hosted Auth and Sync", level: 2}
     - {slug: "spec-kitty-enable-saas-sync", text: "SPEC_KITTY_ENABLE_SAAS_SYNC", level: 3}
     - {slug: "spec-kitty-saas-url", text: "SPEC_KITTY_SAAS_URL", level: 3}
@@ -4408,6 +4426,7 @@ pages:
     - {slug: "worktree-expectations", text: "Worktree Expectations", level: 2}
     - {slug: "error-codes", text: "Error Codes", level: 2}
     - {slug: "consolidate-mission-data-preflight-error-code", text: "`consolidate-mission`: `data.preflight_error_code`", level: 3}
+    - {slug: "accept-mission-and-consolidate-mission-origin-freshness", text: "`accept-mission` and `consolidate-mission`: origin freshness", level: 3}
     - {slug: "consolidate-mission-data-teardown-error-code", text: "`consolidate-mission`: `data.teardown_error_code`", level: 3}
     - {slug: "provider-rules", text: "Provider Rules", level: 2}
     - {slug: "migration-notes", text: "Migration Notes", level: 2}
@@ -10562,6 +10581,9 @@ pages:
     - {slug: "lane-consolidation", text: "Lane Consolidation", level: 3}
     - {slug: "branch-integration-git-merge", text: "Branch Integration / Git Merge", level: 3}
     - {slug: "publish-to-origin-main", text: "Publish to origin/main", level: 3}
+    - {slug: "evidence-gate", text: "Evidence gate", level: 3}
+    - {slug: "origin-freshness-check", text: "Origin freshness check", level: 3}
+    - {slug: "status-evidence-branch", text: "Status evidence branch", level: 3}
     - {slug: "coord-partition", text: "COORD partition", level: 3}
     - {slug: "target-owned-bookkeeping", text: "Target-owned bookkeeping", level: 3}
     - {slug: "topology-surface", text: "Topology Surface", level: 3}
