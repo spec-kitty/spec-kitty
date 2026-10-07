@@ -1,6 +1,6 @@
 # Governed external planning contract
 
-Delivery: Python `orchestrator-api` contract **1.11.0**, additive to the existing seven-key JSON envelope and 21 commands. The canonical public request/response reference is [orchestrator-api.md](../../../docs/api/orchestrator-api.md#governed-planning-delivery-python-profile). The amended [Go specification PR](https://github.com/spec-kitty/spec-kitty-redesign/pull/9) defines the corresponding semantic lifecycle.
+Delivery: Python `orchestrator-api` contract **1.12.0**, additive to the existing seven-key JSON envelope and 21 commands. The canonical public request/response reference is [orchestrator-api.md](../../../docs/api/orchestrator-api.md#governed-planning-delivery-python-profile). The amended [Go specification PR](https://github.com/spec-kitty/spec-kitty-redesign/pull/9) defines the corresponding semantic lifecycle.
 
 ## Client operations
 

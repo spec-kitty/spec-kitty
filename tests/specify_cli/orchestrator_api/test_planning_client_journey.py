@@ -182,7 +182,7 @@ def test_supported_capability_keeps_version_handshake() -> None:
     assert envelope["error_code"] == "CONTRACT_VERSION_MISMATCH"
     accepted = runner.invoke(app, ["contract-version", "--require-capability", "artifact-submit"], catch_exceptions=False)
     assert accepted.exit_code == 0
-    assert json.loads(accepted.stdout)["data"]["api_version"] == "1.11.0"
+    assert json.loads(accepted.stdout)["data"]["api_version"] == "1.12.0"
 
 
 def _runtime_bytes(root: Path) -> dict[str, bytes]:

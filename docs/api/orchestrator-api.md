@@ -30,7 +30,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.11.0`
+- `CONTRACT_VERSION`: `1.12.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -113,7 +113,7 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   [Origin freshness](#accept-mission-and-consolidate-mission-origin-freshness)), and a
   successful `warn` run gains `origin_warnings`. A call that used to succeed can now refuse,
   so a minor bump; every key is absent otherwise.
-- `1.11.0` — adds governed context/interviews, bounded artifact authoring and
+- `1.12.0` — adds governed context/interviews, bounded artifact authoring and
   native `next`, plus the truthful Python delivery profile and capability probe.
   Existing commands and envelope fields remain. For API-authored Missions,
   successful design completion/finalization now checks accepted provenance and
@@ -126,7 +126,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.11.0",
+  "contract_version": "1.12.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",
@@ -198,12 +198,12 @@ Removed at the CLI boundary:
 | `cancel-decision` | yes | Cancel a decision (contract >= 1.4.0). |
 | `design-status` | no | Read-only design-phase status query (contract >= 1.4.0). |
 | `answer-decision` | yes | Resolve a `spec-kitty next` `decision_required` moment, with full host-CLI event/lifecycle parity (contract >= 1.4.0). |
-| `artifact-read` | no | Read bounded canonical design content and its exact revision (contract >= 1.11.0). |
-| `artifact-submit` | yes | Author and commit bounded content with revision and lineage checks (contract >= 1.11.0). |
-| `design-validate` | no | Check canonical prerequisites without completing a step (contract >= 1.11.0). |
-| `design-context` | no | Discover resolved templates, governance and interview slots (contract >= 1.11.0). |
-| `interview-record` | yes | Record canonical specification or planning interview answers (contract >= 1.11.0). |
-| `next` | query: no; advancement: yes | Query or advance the native workflow authority (contract >= 1.11.0). |
+| `artifact-read` | no | Read bounded canonical design content and its exact revision (contract >= 1.12.0). |
+| `artifact-submit` | yes | Author and commit bounded content with revision and lineage checks (contract >= 1.12.0). |
+| `design-validate` | no | Check canonical prerequisites without completing a step (contract >= 1.12.0). |
+| `design-context` | no | Discover resolved templates, governance and interview slots (contract >= 1.12.0). |
+| `interview-record` | yes | Record canonical specification or planning interview answers (contract >= 1.12.0). |
+| `next` | query: no; advancement: yes | Query or advance the native workflow authority (contract >= 1.12.0). |
 
 Legacy command names such as `feature-state`, `accept-feature`, and
 `merge-feature` are forbidden.
@@ -1032,7 +1032,7 @@ See also:
 
 ## Governed planning delivery (Python profile)
 
-Contract `1.11.0` adds six verbs to Stijn's existing concern-module registry.
+Contract `1.12.0` adds six verbs to Stijn's existing concern-module registry.
 It implements the Mission discovery, interview, authored specification/plan,
 task authoring and native lifecycle slice of
 `spec-kitty.orchestrator/2`. The transport remains the existing Python JSON
