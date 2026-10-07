@@ -17,6 +17,8 @@ New flags (WP09):
   --project           Restrict to current-project compat + migrations (FR-015).
                       Errors when invoked outside a project.
   --yes / -y          Non-interactive confirmation; alias for --force (FR-017).
+                      Upgrade never runs the mission-state repair; use
+                      `spec-kitty doctor mission-state --fix`.
   --no-nag            Suppress upgrade-nag output explicitly.
 
 Mutual exclusion:
@@ -1637,7 +1639,10 @@ def upgrade(
         False,
         "--yes",
         "-y",
-        help="Non-interactive confirmation; alias for --force (FR-017).",
+        help=(
+            "Non-interactive confirmation; alias for --force (FR-017). "
+            "Upgrade never runs the mission-state repair; use `spec-kitty doctor mission-state --fix`."
+        ),
     ),
     no_nag: bool = typer.Option(False, "--no-nag", help="Suppress upgrade-nag output explicitly"),
     agent_check: bool = typer.Option(False, "--agent-check", help="Emit agent-host upgrade prompt JSON", hidden=True),
