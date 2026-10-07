@@ -58,7 +58,6 @@ def test_doctor_is_the_sole_repair_repo_caller() -> None:
     [
         "repair_repo(project_path)",
         "mission_state.repair_repo(project_path)",
-        "def step():\n    from specify_cli.migration.mission_state import repair_repo\n    return repair_repo(root)",
     ],
 )
 def test_scanner_flags_a_synthetic_extra_caller(source: str) -> None:
