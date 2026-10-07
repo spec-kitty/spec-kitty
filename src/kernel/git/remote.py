@@ -203,7 +203,11 @@ def fetch_branches(cwd: Path, remote: str, branches: Sequence[str], *, timeout: 
     """Fetch *branches* into ``refs/remotes/<remote>/<b>``; never writes ``refs/heads``.
 
     Uses explicit forced refspecs, ``--no-tags`` and ``--no-recurse-submodules`` (a submodule fetch would contact
-    further remotes). Empty *branches* does not contact.
+    further remotes). ``--refmap=`` switches off git's opportunistic update of
+    the configured ``remote.<name>.fetch`` mapping: with a mirror-style
+    ``+refs/heads/*:refs/heads/*`` it would otherwise force-reset a local lane
+    to the remote's tip and drop its unpushed commits. ``--no-auto-gc`` keeps a
+    gate's read from repacking the repository. Empty *branches* does not contact.
 
     Raises:
         RemoteUnreachable: the fetch failed or timed out.
@@ -211,7 +215,7 @@ def fetch_branches(cwd: Path, remote: str, branches: Sequence[str], *, timeout: 
     if not branches:
         return
     refspecs = [f"+refs/heads/{name}:{tracking_ref(remote, name)}" for name in branches]
-    _contact(cwd, remote, timeout, "fetch", "--no-tags", "--no-recurse-submodules", remote, *refspecs)
+    _contact(cwd, remote, timeout, "fetch", "--no-tags", "--no-recurse-submodules", "--no-auto-gc", "--refmap=", remote, *refspecs)
 
 
 @dataclass(frozen=True)

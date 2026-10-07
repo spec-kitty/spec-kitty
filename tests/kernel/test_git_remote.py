@@ -277,6 +277,22 @@ def test_fetch_branches_writes_tracking_ref_only(world: tuple[Path, Path], tmp_p
     assert absent.returncode != 0
 
 
+def test_fetch_branches_never_moves_a_local_branch(world: tuple[Path, Path]) -> None:
+    """A mirror-style ``remote.origin.fetch`` must not let the freshness fetch reset an unpushed local lane (#5780)."""
+    _, work = world
+    _git(work, "config", "remote.origin.fetch", "+refs/heads/*:refs/heads/*")
+    _git(work, "switch", "-q", "-c", "lane")
+    _git(work, "push", "-q", "origin", "lane")
+    unpushed = _commit(work, "local-only.txt")
+    _git(work, "switch", "-q", "main")
+    before = _git(work, "for-each-ref", "refs/heads")
+
+    fetch_branches(work, "origin", ["lane"])
+
+    assert _git(work, "for-each-ref", "refs/heads") == before
+    assert _git(work, "rev-parse", "lane") == unpushed
+
+
 def test_fetch_branches_empty_does_not_contact(world: tuple[Path, Path]) -> None:
     _, work = world
     unreachable_remote(work)
