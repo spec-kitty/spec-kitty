@@ -279,7 +279,11 @@ def _load_json_object(path: Path, *, empty_side: str | None = None) -> dict[str,
     """
     if not path.exists():
         return {}
-    if not path.read_text(encoding="utf-8").strip():
+    try:
+        is_blank = not path.read_text(encoding="utf-8").strip()
+    except ValueError as exc:  # UnicodeDecodeError: a non-UTF-8 blob
+        raise _blob_meta_error(path, exc) from exc
+    if is_blank:
         if empty_side is not None:
             raise EventLogMergeError(f"{path}: {empty_side} meta.json is empty; refusing a base-aware merge that would treat it as deleting every key")
         return {}

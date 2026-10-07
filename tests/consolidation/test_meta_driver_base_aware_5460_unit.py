@@ -172,12 +172,13 @@ def test_genuine_conflict_keeps_target_authoritative_precedence(tmp_path: Path) 
     ("broken", "content", "named"),
     [
         pytest.param("O", b"{ not json", "malformed meta.json", id="malformed-ancestor"),
+        pytest.param("O", b'{"mission_slug": "caf\xe9"}', "malformed meta.json", id="invalid-utf8-ancestor"),
         pytest.param("A", b"", "ours meta.json is empty", id="zero-byte-ours"),
         pytest.param("B", b"\n  \n", "theirs meta.json is empty", id="whitespace-only-theirs"),
     ],
 )
 def test_malformed_ancestor_fails_loud_and_writes_nothing(tmp_path: Path, broken: str, content: bytes, named: str) -> None:
-    """A malformed ancestor, or an empty side of a base-aware merge, is refused by name.
+    """A malformed (or non-UTF-8) ancestor, or an empty side of a base-aware merge, is refused by name.
 
     An empty ``%A``/``%B`` must never read as "deleted every key": the three-way merge
     would otherwise write a few surviving keys at exit 0.
