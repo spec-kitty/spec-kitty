@@ -63,7 +63,7 @@ def test_merge_mission_envelopes_destructive_op_refused(tmp_path: Path, capsys: 
         ),
         pytest.raises(typer.Exit) as excinfo,
     ):
-        consolidate_mission(mission="some-mission", target=None, strategy="merge", push=False)
+        consolidate_mission(mission="some-mission", target=None, strategy="merge", push=False, origin_check=None)
 
     assert excinfo.value.exit_code == 1
 

@@ -17,10 +17,13 @@ if TYPE_CHECKING:
     from specify_cli.core.paths import RetentionDecision
     from specify_cli.lanes.models import LanesManifest
 
+import click
 import typer
 
 from specify_cli.core.contract_gate import is_allowed_error_code, validate_outbound_payload
 from specify_cli.git.destructive_guard import DestructiveOpRefused
+from specify_cli.git.origin_freshness import OriginFreshnessRefused, approved_lane_branches, resolve_origin_check_mode
+from specify_cli.git.origin_gate import run_origin_gate, verdict_payloads
 from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
 
@@ -90,6 +93,70 @@ class ApprovedBoundRefused(RuntimeError):
         self.error_code = error_code
         self.error_codes = tuple(error_codes) if error_codes is not None else (() if error_code is None else (error_code,))
         super().__init__(message)
+
+
+_HELP_ORIGIN_CHECK = (
+    "Refuse (enforce, the default) or only warn (warn) when the mission's status evidence"
+    " or approved lanes are behind or unreachable on their remote. Overrides SPEC_KITTY_ORIGIN_CHECK."
+)
+_ORIGIN_CHECK_CHOICE = click.Choice(["enforce", "warn"])
+
+
+@dataclass
+class _OriginGateResult:
+    """Outcome of the origin gate: warnings to carry, or a refusal's headline and additive ``data``."""
+
+    warnings: list[str]
+    refusal_message: str | None = None
+    refusal_data: dict[str, object] | None = None
+
+
+def _origin_gate(
+    mission_dir: Path,
+    main_repo_root: Path,
+    mission_slug: str,
+    origin_check: str | None,
+    *,
+    lane_branches: Sequence[str] = (),
+    target_branch: str | None = None,
+) -> _OriginGateResult:
+    """Check origin freshness before any evidence is read or any lane moves (FR-004).
+
+    The caller raises the envelope with its own literal code (``MISSION_NOT_READY`` for
+    accept, ``PREFLIGHT_FAILED`` for consolidate); ``refusal_data`` carries the additive
+    ``preflight_error_code(s)`` and ``origin_freshness`` (and ``target_branch`` when the
+    caller resolved one, as every other consolidate refusal carries it). Warn-mode warnings also go to stderr.
+    """
+    setting = resolve_origin_check_mode(origin_check)
+    try:
+        warnings = run_origin_gate(main_repo_root, mission_slug, setting=setting, lane_branches=lane_branches)
+    except OriginFreshnessRefused as exc:
+        message = str(exc)
+        data: dict[str, object] = {
+            **_common._mission_identity_payload(mission_dir),
+            "preflight_error_code": exc.error_code,
+            "preflight_error_codes": list(exc.error_codes),
+            "origin_freshness": verdict_payloads(exc.verdicts),
+            "errors": [message],
+        }
+        if target_branch is not None:
+            data["target_branch"] = target_branch
+        return _OriginGateResult([], message.splitlines()[0], data)
+    for warning in warnings:
+        typer.echo(f"Warning: {warning}", err=True)
+    return _OriginGateResult(warnings)
+
+
+def _approved_lane_branches_for(main_repo_root: Path, mission_slug: str) -> list[str]:
+    """The lanes the freshness gate covers; an unreadable manifest selects none (the preflight reports it)."""
+    from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
+
+    try:
+        manifest = require_lanes_json(_planning_read_dir(main_repo_root, mission_slug))
+    except (MissingLanesError, CorruptLanesError):
+        return []
+    branches: list[str] = approved_lane_branches(main_repo_root, mission_slug, manifest)
+    return branches
 
 
 def _fail_from_destructive_op_refused(cmd: str, mission_dir: Path, target_branch: str, exc: DestructiveOpRefused) -> NoReturn:
@@ -612,12 +679,16 @@ def _stamp_mission_acceptance_or_fail(cmd: str, mission_dir: Path, summary: Acce
 def accept_mission(
     mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
     actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
+    origin_check: str | None = typer.Option(None, "--origin-check", click_type=_ORIGIN_CHECK_CHOICE, help=_HELP_ORIGIN_CHECK),
 ) -> None:
     """Accept a mission after all WPs are approved or done."""
     cmd = "accept-mission"
 
     main_repo_root = _common._get_main_repo_root()
     mission_dir = _common._resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+    origin = _origin_gate(mission_dir, main_repo_root, mission, origin_check)
+    if origin.refusal_data is not None:
+        _fail(cmd, "MISSION_NOT_READY", str(origin.refusal_message), origin.refusal_data)
 
     from specify_cli.status import materialize
     from specify_cli.core.dependency_graph import build_dependency_graph
@@ -706,6 +777,8 @@ def accept_mission(
         "done_wps": done_wps,
         "merge_pending_wps": approved_wps,
     }
+    if origin.warnings:
+        data["origin_warnings"] = origin.warnings
     validate_outbound_payload(data, "orchestrator_api")
     envelope = make_envelope(
         command=cmd,
@@ -727,6 +800,7 @@ def consolidate_mission(
     target: str = typer.Option(None, "--target", help="Target branch to merge into (auto-detected from meta.json)"),
     strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge, squash, or rebase"),
     push: bool = typer.Option(False, "--push", help="Push target branch after merge"),
+    origin_check: str | None = typer.Option(None, "--origin-check", click_type=_ORIGIN_CHECK_CHOICE, help=_HELP_ORIGIN_CHECK),
 ) -> None:
     """Consolidate a lane-based mission into target."""
     cmd = "consolidate-mission"
@@ -758,6 +832,16 @@ def consolidate_mission(
         )
         return
 
+    origin = _origin_gate(
+        mission_dir,
+        main_repo_root,
+        mission,
+        origin_check,
+        lane_branches=_approved_lane_branches_for(main_repo_root, mission),
+        target_branch=preflight.target_branch,
+    )
+    if origin.refusal_data is not None:
+        _fail(cmd, "PREFLIGHT_FAILED", str(origin.refusal_message), origin.refusal_data)
     try:
         # #3131 C-007/T010: unset (None) so the mission's meta.json retention
         # policy governs — this CLI has no --delete-branch/--remove-worktree
@@ -801,6 +885,8 @@ def consolidate_mission(
         "strategy": strategy,
         "worktree_removed": False,
     }
+    if origin.warnings:
+        data["origin_warnings"] = origin.warnings
     validate_outbound_payload(data, "orchestrator_api")
     envelope = make_envelope(
         command=cmd,

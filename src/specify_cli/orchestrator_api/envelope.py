@@ -77,7 +77,17 @@ from kernel.clock import now_utc_iso
 # ``preflight_error_codes`` (#5720): every distinct code the refusal text names,
 # the first one equal to ``preflight_error_code``. Several codes appear when lanes
 # refuse for different reasons in one run. Both keys are absent on every other failure.
-CONTRACT_VERSION = "1.10.0"
+# 1.11.0: ``accept-mission`` and ``consolidate-mission`` take ``--origin-check
+# [enforce|warn]`` and can newly refuse when the mission's status evidence (and, for
+# ``consolidate-mission``, its approved lane branches) is behind or unreachable on its
+# remote. The envelope ``error_code`` stays ``MISSION_NOT_READY`` / ``PREFLIGHT_FAILED``;
+# the failure ``data`` gains ``preflight_error_code`` / ``preflight_error_codes``
+# (``ORIGIN_STATUS_STALE``, ``ORIGIN_LANE_STALE``, ``ORIGIN_UNREACHABLE``) and
+# ``origin_freshness`` (one ``{branch, remote, state, behind, ahead, scope}`` row per
+# failing branch), and a successful warn-mode run gains ``origin_warnings``. A call
+# that used to succeed can now refuse, so a minor bump; every key is absent otherwise
+# and no field is removed or renamed.
+CONTRACT_VERSION = "1.11.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

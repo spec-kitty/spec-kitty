@@ -76,7 +76,7 @@ def _run_consolidate_mission(repo: Path, merge_body: Any, capsys: pytest.Capture
         patch.object(_common, "_mission_identity_payload", return_value=dict(_IDENTITY)),
         pytest.raises(typer.Exit) as excinfo,
     ):
-        consolidate_mission(mission="some-mission", target=None, strategy="merge", push=False)
+        consolidate_mission(mission="some-mission", target=None, strategy="merge", push=False, origin_check=None)
     assert excinfo.value.exit_code == 1
     lines = [line for line in capsys.readouterr().out.splitlines() if line.strip()]
     assert len(lines) == 1, f"expected exactly one JSON envelope line, got: {lines!r}"

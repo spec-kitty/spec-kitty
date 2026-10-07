@@ -5,10 +5,11 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, NoReturn
 
+import click
 import typer
 from rich.table import Table
 from kernel.git import StatusEntry
@@ -46,6 +47,12 @@ from specify_cli.consolidation.baseline import (
     PrMergeEvidenceError,
     verify_pr_merge_evidence,
 )
+from specify_cli.git.origin_freshness import (
+    READ_ONLY_ORIGIN_CHECK,
+    OriginFreshnessRefused,
+    resolve_origin_check_mode,
+)
+from specify_cli.git.origin_gate import run_origin_gate, verdict_payloads
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError
 from specify_cli.cli import StepTracker
 from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption, emit_owned_refusal, resolve_owned_or_adopt
@@ -864,6 +871,7 @@ class _AcceptRun:
     actual_mode: str
     commit_required: bool
     provenance_note: str | None
+    origin_warnings: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -1089,6 +1097,27 @@ def _verify_merge_commit(
     return _PrMergeRequest(evidence, merge_commit, target_branch, attest_first_landing)
 
 
+def _check_origin_freshness(run: _AcceptRun, origin_check: str | None, *, read_only: bool) -> _AcceptRun:
+    """Refuse on stale or unreachable origin status evidence BEFORE any acceptance read or write (FR-003).
+
+    ``--no-commit`` / ``--diagnose`` are read-only: the verdict is reported, never
+    refused. Warnings (warn mode, read-only, a bad opt-out value) go to stderr so a
+    ``--json`` stdout stays one payload, and ride the payload's ``advisories``.
+    """
+    setting = READ_ONLY_ORIGIN_CHECK if read_only else resolve_origin_check_mode(origin_check)
+    try:
+        warnings = run_origin_gate(run.repo_root, run.mission_slug, setting=setting, owned=run.owned)
+    except OriginFreshnessRefused as exc:
+        _fail(
+            run.json_output,
+            str(exc),
+            extra_json={"error_code": exc.error_code, "error_codes": exc.error_codes, "origin_freshness": verdict_payloads(exc.verdicts)},
+        )
+    for warning in warnings:
+        typer.echo(f"Warning: {warning}", err=True)
+    return replace(run, origin_warnings=tuple(warnings))
+
+
 def _collect_summary_or_exit(
     run: _AcceptRun,
     *,
@@ -1155,7 +1184,7 @@ def _report_diagnosis(run: _AcceptRun, summary: AcceptanceSummary) -> None:
     if run.json_output:
         payload = _summary_payload(summary)
         payload["diagnose"] = True
-        print(json.dumps(_with_advisories(payload, [run.provenance_note]), indent=2))
+        print(json.dumps(_with_advisories(payload, [run.provenance_note, *run.origin_warnings]), indent=2))
         return
     run.tracker.start("guide")
     run.tracker.complete("guide", "diagnostics ready")
@@ -1167,7 +1196,7 @@ def _report_summary(run: _AcceptRun, summary: AcceptanceSummary, *, raw: bool = 
     """Print the readiness summary; ``raw`` selects the bare ``summary.to_dict()`` JSON shape."""
     if run.json_output:
         payload = summary.to_dict() if raw else _summary_payload(summary)
-        print(json.dumps(_with_advisories(payload, [run.provenance_note]), indent=2))
+        print(json.dumps(_with_advisories(payload, [run.provenance_note, *run.origin_warnings]), indent=2))
     else:
         _print_acceptance_summary(summary)
 
@@ -1347,7 +1376,7 @@ def _render_accept_result(
     never formatted by hand here (contract rule 6).
     """
     if run.json_output:
-        payload = _with_advisories(result.to_dict(), [run.provenance_note])
+        payload = _with_advisories(result.to_dict(), [run.provenance_note, *run.origin_warnings])
         if residual_commit_result is not None:
             from specify_cli.coordination.commit_outcome import commit_outcome_payload
 
@@ -1392,6 +1421,17 @@ def accept(
         help="Repair acceptance-artifact encoding (Windows-1252/Latin-1 -> UTF-8) before validating.",
     ),
     owned_checkout: OwnedCheckoutOption = None,
+    origin_check: Annotated[
+        str | None,
+        typer.Option(
+            "--origin-check",
+            click_type=click.Choice(["enforce", "warn"]),
+            help=(
+                "Refuse (enforce, the default) or only warn (warn) when the mission's status evidence is behind "
+                "or unreachable on its remote. Overrides SPEC_KITTY_ORIGIN_CHECK. --no-commit and --diagnose always warn."
+            ),
+        ),
+    ] = None,
     merge_commit: Annotated[
         str | None,
         typer.Option(
@@ -1464,6 +1504,7 @@ def accept(
         diagnose=diagnose,
     )
     pr_merge = _verify_merge_commit(run, merge_commit, target_branch, attest_first_landing)
+    run = _check_origin_freshness(run, origin_check, read_only=no_commit or diagnose)
     summary = _collect_summary_or_exit(run, lenient=lenient, diagnose=diagnose, normalize_encoding=normalize_encoding)
     _exit_early_for_report_modes(run, summary, diagnose=diagnose, allow_fail=allow_fail)
     outcome = _perform_and_finalize(run, summary, actor=actor, tests=test, pr_merge=pr_merge)
