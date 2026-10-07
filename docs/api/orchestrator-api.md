@@ -1233,4 +1233,4 @@ current native readers and adds no Java dependency or competing status reducer.
 Display artifact presence and provisional English `nextAction` must not become
 orchestrator completion authority. Go projection-revision cursors and UI JSONL
 offset/hash cursors require explicit versioned translation.
-See the [application seam ADR](../adr/4.x/2026-10-07-1-governed-planning-application-seam.md).
+See the [application seam ADR](../adr/4.x/2026-10-07-2-governed-planning-application-seam.md).
