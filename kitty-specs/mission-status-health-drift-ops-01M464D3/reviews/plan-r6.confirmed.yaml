@@ -1,0 +1,42 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+- id: PLAN-FRESH5-001
+  lens: debugging-recurrence (contradiction hunt, measurement coverage)
+  severity: 2
+  title: IC-01 step 4 does not time the completion equality, yet the 70 s escalation line is stated against
+    a sum that includes it
+  evidence:
+  - artifact: "plan.md \xA7 D-P5 Budget (the 70 s line is stated against the SUM of the combined case\
+      \ and the 10 to 15 s of completion equality and listing repeats; 'measured by the IC-01 proxy')"
+  - artifact: "plan.md \xA7 IC-01 Steps, step 4 (times the resolver-included Project proxy, the scan and\
+      \ the real-directory listing once; the completion equality over about 518 directories is not listed)"
+  - artifact: reviews/plan.ruling.md note 11; research.md R-12 table (no completion-equality row)
+  claim: After round 5 the escalation rule is a threshold on a sum (combined case plus completion equality
+    plus listing repeats), but the measuring step names only the Project proxy, the scan and one listing.
+    The 5 to 10 s completion equality is an unmeasured estimate, and the listing is timed once rather
+    than the 5 repeats the sum assumes. The operator-escalation test the plan relies on therefore cannot
+    be evaluated as worded; an implementer can legitimately apply the 55 s combined-alone line or the
+    70 s sum line with different inputs.
+  remediation: Add the AC-DRIFT row 19 completion equality over the real corpus (and the at least 5 repeats
+    of the listing) to IC-01 step 4 and to the R-12 table as to-be-measured rows, so the sum is measured
+    not estimated. Single remedy.
+- id: PLAN-FRESH5-002
+  lens: record-keeping (add-only trail)
+  severity: 1
+  title: Ruling 11 is not carried into tracer-design-decisions.md although rulings 8 to 10 are, and A-11
+    points only at plan.md
+  evidence:
+  - artifact: tracer-design-decisions.md plan-round list stops at item 10; tracer-approach.md A-10 says
+      rulings 8 to 10 are recorded there
+  - artifact: tracer-approach.md A-11 ('recorded in plan.md'); reviews/plan.ruling.md note 11
+  claim: The binding note 11 lives only in reviews/plan.ruling.md and plan.md. The decisions file that
+    the earlier rounds treat as the durable ruling record is one item short, and A-11 does not cite the
+    ruling file. spec.md Plan-round 8 clarification still reads as the threshold without the sum qualifier
+    (A-11 says spec.md is unchanged, which is consistent, but the qualifier is then recorded nowhere in
+    the spec or decisions file).
+  remediation: Append item 11 (add-only) to tracer-design-decisions.md and have A-11 cite reviews/plan.ruling.md
+    note 11. Hygiene scan of the mission directory (excluding reviews/ and the event log) found no home
+    paths, usernames, emails or private ids.

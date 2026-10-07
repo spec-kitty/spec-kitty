@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 2
+verdicts:
+  - id: TASKS-SEQ-001
+    verdict: confirmed
+    reason: WP01/WP03 tell workers to read the Step 0 record in tracer-approach.md from the lane workspace while tasks.md has the orchestrator append it on the Mission branch, and no text says how appended records or D-0 reach the lane (only WP02-to-lane-a merging is stated).
+  - id: TASKS-SEQ-002
+    verdict: refuted
+    reason: tasks.md line 9 already states that a later finalize-tasks run regenerates the file and that the block must be re-added from the named plan sections, so the risk and durable copy are handled and the code citations only restate that known behaviour.
+  - id: TASKS-SEQ-003
+    verdict: refuted
+    reason: WP07 and WP09 say a split is "same files, sequential" and "same lane", which already means sessions inside the same WP rather than new ids, so the claimed ambiguity is speculative.
+  - id: TASKS-SEQ-004
+    verdict: refuted
+    reason: J-1 in tasks.md names P-9 and the operator-acceptance branch, and plan.md holds the no-JDK consequence; the omitted sentence is a nit that does not change any WP implementation or review.
+  - id: TASKS-SEQ-005
+    verdict: refuted
+    reason: The finding itself says there is no textual overlap and no conflict is expected, so it describes no defect in the tasks artifacts.
+  - id: TASKS-SEQ-006
+    verdict: refuted
+    reason: The finding concedes wps.yaml and the WP frontmatter are correct and the plan sentence is harmless, so no change to the tasks phase is required.
+  - id: TASKS-VERIFY-001
+    verdict: refuted
+    reason: The WPs already name router, registry and corpus-trigger gate files, and the cited test_ci_quality_path_filters.py does not reference contract_tools or the packs.yml deselect line (grep finds no contract_tools), so a concrete blind spot for the WP03/07/08 edits is not shown.

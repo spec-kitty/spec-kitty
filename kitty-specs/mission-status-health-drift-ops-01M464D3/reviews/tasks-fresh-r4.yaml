@@ -1,0 +1,29 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+  - id: TASKS-FRESH4-001
+    severity: 3
+    title: The contracts-commit value test passes when one record file has no such line, and names no directory
+    evidence: >
+      tasks.md Step PD item 4 and tasks/WP07-drift-reader.md "Dependencies and order" give the gate
+      `for f in tracer-approach.md tracer-design-decisions.md; do grep "^contracts-commit: " $f | tail -n 1; done | sort -u | wc -l`
+      "prints 1". Run on a scratch pair where only one file carries the line (the other empty), it prints 1.
+      The text covers the missing-line case only through a separate `grep -c ... printing 0` remark that
+      is not part of the pass condition. The same pipeline names bare file names while WP07 says to read
+      "from the lane workspace root"; the two files live under kitty-specs/<mission-slug>/ (the repository
+      root has no tracer-approach.md), so run as written from the root both greps fail on stderr and the
+      pipeline prints 0, a "stale record" reading for a path error.
+    claim: >
+      The gate meant to prove J-1 and the WP06 hand-off carry the same contracts-commit hash gives a
+      false pass when the J-1 record (or the hand-off line) is absent from one file, which is the exact
+      failure the gate exists to catch before WP07 is dispatched; and its working directory is unstated,
+      so a literal run is unusable.
+    remedy: >
+      Make the pass condition conjunctive and directory-explicit, in Step PD item 4, Step J-1 and the WP07
+      pointer: run from the mission directory kitty-specs/<mission-slug>/ of the lane workspace, require
+      that each of the two files yields a non-empty last line (e.g. `a=$(grep "^contracts-commit: " tracer-approach.md | tail -n 1);
+      b=$(grep "^contracts-commit: " tracer-design-decisions.md | tail -n 1); [ -n "$a" ] && [ "$a" = "$b" ]`
+      exits 0). Single remedy; no fork.

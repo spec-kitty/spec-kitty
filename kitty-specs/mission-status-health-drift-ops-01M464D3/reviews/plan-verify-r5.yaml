@@ -1,0 +1,13 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH4-001
+    status: resolved
+    reason: D-P5 and IC-01 step 4 both state the 70 s line against the sum (combined case plus 10 to 15 s) and the combined case alone at about 55 s local, per rulings 8 and 11.
+  - id: PLAN-FRESH4-002
+    status: resolved
+    reason: D-P5 now reads 45 to 60 plus 10 to 15 equals 55 to 75 s local and 94 to 128 s CI, says the top exceeds the bound, and no stale "up to about 10 s", "55 to 70", "94 to 119" or "119" remains in any artifact.
+  - id: PLAN-FRESH4-003
+    status: resolved
+    reason: The cache-the-result mutation against the real 5 s case now appears in D-P16, IC-09 Acceptance and Red-first, the AC-CROSS 4 row and the contract row.

@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-COVER-001
+    verdict: confirmed
+    reason: WP06 claims AC-VERSION e but T028-T033 contain no pin test or camel-case plant, and terminology_problems scans only module YAML and the CHANGELOG entry, so the reader's sole legacy-shape literal that WP07 says the scan pins is covered by nothing (FORK A/B remains).
+  - id: TASKS-COVER-002
+    verdict: confirmed
+    reason: SC-009 and C-001 appear in spec.md but in neither wps.yaml requirement_refs nor tasks.md per-WP refs.
+  - id: TASKS-COVER-003
+    verdict: confirmed
+    reason: WP02 T006 and plan IC-02 name a "manifest length" assertion in test_run_negative_cases.py, but that file hard-codes the ten strict names and asserts no total length, so the step as written has no matching surface.
+  - id: TASKS-COVER-004
+    verdict: refuted
+    reason: The AC-CROSS 4 row in WP07, WP08 and WP09 already labels the fixture-built half versus the corpus-sized half (IC-09), and the finding itself concedes the subtasks scope correctly, so this is a readability preference, not a defect.
+  - id: TASKS-COVER-005
+    verdict: refuted
+    reason: FLOORS already exists in the payloads module and a missing fixture file is a runtime test failure, not a collection error, so the claimed contradiction with the red-first rule is speculative.
+  - id: TASKS-COVER-006
+    verdict: confirmed
+    reason: WP01 T005 step 2 literally reads "contracts/tools/contracts/tools/leak_scan.py", a doubled prefix that is a transcription error (nit).
+  - id: TASKS-COVER-007
+    verdict: refuted
+    reason: The finding concedes these wording slips have no effect on the end state, and its count and ownership claims are ambiguous against the WP03 and WP10 text, so no concrete defect is shown.

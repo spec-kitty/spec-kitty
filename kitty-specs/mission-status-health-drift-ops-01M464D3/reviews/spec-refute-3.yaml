@@ -1,0 +1,50 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 3
+verdicts:
+  - id: SPEC-COMPLETE-008
+    verdict: confirmed
+    reason: 'FR-020 lists 351+32+56+28 = 467 closed Ops and then a further "1 evidence is a URL", so the URL either double-counts or sits inside a category, and rule 1 has no corpus example.'
+  - id: SPEC-COMPLETE-009
+    verdict: confirmed
+    reason: 'NFR-005, C-003, C-006, C-007 and FR-026 appear only in their own rows and are cited by no AC group header, and AC-REALITY names NFR-002 without asserting its bounds.'
+  - id: SPEC-COMPLETE-010
+    verdict: confirmed
+    reason: 'SC-001 says "16 shape rows of AC-PROJECT" but AC-PROJECT has 7 rows.'
+  - id: SPEC-COMPLETE-011
+    verdict: confirmed
+    reason: 'SC-010 (operator answers OQs, or the plan carries minimal behaviour) is a process step with no artifact a check can fail, yet is marked no-op passable no.'
+  - id: SPEC-COMPLETE-012
+    verdict: confirmed
+    reason: 'The kind 3 oracle (for-each-ref plus manifest JSON) names no method for completion or expected lanes, and the floor on findings of each shipped kind conflicts with "kind 3 never a pinned value".'
+  - id: SPEC-COMPLETE-013
+    verdict: confirmed
+    reason: 'FR-019 skips every unopenable Op file silently while an unlistable directory is a 500, so a directory of all-unreadable files returns 200 with empty items and no signal.'
+  - id: SPEC-COMPLETE-014
+    verdict: confirmed
+    reason: 'The AC-OPS actor-shape row is red when "an address in the payload", which a reader that drops the whole record also satisfies, and FR-017 gives no reason actor alone degrades to null.'
+  - id: SPEC-COMPLETE-015
+    verdict: confirmed
+    reason: 'classify_status_json turns a reducer exception into a SNAPSHOT_DRIFT error finding, while FR-010 and AD-10 make it a whole-report 500 and OQ-4 covers only the non-JSON case.'
+  - id: SPEC-COMPLETE-016
+    verdict: confirmed
+    reason: '"home/alice/x" passes FR-005''s name pattern but matches the strict host-path pattern (?:^|/)(home|Users)/seg/, and FR-005''s "null only for" list omits that case.'
+  - id: SPEC-COMPLETE-017
+    verdict: refuted
+    reason: 'FR-004 and US1.2 state the rule and that the finer split lives in schemaVersion, and the missing-description sentence is a documentation preference rather than a defect in the evidence.'
+  - id: SPEC-COMPLETE-018
+    verdict: confirmed
+    reason: 'FR-014 gives sourceCode an open pattern while requiring exactly one fixed summary per (kind, sourceCode) pair, and nothing closes the pair set or defines an unknown pair.'
+  - id: SPEC-COMPLETE-019
+    verdict: refuted
+    reason: 'A baseline measurement of gate state is a plan-phase task, A-2 already records corpus measurements, and the finding cites no spec rule that the omission breaks.'
+  - id: SPEC-COMPLETE-020
+    verdict: confirmed
+    reason: 'Project.yaml''s description reads "It carries a name and a count only", which becomes false after FR-001, and FR-001 changes only paths/project.yaml''s description.'
+  - id: SPEC-COMPLETE-021
+    verdict: confirmed
+    reason: 'NFR-008 and the AC-OPS row time only a 256 KiB value without whitespace, leaving the widened path patterns and the anchored e-mail step untimed on adversarial shapes.'
+  - id: SPEC-COMPLETE-022
+    verdict: refuted
+    reason: 'The "Precedent rulings applied" heading names the source mission and tracer-design-decisions.md, so D-P14 and D-P15 are resolvable from the spec.'

@@ -1,0 +1,45 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: "FR-015 now names the read directory (MissionStatus.load, own directory for meta.json and lanes.json), states every resolver exception, and AD-10, the FR-026 fixtures and AC-DRIFT rows cover coordination topology."
+  - id: SPEC-FRESH-015
+    status: resolved
+    reason: "AD-3 is reworded to one finding per manifest whose branch is absent, FR-004 compares against REQUIRED_SCHEMA_VERSION by less-than and greater-than, reopened is in the FR-012 population, and no ledger id remains."
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: "Round-4 ruling B is applied in FR-015, FR-025, AD-10, AC-REALITY and SC-002 (CoordinationBranchDeleted is the single named fallback, corpus is a 200, 37 fallback Missions are listed by an independent two-way-checked derivation, no floor)."
+  - id: SPEC-FRESH2-002
+    status: unresolved
+    remaining_severity: 3
+    reason: "FR-007 and the AC-PROJECT row make the Project build pass only when the memo helper's resolver call is on the stack, but FR-015 says the Project build keeps v1's untouched resolve_read_dir (which calls MissionStatus.load directly) and lists the memo's users without the Project build, so the stub test as written fails or the resolver runs twice."
+  - id: SPEC-FRESH2-003
+    status: unresolved
+    remaining_severity: 2
+    reason: "The 1.5 s and 15 s figures are replaced by measured, resolver-inclusive numbers with an exact command and 785 subprocesses (verified), but the 180 s reality-job gain is not a measured figure and the tracer's justification of about 2.3 to 2.7 times the slowest measurement only fits the 120 s bounds, not 180 s."
+  - id: SPEC-FRESH2-004
+    status: resolved
+    reason: "FR-015 specifies a strict sibling reader helper that catches CoordinationBranchDeleted only, leaves v1's resolve_read_dir untouched, and an AC-DRIFT row plants the three falling outcomes with v1's helper as the control."
+  - id: SPEC-FRESH2-005
+    status: resolved
+    reason: "FR-010 maps undecodable status.json to CORRUPT_JSON (oracle wrapper unit-tested), FR-012 and AD-10 make undecodable lanes.json and meta.json 500 (and unread for completed Missions), and FR-026 and AC-DRIFT plant one fixture per file with a clean control."
+  - id: SPEC-FRESH2-006
+    status: resolved
+    reason: "FR-012 states the reader applies the two is_mission_completed arms itself (own-directory meta.json merged_at, lifecycle of the read directory), with a coordination fixture pair for merged_at in one copy only and an equality test over non-coordination Missions."
+  - id: SPEC-FRESH2-007
+    status: resolved
+    reason: "The generation gate is stated in FR-010, R-8 and the DriftFinding description requirement, with a fixture pair in FR-026 and an AC-DRIFT row."
+  - id: SPEC-FRESH2-008
+    status: resolved
+    reason: "FR-023 adds a committed test asserting DriftFinding.kind, DriftReport.truncated, DriftRefusal.code and OpsRefusal.code literally in the CHANGELOG with a removal plant, and keeps the tool check for the unique tokens (AC-VERSION and SC-008 agree)."
+  - id: SPEC-FRESH2-009
+    status: resolved
+    reason: "No SK-number ledger id remains in spec.md or the tracer's decisions (the SK-02 and SK-91 badge codes are non-source examples), the Terminology bullet is deleted, and C-005 now says a known defect is described by its class."
+  - id: SPEC-FRESH2-010
+    status: resolved
+    reason: "FR-008 drops the shared Problem shape from the 404 and fixes DriftRefusalCode and OpsRefusalCode to exact values with the ArtifactRefusal if/then pattern, and the field catalogue gains DriftRefusal.code, OpsRefusal.code and the three OpsEvidence rows."
+  - id: SPEC-FRESH2-011
+    status: resolved
+    reason: "Tracer line 42 now carries the FRESH-005 amendment note and the only remaining uses of cheap are quoted as the dropped word."

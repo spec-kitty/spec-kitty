@@ -1,0 +1,137 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+  - id: PLAN-GOV-001
+    lens: trace
+    severity: 3
+    title: Departs 5 mislabels a real departure from the fixed spec; plan runs offline what FR-025 and AC-REALITY 2 and 3 say is skipped
+    evidence:
+      - artifact: "plan.md § Departs from the spec, item 5 and its header ('the spec text is left as it is'), and § Reality-check design notes ('The Ops walk, its oracle comparison and the fingerprints run in both')"
+      - artifact: "spec.md § AC-REALITY bullets 2 and 3 (as edited in 02e425dc4): 'offline these assertions are skipped by a named skip'; FR-025 'Corpus outcome' bullet: 'offline the floor, oracle, examined-plus-skipped and per-Mission equality assertions are skipped'"
+      - artifact: "tracer-approach.md A-6 restates the spec as 'offline they take a named skip'"
+    claim: >
+      The spec as fixed in the plan commit says the whole of AC-REALITY bullets 2 and 3 (examined plus skipped, Ops walk equals oracle, skippedCount
+      equality, kitty-specs/kitty-ops fingerprint) takes a named skip offline. Departs 5 opens with 'skip offline wholesale (as fixed by this phase)' and
+      then specifies the opposite for the Ops walk, skippedCount equality and the read-only fingerprint (they run in every environment). That is a real
+      departure from binding-as-written spec text, but the header of the list claims items 1 to 6 are inconsistencies in the spec left unedited, so a
+      tasks author reading the spec and the plan gets two rules, and the spec fix this phase made is contradicted by the plan that made it. No operator
+      ruling is contradicted (FRESH4-001 only says an offline run is no evidence for SC-002/SC-007), so the departure itself is defensible.
+    remediation: >
+      fork: true. Option A (keep the plan's behaviour): reword Departs 5 as an explicit departure ('the spec skips X offline; the plan runs Y offline
+      because it needs no network'), move it out of the 'inconsistencies' framing, and edit AC-REALITY 2, 3 and the FR-025 sentence in spec.md to
+      name only the resolver-dependent assertions as skipped (add-only record of the edit in tracer-approach.md A-6). Option B (keep the spec): drop
+      the 'run in both' sentence from the Reality-check design notes and AC-REALITY 3 row, so offline everything in bullets 2 and 3 skips.
+  - id: PLAN-GOV-002
+    lens: scope
+    severity: 3
+    title: PD-2 widens the slice file set that C-003 and AC-CROSS 2 hold closed, but the spec text stays contradictory
+    evidence:
+      - artifact: "plan.md § Operator decisions PD-2; § Departs from the spec item 1; Final report notes (acknowledgement requested)"
+      - artifact: "spec.md C-003 ('Only the files of the slice file set change'), Terminology 'Slice file set' item (5) ('only in ci-router.yml, ci-module-registry.yml and contracts.yml'), FR-027, AC-CROSS 'scope' row"
+    claim: >
+      The plan adds two paths outside the file set (the corpus-suite workflow command and the corpus-trigger registry test) and re-reads FR-027's
+      'registered only in the three files' as 'the files the plan lists'. C-003 is a constraint, not an operator ruling, but the plan also states the
+      spec is left unedited, and the plan's own SLICE_ALLOWED data and scope test (AC-CROSS 2, W-1/W-7) will encode the wider set. Until the
+      acknowledgement is recorded, the scope test encodes a set that the spec forbids, and a reviewer applying C-003 literally must reject the diff.
+    remediation: >
+      fork: true. Option A: record the operator acknowledgement of PD-2 in tracer-design-decisions.md before /spec-kitty.tasks and amend the spec's
+      file-set item (5) and FR-027 sentence add-only (the previous slice did this per the plan). Option B: have the plan state that C-003 is read as
+      the set 'plus registrations a new corpus-marked module is red without', and cite the previous slice's recorded ruling by its tracer location so
+      the tasks phase can rely on it without a fresh acknowledgement. Either way, gate the first registration-touching work package on the record.
+  - id: PLAN-GOV-003
+    lens: trace
+    severity: 2
+    title: FR-024 is mapped to 'AC rows marked in the Test strategy' but no row is marked
+    evidence:
+      - artifact: "plan.md § Traceability row FR-024; § Test strategy per acceptance criterion (no row cites FR-024 or the catalogue lines)"
+      - artifact: "spec.md FR-024 catalogue table (17 rows incl. 404, 500 drift_scan_unreadable, ops_unreadable, 400 invalid_page_cursor, skipped records, evidence null)"
+    claim: >
+      The trace cell points at a marking convention that does not exist in the Test strategy tables. The catalogue is mostly covered by AC rows, but
+      nothing lets a reviewer check each catalogue line against a row (e.g. 'GET /drift nothing to report: 200 findings []', 'Ops.evidence no
+      evidence_ref: null', the branch-listing failure line).
+    remediation: >
+      Replace the cell with a small table mapping each FR-024 catalogue line to its AC-PROJECT/AC-DRIFT/AC-OPS row number, or add the FR-024 line id to
+      the matching Test strategy rows; name the line that has no row, if any, and add one.
+  - id: PLAN-GOV-004
+    lens: trace
+    severity: 2
+    title: Trace table cells omit or mis-point acceptance rows for several spec ids
+    evidence:
+      - artifact: "plan.md § Traceability rows FR-010..FR-012 (no AC rows named), NFR-001/NFR-009 (no AC-CROSS 4), Round 3 FRESH-005 (AC-PROJECT 7), OR-2"
+      - artifact: "plan.md § Test strategy: AC-PROJECT 8 is the cost-sentence row; AC-CROSS 4 carries the 120 s bounds; AC-DRIFT 6-13 and 20 carry FR-010..012"
+      - artifact: "spec.md AC-CROSS heading lists NFR-009; OR-2 requires 'a reality-check example' for lane_branch_missing"
+    claim: >
+      (1) FR-010, FR-011, FR-012 name no acceptance rows although AC-DRIFT 1-13 and 20 prove them. (2) NFR-001 and NFR-009 map to design items and W-7 only,
+      not to AC-CROSS 4 where the bounded-time tests live. (3) FRESH-005 (cost sentence) points to AC-PROJECT 7 (no process of its own) instead of 8.
+      (4) OR-2's 'shipped only with a reality-check example' maps to D-P6 and IC-04/IC-07 but to no AC-REALITY or oracle row that asserts the example exists.
+      None breaks the implementation, but each is the kind of mismatch the trace table exists to catch.
+    remediation: >
+      Add the AC rows to the three cells, correct FRESH-005 to AC-PROJECT 8 (and NFR-009), and add to the OR-2 cell the IC-09 kind-3 oracle plus the
+      AC-VERSION d provisional-name test, or state which test asserts the reality-check example.
+  - id: PLAN-GOV-005
+    lens: directive
+    severity: 2
+    title: Campsite commit does not name which of the 15 repeated literals it hoists, and two are not domain-matched
+    evidence:
+      - artifact: "plan.md § Campsite-clean (g) ('Hoist the repeated literals that sit in the scope, pair and proof-message data')"
+      - code: "tests/contract/test_mission_status_contract_1_1.py:49 and :261 ('project branch', 3 uses; the key is deleted by FR-029 item 1 in IC-03)"
+      - code: "tests/contract/test_mission_status_contract_1_1.py:72, :949, :1029 ('ArtifactRefusal', 3 uses; refusal-schema tests that FR-029 does not rewrite)"
+    claim: >
+      I re-counted with an AST pass: the plan's figure of 15 literals of 12+ characters with 3+ uses is correct. But the list includes 'project branch', which
+      the very next work package deletes, and 'ArtifactRefusal', which lives in refusal-schema tests outside the scope data FR-029 rewrites. Hoisting them
+      is grab-bag debt, contrary to Standing Order 2's domain-matched rule and to the plan's own 'Not a grab-bag' bullet. The commit scope is left to the
+      implementer's judgement.
+    remediation: >
+      Enumerate the literals to hoist (the scope, pair and proof-message ones: openapi.yaml, byte_identity prefix, out_of_scope prefixes, leak_scan and
+      workflow/doc/test path literals, ' differs from the baseline') and name 'project branch' and 'ArtifactRefusal' as excluded; the drop rule then
+      re-counts only the enumerated set.
+  - id: PLAN-GOV-006
+    lens: terminology
+    severity: 2
+    title: New coined terms have no glossary decision, and 'drift' collides with existing glossary terms
+    evidence:
+      - artifact: "plan.md § Gate set row 'Contextive glossary traceability' and § Generated artefacts row (glossary and contextive files 'Not touched'); tracer-tooling-friction.md F-9"
+      - artifact: "spec.md Terminology: 'The glossaries have no entry for invocation, drift or health; they are defined here.'"
+      - code: "spec-kitty glossary list shows active entries 'issue-matrix schema drift' and 'tool-surface drift' (scope spec_kitty_core)"
+    claim: >
+      The plan decides nothing about the glossary beyond 'no contextive map change'. The contract introduces drift finding, health, invocation, closure
+      spine, fallback Mission as domain terms in a public contract, and 'drift' already names two other things in the repository glossary; the plan
+      does not say whether the terms are to be added, deferred, or kept contract-local, nor that descriptions must say 'drift' means disagreement of a
+      derived Mission artifact with its authority.
+    remediation: >
+      fork: true. Option A: add a plan decision (and a tasks line) that the Mission adds draft glossary entries for drift finding, invocation and health
+      in the glossary file the repository uses for planning-and-tracking, plus the contextive entry the traceability test expects, as part of IC-06 or
+      a separate small package (needs the file set to admit those files, see PLAN-GOV-002). Option B: state in the plan that the terms stay
+      spec-defined and contract-local, defer the glossary entry as an item the operator owns, and require the Drift schema description to disambiguate
+      from the existing 'drift' terms.
+  - id: PLAN-GOV-007
+    lens: ledger
+    severity: 2
+    title: Known-defect class that affects what the Ops read serves is not accounted for in research R-14
+    evidence:
+      - artifact: "research.md § R-14 (items 1 to 7: no entry about Op record quality)"
+      - artifact: "SPEC-KITTY-LEDGER.md: entries on 'next --result success' emitting bursts of Op records with outcome done for steps no agent executed"
+      - artifact: "spec.md FR-016..FR-020 and the Ops reality floors (473 served Ops of 480 files)"
+    claim: >
+      R-14 lists ledger classes touching drift, reducer, finalisation and scaffolding, but not the class where the runtime writes bursts of completed Op
+      records for steps no agent ran. That class bears on the Ops screen the contract feeds: the read faithfully serves such records, so counts, filters
+      and the corpus floors include them, and the plan states nowhere that this is accepted and unfiltered by design.
+    remediation: >
+      Add an R-14 item (class description only, no private id): spurious auto-emitted Op records are served as written, not filtered, since the read is
+      a mirror and the contract does not judge record truthfulness; add one sentence to the Ops operation description note or to a plan risk so the
+      client does not read 'closed' as 'work done'.
+  - id: PLAN-GOV-008
+    lens: public-repo
+    severity: 1
+    title: Prototype badge codes quoted in the tracer have the shape of private ledger identifiers
+    evidence:
+      - artifact: "tracer-design-decisions.md:46 (the two prototype badge codes quoted by value)"
+      - artifact: "spec.md C-005 (no private tracker or ledger id); reviews/spec-verify-r3.yaml records that an earlier scrub accepted these two as non-source examples"
+    claim: >
+      The two quoted codes match the private ledger id pattern, so any scanner or reader applying C-005 mechanically flags them and cannot tell them from
+      a leak. They add nothing the sentence needs.
+    remediation: >
+      Reword to 'the prototype's two badge codes have no source in src/' without the literal values.

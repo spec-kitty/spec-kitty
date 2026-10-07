@@ -1,0 +1,72 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+- id: PLAN-FRESH4-001
+  lens: arithmetic-consistency
+  severity: 3
+  title: The 70 s escalation threshold applies to the combined case alone, but the 120 s bound it is derived
+    from applies to the job gain, which adds 10 to 15 s local on top
+  evidence:
+  - artifact: "plan.md \xA7 D-P5 (last sentences of the In-test paragraph) and IC-01 step 4"
+  - artifact: 'plan-round ruling 10 (reviews/plan.ruling.md): the combined case and the job gain are different
+      quantities'
+  claim: "Ruling 8 sets the threshold at 120 s divided by 1.7, about 70 s local, and D-P5 and IC-01 apply\
+    \ it to the local proxy of the combined case. D-P5 (ruling 10) says in the same paragraph that the\
+    \ job gain is the combined case plus about 10 to 15 s local (the AC-DRIFT 19 completion equality and\
+    \ the repeated listing). The 120 s bound constrains the job gain (NFR-001, W-7 pass rule). A combined\
+    \ case at the threshold (70 s local) therefore gives a job gain of 80 to 85 s local, about 136 to\
+    \ 145 s in CI, over the bound, and no escalation fires. The threshold only protects the bound if it\
+    \ is divided out of the whole gain: about 56 to 60 s for the combined case.\n ORCHESTRATOR NOTE: both\
+    \ remedies are numerically the same rule. Single remedy applied: ruling 8 stands (70 s = 120 s / 1.7\
+    \ is the bound on the whole local job-gain proxy); the plan states the escalation line against the\
+    \ SUM (combined case plus the 10 to 15 s of completion equality and listing repeats), and derives\
+    \ the combined-case-alone line as 70 s minus the upper 15 s, about 55 s local."
+  remediation: 'Either lower the combined-case threshold to about 55 to 60 s local (120/1.7 minus the
+    10 to 15 s of job-gain-only work), or state the threshold against the sum of the combined case and
+    the job-gain-only items. Two valid remedies, so a fork (the figure was operator-ruled).
+
+    '
+- id: PLAN-FRESH4-002
+  lens: arithmetic-consistency
+  severity: 2
+  title: The local estimate "about 55 to 70 s" no longer equals the stated components after the "10 to
+    15 s" figure
+  evidence:
+  - artifact: "plan.md \xA7 D-P5 Budget: about 45 to 60 s local plus the completion equality (up to about\
+      \ 10 s) plus the listing repeats; then 'about 55 to 70 s ... about 94 to 119 s in CI'; then 'about\
+      \ 10 to 15 s local, 17 to 25 s in CI'"
+  claim: '45 to 60 plus 10 to 15 is 55 to 75 s local, about 94 to 128 s in CI at 1.7, not 55 to 70 and
+    94 to 119. The upper end of the range is over the 120 s bound, while the paragraph says "at the edge
+    ... not safely inside". The ruling-10 sentence also gives a 10 s lower bound for the job-gain-only
+    items where the Budget sentence says "up to about 10 s".
+
+    '
+  remediation: 'Recompute the range from the components (55 to 75 s local; 94 to 128 s CI) and say that
+    the top of the range exceeds the bound, or reconcile the components so that the two sentences use
+    one pair of figures.
+
+    '
+- id: PLAN-FRESH4-003
+  lens: ruling-propagation
+  severity: 2
+  title: Ruling 9 reached the AC-CROSS 4 row and IC-09 Red-first but not D-P16 or IC-09 acceptance
+  evidence:
+  - artifact: "plan.md \xA7 D-P16: 'must turn AC-OPS 14 and the timing cases red; it joins the Ops mutation\
+      \ catalogue'"
+  - artifact: "plan.md \xA7 IC-09 Acceptance (named): 'planted floors, stale entries and a writing reader\
+      \ fail'"
+  - artifact: "contracts/tool-extension-and-reader.md \xA7 C row cache-the-result (updated)"
+  claim: 'D-P16 still scopes the cache-the-result mutation to the Ops catalogue, AC-OPS 14 and ''the timing
+    cases'' and never names the real 5 s case in the reality module, while the contract row and the AC-CROSS
+    4 row now do. IC-09 Acceptance lists the planted failures but omits the cache-the-result mutation
+    that Red-first now requires, so the closing condition does not test it. The mutation lists therefore
+    disagree between D-P16, the contract row, the AC-CROSS 4 row and IC-09 Acceptance.
+
+    '
+  remediation: 'Add one clause to D-P16 saying the mutation is also applied as a context manager in the
+    reality module against the real 5 s case (ruling 9), and add the mutation to the IC-09 Acceptance
+    list of planted failures.
+
+    '

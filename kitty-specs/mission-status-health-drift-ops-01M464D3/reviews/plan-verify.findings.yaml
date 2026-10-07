@@ -1,0 +1,190 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+  - id: PLAN-VERIFY-001
+    lens: Gates
+    severity: 3
+    title: The named local gate-file list is not derived from the real architectural-fast roster and misattributes the heavy-battery censuses to it
+    evidence:
+      - artifact: "plan.md § The gate set (e), row architectural-fast (census of manual global state, the home pin, dead symbols; 'the eight files of the quickstart')"
+      - artifact: "quickstart.md § Architectural files that read tests/ (the eight named files)"
+      - code: ".github/ci-module-registry.yml:890-892 (test_no_dead_symbols.py and test_dead_symbol_allowlist_contract.py are excluded from the fast_gate roster on purpose); the roster block at :896-:930 names test_no_manual_global_state_mutation.py (:902) and test_no_tmp_paths_in_tests.py (:914) but no home-pin file"
+      - code: "tests/architectural/test_no_tmp_paths_in_tests.py:20-30 (scans every file under tests/ for the shared-temp literal; in the fast roster)"
+      - code: "tests/architectural/_clock_gate_scan.py:21 (the clock import and call bans scan src, tests and scripts; not in the fast roster)"
+    claim: >
+      The plan says the architectural-fast job censuses the whole test tree for manual global state, the home pin and dead
+      symbols. Per the registry, dead-symbol files are excluded from that job and the home-pin files are not in its roster
+      (they run in the 30-minute heavy battery, which the plan itself calls CI-owned). So the four plan-time failures
+      attributed to the fast job are really heavy-battery files, and the 'first signal must not be CI' promise does not hold
+      for them. Worse, the list omits gates that really can fail on a new test module and that are cheap: the shared-temp
+      literal scan (the evidence-class plants for absolute-path values are the natural place to type a shared-temp path),
+      and the clock import/call bans (the readers take an injected clock, so a default of the wall-clock call would be red).
+      Neither is named in the gate table or the
+      quickstart, so each would first be seen in CI.
+    remediation: >
+      At IC-01, derive the named-file list mechanically: the fast_gate roster files that scan tests/ (grep the roster for
+      scanners rooted at the tests directory) plus the two heavy clock files above (test_clock_import_ban.py,
+      test_clock_call_ban.py), run as single named files (no directory sweep, so the
+      NO_FULL_HEAVY_SUITES rule holds). Correct the gate-table sentence so dead symbols and the home pin are attributed to
+      architectural-heavy, and add the plant rule 'no shared-temp literal in a plant; build host-path shapes from fragments'
+      to the quickstart's last section beside the unicode-escape hazard.
+  - id: PLAN-VERIFY-002
+    lens: Floors and bounds
+    severity: 3
+    title: NFR-001 (job gain at most 120 s) has no recorded baseline and no test bounds it; W-7 compares against nothing
+    evidence:
+      - artifact: "plan.md § Baseline (f), 'To be taken at implement start' item 3 (records only architectural-fast and architectural-heavy durations)"
+      - artifact: "plan.md D-P5 ('CI baseline from the previous slice: about 3 minutes'; re-plan above 6 minutes) and W-7 ('first CI run's reality-job duration against NFR-001')"
+      - artifact: "plan.md Reality-check design notes ('no new case over 120 s')"
+      - code: ".github/workflows/ci-router.yml:951-982 (tests-corpus-blocking, 10-minute timeout) and :983-1010 (tests-contract-tools, 15-minute timeout)"
+    claim: >
+      NFR-001 is a gain bound: the corpus job gains at most 120 s. Gain needs a baseline duration of that job on current
+      main, but IC-01 records durations only for the two architectural jobs; the corpus-blocking and contract-tools
+      baselines are a remembered 'about 3 minutes' from the previous slice. The in-test bound ('no case over 120 s') bounds one
+      case, not the job (a Project build plus a scan plus per-Mission reports can each be under 120 s and sum far above it).
+      The plan also never converts its local proxies (the measured 108 s local for the unchanged corpus job, about 180 s in CI,
+      so a factor near 1.7; one scan 40 to 52 s local) into a predicted CI gain, so a reviewer cannot tell whether the bound
+      is tight (it is not far: roughly 70 to 90 s predicted against 120) or whether the 6-minute re-plan line is consistent
+      with it (3 + 2 = 5 minutes). The bound is therefore falsifiable only by an after-the-fact reading at W-7, with no
+      stated pass rule.
+    remediation: >
+      Extend Baseline item 3 to record the last N main-run durations (median) of both tests (corpus-blocking) and
+      tests (contract tools). State in D-P5 the local to CI factor derived from the 108 s versus CI figures, the predicted
+      gain, and the W-7 pass rule: first-PR-run duration minus the recorded median is at most 120 s, and the contract-tools
+      job stays under its own timeout with the margin recorded. Add one test that asserts the sum of the Project build, the
+      scan and the per-Mission reduction inside a single bounded case, so the in-test bound and NFR-001 are the same quantity.
+  - id: PLAN-VERIFY-003
+    lens: Baseline honesty
+    severity: 3
+    title: The only parallel window (IC-01 beside IC-02) lets IC-02 change tools and tests before the baseline exists
+    evidence:
+      - artifact: "plan.md IC-01 steps (5) baseline in a synced environment; IC-02 'no dependency; concurrent with IC-01'; IC-02 acceptance 'the architectural-fast files run green'"
+      - artifact: "plan.md § Baseline (f) 'To be taken at implement start (IC-01, before its first change)'"
+      - artifact: "quickstart.md § Environment (the synced environment is built by IC-01)"
+    claim: >
+      The baseline rule is that only a failure red on the branch and green on the base counts as introduced. IC-01 owns
+      the baseline and the synced environment, yet IC-02 is dispatched concurrently with its own acceptance requiring green
+      architectural-fast files, test_leak_scan and test_fixture_builder runs, and ruff over contracts/tools (ruff cannot run
+      in the stale environment). IC-02's reds cannot be binned against a base that has not
+      been measured, and it has no access to the environment its acceptance needs unless it builds its own.
+    remediation: >
+      Two valid remedies (fork). Option A: make the D-0 sync plus the baseline and the synced environment an orchestrator
+      step before any dispatch (IC-01 then keeps only the re-measurements and the campsite). Option B: keep IC-01 first and
+      make IC-02 start only after IC-01's baseline note is appended to the tracer file, accepting that the parallel window
+      disappears (the lane computation is unchanged either way). State the chosen option in the Lanes section.
+    fork: true
+  - id: PLAN-VERIFY-004
+    lens: Test strategy
+    severity: 3
+    title: Corpus-reading assertions are placed in tool-job modules (which the repo documents as reading no corpus), with no stated home or non-vacuity guard
+    evidence:
+      - artifact: "plan.md Test strategy, AC-DRIFT row 19 ('equality with is_mission_completed over every non-coordination corpus Mission'), AC-CROSS 4 ('real directory at most 5 s', 'one Project build and one scan at most 120 s')"
+      - artifact: "plan.md D-P5 (drift, project and ops modules run in tests (contract tools); the reality extension in corpus-blocking)"
+      - code: "docs/development/reference/ci-gate-mechanics.md:776-782 ('They read no corpus; keeping them out of tests (corpus-blocking) keeps that job inside its timeout')"
+      - code: ".github/workflows/ci-router.yml:1000-1010 (tool job: uv sync --frozen --no-install-project, -n 4 --dist loadfile, 15-minute timeout)"
+    claim: >
+      AC-DRIFT row 19 iterates the real corpus inside test_mission_status_drift.py, and AC-CROSS 4's real-directory and
+      whole-build bounds have no stated module. If they land in the new modules they run in the tool job, contradicting the
+      documented split and adding corpus time to a job whose budget the plan never measures; if they land in the reality
+      module the table is wrong about its modules. Row 19 also has no discovered-count guard (a Mission count that falls to
+      zero would pass vacuously), although the plan's own Section G rule demands one for every corpus-level assertion.
+    remediation: >
+      Name the module for every corpus-level row. Preferred: move row 19 and the AC-CROSS 4 corpus-sized cases into
+      test_mission_status_reality.py (corpus job, serial, floors available) and keep only fixture-built cases in the three
+      new modules. Alternative (fork): keep row 19 in the drift module, add an examined-count guard (at least the D-P13
+      Missions floor) and update the gate-mechanics paragraph, which is then a docs edit outside SLICE_ALLOWED and must be
+      added to the scope data. Either way add the guard to row 19.
+    fork: true
+  - id: PLAN-VERIFY-005
+    lens: Wrap-up order
+    severity: 2
+    title: Departs 11 discloses one reordering of the wrap-up procedure but the plan moves three steps
+    evidence:
+      - artifact: "plan.md Departs from the spec, item 11; Wrap-up checklist W-1 (accept, consolidate, issue verdict) then W-3 (dev-assist) then W-4 (squad)"
+      - code: "packs/built-in/procedures/mission-wrap-up-sequence.procedure.yaml steps: accept, retire dev-assist tests, resolve issue verdicts, aggregate review, consolidate, compact, rebase, draft PR"
+      - code: ".kittify/charter/charter.md:467 (the standing sequence)"
+    claim: >
+      The procedure orders accept, dev-assist, verdicts, squad, consolidate. The plan runs accept, consolidate, verdict,
+      J-1 confirmation, dev-assist, squad. Departs 11 mentions only squad versus consolidation. Moving dev-assist after
+      consolidation and the verdict ahead of the squad are undisclosed departures; the squad then reads a tree on which
+      tests may still be retired or renamed in W-3 only if W-3 precedes W-4 (it does), but the issue verdict is recorded
+      before the squad has judged whether #5776 is actually fixed.
+    remediation: >
+      Two valid remedies (fork). Option A: list all three moves in Departs 11 with a reason each (one tree for the squad
+      for consolidation; verdict early because accept needs it). Option B: restore the procedure order for dev-assist and
+      verdict and keep only the consolidate-before-squad departure. Under either, set the terminal #5776 verdict after W-4's
+      LAND, or say why it can precede it.
+    fork: true
+  - id: PLAN-VERIFY-006
+    lens: Test strategy
+    severity: 2
+    title: The 0.1 s redaction bound and the 30 s/5 s listing bounds are absolute wall-clock asserts in a blocking -n 4 job with no stated stabilising method
+    evidence:
+      - artifact: "plan.md P-7, IC-08 acceptance, Test strategy AC-OPS row 14 and AC-CROSS 4"
+      - artifact: "research.md R-11 (precedent test_leak_patterns uses a 0.5 s bound, unmarked)"
+      - code: ".github/workflows/ci-router.yml:1006-1010 (-n 4 --dist loadfile over the whole tests/contract directory)"
+      - code: "pytest.ini:32-36 (default per-test timeout of 240 s, a backstop not a budget)"
+    claim: >
+      NFR-008's 0.1 s is a spec ruling and is not re-opened, but the plan's mitigation is 'measure first, record the margin,
+      never rerun to green'. That fixes diagnosis, not determinism: the three shapes run beside the heaviest tests in the
+      directory on shared runners. The research precedent used 5 times the bound. A flaky required job costs every later PR.
+    remediation: >
+      Keep the 0.1 s bound but specify the method in the plan: each shape is timed as the minimum of at least 5 repeated
+      runs inside the test (min is robust to contention, still falsified by a quadratic matcher because the long shape
+      stays far over), with the short-value control timed the same way; and record the measured minimum and the margin in
+      the hand-off. Alternatives (fork): time CPU rather than wall clock, or gate on scaling ratio in addition to the bound.
+      The planted quadratic mutation must still fail under the chosen method.
+    fork: true
+  - id: PLAN-VERIFY-007
+    lens: Baseline honesty
+    severity: 2
+    title: The quickstart's gate commands hard-code the stale hand-built environment that the plan says cannot be trusted
+    evidence:
+      - artifact: "quickstart.md § Architectural files that read tests/ and § Named gate files (commands use .venv/bin/python -m pytest)"
+      - artifact: "plan.md § Baseline (f) item 2 and risk P-2 ('never uv run in the hand-built .venv'; a synced scratch environment is required)"
+    claim: >
+      The plan makes the synced scratch environment the only valid base for the baseline and for the two registration
+      gates, but every runnable gate command in the quickstart names the stale environment. An implementer following the
+      commands literally reproduces the 17 collection errors and the 4 failures, and will classify them as stale-venv
+      baseline red after the baseline claim has already been closed, which hides a real registration miss behind the
+      known-red pattern.
+    remediation: >
+      Replace the interpreter in the quickstart gate blocks with a placeholder for the synced environment's interpreter, set
+      once in the Environment section, and add a line to IC-01 acceptance: the 17 errors and 4 failures are gone after the
+      sync; any survivor is reported as an issue before work proceeds (as the charter rule already says).
+  - id: PLAN-VERIFY-008
+    lens: Registration
+    severity: 1
+    title: The registry gate detects the corpus mark by a single-line regex, which the plan does not state
+    evidence:
+      - artifact: "plan.md D-P5 ('every new module declares a module-level pytestmark')"
+      - code: "tests/architectural/test_ci_corpus_trigger_completeness.py:236-262 (_CORPUS_MARK_APPLICATION_RE requires pytestmark = ... pytest.mark.corpus on one line starting a line)"
+      - code: "tests/contract/test_mission_status_detail.py:39 (precedent: a single-line list)"
+    claim: >
+      The registry gate only sees a module whose pytestmark assignment holds pytest.mark.corpus on the same line. A mark
+      spelled through a shared list, or wrapped across lines, escapes the registry (but not the home gate, which collects
+      for real), so the registration row would be reported as 'in the registry, no longer marked'. Mechanism verified; the
+      plan's wording is merely incomplete. All other registration claims check out: the packs.yml deselect is one physical
+      line (:285), the registry holds one row per module, the nine contracts.yml jobs match the plan's list, and the home
+      gate requires exactly one home per module.
+    remediation: >
+      Add to D-P5 and the quickstart: write pytestmark as a single-line list in the form of the detail module; the registry
+      row and the deselect entry go in the commit that creates the module, in sorted position.
+  - id: PLAN-VERIFY-009
+    lens: Gates
+    severity: 1
+    title: Coverage floors are not mentioned in the gate table
+    evidence:
+      - artifact: "plan.md § The gate set (e) (rows for diff-cover, module shards, SonarCloud)"
+      - code: ".github/workflows/ci-aggregate.yml:424 (the only fail-under in the workflows, diff-cover at 90)"
+    claim: >
+      No kernel or mission-loader coverage floor exists in the workflows of this checkout (searched fail-under, cov-fail and
+      floor in the workflow files and the module registry); the plan covers diff-cover and says module shards are not
+      selected, which is correct, but it does not say 'none found' the way it does for patch() targets, Bandit and pip-audit.
+      A reader checking the gate list against the common set cannot tell the omission is deliberate.
+    remediation: >
+      Add one row: coverage floors, none found in the workflows or the module registry; the module shards are not selected
+      by a diff without src files.

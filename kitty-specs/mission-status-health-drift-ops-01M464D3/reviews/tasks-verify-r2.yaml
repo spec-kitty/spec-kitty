@@ -1,0 +1,28 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-VERIFY-003
+    status: resolved
+    reason: WP03, WP07 and WP08 Files lines now put ci-router.yml in the red-first commit only if the stub or test module imports src, T017, T040 and T046 are reduced to confirming the derivation test is green, Registration item 4 and D-P8 say the commit that first imports the file, and the tasks.md chokepoint (3) matches.
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: tasks.md Step 0 item 2 defines <synced-python> once (scratch venv, recorded in the Step 0 record) with a specify_cli.__file__ import check and a PYTHONPATH fallback, and all three battery legs in WP03, WP07 and WP08 use it with the same pre-leg check, the legs' ci-router.yml flags and job names matching the checkout.
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: Step 0 and Step PD now separate the planning/working branch from the mission-lane branch kitty/mission-<slug> (spelled out, matching lanes.json), and step 3 states the first-dispatch timing (steps 3 and 4 run after spec-kitty implement creates the workspace, before the worker starts, merge a no-op there) with the WP prompt pointers repeating it.
+  - id: TASKS-FRESH-003
+    status: resolved
+    reason: The Reviewer Guidance of WP03, WP07 and WP08 now carries the battery-legs exception (other WPs correctly keep the sentence) and quickstart.md line 3 carries the matching exception, so no prompt that requires a leg still says never a full sweep.
+  - id: TASKS-FRESH-004
+    status: resolved
+    reason: WP04 D-P8 and tasks.md chokepoint (3) now say the commit that first imports the src file, with no remaining same-commit-as-the-helper wording in any tasks/WP*.md or tasks.md (only the frozen plan.md copy, which the WP prompts supersede by pointing to Registration item 4).
+  - id: TASKS-FRESH-005
+    status: resolved
+    reason: Judged against orchestrator note 15, Step 0 item 3 and the WP03, WP07 and WP08 Binning paragraphs now compare against the local Step 0 run of the same legs with no CI collect_universe_prestep, record main-CI durations as informational with no pass rule, and the CI commands match ci-router.yml lines 695-704 and 861-867.
+  - id: TASKS-FRESH-006
+    status: resolved
+    reason: tasks.md W-5 and W-7 now define the hygiene scan as the WP10 script with the exact reviews/ and status-log exemption removed (the quoted skip condition matches WP10 line 87, FLOOR and the files>=FLOOR guard exist) with a person reading hits, and WP10 prose points to it.
+  - id: TASKS-FRESH-007
+    status: resolved
+    reason: The WP07, WP08 and WP09 pre-dispatch pointers now list the records each reads (WP06 hand-off line for WP07, WP07 hand-off for WP08, WP03/WP07/WP08 hand-offs for WP09) matching Step PD item 4.

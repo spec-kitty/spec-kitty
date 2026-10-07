@@ -1,0 +1,31 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH2-002
+    status: resolved
+    reason: "FR-007/NFR-009/AC-PROJECT now bound the Project build with the resolver included (44.4 s, 784 subprocesses, command in the tracer) and the raising-stub test exempts and counts the memo helper's resolver call."
+  - id: SPEC-FRESH2-003
+    status: resolved
+    reason: "NFR-001/NFR-002 now count the resolver apart (784 plus one listing, 785), memoise it, restate the gain on measured 40.3-52.0 s figures and name the exact recorded command; the 180 s figure survives only as a dropped-figure remark."
+  - id: SPEC-FRESH3-001
+    status: resolved
+    reason: "Round-5 option A is implemented: FR-015 Network behaviour states local head, refs/remotes, ls-remote with 5 s timeout and hit-or-error means present (all verified in surface_resolver.py and remote_probes.py), the offline row exists in FR-024, AC-DRIFT and FR-026, and the old wording is reworded or only quoted in ruling history."
+  - id: SPEC-FRESH3-002
+    status: resolved
+    reason: "The derivation is now declared an agreement check on this corpus, with the resolver's unmirrored arms (reopen-aware merge, stored topology, remote-tracking and remote existence) each pinned by a FR-026 fixture with control, which meets the finding's remediation."
+  - id: SPEC-FRESH3-003
+    status: resolved
+    reason: "FR-015 Memo now routes a new Project builder through the memo helper while v1's resolve_read_dir, load_source and v1 test are left untouched as a separate control pass, and FR-007's stub and NFR-001 state the same."
+  - id: SPEC-FRESH3-004
+    status: resolved
+    reason: "The memo is keyed by (resolved repository root, Mission directory name), one memo per run or fixture build, with a two-repository test in FR-015 and an AC-CROSS row."
+  - id: SPEC-FRESH3-005
+    status: resolved
+    reason: "NFR-002 now says at most one, exactly one when any Mission has an expected lane and none otherwise, and the AC-CROSS row 'one listing per scan' gives both fixtures."
+  - id: SPEC-FRESH3-006
+    status: resolved
+    reason: "FR-015/FR-008 state the lookup uses the v1 identity read (load_meta on_malformed raise plus resolve_mission_identity, as in load_source), an unreadable meta.json matches no ULID and fails no other report, with the plant and control in AC-DRIFT."
+  - id: SPEC-FRESH3-007
+    status: resolved
+    reason: "FR-013 Gate B now cites write_derived_views in src/specify_cli/status/views.py (defined at line 71) and the materialize command module as its caller (imports and calls it)."

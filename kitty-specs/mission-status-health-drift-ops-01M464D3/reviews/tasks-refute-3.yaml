@@ -1,0 +1,20 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 3
+verdicts:
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: The conditional paragraph in WP03/WP07/WP08 says to run "the three legs" yet no mission artifact defines them (grep finds only the three paragraphs), so the dangling reference is real; FORK A/B stands.
+  - id: TASKS-VERIFY-003
+    verdict: confirmed
+    reason: T011/T034/T041 list ci-router.yml in the red-first commit while T017/T040/T046 repeat it as the closing subtask against "same commit as the helper", leaving the commit of the globs ambiguous.
+  - id: TASKS-VERIFY-004
+    verdict: confirmed
+    reason: WP10 line 71 repeats the prose sentence inside the text fence ahead of the python command, and the scan prints files/problems with no files-greater-than-zero guard while skipping reviews/ and the event log unexplained.
+  - id: TASKS-VERIFY-005
+    verdict: confirmed
+    reason: WP07 row AC-CROSS 4 names the 30 s synthetic 10,000-file case for "drift and ops modules" with D-P16 not carried in WP07 and no timed subtask, whereas plan D-P16 places it in the Ops module.
+  - id: TASKS-VERIFY-006
+    verdict: confirmed
+    reason: WP08/WP09 Definitions of Done only require recording measured minimum and margin; none of T045/T051/T052 or the DoD says what to do on a margin under 2, and WP09 lacks the measure-first step.

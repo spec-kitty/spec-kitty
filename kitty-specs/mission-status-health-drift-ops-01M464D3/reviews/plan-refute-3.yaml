@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 3
+verdicts:
+  - id: PLAN-VERIFY-003
+    verdict: confirmed
+    reason: Plan makes IC-01 own the synced-environment baseline yet runs IC-02 concurrently with an acceptance (architectural-fast green, ruff) that needs that environment and a measured base; real defect, fork between an orchestrator pre-step and serialising IC-02 after IC-01's baseline note.
+  - id: PLAN-VERIFY-004
+    verdict: confirmed
+    reason: Plan row 19 iterates the real corpus inside the drift module which D-P5 places in the tool job that ci-gate-mechanics.md says reads no corpus, and states no discovered-count guard for it or for AC-CROSS 4's real-directory bound; fork between moving to the reality module or keeping it with a guard plus a docs edit.
+  - id: PLAN-VERIFY-005
+    verdict: confirmed
+    reason: The procedure orders accept, retire dev-assist, verdicts, aggregate review, consolidate, while plan W-1/W-3/W-4 moves consolidation, verdict and dev-assist and Departs 11 discloses only the consolidation move; fork between disclosing all moves and restoring procedure order.
+  - id: PLAN-VERIFY-006
+    verdict: confirmed
+    reason: NFR-008 bound stays, but the plan specifies no stabilising timing method for absolute wall-clock asserts (0.1 s, 5 s, 30 s) in a blocking -n 4 job, so flakiness risk is real and unaddressed; fork on method (min of repeats, CPU time, scaling ratio).
+  - id: PLAN-VERIFY-007
+    verdict: refuted
+    reason: quickstart.md Environment section already instructs running the commands below with the synced scratch interpreter and binning survivors, and the plan's baseline rule requires the 17 errors gone, so the stale interpreter in the blocks is explicitly superseded rather than silently trusted.
+  - id: PLAN-VERIFY-008
+    verdict: confirmed
+    reason: _CORPUS_MARK_APPLICATION_RE in test_ci_corpus_trigger_completeness.py requires pytestmark = ... pytest.mark.corpus on a single line, and D-P5 only says each module declares a module-level pytestmark without stating that form.
+  - id: PLAN-VERIFY-009
+    verdict: confirmed
+    reason: The only fail-under in the workflows is diff-cover at 90 (ci-aggregate.yml:424) and the plan's gate table has no coverage-floor row saying none were found, unlike its patch() and Bandit rows; minor omission.

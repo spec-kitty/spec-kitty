@@ -1,0 +1,56 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: FR-014 tells clients to run spec-kitty materialize, which writes only derived views, while the doctor recommends spec-kitty agent status materialize.
+  - id: SPEC-GOV-002
+    verdict: refuted
+    reason: OR-2 itself says a kind lacking a rule and a reality-check example is not shipped, and FR-013 drops it on the missing example, so the spec follows the ruling.
+  - id: SPEC-GOV-003
+    verdict: confirmed
+    reason: FR-019 deliberately copies the CLI reader's legacy-completion skip even when the spine holds a closure, which OR-5 says the contract must not copy.
+  - id: SPEC-GOV-004
+    verdict: refuted
+    reason: FR-007 already defines cheap as reading only what GET /missions reads, which is the finding's own second remediation.
+  - id: SPEC-GOV-005
+    verdict: refuted
+    reason: FR-018 already states the index only supplies candidates and the finding concedes the implementation would still come out right.
+  - id: SPEC-GOV-006
+    verdict: confirmed
+    reason: The glossary has an op entry in planning-and-tracking.yaml, so the Terminology claim of no entry is false.
+  - id: SPEC-GOV-007
+    verdict: confirmed
+    reason: read_lanes_json raises CorruptLanesError on the legacy manifest (a ledger entry), contradicting the spec's no-finding rule and its listing of read_lanes_json as the reader.
+  - id: SPEC-GOV-008
+    verdict: confirmed
+    reason: The spec treats the reducer as authority and cites neither a ledger entry nor a ledger entry, which the ledger records as reducer or snapshot defects.
+  - id: SPEC-GOV-009
+    verdict: confirmed
+    reason: Slice file set item 5 is deferred to the plan, and the existing test pinning Project to two keys is not named beside FR-029.
+  - id: SPEC-GOV-010
+    verdict: refuted
+    reason: The finding concedes the independence trade-off is defensible and the tracer applies oracle independence (D-P14), so no defect is evidenced.
+  - id: SPEC-GOV-011
+    verdict: refuted
+    reason: The finding concedes nothing breaks, and sequencing a campsite pass is a plan concern not a spec defect.
+  - id: SPEC-GOV-012
+    verdict: refuted
+    reason: The finding concedes the spec need not filter manufactured records, so only an optional wording nicety remains.
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: The allocator creates the coordination branch and calls _ensure_mission_branch only in the non-coordination arm, so FR-012 step 3 expects a branch that coordination Missions never get.
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: AD-1 keeps severity info that no kind emits while the no-dead-enum-value row names DriftSeverity, so that row cannot be satisfied honestly.
+  - id: SPEC-ARCH-003
+    verdict: refuted
+    reason: The claim is speculative about a future fourth kind and the oasdiff level is unverified, and AD-6 already ties the enum sets to the shipped kinds.
+  - id: SPEC-ARCH-004
+    verdict: confirmed
+    reason: The field catalogue gives code inputs as bare symbols that citation_check resolves only as contract-field paths, yielding UNRESOLVED_INPUT.
+  - id: SPEC-ARCH-005
+    verdict: confirmed
+    reason: aef7cc967 is not an ancestor of origin/main and differs from the contract tree by 64 files, so using it as a baseline gives a wrong proof.

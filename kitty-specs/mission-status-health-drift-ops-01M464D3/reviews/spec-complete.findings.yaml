@@ -1,0 +1,335 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: complete
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+  - id: SPEC-COMPLETE-001
+    lens: Silent success
+    severity: 4
+    title: "branch_exists is a per-branch git subprocess that returns False on any git failure; the spec says one refs/heads listing and never defines git being unusable"
+    evidence:
+      - artifact: "spec.md § FR-012 (inputs list branch_exists), § FR-015 ('one listing of refs/heads'), § FR-025 (reader built from branch_exists), § NFR-002 (counting-opener)"
+      - code: "src/specify_cli/lanes/_git.py:30-55 (_verify runs git rev-parse --verify per ref; returncode != 0 is False, including no git binary, not a repository, a git error)"
+    claim: >-
+      Two contradictions and one silent-success hole. (1) FR-015/NFR-002 describe one read-only listing of refs/heads
+      checked by a counting opener, but the named public reader branch_exists starts one subprocess per branch (one per expected
+      lane plus the Mission branch, per Mission). FR-007's no-subprocess rule is scoped to /project only, so nothing
+      says which is intended. (2) branch_exists cannot tell "branch absent" from "git failed": in a directory that is not a
+      repository, with git missing, or with a broken repository, every expected branch reads as absent, so the scan
+      returns a full set of lane_branch_missing findings as a 200. That is "could not read" served as a finding, which FR-024 forbids.
+      (3) Neither the FR-015 500 list nor the FR-024 catalogue names a refs/heads or git failure.
+    remediation: >-
+      Specify the branch source once. Either read refs/heads (loose refs plus packed-refs) with no subprocess and add an
+      opener-count assertion that matches, or keep branch_exists and drop the 'one listing' and counting-opener wording for
+      the git part. In both cases add to FR-015 and FR-024 that a non-repository, an unusable git or an unreadable refs
+      store is 500 drift_scan_unreadable when any Mission has an expected lane (not a finding), with a planted fixture
+      (directory without .git, plus a control with the branch present) and a project-wide check that git failure never yields kind 3.
+
+  - id: SPEC-COMPLETE-002
+    lens: Silent success
+    severity: 3
+    title: "A corrupt or non-object meta.json makes is_mission_completed raise, but FR-015's refusal list does not name it"
+    evidence:
+      - artifact: "spec.md § FR-012 (is_mission_completed input), § FR-015 / AD-10 (500 conditions), § FR-024 table"
+      - code: "src/specify_cli/status/lifecycle.py:219-233 and 344 (is_mission_completed -> _last_merge_marker_at -> load_meta_fail_closed)"
+      - code: "src/specify_cli/core/paths.py:606-656 (raises MissionMetaReadError when meta.json exists but is corrupt, non-object or unreadable)"
+    claim: >-
+      The scan opens meta.json (FR-015) and calls is_mission_completed for every Mission with a current lanes.json. A corrupt
+      meta.json raises MissionMetaReadError. FR-015 lists as 500 only an unreadable directory or status path, an event log that
+      cannot be reduced and a non-JSON lanes.json. The outcome for meta.json is undefined: an implementation may crash, skip
+      the Mission, or treat it as not completed and flag it. The last two are silent success.
+    remediation: >-
+      Add a corrupt or unreadable meta.json to the AD-10 / FR-015 500 conditions and to the FR-024 table, with a planted fixture
+      (meta.json = [] or invalid JSON, same Mission before corruption as control).
+
+  - id: SPEC-COMPLETE-003
+    lens: Silent success
+    severity: 3
+    title: "read_lanes_json raises on the legacy-shaped manifest and the spec leaves a JSON-valid manifest of any other shape undefined"
+    evidence:
+      - artifact: "spec.md § FR-012 (legacy-shaped: no finding; lanes.json 'not JSON' fails the scan), § FR-025 (read_lanes_json listed as a public reader), § AD-10"
+      - code: "src/specify_cli/lanes/models.py:189-191 (from_dict reads data['mission_slug'] unguarded)"
+      - code: "src/specify_cli/lanes/persistence.py:154-161 (KeyError and TypeError become CorruptLanesError)"
+      - code: "kitty-specs/064-complete-mission-identity-cutover/lanes.json (the 1 legacy-shaped manifest: key feature_slug, no mission_slug)"
+    claim: >-
+      The reference reader is to be built from read_lanes_json, but on the one real legacy manifest that function raises
+      CorruptLanesError, the same exception as for non-JSON. The spec requires two different outcomes (no finding vs 500), so
+      the reader must read the raw JSON itself, which the spec does not say, and the oracle for kind 3 reads the manifest JSON
+      directly, so a reader that wrongly maps the exception would be caught only on this one Mission. A third class, valid JSON
+      that has neither mission_slug nor feature_slug (or lacks lanes or mission_branch), has no defined outcome.
+    remediation: >-
+      State the three-way classification in FR-012/FR-015: current shape (has mission_slug and the fields the rule reads),
+      legacy shape (feature_slug and no mission_slug: no finding, counted), anything else that parses (500
+      drift_scan_unreadable). Say how the reader detects it (raw json.loads first). Add the third class as a planted
+      fixture beside the existing non-JSON and legacy ones.
+
+  - id: SPEC-COMPLETE-004
+    lens: Leak and redaction
+    severity: 4
+    title: "OQ-5 is not actually open for URL, path and embedded forms: steps 1, 2 and 4 silently redact a credential, and the order against the credential check is unstated"
+    evidence:
+      - artifact: "spec.md § FR-020 steps 1-5 and the sentence 'A value holding a credential (the SECRET_PATTERNS kinds) is OQ-5', § OQ-5, § AC-OPS 'credential in evidence'"
+      - code: "contracts/tools/leak_patterns.py (SECRET_PATTERNS: gh[pousr]_, github_pat_, AKIA/ASIA, PEM header)"
+      - code: "tests/contract/_mission_status_payloads.py:468-483 (the v1 human() projector redacts paths and e-mails, then raises ProjectionError if a leak, including a secret, remains)"
+    claim: >-
+      FR-020 never says whether the credential test runs on the stored value (before the steps) or on the redacted result. If
+      after, a token in a URL query or userinfo (step 1 strips both), in a leading absolute path (step 2 replaces the whole
+      value with [path]) or inside an embedded path run (step 4) is removed silently and the reader never fails: the case OQ-5
+      says is undecided is decided by omission, with redacted=true and no loud failure. If before, step 1's removal of query and
+      userinfo is dead for credentials. Only a token in plain free text or a bare repo_path reaches the OQ-5 behaviour. The AC
+      row 'a value holding a token' has no shape, so a plant in plain text passes while the URL and path shapes stay unexamined.
+    remediation: >-
+      Add to FR-020 an explicit precedence: the credential check runs on the stored string before steps 1-5 (OQ-5 governs
+      every shape), or record in OQ-5 as an extra option (d) that a credential inside a URL or path is removed silently like the rest.
+      That choice belongs to the operator, so mark it FORK: (a) check before redaction, OQ-5 governs all shapes / (b) check after,
+      add the silent-removal behaviour to OQ-5 explicitly. Extend the AC row with one plant per shape (token in query, in userinfo,
+      in an absolute path, in free text, in a bare relative path) each with its clean control.
+
+  - id: SPEC-COMPLETE-005
+    lens: Leak and redaction
+    severity: 3
+    title: "'No credential' claims (NFR-004, SC-005, FR-020) are bounded by four SECRET_PATTERNS kinds and say so nowhere"
+    evidence:
+      - artifact: "spec.md § NFR-004, § SC-005, § FR-020 title ('free of host paths, addresses and credentials'), § FR-027"
+      - code: "contracts/tools/leak_patterns.py (SECRET_PATTERNS has four patterns: GitHub classic and fine-grained tokens, AWS access key id, PEM private-key header)"
+    claim: >-
+      A bearer token, a password in text, a JWT, an Slack or API key of another vendor, or a token in a query string is not
+      a 'credential' under those patterns. SC-005 and NFR-004 read as an absolute guarantee, and the green leak scan proves only
+      the four kinds. Real evidence_ref values are free text written by agents (56 of the 467 closed Ops here), the class most likely to hold one.
+    remediation: >-
+      Reword NFR-004, SC-005 and FR-020 to 'no value matching the SECRET_PATTERNS kinds' and state in the OpsInvocation.evidence description that other secret shapes are not detected,
+      or extend SECRET_PATTERNS in this slice (leak_patterns.py is in the slice file set only through the scanner; if extending, list it in the slice file set and add a plant per new kind).
+
+  - id: SPEC-COMPLETE-006
+    lens: Leak and redaction
+    severity: 3
+    title: "file:// and other scheme URLs, UNC paths and URLs embedded in text keep host paths, userinfo and query strings"
+    evidence:
+      - artifact: "spec.md § FR-020 steps 1-4, § AC-OPS 'evidence classes' (plants a file URL)"
+      - code: "contracts/tools/leak_patterns.py (HUMAN_HOST_PATH_PATTERNS cover only /home, /Users, /root, /tmp, /var/tmp, /var/folders and a drive-letter Users path)"
+      - code: "src/specify_cli/invocation/writer.py:34 (_URL_SCHEME_RE) and 87-103 (normalise_ref returns a scheme URL verbatim)"
+    claim: >-
+      Step 1 treats any leading scheme as a url and then runs step 4, whose path patterns know three roots. A value
+      such as file:///srv/build/<user>/x or file:///mnt/data/x keeps its host path (kind url, only userinfo, query and fragment removed),
+      while the same path without the scheme is replaced by [path] in step 2. A UNC path (backslash prefix) is not matched by
+      step 2 and fails rule 3 (backslash), so it lands in text unredacted. A URL embedded in free text (kind text) is not
+      parsed at all: userinfo and query are kept. The corpus has this shape (one free-text evidence value embeds a
+      GitHub issue URL), only without a query. The planted 'file URL' in the AC row is a home path, the one root the patterns know.
+    remediation: >-
+      FR-020: a file-scheme URL is a host path (kind text, [path]); a value starting with two backslashes or any drive form is
+      step 2; in step 4, embedded URLs get the same userinfo/query/fragment removal as step 1. Add plants file:///opt/x,
+      a UNC path and a text value with https://u:p@host/x?token=abc, each with a clean-URL control.
+
+  - id: SPEC-COMPLETE-007
+    lens: Leak and redaction
+    severity: 3
+    title: "Step order between repo_path (kept unchanged) and the e-mail and path redaction of step 4 is ambiguous"
+    evidence:
+      - artifact: "spec.md § FR-020 step 3 ('repo_path, unchanged') vs step 4 ('Every value then passes the human-text host-path redaction ... and redact_emails')"
+      - code: "tests/contract/_mission_status_payloads.py:610-662 (payload_leaks scans every string for e-mail and, outside strict keys, the human patterns)"
+    claim: >-
+      A relative single-token value that passes the artifact-path rule can still be an address or hold one (docs/a@b.com, notes/x@host).
+      If step 3 returns it unchanged, the value is kind repo_path with an address in it and the leak scan on the payload goes red
+      on legitimate data (or the reader raises). If step 4 applies to it, the kind and redacted flag after redaction are undefined
+      (is it still repo_path, redacted=true?). The same ambiguity covers an absolute value containing whitespace (step 2 'the path replaced': the whole value or the run?).
+    remediation: >-
+      Rewrite FR-020 as an ordered pipeline with one defined output per step: classify, then redact every value, then re-check
+      the kind (a repo_path that changed becomes text, redacted=true); say whether step 2 replaces the whole value or the matching run.
+      Add plants: docs/a@b.com, and <host-home>/x/a b.txt, with a clean relative path as control.
+
+  - id: SPEC-COMPLETE-008
+    lens: Reality check
+    severity: 3
+    title: "Corpus evidence statistics are inconsistent: the '1 URL' does not exist as a url-kind value, so rule 1 and the url floor have no real example"
+    evidence:
+      - artifact: "spec.md § FR-020 last paragraph ('467 closed Ops, 351 none, 32 absolute, 56 free text, 28 relative ... 1 evidence is a URL'), § FR-025 floors (evidence of each kind)"
+      - code: "kitty-ops/*.jsonl (measured: 351 + 56 + 32 + 28 = 467, zero values begin with a URL scheme; the only URL is embedded inside one free-text value; all 16 values over 512 characters are free text)"
+    claim: >-
+      The categories already sum to 467 without the URL, so '1 URL' double-counts, and the one URL is inside free text and classified
+      text by the spec's own rules. There is no real url-kind value in the corpus, no real over-512 repo_path or absolute path, and no real
+      redacted e-mail. A floor 'evidence of each kind and redacted' cannot be met for url from real data, and the
+      reality check would exercise step 1 only through fixtures.
+    remediation: >-
+      Correct the count (0 url-kind, 1 free text embedding a URL). In FR-025 state per kind which floors come from the corpus and
+      which are fixture-only (url: fixture), and set the corpus floor for url to 0 explicitly rather than 1.
+
+  - id: SPEC-COMPLETE-009
+    lens: Coverage
+    severity: 3
+    title: "NFR-005, NFR-007, C-006, C-003, C-007 and FR-026 have no acceptance row; NFR-002's numeric bounds are cited but not asserted"
+    evidence:
+      - artifact: "spec.md § Acceptance Criteria group headers (AC-PROJECT: FR-001..007, FR-024; AC-DRIFT: FR-008..015, FR-024; AC-OPS: FR-016..021, FR-024; AC-VERSION: FR-022,023,027..029, NFR-004, NFR-006; AC-REALITY: FR-025, NFR-001, NFR-002)"
+      - artifact: "spec.md § Non-Functional Requirements (NFR-003, NFR-005, NFR-007), § Constraints (C-003, C-006, C-007), § FR-026"
+    claim: >-
+      By id count each of NFR-005 (byte-identical repeated reads and cursors), NFR-007 / C-006 (no file under src/ changes), C-003 (only the
+      slice file set changes), C-007 (no new dependency) and FR-026 appears only in its own table row; no AC cites it. NFR-003 has rows but is not
+      cited. NFR-002's 5 s / 30 s / 10,000-file bounds and its counting-opener assertion have no row in AC-REALITY or AC-DRIFT. The C-003/C-006 class
+      is also the check a no-op cannot fail by accident but a scope-creeping change can pass.
+    remediation: >-
+      Add AC rows: determinism (two reads, byte-equal Project, findings, pages, cursors, two bundle builds; control: a clock tick changes scannedAt only),
+      scope (git diff --name-only against main limited to the slice file set, with a planted extra file; a src/ path fails), dependency
+      (no change in pyproject.toml and lock; planted addition), NFR-002 timing with the 10,000-file fixture and the counting opener, and cite FR-026 and the NFRs in the group headers.
+
+  - id: SPEC-COMPLETE-010
+    lens: Coverage
+    severity: 2
+    title: "SC-001 cites '16 shape rows of AC-PROJECT'; AC-PROJECT has 7 rows"
+    evidence:
+      - artifact: "spec.md § SC-001 vs § AC-PROJECT (7 rows) and § FR-002 (6 rows)"
+    claim: "The success criterion's measurable count does not match the table it measures; a reviewer cannot tell which 16 rows are meant."
+    remediation: "Replace 16 by the real count or, better, say 'every row of AC-PROJECT'."
+
+  - id: SPEC-COMPLETE-011
+    lens: Testability and falsifiability
+    severity: 3
+    title: "SC-009 and SC-010 are marked 'no-op passable: no' but name no observable a check can fail"
+    evidence:
+      - artifact: "spec.md § SC-009 (J-1 'recorded in tracer-design-decisions.md'), § FR-028, § SC-010 (OQ answered, or plan carries minimal behaviour)"
+    claim: >-
+      SC-009 is satisfied by writing a line in a Markdown file; nothing ties the record to the contract tree it ran against or to the job
+      conclusions. SC-010 is a process step with no artifact test. Under the tactic acceptance-criteria-non-vacuity a criterion whose
+      check is writing a sentence is no-op passable, so the 'no' is not honest.
+    remediation: >-
+      SC-009: require the record to cite the commit of the final contracts/ change, one line per job with its conclusion, and make a test
+      (or the squad gate) fail when contracts/mission-status/ changed after the cited commit. SC-010: relabel [folded] with the satisfying item (the plan's
+      OQ table), or add a check that each OQ has a ruling or a provisional marker in the plan; mark no-op passable 'yes, reviewed by squad' if no automated check exists.
+
+  - id: SPEC-COMPLETE-012
+    lens: Testability and falsifiability
+    severity: 3
+    title: "The kind 3 oracle named in FR-025 cannot decide completion or expected lanes, and the kind 3 floor contradicts 'never a pinned value'"
+    evidence:
+      - artifact: "spec.md § FR-025 (oracle for kind 3: 'git for-each-ref refs/heads plus the manifest JSON read directly'; floors include 'findings of each shipped kind'), § FR-025 last paragraph ('Environment-dependent values (currentBranch, kind 3) ... never a pinned value'), § A-3, § FR-012 ('honest when an independent oracle also flags')"
+      - code: "src/specify_cli/status/lifecycle.py:320-347 and 267-283 (completion depends on merged_at, WP terminality and reopen events)"
+    claim: >-
+      Whether a Mission is non-completed and which lanes are expected depends on is_mission_completed and the reducer, neither of which the named oracle inputs
+      provide. Either the oracle imports those same readers (a shared defect passes both) or it re-derives them with no stated method, so
+      'honest' cannot be checked as specified. Separately a plan-time floor on kind-3 findings is a pinned value that
+      fails on a clone with the Mission branches present (the count is 0..93 depending on local branches), contradicting the environment rule.
+    remediation: >-
+      Name the oracle for completion and expected lanes (for example a direct parse of meta.json merged_at and of the event-log lane of each WP, written without
+      the product readers), or state that the oracle shares is_mission_completed and materialize_snapshot and name the planted fixtures that cover them separately. For floors:
+      take the kind-3 floor from the synthetic fixtures only and assert corpus equality with the oracle, with no corpus floor on kind 3.
+
+  - id: SPEC-COMPLETE-013
+    lens: Silent success
+    severity: 3
+    title: "An Op file that cannot be opened is skipped silently while an unlistable directory is a 500; all-unreadable yields a 200 empty page"
+    evidence:
+      - artifact: "spec.md § FR-019 ('one unreadable file is a skipped record, not a failure'; Terminology: unreadable includes 'cannot be opened'), § FR-024 intro, § AC-OPS 'empty and failing directory'"
+    claim: >-
+      An I/O failure on every file of a listable directory (permissions, a mount fault) returns 200, items [], totalCount 0, indistinguishable from
+      an empty project; the skipped count is not in the response (OQ-6 open). FR-024's own rule says unreadable must not be an empty success.
+      FORK: (a) any OSError on a candidate file is 500 ops_unreadable, only shape and legacy failures are skipped / (b) keep per-file skip but 500 when
+      candidates exist and none could be read for I/O reasons / (c) keep the spec text and record it in FR-024 as a known silent case.
+    remediation: >-
+      Choose among (a)-(c) and write it into FR-019 and the FR-024 table; add a fixture with a directory of unreadable files beside a control with one readable Op.
+
+  - id: SPEC-COMPLETE-014
+    lens: Testability and falsifiability
+    severity: 3
+    title: "The actor-shape AC passes if the whole record is dropped, and the actor-null rule contradicts the unreadable-record rule"
+    evidence:
+      - artifact: "spec.md § FR-017 ('actor (ActorHandle, nullable: null on a shape failure)' vs 'a mission_id or wp_id failing its pattern makes the record unreadable'), § AC-OPS 'actor shape' (plant: e-mail-shaped actor; red when 'an address in the payload')"
+      - code: "contracts/mission-status/schemas/ActorHandle.yaml (pattern ^[A-Za-z0-9._:-]+$, 'projected to null rather than forwarded')"
+    claim: >-
+      The red condition 'an address in the payload' is also absent if the Op is skipped or the whole read fails, so a no-op that drops
+      such records passes. The assertion should be that the record is served with actor null and every other field intact. The null-versus-unreadable
+      split between actor and the other shape-checked fields is stated nowhere with a reason (profileId and action failing shape make the record unreadable).
+    remediation: >-
+      Rewrite the row: plant an Op with actor 'a@b.com', assert it is in items with actor null and status, startedAt unchanged; control 'claude' keeps its value.
+      Add one sentence to FR-017 giving the reason actor alone degrades.
+
+  - id: SPEC-COMPLETE-015
+    lens: Silent success
+    severity: 3
+    title: "FR-010 sends a reducer failure to a 500 although the product's own check reports it as an error finding; the divergence is not flagged and OQ-4 covers only non-JSON"
+    evidence:
+      - artifact: "spec.md § FR-010 ('compared exactly as classify_status_json does'; 'a reducer that raises ... is not a finding'), § AD-10, § OQ-4, § OR-4 rationale (screen must agree with spec-kitty doctor)"
+      - code: "src/specify_cli/audit/classifiers/status_json.py:60-70 (CORRUPT_JSON error findings) and 149-160 (reducer raising becomes a SNAPSHOT_DRIFT error finding)"
+    claim: >-
+      The audit the spec mirrors reports a Mission whose reducer raises as an SNAPSHOT_DRIFT error. The spec turns the same state into a whole-report 500, so Drift
+      would show nothing for any Mission while the doctor lists an error, the disagreement OR-4 was ruled to avoid. Only the non-JSON
+      sub-case is an OQ; the reducer sub-case is an author decision (AD-10) that the squad is not told differs from the audit.
+    remediation: >-
+      State the divergence in FR-010 and AD-10 with the audit line it differs from, and extend OQ-4 with the reducer-raises case (options: whole-report 500 /
+      a finding with the audit's code). Plant both in the FR-015 failure fixtures.
+
+  - id: SPEC-COMPLETE-016
+    lens: Leak and redaction
+    severity: 3
+    title: "FR-005 lists the only null cases for currentBranch, but a name that passes the pattern can still be a strict-class leak"
+    evidence:
+      - artifact: "spec.md § FR-005 ('Null only for: ... a name failing ^[A-Za-z0-9][A-Za-z0-9._/-]*$ or over 255'), § FR-027 (STRICT_FIELDS names currentBranch)"
+      - code: "contracts/tools/leak_patterns.py (STRICT_HOST_PATH_PATTERNS: (?:^|/)(home|Users)/<seg>/ is a host path in a strict field)"
+      - code: "tests/contract/_mission_status_payloads.py:447-459 (Projector.strict nulls a strict value that trips the strict leak patterns)"
+    claim: >-
+      home/alice/x satisfies the FR-005 pattern but is a strict host path, so the contract either serves it (and the payload leak scan goes red on a
+      legitimate repository) or the reader nulls it, which FR-005's exhaustive 'null only for' list forbids. A branch name is also user-authored and
+      can carry a handle (alice/topic); nothing says whether that exposure is accepted as for Workspace.laneBranch.
+    remediation: >-
+      Add 'a name matching the strict host-path patterns' to the null cases (or say the leak scan exempts it), plant branch home/alice/x with control topic/x,
+      and add one sentence in the Project.currentBranch description that the name is user-authored text served as stored.
+
+  - id: SPEC-COMPLETE-017
+    lens: Silent success
+    severity: 2
+    title: "health collapses 'metadata could not be read' into schema_drift, and the description is not required to say so"
+    evidence:
+      - artifact: "spec.md § FR-004 (healthy exactly when schemaVersion is not null and in range), § Acceptance Scenario US1.2 (absent metadata gives schema_drift), § FR-024 table"
+    claim: >-
+      A project with no metadata file, an unreadable file or a non-integer schema reads schema_drift, the same badge as a real out-of-range schema.
+      FR-004 records the rule but not that a consumer must read schemaVersion=null to tell 'unknown' from 'drift'; a screen using health alone shows a false drift.
+    remediation: "Require the ProjectHealth and Project.health descriptions to state that schema_drift also means 'schema could not be determined' and to point to schemaVersion null; add that sentence to the description-content test."
+
+  - id: SPEC-COMPLETE-018
+    lens: Coverage
+    severity: 2
+    title: "sourceCode is an open pattern but summary is one fixed sentence per (kind, sourceCode); the pair set is not closed"
+    evidence:
+      - artifact: "spec.md § FR-014 (sourceCode matches ^[A-Z][A-Z0-9_]*$; one fixed sentence per pair), § FR-009, § AC-DRIFT 'fixed summaries'"
+      - code: "src/specify_cli/audit/classifiers/status_json.py:94,121,139,154 (SNAPSHOT_DRIFT, _PROVENANCE, _TERMINAL; the classifier also has CORRUPT_JSON and legacy and unknown-key codes this scan does not use)"
+    claim: "The set of valid (kind, sourceCode) pairs is three pairs today but the schema admits any code, and the reader behaviour for a pair without a summary is undefined."
+    remediation: "Pin sourceCode to an enum (SNAPSHOT_DRIFT, SNAPSHOT_DRIFT_PROVENANCE, SNAPSHOT_DRIFT_TERMINAL, null) or state the closed pair table in FR-014, and make an unknown pair a reader failure with a planted case."
+
+  - id: SPEC-COMPLETE-019
+    lens: Baseline honesty
+    severity: 2
+    title: "The spec states no baseline of the gates it depends on"
+    evidence:
+      - artifact: "spec.md (no section names known-red tests or the state of main; NFR-001 budget given without a measured baseline of the corpus job)"
+      - code: "tests/contract/test_mission_status_contract_1_1.py (118 passed in about 128 s on this checkout, so the file FR-029 edits is green today)"
+    claim: >-
+      FR-029 and R-6 edit a test the previous slice owned and the corpus gates carry a 10-minute timeout, yet the spec does not say which of
+      those gates are green on main now or that none is known red. A later red cannot then be attributed to this slice or to main.
+    remediation: "Add a Baseline line to Assumptions: the contract tests and the reality check are green on the base commit (measured, with runtime), no known-red test is excused, and the plan re-measures at its first task."
+
+  - id: SPEC-COMPLETE-020
+    lens: Coverage
+    severity: 2
+    title: "Project.yaml's own description ('a name and a count only') becomes false but FR-001 changes only paths/project.yaml's description"
+    evidence:
+      - artifact: "spec.md § FR-001 ('paths/project.yaml changes its description only'), § Slice file set (schemas/Project.yaml is listed)"
+      - code: "contracts/mission-status/schemas/Project.yaml:3-5 (description: 'It carries a name and a count only')"
+    claim: "After this slice the schema carries five more properties; its description and its required list must change, and no FR or AC checks the description."
+    remediation: "State in FR-001 that Project.description is rewritten and add it to the description-content assertions."
+
+  - id: SPEC-COMPLETE-021
+    lens: Testability and falsifiability
+    severity: 2
+    title: "NFR-008 times one redaction shape only"
+    evidence:
+      - artifact: "spec.md § NFR-008, § AC-OPS 'read-only, no agent; linear redaction' (a 256 KiB value without whitespace)"
+      - code: "tests/contract/_mission_status_payloads.py:473-476 (the widened path pattern adds \\S* to each human pattern)"
+    claim: "A value with no whitespace and no at sign is the precedent's shape; values with many at signs, many <host-home>/ runs or many drive-letter prefixes exercise the widened path patterns and the anchored e-mail step and are not timed."
+    remediation: "Time three shapes (no whitespace; repeated 'a@' ; repeated '<host-home>/a/'), each under the 0.1 s bound, with the short-value control."
+
+  - id: SPEC-COMPLETE-022
+    lens: Coverage
+    severity: 1
+    title: "D-P14 and D-P15 are cited as precedent ids that this spec does not define"
+    evidence:
+      - artifact: "spec.md § PR-5 ('oracle independence (D-P14) and plan-time floors (D-P15)'), § FR-025"
+    claim: "The two ids come from the previous mission's plan and a reader of this spec cannot resolve them."
+    remediation: "Add the source (mission-status-contract-1-1-01M42XJC plan decision ids) once, in the Precedent rulings list."

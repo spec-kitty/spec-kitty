@@ -1,0 +1,50 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: unresolved
+    remaining_severity: 1
+    reason: "Departs 5 is now an explicit departure and AC-REALITY 2, 3 and FR-025 are edited per ruling 1 with the Ops walk, skippedCount equality and fingerprint running offline, but the new spec.md ruling bullet cites the add-only record as A-6 while the record is A-7 in tracer-approach.md."
+  - id: PLAN-GOV-003
+    status: resolved
+    reason: "A per-line FR-024 catalogue-to-row table now exists, and the two lines without rows are carried by AC-DRIFT 23 and AC-OPS 10, which exist in the Test strategy."
+  - id: PLAN-GOV-004
+    status: resolved
+    reason: "FR-010 to FR-012 name AC-DRIFT rows, NFR-001 and NFR-009 cite AC-CROSS 4, FRESH-005 points to AC-PROJECT 7 and 8, and the OR-2 cell names the kind-3 oracle and AC-VERSION d."
+  - id: PLAN-GOV-008
+    status: resolved
+    reason: "The SK-02 and SK-91 literals are gone from tracer-design-decisions.md (remaining hits are only in review files)."
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: "The frozen pre-slice fixtures keep the source layout (schemas/, examples/, paths/) in the Generated artefacts row, source tree, decision 8 and IC-06 surfaces, so no two names differ only by case."
+  - id: PLAN-ARCH-002
+    status: resolved
+    reason: "D-P4 and data-model state the shape pre-check with residual AttributeError or TypeError read as null (confirmed against ProjectMetadata.load, whose .get calls and m[id] raise those), AC-PROJECT 1 plants the raising shapes plus an unguarded-load mutation, as ruled."
+  - id: PLAN-ARCH-004
+    status: resolved
+    reason: "D-P10 states the masking rule (drop Project schema, only the /project description) and plants an extra getProject response code and a changed 200 schema reference."
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: "The gate table now attributes dead symbols and home pin to architectural-heavy, derives the named-file list from the fast_gate roster plus the two clock bans (all cited files exist), and the quickstart adds the no-shared-temp-literal plant rule."
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reason: "Baseline item 3 records median durations of both jobs, D-P5 states the local-to-CI factor, the predicted gain and the W-7 pass rule, and one in-test case times the combined quantity."
+  - id: PLAN-VERIFY-003
+    status: resolved
+    reason: "D-0, the baseline and the synced environment are an orchestrator Step 0 before any dispatch, IC-01 and IC-02 depend only on that record, and the parallel window stays, as ruled."
+  - id: PLAN-VERIFY-004
+    status: resolved
+    reason: "AC-DRIFT 19 corpus half and the AC-CROSS 4 corpus-sized cases moved to the reality module with a discovered-count guard (floor 490 in D-P13 and data-model) and the new modules are fixture-built only, as ruled."
+  - id: PLAN-VERIFY-005
+    status: resolved
+    reason: "W-3 and W-4 restore the procedure order for dev-assist and the verdict evidence, the terminal verdict follows the squad's LAND, and Departs 11 keeps only consolidate-before-squad."
+  - id: PLAN-VERIFY-006
+    status: resolved
+    reason: "D-P15 specifies min of at least 5 in-test repeats with the control timed the same way and the quadratic mutation still failing, referenced from AC-OPS 14, IC-08, P-7 and W-7."
+  - id: PLAN-VERIFY-008
+    status: resolved
+    reason: "D-P5 requires a single-line pytestmark with pytest.mark.corpus on the same line, matching _CORPUS_MARK_APPLICATION_RE, with registry row and deselect in the creating commit."
+  - id: PLAN-VERIFY-009
+    status: resolved
+    reason: "The gate table now has a coverage-floors row stating none found, with the diff-cover 90 line confirmed at ci-aggregate.yml line 424."

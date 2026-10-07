@@ -1,0 +1,71 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: cover
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+  - id: TASKS-COVER-001
+    lens: coverage-against-spec
+    severity: 3
+    title: AC-VERSION e sub-rows (terminology pin of the sole legacy-shape literal, camel-case pin plant) have no owning subtask
+    evidence:
+      - artifact: "tasks/WP06-contract-proof-edits.md § Acceptance rows (row 'AC-VERSION e') and closing sentence 'This WP owns AC-VERSION b, d, e'; subtasks T028-T033 name no terminology or camel-case test"
+      - artifact: "tasks/WP07-drift-reader.md § T037 step 1 ('pinned by the terminology scan')"
+      - artifact: "spec.md § AC-VERSION bullet 5 (the legacy-shape literal is the sole accepted occurrence outside scope, pinned by a test; planted: a second use in the reader fails; a planted camel-case value fails the pin check)"
+      - code: "tests/contract/test_mission_status_contract_1_1.py:761-806 (terminology_problems scans only the contracts/mission-status YAML and the CHANGELOG entry, never a Python reader)"
+    claim: WP06 claims AC-VERSION e as committed tests, but none of its six subtasks writes the pin test or the camel-case plant. WP07 says the sole legacy-shape literal in the reader is "pinned by the terminology scan", yet that scan (lines 761-806) does not read tests/contract/_mission_status_drift.py, and the reader module does not exist when WP06 runs. As written, the planted second use in the reader and the planted camel-case enum value fall to nobody, and the AC would pass vacuously.
+    remediation: "FORK: remedies A / B. A: add the pin test to WP07 (it owns the reader and test_mission_status_drift.py): a test that counts the legacy-shape literal in the reader source (exactly one, inside the legacy-shape test) with a planted second use that fails; add one subtask line (T034 or T039) naming it. B: widen terminology_problems in WP06 to take an optional list of Python files and have WP06 pin the expected path while WP07 creates it, which needs a stub-first ordering and is more fragile. Either way, name the camel-case plant concretely in WP04/WP05 T018/T023 or WP06 T028 (a changed enum value must fail the pin test) and drop 'AC-VERSION e' from WP06's ownership sentence for the parts it does not carry."
+  - id: TASKS-COVER-002
+    lens: coverage-against-spec
+    severity: 2
+    title: SC-009 and C-001 appear in no WP requirement_refs
+    evidence:
+      - artifact: "wps.yaml requirement_refs (union over WP01-WP10 misses SC-009 and C-001); tasks.md per-WP Requirement Refs"
+      - artifact: "spec.md § Success Criteria SC-009; § Constraints C-001"
+    claim: Every other FR, NFR, C and SC id of the spec is carried by at least one WP, but SC-009 (J-1 record and the W-2 diff command) and C-001 (operator rulings bind) are traced to none. SC-009 is realised only by the orchestrator steps (J-1, W-2) and by FR-028 in WP06, so a traceability check by id reports a gap.
+    remediation: "Add SC-009 to WP06 requirement_refs (WP06 hands over the exact J-1 commit, T033 step 1) and state in tasks.md that C-001 is governance-only and carried by the orchestrator (or add it to WP10's refs next to C-004 and C-005). Edit wps.yaml and regenerate; do not hand-edit the generated tasks.md."
+  - id: TASKS-COVER-003
+    lens: coverage-against-plan
+    severity: 2
+    title: WP02 names a "manifest length" assertion in test_run_negative_cases.py that does not exist; the real surfaces are three hard-coded strict-name lists
+    evidence:
+      - artifact: "tasks/WP02-tool-extension.md § T006 purpose and Definition of Done ('the manifest length moved by six'); plan IC-02 Affected surfaces (copied verbatim)"
+      - code: "tests/contract/test_run_negative_cases.py:259-262 (strict set hard-coded as ten names; no total-length assertion, only lint==11 and breaking==19 at 333-334 and a dynamic counts line at 350)"
+      - code: "tests/contract/test_leak_scan.py:34 (STRICT_NAMES) and tests/contract/test_fixture_builder.py:52 (NEW_STRICT_NAMES)"
+    claim: An implementer looking for a length to bump finds none. The edits the six names force are the three hard-coded name tuples, and the leak_scan one feeds ALL_KINDS (line 51). Nothing is wrong in intent, but the step as written is not implementable without re-deriving the surfaces.
+    remediation: "Rewrite T006 step 1 and the DoD line to name the three constants (STRICT_NAMES, NEW_STRICT_NAMES, the strict set at test_run_negative_cases.py:259) as the places that gain the six names, and drop 'manifest length'. Also say that the previous slice's ten strict kinds stay, so 'the eight old kinds byte-identical' is the OLD_KINDS digest test only."
+  - id: TASKS-COVER-004
+    lens: coverage-against-plan
+    severity: 2
+    title: WP07 and WP08 reproduce the whole AC-CROSS 4 row, including cases that belong to the other module and to WP09
+    evidence:
+      - artifact: "tasks/WP07-drift-reader.md § acceptance rows, 'AC-CROSS 4' (line 152) and tasks/WP08-ops-reader.md (line 128): identical row text in both"
+      - artifact: "tasks/WP07-drift-reader.md § T039 (counting opener and subprocess totals only)"
+    claim: The identical row puts the synthetic 10,000-file kitty-ops listing (an Ops case) in the drift WP, and the subprocess total (a drift/resolver case) in the Ops WP, next to the corpus-sized cases that plan ruling 4 moved to IC-09. The split is stated in the row's bold labels, and T039 and T045 do scope correctly, but a reviewer can read the row as WP07 owning the 30 s listing or WP08 owning the real 5 s listing. The ruling is honoured in the subtasks, not in the tables.
+    remediation: "Trim each WP's AC-CROSS 4 row to its own fixture-built half (WP07: counting opener and subprocess total; WP08: counting opener and the 10,000-file listing) and replace the rest with 'corpus-sized cases: WP09 (plan ruling 4)'. The orchestrator can keep the full row in WP09 only."
+  - id: TASKS-COVER-005
+    lens: anti-laziness
+    severity: 2
+    title: WP09 T047 red-first Files omit the payload helper and the expected-anomaly fixture that its own floor and named-list tests need
+    evidence:
+      - artifact: "tasks/WP09-oracles-reality.md § T047 Files ('test_mission_status_reality.py (edit), _mission_status_oracles.py (stub)') versus T050 (FLOORS in _mission_status_payloads.py; fixtures/mission_status_health_drift_ops_expected.json created later)"
+    claim: T047 asks for floor tests, named-list and stale-entry tests in commit 1, but the FLOORS entries and the pinned fixture arrive only in T050. Against a missing fixture and missing FLOORS those tests fail with import or file errors, not behaviour failures, which the same subtask forbids ('Behaviour failures, not collection errors').
+    remediation: "Add to T047 Files a raising or empty FLOORS stub in _mission_status_payloads.py and an empty-list stub of mission_status_health_drift_ops_expected.json (both already owned), so the red run is a behaviour failure; or move the floor and named-list tests to the T050 commit and say so."
+  - id: TASKS-COVER-006
+    lens: anti-laziness
+    severity: 1
+    title: WP01 T005 step 2 carries a garbled path literal
+    evidence:
+      - artifact: "tasks/WP01-resync-remeasure-campsite.md § T005 step 2 ('\"contracts/tools/contracts/tools/leak_scan.py\" style paths x4')"
+      - code: "tests/contract/test_mission_status_contract_1_1.py (the literal is contracts/tools/leak_scan.py, four uses)"
+    claim: The doubled prefix is a transcription error and would send an implementer grepping for a string that is not in the file. The Campsite section above it has the right literal.
+    remediation: "Replace with \"contracts/tools/leak_scan.py\" x4. Also note that the quoted forms \"byte_identity: \" and \"out_of_scope: \" occur only inside f-strings in the checkout, so T005's drop rule (recount first) will probably apply to them."
+  - id: TASKS-COVER-007
+    lens: anti-laziness
+    severity: 1
+    title: Small count and ownership slips in WP03 and WP10 subtasks
+    evidence:
+      - artifact: "tasks/WP03-project-vertical.md § T012 Files ('the ten files of the contract family listed above' while its Purpose lists six); T011 Files lists ci-router.yml while T017 is the subtask that adds the router globs, and T011 calls the three registration files 'the registration pair'"
+      - artifact: "tasks/WP10-closeout-evidence.md § T053 (reads records; Validation 'A list of items for each file'; no committed output)"
+    claim: Each is a wording slip with no effect on the end state, but T012's count and the T011/T017 double mention of ci-router.yml leave it unclear which commit carries the router globs, and T053 has no checkable output of its own.
+    remediation: "Say 'the six files above' in T012; in T011 say which of the three registration files is edited in commit 1 and that the router globs land in commit 1 only if the registry gate requires them, else in T017; fold T053 into T054 as its first step, or require its list in the hand-off."

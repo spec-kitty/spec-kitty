@@ -1,0 +1,181 @@
+schema: review-verify/v1
+complete: true
+phase: pr
+lens_group: verifier-R3
+mission: mission-status-health-drift-ops-01M464D3
+range: 41568e0e1..094bbd2c2
+probes_in: c12-squad/tmp/r3/{clone,rev} (git clone --shared at 094bbd2c2; every revert restored, both trees clean)
+gates:
+  module_tests: "tests/contract/test_mission_status_{artifacts,contract_1_1,detail,drift,examples,ops,payloads,project}.py: 1309 passed"
+  reality_online: "723 passed, 1 skipped (the offline-only case, ONLINE_SKIP)"
+  reality_offline: "712 passed, 12 skipped (the 12 named OFFLINE_SKIP cases); with GITHUB_ACTIONS=true the ::warning:: annotation is printed at the start of a line and names all 12"
+  router: "tests/ci + test_ci_corpus_trigger_completeness + test_no_duplicate_suite_execution + test_workflow_coherence + test_release_ci_ownership: 2069 passed, 1 skipped"
+  ruff: "ruff 0.15.12 check and format --check over every .py changed since abafc135e: clean"
+  battery_fast_leg: "architectural-fast leg as written in the WP03 prompt: 786 passed, 1 skipped"
+items:
+  - id: PR-CONTRACT-001
+    status: RESOLVED
+    evidence: >-
+      _mission_activity re-reads the event log (read_event_stream, read_events_raw) outside the guard when the snapshot
+      build fails (tests/contract/_mission_status_project.py:179-191). Revert (drop the two re-reads) turns
+      test_the_project_rows_hold[row6] red on the invalid-UTF-8 plant ("served lastActivityAt instead of failing"). The
+      non-JSON plant already failed the read before the fix (StoreError is outside _UNREADABLE), so it pins but is not
+      red-first; the invalid-UTF-8 plant is the red-first one, as the ruling asks.
+  - id: PR-CONTRACT-002
+    status: RESOLVED
+    evidence: >-
+      project_version returns null when leak_codes(version, STRICT) is non-empty (_mission_status_project.py:152); FR-002
+      row added; AKIA/ghp_ plants with one-character-short twins; new mutation serve-a-credential-version. Revert turns
+      row2 red ("an access key id: specKittyVersion is 'AKIA...', expected None").
+  - id: PR-CONTRACT-003
+    status: RESOLVED
+    evidence: >-
+      actor_of nulls a credential-shaped handle; handle_holds_credential checks only profile_id and action
+      (_mission_status_ops.py:186-188, 378-380). Revert A (actor_of without the credential check): 7 red
+      (actor-null cases, unit cases, mutation credential-actor-served). Revert B (WP08 skip behaviour restored): 6 red
+      (row11_handles, the actor-null cases, the mutation control). OpsInvocation.actor description updated; J-1 replay
+      recorded PASS on 5dc9cc427.
+  - id: PR-CONTRACT-004
+    status: RESOLVED
+    evidence: "Both x-derived rules now state AD-4 and match the reader (_mission_status_drift.py:382-394); pinned by test_the_two_remedy_rules_state_the_same_cases_as_the_drift_decision."
+  - id: PR-CONTRACT-005
+    status: RESOLVED
+    evidence: "Reader vocabulary gone from DriftReport, paths/drift.yaml and CHANGELOG; both prose pins re-pointed; new negative assertion on 'fallback entry' and 'coordination_branch_deleted'."
+  - id: PR-CONTRACT-006
+    status: RESOLVED
+    evidence: "OpsRefusalCode, responses/OpsUnreadable, the operation and CHANGELOG name an Op file that cannot be opened as a 500; 'Legacy or unreadable' replaced; pinned by a new examples test."
+  - id: PR-CONTRACT-007+PR-TESTS-007
+    status: RESOLVED
+    evidence: "row14_problems docstring cites the WP07 ruling and the 200 (test_mission_status_drift.py:939-943)."
+  - id: PR-CONTRACT-008
+    status: RESOLVED
+    evidence: "Nit applied: LEGACY_SLUG_KEY assembled from fragments (_mission_status_oracles.py:66-67, 339)."
+  - id: PR-BOUNDARY-001
+    status: RESOLVED
+    evidence: >-
+      kitty-ops/** in the router corpus group, kitty-ops/ in _CORPUS_DATA_ROOTS, scrub copy updated. Revert of the router
+      line turns 5 red: the three test_an_ops_data_only_diff_selects_the_corpus_job cases,
+      test_scrub_documentation_copy_equals_the_router_corpus_group and
+      test_every_corpus_data_root_is_covered_by_a_trigger_glob.
+  - id: PR-BOUNDARY-002
+    status: OPEN
+    severity: 1
+    evidence: "The advisory falls due at W-7 (cite the local figures next to the IC-01 proxy). Nothing in this range addresses it, and nothing was expected to."
+    remedy: "At W-7, cite the local figures next to the CI-runner reading."
+  - id: PR-TESTS-001
+    status: RESOLVED
+    evidence: "test_corpus_scan_is_within_its_bound docstring states warm reduction only, resolver-inclusive bound in the combined case."
+  - id: PR-TESTS-002
+    status: RESOLVED
+    evidence: >-
+      duplicate_problems added to the kinds 1/2, kind 3 and planted-repository comparisons. Plant (kind-3 finding served
+      twice in scan_mission) turns test_corpus_kind_three_equals_the_oracle red ("186 findings for 93 distinct keys") and
+      test_the_reader_equals_the_oracles_on_the_planted_repository red ("9 findings for 8 distinct keys").
+  - id: PR-TESTS-003
+    status: OPEN
+    severity: 1
+    evidence: "Nit not applied: plan.md D-P6 (line 298) and D-P14 (line 314) still name only is_mission_completed and materialize_snapshot as the shared product functions; code_lane_branch_name is not listed."
+    remedy: "Add code_lane_branch_name to the shared-function list in D-P6 and D-P14."
+  - id: PR-TESTS-004
+    status: RESOLVED
+    evidence: >-
+      The kill now ignores 'raised ' lines outside CRASH_KILLS. Revert of the RecursionError catch gives "not killed:
+      index-profile-filters (killed only by its own crash: raised RecursionError ...)". Revert of the row8 status check
+      gives "not killed: eager-500-on-legacy (killed only by its own crash: raised KeyError: 'skippedCount')". Both fixes
+      are load-bearing.
+  - id: PR-TESTS-005
+    status: OPEN
+    severity: 1
+    evidence: >-
+      report_timing prints with plain print() (test_mission_status_ops.py:1213-1215). Under pytest's default capture a
+      passing test's stdout is dropped: test_ten_thousand_files_are_listed_within_the_bound passed with no 'margin' line
+      in the output. CI does not pass -s or -rP, so the margin never reaches a CI log, which is the stated purpose. Commit
+      9b680e5a8 fixed the same problem for the offline annotation.
+    remedy: "Emit the report_timing line inside capsys.disabled(), as the offline annotation does, or attach it with record_property so that it reaches the junit XML."
+  - id: PR-TESTS-006
+    status: RESOLVED
+    evidence: "-rs on the corpus-blocking command (ci-router.yml:982); offline_annotation emitted past capture at line start; verified in the offline run."
+  - id: RULING-1-actor-null
+    status: RESOLVED
+    evidence: "Code, OpsInvocation.actor description, FR-017, FR-019, FR-020 and the AC-OPS credential row state it exactly: actor null, Op kept in items and totalCount, skippedCount unchanged, profileId and action still skip. Red on revert (PR-CONTRACT-003)."
+  - id: RULING-2-event-log-500
+    status: RESOLVED
+    evidence: "FR-006 and two new FR-024 Project rows state it. Red on revert (PR-CONTRACT-001). The status.json degrade is unchanged."
+  - id: RULING-3-kitty-ops-trigger
+    status: RESOLVED
+    evidence: "Router corpus group, _CORPUS_DATA_ROOTS, scrub copy, plan CI row. Red on revert (PR-BOUNDARY-001). No src/ change in the range."
+  - id: SPEC-AMENDMENTS
+    status: RESOLVED
+    evidence: >-
+      FR-002 (credential row), FR-006 (status.json degrade, event-log 500), FR-017 (actor nullable; the false
+      'not nullable' sentence removed), FR-019 (actor removed from the skip causes), FR-024 (two Project rows), and the
+      AC-OPS actor row (failure inverted) each say what the rulings say.
+  - id: NO-FALSE-NOT-NULLABLE-CLAIM
+    status: OPEN
+    severity: 2
+    evidence: >-
+      The claim survives without a superseded marker in
+      kitty-specs/mission-status-health-drift-ops-01M464D3/tracer-design-decisions.md:318 (the WP08 ruling item 2:
+      "required and not nullable in the final contract, so actor is skipped") and :329 (close-out assessment: "actor is
+      never nulled, because it is required and not nullable ... no third J-1 replay"; a third replay has since run). It
+      also survives in tracer-approach.md:127 (the WP08 hand-off: "actor is never nulled"). Line 337 corrects it further
+      down, but the close-out bullet still reads as a current fact. tasks/WP08-ops-reader/review-cycle-1.md:16 is
+      historical review feedback and can stay.
+    remedy: "Append to tracer-design-decisions.md:318 and :329 and to tracer-approach.md:127: '(superseded 2026-10-07 by the operator ruling after the pre-merge squad: actor is nullable; a credential-shaped actor is served null)'."
+fresh:
+  - id: R3-FRESH-001
+    severity: 2
+    title: Project.lastActivityAt contract description is silent on the status.json degrade and the event-log 500
+    evidence:
+      - code: "contracts/mission-status/schemas/Project.yaml:109-115"
+      - artifact: "R2-refute.yaml PR-CONTRACT-001 option a (chosen): 'State the status.json null in the lastActivityAt description and in FR-024's Project row'"
+    claim: >-
+      FR-024 got its rows, but the contract description still says lastActivityAt is taken "over exactly the Missions
+      GET /missions lists". A Mission with an undecodable status.json still counts on the Project read, which answers
+      200, while GET /missions fails on it. A consumer reading only the contract cannot know either behaviour. Ruling 2
+      as written does not demand the description edit, so this is a gap against R2's option text, not against the ruling.
+    remedy: "Add one sentence to the lastActivityAt description and its x-derived rule: a Mission whose status.json cannot be read still counts and adds no activity; an event log that cannot be read fails the read. Fold it into the J-1 replay, or record that ruling 2 deliberately leaves the contract text unchanged."
+  - id: R3-FRESH-002
+    severity: 2
+    title: wrap-cli-version in CRASH_KILLS hides its assertion kill
+    evidence:
+      - code: "tests/contract/test_mission_status_project.py:841 (CRASH_KILLS)"
+    claim: >-
+      Every mutation in the three tables was classified. The five CRASH_KILLS members crash with their intended defect
+      class: UnexpectedWrite, UnexpectedProcess, the re-raised CoordAuthorityUnavailable, and the AttributeError of an
+      unguarded load on list-shaped metadata. A guarded unguarded-load variant gives no problem, so its crash is its only
+      defect. wrap-cli-version is different. With its crash guarded it still gives 11 assertion problems (the 'unknown'
+      sentinel served). But row1 aborts at the first crash, so today the kill is crash-only (other=0, crash=2). Delete
+      the sentinel assertions from row1 and the mutation table stays green. No mutation passes by crashing where it
+      should not, so the fix holds; the cost is that the sentinel assertions are no longer protected.
+    remedy: "Make row1 and row2 catch a raise per case and record it as a problem line, so the sentinel cases still run. Then drop wrap-cli-version from CRASH_KILLS."
+  - id: R3-FRESH-003
+    severity: 1
+    title: AC-OPS credential row cites only the WP08 ruling for the actor part
+    evidence:
+      - artifact: "spec.md AC-OPS row 'credential in a handle (operator ruling at WP08, 2026-10-07)'"
+    claim: "The actor half of the row comes from the post-squad ruling, but the row label cites only WP08."
+    remedy: "Append 'and the ruling after the pre-merge squad, 2026-10-07' to the row label."
+  - id: R3-FRESH-NIL
+    severity: 1
+    title: "Swept, no defect found: status.json UnicodeDecodeError path, kitty-ops trigger scope, store.py glob, hygiene"
+    claim: >-
+      (a) No UnicodeDecodeError regression. On a copy of a real Mission, an undecodable status.json still gives null
+      activity and does not raise. 28 event-field corruptions (each field dropped or set to an int) all raise or serve
+      the correct instant; none gives a silent null. A broken meta.json fails earlier, in the resolver
+      (MissionMetaReadError). (b) kitty-ops/** selects exactly always-on plus the corpus-gated jobs (pinned). The
+      duplicate-suite, workflow-coherence and release-ownership gates are green. (c) Reverting the store.py glob turns
+      test_the_contract_tools_filter_group_names_every_src_file_the_mission_status_reader_and_its_tests_import red.
+      (d) No home paths, usernames, scratchpad paths or ledger ids in the diff or the commit messages of the range.
+    remedy: "None."
+round2:
+  range: d8ae51726..c21576cfa
+  verdict: issues
+  items:
+    - {id: NO-FALSE-NOT-NULLABLE-CLAIM, status: RESOLVED, note: "markers are add-only (no removed lines in either tracer file) and correct; nit: in tracer-approach.md the '> Superseded' blockquote is followed directly by 'Timed bounds ...', which Markdown lazy continuation pulls into the quote; add a blank line"}
+    - {id: R3-FRESH-001, status: RESOLVED, note: "description and x-derived rule both updated; the pin test goes red when Project.yaml is reverted; contracts/tools checks are clean; the J-1 replay for 5d9ffad5a is not recorded yet (the last record is 5dc9cc427)"}
+    - {id: R3-FRESH-002, status: RESOLVED, note: "wrap-cli-version: 11 assertion kills, 2 crash lines, no longer in CRASH_KILLS; the fixer's claim holds, and that is fine: the mutant forwards the CLI value unprojected, and the sentinel cases remain direct row2 assertions"}
+    - {id: PR-TESTS-003, status: RESOLVED}
+    - {id: R3-FRESH-003, status: RESOLVED}
+    - {id: PR-TESTS-005, status: OPEN, severity: 1, note: "the margin line prints on a serial passing run but not under -n 4 --dist loadfile, the mode of the CI contract-tools job: capsys.disabled() output from an xdist worker is not forwarded", remedy: "attach the lines with record_property (user_properties are forwarded by xdist) and print them in a pytest_terminal_summary hook, or emit them as a warning"}
+  gates: {module: "1310 passed", reality_online: "723 passed, 1 skipped", reality_offline: "712 passed, 12 skipped, annotation emitted", router: "2069 passed, 1 skipped", ruff: clean, fast_leg: "786 passed, 1 skipped", contracts_tools: "10/10 rc=0", hygiene: clean}

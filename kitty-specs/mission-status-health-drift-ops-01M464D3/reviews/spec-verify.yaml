@@ -1,0 +1,120 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: 'FR-014, AD-4, FR-010 and the Corrections list now map materialize_status to `spec-kitty agent status materialize --mission <slug>` (doctor.py:335 and agent/status.py:512 verified), name the prototype command as wrong, and apply the merged-Mission null-remedy ruling.'
+  - id: SPEC-GOV-003
+    status: resolved
+    reason: 'FR-017, FR-019, the edge cases and the AC-OPS closure-spine row now serve an Op with a legacy own completion and a spine record as closed from the spine, with plant and control.'
+  - id: SPEC-GOV-006
+    status: resolved
+    reason: 'Terminology now cites the glossary `op` entry (planning-and-tracking.yaml surface: op verified) and limits the no-entry sentence to invocation, drift and health.'
+  - id: SPEC-GOV-007
+    status: resolved
+    reason: 'Applies the ruling: raw-JSON pre-read, legacy shape not evaluated for kind 3 and counted, a ledger entry cited in FR-012, AD-10 and the round-2 rulings with the reason drift differs from v1.'
+  - id: SPEC-GOV-008
+    status: resolved
+    reason: 'R-8 cites a ledger entry and a ledger entry and FR-010 states kind 1 reports disagreement with materialize_snapshot output, not the true event log.'
+  - id: SPEC-GOV-009
+    status: resolved
+    reason: 'Slice file set item 4 names the existing tests that turn red (payloads, reality, _mission_status_payloads) as ratchet edits under R-6 and item 5 names the three workflow files (all exist), leaving only the per-edit list to the plan.'
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: 'Applies option A: FR-012 rule step 3 expects the meta.json coordination_branch (key verified in the allocator and mission_metadata) and never mission_branch, with the present/absent fixture pair in FR-026 and AC-DRIFT and an oracle reading meta.json directly.'
+  - id: SPEC-ARCH-002
+    status: resolved
+    reason: 'Applies option A: DriftSeverity is error and warning only (FR-009, AD-1, AD-6, AC no-dead-enum row) with the CHANGELOG line that info is not carried.'
+  - id: SPEC-ARCH-004
+    status: resolved
+    reason: 'The field catalogue now writes every code input as path plus symbol with only contract fields bare, and the sampled paths and symbols all exist in src/.'
+  - id: SPEC-ARCH-005
+    status: resolved
+    reason: 'FR-022 and AC-VERSION drop the named hash and define the baseline as the recorded merge-base SHA asserted an ancestor of origin/main.'
+  - id: SPEC-ARCH-006
+    status: resolved
+    reason: 'FR-022 classifies each observable as a committed pure test (with frozen pre-slice Project copies and a Project override on the pair fixture) or a recorded wrap-up command, and says the module docstring is updated.'
+  - id: SPEC-ARCH-007
+    status: resolved
+    reason: 'FR-025 defines the kind-1 oracle as classify_status_json filtered to the kind-1 codes, uses validate_materialization_drift only one-way, and adds materialize_to_json to the reader list.'
+  - id: SPEC-ARCH-008
+    status: resolved
+    reason: 'Applies the GOV-007 ruling: raw pre-read, legacy counted, every other CorruptLanesError (not JSON, not object, neither key, missing required key) is 500 drift_scan_unreadable with fixtures in the AC-DRIFT three-way row.'
+  - id: SPEC-ARCH-009
+    status: resolved
+    reason: 'FR-023 now carries an exact table of x-provisional carriers with the CHANGELOG token for each, including remedy, truncated, both refusal code enums and the refusal code properties, and places the legacy-record rule under the operation marker.'
+  - id: SPEC-ARCH-011
+    status: resolved
+    reason: 'FR-013 states the drop rests on the rule-and-example requirement (Gate B), not on a missing rule, and Risks says the stale-derived-views panel has no contract read.'
+  - id: SPEC-ARCH-012
+    status: resolved
+    reason: "FR-004 and the health description state the range is the serving build's, and FR-003 plus the AC-PROJECT row pin float 3.9 gives 3 and true gives 1 as the CLI's int(raw) coercion (verified at schema_version.py:130)."
+  - id: SPEC-ARCH-013
+    status: resolved
+    reason: 'FR-029 now states the edit is not a pure removal: the planted test is re-pointed to lane weights, the function renamed to three, CHANGELOG Four becomes Three gaps, with the named control.'
+  - id: SPEC-ARCH-014
+    status: resolved
+    reason: 'AD-4 records that kind-2 missing-log remedy null diverges deliberately from check_drift, with the reason.'
+  - id: SPEC-ARCH-015
+    status: unresolved
+    remaining_severity: 2
+    reason: 'Field-level OpStartedEvent symbols are cited, but FR-027 declares profile already strict and adds nothing while the property is `profileId`, which is not in STRICT_FIELDS (exact-key match in leak_scan.py:256), so profileId is not treated as strict although FR-017 calls it strict.'
+  - id: SPEC-COMPLETE-001
+    status: resolved
+    reason: 'Applies the ruling: one git for-each-ref refs/heads listing per scan, fail closed with 500 in FR-012, FR-015, FR-024, NFR-002 and AC-DRIFT (no-.git plant with control, subprocess counter), oracle reads refs independently.'
+  - id: SPEC-COMPLETE-002
+    status: resolved
+    reason: 'AD-10, FR-015, the FR-024 table and the AC-DRIFT meta.json row make a corrupt, non-object or unreadable meta.json a 500 with plants and a control.'
+  - id: SPEC-COMPLETE-003
+    status: resolved
+    reason: 'FR-012 states the three-way classification with the raw json.loads detection and the AC-DRIFT three-way row plants each class beside a control.'
+  - id: SPEC-COMPLETE-004
+    status: resolved
+    reason: 'Applies option a: FR-020 step 0 runs the credential check on the stored evidence_ref before every step, withholds with evidence null, and AC-OPS plants one shape each (query, userinfo, absolute path, free text, bare relative) with clean controls.'
+  - id: SPEC-COMPLETE-005
+    status: resolved
+    reason: 'NFR-004, SC-005 and FR-020 now say values matching the SECRET_PATTERNS kinds, the evidence description names the four kinds and says other shapes are not detected, and extending SECRET_PATTERNS is out of scope.'
+  - id: SPEC-COMPLETE-006
+    status: resolved
+    reason: 'FR-020 step 1 treats file:// as a host path, UNC and drive forms as paths, and step 2 strips userinfo, query and fragment from embedded URLs, with AC-OPS plants for file:///opt/x, a UNC path and an embedded URL with controls.'
+  - id: SPEC-COMPLETE-007
+    status: resolved
+    reason: 'FR-020 is now an ordered pipeline (credential, classify, redact, length) where a repo_path candidate changed by redaction becomes text and step 1(c) replaces the whole value, with plants for an address in a relative path and a whitespace path.'
+  - id: SPEC-COMPLETE-008
+    status: resolved
+    reason: 'FR-020 and FR-025 correct the corpus count to 0 url-kind values and one free-text value embedding a URL, and set the url corpus floor to 0 with fixture-only coverage.'
+  - id: SPEC-COMPLETE-009
+    status: resolved
+    reason: 'New AC-CROSS rows assert determinism, scope (including a src/ plant), dependencies, and the NFR-002 timing with the counting opener, citing FR-026 and the NFRs in the group header.'
+  - id: SPEC-COMPLETE-010
+    status: resolved
+    reason: 'SC-001 now says every row of AC-PROJECT instead of a false count of 16.'
+  - id: SPEC-COMPLETE-011
+    status: resolved
+    reason: 'SC-009 requires the cited final-contracts commit, one line per job and a clean git diff --exit-code, and is relabelled no-op passable yes with squad review; SC-010 is relabelled [folded] and tied to named AC rows.'
+  - id: SPEC-COMPLETE-012
+    status: resolved
+    reason: 'FR-025 names the kind-3 oracle (product is_mission_completed and materialize_snapshot covered by planted fixtures, manifest and meta.json read directly, per-name rev-parse) and removes any kind-3 corpus floor in favour of oracle equality.'
+  - id: SPEC-COMPLETE-013
+    status: unresolved
+    remaining_severity: 3
+    reason: 'The ruling is applied (OSError on a candidate file or the spine is 500 ops_unreadable, vanished and shape failures skipped, AC-OPS row added), but FR-018 says an index entry without a file is neither counted nor skipped while FR-019, FR-024 and the edge cases count a vanished file in skippedCount, so the vanished-file count is contradictory.'
+  - id: SPEC-COMPLETE-014
+    status: resolved
+    reason: 'The AC-OPS actor row now asserts the Op is in items with actor null and status and startedAt unchanged, and FR-017 states why actor alone degrades.'
+  - id: SPEC-COMPLETE-015
+    status: resolved
+    reason: "FR-010 and AD-10 state the departure from the audit's SNAPSHOT_DRIFT mapping of a raising reducer, OQ-4 ruling keeps it a 500, and the AC-DRIFT row plants the corrupt event log."
+  - id: SPEC-COMPLETE-016
+    status: resolved
+    reason: 'FR-005 adds the strict host-path name to the null cases, the description states the name is user-authored text, and AC-PROJECT plants home/user1/x with control topic/x.'
+  - id: SPEC-COMPLETE-018
+    status: resolved
+    reason: 'FR-014 states the closed (kind, sourceCode) pair table with a reference-reader failure and planted case for a pair outside it.'
+  - id: SPEC-COMPLETE-020
+    status: resolved
+    reason: 'FR-001 says Project.yaml rewrites its description and required list, and an AC-PROJECT row and committed test assert the description names the five properties.'
+  - id: SPEC-COMPLETE-021
+    status: resolved
+    reason: 'NFR-008 and the AC-OPS linear-redaction row now time three 256 KiB shapes (no whitespace, repeated a@, repeated host-path-root runs) with a short-value control.'

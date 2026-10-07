@@ -1,0 +1,65 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: verify
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+  - id: TASKS-VERIFY-001
+    lens: Gate completeness
+    severity: 3
+    title: WPs that edit ci-router.yml and packs.yml do not name the roster gate files that parse those workflows
+    evidence:
+      - artifact: "tasks/WP03-project-vertical.md, WP07-drift-reader.md, WP08-ops-reader.md § Validation: Named gate files and Census files (lists only the router/registry/corpus-trigger files, terminology, archive-freeze, layer-rules and the ten census files)"
+      - artifact: "plan.md § The gate set (e), row 'Router derivation and corpus-trigger gates'; quickstart.md § Architectural files that read tests/ (test_ci_quality_path_filters.py dismissed because it 'checks CI path filters, not test-module content')"
+      - code: "tests/architectural/test_ci_quality_path_filters.py:43 (parses .github/workflows/ci-router.yml)"
+      - code: "tests/architectural/test_gate_selection_authority.py, test_dual_mode_contract.py, test_battery_partition_proof.py, test_ci_integrity_oracle_nonvacuous.py (all mention ci-router.yml; all in the fast_gate roster of .github/ci-module-registry.yml)"
+      - code: "tests/ci/test_ci_config_battery_routing.py, tests/ci/test_ci_module_wiring.py (read ci-router.yml / packs.yml)"
+    claim: The quickstart's roster-derivation excluded test_ci_quality_path_filters.py by asking whether it reads test-module content. The relevant question for WP03, WP07 and WP08 is whether a file parses the workflow files those WPs edit (ci-router.yml contract_tools globs, packs.yml one-line --deselect command). Several roster files do. The WP prompts name none of them, so with the battery CI-owned the first signal for a malformed globs or deselect edit is the PR run of architectural-fast. This is the same blind-gate class the plan itself flags for the registration gates.
+    remediation: "FORK: remedies A / B. A: add to the named gate-file block of WP03, WP07, WP08 (and the Step 0 list) the workflow-parsing roster files that exist on this checkout: tests/architectural/test_ci_quality_path_filters.py, test_gate_selection_authority.py, test_dual_mode_contract.py and tests/ci/test_ci_config_battery_routing.py, test_ci_module_wiring.py, as single named files, and derive the list at Step 0 with a grep for ci-router.yml and packs.yml over the roster. B: record in the plan and the WPs that these are CI-owned architectural-fast signals and accept first-signal-in-CI for workflow edits, with a one-line rationale. A is cheaper than a red PR run; B follows the plan's cost rule."
+  - id: TASKS-VERIFY-002
+    lens: Gate completeness
+    severity: 2
+    title: Operator-gated battery paragraph is faithful to plan and charter but dangling (three legs undefined, 'previous slice' external)
+    evidence:
+      - artifact: "tasks/WP03-project-vertical.md § 'Architectural battery legs (operator-gated...)'; identical in WP07 and WP08"
+      - artifact: "plan.md § Charter Check, row NO_FULL_HEAVY_SUITES_IN_MISSION ('An explicit operator request can extend that for the registry-touching work packages, as in the previous slice; the plan does not assume it'); § The gate set (e), row architectural-heavy battery ('CI-owned ... Not run locally in mission work')"
+      - artifact: ".kittify/charter/charter.md:183-193 (exception only on an explicit operator request)"
+    claim: "ADJUDICATION: the author's default (battery CI-owned, record 'battery: CI-owned, not run locally', run named gate and census files in full) matches the plan text and the charter; carrying the paragraph is not a violation and not a plan departure. The residual defect is that the paragraph tells the implementer to 'run the three legs exactly as the brief gives them', yet no artifact in the mission directory defines the three legs or their commands (grep of spec, plan, research, quickstart, tracer files finds none); 'as in the previous slice' points outside the mission. If the operator does request it, the WP carries nothing to run or to bin against, and the Step 0 record does not capture per-leg baselines either (it lists the latest main run of architectural-fast and architectural-heavy only)."
+    remediation: "FORK: remedies A / B. A: keep the conditional paragraph and name the legs concretely (job names, selection expression, shard split) with a pointer to the Step 0 per-leg main-run durations, so a brief can reference them. B: delete the paragraph from WP03, WP07, WP08 and leave the operator-requested extension to the dispatch brief alone, keeping only the 'battery: CI-owned, not run locally' hand-off line. B reduces the chance an agent runs a heavy sweep on its own reading."
+  - id: TASKS-VERIFY-003
+    lens: Gate completeness
+    severity: 3
+    title: Router-glob edit is placed in commit 1 and in the final acceptance subtask, contradicting 'same commit as the helper'
+    evidence:
+      - artifact: "tasks/WP03-project-vertical.md § T011 (Files lists .github/workflows/ci-router.yml in the red-first commit) versus § T017 (Acceptance runs and router globs, the last subtask) versus § Registration item 4 ('in the same commit as the helper') and Definition of Done ('registry gates green on every commit')"
+      - artifact: "tasks/WP07-drift-reader.md § T034 versus T040; tasks/WP08-ops-reader.md § T041 versus T046 (same pattern)"
+      - artifact: "plan.md § D-P8 (globs added 'in the same commit as the helper'; the derivation test 'goes red until they are present')"
+    claim: "The derivation test test_the_contract_tools_filter_group_names_every_src_file_the_mission_status_reader_and_its_tests_import goes red as soon as a helper imports a src module. The helper's real body is committed in a later commit than T034/T041 (the stub raises and need not import), yet the globs are listed once in commit 1 and once in the closing subtask T017/T040/T046. The prompt does not say in which commit they land; an implementer following the subtask order commits the builder or reader with the gate red, against the 'green on every commit' rule, or squashes ordering that the squad and W-5 are meant to read."
+    remediation: "State explicitly: the globs for the stub's imports go in commit 1 only if the stub imports src modules, otherwise in the commit that adds the real imports (the helper commit), with T017/T040/T046 reduced to 'confirm the derivation test is green'. Remove ci-router.yml from the commit-1 Files line where the stub imports nothing."
+  - id: TASKS-VERIFY-004
+    lens: Baseline honesty
+    severity: 2
+    title: WP10 hygiene scan has a duplicated prose line inside its code fence, no discovered-count guard, and exempts reviews/ and the status log
+    evidence:
+      - artifact: "tasks/WP10-closeout-evidence.md § Hygiene scan of the Mission directory (the sentence 'The Mission directory joins the corpus...' appears inside the text fence before the .venv/bin/python command; script skips rel.startswith('reviews/') and status.events.jsonl, status.json; ends with print(f\"files={files} problems={problems}\"))"
+      - artifact: "tasks/WP10-closeout-evidence.md § T055 and Definition of Done ('prints problems=0')"
+    claim: "(1) Pasted as written, the first prose line is run as a shell command and the heredoc follows it: a transcription hazard. (2) problems=0 passes vacuously if the walk finds no file (a wrong working directory gives files=0 problems=0); there is no minimum. (3) reviews/ and the event log are exempt, yet the mission directory is committed whole in W-5; the same leak patterns on this checkout flag email-shaped tokens in reviews/spec.merged.yaml and a noreply address on line 1 of status.events.jsonl. Those look non-private, but the exemption is unstated."
+    remediation: "Delete the duplicated sentence from the fence; add 'assert files > 0' (or a floor equal to the count of files at WP10 start) before printing; state in one line why reviews/ and the byte-identical event log are exempt and who reviews them (the W-5 hygiene scan over the whole directory)."
+  - id: TASKS-VERIFY-005
+    lens: Red-first evidence
+    severity: 2
+    title: WP07 carries the 30 s ten-thousand-file timed row without the D-P16 method or an owner statement
+    evidence:
+      - artifact: "tasks/WP07-drift-reader.md § Acceptance rows, 'AC-CROSS 4' (fixture-built drift and ops modules; 30 s, minimum of at least 5 repeats, D-P16); D-P16 text is not carried in WP07 (WP08 and WP09 carry it); WP07 T039 mentions only the counting opener and subprocess total"
+      - artifact: "plan.md § D-P16 closing sentence ('the 30 s synthetic case and the 0.1 s cases to the ops module'); § IC-08 relevant requirements ('the synthetic 10,000-file case')"
+    claim: The row is copied verbatim into WP07 and says 'drift and ops modules', but plan D-P16 and IC-08 place the synthetic 10,000-file timed case in the Ops module only. WP07 has no subtask for a timed case and no cold-repeat, cache-counter or margin rules, so an implementer may add an untimed or single-run 30 s assertion to the drift module (a timing case without the D-P16 method, flaky under -n 4) or skip it and be rejected by a reviewer who reads the row literally.
+    remediation: "Add one sentence to WP07 T039: 'The 10,000-file timed case is owned by WP08; this module has no absolute timing assertion. Bounded reads here are counted (opener and subprocess counts), not timed.' Or, if a drift timing case is intended, carry D-P16 verbatim and a subtask."
+  - id: TASKS-VERIFY-006
+    lens: Baseline honesty
+    severity: 2
+    title: Timed-bound margin escalation (under a factor of 2 goes to the operator) is in the verbatim design text only, not in any subtask step or Definition of Done
+    evidence:
+      - artifact: "tasks/WP08-ops-reader.md § D-P16 (ends 'a margin under a factor of 2 goes to the operator'), § T045 Steps 1-2 and § Definition of Done ('measured minimum and margin are recorded')"
+      - artifact: "tasks/WP09-oracles-reality.md § T051, T052 and Definition of Done (same pattern for the 5 s case and the 120 s cases)"
+    claim: "The hand-off asks for the measured minimum and margin, but nothing in T045, T051, T052 or the Definition of Done says what the implementer does when the margin is under 2 (stop and report, do not loosen the bound). The measure-first instruction is present for WP08 ('Measure first') but absent from WP09 T051. A reviewer checking the DoD cannot fail a WP that records a 1.2 margin and moves on."
+    remediation: "Add to WP08 T045 and WP09 T051/T052 steps and to both Definitions of Done: 'Measure each bound on the unchanged fixture before asserting it; a margin under a factor of 2 is reported to the operator in the hand-off and the bound is not loosened or the case skipped.'"

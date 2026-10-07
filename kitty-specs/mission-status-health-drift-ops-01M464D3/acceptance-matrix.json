@@ -1,0 +1,299 @@
+{
+  "mission_slug": "mission-status-health-drift-ops-01M464D3",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP01 WP03 WP09 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:33:32.322847+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP01 WP03 WP07 WP08 WP09 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:33:34.189235+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP03 WP07 WP08 WP09 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:33:36.041558+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP02 WP03 WP08 WP09 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:33:37.964347+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP03 WP07 WP08 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:33:39.957011+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP01-WP10 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:33:41.843646+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP03 WP06 WP07 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:33:43.686682+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP04 WP07 WP08 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:33:45.526446+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP01 WP03 WP04 WP07 WP09 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:33:47.405713+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP04 WP07 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:33:49.255928+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP04 WP07 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:33:51.082881+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP01 WP04 WP07 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:33:52.945984+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP01 WP04 WP07 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:33:54.789307+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP04 WP07 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:33:56.670962+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP01 WP03 WP04 WP07 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:34:00.747247+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP05 WP08 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:34:02.582060+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "Verify FR-017 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP05 WP08 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:34:04.419170+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Verify FR-018 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP05 WP08 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:34:06.279031+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-019",
+      "description": "Verify FR-019 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP05 WP08 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:34:08.185526+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-020",
+      "description": "Verify FR-020 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP05 WP08 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:34:10.057814+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-021",
+      "description": "Verify FR-021 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP05 WP08 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:34:11.954319+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-022",
+      "description": "Verify FR-022 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP06 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:34:13.833661+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-023",
+      "description": "Verify FR-023 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP03 WP04 WP05 WP06 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:34:15.706735+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-024",
+      "description": "Verify FR-024 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP03 WP07 WP08 WP09 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:34:17.537969+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-025",
+      "description": "Verify FR-025 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP03 WP09 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:34:19.440252+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-026",
+      "description": "Verify FR-026 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP07 WP08 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:34:21.291075+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-027",
+      "description": "Verify FR-027 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP02 WP06 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:34:23.162191+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-028",
+      "description": "Verify FR-028 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP06 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:34:25.020524+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-029",
+      "description": "Verify FR-029 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP03 WP06 approved after per-WP review; contract tools, tests/contract modules and reality corpus gates green (tracer-approach.md hand-off records)",
+      "pass_fail": "pass",
+      "verified_by": "claude-wrapup",
+      "verified_at": "2026-10-07T10:34:26.871017+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

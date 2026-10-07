@@ -1,0 +1,164 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: contract
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+  - id: PR-CONTRACT-001
+    lens: Reader correctness against the contract (fail-closed holes)
+    severity: 3
+    title: Project.lastActivityAt reports success when a Mission's event log cannot be decoded
+    evidence:
+      - artifact: "spec.md FR-024 ('none reports null ... as success when the truth is could not read'); FR-006 (latest MissionHead.lastActivityAt over exactly the Missions GET /missions lists)"
+      - artifact: "contracts/mission-status/schemas/Project.yaml lastActivityAt description: null only 'when no Mission is listed and when every listed Mission has null activity'"
+      - artifact: "tracer-design-decisions.md close-out: 'Refined at the WP09 review' (a review decision, not an operator ruling)"
+      - code: "tests/contract/_mission_status_project.py:287-292 (_mission_activity catches _UNREADABLE = OSError, ValueError, YAMLError)"
+      - code: "tests/contract/test_mission_status_project.py:431-447 (_undecodable_activity_problems pins the drop)"
+      - code: "tests/contract/_mission_status_payloads.py:722-748 (v1 load_source lets materialize_snapshot raise)"
+    claim: >-
+      _mission_activity catches every ValueError around materialize_snapshot, so it swallows the authority as well as the
+      derived file. Probe on a scratch repository (one Mission, one valid event): valid log gives lastActivityAt
+      2026-09-01T10:00:00+00:00; the same log plus one line of invalid UTF-8 gives lastActivityAt null with HTTP-success
+      semantics; the same log plus one non-JSON line raises StoreError. The same tree is a 500 drift_scan_unreadable on
+      GET /drift (AD-10) and fails v1's load_source build (GET /missions). A card therefore shows "no activity", or an older
+      instant when other Missions have activity, for a project whose newest Mission's log the service could not decode.
+      This breaks FR-006 equality with v1, contradicts FR-024, and the two corruptions of one file get opposite outcomes.
+      The WP09 rework targeted an undecodable status.json, which materialize_snapshot reads for the replay generation, and
+      that derived-file case is defensible. The broad catch also covers the event log.
+    remediation: >-
+      Fork for the operator. (a) Narrow the catch: let an event-log failure end the Project read, as v1's build and the
+      drift scan do. Keep the null only for an undecodable status.json and state that case in the lastActivityAt
+      description. Add an undecodable-event-log plant beside the existing status.json plant. (b) Keep the degrade. Record it
+      as an operator ruling and state it in the lastActivityAt description and in FR-024's Project row.
+  - id: PR-CONTRACT-002
+    lens: Reader correctness against the contract (forbidden values served)
+    severity: 3
+    title: specKittyVersion serves a credential-shaped value although Project promises it never carries a credential
+    evidence:
+      - artifact: "contracts/mission-status/schemas/Project.yaml description: 'It never carries a path, a worktree location or a credential.'"
+      - artifact: "spec.md FR-002 table: 'a matching string -> that string' (no credential row); NFR-004 (zero SECRET_PATTERNS values in payload strings)"
+      - code: "tests/contract/_mission_status_project.py:183-192 (project_version: pattern only, no leak check)"
+      - code: "tests/contract/_mission_status_project.py:247-252 (current_branch_of nulls any leak_codes(name, STRICT) hit, SECRET included)"
+      - code: "contracts/tools/leak_patterns.py:111-116 (the AWS key id and ghp_ shapes fit ^[0-9A-Za-z][0-9A-Za-z.+!_-]{0,63}$)"
+    claim: >-
+      The version pattern admits the AWS access key id shape (AKIA plus 16 capitals) and the GitHub classic token shape
+      (ghp_ plus 36 alphanumerics). Probe on a scratch repository whose metadata.yaml records version AKIA followed by 16
+      capitals: build_project serves it verbatim as specKittyVersion, and leak_codes on the served value returns ('SECRET',).
+      currentBranch, the other strict field, nulls the same value through leak_codes, and the Ops handles skip it (WP08).
+      specKittyVersion is the one new strict field with no credential guard. The fixture battery has no such plant, so the
+      reality leak scan catches this only if the corpus ever holds one. A service built from this reference would serve the
+      credential, which contradicts the Project description.
+    remediation: >-
+      In project_version, return null when leak_codes(version, STRICT) is non-empty, as current_branch_of does. Add the
+      credential row to the FR-002 table and the specKittyVersion description, and add a plant (one per SECRET_PATTERNS
+      shape that fits the pattern) with a one-character-short control to AC-PROJECT row 2.
+  - id: PR-CONTRACT-003
+    lens: The operator rulings are implemented exactly (WP08, credential handle)
+    severity: 3
+    title: The WP08 actor rule replaced the operator's "null" option because of a false premise that actor is not nullable
+    evidence:
+      - artifact: "tracer-design-decisions.md 'Operator rulings at WP08' item 2: 'The operator's option text said actor would become null. OpsInvocation.actor is required and not nullable in the final contract, so actor is skipped like the other two'"
+      - artifact: "spec.md FR-017 (line 369): the member list says 'actor (ActorHandle, nullable: null on a shape failure)'; the amendment in the same paragraph says 'actor is required and not nullable in the schema, so it is skipped'"
+      - code: "contracts/mission-status/schemas/ActorHandle.yaml:6-8 (type: [string, 'null'])"
+      - code: "contracts/mission-status/schemas/OpsInvocation.yaml actor ($ref ActorHandle; 'or null when the stored value is not a handle')"
+      - code: "tests/contract/_mission_status_ops.py:378-380, 409-410 (handle_holds_credential skips the record)"
+    claim: >-
+      OpsInvocation.actor references ActorHandle, which is nullable, and the reader already serves null for a non-handle
+      actor (actor_of). Serving null for a credential-shaped actor was therefore a contract-valid choice that needed no
+      contract change and no J-1 repeat. The record says the operator's option was null and that the implementation chose
+      skip because "actor is required and not nullable". That premise is false, and FR-017 now contradicts itself. Both
+      outcomes keep the credential out of the payload. They differ in what a client sees: with skip, the Op disappears from
+      items and totalCount and skippedCount rises; with null, the Op is served with no actor. No operator decision on the
+      true facts exists. The contract descriptions (OpsInvocation.actor, listOpsInvocations) also do not say that a
+      credential-shaped handle skips the record.
+    remediation: >-
+      Put the null-or-skip choice back to the operator, stating that ActorHandle is nullable. Then correct FR-017's
+      "not nullable" sentence and the tracer rationale to the ruled outcome, and state that outcome in the
+      OpsInvocation.actor description.
+  - id: PR-CONTRACT-004
+    lens: Contract fidelity (x-derived rules against AD-4 and the reader)
+    severity: 2
+    title: The DriftRemedy and DriftFinding.remedy x-derived rules contradict AD-4 for two cases
+    evidence:
+      - artifact: "spec.md AD-4: remedy null for the warning variants; a kind-2 finding for a missing status.json keeps the remedy (add-only), merged or not"
+      - code: "contracts/mission-status/schemas/DriftRemedy.yaml:12 ('materialize_status when the status event log exists and the snapshot is missing, corrupt or disagrees with it in more than provenance, and the Mission is not merged to main')"
+      - code: "contracts/mission-status/schemas/DriftFinding.yaml:121-125 (remedy rule omits the merged-to-main null)"
+      - code: "tests/contract/_mission_status_drift.py:388 (SNAPSHOT_DRIFT only, not merged) and :394 (kind 2: no merged check)"
+    claim: >-
+      Under the DriftRemedy rule, a SNAPSHOT_DRIFT_TERMINAL finding "disagrees in more than provenance" and so gets
+      materialize_status, while AD-4 and the reader give null. A missing status.json on a merged Mission gets null under
+      that rule, while AD-4 and the reader keep materialize_status. The DriftFinding.remedy rule leaves out the null for a
+      kind-1 error on a Mission merged to main, although its description includes it. The x-derived rule is the citation an
+      implementer of #5528 reads.
+    remediation: >-
+      Rewrite both rules to AD-4: "materialize_status for SNAPSHOT_DRIFT and CORRUPT_JSON on a Mission not merged to main,
+      and for a missing status.json whose event log exists; null for the two warning variants, a missing event log and
+      lane_branch_missing."
+  - id: PR-CONTRACT-005
+    lens: Contract fidelity (no property for the fallback reason)
+    severity: 2
+    title: The Drift contract prose names a "fallback entry" and coordination_branch_deleted, which no contract payload carries
+    evidence:
+      - artifact: "spec.md FR-015 'Where the reason is visible': no contract property; 'The service (#5528) may surface the reason; the contract does not.'"
+      - code: "contracts/mission-status/schemas/DriftReport.yaml:10-11"
+      - code: "contracts/mission-status/paths/drift.yaml:13-14"
+      - code: "contracts/mission-status/CHANGELOG.md:77-78"
+    claim: >-
+      The three texts say an unreachable remote gives "a 200 with no fallback entry" and that a clean miss "gives the
+      coordination_branch_deleted fallback". In this slice, fallback entries and the coordination_branch_deleted value
+      exist only on the reference reader's DriftOutcome. No DriftReport member carries them. A client reading the contract
+      will look for a field that does not exist, and the contract now names a value that FR-015 keeps out of it. The WP07
+      ruling asked for the text to match the real behaviour, not for reader vocabulary in the contract.
+    remediation: >-
+      In all three texts, replace the clause with words that describe only observable behaviour. For example: "With a remote
+      unreachable, a Mission whose declared coordination branch is absent locally is read from its own directory, and the
+      answer is still 200; with a reachable remote that lacks the branch, it is likewise read from its own directory."
+  - id: PR-CONTRACT-006
+    lens: Contract fidelity (FR-019 / FR-024 500 surface)
+    severity: 2
+    title: The Ops contract never says that an Op file that cannot be opened is a 500, and calls unreadable records "never a failure"
+    evidence:
+      - artifact: "spec.md FR-019 'Not skipped, 500 ops_unreadable': an OSError on any candidate Op file other than a vanished one; FR-024 row 'an Op file or the spine that cannot be opened'"
+      - code: "contracts/mission-status/paths/ops_invocations.yaml:12-13, 20 ('Legacy or unreadable records are skipped, never served and never a failure'; only 'A directory that exists but cannot be read is a 500')"
+      - code: "contracts/mission-status/schemas/OpsRefusalCode.yaml:3-4 and responses/OpsUnreadable.yaml:2 (directory or closure spine only)"
+      - code: "contracts/mission-status/CHANGELOG.md:102, 112"
+      - code: "tests/contract/_mission_status_ops.py:615-616 (an OSError on an Op file is OpsUnreadable, so 500)"
+    claim: >-
+      The spec separates an unreadable record (read, but bad: skipped) from a file that cannot be opened (an environment
+      fault: 500). The contract never defines "unreadable" and lists only the directory and the spine as 500 causes, and the
+      operation says unreadable records are "never a failure". A consumer or service implementer would conclude that an Op
+      file returning EACCES is skipped and counted. The reader answers 500, as FR-019 requires.
+    remediation: >-
+      Add "an Op file that exists but cannot be opened" to the 500 causes in OpsRefusalCode, OpsUnreadable,
+      listOpsInvocations and the CHANGELOG, and change "unreadable records" in the operation description to "records whose
+      content is legacy or malformed".
+  - id: PR-CONTRACT-007
+    lens: Contract fidelity (operator ruling at WP07 reflected in tests)
+    severity: 1
+    title: The row-14 docstring still says the spec expects a 500 for an unreachable remote
+    evidence:
+      - artifact: "spec.md AC-DRIFT row 'a remote that cannot be asked' (amended: a 200 with no fallback entry, operator ruling at WP07)"
+      - code: "tests/contract/test_mission_status_drift.py:939-942"
+    claim: >-
+      The docstring says "The spec (FRESH3-001, AC-DRIFT 14) expects a 500 here" and presents the 200 as a departure. The spec
+      was amended to the 200 by the WP07 ruling, so the docstring now contradicts the bar and suggests the row is a known
+      deviation.
+    remediation: >-
+      Reword the docstring to cite the WP07 ruling: the row pins the ruled 200, with no fallback for an unreachable remote and
+      the fallback for a clean miss.
+  - id: PR-CONTRACT-008
+    lens: Contract fidelity (AC-VERSION bullet 5, terminology)
+    severity: 1
+    title: The literal "feature_slug" also appears in the oracle and the reality check, outside the one pinned place
+    evidence:
+      - artifact: "spec.md AC-VERSION bullet 5: the reader's legacy-shape literal is 'the sole accepted occurrence outside that scope, pinned by a test'"
+      - code: "tests/contract/_mission_status_drift.py:404 (pinned by test_mission_status_drift.py:1941-1995)"
+      - code: "tests/contract/_mission_status_oracles.py:336"
+      - code: "tests/contract/test_mission_status_reality.py:887, 901, 1736, 1929"
+    claim: >-
+      The independent oracle and the reality fixtures need the same literal to detect and plant the legacy shape. The pin
+      covers only the reader module, so a further retired-term use in those two files passes unnoticed, and AC-VERSION's
+      "sole" is false as written.
+    remediation: >-
+      Assemble the literal from fragments in the oracle and the reality module (RETIRED + "_slug", as test_mission_status_drift
+      does), so the reader's literal is the only one in the slice.

@@ -1,0 +1,7 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH4-001
+    status: resolved
+    reason: The gate in tasks.md Step PD item 4 and WP07 is now the identical two-variable form with non-empty and equality tests, run from the mission directory (scratch cases equal=OK, differ, one file missing, both missing all behave correctly), no old pipeline remains anywhere, Step 0 item 1 (hygiene counts need the synced python) agrees with Step PD item 6, and the diff from 7a92ae80c touches only tasks.md, WP07 and two review files.

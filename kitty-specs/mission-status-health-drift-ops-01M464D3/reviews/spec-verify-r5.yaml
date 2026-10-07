@@ -1,0 +1,16 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH4-001
+    status: resolved
+    reason: "FR-025 Corpus outcome now states that offline the check asserts the 500 alone, the floor, oracle, examined-plus-skipped and per-Mission equality assertions are skipped by a named skip (never a silent pass), and an offline run is not evidence for SC-002 or SC-007. SC-002 and SC-007 are reworded to 'with every configured remote reachable (FR-025)'. NFR-001 and NFR-009 were already conditioned. Nit (sev 1): the second and third AC-REALITY bullets (floors met, per-Mission equality) carry no condition of their own and rely on the FR-025 reference in the first bullet; the named skip is not repeated there."
+  - id: SPEC-FRESH4-002
+    status: resolved
+    reason: "FR-015 scan paragraph and COMPLETE-001 (decision list) now say 'at most one' listing, made only when a Mission has an expected lane (FR-012). FR-012 item 4 already makes the listing lazy ('run once, when the first Mission with an expected lane needs it ... a scan in which no Mission has an expected lane never needs the listing'), so FR-015, COMPLETE-001, NFR-002 and the AC row now agree. Nit (sev 1): the bold lead-in of FR-012 item 4 and the AC row title still read 'one listing per scan', and tracer-design-decisions.md COMPLETE-001 line still says 'one listing per scan' (its parenthetical about 500 only when a Mission has an expected lane keeps it conditional); wording only, no contradiction in substance."
+  - id: SPEC-FRESH4-003
+    status: unresolved
+    reason: "The Memo paragraph now says the Project builder reproduces all four v1 fallbacks (three exceptions plus outside-root) and the AC-PROJECT control includes an outside-root fixture. But FR-015 'Not the v1 helper' still ends 'the new Project builder keeps v1's three fallbacks too, applied to the raw resolver outcome the memo returns', and tracer-design-decisions.md (FRESH2-002 / FRESH3-003 entry) still says 'applies v1's three fallbacks to the raw outcome'. The spec therefore still gives two counts for the same builder. Severity 2 (minor). Fix: change both to 'v1's four fallbacks (the three exceptions and a read directory outside the checkout)'."
+  - id: SPEC-FRESH4-004
+    status: resolved
+    reason: "FR-025 Corpus outcome now conditions the 200 on 'every configured remote reachable and no non-merged Mission declaring a coordination branch present only on a remote or as a remote-tracking ref', calls it a corpus condition, not a network one, and requires the check to name any such Mission when it reports the 500. AC-REALITY first bullet adds 'and the corpus condition of FR-025'; SC-002 and SC-007 point at FR-025. Consistent with FR-015 Network behaviour (3). No other unconditional-200 claim found (NFR-001, NFR-009, R-9 and tracer-design-decisions.md state 'with the remotes reachable' as a network bound only, which is accurate for bounds)."

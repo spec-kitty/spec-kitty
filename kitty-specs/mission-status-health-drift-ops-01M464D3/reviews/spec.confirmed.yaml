@@ -1,0 +1,734 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: confirmed
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+- id: SPEC-GOV-001
+  lens: Directive (canonical sources)
+  severity: 4
+  title: Remedy command spec-kitty materialize --mission does not repair the snapshot the finding is about
+  evidence:
+  - artifact: "spec.md \xA7 FR-014 (client builds `spec-kitty materialize --mission <slug>`), \xA7 Out\
+      \ of scope (Remedy command strings), \xA7 AD-4"
+  - code: src/specify_cli/cli/commands/materialize.py:100-105 (writes only .kittify/derived/<slug>/, never
+      kitty-specs/<slug>/status.json)
+  - code: src/specify_cli/status/doctor.py:335 (the shipped recommended action is 'spec-kitty agent status
+      materialize')
+  - code: src/specify_cli/cli/commands/agent/status.py:499-507 (agent status materialize rebuilds status.json
+      from the event log)
+  claim: AD-4 says DriftRemedy `materialize_status` is grounded in the doctor's shipped recommended action,
+    but the spec then tells clients to render it as `spec-kitty materialize --mission <slug>`. That command
+    writes the gitignored derived views under .kittify/derived/ and leaves the drifted kitty-specs/<slug>/status.json
+    untouched, so a user who presses the Drift screen's copy button runs a command that does not clear
+    the finding. The doctor's real action is `spec-kitty agent status materialize`. The command text is
+    copied from the prototype (issue) without checking it against the checkout, which is a canonical-sources
+    miss, and no AC would catch it because the contract sends only the enum.
+  remediation: Correct FR-014 and the Out-of-scope bullet to name the command the doctor recommends (`spec-kitty
+    agent status materialize`, with the Mission argument that command takes), and state in AD-4 that `materialize_status`
+    maps to that action and not to `spec-kitty materialize`. Add the mapping to the DriftRemedy schema
+    description so a client has one source, and add a note in the squad-visible Corrections list that
+    the prototype's command is wrong.
+- id: SPEC-GOV-003
+  lens: Operator-ruling fidelity
+  severity: 3
+  title: 'OR-5 diluted: an Op with a legacy own completion and a spine closure is skipped, not served
+    closed'
+  evidence:
+  - artifact: "spec.md \xA7 FR-019 (a legacy completion skips the whole Op even when the spine holds a\
+      \ closure, as the CLI does), \xA7 Edge cases, \xA7 OR-5"
+  - code: src/specify_cli/cli/commands/invocations_cmd.py:273-296 (_apply_completion_status returns False
+      on a legacy completion)
+  claim: OR-5 says an Op is closed when a completed event exists in its file or on the closure spine,
+    and that the contract "does not copy the CLI reader's gap". FR-019 copies the CLI behaviour for the
+    one case where the spine does hold a closure, so the Op disappears from the list and from totalCount
+    although the ruling's own test (spine record present) says closed. The spec states the rule but does
+    not mark it as a deviation from the ruling or ask.
+  remediation: Either serve such an Op as closed from the spine record (own legacy completion ignored),
+    or record it as an author decision AD-11 with the reason and an Open question. Add the case to AC-OPS
+    "closure spine" with a plant and its control.
+- id: SPEC-GOV-006
+  lens: Terminology
+  severity: 2
+  title: Spec says the glossary has no entry for Op; it has one
+  evidence:
+  - artifact: "spec.md \xA7 Terminology (The glossary has no entry for Op, invocation, drift or health)"
+  - code: '.kittify/glossaries/planning-and-tracking.yaml:40-47 (surface: op, status draft)'
+  claim: The glossary defines `op` as a bounded, doctrine-governed agent action that produces a durable
+    git-tracked record. The spec's own definitions (Op file, closure spine) are built without citing it,
+    and the claim of no entry is false. The new contract text (OpsInvocation descriptions) would be written
+    without the canonical definition.
+  remediation: Cite the glossary `op` entry in Terminology, align the Op description in the Ops schemas
+    to it, and keep the sentence only for invocation, drift and health, after checking those against .kittify/glossaries/spec_kitty_core.yaml.
+- id: SPEC-GOV-007
+  lens: Ledger
+  severity: 3
+  title: 'a ledger entry: reference reader built on read_lanes_json cannot produce the legacy lanes.json outcome
+    the spec defines'
+  evidence:
+  - artifact: "spec.md \xA7 FR-012 (legacy-shaped lanes.json: no finding), \xA7 AD-10 (a legacy shape\
+      \ is a defined outcome, not a failure), \xA7 FR-025 (reader built from read_lanes_json)"
+  - code: src/specify_cli/lanes/persistence.py:138-161 (read_lanes_json raises CorruptLanesError on a
+      missing mission_slug)
+  - artifact: SPEC-KITTY-LEDGER.md a ledger entry (legacy lanes.json is refused by read_lanes_json; the v1 detail
+      reader answers 500 for it)
+  claim: The ledger entry a ledger entry records that read_lanes_json refuses the one legacy manifest, and that
+    the previous slice treats that as a loud 500. This spec makes the same file a silent "no finding"
+    and also lists read_lanes_json as a public reader for the reference reader. A reader that calls it
+    raises on that Mission, which AD-10 would turn into 500 drift_scan_unreadable for the whole project
+    report. The two rules disagree, the spec never cites a ledger entry, and the contract tree ends up with two
+    policies for one file.
+  remediation: 'Cite a ledger entry in FR-012 and AD-10. State that the reader detects the legacy shape by its
+    own JSON read (key `feature_slug`, no `mission_slug`) before calling read_lanes_json, and say why
+    drift differs from the v1 detail reader, or make drift follow v1 (500) and add the Mission to the
+    named skipped list only. This is a FORK: option A legacy shape is a no-finding (spec text, with the
+    pre-read), option B it fails the scan as in v1.'
+- id: SPEC-GOV-008
+  lens: Ledger
+  severity: 2
+  title: 'a ledger entry and a ledger entry: the reducer is treated as the authority, and the ledger records it is wrong
+    in known cases'
+  evidence:
+  - artifact: "spec.md \xA7 Terminology (reducer output), \xA7 FR-010, \xA7 Risks (no entry)"
+  - artifact: SPEC-KITTY-LEDGER.md a ledger entry (materialize_snapshot ignores schema-5 finalizer events, status.json
+      matches the empty reduction), a ledger entry (status.json agent field stale, SNAPSHOT_DRIFT reported)
+  claim: Kind 1 declares the event log the winning side and the reducer its reading. a ledger entry records a
+    case where the reducer returns an empty snapshot and the persisted file agrees with it, so the drift
+    report is clean while the CLI's own task listing disagrees. a ledger entry records a real SNAPSHOT_DRIFT that
+    the product's repair did not clear. The Risks section has neither, and the Drift screen's "trustworthy"
+    claim (FR-015) rests on them.
+  remediation: Add a Risk R-8 citing a ledger entry and a ledger entry, state that kind 1 reports disagreement with materialize_snapshot's
+    output and not with the true event log, and add a note to the DriftFinding description. No new check
+    is needed.
+- id: SPEC-GOV-009
+  lens: Scope
+  severity: 2
+  title: C-003 file set is open-ended and the existing Project pin test is not named
+  evidence:
+  - artifact: "spec.md \xA7 Slice file set (item 4: tests/contract/; item 5: the job registrations the\
+      \ plan names), \xA7 C-003, \xA7 FR-029, \xA7 R-6"
+  - code: tests/contract/test_mission_status_payloads.py:235 (asserts derive_project(...) == {name, missionCount})
+  claim: C-003 says only the slice file set changes, but item 5 defers its content to the plan and item
+    4 is a whole directory, so the constraint is not testable as written. FR-029 names one existing test
+    to edit as a ratchet, yet test_mission_status_payloads.py:235 pins Project to two keys and goes red
+    when derive_project gains five. That edit is also an existing-test change owed the same ratchet review
+    (R-6).
+  remediation: Name the job-registration files at spec time (or state that the plan must list them and
+    the squad re-checks), list the existing tests the Project change turns red (test_mission_status_payloads.py
+    and the reality-check Project assertion) beside FR-029 with the same "ratchet, not relaxation" control.
+- id: SPEC-ARCH-001
+  lens: Derived-state honesty
+  severity: 4
+  title: lane_branch_missing expects the manifest mission_branch for coordination-topology Missions, a
+    branch the product never creates there
+  evidence:
+  - artifact: "spec.md \xA7 FR-012 step 3 (expected branches include the manifest's mission_branch); AD-3\
+      \ (expect a branch only where the product would have created one)"
+  - code: src/specify_cli/lanes/worktree_allocator.py:1195-1215 (coordination arm calls _ensure_branch_exists
+      on coordination_branch and never _ensure_mission_branch)
+  - code: src/specify_cli/lanes/worktree_allocator.py:1235 (_ensure_mission_branch is called only in the
+      legacy, non-coordination arm); worktree_allocator.py:939 (coordination Missions use coordination_branch
+      as the lane base, not lanes_manifest.mission_branch)
+  - code: 52 meta.json files under kitty-specs/ carry coordination_branch (grep '"coordination_branch"'
+      kitty-specs/*/meta.json)
+  claim: For a Mission with a coordination branch the allocator creates the lane branches and the coordination
+    branch, not lanes.json's mission_branch. Rule step 3 therefore yields a lane_branch_missing finding
+    for every active coordination-topology Mission that has an expected lane, on a branch that was never
+    meant to exist. That is exactly the noise AD-3 says the rule avoids, and the reality-check oracle
+    ("manifest JSON read directly") would reproduce the same false positive, so the oracle would not catch
+    it. The rule is not honest for that population.
+  remediation: 'FORK: option A, for a Mission whose meta.json names a coordination_branch expect that
+    branch (the read of meta.json is already inside the FR-015 / NFR-002 file list) and never mission_branch;
+    option B, expect mission_branch only for Missions with no coordination_branch and expect no Mission-level
+    branch for coordination Missions (coordination health stays with the doctor). Either way add a coordination-topology
+    fixture pair (branch present, branch absent) to FR-026 and AC-DRIFT, and make the independent oracle
+    read meta.json itself.'
+- id: SPEC-ARCH-002
+  lens: Derived-state honesty
+  severity: 4
+  title: DriftSeverity keeps the value info that no kind can produce, so the no-dead-enum-value tests
+    cannot pass
+  evidence:
+  - artifact: "spec.md \xA7 AD-1 ('info stays in the reused vocabulary though no kind emits it'); FR-009\
+      \ (DriftSeverity: error, warning, info)"
+  - artifact: "spec.md \xA7 FR-023 (a committed test fails when any new enum value has no producing fixture);\
+      \ AC-DRIFT row 'no dead enum value' (names DriftSeverity); AD-6"
+  - code: src/specify_cli/audit/models.py:47-58 (Severity has ERROR, WARNING, INFO; the three shipped
+      kinds map only to ERROR and WARNING per classify_status_json)
+  claim: AD-6 removes dead values from DriftAuthority and DriftSide, but AD-1 keeps one in DriftSeverity.
+    FR-023 and AC-DRIFT then require a fixture that produces severity info, which the three kinds cannot
+    create. The acceptance row is either unsatisfiable or satisfied only by a synthetic fixture that bypasses
+    the production entry point (which the AC preamble forbids).
+  remediation: 'FORK: option A (preferred, consistent with AD-6) DriftSeverity is error, warning only,
+    pinned in enum_pins.json, with a CHANGELOG line that info from the audit vocabulary is not carried;
+    option B keep info and name DriftSeverity as the single exempt enum in FR-023 and AC-DRIFT, mark it
+    x-provisional and name it in the CHANGELOG Provisional section. State the choice in AD-1 and AD-6.'
+- id: SPEC-ARCH-004
+  lens: Canonical source
+  severity: 3
+  title: Field catalogue writes code inputs of x-derived as bare symbol names, which citation_check reports
+    as UNRESOLVED_INPUT
+  evidence:
+  - artifact: "spec.md \xA7 Field catalogue rows Project.health, DriftFinding.kind, DriftFinding.remedy,\
+      \ DriftFinding.laneComparison, LaneComparison.derivedStatusLane, OpsInvocation.status, OpsInvocation.evidence\
+      \ (inputs such as MIN_SUPPORTED_SCHEMA, check_compatibility, classify_status_json, LanesManifest,\
+      \ branch_exists, materialize_snapshot, StatusSnapshot, OpCompletedEvent given without a path)"
+  - code: contracts/tools/citation_check.py:20-26 (an x-derived input is a contract-field path string
+      or a {path, symbol} code input)
+  - code: contracts/tools/citation_check.py:412-421 (a bare string resolves only as a contract-field path)
+  claim: Every symbol named above does exist in src/ (verified), but as written they are bare strings,
+    so the citation check treats them as contract-field paths and fails UNRESOLVED_INPUT. The catalogue
+    mixes the two forms (OpsInvocation.status gives a path for closed_invocation_ids and none for OpCompletedEvent),
+    so a work package copying the table gets a red gate.
+  remediation: Rewrite the catalogue so every code input is {path, symbol} with the repository-relative
+    file (src/specify_cli/migration/schema_version.py for MIN_SUPPORTED_SCHEMA, MAX_SUPPORTED_SCHEMA and
+    check_compatibility; src/specify_cli/audit/classifiers/status_json.py; src/specify_cli/status/validate.py;
+    src/specify_cli/lanes/models.py; src/specify_cli/lanes/_git.py; src/specify_cli/status/reducer.py;
+    src/specify_cli/status/models.py; src/specify_cli/invocation/record.py) and bare strings only for
+    contract fields (schemaVersion, kind, sourceCode).
+- id: SPEC-ARCH-005
+  lens: Breaking-change proof
+  severity: 3
+  title: FR-022 names a baseline commit that is not the contract tree on main
+  evidence:
+  - artifact: "spec.md \xA7 FR-022 ('the contract tree on main (aef7cc967 or the current origin/main)')"
+  - code: 'git: aef7cc967 is the previous mission''s record-analysis commit; it is on no branch, is not
+      an ancestor of origin/main (b61d1fa33, #5625), and git diff aef7cc967 HEAD -- contracts shows 64
+      files changed (leak_scan.py, negative_cases.json, and others)'
+  claim: Observable 1 (byte identity of every existing file) and observable 2 (bundle equality) would
+    fail against aef7cc967 for reasons unrelated to this slice, and pass vacuously if the wrong tree is
+    used as a scratch baseline. The text offers origin/main as an alternative, but a reader following
+    the first named reference gets a wrong proof.
+  remediation: Drop the hash. Define the baseline as the merge-base of the branch with origin/main at
+    the time of the run, recorded as a full SHA in tracer-design-decisions.md, and have the proof script
+    assert that the baseline commit is an ancestor of origin/main.
+- id: SPEC-ARCH-006
+  lens: Breaking-change proof
+  severity: 3
+  title: FR-022 does not say which observables are committed tests and which are recorded wrap-up commands,
+    and a committed test has no source for the old Project shape
+  evidence:
+  - artifact: "spec.md \xA7 FR-022 ('each scripted with a planted negative'), AC-VERSION, FR-028"
+  - code: tests/contract/test_mission_status_contract_1_1.py:1-10 (the comparison with main is a recorded
+      wrap-up command, never a committed test, because breaking_check refuses a same-version baseline)
+  - code: tests/contract/test_mission_status_contract_1_1.py:421-436 (the scratch pair is this tree minus
+      the new operations, so a Project change is invisible to it)
+  - code: contracts/tools/breaking_check.py:335-340 (SHALLOW_CHECKOUT) and 296-310 (needs oasdiff, pinned
+      and absent from the pure-Python test jobs)
+  claim: The existing additive-proof tests build their baseline from the candidate tree itself, so they
+    cannot see that Project changed; observable 2 ('equals the baseline bundle except Project') needs
+    a baseline that has the old Project, which in CI is a git extraction from a full history or a frozen
+    fixture. The spec does not choose. The count assertions (breaking= four, BREAKING_WITHOUT_MAJOR) need
+    oasdiff and a lowered-major scratch copy, which the module docstring places in the orchestrator wrap-up,
+    not in pytest. Read literally, 'scripted' may become a test that cannot run in the contract-tools
+    job.
+  remediation: 'State per observable: (a) committed pure tests (byte identity of the files outside the
+    slice file set, using a frozen copy of the old Project.yaml, Project.example.yaml and paths/project.yaml
+    as the comparator, or the pair fixture extended with a Project override); (b) recorded wrap-up commands
+    (the two breaking_check runs and their counts lines, with planted controls) in tracer-design-decisions.md,
+    as the J-1 replay already is. Update the module docstring''s lifetime note accordingly.'
+- id: SPEC-ARCH-007
+  lens: Derived-state honesty
+  severity: 3
+  title: The independent oracle for kinds 1 and 2 combines two predicates that disagree, and classify_status_json
+    reports things the spec turns into other outcomes
+  evidence:
+  - artifact: "spec.md \xA7 FR-025 (oracle for kinds 1 and 2: classify_status_json plus validate_materialization_drift);\
+      \ FR-010; AD-10; FR-015"
+  - code: src/specify_cli/audit/classifiers/status_json.py:75-99 (reducer raise becomes a SNAPSHOT_DRIFT
+      error finding; CORRUPT_JSON, legacy-key and unknown-key findings are also returned)
+  - code: src/specify_cli/status/validate.py:247-312 (compares only work_packages, retrospective, event_count
+      and last_event_id, not the whole normalised JSON that classify_status_json compares)
+  claim: validate_materialization_drift ignores differences (for example summary or top-level fields)
+    that classify_status_json flags, so 'equality with an independent oracle' is undefined when both are
+    named. classify_status_json also emits non-drift codes and maps a reducer failure to SNAPSHOT_DRIFT,
+    while the spec makes that case a 500. On this corpus the sets probably coincide, but the assertion
+    is not stated precisely and a differing Mission would produce a spurious red or, worse, a loosened
+    assertion.
+  remediation: Define the oracle for kind 1 as classify_status_json filtered to the three SNAPSHOT_DRIFT
+    codes, with Missions whose reducer raises or whose status.json is not JSON on the named skipped list.
+    Use validate_materialization_drift only as a one-way check (every finding it reports implies a classify
+    finding). State that the reference reader reimplements the comparison with public materialize_snapshot
+    and materialize_to_json, and add materialize_to_json to the FR-025 reader list.
+- id: SPEC-ARCH-008
+  lens: Derived-state honesty
+  severity: 3
+  title: read_lanes_json raises on the legacy-shaped lanes.json, and the outcome for a JSON-valid but
+    malformed manifest is undefined
+  evidence:
+  - artifact: "spec.md \xA7 FR-012 ('legacy-shaped ... no finding'), FR-015 and AD-10 (only a lanes.json\
+      \ that is not JSON fails), FR-025 (reader built from read_lanes_json)"
+  - code: src/specify_cli/lanes/models.py:~190 (LanesManifest.from_dict reads data['mission_slug'] unconditionally)
+  - code: src/specify_cli/lanes/persistence.py:138-157 (read_lanes_json turns KeyError, TypeError and
+      ValueError into CorruptLanesError)
+  claim: The legacy shape (feature_slug, no mission_slug; 1 of 489 here) makes the public reader raise
+    CorruptLanesError, so a reader that follows FR-025 and calls it would fail the whole scan on the one
+    shape the spec calls a defined non-failure. Separately, JSON that parses but lacks a required key
+    (lanes, mission_branch) or is not an object also raises, and neither FR-012 nor FR-015 says what the
+    report does then.
+  remediation: 'State that the reader parses the raw JSON, treats an object without mission_slug and with
+    feature_slug as legacy (no finding), and only then calls LanesManifest.from_dict. For every other
+    CorruptLanesError choose and state one outcome. FORK: option A, 500 drift_scan_unreadable (loud, consistent
+    with AD-10); option B, a counted skipped Mission on the named list. Add a fixture for each shape to
+    FR-026 and AC-DRIFT.'
+- id: SPEC-ARCH-009
+  lens: Contracts
+  severity: 3
+  title: The provisional element list of FR-023 does not match what provisional_check will discover
+  evidence:
+  - artifact: "spec.md \xA7 FR-023 (list: health, DriftKind, DriftRemedy, laneComparison, evidence, totalCount,\
+      \ the Ops operation); \xA7 Field catalogue (DriftFinding.remedy and DriftFinding.laneComparison\
+      \ marked provisional); FR-008 and FR-016 (refusal schemas follow the ArtifactRefusal pattern); FR-019\
+      \ ('provisional' with no carrier)"
+  - code: contracts/tools/provisional_check.py:175-183 and 233-254 (every x-provisional node is an element
+      whose own name, a property name, schema title or operation path, must appear in the CHANGELOG Provisional
+      section)
+  - code: contracts/mission-status/schemas/ArtifactRefusalCode.yaml:17-20 and ArtifactRefusal.yaml:99-102
+      (the precedent marks both the code enum and the code property provisional)
+  claim: If remedy, truncated, DriftRefusalCode, DriftRefusal, OpsRefusalCode, OpsRefusal or the refusal
+    code properties carry x-provisional (the precedent pattern the spec invokes, and the catalogue says
+    remedy is provisional) the check demands each name in the CHANGELOG, and FR-023 lists none of them.
+    The legacy-record handling is called provisional in FR-019 and by the issue, but no property can carry
+    the marker. The list in the spec and the tree will disagree, and the existing test (_reported_provisional_tokens)
+    fails until they match.
+  remediation: 'Replace the FR-023 list with an exact table of x-provisional carriers: element, kind (property,
+    schema, operation), token the CHANGELOG must name. Say whether the two refusal code enums and the
+    refusal code properties are provisional, name remedy and truncated, and say that the legacy-record
+    rule is stated in the Ops operation description under the operation-level marker (AD-7), not as its
+    own element.'
+- id: SPEC-ARCH-011
+  lens: Derived-state honesty
+  severity: 2
+  title: Dropping derived_view_stale leaves a prototype panel unserved and rests on a different ruling
+    sentence than the text states
+  evidence:
+  - artifact: "spec.md \xA7 Summary, FR-013 (Gate A holds, Gate B fails), Risks 'Unblocks' ('a complete\
+      \ contract for the seven prototype screens'); tracer-design-decisions.md OR-2"
+  - artifact: 'issue #5776 ''Unblocks'' (the Drift screen''s stale-derived-views panel) and Q2 (''If the
+      reality check finds no honest rule ... drop the kind'')'
+  - code: src/specify_cli/status/doctor.py:340-344 and src/specify_cli/status/validate.py:316-336 (derived-view
+      drift retired, validate_derived_views a permanent no-op); .gitignore:65 (.kittify/derived/ ignored,
+      0 tracked files)
+  claim: The evidence for dropping the kind is correct and consistent with the ruling sentence 'a kind
+    without both [rule and example] is not shipped'. But FR-013 finds an honest rule (Gate A holds), so
+    the drop does not follow from the sentence the tracer quotes ('no honest rule'). And the issue's Drift
+    screen has a stale-derived-views panel that now has no data, yet the spec claims a complete contract
+    for all seven screens.
+  remediation: State in FR-013 and the CHANGELOG that the drop rests on the rule-and-example requirement,
+    not on the absence of a rule. Reword the 'Unblocks' sentence in Risks and Dependencies to say that
+    the stale-derived-views panel has no contract read and the host decides how it renders.
+- id: SPEC-ARCH-012
+  lens: Derived-state honesty
+  severity: 2
+  title: health depends on the serving build, and schemaVersion coercion accepts floats and booleans
+  evidence:
+  - artifact: "spec.md \xA7 FR-003 (coercion of a numeric string), FR-004 (range rule), AC-PROJECT rows\
+      \ 'non-integer schema is null'"
+  - code: 'src/specify_cli/migration/schema_version.py:22-23 (the range is the constants of the CLI build)
+      and :122-124 (int(raw): 3.9 gives 3, true gives 1, ''3'' gives 3)'
+  claim: 'The same project reads healthy or schema_drift depending on which build serves it, because the
+    range constants belong to the build; the description and CHANGELOG must say so or the card contradicts
+    the CLI after an upgrade. FR-003 mentions only string coercion; schema_version: 3.9 reads healthy
+    with schemaVersion 3 and true reads as 1, silently, and no plant covers them.'
+  remediation: Add to the health description that the range is the serving build's. Add float and boolean
+    rows to AC-PROJECT and FR-026 with their stated outcome, or specify that the reference reader rejects
+    a non-int, non-numeric-string value as null and records the divergence from the CLI as an author decision.
+- id: SPEC-ARCH-013
+  lens: Breaking-change proof
+  severity: 2
+  title: FR-029 keeps 'every planted-entry test' but one of them indexes the gap that is removed
+  evidence:
+  - artifact: "spec.md \xA7 FR-029"
+  - code: tests/contract/test_mission_status_contract_1_1.py:46-51 (DEFERRED_GAPS)
+  - code: tests/contract/test_mission_status_contract_1_1.py:260-262 (test_a_gap_named_only_outside_the_deferred_section_is_refused
+      uses DEFERRED_GAPS['project branch'])
+  - code: tests/contract/test_mission_status_contract_1_1.py:195 (test name says 'four deferred gaps')
+  claim: Removing the key makes that planted test raise KeyError; the edit is not a pure removal. The
+    test name and the CHANGELOG intro also say four.
+  remediation: State that the test at line 260 is re-pointed to a surviving gap (for example 'lane weights'),
+    that the function name at line 195 is renamed to three, and that CHANGELOG 'Four gaps' becomes 'Three
+    gaps'. Keep the planted entry that lacks 'lane weights' as the named control.
+- id: SPEC-ARCH-014
+  lens: Derived-state honesty
+  severity: 1
+  title: FR-011 remedy null for a missing log diverges from the doctor without saying so
+  evidence:
+  - artifact: "spec.md \xA7 AD-4, FR-011"
+  - code: src/specify_cli/status/doctor.py:325-338 (check_drift attaches the materialize action to every
+      drift string, including 'status.json exists but status.events.jsonl is missing' from validate.py:236-238)
+  claim: The choice (null, since materialize cannot restore a log) is sound, but AD-4 says the value is
+    grounded in the doctor's shipped action while the doctor recommends it for this case too.
+  remediation: Add one sentence to AD-4 recording the deliberate divergence and the reason.
+- id: SPEC-ARCH-015
+  lens: Canonical source
+  severity: 1
+  title: Eight properties cite the whole OpStartedEvent class, and STRICT_FIELDS already holds profile
+    and kind
+  evidence:
+  - artifact: "spec.md \xA7 Field catalogue (OpsInvocation.invocationId to wpId all cite OpStartedEvent);\
+      \ FR-027 (STRICT_FIELDS gains profile)"
+  - code: contracts/tools/citation_check.py:12-19 (dotted symbols such as OpStartedEvent.profile_id resolve)
+      and the CITATION_REUSE limit of five
+  - code: contracts/tools/fixture_builder.py:96-114 (profile is already in STRICT_FIELDS)
+  claim: One class cited by eight properties trips the informational CITATION_REUSE report and says less
+    than a field-level symbol; adding profile to STRICT_FIELDS is a no-op.
+  remediation: Cite field-level symbols (OpStartedEvent.profile_id, and so on) and drop profile from the
+    STRICT_FIELDS additions in FR-027.
+- id: SPEC-COMPLETE-001
+  lens: Silent success
+  severity: 4
+  title: branch_exists is a per-branch git subprocess that returns False on any git failure; the spec
+    says one refs/heads listing and never defines git being unusable
+  evidence:
+  - artifact: "spec.md \xA7 FR-012 (inputs list branch_exists), \xA7 FR-015 ('one listing of refs/heads'),\
+      \ \xA7 FR-025 (reader built from branch_exists), \xA7 NFR-002 (counting-opener)"
+  - code: src/specify_cli/lanes/_git.py:30-55 (_verify runs git rev-parse --verify per ref; returncode
+      != 0 is False, including no git binary, not a repository, a git error)
+  claim: 'Two contradictions and one silent-success hole. (1) FR-015/NFR-002 describe one read-only listing
+    of refs/heads checked by a counting opener, but the named public reader branch_exists starts one subprocess
+    per branch (one per expected lane plus the Mission branch, per Mission). FR-007''s no-subprocess rule
+    is scoped to /project only, so nothing says which is intended. (2) branch_exists cannot tell "branch
+    absent" from "git failed": in a directory that is not a repository, with git missing, or with a broken
+    repository, every expected branch reads as absent, so the scan returns a full set of lane_branch_missing
+    findings as a 200. That is "could not read" served as a finding, which FR-024 forbids. (3) Neither
+    the FR-015 500 list nor the FR-024 catalogue names a refs/heads or git failure.'
+  remediation: Specify the branch source once. Either read refs/heads (loose refs plus packed-refs) with
+    no subprocess and add an opener-count assertion that matches, or keep branch_exists and drop the 'one
+    listing' and counting-opener wording for the git part. In both cases add to FR-015 and FR-024 that
+    a non-repository, an unusable git or an unreadable refs store is 500 drift_scan_unreadable when any
+    Mission has an expected lane (not a finding), with a planted fixture (directory without .git, plus
+    a control with the branch present) and a project-wide check that git failure never yields kind 3.
+- id: SPEC-COMPLETE-002
+  lens: Silent success
+  severity: 3
+  title: A corrupt or non-object meta.json makes is_mission_completed raise, but FR-015's refusal list
+    does not name it
+  evidence:
+  - artifact: "spec.md \xA7 FR-012 (is_mission_completed input), \xA7 FR-015 / AD-10 (500 conditions),\
+      \ \xA7 FR-024 table"
+  - code: src/specify_cli/status/lifecycle.py:219-233 and 344 (is_mission_completed -> _last_merge_marker_at
+      -> load_meta_fail_closed)
+  - code: src/specify_cli/core/paths.py:606-656 (raises MissionMetaReadError when meta.json exists but
+      is corrupt, non-object or unreadable)
+  claim: 'The scan opens meta.json (FR-015) and calls is_mission_completed for every Mission with a current
+    lanes.json. A corrupt meta.json raises MissionMetaReadError. FR-015 lists as 500 only an unreadable
+    directory or status path, an event log that cannot be reduced and a non-JSON lanes.json. The outcome
+    for meta.json is undefined: an implementation may crash, skip the Mission, or treat it as not completed
+    and flag it. The last two are silent success.'
+  remediation: Add a corrupt or unreadable meta.json to the AD-10 / FR-015 500 conditions and to the FR-024
+    table, with a planted fixture (meta.json = [] or invalid JSON, same Mission before corruption as control).
+- id: SPEC-COMPLETE-003
+  lens: Silent success
+  severity: 3
+  title: read_lanes_json raises on the legacy-shaped manifest and the spec leaves a JSON-valid manifest
+    of any other shape undefined
+  evidence:
+  - artifact: "spec.md \xA7 FR-012 (legacy-shaped: no finding; lanes.json 'not JSON' fails the scan),\
+      \ \xA7 FR-025 (read_lanes_json listed as a public reader), \xA7 AD-10"
+  - code: src/specify_cli/lanes/models.py:189-191 (from_dict reads data['mission_slug'] unguarded)
+  - code: src/specify_cli/lanes/persistence.py:154-161 (KeyError and TypeError become CorruptLanesError)
+  - code: 'kitty-specs/064-complete-mission-identity-cutover/lanes.json (the 1 legacy-shaped manifest:
+      key feature_slug, no mission_slug)'
+  claim: The reference reader is to be built from read_lanes_json, but on the one real legacy manifest
+    that function raises CorruptLanesError, the same exception as for non-JSON. The spec requires two
+    different outcomes (no finding vs 500), so the reader must read the raw JSON itself, which the spec
+    does not say, and the oracle for kind 3 reads the manifest JSON directly, so a reader that wrongly
+    maps the exception would be caught only on this one Mission. A third class, valid JSON that has neither
+    mission_slug nor feature_slug (or lacks lanes or mission_branch), has no defined outcome.
+  remediation: 'State the three-way classification in FR-012/FR-015: current shape (has mission_slug and
+    the fields the rule reads), legacy shape (feature_slug and no mission_slug: no finding, counted),
+    anything else that parses (500 drift_scan_unreadable). Say how the reader detects it (raw json.loads
+    first). Add the third class as a planted fixture beside the existing non-JSON and legacy ones.'
+- id: SPEC-COMPLETE-004
+  lens: Leak and redaction
+  severity: 4
+  title: 'OQ-5 is not actually open for URL, path and embedded forms: steps 1, 2 and 4 silently redact
+    a credential, and the order against the credential check is unstated'
+  evidence:
+  - artifact: "spec.md \xA7 FR-020 steps 1-5 and the sentence 'A value holding a credential (the SECRET_PATTERNS\
+      \ kinds) is OQ-5', \xA7 OQ-5, \xA7 AC-OPS 'credential in evidence'"
+  - code: 'contracts/tools/leak_patterns.py (SECRET_PATTERNS: gh[pousr]_, github_pat_, AKIA/ASIA, PEM
+      header)'
+  - code: tests/contract/_mission_status_payloads.py:468-483 (the v1 human() projector redacts paths and
+      e-mails, then raises ProjectionError if a leak, including a secret, remains)
+  claim: 'FR-020 never says whether the credential test runs on the stored value (before the steps) or
+    on the redacted result. If after, a token in a URL query or userinfo (step 1 strips both), in a leading
+    absolute path (step 2 replaces the whole value with [path]) or inside an embedded path run (step 4)
+    is removed silently and the reader never fails: the case OQ-5 says is undecided is decided by omission,
+    with redacted=true and no loud failure. If before, step 1''s removal of query and userinfo is dead
+    for credentials. Only a token in plain free text or a bare repo_path reaches the OQ-5 behaviour. The
+    AC row ''a value holding a token'' has no shape, so a plant in plain text passes while the URL and
+    path shapes stay unexamined.'
+  remediation: 'Add to FR-020 an explicit precedence: the credential check runs on the stored string before
+    steps 1-5 (OQ-5 governs every shape), or record in OQ-5 as an extra option (d) that a credential inside
+    a URL or path is removed silently like the rest. That choice belongs to the operator, so mark it FORK:
+    (a) check before redaction, OQ-5 governs all shapes / (b) check after, add the silent-removal behaviour
+    to OQ-5 explicitly. Extend the AC row with one plant per shape (token in query, in userinfo, in an
+    absolute path, in free text, in a bare relative path) each with its clean control.'
+- id: SPEC-COMPLETE-005
+  lens: Leak and redaction
+  severity: 3
+  title: '''No credential'' claims (NFR-004, SC-005, FR-020) are bounded by four SECRET_PATTERNS kinds
+    and say so nowhere'
+  evidence:
+  - artifact: "spec.md \xA7 NFR-004, \xA7 SC-005, \xA7 FR-020 title ('free of host paths, addresses and\
+      \ credentials'), \xA7 FR-027"
+  - code: 'contracts/tools/leak_patterns.py (SECRET_PATTERNS has four patterns: GitHub classic and fine-grained
+      tokens, AWS access key id, PEM private-key header)'
+  claim: A bearer token, a password in text, a JWT, an Slack or API key of another vendor, or a token
+    in a query string is not a 'credential' under those patterns. SC-005 and NFR-004 read as an absolute
+    guarantee, and the green leak scan proves only the four kinds. Real evidence_ref values are free text
+    written by agents (56 of the 467 closed Ops here), the class most likely to hold one.
+  remediation: Reword NFR-004, SC-005 and FR-020 to 'no value matching the SECRET_PATTERNS kinds' and
+    state in the OpsInvocation.evidence description that other secret shapes are not detected, or extend
+    SECRET_PATTERNS in this slice (leak_patterns.py is in the slice file set only through the scanner;
+    if extending, list it in the slice file set and add a plant per new kind).
+- id: SPEC-COMPLETE-006
+  lens: Leak and redaction
+  severity: 3
+  title: file:// and other scheme URLs, UNC paths and URLs embedded in text keep host paths, userinfo
+    and query strings
+  evidence:
+  - artifact: "spec.md \xA7 FR-020 steps 1-4, \xA7 AC-OPS 'evidence classes' (plants a file URL)"
+  - code: contracts/tools/leak_patterns.py (HUMAN_HOST_PATH_PATTERNS cover only /home, /Users, /root,
+      /tmp, /var/tmp, /var/folders and a drive-letter Users path)
+  - code: src/specify_cli/invocation/writer.py:34 (_URL_SCHEME_RE) and 87-103 (normalise_ref returns a
+      scheme URL verbatim)
+  claim: 'Step 1 treats any leading scheme as a url and then runs step 4, whose path patterns know three
+    roots. A value such as file:///srv/build/<user>/x or file:///mnt/data/x keeps its host path (kind
+    url, only userinfo, query and fragment removed), while the same path without the scheme is replaced
+    by [path] in step 2. A UNC path (backslash prefix) is not matched by step 2 and fails rule 3 (backslash),
+    so it lands in text unredacted. A URL embedded in free text (kind text) is not parsed at all: userinfo
+    and query are kept. The corpus has this shape (one free-text evidence value embeds a GitHub issue
+    URL), only without a query. The planted ''file URL'' in the AC row is a home path, the one root the
+    patterns know.'
+  remediation: 'FR-020: a file-scheme URL is a host path (kind text, [path]); a value starting with two
+    backslashes or any drive form is step 2; in step 4, embedded URLs get the same userinfo/query/fragment
+    removal as step 1. Add plants file:///opt/x, a UNC path and a text value with https://u:p@host/x?token=abc,
+    each with a clean-URL control.'
+- id: SPEC-COMPLETE-007
+  lens: Leak and redaction
+  severity: 3
+  title: Step order between repo_path (kept unchanged) and the e-mail and path redaction of step 4 is
+    ambiguous
+  evidence:
+  - artifact: "spec.md \xA7 FR-020 step 3 ('repo_path, unchanged') vs step 4 ('Every value then passes\
+      \ the human-text host-path redaction ... and redact_emails')"
+  - code: tests/contract/_mission_status_payloads.py:610-662 (payload_leaks scans every string for e-mail
+      and, outside strict keys, the human patterns)
+  claim: 'A relative single-token value that passes the artifact-path rule can still be an address or
+    hold one (docs/a@b.com, notes/x@host). If step 3 returns it unchanged, the value is kind repo_path
+    with an address in it and the leak scan on the payload goes red on legitimate data (or the reader
+    raises). If step 4 applies to it, the kind and redacted flag after redaction are undefined (is it
+    still repo_path, redacted=true?). The same ambiguity covers an absolute value containing whitespace
+    (step 2 ''the path replaced'': the whole value or the run?).'
+  remediation: 'Rewrite FR-020 as an ordered pipeline with one defined output per step: classify, then
+    redact every value, then re-check the kind (a repo_path that changed becomes text, redacted=true);
+    say whether step 2 replaces the whole value or the matching run. Add plants: docs/a@b.com, and <host-home>/x/a
+    b.txt, with a clean relative path as control.'
+- id: SPEC-COMPLETE-008
+  lens: Reality check
+  severity: 3
+  title: 'Corpus evidence statistics are inconsistent: the ''1 URL'' does not exist as a url-kind value,
+    so rule 1 and the url floor have no real example'
+  evidence:
+  - artifact: "spec.md \xA7 FR-020 last paragraph ('467 closed Ops, 351 none, 32 absolute, 56 free text,\
+      \ 28 relative ... 1 evidence is a URL'), \xA7 FR-025 floors (evidence of each kind)"
+  - code: 'kitty-ops/*.jsonl (measured: 351 + 56 + 32 + 28 = 467, zero values begin with a URL scheme;
+      the only URL is embedded inside one free-text value; all 16 values over 512 characters are free
+      text)'
+  claim: The categories already sum to 467 without the URL, so '1 URL' double-counts, and the one URL
+    is inside free text and classified text by the spec's own rules. There is no real url-kind value in
+    the corpus, no real over-512 repo_path or absolute path, and no real redacted e-mail. A floor 'evidence
+    of each kind and redacted' cannot be met for url from real data, and the reality check would exercise
+    step 1 only through fixtures.
+  remediation: 'Correct the count (0 url-kind, 1 free text embedding a URL). In FR-025 state per kind
+    which floors come from the corpus and which are fixture-only (url: fixture), and set the corpus floor
+    for url to 0 explicitly rather than 1.'
+- id: SPEC-COMPLETE-009
+  lens: Coverage
+  severity: 3
+  title: NFR-005, NFR-007, C-006, C-003, C-007 and FR-026 have no acceptance row; NFR-002's numeric bounds
+    are cited but not asserted
+  evidence:
+  - artifact: "spec.md \xA7 Acceptance Criteria group headers (AC-PROJECT: FR-001..007, FR-024; AC-DRIFT:\
+      \ FR-008..015, FR-024; AC-OPS: FR-016..021, FR-024; AC-VERSION: FR-022,023,027..029, NFR-004, NFR-006;\
+      \ AC-REALITY: FR-025, NFR-001, NFR-002)"
+  - artifact: "spec.md \xA7 Non-Functional Requirements (NFR-003, NFR-005, NFR-007), \xA7 Constraints\
+      \ (C-003, C-006, C-007), \xA7 FR-026"
+  claim: By id count each of NFR-005 (byte-identical repeated reads and cursors), NFR-007 / C-006 (no
+    file under src/ changes), C-003 (only the slice file set changes), C-007 (no new dependency) and FR-026
+    appears only in its own table row; no AC cites it. NFR-003 has rows but is not cited. NFR-002's 5
+    s / 30 s / 10,000-file bounds and its counting-opener assertion have no row in AC-REALITY or AC-DRIFT.
+    The C-003/C-006 class is also the check a no-op cannot fail by accident but a scope-creeping change
+    can pass.
+  remediation: 'Add AC rows: determinism (two reads, byte-equal Project, findings, pages, cursors, two
+    bundle builds; control: a clock tick changes scannedAt only), scope (git diff --name-only against
+    main limited to the slice file set, with a planted extra file; a src/ path fails), dependency (no
+    change in pyproject.toml and lock; planted addition), NFR-002 timing with the 10,000-file fixture
+    and the counting opener, and cite FR-026 and the NFRs in the group headers.'
+- id: SPEC-COMPLETE-010
+  lens: Coverage
+  severity: 2
+  title: SC-001 cites '16 shape rows of AC-PROJECT'; AC-PROJECT has 7 rows
+  evidence:
+  - artifact: "spec.md \xA7 SC-001 vs \xA7 AC-PROJECT (7 rows) and \xA7 FR-002 (6 rows)"
+  claim: The success criterion's measurable count does not match the table it measures; a reviewer cannot
+    tell which 16 rows are meant.
+  remediation: Replace 16 by the real count or, better, say 'every row of AC-PROJECT'.
+- id: SPEC-COMPLETE-011
+  lens: Testability and falsifiability
+  severity: 3
+  title: 'SC-009 and SC-010 are marked ''no-op passable: no'' but name no observable a check can fail'
+  evidence:
+  - artifact: "spec.md \xA7 SC-009 (J-1 'recorded in tracer-design-decisions.md'), \xA7 FR-028, \xA7 SC-010\
+      \ (OQ answered, or plan carries minimal behaviour)"
+  claim: SC-009 is satisfied by writing a line in a Markdown file; nothing ties the record to the contract
+    tree it ran against or to the job conclusions. SC-010 is a process step with no artifact test. Under
+    the tactic acceptance-criteria-non-vacuity a criterion whose check is writing a sentence is no-op
+    passable, so the 'no' is not honest.
+  remediation: 'SC-009: require the record to cite the commit of the final contracts/ change, one line
+    per job with its conclusion, and make a test (or the squad gate) fail when contracts/mission-status/
+    changed after the cited commit. SC-010: relabel [folded] with the satisfying item (the plan''s OQ
+    table), or add a check that each OQ has a ruling or a provisional marker in the plan; mark no-op passable
+    ''yes, reviewed by squad'' if no automated check exists.'
+- id: SPEC-COMPLETE-012
+  lens: Testability and falsifiability
+  severity: 3
+  title: The kind 3 oracle named in FR-025 cannot decide completion or expected lanes, and the kind 3
+    floor contradicts 'never a pinned value'
+  evidence:
+  - artifact: "spec.md \xA7 FR-025 (oracle for kind 3: 'git for-each-ref refs/heads plus the manifest\
+      \ JSON read directly'; floors include 'findings of each shipped kind'), \xA7 FR-025 last paragraph\
+      \ ('Environment-dependent values (currentBranch, kind 3) ... never a pinned value'), \xA7 A-3, \xA7\
+      \ FR-012 ('honest when an independent oracle also flags')"
+  - code: src/specify_cli/status/lifecycle.py:320-347 and 267-283 (completion depends on merged_at, WP
+      terminality and reopen events)
+  claim: Whether a Mission is non-completed and which lanes are expected depends on is_mission_completed
+    and the reducer, neither of which the named oracle inputs provide. Either the oracle imports those
+    same readers (a shared defect passes both) or it re-derives them with no stated method, so 'honest'
+    cannot be checked as specified. Separately a plan-time floor on kind-3 findings is a pinned value
+    that fails on a clone with the Mission branches present (the count is 0..93 depending on local branches),
+    contradicting the environment rule.
+  remediation: 'Name the oracle for completion and expected lanes (for example a direct parse of meta.json
+    merged_at and of the event-log lane of each WP, written without the product readers), or state that
+    the oracle shares is_mission_completed and materialize_snapshot and name the planted fixtures that
+    cover them separately. For floors: take the kind-3 floor from the synthetic fixtures only and assert
+    corpus equality with the oracle, with no corpus floor on kind 3.'
+- id: SPEC-COMPLETE-013
+  lens: Silent success
+  severity: 3
+  title: An Op file that cannot be opened is skipped silently while an unlistable directory is a 500;
+    all-unreadable yields a 200 empty page
+  evidence:
+  - artifact: "spec.md \xA7 FR-019 ('one unreadable file is a skipped record, not a failure'; Terminology:\
+      \ unreadable includes 'cannot be opened'), \xA7 FR-024 intro, \xA7 AC-OPS 'empty and failing directory'"
+  claim: 'An I/O failure on every file of a listable directory (permissions, a mount fault) returns 200,
+    items [], totalCount 0, indistinguishable from an empty project; the skipped count is not in the response
+    (OQ-6 open). FR-024''s own rule says unreadable must not be an empty success. FORK: (a) any OSError
+    on a candidate file is 500 ops_unreadable, only shape and legacy failures are skipped / (b) keep per-file
+    skip but 500 when candidates exist and none could be read for I/O reasons / (c) keep the spec text
+    and record it in FR-024 as a known silent case.'
+  remediation: Choose among (a)-(c) and write it into FR-019 and the FR-024 table; add a fixture with
+    a directory of unreadable files beside a control with one readable Op.
+- id: SPEC-COMPLETE-014
+  lens: Testability and falsifiability
+  severity: 3
+  title: The actor-shape AC passes if the whole record is dropped, and the actor-null rule contradicts
+    the unreadable-record rule
+  evidence:
+  - artifact: "spec.md \xA7 FR-017 ('actor (ActorHandle, nullable: null on a shape failure)' vs 'a mission_id\
+      \ or wp_id failing its pattern makes the record unreadable'), \xA7 AC-OPS 'actor shape' (plant:\
+      \ e-mail-shaped actor; red when 'an address in the payload')"
+  - code: contracts/mission-status/schemas/ActorHandle.yaml (pattern ^[A-Za-z0-9._:-]+$, 'projected to
+      null rather than forwarded')
+  claim: The red condition 'an address in the payload' is also absent if the Op is skipped or the whole
+    read fails, so a no-op that drops such records passes. The assertion should be that the record is
+    served with actor null and every other field intact. The null-versus-unreadable split between actor
+    and the other shape-checked fields is stated nowhere with a reason (profileId and action failing shape
+    make the record unreadable).
+  remediation: 'Rewrite the row: plant an Op with actor ''a@b.com'', assert it is in items with actor
+    null and status, startedAt unchanged; control ''claude'' keeps its value. Add one sentence to FR-017
+    giving the reason actor alone degrades.'
+- id: SPEC-COMPLETE-015
+  lens: Silent success
+  severity: 3
+  title: FR-010 sends a reducer failure to a 500 although the product's own check reports it as an error
+    finding; the divergence is not flagged and OQ-4 covers only non-JSON
+  evidence:
+  - artifact: "spec.md \xA7 FR-010 ('compared exactly as classify_status_json does'; 'a reducer that raises\
+      \ ... is not a finding'), \xA7 AD-10, \xA7 OQ-4, \xA7 OR-4 rationale (screen must agree with spec-kitty\
+      \ doctor)"
+  - code: src/specify_cli/audit/classifiers/status_json.py:60-70 (CORRUPT_JSON error findings) and 149-160
+      (reducer raising becomes a SNAPSHOT_DRIFT error finding)
+  claim: The audit the spec mirrors reports a Mission whose reducer raises as an SNAPSHOT_DRIFT error.
+    The spec turns the same state into a whole-report 500, so Drift would show nothing for any Mission
+    while the doctor lists an error, the disagreement OR-4 was ruled to avoid. Only the non-JSON sub-case
+    is an OQ; the reducer sub-case is an author decision (AD-10) that the squad is not told differs from
+    the audit.
+  remediation: 'State the divergence in FR-010 and AD-10 with the audit line it differs from, and extend
+    OQ-4 with the reducer-raises case (options: whole-report 500 / a finding with the audit''s code).
+    Plant both in the FR-015 failure fixtures.'
+- id: SPEC-COMPLETE-016
+  lens: Leak and redaction
+  severity: 3
+  title: FR-005 lists the only null cases for currentBranch, but a name that passes the pattern can still
+    be a strict-class leak
+  evidence:
+  - artifact: "spec.md \xA7 FR-005 ('Null only for: ... a name failing ^[A-Za-z0-9][A-Za-z0-9._/-]*$ or\
+      \ over 255'), \xA7 FR-027 (STRICT_FIELDS names currentBranch)"
+  - code: 'contracts/tools/leak_patterns.py (STRICT_HOST_PATH_PATTERNS: (?:^|/)(home|Users)/<seg>/ is
+      a host path in a strict field)'
+  - code: tests/contract/_mission_status_payloads.py:447-459 (Projector.strict nulls a strict value that
+      trips the strict leak patterns)
+  claim: home/alice/x satisfies the FR-005 pattern but is a strict host path, so the contract either serves
+    it (and the payload leak scan goes red on a legitimate repository) or the reader nulls it, which FR-005's
+    exhaustive 'null only for' list forbids. A branch name is also user-authored and can carry a handle
+    (alice/topic); nothing says whether that exposure is accepted as for Workspace.laneBranch.
+  remediation: Add 'a name matching the strict host-path patterns' to the null cases (or say the leak
+    scan exempts it), plant branch home/alice/x with control topic/x, and add one sentence in the Project.currentBranch
+    description that the name is user-authored text served as stored.
+- id: SPEC-COMPLETE-018
+  lens: Coverage
+  severity: 2
+  title: sourceCode is an open pattern but summary is one fixed sentence per (kind, sourceCode); the pair
+    set is not closed
+  evidence:
+  - artifact: "spec.md \xA7 FR-014 (sourceCode matches ^[A-Z][A-Z0-9_]*$; one fixed sentence per pair),\
+      \ \xA7 FR-009, \xA7 AC-DRIFT 'fixed summaries'"
+  - code: src/specify_cli/audit/classifiers/status_json.py:94,121,139,154 (SNAPSHOT_DRIFT, _PROVENANCE,
+      _TERMINAL; the classifier also has CORRUPT_JSON and legacy and unknown-key codes this scan does
+      not use)
+  claim: The set of valid (kind, sourceCode) pairs is three pairs today but the schema admits any code,
+    and the reader behaviour for a pair without a summary is undefined.
+  remediation: Pin sourceCode to an enum (SNAPSHOT_DRIFT, SNAPSHOT_DRIFT_PROVENANCE, SNAPSHOT_DRIFT_TERMINAL,
+    null) or state the closed pair table in FR-014, and make an unknown pair a reader failure with a planted
+    case.
+- id: SPEC-COMPLETE-020
+  lens: Coverage
+  severity: 2
+  title: Project.yaml's own description ('a name and a count only') becomes false but FR-001 changes only
+    paths/project.yaml's description
+  evidence:
+  - artifact: "spec.md \xA7 FR-001 ('paths/project.yaml changes its description only'), \xA7 Slice file\
+      \ set (schemas/Project.yaml is listed)"
+  - code: 'contracts/mission-status/schemas/Project.yaml:3-5 (description: ''It carries a name and a count
+      only'')'
+  claim: After this slice the schema carries five more properties; its description and its required list
+    must change, and no FR or AC checks the description.
+  remediation: State in FR-001 that Project.description is rewritten and add it to the description-content
+    assertions.
+- id: SPEC-COMPLETE-021
+  lens: Testability and falsifiability
+  severity: 2
+  title: NFR-008 times one redaction shape only
+  evidence:
+  - artifact: "spec.md \xA7 NFR-008, \xA7 AC-OPS 'read-only, no agent; linear redaction' (a 256 KiB value\
+      \ without whitespace)"
+  - code: tests/contract/_mission_status_payloads.py:473-476 (the widened path pattern adds \S* to each
+      human pattern)
+  claim: A value with no whitespace and no at sign is the precedent's shape; values with many at signs,
+    many <host-home>/ runs or many drive-letter prefixes exercise the widened path patterns and the anchored
+    e-mail step and are not timed.
+  remediation: Time three shapes (no whitespace; repeated 'a@' ; repeated '<host-home>/a/'), each under the
+    0.1 s bound, with the short-value control.
