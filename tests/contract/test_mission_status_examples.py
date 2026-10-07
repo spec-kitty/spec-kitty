@@ -1547,13 +1547,38 @@ def test_the_drift_description_states_the_read_rules() -> None:
         "lag the coordination surface",
         "query remotes",
         "depends on the network",
-        "An unreachable remote leaves the Mission's own directory as the read directory (a 200 with no fallback entry)",
-        "a reachable remote that lacks the declared branch gives the coordination_branch_deleted fallback",
+        "An unreachable remote leaves the Mission read from its own directory, and the answer is still a 200",
+        "a reachable remote that lacks the declared branch is likewise read from its own directory",
         "any other resolver error is a 500 drift_scan_unreadable",
         "findings: [] means the scan ran and found none",
     ):
         assert phrase in text, phrase
     assert "ends the scan" not in text
+
+
+def test_the_two_remedy_rules_state_the_same_cases_as_the_drift_decision() -> None:
+    """AD-4: the x-derived rule is the citation an implementer reads, so both rules name every case that gets a remedy and every one that gets null."""
+    rules = {
+        "DriftRemedy": " ".join(_read(MODULE / "schemas" / "DriftRemedy.yaml")["x-derived"]["rule"].split()),
+        "DriftFinding.remedy": " ".join(_read(MODULE / "schemas" / "DriftFinding.yaml")["properties"]["remedy"]["x-derived"]["rule"].split()),
+    }
+    for place, rule in rules.items():
+        assert "SNAPSHOT_DRIFT and CORRUPT_JSON on a Mission not merged to main" in rule, place
+        assert "a missing status file whose event log exists, merged or not" in rule, place
+        for null_case in ("SNAPSHOT_DRIFT_PROVENANCE", "SNAPSHOT_DRIFT_TERMINAL", "a missing event log", "a missing lane branch"):
+            assert null_case in rule.split("null for")[-1], (place, null_case)
+
+
+def test_the_ops_contract_names_an_op_file_that_cannot_be_opened_as_a_500() -> None:
+    texts = {
+        "operation": _read(MODULE / "paths" / "ops_invocations.yaml")["get"]["description"],
+        "OpsRefusalCode": _read(MODULE / "schemas" / "OpsRefusalCode.yaml")["description"],
+        "OpsUnreadable": _read(MODULE / "responses" / "OpsUnreadable.yaml")["description"],
+        "CHANGELOG": (MODULE / "CHANGELOG.md").read_text(encoding="utf-8"),
+    }
+    for place, text in texts.items():
+        assert "Op file" in " ".join(text.split()), place
+    assert "Legacy or unreadable" not in " ".join(texts["operation"].split())
 
 
 def test_the_drift_tag_is_described() -> None:
@@ -1914,7 +1939,7 @@ def test_the_ops_operation_is_mapped_tagged_provisional_and_answers_four_statuse
 def test_the_ops_description_states_the_read_rules() -> None:
     text = " ".join(_ops_operation()["description"].split())
     phrases = (
-        "Legacy or unreadable records are skipped",
+        "Records with legacy or malformed content are skipped",
         "skippedCount",
         "totalCount is the number of served Ops",
         "can lag the newest records",

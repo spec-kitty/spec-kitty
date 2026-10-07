@@ -14,6 +14,7 @@ import copy
 import json
 import re
 import subprocess
+import types
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,6 +29,7 @@ from specify_cli.core.git_ops import get_current_branch
 from specify_cli.core.version_checker import get_project_version
 from specify_cli.migration import schema_version as schema
 from specify_cli.status import reducer
+from specify_cli.status.store import StoreError
 from specify_cli.status.aggregate import CoordAuthorityUnavailable, MissionMetadataUnavailable, MissionStatus
 from specify_cli.upgrade.metadata import ProjectMetadata
 from tests.contract import _mission_status_memo as memo_module
@@ -174,6 +176,15 @@ RAISING_SHAPES = {
 }
 
 
+def _built_or_problem(env: Env, repo: Path, label: str, problems: list[str]) -> dict[str, Any] | None:
+    """The built body, or None after a problem line naming the raise, so the remaining cases of a row still run."""
+    try:
+        return _build(env, repo)
+    except Exception as error:  # a defective reader may raise on one case; the others must still be judged
+        problems.append(f"raised {type(error).__name__} on {label}: {error}")  # "raised" marks a crash, which no mutation but a named one may be killed by
+        return None
+
+
 def row1_problems(env: Env) -> list[str]:
     problems: list[str] = []
     for label, text in RAISING_SHAPES.items():
@@ -185,11 +196,15 @@ def row1_problems(env: Env) -> list[str]:
             pass
         else:
             problems.append(f"{label}: the unguarded load did not raise, so the plant is not real")
-        problems += _differs(label, _build(env, repo), _expect())
+        built = _built_or_problem(env, repo, label, problems)
+        if built is not None:
+            problems += _differs(label, built, _expect())
     control = env.fresh()
     _write_project(control, _metadata())
     ProjectMetadata.load(control / ".kittify")
-    problems += _differs("a mapping", _build(env, control), _expect(specKittyVersion=VERSION_OK, schemaVersion=3, health="healthy"))
+    built = _built_or_problem(env, control, "a mapping", problems)
+    if built is not None:
+        problems += _differs("a mapping", built, _expect(specKittyVersion=VERSION_OK, schemaVersion=3, health="healthy"))
     return problems
 
 
@@ -212,6 +227,11 @@ VERSIONS: dict[str, tuple[str, str | None]] = {
     "a release candidate": (_metadata("4.0.0rc5"), "4.0.0rc5"),
     "every allowed punctuation": (_metadata("1!2.0+local_build-3"), "1!2.0+local_build-3"),
     "the control": (_metadata(), VERSION_OK),
+    # credential shapes assembled at run time, so this source holds none; each has a twin one character short that matches no pattern
+    "an access key id": (_metadata("AK" + "IA" + "C" * 16), None),
+    "the twin of the access key id, one character short": (_metadata("AK" + "IA" + "C" * 15), "AK" + "IA" + "C" * 15),
+    "a classic token": (_metadata("gh" + "p_" + "A" * 36), None),
+    "the twin of the classic token, one character short": (_metadata("gh" + "p_" + "A" * 35), "gh" + "p_" + "A" * 35),
 }
 UNREADABLE_FILES: dict[str, str | bytes | None] = {
     "absent": None,
@@ -227,13 +247,15 @@ def row2_problems(env: Env) -> list[str]:
     for label, (text, expected) in VERSIONS.items():
         repo = env.fresh()
         _write_project(repo, text)
-        got = _build(env, repo)["specKittyVersion"]
-        if got != expected:
-            problems.append(f"{label}: specKittyVersion is {got!r}, expected {expected!r}")
+        built = _built_or_problem(env, repo, label, problems)
+        if built is not None and built["specKittyVersion"] != expected:
+            problems.append(f"{label}: specKittyVersion is {built['specKittyVersion']!r}, expected {expected!r}")
     for label, content in UNREADABLE_FILES.items():
         repo = env.fresh()
         _write_project(repo, content)
-        problems += _differs(label, _build(env, repo), _expect())
+        built = _built_or_problem(env, repo, label, problems)
+        if built is not None:
+            problems += _differs(label, built, _expect())
     return problems
 
 
@@ -349,7 +371,7 @@ def row5_problems(env: Env) -> list[str]:
     served["unborn (the name)"] = (_real_repo(env, "topic/unborn", commit=False), "topic/unborn")
     detached = _real_repo(env, BRANCH, commit=True)
     _git(detached, "checkout", "-q", "--detach")
-    linked_path = env.root / "linked-worktree"
+    linked_path = env.root / f"linked-worktree-{env.made}"
     _git(attached, "worktree", "add", "-q", "-b", LINKED, str(linked_path))
     _write_project(linked_path, None)
     served["a linked worktree (.git is a file)"] = (linked_path, LINKED)
@@ -425,6 +447,7 @@ def row6_problems(env: Env) -> list[str]:
                 f"{label}: lastActivityAt {got['lastActivityAt']!r} (expected {expected!r}), missionCount {got['missionCount']} (expected {len(stamps)})"
             )
     problems.extend(_undecodable_activity_problems(env))
+    problems.extend(_broken_event_log_problems(env))
     return problems
 
 
@@ -443,6 +466,43 @@ def _undecodable_activity_problems(env: Env) -> list[str]:
             continue
         if got["lastActivityAt"] != expected or got["missionCount"] != 2:
             problems.append(f"{label}: lastActivityAt {got['lastActivityAt']!r} (expected {expected!r}), missionCount {got['missionCount']} (expected 2)")
+    return problems
+
+
+def test_the_last_activity_description_and_rule_state_the_unreadable_cases() -> None:
+    """FR-006 and FR-024: an unreadable status.json leaves its Mission out, a broken event log fails the read."""
+    member = yaml.safe_load(SCHEMA_FILE.read_text(encoding="utf-8"))["properties"]["lastActivityAt"]
+    for place, text in (("description", member["description"]), ("x-derived rule", member["x-derived"]["rule"])):
+        flat = " ".join(text.split())
+        assert "status.json" in flat and "cannot be decoded or parsed" in flat and "500" in flat, place
+
+
+def _broken_event_log_problems(env: Env) -> list[str]:
+    """An event log that cannot be decoded or parsed fails the read (FR-024: the authority); each plant has a clean twin built the same way."""
+    problems: list[str] = []
+    plants: dict[str, bytes | None] = {
+        "invalid UTF-8 in the event log of the newest Mission": b"\xff\xfe\x00\n",
+        "a non-JSON line in the event log of the newest Mission": b"this is not json\n",
+        "the clean twin of the event-log plants": None,
+    }
+    for label, plant in plants.items():
+        repo = _repo_with_missions(env, {"a-mission": MIDDLE, "b-mission": EARLY_TEXT_LATE_INSTANT})
+        if plant is not None:
+            with (repo / "kitty-specs" / "b-mission" / "status.events.jsonl").open("ab") as handle:
+                handle.write(plant)
+        try:
+            got = _build(env, repo)
+        except (UnicodeDecodeError, StoreError):
+            if plant is None:
+                problems.append(f"{label}: the clean twin failed the read")
+            continue
+        except Exception as error:  # any other failure is not the failure the contract states
+            problems.append(f"{label}: the build raised {type(error).__name__}: {error}")
+            continue
+        if plant is not None:
+            problems.append(f"{label}: the read served lastActivityAt {got['lastActivityAt']!r} instead of failing")
+        elif got["lastActivityAt"] != EARLY_TEXT_LATE_INSTANT:
+            problems.append(f"{label}: lastActivityAt {got['lastActivityAt']!r} (expected {EARLY_TEXT_LATE_INSTANT!r})")
     return problems
 
 
@@ -702,15 +762,20 @@ def test_every_built_project_validates_against_the_contract_and_leaks_nothing(en
 
 
 def _wrap_cli_version(patch: pytest.MonkeyPatch) -> None:
-    patch.setattr(project, "project_version", lambda repo_root: get_project_version(repo_root))
+    patch.setattr(project, "project_version", lambda repo_root, leak: get_project_version(repo_root))
 
 
 def _unguarded_load(patch: pytest.MonkeyPatch) -> None:
-    def defective(repo_root: Path) -> str | None:
+    def defective(repo_root: Path, leak: ModuleType) -> str | None:
         metadata = ProjectMetadata.load(repo_root / ".kittify")
         return metadata.version if metadata is not None and isinstance(metadata.version, str) and metadata.version != "unknown" else None
 
     patch.setattr(project, "project_version", defective)
+
+
+def _serve_a_credential_version(patch: pytest.MonkeyPatch) -> None:
+    real = project.project_version
+    patch.setattr(project, "project_version", lambda repo_root, leak: real(repo_root, types.SimpleNamespace(leak_codes=lambda value, mode: (), STRICT=None)))
 
 
 def _strict_coercion(patch: pytest.MonkeyPatch) -> None:
@@ -780,8 +845,9 @@ def _unguarded_activity(patch: pytest.MonkeyPatch) -> None:
 
 
 MUTATIONS: dict[str, tuple[Callable[[pytest.MonkeyPatch], None], tuple[str, ...]]] = {
-    "wrap-cli-version": (_wrap_cli_version, ("row1", "row2")),
+    "wrap-cli-version": (_wrap_cli_version, ("row2",)),
     "unguarded-load": (_unguarded_load, ("row1",)),
+    "serve-a-credential-version": (_serve_a_credential_version, ("row2",)),
     "strict-schema-coercion": (_strict_coercion, ("row3",)),
     "equality-health": (_equality_health, ("row4",)),
     "one-sided-health": (_one_sided_health, ("row4",)),
@@ -792,6 +858,10 @@ MUTATIONS: dict[str, tuple[Callable[[pytest.MonkeyPatch], None], tuple[str, ...]
     "no-fallback-outside-root": (_no_fallback_outside_root, ("row7",)),
     "no-exception-fallback": (_no_exception_fallback, ("row7",)),
 }
+
+
+# The mutations whose intended kill is a raise (the reader is forbidden to write, spawn or fail): a crash of the mutant itself is no kill for any other.
+CRASH_KILLS: frozenset[str] = frozenset({"no-exception-fallback", "subprocess-for-head", "unguarded-load"})
 
 
 def _problems_or_raised(row: Callable[[Env], list[str]], env: Env) -> list[str]:
@@ -808,8 +878,10 @@ def test_every_reader_mutation_turns_its_rows_red(name: str, env: Env) -> None:
         assert ROWS[row](env) == [], f"control: row {row} is not clean before the mutation"
     with pytest.MonkeyPatch.context() as patch:
         apply(patch)
-        killed = any(_problems_or_raised(ROWS[row], env) for row in rows)
-    assert killed, f"{NOT_KILLED}: {name}"
+        problems = [problem for row in rows for problem in _problems_or_raised(ROWS[row], env)]
+    kills = problems if name in CRASH_KILLS else [problem for problem in problems if not problem.startswith("raised ")]
+    detail = " (no problem line)" if not problems else "" if kills else f" (killed only by its own crash: {problems[0]})"
+    assert kills, f"{NOT_KILLED}: {name}{detail}"
 
 
 def test_the_mutation_table_names_only_known_rows_and_functions() -> None:

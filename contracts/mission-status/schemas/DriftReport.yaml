@@ -7,9 +7,7 @@ description: >-
   never repairs, and the 200 answer is sent with Cache-Control no-store, so a rescan is a second
   call. A Mission whose declared coordination branch no longer exists is scanned from its own
   directory, which can lag the coordination surface. The stock coordination resolver may query
-  remotes, so the outcome depends on the network. An unreachable remote leaves the Mission's own directory as the read directory (a 200 with no fallback entry);
-  a reachable remote that lacks the declared branch gives the coordination_branch_deleted fallback;
-  any other resolver error is a 500 drift_scan_unreadable.
+  remotes, so the outcome depends on the network. An unreachable remote leaves the Mission read from its own directory, and the answer is still a 200; a reachable remote that lacks the declared branch is likewise read from its own directory; any other resolver error is a 500 drift_scan_unreadable.
 type: object
 additionalProperties: false
 required: [scannedAt, findings, truncated]

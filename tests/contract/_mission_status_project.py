@@ -7,9 +7,10 @@ its own and writes nothing: the project slug comes from ``.kittify/config.yaml``
 only through the memo (``_mission_status_memo``), so its git queries are counted and never repeated.
 
 Reading the metadata as the product reads it: ``ProjectMetadata.load`` applies ``.get`` to unvalidated YAML and raises
-``AttributeError`` or ``TypeError`` for several shapes, and the YAML constructors can raise ``ValueError``. The builder
-therefore reads the file once itself, checks the shape, calls ``load`` only when the shape is safe, and reads a
-residual error as null: a metadata file the service cannot read is a null, never a failure of the read.
+``AttributeError`` or ``TypeError`` for several shapes, and the YAML constructors can raise ``ValueError`` or
+``OverflowError``. The builder therefore calls ``load`` itself and reads each of those errors as null; the schema
+version is read only when the parsed file is a mapping. A metadata file the service cannot read is a null, never a
+failure of the read.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
 from specify_cli.migration import schema_version as schema
 from specify_cli.status.aggregate import CoordAuthorityUnavailable, MissionMetadataUnavailable
 from specify_cli.status.reducer import materialize_snapshot
+from specify_cli.status.store import read_event_stream, read_events_raw
 from specify_cli.upgrade.metadata import ProjectMetadata
 from tests.contract._mission_status_memo import MemoEntry, ResolverMemo, memo_resolve
 from tests.contract._mission_status_payloads import enumerate_missions, read_project_name
@@ -70,8 +72,8 @@ def parsed_metadata(repo_root: Path) -> Any:
         return None
 
 
-def project_version(repo_root: Path) -> str | None:
-    """``spec_kitty.version`` as ``ProjectMetadata.load`` reads it, projected: a matching string, else null (FR-002)."""
+def project_version(repo_root: Path, leak: ModuleType) -> str | None:
+    """``spec_kitty.version`` as ``ProjectMetadata.load`` reads it, projected: a matching string that holds no credential, else null (FR-002)."""
     try:
         metadata = ProjectMetadata.load(repo_root / ".kittify")
     except (AttributeError, TypeError, ValueError, OverflowError):
@@ -79,7 +81,7 @@ def project_version(repo_root: Path) -> str | None:
     version = metadata.version if metadata is not None else None
     if not isinstance(version, str) or version == _PRODUCT_SENTINEL or _VERSION.fullmatch(version) is None:
         return None
-    return version
+    return None if leak.leak_codes(version, leak.STRICT) else version
 
 
 def schema_version_of(repo_root: Path) -> int | None:
@@ -175,9 +177,16 @@ def read_dir_of(repo_root: Path, name: str, entry: MemoEntry) -> tuple[Path, str
 
 
 def _mission_activity(read_dir: Path) -> str | None:
+    """The latest activity of one Mission; null only when its ``status.json`` cannot be read (the Mission still counts).
+
+    The event log is the authority (FR-024): an event log that cannot be read, decoded or parsed fails the whole read, so it is
+    re-read outside the guard whenever the snapshot build fails.
+    """
     try:
         snapshot = materialize_snapshot(read_dir)
-    except _UNREADABLE:  # UnicodeDecodeError is a ValueError: the Mission still counts and adds no activity
+    except _UNREADABLE:
+        read_event_stream(read_dir)
+        read_events_raw(read_dir)
         return None
     return last_activity_of(state.get("last_transition_at") for state in snapshot.work_packages.values())
 
@@ -196,7 +205,7 @@ def build_project(repo_root: Path, memo: ResolverMemo, *, leak: ModuleType) -> P
     body = {
         "name": read_project_name(repo_root),
         "missionCount": len(names),
-        "specKittyVersion": project_version(repo_root),
+        "specKittyVersion": project_version(repo_root, leak),
         "schemaVersion": schema_value,
         "health": health_of(schema_value),
         "currentBranch": current_branch_of(repo_root, leak),

@@ -524,6 +524,9 @@ def _byte_identity_problems(baseline: dict[str, bytes], candidate: dict[str, byt
 
 
 MASKED_SCHEMA = {"masked": PROJECT_SCHEMA_NAME}
+NEW_PROJECT_PROPERTIES = ("specKittyVersion", "schemaVersion", "health", "currentBranch", "lastActivityAt")
+# the keys the slice rewrites on the Project schema itself: its prose, its required list and its example list
+PROJECT_SLICE_KEYS = ("description", "required", "examples")
 
 
 def _project_200(tree: dict[str, Any]) -> dict[str, Any]:
@@ -548,6 +551,27 @@ def _masked_tree(tree: dict[str, Any]) -> dict[str, Any]:
     return masked
 
 
+def _project_schema_problems(baseline_tree: dict[str, Any], candidate_tree: dict[str, Any]) -> list[str]:
+    """The candidate Project schema minus its five new properties and the slice's prose keys equals the frozen copy.
+
+    The bundle comparison masks the Project schema as a whole; this is the check that a pre-existing property
+    (``name``, ``missionCount``) or any other key of the schema was not changed under that mask.
+    """
+    try:
+        base, candidate = copy.deepcopy(_project_200(baseline_tree)["schema"]), copy.deepcopy(_project_200(candidate_tree)["schema"])
+        for new in NEW_PROJECT_PROPERTIES:
+            candidate["properties"].pop(new, None)
+    except (KeyError, TypeError, AttributeError) as error:
+        return [f"bundle_changed: the Project schema part {error} is missing from a tree"]
+    for key in PROJECT_SLICE_KEYS:
+        base.pop(key, None)
+        candidate.pop(key, None)
+    if base == candidate:
+        return []
+    differing = sorted(key for key in set(base) | set(candidate) if base.get(key) != candidate.get(key))
+    return [f"bundle_changed: the Project schema differs from the frozen copy outside its five new properties: {differing}"]
+
+
 def _bundle_problems(baseline_root: Path, candidate_root: Path) -> list[str]:
     """The resolved candidate minus the new operations and tags, at the baseline version, equals the resolved baseline except the two masks."""
     resolver = _resolver()
@@ -565,13 +589,14 @@ def _bundle_problems(baseline_root: Path, candidate_root: Path) -> list[str]:
         baseline_masked, candidate_masked = _masked_tree(baseline_tree), _masked_tree(candidate_tree)
     except (KeyError, TypeError) as error:
         return [f"bundle_changed: the masked part {error} is missing from a tree"]
+    project_problems = _project_schema_problems(baseline_tree, candidate_tree)
     if candidate_masked == baseline_masked:
-        return []
+        return project_problems
     base_paths, candidate_paths = baseline_masked["paths"], candidate_masked["paths"]
     changed = sorted(key for key in set(base_paths) | set(candidate_paths) if base_paths.get(key) != candidate_paths.get(key))
     if baseline_masked.get("tags") != candidate_masked.get("tags"):
         changed.append("tags")
-    return [f"bundle_changed: the existing operations differ: {changed}"]
+    return [f"bundle_changed: the existing operations differ: {changed}", *project_problems]
 
 
 def additive_proof_problems(baseline_root: Path, candidate_root: Path) -> list[str]:
@@ -787,6 +812,20 @@ def test_a_changed_existing_tag_fails_the_bundle_rule(pair: tuple[Path, Path]) -
     _write_yaml(path, document)
     problems = _bundle_problems(baseline, candidate)
     assert _bundle_changed(problems), f"{NOT_KILLED}: an existing tag changed: {problems}"
+
+
+@pytest.mark.parametrize(
+    ("name", "key", "value"),
+    [("missionCount", "minimum", 1), ("missionCount", "type", "string"), ("name", "minLength", 2)],
+)
+def test_a_change_to_a_pre_existing_project_property_fails_the_bundle_rule(pair: tuple[Path, Path], name: str, key: str, value: Any) -> None:
+    """The Project schema is masked as a whole, so the candidate minus its five new properties is compared to the frozen copy."""
+    baseline, candidate = pair
+    project = _read_yaml(candidate / PROJECT_SCHEMA_FILE)
+    project["properties"][name][key] = value
+    _write_yaml(candidate / PROJECT_SCHEMA_FILE, project)
+    problems = _bundle_problems(baseline, candidate)
+    assert any(problem.startswith("bundle_changed: the Project schema") for problem in problems), f"{NOT_KILLED}: {name}.{key} changed: {problems}"
 
 
 def test_a_change_to_the_project_schema_or_the_get_project_description_alone_is_masked(pair: tuple[Path, Path]) -> None:

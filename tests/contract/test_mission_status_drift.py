@@ -496,6 +496,20 @@ def row3_problems(env: Env) -> list[str]:
         problems,
     )
 
+    def genesis_only_in_the_snapshot(document: dict[str, Any]) -> None:
+        document["work_packages"]["WP03"] = {"lane": "genesis", "actor": "x", "force_count": 0, "last_event_id": "x", "last_transition_at": "x"}
+
+    repo = new_repo(env)
+    mission_dir = mission(repo, SLUG, 1, {"WP01": "planned"})
+    edit_snapshot(mission_dir, genesis_only_in_the_snapshot)
+    check(
+        env,
+        "a genesis lane on one side and no work package on the other is a row with both lanes null",
+        scan(env, repo),
+        [_drift(1, [lane_row("WP03", None, None)])],
+        problems,
+    )
+
     def odd_shapes(document: dict[str, Any]) -> None:
         document["work_packages"]["not-a-wp"] = {"lane": "done"}
         document["work_packages"]["WP02"] = 5
@@ -922,10 +936,10 @@ def coordination_repo(env: Env, remote: str | None) -> tuple[Path, str]:
 def row14_problems(env: Env) -> list[str]:
     """A remote that cannot be asked, against the stock resolver of this tree.
 
-    The spec (FRESH3-001, AC-DRIFT 14) expects a 500 here. The resolver of this tree does not give one: an unreachable remote makes it judge the
-    declared branch present, no coordination worktree exists, and the aggregate keeps the primary checkout authoritative (the unmaterialised
-    create window), so the Mission is read from its own directory and answers 200 with no fallback entry. A clean miss on a reachable remote is
-    the deleted branch: the same 200, with the fallback entry. The row pins what the resolver does and tells the two apart.
+    The spec, as amended by the operator ruling at WP07 (2026-10-06; FRESH3-001, AC-DRIFT 14), expects a 200 here, and this row pins it. With an
+    unreachable remote the stock resolver judges the declared branch present, no coordination worktree exists, and the aggregate keeps the
+    primary checkout authoritative (the unmaterialised create window), so the Mission is read from its own directory with no fallback entry. A
+    clean miss on a reachable remote is the deleted branch: the same 200, with the fallback entry. The row tells the two apart.
     """
     problems: list[str] = []
     bare = env.fresh()
@@ -1787,6 +1801,10 @@ MUTATIONS: dict[str, tuple[Callable[[pytest.MonkeyPatch, Env], None], tuple[str,
 }
 
 
+# The mutations whose intended kill is a raise (the reader is forbidden to write, spawn or fail): a crash of the mutant itself is no kill for any other.
+CRASH_KILLS: frozenset[str] = frozenset({"call-materialize"})
+
+
 def _problems_or_raised(row: Callable[[Env], list[str]], env: Env) -> list[str]:
     try:
         return row(env)
@@ -1801,8 +1819,10 @@ def test_every_reader_mutation_turns_its_rows_red(name: str, env: Env) -> None:
         assert ROWS[row](env) == [], f"control: row {row} is not clean before the mutation"
     with pytest.MonkeyPatch.context() as patch:
         apply(patch, env)
-        killed = any(_problems_or_raised(ROWS[row], env) for row in rows)
-    assert killed, f"{NOT_KILLED}: {name}"
+        problems = [problem for row in rows for problem in _problems_or_raised(ROWS[row], env)]
+    kills = problems if name in CRASH_KILLS else [problem for problem in problems if not problem.startswith("raised ")]
+    detail = " (no problem line)" if not problems else "" if kills else f" (killed only by its own crash: {problems[0]})"
+    assert kills, f"{NOT_KILLED}: {name}{detail}"
 
 
 def test_the_mutation_table_names_only_known_rows_and_functions() -> None:
@@ -1870,6 +1890,20 @@ def _write_manifest(directory: Path, label: str) -> None:
     directory.mkdir()
     content = BROKEN_MANIFESTS[label]
     (directory / LANES).write_bytes(content if isinstance(content, bytes) else content.encode("utf-8"))
+
+
+# Two shapes the product's own resolver cannot read: it ends the scan before the reader's completion test runs, which is why row 10 isolates the reader.
+RESOLVER_REFUSED = frozenset({"nested too deep", "current-shaped, a collapse report that is not an object"})
+
+
+@pytest.mark.parametrize("label", sorted(BROKEN_MANIFESTS))
+def test_a_completed_mission_with_a_broken_manifest_through_the_real_resolver(label: str, env: Env) -> None:
+    """The row 10 control with nothing patched: a 200 with no finding, except where the product's own resolver ends the scan first."""
+    repo = new_repo(env)
+    mission(repo, SLUG, 1, {"WP01": "in_progress"}, meta=MERGED, lanes=BROKEN_MANIFESTS[label])
+    problems: list[str] = []
+    check(env, f"completed by a merge marker, {label}, the real resolver", scan(env, repo), 500 if label in RESOLVER_REFUSED else [], problems)
+    assert problems == []
 
 
 def test_the_product_refuses_the_manifests_the_reader_calls_a_500(tmp_path: Path) -> None:
@@ -1991,8 +2025,8 @@ def test_the_refusals_are_the_contract_examples(env: Env) -> None:
 
 
 UNREACHABLE_SENTENCE = (
-    "An unreachable remote leaves the Mission's own directory as the read directory (a 200 with no fallback entry); "
-    "a reachable remote that lacks the declared branch gives the coordination_branch_deleted fallback; "
+    "An unreachable remote leaves the Mission read from its own directory, and the answer is still a 200; "
+    "a reachable remote that lacks the declared branch is likewise read from its own directory; "
     "any other resolver error is a 500 drift_scan_unreadable."
 )
 
@@ -2011,5 +2045,6 @@ def test_the_contract_prose_states_what_an_unreachable_remote_does() -> None:
     for place, prose in _prose_of_the_unreachable_remote().items():
         assert "ends the scan" not in prose, f"{place} still says an unreachable remote ends the scan"
         assert UNREACHABLE_SENTENCE in prose, f"{place} does not state the ruled behaviour of an unreachable remote"
+        assert "fallback entry" not in prose and "coordination_branch_deleted" not in prose, f"{place} names reader vocabulary no payload carries"
     changelog = _flat((MODULE_DIR / "CHANGELOG.md").read_text(encoding="utf-8"))
     assert "ends the scan in" not in changelog

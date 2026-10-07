@@ -104,7 +104,7 @@ def test_the_leak_kinds_are_offered(builder: ModuleType) -> None:
     assert tuple(builder.KINDS[:8]) == OLD_KINDS
 
 
-def test_the_strict_field_list_gains_the_ten_names_and_keeps_title_out(builder: ModuleType) -> None:
+def test_the_strict_field_list_gains_the_sixteen_names_and_keeps_title_out(builder: ModuleType) -> None:
     assert set(NEW_STRICT_NAMES) <= set(builder.STRICT_FIELDS)
     assert "title" not in builder.STRICT_FIELDS
 

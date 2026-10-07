@@ -9,15 +9,15 @@ get:
     stop when hasNextPage is false. A pageCursor that is malformed, forged, or issued for another
     profile is answered with 400 and a problem whose code is invalid_page_cursor. The optional
     profile query parameter keeps the Ops of one profile; a profile that matches no Op gives an
-    empty page, and a profile that fails its pattern is a 400 problem. Legacy or unreadable
-    records are skipped, never served and never a failure: a record of an older shape, an
+    empty page, and a profile that fails its pattern is a 400 problem. Records with legacy
+    or malformed content are skipped, never served and never a failure: a record of an older shape, an
     empty or truncated file, a file whose name differs from its invocation id, an index entry
     that names no file and a malformed field are skipped and counted in skippedCount, over the
     same candidate set as totalCount and independent of profile, because a skipped record has no
     reliable profile. totalCount is the number of served Ops matching profile, and it can lag the
     newest records, which an Op appended after the read began may not yet be part of. An Op is
     closed when its own file holds a completion or the closure spine holds a record for its id.
-    A directory that exists but cannot be read is a 500 problem, never an empty page. The
+    A directory, the closure spine or an Op file that exists but cannot be opened is a 500 problem, never an empty page. The
     operation never starts an agent and never writes.
   tags:
     - Ops

@@ -2298,6 +2298,12 @@ def reader_finding_keys(findings: Sequence[Mapping[str, Any]]) -> set[FindingKey
     return {(item["missionId"], item["kind"], item["artifactPath"], item["sourceCode"]) for item in findings}
 
 
+def duplicate_problems(label: str, findings: Sequence[Mapping[str, Any]]) -> list[str]:
+    """A finding served twice collapses in a set comparison, so the count must equal the number of distinct keys."""
+    distinct = len(reader_finding_keys(findings))
+    return [f"{label}: the reader served {len(findings)} findings for {distinct} distinct keys"] if len(findings) != distinct else []
+
+
 def difference_problems(label: str, reader: Iterable[Any], oracle: Iterable[Any]) -> list[str]:
     """Both directions of a set comparison, each side named: what only the reader says and what only the oracle says."""
     left, right = set(reader), set(oracle)
@@ -2636,6 +2642,7 @@ def test_corpus_kinds_one_and_two_equal_the_oracle_and_meet_their_floors(corpus_
     wanted = {key for key in expect_finding_keys(run.oracle) if key[1] in {KIND_ONE, KIND_TWO}}
     got = {key for key in reader_finding_keys(run.scan.body["findings"]) if key[1] in {KIND_ONE, KIND_TWO}}
     problems = difference_problems("kinds 1 and 2", got, wanted)
+    problems += duplicate_problems("kinds 1 and 2", [item for item in run.scan.body["findings"] if item["kind"] in {KIND_ONE, KIND_TWO}])
     assert not problems, "; ".join(problems)
     counts = {"kind1_findings": sum(1 for key in got if key[1] == KIND_ONE), "kind2_findings": sum(1 for key in got if key[1] == KIND_TWO)}
     floors = new_floor_problems(counts, only=counts)
@@ -2648,6 +2655,7 @@ def test_corpus_kind_three_equals_the_oracle(corpus_run: CorpusRun) -> None:
     wanted = {key for key in expect_finding_keys(run.oracle) if key[1] == KIND_THREE}
     got = {key for key in reader_finding_keys(run.scan.body["findings"]) if key[1] == KIND_THREE}
     problems = difference_problems("kind 3", got, wanted)
+    problems += duplicate_problems("kind 3", [item for item in run.scan.body["findings"] if item["kind"] == KIND_THREE])
     assert not problems, "; ".join(problems)
     assert run.oracle.kind3.population > 0, "no Mission is both not completed and holding a lane manifest: the comparison would prove nothing"
 
@@ -2698,6 +2706,7 @@ def test_corpus_project_build_is_within_its_bound(corpus_run: CorpusRun) -> None
 
 
 def test_corpus_scan_is_within_its_bound(corpus_run: CorpusRun) -> None:
+    """``seconds_scan`` is the warm reduction only; the combined case carries the resolver-inclusive bound (Project plus scan plus per-Mission)."""
     run = corpus_run
     problems = run.index_problems + timing_problems("one project-wide scan", run.seconds_scan, BOUND_SECONDS, _discovered_line(run))
     assert not problems and len(run.oracle.names) >= FLOORS.missions_examined, "; ".join(problems)
@@ -3145,9 +3154,17 @@ def drift_agreement_problems(repo: Path) -> list[str]:
         return [f"the scan answered {outcome.status} {outcome.body.get('code')}"]
     expected = oracles.drift_oracle(repo, memo, NOW)
     problems = difference_problems("findings", reader_finding_keys(outcome.body["findings"]), expect_finding_keys(expected))
+    problems += duplicate_problems("findings", outcome.body["findings"])
     problems += difference_problems("fallbacks", outcome.fallbacks.items(), expected.fallbacks.items())
     problems += difference_problems("legacy manifests", outcome.legacy_manifests, expected.kind3.legacy)
     return problems
+
+
+def test_a_finding_served_twice_is_a_problem_that_a_set_comparison_does_not_see() -> None:
+    finding = {"missionId": "m", "kind": KIND_THREE, "artifactPath": "lanes.json", "sourceCode": None}
+    assert difference_problems("x", reader_finding_keys([finding, dict(finding)]), reader_finding_keys([finding])) == []
+    assert duplicate_problems("x", [finding, dict(finding)]) == ["x: the reader served 2 findings for 1 distinct keys"]
+    assert duplicate_problems("x", [finding]) == []
 
 
 def test_the_kind_one_wrapper_turns_an_undecodable_snapshot_into_corrupt_json(tmp_path: Path) -> None:
@@ -3791,6 +3808,31 @@ def ledger_problems(ledger: CaseLedger, plan: CasePlan) -> list[str]:
     return problems
 
 
+def offline_annotation(state: oracles.RemoteState, skipped: Mapping[str, str], environ: Mapping[str, str]) -> str | None:
+    """A GitHub Actions warning for a run that took the named offline skips, so a green offline run is visible on the pull request; None otherwise."""
+    if environ.get("GITHUB_ACTIONS") != "true" or state.online or not skipped:
+        return None
+    remotes = ", ".join(state.unreachable)
+    names = ", ".join(sorted(skipped))
+    return (
+        f"::warning title=Corpus reality check ran offline::remote(s) {remotes} could not be reached, "
+        f"so {len(skipped)} resolver-dependent cases took their named skip: {names}"
+    )
+
+
+def test_the_offline_annotation_is_emitted_only_on_actions_when_offline_with_skips() -> None:
+    offline = oracles.RemoteState(remotes=("origin",), unreachable=("origin",))
+    online = oracles.RemoteState(remotes=("origin",), unreachable=())
+    skipped = {"test_a": OFFLINE_SKIP, "test_b": OFFLINE_SKIP}
+    on_actions = {"GITHUB_ACTIONS": "true"}
+    annotation = offline_annotation(offline, skipped, on_actions)
+    assert annotation is not None and annotation.startswith("::warning ") and "origin" in annotation and "2 resolver-dependent cases" in annotation
+    assert "test_a" in annotation and "test_b" in annotation
+    assert offline_annotation(offline, skipped, {}) is None, "outside GitHub Actions nothing is annotated"
+    assert offline_annotation(online, skipped, on_actions) is None, "an online run is not annotated"
+    assert offline_annotation(offline, {}, on_actions) is None, "a run with no named skip is not annotated"
+
+
 def test_the_case_ledger_fails_on_a_vanished_case_and_on_a_case_that_slipped_into_the_skip() -> None:
     plan = case_plan(False)
     complete = CaseLedger(set(plan.run), dict(plan.skip))
@@ -3806,7 +3848,11 @@ def test_the_case_ledger_fails_on_a_vanished_case_and_on_a_case_that_slipped_int
 
 # Keep this test LAST in the file: under ``--dist loadfile`` the file runs on one worker in
 # definition order, so the case counter is complete when it runs.
-def test_every_generated_case_executed_and_the_count_is_not_vacuous(remote_state: oracles.RemoteState) -> None:
+def test_every_generated_case_executed_and_the_count_is_not_vacuous(remote_state: oracles.RemoteState, capsys: pytest.CaptureFixture[str]) -> None:
+    annotation = offline_annotation(remote_state, CASE_LEDGER.skipped, os.environ)
+    if annotation is not None:
+        with capsys.disabled():  # past the capture, so the runner log carries it
+            print("\n" + annotation, flush=True)  # a workflow command is read only at the start of a line
     assert ledger_problems(CASE_LEDGER, case_plan(remote_state.online)) == [], (
         "a corpus case of the health, drift and Ops reads did not run, or ran when it should have skipped by name"
     )

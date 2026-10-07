@@ -120,8 +120,9 @@ properties:
       missing event log, and for a missing lane branch. This property is provisional.
     x-derived:
       rule: >-
-        materialize_status for SNAPSHOT_DRIFT, for CORRUPT_JSON and for a missing status file whose
-        event log exists; null otherwise.
+        materialize_status for SNAPSHOT_DRIFT and CORRUPT_JSON on a Mission not merged to main, and for
+        a missing status file whose event log exists, merged or not; null for SNAPSHOT_DRIFT_PROVENANCE,
+        SNAPSHOT_DRIFT_TERMINAL, a missing event log and a missing lane branch.
       inputs:
         - kind
         - sourceCode

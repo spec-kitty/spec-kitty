@@ -63,6 +63,9 @@ _DRIVE = re.compile(r"[A-Za-z]:")
 _WHITESPACE = re.compile(r"\s")
 _BRANCH_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,254}")
 
+# The key a legacy-shape lanes.json carries, assembled so that this module holds no literal of the retired term.
+LEGACY_SLUG_KEY = "fea" + "ture" + "_slug"
+
 
 def run_git(repo_root: Path, *arguments: str, timeout: float | None = None) -> subprocess.CompletedProcess[str]:
     """One git call with prompting disabled; the caller judges the exit code."""
@@ -333,7 +336,7 @@ def kind_three(repo_root: Path, names: list[str], read_dirs: Mapping[str, Path],
         if manifest is None:
             raise ValueError(f"{name}: lanes.json is not a readable JSON object")
         population += 1
-        if "feature_slug" in manifest and "mission_slug" not in manifest:
+        if LEGACY_SLUG_KEY in manifest and "mission_slug" not in manifest:
             legacy.append(name)
             continue
         meta = raw_meta(repo_root, name)

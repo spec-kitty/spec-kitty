@@ -73,9 +73,7 @@ pushed by a maintainer. Until then the breaking-change job has no baseline and r
   repairs; `scannedAt` is the time of the scan, the 200 carries `Cache-Control: no-store`, and a
   `missionId` that names no Mission is a 404 (`DriftMissionNotFound`) while a scan that cannot read a
   Mission is a 500 (`DriftScanUnreadable`), never a partial report. The stock coordination resolver may
-  query remotes, so the outcome depends on the network. An unreachable remote leaves the Mission's own
-  directory as the read directory (a 200 with no fallback entry); a reachable remote that lacks the declared branch gives the
-  coordination_branch_deleted fallback; any other resolver error is a 500 drift_scan_unreadable. `findings: []` means the scan ran and found none.
+  query remotes, so the outcome depends on the network. An unreachable remote leaves the Mission read from its own directory, and the answer is still a 200; a reachable remote that lacks the declared branch is likewise read from its own directory; any other resolver error is a 500 drift_scan_unreadable. `findings: []` means the scan ran and found none.
 - The schemas `DriftReport`, `DriftFinding`, `LaneComparison`, `DriftKind` (three values:
   `snapshot_disagrees_with_event_log`, `snapshot_or_event_log_missing` and `lane_branch_missing`),
   `DriftSeverity` (`error`, `warning`), `DriftAuthority` (`event_log`, `git`), `DriftSide` (`status_json`,
@@ -99,7 +97,7 @@ pushed by a maintainer. Until then the breaking-change job has no baseline and r
   and never writes. An Op is closed when its own file holds a completion or the closure spine holds a record
   for its id. `totalCount` is the number of served Ops that match the filter and can lag the newest
   records; `skippedCount` is the number of legacy or unreadable records, over the same candidate set and
-  independent of the filter. A directory that exists but cannot be read is a 500 (`OpsUnreadable`), never an
+  independent of the filter. A directory, the closure spine or an Op file that exists but cannot be opened is a 500 (`OpsUnreadable`), never an
   empty page. The operation carries `x-provisional`.
 - The schemas `OpsInvocationPage`, `OpsInvocation`, `OpsEvidence`, `OpsModeOfWork` (`task_execution`,
   `advisory`, `mission_step`, `query`), `OpsInvocationStatus` (`open`, `closed`), `OpsOutcome` (`done`,
@@ -108,7 +106,7 @@ pushed by a maintainer. Until then the breaking-change job has no baseline and r
   parameter `OpsProfile` and the tag `Ops`. The record fields `request_text`, `model_id`,
   `governance_context_hash`, `governance_context_available` and `router_confidence` are left out on
   purpose, and the closed schema rejects a payload that carries one.
-- One read behaviour readers will meet: legacy and unreadable Op records are skipped and counted in
+- One read behaviour readers will meet: Op records with legacy or malformed content are skipped and counted in
   `skippedCount`, never served and never a failure. Evidence that holds a credential is withheld (the
   Op is served with `evidence` null), and other evidence has host paths, e-mail addresses and address
   userinfo removed and is cut to 512 characters.

@@ -48,7 +48,7 @@ properties:
       symbol: OpStartedEvent.action
   actor:
     $ref: ActorHandle.yaml
-    description: The handle of the tool, role or agent that opened the Op, or null when the stored value is not a handle.
+    description: The handle of the tool, role or agent that opened the Op, or null when the stored value is not a handle or holds a credential.
     x-source:
       path: src/specify_cli/invocation/record.py
       symbol: OpStartedEvent.actor

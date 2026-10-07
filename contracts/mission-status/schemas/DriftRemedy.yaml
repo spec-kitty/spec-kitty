@@ -9,7 +9,8 @@ type: string
 enum:
   - materialize_status
 x-derived:
-  rule: materialize_status when the status event log exists and the snapshot is missing, corrupt or disagrees with it in more than provenance, and the Mission is not merged to main.
+  rule: >-
+    materialize_status for SNAPSHOT_DRIFT and CORRUPT_JSON on a Mission not merged to main, and for a missing status file whose event log exists, merged or not; null for SNAPSHOT_DRIFT_PROVENANCE, SNAPSHOT_DRIFT_TERMINAL, a missing event log and a missing lane branch.
   inputs:
     - path: src/specify_cli/status/doctor.py
       symbol: check_drift

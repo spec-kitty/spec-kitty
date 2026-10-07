@@ -793,6 +793,9 @@ def row8_problems(env: Env) -> list[str]:
         write_op(repo, 1, started_at=at_minute(1))
         build(repo, 2)
         out = probe.call(repo)
+        if out.status != 200:
+            probe.expect(False, f"{label}: the read answered {out.status} instead of skipping the record")
+            continue
         probe.expect(ids(out) == [ulid(1)] and out.body["totalCount"] == 1, f"{label}: the skipped record is served or counted in totalCount")
         probe.expect(out.skip_reasons == {ulid(2): reason}, f"{label}: skipped for {out.skip_reasons.get(ulid(2))!r}, not {reason!r}")
         probe.expect(out.body["skippedCount"] == 1, f"{label}: skippedCount is not 1")
@@ -998,7 +1001,7 @@ def credential_problems(env: Env, kind: str, shape: str) -> list[str]:
     return probe.problems
 
 
-HANDLE_FIELDS = ("profile", "action", "actor")
+HANDLE_FIELDS = ("profile", "action")
 
 
 def near_miss(kind: str) -> str:
@@ -1012,7 +1015,7 @@ def near_miss(kind: str) -> str:
 
 
 def handle_credential_problems(env: Env, field: str, kind: str) -> list[str]:
-    """Operator ruling at WP08: a credential-shaped profile, action or actor skips the record (a field defect), never served, never nulled."""
+    """Operator ruling at WP08: a credential-shaped profile or action skips the record (a field defect), never served, never nulled."""
     token = tokens()[kind]
     probe = Probe(env)
     repo = env.fresh()
@@ -1031,8 +1034,34 @@ def handle_credential_problems(env: Env, field: str, kind: str) -> list[str]:
     return probe.problems
 
 
+def actor_credential_problems(env: Env, kind: str) -> list[str]:
+    """Operator ruling after the pre-merge squad: a credential-shaped actor is served as null, and the Op stays in items and in totalCount."""
+    token = tokens()[kind]
+    probe = Probe(env)
+    repo = env.fresh()
+    write_op(repo, 1, started_at=at_minute(1), actor=token)
+    write_op(repo, 2, started_at=at_minute(2), closed={"evidence": "docs/a.md"})
+    out = probe.call(repo, page_size=200)
+    probe.expect(ids(out) == [ulid(2), ulid(1)], "the Op with a credential in its actor is skipped, dropped or reordered")
+    probe.expect(out.body["skippedCount"] == 0 and out.skipped_ids == (), "the actor credential record is counted as skipped")
+    probe.expect(out.body["totalCount"] == 2, "totalCount leaves out the Op with an actor credential")
+    probe.expect(token not in json.dumps(out.body), "the credential in the actor is in the payload")
+    by_id = {item["invocationId"]: item for item in out.body["items"]}
+    probe.expect(by_id.get(ulid(1), {}).get("actor", "absent") is None, "the actor credential is not served as null")
+    probe.expect(by_id.get(ulid(2), {}).get("actor") == "claude", "the neighbour of the actor plant lost its actor")
+    twin = env.fresh()
+    write_op(twin, 1, started_at=at_minute(1), actor=near_miss(kind))
+    served = probe.call(twin)
+    probe.expect(
+        ids(served) == [ulid(1)] and served.body["skippedCount"] == 0 and served.body["items"][0]["actor"] == near_miss(kind),
+        f"control: the clean twin of the {kind} in the actor is skipped, dropped or nulled",
+    )
+    return probe.problems
+
+
 def row11_handles_problems(env: Env) -> list[str]:
-    return [f"{field} / {kind}: {problem}" for field in HANDLE_FIELDS for kind in tokens() for problem in handle_credential_problems(env, field, kind)]
+    problems = [f"{field} / {kind}: {problem}" for field in HANDLE_FIELDS for kind in tokens() for problem in handle_credential_problems(env, field, kind)]
+    return [*problems, *(f"actor / {kind}: {problem}" for kind in tokens() for problem in actor_credential_problems(env, kind))]
 
 
 def row11_problems(env: Env) -> list[str]:
@@ -1181,18 +1210,39 @@ SHAPES: dict[str, Callable[[int], str]] = {
 }
 
 
+TIMING_LINES: list[str] = []
+TIMING_PROPERTY = "timing_margin"
+
+
+def report_timing(label: str, timing: Timing, bound: float) -> None:
+    """Print the minimum of the timed repeats and its margin to ``bound``, so a CI log shows how close a run came (plan D-P16)."""
+    TIMING_LINES.append(f"{label}: minimum {timing.minimum:.4f} s of {REPEATS} cold repeats, margin {bound / max(timing.minimum, 1e-9):.1f}x to {bound} s")
+
+
+@pytest.fixture(autouse=True)
+def record_timing_lines(request: pytest.FixtureRequest, record_property: Callable[[str, object], None]) -> Iterator[None]:
+    """Record the margin lines of a test as properties; the conftest prints them in the terminal summary, which survives xdist and a passing run."""
+    TIMING_LINES.clear()
+    yield
+    for line in [] if "mutation" in request.node.name else TIMING_LINES:  # a mutant's timings are meant to fail the bound
+        record_property(TIMING_PROPERTY, line)
+    TIMING_LINES.clear()
+
+
 def timing_problems(env: Env, size: int, *, shapes: Sequence[str] = tuple(SHAPES)) -> list[str]:
     """The three shapes at ``size`` against the redaction bound, each with the short control timed the same way, each cold."""
     probe = Probe(env)
     control_repo = env.fresh()
     write_op(control_repo, 1, closed={"evidence": "a short value with " + AT + " in it"})
     control = timed(env.tools, control_repo)
+    report_timing("redaction control (short value)", control, REDACTION_BOUND)
     probe.expect(control.cold, "control: a repeat of the short value did not read the file (a cache hit)")
     probe.expect(control.minimum <= REDACTION_BOUND, f"control: short value min of {REPEATS} = {control.minimum:.4f} s > {REDACTION_BOUND} s")
     for name in shapes:
         repo = env.fresh()
         write_op(repo, 1, closed={"evidence": SHAPES[name](size)})
         timing = timed(env.tools, repo)
+        report_timing(f"redaction {name} at {size}", timing, REDACTION_BOUND)
         probe.expect(timing.cold, f"{name}: a repeat did not read the file, so its time is a cache hit")
         probe.expect(timing.minimum <= REDACTION_BOUND, f"{name}: min of {REPEATS} = {timing.minimum:.4f} s > {REDACTION_BOUND} s")
     return probe.problems
@@ -1288,6 +1338,7 @@ def listing_problems(env: Env) -> list[str]:
     probe.expect(len(opened) == FILE_COUNT == len(set(opened)), "an Op file of the 10,000-file directory was not opened exactly once")
     probe.expect(len(counted.paths_scanned) == 1, "the 10,000-file directory was not listed exactly once")
     timing = timed(env.tools, big, expect_opens=FILE_COUNT)
+    report_timing(f"listing {FILE_COUNT} files", timing, LISTING_BOUND)
     probe.expect(timing.cold, "a repeat on the 10,000-file directory did not read every file, so its time is a cache hit")
     probe.expect(timing.minimum <= LISTING_BOUND, f"10,000 files: min of {REPEATS} = {timing.minimum:.3f} s > {LISTING_BOUND} s")
     return probe.problems
@@ -1343,6 +1394,11 @@ def test_a_credential_withholds_the_evidence_and_nothing_else(kind: str, shape: 
 @pytest.mark.parametrize("field", HANDLE_FIELDS)
 def test_a_credential_in_a_handle_skips_the_record(field: str, kind: str, env: Env) -> None:
     assert handle_credential_problems(env, field, kind) == []
+
+
+@pytest.mark.parametrize("kind", sorted(tokens()))
+def test_a_credential_in_the_actor_is_served_as_null_and_the_op_is_kept(kind: str, env: Env) -> None:
+    assert actor_credential_problems(env, kind) == []
 
 
 # ---------------------------------------------------------------------------
@@ -1419,7 +1475,7 @@ def _index_profile_filters(patch: pytest.MonkeyPatch, env: Env) -> None:
         for raw in data.split(b"\n"):
             try:
                 entry = json.loads(raw.decode("utf-8"))
-            except ValueError:
+            except (ValueError, RecursionError):
                 continue
             if isinstance(entry, dict) and isinstance(entry.get("profile_id"), str):
                 profiles[str(entry.get("invocation_id"))] = entry["profile_id"]
@@ -1536,6 +1592,10 @@ def _serve_a_credential_handle(patch: pytest.MonkeyPatch, env: Env) -> None:
     patch.setattr(ops, "handle_holds_credential", lambda started, tools: False)
 
 
+def _serve_a_credential_actor(patch: pytest.MonkeyPatch, env: Env) -> None:
+    patch.setattr(ops, "actor_of", lambda stored, tools: stored if ops._HANDLE.fullmatch(stored) else None)
+
+
 MUTATIONS: dict[str, tuple[Callable[[pytest.MonkeyPatch, Env], None], tuple[str, ...]]] = {
     "ascending-order": (_ascending_order, ("row1", "row2")),
     "index-profile-filters": (_index_profile_filters, ("row5",)),
@@ -1554,6 +1614,7 @@ MUTATIONS: dict[str, tuple[Callable[[pytest.MonkeyPatch, Env], None], tuple[str,
     "cursor-without-digest": (_cursor_without_a_digest, ("row2",)),
     "bad-spine-instant-served-open": (_ignore_a_bad_spine_instant, ("row6_instant",)),
     "credential-handle-served": (_serve_a_credential_handle, ("row11_handles",)),
+    "credential-actor-served": (_serve_a_credential_actor, ("row11_handles",)),
 }
 CATALOGUE_NAMES = {
     "ascending-order",
@@ -1572,6 +1633,10 @@ CATALOGUE_NAMES = {
 }
 
 
+# The mutations whose intended kill is a raise (the reader is forbidden to write, spawn or fail): a crash of the mutant itself is no kill for any other.
+CRASH_KILLS: frozenset[str] = frozenset()
+
+
 def _problems_or_raised(row: Callable[[Env], list[str]], env: Env) -> list[str]:
     try:
         return row(env)
@@ -1586,13 +1651,15 @@ def test_every_reader_mutation_turns_its_rows_red(name: str, env: Env) -> None:
         assert ROWS[row](env) == [], f"control: row {row} is not clean before the mutation"
     with pytest.MonkeyPatch.context() as patch:
         apply(patch, env)
-        killed = [row for row in rows if _problems_or_raised(ROWS[row], env)]
-    assert killed, f"{NOT_KILLED}: {name}"
+        problems = [problem for row in rows for problem in _problems_or_raised(ROWS[row], env)]
+    kills = problems if name in CRASH_KILLS else [problem for problem in problems if not problem.startswith("raised ")]
+    detail = " (no problem line)" if not problems else "" if kills else f" (killed only by its own crash: {problems[0]})"
+    assert kills, f"{NOT_KILLED}: {name}{detail}"
 
 
 def test_the_mutation_table_holds_the_whole_catalogue_and_names_only_known_rows_and_functions() -> None:
     assert set(MUTATIONS) >= CATALOGUE_NAMES
-    assert len(MUTATIONS) == 17
+    assert len(MUTATIONS) == 18
     assert all(row in ROWS for _, rows in MUTATIONS.values() for row in rows)
     assert {"order_ops", "candidates_of", "matches_profile", "closure_of", "page_counts", "evidence_of", "strip_url", "is_host_path", "skip"} <= set(dir(ops))
     assert {"unreadable_outcome", "list_ops", "cursor_digest", "classify_evidence", "holds_credential"} <= set(dir(ops))
@@ -1666,8 +1733,14 @@ def test_the_extreme_instants_do_not_overflow() -> None:
         ("x\n", None),
     ],
 )
-def test_an_actor_is_a_handle_or_null(stored: str, expected: str | None) -> None:
-    assert ops.actor_of(stored) == expected
+def test_an_actor_is_a_handle_or_null(stored: str, expected: str | None, tools: helper.ContractTools) -> None:
+    assert ops.actor_of(stored, tools) == expected
+
+
+@pytest.mark.parametrize("kind", sorted(tokens()))
+def test_an_actor_holding_a_credential_is_null(kind: str, tools: helper.ContractTools) -> None:
+    assert ops.actor_of(tokens()[kind], tools) is None
+    assert ops.actor_of(near_miss(kind), tools) == near_miss(kind)
 
 
 @pytest.mark.parametrize(

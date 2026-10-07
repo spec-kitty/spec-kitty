@@ -1,7 +1,7 @@
 title: OpsRefusalCode
 description: >-
-  Why an Ops read was refused. ops_unreadable: the Ops directory or the closure spine exists but
-  could not be read, so no page is returned and never a partial one (500). A consumer branches on
+  Why an Ops read was refused. ops_unreadable: the Ops directory, the closure spine or an Op file exists but
+  could not be opened, so no page is returned and never a partial one (500). A consumer branches on
   the code, never on the title.
 type: string
 enum:

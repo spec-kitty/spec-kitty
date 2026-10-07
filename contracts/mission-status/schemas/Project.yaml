@@ -110,9 +110,10 @@ properties:
       The latest MissionHead.lastActivityAt over exactly the Missions GET /missions lists, compared
       as instants (different offsets are ordered by instant, not by text) and served as that
       Mission's own string. Null when no Mission is listed and when every listed Mission has null
-      activity.
+      activity. A Mission whose status.json cannot be read leaves its activity out (null if that was
+      the only source); an event log that cannot be decoded or parsed fails the whole read with a 500.
     x-derived:
-      rule: The latest instant of lastActivityAt over the Missions GET /missions lists; null when none is listed or none has activity.
+      rule: The latest instant of lastActivityAt over the Missions GET /missions lists; null when none is listed or none has activity; a Mission with an unreadable status.json adds no activity, and an event log that cannot be decoded or parsed fails the read (500).
       inputs:
         - MissionHead.lastActivityAt
 examples:

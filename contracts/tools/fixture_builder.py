@@ -5,7 +5,7 @@ malformed artifact path) must never be committed: the text-level scan has no exe
 module therefore writes each plant into a temporary root from string fragments, next to a clean control
 on the same root, and no literal leak-shaped string appears in this source (a unit test scans it).
 
-There are 34 kinds in four groups: the eight original kinds; ten ``strict-<name>`` kinds, a leading-tilde
+There are 40 kinds in four groups: the eight original kinds; sixteen ``strict-<name>`` kinds, a leading-tilde
 host path planted under one of the strict-class names added for the Mission status contract 1.1; twelve
 ``artifact-path-*`` kinds, each one malformed ``path`` entry of the artifact-path rule, and the thirteenth, ``artifact-path-reference``,
 its ``artifactPath`` key; and three regression controls (``content-host-path-and-email``, ``credential-in-content``,

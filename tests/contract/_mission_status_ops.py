@@ -183,9 +183,9 @@ def ulid_or_none(value: Any) -> bool:
     return isinstance(value, str) and _ULID.fullmatch(value) is not None
 
 
-def actor_of(stored: str) -> str | None:
-    """``ActorHandle``: the stored value when it is a handle, else null (the one field of an Op that degrades instead of skipping the record)."""
-    return stored if _HANDLE.fullmatch(stored) else None
+def actor_of(stored: str, tools: ContractTools) -> str | None:
+    """``ActorHandle``: the stored value when it is a handle without a credential, else null (the one field of an Op that degrades, not skips)."""
+    return stored if _HANDLE.fullmatch(stored) and not holds_credential(stored, tools) else None
 
 
 # ---------------------------------------------------------------------------
@@ -376,8 +376,8 @@ def is_valid_completion_shape(event: OpCompletedEvent) -> bool:
 
 
 def handle_holds_credential(started: OpStartedEvent, tools: ContractTools) -> bool:
-    """Whether ``profile_id``, ``action`` or ``actor`` holds a ``SECRET_PATTERNS`` credential, checked on the stored values (operator ruling at WP08)."""
-    return any(holds_credential(value, tools) for value in (started.profile_id, started.action, started.actor))
+    """Whether ``profile_id`` or ``action`` holds a ``SECRET_PATTERNS`` credential, on the stored values (operator ruling at WP08); an actor degrades."""
+    return any(holds_credential(value, tools) for value in (started.profile_id, started.action))
 
 
 def read_own_file(invocation_id: str, data: bytes, tools: ContractTools) -> OwnFile | Skipped:
@@ -462,7 +462,7 @@ def served_op(own: OwnFile, closure: Closure | None, tools: ContractTools) -> Se
         "invocationId": started.invocation_id,
         "profileId": started.profile_id,
         "action": started.action,
-        "actor": actor_of(started.actor),
+        "actor": actor_of(started.actor, tools),
         "modeOfWork": started.mode_of_work,
         "startedAt": started.started_at,
         "missionId": started.mission_id,
