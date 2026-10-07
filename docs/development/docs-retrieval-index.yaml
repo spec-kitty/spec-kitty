@@ -4224,6 +4224,8 @@ pages:
     - {slug: "spec-kitty-suppress-mission-type-deprecation", text: "SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION", level: 3}
     - {slug: "external-tool-convention", text: "External Tool Convention", level: 2}
     - {slug: "codex-home-legacy-only", text: "CODEX_HOME (legacy only)", level: 3}
+    - {slug: "internal-variables-set-by-spec-kitty", text: "Internal Variables (Set by Spec Kitty)", level: 2}
+    - {slug: "spec-kitty-meta-merge-two-way", text: "SPEC_KITTY_META_MERGE_TWO_WAY", level: 3}
     - {slug: "test-only-variables", text: "Test-Only Variables", level: 2}
     - {slug: "summary-table", text: "Summary Table", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}

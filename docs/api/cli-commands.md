@@ -2,7 +2,7 @@
 title: CLI Command Reference
 description: Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output.
 doc_status: active
-updated: '2026-10-05'
+updated: '2026-10-07'
 related:
 - docs/api/bulk-edit-gate.md
 - docs/api/finalize-tasks-internals.md
@@ -96,6 +96,18 @@ record is the 2026-10-01 amendment of
   by `decision_id` instead of conflicting. Projects initialised earlier get the driver from the
   upgrade migration `m_4_0_0rc5_decision_index_merge_driver`; run `spec-kitty upgrade`. Git runs
   the driver itself during a merge; it is an internal command you never invoke by hand.
+- **`meta.json` merge driver (`merge-driver-meta`) is base-aware.** For an ordinary `git merge`
+  or `git pull` the driver compares each key against the merge base: a key changed, removed or
+  added on one side only survives from that side, so a teammate's unrelated edit no longer
+  reverts `mission close --discard`. Keys written together (the `coordination_branch` /
+  `topology` / `flattened` flatten triple, the `merged_*` block and the acceptance stamps)
+  move as one unit. Only a genuine both-sides conflict keeps the older precedence: the
+  acceptance stamps, `mission_number`, `status` and the `merged_*` block follow the target
+  side, every other key the Mission side. An empty `meta.json` on either side of such a merge
+  is refused by name and nothing is written. `spec-kitty consolidate`'s mission-to-target
+  squash records no ancestry, so it keeps the two-way rule through the internal
+  `SPEC_KITTY_META_MERGE_TWO_WAY` variable (see
+  [environment variables](environment-variables.md#spec_kitty_meta_merge_two_way)).
 
 ## `spec-kitty consolidate`: exit codes and refusal codes
 
