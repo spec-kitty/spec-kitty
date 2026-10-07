@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Literal
 
 from kernel.git import GitCommandError, tree_entry
-from kernel.git.remote import RemoteUnreachable, divergence, fetch_branches, remote_heads, resolve_remote, tracking_ref
+from kernel.git.remote import RemoteUnreachable, configured_remotes, divergence, fetch_branches, remote_heads, resolve_remote, tracking_ref
 from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout, placement_seam
 from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted, CoordinationWorktreeUnmaterialized
 from specify_cli.core.constants import KITTY_SPECS_DIR
@@ -36,6 +36,7 @@ from specify_cli.status import StoreError, read_events, reduce
 __all__ = [
     "ORIGIN_CHECK_ENV",
     "ORIGIN_LANE_DIVERGED",
+    "ORIGIN_REMOTE_AMBIGUOUS",
     "READ_ONLY_ORIGIN_CHECK",
     "FreshnessState",
     "FreshnessVerdict",
@@ -59,6 +60,7 @@ ORIGIN_STATUS_STALE = "ORIGIN_STATUS_STALE"
 ORIGIN_LANE_STALE = "ORIGIN_LANE_STALE"
 ORIGIN_LANE_DIVERGED = "ORIGIN_LANE_DIVERGED"
 ORIGIN_UNREACHABLE = "ORIGIN_UNREACHABLE"
+ORIGIN_REMOTE_AMBIGUOUS = "ORIGIN_REMOTE_AMBIGUOUS"
 
 _STATUS_LOG = "status.events.jsonl"
 
@@ -132,6 +134,7 @@ class FreshnessState(StrEnum):
     REMOTE_MISSING = "remote_missing"
     UNREACHABLE = "unreachable"
     NO_REMOTE = "no_remote"
+    REMOTE_AMBIGUOUS = "remote_ambiguous"
 
 
 @dataclass(frozen=True)
@@ -139,8 +142,10 @@ class FreshnessVerdict:
     """One branch's freshness verdict.
 
     ``up_to_date`` and ``remote_missing`` are concluded only when the remote
-    answered in this invocation. ``remote_sha`` is the tip the remote listed
-    (absent for ``remote_missing``/``unreachable``/``no_remote``); the fetch
+    answered in this invocation. ``no_remote`` means the repository has no remote
+    at all; ``remote_ambiguous`` means it has some but none owns the branch
+    (``detail`` lists them), so freshness cannot be judged. ``remote_sha`` is the tip the remote listed
+    (absent for ``remote_missing``/``unreachable``/``no_remote``/``remote_ambiguous``); the fetch
     that follows can only move the tracking ref forward from it.
     """
 
@@ -243,6 +248,17 @@ def _check_remote(repo_root: Path, remote: str, probes: Sequence[_Probe]) -> lis
     return verdicts
 
 
+def _unresolved_remote_verdict(repo_root: Path, probe: _Probe) -> FreshnessVerdict:
+    """No remote owns *probe*: ``no_remote`` when none is configured, ``remote_ambiguous`` when several are and none applies.
+
+    Local config reads only; nothing is contacted either way (NFR-003).
+    """
+    remotes = configured_remotes(repo_root)
+    if not remotes:
+        return FreshnessVerdict(probe.branch, None, FreshnessState.NO_REMOTE, scope=_scope_text(probe))
+    return FreshnessVerdict(probe.branch, None, FreshnessState.REMOTE_AMBIGUOUS, scope=_scope_text(probe), detail=", ".join(remotes))
+
+
 def _check_probes(repo_root: Path, probes: Sequence[_Probe]) -> list[FreshnessVerdict]:
     """Resolve each probe's remote (FR-017), contact each remote once, keep input order."""
     by_remote: dict[str, list[int]] = {}
@@ -250,7 +266,7 @@ def _check_probes(repo_root: Path, probes: Sequence[_Probe]) -> list[FreshnessVe
     for index, probe in enumerate(probes):
         remote = resolve_remote(repo_root, probe.branch)
         if remote is None:
-            found[index] = FreshnessVerdict(probe.branch, None, FreshnessState.NO_REMOTE, scope=_scope_text(probe))
+            found[index] = _unresolved_remote_verdict(repo_root, probe)
         else:
             by_remote.setdefault(remote, []).append(index)
     for remote, indexes in by_remote.items():
@@ -378,6 +394,8 @@ def _code_for(verdict: FreshnessVerdict, *, is_evidence: bool) -> str | None:
     """The plan's policy table: the refusal code a verdict earns at a merge-path gate, or ``None``."""
     if verdict.state is FreshnessState.UNREACHABLE:
         return ORIGIN_UNREACHABLE
+    if verdict.state is FreshnessState.REMOTE_AMBIGUOUS:
+        return ORIGIN_REMOTE_AMBIGUOUS
     if verdict.state in _STALE_STATES:
         return ORIGIN_STATUS_STALE if is_evidence else ORIGIN_LANE_STALE
     return None
@@ -388,6 +406,8 @@ def _headline(code: str, verdict: FreshnessVerdict) -> str:
     where = f"{verdict.remote}/{verdict.branch}"
     if verdict.state is FreshnessState.UNREACHABLE:
         return f"{code}: {verdict.branch} is unreachable ({verdict.detail or _NO_ANSWER})"
+    if verdict.state is FreshnessState.REMOTE_AMBIGUOUS:
+        return f"{code}: {verdict.branch} has no single remote to check (remotes: {verdict.detail})"
     if verdict.state is FreshnessState.LOCAL_MISSING:
         return f"{code}: {verdict.branch} is missing locally (it exists as {where})"
     return f"{code}: {verdict.branch} is {verdict.state.value} ({verdict.behind} behind / {verdict.ahead} ahead of {where})"
@@ -461,8 +481,17 @@ def _lane_remedy(verdict: FreshnessVerdict) -> list[str]:
     ]
 
 
+def _ambiguous_remote_remedy(verdict: FreshnessVerdict) -> list[str]:
+    return [
+        f"  Name the remote that owns it: git config branch.{verdict.branch}.remote <name>    (remotes: {verdict.detail})",
+        _RERUN_LINE,
+    ]
+
+
 def _remedy(violation: _Violation, checkout: Path | None, *, merge_record_exists: bool) -> list[str]:
     verdict = violation.verdict
+    if verdict.state is FreshnessState.REMOTE_AMBIGUOUS:
+        return _ambiguous_remote_remedy(verdict)
     if verdict.state is FreshnessState.UNREACHABLE:
         return [f"  Check network access and credentials for remote {verdict.remote}.", _RERUN_LINE]
     if violation.is_evidence and verdict.state is not FreshnessState.LOCAL_MISSING:
@@ -561,6 +590,8 @@ def plan_review_lane(repo_root: Path, lane_branch: str, setting: OriginCheckSett
         return ReviewLaneAction(ReviewLaneKind.REFUSE, verdict, remote_ref=ref, code=ORIGIN_LANE_DIVERGED, message=message)
     if verdict.state is FreshnessState.UNREACHABLE:
         return ReviewLaneAction(ReviewLaneKind.WARN, verdict, code=ORIGIN_UNREACHABLE, message=_headline(ORIGIN_UNREACHABLE, verdict))
+    if verdict.state is FreshnessState.REMOTE_AMBIGUOUS:
+        return ReviewLaneAction(ReviewLaneKind.WARN, verdict, code=ORIGIN_REMOTE_AMBIGUOUS, message=_headline(ORIGIN_REMOTE_AMBIGUOUS, verdict))
     return ReviewLaneAction(ReviewLaneKind.KEEP, verdict)
 
 

@@ -15,6 +15,7 @@ from kernel.git.remote import (
     LS_REMOTE_TIMEOUT,
     Divergence,
     RemoteUnreachable,
+    configured_remotes,
     divergence,
     fetch_branches,
     no_prompt_env,
@@ -97,6 +98,7 @@ def test_resolve_remote_ambiguous_is_none(tmp_path: Path, monkeypatch: pytest.Mo
     _git(repo, "remote", "add", "a", "/x")
     _git(repo, "remote", "add", "b", "/y")
     assert resolve_remote(repo, "main") is None
+    assert sorted(configured_remotes(repo)) == ["a", "b"]  # ambiguous, not "none configured"
 
 
 def test_resolve_remote_no_remotes_is_none(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -105,6 +107,7 @@ def test_resolve_remote_no_remotes_is_none(tmp_path: Path, monkeypatch: pytest.M
     repo.mkdir()
     _git(repo, "init", "-q", "-b", "main")
     assert resolve_remote(repo, "main") is None
+    assert configured_remotes(repo) == []
 
 
 def test_resolve_remote_dot_is_treated_as_unset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

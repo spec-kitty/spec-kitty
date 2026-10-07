@@ -23,6 +23,7 @@ from specify_cli.git.origin_freshness import (
     ORIGIN_CHECK_ENV,
     ORIGIN_LANE_DIVERGED,
     ORIGIN_LANE_STALE,
+    ORIGIN_REMOTE_AMBIGUOUS,
     ORIGIN_STATUS_STALE,
     ORIGIN_UNREACHABLE,
     FreshnessState,
@@ -126,6 +127,16 @@ def test_no_remote_when_repository_has_no_remotes(tmp_path: Path, monkeypatch: p
 
     assert verdict.state is FreshnessState.NO_REMOTE
     assert verdict.remote is None
+
+    # Remotes exist but none owns the branch (no branch.<b>.remote, not one remote, no origin): ambiguous, not "no remote".
+    _git(repo, "remote", "add", "alpha", "/nonexistent-alpha")
+    _git(repo, "remote", "add", "beta", "/nonexistent-beta")
+
+    ambiguous = _only(check_branches(repo, ["main"]))
+
+    assert ambiguous.state is FreshnessState.REMOTE_AMBIGUOUS
+    assert ambiguous.remote is None
+    assert ambiguous.detail == "alpha, beta"
 
 
 def test_remote_missing_when_the_remote_answers_without_the_branch(world: World) -> None:
@@ -596,6 +607,22 @@ def test_gate_refuses_unreachable_for_evidence_and_lanes() -> None:
     assert caught.value.error_code == ORIGIN_UNREACHABLE
     assert caught.value.error_codes == [ORIGIN_UNREACHABLE]
     assert "timed out" in str(caught.value)
+
+
+def test_gate_refuses_an_ambiguous_remote_and_only_warns_in_warn_mode() -> None:
+    """Remotes exist but none owns the branch: freshness cannot be judged, so enforce refuses (2026-10-07 ruling)."""
+    ambiguous = FreshnessVerdict("develop", None, FreshnessState.REMOTE_AMBIGUOUS, detail="alpha, beta")
+
+    with pytest.raises(OriginFreshnessRefused) as caught:
+        _gate(evidence=ambiguous)
+
+    assert caught.value.error_codes == [ORIGIN_REMOTE_AMBIGUOUS]
+    text = str(caught.value)
+    assert "git config branch.develop.remote <name>" in text
+    assert "alpha, beta" in text
+    assert text.splitlines()[-1] == _OPT_OUT_LINE
+    (warning,) = _gate(evidence=ambiguous, setting=_FLAG_WARN_SETTING)
+    assert warning.startswith(f"{ORIGIN_REMOTE_AMBIGUOUS}: develop")
 
 
 def test_gate_lists_every_distinct_code_evidence_first() -> None:

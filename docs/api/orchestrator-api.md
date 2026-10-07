@@ -927,6 +927,7 @@ the command already used, `MISSION_NOT_READY` for `accept-mission` and `PREFLIGH
 | `ORIGIN_STATUS_STALE` | The remote's status evidence branch has commits that change this Mission's `status.events.jsonl` and that your clone lacks (or the branch is diverged). | Run the `git pull` command the message names in the evidence checkout, then re-run. With a merge record present, abort first, as the message says. |
 | `ORIGIN_LANE_STALE` | `consolidate-mission` only: an approved lane's remote tip is ahead of, diverged from, or missing locally. | Update the local lane (`git fetch <remote> <lane> && git branch -f <lane> <remote>/<lane>`), then re-run. |
 | `ORIGIN_UNREACHABLE` | A remote resolved but could not be reached in this invocation. | Restore connectivity, or re-run with `--origin-check warn` (or set `SPEC_KITTY_ORIGIN_CHECK=warn`). |
+| `ORIGIN_REMOTE_AMBIGUOUS` | The repository has remotes but none owns the branch: no `branch.<name>.remote`, not exactly one remote, and no `origin`. `data.origin_freshness[].detail` lists the remotes. | Run `git config branch.<name>.remote <remote>` for the branch, then re-run, or re-run with `--origin-check warn`. |
 
 `data.preflight_error_code` is the first code the message names and `data.preflight_error_codes`
 lists every distinct code, as for the codes above.
@@ -946,9 +947,9 @@ lists every distinct code, as for the codes above.
 ```
 
 `state` is one of `up_to_date`, `behind`, `ahead`, `diverged`, `local_missing`,
-`remote_missing`, `unreachable` or `no_remote`. `scope` names the status log the status
+`remote_missing`, `unreachable`, `no_remote` or `remote_ambiguous`. `scope` names the status log the status
 evidence row was judged on and is `null` for a lane. `detail` says why a remote was
-unreachable (the git error text) and is `null` otherwise. A `consolidate-mission` origin refusal
+unreachable (the git error text), or lists the remotes of a `remote_ambiguous` branch, and is `null` otherwise. A `consolidate-mission` origin refusal
 also carries `data.target_branch`, like every other `PREFLIGHT_FAILED` of that command. With `--origin-check warn`, or
 `SPEC_KITTY_ORIGIN_CHECK=warn`, the command does not refuse: it continues, writes each warning to
 stderr, and a successful envelope carries them in `data.origin_warnings` (a list of strings). A

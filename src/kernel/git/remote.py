@@ -28,6 +28,7 @@ __all__ = [
     "Divergence",
     "RemoteUnreachable",
     "clone_repository",
+    "configured_remotes",
     "describe_remote_head",
     "divergence",
     "fetch_branches",
@@ -144,20 +145,26 @@ def _config_value(cwd: Path, key: str) -> str | None:
     return result.stdout.decode("utf-8", "replace").strip() or None
 
 
+def configured_remotes(cwd: Path) -> list[str]:
+    """Names of the remotes configured in *cwd*'s repository (``git remote``); local config read, no network."""
+    listed = run_git(cwd, "remote", check=False)
+    if listed.returncode != 0:
+        return []
+    return [line.strip() for line in listed.stdout.decode("utf-8", "replace").splitlines() if line.strip()]
+
+
 def resolve_remote(cwd: Path, branch: str) -> str | None:
     """Name the remote that owns *branch* (FR-017); local config reads only, no network.
 
     Order: ``branch.<branch>.remote`` (``.`` means "this repository" and is
     treated as unset), then the only configured remote, then ``origin``;
-    ``None`` when none applies (no remotes, or several none of which is ``origin``).
+    ``None`` when none applies (no remotes, or several none of which is
+    ``origin``; :func:`configured_remotes` tells the two apart).
     """
     configured = _config_value(cwd, f"branch.{branch}.remote")
     if configured and configured != _LOCAL_REMOTE:
         return configured
-    listed = run_git(cwd, "remote", check=False)
-    if listed.returncode != 0:
-        return None
-    remotes = [line.strip() for line in listed.stdout.decode("utf-8", "replace").splitlines() if line.strip()]
+    remotes = configured_remotes(cwd)
     if len(remotes) == 1:
         return remotes[0]
     if _DEFAULT_REMOTE in remotes:
