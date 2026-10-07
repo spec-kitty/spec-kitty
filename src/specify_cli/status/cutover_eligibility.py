@@ -225,9 +225,16 @@ class PreAcceptDecision:
         return self.note is not None
 
 
-def _terminal_evidence(meta: Mapping[str, Any]) -> bool:
+def _terminal_evidence(meta: Mapping[str, Any], slug: str) -> bool:
     """True iff *meta* shows the mission was accepted/merged/numbered (``0`` counts)."""
-    return any(str(meta.get(key) or "").strip() for key in ("accepted_at", "merged_at")) or meta.get("mission_number") is not None
+    # Local import: same circular-import rationale as ``is_cut_over``.
+    from specify_cli.migration.wp_status_backfill import resolve_terminal_evidence  # noqa: PLC0415
+
+    if resolve_terminal_evidence(meta, slug, None) is not None:
+        return True
+    # ``mission_number`` is a consolidate-time marker, not terminal evidence for the backfill's
+    # resolver; the cut-over guard deliberately ALSO treats it as terminal (fail closed: ``0`` counts).
+    return meta.get("mission_number") is not None
 
 
 def _raw_phase_state(meta: Mapping[str, Any]) -> str:
@@ -272,7 +279,7 @@ def pre_accept_exemption(mission_dir: Path) -> PreAcceptDecision:
         return PreAcceptDecision(block_reason=REASON_PHASE_MALFORMED)
     if phase_state == "stamped":
         return PreAcceptDecision(block_reason=_NOT_FLIPPED)
-    if _terminal_evidence(meta):
+    if _terminal_evidence(meta, mission_dir.name):
         return PreAcceptDecision(block_reason=REASON_TERMINAL_UNSTAMPED)
     carries = _carries_frontmatter_runtime(mission_dir)
     if carries is None:
