@@ -74,7 +74,6 @@ def test_blocked_under_drain_reports_count_codes_and_doctor_command_without_repa
 @pytest.mark.real_drain_posture
 def test_drain_off_does_not_evaluate_readiness_and_prints_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The real, file-based posture reader runs: no config means drain is off."""
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
     readiness, repair = _arm(monkeypatch, _blocked(tmp_path))
 
     outcome, output = _run(tmp_path)
