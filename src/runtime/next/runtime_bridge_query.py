@@ -245,6 +245,27 @@ def _build_runtime_query_decision(
     )
 
 
+def issued_step_id_for_mission(
+    mission_slug: str,
+    repo_root: Path,
+    *,
+    owned: OwnedCheckout | None = None,
+) -> str | None:
+    """Read the persisted issued action, never a planner or decision preview.
+
+    Reuse query mode's context, index and snapshot authorities without starting
+    an ephemeral or durable run. A live indexed run with a missing cursor
+    refuses through the existing native read path instead of appearing unissued.
+    """
+    context = _query_resolve_mission_context(repo_root, mission_slug, owned=owned)
+    config_root = owned.owned_root if owned is not None else repo_root
+    run_ref = _io_seam._existing_run_ref(context.mission_slug, config_root, context.mission_type, owned=owned)
+    if run_ref is None:
+        return None
+    issued_step: str | None = _engine_adapter._read_snapshot(Path(run_ref.run_dir)).issued_step_id
+    return issued_step
+
+
 def query_current_state(
     agent: str | None,
     mission_slug: str,

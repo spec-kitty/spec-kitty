@@ -10,6 +10,7 @@ from pathlib import Path
 
 from specify_cli.frontmatter import FrontmatterError
 
+from .design import check_no_snapshot_drift, tasks_are_finalized
 from .models import (
     AgentAssignment,
     CurrentWpState,
@@ -400,6 +401,8 @@ def uninitialized_status_error(mission_slug: str, wp_id: str, feature_dir: Path)
 # 8 consumer call sites) was retired.
 
 __all__ = [
+    "check_no_snapshot_drift",
+    "tasks_are_finalized",
     "ActiveWPStatus",
     "CutOverVerdict",
     "LANE_HEAD_KEY",

@@ -25,21 +25,11 @@ from specify_cli.workspace.assert_initialized import (
     assert_initialized,
 )
 
-#: Canonical question sets for the specify/plan widen-enabled interview loops.
-#: Each entry is a ``(question_id, question_text)`` pair consumed by
-#: ``run_specify_interview`` / ``run_plan_interview``.
-SPECIFY_WIDEN_QUESTIONS: list[tuple[str, str]] = [
-    ("problem_statement", "What problem does this feature solve?"),
-    ("success_criteria", "How will we know this feature is successful?"),
-    ("scope_boundaries", "What is explicitly out of scope for this feature?"),
-]
-
-PLAN_WIDEN_QUESTIONS: list[tuple[str, str]] = [
-    ("approach", "What is the high-level implementation approach?"),
-    ("risks", "What are the main risks or unknowns?"),
-    ("dependencies", "What upstream dependencies does this plan rely on?"),
-]
-
+# Re-export the shared question identities for historical CLI consumers.
+from specify_cli.missions.plan.interview_questions import (
+    PLAN_WIDEN_QUESTIONS as PLAN_WIDEN_QUESTIONS,
+    SPECIFY_WIDEN_QUESTIONS as SPECIFY_WIDEN_QUESTIONS,
+)
 
 
 def _scaffold_next_action(mission_slug: str) -> str:

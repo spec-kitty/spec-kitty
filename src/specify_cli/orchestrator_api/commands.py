@@ -152,7 +152,10 @@ from ._common import (
 from . import consolidation
 from . import decision_verbs
 from . import design_phase
+from . import design_authoring
+from . import design_context
 from . import design_status
+from . import runtime_next
 from . import wp_lifecycle
 
 
@@ -296,12 +299,55 @@ app = typer.Typer(
 # ── Command 1: contract-version ────────────────────────────────────────────
 
 
+def _delivery_profile() -> dict[str, object]:
+    """Describe actual local capabilities without claiming the Go wire contract."""
+    from specify_cli.design import context, models
+
+    return {
+        "semantic_contract": "spec-kitty.orchestrator/2",
+        "transport": f"spec-kitty.orchestrator-api/{CONTRACT_VERSION}",
+        "full_go_conformance": False,
+        "supported": [info.name for info in app.registered_commands if info.name is not None],
+        "translated": {
+            "CreateMission": "specify: native host-local Mission creation",
+            "RecordMissionInterview": "interview-record: canonical decision slots, not aggregate revision CAS",
+            "SubmitSpecification": "artifact-submit kind specification: exact-byte SHA-256 CAS",
+            "SubmitPlan": "artifact-submit kind plan: accepted specification lineage",
+            "SubmitDesignArtifact": "artifact-submit: registered bounded inline support content",
+            "SubmitTasksOutline": "artifact-submit kind outline: canonical manifest validation",
+            "SubmitWorkPackageDrafts": "artifact-submit kind work_package: declared prompt drafts",
+            "ValidateMissionStage": "design-validate: read-only predicates, no durable report revision",
+            "CompleteMissionStage": "next --result success: revalidate actually issued native stage",
+            "FinalizeWorkPackages": "tasks: native planning pin/status bootstrap, not immutable Go generations",
+        },
+        "unavailable": [
+            "GapDB", "leases", "fences", "runtime_epochs", "native_async", "watch",
+            "durable_operation_replay", "immutable_work_revisions", "aggregate_revision_cas",
+            "opaque_artifact_references", "remote_serving", "tracker_publication", "cross_clone_provenance",
+        ],
+        "limits": {
+            "artifact_bytes": models.MAX_ARTIFACT_BYTES, "batch_bytes": models.MAX_BATCH_BYTES,
+            "entries": models.MAX_ARTIFACTS, "request_json_bytes": models.MAX_REQUEST_BYTES,
+            "artifact_actor_bytes": models.MAX_ACTOR_BYTES, "context_bytes": context.CONTEXT_BYTES,
+            "interview_answer_bytes": context.ANSWER_BYTES, "interview_actor_bytes": context.ACTOR_BYTES,
+        },
+        "persistence": {
+            "receipts": "trusted Git common-directory metadata; nonportable between clones",
+            "locking": "cooperative API writers only",
+            "commit_order": "files and Git commit precede receipt persistence; inspect partial-effect failures",
+        },
+    }
+
+
 @app.command(name="contract-version")
 def contract_version(
     provider_version: str = typer.Option(
         None,
         "--provider-version",
         help="Caller's provider version; returns CONTRACT_VERSION_MISMATCH if below minimum",
+    ),
+    require_capability: str | None = typer.Option(
+        None, "--require-capability", help="Require a supported Python command before performing work",
     ),
 ) -> None:
     """Return the current API contract version.
@@ -335,12 +381,17 @@ def contract_version(
             )
             return
 
+    if require_capability is not None and not any(info.name == require_capability for info in app.registered_commands):
+        _fail(cmd, "UNSUPPORTED_CAPABILITY", "The Python delivery profile does not support this capability", {"capability": require_capability})
+        return
+
     envelope = make_envelope(
         command=cmd,
         success=True,
         data={
             "api_version": CONTRACT_VERSION,
             "min_supported_provider_version": MIN_PROVIDER_VERSION,
+            "delivery_profile": _delivery_profile(),
         },
     )
     _emit(envelope)
@@ -502,6 +553,12 @@ _COMMAND_TABLE: tuple[tuple[str, Callable[..., None]], ...] = (
     ("cancel-decision", decision_verbs.cancel_decision),
     ("answer-decision", decision_verbs.answer_decision),
     ("design-status", design_status.design_status),
+    ("artifact-read", design_authoring.artifact_read),
+    ("artifact-submit", design_authoring.artifact_submit),
+    ("design-validate", design_authoring.design_validate),
+    ("design-context", design_context.design_context),
+    ("interview-record", design_context.interview_record),
+    ("next", runtime_next.runtime_next),
 )
 for _name, _handler in _COMMAND_TABLE:
     app.command(name=_name)(_handler)

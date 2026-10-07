@@ -100,7 +100,13 @@
       "defer-decision",
       "cancel-decision",
       "design-status",
-      "answer-decision"
+      "answer-decision",
+      "artifact-read",
+      "artifact-submit",
+      "design-validate",
+      "design-context",
+      "interview-record",
+      "next"
     ],
     "forbidden_commands": [
       "feature-state",
@@ -161,7 +167,27 @@
       "INVALID_RESULT",
       "NO_PENDING_DECISION",
       "AMBIGUOUS_PENDING_DECISION",
-      "DECISION_NOT_PENDING"
+      "DECISION_NOT_PENDING",
+      "DESIGN_ARTIFACT_UNSUPPORTED",
+      "DESIGN_BOUNDS_EXCEEDED",
+      "DESIGN_COMMIT_FAILED",
+      "DESIGN_CONTEXT_FAILED",
+      "DESIGN_CONTEXT_STALE",
+      "DESIGN_FINALIZED",
+      "DESIGN_INTERVIEW_FAILED",
+      "DESIGN_INTERVIEW_INCOMPLETE",
+      "DESIGN_INTERVIEW_INVALID",
+      "DESIGN_IO_FAILED",
+      "DESIGN_LOCK_TIMEOUT",
+      "DESIGN_PARENT_STALE",
+      "DESIGN_PATH_REFUSED",
+      "DESIGN_PREREQUISITES_FAILED",
+      "DESIGN_RECEIPT_UNREADABLE",
+      "DESIGN_REQUEST_INVALID",
+      "DESIGN_REVISION_CONFLICT",
+      "RUNTIME_BLOCKED",
+      "RUNTIME_NEXT_FAILED",
+      "UNSUPPORTED_CAPABILITY"
     ],
     "forbidden_error_codes": [
       "FEATURE_NOT_FOUND",

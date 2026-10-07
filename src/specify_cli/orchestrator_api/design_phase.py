@@ -265,6 +265,17 @@ def plan(
 
     from specify_cli.cli.commands.agent import mission as agent_feature
 
+    from specify_cli.design.errors import DesignError
+    from specify_cli.design.receipts import api_authoring_enabled
+    from specify_cli.design.validation import require_unfinalized
+
+    try:
+        if api_authoring_enabled(main_repo_root, mission_dir.name):
+            require_unfinalized(main_repo_root, mission_dir.name)
+    except DesignError as exc:
+        _fail(cmd, exc.code, exc.message, exc.details)
+        return
+
     capture = io.StringIO()
     try:
         with contextlib.redirect_stdout(capture):
@@ -305,6 +316,14 @@ def plan(
     # orchestrator-api response must carry, using the already-resolved input
     # identity -- never overwriting a delegate-supplied value.
     payload.setdefault("mission_slug", _common._mission_identity_payload(mission_dir)["mission_slug"])
+    if payload.get("result") in ("blocked", "error") or payload.get("success") is False:
+        error_code, message, error_data = _classify_delegate_error(
+            payload, raw_output, fallback_code=_PLAN_SETUP_FAILED_FALLBACK,
+            fallback_message="plan prerequisites are blocked",
+        )
+        error_code, error_data = _plan_contract_error(error_code, error_data)
+        _fail(cmd, error_code, message, error_data)
+        return
     validate_outbound_payload(payload, "orchestrator_api")
     envelope = make_envelope(command=cmd, success=True, data=payload)
     _emit(envelope)
@@ -335,10 +354,17 @@ def tasks(
 
     from specify_cli.cli.commands.agent import mission as agent_feature
 
+    from specify_cli.design.context import DesignContextError
+    from specify_cli.design.errors import DesignError
+    from specify_cli.design.validation import finalization_scope
+
     capture = io.StringIO()
     try:
-        with contextlib.redirect_stdout(capture):
+        with finalization_scope(main_repo_root, mission_dir.name), contextlib.redirect_stdout(capture):
             agent_feature.finalize_tasks(feature=mission, json_output=True)
+    except (DesignError, DesignContextError) as exc:
+        _fail(cmd, exc.code, exc.message, exc.details)
+        return
     except typer.Exit:
         raw_output = capture.getvalue()
         payload = _extract_json_payload(raw_output)

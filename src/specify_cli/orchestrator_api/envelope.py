@@ -88,7 +88,12 @@ from kernel.clock import now_utc_iso
 # failing branch), and a successful warn-mode run gains ``origin_warnings``. A call
 # that used to succeed can now refuse, so a minor bump; every key is absent otherwise
 # and no field is removed or renamed.
-CONTRACT_VERSION = "1.11.0"
+# 1.12.0: added ``artifact-read``, ``artifact-submit``, ``design-validate``,
+# ``design-context``, ``interview-record`` and ``next`` for governed planning.
+# Existing envelope/verbs remain; the Python delivery profile explicitly lists
+# translated semantics and unavailable Go guarantees. API-authored stage
+# completion/finalization now refuses stale or unfinished content.
+CONTRACT_VERSION = "1.12.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose
