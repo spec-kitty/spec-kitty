@@ -483,17 +483,24 @@ def test_step_skips_a_project_that_is_not_a_git_repository(tmp_path: Path) -> No
     assert _merge_keys(separate)
 
 
-def test_step_installs_missing_config_then_reports_present(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("unset_key", "second_state"),
+    [(None, "present"), ("merge.spec-kitty-meta.driver", "installed")],
+    ids=["complete-config-is-present", "one-missing-key-is-reinstalled"],
+)
+def test_step_installs_missing_config_then_reports_present_only_when_complete(tmp_path: Path, unset_key: str | None, second_state: str) -> None:
     repo = _git_repo(tmp_path)
     outcome = _outcome()
 
     first = upgrade_cmd._finalizer_step_merge_driver_config(outcome, project_path=repo, dry_run=False)
     keys_after_first = _merge_keys(repo)
+    if unset_key:
+        subprocess.run(["git", "-C", str(repo), "config", "--local", "--unset", unset_key], check=True)
     second = upgrade_cmd._finalizer_step_merge_driver_config(outcome, project_path=repo, dry_run=False)
 
     assert first == "installed"
     assert keys_after_first, "the driver config must be defined"
-    assert second == "present"
+    assert second == second_state
     assert _merge_keys(repo) == keys_after_first
     assert outcome.result.warnings == []
 
@@ -517,14 +524,6 @@ def test_step_keeps_a_customized_driver_and_replaces_a_superseded_one(tmp_path: 
     assert row_aware.stdout.strip() == "Spec Kitty issue matrix row-aware merge"  # a value an older release shipped is ours to update
     (warning,) = outcome.result.warnings
     assert "merge.spec-kitty-meta.driver" in warning and custom in warning and "spec-kitty merge-driver-meta %O %A %B" in warning
-
-
-def test_step_reports_installed_when_one_key_is_missing(tmp_path: Path) -> None:
-    repo = _git_repo(tmp_path)
-    upgrade_cmd._finalizer_step_merge_driver_config(_outcome(), project_path=repo, dry_run=False)
-    subprocess.run(["git", "-C", str(repo), "config", "--local", "--unset", "merge.spec-kitty-meta.driver"], check=True)
-
-    assert upgrade_cmd._finalizer_step_merge_driver_config(_outcome(), project_path=repo, dry_run=False) == "installed"
 
 
 def test_step_is_skipped_on_a_dry_run_and_writes_nothing(tmp_path: Path) -> None:
