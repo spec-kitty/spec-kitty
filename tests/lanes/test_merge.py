@@ -788,3 +788,33 @@ def test_ensure_merge_driver_config_raises_on_git_failure(tmp_path, monkeypatch)
 
     with pytest.raises(subprocess.CalledProcessError):
         merge_module._ensure_merge_driver_git_config(repo)
+
+
+def test_install_merge_driver_config_reports_installed_then_present(tmp_path):
+    """The public install seam (#5759) says whether it changed anything, and is idempotent."""
+    from specify_cli.lanes.consolidation import install_merge_driver_config
+
+    repo = _make_repo(tmp_path)
+
+    assert install_merge_driver_config(repo) == "installed"
+    assert install_merge_driver_config(repo) == "present"
+
+
+def test_install_merge_driver_config_repairs_one_missing_key(tmp_path):
+    from specify_cli.lanes.consolidation import _merge_driver_config_snapshot, install_merge_driver_config
+
+    repo = _make_repo(tmp_path)
+    install_merge_driver_config(repo)
+    key = next(iter(_merge_driver_config_snapshot(repo)))
+    _run(["git", "config", "--local", "--unset-all", key], repo)
+
+    assert install_merge_driver_config(repo) == "installed"
+    assert _merge_driver_config_snapshot(repo)[key] is not None
+
+
+def test_install_merge_driver_config_is_present_outside_a_git_repository(tmp_path):
+    """Not a repository: the install is a no-op, so nothing changed."""
+    from specify_cli.lanes.consolidation import install_merge_driver_config
+
+    assert install_merge_driver_config(tmp_path) == "present"
+    assert not (tmp_path / ".git").exists()

@@ -74,7 +74,7 @@ def stub(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNamespace:
     monkeypatch.setattr(shared_gate, "check_mission_branches", fake_check)
     monkeypatch.setattr(origin_gate, "_lane_branches", lambda seam: [_LANE])
     monkeypatch.setattr(shared_gate, "resolve_topology", lambda repo, slug: MissionTopology.COORD if state.coordination else MissionTopology.LANES)
-    monkeypatch.setattr(origin_gate, "_merge_record_may_exist", lambda seam: state.record)
+    monkeypatch.setattr(origin_gate, "merge_record_may_exist", lambda seam: state.record)
     monkeypatch.setattr(shared_gate, "worktrees_with_branch_checked_out", lambda repo, branch: state.holders)
     monkeypatch.delenv("SPEC_KITTY_ORIGIN_CHECK", raising=False)
     return state

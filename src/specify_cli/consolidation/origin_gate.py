@@ -21,7 +21,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from mission_runtime import MissionArtifactKind, PlacementSeam
-from specify_cli.consolidation.entry_preflight import _merge_record_may_exist
+from specify_cli.consolidation.entry_preflight import merge_record_may_exist
 from specify_cli.consolidation.state import ConsolidationStateReadError, MergeAmbiguousStateError, load_state
 from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.git.origin_freshness import approved_lane_branches, resolve_origin_check_mode
@@ -74,6 +74,6 @@ def check_origin_before_status_dir(main_repo: Path, seam: PlacementSeam, origin_
         seam.mission_slug,
         setting=resolve_origin_check_mode(origin_check),
         lane_branches=_lane_branches(seam),
-        merge_record_exists=_merge_record_may_exist(seam),
+        merge_record_exists=merge_record_may_exist(seam),
     )
     return warnings

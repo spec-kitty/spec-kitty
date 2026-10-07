@@ -436,7 +436,7 @@ def _abort_before_state_change(exc: Exception, hint: str) -> typer.Exit:
     return typer.Exit(1)
 
 
-def _merge_record_may_exist(seam: PlacementSeam) -> bool:
+def merge_record_may_exist(seam: PlacementSeam) -> bool:
     """Whether an earlier consolidation attempt left a merge record for this Mission.
 
     Keyed like the executor's own record (``canonical_id``: the ``mission_id``,
@@ -577,12 +577,12 @@ def _resolve_run_status_dir(seam: PlacementSeam) -> Path:
         mismatch = _branch_mismatch_cause(exc)
         if mismatch is None:
             raise  # any other resolution failure keeps the behaviour it had before #5750
-        raise _refuse_on_uncomposed_coordination_branch(mismatch, merge_record_exists=_merge_record_may_exist(seam)) from exc
+        raise _refuse_on_uncomposed_coordination_branch(mismatch, merge_record_exists=merge_record_may_exist(seam)) from exc
     except FeatureStatusLockTimeoutError as exc:
         raise _abort_before_state_change(
             exc,
             "Wait for the other status writer to finish, then re-run [bold]spec-kitty consolidate[/bold].",
         ) from exc
     if location.seed is not None and location.seed.commit_refused is not None:
-        raise _refuse_on_unapplied_seed_commit(location.seed, location.surface_root, merge_record_exists=_merge_record_may_exist(seam))
+        raise _refuse_on_unapplied_seed_commit(location.seed, location.surface_root, merge_record_exists=merge_record_may_exist(seam))
     return location.path

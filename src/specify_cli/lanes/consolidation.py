@@ -23,6 +23,7 @@ from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Literal
 
 from specify_cli.coordination.coherence import is_toolchain_generated_churn
 from specify_cli.git.ref_advance import advance_branch_ref
@@ -586,6 +587,25 @@ def _merge_driver_config_snapshot(repo_root: Path) -> dict[str, str | None]:
         )
     }
     return {key: _git_config_get(repo_root, key) for key in keys}
+
+
+def install_merge_driver_config(repo_root: Path) -> Literal["installed", "present"]:
+    """Install the per-clone merge-driver git config and report whether it changed anything.
+
+    ``installed`` when at least one ``merge.<key>.name`` / ``.driver`` value was
+    written or changed, ``present`` when the clone already had every one (and for
+    a directory that is not a git repository, where the install is a no-op).
+    Idempotent. This is the one public seam ``init`` and ``upgrade`` call
+    (#5759); it does not seed attributes (see :func:`_ensure_merge_driver_git_config`).
+
+    Raises:
+        OSError: git could not be run.
+        subprocess.CalledProcessError: a config write failed.
+        UnicodeError: git config output could not be decoded.
+    """
+    before = _merge_driver_config_snapshot(repo_root)
+    _ensure_merge_driver_git_config(repo_root)
+    return "installed" if _merge_driver_config_snapshot(repo_root) != before else "present"
 
 
 def _restore_merge_driver_config(

@@ -1199,18 +1199,15 @@ def _finalizer_step_merge_driver_config(outcome: UpgradeOutcome, *, project_path
     would otherwise never get the drivers. Idempotent (``present`` when nothing
     changed), skipped on a dry run or outside a git repository, and a git failure is a warning only.
     """
-    from specify_cli.lanes.consolidation import _ensure_merge_driver_git_config, _merge_driver_config_snapshot
+    from specify_cli.lanes.consolidation import install_merge_driver_config
 
     if dry_run or not (project_path / ".git").exists():
         return "skipped"
     try:
-        before = _merge_driver_config_snapshot(project_path)
-        _ensure_merge_driver_git_config(project_path)
-        after = _merge_driver_config_snapshot(project_path)
+        return install_merge_driver_config(project_path)
     except (OSError, subprocess.CalledProcessError, UnicodeError) as exc:
         outcome.result.warnings.append(f"Could not install clone-local merge-driver settings: {exc}")
         return "failed"
-    return "installed" if after != before else "present"
 
 
 def _finalizer_step_commit_churn(
