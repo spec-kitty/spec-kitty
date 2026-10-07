@@ -15,6 +15,7 @@ Strategy note (FR-006, FR-007):
 from __future__ import annotations
 
 from kernel.git import GitCommandError, changed_paths, index_entries
+from kernel.git_topology import GitTopologyError, git_toplevel
 from mission_runtime import MissionArtifactKind, placement_seam
 import os
 import subprocess
@@ -621,6 +622,19 @@ def merge_driver_customization_warnings(repo_root: Path) -> list[str]:
     ]
 
 
+def is_git_checkout_root(repo_root: Path) -> bool:
+    """``True`` when *repo_root* is itself a git working-tree root (#5759).
+
+    Asks git (``rev-parse --show-toplevel``) instead of testing for a ``.git``
+    entry, so a repository with a separate git dir (``--separate-git-dir``, a
+    submodule) counts, and a project merely nested inside another repository does not.
+    """
+    try:
+        return git_toplevel(repo_root) == repo_root.resolve()
+    except GitTopologyError:
+        return False
+
+
 def install_merge_driver_config(repo_root: Path) -> Literal["installed", "present", "customized"]:
     """Install the per-clone merge-driver git config and report what it did.
 
@@ -640,7 +654,7 @@ def install_merge_driver_config(repo_root: Path) -> Literal["installed", "presen
         subprocess.CalledProcessError: a config write failed.
         UnicodeError: git config output could not be decoded.
     """
-    if not (repo_root / ".git").exists():
+    if not is_git_checkout_root(repo_root):
         return "present"
     before = _merge_driver_config_snapshot(repo_root)
     for key, shipped, accepted in _driver_config_entries():

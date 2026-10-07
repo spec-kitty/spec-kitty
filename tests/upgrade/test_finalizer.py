@@ -461,6 +461,27 @@ def test_step_skips_a_project_that_is_not_a_git_repository(tmp_path: Path) -> No
     assert state == "skipped"
     assert not outcome.result.warnings
 
+    # A project nested inside another repository is not a clone root: the parent's config is not ours to write.
+    parent = _git_repo(tmp_path / "parent")
+    nested = parent / "nested"
+    nested.mkdir()
+    assert upgrade_cmd._finalizer_step_merge_driver_config(_outcome(), project_path=nested, dry_run=False) == "skipped"
+    assert _merge_keys(parent) == []
+
+    # A stray empty ``.git`` directory is not a repository: skipped quietly, not a failed install with a warning.
+    stray = tmp_path / "stray"
+    (stray / ".git").mkdir(parents=True)
+    stray_outcome = _outcome()
+    assert upgrade_cmd._finalizer_step_merge_driver_config(stray_outcome, project_path=stray, dry_run=False) == "skipped"
+    assert not stray_outcome.result.warnings
+
+    # A repository whose git dir lives elsewhere has a ``.git`` file, not a directory: git still names it a clone root (#5759).
+    separate = tmp_path / "separate"
+    separate.mkdir()
+    subprocess.run(["git", "init", "-q", f"--separate-git-dir={tmp_path / 'gitdir'}", str(separate)], check=True)
+    assert upgrade_cmd._finalizer_step_merge_driver_config(_outcome(), project_path=separate, dry_run=False) == "installed"
+    assert _merge_keys(separate)
+
 
 def test_step_installs_missing_config_then_reports_present(tmp_path: Path) -> None:
     repo = _git_repo(tmp_path)

@@ -1199,9 +1199,9 @@ def _finalizer_step_merge_driver_config(outcome: UpgradeOutcome, *, project_path
     would otherwise never get the drivers. Idempotent (``present`` when nothing
     changed), skipped on a dry run or outside a git repository, and a git failure is a warning only.
     """
-    from specify_cli.lanes.consolidation import install_merge_driver_config, merge_driver_customization_warnings
+    from specify_cli.lanes.consolidation import install_merge_driver_config, is_git_checkout_root, merge_driver_customization_warnings
 
-    if dry_run or not (project_path / ".git").exists():
+    if dry_run or not is_git_checkout_root(project_path):
         return "skipped"
     try:
         state = install_merge_driver_config(project_path)
