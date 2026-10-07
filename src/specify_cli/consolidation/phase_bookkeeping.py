@@ -495,6 +495,9 @@ def _project_birth_cutover_seed_to_target(run: _MergeRunState, status_feature_di
         logger.warning("birth-cutover seed projection failed for %s: %s", run.mission_slug, exc)
 
 
+_STATUS_SNAPSHOT_FILENAME = "status.json"
+
+
 def _commit_coord_seed_events(run: _MergeRunState, status_feature_dir: Path) -> None:
     """Commit birth-cutover seed events onto the coordination branch (PR #2920
     review F1/F2 — architect / debbie / paula converged on the same block).
@@ -532,8 +535,12 @@ def _commit_coord_seed_events(run: _MergeRunState, status_feature_dir: Path) -> 
     if coord_worktree_root is None or not coord_ref:
         return
     events_path = status_feature_dir / _STATUS_EVENTS_FILENAME
+    # The seed phase refreshes a persisted ``status.json`` alongside the log (#5862); commit the
+    # pair together or the refreshed snapshot is left dirty and the teardown guard refuses.
+    snapshot_path = status_feature_dir / _STATUS_SNAPSHOT_FILENAME
+    seed_paths = (events_path, snapshot_path) if snapshot_path.is_file() else (events_path,)
     try:
-        if not _paths_have_status_changes(coord_worktree_root, [events_path]):
+        if not _paths_have_status_changes(coord_worktree_root, list(seed_paths)):
             return  # nothing seeded/uncommitted — resume-safe no-op
         # Intentionally exercised UN-mocked by tests/migration/test_birth_cutover.py
         # (the real git write) — do not add this call to a mock stack.
@@ -542,7 +549,7 @@ def _commit_coord_seed_events(run: _MergeRunState, status_feature_dir: Path) -> 
             worktree_root=coord_worktree_root,
             mission_slug=run.mission_slug,
             message=f"chore({run.mission_slug}): birth-cutover seed events reconciled",
-            paths=(events_path,),
+            paths=seed_paths,
             branch=coord_ref,
         )
     except Exception as exc:  # noqa: BLE001 — best-effort, must never abort the merge
