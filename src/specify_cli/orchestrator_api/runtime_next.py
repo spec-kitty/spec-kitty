@@ -128,4 +128,5 @@ def runtime_next(
         _common._fail(
             cmd, "RUNTIME_NEXT_FAILED", str(exc), {"mission_slug": mission, "reason": getattr(exc, "code", type(exc).__name__), **getattr(exc, "details", {})}
         )
-    _common._emit(make_envelope(command=cmd, success=True, data=payload))
+    else:
+        _common._emit(make_envelope(command=cmd, success=True, data=payload))
