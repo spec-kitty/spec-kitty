@@ -55,7 +55,7 @@ _DEFAULT_REMOTE = "origin"
 
 def _configured_ssh_command(cwd: Path) -> str | None:
     """Read ``core.sshCommand`` from the local/global git config of *cwd* (no network)."""
-    result = run_git(cwd, "config", "--get", "core.sshCommand", check=False)
+    result = run_git(cwd, "config", "--get", "core.sshCommand", timeout=LS_REMOTE_TIMEOUT, check=False)
     if result.returncode != 0:
         return None
     return result.stdout.decode("utf-8", "replace").strip() or None
