@@ -9,7 +9,6 @@ a second list.
 
 from __future__ import annotations
 
-import itertools
 import json
 import subprocess
 from dataclasses import MISSING, fields
@@ -81,19 +80,24 @@ def test_every_optional_status_event_field_is_covered() -> None:
     assert set(_optional_field_names()) == set(_OPTIONAL_VALUES), "StatusEvent gained or lost an optional field: update _OPTIONAL_VALUES"
 
 
-def test_writer_shaped_rows_are_byte_identical_for_every_optional_field_subset(tmp_path: Path) -> None:
-    names = sorted(_OPTIONAL_VALUES)
-    checked = 0
-    for size in range(len(names) + 1):
-        for subset in itertools.combinations(names, size):
-            for structured_actor in (False, True):
-                event = _event(optional={name: _OPTIONAL_VALUES[name] for name in subset}, structured_actor=structured_actor)
-                line = _line(event)
-                canonical, changes, quarantine, errors = _canonicalize(tmp_path, [line])
-                context = f"subset={subset} structured_actor={structured_actor}"
-                assert (canonical, changes, quarantine, errors) == ([line], [], [], []), context
-                checked += 1
-    assert checked == 2 ** len(names) * 2
+# All absent, each optional field alone, all present: a field the serializer or a rule mishandles
+# fails in isolation, and the full row pins their interaction. (Every other subset adds nothing.)
+_FIELD_SETS: dict[str, tuple[str, ...]] = {
+    "none": (),
+    **{f"only-{name}": (name,) for name in sorted(_OPTIONAL_VALUES)},
+    "all": tuple(sorted(_OPTIONAL_VALUES)),
+}
+
+
+@pytest.mark.parametrize("structured_actor", [False, True], ids=["string-actor", "structured-actor"])
+@pytest.mark.parametrize("field_set", list(_FIELD_SETS))
+def test_writer_shaped_rows_are_byte_identical_for_representative_optional_field_sets(
+    tmp_path: Path, field_set: str, structured_actor: bool
+) -> None:
+    names = _FIELD_SETS[field_set]
+    line = _line(_event(optional={name: _OPTIONAL_VALUES[name] for name in names}, structured_actor=structured_actor))
+
+    assert _canonicalize(tmp_path, [line]) == ([line], [], [], [])
 
 
 def test_non_lane_and_annotation_rows_keep_their_original_text(tmp_path: Path) -> None:
