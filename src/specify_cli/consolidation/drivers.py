@@ -93,7 +93,8 @@ from specify_cli.acceptance.matrix import AcceptanceMatrix, AcceptanceMatrixPars
 from specify_cli.consolidation.mission_number import is_assigned_mission_number
 from specify_cli.decisions.index_fold import is_allowed_terminal_reopen
 from specify_cli.decisions.models import DecisionIndex, DecisionStatus
-from specify_cli.mission_metadata import parse_meta_file
+from specify_cli.migration.backfill_topology import FLATTEN_COUPLED_KEYS
+from specify_cli.mission_metadata import MERGE_FIELDS, parse_meta_file
 from specify_cli.status import EventLogMergeError, merge_event_log_files
 from specify_cli.tasks.issue_matrix import _SCAFFOLD_VERDICT_PLACEHOLDER, ISSUE_MATRIX_SCHEMA_VERSION
 
@@ -119,12 +120,7 @@ _TARGET_AUTHORITATIVE_META_FIELDS: tuple[str, ...] = (
     "mission_number",
     "status",
     "baseline_merge_commit",
-    "merged_at",
-    "merged_by",
-    "merged_into",
-    "merged_strategy",
-    "merged_push",
-    "merged_commit",
+    *MERGE_FIELDS,
 )
 _TARGET_AUTHORITATIVE_META_SET: frozenset[str] = frozenset(_TARGET_AUTHORITATIVE_META_FIELDS)
 
@@ -143,8 +139,8 @@ _MISSING: Final = object()
 # half-flattened / half-recorded. ``vcs`` / ``vcs_locked_at`` stay individual keys
 # (independent provenance, both target-authoritative).
 _META_COUPLED_KEY_GROUPS: tuple[frozenset[str], ...] = (
-    frozenset({"coordination_branch", "topology", "flattened"}),
-    frozenset({"merged_at", "merged_by", "merged_into", "merged_strategy", "merged_push", "merged_commit"}),
+    frozenset(FLATTEN_COUPLED_KEYS),
+    frozenset(MERGE_FIELDS),
     frozenset(ACCEPTANCE_PROVENANCE_FIELDS) - VCS_LOCK_META_FIELDS,
 )
 

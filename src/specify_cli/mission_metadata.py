@@ -877,7 +877,10 @@ def set_change_mode(
     return meta
 
 
-_MERGE_FIELDS: tuple[str, ...] = (
+#: The canonical ``merged_*`` ``meta.json`` field set: the one writer-owned
+#: membership authority for :func:`snapshot_merge_metadata`,
+#: :func:`clear_merge_metadata` and the meta merge driver's coupled group.
+MERGE_FIELDS: tuple[str, ...] = (
     "merged_at",
     "merged_by",
     "merged_into",
@@ -900,7 +903,7 @@ def snapshot_merge_metadata(meta: Mapping[str, Any]) -> dict[str, Any]:
     that as a structured, retryable error rather than claiming the clear
     succeeded.
     """
-    return {field: meta[field] for field in _MERGE_FIELDS if field in meta}
+    return {field: meta[field] for field in MERGE_FIELDS if field in meta}
 
 
 def clear_merge_metadata(feature_dir: Path) -> dict[str, Any]:

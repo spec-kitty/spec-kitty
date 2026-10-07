@@ -48,6 +48,12 @@ TOPOLOGY_KEY = "topology"
 FLATTENED_KEY = "flattened"
 _COORDINATION_BRANCH_KEY = "coordination_branch"
 
+#: The three keys ``mission_metadata.flatten_coordination_metadata`` rewrites in
+#: one write (pop ``coordination_branch``, pop ``topology``, set ``flattened``):
+#: the meta merge driver merges them as one unit so a record is never
+#: half-flattened.
+FLATTEN_COUPLED_KEYS: tuple[str, ...] = (_COORDINATION_BRANCH_KEY, TOPOLOGY_KEY, FLATTENED_KEY)
+
 
 def _has_lanes(feature_dir: Path) -> bool:
     """Return whether the mission has a CODE lane (corrupt ⇒ treated absent).
@@ -476,6 +482,7 @@ def restamp_single_branch_with_code_lanes(repo_root: Path, *, dry_run: bool = Fa
 
 __all__ = [
     "FLATTENED_KEY",
+    "FLATTEN_COUPLED_KEYS",
     "TOPOLOGY_KEY",
     "backfill_topology_repo",
     "read_topology",
