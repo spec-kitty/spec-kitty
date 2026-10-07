@@ -252,6 +252,12 @@ class TestAllowedCommandNames:
             "cancel-decision",
             "answer-decision",
             "design-status",
+            "artifact-read",
+            "artifact-submit",
+            "design-validate",
+            "design-context",
+            "interview-record",
+            "next",
         ]
 
     def test_forbidden_commands_are_not_registered(self, orchestrator_api_contract):

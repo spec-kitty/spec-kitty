@@ -66,6 +66,12 @@ _NEW_VERBS = (
     "cancel-decision",
     "design-status",
     "answer-decision",
+    "artifact-read",
+    "artifact-submit",
+    "design-validate",
+    "design-context",
+    "interview-record",
+    "next",
 )
 
 
@@ -84,13 +90,13 @@ def test_min_provider_version_unchanged() -> None:
     assert envelope_module.MIN_PROVIDER_VERSION == "0.1.0"
 
 
-def test_changelog_comment_names_all_eleven_new_verbs() -> None:
+def test_changelog_comment_names_all_design_verbs() -> None:
     """A mismatched/missing verb name in the changelog comment is exactly
     the documentation-vs-code drift this WP exists to prevent (Reviewer
     Guidance, WP07 task file)."""
     source = inspect.getsource(envelope_module)
     changelog_start = source.index("# 1.1.0:")
-    changelog_end = source.index('CONTRACT_VERSION = "1.11.0"')
+    changelog_end = source.index(f'CONTRACT_VERSION = "{envelope_module.CONTRACT_VERSION}"')
     changelog_block = source[changelog_start:changelog_end]
 
     missing = [verb for verb in _NEW_VERBS if verb not in changelog_block]

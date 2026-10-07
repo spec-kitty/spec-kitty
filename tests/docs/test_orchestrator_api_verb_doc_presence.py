@@ -44,6 +44,12 @@ NEW_VERBS = (
     "cancel-decision",
     "design-status",
     "answer-decision",
+    "artifact-read",
+    "artifact-submit",
+    "design-validate",
+    "design-context",
+    "interview-record",
+    "next",
 )
 
 
