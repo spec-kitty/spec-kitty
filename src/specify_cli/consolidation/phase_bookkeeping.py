@@ -38,6 +38,7 @@ from specify_cli.consolidation.git_probes import _paths_have_status_changes
 
 from specify_cli.consolidation._constants import (
     _STATUS_EVENTS_FILENAME,
+    _STATUS_FILENAME,
     logger,
 )
 from specify_cli.consolidation.baseline import (
@@ -495,9 +496,6 @@ def _project_birth_cutover_seed_to_target(run: _MergeRunState, status_feature_di
         logger.warning("birth-cutover seed projection failed for %s: %s", run.mission_slug, exc)
 
 
-_STATUS_SNAPSHOT_FILENAME = "status.json"
-
-
 def _commit_coord_seed_events(run: _MergeRunState, status_feature_dir: Path) -> None:
     """Commit birth-cutover seed events onto the coordination branch (PR #2920
     review F1/F2 — architect / debbie / paula converged on the same block).
@@ -537,7 +535,7 @@ def _commit_coord_seed_events(run: _MergeRunState, status_feature_dir: Path) -> 
     events_path = status_feature_dir / _STATUS_EVENTS_FILENAME
     # The seed phase refreshes a persisted ``status.json`` alongside the log (#5862); commit the
     # pair together or the refreshed snapshot is left dirty and the teardown guard refuses.
-    snapshot_path = status_feature_dir / _STATUS_SNAPSHOT_FILENAME
+    snapshot_path = status_feature_dir / _STATUS_FILENAME
     seed_paths = (events_path, snapshot_path) if snapshot_path.is_file() else (events_path,)
     try:
         if not _paths_have_status_changes(coord_worktree_root, list(seed_paths)):
