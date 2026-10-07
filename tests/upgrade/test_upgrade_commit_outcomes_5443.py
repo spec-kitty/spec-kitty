@@ -67,7 +67,7 @@ def _kittify_names(project: Path) -> set[str]:
     return {entry.name for entry in (project / ".kittify").iterdir()}
 
 
-@pytest.mark.p0_repro(issue=5443)
+@pytest.mark.regression
 @pytest.mark.parametrize("ignore_setup", ["no-gitignore", "tracked-gitignore"])
 def test_failed_upgrade_commits_nothing_and_cleans_up(tmp_path: Path, ignore_setup: str) -> None:
     gitignore = None if ignore_setup == "no-gitignore" else ".kittify/workspaces/\n"
@@ -111,7 +111,7 @@ def test_failed_upgrade_commits_nothing_and_cleans_up(tmp_path: Path, ignore_set
     assert after <= before | {"skills-manifest.json"}
 
 
-@pytest.mark.p0_repro(issue=5443)
+@pytest.mark.regression
 def test_ignored_operator_file_is_never_committed(tmp_path: Path) -> None:
     ignore_lines = ".kittify/workspaces/\n.kittify/merge-state.json\n"
     project, env = build_legacy(tmp_path, agents=["claude"], gitignore=ignore_lines, extra_files={_IMPLEMENT: MARKED_COMMAND_FILE})
@@ -133,7 +133,7 @@ def test_ignored_operator_file_is_never_committed(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-@pytest.mark.p0_repro(issue=5443)
+@pytest.mark.regression
 @pytest.mark.parametrize(
     ("agents", "home"),
     [
@@ -163,7 +163,7 @@ def test_clean_legacy_upgrade_commits(tmp_path: Path, agents: list[str], home: H
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-@pytest.mark.p0_repro(issue=5443)
+@pytest.mark.regression
 def test_customised_command_file_is_held_and_named(tmp_path: Path) -> None:
     project, env = build_legacy(
         tmp_path,
@@ -200,7 +200,7 @@ def _add_worktree(project: Path, env: dict[str, str], files: dict[str, str]) -> 
     return worktree
 
 
-@pytest.mark.p0_repro(issue=5443)
+@pytest.mark.regression
 @pytest.mark.parametrize("case", ["worktree-failed-migration", "worktree-held-file"])
 def test_upgraded_worktree_follows_main_rules(tmp_path: Path, case: str) -> None:
     project, env = build_legacy(tmp_path, agents=["claude"], gitignore="*.pyc\n", extra_files={_IMPLEMENT: MARKED_COMMAND_FILE})

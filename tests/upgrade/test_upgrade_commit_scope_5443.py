@@ -41,7 +41,7 @@ def _committed_schema_version(project: Path, env: dict[str, str]) -> object:
     return yaml.safe_load(text)["spec_kitty"]["schema_version"]
 
 
-@pytest.mark.p0_repro(issue=5443)
+@pytest.mark.regression
 def test_upgrade_never_commits_operator_work(tmp_path: Path) -> None:
     project, env = build_legacy(
         tmp_path,
@@ -93,7 +93,7 @@ def test_upgrade_never_commits_operator_work(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-@pytest.mark.p0_repro(issue=5443)
+@pytest.mark.regression
 def test_rejecting_hook_is_honoured_and_never_bypassed(tmp_path: Path) -> None:
     project, env = build_legacy(tmp_path, agents=["claude"], gitignore="*.pyc\n", extra_files=_MARKED)
     counter = install_pre_commit_hook(project, tmp_path, reject=True)
