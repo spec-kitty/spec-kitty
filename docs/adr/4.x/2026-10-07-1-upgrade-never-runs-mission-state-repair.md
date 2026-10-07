@@ -29,7 +29,8 @@ updated: '2026-10-07'
 1. **`upgrade` is report-only.** The finalizer step calls `report_teamspace_mission_state_blockers`, which never calls `repair_repo`, never prompts, and never raises `typer.Exit`. The upgrade exit code is unchanged by a reported blocker.
 2. **Drain-gated.** With hosted drain off (the default) readiness is not evaluated and nothing is printed. With drain on, the gate prints the blocker count, the finding codes and `spec-kitty doctor mission-state --fix`. The posture is read through the `hosted_posture.drain_posture` module attribute.
 3. **One consent path.** `spec-kitty doctor mission-state --fix` is the only caller of `repair_repo`. It names every errored Mission and exits non-zero when any errored, and never prints a "cleared" claim in that case. `tests/architectural/test_mission_state_repair_sole_caller.py` pins the sole caller with an empty allowlist.
-4. **The consent plumbing is deleted.** `_should_run_repair`, the `repair_opt_in` and `assume_yes` repair parameters, and the `declined` / `ran` outcome states have no remaining meaning and are removed.
+4. **Residue is reported, never repaired (#5812).** A `kitty-specs/` child that is not a Mission (no `mission_id` in `meta.json` and no git-tracked `spec.md` / `meta.json`, for example a gitignored `*.lock` leftover) is reported as INFO `RESIDUE_DIRECTORY` and never repaired. The predicate is `is_mission_dir` in `src/specify_cli/context/mission_resolver.py`.
+5. **The consent plumbing is deleted.** `_should_run_repair`, the `repair_opt_in` and `assume_yes` repair parameters, and the `declined` / `ran` outcome states have no remaining meaning and are removed.
 
 ## Considered Options
 
@@ -45,3 +46,4 @@ updated: '2026-10-07'
 - Upgrade output with drain off no longer mentions mission-state at all.
 - `enforce_teamspace_mission_state_ready`, the blocking gate for hosted operations, is unchanged.
 - Reversible only by an explicit, new decision; the sole-caller gate fails on any other `repair_repo` caller until its allowlist is amended in the same change.
+- Known limitation: `upgrade --json` does not report mission-state blockers. Deferred; it needs an operator ruling on the JSON contract.
