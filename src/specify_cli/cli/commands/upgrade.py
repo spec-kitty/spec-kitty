@@ -43,6 +43,7 @@ from __future__ import annotations
 import functools
 import json
 import os
+import subprocess
 import sys
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager, suppress
@@ -80,6 +81,7 @@ from specify_cli.upgrade.autocommit import (
 )
 from specify_cli.upgrade.outcome import (
     SUCCESS_KINDS,
+    MergeDriverConfigState,
     MissionStateReportOutcome,
     SurfaceRepairReport,
     UpgradeOutcome,
@@ -866,6 +868,7 @@ def _build_migration_json_payload(
         "manual_review_paths": manual_review_paths,
         "auto_committed": outcome.committed,
         "auto_commit_paths": auto_commit_paths,
+        "merge_driver_config": outcome.merge_driver_config,
         "surface_repair": _surface_repair_payload(surface_repair_summary),
     }
 
@@ -895,6 +898,7 @@ def _build_no_migrations_json_payload(
         "auto_committed": outcome.committed,
         "auto_commit_paths": auto_commit_paths,
         "warnings": outcome.warnings(),
+        "merge_driver_config": outcome.merge_driver_config,
         "surface_repair": _surface_repair_payload(surface_repair_summary),
     }
 
@@ -972,6 +976,8 @@ def _render_text_report(
     """Render a completed run in text mode, for both the migrations and no-migrations paths."""
     if outcome.had_migrations:
         _display_upgrade_results(outcome.result)
+    for notice in outcome.notices():
+        console.print(notice, style="dim", markup=False, highlight=False)
     # Dry-run parity: the finalizer provisions mission_type_activations on BOTH paths, so an
     # up-to-date project still missing the key is seeded on a real run; a dry run must preview
     # that too (no-op for --json and outside dry-run). A no-op keeps it after the closing line;
@@ -1183,6 +1189,28 @@ def _render_safe_commit_recovery_failed(exc: SafeCommitRecoveryFailed) -> str:
         else ""
     )
     return f"Auto-commit of upgrade changes failed to restore your staging: {exc}. {landed}{stash}"
+
+
+def _finalizer_step_merge_driver_config(outcome: UpgradeOutcome, *, project_path: Path, dry_run: bool) -> MergeDriverConfigState:
+    """Injected ``install_merge_driver_config`` step (#5759): per-clone ``merge.*`` git config.
+
+    ``.gitattributes`` travels with the repository but ``merge.<key>.*`` lives in
+    ``.git/config``, and the runner skips recorded migrations, so a teammate's clone
+    would otherwise never get the drivers. Idempotent (``present`` when nothing
+    changed), skipped on a dry run or outside a git repository, and a git failure is a warning only.
+    """
+    from specify_cli.lanes.consolidation import _ensure_merge_driver_git_config, _merge_driver_config_snapshot
+
+    if dry_run or not (project_path / ".git").exists():
+        return "skipped"
+    try:
+        before = _merge_driver_config_snapshot(project_path)
+        _ensure_merge_driver_git_config(project_path)
+        after = _merge_driver_config_snapshot(project_path)
+    except (OSError, subprocess.CalledProcessError, UnicodeError) as exc:
+        outcome.result.warnings.append(f"Could not install clone-local merge-driver settings: {exc}")
+        return "failed"
+    return "installed" if after != before else "present"
 
 
 def _finalizer_step_commit_churn(
@@ -1899,6 +1927,7 @@ def upgrade(
             ),
             should_commit=should_commit_main,
             repair_preflight=_finalizer_repair_preflight(render_ctx.prepared_repairs, preparation_errors),
+            install_merge_driver_config=functools.partial(_finalizer_step_merge_driver_config, outcome, project_path=project_path, dry_run=dry_run),
         )
         settle_version_stamp(outcome)
 

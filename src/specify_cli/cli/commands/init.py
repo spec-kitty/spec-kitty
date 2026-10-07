@@ -460,6 +460,53 @@ def _discard_failed_project_scaffold(project_path: Path, *, here: bool) -> None:
     shutil.rmtree(project_path)
 
 
+def _wire_merge_driver_best_effort(project_path: Path) -> bool:
+    """Install every registered merge driver's git config; never fail the caller.
+
+    Installs both halves of the driver wiring (#4146): the attribute mapping is
+    inert without its ``merge.<key>.name`` / ``.driver`` git-config half. No-op
+    (by the installer's own guard) when the target is not a git repository yet --
+    that case keeps relying on the merge-path self-heal. Returns True when the
+    installer ran to completion and False when git was unusable (a warning is
+    printed and init continues).
+    """
+    from specify_cli.lanes.consolidation import _ensure_merge_driver_git_config
+
+    try:
+        _ensure_merge_driver_git_config(project_path)
+    except (OSError, subprocess.CalledProcessError, UnicodeError) as exc:
+        # Git is optional during init. A stale .git entry, missing binary, or
+        # unusable repository must not turn best-effort driver wiring into a
+        # late scaffold failure; merge paths self-heal the config later.
+        _console.print(
+            f"Could not configure Spec Kitty merge drivers; continuing without local git configuration: {exc}",
+            style="yellow",
+            markup=False,
+            soft_wrap=True,
+        )
+        return False
+    return True
+
+
+def _restore_clone_merge_drivers(project_path: Path) -> None:
+    """Install the per-clone merge-driver git config on an already-initialized clone (#5759).
+
+    ``.gitattributes`` travels with the repository but ``merge.<key>.*`` lives in
+    ``.git/config``, so a teammate's fresh clone has the mapping and no drivers.
+    Idempotent: prints one dim line only when the install changed something, so an
+    already-configured clone prints nothing new.
+    """
+    from specify_cli.lanes.consolidation import _merge_driver_config_snapshot
+
+    assert _console is not None
+    try:
+        before = _merge_driver_config_snapshot(project_path)
+    except (OSError, subprocess.CalledProcessError, UnicodeError):
+        before = None
+    if _wire_merge_driver_best_effort(project_path) and before is not None and _merge_driver_config_snapshot(project_path) != before:
+        _console.print("[dim]Installed clone-local merge-driver settings[/dim]")
+
+
 def _ensure_event_log_merge_attributes(project_path: Path) -> bool:
     """Ensure new projects get Spec Kitty git attributes."""
     attributes_path = project_path / ".gitattributes"
@@ -857,6 +904,7 @@ def init(  # noqa: C901
         except (OSError, ValueError, AgentConfigError) as exc:
             _console.print(f"[red]Initialization incomplete:[/red] {exc}")
             raise typer.Exit(1) from exc
+        _restore_clone_merge_drivers(project_path)
         if resumed:
             raise typer.Exit(0)
         _console.print(
@@ -1379,25 +1427,9 @@ def init(  # noqa: C901
         _console.print("[dim]Updated .gitattributes for Spec Kitty generated artifacts[/dim]")
 
     # #4146: the attribute mapping above is inert without its git-config half
-    # (``merge.<key>.name`` / ``.driver``). Install both halves of every
-    # registered merge driver here so the union driver is active from the very
-    # first lane claim, not only after the first merge/auto-rebase self-heals
-    # it. No-op (by the helper's own guard) when the target is not a git
-    # repository yet -- that case keeps relying on the merge-path self-heal.
-    from specify_cli.lanes.consolidation import _ensure_merge_driver_git_config
-
-    try:
-        _ensure_merge_driver_git_config(project_path)
-    except (OSError, subprocess.CalledProcessError, UnicodeError) as exc:
-        # Git is optional during init. A stale .git entry, missing binary, or
-        # unusable repository must not turn best-effort driver wiring into a
-        # late scaffold failure; merge paths self-heal the config later.
-        _console.print(
-            f"Could not configure Spec Kitty merge drivers; continuing without local git configuration: {exc}",
-            style="yellow",
-            markup=False,
-            soft_wrap=True,
-        )
+    # (``merge.<key>.name`` / ``.driver``); install it so the union driver is
+    # active from the very first lane claim.
+    _wire_merge_driver_best_effort(project_path)
 
     # Fresh-init provisioning (FR-009/010/011, NFR-004): seed
     # mission_type_activations from the shipped default charter pack so a

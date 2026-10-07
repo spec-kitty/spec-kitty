@@ -125,7 +125,9 @@ def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 _GOLDEN_NO_OP_WITH_WARNING = (
-    "Current version: 1.0.0a1\nTarget version:  1.0.0a1\n\nProject is already up to date!\nWarning: one warning\n→ Auto-committed upgrade changes (2 files)\n"
+    "Current version: 1.0.0a1\nTarget version:  1.0.0a1\n\n"
+    "Installed clone-local merge-driver settings\n"
+    "Project is already up to date!\nWarning: one warning\n→ Auto-committed upgrade changes (2 files)\n"
 )
 
 _GOLDEN_APPLIED = (
@@ -144,6 +146,7 @@ _GOLDEN_APPLIED = (
     "  ✓ 3.2.0a4_fake_migration\n"
     "Migrations skipped (already applied or not needed):\n"
     "  ○ 3.1.0_old_migration\n"
+    "Installed clone-local merge-driver settings\n"
     "\n"
     "Upgrade complete! 1.0.0a1 -> 3.2.0a4\n"
     "→ Auto-committed upgrade changes (1 files)\n"

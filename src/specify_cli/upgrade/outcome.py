@@ -29,6 +29,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
+from typing import Literal
 
 from .runner import UpgradeResult
 
@@ -46,6 +47,16 @@ _CLOSING_APPLIED = "Upgrade complete! {from_version} -> {to_version}"
 _CLOSING_APPLIED_DRY_RUN = "Dry run complete — no changes applied. ({from_version} -> {to_version} previewed)"
 _CLOSING_DRIFT_UNRESOLVED = "Upgrade finished, but {count} managed file(s) with local edits were not updated."
 _CLOSING_FAILED = "Upgrade failed."
+
+MergeDriverConfigState = Literal["installed", "present", "skipped", "failed"]
+"""What the finalizer's clone-local merge-driver config step did (#5759).
+
+``installed``: it wrote at least one ``merge.<key>.*`` entry; ``present``: every
+entry was already set; ``skipped``: the step did not run (dry run, or no step
+injected); ``failed``: git was unusable, which is a warning, never a failure reason.
+"""
+
+_MERGE_DRIVER_CONFIG_INSTALLED_NOTICE = "Installed clone-local merge-driver settings"
 
 
 class UpgradeOutcomeKind(StrEnum):
@@ -170,6 +181,8 @@ class UpgradeOutcome:
     preview_incomplete: bool = False
     surface_repair_messages: list[str] = field(default_factory=list)
     commit_recovery_failed: bool = False
+    merge_driver_config: MergeDriverConfigState = "skipped"
+    """Informational: never enters ``reasons`` (a failure is a warning, see ``warnings()``)."""
 
     def record_surface_repair(self, report: SurfaceRepairReport) -> None:
         """Fold the surface-repair step's report into the outcome."""
@@ -275,6 +288,10 @@ class UpgradeOutcome:
         if self.repair.failed and self.repair.surface_message and self.repair.message:
             warnings.append(self.repair.message)
         return warnings
+
+    def notices(self) -> list[str]:
+        """Informational one-liners (not warnings): only what this run changed, so a re-run prints none."""
+        return [_MERGE_DRIVER_CONFIG_INSTALLED_NOTICE] if self.merge_driver_config == "installed" else []
 
     def closing_line(self) -> str:
         """The headline a text-mode run ends on (plain text, no markup)."""

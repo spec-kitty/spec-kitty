@@ -54,6 +54,35 @@ def test_initialized_clone_diagnoses_missing_codex_skills(monkeypatch, tmp_path)
     assert third_party.read_text() == "Keep custom skill"
 
 
+_GIT_CONFIG_SENTINEL = Path("<git-config-without-merge-keys>")
+
+
+def _non_merge_git_config(root):
+    """``git config --local --list`` lines whose key is not under ``merge.``."""
+    import subprocess
+
+    listed = subprocess.run(["git", "-C", str(root), "config", "--local", "--list"], capture_output=True, text=True)
+    lines = listed.stdout.splitlines() if listed.returncode == 0 else []
+    return "\n".join(sorted(line for line in lines if not line.startswith("merge.")))
+
+
+def _tree(root):
+    """Every file under *root* as bytes, with ``.git/config`` reduced to its non-``merge.*`` keys.
+
+    Re-running ``init`` on a clone legitimately installs the per-clone merge-driver
+    config into ``.git/config`` (#5759); that is asserted by
+    ``tests/terminus/test_clone_init_installs_merge_drivers.py``. The raw file is left
+    out of the byte snapshot, but its other keys are kept (under a sentinel entry), so
+    "nothing tracked or managed changed" still fails if any non-``merge.*`` git config
+    key is added, changed or removed.
+    """
+    git_config = Path(".git/config")
+    files = {p.relative_to(root): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+    files.pop(git_config, None)
+    files[_GIT_CONFIG_SENTINEL] = _non_merge_git_config(root).encode()
+    return files
+
+
 def test_initialized_clone_manual_recovery_and_repeat(monkeypatch, tmp_path):
     import subprocess
     from specify_cli.cli.commands.agent.config import app as config_app
@@ -69,10 +98,10 @@ def test_initialized_clone_manual_recovery_and_repeat(monkeypatch, tmp_path):
     assert recovered.exit_code == 0, recovered.output
     for command in ("specify", "plan", "tasks"):
         assert (tmp_path / f".agents/skills/spec-kitty.{command}/SKILL.md").stat().st_size > 0
-    before = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    before = _tree(tmp_path)
     for _ in range(2):
         assert _run(app, ["init", "--non-interactive"]).exit_code == 0
-    after = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    after = _tree(tmp_path)
     assert after == before
 
 
@@ -89,10 +118,10 @@ def test_initialized_clone_explicit_selection_repairs_and_repeats(monkeypatch, t
     assert _run(app, ["init", "--non-interactive", *selection]).exit_code == 0
     for command in ("specify", "plan", "tasks"):
         assert (tmp_path / f".agents/skills/spec-kitty.{command}/SKILL.md").stat().st_size > 0
-    before = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    before = _tree(tmp_path)
     for _ in range(2):
         assert _run(app, ["init", "--non-interactive", *selection]).exit_code == 0
-    after = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    after = _tree(tmp_path)
     assert after == before
 
 
@@ -199,10 +228,10 @@ def test_initialized_clone_vibe_pointer_recovery_and_repeat(monkeypatch, tmp_pat
     assert recovered.exit_code == 0, recovered.output
     pointer = tmp_path / ".vibe/config.toml"
     assert pointer.is_file()
-    before = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    before = _tree(tmp_path)
     for _ in range(2):
         assert _run(app, ["init", "--non-interactive"]).exit_code == 0
-    after = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    after = _tree(tmp_path)
     assert after == before
 
 
@@ -215,11 +244,11 @@ def test_initialized_clone_explicit_vibe_restores_pointer_only(monkeypatch, tmp_
     _seed_vibe_clone(tmp_path)
     monkeypatch.chdir(tmp_path)
     app, buf = _make_app_with_buf()
-    before = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    before = _tree(tmp_path)
     result = _run(app, ["init", "--non-interactive", "--ai", "vibe"])
     assert result.exit_code == 0, buf.getvalue()
     assert (tmp_path / ".vibe/config.toml").is_file()
-    after = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    after = _tree(tmp_path)
     # The pointer is the only managed-surface addition; protect_all_agents()
     # may also (re)write .gitignore, which is its documented job.
     assert set(after) - set(before) <= {Path(".vibe/config.toml"), Path(".gitignore")}
@@ -254,10 +283,10 @@ def test_initialized_clone_restores_native_agent_skills(monkeypatch, tmp_path, a
         assert (tmp_path / root / skill.name / "SKILL.md").stat().st_size > 0
     assert config.read_text() == f"agents:\n  available: [{agent}]\n"
     assert mission.read_text() == "Keep existing mission"
-    before = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    before = _tree(tmp_path)
     app2, buf2 = _make_app_with_buf()
     assert _run(app2, ["init", "--ai", agent, "--non-interactive"]).exit_code == 0, buf2.getvalue()
-    after = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    after = _tree(tmp_path)
     assert after == before
 
 

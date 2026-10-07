@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager, nullcontext
 
-from .outcome import MissionStateReportOutcome, SurfaceRepairReport, UpgradeOutcome
+from .outcome import MergeDriverConfigState, MissionStateReportOutcome, SurfaceRepairReport, UpgradeOutcome
 
 
 def finalize_upgrade(
@@ -33,6 +33,7 @@ def finalize_upgrade(
     commit_churn: Callable[[], bool],
     should_commit: bool,
     repair_preflight: AbstractContextManager[Sequence[str]] | None = None,
+    install_merge_driver_config: Callable[[], MergeDriverConfigState] | None = None,
 ) -> UpgradeOutcome:
     """Sequence the shared post-migration tail and record each step's result on the outcome.
 
@@ -55,10 +56,20 @@ def finalize_upgrade(
          (see :func:`_run_report_isolated`) whose outcome does NOT feed
          ``exit_code`` (FR-014).
 
+    Independent of the ordered steps (#5759): ``install_merge_driver_config()`` runs
+    first, whatever ``repair_preflight`` reports, because the per-clone ``merge.*``
+    git config is not a repair and no migration records it. Its result is
+    informational (``outcome.merge_driver_config``) and never a failure reason. It
+    writes ``.git/config``, not tracked files, so it is never part of the churn
+    commit. The callable owns its own dry-run skip and failure handling.
+
     The exit code is not computed here: ``UpgradeOutcome.exit_code`` derives it from
     the outcome's kind whenever it is read (D-5), so it can never disagree with the
     kind, the status or the closing line.
     """
+    if install_merge_driver_config is not None:
+        outcome.merge_driver_config = install_merge_driver_config()
+
     # Keep owner locks around only the two dependent write phases, never Git
     # commits or the independently consented mission-state repair prompt.
     with repair_preflight if repair_preflight is not None else nullcontext(()) as errors:
