@@ -142,7 +142,7 @@ def _origin_gate(
         }
         if target_branch is not None:
             data["target_branch"] = target_branch
-        return _OriginGateResult([], message.splitlines()[0], data)
+        return _OriginGateResult([], exc.headline, data)
     for warning in warnings:
         typer.echo(f"Warning: {warning}", err=True)
     return _OriginGateResult(warnings)

@@ -146,6 +146,15 @@ def test_remote_missing_when_the_remote_answers_without_the_branch(world: World)
 
     assert verdict.state is FreshnessState.REMOTE_MISSING
     assert verdict.remote == "origin"
+    assert verdict.detail is None  # never seen on origin: nothing to say
+
+    # A tracking ref proves it was on origin once; origin no longer lists it: warn, never refuse.
+    _git(world.a, "update-ref", tracking_ref("origin", "kitty/only-here"), "main")
+    vanished = _only(check_branches(world.a, ["kitty/only-here"]))
+    assert vanished.state is FreshnessState.REMOTE_MISSING
+    (note,) = _gate(lanes=(vanished,))
+    assert "no longer lists kitty/only-here" in note and "deleted on origin" in note
+    assert "no longer lists" in (plan_review_lane(world.a, "kitty/only-here").message or "")
 
 
 def test_up_to_date_costs_one_round_trip_and_no_fetch(world: World, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -551,7 +560,7 @@ def test_mode_unknown_environment_value_enforces_with_a_warning(monkeypatch: pyt
 
     setting = resolve_origin_check_mode(None)
 
-    assert setting.mode is OriginCheckMode.ENFORCE
+    assert (setting.mode, setting.source) == (OriginCheckMode.ENFORCE, "environment-invalid")
     assert setting.warning is not None and "bogus" in setting.warning and ORIGIN_CHECK_ENV in setting.warning
 
 
@@ -735,7 +744,14 @@ def test_unreachable_refusal_text_points_at_network_and_credentials() -> None:
 
     text = str(caught.value)
     assert text.startswith(f"{ORIGIN_UNREACHABLE}: develop is unreachable")
-    assert "network" in text and "credentials" in text
+    assert "network" in text and "credentials" in text and "did not answer" not in text
+
+    # A timeout is "slow", not "down": the text names the bound and says to retry before opting out.
+    slow = FreshnessVerdict("develop", "origin", FreshnessState.UNREACHABLE, detail="remote origin unreachable: timed out", timeout_seconds=15.0)
+    with pytest.raises(OriginFreshnessRefused) as timed_out:
+        _gate(evidence=slow)
+    assert "did not answer within 15 s" in str(timed_out.value) and "retry" in str(timed_out.value)
+    assert f"{ORIGIN_CHECK_ENV}=off" in str(timed_out.value)
 
 
 def test_warn_mode_returns_warnings_naming_verdict_and_source_instead_of_raising() -> None:
@@ -761,6 +777,12 @@ def test_enforce_mode_surfaces_the_setting_warning() -> None:
     setting = OriginCheckSetting(OriginCheckMode.ENFORCE, "default", warning="unknown value 'bogus'")
 
     assert _gate(setting=setting) == ["unknown value 'bogus'"]
+
+    # When the gate then refuses, the refusal opens with that diagnostic and the headline stays the finding.
+    with pytest.raises(OriginFreshnessRefused) as caught:
+        _gate(lanes=(_verdict(FreshnessState.BEHIND, behind=1),), setting=setting)
+    assert str(caught.value).splitlines()[0] == "unknown value 'bogus'"
+    assert caught.value.headline.startswith(f"{ORIGIN_LANE_STALE}: kitty/lane-a is behind")
 
 
 # --------------------------------------------------------------------------- plan_review_lane
@@ -829,7 +851,8 @@ def test_review_lane_diverged_refusal_names_both_recoveries(world: World) -> Non
     message = plan_review_lane(world.a, "lane-r").message or ""
 
     assert "merge origin/lane-r" in message
-    assert "git push origin lane-r" in message
+    assert "merge or rebase it onto origin/lane-r first, then git push origin lane-r" in message
+    assert "--force-with-lease" in message and "discard" in message
     assert "SPEC_KITTY_ORIGIN_CHECK=warn" in message
 
 

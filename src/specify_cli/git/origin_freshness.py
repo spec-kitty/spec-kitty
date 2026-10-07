@@ -23,11 +23,21 @@ from pathlib import Path
 from typing import Literal
 
 from kernel.git import GitCommandError, tree_entry
-from kernel.git.remote import RemoteUnreachable, configured_remotes, divergence, fetch_branches, remote_heads, resolve_remote, tracking_ref
+from kernel.git.remote import (
+    FETCH_TIMEOUT,
+    LS_REMOTE_TIMEOUT,
+    RemoteUnreachable,
+    configured_remotes,
+    divergence,
+    fetch_branches,
+    remote_heads,
+    resolve_remote,
+    tracking_ref,
+)
 from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout, placement_seam
 from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted, CoordinationWorktreeUnmaterialized
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.lanes._git import branch_exists
+from specify_cli.lanes._git import branch_exists, ref_exists
 from specify_cli.lanes.compute import is_planning_lane, lane_created_branch, lane_fully_canceled
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.missions._read_path_resolver import mission_dir_aliases
@@ -77,7 +87,7 @@ class OriginCheckMode(StrEnum):
     OFF = "off"
 
 
-OriginCheckSource = Literal["default", "flag", "environment", "read-only"]
+OriginCheckSource = Literal["default", "flag", "environment", "environment-invalid", "read-only"]
 
 
 @dataclass(frozen=True)
@@ -113,7 +123,7 @@ def _parse_mode(value: str) -> OriginCheckMode | None:
 def resolve_origin_check_mode(flag: str | None) -> OriginCheckSetting:
     """Resolve the opt-out: ``--origin-check`` flag beats ``SPEC_KITTY_ORIGIN_CHECK`` beats ``enforce``.
 
-    An unknown *environment* value enforces and carries a warning naming it; an
+    An unknown *environment* value enforces (source ``environment-invalid``) and carries a warning naming it; an
     unknown *flag* value is a programming error here (typer validates it as a
     Choice at the call sites) and raises :class:`ValueError`.
     """
@@ -128,7 +138,7 @@ def resolve_origin_check_mode(flag: str | None) -> OriginCheckSetting:
     parsed = _parse_mode(raw)
     if parsed is None:
         warning = f"{ORIGIN_CHECK_ENV}={raw!r} is not one of {', '.join(sorted(_ALLOWED_MODE_VALUES))}; enforcing the origin freshness check."
-        return OriginCheckSetting(OriginCheckMode.ENFORCE, "default", warning)
+        return OriginCheckSetting(OriginCheckMode.ENFORCE, "environment-invalid", warning)
     return OriginCheckSetting(parsed, "environment")
 
 
@@ -170,6 +180,8 @@ class FreshnessVerdict:
     scope: str | None = None
     detail: str | None = None
     remote_sha: str | None = None
+    #: Seconds the contact was given when it timed out (``unreachable`` only); ``None`` for any other failure.
+    timeout_seconds: float | None = None
 
 
 @dataclass(frozen=True)
@@ -241,6 +253,13 @@ def _compare(repo_root: Path, remote: str, probe: _Probe, remote_sha: str) -> Fr
     )
 
 
+def _vanished_detail(repo_root: Path, remote: str, probe: _Probe) -> str | None:
+    """A note when a branch this clone once saw on *remote* is no longer listed there (deleted on the remote?); local read."""
+    if not ref_exists(repo_root, tracking_ref(remote, probe.branch)):
+        return None
+    return f"{remote}/{probe.branch} was seen here before, but {remote} no longer lists {probe.branch}: it may have been deleted on {remote}"
+
+
 def _check_remote(repo_root: Path, remote: str, probes: Sequence[_Probe]) -> list[FreshnessVerdict]:
     """ONE ``ls-remote`` and, unless every tracking ref already equals the listed tip, ONE ``fetch`` for *remote* (NFR-001)."""
     names = list(dict.fromkeys(probe.branch for probe in probes))
@@ -248,12 +267,15 @@ def _check_remote(repo_root: Path, remote: str, probes: Sequence[_Probe]) -> lis
         heads = remote_heads(repo_root, remote, names)
         fetch_branches(repo_root, remote, [name for name in names if name in heads], known_tips=heads)
     except RemoteUnreachable as exc:
-        return [FreshnessVerdict(p.branch, remote, FreshnessState.UNREACHABLE, scope=_scope_text(p), detail=str(exc)) for p in probes]
+        timeout = (LS_REMOTE_TIMEOUT if "ls-remote" in exc.argv else FETCH_TIMEOUT) if exc.timed_out else None
+        return [FreshnessVerdict(p.branch, remote, FreshnessState.UNREACHABLE, scope=_scope_text(p), detail=str(exc), timeout_seconds=timeout) for p in probes]
     verdicts: list[FreshnessVerdict] = []
     for probe in probes:
         sha = heads.get(probe.branch)
         if sha is None:
-            verdicts.append(FreshnessVerdict(probe.branch, remote, FreshnessState.REMOTE_MISSING, scope=_scope_text(probe)))
+            verdicts.append(
+                FreshnessVerdict(probe.branch, remote, FreshnessState.REMOTE_MISSING, scope=_scope_text(probe), detail=_vanished_detail(repo_root, remote, probe))
+            )
         elif not branch_exists(repo_root, probe.branch):
             verdicts.append(FreshnessVerdict(probe.branch, remote, FreshnessState.LOCAL_MISSING, scope=_scope_text(probe), remote_sha=sha))
         else:
@@ -385,12 +407,14 @@ class OriginFreshnessRefused(RuntimeError):
     """An evidence gate refused because origin freshness could not be established or was stale.
 
     ``error_code`` is the first code, ``error_codes`` every distinct code in
-    refusal order (evidence first), ``verdicts`` the failing verdicts, and
-    ``str(exc)`` the full operator text.
+    refusal order (evidence first), ``verdicts`` the failing verdicts,
+    ``headline`` the first refusal's one-line summary (the text may open with
+    a diagnostic about the opt-out input) and ``str(exc)`` the full operator text.
     """
 
-    def __init__(self, error_code: str, error_codes: list[str], verdicts: list[FreshnessVerdict], message: str) -> None:
+    def __init__(self, error_code: str, error_codes: list[str], verdicts: list[FreshnessVerdict], message: str, *, headline: str | None = None) -> None:
         super().__init__(message)
+        self.headline = headline or message.splitlines()[0]
         self.error_code = error_code
         self.error_codes = error_codes
         self.verdicts = verdicts
@@ -464,7 +488,8 @@ def _diverged_lane_remedy(remote: str | None, branch: str) -> list[str]:
     return [
         f"  Inspect: git log {branch}...{remote}/{branch}",
         f"  If the remote lane has work you need: git -C <lane worktree> merge {remote}/{branch}",
-        f"  If the local lane is the truth: git push {remote} {branch}",
+        f"  If the local lane is the truth: merge or rebase it onto {remote}/{branch} first, then git push {remote} {branch}",
+        f"    (git push --force-with-lease would instead discard the commits on {remote}/{branch}: use it only if you mean to lose them.)",
         _RERUN_LINE,
     ]
 
@@ -494,6 +519,18 @@ def _lane_remedy(verdict: FreshnessVerdict) -> list[str]:
     ]
 
 
+def _unreachable_remedy(verdict: FreshnessVerdict) -> list[str]:
+    """Tell a slow remote (it timed out) from one that cannot be reached (it answered with an error)."""
+    off_line = f"  If you cannot reach it from here at all, {ORIGIN_CHECK_ENV}=off (or --origin-check off) skips the contact and accepts stale evidence."
+    if verdict.timeout_seconds is not None:
+        return [
+            f"  Remote {verdict.remote} did not answer within {verdict.timeout_seconds:g} s. It may only be slow: retry first.",
+            f"  If it stays slow, opt out as below, or {ORIGIN_CHECK_ENV}=off to skip the contact.",
+            _RERUN_LINE,
+        ]
+    return [f"  Check network access and credentials for remote {verdict.remote}.", off_line, _RERUN_LINE]
+
+
 def _ambiguous_remote_remedy(verdict: FreshnessVerdict) -> list[str]:
     return [
         f"  Name the remote that owns it: git config branch.{verdict.branch}.remote <name>    (remotes: {verdict.detail})",
@@ -506,7 +543,7 @@ def _remedy(violation: _Violation, checkout: Path | None, *, merge_record_exists
     if verdict.state is FreshnessState.REMOTE_AMBIGUOUS:
         return _ambiguous_remote_remedy(verdict)
     if verdict.state is FreshnessState.UNREACHABLE:
-        return [f"  Check network access and credentials for remote {verdict.remote}.", _RERUN_LINE]
+        return _unreachable_remedy(verdict)
     if violation.is_evidence and verdict.state is not FreshnessState.LOCAL_MISSING:
         return _status_remedy(verdict, checkout, merge_record_exists=merge_record_exists)
     return _lane_remedy(verdict)
@@ -521,6 +558,12 @@ def _violations(evidence: FreshnessVerdict | None, lanes: Iterable[FreshnessVerd
         if code is not None:
             found.append(_Violation(code, verdict, is_evidence))
     return found
+
+
+def _vanished_notes(evidence: FreshnessVerdict | None, lanes: Iterable[FreshnessVerdict]) -> list[str]:
+    """Warnings for branches the remote no longer lists although this clone once saw them there (not a refusal)."""
+    verdicts = [evidence, *lanes]
+    return [v.detail for v in verdicts if v is not None and v.state is FreshnessState.REMOTE_MISSING and v.detail]
 
 
 def _warn_text(violation: _Violation, setting: OriginCheckSetting) -> str:
@@ -543,18 +586,21 @@ def enforce_merge_gate(
     and ``setting.source``.
     """
     warnings = [setting.warning] if setting.warning else []
+    warnings.extend(_vanished_notes(evidence, lanes))
     violations = _violations(evidence, lanes)
     if not violations:
         return warnings
     if setting.mode is OriginCheckMode.WARN:
         return [*warnings, *(_warn_text(violation, setting) for violation in violations)]
-    lines: list[str] = []
+    lines: list[str] = [*warnings]
+    headlines: list[str] = []
     for violation in violations:
-        lines.append(_headline(violation.code, violation.verdict))
+        headlines.append(_headline(violation.code, violation.verdict))
+        lines.append(headlines[-1])
         lines.extend(_remedy(violation, evidence_checkout, merge_record_exists=merge_record_exists))
     lines.append(_OPT_OUT_LINE)
     codes = list(dict.fromkeys(violation.code for violation in violations))
-    raise OriginFreshnessRefused(codes[0], codes, [violation.verdict for violation in violations], "\n".join(lines))
+    raise OriginFreshnessRefused(codes[0], codes, [violation.verdict for violation in violations], "\n".join(lines), headline=headlines[0])
 
 
 # --------------------------------------------------------------------------- review lane plan (T018)
@@ -609,6 +655,8 @@ def plan_review_lane(repo_root: Path, lane_branch: str, setting: OriginCheckSett
         return ReviewLaneAction(ReviewLaneKind.WARN, verdict, code=ORIGIN_UNREACHABLE, message=_headline(ORIGIN_UNREACHABLE, verdict))
     if verdict.state is FreshnessState.REMOTE_AMBIGUOUS:
         return ReviewLaneAction(ReviewLaneKind.WARN, verdict, code=ORIGIN_REMOTE_AMBIGUOUS, message=_headline(ORIGIN_REMOTE_AMBIGUOUS, verdict))
+    if verdict.state is FreshnessState.REMOTE_MISSING and verdict.detail:
+        return ReviewLaneAction(ReviewLaneKind.WARN, verdict, message=verdict.detail)
     return ReviewLaneAction(ReviewLaneKind.KEEP, verdict)
 
 
