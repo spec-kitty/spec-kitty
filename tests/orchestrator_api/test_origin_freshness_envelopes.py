@@ -226,3 +226,49 @@ def test_consolidate_mission_warn_opt_out_is_not_refused_for_freshness(lanes_wor
     assert _origin_codes_of(envelope) == []
     lane = lanes_world.mission.lane_branches["WP01"]
     assert "Warning:" in stderr and lane in stderr, "warn mode must surface the freshness warning on stderr, not silently pass"
+
+
+# --------------------------------------------------------------------------- planning-only consolidate-mission
+
+
+def _make_planning_only(world: World) -> None:
+    """Rewrite ``lanes.json`` to a single planning lane so the Mission takes the planning-only closeout path."""
+    from dataclasses import replace
+
+    from specify_cli.lanes.models import ExecutionLane
+    from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
+
+    mission = world.mission
+    manifest = read_lanes_json(mission.feature_dir)
+    assert manifest is not None
+    planning = ExecutionLane(
+        lane_id="lane-planning",
+        wp_ids=("WP01",),
+        write_scope=(f"kitty-specs/{mission.slug}/**",),
+        predicted_surfaces=("planning",),
+        depends_on_lanes=(),
+        parallel_group=0,
+    )
+    write_lanes_json(mission.feature_dir, replace(manifest, lanes=[planning]))
+    _git(mission.repo, "add", "-A")
+    _git(mission.repo, "commit", "-q", "-m", "lanes: planning only")
+
+
+def _ls_remote_calls(trace: Path) -> int:
+    return sum(1 for line in trace.read_text(encoding="utf-8").splitlines() if " ls-remote " in f"{line} ")
+
+
+def test_consolidate_mission_planning_only_honours_warn_and_contacts_origin_once(lanes_world: World, tmp_path: Path) -> None:
+    """The planning-only closeout re-enters the executor: it must neither ignore ``--origin-check warn`` nor gate twice."""
+    _make_planning_only(lanes_world)
+    lanes_world.push_ahead(lanes_world.mission.target_branch, status_event=True)
+    trace = tmp_path / "git-trace.log"
+
+    envelope, stderr = _invoke_with_stderr(
+        lanes_world, "consolidate-mission", "--origin-check", "warn", env={"GIT_TRACE": str(trace), "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS": "1"}
+    )
+
+    assert _origin_codes_of(envelope) == []
+    assert "ORIGIN_STATUS_STALE" in stderr, "the orchestrator gate warns on stderr in warn mode"
+    assert "Planning-artifact closeout failed" not in json.dumps(envelope), envelope
+    assert _ls_remote_calls(trace) == 1

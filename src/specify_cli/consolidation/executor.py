@@ -657,6 +657,7 @@ def _run_lane_based_consolidation(
     attest_reason: str | None = None,
     attest_approved_reviewed: tuple[str, ...] = (),
     origin_check: str | None = None,
+    origin_gated: bool = False,
 ) -> None:
     """Execute the lane-only merge flow with ConsolidationState lifecycle for recovery.
 
@@ -683,6 +684,9 @@ def _run_lane_based_consolidation(
             logged via ``require_no_sparse_checkout``.
         origin_check: ``--origin-check`` value (``enforce``/``warn``) or ``None`` to
             defer to ``SPEC_KITTY_ORIGIN_CHECK``; see :mod:`.origin_gate` (#5780).
+        origin_gated: ``True`` when the caller already ran the origin freshness gate
+            with its own resolved setting (``orchestrator-api consolidate-mission``),
+            so this entry neither re-checks nor contacts the remote a second time.
         skip_lanes: T021 (FR-012, FOLD 1) — the executor capability behind
             ``merge --skip-lanes``/``--no-lanes``. When ``True`` AND
             ``lanes.json`` is genuinely absent, synthesizes a NO-LANE
@@ -702,7 +706,8 @@ def _run_lane_based_consolidation(
     seam = placement_seam(main_repo, mission_slug)
     # #5780: the origin freshness check runs BEFORE the status dir is resolved (that
     # resolution can seed or commit the coordination surface) and before any branch moves.
-    check_origin_before_status_dir(main_repo, seam, origin_check)
+    if not origin_gated:
+        check_origin_before_status_dir(main_repo, seam, origin_check)
     feature_dir = _resolve_run_status_dir(seam)
     # PRIMARY-partition reads (FR-002 #2185), routed per-leg DIRECTLY (NOT threaded
     # from the ``:887`` ``target_feature_dir`` anchor in the *locked* function): the

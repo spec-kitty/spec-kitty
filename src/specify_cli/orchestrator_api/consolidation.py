@@ -278,6 +278,9 @@ def _execute_planning_only_merge(
                 target_override=target_branch,
                 strategy=strategy,
                 assume_yes=True,
+                # ``consolidate-mission`` ran the origin gate with the operator's
+                # ``--origin-check`` before this point; do not gate (and contact origin) twice.
+                origin_gated=True,
             )
     except typer.Exit as exc:
         raise RuntimeError(f"Planning-artifact closeout failed with exit code {exc.exit_code}") from exc
