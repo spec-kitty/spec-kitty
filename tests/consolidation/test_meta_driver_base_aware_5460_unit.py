@@ -187,16 +187,19 @@ def test_malformed_ancestor_fails_loud_and_writes_nothing(tmp_path: Path, broken
 
 
 def test_whitespace_only_ancestor_selects_the_two_way_rule(tmp_path: Path) -> None:
-    merged = _drive(tmp_path, "\n  \n", {"a": 2, "b": 1}, {"a": 1, "b": 2})
+    merged = _drive(tmp_path, "\n  \n", {"a": 2, "b": 1, "purpose_tldr": "local"}, {"a": 1, "b": 2})
 
-    # two-way: every key from theirs (no target-authoritative key involved).
+    # two-way: every key from theirs (no target-authoritative key involved); the
+    # planning key only ours carries is dropped, where a three-way merge would keep it.
     assert merged == {"a": 1, "b": 2}
 
 
 def test_empty_object_ancestor_selects_the_two_way_rule(tmp_path: Path) -> None:
-    merged = _drive(tmp_path, {}, {"a": 2}, {"a": 1})
+    merged = _drive(tmp_path, {}, {"mission_slug": "m", "purpose_tldr": "local"}, {"mission_slug": "m", "purpose_context": "x"})
 
-    assert merged == {"a": 1}
+    # two-way: a planning key only ours carries is dropped (mission-authoritative);
+    # a three-way merge over {} would keep it as a one-sided add.
+    assert merged == {"mission_slug": "m", "purpose_context": "x"}
 
 
 @pytest.mark.parametrize(
@@ -247,7 +250,7 @@ def test_mission_to_target_merge_sets_the_two_way_opt_out_and_lane_to_mission_do
 
 
 def test_two_way_keyword_ignores_the_ancestor(tmp_path: Path) -> None:
-    """``two_way=True`` (the squash opt-out) never reads %O, even a corrupt one."""
+    """``two_way=True`` (the mission→target opt-out) never reads %O, even a corrupt one."""
     (tmp_path / "O").write_text("{ not json", encoding="utf-8")
     (tmp_path / "A").write_text(json.dumps({"a": 2, "b": 1}), encoding="utf-8")
     (tmp_path / "B").write_text(json.dumps({"a": 1, "b": 2}), encoding="utf-8")

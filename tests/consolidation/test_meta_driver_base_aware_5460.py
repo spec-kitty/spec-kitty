@@ -152,7 +152,7 @@ def _run_driver_subprocess(tmp_path: Path, env: dict[str, str]) -> dict[str, Any
 
 
 def test_two_way_opt_out_selects_the_two_way_rule_in_the_shell(tmp_path: Path) -> None:
-    """The consolidation squash opt-out must differ from the base-aware result."""
+    """The consolidation mission→target opt-out must differ from the base-aware result."""
     (tmp_path / "ordinary").mkdir()
     (tmp_path / "squash").mkdir()
 
