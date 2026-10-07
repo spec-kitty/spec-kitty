@@ -576,13 +576,13 @@ export CODEX_HOME="/path/to/legacy/codex-home"
 
 ### SPEC_KITTY_META_MERGE_TWO_WAY
 
-Internal switch that `spec-kitty consolidate` sets on its mission-to-target squash. Never export it.
+Internal switch that `spec-kitty consolidate` sets on its mission-to-target merge. Never export it.
 
 **Purpose**: The `meta.json` merge driver (`merge-driver-meta`) normally compares each key
 against the merge base, so a teammate's unrelated edit cannot revert a change such as
-`mission close --discard`. The squash behind `consolidate` records no ancestry, so its merge
-base is stale after a reopen; with this variable set to `1` the driver ignores the base and
-applies the older two-way rule. `consolidate` sets it on that one `git merge --squash`
+`mission close --discard`. The mission-to-target merge behind `consolidate` (squash or
+merge strategy) has no usable ancestry after a reopen, so its merge base is stale; with this variable set to `1` the driver ignores the base and
+applies the older two-way rule. `consolidate` sets it on that one merge
 subprocess only, and it strips an exported value from every other git operation it runs
 (the steps that bring lane work into the Mission branch, and auto-rebases).
 
@@ -624,7 +624,7 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 | `SPECIFY_REPO_ROOT` | Override repo-root discovery | `/path/to/repo` |
 | `SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION` | **Inert** — `--feature` alias removed; no warnings emitted | N/A |
 | `SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION` | Silence deprecated mission-type warnings | `1` |
-| `SPEC_KITTY_META_MERGE_TWO_WAY` | Internal: set by `consolidate` on its squash; never export it | Set by Spec Kitty (`1`) |
+| `SPEC_KITTY_META_MERGE_TWO_WAY` | Internal: set by `consolidate` on its mission-to-target merge; never export it | Set by Spec Kitty (`1`) |
 | `CODEX_HOME` | Legacy Codex CLI prompt-home override | Legacy only; current Codex skills live under `.agents/skills/` |
 
 ---

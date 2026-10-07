@@ -17,9 +17,9 @@ hard-conflicting (#2709 / FR-003 / FR-004 / FR-008):
   ``coordination_branch``/``topology``/``flattened`` triple, is
   mission-authoritative (``theirs``; preserves the #1732 planning-artifact
   authority); coupled key groups move as one unit; ``acceptance_history`` is
-  unioned). The consolidation pipeline's mission→target squash records no
-  ancestry, so it opts into the two-way rule via :data:`META_DRIVER_TWO_WAY_ENV`
-  (#5460).
+  unioned). The consolidation pipeline's mission→target merge (squash or merge
+  strategy) has no usable ancestry after a reopen, so it opts into the two-way rule
+  via :data:`META_DRIVER_TWO_WAY_ENV` (#5460).
 - ``merge-driver-traces``            — ``traces/*.md`` markdown union: order-preserving
   line-level dedup so both sides' sections survive without duplication.
 - ``merge-driver-acceptance-matrix`` — ``acceptance-matrix.json`` row-aware,
@@ -127,12 +127,12 @@ _TARGET_AUTHORITATIVE_META_FIELDS: tuple[str, ...] = (
 )
 _TARGET_AUTHORITATIVE_META_SET: frozenset[str] = frozenset(_TARGET_AUTHORITATIVE_META_FIELDS)
 
-#: Environment switch set to ``"1"`` by the consolidation pipeline's mission→target
-#: squash subprocess. That ``git merge --squash`` records no ancestry, so ``%O`` is
-#: the stale fork point after a reopen and a base-aware merge would resurrect
-#: removed content; with the switch set ``merge-driver-meta`` ignores ``%O`` and
-#: applies the two-way rule. Never set it for an ordinary merge, where ``%O`` is
-#: the true merge base (#5460).
+#: Environment switch set to ``"1"`` by the consolidation pipeline on its mission→target
+#: merge subprocess, for the squash and the merge strategy alike. That integration has no
+#: usable ancestry after a reopen (a squash records none), so ``%O`` is the stale fork
+#: point and a base-aware merge would resurrect removed content; with the switch set
+#: ``merge-driver-meta`` ignores ``%O`` and applies the two-way rule. Never set it for an
+#: ordinary merge, where ``%O`` is the true merge base (#5460).
 META_DRIVER_TWO_WAY_ENV: Final = "SPEC_KITTY_META_MERGE_TWO_WAY"
 
 # Distinguishes "key absent on this side" from an explicit JSON ``null``.
@@ -451,7 +451,7 @@ def run_meta_driver(
     """Field-merge conflicting ``meta.json`` blobs; write result to ``ours``.
 
     Reads the ``%O`` ancestor unless *two_way* (the consolidation pipeline's
-    mission→target squash opt-out) is set. An empty/absent ancestor selects the
+    mission→target opt-out, squash or merge strategy) is set. An empty/absent ancestor selects the
     two-way rule; a malformed one fails loud and named, like a malformed side.
     With a non-empty ancestor an empty or whitespace-only ``%A``/``%B`` is refused
     (named, nothing written) rather than read as "every key deleted".

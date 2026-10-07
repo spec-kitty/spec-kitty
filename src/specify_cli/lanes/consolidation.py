@@ -393,6 +393,9 @@ def integrate_mission_into_target(
             # success), mirroring the squash no-op (#4997 Defect B). Lane→mission keeps the
             # default (False) so its benign consolidation no-ops do not raise.
             raise_on_unexpected_noop=True,
+            # mission→target only: no usable ancestry after a reopen, so the meta.json
+            # driver keeps its two-way rule (#5460). Lane→mission stays base-aware.
+            meta_two_way=True,
         )
     except _SquashMergeConflict as exc:
         # #4892: a genuine target-content conflict. Surface the paths as
@@ -657,14 +660,24 @@ def _make_merge_env() -> dict[str, str]:
     ``tests/architectural/test_merge_pipeline_ratchets.py``).
 
     An exported ``META_DRIVER_TWO_WAY_ENV`` is dropped here: lane->mission merges
-    and auto-rebases must stay base-aware, so only :func:`_run_squash_merge`'s
-    overlay may set the two-way opt-out (#5460).
+    and auto-rebases must stay base-aware, so only the mission→target overlay
+    (:func:`_with_meta_two_way`) may set the two-way opt-out (#5460).
     """
     venv_bin = str(Path(sys.executable).parent)
     env = os.environ.copy()
     env["PATH"] = venv_bin + os.pathsep + env.get("PATH", "")
     env.pop(META_DRIVER_TWO_WAY_ENV, None)
     return env
+
+
+def _with_meta_two_way(env: dict[str, str]) -> dict[str, str]:
+    """Return *env* with the ``meta.json`` merge driver's two-way opt-out set (#5460).
+
+    The one definition point of the overlay. Only a mission→target merge, which has
+    no usable ancestry after a reopen, may carry it; lane→mission merges and
+    auto-rebases keep real ancestry and stay base-aware.
+    """
+    return {**env, META_DRIVER_TWO_WAY_ENV: "1"}
 
 
 def _rev_parse(repo_root: Path, ref: str) -> str | None:
@@ -1088,7 +1101,7 @@ def _run_squash_merge(
     # The squash records no ancestry: ``%O`` is the stale fork point after a reopen,
     # so the meta driver must keep its two-way rule here (#5460). Only this
     # subprocess opts out; every other pipeline git call stays base-aware.
-    squash_env = {**env, META_DRIVER_TWO_WAY_ENV: "1"}
+    squash_env = _with_meta_two_way(env)
     result = subprocess.run(
         ["git", "merge", "--squash", source_branch],
         cwd=str(worktree),
@@ -1201,6 +1214,7 @@ def _merge_branch_into(
     strategy: MergeStrategy = MergeStrategy.MERGE,
     allow_noop_squash: bool = False,
     raise_on_unexpected_noop: bool = False,
+    meta_two_way: bool = False,
 ) -> bool:
     """Merge source_branch into target_branch using a temporary worktree.
 
@@ -1215,6 +1229,12 @@ def _merge_branch_into(
     - MERGE (default for lane→mission): ``git merge --no-ff``  — preserves structure
     - SQUASH: ``git merge --squash`` + explicit commit
     - REBASE: ``git rebase`` then fast-forward
+
+    ``meta_two_way`` (mission→target only, default ``False``) runs the MERGE strategy's
+    ``git merge`` with the ``meta.json`` driver's two-way opt-out, exactly as the SQUASH
+    strategy always does: after a reopen the merge base of a mission→target merge is the
+    stale original fork point (#5460). The REBASE strategy replays each commit on its real
+    parent, so its driver runs stay base-aware.
 
     Raises RuntimeError on merge failure (including conflicts).
     """
@@ -1392,7 +1412,7 @@ def _merge_branch_into(
                 cwd=str(tmp_path),
                 capture_output=True,
                 text=True,
-                env=_env,
+                env=_with_meta_two_way(_env) if meta_two_way else _env,
             )
             # #5457: a conflict confined to target-owned bookkeeping resolves to
             # the receiving side (stage 2) and the merge completes; anything else

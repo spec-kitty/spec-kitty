@@ -22,7 +22,7 @@ Planning answers (confirmed by the operator on 2026-10-06): one work package; st
 **Target Platform**: Linux/macOS developer machines and CI; the driver is a git subprocess entry point (`spec-kitty merge-driver-meta %O %A %B`) and an in-process body (`MERGE_DRIVER_BODIES`)
 **Project Type**: single project (CLI library)
 **Performance Goals**: driver invocation on a `meta.json` under 4 KiB stays well under 1 s including interpreter start (NFR-003); the three-way pass is O(keys)
-**Constraints**: byte-stable output via the unchanged `_META_JSON_KWARGS` (NFR-001); the five existing golden directories must show zero diff (SC-002); surface limited to `drivers.py`, the shell `cli/commands/merge_driver.py` (reads the opt-out), one overlay line in `lanes/consolidation.py::_run_squash_merge` (sets it), tests, goldens, docs (C-001); no change to `.gitattributes` writers, `init`, migrations, strategy selection
+**Constraints**: byte-stable output via the unchanged `_META_JSON_KWARGS` (NFR-001); the five existing golden directories must show zero diff (SC-002); surface limited to `drivers.py`, the shell `cli/commands/merge_driver.py` (reads the opt-out), the `_with_meta_two_way` overlay in `lanes/consolidation.py` (applied by `_run_squash_merge` and by `_merge_branch_into` for the mission→target merge strategy; sets it), tests, goldens, docs (C-001); no change to `.gitattributes` writers, `init`, migrations, strategy selection
 **Scale/Scope**: one module, ~120 lines of product change, 3 new golden cases, 1 new test module, 1 changelog entry
 
 ## Charter Check
@@ -65,7 +65,7 @@ src/specify_cli/
 ├── cli/commands/
 │   └── merge_driver.py                # merge-driver-meta shell: reads the opt-out and passes two_way=True
 └── lanes/
-    └── consolidation.py               # _run_squash_merge(): sets the opt-out on its one merge subprocess; _make_merge_env() strips it
+    └── consolidation.py               # _with_meta_two_way(): the one overlay, used by the mission→target squash and merge; _make_merge_env() strips an exported value
 
 tests/consolidation/
 ├── test_meta_driver_base_aware_5460.py        # NEW: unit (file-level via run_meta_driver) + real-git merge/rebase tests
@@ -117,9 +117,9 @@ None.
 
 - **Purpose**: keep consolidation results byte-identical (FR-011, US2) by opting the pipeline's own merges out of base-awareness.
 - **Relevant requirements**: FR-011, NFR-002, C-001, C-002
-- **Affected surfaces**: `drivers.py` exports `META_DRIVER_TWO_WAY_ENV = "SPEC_KITTY_META_MERGE_TWO_WAY"`; `cli/commands/merge_driver.py` meta command reads `os.environ.get(META_DRIVER_TWO_WAY_ENV) == "1"` and passes `two_way=True` (via `run_meta_driver` directly, since the `MERGE_DRIVER_BODIES` callable type carries no keyword); `lanes/consolidation.py`: only the `git merge --squash` subprocess calls (the real integration in `_merge_branch_into` and the dry-run preview) take `env = _make_merge_env(); env[META_DRIVER_TWO_WAY_ENV] = "1"`. `_make_merge_env` itself is untouched, so `tests/architectural/test_merge_pipeline_ratchets.py` (which pins its exact value) stays green, and every real-ancestry merge in the pipeline (lane→mission `--no-ff`, auto-rebase, dependency merges) becomes base-aware. The in-process replay (`git_probes`) excludes `meta.json`, so no change there.
+- **Affected surfaces**: `drivers.py` exports `META_DRIVER_TWO_WAY_ENV = "SPEC_KITTY_META_MERGE_TWO_WAY"`; `cli/commands/merge_driver.py` meta command reads `os.environ.get(META_DRIVER_TWO_WAY_ENV) == "1"` and passes `two_way=True` (via `run_meta_driver` directly, since the `MERGE_DRIVER_BODIES` callable type carries no keyword); `lanes/consolidation.py`: only the mission→target merge subprocesses, for every strategy (the `git merge --squash` in `_run_squash_merge`, reused by the dry-run preview, and the merge strategy's `git merge` in `_merge_branch_into` when its caller passes `meta_two_way=True`), take the `_with_meta_two_way(env)` overlay. `_make_merge_env` only strips an exported value (the ratchet in `tests/architectural/test_merge_pipeline_ratchets.py` mirrors that), and every real-ancestry merge in the pipeline (lane→mission `--no-ff`, auto-rebase, dependency merges) becomes base-aware. The in-process replay (`git_probes`) excludes `meta.json`, so no change there.
 - **Sequencing/depends-on**: IC-02.
-- **Risks**: scout result — `auto_rebase.py`, `worktree_allocator.py` and `coordination/coherence.py` all route through `_make_merge_env`; because the opt-out is applied only at the squash calls, those real-ancestry merges become base-aware (intended). The `_make_merge_env` equality ratchet (`test_merge_pipeline_ratchets.py:214-223`) must not be touched.
+- **Risks**: scout result — `auto_rebase.py`, `worktree_allocator.py` and `coordination/coherence.py` all route through `_make_merge_env`; because the opt-out is applied only on the mission→target leg, those real-ancestry merges become base-aware (intended). The REBASE strategy on that leg replays each commit on its real parent, so it stays base-aware too.
 
 ### IC-04 — Documentation and changelog
 

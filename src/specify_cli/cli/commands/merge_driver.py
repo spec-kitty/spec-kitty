@@ -17,7 +17,7 @@ hard-conflicting (#2709 / FR-003 / FR-004 / FR-008):
   triple included, mission-authoritative (``theirs``; preserves the #1732
   planning-artifact authority); coupled key groups move as one unit;
   ``acceptance_history`` unioned). The consolidation
-  pipeline's mission→target squash opts into the two-way rule through the
+  pipeline's mission→target merge (squash or merge strategy) opts into the two-way rule through the
   ``META_DRIVER_TWO_WAY_ENV`` environment variable, read here (#5460).
 - ``merge-driver-traces``            — ``traces/*.md`` markdown union: order-preserving
   line-level dedup so both sides' sections survive without duplication.
@@ -103,7 +103,7 @@ def merge_driver_meta(
     theirs_path: str = typer.Argument(..., metavar="THEIRS"),
 ) -> None:
     """Field-merge conflicting ``meta.json`` blobs; write result to ``ours``."""
-    # Base-aware (reads ``%O``) unless the consolidation pipeline's squash set the
+    # Base-aware (reads ``%O``) unless the consolidation pipeline's mission→target merge set the
     # two-way opt-out variable (#5460). The environment is read here, in the shell,
     # never in the driver body. Kept as a comment, not docstring text: the docstring
     # is the command's help and is pinned by the committed completion manifest.

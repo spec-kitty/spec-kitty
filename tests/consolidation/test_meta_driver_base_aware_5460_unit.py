@@ -16,7 +16,9 @@ from typing import Any
 import pytest
 
 from specify_cli.consolidation.drivers import MergeDriverError, run_meta_driver
+from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.lanes import consolidation as lanes_consolidation
+from specify_cli.lanes.models import LanesManifest
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -197,26 +199,50 @@ def test_empty_object_ancestor_selects_the_two_way_rule(tmp_path: Path) -> None:
     assert merged == {"a": 1}
 
 
-def test_squash_pipeline_sets_the_two_way_opt_out_on_its_merge_subprocess(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The mission->target squash subprocess carries the opt-out; `_make_merge_env` does not.
+@pytest.mark.parametrize(
+    ("strategy", "entry", "two_way"),
+    [
+        pytest.param(MergeStrategy.SQUASH, "mission_to_target", True, id="squash-mission-to-target"),
+        pytest.param(MergeStrategy.MERGE, "mission_to_target", True, id="merge-mission-to-target"),
+        pytest.param(MergeStrategy.MERGE, "lane_to_mission", False, id="merge-lane-to-mission"),
+    ],
+)
+def test_mission_to_target_merge_sets_the_two_way_opt_out_and_lane_to_mission_does_not(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, strategy: MergeStrategy, entry: str, two_way: bool
+) -> None:
+    """Only the mission->target leg (squash or merge) carries the opt-out; `_make_merge_env` never does.
 
-    An operator-exported value must not reach spec-kitty's own base-aware merges
-    (lane->mission merges, auto-rebase): only the squash overlay may set it.
+    A mission->target merge has no usable ancestry after a reopen, so it keeps the two-way
+    rule. Lane->mission merges keep real ancestry and stay base-aware. An operator-exported
+    value must not reach either one: only the overlay may set it.
     """
     monkeypatch.setenv(TWO_WAY_ENV, "1")
     seen: list[dict[str, str]] = []
 
     def fake_run(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        if cmd[:3] == ["git", "merge", "--squash"]:
+        if cmd[:2] == ["git", "merge"] and cmd[2] not in ("--abort",):
             seen.append(dict(kwargs["env"]))
         return subprocess.CompletedProcess(cmd, 0, "", "")
 
     monkeypatch.setattr(lanes_consolidation.subprocess, "run", fake_run)
 
-    lanes_consolidation._run_squash_merge(tmp_path, tmp_path, "src", "tgt", lanes_consolidation._make_merge_env())
+    if entry == "mission_to_target":
+        manifest = LanesManifest(
+            version=1,
+            mission_slug="team-01M48ZJZ",
+            mission_id="01M48ZJZD8FVS9JFZWYD26DZHC",
+            mission_branch="kitty/mission-team-01M48ZJZ",
+            target_branch="main",
+            lanes=[],
+            computed_at="2026-10-06T16:08:45+00:00",
+            computed_from="dependency_graph+ownership",
+        )
+        lanes_consolidation.integrate_mission_into_target(tmp_path, "team-01M48ZJZ", manifest, strategy=strategy, allow_already_applied=True)
+    else:
+        lanes_consolidation._merge_branch_into(tmp_path, "kitty/mission-team-01M48ZJZ-lane-a", "kitty/mission-team-01M48ZJZ", strategy=strategy)
 
     assert len(seen) == 1
-    assert seen[0].get(TWO_WAY_ENV) == "1"
+    assert seen[0].get(TWO_WAY_ENV) == ("1" if two_way else None)
     assert TWO_WAY_ENV not in lanes_consolidation._make_merge_env()
 
 

@@ -105,7 +105,7 @@ record is the 2026-10-01 amendment of
   acceptance stamps, `mission_number`, `status` and the `merged_*` block follow the target
   side, every other key the Mission side. An empty `meta.json` on either side of such a merge
   is refused by name and nothing is written. `spec-kitty consolidate`'s mission-to-target
-  squash records no ancestry, so it keeps the two-way rule through the internal
+  merge (squash or merge strategy) has no usable ancestry after a reopen, so it keeps the two-way rule through the internal
   `SPEC_KITTY_META_MERGE_TWO_WAY` variable (see
   [environment variables](environment-variables.md#spec_kitty_meta_merge_two_way)).
 

@@ -1,6 +1,6 @@
 # Research: meta.json merge driver honours the merge base
 
-## Decision: base-aware per-key three-way merge for ordinary merges, two-way opt-out for the mission→target squash
+## Decision: base-aware per-key three-way merge for ordinary merges, two-way opt-out for the mission→target leg (every strategy)
 
 - **Decision**: `reconcile_meta_payloads` gains an optional `base`; with a non-empty ancestor it merges per key (one-sided change/deletion wins, equal collapses, genuine conflict → today's precedence), with coupled key groups moved as a unit; the consolidation pipeline sets an opt-out so its own merges keep the two-way rule.
 - **Rationale**: the #5460 merge has disjoint changes on the two sides (ancestor `8a24129`: A changed `coordination_branch`/`discarded_at`/`flattened`/`topology`, B changed `vcs`/`vcs_locked_at`), so a three-way rule yields the correct record with no conflict at all; a squash records no ancestry, so after a reopen its `%O` is the stale fork point and three-way would resurrect removed content (post-spec review MAJOR-3) — hence the opt-out (Decision `01M493BC3KPSC4FT6XSC7ESNDN`).
@@ -51,5 +51,5 @@ No dependency is added, upgraded or removed; the `supply_chain_security_check` s
 
 ## Decision: the opt-out travels as an environment variable on the one merge subprocess
 
-- **Decision**: `SPEC_KITTY_META_MERGE_TWO_WAY=1` is set only on the `git merge --squash` subprocess in `_run_squash_merge`, and `_make_merge_env` strips an exported value so no other merge can inherit it.
+- **Decision**: `SPEC_KITTY_META_MERGE_TWO_WAY=1` is set only on the mission→target merge subprocess, for every strategy (`_run_squash_merge` for the squash, `_with_meta_two_way` on the merge strategy's `git merge` when `_merge_branch_into` gets `meta_two_way=True`); the REBASE strategy stays base-aware because it replays each commit on its real parent. `_make_merge_env` strips an exported value so no other merge can inherit it.
 - **Alternatives considered**: a `-c merge.spec-kitty-meta.driver=...` override (reaches the driver's children the same way, through `GIT_CONFIG_PARAMETERS`, but needs a new driver option, which changes the pinned help text and completion manifest); a new argv on the driver (same help/completion change, and `.gitattributes`-registered drivers have no per-invocation argv).
