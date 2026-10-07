@@ -16,7 +16,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from specify_cli.git.origin_freshness import ORIGIN_REMOTE_AMBIGUOUS
+from specify_cli.git.origin_freshness import ORIGIN_COMPARE_FAILED, ORIGIN_REMOTE_AMBIGUOUS
 from specify_cli.orchestrator_api import consolidation as orchestrator_consolidation
 from tests.terminus.conftest import CoordMission, _event, build_coord_mission, run_terminus
 from tests.terminus.lanes_fixture import build_lanes_mission
@@ -25,7 +25,7 @@ from tests._support.two_clone import attach_and_push, clone_from, isolated_git_e
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _STATUS_LOG = "status.events.jsonl"
-_ORIGIN_CODES = ("ORIGIN_STATUS_STALE", "ORIGIN_LANE_STALE", "ORIGIN_UNREACHABLE", ORIGIN_REMOTE_AMBIGUOUS, "ORIGIN_COMPARE_FAILED")
+_ORIGIN_CODES = ("ORIGIN_STATUS_STALE", "ORIGIN_LANE_STALE", "ORIGIN_UNREACHABLE", ORIGIN_REMOTE_AMBIGUOUS, ORIGIN_COMPARE_FAILED)
 _CONTRACT_VERSION = "1.11.0"
 
 
