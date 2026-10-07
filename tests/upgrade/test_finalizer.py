@@ -477,6 +477,27 @@ def test_step_installs_missing_config_then_reports_present(tmp_path: Path) -> No
     assert outcome.result.warnings == []
 
 
+def test_step_keeps_a_customized_driver_and_replaces_a_superseded_one(tmp_path: Path) -> None:
+    repo = _git_repo(tmp_path)
+    upgrade_cmd._finalizer_step_merge_driver_config(_outcome(), project_path=repo, dry_run=False)
+    custom = "/opt/venv/bin/spec-kitty merge-driver-meta %O %A %B"
+    subprocess.run(["git", "-C", str(repo), "config", "--local", "merge.spec-kitty-meta.driver", custom], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "--local", "merge.spec-kitty-issue-matrix.name", "Spec Kitty issue matrix filled-side merge"], check=True)
+    outcome = _outcome()
+
+    state = upgrade_cmd._finalizer_step_merge_driver_config(outcome, project_path=repo, dry_run=False)
+
+    assert state == "customized"
+    assert (
+        subprocess.run(["git", "-C", str(repo), "config", "--local", "--get", "merge.spec-kitty-meta.driver"], capture_output=True, text=True).stdout.strip()
+        == custom
+    )
+    row_aware = subprocess.run(["git", "-C", str(repo), "config", "--local", "--get", "merge.spec-kitty-issue-matrix.name"], capture_output=True, text=True)
+    assert row_aware.stdout.strip() == "Spec Kitty issue matrix row-aware merge"  # a value an older release shipped is ours to update
+    (warning,) = outcome.result.warnings
+    assert "merge.spec-kitty-meta.driver" in warning and custom in warning and "spec-kitty merge-driver-meta %O %A %B" in warning
+
+
 def test_step_reports_installed_when_one_key_is_missing(tmp_path: Path) -> None:
     repo = _git_repo(tmp_path)
     upgrade_cmd._finalizer_step_merge_driver_config(_outcome(), project_path=repo, dry_run=False)
@@ -493,10 +514,10 @@ def test_step_is_skipped_on_a_dry_run_and_writes_nothing(tmp_path: Path) -> None
 
 
 def test_step_failure_is_a_warning_and_never_a_failure_reason(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    def _boom(_repo: Path) -> None:
+    def _boom(*_args: object) -> None:
         raise OSError("read-only .git")
 
-    monkeypatch.setattr(consolidation, "_ensure_merge_driver_git_config", _boom)
+    monkeypatch.setattr(consolidation, "_set_local_git_config", _boom)
     outcome = _outcome()
 
     result = _finalize(outcome, lambda: upgrade_cmd._finalizer_step_merge_driver_config(outcome, project_path=_git_repo(tmp_path), dry_run=False))
@@ -522,7 +543,7 @@ def test_finalizer_leaves_the_field_skipped_when_no_step_is_injected() -> None:
     assert result.notices() == []
 
 
-@pytest.mark.parametrize(("state", "expected"), [("installed", [_INSTALLED_NOTICE]), ("present", []), ("skipped", []), ("failed", [])])
+@pytest.mark.parametrize(("state", "expected"), [("installed", [_INSTALLED_NOTICE]), ("present", []), ("customized", []), ("skipped", []), ("failed", [])])
 def test_only_a_fresh_install_is_announced(state: MergeDriverConfigState, expected: list[str]) -> None:
     outcome = _outcome()
     outcome.merge_driver_config = state

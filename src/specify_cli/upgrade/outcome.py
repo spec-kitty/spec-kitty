@@ -48,11 +48,12 @@ _CLOSING_APPLIED_DRY_RUN = "Dry run complete — no changes applied. ({from_vers
 _CLOSING_DRIFT_UNRESOLVED = "Upgrade finished, but {count} managed file(s) with local edits were not updated."
 _CLOSING_FAILED = "Upgrade failed."
 
-MergeDriverConfigState = Literal["installed", "present", "skipped", "failed"]
+MergeDriverConfigState = Literal["installed", "present", "customized", "skipped", "failed"]
 """What the finalizer's clone-local merge-driver config step did (#5759).
 
 ``installed``: it wrote at least one ``merge.<key>.*`` entry; ``present``: every
-entry was already set; ``skipped``: the step did not run (dry run, or no step
+entry was already set; ``customized``: at least one entry holds the operator's own
+value, which was kept (a warning names it); ``skipped``: the step did not run (dry run, or no step
 injected); ``failed``: git was unusable, which is a warning, never a failure reason.
 """
 

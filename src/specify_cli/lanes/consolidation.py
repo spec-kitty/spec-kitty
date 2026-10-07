@@ -51,6 +51,9 @@ class _MergeDriverSpec:
     name: str
     command: str
     pattern: str
+    #: Earlier releases' ``name`` values for this key. They count as "ours" when
+    #: ``install_merge_driver_config`` decides whether a value is a customization.
+    superseded_names: tuple[str, ...] = ()
 
     @property
     def attributes_line(self) -> str:
@@ -104,6 +107,8 @@ _MERGE_DRIVERS: tuple[_MergeDriverSpec, ...] = (
     _MergeDriverSpec(
         config_key="spec-kitty-issue-matrix",
         name="Spec Kitty issue matrix row-aware merge",
+        # 3.2.6rc1 shipped "filled-side merge" before the issue matrix became row-aware.
+        superseded_names=("Spec Kitty issue matrix filled-side merge",),
         command="spec-kitty merge-driver-issue-matrix %O %A %B",
         # WP11 (FR-008): repointed from issue-matrix.md -- WP05 migrated the
         # canonical artifact to structured JSON (C-008); no .md is written by
@@ -589,22 +594,61 @@ def _merge_driver_config_snapshot(repo_root: Path) -> dict[str, str | None]:
     return {key: _git_config_get(repo_root, key) for key in keys}
 
 
-def install_merge_driver_config(repo_root: Path) -> Literal["installed", "present"]:
-    """Install the per-clone merge-driver git config and report whether it changed anything.
+def _driver_config_entries() -> list[tuple[str, str, frozenset[str]]]:
+    """``(git config key, value this release ships, every value a release shipped)`` for the whole registry."""
+    entries: list[tuple[str, str, frozenset[str]]] = []
+    for spec in _MERGE_DRIVERS:
+        entries.append((f"merge.{spec.config_key}.name", spec.name, frozenset({spec.name, *spec.superseded_names})))
+        entries.append((f"merge.{spec.config_key}.driver", spec.command, frozenset({spec.command})))
+    return entries
 
-    ``installed`` when at least one ``merge.<key>.name`` / ``.driver`` value was
-    written or changed, ``present`` when the clone already had every one (and for
-    a directory that is not a git repository, where the install is a no-op).
-    Idempotent. This is the one public seam ``init`` and ``upgrade`` call
-    (#5759); it does not seed attributes (see :func:`_ensure_merge_driver_git_config`).
+
+def _customized_driver_values(repo_root: Path) -> list[tuple[str, str, str]]:
+    """``(key, current value, shipped value)`` for each key set to a value no release shipped (local read)."""
+    found: list[tuple[str, str, str]] = []
+    for key, shipped, accepted in _driver_config_entries():
+        current = _git_config_get(repo_root, key)
+        if current is not None and current not in accepted:
+            found.append((key, current, shipped))
+    return found
+
+
+def merge_driver_customization_warnings(repo_root: Path) -> list[str]:
+    """One warning per merge-driver key the install left alone because it holds your own value."""
+    return [
+        f"Kept your customized git config {key} = {current!r}; Spec Kitty ships {shipped!r}. Set it to the shipped value to take ours."
+        for key, current, shipped in _customized_driver_values(repo_root)
+    ]
+
+
+def install_merge_driver_config(repo_root: Path) -> Literal["installed", "present", "customized"]:
+    """Install the per-clone merge-driver git config and report what it did.
+
+    A key is written only when it is unset or already holds a value a Spec Kitty
+    release shipped; a value you set yourself is kept (User Customization
+    Preservation). ``customized`` when at least one key was kept that way
+    (:func:`merge_driver_customization_warnings` names them), else ``installed``
+    when at least one value was written or changed, ``present`` when the clone
+    already had every one (and for a directory that is not a git repository,
+    where the install is a no-op). Idempotent. This is the one public seam
+    ``init`` and ``upgrade`` call (#5759); it does not seed attributes. The
+    merge path's own self-heal (:func:`_ensure_merge_driver_git_config`) is a
+    separate function and still restores the shipped values.
 
     Raises:
         OSError: git could not be run.
         subprocess.CalledProcessError: a config write failed.
         UnicodeError: git config output could not be decoded.
     """
+    if not (repo_root / ".git").exists():
+        return "present"
     before = _merge_driver_config_snapshot(repo_root)
-    _ensure_merge_driver_git_config(repo_root)
+    for key, shipped, accepted in _driver_config_entries():
+        current = _git_config_get(repo_root, key)
+        if current is None or current in accepted:
+            _set_local_git_config(repo_root, key, shipped)
+    if _customized_driver_values(repo_root):
+        return "customized"
     return "installed" if _merge_driver_config_snapshot(repo_root) != before else "present"
 
 

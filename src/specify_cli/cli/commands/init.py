@@ -461,20 +461,25 @@ def _discard_failed_project_scaffold(project_path: Path, *, here: bool) -> None:
     shutil.rmtree(project_path)
 
 
-def _wire_merge_driver_best_effort(project_path: Path) -> Literal["installed", "present"] | None:
+def _wire_merge_driver_best_effort(project_path: Path) -> Literal["installed", "present", "customized"] | None:
     """Install every registered merge driver's git config; never fail the caller.
 
     Installs both halves of the driver wiring (#4146): the attribute mapping is
     inert without its ``merge.<key>.name`` / ``.driver`` git-config half. No-op
     (by the installer's own guard) when the target is not a git repository yet --
-    that case keeps relying on the merge-path self-heal. Returns ``installed`` or
-    ``present`` when the installer ran to completion and ``None`` when git was
-    unusable (a warning is printed and init continues).
+    that case keeps relying on the merge-path self-heal. A key that holds your own
+    value is kept and named in a warning (``customized``). Returns ``installed``,
+    ``present`` or ``customized`` when the installer ran to completion and ``None``
+    when git was unusable (a warning is printed and init continues).
     """
-    from specify_cli.lanes.consolidation import install_merge_driver_config
+    from specify_cli.lanes.consolidation import install_merge_driver_config, merge_driver_customization_warnings
 
     try:
-        return install_merge_driver_config(project_path)
+        state = install_merge_driver_config(project_path)
+        if state == "customized":
+            for warning in merge_driver_customization_warnings(project_path):
+                _console.print(warning, style="yellow", markup=False, soft_wrap=True)
+        return state
     except (OSError, subprocess.CalledProcessError, UnicodeError) as exc:
         # Git is optional during init. A stale .git entry, missing binary, or
         # unusable repository must not turn best-effort driver wiring into a

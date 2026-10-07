@@ -254,7 +254,7 @@ def test_init_tolerates_merge_driver_git_config_failure(
 
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
     ensure_config = MagicMock(side_effect=git_failure)
-    monkeypatch.setattr(merge_module, "_ensure_merge_driver_git_config", ensure_config)
+    monkeypatch.setattr(merge_module, "_set_local_git_config", ensure_config)
 
     result = CliRunner().invoke(
         app,
@@ -262,7 +262,7 @@ def test_init_tolerates_merge_driver_git_config_failure(
     )
 
     assert result.exit_code == 0, result.output
-    ensure_config.assert_called_once_with(tmp_path / "git-optional-project")
+    assert ensure_config.call_args.args[0] == tmp_path / "git-optional-project"
     warning = console.file.getvalue()
     assert "Could not configure Spec Kitty merge drivers" in warning
     assert str(git_failure) in warning
