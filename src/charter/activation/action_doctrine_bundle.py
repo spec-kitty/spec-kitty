@@ -40,6 +40,7 @@ __all__ = [
     "_ActionDoctrineBundle",
     "_load_action_doctrine_bundle",
     "_resolve_action_bundle",
+    "resolve_action_doctrine_bundle",
 ]
 
 
@@ -228,6 +229,31 @@ def _resolve_action_bundle(
         org_root=effective_org_root,
         org_roots=effective_org_roots,
         pack_context=_PackContext.from_config(repo_root),
+        mission_type=mission_type,
+        feature_dir=feature_dir,
+    )
+
+
+def resolve_action_doctrine_bundle(
+    repo_root: Path,
+    *,
+    action: str,
+    mission_type: str | None,
+    feature_dir: Path | None,
+) -> _ActionDoctrineBundle:
+    """Public, read-only resolution of one action's doctrine bundle.
+
+    Resolves exactly what ``charter context --action <action>`` resolves at
+    depth 0 (the declaration-ordered org-pack chain, the project's activation
+    state, and the Mission type's scope), without that command's refresh or
+    mark-loaded effects. Callers outside ``charter`` use this instead of the
+    private resolver.
+    """
+    return _resolve_action_bundle(
+        repo_root,
+        action=action,
+        effective_depth=0,
+        org_root=None,
         mission_type=mission_type,
         feature_dir=feature_dir,
     )

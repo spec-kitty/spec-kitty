@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from charter.activation.action_doctrine_bundle import _resolve_action_bundle
+from charter.activation.action_doctrine_bundle import resolve_action_doctrine_bundle
 from charter.activation.context_renderers.artifact_bodies import _jsonable_artifact_value
 from charter.activation.mission_type_profiles import existing_mission_types, resolve_mission_type_context
 from charter.activation.progressive_disclosure import build_disclosure_payload
@@ -81,7 +81,7 @@ def _mission_home(repo_root: Path, mission_slug: str, kind: MissionArtifactKind)
 def _governance(repo_root: Path, mission_dir: Path | None, mission_type: str, stage: str) -> dict[str, object]:
     # Use the same resolved bundle and disclosure renderer as charter context,
     # without that CLI's refresh/mark-loaded effects during a read-only query.
-    bundle = _resolve_action_bundle(repo_root, action=stage, effective_depth=0, org_root=None, mission_type=mission_type, feature_dir=mission_dir)
+    bundle = resolve_action_doctrine_bundle(repo_root, action=stage, mission_type=mission_type, feature_dir=mission_dir)
     authority = bundle.service
     payload = build_disclosure_payload(
         repos_by_kind={
