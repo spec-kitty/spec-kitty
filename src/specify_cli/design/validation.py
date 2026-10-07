@@ -194,15 +194,33 @@ def validate_stage(repo_root: Path, mission_slug: str, stage: str) -> dict[str, 
     return {"stage": stage, "prerequisites_satisfied": True, "validation_only": True}
 
 
+class FinalizationScope:
+    """Handle yielded by ``finalization_scope``; re-stamping needs ``confirm``."""
+
+    def __init__(self) -> None:
+        self.confirmed = False
+
+    def confirm(self, payload: dict[str, object] | None) -> bool:
+        """Accept only a native success payload; anything else leaves receipts untouched."""
+        self.confirmed = payload is not None and payload.get("result") == "success" and not payload.get("error") and payload.get("success") is not False
+        return self.confirmed
+
+
 @contextmanager
-def finalization_scope(repo_root: Path, mission_slug: str) -> Iterator[None]:
-    """Hold cooperative lock across provenance checks AND native finalization."""
+def finalization_scope(repo_root: Path, mission_slug: str) -> Iterator[FinalizationScope]:
+    """Hold cooperative lock across provenance checks AND native finalization.
+
+    Receipts are re-stamped to native finalization's resulting bytes only after
+    the caller confirmed a success payload; a failed or unconfirmed delegate
+    never re-blesses whatever is on disk.
+    """
     with authoring_lock(repo_root, mission_slug):
         receipts = read_receipts(repo_root, mission_slug)
         if receipts is not None:
             validate_stage(repo_root, mission_slug, "tasks")
-        yield
-        if receipts is not None:
+        scope = FinalizationScope()
+        yield scope
+        if receipts is not None and scope.confirmed:
             # Native finalization owns generated prompt frontmatter. Accept its
             # resulting bytes under the same lock without allowing a new draft.
             from specify_cli.design.authoring import artifact_path

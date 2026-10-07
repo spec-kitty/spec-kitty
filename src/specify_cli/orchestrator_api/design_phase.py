@@ -362,8 +362,9 @@ def tasks(
 
     capture = io.StringIO()
     try:
-        with finalization_scope(main_repo_root, mission_dir.name), contextlib.redirect_stdout(capture):
+        with finalization_scope(main_repo_root, mission_dir.name) as scope, contextlib.redirect_stdout(capture):
             agent_feature.finalize_tasks(feature=mission, json_output=True)
+            scope.confirm(_extract_json_payload(capture.getvalue()))
     except (DesignError, DesignContextError) as exc:
         _fail(cmd, exc.code, exc.message, exc.details)
         return

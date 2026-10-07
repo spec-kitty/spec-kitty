@@ -221,6 +221,12 @@ def _planning_parents(repo: Path, slug: str) -> dict[str, str]:
     return {"specification": spec, "plan": str(authoring.read_artifact(repo, slug, "plan")["sha256"])}
 
 
+def _receipt_digests(repo: Path, slug: str) -> dict[str, str]:
+    stored = receipts.read_receipts(repo, slug)
+    assert stored is not None
+    return {key: item.sha256 for key, item in stored.artifacts.items()}
+
+
 def test_outline_package_native_finalization_and_frozen_content(mission: tuple[Path, str]) -> None:
     repo, slug = mission
     parents = _planning_parents(repo, slug)
@@ -230,6 +236,18 @@ def test_outline_package_native_finalization_and_frozen_content(mission: tuple[P
     assert absent["sha256"] == "absent" and absent["content"] is None
     authoring.submit_artifacts(repo, slug, _request(repo, slug, "work_package", _PROMPT, parents=parents, artifact_id="WP01"), "author")
     validation.validate_stage(repo, slug, "tasks")
+    digest = _receipt_digests(repo, slug)
+    prompt = authoring.artifact_path(repo, slug, "work_package", "WP01")
+    original = prompt.read_text()
+
+    def failed_delegate(**_: Any) -> None:
+        prompt.write_text(original + "\nPartial native write.\n")
+        print(json.dumps({"result": "error", "error": "finalize failed"}))
+
+    with patch("specify_cli.cli.commands.agent.mission.finalize_tasks", failed_delegate):
+        _invoke(repo, ["tasks", "--mission", slug, "--policy", _POLICY])
+    assert _receipt_digests(repo, slug) == digest
+    prompt.write_text(original)
     outcome = _invoke(repo, ["tasks", "--mission", slug, "--policy", _POLICY])
     assert outcome["success"] is True, outcome
     validation.validate_stage(repo, slug, "tasks")
