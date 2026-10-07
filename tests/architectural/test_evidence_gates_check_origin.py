@@ -336,20 +336,48 @@ def bypass_sites() -> set[Entry]:
     return sites
 
 
+def _call_runs_check(module: _Module, call: ast.Call, seen: set[Entry]) -> bool:
+    """True when this one call is a freshness check or reaches one, transitively."""
+    target = _resolve(module, call)
+    if target is None:
+        return False
+    if target in _CHECK_FUNCTIONS:
+        return True
+    rel = _rel_for_module(target[0])
+    if rel is None or (rel, target[1]) in seen:
+        return False
+    seen.add((rel, target[1]))
+    callee_module = _load(rel)
+    return any(reaches_check({}, callee_module, d, seen) for d in callee_module.defs.get(target[1], []))
+
+
+def _check_precedes_bypass(module: _Module, definition: ast.AST, toward_bypass: set[str], seen: set[Entry]) -> bool:
+    """True when *definition* runs a check, and no call that leads to the bypass is made on an earlier line.
+
+    A call leads to the bypass when it passes ``origin_gated`` itself or calls a
+    same-module function in *toward_bypass* (the closure of callers of the site).
+    """
+    calls = sorted(_calls(definition), key=lambda c: c.lineno)
+    check_lines = [c.lineno for c in calls if _call_runs_check(module, c, seen)]
+    bypass_lines = [c.lineno for c in calls if _passes_bypass(c) or (isinstance(c.func, ast.Name) and c.func.id in toward_bypass)]
+    return bool(check_lines) and (not bypass_lines or min(check_lines) < min(bypass_lines))
+
+
 def unguarded_bypasses() -> list[Entry]:
-    """Roots that reach an ``origin_gated`` bypass without running a check of their own."""
+    """Roots that reach an ``origin_gated`` bypass without running a check of their own BEFORE the call that leads to it."""
     unguarded: list[Entry] = []
     for rel, site in sorted(bypass_sites()):
         module = _load(rel)
         callers = _same_module_callers_of(module, site)
         for root in sorted(_roots(module, callers) or {site}):
             seen: set[Entry] = {(rel, root), _EXECUTOR_DOOR}
-            if not any(reaches_check({}, module, d, seen) for d in module.defs[root]):
+            if not any(_check_precedes_bypass(module, d, callers, seen) for d in module.defs[root]):
                 unguarded.append((rel, root))
     return unguarded
 
 
 def test_origin_gated_bypass_is_only_taken_after_a_check() -> None:
+    """Every root that reaches the bypass runs a freshness check on an earlier line than the call that leads to it."""
     assert unguarded_bypasses() == []
 
 
@@ -373,6 +401,15 @@ def _planted_bypass(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, body: str) 
 
 def test_planted_bypass_without_a_check_is_flagged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     body = "def _run(root):\n    return _run_lane_based_consolidation(root, origin_gated=True)\n\ndef gate(root):\n    return _run(root)\n"
+    assert _planted_bypass(tmp_path, monkeypatch, body) == [("specify_cli/cli/commands/planted.py", "gate")]
+
+
+def test_planted_check_after_the_bypass_is_flagged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    body = (
+        "from specify_cli.git.origin_gate import run_origin_gate\n\n"
+        "def _run(root):\n    return _run_lane_based_consolidation(root, origin_gated=True)\n\n"
+        "def gate(root):\n    _run(root)\n    run_origin_gate(root)\n"
+    )
     assert _planted_bypass(tmp_path, monkeypatch, body) == [("specify_cli/cli/commands/planted.py", "gate")]
 
 
