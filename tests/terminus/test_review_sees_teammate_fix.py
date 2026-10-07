@@ -28,7 +28,7 @@ from specify_cli.review.lock import ReviewLock
 from tests.terminus import conftest as harness
 from tests.terminus.conftest import CoordMission, git_rev, run_terminus
 from tests.terminus.lanes_fixture import build_lanes_mission
-from tests.terminus.two_clone_support import attach_and_push, clone_from, isolated_git_env, make_bare_remote
+from tests._support.two_clone import attach_and_push, clone_from, isolated_git_env, make_bare_remote
 
 pytestmark = [pytest.mark.regression, pytest.mark.integration, pytest.mark.git_repo]
 

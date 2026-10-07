@@ -22,7 +22,7 @@ from specify_cli.consolidation.state import ConsolidationState, get_state_path, 
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from tests.terminus.conftest import CoordMission, _event, build_coord_mission, git_rev, run_terminus
 from tests.terminus.lanes_fixture import build_lanes_mission
-from tests.terminus.two_clone_support import attach_and_push, clone_from, isolated_git_env, make_bare_remote, unreachable_remote
+from tests._support.two_clone import attach_and_push, clone_from, isolated_git_env, make_bare_remote, unreachable_remote
 
 pytestmark = [pytest.mark.regression, pytest.mark.integration, pytest.mark.git_repo]
 

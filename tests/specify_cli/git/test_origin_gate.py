@@ -19,7 +19,7 @@ from specify_cli.git.origin_gate import run_origin_gate, verdict_payload, verdic
 from specify_cli.git.ref_advance import RefAdvanceError
 from tests.terminus.conftest import build_coord_mission
 from tests.terminus.lanes_fixture import build_lanes_mission
-from tests.terminus.two_clone_support import attach_and_push, isolated_git_env, make_bare_remote, unreachable_remote
+from tests._support.two_clone import attach_and_push, isolated_git_env, make_bare_remote, unreachable_remote
 
 pytestmark = [pytest.mark.git_repo]
 

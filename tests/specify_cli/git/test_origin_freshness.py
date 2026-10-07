@@ -41,7 +41,7 @@ from specify_cli.git.origin_freshness import (
 from specify_cli.lanes.persistence import read_lanes_json
 from tests.terminus.conftest import _cancel_event, build_coord_mission
 from tests.terminus.lanes_fixture import build_lanes_mission
-from tests.terminus.two_clone_support import (
+from tests._support.two_clone import (
     attach_and_push,
     clone_from,
     isolated_git_env,

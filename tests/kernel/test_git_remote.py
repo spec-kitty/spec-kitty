@@ -23,7 +23,7 @@ from kernel.git.remote import (
     tracking_ref,
 )
 from kernel.git.runner import GitCommandError, GitResult
-from tests.terminus.two_clone_support import (
+from tests._support.two_clone import (
     attach_and_push,
     clone_from,
     isolated_git_env,

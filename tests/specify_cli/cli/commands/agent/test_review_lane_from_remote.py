@@ -22,7 +22,7 @@ from specify_cli.git.origin_freshness import FreshnessState, FreshnessVerdict, R
 from specify_cli.git.ref_advance import RefAdvanceDirtyWorktreeError, RefAdvanceError, RefAdvanceNonFastForwardError, RefResyncError
 from specify_cli.review.lock import LOCK_DIR, LOCK_FILE
 from specify_cli.workspace.context import ResolvedWorkspace
-from tests.terminus.two_clone_support import attach_and_push, clone_from, isolated_git_env, make_bare_remote, unreachable_remote
+from tests._support.two_clone import attach_and_push, clone_from, isolated_git_env, make_bare_remote, unreachable_remote
 
 pytestmark = [pytest.mark.git_repo]
 
