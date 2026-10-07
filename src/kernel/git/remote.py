@@ -25,7 +25,7 @@ __all__ = [
     "CLONE_TIMEOUT",
     "FETCH_TIMEOUT",
     "LS_REMOTE_TIMEOUT",
-    "Divergence",
+    "AheadBehind",
     "RemoteUnreachable",
     "clone_repository",
     "configured_remotes",
@@ -249,7 +249,7 @@ def fetch_branches(
 
 
 @dataclass(frozen=True)
-class Divergence:
+class AheadBehind:
     """Commits unique to each side of a ``local...remote`` comparison."""
 
     ahead: int
@@ -261,7 +261,7 @@ class Divergence:
         return self.ahead > 0 and self.behind > 0
 
 
-def divergence(cwd: Path, local: str, remote_ref: str, *, paths: Sequence[str] = ()) -> Divergence:
+def divergence(cwd: Path, local: str, remote_ref: str, *, paths: Sequence[str] = ()) -> AheadBehind:
     """Count commits ahead/behind between *local* and *remote_ref* (``rev-list --left-right --count``).
 
     Left of ``local...remote_ref`` is *ahead* (only on *local*), right is *behind*.
@@ -272,7 +272,7 @@ def divergence(cwd: Path, local: str, remote_ref: str, *, paths: Sequence[str] =
     if paths:
         argv.extend(["--", *paths])
     out = run_git(cwd, *argv).stdout.decode("utf-8", "replace").split()
-    return Divergence(ahead=int(out[0]), behind=int(out[1]))
+    return AheadBehind(ahead=int(out[0]), behind=int(out[1]))
 
 
 def describe_remote_head(cwd: Path, remote: str, *, timeout: float = LS_REMOTE_TIMEOUT) -> str | None:

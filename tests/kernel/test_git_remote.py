@@ -13,7 +13,7 @@ from kernel.git import remote as git_remote
 from kernel.git.remote import (
     FETCH_TIMEOUT,
     LS_REMOTE_TIMEOUT,
-    Divergence,
+    AheadBehind,
     RemoteUnreachable,
     configured_remotes,
     divergence,
@@ -314,7 +314,7 @@ def test_fetch_branches_unreachable_raises(world: tuple[Path, Path]) -> None:
 
 def test_divergence_equal(world: tuple[Path, Path]) -> None:
     _, work = world
-    assert divergence(work, "main", "refs/remotes/origin/main") == Divergence(ahead=0, behind=0)
+    assert divergence(work, "main", "refs/remotes/origin/main") == AheadBehind(ahead=0, behind=0)
 
 
 def test_divergence_local_ahead(world: tuple[Path, Path]) -> None:
