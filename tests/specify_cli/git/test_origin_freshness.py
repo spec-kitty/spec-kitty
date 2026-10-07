@@ -148,10 +148,20 @@ def test_remote_missing_when_the_remote_answers_without_the_branch(world: World)
     assert verdict.remote == "origin"
 
 
-def test_up_to_date(world: World) -> None:
+def test_up_to_date_costs_one_round_trip_and_no_fetch(world: World, monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[str] = []
+    real_run_git = kernel_remote.run_git
+
+    def recording(cwd: Path, *args: str, **kwargs: Any) -> Any:
+        seen.append(args[0])
+        return real_run_git(cwd, *args, **kwargs)
+
+    monkeypatch.setattr(kernel_remote, "run_git", recording)
+
     verdict = _only(check_branches(world.a, ["main"]))
 
     assert (verdict.state, verdict.behind, verdict.ahead) == (FreshnessState.UP_TO_DATE, 0, 0)
+    assert "ls-remote" in seen and "fetch" not in seen
 
 
 def test_ahead_when_local_has_unpushed_commits(world: World) -> None:
@@ -518,12 +528,14 @@ def test_mode_flag_beats_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     assert (setting.mode, setting.source, setting.warning) == (OriginCheckMode.ENFORCE, "flag", None)
 
 
-def test_mode_environment_warn(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv(ORIGIN_CHECK_ENV, "warn")
+@pytest.mark.parametrize("value", ["warn", "off"])
+def test_mode_environment_value(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
+    monkeypatch.setenv(ORIGIN_CHECK_ENV, value)
 
     setting = resolve_origin_check_mode(None)
 
-    assert (setting.mode, setting.source) == (OriginCheckMode.WARN, "environment")
+    assert (setting.mode, setting.source, setting.warning) == (OriginCheckMode(value), "environment", None)
+    assert resolve_origin_check_mode(value).mode is OriginCheckMode(value)  # the flag takes the same values
 
 
 def test_mode_default_is_enforce(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -845,3 +857,8 @@ def test_review_lane_warns_when_the_remote_is_unreachable(world: World) -> None:
     assert action.kind is ReviewLaneKind.WARN
     assert action.code == ORIGIN_UNREACHABLE
     assert action.verdict is not None and action.verdict.state is FreshnessState.UNREACHABLE
+
+    # off: the same dead remote is not even asked; the lane is kept with the not-checked warning.
+    off = plan_review_lane(world.a, "lane-u", resolve_origin_check_mode("off"))
+    assert off.kind is ReviewLaneKind.WARN and off.verdict.state is FreshnessState.NOT_CHECKED
+    assert off.message is not None and "not checked" in off.message

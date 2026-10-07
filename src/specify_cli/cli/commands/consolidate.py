@@ -82,7 +82,7 @@ from specify_cli.core.paths import (
     get_main_repo_root,
     resolve_merge_retention,
 )
-from specify_cli.git.origin_freshness import ORIGIN_CHECK_ENV, OriginCheckMode
+from specify_cli.git.origin_freshness import ORIGIN_CHECK_CHOICES, ORIGIN_CHECK_ENV
 from specify_cli.git.sparse_checkout import (
     SparseCheckoutPreflightError,
 )
@@ -1100,11 +1100,11 @@ def consolidate(
     origin_check: str | None = typer.Option(
         None,
         "--origin-check",
-        click_type=click.Choice([mode.value for mode in OriginCheckMode]),
+        click_type=click.Choice(ORIGIN_CHECK_CHOICES),
         help=(
             "Origin freshness check before anything lands: enforce (the default) refuses when the remote's "
             "status log or an approved lane branch of this Mission is ahead of this clone, or the remote cannot be reached; "
-            f"warn reports the same findings and continues. Overrides {ORIGIN_CHECK_ENV}."
+            f"warn reports the same findings and continues; off contacts nothing and accepts stale evidence. Overrides {ORIGIN_CHECK_ENV}."
         ),
     ),
 ) -> None:

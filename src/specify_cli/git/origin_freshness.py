@@ -34,9 +34,9 @@ from specify_cli.missions._read_path_resolver import mission_dir_aliases
 from specify_cli.status import StoreError, read_events, reduce
 
 __all__ = [
+    "ORIGIN_CHECK_CHOICES",
     "ORIGIN_CHECK_ENV",
     "ORIGIN_LANE_DIVERGED",
-    "ORIGIN_REMOTE_AMBIGUOUS",
     "READ_ONLY_ORIGIN_CHECK",
     "FreshnessState",
     "FreshnessVerdict",
@@ -49,6 +49,7 @@ __all__ = [
     "check_mission_branches",
     "enforce_merge_gate",
     "lane_diverged_text",
+    "origin_not_checked_warning",
     "plan_review_lane",
     "review_warning_text",
     "resolve_origin_check_mode",
@@ -73,6 +74,7 @@ class OriginCheckMode(StrEnum):
 
     ENFORCE = "enforce"
     WARN = "warn"
+    OFF = "off"
 
 
 OriginCheckSource = Literal["default", "flag", "environment", "read-only"]
@@ -91,6 +93,16 @@ class OriginCheckSetting:
 READ_ONLY_ORIGIN_CHECK = OriginCheckSetting(OriginCheckMode.WARN, "read-only")
 
 _ALLOWED_MODE_VALUES: frozenset[str] = frozenset(mode.value for mode in OriginCheckMode)
+#: The values ``--origin-check`` accepts, in declaration order (the one list every command's option shares).
+ORIGIN_CHECK_CHOICES: tuple[str, ...] = tuple(mode.value for mode in OriginCheckMode)
+
+
+def origin_not_checked_warning(setting: OriginCheckSetting) -> str:
+    """The one warning ``off`` prints: no remote was contacted, so stale evidence is accepted."""
+    return (
+        f"Origin was not checked (origin check is {setting.mode.value}, source: {setting.source}): "
+        "no remote was contacted, so a teammate's newer status evidence or lane work on origin is not seen and stale evidence is accepted."
+    )
 
 
 def _parse_mode(value: str) -> OriginCheckMode | None:
@@ -134,6 +146,7 @@ class FreshnessState(StrEnum):
     REMOTE_MISSING = "remote_missing"
     UNREACHABLE = "unreachable"
     NO_REMOTE = "no_remote"
+    NOT_CHECKED = "not_checked"
     REMOTE_AMBIGUOUS = "remote_ambiguous"
 
 
@@ -229,11 +242,11 @@ def _compare(repo_root: Path, remote: str, probe: _Probe, remote_sha: str) -> Fr
 
 
 def _check_remote(repo_root: Path, remote: str, probes: Sequence[_Probe]) -> list[FreshnessVerdict]:
-    """ONE ``ls-remote`` and ONE ``fetch`` for every probe that resolved to *remote* (NFR-001)."""
+    """ONE ``ls-remote`` and, unless every tracking ref already equals the listed tip, ONE ``fetch`` for *remote* (NFR-001)."""
     names = list(dict.fromkeys(probe.branch for probe in probes))
     try:
         heads = remote_heads(repo_root, remote, names)
-        fetch_branches(repo_root, remote, [name for name in names if name in heads])
+        fetch_branches(repo_root, remote, [name for name in names if name in heads], known_tips=heads)
     except RemoteUnreachable as exc:
         return [FreshnessVerdict(p.branch, remote, FreshnessState.UNREACHABLE, scope=_scope_text(p), detail=str(exc)) for p in probes]
     verdicts: list[FreshnessVerdict] = []
@@ -574,8 +587,12 @@ def plan_review_lane(repo_root: Path, lane_branch: str, setting: OriginCheckSett
 
     *setting* defaults to the environment-resolved one (``review`` has no flag); in
     ``warn`` mode a diverged lane is kept as it is with a warning instead of refused.
+    In ``off`` mode nothing is contacted: the lane is kept with the not-checked warning.
     """
     setting = setting or resolve_origin_check_mode(None)
+    if setting.mode is OriginCheckMode.OFF:
+        not_checked = FreshnessVerdict(lane_branch, None, FreshnessState.NOT_CHECKED)
+        return ReviewLaneAction(ReviewLaneKind.WARN, not_checked, message=origin_not_checked_warning(setting))
     verdict = _only_verdict(check_branches(repo_root, [lane_branch]))
     ref = tracking_ref(verdict.remote, lane_branch) if verdict.remote else None
     if verdict.state is FreshnessState.BEHIND:

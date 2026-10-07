@@ -695,7 +695,7 @@ def _run_lane_based_consolidation(
             (FR-008). The commit-layer backstop (WP01) still fires under this
             override — it is NOT disabled by this flag. Use of this override is
             logged via ``require_no_sparse_checkout``.
-        origin_check: ``--origin-check`` value (``enforce``/``warn``) or ``None`` to
+        origin_check: ``--origin-check`` value (``enforce``/``warn``/``off``) or ``None`` to
             defer to ``SPEC_KITTY_ORIGIN_CHECK``; see :mod:`.origin_gate` (#5780).
         origin_gated: ``True`` when the caller already ran the origin freshness gate
             with its own resolved setting (``orchestrator-api consolidate-mission``),

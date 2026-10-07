@@ -22,7 +22,7 @@ import typer
 
 from specify_cli.core.contract_gate import is_allowed_error_code, validate_outbound_payload
 from specify_cli.git.destructive_guard import DestructiveOpRefused
-from specify_cli.git.origin_freshness import OriginFreshnessRefused, approved_lane_branches, resolve_origin_check_mode
+from specify_cli.git.origin_freshness import ORIGIN_CHECK_CHOICES, OriginFreshnessRefused, approved_lane_branches, resolve_origin_check_mode
 from specify_cli.git.origin_gate import run_origin_gate, verdict_payloads
 from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
@@ -97,9 +97,10 @@ class ApprovedBoundRefused(RuntimeError):
 
 _HELP_ORIGIN_CHECK = (
     "Refuse (enforce, the default) or only warn (warn) when the mission's status evidence"
-    " or approved lanes are behind or unreachable on their remote. Overrides SPEC_KITTY_ORIGIN_CHECK."
+    " or approved lanes are behind or unreachable on their remote; off contacts nothing and accepts stale evidence."
+    " Overrides SPEC_KITTY_ORIGIN_CHECK."
 )
-_ORIGIN_CHECK_CHOICE = click.Choice(["enforce", "warn"])
+_ORIGIN_CHECK_CHOICE = click.Choice(ORIGIN_CHECK_CHOICES)
 
 
 @dataclass

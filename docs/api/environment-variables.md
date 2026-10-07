@@ -158,7 +158,11 @@ your clone is behind it, diverged from it, or cannot reach it (`ORIGIN_STATUS_ST
 `ORIGIN_LANE_STALE`, `ORIGIN_UNREACHABLE`). See
 [ADR: evidence gates check origin freshness](../adr/4.x/2026-10-06-3-evidence-gates-check-origin-freshness.md).
 
-**Values**: `enforce` (default) or `warn`. `warn` turns every one of those refusals into a
+**Values**: `enforce` (default), `warn` or `off`. `off` contacts no remote at all and prints one
+warning that origin was not checked and stale evidence is accepted; it is for an offline machine
+or a remote you cannot reach, and it accepts the risk this check exists to remove: a rejection
+a teammate pushed, or a lane they fixed, goes unseen and can land as done. `agent action review`
+honors `off` through this variable only: it keeps the last-known lane and warns. `warn` turns every one of those refusals into a
 printed warning that names the verdict and where the setting came from (`flag` or
 `environment`), and the gate continues with your last-known view. An unrecognized value enforces
 and prints a warning. `agent action review` never refuses on an unreachable remote; it always

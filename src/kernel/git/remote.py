@@ -206,7 +206,23 @@ def remote_heads(cwd: Path, remote: str, branches: Sequence[str], *, timeout: fl
     return heads
 
 
-def fetch_branches(cwd: Path, remote: str, branches: Sequence[str], *, timeout: float = FETCH_TIMEOUT) -> None:
+def _tracking_ref_is_at(cwd: Path, remote: str, branch: str, sha: str) -> bool:
+    """``True`` only when ``refs/remotes/<remote>/<branch>`` is a commit that equals *sha* here (local read, no network).
+
+    Any doubt (ref absent, different tip, object missing, git error) answers ``False``.
+    """
+    result = run_git(cwd, "rev-parse", "--verify", "--quiet", f"{tracking_ref(remote, branch)}^{{commit}}", check=False)
+    return result.returncode == 0 and result.stdout.decode("utf-8", "replace").strip() == sha
+
+
+def fetch_branches(
+    cwd: Path,
+    remote: str,
+    branches: Sequence[str],
+    *,
+    timeout: float = FETCH_TIMEOUT,
+    known_tips: Mapping[str, str] | None = None,
+) -> None:
     """Fetch *branches* into ``refs/remotes/<remote>/<b>``; never writes ``refs/heads``.
 
     Uses explicit forced refspecs, ``--no-tags`` and ``--no-recurse-submodules`` (a submodule fetch would contact
@@ -216,12 +232,19 @@ def fetch_branches(cwd: Path, remote: str, branches: Sequence[str], *, timeout: 
     to the remote's tip and drop its unpushed commits. ``--no-auto-gc`` keeps a
     gate's read from repacking the repository. Empty *branches* does not contact.
 
+    *known_tips* maps a branch to the tip the remote just listed (from
+    :func:`remote_heads`). A branch whose tracking ref already equals that tip
+    needs no transfer and is left out; when every branch is, nothing is
+    contacted. Anything uncertain is fetched.
+
     Raises:
         RemoteUnreachable: the fetch failed or timed out.
     """
-    if not branches:
+    tips = known_tips or {}
+    wanted = [name for name in branches if name not in tips or not _tracking_ref_is_at(cwd, remote, name, tips[name])]
+    if not wanted:
         return
-    refspecs = [f"+refs/heads/{name}:{tracking_ref(remote, name)}" for name in branches]
+    refspecs = [f"+refs/heads/{name}:{tracking_ref(remote, name)}" for name in wanted]
     _contact(cwd, remote, timeout, "fetch", "--no-tags", "--no-recurse-submodules", "--no-auto-gc", "--refmap=", remote, *refspecs)
 
 

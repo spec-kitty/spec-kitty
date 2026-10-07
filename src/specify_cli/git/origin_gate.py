@@ -18,9 +18,11 @@ from mission_runtime import OwnedCheckout, resolve_topology, routes_through_coor
 from specify_cli.git.origin_freshness import (
     FreshnessState,
     FreshnessVerdict,
+    OriginCheckMode,
     OriginCheckSetting,
     check_mission_branches,
     enforce_merge_gate,
+    origin_not_checked_warning,
 )
 from specify_cli.git.ref_advance import RefAdvanceError, worktrees_with_branch_checked_out
 
@@ -73,12 +75,15 @@ def run_origin_gate(
     """Check status evidence and *lane_branches* against origin and apply the policy.
 
     Returns the warnings to surface (warn mode, read-only commands, a diagnostic
-    on the opt-out input); raises :class:`~specify_cli.git.origin_freshness.OriginFreshnessRefused`
+    on the opt-out input); in ``off`` mode it contacts nothing and returns the
+    one not-checked warning; raises :class:`~specify_cli.git.origin_freshness.OriginFreshnessRefused`
     in enforce mode. A coordination evidence branch missing locally is not judged
     here: the caller's existing ``COORDINATION_WORKTREE_UNMATERIALIZED`` path owns it,
     and neither is an evidence branch the placement seam refuses to name (the
     caller's status-directory resolver renders that refusal).
     """
+    if setting.mode is OriginCheckMode.OFF:
+        return [origin_not_checked_warning(setting)]
     fresh = check_mission_branches(repo_root, mission_slug, lane_branches=lane_branches, owned=owned)
     evidence = fresh.evidence
     if evidence is not None and _coordination_unmaterialized(repo_root, mission_slug, evidence):

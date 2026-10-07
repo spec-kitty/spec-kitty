@@ -60,7 +60,7 @@ def test_coordination_evidence_missing_locally_is_passed_through_not_refused(tmp
     assert run_origin_gate(coord.repo, coord.slug, setting=_ENFORCE) == []
 
 
-def test_lanes_evidence_and_lane_verdicts_refuse_in_enforce_and_warn_otherwise(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_lanes_evidence_and_lane_verdicts_refuse_in_enforce_warn_in_warn_and_contact_nothing_when_off(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     isolated_git_env(monkeypatch, tmp_path)
     mission = build_lanes_mission(tmp_path / "m", wps=("WP01",))
     attach_and_push(mission.repo, make_bare_remote(tmp_path), [mission.target_branch])
@@ -73,6 +73,10 @@ def test_lanes_evidence_and_lane_verdicts_refuse_in_enforce_and_warn_otherwise(t
 
     warnings = run_origin_gate(mission.repo, mission.slug, setting=OriginCheckSetting(OriginCheckMode.WARN, "flag"), lane_branches=lanes)
     assert warnings and all("continuing" in warning for warning in warnings)
+
+    # off: the remote is dead, yet nothing is contacted, nothing refuses, and one warning says origin was not checked.
+    (not_checked,) = run_origin_gate(mission.repo, mission.slug, setting=OriginCheckSetting(OriginCheckMode.OFF, "flag"), lane_branches=lanes)
+    assert "not checked" in not_checked and "stale evidence is accepted" in not_checked
 
 
 def test_evidence_checkout_is_none_without_a_holder_or_when_worktrees_cannot_be_listed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -48,6 +48,7 @@ from specify_cli.consolidation.baseline import (
     verify_pr_merge_evidence,
 )
 from specify_cli.git.origin_freshness import (
+    ORIGIN_CHECK_CHOICES,
     READ_ONLY_ORIGIN_CHECK,
     OriginFreshnessRefused,
     resolve_origin_check_mode,
@@ -1425,10 +1426,11 @@ def accept(
         str | None,
         typer.Option(
             "--origin-check",
-            click_type=click.Choice(["enforce", "warn"]),
+            click_type=click.Choice(ORIGIN_CHECK_CHOICES),
             help=(
                 "Refuse (enforce, the default) or only warn (warn) when the mission's status evidence is behind "
-                "or unreachable on its remote. Overrides SPEC_KITTY_ORIGIN_CHECK. --no-commit and --diagnose always warn."
+                "or unreachable on its remote; off contacts nothing and accepts stale evidence. "
+                "Overrides SPEC_KITTY_ORIGIN_CHECK. --no-commit and --diagnose always warn."
             ),
         ),
     ] = None,

@@ -917,8 +917,10 @@ list holds only the codes above.
 ### `accept-mission` and `consolidate-mission`: origin freshness
 
 Before either command reads evidence or moves a branch, it asks the remote of each branch it is about
-to trust (one contact per remote, 15 second bound, never prompts). With no remote, or a branch
-that was never pushed, nothing is contacted and nothing changes. A refusal keeps the envelope code
+to trust (one contact per remote, never prompts). The listing is bounded at 5 seconds and the
+fetch that follows, skipped when the listing shows nothing new, at 15 seconds more, so a
+check takes at most 20 seconds. With no remote, or a branch that was never pushed, nothing is
+contacted and nothing changes. A refusal keeps the envelope code
 the command already used, `MISSION_NOT_READY` for `accept-mission` and `PREFLIGHT_FAILED` for
 `consolidate-mission`, puts the message in `data.errors`, and adds these keys. No branch was moved.
 
@@ -955,6 +957,12 @@ also carries `data.target_branch`, like every other `PREFLIGHT_FAILED` of that c
 stderr, and a successful envelope carries them in `data.origin_warnings` (a list of strings). A
 coordination Mission whose coordination branch exists only on the remote is not judged here; the
 existing `COORDINATION_WORKTREE_UNMATERIALIZED` refusal applies.
+
+`--origin-check` also accepts `off` (and so does `SPEC_KITTY_ORIGIN_CHECK=off`). The command
+then contacts no remote, never refuses on freshness, and carries one warning in
+`data.origin_warnings` and on stderr saying that origin was not checked and stale evidence is
+accepted. Use it only where you cannot reach the remote and accept that a teammate's newer
+status events or lane commits go unseen: a rejection pushed to origin can then land as done.
 
 ### `consolidate-mission`: `data.teardown_error_code`
 
