@@ -23,7 +23,8 @@ from runtime.next._internal_runtime import (
     next_step,
     start_mission_run,
 )
-from runtime.next._internal_runtime.engine import StaleAdvancePlan, _read_snapshot, apply_result, commit_advance, plan_advance
+from runtime.next._internal_runtime.engine import _read_snapshot, apply_result, commit_advance, existing_template_path, plan_advance
+from runtime.next._internal_runtime.schema import MissionRunSnapshot
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -186,15 +187,12 @@ def test_commit_advance_leaves_the_same_run_state_and_events_as_next_step(tmp_pa
     assert _state(committed) == _state(stepped)
 
 
-def test_commit_advance_refuses_a_stale_plan_and_writes_nothing(tmp_path: Path) -> None:
-    """The run moved on after the plan was computed: committing the old plan
-    would overwrite newer state, so it is refused with the run untouched."""
-    run_ref = _start_run(tmp_path, low_significance_gate=False)
-    plan = plan_advance(run_ref, "agent-1", "success")
-    next_step(run_ref, agent_id="agent-1", emitter=NullEmitter())  # the run advances underneath the plan
-    before = _run_files(run_ref)
+@pytest.mark.parametrize("on_disk", ["blank", "missing", "present"])
+def test_existing_template_path_is_the_live_template_only_while_it_exists(tmp_path: Path, on_disk: str) -> None:
+    """The plan hands the planner a live template path for drift detection only when the file still exists."""
+    template_file = tmp_path / "template.yaml"
+    template_path = {"blank": "", "missing": str(tmp_path / "does-not-exist.yaml"), "present": str(template_file)}[on_disk]
+    template_file.write_text("x", encoding="utf-8")
+    snapshot = MissionRunSnapshot(run_id="r", mission_key="m", template_path=template_path, template_hash="h")
 
-    with pytest.raises(StaleAdvancePlan):
-        commit_advance(run_ref, plan, "agent-1", NullEmitter())
-
-    assert _run_files(run_ref) == before
+    assert existing_template_path(snapshot) == (template_file if on_disk == "present" else None)

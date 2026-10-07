@@ -21,10 +21,7 @@ from runtime.next._internal_runtime import (
     provide_decision_answer,
     start_mission_run,
 )
-from runtime.next._internal_runtime.schema import (
-    ActorIdentity,
-    MissionRuntimeError,
-)
+from runtime.next._internal_runtime.schema import ActorIdentity
 
 
 # ---------------------------------------------------------------------------
@@ -208,218 +205,9 @@ def test_audit_reject_blocks_run(tmp_path: Path) -> None:
     assert "rejected" in (final.reason or "").lower()
 
 
-def test_audit_invalid_answer_raises(tmp_path: Path) -> None:
-    run_ref = _bootstrap_audit_run(tmp_path, significance=None)
-    decision = next_step(run_ref, agent_id="agent-1", emitter=NullEmitter())
-    actor = ActorIdentity(
-        actor_id="owner-1",
-        actor_type="human",
-        provider=None,
-        model=None,
-        tool=None,
-    )
-    with pytest.raises(MissionRuntimeError, match="approve|reject"):
-        provide_decision_answer(
-            run_ref,
-            decision.decision_id,
-            "yolo",
-            actor,
-            emitter=NullEmitter(),
-        )
-
-
-def test_audit_non_human_actor_raises(tmp_path: Path) -> None:
-    run_ref = _bootstrap_audit_run(tmp_path, significance=None)
-    decision = next_step(run_ref, agent_id="agent-1", emitter=NullEmitter())
-    bot_actor = ActorIdentity(
-        actor_id="bot",
-        actor_type="llm",
-        provider=None,
-        model=None,
-        tool=None,
-    )
-    with pytest.raises(MissionRuntimeError, match="human actor"):
-        provide_decision_answer(
-            run_ref,
-            decision.decision_id,
-            "approve",
-            bot_actor,
-            emitter=NullEmitter(),
-        )
-
-
-def test_audit_wrong_owner_raises(tmp_path: Path) -> None:
-    run_ref = _bootstrap_audit_run(tmp_path, significance=None)
-    decision = next_step(run_ref, agent_id="agent-1", emitter=NullEmitter())
-    wrong_actor = ActorIdentity(
-        actor_id="someone-else",
-        actor_type="human",
-        provider=None,
-        model=None,
-        tool=None,
-    )
-    with pytest.raises(MissionRuntimeError, match="mission owner"):
-        provide_decision_answer(
-            run_ref,
-            decision.decision_id,
-            "approve",
-            wrong_actor,
-            emitter=NullEmitter(),
-        )
-
-
-def test_audit_missing_owner_input_raises(tmp_path: Path) -> None:
-    """Audit decisions require mission_owner_id in inputs."""
-    # _bootstrap_audit_run sets a default mission_owner_id; pass an explicit
-    # empty dict that omits it to exercise the deny branch.
-    yaml_path = _write_audit_mission(tmp_path / "missions", significance=None)
-    run_store = tmp_path / "runs"
-    ctx = DiscoveryContext(
-        explicit_paths=[yaml_path],
-        builtin_roots=[yaml_path],
-        user_home=tmp_path / "home",
-    )
-    run_ref = start_mission_run(
-        template_key=str(yaml_path),
-        inputs={},  # NO mission_owner_id
-        policy_snapshot=MissionPolicySnapshot(),
-        context=ctx,
-        run_store=run_store,
-        emitter=NullEmitter(),
-    )
-    next_step(run_ref, agent_id="agent-1", emitter=NullEmitter())
-    decision = next_step(run_ref, agent_id="agent-1", emitter=NullEmitter())
-    actor = ActorIdentity(
-        actor_id="owner-1",
-        actor_type="human",
-        provider=None,
-        model=None,
-        tool=None,
-    )
-    with pytest.raises(MissionRuntimeError, match="mission_owner_id"):
-        provide_decision_answer(
-            run_ref,
-            decision.decision_id,
-            "approve",
-            actor,
-            emitter=NullEmitter(),
-        )
-
-
 # ---------------------------------------------------------------------------
 # Re-poll idempotency: pending decision should not duplicate event emission
 # ---------------------------------------------------------------------------
-
-
-def test_provide_decision_answer_rejects_unauthorised_llm(tmp_path: Path) -> None:
-    """An LLM actor on an input decision without a delegation should fail."""
-    yaml_path = tmp_path / "missions" / "m" / "mission.yaml"
-    yaml_path.parent.mkdir(parents=True)
-    yaml_path.write_text(
-        yaml.safe_dump(
-            {
-                "mission": {"key": "m", "name": "M", "version": "1.0.0"},
-                "steps": [
-                    {
-                        "id": "s1",
-                        "title": "S1",
-                        "prompt": "do",
-                        "requires_inputs": ["topic"],
-                    }
-                ],
-            },
-            sort_keys=True,
-        ),
-        encoding="utf-8",
-    )
-    run_store = tmp_path / "runs"
-    ctx = DiscoveryContext(
-        explicit_paths=[yaml_path],
-        user_home=tmp_path / "home",
-    )
-    run_ref = start_mission_run(
-        template_key=str(yaml_path),
-        inputs={},
-        policy_snapshot=MissionPolicySnapshot(),
-        context=ctx,
-        run_store=run_store,
-        emitter=NullEmitter(),
-    )
-    decision = next_step(run_ref, agent_id="a", emitter=NullEmitter())
-    bot_actor = ActorIdentity(
-        actor_id="bot",
-        actor_type="llm",
-        provider=None,
-        model=None,
-        tool=None,
-    )
-    with pytest.raises(MissionRuntimeError, match="not delegated"):
-        provide_decision_answer(
-            run_ref,
-            decision.decision_id,
-            "topic",
-            bot_actor,
-            emitter=NullEmitter(),
-        )
-
-
-def test_provide_decision_answer_llm_with_delegation_succeeds(tmp_path: Path) -> None:
-    """An LLM with a proper delegation record should be allowed to answer."""
-    yaml_path = tmp_path / "missions" / "m" / "mission.yaml"
-    yaml_path.parent.mkdir(parents=True)
-    yaml_path.write_text(
-        yaml.safe_dump(
-            {
-                "mission": {"key": "m", "name": "M", "version": "1.0.0"},
-                "steps": [
-                    {
-                        "id": "s1",
-                        "title": "S1",
-                        "prompt": "do",
-                        "requires_inputs": ["topic"],
-                    }
-                ],
-            },
-            sort_keys=True,
-        ),
-        encoding="utf-8",
-    )
-    run_store = tmp_path / "runs"
-    ctx = DiscoveryContext(
-        explicit_paths=[yaml_path],
-        user_home=tmp_path / "home",
-    )
-    delegations = {
-        "*": {
-            "authority_role": "delegated_llm",
-            "rationale_linkage": "owner approved llm delegation",
-        }
-    }
-    run_ref = start_mission_run(
-        template_key=str(yaml_path),
-        inputs={"llm_delegations": delegations},
-        policy_snapshot=MissionPolicySnapshot(),
-        context=ctx,
-        run_store=run_store,
-        emitter=NullEmitter(),
-    )
-    decision = next_step(run_ref, agent_id="a", emitter=NullEmitter())
-    bot_actor = ActorIdentity(
-        actor_id="bot",
-        actor_type="llm",
-        provider=None,
-        model=None,
-        tool=None,
-    )
-    provide_decision_answer(
-        run_ref,
-        decision.decision_id,
-        "topic-value",
-        bot_actor,
-        emitter=NullEmitter(),
-    )
-    final = next_step(run_ref, agent_id="bot", emitter=NullEmitter())
-    assert final.kind == "step"
 
 
 def test_input_decision_re_poll_does_not_duplicate_event(tmp_path: Path) -> None:
@@ -456,7 +244,9 @@ def test_input_decision_re_poll_does_not_duplicate_event(tmp_path: Path) -> None
         emitter=NullEmitter(),
     )
     next_step(run_ref, agent_id="a", emitter=NullEmitter())
-    # Re-poll: should yield the same pending input decision without crashing.
+    # Re-poll: should yield the same pending input decision without a second request event.
     decision = next_step(run_ref, agent_id="a", emitter=NullEmitter())
     assert decision.kind == "decision_required"
     assert decision.input_key == "topic"
+    journal = (Path(run_ref.run_dir) / "run.events.jsonl").read_text(encoding="utf-8")
+    assert journal.count('"event_type": "DecisionInputRequested"') == 1

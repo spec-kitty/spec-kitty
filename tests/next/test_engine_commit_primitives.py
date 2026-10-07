@@ -19,11 +19,9 @@ from runtime.next._internal_runtime import (
 from runtime.next._internal_runtime.engine import (
     MissionRunRef,
     StaleAdvancePlan,
-    _request_decision_input,
     commit_advance,
     plan_advance,
 )
-from runtime.next._internal_runtime.schema import NextDecision
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -154,34 +152,6 @@ def test_commit_order_significance_between_completed_and_requested(tmp_path: Pat
     assert decision.decision_id in json.loads(_state_text(run_ref))["pending_decisions"]
 
 
-def test_request_decision_input_emits_once_and_leaves_pending_on_repeat(tmp_path: Path) -> None:
-    run_ref = _start(tmp_path, [{"id": "s1", "title": "S1", "prompt": "do", "requires_inputs": ["topic"]}])
-    run_dir = Path(run_ref.run_dir)
-    decision = NextDecision(
-        kind="decision_required",
-        run_id="r",
-        mission_key="m",
-        step_id="s1",
-        decision_id="input:topic",
-        question="Topic?",
-        options=[],
-        input_key="topic",
-    )
-    emitter = _RecordingEmitter()
-    before = _event_types(run_ref)
-
-    first = _request_decision_input(run_dir, "r", decision, "a", {}, emitter)
-    assert set(first) == {"input:topic"}
-    assert first["input:topic"]["question"] == "Topic?"
-    assert emitter.calls == ["requested"]
-    assert _event_types(run_ref) == [*before, "DecisionInputRequested"]
-
-    second = _request_decision_input(run_dir, "r", decision, "a", first, emitter)
-    assert second is first
-    assert emitter.calls == ["requested"]
-    assert _event_types(run_ref) == [*before, "DecisionInputRequested"]
-
-
 def test_guard_runs_before_the_commit_writes_anything(tmp_path: Path) -> None:
     run_ref = _at_last_step(tmp_path)
     before = _event_types(run_ref)
@@ -237,16 +207,25 @@ def test_guard_not_called_for_non_terminal_advance(tmp_path: Path) -> None:
 
 
 def test_stale_plan_raises_and_writes_nothing(tmp_path: Path) -> None:
+    """The run moved on after the plan was computed: the plan is refused before the
+    guard, any append or any emission, with every file of the run untouched.
+
+    The plan is terminal with a completed step, the one case the guard fires for, so
+    ``called == []`` goes red if the stale check ever moves after the guard."""
     run_ref = _at_last_step(tmp_path)
     plan = plan_advance(run_ref, "a")
+    assert plan.decision.kind == "terminal"
+    assert plan.completed_step_id is not None
     # Another actor advances the run after planning.
     next_step(run_ref, agent_id="a")
-    state_before, events_before = _state_text(run_ref), _event_types(run_ref)
+    run_dir = Path(run_ref.run_dir)
+    files_before = {path.name: path.read_bytes() for path in run_dir.iterdir() if path.is_file()}
     called: list[int] = []
+    emitter = _RecordingEmitter()
 
     with pytest.raises(StaleAdvancePlan):
-        commit_advance(run_ref, plan, "a", before_run_completed=lambda: called.append(1))
+        commit_advance(run_ref, plan, "a", emitter, before_run_completed=lambda: called.append(1))
 
     assert called == []
-    assert _state_text(run_ref) == state_before
-    assert _event_types(run_ref) == events_before
+    assert emitter.calls == []
+    assert {path.name: path.read_bytes() for path in run_dir.iterdir() if path.is_file()} == files_before

@@ -2,8 +2,10 @@
 
 Pins every branch of the engine's answer flow -- the persisted ``decisions``
 record, ``completed_steps``, ``blocked_reason``, ``pending_decisions``,
-``inputs`` and the appended event -- so the function can be split into helpers
-without changing behaviour. Written and committed green BEFORE the split.
+``inputs`` and the appended event -- so the function can be refactored without
+changing behaviour. It stays as the permanent regression net for the answer flow:
+each authority denial, each audit band and each input-decision branch is pinned
+with exact messages and persisted state.
 """
 
 from __future__ import annotations

@@ -253,31 +253,6 @@ def test_plan_next_delegates_via_live_lookup(monkeypatch: pytest.MonkeyPatch, tm
     assert captured["args"] == (snap, template, policy, {"a": 1}, tmp_path)
 
 
-# The adapter's former ``_live_template_path`` was a one-line delegate to the
-# engine's ``existing_template_path``; it was deleted with the parallel planner
-# (#2562). Its three assertions now pin the engine function the plan uses.
-
-
-@pytest.mark.unit
-def test_existing_template_path_none_when_blank() -> None:
-    snapshot = MissionRunSnapshot(run_id="r", mission_key="m", template_path="", template_hash="h")
-    assert internal_engine.existing_template_path(snapshot) is None
-
-
-@pytest.mark.unit
-def test_existing_template_path_none_when_missing_on_disk(tmp_path: Path) -> None:
-    snapshot = MissionRunSnapshot(run_id="r", mission_key="m", template_path=str(tmp_path / "does-not-exist.yaml"), template_hash="h")
-    assert internal_engine.existing_template_path(snapshot) is None
-
-
-@pytest.mark.unit
-def test_existing_template_path_present_when_exists(tmp_path: Path) -> None:
-    template_file = tmp_path / "template.yaml"
-    template_file.write_text("x", encoding="utf-8")
-    snapshot = MissionRunSnapshot(run_id="r", mission_key="m", template_path=str(template_file), template_hash="h")
-    assert internal_engine.existing_template_path(snapshot) == template_file
-
-
 # ---------------------------------------------------------------------------
 # 2b. Focused unit tests — ``advance_run_state_after_composition`` (FR-006)
 # ---------------------------------------------------------------------------
@@ -654,34 +629,6 @@ def test_adapter_never_resolves_a_wp_workspace_itself_and_refuses_before_writing
 # ---------------------------------------------------------------------------
 # 2c. The composition commit is the engine's commit (#2562, FR-008..FR-010)
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-def test_composition_commit_refuses_a_stale_plan_and_writes_nothing(tmp_path: Path, _stub_map_runtime_decision: _MapDecisionRecorder) -> None:
-    """FR-010: a plan the run moved past is refused with ``StaleAdvancePlan``;
-    ``state.json`` keeps the newer state and no event is appended or emitted.
-    The bridge-level race (blocked Decision, no ``runtime_next_step``) is
-    pinned by ``test_composition_advance_alignment.py::
-    test_composition_advance_refuses_a_stale_plan``."""
-    run_dir = tmp_path / "run-stale"
-    snapshot_in = MissionRunSnapshot(run_id="run-stale", mission_key="software-dev", template_path="", template_hash="h", issued_step_id="plan")
-    _write_run(run_dir, snapshot_in)
-    run_ref = MissionRunRef(run_id="run-stale", run_dir=str(run_dir), mission_key="software-dev")
-    plan = engine_adapter.plan_advance(run_ref, "agent-1", "success")
-
-    # Another writer advances the run between the plan and its commit.
-    moved_on = snapshot_in.model_copy(update={"inputs": {"moved": True}})
-    (run_dir / _STATE_FILE).write_text(json.dumps(moved_on.model_dump(mode="json")), encoding="utf-8")
-    state_moved = (run_dir / _STATE_FILE).read_bytes()
-    sync_emitter = _FakeSyncEmitter()
-
-    with pytest.raises(engine_adapter.StaleAdvancePlan):
-        _advance(run_ref, tmp_path, sync_emitter, plan=plan, wp_resolution=("implement", "WP01", "/ws", "lane-a", "wp"))
-
-    assert (run_dir / _STATE_FILE).read_bytes() == state_moved, "the stale plan overwrote newer run state"
-    assert not (run_dir / _EVENTS_FILE).exists(), "the stale plan appended events"
-    assert [name for name in sync_emitter.order if name != "seed"] == [], "the stale plan emitted events"
-    assert _stub_map_runtime_decision.calls == []
 
 
 @pytest.mark.unit
