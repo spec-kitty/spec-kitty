@@ -175,7 +175,10 @@ def read_dir_of(repo_root: Path, name: str, entry: MemoEntry) -> tuple[Path, str
 
 
 def _mission_activity(read_dir: Path) -> str | None:
-    snapshot = materialize_snapshot(read_dir)
+    try:
+        snapshot = materialize_snapshot(read_dir)
+    except _UNREADABLE:  # UnicodeDecodeError is a ValueError: the Mission still counts and adds no activity
+        return None
     return last_activity_of(state.get("last_transition_at") for state in snapshot.work_packages.values())
 
 

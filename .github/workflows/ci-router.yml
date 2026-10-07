@@ -295,6 +295,7 @@ jobs:
               - '**/kernel/git/__init__.py'
               - '**/mission_runtime/__init__.py'
               - '**/mission_runtime/identity.py'
+              - '**/specify_cli/audit/classifiers/status_json.py'
               - '**/specify_cli/cli/commands/agent/tasks_move_task.py'
               - '**/specify_cli/context/__init__.py'
               - '**/specify_cli/context/mission_resolver.py'

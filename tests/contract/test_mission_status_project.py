@@ -424,6 +424,25 @@ def row6_problems(env: Env) -> list[str]:
             problems.append(
                 f"{label}: lastActivityAt {got['lastActivityAt']!r} (expected {expected!r}), missionCount {got['missionCount']} (expected {len(stamps)})"
             )
+    problems.extend(_undecodable_activity_problems(env))
+    return problems
+
+
+def _undecodable_activity_problems(env: Env) -> list[str]:
+    """A Mission whose ``status.json`` is not UTF-8 still counts and adds no activity; its clean twin (same repository, no plant) is the control."""
+    problems: list[str] = []
+    for label, plant in (("an undecodable status.json beside a clean Mission", True), ("the clean twin", False)):
+        repo = _repo_with_missions(env, {"a-mission": MIDDLE, "b-mission": EARLY_TEXT_LATE_INSTANT})
+        if plant:
+            (repo / "kitty-specs" / "b-mission" / "status.json").write_bytes(bytes([0xFF, 0xFE, 0x00]))
+        expected = MIDDLE if plant else EARLY_TEXT_LATE_INSTANT
+        try:
+            got = _build(env, repo)
+        except Exception as error:  # the Project read never raises (FR-002, FR-003)
+            problems.append(f"{label}: the build raised {type(error).__name__}: {error}")
+            continue
+        if got["lastActivityAt"] != expected or got["missionCount"] != 2:
+            problems.append(f"{label}: lastActivityAt {got['lastActivityAt']!r} (expected {expected!r}), missionCount {got['missionCount']} (expected 2)")
     return problems
 
 
@@ -752,6 +771,14 @@ def _no_exception_fallback(patch: pytest.MonkeyPatch) -> None:
     patch.setattr(project, "read_dir_of", defective)
 
 
+def _unguarded_activity(patch: pytest.MonkeyPatch) -> None:
+    def defective(read_dir: Path) -> str | None:
+        snapshot = project.materialize_snapshot(read_dir)
+        return project.last_activity_of(state.get("last_transition_at") for state in snapshot.work_packages.values())
+
+    patch.setattr(project, "_mission_activity", defective)
+
+
 MUTATIONS: dict[str, tuple[Callable[[pytest.MonkeyPatch], None], tuple[str, ...]]] = {
     "wrap-cli-version": (_wrap_cli_version, ("row1", "row2")),
     "unguarded-load": (_unguarded_load, ("row1",)),
@@ -761,6 +788,7 @@ MUTATIONS: dict[str, tuple[Callable[[pytest.MonkeyPatch], None], tuple[str, ...]
     "null-on-unborn": (_null_on_unborn, ("row5",)),
     "subprocess-for-head": (_subprocess_for_head, ("row7-own-process", "row7")),
     "string-max-activity": (_string_max_activity, ("row6",)),
+    "unguarded-activity": (_unguarded_activity, ("row6",)),
     "no-fallback-outside-root": (_no_fallback_outside_root, ("row7",)),
     "no-exception-fallback": (_no_exception_fallback, ("row7",)),
 }
