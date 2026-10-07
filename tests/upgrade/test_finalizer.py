@@ -445,7 +445,7 @@ def _finalize(outcome: UpgradeOutcome, step: Callable[[], MergeDriverConfigState
         outcome,
         provision_activations=lambda: [],
         run_surface_repair=SurfaceRepairReport,
-        offer_repair=lambda: RepairOutcome(pending=True),
+        report_mission_state=lambda: MissionStateReportOutcome(pending=True),
         commit_churn=lambda: False,
         should_commit=False,
         repair_preflight=_preflight(),
