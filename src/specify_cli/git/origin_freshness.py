@@ -409,19 +409,20 @@ def _status_remedy(verdict: FreshnessVerdict, checkout: Path | None, *, merge_re
     return ["  Update it with:", *(f"    {step}" for step in steps), _RERUN_LINE]
 
 
-def _diverged_lane_remedy(remote: str | None, lane: str) -> list[str]:
-    """The one remedy text for a diverged lane: integrate the remote lane, or push the local one."""
+def _diverged_lane_remedy(remote: str | None, branch: str) -> list[str]:
+    """The one remedy text for a diverged lane *branch*: integrate the remote one, or push the local one."""
     return [
-        f"  Inspect: git log {lane}...{remote}/{lane}",
-        f"  If the remote lane has work you need: git -C <lane worktree> merge {remote}/{lane}",
-        f"  If the local lane is the truth: git push {remote} {lane}",
+        f"  Inspect: git log {branch}...{remote}/{branch}",
+        f"  If the remote lane has work you need: git -C <lane worktree> merge {remote}/{branch}",
+        f"  If the local lane is the truth: git push {remote} {branch}",
         _RERUN_LINE,
     ]
 
 
-def lane_diverged_text(headline: str, remote: str | None, lane: str) -> str:
-    """A ``review`` refusal for a diverged lane: *headline*, the remedy, and the environment-only opt-out."""
-    return "\n".join([headline, *_diverged_lane_remedy(remote, lane), _REVIEW_OPT_OUT_LINE])
+def lane_diverged_text(headline: str, remote: str | None, branch: str) -> str:
+    """A ``review`` refusal for a diverged lane *branch*: *headline*, the remedy, and the environment-only opt-out."""
+    remedy = _diverged_lane_remedy(remote, branch)
+    return "\n".join([headline, *remedy, _REVIEW_OPT_OUT_LINE])
 
 
 def review_warning_text(headline: str, setting: OriginCheckSetting) -> str:
