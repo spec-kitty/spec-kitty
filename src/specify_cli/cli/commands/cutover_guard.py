@@ -71,8 +71,8 @@ _REMEDY_BY_REASON: dict[str, str] = {
     REASON_TERMINAL_UNSTAMPED: _REMEDY_TEMPLATE,
     REASON_LEGACY_FRONTMATTER: _REMEDY_TEMPLATE,
     REASON_PHASE_MALFORMED: 'fix meta.json status_phase in kitty-specs/{slug}/ (expected an integer, e.g. "1"), then rerun',
-    REASON_LEGACY_UNDECIDABLE: "repair kitty-specs/{slug}/meta.json or the unreadable WP file, then rerun",
-    REASON_ABSENT_MISSION_ID: "spec-kitty migrate backfill-identity",
+    REASON_LEGACY_UNDECIDABLE: "repair the unreadable WP file under kitty-specs/{slug}/tasks/, then rerun",
+    REASON_ABSENT_MISSION_ID: "repair kitty-specs/{slug}/meta.json if it is missing or not valid JSON; otherwise run spec-kitty migrate backfill-identity",
 }
 
 #: The artifacts whose presence at the merge-base places a directory INSIDE

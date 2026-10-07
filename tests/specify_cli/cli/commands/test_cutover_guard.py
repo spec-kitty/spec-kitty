@@ -684,7 +684,7 @@ def test_malformed_phase_remedy_names_meta_json(tmp_path: Path, monkeypatch: pyt
     assert slug in remedy
 
 
-def test_absent_mission_id_remedy_is_backfill_identity(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_absent_mission_id_remedy_names_meta_repair_and_backfill_identity(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     corpus = tmp_path / "kitty-specs"
     corpus.mkdir()
     slug = "no-mission-id-cli-01KZPRE7"
@@ -693,7 +693,8 @@ def test_absent_mission_id_remedy_is_backfill_identity(tmp_path: Path, monkeypat
     result = _invoke_guard(tmp_path, monkeypatch, slug, "--json")
 
     assert result.exit_code == 1
-    assert json.loads(result.output)["failures"][0]["remedy"] == "spec-kitty migrate backfill-identity"
+    remedy = json.loads(result.output)["failures"][0]["remedy"]
+    assert remedy == f"repair kitty-specs/{slug}/meta.json if it is missing or not valid JSON; otherwise run spec-kitty migrate backfill-identity"
 
 
 def test_remedy_for_undecidable_legacy_and_unknown_reason(tmp_path: Path) -> None:
@@ -703,6 +704,6 @@ def test_remedy_for_undecidable_legacy_and_unknown_reason(tmp_path: Path) -> Non
     def verdict(*reasons: str) -> CutOverVerdict:
         return CutOverVerdict(mission_dir=tmp_path, mission_slug="m-1", cut_over=False, reasons=reasons)
 
-    assert remedy_for(verdict(REASON_LEGACY_UNDECIDABLE)) == "repair kitty-specs/m-1/meta.json or the unreadable WP file, then rerun"
+    assert remedy_for(verdict(REASON_LEGACY_UNDECIDABLE)) == "repair the unreadable WP file under kitty-specs/m-1/tasks/, then rerun"
     assert remedy_for(verdict("status_phase not flipped despite event-log runtime evidence")) == remedy_command("m-1")
     assert remedy_for(verdict()) == remedy_command("m-1")

@@ -75,9 +75,9 @@ these hold:
 The guard lists exempt Missions in a separate section of the report and in the
 `exempt` key of `--json`. It does not call them cut over.
 
-The exemption fails closed. A malformed `status_phase`, an unreadable
-`meta.json`, or a WP file the guard cannot read to rule out legacy runtime makes
-the Mission fail, never pass.
+The exemption fails closed. A malformed or negative `status_phase`, a missing or
+unparsable `meta.json` (reported as an absent `mission_id`), or a WP file the
+guard cannot read to rule out legacy runtime makes the Mission fail, never pass.
 
 ### Remedies
 
@@ -85,8 +85,8 @@ the Mission fail, never pass.
 |---|---|
 | Accepted or merged, but no stamp; or legacy WP frontmatter | `spec-kitty migrate backfill-runtime-state --mission <slug>` |
 | `status_phase` malformed | fix `status_phase` in `kitty-specs/<slug>/meta.json` (expected an integer, for example `"1"`), then rerun |
-| `meta.json` or a WP file unreadable | repair `kitty-specs/<slug>/meta.json` or the unreadable WP file, then rerun |
-| Absent `mission_id` | `spec-kitty migrate backfill-identity` |
+| A WP file unreadable | repair the unreadable WP file under `kitty-specs/<slug>/tasks/`, then rerun |
+| Absent `mission_id` (also a missing or unparsable `meta.json`) | repair `kitty-specs/<slug>/meta.json` if it is missing or not valid JSON; otherwise `spec-kitty migrate backfill-identity` |
 
 ### Known limits
 
