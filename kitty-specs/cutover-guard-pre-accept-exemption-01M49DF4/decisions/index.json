@@ -1,0 +1,29 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-06T20:11:53.706063Z",
+      "decision_id": "01M49DG5FA4SWF1THAR4G9ZWJC",
+      "final_answer": "Confirmed",
+      "input_key": "intent_confirmation",
+      "mission_id": "01M49DF438J37NQPMRJ7N51CN7",
+      "mission_slug": "cutover-guard-pre-accept-exemption-01M49DF4",
+      "opened_by": "cli",
+      "options": [
+        "Confirmed",
+        "Adjust"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Confirm intent: the cutover predicate (shared by the CI cutover-guard and the dogfood corpus test) reports a Mission as cut over, with an explicit pre-accept note, when it has no terminal evidence (meta.json accepted_at / merged_at, or a mission_number), has no status_phase, and carries no legacy frontmatter runtime to migrate. Accepted/merged Missions, legacy Missions with frontmatter runtime, and a malformed status_phase stay fail-closed; the remaining failure text names why and the remedy. No birth stamp; no new status_phase writer. Correct?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T20:44:34.503724Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.intent-confirmation",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M49DF438J37NQPMRJ7N51CN7",
+  "version": 1
+}

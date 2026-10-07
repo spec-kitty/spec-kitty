@@ -1,0 +1,53 @@
+{
+  "event_count": 19,
+  "last_event_id": "01M4AAD0VG8VPVD9TFR4SZR83B",
+  "materialized_at": "2026-10-07T04:36:59.376160+00:00",
+  "mission_number": "",
+  "mission_slug": "cutover-guard-pre-accept-exemption-01M49DF4",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4AACZ9VWHTAB2HQCRKA0TNH",
+      "last_transition_at": "2026-10-07T04:36:57.787544+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261006",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 490136,
+      "shell_pid_created_at": "1791324115.56"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4AAD0VG8VPVD9TFR4SZR83B",
+      "last_transition_at": "2026-10-07T04:36:59.376160+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261006",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 504536,
+      "shell_pid_created_at": "1791324455.22"
+    }
+  }
+}

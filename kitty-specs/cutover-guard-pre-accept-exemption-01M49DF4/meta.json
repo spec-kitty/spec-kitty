@@ -1,0 +1,37 @@
+{
+  "accept_commit": "ea731c71897893719cdaff1f610834fbd578c570",
+  "acceptance_history": [
+    {
+      "accept_commit": "ea731c71897893719cdaff1f610834fbd578c570",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-07T04:30:59.038741+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "8ffa8a9e8731f44db84e09a6f123f5aca54761ea"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-07T04:30:59.038741+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "8ffa8a9e8731f44db84e09a6f123f5aca54761ea",
+  "baseline_merge_commit": "51de556befb91e1bef33a9699db53c67c557223a",
+  "contracts": "none",
+  "contracts_rationale": "Internal predicate change; the only externally visible surface is the cutover-guard report/JSON payload, which gains fields additively (documented in plan IC-02).",
+  "created_at": "2026-10-06T20:11:19.629403+00:00",
+  "flattened": true,
+  "friendly_name": "Cutover guard exempts pre-accept Missions",
+  "merged_at": "2026-10-07T04:37:10.975283+00:00",
+  "merged_commit": "e0ad5d6e15f60479a56242cdcb63914ddcfd8ebc",
+  "mid8": "01M49DF4",
+  "mission_id": "01M49DF438J37NQPMRJ7N51CN7",
+  "mission_number": 220,
+  "mission_slug": "cutover-guard-pre-accept-exemption-01M49DF4",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "A Mission driven only by canonical commands goes red on the cutover-guard check from its first PR push, because the status_phase stamp is deferred to accept by design while the guard checks every touched Mission. Operators currently have to run a legacy migration by hand. This mission makes the guard recognise pre-accept, event-log-native Missions while staying strict for accepted corpora and legacy Missions.",
+  "purpose_tldr": "Stop the cutover-guard CI check from failing every in-flight PR-bound Mission before it is accepted.",
+  "slug": "cutover-guard-pre-accept-exemption-01M49DF4",
+  "status_phase": "1",
+  "target_branch": "fix/cutover-guard-pre-accept-exemption",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-06T21:47:27.497584+00:00"
+}

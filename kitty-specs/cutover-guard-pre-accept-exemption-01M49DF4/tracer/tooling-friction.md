@@ -1,0 +1,7 @@
+# Tooling friction
+
+- 2026-10-06 specify: the first `agent mission create --pr-bound --start-branch fix/...` run produced output my JSON parse could not read and left a malformed, untracked scaffold on `main` (the start branch was not created; `meta.json` declared a coordination branch that did not exist). The resume probe reported `malformed`. After removing the untracked dir, an identical re-run succeeded. Root cause not reproduced; watch for a repeat before filing.
+- 2026-10-06 plan: `setup-plan` reports `feature_dir` under the coordination worktree while `plan_file` is in the repository root checkout — two paths for one Mission in one payload.
+- 2026-10-06 analyze: `record-analysis` refuses on ANY dirty working tree, including untracked files belonging to other Missions; needed an operator-run stash/pop. The auto-mode permission classifier blocks `git stash -u` even with chat authorization.
+- 2026-10-06 implement: the specify-time Decision Moment record (`decisions/DM-*.md`, `index.json`) is written but never committed by `decision resolve` or `spec-commit`, so `implement` refuses with "Planning artifacts not committed" much later. Committed by hand (ab7a704).
+- 2026-10-06 implement: the planning-artifact check lists the gitignored, empty `decisions/index.json.lock` (left by `decision` commands) as uncommitted; it does not honour .gitignore. Removed the stale empty lock by hand. Candidate upstream gap.

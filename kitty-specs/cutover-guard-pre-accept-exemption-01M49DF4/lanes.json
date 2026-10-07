@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "mission_slug": "cutover-guard-pre-accept-exemption-01M49DF4",
+  "mission_id": "01M49DF438J37NQPMRJ7N51CN7",
+  "mission_branch": "kitty/mission-cutover-guard-pre-accept-exemption-01M49DF4",
+  "target_branch": "fix/cutover-guard-pre-accept-exemption",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/migration/backfill_runtime_state.py",
+        "src/specify_cli/status/cutover_eligibility.py",
+        "tests/specify_cli/cli/commands/test_cutover_guard_pre_accept.py",
+        "tests/specify_cli/migration/test_dogfood_corpus_backfilled.py",
+        "tests/status/test_cutover_eligibility.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/how-to/cutover-guard.md",
+        "src/specify_cli/cli/commands/cutover_guard.py",
+        "tests/specify_cli/cli/commands/test_cutover_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-06T20:52:40.479143+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "af79110ca68cccd784ee7df2e1aa486c37913e4e"
+}
