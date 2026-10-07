@@ -2,12 +2,13 @@
 title: Orchestrator API Reference
 description: Machine-contract API for external orchestration providers.
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-06'
 related:
 - docs/api/event-envelope.md
 - docs/migrations/feature-flag-deprecation.md
 - docs/migrations/mission-id-canonical-identity.md
 - docs/migrations/mission-type-flag-deprecation.md
+- docs/adr/4.x/2026-10-06-3-evidence-gates-check-origin-freshness.md
 ---
 # Orchestrator API Reference
 
@@ -29,7 +30,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.10.0`
+- `CONTRACT_VERSION`: `1.11.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -103,6 +104,15 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   on every other failure. `data` also carries `preflight_error_codes`, every
   distinct code the refusal names, the first equal to `preflight_error_code`
   (#5720).
+- `1.11.0` — `accept-mission` and `consolidate-mission` take
+  `--origin-check [enforce|warn]` and can newly refuse before they read evidence or
+  move a lane, when the Mission's status evidence (and, for `consolidate-mission`, its
+  approved lane branches) is behind, diverged from or unreachable on its remote
+  (#5780). The envelope `error_code` stays `MISSION_NOT_READY` / `PREFLIGHT_FAILED`; `data`
+  gains `preflight_error_code`, `preflight_error_codes` and `origin_freshness` (see
+  [Origin freshness](#accept-mission-and-consolidate-mission-origin-freshness)), and a
+  successful `warn` run gains `origin_warnings`. A call that used to succeed can now refuse,
+  so a minor bump; every key is absent otherwise.
 
 ## Response Envelope
 
@@ -834,7 +844,7 @@ Current machine-readable error codes (the authoritative list is
 - `WP_NOT_FOUND`
 - `TRANSITION_REJECTED`
 - `WP_ALREADY_CLAIMED` (for `start-implementation` on an `in_progress` WP after a reviewer's rework verdict, the WP's implementer of record is admitted as a `no_op` resume rather than refused; an unrelated actor is still refused)
-- `MISSION_NOT_READY`
+- `MISSION_NOT_READY` (on `accept-mission`, `data.preflight_error_code` can refine it with an origin freshness code; see below)
 - `WORKFLOW_EVIDENCE_REQUIRED`
 - `PREFLIGHT_FAILED` (on `consolidate-mission`, `data.preflight_error_code` or `data.teardown_error_code` can refine it; see below)
 - `CONTRACT_VERSION_MISMATCH`
@@ -903,6 +913,47 @@ failure. The host command `spec-kitty consolidate` reports the same three codes 
 exits 1. When a mixed-lane refusal also applies, it prints that refusal first and these codes
 after `This Mission also has:`; `consolidate-mission` never raises the mixed-lane refusal, so its
 list holds only the codes above.
+
+### `accept-mission` and `consolidate-mission`: origin freshness
+
+Before either command reads evidence or moves a branch, it asks the remote of each branch it is about
+to trust (one contact per remote, 15 second bound, never prompts). With no remote, or a branch
+that was never pushed, nothing is contacted and nothing changes. A refusal keeps the envelope code
+the command already used, `MISSION_NOT_READY` for `accept-mission` and `PREFLIGHT_FAILED` for
+`consolidate-mission`, puts the message in `data.errors`, and adds these keys. No branch was moved.
+
+| `data.preflight_error_code` | Meaning | What to do |
+|---|---|---|
+| `ORIGIN_STATUS_STALE` | The remote's status evidence branch has commits that change this Mission's `status.events.jsonl` and that your clone lacks (or the branch is diverged). | Run the `git pull` command the message names in the evidence checkout, then re-run. With a merge record present, abort first, as the message says. |
+| `ORIGIN_LANE_STALE` | `consolidate-mission` only: an approved lane's remote tip is ahead of, diverged from, or missing locally. | Update the local lane (`git fetch <remote> <lane> && git branch -f <lane> <remote>/<lane>`), then re-run. |
+| `ORIGIN_UNREACHABLE` | A remote resolved but could not be reached in this invocation. | Restore connectivity, or re-run with `--origin-check warn` (or set `SPEC_KITTY_ORIGIN_CHECK=warn`). |
+
+`data.preflight_error_code` is the first code the message names and `data.preflight_error_codes`
+lists every distinct code, as for the codes above.
+
+`data.origin_freshness` is a list with one row per branch that failed the check:
+
+```json
+{
+  "branch": "kitty/mission-my-mission-01ABCDEF",
+  "remote": "origin",
+  "state": "behind",
+  "behind": 2,
+  "ahead": 0,
+  "scope": "kitty-specs/my-mission/status.events.jsonl",
+  "detail": null
+}
+```
+
+`state` is one of `up_to_date`, `behind`, `ahead`, `diverged`, `local_missing`,
+`remote_missing`, `unreachable` or `no_remote`. `scope` names the status log the status
+evidence row was judged on and is `null` for a lane. `detail` says why a remote was
+unreachable (the git error text) and is `null` otherwise. A `consolidate-mission` origin refusal
+also carries `data.target_branch`, like every other `PREFLIGHT_FAILED` of that command. With `--origin-check warn`, or
+`SPEC_KITTY_ORIGIN_CHECK=warn`, the command does not refuse: it continues, writes each warning to
+stderr, and a successful envelope carries them in `data.origin_warnings` (a list of strings). A
+coordination Mission whose coordination branch exists only on the remote is not judged here; the
+existing `COORDINATION_WORKTREE_UNMATERIALIZED` refusal applies.
 
 ### `consolidate-mission`: `data.teardown_error_code`
 

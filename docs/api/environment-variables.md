@@ -9,6 +9,7 @@ related:
 - docs/adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md
 - docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md
 - docs/context/team-kitty.md
+- docs/adr/4.x/2026-10-06-3-evidence-gates-check-origin-freshness.md
 ---
 # Environment Variables Reference
 
@@ -143,6 +144,39 @@ Adjust the delay before completed worktrees are removed.
 ```bash
 export SPEC_KITTY_WORKTREE_REMOVAL_DELAY=10
 spec-kitty merge
+```
+
+---
+
+### SPEC_KITTY_ORIGIN_CHECK
+
+Default for `--origin-check` on the evidence gates (`spec-kitty consolidate`,
+`spec-kitty accept` and `orchestrator-api accept-mission` / `consolidate-mission`).
+Before it trusts a branch, each gate asks the branch's remote for its current tip and refuses when
+your clone is behind it, diverged from it, or cannot reach it (`ORIGIN_STATUS_STALE`,
+`ORIGIN_LANE_STALE`, `ORIGIN_UNREACHABLE`). See
+[ADR: evidence gates check origin freshness](../adr/4.x/2026-10-06-3-evidence-gates-check-origin-freshness.md).
+
+**Values**: `enforce` (default) or `warn`. `warn` turns every one of those refusals into a
+printed warning that names the verdict and where the setting came from (`flag` or
+`environment`), and the gate continues with your last-known view. An unrecognized value enforces
+and prints a warning. `agent action review` never refuses on an unreachable remote; it always
+warns.
+
+**Precedence**: the `--origin-check` flag, then this variable, then `enforce`.
+
+**Not affected**: a project with no remote, or a branch that was never pushed, passes silently in
+either mode, and `consolidate --dry-run` runs no check.
+
+**Risk in a committed `.kitty.env`**: this variable can be set in the repository tier
+(`.kittify/.kitty.env`). If that file is committed, every clone inherits `warn` and the check stops
+protecting your teammates; the warning names `environment` as its source so the choice is visible.
+Set it in your own shell or home-tier file, not in a committed one.
+
+**Example**:
+```bash
+export SPEC_KITTY_ORIGIN_CHECK=warn
+spec-kitty consolidate
 ```
 
 ---
@@ -608,6 +642,7 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 | `SPECIFY_TEMPLATE_REPO` | Use a custom remote template repo | `org/templates` |
 | `SPEC_KITTY_NON_INTERACTIVE` | Disable prompts | `1` |
 | `SPEC_KITTY_WORKTREE_REMOVAL_DELAY` | Delay worktree cleanup | `10` |
+| `SPEC_KITTY_ORIGIN_CHECK` | Default for `--origin-check` on the evidence gates: `enforce` (default) or `warn` | `warn` |
 | `SPEC_KITTY_ENABLE_SAAS_SYNC` | Opt out of hosted sync/auth flows (on by default) | `0` |
 | `SPEC_KITTY_SAAS_URL` | Configures the hosted endpoint; no built-in default | `https://spec-kitty-dev.example.internal` |
 | `SPEC_KITTY_SYNC_DISABLE` | Process-wide kill switch for sync-adjacent work | `1` |

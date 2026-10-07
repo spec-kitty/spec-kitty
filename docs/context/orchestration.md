@@ -2,7 +2,7 @@
 title: 'Context: Orchestration'
 description: 'Glossary context for orchestration: lifecycle and runtime orchestration semantics, including the repository, project, and mission-run terms.'
 doc_status: active
-updated: '2026-10-05'
+updated: '2026-10-06'
 related:
 - docs/context/charter.md
 - docs/context/identity.md
@@ -601,6 +601,45 @@ Mission topology terms (the four topologies, write checkout, repo-root lane, cod
 | **Applicable to** | `3.x` |
 | **Do NOT use when** | The concept is `spec-kitty consolidate`'s local lane consolidation — use [Lane Consolidation](#lane-consolidation). The concept is the `git merge` branch-integration step — use [Branch Integration / Git Merge](#branch-integration--git-merge). |
 | **Related terms** | [Lane Consolidation](#lane-consolidation), [Branch Integration / Git Merge](#branch-integration--git-merge), [primary branch](#primary-branch) |
+
+---
+
+### Evidence gate
+
+| | |
+|---|---|
+| **Definition** | A command that turns a Mission's local status or code into a durable verdict: review workspace preparation (`agent action review`), `accept`, `consolidate`, and the `orchestrator-api` `accept-mission` and `consolidate-mission` forms. Each one runs the [origin freshness check](#origin-freshness-check) before it trusts a local branch. Enforced by `tests/architectural/test_evidence_gates_check_origin.py`. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Do NOT use when** | The concept is the end of a Mission's life — "terminus" already names that, so never "terminus gate". The concept is the reconciliation gate that verifies a consolidation landed approved content (`MergeOutcomeVerifier`) — that is one step *inside* `consolidate`, not the gate itself. The concept is the comparison against the remote — use [origin freshness check](#origin-freshness-check); never "origin reconciliation" or "sync". |
+| **Related terms** | [origin freshness check](#origin-freshness-check), [status evidence branch](#status-evidence-branch), [Lane Consolidation](#lane-consolidation) |
+
+---
+
+### Origin freshness check
+
+| | |
+|---|---|
+| **Definition** | Refreshing the remote's view of a branch in the current invocation and classifying the local branch against it. The verdict is one of `up_to_date`, `behind`, `ahead`, `diverged`, `local_missing`, `remote_missing`, `unreachable` or `no_remote`. A gate refuses on `ORIGIN_STATUS_STALE`, `ORIGIN_LANE_STALE`, `ORIGIN_LANE_DIVERGED` or `ORIGIN_UNREACHABLE` unless the operator passes `--origin-check warn` (default `SPEC_KITTY_ORIGIN_CHECK`). Owned by `specify_cli.git.origin_freshness`; remote contact itself belongs to `kernel.git.remote`. See ADR [2026-10-06-3](../adr/4.x/2026-10-06-3-evidence-gates-check-origin-freshness.md). |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Do NOT use when** | The concept is the check that a push will be accepted (`is_safe_to_push` in `push_preflight`) — that is push safety, which this check does not replace. The concept is the consolidation reconciliation gate — use [Evidence gate](#evidence-gate) and name the gate; do not say "origin reconciliation". The retired transport vocabulary ("sync", "in sync") is never used for this: say `up_to_date`. |
+| **Related terms** | [Evidence gate](#evidence-gate), [status evidence branch](#status-evidence-branch), [Publish to origin/main](#publish-to-originmain) |
+
+---
+
+### Status evidence branch
+
+| | |
+|---|---|
+| **Definition** | The branch whose copy of a Mission's `status.events.jsonl` an [evidence gate](#evidence-gate) reads: the coordination branch for a coordination topology, the write branch for `single_branch` (`kitty/mission-...` for a protected target, the target itself with `--commit-to-target`), and the target branch for `lanes`. The origin freshness check judges it only on commits that change this Mission's status log, under every directory alias of the Mission. A gate never moves it; it refuses and names the pull command. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Do NOT use when** | The concept is the [COORD partition](#coord-partition) (a routing rule over artifact kinds), or "coord" generally: a `lanes` or `single_branch` Mission has no coordination branch but still has a status evidence branch. The concept is a lane's code branch — use [Lane](#lane). |
+| **Related terms** | [Evidence gate](#evidence-gate), [origin freshness check](#origin-freshness-check), [COORD partition](#coord-partition), [PRIMARY partition](#primary-partition) |
 
 ---
 
