@@ -194,6 +194,7 @@ def _born_mission(
     raw_meta: str | None = None,
     mission_id: str | None = _MISSION_ID,
     tasks_is_file: bool = False,
+    tasks_md: bytes = b"# Tasks\n\n## WP01 X\n\n- [x] T001 ref\n",
 ) -> Path:
     mission_dir = root / "m-01KZMATRIX"
     (mission_dir / "tasks").mkdir(parents=True)
@@ -202,7 +203,7 @@ def _born_mission(
         meta["mission_id"] = mission_id
     (mission_dir / "meta.json").write_text(raw_meta if raw_meta is not None else json.dumps(meta), encoding="utf-8")
     (mission_dir / "tasks" / "WP01-x.md").write_text(f"---\n{wp_frontmatter}---\n\n# WP01\n", encoding="utf-8")
-    (mission_dir / "tasks.md").write_text("# Tasks\n\n## WP01 X\n\n- [x] T001 ref\n", encoding="utf-8")
+    (mission_dir / "tasks.md").write_bytes(tasks_md)
     if tasks_is_file:
         shutil.rmtree(mission_dir / "tasks")
         (mission_dir / "tasks").write_text("not a directory", encoding="utf-8")
@@ -269,6 +270,7 @@ _PASS_QUIET = (True, ())
         pytest.param({"wp_frontmatter": 'work_package_id: "WP01"\nagent: [unclosed\n'}, False, REASON_LEGACY_UNDECIDABLE, id="wp-unparsable"),
         pytest.param({"mission_id": None}, False, "absent mission_id", id="absent-mission-id"),
         pytest.param({"tasks_is_file": True}, False, REASON_LEGACY_UNDECIDABLE, id="tasks-is-a-file"),
+        pytest.param({"tasks_md": b"# Tasks \xff\xfe"}, False, REASON_LEGACY_UNDECIDABLE, id="tasks-md-not-utf8"),
     ],
 )
 def test_is_cut_over_pre_accept_matrix(tmp_path: Path, kwargs: dict[str, Any], cut_over: bool, reasons_prefix: str | None) -> None:
@@ -284,6 +286,22 @@ def test_is_cut_over_pre_accept_matrix(tmp_path: Path, kwargs: dict[str, Any], c
     else:
         assert verdict.reasons
         assert verdict.reasons[0].startswith(reasons_prefix) or reasons_prefix in verdict.reasons[0]
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "names"),
+    [
+        pytest.param({"tasks_is_file": True}, "tasks", id="tasks-dir"),
+        pytest.param({"tasks_md": b"# Tasks \xff\xfe"}, "tasks.md", id="tasks-md"),
+        pytest.param({"wp_frontmatter": 'work_package_id: "WP01"\nagent: [unclosed\n'}, "WP01-x.md", id="wp-file"),
+    ],
+)
+def test_undecidable_reason_names_the_failing_file(tmp_path: Path, kwargs: dict[str, Any], names: str) -> None:
+    """CI shows which file broke the legacy read and why, not only that it was undecidable."""
+    reason = is_cut_over(_born_mission(tmp_path, **kwargs)).reasons[0]
+
+    assert reason.startswith(REASON_LEGACY_UNDECIDABLE)
+    assert names in reason.removeprefix(REASON_LEGACY_UNDECIDABLE)
 
 
 def test_bom_prefixed_meta_is_still_exempt(tmp_path: Path) -> None:

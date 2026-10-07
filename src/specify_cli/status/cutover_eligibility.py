@@ -299,22 +299,35 @@ def _assert_tasks_dir_listable(tasks_dir: Path) -> None:
             break
 
 
-def _carries_frontmatter_runtime(mission_dir: Path) -> bool | None:
-    """True/False whether any WP file carries legacy claim runtime; ``None`` if undecidable.
+def _failure_detail(label: str, exc: Exception) -> str:
+    """One-line ``label: ExceptionType: text`` for an undecidable legacy-runtime read (``label`` names the file)."""
+    return f"{label}: {type(exc).__name__}: {' '.join(str(exc).split())}"
 
+
+def _carries_frontmatter_runtime(mission_dir: Path) -> tuple[bool, str | None]:
+    """Return ``(carries, failure)``: whether any WP file carries legacy claim runtime, and why it was undecidable.
+
+    ``failure`` is ``None`` when the read succeeded; otherwise it names the file that could not be
+    read and the error, and ``carries`` is ``False`` (callers must check ``failure`` first).
     Counts only claim-time evidence (:meth:`LegacyWPRuntime.has_legacy_claim_runtime`); the
     planning-time ``agent``/``agent_profile``/``role``/``model`` and ``tracker_refs`` do not.
     """
     # Local import: same circular-import rationale as ``is_cut_over``.
     from specify_cli.migration.backfill_runtime_state import read_legacy_runtime  # noqa: PLC0415
 
+    label = "tasks/"
     try:
         _assert_tasks_dir_listable(mission_dir / "tasks")
+        label = "tasks.md"
+        tasks_md = mission_dir / "tasks.md"
+        if tasks_md.exists():
+            tasks_md.read_text(encoding="utf-8")
+        label = "WP files"
         legacy = read_legacy_runtime(mission_dir)
-        return any(row.has_legacy_claim_runtime() for row in legacy.values())
-    except Exception:  # noqa: BLE001 — fail closed on ANY read error (undecidable -> not exempt)
+        return any(row.has_legacy_claim_runtime() for row in legacy.values()), None
+    except Exception as exc:  # noqa: BLE001 — fail closed on ANY read error (undecidable -> not exempt)
         logger.debug("legacy runtime read failed for %s; pre-accept exemption declined", mission_dir, exc_info=True)
-        return None
+        return False, _failure_detail(label, exc)
 
 
 def _meta_has_duplicate_keys(mission_dir: Path) -> bool:
@@ -367,9 +380,9 @@ def pre_accept_exemption(mission_dir: Path) -> PreAcceptDecision:
         return PreAcceptDecision(block_reason=REASON_TERMINAL_MALFORMED)
     if terminal == "terminal":
         return PreAcceptDecision(block_reason=REASON_TERMINAL_UNSTAMPED)
-    carries = _carries_frontmatter_runtime(mission_dir)
-    if carries is None:
-        return PreAcceptDecision(block_reason=REASON_LEGACY_UNDECIDABLE)
+    carries, failure = _carries_frontmatter_runtime(mission_dir)
+    if failure is not None:
+        return PreAcceptDecision(block_reason=f"{REASON_LEGACY_UNDECIDABLE}: {failure}")
     if carries:
         return PreAcceptDecision(block_reason=REASON_LEGACY_FRONTMATTER)
     return PreAcceptDecision(note=PRE_ACCEPT_EXEMPT_NOTE)

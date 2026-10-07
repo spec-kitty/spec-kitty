@@ -704,6 +704,10 @@ def test_remedy_for_undecidable_legacy_and_unknown_reason(tmp_path: Path) -> Non
     def verdict(*reasons: str) -> CutOverVerdict:
         return CutOverVerdict(mission_dir=tmp_path, mission_slug="m-1", cut_over=False, reasons=reasons)
 
-    assert remedy_for(verdict(REASON_LEGACY_UNDECIDABLE)) == "repair the unreadable WP file under kitty-specs/m-1/tasks/, then rerun"
+    detailed = f"{REASON_LEGACY_UNDECIDABLE}: tasks.md: UnicodeDecodeError: bad byte"
+    for reason in (REASON_LEGACY_UNDECIDABLE, detailed):
+        remedy = remedy_for(verdict(reason))
+        assert "kitty-specs/m-1/tasks/" in remedy
+        assert "kitty-specs/m-1/tasks.md" in remedy
     assert remedy_for(verdict("status_phase not flipped despite event-log runtime evidence")) == remedy_command("m-1")
     assert remedy_for(verdict()) == remedy_command("m-1")

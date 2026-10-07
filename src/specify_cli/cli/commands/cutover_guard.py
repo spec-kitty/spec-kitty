@@ -75,7 +75,7 @@ _REMEDY_BY_REASON: dict[str, str] = {
     REASON_PHASE_MALFORMED: 'fix meta.json status_phase in kitty-specs/{slug}/ (expected an integer, e.g. "1"), then rerun',
     REASON_TERMINAL_MALFORMED: "set accepted_at / merged_at in kitty-specs/{slug}/meta.json to an ISO-8601 string (or remove the key), then rerun",
     REASON_META_DUPLICATE_KEYS: "remove the repeated key from kitty-specs/{slug}/meta.json so each key appears once, then rerun",
-    REASON_LEGACY_UNDECIDABLE: "repair the unreadable WP file under kitty-specs/{slug}/tasks/, then rerun",
+    REASON_LEGACY_UNDECIDABLE: "repair the unreadable file the reason names (kitty-specs/{slug}/tasks.md or a WP file under kitty-specs/{slug}/tasks/), then rerun",
     REASON_ABSENT_MISSION_ID: "repair kitty-specs/{slug}/meta.json if it is missing or not valid JSON; otherwise run spec-kitty migrate backfill-identity",
 }
 
@@ -278,9 +278,11 @@ def remedy_command(slug: str) -> str:
 def remedy_for(verdict: CutOverVerdict) -> str:
     """The reason-specific remedy for a failing *verdict* (FR-007).
 
-    Maps the first reason; anything unrecognised keeps the backfill remedy.
+    Maps the first reason by prefix (a reason may carry a detail suffix); anything unrecognised keeps the backfill remedy.
     """
-    template = _REMEDY_BY_REASON.get(verdict.reasons[0] if verdict.reasons else "")
+    reason = verdict.reasons[0] if verdict.reasons else ""
+    # Prefix match: a reason may carry a detail suffix (the file and error that failed).
+    template = next((text for key, text in _REMEDY_BY_REASON.items() if reason.startswith(key)), None)
     if template is None:
         return remedy_command(verdict.mission_slug)
     return template.format(slug=verdict.mission_slug)
