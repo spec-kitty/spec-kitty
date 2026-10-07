@@ -3596,6 +3596,13 @@ pages:
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
+  - path: "docs/adr/4.x/2026-10-07-2-governed-planning-application-seam.md"
+    title: "ADR: governed planning application seam and status integration"
+    divio_type: "none"
+    abstract: "Close the external planning artifact handoff while preserving native workflow, decision, status and commit authorities."
+    anchors:
+    - {slug: "status-api-reconciliation", text: "Status API reconciliation", level: 2}
+    - {slug: "consequences-and-proof", text: "Consequences and proof", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -4121,14 +4128,20 @@ pages:
     - {slug: "spec-kitty-orchestrator-api-accept-mission", text: "spec-kitty orchestrator-api accept-mission", level: 2}
     - {slug: "spec-kitty-orchestrator-api-answer-decision", text: "spec-kitty orchestrator-api answer-decision", level: 2}
     - {slug: "spec-kitty-orchestrator-api-append-history", text: "spec-kitty orchestrator-api append-history", level: 2}
+    - {slug: "spec-kitty-orchestrator-api-artifact-read", text: "spec-kitty orchestrator-api artifact-read", level: 2}
+    - {slug: "spec-kitty-orchestrator-api-artifact-submit", text: "spec-kitty orchestrator-api artifact-submit", level: 2}
     - {slug: "spec-kitty-orchestrator-api-cancel-decision", text: "spec-kitty orchestrator-api cancel-decision", level: 2}
     - {slug: "spec-kitty-orchestrator-api-check-prerequisites", text: "spec-kitty orchestrator-api check-prerequisites", level: 2}
     - {slug: "spec-kitty-orchestrator-api-consolidate-mission", text: "spec-kitty orchestrator-api consolidate-mission", level: 2}
     - {slug: "spec-kitty-orchestrator-api-contract-version", text: "spec-kitty orchestrator-api contract-version", level: 2}
     - {slug: "spec-kitty-orchestrator-api-defer-decision", text: "spec-kitty orchestrator-api defer-decision", level: 2}
+    - {slug: "spec-kitty-orchestrator-api-design-context", text: "spec-kitty orchestrator-api design-context", level: 2}
     - {slug: "spec-kitty-orchestrator-api-design-status", text: "spec-kitty orchestrator-api design-status", level: 2}
+    - {slug: "spec-kitty-orchestrator-api-design-validate", text: "spec-kitty orchestrator-api design-validate", level: 2}
+    - {slug: "spec-kitty-orchestrator-api-interview-record", text: "spec-kitty orchestrator-api interview-record", level: 2}
     - {slug: "spec-kitty-orchestrator-api-list-ready", text: "spec-kitty orchestrator-api list-ready", level: 2}
     - {slug: "spec-kitty-orchestrator-api-mission-state", text: "spec-kitty orchestrator-api mission-state", level: 2}
+    - {slug: "spec-kitty-orchestrator-api-next", text: "spec-kitty orchestrator-api next", level: 2}
     - {slug: "spec-kitty-orchestrator-api-open-decision", text: "spec-kitty orchestrator-api open-decision", level: 2}
     - {slug: "spec-kitty-orchestrator-api-plan", text: "spec-kitty orchestrator-api plan", level: 2}
     - {slug: "spec-kitty-orchestrator-api-record-analysis", text: "spec-kitty orchestrator-api record-analysis", level: 2}
@@ -4430,6 +4443,15 @@ pages:
     - {slug: "consolidate-mission-data-teardown-error-code", text: "`consolidate-mission`: `data.teardown_error_code`", level: 3}
     - {slug: "provider-rules", text: "Provider Rules", level: 2}
     - {slug: "migration-notes", text: "Migration Notes", level: 2}
+    - {slug: "governed-planning-delivery-python-profile", text: "Governed planning delivery (Python profile)", level: 2}
+    - {slug: "design-context", text: "design-context", level: 3}
+    - {slug: "interview-record", text: "interview-record", level: 3}
+    - {slug: "artifact-read", text: "artifact-read", level: 3}
+    - {slug: "artifact-submit", text: "artifact-submit", level: 3}
+    - {slug: "design-validate", text: "design-validate", level: 3}
+    - {slug: "next", text: "next", level: 3}
+    - {slug: "api-only-planning-sequence", text: "API-only planning sequence", level: 3}
+    - {slug: "status-api-and-go-progress-mapping", text: "Status API and Go progress mapping", level: 3}
   - path: "docs/api/profile-invocation.md"
     title: "Profile Invocation Reference"
     divio_type: "none"

@@ -1378,6 +1378,36 @@
      "help": "Read-only design-phase status query (FR-010) -- mirrors ``list-ready``'s\nno-state-transition, no-event-emission, no-``--policy`` contract for the\ndesign pipeline instead of the WP loop.\n\nNever delegates to ``resolve_next_workflow_action`` or\n``decide_next``/``query_current_state`` -- see the Clarification-6\nmodule comment above ``_tasks_are_finalized``.",
      "hidden": false,
      "deprecated": false
+    },
+    "artifact-read": {
+     "help": "Read bounded canonical content and its exact revision (absent is explicit).",
+     "hidden": false,
+     "deprecated": false
+    },
+    "artifact-submit": {
+     "help": "Submit design content through host placement, validators and commit authority.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "design-validate": {
+     "help": "Check current canonical prerequisites without completing a lifecycle step.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "design-context": {
+     "help": "Read bounded resolved templates, governance and required interview slots.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "interview-record": {
+     "help": "Record incremental interview answers through the existing decision service.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "next": {
+     "help": "Query or advance exactly the same authority and lifecycle as native next.",
+     "hidden": false,
+     "deprecated": false
     }
    }
   },
