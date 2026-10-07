@@ -28,6 +28,18 @@ Every gate decided on local state alone. Nothing in the code base asked origin b
 
 ADR 2026-06-05-1 had set the rule that blocked a general fix: remote-state inspection lives only in `push_preflight.py` and the domain preflight stays network-free. That rule was written to stop `merge` from refusing when the local target is legitimately ahead of origin (#1706). It is the right rule for **push safety** and the wrong rule for **evidence**: a gate that reads status events as the truth about a Mission cannot be network-free when the truth lives on a branch another person writes.
 
+## Considered Options
+
+Recorded in the Mission's `research.md` (R-1, R-2, R-4, R-7); the first four were rejected, the last is the chosen shape.
+
+1. **Read the existing `refs/remotes/*` only.** Keeps ADR 2026-06-05-1 network-free, and is the shape of the probe-only fixes #4969 and #4979. Rejected: #5780's clone never fetched, so the tracking refs were as stale as the local branches and the P0 stayed open. The operator rejected it.
+2. **A full `git fetch <remote>`.** Rejected: it transfers an unbounded set of refs (every lane of every Mission), is slower, and with pruning can remove unrelated refs. The chosen check lists the wanted branches with one `ls-remote` and fetches only those, which also makes `remote_missing` a positive answer from the remote instead of an inference from an absent local ref (and a `git fetch` of an absent ref fails the whole call).
+3. **A hard-coded `origin`.** The state of #4969. Rejected: wrong for a clone whose only remote is `upstream` or a fork, and it cannot honor `branch.<b>.remote`.
+4. **Ask every remote.** Rejected: one dead secondary remote (a fork named `upstream`) would then refuse every gate. The rule is the branch's configured remote, else the sole remote, else `origin`; the all-remotes existence probe of #4979 keeps its own semantics inside the same owner (see #5859).
+5. **A boolean skip flag (`--skip-origin-check`).** Rejected for the opt-out: it has no environment-default symmetry and no way to say "warn but continue". A valued `--origin-check` with a `SPEC_KITTY_ORIGIN_CHECK` default mirrors `SPEC_KITTY_MODE` and is the shape chosen.
+
+**Chosen:** a named freshness preflight that contacts the one resolved remote with `ls-remote`, fetches only the listed branches into their tracking refs, and applies a per-gate policy.
+
 ## Decision
 
 **Remote contact has one owner. Evidence freshness is a named preflight in the evidence gates. Push safety stays where it was.**
@@ -93,6 +105,14 @@ ADR 2026-06-05-1 said remote inspection lives in `push_preflight`. It did not. `
 ## Residuals
 
 Each is recorded, not fixed here.
+
+- **The check and the mutation are not atomic.** A teammate can push after the fetch and before the gate moves a branch. The window is the gate's own run time. It is bounded by what runs after: consolidate's lane check and the approval-stamp check (`LANE_MOVED_AFTER_APPROVAL`, ADR 2026-10-04-5) and the reconciliation gate catch a moved lane at the end, and nothing is pushed unless `--push` is given.
+- **Review only warns when the remote is unreachable.** That is safe because review is not the terminus: what review approves is judged again at consolidate, where an unreachable remote refuses, and a lane that moved after approval is refused there. Refusing at review would block a reviewer on a train for no safety gain.
+- **An ambiguous remote refuses (operator ruling 2026-10-07).** When remotes exist but none owns the branch (no `branch.<b>.remote`, not exactly one remote, no `origin`) the verdict is `remote_ambiguous` and the merge-path gates refuse `ORIGIN_REMOTE_AMBIGUOUS` (review warns). Before the ruling this read `no_remote` and passed silently. A repository with no remote at all still passes with nothing contacted (NFR-003).
+- **`off` is a no-contact mode (operator ruling 2026-10-07)** and accepts the risk the ADR exists to remove. It prints one warning and nothing is asked of origin. See operator ruling 3.
+- **A customized merge driver is preserved (operator ruling 2026-10-07).** `init` and `upgrade` write a `merge.<key>.name` / `.driver` value only when it is unset or one a release shipped (the current one, plus the 3.2.6rc1 issue-matrix name); a value the operator set is kept and named in a warning. The merge path's own self-heal (`_ensure_merge_driver_git_config`) still restores the shipped values when a consolidation or auto-rebase runs.
+- **The freshness fetch never moves a local branch.** It passes `--refmap=` so a mirror-style `remote.<name>.fetch` cannot reset a lane, and it compares fully qualified `refs/heads/<b>` so a tag of the same name cannot shadow the branch.
+- **Follow-ups filed:** #5857 (review's lane fast-forward re-probes ancestry in the CLI; the diverged-lane policy lives in two places), #5858 (`consolidate --push` runs `git push` with no timeout, no prompt guard, to the literal `origin`), #5859 (two rules for which remote: the existence probe and the freshness check disagree), #5860 (a credential dialog through `GIT_ASKPASS` or a GUI helper can still appear, and a hang can outlive the timeout on Windows), #5861 (`consolidate --dry-run` does not predict `ORIGIN_*` refusals).
 
 - **The literal `origin` survives in push safety and push.** `push_preflight`'s default remote, the `phase_finalize` push, `consolidation/preflight.py:307`, `orchestrator_api/consolidation.py:170`, `mission_branch_context.py:228`, `coordination/policy.py:112` and `core/git_ops.py:331` still name `origin`. FR-015 keeps push safety unchanged, so they stay; a non-`origin` freshness test pins the new rule where it applies.
 - **`--push` refreshes the target branch twice in the `lanes` topology**: once for the evidence check (the evidence branch is the target there) and once in `push_preflight`. Correct, one extra bounded contact.

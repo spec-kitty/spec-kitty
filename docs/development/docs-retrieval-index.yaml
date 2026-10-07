@@ -3575,6 +3575,7 @@ pages:
     abstract: "spec-kitty upgrade, including --yes, only reports TeamSpace mission-state blockers (and only when hosted drain is on); doctor mission-state --fix is the sole repair consent path."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
