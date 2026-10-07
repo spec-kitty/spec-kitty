@@ -23,7 +23,7 @@ from specify_cli.migration.strip_frontmatter import (
     strip_mutable_fields,
 )
 from specify_cli.status.models import Lane, StatusEvent, WPInnerStateDelta
-from specify_cli.status.reducer import materialize_snapshot
+from specify_cli.status.reducer import materialize, materialize_snapshot, materialize_to_json
 from specify_cli.status.store import (
     append_annotations_atomic_verified,
     append_events_atomic_verified,
@@ -344,6 +344,19 @@ def test_backfill_seeds_positive_then_snapshot_matches_old_reader(tmp_path: Path
     assert sorted(wp["tracker_refs"]) == ["JIRA-1", "JIRA-2"]
     assert wp["subtasks"] == {"T001": "done", "T002": "planned"}
     assert wp["review"]["actor"] == "renata"
+
+
+def test_backfill_refreshes_an_existing_status_snapshot(tmp_path: Path) -> None:
+    """A persisted ``status.json`` must equal the fresh materialization after a write (#5862)."""
+    feature_dir = build_mission(tmp_path)
+    materialize(feature_dir)  # snapshot predating the seeds
+    snapshot_path = feature_dir / "status.json"
+    assert "JIRA-1" not in snapshot_path.read_text(encoding="utf-8")
+
+    result = b.backfill_runtime_state(feature_dir)
+
+    assert result.action == "wrote"
+    assert snapshot_path.read_text(encoding="utf-8") == materialize_to_json(materialize_snapshot(feature_dir))
 
 
 def test_backfill_is_idempotent(tmp_path: Path) -> None:
