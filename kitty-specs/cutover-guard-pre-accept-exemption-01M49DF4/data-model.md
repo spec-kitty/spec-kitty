@@ -10,7 +10,7 @@ Holds iff all of:
 2. event-log runtime evidence present;
 3. `status_phase` absent or a well-formed integer `< 1`;
 4. no terminal evidence: `accepted_at`, `merged_at` empty/absent and `mission_number` is null/absent;
-5. every WP's legacy record reads without error and `has_frontmatter_runtime()` is false.
+5. every WP's legacy record reads without error and `has_legacy_claim_runtime()` is false.
 Any read error → not exempt.
 
 ## Verdict transitions

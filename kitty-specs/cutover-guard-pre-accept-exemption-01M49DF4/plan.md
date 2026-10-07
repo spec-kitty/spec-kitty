@@ -83,14 +83,14 @@ None. No charter violations.
 - **Covers**: FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, NFR-001, NFR-002, NFR-003, C-001, C-002, C-003, C-005
 - **Seams**: `cutover_eligibility.py` (`is_cut_over` between the evidence check and the phase check; `eligible_runtime_missions`); `backfill_runtime_state.py` (`LegacyWPRuntime`, `read_legacy_runtime`)
 - **Shape**:
-  - Add `LegacyWPRuntime.has_frontmatter_runtime()`: claim state, or `assignee`, or `tracker_refs`, or a completed review override. Exclude `subtasks`, and document why (checkboxes are authoring).
+  - Add `LegacyWPRuntime.has_legacy_claim_runtime()`: `shell_pid`, `shell_pid_created_at`, `assignee`, or a completed review override. Exclude `subtasks` (checkboxes are authoring) and, by the operator ruling of 2026-10-07, `agent` and `tracker_refs` (written at planning time by tasks-packages step 4a). `has_claim_state()` and `has_frontmatter_runtime()` are unchanged: backfill still uses them.
   - Add `pre_accept_exemption(mission_dir) -> str | None`, which returns the note (`"pre-accept: status_phase stamp deferred to accept"`) or `None`. Any exception, a missing or unparsable `meta.json`, or a malformed phase returns `None`.
   - In `is_cut_over`, read a malformed `status_phase` as its own explicit FAIL reason. When `phase < 1`, consult the exemption: a note means PASS with the note as the reason; otherwise FAIL with a reason that names terminal evidence or legacy runtime.
   - `eligible_runtime_missions` excludes exempt Missions, so `assert_birth_invariant_holds` agrees with `is_cut_over`.
 - **Tests (red-first)**:
   - #5835: a fixture built from the real WP template frontmatter with a claim event in its event log. `evaluate_touched_missions` returns a FAIL on the base. Mark it `@pytest.mark.regression` with the issue pinned.
   - #5300: the same fixture placed in a synthetic corpus, run through `assert_birth_invariant_holds`.
-  - The verdict matrix in `test_cutover_eligibility.py` covers: no evidence; exempt; exempt with checked subtasks; `accepted_at`; `merged_at`; `mission_number=0`; legacy `agent`; legacy `assignee`; `tracker_refs`; malformed phase; malformed `meta.json`; an unreadable WP; and a stamped, verified Mission.
+  - The verdict matrix in `test_cutover_eligibility.py` covers: no evidence; exempt; exempt with checked subtasks; `accepted_at`; `merged_at`; `mission_number=0`; planning-time `agent`; a step-4a-filled WP; legacy `shell_pid`; legacy `assignee`; authored `tracker_refs`; malformed phase; malformed `meta.json`; an unreadable WP; and a stamped, verified Mission.
 
 ### IC-02 — Actionable guard output + docs
 

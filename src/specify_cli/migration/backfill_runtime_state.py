@@ -221,6 +221,21 @@ class LegacyWPRuntime:
         """
         return bool(self.has_claim_state() or self.assignee is not None or self.tracker_refs or (self.review is not None and self.review.complete))
 
+    def has_legacy_claim_runtime(self) -> bool:
+        """True when the WP FILE carries claim-time runtime written only once a WP is claimed.
+
+        Narrower than :meth:`has_frontmatter_runtime`: ``agent`` and ``tracker_refs`` are
+        excluded because the canonical tasks-packages step 4a fills ``agent`` (with
+        ``agent_profile``/``role``/``model``) at PLANNING time and authored WPs carry
+        ``tracker_refs``, so neither is evidence of an un-migrated claim (#5835, operator
+        ruling 2026-10-07). Counts ``shell_pid``/``shell_pid_created_at``, a non-empty
+        ``assignee`` and a completed review. Used only by the pre-accept exemption; it
+        never drives backfill (:meth:`has_claim_state` and :meth:`has_evictable_state` do).
+        """
+        return bool(
+            self.shell_pid is not None or self.shell_pid_created_at is not None or self.assignee is not None or (self.review is not None and self.review.complete)
+        )
+
     def has_claim_state(self) -> bool:
         """True when frontmatter carries claim state (``agent``/``shell_pid``/``shell_pid_created_at``).
 

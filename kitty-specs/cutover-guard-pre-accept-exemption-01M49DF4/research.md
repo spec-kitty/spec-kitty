@@ -6,7 +6,7 @@
 - **Alternatives**: birth stamp (rejected: second writer, mirror coupling); message-only stopgap (rejected: leaves the P0 red).
 
 ## R2 — What counts as legacy runtime
-- **Decision**: a new `LegacyWPRuntime.has_frontmatter_runtime()` — claim state, `assignee`, `tracker_refs`, completed review override.
+- **Decision**: a new `LegacyWPRuntime.has_legacy_claim_runtime()` — `shell_pid`, `shell_pid_created_at`, `assignee`, completed review override. `agent` and `tracker_refs` are deliberately excluded: tasks-packages step 4a writes `agent` at planning time and authored WPs carry `tracker_refs` (operator ruling of 2026-10-07; the first cut counted both via `has_frontmatter_runtime()` and left natively-born Missions red).
 - **Rationale**: `has_evictable_state()` includes `tasks.md` subtask checkboxes, present in every native Mission; `move-task` is event-only since the IC-04 flip, and the WP template ships empty claim fields that the reader maps to `None`.
 - **Alternatives**: reuse `has_evictable_state()` (rejected: exemption never fires); a separate reader (rejected: C-003).
 

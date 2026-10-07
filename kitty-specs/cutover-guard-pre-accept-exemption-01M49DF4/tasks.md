@@ -9,7 +9,7 @@
 |----|-------------|----|----------|
 | T001 | Red-first #5835 repro through `evaluate_touched_missions` (real WP-template frontmatter, claim event, no stamp) | WP01 | |
 | T002 | Red-first #5300 repro through `assert_birth_invariant_holds` on a synthetic corpus | WP01 | |
-| T003 | `LegacyWPRuntime.has_frontmatter_runtime()` + unit tests | WP01 | [P] |
+| T003 | `LegacyWPRuntime.has_legacy_claim_runtime()` (formerly `has_frontmatter_runtime()`) + unit tests | WP01 | [P] |
 | T004 | `pre_accept_exemption(mission_dir)` fail-closed helper (terminal evidence, phase well-formedness, legacy read) | WP01 | |
 | T005 | Wire the helper into `is_cut_over` (PASS + note / reason-specific FAIL) and `eligible_runtime_missions` | WP01 | |
 | T006 | Verdict matrix in `tests/status/test_cutover_eligibility.py`; convert repros to focused tests | WP01 | |
@@ -25,7 +25,7 @@
 
 T001 Red-first #5835 repro through `evaluate_touched_missions` (WP01)
 T002 Red-first #5300 repro through `assert_birth_invariant_holds` (WP01)
-T003 `LegacyWPRuntime.has_frontmatter_runtime()` (WP01)
+T003 `LegacyWPRuntime.has_legacy_claim_runtime()` (WP01)
 T004 `pre_accept_exemption()` helper (WP01)
 T005 Wire into `is_cut_over` and `eligible_runtime_missions` (WP01)
 T006 Verdict matrix + repro conversion (WP01)

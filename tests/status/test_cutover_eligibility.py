@@ -175,6 +175,11 @@ def test_empty_policy_metadata_is_not_detected(tmp_path: Path) -> None:
 
 _EMPTY_WP = 'work_package_id: "WP01"\ntitle: "Demo"\nagent: ""\nassignee: ""\nshell_pid: ""\n'
 _NOT_FLIPPED = "status_phase not flipped despite event-log runtime evidence"
+#: A WP filled the way tasks-packages step 4a fills it at PLANNING time (no claim yet).
+_STEP_4A_WP = (
+    'work_package_id: "WP01"\ntitle: "Demo"\nagent_profile: "implementer-ivan"\nrole: "implementer"\n'
+    'agent: "claude"\nmodel: "claude-sonnet-4-6"\ntracker_refs: [\'#5835\']\n'
+)
 
 
 def _born_mission(
@@ -228,9 +233,11 @@ _PASS_QUIET = (True, ())
         pytest.param({"meta_extra": {"accepted_at": "2026-02-01T00:00:00Z"}}, False, REASON_TERMINAL_UNSTAMPED, id="accepted"),
         pytest.param({"meta_extra": {"merged_at": "2026-02-01T00:00:00Z"}}, False, REASON_TERMINAL_UNSTAMPED, id="merged"),
         pytest.param({"meta_extra": {"mission_number": 0}}, False, REASON_TERMINAL_UNSTAMPED, id="mission-number-zero"),
-        pytest.param({"wp_frontmatter": _EMPTY_WP.replace('agent: ""', 'agent: "claude"')}, False, REASON_LEGACY_FRONTMATTER, id="legacy-agent"),
+        pytest.param({"wp_frontmatter": _EMPTY_WP.replace('agent: ""', 'agent: "claude"')}, True, PRE_ACCEPT_EXEMPT_NOTE, id="planning-time-agent"),
+        pytest.param({"wp_frontmatter": _STEP_4A_WP}, True, PRE_ACCEPT_EXEMPT_NOTE, id="tasks-packages-step-4a-fill"),
+        pytest.param({"wp_frontmatter": _EMPTY_WP.replace('shell_pid: ""', "shell_pid: 4242")}, False, REASON_LEGACY_FRONTMATTER, id="legacy-shell-pid"),
         pytest.param({"wp_frontmatter": _EMPTY_WP.replace('assignee: ""', 'assignee: "x"')}, False, REASON_LEGACY_FRONTMATTER, id="legacy-assignee"),
-        pytest.param({"wp_frontmatter": _EMPTY_WP + 'tracker_refs:\n  - "X-1"\n'}, False, REASON_LEGACY_FRONTMATTER, id="legacy-tracker-refs"),
+        pytest.param({"wp_frontmatter": _EMPTY_WP + 'tracker_refs:\n  - "X-1"\n'}, True, PRE_ACCEPT_EXEMPT_NOTE, id="authored-tracker-refs"),
         pytest.param({"meta_extra": {"status_phase": "abc"}}, False, REASON_PHASE_MALFORMED, id="phase-malformed"),
         pytest.param({"meta_extra": {"status_phase": "-5"}}, False, REASON_PHASE_MALFORMED, id="phase-negative-malformed"),
         pytest.param({"raw_meta": "{not json"}, False, "absent mission_id", id="meta-invalid-json"),
@@ -278,27 +285,33 @@ def test_stamped_mission_keeps_strict_path(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("runtime", "expected"),
+    ("runtime", "frontmatter_runtime", "legacy_claim"),
     [
-        pytest.param(LegacyWPRuntime(wp_id="WP01"), False, id="empty"),
-        pytest.param(LegacyWPRuntime(wp_id="WP01", subtasks={"T001": Lane.DONE}), False, id="subtasks-only"),
-        pytest.param(LegacyWPRuntime(wp_id="WP01", agent="claude"), True, id="agent"),
-        pytest.param(LegacyWPRuntime(wp_id="WP01", assignee="x"), True, id="assignee"),
-        pytest.param(LegacyWPRuntime(wp_id="WP01", tracker_refs=("X-1",)), True, id="tracker-refs"),
+        pytest.param(LegacyWPRuntime(wp_id="WP01"), False, False, id="empty"),
+        pytest.param(LegacyWPRuntime(wp_id="WP01", subtasks={"T001": Lane.DONE}), False, False, id="subtasks-only"),
+        pytest.param(LegacyWPRuntime(wp_id="WP01", agent="claude"), True, False, id="agent"),
+        pytest.param(LegacyWPRuntime(wp_id="WP01", shell_pid=7), True, True, id="shell-pid"),
+        pytest.param(LegacyWPRuntime(wp_id="WP01", shell_pid_created_at="t"), True, True, id="shell-pid-created-at"),
+        pytest.param(LegacyWPRuntime(wp_id="WP01", assignee="x"), True, True, id="assignee"),
+        pytest.param(LegacyWPRuntime(wp_id="WP01", tracker_refs=("X-1",)), True, False, id="tracker-refs"),
         pytest.param(
             LegacyWPRuntime(wp_id="WP01", review=ReviewOverride(at="t", actor="a", wp_id="WP01", reason="r")),
+            True,
             True,
             id="complete-review",
         ),
         pytest.param(
             LegacyWPRuntime(wp_id="WP01", review=ReviewOverride(at="", actor="", wp_id="WP01", reason="")),
             False,
+            False,
             id="incomplete-review",
         ),
     ],
 )
-def test_has_frontmatter_runtime(runtime: LegacyWPRuntime, expected: bool) -> None:
-    assert runtime.has_frontmatter_runtime() is expected
+def test_legacy_runtime_predicates(runtime: LegacyWPRuntime, frontmatter_runtime: bool, legacy_claim: bool) -> None:
+    """The exemption's narrower predicate ignores the planning-time ``agent``/``tracker_refs``; backfill's does not."""
+    assert runtime.has_frontmatter_runtime() is frontmatter_runtime
+    assert runtime.has_legacy_claim_runtime() is legacy_claim
 
 
 def test_pre_accept_exemption_declines_on_unreadable_meta(tmp_path: Path) -> None:

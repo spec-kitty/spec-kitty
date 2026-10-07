@@ -258,13 +258,17 @@ def _raw_phase_state(meta: Mapping[str, Any]) -> str:
 
 
 def _carries_frontmatter_runtime(mission_dir: Path) -> bool | None:
-    """True/False whether any WP file carries legacy runtime; ``None`` if undecidable."""
+    """True/False whether any WP file carries legacy claim runtime; ``None`` if undecidable.
+
+    Counts only claim-time evidence (:meth:`LegacyWPRuntime.has_legacy_claim_runtime`); the
+    planning-time ``agent``/``agent_profile``/``role``/``model`` and ``tracker_refs`` do not.
+    """
     # Local import: same circular-import rationale as ``is_cut_over``.
     from specify_cli.migration.backfill_runtime_state import read_legacy_runtime  # noqa: PLC0415
 
     try:
         legacy = read_legacy_runtime(mission_dir)
-        return any(row.has_frontmatter_runtime() for row in legacy.values())
+        return any(row.has_legacy_claim_runtime() for row in legacy.values())
     except Exception:  # noqa: BLE001 — fail closed on ANY read error (undecidable -> not exempt)
         logger.debug("legacy runtime read failed for %s; pre-accept exemption declined", mission_dir, exc_info=True)
         return None
