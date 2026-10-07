@@ -220,6 +220,15 @@ class LegacyWPRuntime:
             or (self.review is not None and self.review.complete)
         )
 
+    def has_frontmatter_runtime(self) -> bool:
+        """True when the WP FILE carries runtime state (claim, assignee, tracker refs, completed review).
+
+        Narrower than :meth:`has_evictable_state`: ``subtasks`` come from
+        ``tasks.md`` reference rows, which every natively-born Mission authors,
+        so they are not evidence of un-migrated legacy runtime (#5835).
+        """
+        return bool(self.has_claim_state() or self.assignee is not None or self.tracker_refs or (self.review is not None and self.review.complete))
+
     def has_claim_state(self) -> bool:
         """True when frontmatter carries claim state (``agent``/``shell_pid``/``shell_pid_created_at``).
 

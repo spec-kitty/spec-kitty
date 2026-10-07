@@ -235,7 +235,8 @@ def test_reked_lock_reds_on_born_un_reconciled_mission(tmp_path: Path) -> None:
     runtime state anywhere on disk — the FR-008/WP05 shape) but whose event
     log carries a genuine LIVE claim (real ``policy_metadata``, exactly the
     shape a born mission gets at the WP09 birth-cutover seam) while
-    ``status_phase`` was never flipped — a drifted, un-birth-stamped mission.
+    ``status_phase`` was never flipped — a drifted, un-birth-stamped mission
+    (the fixture Mission is accepted but unstamped: terminal evidence).
 
     Two things must both hold, or the re-key is wrong:
 
@@ -266,6 +267,8 @@ def test_reked_lock_reds_on_born_un_reconciled_mission(tmp_path: Path) -> None:
                 "mission_id": mission_id,
                 "mission_slug": mission_dir.name,
                 "mission_type": "software-dev",
+                # Accepted but never stamped: a pre-accept Mission is exempt (#5835).
+                "accepted_at": "2026-07-25T10:00:00+00:00",
             }
         ),
         encoding="utf-8",
@@ -319,6 +322,62 @@ def test_reked_lock_reds_on_born_un_reconciled_mission(tmp_path: Path) -> None:
 
     # ...and the lock genuinely REDS on it (non-vacuous).
     with pytest.raises(AssertionError, match="not cut over"):
+        _assert_birth_invariant_holds(corpus)
+
+
+def _born_claimed_mission(corpus: Path, slug: str, extra_meta: dict[str, object]) -> Path:
+    """A natively-born, claimed Mission: empty-template WP frontmatter, no stamp."""
+    mission_dir = corpus / slug
+    (mission_dir / "tasks").mkdir(parents=True)
+    mission_id = "01KZEXEMPTCORPUS000000001"
+    (mission_dir / "meta.json").write_text(
+        json.dumps({"mission_id": mission_id, "mission_slug": slug, **extra_meta}),
+        encoding="utf-8",
+    )
+    # Empty template claim fields (agent/assignee/shell_pid) read as no runtime.
+    (mission_dir / "tasks" / "WP01-demo.md").write_text(
+        '---\nwork_package_id: "WP01"\ntitle: "Demo"\nagent: ""\nassignee: ""\nshell_pid: ""\n---\n\n# WP01\n',
+        encoding="utf-8",
+    )
+    (mission_dir / "tasks.md").write_text("# Tasks\n\n## WP01 Demo\n\n- [x] T001 ref\n", encoding="utf-8")
+    claim = StatusEvent(
+        event_id="01KZEXEMPTCORPUS000000CLM1",
+        mission_slug=slug,
+        mission_id=mission_id,
+        wp_id="WP01",
+        from_lane=Lane.PLANNED,
+        to_lane=Lane.CLAIMED,
+        at="2026-10-06T09:00:00+00:00",
+        actor="claude",
+        force=False,
+        execution_mode="worktree",
+        policy_metadata=build_claim_policy_metadata(
+            shell_pid=4242,
+            shell_pid_created_at="2026-10-06T08:59:00+00:00",
+            agent="claude",
+        ),
+    )
+    append_events_atomic_verified(mission_dir, [claim])
+    return mission_dir
+
+
+def test_pre_accept_mission_is_not_eligible_but_accepted_twin_is(tmp_path: Path) -> None:
+    """#5300: ``assert_birth_invariant_holds`` shares the pre-accept exemption.
+
+    A claimed, never-accepted Mission with no legacy frontmatter runtime is not
+    eligible (its stamp is deferred to accept), while an otherwise identical
+    Mission with ``accepted_at`` and no stamp stays eligible and so still REDS
+    the invariant. A fully healthy stamped Mission is not built here (it would
+    need a backfill run), so eligibility is asserted directly.
+    """
+    corpus = tmp_path / "kitty-specs"
+    corpus.mkdir()
+    exempt = _born_claimed_mission(corpus, "in-flight-01KZEXEMPT", {})
+    accepted = _born_claimed_mission(corpus, "accepted-unstamped-01KZEXEMPT", {"accepted_at": "2026-10-06T10:00:00+00:00"})
+
+    assert _eligible_runtime_missions(corpus) == [accepted]
+    assert exempt not in _eligible_runtime_missions(corpus)
+    with pytest.raises(AssertionError, match="accepted-unstamped"):
         _assert_birth_invariant_holds(corpus)
 
 

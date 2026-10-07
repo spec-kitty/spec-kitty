@@ -31,7 +31,11 @@ A mission that never carries event-log runtime evidence at all (never
 claimed) is **not** subject to this invariant — it legitimately reduces to an
 empty snapshot and :func:`is_cut_over` reports it cut-over (nothing to
 enforce). A mission WITH evidence but ``status_phase != "1"`` is un-cut-over
-and MUST be caught by both consumers.
+and MUST be caught by both consumers — except a *pre-accept* mission
+(:func:`pre_accept_exemption`, #5835 / #5300): the stamp is written only at
+accept/consolidate by design (#2917), so an in-flight mission with no terminal
+evidence and no legacy frontmatter runtime is exempt. Both consumers share
+that one exemption; it is fail-closed (any undecidable input declines it).
 """
 
 from __future__ import annotations
@@ -62,6 +66,20 @@ RUNTIME_SLOTS: tuple[str, ...] = (
     "model",
     "provider",
 )
+
+#: Explanatory note carried by a PASS verdict for a pre-accept mission.
+PRE_ACCEPT_EXEMPT_NOTE = "pre-accept: status_phase stamp deferred to accept/consolidate"
+
+_NOT_FLIPPED = "status_phase not flipped despite event-log runtime evidence"
+
+#: Block reasons (reused by the guard's remedy text). The terminal and legacy
+#: reasons keep the historical ``status_phase not flipped ...`` prefix.
+REASON_TERMINAL_UNSTAMPED = f"{_NOT_FLIPPED}: mission is accepted/merged but status_phase is not stamped"
+REASON_LEGACY_FRONTMATTER = f"{_NOT_FLIPPED}: WP frontmatter carries legacy runtime to migrate"
+REASON_ABSENT_MISSION_ID = "absent mission_id"
+REASON_PHASE_MALFORMED = "status_phase is malformed (not an integer)"
+REASON_META_UNREADABLE = f"{_NOT_FLIPPED}: meta.json is missing or unreadable"
+REASON_LEGACY_UNDECIDABLE = f"{_NOT_FLIPPED}: legacy WP runtime could not be read to decide the pre-accept exemption"
 
 
 def _policy_metadata_carries_runtime_evidence(policy_metadata: Mapping[str, Any] | None) -> bool:
@@ -196,6 +214,84 @@ def mission_carries_event_log_runtime(mission_dir: Path) -> bool:
     return any(_policy_metadata_carries_runtime_evidence(event.policy_metadata) for event in stream.transitions)
 
 
+@dataclass(frozen=True)
+class PreAcceptDecision:
+    """Outcome of :func:`pre_accept_exemption`: exempt (``note``) or blocked (``block_reason``)."""
+
+    note: str | None = None
+    block_reason: str | None = None
+
+    @property
+    def exempt(self) -> bool:
+        return self.note is not None
+
+
+def _terminal_evidence(meta: Mapping[str, Any]) -> bool:
+    """True iff *meta* shows the mission was accepted/merged/numbered (``0`` counts)."""
+    return any(str(meta.get(key) or "").strip() for key in ("accepted_at", "merged_at")) or meta.get("mission_number") is not None
+
+
+def _raw_phase_state(meta: Mapping[str, Any]) -> str:
+    """Classify the raw ``status_phase``: ``"absent"``, ``"early"`` (int < 1), ``"stamped"`` or ``"malformed"``."""
+    raw = meta.get("status_phase")
+    if raw is None:
+        return "absent"
+    try:
+        value = int(str(raw).strip())
+    except ValueError:
+        return "malformed"
+    return "early" if value < 1 else "stamped"
+
+
+def _carries_frontmatter_runtime(mission_dir: Path) -> bool | None:
+    """True/False whether any WP file carries legacy runtime; ``None`` if undecidable."""
+    # Local import: same circular-import rationale as ``is_cut_over``.
+    from specify_cli.migration.backfill_runtime_state import read_legacy_runtime  # noqa: PLC0415
+
+    try:
+        legacy = read_legacy_runtime(mission_dir)
+        return any(row.has_frontmatter_runtime() for row in legacy.values())
+    except Exception:  # noqa: BLE001 — fail closed on ANY read error (undecidable -> not exempt)
+        return None
+
+
+def pre_accept_exemption(mission_dir: Path) -> PreAcceptDecision:
+    """Decide the pre-accept exemption for a mission with event-log runtime evidence.
+
+    Exempt (``note`` set) only when ``meta.json`` parses with a ``mission_id``, ``status_phase`` is
+    absent or a well-formed integer ``< 1``, there is no terminal evidence
+    (``accepted_at`` / ``merged_at`` / ``mission_number``), and no WP file
+    carries legacy frontmatter runtime. Every undecidable input declines the
+    exemption with a ``block_reason`` (fail closed, FR-005).
+    """
+    try:
+        meta = load_meta(mission_dir, allow_missing=True, on_malformed="raise", encoding="utf-8-sig")
+    except Exception:  # noqa: BLE001 — fail closed: an unreadable meta.json is never exempt
+        meta = None
+    if not meta:
+        return PreAcceptDecision(block_reason=REASON_META_UNREADABLE)
+    if not str(meta.get("mission_id") or "").strip():
+        return PreAcceptDecision(block_reason=REASON_ABSENT_MISSION_ID)
+    phase_state = _raw_phase_state(meta)
+    if phase_state == "malformed":
+        return PreAcceptDecision(block_reason=REASON_PHASE_MALFORMED)
+    if phase_state == "stamped":
+        return PreAcceptDecision(block_reason=_NOT_FLIPPED)
+    if _terminal_evidence(meta):
+        return PreAcceptDecision(block_reason=REASON_TERMINAL_UNSTAMPED)
+    carries = _carries_frontmatter_runtime(mission_dir)
+    if carries is None:
+        return PreAcceptDecision(block_reason=REASON_LEGACY_UNDECIDABLE)
+    if carries:
+        return PreAcceptDecision(block_reason=REASON_LEGACY_FRONTMATTER)
+    return PreAcceptDecision(note=PRE_ACCEPT_EXEMPT_NOTE)
+
+
+def _is_pre_accept_exempt(mission_dir: Path) -> bool:
+    """True iff *mission_dir* is pre-accept exempt (a stamped mission never is)."""
+    return pre_accept_exemption(mission_dir).exempt
+
+
 def eligible_runtime_missions(
     corpus: Path, *, exclude: Iterable[str] = ()
 ) -> list[Path]:
@@ -203,14 +299,16 @@ def eligible_runtime_missions(
 
     *exclude* names mission directory basenames to skip entirely (e.g. a
     live, actively-running cutover mission that must not be judged against
-    its own momentary phase).
+    its own momentary phase). A pre-accept mission
+    (:func:`pre_accept_exemption`) is not eligible: its stamp is deferred to
+    accept/consolidate, so it is judged by neither consumer until then.
     """
     excluded = frozenset(exclude)
     eligible: list[Path] = []
     for mission_dir in sorted(corpus.iterdir()):
         if not mission_dir.is_dir() or mission_dir.name in excluded:
             continue
-        if mission_carries_event_log_runtime(mission_dir):
+        if mission_carries_event_log_runtime(mission_dir) and not _is_pre_accept_exempt(mission_dir):
             eligible.append(mission_dir)
     return eligible
 
@@ -220,8 +318,10 @@ class CutOverVerdict:
     """Fail-closed verdict for a single mission's cut-over status.
 
     ``cut_over`` is the caller-facing decision; ``reasons`` is a
-    human-readable, non-empty explanation whenever ``cut_over`` is False (and
-    empty otherwise). ``mission_slug`` is always the directory basename,
+    human-readable, non-empty explanation whenever ``cut_over`` is False. A
+    PASS is normally empty but carries one explanatory reason
+    (:data:`PRE_ACCEPT_EXEMPT_NOTE`) for a pre-accept mission: consumers must
+    treat ``cut_over`` as the decision and ``reasons`` as explanation only. ``mission_slug`` is always the directory basename,
     independent of whether ``mission_id`` could be read.
     """
 
@@ -231,6 +331,19 @@ class CutOverVerdict:
     reasons: tuple[str, ...] = ()
 
 
+def _early_phase_verdict(mission_dir: Path, slug: str) -> CutOverVerdict | None:
+    """Verdict for an absent / ``< 1`` / malformed ``status_phase``; ``None`` when stamped (>= 1)."""
+    state = _raw_phase_state(_read_meta(mission_dir))
+    if state == "stamped":
+        return None
+    if state == "malformed":
+        return CutOverVerdict(mission_dir=mission_dir, mission_slug=slug, cut_over=False, reasons=(REASON_PHASE_MALFORMED,))
+    decision = pre_accept_exemption(mission_dir)
+    if decision.note is not None:
+        return CutOverVerdict(mission_dir=mission_dir, mission_slug=slug, cut_over=True, reasons=(decision.note,))
+    return CutOverVerdict(mission_dir=mission_dir, mission_slug=slug, cut_over=False, reasons=(decision.block_reason or _NOT_FLIPPED,))
+
+
 def is_cut_over(mission_dir: Path) -> CutOverVerdict:
     """Decide cut-over for *mission_dir* per the data-model.md definition.
 
@@ -238,6 +351,11 @@ def is_cut_over(mission_dir: Path) -> CutOverVerdict:
     ``verify_backfill`` error, an empty snapshot despite event-log evidence):
     never returns ``cut_over=True`` on anything but a fully-verified,
     evidence-backed, phase-flipped mission.
+
+    An unstamped mission with event-log evidence passes only through the
+    pre-accept exemption (:func:`pre_accept_exemption`), with one explanatory
+    reason; terminal evidence, legacy frontmatter runtime, a malformed phase or
+    any undecidable read stays a FAIL.
 
     A mission with NO event-log runtime evidence at all (never claimed) is
     exempt from the invariant — it is reported cut-over because there is
@@ -257,7 +375,7 @@ def is_cut_over(mission_dir: Path) -> CutOverVerdict:
             mission_dir=mission_dir,
             mission_slug=slug,
             cut_over=False,
-            reasons=("absent mission_id",),
+            reasons=(REASON_ABSENT_MISSION_ID,),
         )
 
     if not mission_carries_event_log_runtime(mission_dir):
@@ -268,14 +386,9 @@ def is_cut_over(mission_dir: Path) -> CutOverVerdict:
             reasons=(),
         )
 
-    phase = status_phase(mission_dir)
-    if (phase or 0) < 1:
-        return CutOverVerdict(
-            mission_dir=mission_dir,
-            mission_slug=slug,
-            cut_over=False,
-            reasons=("status_phase not flipped despite event-log runtime evidence",),
-        )
+    early = _early_phase_verdict(mission_dir, slug)
+    if early is not None:
+        return early
 
     wps = runtime_wps(mission_dir)
     if not wps:
