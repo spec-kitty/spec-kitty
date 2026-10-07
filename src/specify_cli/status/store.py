@@ -603,7 +603,7 @@ def is_retrospective_lifecycle_event(obj: Mapping[str, Any]) -> bool:
     return isinstance(event_type, str) and event_type in _RETROSPECTIVE_LIFECYCLE_EVENT_TYPES
 
 
-def is_non_lane_event(obj: dict[str, Any]) -> bool:
+def is_non_lane_event(obj: Mapping[str, Any]) -> bool:
     """Return True for non-lane events that intentionally share the JSONL file."""
     # InnerStateChanged annotations are NOT skip-and-dropped: they are surfaced
     # to reduce() via the annotation read path. This explicit branch is placed
