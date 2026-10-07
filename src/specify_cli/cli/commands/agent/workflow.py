@@ -1997,19 +1997,36 @@ def _lane_ff_target(main_repo_root: Path, branch: str, action: ReviewLaneAction)
     present = bool(remote_sha) and _git_capture(["git", "cat-file", "-e", f"{remote_sha}^{{commit}}"], main_repo_root).returncode == 0
     descends = present and bool(local_sha) and _git_capture(["git", "merge-base", "--is-ancestor", local_sha, str(remote_sha)], main_repo_root).returncode == 0
     if not (present and descends and remote_sha):
-        raise _refuse_review_lane(
-            f"{ORIGIN_LANE_DIVERGED}: {branch} cannot be fast-forwarded to {remote_ref} (the remote changed while it was read).\n"
-            f"  Inspect: git log {branch}...{remote_ref}\n  Reconcile the lane in its worktree, then re-run."
-        )
+        raise _LaneDiverged(f"{ORIGIN_LANE_DIVERGED}: {branch} cannot be fast-forwarded to {remote_ref} (the remote changed while it was read)")
     return local_sha, remote_sha
+
+
+class _LaneDiverged(Exception):
+    """A lane cannot be fast-forwarded to the remote tip; the message is the refusal headline."""
+
+
+def _lane_diverged_outcome(branch: str, action: ReviewLaneAction, headline: str) -> None:
+    """Refuse a diverged lane (exit 1), or, when the environment opts out, warn and keep the local lane."""
+    from specify_cli.git.origin_freshness import OriginCheckMode, lane_diverged_text, resolve_origin_check_mode, review_warning_text
+
+    setting = resolve_origin_check_mode(None)
+    if setting.mode is OriginCheckMode.WARN:
+        print(f"Warning: {review_warning_text(headline, setting)}; reviewing the last-known {branch}.")
+        return
+    raise _refuse_review_lane(lane_diverged_text(headline, action.verdict.remote, branch))
 
 
 def _fast_forward_review_lane(workspace: ResolvedWorkspace, main_repo_root: Path, branch: str, action: ReviewLaneAction, agent: str | None) -> None:
     """Move the strictly-behind local lane to the remote tip, or refuse (exit 1) before any lock or status change."""
+    from specify_cli.git.origin_freshness import ORIGIN_LANE_DIVERGED
     from specify_cli.git.ref_advance import RefAdvanceDirtyWorktreeError, RefAdvanceError, RefAdvanceNonFastForwardError, RefResyncError, advance_branch_ref
     from specify_cli.lanes.lane_tip import record_tip
 
-    local_sha, remote_sha = _lane_ff_target(main_repo_root, branch, action)
+    try:
+        local_sha, remote_sha = _lane_ff_target(main_repo_root, branch, action)
+    except _LaneDiverged as exc:
+        _lane_diverged_outcome(branch, action, str(exc))
+        return
     lock_message = _foreign_review_lock_message(workspace, agent)
     if lock_message is not None:
         raise _refuse_review_lane(lock_message)
@@ -2018,7 +2035,8 @@ def _fast_forward_review_lane(workspace: ResolvedWorkspace, main_repo_root: Path
     except RefAdvanceDirtyWorktreeError as exc:
         raise _refuse_review_lane(f"{exc}\n  Then re-run the review.") from exc
     except RefAdvanceNonFastForwardError as exc:
-        raise _refuse_review_lane(f"ORIGIN_LANE_DIVERGED: {exc}") from exc
+        _lane_diverged_outcome(branch, action, f"{ORIGIN_LANE_DIVERGED}: {exc}")
+        return
     except RefResyncError as exc:
         # The ref write succeeded (it is ours); only a checkout resync failed.
         record_tip(main_repo_root, branch, remote_sha)
@@ -2042,12 +2060,15 @@ def _reconcile_review_lane(workspace: ResolvedWorkspace, main_repo_root: Path, w
     WP status untouched. A workspace that is a checkout root (planning lane,
     ``single_branch``) is skipped: its branch is the status evidence branch.
     """
-    from specify_cli.git.origin_freshness import ReviewLaneKind, plan_review_lane
+    from specify_cli.git.origin_freshness import ReviewLaneKind, plan_review_lane, resolve_origin_check_mode
 
     branch = workspace.branch_name
     if workspace.runs_in_checkout_root or workspace.is_husk or not branch:
         return None
-    action = plan_review_lane(main_repo_root, branch)
+    setting = resolve_origin_check_mode(None)
+    if setting.warning:
+        print(f"Warning: {setting.warning}")
+    action = plan_review_lane(main_repo_root, branch, setting)
     if action.kind is ReviewLaneKind.REFUSE:
         raise _refuse_review_lane(action.message or f"{branch} diverged from its remote")
     if action.kind is ReviewLaneKind.WARN:

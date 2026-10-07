@@ -694,6 +694,36 @@ def test_review_lane_refuses_a_diverged_lane(world: World) -> None:
     assert "lane-d" in (action.message or "")
 
 
+def test_review_lane_diverged_refusal_names_both_recoveries(world: World) -> None:
+    _git(world.a, "branch", "lane-r", "main")
+    _git(world.a, "push", "-q", "origin", "lane-r:lane-r")
+    _push_branch(world.b, "lane-r", "remote.txt")
+    _git(world.a, "checkout", "-q", "lane-r")
+    _commit(world.a, "local.txt")
+    _git(world.a, "checkout", "-q", "main")
+
+    message = plan_review_lane(world.a, "lane-r").message or ""
+
+    assert "merge origin/lane-r" in message
+    assert "git push origin lane-r" in message
+    assert "SPEC_KITTY_ORIGIN_CHECK=warn" in message
+
+
+def test_review_lane_keeps_a_diverged_lane_in_warn_mode(world: World) -> None:
+    _git(world.a, "branch", "lane-w", "main")
+    _git(world.a, "push", "-q", "origin", "lane-w:lane-w")
+    _push_branch(world.b, "lane-w", "remote.txt")
+    _git(world.a, "checkout", "-q", "lane-w")
+    _commit(world.a, "local.txt")
+    _git(world.a, "checkout", "-q", "main")
+
+    action = plan_review_lane(world.a, "lane-w", OriginCheckSetting(OriginCheckMode.WARN, "environment"))
+
+    assert action.kind is ReviewLaneKind.WARN
+    assert action.code == ORIGIN_LANE_DIVERGED
+    assert "origin check is warn, source: environment" in (action.message or "")
+
+
 def test_review_lane_warns_when_the_remote_is_unreachable(world: World) -> None:
     _git(world.a, "branch", "lane-u", "main")
     unreachable_remote(world.a)

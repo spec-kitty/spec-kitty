@@ -46,7 +46,9 @@ __all__ = [
     "approved_lane_branches",
     "check_mission_branches",
     "enforce_merge_gate",
+    "lane_diverged_text",
     "plan_review_lane",
+    "review_warning_text",
     "resolve_origin_check_mode",
 ]
 
@@ -308,6 +310,7 @@ def approved_lane_branches(
 
 _STALE_STATES = frozenset({FreshnessState.BEHIND, FreshnessState.DIVERGED, FreshnessState.LOCAL_MISSING})
 _OPT_OUT_LINE = f"Opt out (not recommended): --origin-check warn, or {ORIGIN_CHECK_ENV}=warn."
+_REVIEW_OPT_OUT_LINE = f"Opt out (not recommended): {ORIGIN_CHECK_ENV}=warn."
 _RERUN_LINE = "  Then re-run."
 _NO_ANSWER = "the remote did not answer"
 
@@ -368,10 +371,30 @@ def _status_remedy(verdict: FreshnessVerdict, checkout: Path | None, *, merge_re
     return [f"  Update it with: {pull}", _RERUN_LINE]
 
 
+def _diverged_lane_remedy(remote: str | None, lane: str) -> list[str]:
+    """The one remedy text for a diverged lane: integrate the remote lane, or push the local one."""
+    return [
+        f"  Inspect: git log {lane}...{remote}/{lane}",
+        f"  If the remote lane has work you need: git -C <lane worktree> merge {remote}/{lane}",
+        f"  If the local lane is the truth: git push {remote} {lane}",
+        _RERUN_LINE,
+    ]
+
+
+def lane_diverged_text(headline: str, remote: str | None, lane: str) -> str:
+    """A ``review`` refusal for a diverged lane: *headline*, the remedy, and the environment-only opt-out."""
+    return "\n".join([headline, *_diverged_lane_remedy(remote, lane), _REVIEW_OPT_OUT_LINE])
+
+
+def review_warning_text(headline: str, setting: OriginCheckSetting) -> str:
+    """*headline* as a warning, naming the resolved setting (``review`` has no flag, so source is ``environment``)."""
+    return f"{headline} (origin check is {setting.mode.value}, source: {setting.source})"
+
+
 def _lane_remedy(verdict: FreshnessVerdict) -> list[str]:
     remote, lane = verdict.remote, verdict.branch
     if verdict.state is FreshnessState.DIVERGED:
-        return [f"  Inspect: git log {lane}...{remote}/{lane}", "  Reconcile the lane in its worktree.", _RERUN_LINE]
+        return _diverged_lane_remedy(remote, lane)
     if verdict.state is FreshnessState.LOCAL_MISSING:
         return [f"  Create it with: git branch {lane} {remote}/{lane}", _RERUN_LINE]
     return [
@@ -461,8 +484,13 @@ class ReviewLaneAction:
     message: str | None = None
 
 
-def plan_review_lane(repo_root: Path, lane_branch: str) -> ReviewLaneAction:
-    """Map a lane's freshness verdict to a review-prep action (plan policy table, review row)."""
+def plan_review_lane(repo_root: Path, lane_branch: str, setting: OriginCheckSetting | None = None) -> ReviewLaneAction:
+    """Map a lane's freshness verdict to a review-prep action (plan policy table, review row).
+
+    *setting* defaults to the environment-resolved one (``review`` has no flag); in
+    ``warn`` mode a diverged lane is kept as it is with a warning instead of refused.
+    """
+    setting = setting or resolve_origin_check_mode(None)
     verdict = _only_verdict(check_branches(repo_root, [lane_branch]))
     ref = tracking_ref(verdict.remote, lane_branch) if verdict.remote else None
     if verdict.state is FreshnessState.BEHIND:
@@ -470,7 +498,10 @@ def plan_review_lane(repo_root: Path, lane_branch: str) -> ReviewLaneAction:
     if verdict.state is FreshnessState.LOCAL_MISSING:
         return ReviewLaneAction(ReviewLaneKind.CREATE_FROM, verdict, remote_sha=verdict.remote_sha, remote_ref=ref)
     if verdict.state is FreshnessState.DIVERGED:
-        message = "\n".join([_headline(ORIGIN_LANE_DIVERGED, verdict), *_lane_remedy(verdict)])
+        headline = _headline(ORIGIN_LANE_DIVERGED, verdict)
+        if setting.mode is OriginCheckMode.WARN:
+            return ReviewLaneAction(ReviewLaneKind.WARN, verdict, code=ORIGIN_LANE_DIVERGED, message=review_warning_text(headline, setting))
+        message = lane_diverged_text(headline, verdict.remote, lane_branch)
         return ReviewLaneAction(ReviewLaneKind.REFUSE, verdict, remote_ref=ref, code=ORIGIN_LANE_DIVERGED, message=message)
     if verdict.state is FreshnessState.UNREACHABLE:
         return ReviewLaneAction(ReviewLaneKind.WARN, verdict, code=ORIGIN_UNREACHABLE, message=_headline(ORIGIN_UNREACHABLE, verdict))

@@ -146,6 +146,46 @@ def test_diverged_lane_is_refused_before_any_lock(setup: Setup, capsys: pytest.C
     assert not (setup.worktree / LOCK_DIR / LOCK_FILE).exists()
 
 
+def test_diverged_refusal_names_both_recoveries_and_the_environment_opt_out(setup: Setup, capsys: pytest.CaptureFixture[str]) -> None:
+    setup.push_from_b()
+    _commit(setup.worktree, "local\n", "local only")
+
+    out = _refused(setup, capsys)
+
+    assert f"merge origin/{LANE}" in out
+    assert f"git push origin {LANE}" in out
+    assert "SPEC_KITTY_ORIGIN_CHECK=warn" in out
+    assert "--origin-check" not in out
+
+
+def test_diverged_lane_only_warns_when_the_environment_opts_out(setup: Setup, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.setenv("SPEC_KITTY_ORIGIN_CHECK", "warn")
+    setup.push_from_b()
+    local = _commit(setup.worktree, "local\n", "local only")
+
+    assert _reconcile(setup) is None
+
+    out = " ".join(capsys.readouterr().out.split())
+    assert "Warning: ORIGIN_LANE_DIVERGED" in out
+    assert "source: environment" in out
+    assert _git(setup.repo, "rev-parse", LANE) == local
+
+
+@pytest.mark.parametrize("case", ["not-a-descendant", "unknown-object"])
+def test_raced_divergence_only_warns_when_the_environment_opts_out(
+    setup: Setup, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], case: str
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_ORIGIN_CHECK", "warn")
+    remote_sha = {"not-a-descendant": _sibling_of_local(setup), "unknown-object": "1" * 40}[case]
+    before = _git(setup.repo, "rev-parse", LANE)
+    monkeypatch.setattr(origin_freshness, "plan_review_lane", lambda *_a, **_k: _forced_fast_forward(remote_sha))
+
+    assert _reconcile(setup) is None
+
+    assert "Warning: ORIGIN_LANE_DIVERGED" in capsys.readouterr().out
+    assert _git(setup.repo, "rev-parse", LANE) == before
+
+
 def test_behind_with_a_dirty_tracked_file_is_refused_and_the_file_survives(setup: Setup, capsys: pytest.CaptureFixture[str]) -> None:
     setup.push_from_b()
     before = _git(setup.repo, "rev-parse", LANE)
