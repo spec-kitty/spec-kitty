@@ -302,3 +302,93 @@ def test_derived_set_is_not_vacuous() -> None:
 def test_planted_call_to_a_lane_selector_is_not_a_check(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     body = "from specify_cli.git.origin_freshness import approved_lane_branches\n\ndef gate(root, slug):\n    return approved_lane_branches(root, slug, None)\n"
     assert _planted(tmp_path, monkeypatch, body) == [("specify_cli/cli/commands/planted.py", "gate")]
+
+
+# The one bypass of the executor's own check: a caller that already ran the origin gate
+# passes ``origin_gated=True`` so the same remote is not contacted twice. Every function
+# that passes a value other than literal ``False`` must be reached only from roots that
+# themselves run a check *outside* the executor door (the door's own check is skipped
+# by exactly that keyword).
+_BYPASS_KEYWORD = "origin_gated"
+
+
+def _passes_bypass(call: ast.Call) -> bool:
+    return any(kw.arg == _BYPASS_KEYWORD and not (isinstance(kw.value, ast.Constant) and kw.value.value is False) for kw in call.keywords)
+
+
+def _same_module_callers_of(module: _Module, target: str) -> set[str]:
+    closure = {target}
+    grew = True
+    while grew:
+        grew = False
+        for name, definitions in module.defs.items():
+            if name in closure:
+                continue
+            if any(isinstance(c.func, ast.Name) and c.func.id in closure for d in definitions for c in _calls(d)):
+                closure.add(name)
+                grew = True
+    return closure
+
+
+def bypass_sites() -> set[Entry]:
+    sites: set[Entry] = set()
+    for rel in _scan_files():
+        module = _load(rel)
+        for name, definitions in module.defs.items():
+            if any(_passes_bypass(c) for d in definitions for c in _calls(d)):
+                sites.add((rel, name))
+    return sites
+
+
+def unguarded_bypasses() -> list[Entry]:
+    """Roots that reach an ``origin_gated`` bypass without running a check of their own."""
+    unguarded: list[Entry] = []
+    for rel, site in sorted(bypass_sites()):
+        module = _load(rel)
+        callers = _same_module_callers_of(module, site)
+        for root in sorted(_roots(module, callers) or {site}):
+            seen: set[Entry] = {(rel, root), _EXECUTOR_DOOR}
+            if not any(reaches_check({}, module, d, seen) for d in module.defs[root]):
+                unguarded.append((rel, root))
+    return unguarded
+
+
+def test_origin_gated_bypass_is_only_taken_after_a_check() -> None:
+    assert unguarded_bypasses() == []
+
+
+def test_origin_gated_bypass_sites_are_found() -> None:
+    # Non-vacuity: the planning-only orchestrator path is the known bypass today.
+    assert ("specify_cli/orchestrator_api/consolidation.py", "_execute_planning_only_merge") in bypass_sites()
+
+
+def _planted_bypass(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, body: str) -> list[Entry]:
+    pkg = tmp_path / "specify_cli" / "cli" / "commands"
+    pkg.mkdir(parents=True)
+    (pkg / "planted.py").write_text(body, encoding="utf-8")
+    monkeypatch.setattr(f"{__name__}._SRC", tmp_path)
+    monkeypatch.setattr(f"{__name__}._SCAN_DIRS", ("specify_cli/cli/commands",))
+    _load.cache_clear()
+    try:
+        return unguarded_bypasses()
+    finally:
+        _load.cache_clear()
+
+
+def test_planted_bypass_without_a_check_is_flagged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    body = "def _run(root):\n    return _run_lane_based_consolidation(root, origin_gated=True)\n\ndef gate(root):\n    return _run(root)\n"
+    assert _planted_bypass(tmp_path, monkeypatch, body) == [("specify_cli/cli/commands/planted.py", "gate")]
+
+
+def test_planted_bypass_after_a_check_passes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    body = (
+        "from specify_cli.git.origin_gate import run_origin_gate\n\n"
+        "def _run(root):\n    return _run_lane_based_consolidation(root, origin_gated=True)\n\n"
+        "def gate(root):\n    run_origin_gate(root)\n    return _run(root)\n"
+    )
+    assert _planted_bypass(tmp_path, monkeypatch, body) == []
+
+
+def test_planted_explicit_false_is_not_a_bypass(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    body = "def gate(root):\n    return _run_lane_based_consolidation(root, origin_gated=False)\n"
+    assert _planted_bypass(tmp_path, monkeypatch, body) == []
