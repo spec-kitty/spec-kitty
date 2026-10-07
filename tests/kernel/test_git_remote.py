@@ -154,7 +154,8 @@ def test_remote_heads_unreachable_raises_not_empty(world: tuple[Path, Path]) -> 
 def _fake_ssh(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, sleep: float = 0.0) -> Path:
     """Install a fake ssh as ``GIT_SSH_COMMAND``; it records argv + env, optionally sleeps, then fails."""
     log = tmp_path / "ssh.log"
-    script = tmp_path / "fake-ssh"
+    script = tmp_path / "bin" / "ssh"  # ssh-like basename, so BatchMode is appended to it
+    script.parent.mkdir(exist_ok=True)
     script.write_text(
         f'#!/bin/sh\necho "ARGV: $*" >> "{log}"\necho "PROMPT: ${{GIT_TERMINAL_PROMPT-unset}}" >> "{log}"\nsleep {sleep}\nexit 255\n',
         encoding="utf-8",
@@ -326,16 +327,71 @@ def test_divergence_path_scoped_ignores_unrelated_remote_commits(world: tuple[Pa
 # --- no_prompt_env -----------------------------------------------------------------
 
 
-def test_no_prompt_env_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+def _clean_ssh_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("GIT_SSH_COMMAND", raising=False)
-    env = no_prompt_env()
+    monkeypatch.delenv("GIT_SSH", raising=False)
+
+
+def test_no_prompt_env_defaults(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    isolated_git_env(monkeypatch, tmp_path)
+    _clean_ssh_env(monkeypatch)
+    env = no_prompt_env(cwd=tmp_path)
     assert env["GIT_TERMINAL_PROMPT"] == "0"
     assert env["GIT_SSH_COMMAND"] == "ssh -o BatchMode=yes"
 
 
-def test_no_prompt_env_preserves_existing_ssh_command(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_no_prompt_env_preserves_existing_ssh_command(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    isolated_git_env(monkeypatch, tmp_path)
     monkeypatch.setenv("GIT_SSH_COMMAND", "ssh -i /k")
-    assert no_prompt_env()["GIT_SSH_COMMAND"] == "ssh -i /k -o BatchMode=yes"
+    assert no_prompt_env(cwd=tmp_path)["GIT_SSH_COMMAND"] == "ssh -i /k -o BatchMode=yes"
+
+
+def test_no_prompt_env_honours_core_ssh_command(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A repository's ``core.sshCommand`` is carried over, not overridden by the bare default."""
+    isolated_git_env(monkeypatch, tmp_path)
+    _clean_ssh_env(monkeypatch)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _git(repo, "config", "core.sshCommand", "ssh -i /work/key")
+    assert no_prompt_env(cwd=repo)["GIT_SSH_COMMAND"] == "ssh -i /work/key -o BatchMode=yes"
+
+
+def test_no_prompt_env_env_command_beats_core_ssh_command(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    isolated_git_env(monkeypatch, tmp_path)
+    monkeypatch.setenv("GIT_SSH_COMMAND", "ssh -i /env")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _git(repo, "config", "core.sshCommand", "ssh -i /cfg")
+    assert no_prompt_env(cwd=repo)["GIT_SSH_COMMAND"] == "ssh -i /env -o BatchMode=yes"
+
+
+def test_no_prompt_env_non_ssh_command_is_left_alone(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    isolated_git_env(monkeypatch, tmp_path)
+    _clean_ssh_env(monkeypatch)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _git(repo, "config", "core.sshCommand", "/opt/wrap/ssh-agentless --flag")
+    assert no_prompt_env(cwd=repo)["GIT_SSH_COMMAND"] == "/opt/wrap/ssh-agentless --flag"
+
+
+def test_no_prompt_env_existing_batchmode_not_duplicated(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    isolated_git_env(monkeypatch, tmp_path)
+    monkeypatch.setenv("GIT_SSH_COMMAND", "/usr/bin/ssh -o BatchMode=no")
+    assert no_prompt_env(cwd=tmp_path)["GIT_SSH_COMMAND"] == "/usr/bin/ssh -o BatchMode=no"
+
+
+def test_no_prompt_env_git_ssh_set_leaves_ssh_command_unset(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """``GIT_SSH`` is only honoured by git while ``GIT_SSH_COMMAND`` is absent."""
+    isolated_git_env(monkeypatch, tmp_path)
+    monkeypatch.delenv("GIT_SSH_COMMAND", raising=False)
+    monkeypatch.setenv("GIT_SSH", "/opt/wrap/ssh")
+    env = no_prompt_env(cwd=tmp_path)
+    assert "GIT_SSH_COMMAND" not in env
+    assert env["GIT_SSH"] == "/opt/wrap/ssh"
+    assert env["GIT_TERMINAL_PROMPT"] == "0"
 
 
 def test_no_prompt_env_accepts_base_mapping() -> None:

@@ -14,9 +14,10 @@ an empty result, so a caller cannot mistake "could not ask" for "asked, absent".
 from __future__ import annotations
 
 import os
+import shlex
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePath
 
 from kernel.git.runner import GitCommandError, GitResult, run_git
 
@@ -45,29 +46,62 @@ FETCH_TIMEOUT: float = 15.0
 # still finite so a stalled transport cannot hang ``spec-kitty`` indefinitely.
 CLONE_TIMEOUT: float = 120.0
 
-_DEFAULT_SSH_COMMAND = "ssh -o BatchMode=yes"
+_DEFAULT_SSH_PROGRAM = "ssh"
+_SSH_LIKE_PROGRAMS = frozenset({"ssh", "ssh.exe"})
+_BATCH_MODE = "BatchMode"
 _LOCAL_REMOTE = "."
 _DEFAULT_REMOTE = "origin"
 
 
-def no_prompt_env(base: Mapping[str, str] | None = None) -> dict[str, str]:
+def _configured_ssh_command(cwd: Path) -> str | None:
+    """Read ``core.sshCommand`` from the local/global git config of *cwd* (no network)."""
+    result = run_git(cwd, "config", "--get", "core.sshCommand", check=False)
+    if result.returncode != 0:
+        return None
+    return result.stdout.decode("utf-8", "replace").strip() or None
+
+
+def _is_ssh_like(command: str) -> bool:
+    """``True`` when *command*'s program is plain ssh(1), the only program that takes ``-o BatchMode``."""
+    try:
+        words = shlex.split(command)
+    except ValueError:
+        return False
+    return bool(words) and PurePath(words[0]).name.lower() in _SSH_LIKE_PROGRAMS
+
+
+def no_prompt_env(base: Mapping[str, str] | None = None, *, cwd: Path | None = None) -> dict[str, str]:
     """Build the subprocess environment for a non-interactive git contact.
 
     ``GIT_TERMINAL_PROMPT=0`` refuses any interactive credential prompt
     outright; the SSH ``BatchMode`` mirrors that refusal for the ssh(1)
     transport, which does not honor ``GIT_TERMINAL_PROMPT`` on its own
-    (NFR-002). A caller's own pre-set ``GIT_SSH_COMMAND`` (a custom identity
-    file, port, or proxy) is preserved by appending ``BatchMode=yes`` to it,
-    rather than clobbering it with the bare default.
+    (NFR-002).
+
+    The user's own transport choice is never overridden (git gives the
+    ``GIT_SSH_COMMAND`` environment variable precedence over ``core.sshCommand``
+    and ``GIT_SSH``). The effective command is the pre-set ``GIT_SSH_COMMAND``,
+    else ``core.sshCommand`` read in *cwd*, else (when ``GIT_SSH`` is set) none:
+    ``GIT_SSH_COMMAND`` is then left unset and the prompt refusal plus the
+    caller's timeout bound the contact. Otherwise the default is plain ``ssh``.
+    ``-o BatchMode=yes`` is appended only to an ssh-like effective command that
+    does not already carry ``BatchMode``.
 
     Args:
         base: Environment to extend; ``None`` uses ``os.environ``.
+        cwd: Directory whose git config is read for ``core.sshCommand``;
+            ``None`` uses the process working directory.
     """
     source = os.environ if base is None else base
     env = dict(source)
     env["GIT_TERMINAL_PROMPT"] = "0"
-    existing_ssh_command = source.get("GIT_SSH_COMMAND", "").strip()
-    env["GIT_SSH_COMMAND"] = f"{existing_ssh_command} -o BatchMode=yes" if existing_ssh_command else _DEFAULT_SSH_COMMAND
+    command = source.get("GIT_SSH_COMMAND", "").strip() or _configured_ssh_command(cwd or Path.cwd())
+    if command is None and source.get("GIT_SSH", "").strip():
+        return env
+    command = command or _DEFAULT_SSH_PROGRAM
+    if _is_ssh_like(command) and _BATCH_MODE not in command:
+        command = f"{command} -o {_BATCH_MODE}=yes"
+    env["GIT_SSH_COMMAND"] = command
     return env
 
 
@@ -125,7 +159,7 @@ def tracking_ref(remote: str, branch: str) -> str:
 def _contact(cwd: Path, remote: str, timeout: float, *args: str) -> GitResult:
     """Run one remote-contacting command; any failure becomes :class:`RemoteUnreachable`."""
     try:
-        return run_git(cwd, *args, env=no_prompt_env(), timeout=timeout)
+        return run_git(cwd, *args, env=no_prompt_env(cwd=cwd), timeout=timeout)
     except GitCommandError as exc:
         raise RemoteUnreachable(remote, exc) from exc
 
@@ -198,7 +232,7 @@ def describe_remote_head(cwd: Path, remote: str, *, timeout: float = LS_REMOTE_T
     A failed contact yields ``None`` (unknown), which the policy caller treats as such.
     """
     try:
-        result = run_git(cwd, "remote", "show", remote, env=no_prompt_env(), timeout=timeout)
+        result = run_git(cwd, "remote", "show", remote, env=no_prompt_env(cwd=cwd), timeout=timeout)
     except GitCommandError:
         return None
     for line in result.stdout.decode("utf-8", "replace").splitlines():
@@ -242,4 +276,4 @@ def fetch_tags(cwd: Path, remote: str, *, timeout: float = FETCH_TIMEOUT, env: M
     Adds SSH ``BatchMode`` and a finite *timeout* to the argv the doctrine git
     source runs today; a timeout raises :class:`GitCommandError` despite ``check`` being off.
     """
-    return run_git(cwd, "fetch", "--tags", remote, env=no_prompt_env(env), timeout=timeout, check=False)
+    return run_git(cwd, "fetch", "--tags", remote, env=no_prompt_env(env, cwd=cwd), timeout=timeout, check=False)
