@@ -27,7 +27,6 @@ __all__ = [
     "planning_context_digest",
     "resolved_interview_answers",
     "record_interview_answers",
-    "interview_status",
     "bounded_content",
 ]
 
