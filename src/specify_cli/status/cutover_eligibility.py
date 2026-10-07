@@ -143,12 +143,9 @@ def _read_meta(mission_dir: Path) -> dict[str, Any]:
     )
 
 
-def status_phase(mission_dir: Path) -> int | None:
-    """Return the parsed ``status_phase`` from ``meta.json`` (``None`` if absent)."""
-    try:
-        return int(str(_read_meta(mission_dir).get("status_phase")).strip())
-    except (ValueError, TypeError):
-        return None
+def is_stamped(mission_dir: Path) -> bool:
+    """True iff ``meta.json``'s ``status_phase`` is a well-formed integer ``>= 1`` (the one raw phase classification)."""
+    return _raw_phase_state(_read_meta(mission_dir)) == "stamped"
 
 
 def read_mission_id(mission_dir: Path) -> str | None:
@@ -547,7 +544,7 @@ def assert_birth_invariant_holds(corpus: Path, *, exclude: Iterable[str] = ()) -
     assert missions, "no eligible runtime-carrying missions found"
 
     unflipped = [
-        mission.name for mission in missions if _raw_phase_state(_read_meta(mission)) != "stamped"
+        mission.name for mission in missions if not is_stamped(mission)
     ]
     assert unflipped == [], f"eligible missions not cut over: {unflipped}"
 

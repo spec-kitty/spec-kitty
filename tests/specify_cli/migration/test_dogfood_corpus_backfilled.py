@@ -77,7 +77,7 @@ from specify_cli.status.cutover_eligibility import (
     eligible_runtime_missions as _eligible_runtime_missions,
 )
 from specify_cli.status.cutover_eligibility import runtime_wps as _runtime_wps
-from specify_cli.status.cutover_eligibility import status_phase as _status_phase
+from specify_cli.status.cutover_eligibility import is_stamped as _is_stamped
 
 pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
@@ -176,7 +176,7 @@ def _backfilled_runtime_missions(corpus: Path) -> list[Path]:
     for mission_dir in sorted(corpus.iterdir()):
         if not mission_dir.is_dir() or mission_dir.name == _SELF_MISSION:
             continue
-        if (_status_phase(mission_dir) or 0) >= 1 and _runtime_wps(mission_dir):
+        if _is_stamped(mission_dir) and _runtime_wps(mission_dir):
             out.append(mission_dir)
     return out
 
