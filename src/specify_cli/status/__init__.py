@@ -354,10 +354,17 @@ from .dup_key_repair import (
 # this package surface, not by importing the submodule directly -- the status
 # boundary is load-bearing here, since ``cutover_eligibility`` already carries a
 # deferred local import of ``migration.backfill_runtime_state`` to break a cycle.
-# Only the two symbols an src/ caller actually consumes are re-exported; the
+# Only the symbols an src/ caller actually consumes are re-exported (the verdict
+# type, the predicate, and the guard's pre-accept note and block reasons); the
 # corpus-lock helpers stay submodule-private so the dead-symbol gate keeps
 # holding them honest.
 from .cutover_eligibility import (
+    PRE_ACCEPT_EXEMPT_NOTE,
+    REASON_ABSENT_MISSION_ID,
+    REASON_LEGACY_FRONTMATTER,
+    REASON_LEGACY_UNDECIDABLE,
+    REASON_PHASE_MALFORMED,
+    REASON_TERMINAL_UNSTAMPED,
     CutOverVerdict,
     is_cut_over,
 )
@@ -430,6 +437,12 @@ __all__ = [
     "claim_policy_metadata",
     "build_resolved_actor",
     "is_cut_over",
+    "PRE_ACCEPT_EXEMPT_NOTE",
+    "REASON_ABSENT_MISSION_ID",
+    "REASON_LEGACY_FRONTMATTER",
+    "REASON_LEGACY_UNDECIDABLE",
+    "REASON_PHASE_MALFORMED",
+    "REASON_TERMINAL_UNSTAMPED",
     "FrontmatterError",
     "parse_agent_boundary_string",
     "emit_inner_state_changed",

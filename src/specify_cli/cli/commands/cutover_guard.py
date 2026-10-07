@@ -50,14 +50,15 @@ from specify_cli.core.vcs.git import (
     git_ls_tree_names_checked,
     git_merge_base,
 )
-from specify_cli.status import CutOverVerdict, is_cut_over
-from specify_cli.status.cutover_eligibility import (
+from specify_cli.status import (
     PRE_ACCEPT_EXEMPT_NOTE,
     REASON_ABSENT_MISSION_ID,
     REASON_LEGACY_FRONTMATTER,
     REASON_LEGACY_UNDECIDABLE,
     REASON_PHASE_MALFORMED,
     REASON_TERMINAL_UNSTAMPED,
+    CutOverVerdict,
+    is_cut_over,
 )
 
 #: FR-003: the exact remedy string printed for every un-cut-over mission.
