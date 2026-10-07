@@ -611,7 +611,9 @@ def commit_advance(
     engine does not plan a second time. The plan is refused with
     :class:`StaleAdvancePlan`, writing nothing, when the run's persisted state
     is no longer the state it was planned from: committing it would overwrite
-    newer progress.
+    newer progress. The check detects a run that moved between plan and
+    commit; it does not serialise two writers committing at the same moment
+    (#5854).
 
     ``before_run_completed`` is an abort-only guard called on the transition
     into terminal, after the stale-plan check and before anything is appended

@@ -50,7 +50,7 @@ Two lenses ran: correctness (debugger-debbie) and boundary/overlap (architect-al
 | # | Lens | Severity | Finding | Disposition |
 |---|------|----------|---------|-------------|
 | 1 | correctness | MINOR | A failure while building the best-effort retrospective capture, after the commit, turned a terminal advance into a false `blocked` Decision. | **Fixed at the root** (`runtime_bridge_retrospective`). The callback is now built inside the policy's `try`. Red-first test in `tests/runtime/test_bridge_retrospective.py`. |
-| 2 | correctness | MINOR | A strict-gate refusal leaves `NextStepAutoCompleted` (and now `SignificanceEvaluated`) in the run journal. The legacy path rolls back; the composition path does not. | **Deferred.** This predates the branch for `NextStepAutoCompleted`. Unifying the two strict-gate refusals is named in the PR's Deferred section. |
+| 2 | correctness | MINOR | A strict-gate refusal leaves `NextStepAutoCompleted` (and now `SignificanceEvaluated`) in the run journal. The legacy path rolls back; the composition path does not. | **Fixed at landing** (operator ruling 2026-10-07). The guard runs before anything is appended or emitted, so a refusal writes nothing and a retry does not stack events. |
 | 3 | correctness | NOTE | The strict-refusal operator message differs between the paths, and a stale plan re-dispatches the composed action on the next call. | **Deferred / by design** (FR-010). Named in the PR. |
 | 4 | boundary | MINOR | The adapter's `_append_event` / `_write_snapshot` wrappers are dead, kept alive only by a pin test. | **Fixed.** Wrappers deleted. The pin covers reads and planner names, and a new check asserts the adapter wraps no writer. |
 | 5 | boundary | MINOR | The shape gate missed `SignificanceEvaluatedPayload` and direct writer calls. | **Fixed**, with planted rows. |
@@ -59,3 +59,11 @@ Two lenses ran: correctness (debugger-debbie) and boundary/overlap (architect-al
 | 8 | boundary | MINOR | The no-bridge positive-presence check has no planted row. | Accepted: it is a positive check. |
 | 9 | boundary | NOTE | Upgrade note for readers of `decisions.events.jsonl`. | **Added** to the CHANGELOG. |
 | 10 | boundary | NOTE | `engine.apply_result` / `existing_template_path` could become private again. | Out of scope (#5834 surface). |
+
+## R-5: Landing residuals (2026-10-07)
+
+| Ref | Residual | Disposition |
+|---|---|---|
+| #5853 | `spec-kitty next` in query mode previews a MEDIUM audit gate as approve/reject, but the persisted request and the answer validator use `decide_solo` / `open_stand_up` / `defer`: query mode plans through `plan_next` on the live template and never evaluates significance. The engine path had this gap before this change and the composition path now shares it. Only operator-authored templates that declare `significance:` reach it. | Open follow-up; `plan_advance` applies a result, so it cannot be dropped into query mode as is. |
+| #5854 | The stale-plan check in `commit_advance` detects a run that moved between plan and commit but does not serialise concurrent writers. On a stale plan the engine path (`_dn_advance_engine`) re-plans through `next_step` and can complete a step this caller never ran; the composition path refuses with a `blocked` Decision. | Open follow-up (a run-dir lock, and a refusing engine path). The limits are stated in the `commit_advance` docstring and the changelog. |
+| #5855 | Re-polling a pending audit gate evaluates its significance again. A run paused at a MEDIUM gate before this change keeps its approve/reject request, so a re-poll records the MEDIUM band and a later `approve` is refused. Engine re-poll behaviour that predates this change. | Open follow-up. Stated in the changelog Upgrade Notes: answer such a gate before polling again. |

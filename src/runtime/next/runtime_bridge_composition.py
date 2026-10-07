@@ -553,10 +553,11 @@ def _dispatch_via_composition(
     ``ProfileInvocationExecutor`` directly.
 
     The follow-up advancement is performed by
-    :func:`runtime_bridge_engine.advance_run_state_after_composition`, which reuses the same
-    primitives ``runtime_next_step(...)`` uses internally for state, lane,
-    and prompt progression. The legacy ``runtime_next_step`` is **not**
-    called for composition-backed actions (FR-001).
+    :func:`runtime_bridge_engine.advance_run_state_after_composition`, which
+    commits the engine's own advance plan (``plan_advance`` then
+    ``commit_advance``, #2562) so the run records what ``runtime_next_step(...)``
+    would. The legacy ``runtime_next_step`` is **not** called for
+    composition-backed actions (FR-001).
     """
     # Local import keeps module load lean and avoids circular import risk.
     from specify_cli.mission_step_contracts.executor import (

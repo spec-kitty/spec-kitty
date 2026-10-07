@@ -1198,7 +1198,12 @@ def _dn_preresolve_wp_workspace(ctx: DecideNextContext) -> tuple[Any, _mapping._
 def _dn_advance_engine(ctx: DecideNextContext, plan: Any, engine_emitter: Any) -> NextDecision:
     """Persist the advance: commit the previewed ``plan`` when there is one
     (no second planning), else -- or when the run moved past the plan
-    (:class:`StaleAdvancePlan`) -- the engine's own ``next_step``."""
+    (:class:`StaleAdvancePlan`) -- the engine's own ``next_step``.
+
+    The engine path re-plans a stale advance through ``next_step``, which
+    re-applies ``success`` and so can complete a step this caller never ran,
+    while the composition path refuses it with a ``blocked`` Decision; making
+    the engine path refuse too is tracked in #5854."""
     if plan is not None:
         try:
             return _engine_adapter.commit_advance(ctx.run_ref, plan, ctx.agent, engine_emitter)
