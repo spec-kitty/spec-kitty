@@ -221,10 +221,15 @@ def mission_carries_event_log_runtime(mission_dir: Path) -> bool:
 
 @dataclass(frozen=True)
 class PreAcceptDecision:
-    """Outcome of :func:`pre_accept_exemption`: exempt (``note``) or blocked (``block_reason``)."""
+    """Outcome of :func:`pre_accept_exemption`: exempt (``note``), blocked (``block_reason``) or ``stamped``.
+
+    ``stamped`` means ``status_phase`` is already ``>= 1``: the exemption does not apply and the
+    strict verification path decides. It carries neither a note nor a block reason.
+    """
 
     note: str | None = None
     block_reason: str | None = None
+    stamped: bool = False
 
     @property
     def exempt(self) -> bool:
@@ -357,6 +362,10 @@ def _meta_has_duplicate_keys(mission_dir: Path) -> bool:
 def pre_accept_exemption(mission_dir: Path) -> PreAcceptDecision:
     """Decide the pre-accept exemption for a mission with event-log runtime evidence.
 
+    The ONE place the raw ``status_phase`` is classified for the cut-over decision: a stamped
+    mission (``>= 1``) returns ``stamped`` so :func:`is_cut_over` runs its strict path, and a
+    malformed phase blocks.
+
     Exempt (``note`` set) only when ``meta.json`` reads (through :func:`_read_meta`, so a
     missing, empty or unparsable file has no ``mission_id`` and declines) with a ``mission_id``, ``status_phase`` is
     absent or a well-formed integer ``0``, no top-level key is duplicated, there is no terminal evidence
@@ -368,13 +377,13 @@ def pre_accept_exemption(mission_dir: Path) -> PreAcceptDecision:
     meta = _read_meta(mission_dir)
     if not str(meta.get("mission_id") or "").strip():
         return PreAcceptDecision(block_reason=REASON_ABSENT_MISSION_ID)
-    if _meta_has_duplicate_keys(mission_dir):
-        return PreAcceptDecision(block_reason=REASON_META_DUPLICATE_KEYS)
     phase_state = _raw_phase_state(meta)
     if phase_state == "malformed":
         return PreAcceptDecision(block_reason=REASON_PHASE_MALFORMED)
     if phase_state == "stamped":
-        return PreAcceptDecision(block_reason=_NOT_FLIPPED)
+        return PreAcceptDecision(stamped=True)
+    if _meta_has_duplicate_keys(mission_dir):
+        return PreAcceptDecision(block_reason=REASON_META_DUPLICATE_KEYS)
     terminal = _terminal_evidence(meta, mission_dir.name)
     if terminal == "malformed":
         return PreAcceptDecision(block_reason=REASON_TERMINAL_MALFORMED)
@@ -389,7 +398,7 @@ def pre_accept_exemption(mission_dir: Path) -> PreAcceptDecision:
 
 
 def _is_pre_accept_exempt(mission_dir: Path) -> bool:
-    """True iff *mission_dir* is pre-accept exempt (a stamped mission never is)."""
+    """True iff *mission_dir* is pre-accept exempt (a stamped mission never is: its decision is ``stamped``)."""
     return pre_accept_exemption(mission_dir).exempt
 
 
@@ -438,12 +447,9 @@ class CutOverVerdict:
 
 def _early_phase_verdict(mission_dir: Path, slug: str) -> CutOverVerdict | None:
     """Verdict for an absent / ``< 1`` / malformed ``status_phase``; ``None`` when stamped (>= 1)."""
-    state = _raw_phase_state(_read_meta(mission_dir))
-    if state == "stamped":
-        return None
-    if state == "malformed":
-        return CutOverVerdict(mission_dir=mission_dir, mission_slug=slug, cut_over=False, reasons=(REASON_PHASE_MALFORMED,))
     decision = pre_accept_exemption(mission_dir)
+    if decision.stamped:
+        return None
     if decision.note is not None:
         return CutOverVerdict(mission_dir=mission_dir, mission_slug=slug, cut_over=True, reasons=(decision.note,), exempt=True)
     return CutOverVerdict(mission_dir=mission_dir, mission_slug=slug, cut_over=False, reasons=(decision.block_reason or _NOT_FLIPPED,))
@@ -541,7 +547,7 @@ def assert_birth_invariant_holds(corpus: Path, *, exclude: Iterable[str] = ()) -
     assert missions, "no eligible runtime-carrying missions found"
 
     unflipped = [
-        mission.name for mission in missions if (status_phase(mission) or 0) < 1
+        mission.name for mission in missions if _raw_phase_state(_read_meta(mission)) != "stamped"
     ]
     assert unflipped == [], f"eligible missions not cut over: {unflipped}"
 
