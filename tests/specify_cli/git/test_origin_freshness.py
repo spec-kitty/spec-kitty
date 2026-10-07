@@ -16,6 +16,7 @@ from typing import Any
 
 import pytest
 
+from kernel.git import GitCommandError
 from kernel.git.remote import tracking_ref
 from kernel.git import remote as kernel_remote
 from mission_runtime import MissionArtifactKind, placement_seam
@@ -23,6 +24,7 @@ from specify_cli.git.origin_freshness import (
     ORIGIN_CHECK_ENV,
     ORIGIN_LANE_DIVERGED,
     ORIGIN_LANE_STALE,
+    ORIGIN_COMPARE_FAILED,
     ORIGIN_REMOTE_AMBIGUOUS,
     ORIGIN_STATUS_STALE,
     ORIGIN_UNREACHABLE,
@@ -812,6 +814,32 @@ def test_review_lane_keep_when_remote_has_no_such_branch(world: World) -> None:
     _git(world.a, "branch", "lane-local-only", "main")
 
     assert plan_review_lane(world.a, "lane-local-only").kind is ReviewLaneKind.KEEP
+
+
+@pytest.mark.parametrize("surface", ["merge_gate", "review"])
+def test_a_ref_comparison_git_cannot_make_fails_closed_instead_of_escaping(world: World, monkeypatch: pytest.MonkeyPatch, surface: str) -> None:
+    """A shallow boundary or corrupt ref makes ``rev-list`` fail: the verdict refuses (merge path) or warns (review), never a raw traceback."""
+    _git(world.a, "branch", "lane-cmp", "main")
+    _git(world.a, "push", "-q", "origin", "lane-cmp:lane-cmp")
+
+    def _broken(cwd: Path, local: str, remote_ref: str, *, paths: tuple[str, ...] = ()) -> Any:
+        raise GitCommandError(argv=("rev-list",), cwd=cwd, returncode=128, stderr="fatal: bad object", timed_out=False)
+
+    monkeypatch.setattr("specify_cli.git.origin_freshness.divergence", _broken)
+
+    if surface == "review":
+        action = plan_review_lane(world.a, "lane-cmp", _ENFORCE_SETTING)
+        assert (action.kind, action.code) == (ReviewLaneKind.WARN, ORIGIN_COMPARE_FAILED)
+        assert action.message is not None and "bad object" in action.message
+        return
+    verdict = _only(check_branches(world.a, ["lane-cmp"]))
+    assert verdict.state is FreshnessState.COMPARE_FAILED
+    with pytest.raises(OriginFreshnessRefused) as caught:
+        _gate(lanes=(verdict,))
+    assert caught.value.error_codes == [ORIGIN_COMPARE_FAILED]
+    assert "origin/lane-cmp" in str(caught.value) and "bad object" in str(caught.value)
+    (warning,) = _gate(lanes=(verdict,), setting=_FLAG_WARN_SETTING)
+    assert warning.startswith(f"{ORIGIN_COMPARE_FAILED}: lane-cmp")
 
 
 def test_review_lane_fast_forward_carries_the_remote_sha(world: World) -> None:

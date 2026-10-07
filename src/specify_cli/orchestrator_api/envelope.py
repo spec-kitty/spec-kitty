@@ -83,7 +83,7 @@ from kernel.clock import now_utc_iso
 # remote. The envelope ``error_code`` stays ``MISSION_NOT_READY`` / ``PREFLIGHT_FAILED``;
 # the failure ``data`` gains ``preflight_error_code`` / ``preflight_error_codes``
 # (``ORIGIN_STATUS_STALE``, ``ORIGIN_LANE_STALE``, ``ORIGIN_UNREACHABLE``,
-# ``ORIGIN_REMOTE_AMBIGUOUS``) and
+# ``ORIGIN_REMOTE_AMBIGUOUS``, ``ORIGIN_COMPARE_FAILED``) and
 # ``origin_freshness`` (one ``{branch, remote, state, behind, ahead, scope, detail}`` row per
 # failing branch), and a successful warn-mode run gains ``origin_warnings``. A call
 # that used to succeed can now refuse, so a minor bump; every key is absent otherwise

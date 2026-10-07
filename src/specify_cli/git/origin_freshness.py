@@ -46,6 +46,7 @@ from specify_cli.status import StoreError, read_events, reduce
 __all__ = [
     "ORIGIN_CHECK_CHOICES",
     "ORIGIN_CHECK_ENV",
+    "ORIGIN_COMPARE_FAILED",
     "ORIGIN_LANE_DIVERGED",
     "READ_ONLY_ORIGIN_CHECK",
     "FreshnessState",
@@ -72,6 +73,7 @@ ORIGIN_LANE_STALE = "ORIGIN_LANE_STALE"
 ORIGIN_LANE_DIVERGED = "ORIGIN_LANE_DIVERGED"
 ORIGIN_UNREACHABLE = "ORIGIN_UNREACHABLE"
 ORIGIN_REMOTE_AMBIGUOUS = "ORIGIN_REMOTE_AMBIGUOUS"
+ORIGIN_COMPARE_FAILED = "ORIGIN_COMPARE_FAILED"
 
 _STATUS_LOG = "status.events.jsonl"
 
@@ -158,6 +160,7 @@ class FreshnessState(StrEnum):
     NO_REMOTE = "no_remote"
     NOT_CHECKED = "not_checked"
     REMOTE_AMBIGUOUS = "remote_ambiguous"
+    COMPARE_FAILED = "compare_failed"
 
 
 @dataclass(frozen=True)
@@ -169,7 +172,9 @@ class FreshnessVerdict:
     at all; ``remote_ambiguous`` means it has some but none owns the branch
     (``detail`` lists them), so freshness cannot be judged. ``remote_sha`` is the tip the remote listed
     (absent for ``remote_missing``/``unreachable``/``no_remote``/``remote_ambiguous``); the fetch
-    that follows can only move the tracking ref forward from it.
+    that follows can only move the tracking ref forward from it. ``compare_failed``
+    means the remote answered but git could not compare the two refs locally (a
+    shallow boundary, a corrupt ref); ``detail`` carries the git error text.
     """
 
     branch: str
@@ -238,8 +243,12 @@ def _compare(repo_root: Path, remote: str, probe: _Probe, remote_sha: str) -> Fr
     """
     local_ref = f"refs/heads/{probe.branch}"
     remote_ref = tracking_ref(remote, probe.branch)
-    total = divergence(repo_root, local_ref, remote_ref)
-    behind = divergence(repo_root, local_ref, remote_ref, paths=probe.scope).behind if probe.scope else total.behind
+    try:
+        total = divergence(repo_root, local_ref, remote_ref)
+        behind = divergence(repo_root, local_ref, remote_ref, paths=probe.scope).behind if probe.scope else total.behind
+    except GitCommandError as exc:
+        # Fail closed: a comparison git cannot make is never read as "up to date".
+        return FreshnessVerdict(probe.branch, remote, FreshnessState.COMPARE_FAILED, scope=_scope_text(probe), detail=str(exc), remote_sha=remote_sha)
     if behind > 0 and probe.scope and _scoped_content_identical(repo_root, local_ref, remote_ref, probe.scope):
         behind = 0
     return FreshnessVerdict(
@@ -433,6 +442,8 @@ def _code_for(verdict: FreshnessVerdict, *, is_evidence: bool) -> str | None:
         return ORIGIN_UNREACHABLE
     if verdict.state is FreshnessState.REMOTE_AMBIGUOUS:
         return ORIGIN_REMOTE_AMBIGUOUS
+    if verdict.state is FreshnessState.COMPARE_FAILED:
+        return ORIGIN_COMPARE_FAILED
     if verdict.state in _STALE_STATES:
         return ORIGIN_STATUS_STALE if is_evidence else ORIGIN_LANE_STALE
     return None
@@ -445,6 +456,8 @@ def _headline(code: str, verdict: FreshnessVerdict) -> str:
         return f"{code}: {verdict.branch} is unreachable ({verdict.detail or _NO_ANSWER})"
     if verdict.state is FreshnessState.REMOTE_AMBIGUOUS:
         return f"{code}: {verdict.branch} has no single remote to check (remotes: {verdict.detail})"
+    if verdict.state is FreshnessState.COMPARE_FAILED:
+        return f"{code}: {verdict.branch} could not be compared with {where} ({verdict.detail or 'git could not compare the refs'})"
     if verdict.state is FreshnessState.LOCAL_MISSING:
         return f"{code}: {verdict.branch} is missing locally (it exists as {where})"
     return f"{code}: {verdict.branch} is {verdict.state.value} ({verdict.behind} behind / {verdict.ahead} ahead of {where})"
@@ -538,12 +551,22 @@ def _ambiguous_remote_remedy(verdict: FreshnessVerdict) -> list[str]:
     ]
 
 
+def _compare_failed_remedy(verdict: FreshnessVerdict) -> list[str]:
+    return [
+        f"  The remote answered, but git could not compare {verdict.branch} with {verdict.remote}/{verdict.branch} here (a shallow clone or a damaged ref).",
+        f"  Deepen the history with: git fetch --unshallow {verdict.remote}    (or repair the ref), then re-run.",
+        f"  If you cannot repair it, {ORIGIN_CHECK_ENV}=off (or --origin-check off) skips the check and accepts stale evidence.",
+    ]
+
+
 def _remedy(violation: _Violation, checkout: Path | None, *, merge_record_exists: bool) -> list[str]:
     verdict = violation.verdict
     if verdict.state is FreshnessState.REMOTE_AMBIGUOUS:
         return _ambiguous_remote_remedy(verdict)
     if verdict.state is FreshnessState.UNREACHABLE:
         return _unreachable_remedy(verdict)
+    if verdict.state is FreshnessState.COMPARE_FAILED:
+        return _compare_failed_remedy(verdict)
     if violation.is_evidence and verdict.state is not FreshnessState.LOCAL_MISSING:
         return _status_remedy(verdict, checkout, merge_record_exists=merge_record_exists)
     return _lane_remedy(verdict)
@@ -655,6 +678,8 @@ def plan_review_lane(repo_root: Path, lane_branch: str, setting: OriginCheckSett
         return ReviewLaneAction(ReviewLaneKind.WARN, verdict, code=ORIGIN_UNREACHABLE, message=_headline(ORIGIN_UNREACHABLE, verdict))
     if verdict.state is FreshnessState.REMOTE_AMBIGUOUS:
         return ReviewLaneAction(ReviewLaneKind.WARN, verdict, code=ORIGIN_REMOTE_AMBIGUOUS, message=_headline(ORIGIN_REMOTE_AMBIGUOUS, verdict))
+    if verdict.state is FreshnessState.COMPARE_FAILED:
+        return ReviewLaneAction(ReviewLaneKind.WARN, verdict, code=ORIGIN_COMPARE_FAILED, message=_headline(ORIGIN_COMPARE_FAILED, verdict))
     if verdict.state is FreshnessState.REMOTE_MISSING and verdict.detail:
         return ReviewLaneAction(ReviewLaneKind.WARN, verdict, message=verdict.detail)
     return ReviewLaneAction(ReviewLaneKind.KEEP, verdict)

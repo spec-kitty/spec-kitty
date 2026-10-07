@@ -25,7 +25,7 @@ from tests._support.two_clone import attach_and_push, clone_from, isolated_git_e
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _STATUS_LOG = "status.events.jsonl"
-_ORIGIN_CODES = ("ORIGIN_STATUS_STALE", "ORIGIN_LANE_STALE", "ORIGIN_UNREACHABLE", ORIGIN_REMOTE_AMBIGUOUS)
+_ORIGIN_CODES = ("ORIGIN_STATUS_STALE", "ORIGIN_LANE_STALE", "ORIGIN_UNREACHABLE", ORIGIN_REMOTE_AMBIGUOUS, "ORIGIN_COMPARE_FAILED")
 _CONTRACT_VERSION = "1.11.0"
 
 
