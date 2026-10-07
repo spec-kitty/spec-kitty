@@ -358,6 +358,13 @@ def test_backfill_refreshes_an_existing_status_snapshot(tmp_path: Path) -> None:
     assert result.action == "wrote"
     assert snapshot_path.read_text(encoding="utf-8") == materialize_to_json(materialize_snapshot(feature_dir))
 
+    # A repo whose seeds landed before the refresh existed: rerun self-heals (#5862).
+    stale = "{}\n"
+    snapshot_path.write_text(stale, encoding="utf-8")
+    rerun = b.backfill_runtime_state(feature_dir)
+    assert rerun.action == "skip"
+    assert snapshot_path.read_text(encoding="utf-8") == materialize_to_json(materialize_snapshot(feature_dir))
+
 
 def test_backfill_is_idempotent(tmp_path: Path) -> None:
     feature_dir = build_mission(tmp_path)

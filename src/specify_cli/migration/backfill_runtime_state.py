@@ -1474,6 +1474,11 @@ def _backfill_runtime_state_locked(
     seeded_count = len(new_transitions) + len(new_annotations)
 
     if seeded_count == 0:
+        if not dry_run:
+            # Seeds that landed before the snapshot refresh existed leave a stale status.json (#5862).
+            _refreshed, refresh_error = _refresh_snapshot_if_present(feature_dir)
+            if refresh_error is not None:
+                warnings.append(refresh_error)
         return BackfillResult(feature_dir=feature_dir, slug=slug, action="skip", reason="nothing new to seed (idempotent)", warnings=warnings)
 
     if dry_run:
