@@ -66,7 +66,7 @@ from specify_cli.cli.console import console
 from specify_cli.cli.helpers import show_banner
 from specify_cli.cli.commands._confirm import safe_confirm
 from specify_cli.cli.commands._teamspace_mission_state_gate import (
-    offer_teamspace_mission_state_migration,
+    report_teamspace_mission_state_blockers,
 )
 from specify_cli.core.env import is_truthy
 from specify_cli.core.version_compare import is_version_newer
@@ -1252,40 +1252,24 @@ def _churn_left_uncommitted_by_config(
     return bool(autocommit.prepare_upgrade_commit_files(project_path, baseline_changed_paths))
 
 
-def _finalizer_step_offer_repair(
+def _finalizer_step_report_mission_state(
     outcome: UpgradeOutcome,
     *,
     project_path: Path,
-    confirm: bool,
-    dry_run: bool,
     json_output: bool,
 ) -> RepairOutcome:
-    """Injected ``offer_repair`` step (C4 order position 4).
+    """Injected ``offer_repair`` step (C4 order position 4): report only.
 
-    Mirrors the pre-refactor gating: the interactive mission-state prompt
-    never runs under ``--json``, nor after a failed migration, nor after a
-    failed commit recovery (``outcome.commit_recovery_failed``: the checkout's
-    staging restore just failed, so the gate must not write into it).
-
-    Passes ``repair_opt_in=confirm`` alongside ``assume_yes=confirm``
-    (#4775, FR-017/NFR-003 reconciliation): ``confirm`` is the caller's
-    unified ``--yes``/``--force`` consent, and FR-017 promises it makes
-    ``upgrade`` fully non-interactive — including this sub-gate — so it is
-    also passed as the sub-gate's OWN opt-in. This is a call-site choice
-    (see :func:`offer_teamspace_mission_state_migration`'s docstring), not a
-    hidden default: passing a plain ``True`` here instead of ``confirm``
-    would defeat NFR-003 by making the repair always run without any
-    consent at all.
+    ``upgrade`` never runs the mission-state repair and never prompts, so
+    ``--yes`` stays fully non-interactive (ADR 2026-10-07-1). Under hosted
+    drain the gate reports the blockers and names
+    ``spec-kitty doctor mission-state --fix``; with drain off it evaluates
+    nothing. Skipped under ``--json``, after a failed migration, and after a
+    failed commit recovery (the checkout's staging restore just failed).
     """
     if json_output or not outcome.result.success or outcome.commit_recovery_failed:
-        return RepairOutcome(pending=True, message="Repair prompt skipped (json output, failed migration or failed commit recovery).")
-    return offer_teamspace_mission_state_migration(
-        project_path,
-        console=console,
-        dry_run=dry_run,
-        assume_yes=confirm,
-        repair_opt_in=confirm,
-    )
+        return RepairOutcome(pending=True, message="Mission-state report skipped (json output, failed migration or failed commit recovery).")
+    return report_teamspace_mission_state_blockers(project_path, console=console)
 
 
 def _resolve_upgrade_target(target: str | None) -> str:
@@ -1909,11 +1893,9 @@ def upgrade(
                 baseline_changed_paths=baseline_changed_paths,
             ),
             offer_repair=functools.partial(
-                _finalizer_step_offer_repair,
+                _finalizer_step_report_mission_state,
                 outcome,
                 project_path=project_path,
-                confirm=confirm,
-                dry_run=dry_run,
                 json_output=json_output,
             ),
             should_commit=should_commit_main,

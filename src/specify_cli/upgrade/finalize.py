@@ -50,10 +50,10 @@ def finalize_upgrade(
          (the decision from ``should_auto_commit``, C2). Surface-repair
          writes from step 2 land INSIDE this commit; mission-state repair
          (step 4) never does (D-4, #2491/SC-008).
-      4. ``offer_repair()`` — the scoped mission-state consent gate, run
-         inside a failure-isolating boundary (see :func:`_run_repair_isolated`)
-         whose outcome does NOT feed ``exit_code`` (FR-014). Its own commit,
-         if any, is the gate's responsibility, never folded into step 3.
+      4. ``offer_repair()`` — the report-only mission-state gate (it never
+         repairs; ADR 2026-10-07-1), run inside a failure-isolating boundary
+         (see :func:`_run_repair_isolated`) whose outcome does NOT feed
+         ``exit_code`` (FR-014).
 
     The exit code is not computed here: ``UpgradeOutcome.exit_code`` derives it from
     the outcome's kind whenever it is read (D-5), so it can never disagree with the

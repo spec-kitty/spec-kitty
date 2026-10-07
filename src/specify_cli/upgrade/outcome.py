@@ -16,14 +16,11 @@ step: it separates the three conditions a single boolean used to carry
 (unresolved drift, a repair that was not applied, an incomplete dry-run
 preview) so each is reported for what it is.
 
-``RepairOutcome`` is the return contract for the scoped mission-state repair
-gate (``_teamspace_mission_state_gate.offer_teamspace_mission_state_migration``,
-D-9) — it replaces the three ``typer.Exit(1)`` raises that function used to
-perform. ``declined`` is set ONLY on the post-consent-decision deny path;
-``pending`` is set by the gate's pre-consent early returns instead. This
-distinction is what makes a consent spy test non-fakeable (contracts C3):
-"repair not called" alone proves nothing when the fixture never reached the
-consent decision in the first place.
+``RepairOutcome`` is the return contract for the report-only mission-state
+gate (``_teamspace_mission_state_gate.report_teamspace_mission_state_blockers``,
+D-9; ADR 2026-10-07-1). ``upgrade`` never repairs mission state: ``reported``
+is set only when drain is on and blockers were printed; ``pending`` means
+nothing was evaluated or nothing needed reporting.
 """
 
 from __future__ import annotations
@@ -134,7 +131,7 @@ class SurfaceRepairReport:
 
 @dataclass(frozen=True)
 class RepairOutcome:
-    """Return contract for the scoped mission-state repair gate (D-9).
+    """Return contract for the report-only mission-state gate (D-9).
 
     ``surface_message`` marks an outcome whose ``message`` was NOT already shown
     to the operator by the gate itself (the finalizer's isolation boundary sets
@@ -142,8 +139,7 @@ class RepairOutcome:
     """
 
     pending: bool = False
-    declined: bool = False
-    ran: bool = False
+    reported: bool = False
     failed: bool = False
     message: str = ""
     surface_message: bool = False

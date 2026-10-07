@@ -398,16 +398,12 @@ def test_metadata_only_restoration_cannot_hide_missing_dossier(
         gate._check_recovery(gate._index())
 
 
-def test_real_upgrade_yes_opts_into_mission_state_repair(tmp_path: Path) -> None:
-    """FR-017 (#4775): ``upgrade --yes`` is fully non-interactive AND carries
-    the mission-state repair consent, so a damaged historical corpus is
-    repaired in one non-interactive run — no separate TTY consent required.
-
-    This supersedes the pre-#4775 "preserve history until a separate TTY
-    consent" contract (operator ruling, 2026-09-20): ``--yes`` now carries the
-    repair sub-gate's consent, reconciling FR-017's "fully non-interactive"
-    promise. A run that reaches the damaged-corpus gate under ``--yes`` repairs
-    it rather than deferring to a second, TTY-owned approval.
+def test_real_upgrade_yes_leaves_a_damaged_corpus_untouched(tmp_path: Path) -> None:
+    """#5811 (ADR 2026-10-07-1, reversing #4775 FR-017): ``upgrade --yes`` is
+    fully non-interactive and never runs the mission-state repair, so a damaged
+    historical corpus is byte-identical afterwards. With hosted drain off (the
+    default) readiness is not even evaluated; ``doctor mission-state --fix``
+    is the only consent path.
     """
     repo = tmp_path / "upgrade-project"
     repo.mkdir()
@@ -441,9 +437,4 @@ def test_real_upgrade_yes_opts_into_mission_state_repair(tmp_path: Path) -> None
     (tmp_path / "upgrade-approved.stdout").write_bytes(approved.stdout)
     (tmp_path / "upgrade-approved.stderr").write_bytes(approved.stderr)
     assert approved.returncode == 0, approved.stdout.decode(errors="replace") + approved.stderr.decode(errors="replace")
-    assert b"mission-state" in approved.stdout, "successful human finalizer did not reach the damaged-corpus gate"
-    # FR-017: --yes carries the repair consent, so the damaged corpus IS
-    # repaired in this single non-interactive run (no separate TTY approval).
-    assert inventory(repo) != before, "upgrade --yes did not opt into the mission-state repair (FR-017)"
-    snapshot = repo / gate.SNAPSHOTS[0]
-    assert snapshot.read_bytes() == materialize_to_json(materialize_snapshot(snapshot.parent)).encode()
+    assert inventory(repo) == before, "upgrade --yes modified the historical corpus (#5811)"

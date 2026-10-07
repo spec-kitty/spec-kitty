@@ -520,7 +520,7 @@ class TestFloor:
 
     def test_the_functions_that_may_not_exit_include_the_finalizer_steps_and_the_tail_helpers(self, command_source: str) -> None:
         names = may_not_exit_names(command_source)
-        assert {"_finalizer_step_commit_churn", "_finalizer_step_offer_repair", "_finalizer_step_surface_repair"} <= names
+        assert {"_finalizer_step_commit_churn", "_finalizer_step_report_mission_state", "_finalizer_step_surface_repair"} <= names
         assert "_finalizer_step_provision" in names  # selected by its name alone: it takes no outcome and prints nothing
         assert {"_churn_left_uncommitted_by_config", "_render_text_report", "_build_migration_json_payload"} <= names
         assert "_dry_run_surface_report" in names  # reached only through a function that must not exit

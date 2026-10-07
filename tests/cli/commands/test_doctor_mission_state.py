@@ -367,6 +367,20 @@ class TestFixModeCharacterization:
         assert "normalized-mission" in combined
         assert "normalized_change_mode:regular" in combined
 
+    def test_fix_mode_never_claims_cleared_when_a_mission_errored(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """#5811: --fix names the errored Mission and exits non-zero; it never
+        prints a "cleared" claim while any Mission errored."""
+        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+        report_mock = self._build_repair_report(with_error=True)
+
+        with patch("specify_cli.migration.mission_state.repair_repo", return_value=report_mock):
+            result = runner.invoke(app, ["mission-state", "--fix", "--allow-dirty"])
+
+        assert result.exit_code == 1, result.output
+        combined = (result.output or "") + (result.stderr or "")
+        assert "errored-mission" in combined
+        assert "cleared" not in combined.lower()
+
     def test_fix_mode_json_carries_per_mission_meta_actions(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--fix --json carries a per-mission record incl. meta_actions.
 

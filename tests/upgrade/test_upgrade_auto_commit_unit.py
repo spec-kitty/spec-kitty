@@ -1004,11 +1004,11 @@ def test_upgrade_no_migrations_respects_no_worktrees_for_schema_stamp(
     assert "schema_version" not in worktree_metadata["spec_kitty"]
 
 
-def test_upgrade_no_migrations_surfaces_teamspace_mission_state_prompt(
+def test_upgrade_no_migrations_surfaces_teamspace_mission_state_report(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    """A normal upgrade run checks TeamSpace mission-state readiness even when up to date."""
+    """A normal upgrade run reports TeamSpace mission-state readiness even when up to date."""
     project_path = _setup_upgrade_project(tmp_path)
     monkeypatch.setattr(Path, "cwd", lambda: project_path)
     monkeypatch.setattr(autocommit, "git_status_paths", lambda _rp: set())
@@ -1023,7 +1023,7 @@ def test_upgrade_no_migrations_surfaces_teamspace_mission_state_prompt(
 
     monkeypatch.setattr(
         upgrade_cmd,
-        "offer_teamspace_mission_state_migration",
+        "report_teamspace_mission_state_blockers",
         _fake_offer,
     )
 
@@ -1040,8 +1040,8 @@ def test_upgrade_no_migrations_surfaces_teamspace_mission_state_prompt(
 
     assert len(calls) == 1
     assert calls[0]["project_path"] == project_path
-    assert calls[0]["dry_run"] is False
-    assert calls[0]["assume_yes"] is True
+    # Report-only (ADR 2026-10-07-1): no consent or dry-run parameter reaches the gate.
+    assert set(calls[0]) == {"project_path", "console"}
 
 
 def test_upgrade_dry_run_skips_auto_commit(

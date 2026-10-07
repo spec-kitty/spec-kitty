@@ -1,17 +1,16 @@
-"""TeamSpace mission-state migration prompt and connection gate helpers."""
+"""TeamSpace mission-state readiness report and connection gate helpers."""
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
 from dataclasses import dataclass
 from pathlib import Path
-import sys
 
 from rich.console import Console
 from rich.panel import Panel
 import typer
 
-from specify_cli.cli.commands._confirm import safe_confirm
+from specify_cli.core import hosted_posture
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.upgrade.outcome import RepairOutcome
 
 
@@ -141,66 +140,19 @@ def enforce_teamspace_mission_state_ready(*, console: Console, command_name: str
     raise typer.Exit(1)
 
 
-def _should_run_repair(*, repair_opt_in: bool) -> bool:
-    """Decide whether to run the mission-state repair (its own consent scope).
+def report_teamspace_mission_state_blockers(project_path: Path, *, console: Console) -> RepairOutcome:
+    """Report (never repair) TeamSpace mission-state blockers for ``upgrade``.
 
-    NFR-003/FR-005/FR-006: this decision reads its OWN explicit opt-in — it
-    is never derived from the unrelated migration-apply consent
-    (``--yes``/``--force``) a caller may hold; a caller is free to choose to
-    pass the SAME value for both (as the ``upgrade.py`` call site now does,
-    reconciling FR-017's "``--yes`` is fully non-interactive" promise with
-    this decision's own consent requirement), but this function itself has
-    no such parameter and structurally cannot read that unrelated flag.
-    An explicit opt-in short-circuits the prompt. A non-interactive
-    session (no TTY) with no opt-in denies WITHOUT aborting: ``safe_confirm``
-    declines instead of letting ``typer.confirm``'s ``typer.Abort`` (raised
-    when there is no TTY / stdin hits EOF) sink an unrelated,
-    already-successful upgrade run.
+    ``spec-kitty upgrade``, including ``--yes``, never runs the mission-state
+    repair (ADR 2026-10-07-1): ``spec-kitty doctor mission-state --fix`` is the
+    only consent path. With hosted drain off (the default) readiness is not
+    evaluated at all and nothing is printed. With drain on, the blocker count,
+    the finding codes and the doctor command are printed. Never raises
+    ``typer.Exit`` (D-9, C3), so a reported blocker never changes the exit code.
     """
-    if repair_opt_in:
-        return True
-    if not sys.stdin.isatty():
-        return False
-    return safe_confirm(
-        "Run `spec-kitty doctor mission-state --fix` now?",
-        default=False,
-    )
+    if not hosted_posture.drain_posture(project_root=project_path).enabled:
+        return RepairOutcome(pending=True, message="Hosted drain is off: mission-state readiness was not evaluated.")
 
-
-def offer_teamspace_mission_state_migration(
-    project_path: Path,
-    *,
-    console: Console,
-    dry_run: bool,
-    assume_yes: bool = False,
-    repair_opt_in: bool = False,
-) -> RepairOutcome:
-    """Surface and optionally run the TeamSpace mission-state migration.
-
-    Never raises ``typer.Exit`` (D-9, C3) — every outcome, including repair
-    failures and a still-blocked post-repair state, is folded into the
-    returned :class:`RepairOutcome` for the finalizer to fold into
-    ``UpgradeOutcome`` without sinking an otherwise-successful upgrade
-    (FR-014).
-
-    ``assume_yes`` is the caller's migration-apply consent flag
-    (``--yes``/``--force``). It is accepted here only so existing call sites
-    keep working; it is deliberately NEVER read BY THIS FUNCTION (nor by
-    :func:`_should_run_repair`) to decide whether to run the repair
-    (NFR-003/FR-005/FR-006) — that decision has its OWN explicit opt-in,
-    ``repair_opt_in``.
-
-    Reconciling FR-017 ("``--yes``/``--force`` is fully non-interactive")
-    with NFR-003 ("the repair sub-gate has its own consent"): a CALLER may
-    choose to pass the same value for both ``assume_yes`` and
-    ``repair_opt_in`` — the ``upgrade.py`` finalizer now does exactly this,
-    wiring ``repair_opt_in=confirm`` alongside ``assume_yes=confirm`` — so
-    that ``--yes`` also opts into the repair sub-gate end to end. That is a
-    call-site decision, not a derivation performed here: this function still
-    never inspects ``assume_yes`` to make the repair decision itself. See
-    :func:`_should_run_repair`.
-    """
-    _ = assume_yes  # intentionally unread — see docstring (NFR-003)
     readiness = check_teamspace_mission_state_readiness(project_path)
     if not readiness.blocked:
         return RepairOutcome(pending=True, message="No TeamSpace mission-state blockers found.")
@@ -211,61 +163,10 @@ def offer_teamspace_mission_state_migration(
         title="TeamSpace Mission-State Migration",
         border_style="yellow",
     )
-
+    console.print("[dim]`spec-kitty upgrade` never repairs mission state; only `spec-kitty doctor mission-state --fix` does.[/dim]")
     if readiness.audit_error:
         return RepairOutcome(
-            pending=True,
+            reported=True,
             message=f"Could not verify TeamSpace mission-state readiness: {readiness.audit_error}",
         )
-
-    if dry_run:
-        console.print("[dim]Dry run: mission-state repair was not run.[/dim]")
-        return RepairOutcome(pending=True, message="Dry run: mission-state repair was not run.")
-
-    if not _should_run_repair(repair_opt_in=repair_opt_in):
-        console.print("[yellow]Skipped TeamSpace mission-state repair.[/yellow]")
-        return RepairOutcome(declined=True, message="TeamSpace mission-state repair declined.")
-
-    from specify_cli.migration.mission_state import MissionStateRepairError, repair_repo
-
-    try:
-        report = repair_repo(project_path)
-    except MissionStateRepairError as exc:
-        console.print(f"[red]Mission-state repair failed:[/red] {exc}")
-        return RepairOutcome(ran=True, failed=True, message=str(exc))
-    except Exception as exc:  # noqa: BLE001 - repair boundary must not crash the upgrade tail
-        console.print(f"[red]Mission-state repair encountered an unexpected error:[/red] {exc}")
-        return RepairOutcome(ran=True, failed=True, message=str(exc))
-
-    summary = report.to_dict()["summary"]
-    if not isinstance(summary, dict):
-        return RepairOutcome(
-            ran=True,
-            failed=True,
-            message=f"Unexpected repair report summary type: {type(summary)!r}",
-            surface_message=True,  # nothing was printed above: the outcome must list this failure itself
-        )
-    console.print(
-        "[green]Mission-state repair complete[/green] "
-        f"(updated={summary['missions_updated']}, "
-        f"unchanged={summary['missions_unchanged']}, "
-        f"errors={summary['missions_error']})."
-    )
-    console.print(f"Manifest: {report.manifest_path}")
-
-    post_repair = check_teamspace_mission_state_readiness(project_path)
-    if post_repair.blocked:
-        _print_notice(
-            post_repair,
-            console=console,
-            title="TeamSpace Migration Still Blocked",
-            border_style="red",
-        )
-        return RepairOutcome(
-            ran=True,
-            failed=True,
-            message="TeamSpace mission-state blockers remain after repair.",
-        )
-
-    console.print("[green]TeamSpace mission-state blockers cleared.[/green]")
-    return RepairOutcome(ran=True, message="TeamSpace mission-state blockers cleared.")
+    return RepairOutcome(reported=True, message="TeamSpace mission-state blockers reported; not repaired.")

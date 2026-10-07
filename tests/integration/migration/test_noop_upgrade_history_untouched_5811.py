@@ -30,8 +30,6 @@ from specify_cli.status.store import append_event
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.git_repo,
-    pytest.mark.regression,
-    pytest.mark.p0_repro(issue=5811),
 ]
 
 _VERSION = "1.0.0a1"

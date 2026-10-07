@@ -3569,6 +3569,15 @@ pages:
     - {slug: "7-full-cutover-no-aliases-no-shims", text: "7. Full cutover: no aliases, no shims", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "execution", text: "Execution", level: 2}
+  - path: "docs/adr/4.x/2026-10-07-1-upgrade-never-runs-mission-state-repair.md"
+    title: "ADR: upgrade never runs the mission-state repair"
+    divio_type: "none"
+    abstract: "spec-kitty upgrade, including --yes, only reports TeamSpace mission-state blockers (and only when hosted drain is on); doctor mission-state --fix is the sole repair consent path."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"

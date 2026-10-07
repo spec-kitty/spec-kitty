@@ -188,7 +188,7 @@ def test_optional_repair_failure_does_not_flip_a_successful_exit_code() -> None:
         outcome,
         provision_activations=lambda: [],
         run_surface_repair=SurfaceRepairReport,
-        offer_repair=lambda: RepairOutcome(ran=True, failed=True, message="repair blew up"),
+        offer_repair=lambda: RepairOutcome(failed=True, message="repair blew up"),
         commit_churn=lambda: True,
         should_commit=True,
     )
@@ -378,7 +378,7 @@ def test_single_churn_commit_excludes_mission_state_repair_paths(tmp_path: Path)
             cwd=tmp_path,
             check=True,
         )
-        return RepairOutcome(ran=True, message="repaired")
+        return RepairOutcome(reported=True, message="repaired")
 
     outcome = UpgradeOutcome(result=_synthesized_result())
     result = finalize_upgrade(

@@ -1,41 +1,24 @@
-"""WP03 (#4775) — ``safe_confirm`` + consent/exit honesty.
+"""``safe_confirm`` + consent/exit honesty (#4775, re-pinned by #5811).
 
-Two live defects on ``main`` at ``6b4015c4d1``:
+``--yes``/``--force`` is fully non-interactive, and since ADR 2026-10-07-1
+``upgrade`` never runs the mission-state repair at all: the finalizer step is
+report-only and takes no consent parameter. The only remaining prompt is the
+``Apply N migration(s)?`` confirmation, routed through ``safe_confirm``.
 
-1. ``--yes``/``--force`` (``confirm``) was wired to the migration-apply
-   decision (``assume_yes``) but never to the mission-state repair sub-gate's
-   OWN opt-in (``repair_opt_in``, defaulted ``False``) — so ``--yes`` at an
-   interactive TTY still prompted ``Run 'spec-kitty doctor mission-state
-   --fix' now?`` (``_teamspace_mission_state_gate.py``/``upgrade.py:1208``).
-2. Both bare ``typer.confirm`` sites (the repair sub-gate prompt, and the
-   separate ``Apply N migration(s)?`` prompt at ``upgrade.py:768-770``) let
-   ``typer.confirm`` raise ``typer.Abort`` uncaught on EOF (a closed/
-   non-interactive stdin), crashing an otherwise-successful upgrade instead
-   of cancelling cleanly.
-
-Operator ruling: ``--yes``/``--force`` is fully non-interactive — it
-auto-skips the mission-state repair sub-gate's own prompt too, exit 0.
-
-Load-bearing distinction (T018): a green exit code alone proves nothing here
-— both the correct wiring (``repair_opt_in=confirm``) and the forbidden one
-(``repair_opt_in=True`` unconditionally) can yield exit 0. Every test that
-claims to prove "no prompt" or "prompt still appears" asserts the actual
-``typer.confirm``/``safe_confirm`` call (or its absence) directly, via a
-mock, never via exit code alone.
+A green exit code alone proves nothing here, so every test that claims "no
+prompt" or "prompt still appears" asserts the actual ``safe_confirm`` call
+(or its absence) through a mock.
 """
 
 from __future__ import annotations
 
-import types
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 import typer
-from rich.console import Console
 
 import specify_cli.cli.commands.upgrade as upgrade_cmd
-from specify_cli.cli.commands import _teamspace_mission_state_gate as gate
 from specify_cli.cli.commands._confirm import safe_confirm
 from specify_cli.upgrade.outcome import RepairOutcome, UpgradeOutcome
 from specify_cli.upgrade.runner import UpgradeResult
@@ -100,50 +83,7 @@ def test_safe_confirm_passes_prompt_and_default_through(monkeypatch: pytest.Monk
 
 
 # ---------------------------------------------------------------------------
-# T020 — the mission-state repair prompt is EOF-safe and produces an honest
-# ``declined`` outcome (not a swallowed-by-a-different-layer ``failed``)
-# ---------------------------------------------------------------------------
-
-
-def _blocked_readiness(repo_root: Path) -> gate.TeamspaceMissionStateReadiness:
-    return gate.TeamspaceMissionStateReadiness(
-        repo_root=repo_root,
-        total_missions=1,
-        blocker_count=2,
-        missions_with_blockers=1,
-        blocker_codes=("teamspace-blocker",),
-        audit_error=None,
-    )
-
-
-def test_interactive_repair_prompt_eof_declines_cleanly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """An interactive TTY whose stdin hits EOF while answering the repair
-    prompt declines the repair instead of raising ``Abort`` uncaught."""
-    monkeypatch.setattr(gate, "check_teamspace_mission_state_readiness", lambda _r: _blocked_readiness(tmp_path))
-    spy = MagicMock(name="repair_repo")
-    monkeypatch.setattr("specify_cli.migration.mission_state.repair_repo", spy)
-    monkeypatch.setattr(gate, "sys", types.SimpleNamespace(stdin=types.SimpleNamespace(isatty=lambda: True)))
-
-    def _raise_abort(*_a: object, **_kw: object) -> bool:
-        raise typer.Abort
-
-    monkeypatch.setattr(typer, "confirm", _raise_abort)
-
-    outcome = gate.offer_teamspace_mission_state_migration(
-        tmp_path,
-        console=Console(),
-        dry_run=False,
-        repair_opt_in=False,
-    )
-
-    spy.assert_not_called()
-    assert outcome.declined is True
-    assert outcome.failed is False
-
-
-# ---------------------------------------------------------------------------
-# T021 — ``_finalizer_step_offer_repair`` wires repair_opt_in=confirm, not
-# a hardcoded True (the distinguishing NEW test named in the WP)
+# The finalizer step is report-only: it never passes consent to the gate
 # ---------------------------------------------------------------------------
 
 
@@ -151,59 +91,24 @@ def _up_to_date_outcome() -> UpgradeOutcome:
     return UpgradeOutcome(result=UpgradeResult(success=True, from_version="1.0.0", to_version="1.0.0"))
 
 
-def test_finalizer_step_offer_repair_passes_yes_as_repair_opt_in(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """--yes (confirm=True) must reach the sub-gate as its OWN opt-in, not
-    merely as the unrelated assume_yes flag the gate ignores."""
-    spy = MagicMock(name="offer_teamspace_mission_state_migration", return_value=RepairOutcome(ran=True))
-    monkeypatch.setattr(upgrade_cmd, "offer_teamspace_mission_state_migration", spy)
+def test_finalizer_step_reports_without_any_consent_parameter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The step hands the gate only the project and a console: no --yes,
+    no opt-in, no dry-run flag can reach a repair because none exists."""
+    spy = MagicMock(name="report_teamspace_mission_state_blockers", return_value=RepairOutcome(reported=True))
+    monkeypatch.setattr(upgrade_cmd, "report_teamspace_mission_state_blockers", spy)
 
-    upgrade_cmd._finalizer_step_offer_repair(
-        _up_to_date_outcome(),
-        project_path=tmp_path,
-        confirm=True,
-        dry_run=False,
-        json_output=False,
-    )
+    upgrade_cmd._finalizer_step_report_mission_state(_up_to_date_outcome(), project_path=tmp_path, json_output=False)
 
     spy.assert_called_once()
-    _, kwargs = spy.call_args
-    assert kwargs["repair_opt_in"] is True
-    assert kwargs["assume_yes"] is True
+    assert set(spy.call_args.kwargs) == {"console"}
 
 
-def test_finalizer_step_offer_repair_passes_no_yes_as_repair_opt_in_false(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Without --yes, repair_opt_in must be False (proves the wiring is
-    ``repair_opt_in=confirm``, NOT a hardcoded ``repair_opt_in=True`` that
-    would defeat NFR-003 by always granting repair consent)."""
-    spy = MagicMock(name="offer_teamspace_mission_state_migration", return_value=RepairOutcome(ran=True))
-    monkeypatch.setattr(upgrade_cmd, "offer_teamspace_mission_state_migration", spy)
-
-    upgrade_cmd._finalizer_step_offer_repair(
-        _up_to_date_outcome(),
-        project_path=tmp_path,
-        confirm=False,
-        dry_run=False,
-        json_output=False,
-    )
-
-    spy.assert_called_once()
-    _, kwargs = spy.call_args
-    assert kwargs["repair_opt_in"] is False
-    assert kwargs["assume_yes"] is False
-
-
-def test_finalizer_step_offer_repair_skipped_under_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_finalizer_step_report_skipped_under_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Unchanged pre-existing gating: never invoked under --json."""
-    spy = MagicMock(name="offer_teamspace_mission_state_migration")
-    monkeypatch.setattr(upgrade_cmd, "offer_teamspace_mission_state_migration", spy)
+    spy = MagicMock(name="report_teamspace_mission_state_blockers")
+    monkeypatch.setattr(upgrade_cmd, "report_teamspace_mission_state_blockers", spy)
 
-    result = upgrade_cmd._finalizer_step_offer_repair(
-        _up_to_date_outcome(),
-        project_path=tmp_path,
-        confirm=True,
-        dry_run=False,
-        json_output=True,
-    )
+    result = upgrade_cmd._finalizer_step_report_mission_state(_up_to_date_outcome(), project_path=tmp_path, json_output=True)
 
     spy.assert_not_called()
     assert result.pending is True
@@ -299,9 +204,9 @@ def test_show_migration_plan_confirm_eof_cancels_cleanly_not_uncaught_abort(tmp_
 # ---------------------------------------------------------------------------
 
 
-def test_repair_declined_or_failed_never_flips_effective_success() -> None:
+def test_repair_reported_or_failed_never_flips_effective_success() -> None:
     outcome = _up_to_date_outcome()
-    outcome.repair = RepairOutcome(declined=True)
+    outcome.repair = RepairOutcome(reported=True)
     assert outcome.effective_success is True
     assert outcome.exit_code == 0
 

@@ -188,7 +188,7 @@ def test_repair_failure_with_two_drifted_files_is_failed_and_reports_both() -> N
     assert outcome.exit_code == 1
 
 
-@pytest.mark.parametrize("repair", [RepairOutcome(declined=True), RepairOutcome(ran=True, failed=True, message="boom"), RepairOutcome(pending=True)])
+@pytest.mark.parametrize("repair", [RepairOutcome(reported=True), RepairOutcome(failed=True, message="boom"), RepairOutcome(pending=True)])
 @pytest.mark.parametrize("had_migrations", [False, True])
 def test_mission_state_repair_never_adds_a_reason_or_an_error(repair: RepairOutcome, had_migrations: bool) -> None:
     outcome = _build(frozenset(), had_migrations=had_migrations, dry_run=False)
