@@ -287,6 +287,18 @@ def _raw_phase_state(meta: Mapping[str, Any]) -> str:
     return "early" if value < 1 else "stamped"
 
 
+def _assert_tasks_dir_listable(tasks_dir: Path) -> None:
+    """Raise :class:`OSError` when ``tasks/`` exists but cannot be listed (not a directory, or unreadable).
+
+    The legacy reader globs ``tasks/WP*.md``, and ``Path.glob`` swallows a permission error
+    and returns nothing, which would read as "no WP carries legacy runtime" (a false green). An
+    absent ``tasks/`` is not an error: there is no WP file to carry anything.
+    """
+    if tasks_dir.exists():
+        for _ in tasks_dir.iterdir():
+            break
+
+
 def _carries_frontmatter_runtime(mission_dir: Path) -> bool | None:
     """True/False whether any WP file carries legacy claim runtime; ``None`` if undecidable.
 
@@ -297,6 +309,7 @@ def _carries_frontmatter_runtime(mission_dir: Path) -> bool | None:
     from specify_cli.migration.backfill_runtime_state import read_legacy_runtime  # noqa: PLC0415
 
     try:
+        _assert_tasks_dir_listable(mission_dir / "tasks")
         legacy = read_legacy_runtime(mission_dir)
         return any(row.has_legacy_claim_runtime() for row in legacy.values())
     except Exception:  # noqa: BLE001 — fail closed on ANY read error (undecidable -> not exempt)

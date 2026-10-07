@@ -21,6 +21,7 @@ exactly as it did before WP03.
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -192,6 +193,7 @@ def _born_mission(
     claim: bool = True,
     raw_meta: str | None = None,
     mission_id: str | None = _MISSION_ID,
+    tasks_is_file: bool = False,
 ) -> Path:
     mission_dir = root / "m-01KZMATRIX"
     (mission_dir / "tasks").mkdir(parents=True)
@@ -201,6 +203,9 @@ def _born_mission(
     (mission_dir / "meta.json").write_text(raw_meta if raw_meta is not None else json.dumps(meta), encoding="utf-8")
     (mission_dir / "tasks" / "WP01-x.md").write_text(f"---\n{wp_frontmatter}---\n\n# WP01\n", encoding="utf-8")
     (mission_dir / "tasks.md").write_text("# Tasks\n\n## WP01 X\n\n- [x] T001 ref\n", encoding="utf-8")
+    if tasks_is_file:
+        shutil.rmtree(mission_dir / "tasks")
+        (mission_dir / "tasks").write_text("not a directory", encoding="utf-8")
     append_event(mission_dir, _genesis_to_planned(event_id="01MATRIXBOOTSTRAPAAAAAA1"))
     if claim:
         append_event(
@@ -263,6 +268,7 @@ _PASS_QUIET = (True, ())
         pytest.param({"raw_meta": "{not json"}, False, "absent mission_id", id="meta-invalid-json"),
         pytest.param({"wp_frontmatter": 'work_package_id: "WP01"\nagent: [unclosed\n'}, False, REASON_LEGACY_UNDECIDABLE, id="wp-unparsable"),
         pytest.param({"mission_id": None}, False, "absent mission_id", id="absent-mission-id"),
+        pytest.param({"tasks_is_file": True}, False, REASON_LEGACY_UNDECIDABLE, id="tasks-is-a-file"),
     ],
 )
 def test_is_cut_over_pre_accept_matrix(tmp_path: Path, kwargs: dict[str, Any], cut_over: bool, reasons_prefix: str | None) -> None:
