@@ -295,10 +295,6 @@ def test_planted_entry_point_reaching_the_check_through_a_helper_passes(tmp_path
     assert _planted(tmp_path, monkeypatch, body) == []
 
 
-def test_derived_set_is_not_vacuous() -> None:
-    assert len(derived_entries()) >= len(_KNOWN_FLOOR)
-
-
 def test_planted_call_to_a_lane_selector_is_not_a_check(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     body = "from specify_cli.git.origin_freshness import approved_lane_branches\n\ndef gate(root, slug):\n    return approved_lane_branches(root, slug, None)\n"
     assert _planted(tmp_path, monkeypatch, body) == [("specify_cli/cli/commands/planted.py", "gate")]

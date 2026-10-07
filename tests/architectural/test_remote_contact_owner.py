@@ -93,6 +93,11 @@ def test_owner_bypass_positive_control_finds_contact_inside_the_owner() -> None:
         ("remote-prune", 'def f(cwd):\n    return run_git(cwd, "remote", "prune", "origin")\n'),
         ("remote-set-head", 'def f():\n    return ["git", "remote", "set-head", "origin", "-a"]\n'),
         ("fetch", 'FETCH = "fetch"\n\n\ndef f():\n    return ["git", FETCH, "origin"]\n'),
+        ("fetch", 'def f():\n    return ["git", "--no-pager", "fetch", "origin"]\n'),
+        ("fetch", 'def f():\n    return ["git", "-P", "fetch", "origin"]\n'),
+        ("fetch", 'def f(d):\n    return ["git", "--git-dir", d, "fetch", "origin"]\n'),
+        ("ls-remote", 'def f(d, w):\n    return ["git", "--git-dir", d, "--work-tree", w, "--namespace", "ns", "-c", "a=b", "ls-remote", "origin"]\n'),
+        ("pull", 'def f():\n    return ["git", "--git-dir=/x/.git", "--no-pager", "pull"]\n'),
     ],
     ids=[
         "fetch",
@@ -115,6 +120,11 @@ def test_owner_bypass_positive_control_finds_contact_inside_the_owner() -> None:
         "remote-prune",
         "remote-set-head-auto",
         "constant-indirection",
+        "no-pager-fetch",
+        "dash-P-fetch",
+        "git-dir-fetch",
+        "git-dir-work-tree-namespace-ls-remote",
+        "git-dir-equals-no-pager-pull",
     ],
 )
 def test_planted_contact_is_reported(tmp_path: Path, kind: str, body: str) -> None:

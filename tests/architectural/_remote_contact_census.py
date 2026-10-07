@@ -14,10 +14,11 @@ or ``run_git(cwd, "fetch", ...)``) whose git subcommand is:
 * ``remote update``, ``remote prune`` and ``remote set-head`` with ``-a``/``--auto``
   (each asks the remote; ``set-head <remote> <branch>`` and ``-d`` do not).
 
-The subcommand is the first resolved token once a leading ``"git"`` and any
-``-C <dir>`` / ``-c <k=v>`` global option are skipped, so wrapper calls that
-omit ``"git"`` and carry unresolved arguments (a ``cwd`` expression) before the
-subcommand are caught. ``push`` is out of scope (FR-015).
+The subcommand is the first resolved token once a leading ``"git"`` and every
+leading global option are skipped (``--no-pager``, ``-P``, ``--git-dir=<d>``; the
+value-taking ``-C``, ``-c``, ``--git-dir``, ``--work-tree`` and ``--namespace`` also
+consume their value), so wrapper calls that omit ``"git"`` and carry unresolved
+arguments (a ``cwd`` expression) before the subcommand are caught. ``push`` is out of scope (FR-015).
 
 Accepted blind spots: a command written as one shell string (``"git fetch origin"``
 with ``shell=True``, or ``"git fetch origin".split()``); ``remote add -f``; and
@@ -40,7 +41,7 @@ from tests.architectural._git_path_listing_census import OWNER_ROOT, Hit, _call_
 __all__ = ["OWNER_ROOT", "Hit", "census", "census_source", "classify_argv", "src_files", "REPO_ROOT", "SRC_ROOT", "iter_py_files", "parse"]
 
 _CONTACT_VERBS = frozenset({"fetch", "ls-remote", "pull", "clone"})
-_OPTIONS_WITH_VALUE = frozenset({"-C", "-c"})
+_OPTIONS_WITH_VALUE = frozenset({"-C", "-c", "--git-dir", "--work-tree", "--namespace"})
 _LOCAL_ONLY = frozenset({"-n", "--no-query"})
 _REMOTE_CONTACT_SUBCOMMANDS = frozenset({"update", "prune"})
 _AUTO_FLAGS = frozenset({"-a", "--auto"})
@@ -52,7 +53,7 @@ _REGISTRATION_CALLS = frozenset({"command", "add_parser", "add_argument", "add_t
 
 
 def _subcommand_tail(tokens: Sequence[str | None]) -> list[str]:
-    """Resolved tokens from the git subcommand on, after dropping ``git`` and ``-C``/``-c`` options."""
+    """Resolved tokens from the git subcommand on, after dropping ``git`` and every leading global option."""
     out: list[str] = []
     skip_next = False
     for tok in tokens:
@@ -65,6 +66,8 @@ def _subcommand_tail(tokens: Sequence[str | None]) -> list[str]:
             continue
         if not out and tok in _OPTIONS_WITH_VALUE:
             skip_next = True
+            continue
+        if not out and tok.startswith("-"):
             continue
         out.append(tok)
     return out
