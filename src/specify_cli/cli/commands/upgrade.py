@@ -84,6 +84,7 @@ from specify_cli.upgrade.outcome import (
     MergeDriverConfigState,
     MissionStateReportOutcome,
     SurfaceRepairReport,
+    UpgradeFailureReason,
     UpgradeOutcome,
     UpgradeOutcomeKind,
 )
@@ -1213,6 +1214,21 @@ def _finalizer_step_merge_driver_config(outcome: UpgradeOutcome, *, project_path
         return "failed"
 
 
+_REASONS_THAT_KEEP_THE_MAIN_COMMIT = frozenset({UpgradeFailureReason.WORKTREE_FAILURE, UpgradeFailureReason.SURFACE_DRIFT})
+"""Reasons that do not make the main checkout's own run a failure: a failed worktree gates only
+its own commit (``runner._commit_worktree_churn``), and drift held for consent is an upgrade that
+finished and commits the rest (FR-021)."""
+
+
+def _main_checkout_run_failed(outcome: UpgradeOutcome) -> bool:
+    """True when the outcome already reports a failure of the main checkout's run (FR-019).
+
+    Read when the commit step runs, so a failure recorded after the migrations, such as a
+    tool-surface repair that was not applied, counts as well as a failed migration.
+    """
+    return not set(outcome.reasons) <= _REASONS_THAT_KEEP_THE_MAIN_COMMIT
+
+
 def _finalizer_step_commit_churn(
     outcome: UpgradeOutcome,
     ctx: _FinalizerRenderContext,
@@ -1234,7 +1250,14 @@ def _finalizer_step_commit_churn(
     migration: the migrations themselves completed. The commit itself may have
     landed (``exc.commit_sha``), and then the outcome reports it as committed;
     the files it held are unknown here, so ``commit_paths`` stays empty.
+
+    A run the outcome already reports as failed commits nothing (FR-019): ``finalize_upgrade``
+    reaches this step after a tool-surface repair that was not applied, and the no-commit
+    reason is then the failed-run one (:func:`_no_commit_reason`).
     """
+    if _main_checkout_run_failed(outcome):
+        ctx.commit_paths = []
+        return False
     try:
         committed, paths, warning = autocommit.commit_touched_checkout(
             project_path,
@@ -1298,7 +1321,8 @@ def _no_commit_reason(
     were left uncommitted (only when there are changes); a project with ``auto_commit``
     disabled is reported by :func:`_churn_left_uncommitted_by_config`; then an unavailable
     baseline, activation or repair-preparation errors (``finalize_upgrade`` skips the commit
-    silently for those), and a ``.kittify/metadata.yaml`` that was dirty before the run.
+    silently for those), a later failure such as a tool-surface repair that was not applied
+    (the failed-run reason again; :func:`_finalizer_step_commit_churn` committed nothing), and a ``.kittify/metadata.yaml`` that was dirty before the run.
     Detached HEAD, branch-detection and ``safe_commit`` failures already carry their own
     ``commit_warning``, and held files are named by :func:`_held_files_warning`.
     """
@@ -1312,6 +1336,8 @@ def _no_commit_reason(
         return autocommit.BASELINE_UNAVAILABLE_WARNING
     if outcome.activation_errors or outcome.repair_preparation_errors:
         return autocommit.REPAIR_ERRORS_LEFT_UNCOMMITTED_WARNING
+    if _main_checkout_run_failed(outcome):
+        return autocommit.FAILED_RUN_LEFT_UNCOMMITTED_WARNING if churn_present else None
     if metadata_dirty_at_baseline and not churn_present:
         return autocommit.METADATA_DIRTY_AT_BASELINE_WARNING
     return None
