@@ -45,7 +45,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
-from kernel.git import GitCommandError, is_tracked, tracked_paths
+from kernel.git import is_tracked, run_git, tracked_paths
 from mission_runtime import MissionResolver
 from specify_cli.lanes.branch_naming import resolve_mid8, strip_numeric_prefix
 from specify_cli.mission_metadata import load_meta
@@ -241,17 +241,34 @@ def _iter_mission_dirs(repo_root: Path) -> Iterator[Path]:
 _MISSION_MARKER_FILES = ("spec.md", "meta.json")
 
 
+def _git_prefix(repo_root: Path) -> str | None:
+    """``git rev-parse --show-prefix`` for *repo_root* (``""`` at the toplevel); ``None`` outside a work tree."""
+    result = run_git(repo_root, "rev-parse", "--is-inside-work-tree", "--show-prefix", check=False)
+    if result.returncode != 0:
+        return None
+    lines = result.stdout.decode("utf-8", "replace").split("\n")
+    return lines[1] if lines[0].strip() == "true" and len(lines) > 1 else None
+
+
 def tracked_mission_paths(repo_root: Path) -> frozenset[str] | None:
-    """Return every git-tracked path under ``kitty-specs/`` (repo-relative, ``/``-joined).
+    """Return every git-tracked path under ``kitty-specs/`` (*repo_root*-relative, ``/``-joined).
 
     One batch ``git ls-files`` for the whole tree, so :func:`is_mission_dir`
-    needs no subprocess per directory. ``None`` when *repo_root* is not a git
-    repository (or git is unavailable); callers pass it as ``tracked=`` and the
-    predicate then degrades to its existence rule.
+    needs no subprocess per directory. ``kernel.git.tracked_paths`` yields
+    toplevel-relative paths, so the ``git rev-parse --show-prefix`` of
+    *repo_root* is stripped: a project nested in a larger repository compares
+    on the same base as :func:`is_mission_dir`. ``None`` only when *repo_root*
+    is not inside a git work tree (or git is unavailable); callers pass it as
+    ``tracked=`` and the predicate then degrades to its existence rule. Any
+    other git failure propagates.
     """
     try:
-        return frozenset(str(path) for path in tracked_paths(repo_root, pathspecs=[KITTY_SPECS_DIR]))
-    except (GitCommandError, OSError):
+        prefix = _git_prefix(repo_root)
+        if prefix is None:
+            return None
+        paths = (str(path) for path in tracked_paths(repo_root, pathspecs=[KITTY_SPECS_DIR]))
+        return frozenset(p.removeprefix(prefix) for p in paths)
+    except OSError:
         return None
 
 
@@ -276,11 +293,11 @@ def is_mission_dir(path: Path, *, repo_root: Path, tracked: frozenset[str] | Non
        without it each marker is probed with ``git ls-files``.
     3. Otherwise False.
 
-    Outside a git repository, or when git cannot answer, rule 2 falls back to
+    Outside a git work tree (or when git is unavailable), rule 2 falls back to
     the population rule of :func:`list_missions_for_selection` (``spec.md`` or
     ``meta.json`` exists), so a non-git scan root never errors out of
-    enumeration. This is a per-directory test applied to what
-    :func:`_iter_mission_dirs` yields, never a second scan.
+    enumeration. Any other git failure propagates. This is a per-directory test
+    applied to what :func:`_iter_mission_dirs` yields, never a second scan.
     """
     if _carries_identity(path):
         return True
@@ -289,9 +306,15 @@ def is_mission_dir(path: Path, *, repo_root: Path, tracked: frozenset[str] | Non
         rels = [(path.resolve() / name).relative_to(base).as_posix() for name in _MISSION_MARKER_FILES]
         if tracked is not None:
             return any(rel in tracked for rel in rels)
+        if _git_prefix(base) is None:
+            return _markers_exist(path)
         return any(is_tracked(base, rel) for rel in rels)
-    except (GitCommandError, OSError, ValueError):
-        return any((path / name).exists() for name in _MISSION_MARKER_FILES)
+    except (OSError, ValueError):
+        return _markers_exist(path)
+
+
+def _markers_exist(path: Path) -> bool:
+    return any((path / name).exists() for name in _MISSION_MARKER_FILES)
 
 
 def _build_index(repo_root: Path) -> list[ResolvedMission]:

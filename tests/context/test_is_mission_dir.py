@@ -71,3 +71,16 @@ def test_non_git_root_falls_back_to_existence_rule(tmp_path: Path) -> None:
     assert tracked_mission_paths(tmp_path) is None
     assert is_mission_dir(has_spec, repo_root=tmp_path)
     assert not is_mission_dir(empty, repo_root=tmp_path)
+
+
+def test_nested_project_legacy_mission_is_a_mission(repo: Path) -> None:
+    nested = repo / "mono" / "app"
+    path = nested / "kitty-specs" / "legacy-01EEEEEE"
+    path.mkdir(parents=True)
+    (path / "spec.md").write_text("# s\n", encoding="utf-8")
+    (path / "meta.json").write_text(json.dumps({"slug": "legacy"}), encoding="utf-8")
+    _git(repo, "add", "-A")
+    tracked = tracked_mission_paths(nested)
+    assert tracked is not None and "kitty-specs/legacy-01EEEEEE/spec.md" in tracked
+    assert is_mission_dir(path, repo_root=nested, tracked=tracked)
+    assert is_mission_dir(path, repo_root=nested)
