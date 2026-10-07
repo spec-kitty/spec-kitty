@@ -74,6 +74,7 @@ from specify_cli.consolidation.done_bookkeeping import (
     acceptably_canceled_wp_ids,
 )
 from specify_cli.consolidation.origin_gate import check_origin_before_status_dir
+from specify_cli.git.origin_freshness import OriginFreshnessRefused
 from specify_cli.consolidation.preflight import (
     _check_mission_branch,
     _effective_push_requested,
@@ -95,6 +96,7 @@ from specify_cli.consolidation.state import (
 from specify_cli.mission_metadata import resolve_mission_identity
 from mission_runtime import (
     MissionArtifactKind,
+    PlacementSeam,
     placement_seam,
 )
 from specify_cli.consolidation.coord_strand import (
@@ -639,6 +641,17 @@ def _load_lanes_manifest(
     return manifest
 
 
+def _enforce_origin_gate(main_repo: Path, seam: PlacementSeam, origin_check: str | None) -> None:
+    """Print the origin gate's warnings, or its refusal text and exit 1 (nothing has moved yet)."""
+    try:
+        warnings = check_origin_before_status_dir(main_repo, seam, origin_check)
+    except OriginFreshnessRefused as exc:
+        console.print(str(exc), markup=False)
+        raise typer.Exit(1) from exc
+    for warning in warnings:
+        console.print(warning, markup=False)
+
+
 def _run_lane_based_consolidation(
     repo_root: Path,
     mission_slug: str,
@@ -707,7 +720,7 @@ def _run_lane_based_consolidation(
     # #5780: the origin freshness check runs BEFORE the status dir is resolved (that
     # resolution can seed or commit the coordination surface) and before any branch moves.
     if not origin_gated:
-        check_origin_before_status_dir(main_repo, seam, origin_check)
+        _enforce_origin_gate(main_repo, seam, origin_check)
     feature_dir = _resolve_run_status_dir(seam)
     # PRIMARY-partition reads (FR-002 #2185), routed per-leg DIRECTLY (NOT threaded
     # from the ``:887`` ``target_feature_dir`` anchor in the *locked* function): the

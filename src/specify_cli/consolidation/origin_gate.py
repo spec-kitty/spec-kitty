@@ -5,7 +5,10 @@ selects the lane branches, runs ONE read-only freshness check (one remote
 contact per remote, NFR-001) BEFORE ``_resolve_run_status_dir`` can seed or
 commit a coordination surface, and renders the outcome. A refusal prints the
 operator text and exits 1 with nothing moved and nothing pushed; ``warn`` mode
-prints the same verdicts as warnings and lets the run continue.
+prints the same verdicts as warnings and lets the run continue. This module
+renders nothing itself: it returns the warnings or raises
+:class:`~specify_cli.git.origin_freshness.OriginFreshnessRefused`, and the
+executor prints and exits.
 
 A coordination mission whose coordination branch exists only on the remote
 (evidence ``local_missing``) is not refused here: the existing
@@ -15,22 +18,13 @@ and the fetch the check performed makes its remedy work.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from pathlib import Path
 
-import typer
-
 from mission_runtime import MissionArtifactKind, PlacementSeam
-from specify_cli.cli.console import console
 from specify_cli.consolidation.entry_preflight import _merge_record_may_exist
 from specify_cli.consolidation.state import ConsolidationStateReadError, MergeAmbiguousStateError, load_state
 from specify_cli.core.paths import MissionMetaReadError
-from specify_cli.git.origin_freshness import (
-    OriginCheckSetting,
-    OriginFreshnessRefused,
-    approved_lane_branches,
-    resolve_origin_check_mode,
-)
+from specify_cli.git.origin_freshness import approved_lane_branches, resolve_origin_check_mode
 from specify_cli.git.origin_gate import run_origin_gate
 from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
 from specify_cli.mission_metadata import resolve_mission_identity
@@ -63,30 +57,23 @@ def _lane_branches(seam: PlacementSeam) -> list[str]:
     return branches
 
 
-def _render_warnings(warnings: Sequence[str]) -> None:
-    for warning in warnings:
-        console.print(warning, markup=False)
-
-
-def check_origin_before_status_dir(main_repo: Path, seam: PlacementSeam, origin_check: str | None) -> OriginCheckSetting:
-    """Run the origin freshness check once; refuse (exit 1) or warn per the resolved setting.
+def check_origin_before_status_dir(main_repo: Path, seam: PlacementSeam, origin_check: str | None) -> list[str]:
+    """Run the origin freshness check once; return the warnings, or raise on a refusal.
 
     Reads nothing that mutates, and must run before the status directory is
-    resolved. Returns the resolved setting so the caller can reuse it. The
-    check itself is the shared :func:`specify_cli.git.origin_gate.run_origin_gate`;
-    this wrapper only selects lanes, reads the resume record and renders.
+    resolved. The check itself is the shared
+    :func:`specify_cli.git.origin_gate.run_origin_gate`; this wrapper only
+    selects lanes and reads the resume record.
+
+    Raises:
+        OriginFreshnessRefused: a verdict refuses in ``enforce`` mode; ``str(exc)``
+            is the operator text the caller prints before exiting 1.
     """
-    setting = resolve_origin_check_mode(origin_check)
-    try:
-        warnings = run_origin_gate(
-            main_repo,
-            seam.mission_slug,
-            setting=setting,
-            lane_branches=_lane_branches(seam),
-            merge_record_exists=_merge_record_may_exist(seam),
-        )
-    except OriginFreshnessRefused as exc:
-        console.print(str(exc), markup=False)
-        raise typer.Exit(1) from exc
-    _render_warnings(warnings)
-    return setting
+    warnings: list[str] = run_origin_gate(
+        main_repo,
+        seam.mission_slug,
+        setting=resolve_origin_check_mode(origin_check),
+        lane_branches=_lane_branches(seam),
+        merge_record_exists=_merge_record_may_exist(seam),
+    )
+    return warnings

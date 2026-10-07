@@ -605,8 +605,6 @@ _MERGE_CLI_CONSOLE_IMPORTERS: frozenset[str] = frozenset(
         "specify_cli/consolidation/phase_finalize.py",
         "specify_cli/consolidation/entry_preflight.py",
         "specify_cli/consolidation/resume_recovery.py",
-        # Renders the origin freshness refusal/warnings (#5780); presentation only, like its siblings.
-        "specify_cli/consolidation/origin_gate.py",
     }
 )
 
