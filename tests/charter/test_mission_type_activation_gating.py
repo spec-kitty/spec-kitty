@@ -41,7 +41,7 @@ three-state contract the other 9 kinds follow:
   to the mission-create / require boundary (``create_mission_core``). A typed
   ``resolve_mission_type_context`` request against the empty set still
   hard-fails via ``UnknownMissionTypeError`` (the use-boundary contract,
-  FR-003), never a construction ``CharterPackConfigError``.
+  FR-003), never a construction ``ActiveCharterConfigError``.
 * T036 — subset-activation regression: a proper subset of activated types
   narrows the result to exactly that subset.
 
@@ -112,7 +112,7 @@ def test_bare_project_resolve_context_hard_fails_on_unknown_type(
     For a bare/unprovisioned project that set is empty, so requesting any
     typed mission still hard-fails via ``UnknownMissionTypeError`` (FR-003) --
     but this is the *use*-boundary hard-fail on an unregistered type, NOT a
-    construction ``CharterPackConfigError``. The empty ``registered_ids``
+    construction ``ActiveCharterConfigError``. The empty ``registered_ids``
     reported by the error is the fingerprint of the total read path."""
     with pytest.raises(UnknownMissionTypeError) as exc_info:
         resolve_mission_type_context(tmp_path, mission_type="not-a-real-mission-type")

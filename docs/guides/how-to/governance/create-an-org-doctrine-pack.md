@@ -68,7 +68,7 @@ my-pack/
 ```
 
 **Important: do not create `pack-manifest.yaml` yourself.** It is written by
-`charter fetch` (for non-git sources) and `doctrine pack assemble`. Authors should leave
+`charter fetch` (for non-git sources) and `charter pack assemble`. Authors should leave
 it alone; manual edits surface as an advisory in `pack validate`.
 
 ---
@@ -116,7 +116,7 @@ directive-references:
 
 **Agent-profile keys are closed.** A key the profile schema does not declare is a
 load error, not a warning — the profile is skipped and the pack is reported
-unhealthy by `spec-kitty doctor doctrine --json` (look for `skipped_profiles`).
+unhealthy by `spec-kitty doctor charter-packs --json` (look for `skipped_profiles`).
 Note in particular that the identifier key is `profile-id` (not `id`), that
 `roles` is a list (not a singular `role`), and that most keys are hyphenated.
 Copy the field names from a built-in profile under
@@ -125,7 +125,7 @@ Copy the field names from a built-in profile under
 ### Namespace your IDs
 
 IDs in an org pack collide globally with built-in and project IDs. To keep collisions
-visible (and to make `doctor doctrine` output readable), prefix your IDs with an
+visible (and to make `doctor charter-packs` output readable), prefix your IDs with an
 organisation-specific code:
 
 | Artifact type | File pattern | Recommended ID prefix |
@@ -250,7 +250,7 @@ For more on how `org-charter.yaml` composes when multiple packs are configured, 
 
 ## Step 3b: Sanction the built-ins your pack replaces
 
-If an artifact in your pack has the same ID as a built-in artifact, it replaces that built-in in place. A consumer's `spec-kitty doctor doctrine` accepts the replacement only when something sanctions it; otherwise it exits 1 and names the URN. You list the built-ins you replace on purpose in a file at the **pack root**. This also covers the case where upstream later promotes one of your artifacts into the built-in set: your same-ID artifact then becomes an override, and the sanction is already in your pack.
+If an artifact in your pack has the same ID as a built-in artifact, it replaces that built-in in place. A consumer's `spec-kitty doctor charter-packs` accepts the replacement only when something sanctions it; otherwise it exits 1 and names the URN. You list the built-ins you replace on purpose in a file at the **pack root**. This also covers the case where upstream later promotes one of your artifacts into the built-in set: your same-ID artifact then becomes an override, and the sanction is already in your pack.
 
 Create `replaceable-builtins.yaml` next to `org-charter.yaml`. The pack root is the resolved root of the pack, including any `subdir` the consumer configures:
 
@@ -269,9 +269,9 @@ Rules:
 - The sanction covers only overrides your own pack contributes. A consumer matches it by the pack's name in the consumer's configuration, so it cannot sanction an override from another pack.
 - The file has one key, `replaceable_builtins`. `revoked_pack_sanctions` belongs to the consumer file only and is an error here. Other unknown keys are ignored.
 - An entry for a URN that is not a built-in, or that your pack does not override, does nothing.
-- A file that is malformed, unreadable, not a regular file, or a symlink that leaves the pack root makes the consumer's `doctor doctrine` unhealthy, with an error that names your pack and the file. The file is checked for every configured pack, whether or not that pack overrides anything.
+- A file that is malformed, unreadable, not a regular file, or a symlink that leaves the pack root makes the consumer's `doctor charter-packs` unhealthy, with an error that names your pack and the file. The file is checked for every configured pack, whether or not that pack overrides anything.
 
-Validate it with the rest of the pack (Step 5). `spec-kitty doctrine pack validate` parses the file with the same parser the consumer uses. It reports an error for a malformed file or a directive entry without a reason, and an advisory for an entry your pack does not override.
+Validate it with the rest of the pack (Step 5). `spec-kitty charter pack validate` parses the file with the same parser the consumer uses. It reports an error for a malformed file or a directive entry without a reason, and an advisory for an entry your pack does not override.
 
 When you assemble packs (Step 6), the assembled pack root carries the union of the input packs' `replaceable-builtins.yaml` files. If two inputs list the same URN with different reasons, assembly reports a conflict; `--force` keeps the last pack's reason.
 
@@ -340,7 +340,7 @@ will see.
 Before publishing, validate against schema and DRG constraints:
 
 ```bash
-uv run spec-kitty doctrine pack validate ./my-pack
+uv run spec-kitty charter pack validate ./my-pack
 ```
 
 Exit codes:
@@ -351,7 +351,7 @@ Exit codes:
 For machine-readable output (CI integration, scripts):
 
 ```bash
-uv run spec-kitty doctrine pack validate ./my-pack --json
+uv run spec-kitty charter pack validate ./my-pack --json
 ```
 
 ### Reading the output
@@ -379,10 +379,10 @@ artifact set. Either add the missing artifact, fix the URN, or remove the edge.
 ## Step 6 (optional): Assemble multiple packs into a distributable
 
 If your organization prefers a single distributable artifact over multiple independent
-pack repositories, you can merge several packs into one with `doctrine pack assemble`:
+pack repositories, you can merge several packs into one with `charter pack assemble`:
 
 ```bash
-uv run spec-kitty doctrine pack assemble \
+uv run spec-kitty charter pack assemble \
   ./distributable-out \
   ./security-pack ./architecture-pack ./compliance-pack
 ```
@@ -396,12 +396,12 @@ default behavior is to **fail** with a conflict report. You have two options:
 
 ```bash
 # Write the conflict report to a file for inspection
-uv run spec-kitty doctrine pack assemble \
+uv run spec-kitty charter pack assemble \
   ./out ./security ./architecture \
   --conflicts-out conflicts.json
 
 # Resolve conflicts by last-pack-wins (and drop duplicate edges silently)
-uv run spec-kitty doctrine pack assemble \
+uv run spec-kitty charter pack assemble \
   ./out ./security ./architecture --force
 ```
 
@@ -485,7 +485,7 @@ Field reference:
 
 | Field | Required | Purpose |
 |---|---|---|
-| `name` | yes | Unique pack name (used by `--pack` flag, displayed in `doctor doctrine`) |
+| `name` | yes | Unique pack name (used by `--pack` flag, displayed in `doctor charter-packs`) |
 | `local_path` | yes | Filesystem path where the snapshot lives (`~` and `${VAR}`/`$VAR` env-var indirection expanded at resolution time — see below) |
 | `source_type` | no | One of `git`, `https`, `artifactory`, `api`; omit if pre-provisioned |
 | `url` | required if `source_type` set | Remote URL |
@@ -531,7 +531,7 @@ export SPEC_KITTY_PACK_HOME=/opt/acme-doctrine
 ```
 
 Expansion happens only when the path is resolved (e.g. `charter fetch`,
-`doctor doctrine`) — the literal `${SPEC_KITTY_PACK_HOME}/security-doctrine`
+`doctor charter-packs`) — the literal `${SPEC_KITTY_PACK_HOME}/security-doctrine`
 string is what stays written in `.kittify/config.yaml`, so the config remains
 portable across machines/CI. If the referenced variable is unset or empty,
 resolution fails closed with a named error identifying the variable and the
@@ -554,7 +554,7 @@ uv run spec-kitty charter fetch --dry-run
 Verify the install:
 
 ```bash
-uv run spec-kitty doctor doctrine
+uv run spec-kitty doctor charter-packs
 ```
 
 The output enumerates each configured pack, its on-disk version, per-artifact counts,
@@ -562,7 +562,7 @@ and `org-charter.yaml` status. Add `--json` for scripting.
 
 ### Built-in overrides: see what is sanctioned, and withdraw it
 
-Consumers no longer copy the pack's allowlist. `spec-kitty doctor doctrine` reads each pack's root `replaceable-builtins.yaml` in place and unions it with the consumer's own `.kittify/doctrine/replaceable-builtins.yaml`, which keeps its schema and is checked first. A pack's sanction applies only to overrides that same pack contributes.
+Consumers no longer copy the pack's allowlist. `spec-kitty doctor charter-packs` reads each pack's root `replaceable-builtins.yaml` in place and unions it with the consumer's own `.kittify/doctrine/replaceable-builtins.yaml`, which keeps its schema and is checked first. A pack's sanction applies only to overrides that same pack contributes.
 
 The report lists every sanctioned built-in override with its source and reason, including on a passing run, under `Sanctioned built-in override(s)`. With `--json` they appear as `sanctioned_overrides` under `profile_health.org_drg`, each with `source` set to `consumer` or `pack`.
 
@@ -576,7 +576,7 @@ revoked_pack_sanctions:
   - pack: acme-doctrine   # every sanction this pack delivers
 ```
 
-A revoked override is reported as unsanctioned and `doctor doctrine` exits 1 until you list the URN under `replaceable_builtins` in your own file. Revocation withdraws only pack-delivered sanctions. A `pack` value must match a configured pack name exactly (case-sensitive); one that does not is an error, so a typo cannot leave a sanction in force. Revoking a whole pack also catches overrides the pack starts sanctioning on a later refresh.
+A revoked override is reported as unsanctioned and `doctor charter-packs` exits 1 until you list the URN under `replaceable_builtins` in your own file. Revocation withdraws only pack-delivered sanctions. A `pack` value must match a configured pack name exactly (case-sensitive); one that does not is an error, so a typo cannot leave a sanction in force. Revoking a whole pack also catches overrides the pack starts sanctioning on a later refresh.
 
 A malformed consumer file is now reported as an error that names the file, and is treated as empty. Older CLIs ignore `revoked_pack_sanctions`.
 
@@ -602,7 +602,7 @@ built-in version.
 
 ### Error: "Unsanctioned built-in override(s)"
 
-`doctor doctrine` found a built-in override that nothing sanctions. The `why` text on the finding says which case applies. Fix it in this order:
+`doctor charter-packs` found a built-in override that nothing sanctions. The `why` text on the finding says which case applies. Fix it in this order:
 
 1. **Pack root.** If the overriding pack should own the replacement, add the URN to the pack's `replaceable-builtins.yaml` (Step 3b) and refresh the pack with `spec-kitty charter fetch`. A directive needs a non-empty `reason`. The entry counts only for the pack that contributes the override.
 2. **Consumer entry.** If you accept the replacement yourself, append `{urn, reason}` under `replaceable_builtins` in `.kittify/doctrine/replaceable-builtins.yaml`. Append the one entry; do not copy a whole file over yours.
@@ -614,7 +614,7 @@ If the pack still ships only `templates/setup/replaceable-builtins.yaml`, a temp
 
 A pack's root `replaceable-builtins.yaml`, or your consumer file, could not be used. The message names the pack and file. Common causes are invalid YAML, an entry without a `urn`, `revoked_pack_sanctions` inside a pack file, a symlink that leaves the pack root, and a `revoked_pack_sanctions` pack name that is not configured. The broken file contributes no sanction; fix it and re-run.
 
-While your consumer file is malformed it is treated as empty, so its `revoked_pack_sanctions` are not applied either: a pack-sanctioned override you meant to revoke may still be listed as sanctioned. Fix the file first; `doctor doctrine` stays unhealthy until then.
+While your consumer file is malformed it is treated as empty, so its `revoked_pack_sanctions` are not applied either: a pack-sanctioned override you meant to revoke may still be listed as sanctioned. Fix the file first; `doctor charter-packs` stays unhealthy until then.
 
 ### Error: "No artifact directories found in fetched snapshot"
 

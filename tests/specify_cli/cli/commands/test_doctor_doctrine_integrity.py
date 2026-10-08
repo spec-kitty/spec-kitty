@@ -1,4 +1,4 @@
-"""CLI test: `spec-kitty doctor doctrine` wires the FR-013 cross-grain scan (#2666).
+"""CLI test: `spec-kitty doctor charter-packs` wires the FR-013 cross-grain scan (#2666).
 
 ``charter.activation.action_grain.scan_builtin_cross_grain_duplicates`` (WP02/WP04) already
 enumerates every shipped mission type and raises
@@ -10,7 +10,7 @@ Before this WP that scan had **no ``src`` caller** — it was only exercised by
 project/org-authored mission type would never surface outside pytest.
 
 This test proves the scan is now load-bearing through
-``spec-kitty doctor doctrine --json``: a synthetic built-in tree with a
+``spec-kitty doctor charter-packs --json``: a synthetic built-in tree with a
 deliberate type/action collision must flip the command to RC=1 with a
 structured finding in the JSON payload; a disjoint synthetic tree must leave
 the command healthy (RC=0, no finding). The synthetic-tree construction
@@ -125,7 +125,7 @@ def _invoke_doctrine_json(project_root: Path, built_in_root: Path) -> tuple[int,
             return_value=project_root,
         ),
     ):
-        result = runner.invoke(doctor_app, ["doctrine", "--json"])
+        result = runner.invoke(doctor_app, ["charter-packs", "--json"])
     payload = json.loads(result.output)
     return result.exit_code, payload
 
@@ -133,7 +133,7 @@ def _invoke_doctrine_json(project_root: Path, built_in_root: Path) -> tuple[int,
 def test_doctor_doctrine_json_rc1_on_synthetic_cross_grain_collision(
     kittify_project: Path, tmp_path: Path
 ) -> None:
-    """A built-in type/action URN collision flips `doctor doctrine --json` to RC=1."""
+    """A built-in type/action URN collision flips `doctor charter-packs --json` to RC=1."""
     built_in_root = tmp_path / "colliding-built-in"
     _write_colliding_tree(
         built_in_root,
@@ -177,7 +177,7 @@ def test_doctor_doctrine_human_renders_loud_collision_line(
             return_value=kittify_project,
         ),
     ):
-        result = runner.invoke(doctor_app, ["doctrine"])
+        result = runner.invoke(doctor_app, ["charter-packs"])
 
     assert result.exit_code == 1, result.output
     assert "Cross-grain doctrine-integrity violation" in result.output

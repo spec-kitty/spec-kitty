@@ -349,8 +349,8 @@ Cross-cutting infrastructure used by all artifact subpackages:
 2. **Project artifacts** live in the user's project under the canonical
    `.kittify/charter-packs/` tree (e.g., `.kittify/charter-packs/directives/`);
    the legacy `.kittify/doctrine/` location is still read as a fallback until
-   the M3 on-disk data move lands (`src/kernel/doctrine_root.py`,
-   `resolve_doctrine_read_root`, CR-07). Project artifacts can override
+   the M3 on-disk data move lands (`src/kernel/charter_pack_paths.py`,
+   `resolve_project_pack_read_root`, CR-07). Project artifacts can override
    shipped artifacts via field-level merge or add entirely new ones. (`.kittify/charter/`
    is a distinct tree — the compiled Charter Bundle output, not the
    project-layer artifact source.)

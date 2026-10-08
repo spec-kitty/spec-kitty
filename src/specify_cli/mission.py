@@ -811,7 +811,7 @@ def validate_deliverables_path(deliverables_path: str) -> tuple[bool, str]:
          working directory) — symlinks that escape the root are rejected
          via ``Path.relative_to`` (NOT ``str.startswith``, which is
          vulnerable to the sibling-prefix bypass — see the same pattern in
-         ``doctrine/sources/https_source.py``).
+         ``charter_packs/sources/https_source.py``).
        - The resolved path, relative to the project root, must not land in
          ``kitty-specs/`` (reserved for planning artifacts) — compared
          case-insensitively so a case-variant or a symlink cannot bypass it.

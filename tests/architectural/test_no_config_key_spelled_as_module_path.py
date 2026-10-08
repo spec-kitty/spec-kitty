@@ -7,7 +7,7 @@ The ``src/doctrine`` → ``src/charter/offering`` module move rewrote the token
 the old ``doctrine`` key was rewritten with it, so operator surfaces sent
 people to keys that do not exist:
 
-* ``doctor doctrine`` told operators to add a ``'charter.offering.org'`` block
+* ``doctor charter-packs`` told operators to add a ``'charter.offering.org'`` block
   to ``.kittify/config.yaml`` (the key is ``charter_packs.org``);
 * shipped skills cited ``governance.charter.offering.governance_references``
   and ``charter.offering.selected_paradigms`` (the keys live under

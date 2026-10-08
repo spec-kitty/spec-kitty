@@ -969,7 +969,7 @@ def _st_render_human(st: _StatusState, ports: TasksPorts) -> None:
             # Genuinely-absent-module case only: ``charter`` is first-party
             # and ships in the same wheel, so this can only fire under a
             # broken/partial install. Any other failure here -- most
-            # notably ``charter.activation.pack_context.CharterPackConfigError`` raised
+            # notably ``charter.activation.pack_context.ActiveCharterConfigError`` raised
             # by ``PackContext.from_config()`` for a malformed
             # ``.kittify/config.yaml`` -- MUST propagate to ``_do_status``'s
             # outer ``except Exception as e`` handler and surface as a
@@ -1122,7 +1122,7 @@ def _get_hic_marker(
         # (``_st_render_human``): ``charter`` is first-party and ships in the
         # same wheel, so this can only fire under a broken/partial install.
         # Any other failure -- most notably
-        # ``charter.activation.pack_context.CharterPackConfigError`` for a malformed
+        # ``charter.activation.pack_context.ActiveCharterConfigError`` for a malformed
         # ``.kittify/config.yaml`` -- MUST propagate to the caller rather
         # than degrade this marker to a silent "" (FR-002's fail-closed
         # contract).

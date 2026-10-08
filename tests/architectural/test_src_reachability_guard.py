@@ -88,7 +88,6 @@ def test_data_only_packages_are_excluded(lib: ModuleType) -> None:
     packages = set(lib.enumerate_src_packages())
     for data_pkg in (
         "charter.activation.corpus",
-        "charter.activation.packs",
         "specify_cli.skills.data",
     ):
         assert lib.is_data_only_package(data_pkg), f"{data_pkg} should be classified data-only (ships only data files)"

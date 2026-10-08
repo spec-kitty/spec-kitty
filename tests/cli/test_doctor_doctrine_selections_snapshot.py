@@ -1,4 +1,4 @@
-"""Snapshot test for the FR-018 Selections section of ``spec-kitty doctor doctrine``.
+"""Snapshot test for the FR-018 Selections section of ``spec-kitty doctor charter-packs``.
 
 WP09 / Mission B analysis-report finding U1 demands a snapshot test so the
 operator-facing format of the Selections block stays byte-stable.  The
@@ -60,7 +60,7 @@ def _seed_project_charter(repo_root: Path) -> None:
         textwrap.dedent(
             """
             governance:
-              doctrine:
+              charter:
                 selected_styleguides:
                   - my-project-styleguide
                   - shared-team-styleguide
@@ -101,7 +101,7 @@ def _seed_org_pack(repo_root: Path) -> None:
     (config_dir / "config.yaml").write_text(
         textwrap.dedent(
             f"""
-            doctrine:
+            charter_packs:
               org:
                 packs:
                   - name: snapshot-org-pack
@@ -141,7 +141,7 @@ def test_doctor_doctrine_selections_snapshot(tmp_path: Path, monkeypatch: pytest
 
     expected = SNAPSHOT_PATH.read_text(encoding="utf-8")
     assert actual_clean == expected, (
-        "doctor doctrine Selections section drifted from snapshot.\n"
+        "doctor charter-packs Selections section drifted from snapshot.\n"
         f"--- expected ({SNAPSHOT_PATH}) ---\n{expected}\n"
         f"--- actual ---\n{actual_clean}\n"
         "If this change is intentional, regenerate with: "

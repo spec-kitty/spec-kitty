@@ -16,7 +16,6 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import charter_app
-from specify_cli.cli.commands.doctrine import app as doctrine_app
 from specify_cli.cli.commands.mission_type import app as mission_type_app
 
 
@@ -295,21 +294,47 @@ def test_sc001_org_pack_mission_type_resolves_across_all_four_cli_surfaces(
             assert show_panel.exit_code == 0, show_panel.output
             assert "Source Layer: org" in show_panel.output
 
-            # Surface 4: doctrine mission-type list (FR-008) -- the type
-            # appears with the correct layer, a true all-layers listing.
-            #
-            # CR-02 (mission charter-code-topology-01M152G1 S4): `doctrine_app`
-            # now carries a deprecation-notice `@app.callback()` that writes
-            # to stderr (`err=True`) -- parse `.stdout` (stdout only), not
-            # `.output` (Click 8.2+'s stdout+stderr merge), so that notice
-            # never lands inside the JSON payload under test here.
-            doctrine_result = runner.invoke(doctrine_app, ["mission-type", "list", "--json"])
-            assert doctrine_result.exit_code == 0, doctrine_result.output
-            doctrine_row = next(
+            # Surface 4: charter mission-type list --include-inactive (FR-008)
+            # -- the type appears with the correct layer, a true all-layers
+            # listing (the home of the removed doctrine-group listing).
+            all_layers = runner.invoke(charter_app, ["mission-type", "list", "--include-inactive", "--json"])
+            assert all_layers.exit_code == 0, all_layers.output
+            all_layers_row = next(
                 row
-                for row in json.loads(doctrine_result.stdout.strip())
+                for row in json.loads(all_layers.stdout.strip())
                 if row["id"] == "qa"
             )
-            assert doctrine_row["source_layer"] == "org"
+            assert all_layers_row["source_layer"] == "org"
     finally:
         MissionTypeRepository.cache_clear()
+
+
+def test_charter_mission_type_list_tags_activated_and_inactive_rows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Moved from the deleted CR-02 compat gate (mission charter-pack-cutover-01M491G6, WP16).
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "config.yaml").write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    activated_only = runner.invoke(charter_app, ["mission-type", "list", "--json"])
+    assert activated_only.exit_code == 0, activated_only.output
+    activated_rows = json.loads(activated_only.output)
+    assert activated_rows
+    assert all(row["action_sequence"] for row in activated_rows)
+
+    everything = runner.invoke(charter_app, ["mission-type", "list", "--include-inactive", "--json"])
+    assert everything.exit_code == 0, everything.output
+    all_rows = json.loads(everything.output)
+
+    activated_ids = {row["id"] for row in activated_rows}
+    all_ids = {row["id"] for row in all_rows}
+    assert activated_ids <= all_ids
+    assert len(all_rows) >= len(activated_rows)
+
+    inactive_rows = [row for row in all_rows if row["id"] not in activated_ids]
+    assert inactive_rows, "expected at least one registered-but-inactive mission type"
+    for row in inactive_rows:
+        assert row["activated"] is False
+        assert row["action_sequence"] == "(not activated)"
+    for row in all_rows:
+        if row["id"] in activated_ids:
+            assert row["activated"] is True

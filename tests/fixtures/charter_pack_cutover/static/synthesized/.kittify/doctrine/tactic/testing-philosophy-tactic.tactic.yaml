@@ -1,0 +1,21 @@
+id: testing-philosophy-tactic
+name: Testing Philosophy Tactic
+purpose: >
+  Describes how the project's testing philosophy is applied in practice,
+  driving test-first development with high coverage targets.
+schema_version: '1.0'
+steps:
+- description: >
+    Before implementing any feature, write failing tests that define the
+    expected behaviour.
+  title: Write tests first
+- description: >
+    Write the minimal production code to make the failing tests pass.
+  title: Implement to green
+- description: >
+    Clean up the implementation while keeping tests green.
+  title: Refactor
+- description: >
+    Confirm that coverage meets or exceeds the project threshold before
+    opening a pull request.
+  title: Verify coverage

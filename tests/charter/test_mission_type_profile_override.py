@@ -2,7 +2,7 @@
 
 Pins the FR-011 / C-005 contract: a project overrides a mission type's
 governance by dropping
-``.kittify/doctrine/mission_types/<type>/governance-profile.yaml`` — resolved
+``.kittify/charter-packs/mission_types/<type>/governance-profile.yaml`` — resolved
 through the *existing* ``doctrine/base.py`` builtin → org → project overlay
 (field-merge + :class:`~charter.offering.base.DoctrineLayerCollisionWarning`), **not** a
 bespoke second merge.  Covers:
@@ -308,7 +308,7 @@ class TestOverrideRidesResolverEndToEnd:
         self, tmp_path: Path
     ) -> None:
         _git_init_minimal(tmp_path)
-        override_dir = tmp_path / ".kittify" / "doctrine" / "mission_types" / "software-dev"
+        override_dir = tmp_path / ".kittify" / "charter-packs" / "mission_types" / "software-dev"
         _write_profile(
             override_dir,
             {

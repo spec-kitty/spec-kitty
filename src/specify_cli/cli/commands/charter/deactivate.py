@@ -16,8 +16,8 @@ safe cascade engine on the removal side:
   active source named.
 * :class:`charter.activation.activation_engine.NoActivationRestrictionsError` (raised by
   the WP10 engine for a None-state kind) is caught and surfaced as a clean
-  exit-1 with the upgrade guidance.
-* :class:`charter.activation.pack_context.CharterPackConfigError` is caught and surfaced as
+  exit-1 with the "activate one first" guidance.
+* :class:`charter.activation.pack_context.ActiveCharterConfigError` is caught and surfaced as
   fail-closed guidance before any mutation (FR-035, C1.5).
 """
 
@@ -38,8 +38,8 @@ from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
 )
-from charter.activation.pack_context import CharterPackConfigError
-from charter.activation.pack_manager import YAML_KEY_MAP, CharterPackManager
+from charter.activation.pack_context import ActiveCharterConfigError
+from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
 from charter.activation.kind_vocabulary import ArtifactKind, MissionTypeNotAnArtifactKind
 
 from specify_cli.cli.commands.charter._cascade_shared import (
@@ -55,7 +55,7 @@ from specify_cli.cli.commands.charter.activate import (
     resolve_write_root_or_exit,
     validate_pack_config,
 )
-from specify_cli.cli.commands.charter._layer_roots import (
+from charter.activation.layer_roots import (
     resolve_layer_roots,
     resolve_org_root_chain,
 )
@@ -92,7 +92,7 @@ def _source_urn(
     ``org_roots`` (T008/T010, mission ``cascade-org-inert-01M07E9P``): the
     full declaration-ordered org-pack chain, additive to ``layer_roots``'s
     single-pack-only ``roots["org"]`` — see
-    ``specify_cli.cli.commands.charter._layer_roots.resolve_org_root_chain``.
+    ``charter.activation.layer_roots.resolve_org_root_chain``.
     """
     try:
         kind_enum = ArtifactKind.from_operator_token(kind)
@@ -111,7 +111,7 @@ def _source_urn(
 
 
 def _active_urns(
-    manager: CharterPackManager,
+    manager: ActiveCharterManager,
     ctx_project: ProjectContext,
     layer_roots: dict[str, Path] | None,
     org_roots: list[Path] | None = None,
@@ -155,7 +155,7 @@ def _active_urns(
 
 
 def _render_cascade_deactivation(
-    manager: CharterPackManager,
+    manager: ActiveCharterManager,
     ctx_project: ProjectContext,
     target_urn: str,
     scope: CascadeScope,
@@ -292,13 +292,13 @@ def deactivate_cmd(
     # FR-035 fail-closed: reject invalid pack config before any mutation (C1.5).
     try:
         validate_pack_config(repo_root)
-    except CharterPackConfigError as exc:
+    except ActiveCharterConfigError as exc:
         render_pack_config_error(exc, console)
         raise typer.Exit(1) from exc
 
     ctx_project = ProjectContext(repo_root=repo_root)
     layer_roots = resolve_layer_roots(repo_root)
-    manager = CharterPackManager()
+    manager = ActiveCharterManager()
 
     try:
         result = manager.deactivate(
@@ -309,8 +309,8 @@ def deactivate_cmd(
             layer_roots=layer_roots,
         )
     except NoActivationRestrictionsError as exc:
-        # WP10 engine raises this for a None-state kind; surface the upgrade
-        # guidance carried in the error and exit non-zero (no mutation).
+        # WP10 engine raises this for a None-state kind; surface the
+        # "activate one first" guidance carried in the error and exit non-zero (no mutation).
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
     except ValueError as exc:

@@ -78,7 +78,7 @@ def test_ambiguous_directive_keeps_siblings_and_reports_json(tmp_path: Path, mon
 
 def test_generate_rejects_ambiguous_required_directive_without_interview(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    directory = tmp_path / ".kittify/doctrine/directive"
+    directory = tmp_path / ".kittify/charter-packs/directive"
     directory.mkdir(parents=True)
     (directory / "025-boy-scout-rule.directive.yaml").write_text(
         'schema_version: "1.0"\nid: REQUIRED-POLICY\ntitle: Required\nintent: Require review.\nenforcement: required\n'

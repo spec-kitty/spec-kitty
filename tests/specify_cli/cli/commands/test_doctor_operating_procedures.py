@@ -1,8 +1,8 @@
-"""`spec-kitty doctor doctrine` surfaces the operating-procedures resolution scan (M3).
+"""`spec-kitty doctor charter-packs` surfaces the operating-procedures resolution scan (M3).
 
 Every ``collaboration.operating-procedures`` entry on a built-in agent profile
 must resolve to a real ``procedure:`` DRG node. This proves the diagnostic is
-wired into ``doctor doctrine``: the shipped (triaged) tree reports a
+wired into ``doctor charter-packs``: the shipped (triaged) tree reports a
 present-and-empty finding and stays healthy; an injected unresolved entry
 populates the finding and flips the report unhealthy.
 """

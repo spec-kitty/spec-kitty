@@ -1,7 +1,7 @@
-"""CLI test: `spec-kitty doctor doctrine` surfaces collision summary (MEDIUM-1).
+"""CLI test: `spec-kitty doctor charter-packs` surfaces collision summary (MEDIUM-1).
 
 The mission-review remediation for MEDIUM-1 added `DoctrineLayerCollisionWarning`
-emission in the loaders plus a `Collisions` section in `doctor doctrine` so
+emission in the loaders plus a `Collisions` section in `doctor charter-packs` so
 operators can audit which artifacts in their resolved doctrine surface come
 from shadowed lower layers (ADR `docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md`).
 """
@@ -47,7 +47,7 @@ def _write_kittify_config_with_pack(repo_root: Path, pack_path: Path) -> None:
     (config_dir / "config.yaml").write_text(
         textwrap.dedent(
             f"""
-            doctrine:
+            charter_packs:
               org:
                 packs:
                   - name: test-pack
@@ -70,7 +70,7 @@ def _resolve_built_in_directive_id(repo_root: Path) -> str:
 
 
 def test_doctor_doctrine_text_shows_collisions(tmp_path: Path) -> None:
-    """When an org pack shadows a shipped directive, `doctor doctrine` lists it."""
+    """When an org pack shadows a shipped directive, `doctor charter-packs` lists it."""
     real_repo = Path(__file__).resolve().parents[4]
     built_in_id = _resolve_built_in_directive_id(real_repo)
 
@@ -83,7 +83,7 @@ def test_doctor_doctrine_text_shows_collisions(tmp_path: Path) -> None:
     _write_kittify_config_with_pack(tmp_path, pack_dir)
 
     with contextlib.chdir(tmp_path):
-        result = runner.invoke(doctor_app, ["doctrine"], catch_exceptions=False)
+        result = runner.invoke(doctor_app, ["charter-packs"], catch_exceptions=False)
 
     # WP01 (C5): the configured org pack has no fetched DRG fragment, so the
     # org-DRG load records a "pack missing" error → the honest health flag
@@ -107,7 +107,7 @@ def test_doctor_doctrine_text_reports_no_collisions_when_pack_disjoint(tmp_path:
     _write_kittify_config_with_pack(tmp_path, pack_dir)
 
     with contextlib.chdir(tmp_path):
-        result = runner.invoke(doctor_app, ["doctrine"], catch_exceptions=False)
+        result = runner.invoke(doctor_app, ["charter-packs"], catch_exceptions=False)
 
     # WP01 (C5): missing org-DRG fragment → unhealthy → RC=1 (loud over hidden).
     assert result.exit_code == 1, result.stdout
@@ -128,7 +128,7 @@ def test_doctor_doctrine_json_emits_collisions_array(tmp_path: Path) -> None:
     _write_kittify_config_with_pack(tmp_path, pack_dir)
 
     with contextlib.chdir(tmp_path):
-        result = runner.invoke(doctor_app, ["doctrine", "--json"], catch_exceptions=False)
+        result = runner.invoke(doctor_app, ["charter-packs", "--json"], catch_exceptions=False)
 
     # WP01 (C5): missing org-DRG fragment → unhealthy → RC=1 (loud over hidden).
     assert result.exit_code == 1, result.stdout

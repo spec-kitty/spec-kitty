@@ -18,7 +18,7 @@ slug-derived fields), minus explicit overrides.
 **Charter provisioning (WP04 fail-closed follow-up).** ``create_mission_core()``
 now hard-requires at least one activated mission type
 (``charter.activation.mission_type_profiles.existing_mission_types``) and raises
-``CharterPackConfigError`` when a project's ``.kittify/config.yaml`` has no
+``ActiveCharterConfigError`` when a project's ``.kittify/config.yaml`` has no
 ``mission_type_activations`` key -- exactly the state of a bare ``tmp_path``
 git-init test fixture that never ran ``spec-kitty init``/``upgrade``.
 :func:`provision_test_charter` mirrors what those commands do (via the real,

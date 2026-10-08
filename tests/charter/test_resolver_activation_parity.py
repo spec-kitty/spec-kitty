@@ -74,7 +74,7 @@ def _write_charter_files(
         doctrine["selected_paradigms"] = list(selected_paradigms)
 
     document = {
-        "governance": {"doctrine": doctrine},
+        "governance": {"charter": doctrine},
         "directives": {"directives": []},
     }
     with (charter_dir / "charter.yaml").open("w", encoding="utf-8") as fh:

@@ -90,7 +90,7 @@ def test_doctor_tool_surfaces_reports_doctrine_when_manifest_absent(
         "doctor",
         "tool-surfaces",
         "--kind",
-        "doctrine-skill",
+        "charter-skill",
         "--json",
         cwd=project,
     )
@@ -99,7 +99,7 @@ def test_doctor_tool_surfaces_reports_doctrine_when_manifest_absent(
     assert result.returncode == 1
     assert payload["ok"] is False
     assert payload["summary"]["surfaces"] > 0
-    assert {entry["kind"] for entry in payload["surfaces"]} == {"doctrine_skill"}
+    assert {entry["kind"] for entry in payload["surfaces"]} == {"charter_skill"}
     assert {finding["code"] for finding in payload["findings"]} == {
         "generated-surface-missing"
     }

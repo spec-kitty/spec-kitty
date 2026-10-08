@@ -35,7 +35,7 @@ from charter.offering.drg.migration.hand_authored_overlay import (
 from charter.offering.drg.models import DRGGraph, NodeKind, Relation
 from specify_cli.charter_runtime.lint._drg import load_merged_drg
 from specify_cli.charter_runtime.lint.findings import GraphState
-from specify_cli.doctrine.pack_validator import validate_pack
+from charter.offering.packs.pack_validator import validate_pack
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.corpus]
 

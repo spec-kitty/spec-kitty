@@ -52,7 +52,7 @@ pytestmark = [pytest.mark.integration]
 def project_root(tmp_path: Path) -> Path:
     """A project with an explicit (empty) directive/tactic activation state.
 
-    A truly *empty* ``config.yaml`` triggers ``CharterPackManager``'s
+    A truly *empty* ``config.yaml`` triggers ``ActiveCharterManager``'s
     no-explicit-activation-set bootstrap: the first activation of a kind with
     no config entry seeds it from the built-in default pack (today: 19
     directives, INCLUDING ``025-boy-scout-rule``) as a side effect unrelated

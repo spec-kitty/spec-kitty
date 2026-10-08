@@ -64,7 +64,7 @@ def full_plans(project_root: Path) -> list[SurfacePlan]:
     mcp = _write(project_root / ".mcp.json", "{}\n")
     instances = (
         _instance(ToolSurfaceKind.COMMAND_SKILL, skill, "codex"),
-        _instance(ToolSurfaceKind.DOCTRINE_SKILL, doctrine, "codex"),
+        _instance(ToolSurfaceKind.CHARTER_SKILL, doctrine, "codex"),
         _instance(ToolSurfaceKind.AGENT_PROFILE, agent, "claude"),
         _instance(ToolSurfaceKind.HOOK, hook, "vibe"),
         _instance(ToolSurfaceKind.NATIVE_CONFIG, mcp, "vibe"),

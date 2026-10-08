@@ -28,7 +28,7 @@ def test_org_directive_interview_and_generate(tmp_path: Path, monkeypatch: pytes
     )
     expected_stem = "foo"
     if project_override:
-        project_dir = tmp_path / ".kittify/doctrine/directive"
+        project_dir = tmp_path / ".kittify/charter-packs/directive"
         project_dir.mkdir(parents=True)
         (project_dir / "project-policy.directive.yaml").write_text(
             f'schema_version: "1.0"\nid: {directive_id}\ntitle: Acme Policy\nintent: Require independent Acme validation.\nenforcement: required\n'
@@ -77,7 +77,7 @@ def test_org_directive_interview_and_generate(tmp_path: Path, monkeypatch: pytes
 def test_colliding_override_stem_preserves_selected_identity(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, intake: str) -> None:
     """A project filename cannot redirect adoption to a different built-in ID."""
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    project_dir = tmp_path / ".kittify/doctrine/directive"
+    project_dir = tmp_path / ".kittify/charter-packs/directive"
     project_dir.mkdir(parents=True)
     (project_dir / "025-boy-scout-rule.directive.yaml").write_text(
         'schema_version: "1.0"\nid: DIRECTIVE_001\ntitle: Project architecture\nintent: Require project architecture review.\nenforcement: required\n'

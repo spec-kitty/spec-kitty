@@ -61,7 +61,7 @@ from charter.offering.pack_paths import (
 #: Public re-export of :data:`charter.offering.artifact_kinds.PROJECT_KIND_DIRS`.
 #:
 #: Landing-fold addition (write-side-seam-matrix-tracer Wave B / #3070):
-#: ``specify_cli.cli.commands.doctrine``'s ``new`` scaffolder needs the
+#: ``specify_cli.cli.commands.charter.authoring``'s ``new`` scaffolder needs the
 #: project-tier directory-per-kind mapping but, as a runtime-layer module,
 #: may not import ``doctrine.*`` directly (the runtime -> charter ->
 #: doctrine boundary ratchet, ``test_runtime_charter_doctrine_boundary.py``).
@@ -105,7 +105,7 @@ _DEFAULT_ID_FIELD = "id"
 #: The project-tier overlay directory name per kind is the single canonical
 #: authority :data:`charter.offering.artifact_kinds.PROJECT_KIND_DIRS` (imported and
 #: re-exported above as ``PROJECT_KIND_DIRS`` — the runtime→charter→doctrine
-#: boundary facade for this mapping; see ``cli/commands/doctrine.py``'s
+#: boundary facade for this mapping; see ``cli/commands/charter/authoring.py``'s
 #: ``new`` scaffolder for the consumer). It is *total*, so
 #: ``.get(kind, kind.plural)`` below never actually falls back — the default
 #: is retained only as a belt-and-braces guard against a future partial
@@ -289,13 +289,19 @@ def _org_scan_dirs(kind: ArtifactKind, org_roots: list[Path] | None) -> list[tup
     return flat_dirs + legacy_dirs
 
 
-def _layer_candidate_dir(kind: ArtifactKind, layer: str, root: Path) -> Path:
-    """Return the candidate doctrine dir for *kind* within a single *layer*."""
-    if layer == "project":
-        project_dir: Path = root / "doctrine" / PROJECT_KIND_DIRS.get(kind, kind.plural)
-        return project_dir
-    layer_dir: Path = root / "doctrine" / kind.plural / layer
-    return layer_dir
+def _layer_candidate_dir(kind: ArtifactKind, layer: str, root: Path) -> Path | None:
+    """Return the candidate dir for *kind* within a single *layer*, or ``None``.
+
+    Only the project layer is resolved here: its *root* is the project pack
+    root (``.kittify/charter-packs/``), so kind directories join straight onto
+    it. Org packs are scanned flat through ``org_roots`` (:func:`_org_scan_dirs`)
+    and the built-in pack through :func:`_built_in_scan_dir`; the retired nested
+    ``<pack>/doctrine/<plural>/<layer>`` layout is not read (FR-011).
+    """
+    if layer != "project":
+        return None
+    project_dir: Path = root / PROJECT_KIND_DIRS.get(kind, kind.plural)
+    return project_dir
 
 
 def _layer_scan_dirs(kind: ArtifactKind, layer_roots: dict[str, Path] | None) -> list[tuple[Path, bool]]:
@@ -304,7 +310,7 @@ def _layer_scan_dirs(kind: ArtifactKind, layer_roots: dict[str, Path] | None) ->
     recursive = overlay_scan_is_recursive(kind)
     for layer, root in (layer_roots or {}).items():
         candidate = _layer_candidate_dir(kind, layer, root)
-        if candidate.is_dir():
+        if candidate is not None and candidate.is_dir():
             dirs.append((candidate, recursive))
     return dirs
 
@@ -477,7 +483,7 @@ def resolve_artifact_urn(
         f"Searched layers: {_searched_layers(kind, org_roots, layer_roots)}. "
         f"Check activated_{kind.plural} in the charter.yaml activation store "
         f"selected by `.kittify/config.yaml` (or its legacy inline activations) for a stale or "
-        f"misspelled entry, or run `spec-kitty doctor doctrine` to verify the "
+        f"misspelled entry, or run `spec-kitty doctor charter-packs` to verify the "
         f"doctrine corpus (including any org packs) is intact."
     )
 
@@ -659,7 +665,7 @@ def resolve_config_id(
         f"Searched layers: {_searched_layers(kind, org_roots, layer_roots)}. "
         f"Check activated_{kind.plural} in the charter.yaml activation store "
         f"selected by `.kittify/config.yaml` (or its legacy inline activations) for a stale or "
-        f"misspelled entry, or run `spec-kitty doctor doctrine` to verify the "
+        f"misspelled entry, or run `spec-kitty doctor charter-packs` to verify the "
         f"doctrine corpus (including any org packs) is intact."
     )
 

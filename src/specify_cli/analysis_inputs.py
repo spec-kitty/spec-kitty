@@ -20,6 +20,7 @@ from charter.activation.pack_context import resolve_charter_yaml_pointer
 from charter.bundle import CHARTER_MD, CHARTER_YAML
 from charter.drg import load_pack_registry
 from charter.pack_paths import PackRootNotFound, built_in_root
+from kernel.charter_pack_paths import project_pack_root
 from kernel.paths import get_package_asset_root
 
 
@@ -56,11 +57,11 @@ def _safe_path(root: Path, path: Path) -> Path:
     return path
 
 
-def _declared_paths(charter: dict[str, Any]) -> list[str]:
-    from charter.activation.sync import apply_legacy_governance_selection_key_compat
+def _declared_paths(charter: dict[str, Any], *, source: Path) -> list[str]:
+    from charter.activation.sync import require_canonical_governance
 
     governance = charter.get("governance", {})
-    charter_cfg = apply_legacy_governance_selection_key_compat(governance).get("charter", {}) if isinstance(governance, dict) else {}
+    charter_cfg = require_canonical_governance(governance, source=source).get("charter", {}) if isinstance(governance, dict) else {}
     if not isinstance(charter_cfg, dict):
         raise MaterialInputError("governance.charter must be a mapping")
     paths = list(DEFAULT_AUTHORITY_PATHS)
@@ -143,7 +144,7 @@ def _package_inputs() -> dict[str, dict[str, str | None]]:
 
 def _resolved_template_paths(root: Path, feature_dir: Path) -> list[Path]:
     from charter.activation.mission_type_profiles import resolve_mission_type_context
-    from charter.activation.pack_context import CharterPackConfigError
+    from charter.activation.pack_context import ActiveCharterConfigError
     from specify_cli.runtime.resolver import ResolutionTier, resolve_configured_template
 
     metadata = _mapping(feature_dir / "meta.json")
@@ -152,7 +153,7 @@ def _resolved_template_paths(root: Path, feature_dir: Path) -> list[Path]:
         return []
     try:
         context = resolve_mission_type_context(root, mission_type=mission_type)
-    except CharterPackConfigError as exc:
+    except ActiveCharterConfigError as exc:
         raise MaterialInputError("Configured charter activation is invalid") from exc
     paths = []
     for kind in context.template_set or {}:
@@ -197,11 +198,12 @@ def collect_material_inputs(feature_dir: Path, repo_root: Path) -> dict[str, dic
     include(feature_dir / "tasks")
     # Only declarative subtrees: no charter context-state, synthesis manifest,
     # operation logs, runtime cache, status streams or generated task state.
-    for name in ("missions", "overrides", "doctrine", "templates", "command-templates"):
+    for name in ("missions", "overrides", "templates", "command-templates"):
         include(root / ".kittify" / name)
+    include(project_pack_root(root))
     for name in (CHARTER_MD.name, "interview/answers.yaml", "_LIBRARY"):
         include(charter_path.parent / name)
-    for value in _declared_paths(charter):
+    for value in _declared_paths(charter, source=charter_path):
         include(root / value)
     for pack in load_pack_registry(root).packs:
         include(pack.effective_root(root))

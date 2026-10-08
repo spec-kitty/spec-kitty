@@ -77,7 +77,7 @@ _CHARTER_MD = textwrap.dedent("""\
 """)
 
 _GOVERNANCE_YAML = textwrap.dedent("""\
-    doctrine:
+    charter:
       template_set: software-dev-default
       selected_paradigms: []
       selected_directives: []
@@ -280,7 +280,7 @@ class TestBuildContextV2:
         # hand-authored directly in charter.yaml now.
         (tmp_path / ".kittify" / "charter" / "charter.yaml").write_text(
             "governance:\n"
-            "  doctrine:\n"
+            "  charter:\n"
             "    governance_references:\n"
             "      - spec/constitution.md\n",
             encoding="utf-8",
@@ -329,7 +329,7 @@ class TestBuildContextV2:
         # fenced-YAML extraction this fixture used to rely on is retired.
         (tmp_path / ".kittify" / "charter" / "charter.yaml").write_text(
             "governance:\n"
-            "  doctrine:\n"
+            "  charter:\n"
             "    governance_references:\n"
             "      - spec/constitution.md\n"
             "      - docs/missing-governance.md\n",
@@ -363,7 +363,7 @@ class TestBuildContextV2:
         (tmp_path / ".kittify" / "charter" / "charter.yaml").write_text(
             textwrap.dedent("""\
                 governance:
-                  doctrine:
+                  charter:
                     template_set: software-dev-default
                     selected_paradigms: []
                     selected_directives: [DIRECTIVE_039]
@@ -436,7 +436,7 @@ class TestBuildContextV2:
             textwrap.dedent(f"""\
                 mission_type_activations:
                   - software-dev
-                doctrine:
+                charter_packs:
                   org:
                     packs:
                       - name: security

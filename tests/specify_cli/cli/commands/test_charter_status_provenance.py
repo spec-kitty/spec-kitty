@@ -265,8 +265,8 @@ def test_status_v2_bundle_exits_0(
 
 def test_manifest_status_counts_singular_live_artifacts_only(tmp_path: Path) -> None:
     """Live project doctrine status must not accept legacy plural dirs."""
-    singular = tmp_path / ".kittify" / "doctrine" / "tactic"
-    plural = tmp_path / ".kittify" / "doctrine" / "tactics"
+    singular = tmp_path / ".kittify" / "charter-packs" / "tactic"
+    plural = tmp_path / ".kittify" / "charter-packs" / "tactics"
     singular.mkdir(parents=True)
     plural.mkdir(parents=True)
     (singular / "live.tactic.yaml").write_text("id: live\n", encoding="utf-8")
@@ -450,7 +450,7 @@ def test_bundle_validate_fails_when_manifest_artifact_has_missing_sidecar(
             {
                 "kind": "directive",
                 "slug": "orphan-directive",
-                "path": ".kittify/doctrine/directive/orphan-directive.yaml",
+                "path": ".kittify/charter-packs/directive/orphan-directive.yaml",
                 "provenance_path": ".kittify/charter/provenance/orphan-directive.yaml",
                 "content_hash": "c" * 64,
             }

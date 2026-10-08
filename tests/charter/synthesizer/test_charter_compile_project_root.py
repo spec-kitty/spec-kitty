@@ -2,11 +2,11 @@
 
 Three locked cases (R-2 / FR-009):
 
-1. No ``.kittify/doctrine/`` directory → ``project_root`` resolves to whichever
+1. No ``.kittify/charter-packs/`` directory → ``project_root`` resolves to whichever
    existing candidate resolves first (legacy 3.x behaviour, byte-identical).
-2. ``.kittify/doctrine/`` present with synthesized content → ``project_root``
+2. ``.kittify/charter-packs/`` present with synthesized content → ``project_root``
    points there (Phase 3 path).
-3. ``.kittify/doctrine/`` present but empty → ``project_root`` points there but
+3. ``.kittify/charter-packs/`` present but empty → ``project_root`` points there but
    repositories resolve to empty overlays with no shipped-layer impact.
 
 Also covers ``charter.activation._doctrine_paths.resolve_project_root`` directly and
@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from charter.activation._doctrine_paths import resolve_project_root, _PROJECT_ROOT_CANDIDATES
+from charter.activation._doctrine_paths import resolve_project_root, _project_root_candidates
 from charter.activation.compiler import _default_doctrine_service
 
 
@@ -58,8 +58,8 @@ class TestResolveProjectRoot:
         assert result is None
 
     def test_returns_kittify_doctrine_when_present(self, tmp_path: Path) -> None:
-        """Case R-2.2: .kittify/doctrine/ present → resolves there."""
-        kittify_doctrine = tmp_path / ".kittify" / "doctrine"
+        """Case R-2.2: .kittify/charter-packs/ present → resolves there."""
+        kittify_doctrine = tmp_path / ".kittify" / "charter-packs"
         kittify_doctrine.mkdir(parents=True)
         result = resolve_project_root(tmp_path)
         assert result == kittify_doctrine
@@ -68,7 +68,7 @@ class TestResolveProjectRoot:
         self, tmp_path: Path
     ) -> None:
         """Phase 3 candidate outranks legacy src/charter/offering/ candidate."""
-        kittify_doctrine = tmp_path / ".kittify" / "doctrine"
+        kittify_doctrine = tmp_path / ".kittify" / "charter-packs"
         kittify_doctrine.mkdir(parents=True)
         src_doctrine = tmp_path / "src" / "charter" / "offering"
         src_doctrine.mkdir(parents=True)
@@ -78,34 +78,40 @@ class TestResolveProjectRoot:
     def test_falls_back_to_src_doctrine_when_kittify_absent(
         self, tmp_path: Path
     ) -> None:
-        """When .kittify/doctrine/ absent, legacy src/charter/offering/ wins."""
+        """When .kittify/charter-packs/ absent, legacy src/charter/offering/ wins."""
         src_doctrine = tmp_path / "src" / "charter" / "offering"
         src_doctrine.mkdir(parents=True)
         result = resolve_project_root(tmp_path)
         assert result == src_doctrine
 
-    def test_falls_back_to_flat_doctrine_when_both_absent(
+    def test_a_repo_root_doctrine_dir_is_not_a_candidate(
         self, tmp_path: Path
     ) -> None:
-        """When .kittify/doctrine/ and src/charter/offering/ absent, flat doctrine/ wins."""
-        flat_doctrine = tmp_path / "doctrine"
-        flat_doctrine.mkdir()
-        result = resolve_project_root(tmp_path)
-        assert result == flat_doctrine
+        """The retired repo-root ``doctrine/`` fallback is gone (FR-011): it never resolves."""
+        (tmp_path / "doctrine").mkdir()
+        assert resolve_project_root(tmp_path) is None
 
     def test_empty_kittify_doctrine_still_resolves(self, tmp_path: Path) -> None:
-        """Case R-2.3: .kittify/doctrine/ present but empty → still resolves."""
-        kittify_doctrine = tmp_path / ".kittify" / "doctrine"
+        """Case R-2.3: .kittify/charter-packs/ present but empty → still resolves."""
+        kittify_doctrine = tmp_path / ".kittify" / "charter-packs"
         kittify_doctrine.mkdir(parents=True)
         # No files written inside
         result = resolve_project_root(tmp_path)
         assert result == kittify_doctrine
 
-    def test_candidate_order_is_kittify_src_flat(self) -> None:
-        """_PROJECT_ROOT_CANDIDATES tuple has the expected order."""
-        assert _PROJECT_ROOT_CANDIDATES[0] == ".kittify/doctrine"
-        assert _PROJECT_ROOT_CANDIDATES[1] == "src/charter/offering"
-        assert _PROJECT_ROOT_CANDIDATES[2] == "doctrine"
+    def test_candidate_order_is_project_pack_then_src(self, tmp_path: Path) -> None:
+        """The candidate list has the expected order: project pack root first."""
+        assert _project_root_candidates(tmp_path) == (
+            tmp_path / ".kittify" / "charter-packs",
+            tmp_path / "src" / "charter" / "offering",
+        )
+
+    def test_project_pack_root_resolves_when_present(self, tmp_path: Path) -> None:
+        """A migrated project resolves to ``.kittify/charter-packs/``, ahead of a stale legacy tree."""
+        project_pack = tmp_path / ".kittify" / "charter-packs"
+        project_pack.mkdir(parents=True)
+        (tmp_path / ".kittify" / "doctrine").mkdir()
+        assert resolve_project_root(tmp_path) == project_pack
 
 
 # ---------------------------------------------------------------------------
@@ -132,9 +138,9 @@ class TestDefaultDoctrineService:
     def test_case_r2_2_kittify_doctrine_present_points_there(
         self, tmp_path: Path
     ) -> None:
-        """Case R-2.2: .kittify/doctrine/ present → project_root points there."""
+        """Case R-2.2: .kittify/charter-packs/ present → project_root points there."""
         _write_min_config(tmp_path)
-        kittify_doctrine = tmp_path / ".kittify" / "doctrine"
+        kittify_doctrine = tmp_path / ".kittify" / "charter-packs"
         kittify_doctrine.mkdir(parents=True)
         project_root = self._project_root_from_service(tmp_path)
         assert project_root == kittify_doctrine
@@ -142,9 +148,9 @@ class TestDefaultDoctrineService:
     def test_case_r2_3_kittify_doctrine_empty_points_there(
         self, tmp_path: Path
     ) -> None:
-        """Case R-2.3: .kittify/doctrine/ present but empty → points there, no impact."""
+        """Case R-2.3: .kittify/charter-packs/ present but empty → points there, no impact."""
         _write_min_config(tmp_path)
-        kittify_doctrine = tmp_path / ".kittify" / "doctrine"
+        kittify_doctrine = tmp_path / ".kittify" / "charter-packs"
         kittify_doctrine.mkdir(parents=True)
         # Leave the directory empty
         project_root = self._project_root_from_service(tmp_path)
@@ -160,7 +166,7 @@ class TestDefaultDoctrineService:
     def test_legacy_src_doctrine_candidate_still_resolves_when_kittify_absent(
         self, tmp_path: Path
     ) -> None:
-        """Legacy src/charter/offering/ candidate resolves when .kittify/doctrine/ absent."""
+        """Legacy src/charter/offering/ candidate resolves when .kittify/charter-packs/ absent."""
         _write_min_config(tmp_path)
         src_doctrine = tmp_path / "src" / "charter" / "offering"
         src_doctrine.mkdir(parents=True)
@@ -170,7 +176,7 @@ class TestDefaultDoctrineService:
     def test_kittify_doctrine_outranks_src_doctrine(self, tmp_path: Path) -> None:
         """Phase 3 candidate beats legacy src/charter/offering/ (priority ordering)."""
         _write_min_config(tmp_path)
-        kittify_doctrine = tmp_path / ".kittify" / "doctrine"
+        kittify_doctrine = tmp_path / ".kittify" / "charter-packs"
         kittify_doctrine.mkdir(parents=True)
         src_doctrine = tmp_path / "src" / "charter" / "offering"
         src_doctrine.mkdir(parents=True)
@@ -194,13 +200,13 @@ class TestContextDoctrineService:
         assert self._project_root_from_context_service(tmp_path) is None
 
     def test_case_r2_2_kittify_doctrine_present(self, tmp_path: Path) -> None:
-        kittify_doctrine = tmp_path / ".kittify" / "doctrine"
+        kittify_doctrine = tmp_path / ".kittify" / "charter-packs"
         kittify_doctrine.mkdir(parents=True)
         result = self._project_root_from_context_service(tmp_path)
         assert result == kittify_doctrine
 
     def test_case_r2_3_kittify_doctrine_empty(self, tmp_path: Path) -> None:
-        kittify_doctrine = tmp_path / ".kittify" / "doctrine"
+        kittify_doctrine = tmp_path / ".kittify" / "charter-packs"
         kittify_doctrine.mkdir(parents=True)
         result = self._project_root_from_context_service(tmp_path)
         assert result == kittify_doctrine
@@ -210,7 +216,7 @@ class TestContextDoctrineService:
     ) -> None:
         """Both compiler and context resolve the same project_root for the same repo."""
         _write_min_config(tmp_path)
-        kittify_doctrine = tmp_path / ".kittify" / "doctrine"
+        kittify_doctrine = tmp_path / ".kittify" / "charter-packs"
         kittify_doctrine.mkdir(parents=True)
 
         compiler_root = None

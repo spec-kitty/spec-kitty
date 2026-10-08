@@ -39,10 +39,10 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
+from tests._support.org_pack_config import write_org_packs
 from charter.activation.doctrine_service_builder import (
     build_activation_aware_doctrine_service as charter_builder,
 )
-from charter.offering.drg.org_pack_config import OrgPackConfig, PackRegistry, save_pack_registry
 from specify_cli.doctrine_service_factory import (
     build_activation_aware_doctrine_service as specify_cli_builder,
 )
@@ -100,10 +100,7 @@ def _configure_org_pack(repo_root: Path, org_root: Path) -> None:
     ``specify_cli`` builder's pre-unification behaviour).
     """
     org_root.mkdir(parents=True, exist_ok=True)
-    save_pack_registry(
-        repo_root,
-        PackRegistry(packs=[OrgPackConfig(name="acme", local_path=org_root)]),
-    )
+    write_org_packs(repo_root, [{"name": "acme", "local_path": org_root}])
 
 
 def _configure_provisioned_activation(repo_root: Path) -> None:
@@ -127,7 +124,7 @@ def repo_root(tmp_path: Path) -> Path:
     root = tmp_path / "repo"
     root.mkdir()
     _configure_language_diverse_fixture(root)
-    # Must run BEFORE ``_configure_org_pack``: ``save_pack_registry`` merges
+    # Must run BEFORE ``_configure_org_pack``: that helper merges
     # into an existing ``config.yaml`` (reads-then-writes), whereas this
     # helper's ``_write_yaml`` call replaces the file outright -- reversing
     # the order would silently drop the org-pack registration.

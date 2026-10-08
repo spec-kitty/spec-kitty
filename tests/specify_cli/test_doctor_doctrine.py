@@ -1,4 +1,4 @@
-"""WP08 — ``doctor doctrine`` health report tests (FR-008/009/010, NFR-001).
+"""WP08 — ``doctor charter-packs`` health report tests (FR-008/009/010, NFR-001).
 
 Covers:
 - ``PackHealth`` / ``DoctrineHealthReport`` derived health (I-H1 / FR-010):
@@ -76,7 +76,7 @@ def test_pack_health_degraded_when_invalid_profiles_present() -> None:
 def test_pack_health_to_dict_emits_stable_invalid_profile_fields() -> None:
     skipped = SkippedProfile(
         layer="project",
-        path="/repo/.kittify/doctrine/agent_profiles/bad.yaml",
+        path="/repo/.kittify/charter-packs/agent_profiles/bad.yaml",
         profile_id="broken-bart",
         error_summary="Missing required field 'identity'",
     )
@@ -95,7 +95,7 @@ def test_pack_health_to_dict_emits_stable_invalid_profile_fields() -> None:
     assert out["invalid_profiles"] == [
         {
             "layer": "project",
-            "path": "/repo/.kittify/doctrine/agent_profiles/bad.yaml",
+            "path": "/repo/.kittify/charter-packs/agent_profiles/bad.yaml",
             "profile_id": "broken-bart",
             "error_summary": "Missing required field 'identity'",
         }
@@ -197,7 +197,7 @@ _INVALID_PROFILE = dedent(
 @pytest.fixture
 def repo_with_invalid_project_profile(tmp_path: Path) -> Path:
     """Repo whose project doctrine layer contains one invalid agent profile."""
-    profiles_dir = tmp_path / ".kittify" / "doctrine" / "agent_profiles"
+    profiles_dir = tmp_path / ".kittify" / "charter-packs" / "agent_profiles"
     profiles_dir.mkdir(parents=True)
     (profiles_dir / "tester-tina.agent.yaml").write_text(
         _VALID_PROFILE, encoding="utf-8"
@@ -248,7 +248,7 @@ def test_doctor_doctrine_json_reports_false_healthy_fixed(
         "specify_cli.cli.commands.doctor.locate_project_root",
         return_value=repo_with_invalid_project_profile,
     ):
-        result = runner.invoke(doctor_app, ["doctrine", "--json"])
+        result = runner.invoke(doctor_app, ["charter-packs", "--json"])
 
     # WP01 (C5): an invalid profile makes the report unhealthy → RC=1.
     assert result.exit_code == 1, result.output
@@ -331,7 +331,7 @@ def test_doctor_doctrine_human_and_json_share_one_report(
     with patch.object(doctor_mod, "_collect_profile_health", _counting), patch.object(
         doctor_mod, "locate_project_root", return_value=repo_with_invalid_project_profile
     ):
-        result = runner.invoke(doctor_mod.app, ["doctrine", "--json"])
+        result = runner.invoke(doctor_mod.app, ["charter-packs", "--json"])
     # WP01 (C5): the fixture's invalid profile makes the report unhealthy → RC=1.
     assert result.exit_code == 1, result.output
     # The report is built exactly once per invocation (single source).
@@ -436,7 +436,7 @@ def repo_with_inline_ref_org_profile(tmp_path: Path) -> Path:
         "agents:\n"
         "  available:\n"
         "    - claude\n"
-        "doctrine:\n"
+        "charter_packs:\n"
         "  org:\n"
         "    packs:\n"
         "      - name: example-org\n"
@@ -493,7 +493,7 @@ def test_doctor_doctrine_json_inline_ref_unhealthy_and_rc1(
         "specify_cli.cli.commands.doctor.locate_project_root",
         return_value=repo_with_inline_ref_org_profile,
     ):
-        result = runner.invoke(doctor_app, ["doctrine", "--json"])
+        result = runner.invoke(doctor_app, ["charter-packs", "--json"])
 
     # C5: loud RC=1 over a hidden RC=0.
     assert result.exit_code == 1, result.output
@@ -538,7 +538,7 @@ def test_doctor_doctrine_json_healthy_exits_zero(
     clean = repo_with_invalid_project_profile
     # Remove the invalid profile so the report is healthy.
     bad = (
-        clean / ".kittify" / "doctrine" / "agent_profiles" / "broken-bart.agent.yaml"
+        clean / ".kittify" / "charter-packs" / "agent_profiles" / "broken-bart.agent.yaml"
     )
     bad.unlink()
 
@@ -547,7 +547,7 @@ def test_doctor_doctrine_json_healthy_exits_zero(
         "specify_cli.cli.commands.doctor.locate_project_root",
         return_value=clean,
     ):
-        result = runner.invoke(doctor_app, ["doctrine", "--json"])
+        result = runner.invoke(doctor_app, ["charter-packs", "--json"])
 
     payload = json.loads(result.output)
     assert payload["profile_health"]["healthy"] is True

@@ -154,7 +154,7 @@ def test_service_loads_synthesized_project_root_singular_kind_dirs(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _packs_root(monkeypatch, tmp_path)
-    project_root = tmp_path / ".kittify" / "doctrine"
+    project_root = tmp_path / ".kittify" / "charter-packs"
 
     _write_yaml(
         project_root / "directive" / "001-project.directive.yaml",
@@ -197,7 +197,7 @@ def test_service_ignores_legacy_plural_dirs_for_synthesized_project_root(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _packs_root(monkeypatch, tmp_path)
-    project_root = tmp_path / ".kittify" / "doctrine"
+    project_root = tmp_path / ".kittify" / "charter-packs"
 
     _write_yaml(
         project_root / "directives" / "001-legacy.directive.yaml",
@@ -435,7 +435,7 @@ def test_service_project_dir_uses_hoisted_authority(tmp_path: Path) -> None:
     """T023 (contract A-5): the project-tier dir comes from the single authority."""
     from charter.offering.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
 
-    project_root = tmp_path / ".kittify" / "doctrine"
+    project_root = tmp_path / ".kittify" / "charter-packs"
     project_root.mkdir(parents=True)
     service = DoctrineService(project_root=project_root)
 

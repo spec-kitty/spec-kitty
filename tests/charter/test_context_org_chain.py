@@ -74,7 +74,7 @@ def _write_project_fixture(repo_root: Path) -> None:
     (charter_dir / "governance.yaml").write_text(
         textwrap.dedent(
             """\
-            doctrine:
+            charter:
               template_set: software-dev-default
               selected_paradigms: []
               selected_directives: []
@@ -98,7 +98,7 @@ def _write_config(repo_root: Path, org_roots: list[Path]) -> None:
     config_dir.mkdir(parents=True, exist_ok=True)
     lines = ["mission_type_activations:", "  - software-dev"]
     if org_roots:
-        lines.append("doctrine:")
+        lines.append("charter_packs:")
         lines.append("  org:")
         lines.append("    packs:")
         for index, root in enumerate(org_roots):

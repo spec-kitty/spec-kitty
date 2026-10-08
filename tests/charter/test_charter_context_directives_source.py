@@ -42,7 +42,7 @@ def _patch_catalog(monkeypatch: pytest.MonkeyPatch) -> None:
 def _seed_local_directive(root: Path) -> None:
     _write_charter_files(
         root,
-        governance="doctrine: {}\n",
+        governance="charter: {}\n",
         directives="""
 directives:
   - id: LOCAL_QA_PROBE

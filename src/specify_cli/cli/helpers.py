@@ -80,11 +80,19 @@ def _should_suppress_nag(argv: list[str] | None = None) -> bool:
     return False
 
 
+#: ``ctx.meta`` key under which :class:`BannerGroup` records the root command line.
+ROOT_COMMAND_ARGS_META_KEY = "spec_kitty.root_command_args"
+
+
 class BannerGroup(TyperGroup):
     """Custom Typer group that renders the banner before help output."""
 
     def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
         command_args = list(args)
+        # The full command line, for the root gates: Click consumes ``ctx.args``
+        # before the root callback runs, and ``sys.argv`` is not the command line
+        # under an in-process runner.
+        ctx.meta[ROOT_COMMAND_ARGS_META_KEY] = tuple(command_args)
         remaining = super().parse_args(ctx, args)
         if command_args:
             name, command, upgrade_args = self.resolve_command(ctx, command_args)

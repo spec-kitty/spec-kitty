@@ -2,7 +2,7 @@
 
 Three non-fakeable acceptance surfaces for the relocation (NFR-006 / NFR-002):
 
-* **Full doctor health** — ``spec-kitty doctor doctrine --json`` reports FULL
+* **Full doctor health** — ``spec-kitty doctor charter-packs --json`` reports FULL
   health: no skipped/invalid profiles (every shipped profile valid), no
   ``org_drg`` errors, no skipped glossary packs, and the shipped glossary term
   count matches the source pack. A profiles-only gate would miss
@@ -81,7 +81,7 @@ def _invoke_doctrine_json(project_root: Path) -> tuple[int, dict]:
         "specify_cli.cli.commands.doctor.locate_project_root",
         return_value=project_root,
     ):
-        result = runner.invoke(doctor_app, ["doctrine", "--json"])
+        result = runner.invoke(doctor_app, ["charter-packs", "--json"])
     return result.exit_code, json.loads(result.output)
 
 
@@ -94,7 +94,7 @@ def _invoke_doctrine_json(project_root: Path) -> tuple[int, dict]:
 def test_doctor_doctrine_reports_full_health(bare_project_root: Path) -> None:
     exit_code, payload = _invoke_doctrine_json(bare_project_root)
 
-    assert exit_code == 0, f"doctor doctrine flipped unhealthy: {payload}"
+    assert exit_code == 0, f"doctor charter-packs flipped unhealthy: {payload}"
 
     profile_health = payload["profile_health"]
     assert profile_health["healthy"] is True

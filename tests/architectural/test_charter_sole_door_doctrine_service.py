@@ -90,7 +90,7 @@ diagnostic sites' explicit unfiltered mode ... named, reasoned exclusions"):
 **NOT pre-sanctioned — surfaced by WP09's sweep as escalated C-002 findings,
 reported to the operator rather than silently allowlisted:**
 
-5. ``cli/commands/_doctrine_asset.py`` / ``_build_asset_repository`` — WP03
+5. ``cli/commands/charter/pack_asset.py`` / ``_build_asset_repository`` — WP03
    (approved) migrated this site into exactly the FR-002-prescribed shape (build
    raw, wrap immediately, real ``PackContext`` when a repo root exists), and its
    docstring says so explicitly. It satisfies FR-002 and Policy A but not
@@ -223,7 +223,7 @@ def _wrap_verdict_for(raw_call: ast.Call, scan: FileScan, wrapper_sites: set[int
     * **assigned** — the raw call is assigned to one local name that a wrapper
       call in the same scope consumes (``inner = Raw(...)`` then
       ``Wrapper(inner, pack_context=...)`` — the shape used by
-      ``_doctrine_collect.py`` and ``_doctrine_asset.py``).
+      ``_doctrine_collect.py`` and ``charter/pack_asset.py``).
 
     Deliberately narrow: a raw service threaded through a dict, a return value,
     or another module is NOT accepted as wrapped. Narrowness here errs toward
@@ -435,7 +435,7 @@ RAW_LOCALITY_EXCLUSIONS: tuple[ContentDescriptor, ...] = (
         ),
     ),
     ContentDescriptor(
-        rel_path="src/specify_cli/cli/commands/_doctrine_asset.py",
+        rel_path="src/specify_cli/cli/commands/charter/pack_asset.py",
         qualname="_build_asset_repository",
         token_substring="RawDoctrineService (",
         occurrence=None,
@@ -459,7 +459,7 @@ RAW_LOCALITY_EXCLUSIONS: tuple[ContentDescriptor, ...] = (
         occurrence=None,
         rationale=(
             "ESCALATED C-002 FINDING (WP09 sweep), reported not absorbed. Same "
-            "provenance and shape as the _doctrine_asset.py entry: WP03 "
+            "provenance and shape as the charter/pack_asset.py entry: WP03 "
             "(approved) routes the repo_root-bearing path through the unified "
             "builder and only the legacy repo_root-is-None branch - which has no "
             "config from which to source a PackContext - constructs locally and "
@@ -614,11 +614,11 @@ def test_wrapper_only_construction_is_not_flagged(tmp_path: Path) -> None:
 def test_dropping_the_wrap_at_an_excluded_site_reds_the_gate(tmp_path: Path) -> None:
     """The named exclusions are conditional, not blind.
 
-    Takes the real ``_doctrine_asset.py``, deletes the wrapping call so the raw
+    Takes the real ``charter/pack_asset.py``, deletes the wrapping call so the raw
     service escapes bare, and asserts BOTH policies red — proving an
     allow-listed site cannot be quietly converted back into a bypass.
     """
-    rel = "src/specify_cli/cli/commands/_doctrine_asset.py"
+    rel = "src/specify_cli/cli/commands/charter/pack_asset.py"
     original = (REPO_ROOT / rel).read_text(encoding="utf-8")
     mutated = original.replace(
         "    service = ActivationAwareDoctrineService(inner, pack_context=pack_context)\n",

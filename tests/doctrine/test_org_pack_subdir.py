@@ -10,14 +10,13 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from tests._support.org_pack_config import write_org_packs
 from charter.offering.drg.org_pack_config import (
     OrgPackConfig,
     OrgPackEnvVarUnsetError,
     OrgPackSubdirEscapeError,
-    PackRegistry,
     load_pack_registry,
     resolve_org_roots,
-    save_pack_registry,
 )
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
@@ -47,31 +46,16 @@ def _make_pack(tmp_path: Path, *, subdir: str | None = None) -> OrgPackConfig:
 def _write_config_with_subdir(
     repo_root: Path, *, pack_path: str, subdir: str | None = None
 ) -> None:
-    """Write a canonical doctrine.org.packs config.yaml entry."""
+    """Write a canonical charter_packs.org.packs config.yaml entry."""
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
     subdir_line = f"\n        subdir: {subdir}" if subdir is not None else ""
     (config_dir / "config.yaml").write_text(
-        f"doctrine:\n"
+        f"charter_packs:\n"
         f"  org:\n"
         f"    packs:\n"
         f"      - name: {_PACK_NAME}\n"
         f"        local_path: {pack_path}{subdir_line}\n",
-        encoding="utf-8",
-    )
-
-
-def _write_legacy_config_with_subdir(
-    repo_root: Path, *, pack_path: str, subdir: str | None = None
-) -> None:
-    """Write a legacy single-pack doctrine.org inline config."""
-    config_dir = repo_root / ".kittify"
-    config_dir.mkdir(parents=True, exist_ok=True)
-    subdir_line = f"\n    subdir: {subdir}" if subdir is not None else ""
-    (config_dir / "config.yaml").write_text(
-        f"doctrine:\n"
-        f"  org:\n"
-        f"    local_path: {pack_path}{subdir_line}\n",
         encoding="utf-8",
     )
 
@@ -330,7 +314,7 @@ class TestResolveOrgRoots:
         config_dir = tmp_path / ".kittify"
         config_dir.mkdir(parents=True, exist_ok=True)
         (config_dir / "config.yaml").write_text(
-            f"doctrine:\n"
+            f"charter_packs:\n"
             f"  org:\n"
             f"    packs:\n"
             f"      - name: pack-a\n"
@@ -356,67 +340,24 @@ class TestResolveOrgRoots:
 
 
 class TestRoundTrip:
-    """FR-005/006: subdir survives save→load; absent emits no key."""
+    """FR-005/006: subdir is read from the config; an absent key reads as ``None``."""
 
     def test_subdir_preserved_in_round_trip(self, tmp_path: Path) -> None:
         pack_root = tmp_path / "doctrine-pack"
         pack_root.mkdir()
-        pack = OrgPackConfig(
-            name=_PACK_NAME, local_path=pack_root, subdir="doctrine/v2"
-        )
-        registry = PackRegistry(packs=[pack])
-        save_pack_registry(tmp_path, registry)
+        write_org_packs(tmp_path, [{"name": _PACK_NAME, "local_path": pack_root, "subdir": "doctrine/v2"}])
 
         loaded = load_pack_registry(tmp_path)
         assert {p.subdir for p in loaded.packs} == {"doctrine/v2"}
         assert loaded.packs[0].subdir == "doctrine/v2"
 
-    def test_no_subdir_does_not_emit_key(self, tmp_path: Path) -> None:
-        pack_root = tmp_path / "doctrine-pack"
-        pack_root.mkdir()
-        pack = OrgPackConfig(name=_PACK_NAME, local_path=pack_root)
-        registry = PackRegistry(packs=[pack])
-        save_pack_registry(tmp_path, registry)
-
-        config_text = (tmp_path / ".kittify" / "config.yaml").read_text(
-            encoding="utf-8"
-        )
-        # The YAML key "subdir:" must not appear in the emitted config;
-        # note that the path itself may contain "subdir" in temp-dir names,
-        # so check for the YAML key pattern rather than a bare substring.
-        assert "subdir:" not in config_text
-
     def test_no_subdir_round_trip_subdir_is_none(self, tmp_path: Path) -> None:
         pack_root = tmp_path / "doctrine-pack"
         pack_root.mkdir()
-        pack = OrgPackConfig(name=_PACK_NAME, local_path=pack_root)
-        registry = PackRegistry(packs=[pack])
-        save_pack_registry(tmp_path, registry)
+        write_org_packs(tmp_path, [{"name": _PACK_NAME, "local_path": pack_root}])
 
         loaded = load_pack_registry(tmp_path)
         assert loaded.packs[0].subdir is None
-
-    def test_legacy_single_pack_shape_carries_subdir(self, tmp_path: Path) -> None:
-        """Legacy inline doctrine.org shape with subdir is read correctly (T004)."""
-        pack_root = tmp_path / "legacy-pack"
-        pack_root.mkdir()
-        _write_legacy_config_with_subdir(
-            tmp_path, pack_path=str(pack_root), subdir="doctrine"
-        )
-
-        loaded = load_pack_registry(tmp_path)
-        assert {p.subdir for p in loaded.packs} == {"doctrine"}
-        assert loaded.packs[0].subdir == "doctrine"
-
-    def test_legacy_single_pack_no_subdir_stays_none(self, tmp_path: Path) -> None:
-        """Legacy inline doctrine.org shape without subdir → subdir is None."""
-        pack_root = tmp_path / "legacy-pack"
-        pack_root.mkdir()
-        _write_legacy_config_with_subdir(tmp_path, pack_path=str(pack_root))
-
-        loaded = load_pack_registry(tmp_path)
-        assert loaded.packs[0].subdir is None
-
 
 # ---------------------------------------------------------------------------
 # T001/T002 — env-var indirection in local_path (WP01)
@@ -559,11 +500,7 @@ class TestEnvVarExpansion:
     def test_round_trip_preserves_env_var_template(self, tmp_path: Path) -> None:
         """T003: save→load round-trip preserves the literal ${VAR} template,
         never freezing an expanded absolute path into config.yaml."""
-        pack = OrgPackConfig(
-            name=_PACK_NAME, local_path=Path("${SPEC_KITTY_PACK_HOME}/org-pack")
-        )
-        registry = PackRegistry(packs=[pack])
-        save_pack_registry(tmp_path, registry)
+        write_org_packs(tmp_path, [{"name": _PACK_NAME, "local_path": "${SPEC_KITTY_PACK_HOME}/org-pack"}])
 
         config_text = (tmp_path / ".kittify" / "config.yaml").read_text(
             encoding="utf-8"

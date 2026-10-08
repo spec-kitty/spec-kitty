@@ -21,7 +21,7 @@ from charter.offering.drg.migration.extractor import _emit_skill_nodes
 from charter.offering.drg.models import DRGNode, NodeKind
 from charter.offering.pack_paths import built_in_dir
 from charter.offering.service import DoctrineService
-from specify_cli.doctrine.org_charter import (
+from charter.activation.org_charter import (
     REQUIRED_KIND_FIELDS,
     OrgCharterPolicy,
     _fold_policies,

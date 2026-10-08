@@ -77,7 +77,7 @@ def _counting_wrapper(original: object) -> tuple[object, list[object]]:
 
 
 def _write_malformed_project_drg(project: Path) -> None:
-    overlay = project / ".kittify" / "doctrine" / "bad.graph.yaml"
+    overlay = project / ".kittify" / "charter-packs" / "bad.graph.yaml"
     overlay.parent.mkdir(parents=True)
     overlay.write_text(
         """\

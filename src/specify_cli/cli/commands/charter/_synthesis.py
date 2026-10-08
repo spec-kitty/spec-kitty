@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 import typer
 
+from kernel.charter_pack_paths import PROJECT_PACK_ROOT, PROJECT_PACK_ROOT_POSIX
 from specify_cli.cli.commands._commit_recipes import safe_commit_recipe
 from specify_cli.cli.console import console, err_console
 from specify_cli.task_utils import TaskCliError
@@ -302,7 +303,7 @@ def _provenance_to_planned_artifacts(
             continue
         planned.append(
             {
-                "path": f".kittify/doctrine/{subdir}/{filename}",
+                "path": (PROJECT_PACK_ROOT / subdir / filename).as_posix(),
                 "kind": kind,
             }
         )
@@ -331,7 +332,7 @@ def _staged_to_planned_artifacts(staged_files: list[str]) -> list[dict[str, str]
             continue
         planned.append(
             {
-                "path": f".kittify/doctrine/{subdir}/{filename}",
+                "path": (PROJECT_PACK_ROOT / subdir / filename).as_posix(),
                 "kind": kind,
             }
         )
@@ -747,7 +748,9 @@ def _catalog_is_established(repo_root: Path, charter_yaml_path: Path) -> bool:
 _SYNTHESIS_ARTIFACT_PATHS = (
     ".kittify/charter/synthesis-manifest.yaml",
     ".kittify/charter/provenance/",
-    ".kittify/doctrine/",
+    # FR-016: only the project charter pack root. A project still on the
+    # retired root is migrated before it synthesizes again (WP14 gates it).
+    f"{PROJECT_PACK_ROOT_POSIX}/",
 )
 
 

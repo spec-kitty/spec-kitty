@@ -18,6 +18,12 @@ from charter.offering.procedures import ProcedureRepository
 from charter.offering.styleguides import StyleguideRepository
 from charter.offering.tactics import TacticRepository
 from charter.offering.toolguides import ToolguideRepository
+from kernel.charter_pack_paths import KITTIFY_DIRNAME, PROJECT_PACK_DIRNAME
+
+
+def _is_project_pack_root(root: Path) -> bool:
+    """Return whether *root* is a project pack root (``.kittify/charter-packs``)."""
+    return root.name == PROJECT_PACK_DIRNAME and root.parent.name == KITTIFY_DIRNAME
 
 
 class DoctrineService:
@@ -45,7 +51,7 @@ class DoctrineService:
     def _project_dir(self, artifact: str) -> Path | None:
         if self._project_root is None:
             return None
-        if self._project_root.name == "doctrine" and self._project_root.parent.name == ".kittify":
+        if _is_project_pack_root(self._project_root):
             # Consume the single hoisted authority (WP03/WP04, contract A-5) so
             # scaffolder and resolver cannot disagree. Fail-closed: an unknown
             # plural raises rather than falling through a silent default.

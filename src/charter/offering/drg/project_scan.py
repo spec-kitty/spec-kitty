@@ -1,7 +1,7 @@
 """Project-tier ``agent_profile`` DRG-node walk (M6 / #3038).
 
 Reusable filesystem walk that turns hand-authored project-tier agent profiles
-under ``<project_root>/.kittify/doctrine/agent_profiles/`` into
+under ``<project_root>/.kittify/charter-packs/agent_profiles/`` into
 ``agent_profile:<profile-id>`` :class:`~charter.offering.drg.models.DRGNode` objects, so
 they can be composed into the project overlay ``graph.yaml`` the charter cascade
 reads. The composing caller
@@ -33,6 +33,7 @@ from ruamel.yaml.error import YAMLError
 from charter.offering.artifact_kinds import DIRECT_WRITE_KINDS, ArtifactKind, PROJECT_KIND_DIRS
 from charter.offering.drg.migration.id_normalizer import artifact_to_urn
 from charter.offering.drg.models import DRGEdge, DRGNode, NodeKind, Relation, is_valid_urn
+from kernel.charter_pack_paths import project_pack_root
 
 # ``MalformedProjectProfileError`` is intentionally NOT exported here: it is a
 # fail-loud exception meant to *propagate* (never caught inside src/), so adding
@@ -70,7 +71,8 @@ class MalformedProjectProfileError(ValueError):
 
 
 def _profiles_dir(project_root: Path) -> Path:
-    return project_root / ".kittify" / "doctrine" / "agent_profiles"
+    kind_dir: str = PROJECT_KIND_DIRS[_AGENT_PROFILE_KIND]
+    return project_pack_root(project_root) / kind_dir
 
 
 def _load_profile_mapping(path: Path) -> dict[str, Any]:
@@ -120,7 +122,7 @@ def _label(data: dict[str, Any]) -> str | None:
 def walk_project_agent_profile_nodes(project_root: Path) -> list[DRGNode]:
     """Return one ``agent_profile`` :class:`DRGNode` per authored project profile.
 
-    Enumerates ``<project_root>/.kittify/doctrine/agent_profiles/**/*.agent.yaml``
+    Enumerates ``<project_root>/.kittify/charter-packs/agent_profiles/**/*.agent.yaml``
     (recursive, sorted for deterministic order — NFR-002) and builds a node for
     each with ``urn = agent_profile:<profile-id>``, ``kind =
     NodeKind.AGENT_PROFILE``, ``label = <name|None>`` and ``provenance =
@@ -195,14 +197,15 @@ def scan_project_artifacts(
     kinds = DIRECT_WRITE_KINDS
     artifacts: list[ProjectArtifact] = []
     seen: dict[str, Path] = {}
+    pack_root = project_pack_root(project_root)
     for kind_name, schema in zip(kinds, schemas, strict=True):
         kind = ArtifactKind(kind_name)
-        directory = project_root / ".kittify" / "doctrine" / PROJECT_KIND_DIRS[kind]
+        directory = pack_root / PROJECT_KIND_DIRS[kind]
         for path in sorted(directory.rglob(kind.glob_pattern)):
             if paths is not None and path not in paths:
                 continue
             try:
-                path.resolve().relative_to((project_root / ".kittify/doctrine").resolve())
+                path.resolve().relative_to(pack_root.resolve())
                 data = YAML(typ="safe").load(path)
                 model = schema.model_validate(data)
                 body = model.model_dump(mode="json", by_alias=True)

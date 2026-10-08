@@ -950,7 +950,7 @@ def _write_org_pack_config(repo_root: Path, *, pack_name: str, local_path: Path)
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
     (config_dir / "config.yaml").write_text(
-        f"doctrine:\n  org:\n    packs:\n      - name: {pack_name}\n        local_path: {local_path}\n",
+        f"charter_packs:\n  org:\n    packs:\n      - name: {pack_name}\n        local_path: {local_path}\n",
         encoding="utf-8",
     )
 
@@ -1135,7 +1135,7 @@ class TestOrgTierResolution:
         acme_one = tmp_path / "acme-one"
         acme_two = tmp_path / "acme-two"
         (kittify / "config.yaml").write_text(
-            f"doctrine:\n  org:\n    packs:\n      - name: acme\n        local_path: {acme_one}\n      - name: acme\n        local_path: {acme_two}\n",
+            f"charter_packs:\n  org:\n    packs:\n      - name: acme\n        local_path: {acme_one}\n      - name: acme\n        local_path: {acme_two}\n",
             encoding="utf-8",
         )
 
@@ -1179,7 +1179,7 @@ class TestOrgTierResolution:
         config_dir = project / ".kittify"
         config_dir.mkdir(parents=True)
         (config_dir / "config.yaml").write_text(
-            f"doctrine:\n  org:\n    packs:\n      - name: acme\n        local_path: {pack_root}\n        subdir: escape\n",
+            f"charter_packs:\n  org:\n    packs:\n      - name: acme\n        local_path: {pack_root}\n        subdir: escape\n",
             encoding="utf-8",
         )
 

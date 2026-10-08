@@ -134,11 +134,16 @@ def test_doctor_skills_json_error_schema_stable(monkeypatch: pytest.MonkeyPatch)
 # Additive-only contract (FR-042/NFR-005): new surface kinds are welcome, but
 # any kind in this frozen set must continue to be a recognised surface kind.
 # ``agent_profile`` was added in the agent-profile-projection mission.
+# One deliberate break: ``doctrine_skill`` was renamed to ``charter_skill`` by
+# #3732 (FR-009), an owner-ruled full cutover per ADR 2026-10-06-1 section 7:
+# no alias member, no read alias (C-001). The rename is listed in the
+# changelog Before/After. Surface ids are not persisted (the skills manifest
+# stores installed paths), so no stored value carries the old kind.
 EXPECTED_SURFACE_KINDS = frozenset(
     {
         "command_skill",
         "command_file",
-        "doctrine_skill",
+        "charter_skill",
         "context_file",
         "hook",
         "rule",

@@ -144,7 +144,7 @@ def _write_consumer_pack_config(repo_root: Path, *, pack_name: str, local_path: 
     (config_dir / "config.yaml").write_text(
         textwrap.dedent(
             f"""\
-            doctrine:
+            charter_packs:
               org:
                 packs:
                   - name: {pack_name}
@@ -235,7 +235,7 @@ def test_case_2_org_pack_styleguide_appears_in_consumer_prompt(tmp_path: Path) -
         "Consumer prompt MUST cite the org-distributed styleguide "
         "`caveman-comments`. Today the org-pack's `required_styleguides` "
         "field is dropped at parse time because `OrgCharterPolicy` does not "
-        "declare it (see src/specify_cli/doctrine/org_charter.py). "
+        "declare it (see src/charter/activation/org_charter.py). "
         "Mission B WP04 adds `required_styleguides` to `OrgCharterPolicy` "
         "and teaches `apply_org_charter_to_interview` to union the field "
         "into the project selection."
@@ -267,7 +267,7 @@ def test_case_2_required_styleguides_in_org_charter_pre_fills(tmp_path: Path) ->
     After Mission B WP04: schema field exists, interview data carries
     the selection field, and the union runs.
     """
-    from specify_cli.doctrine.org_charter import apply_org_charter_to_interview
+    from charter.activation.org_charter import apply_org_charter_to_interview
 
     consumer = tmp_path / "consumer"
     consumer.mkdir()
@@ -303,7 +303,7 @@ def test_case_2_required_styleguides_in_org_charter_pre_fills(tmp_path: Path) ->
         f"Observed selected_styleguides: {interview.selected_styleguides!r}\n"
         f"Apply messages: {messages!r}\n"
         "Fix lives in Mission B WP04 — extend the schema in "
-        "src/specify_cli/doctrine/org_charter.py:OrgCharterPolicy, "
+        "src/charter/activation/org_charter.py:OrgCharterPolicy, "
         "extend CharterInterview in src/charter/activation/interview.py, and extend "
         "apply_org_charter_to_interview to union the new field."
     )

@@ -1,4 +1,4 @@
-"""Doctrine/profile health *render* helpers for ``spec-kitty doctor doctrine``.
+"""Doctrine/profile health *render* helpers for ``spec-kitty doctor charter-packs``.
 
 Pure extraction (mission ``tooling-stability-guard-coherence-01KTRC04`` WP08,
 issue #1623 / DIRECTIVE_013 / adversarial finding I-10): the doctrine- and
@@ -54,7 +54,7 @@ __all__ = [
 #: Shared Rich console singleton for the ``doctor`` command surface.  ``doctor.py``
 #: re-imports this name so both modules emit through the same instance.
 
-#: Artifact-kind plurals surfaced by ``doctor doctrine`` in the Selections
+#: Artifact-kind plurals surfaced by ``doctor charter-packs`` in the Selections
 #: section: the selection-overlayable kinds (a ``selected_<plural>`` charter
 #: field that org-required lists union into). Ordering is the operator-facing
 #: reading order from the WP09 plan (directives first, agent_profiles last so
@@ -100,7 +100,7 @@ def _render_pack_invalid_profiles(pack_health: object) -> None:
 
 
 def _render_doctrine_pack(pack_entry: dict[str, object], pack_index: int) -> None:
-    """Render one pack entry to the Rich console (human output for ``doctor doctrine``).
+    """Render one pack entry to the Rich console (human output for ``doctor charter-packs``).
 
     FR-010: the pack header is colored from derived profile health
     (``pack_health.healthy``), not from snapshot presence.  A snapshot that is
@@ -165,7 +165,7 @@ def _emit_doctrine_human(
     selection_block: dict[str, list[dict[str, str]]],
     repo_root: Path,
 ) -> None:
-    """Render the human-readable ``doctor doctrine`` report.
+    """Render the human-readable ``doctor charter-packs`` report.
 
     The report is the single source: pack health was attached to
     ``pack_entries`` by :func:`_attach_pack_health`, and the org-DRG section is
@@ -213,7 +213,7 @@ def _emit_doctrine_json(
     collision_summaries: list[dict[str, object]],
     selection_block: dict[str, list[dict[str, str]]],
 ) -> None:
-    """Emit the ``doctor doctrine --json`` payload as a passthrough of the report.
+    """Emit the ``doctor charter-packs --json`` payload as a passthrough of the report.
 
     ``profile_health`` is a verbatim ``report.to_dict()`` so the invalid-profile
     fields (layer/path/profile_id/error_summary) and the derived ``healthy``
@@ -240,7 +240,7 @@ def _emit_doctrine_no_packs(
     *,
     json_output: bool,
 ) -> None:
-    """Emit the ``doctor doctrine`` output when no org packs are configured.
+    """Emit the ``doctor charter-packs`` output when no org packs are configured.
 
     A project with built-in + project-only doctrine still has selections (and
     profile health) to audit, so both are emitted before the command exits.
@@ -254,7 +254,7 @@ def _emit_doctrine_no_packs(
             selection_block=selection_block,
         )
         return
-    console.print("[yellow]No org doctrine configured.[/yellow]")
+    console.print("[yellow]No org charter packs configured.[/yellow]")
     console.print(
         "Add a 'charter_packs.org' block to .kittify/config.yaml to register a pack."
     )
@@ -265,7 +265,7 @@ def _emit_doctrine_no_packs(
 
 #: Verbosity cap for the org-layer findings lists, per the WP07 risk table
 #: (risk 4). Applied to collisions and to dangling endpoints alike so one
-#: misconfigured pack cannot bury the rest of the ``doctor doctrine`` report.
+#: misconfigured pack cannot bury the rest of the ``doctor charter-packs`` report.
 _ORG_FINDINGS_SHOWN = 3
 
 
@@ -288,12 +288,12 @@ def _render_dangling_org_endpoints(console: Console, dangling: list[str]) -> Non
     if len(dangling) > _ORG_FINDINGS_SHOWN:
         console.print(
             f"    … and {len(dangling) - _ORG_FINDINGS_SHOWN} more "
-            "(run spec-kitty doctor doctrine --json for the full list)"
+            "(run spec-kitty doctor charter-packs --json for the full list)"
         )
 
 
 def _render_org_layer_section(repo_root: Path, console: Console) -> None:
-    """Surface organisation-tier DRG state in ``doctor doctrine`` (FR-007).
+    """Surface organisation-tier DRG state in ``doctor charter-packs`` (FR-007).
 
     Lists each configured pack with its fetched/missing status, node/edge
     counts, any collision warnings from ``merge_three_layers``, and any org
@@ -301,7 +301,7 @@ def _render_org_layer_section(repo_root: Path, console: Console) -> None:
 
     Diagnostic commands are READ-ONLY and must never crash on operator
     misconfiguration.  All exceptions are caught and rendered as findings
-    so ``doctor doctrine`` always returns a usable report.
+    so ``doctor charter-packs`` always returns a usable report.
     """
     from charter.drg import (
         OrgDRGConflictError,

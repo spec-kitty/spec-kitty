@@ -83,7 +83,7 @@ _CORPUS_DATA_ROOTS = (
     "kitty-specs/",
     ".kittify/charter/",
     ".kittify/glossaries/",
-    ".kittify/doctrine/",
+    ".kittify/charter-packs/",
     # (`.kittify/release/downstream-verified.json` was dropped: it is not a tracked
     # file and is not in the router corpus group.)
 )
@@ -108,6 +108,13 @@ _CORPUS_DATA_ROOTS = (
 # they read nothing real today).
 _CORPUS_MARKED_MODULES = frozenset(
     {
+        "tests/acceptance/charter_pack_cutover/test_cli_surface.py",
+        "tests/acceptance/charter_pack_cutover/test_gates_latency_messaging.py",
+        "tests/acceptance/charter_pack_cutover/test_package_split.py",
+        "tests/acceptance/charter_pack_cutover/test_presets.py",
+        "tests/acceptance/charter_pack_cutover/test_project_pack_root.py",
+        "tests/acceptance/charter_pack_cutover/test_rename_skills_glossary.py",
+        "tests/acceptance/charter_pack_cutover/test_traceability.py",
         "tests/architectural/test_bare_prose_corpus_ratchet.py",
         "tests/architectural/test_transition_guard_shrink_only.py",
         "tests/charter/synthesizer/test_manifest.py",

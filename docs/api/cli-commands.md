@@ -448,32 +448,38 @@ _Charter management commands_
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ activate      Activate a doctrine artifact by kind and ID (FR-004), with     │
-│               optional cascade.                                              │
-│ deactivate    Deactivate a doctrine artifact by kind and ID (FR-005), with   │
-│               optional cascade.                                              │
-│ new           Scaffold a stub doctrine artifact YAML (FR-016).               │
-│ validate      Validate project-layer doctrine artifacts against their        │
-│               schemas (FR-017).                                              │
-│ fetch         Fetch org doctrine pack(s) from their configured remote        │
-│               sources.                                                       │
-│ interview     Capture charter interview answers for later generation.        │
-│ generate      Generate charter bundle from interview answers + doctrine      │
-│               references.                                                    │
-│ context       Render charter context for a specific workflow action.         │
-│ sync          No-op kept for compatibility; there is nothing to sync.        │
-│ status        Display charter sync status plus synthesis/operator state.     │
-│ synthesize    Validate and promote agent-generated project-local doctrine    │
-│               artifacts.                                                     │
-│ resynthesize  Regenerate a bounded set of project-local doctrine artifacts   │
-│               (partial resynthesis).                                         │
-│ lint          Detect decay in charter artifacts via graph-native checks.     │
-│ preflight     Verify charter-derived state before a governed session begins. │
-│ bundle        Charter bundle validation commands.                            │
-│ mission-type  Mission type commands (activated types only).                  │
-│ list          List activated doctrine artifacts by kind.                     │
-│ pack          Charter pack management commands.                              │
-│ org           Manage org-layer doctrine pack authoring (init, validate).     │
+│ activate           Activate a doctrine artifact by kind and ID (FR-004), or  │
+│                    apply a pack's preset.                                    │
+│ deactivate         Deactivate a doctrine artifact by kind and ID (FR-005),   │
+│                    with optional cascade.                                    │
+│ consistency-check  Check the active charter for coherence against the        │
+│                    offering (FR-011).                                        │
+│ new                Scaffold a stub doctrine artifact YAML (FR-016).          │
+│ validate           Validate project-layer doctrine artifacts against their   │
+│                    schemas (FR-017).                                         │
+│ fetch              Fetch org doctrine pack(s) from their configured remote   │
+│                    sources.                                                  │
+│ interview          Capture charter interview answers for later generation.   │
+│ generate           Generate charter bundle from interview answers + doctrine │
+│                    references.                                               │
+│ context            Render charter context for a specific workflow action.    │
+│ sync               No-op kept for compatibility; there is nothing to sync.   │
+│ status             Display charter sync status plus synthesis/operator       │
+│                    state.                                                    │
+│ synthesize         Validate and promote agent-generated project-local        │
+│                    doctrine artifacts.                                       │
+│ resynthesize       Regenerate a bounded set of project-local doctrine        │
+│                    artifacts (partial resynthesis).                          │
+│ lint               Detect decay in charter artifacts via graph-native        │
+│                    checks.                                                   │
+│ preflight          Verify charter-derived state before a governed session    │
+│                    begins.                                                   │
+│ bundle             Charter bundle validation commands.                       │
+│ mission-type       Mission type commands (activated types only).             │
+│ list               List activated doctrine artifacts by kind.                │
+│ pack               Charter pack management commands.                         │
+│ org                Manage org-layer doctrine pack authoring (init,           │
+│                    validate).                                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -482,7 +488,18 @@ _Charter management commands_
 ```
  Usage: spec-kitty charter activate [OPTIONS] [KIND] [ARTIFACT_ID]
 
- Activate a doctrine artifact by kind and ID (FR-004), with optional cascade.
+ Activate a doctrine artifact by kind and ID (FR-004), or apply a pack's
+ preset.
+
+ Two forms:
+
+   spec-kitty charter activate KIND ARTIFACT_ID [--cascade SCOPE]
+
+   spec-kitty charter activate [--pack PACK] --preset PRESET [--force] [--json]
+
+ A preset replaces every activation key it governs: keys it lists are
+ written (plus the org's required ids), keys it leaves out are removed.
+ A change to a customised key is refused without --force.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │   kind             [KIND]         Activation kind (e.g. directive,           │
@@ -530,6 +547,21 @@ _Charter management commands_
 │                                                `charter activate             │
 │                                                --resynthesize`.              │
 │                                                [default: compile]            │
+│ --preset                                 TEXT  Apply this activation preset  │
+│                                                of the pack with replace      │
+│                                                semantics instead of          │
+│                                                activating one artifact.      │
+│ --pack                                   TEXT  Pack whose preset --preset    │
+│                                                applies (built-in, an org     │
+│                                                pack name). Only with         │
+│                                                --preset.                     │
+│                                                [default: built-in]           │
+│ --force                                        Apply the preset even when it │
+│                                                changes a customised          │
+│                                                activation key. Only with     │
+│                                                --preset.                     │
+│ --json                                         Output the applied preset as  │
+│                                                JSON. Only with --preset.     │
 │ --help          -h                             Show this message and exit.   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -561,6 +593,19 @@ _Charter bundle validation commands._
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Emit structured JSON to stdout instead of a human-readable │
 │                   report.                                                    │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter consistency-check
+
+```
+ Usage: spec-kitty charter consistency-check [OPTIONS]
+
+ Check the active charter for coherence against the offering (FR-011).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Output as JSON.                                            │
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -831,10 +876,9 @@ _Mission type commands (activated types only)._
  By default, returns only mission types that are explicitly activated in
  this project's charter. Pass ``--include-inactive`` to also see every
  type registered in the built-in/org/project layers regardless of
- activation state -- the deprecated ``spec-kitty doctrine mission-type
- list`` group covered this before CR-02; this flag is its canonical
- replacement, not a straight alias (activation state still distinguishes
- the two row classes -- see ACTION SEQUENCE below).
+ activation state (it replaced the removed doctrine-group listing; it is
+ not a straight alias: activation state still distinguishes the two row
+ classes -- see ACTION SEQUENCE below).
 
  Output columns (table): ID, SOURCE, DISPLAY NAME, ACTION SEQUENCE. A
  non-activated ``--include-inactive`` row shows ``(not activated)`` in
@@ -845,10 +889,7 @@ _Mission type commands (activated types only)._
 │ --json                        Output as JSON.                                │
 │ --include-inactive            Also list mission types registered in the      │
 │                               built-in/org/project layers but NOT activated  │
-│                               for this project (activation-blind). The       │
-│                               canonical replacement for `spec-kitty doctrine │
-│                               mission-type list` (CR-02, mission             │
-│                               charter-code-topology-01M152G1 S4).            │
+│                               for this project (activation-blind).           │
 │ --help              -h        Show this message and exit.                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -861,7 +902,7 @@ _Mission type commands (activated types only)._
  Scaffold a stub doctrine artifact YAML (FR-016).
 
  The scaffolder pre-fills the canonical schema's required fields with
- ``TODO …`` placeholders so the file passes ``doctrine validate`` on
+ ``TODO …`` placeholders so the file passes ``charter validate`` on
  first emit.  Refuses to overwrite an existing file.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
@@ -877,7 +918,7 @@ _Mission type commands (activated types only)._
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --pack          PATH  Scaffold inside a doctrine pack directory instead of   │
 │                       the project layer. When omitted, the stub lands under  │
-│                       .kittify/doctrine/.                                    │
+│                       .kittify/charter-packs/.                               │
 │ --help  -h            Show this message and exit.                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -908,11 +949,13 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 
  Scaffold a minimal org pack or render from a template.
 
- Without ``--template``, creates three files under *pack-path*::
+ Without ``--template``, creates four files under *pack-path*::
 
-     org-charter.yaml   — governance policy stub
-     drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
-     README.md          — authoring quickstart
+     org-charter.yaml     — governance policy stub
+     drg/fragment.yaml    — DRG extension stub (with pydantic_model:
+ frontmatter)
+     presets/starter.yaml — example activation preset
+     README.md            — authoring quickstart
 
  With ``--template``, copies the full template tree (minus
  ``.templateignore``),
@@ -930,7 +973,7 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 │ --force                     Overwrite an existing pack directory.            │
 │ --template            TEXT  Local template directory or git URL (HTTPS/SSH;  │
 │                             optional #branch). When omitted, scaffolds the   │
-│                             minimal three-file pack.                         │
+│                             minimal four-file pack.                          │
 │ --org-name            TEXT  Validated org/pack identity for {{ORG_NAME}}     │
 │                             (required with --template).                      │
 │ --local-path          TEXT  Value for {{LOCAL_PATH}} (default: pack).        │
@@ -948,7 +991,7 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 
  Validate an org doctrine pack using schema and DRG checks (FR-006).
 
- Calls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`
+ Calls the WP06 :func:`charter.offering.packs.pack_validator.validate_pack`
  loader.  Prints per-file findings with file paths.  Exits non-zero when
  at least one error is found.
 
@@ -978,67 +1021,100 @@ _Charter pack management commands._
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ consistency-check  Run consistency check against activated doctrine          │
-│                    artifacts (FR-011).                                       │
-│ list               List the built-in charter packs shipped with spec-kitty   │
-│                    (#3064).                                                  │
-│ path               Resolve a built-in charter pack name to its shipped       │
-│                    filesystem path (#3064).                                  │
-│ apply              Apply a built-in charter pack's activation keys into      │
-│                    .kittify/config.yaml (#3064).                             │
+│ list              List the packs of the project's offering and the presets   │
+│                   each ships (FR-004).                                       │
+│ path              Print a pack's root, or with --preset the preset file      │
+│                   (FR-006).                                                  │
+│ validate          Validate a doctrine pack against schema and DRG            │
+│                   constraints.                                               │
+│ assemble          Assemble multiple doctrine packs into a single             │
+│                   distributable.                                             │
+│ regenerate-graph  Regenerate the shipped DRG graph source deterministically  │
+│                   (FR-009).                                                  │
+│ asset             Resolve shipped and overlay doctrine assets (no install —  │
+│                   C-002).                                                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## spec-kitty charter pack apply
+## spec-kitty charter pack assemble
 
 ```
- Usage: spec-kitty charter pack apply [OPTIONS] NAME
+ Usage: spec-kitty charter pack assemble [OPTIONS] OUTPUT_PATH INPUT_PACKS...
 
- Apply a built-in charter pack's activation keys into .kittify/config.yaml
- (#3064).
+ Assemble multiple doctrine packs into a single distributable.
 
- User Customization Preservation: by default this is an additive merge —
- a ``config.yaml`` key the pack declares is only written when it is
- currently absent. An already-present key (even an empty list a user
- explicitly authored) is left untouched unless ``--force`` is passed, in
- which case every key the pack declares is overwritten.
-
- Pass ``--compile`` to also chain the existing compile seam
- (``spec-kitty charter generate --no-from-interview``) so
- ``.kittify/charter/charter.yaml`` is produced in the same step. That
- flag requires a git repository (inherited from ``generate``); the
- default merge (no ``--compile``) stays a pure, git-agnostic additive
- merge (C-004).
+ Exits 0 on success and 1 when conflicts block the merge or when the
+ assembled output fails validation.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    name      TEXT  Built-in pack name to apply (e.g. 'default',            │
-│                      'minimal').                                             │
-│                      [required]                                              │
+│ *    output_path      PATH            Output directory for the assembled     │
+│                                       distributable pack.                    │
+│                                       [required]                             │
+│ *    input_packs      INPUT_PACKS...  One or more input pack directories to  │
+│                                       assemble.                              │
+│                                       [required]                             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --force              Overwrite activation keys already present in            │
-│                      config.yaml (default: leave them untouched).            │
-│ --compile            Also compile the merged activation into                 │
-│                      .kittify/charter/charter.yaml by chaining the existing  │
-│                      `spec-kitty charter generate --no-from-interview` seam  │
-│                      (no new compiler is introduced). Requires a git         │
-│                      repository -- inherits `charter generate`'s             │
-│                      git-worktree requirement. The default merge (without    │
-│                      this flag) stays git-agnostic.                          │
-│ --json               Output as JSON.                                         │
-│ --help     -h        Show this message and exit.                             │
+│ --conflicts-out          PATH  Write the conflict report to this path        │
+│                                (JSON).                                       │
+│ --force                        Resolve artifact-id conflicts by              │
+│                                last-pack-wins and drop duplicate DRG edges   │
+│                                silently.                                     │
+│ --json                         Emit machine-readable JSON instead of rich    │
+│                                text.                                         │
+│ --help           -h            Show this message and exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## spec-kitty charter pack consistency-check
+## spec-kitty charter pack asset
+
+_Resolve shipped and overlay doctrine assets (no install — C-002)._
 
 ```
- Usage: spec-kitty charter pack consistency-check [OPTIONS]
+ Usage: spec-kitty charter pack asset [OPTIONS] COMMAND [ARGS]...
 
- Run consistency check against activated doctrine artifacts (FR-011).
+ Resolve shipped and overlay doctrine assets (no install — C-002).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Output as JSON.                                            │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ list  List all resolvable doctrine assets and their source tiers.            │
+│ path  Resolve an asset identifier to a filesystem path (fail-closed on       │
+│       miss).                                                                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter pack asset list
+
+```
+ Usage: spec-kitty charter pack asset list [OPTIONS]
+
+ List all resolvable doctrine assets and their source tiers.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit machine-readable JSON instead of rich text.           │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter pack asset path
+
+```
+ Usage: spec-kitty charter pack asset path [OPTIONS] ASSET_ID
+
+ Resolve an asset identifier to a filesystem path (fail-closed on miss).
+
+ Exits ``0`` and prints the path on success. An unknown id or a containment
+ refusal exits non-zero with the offending id named (A-7 / NFR-006).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    asset_id      TEXT  Identifier of the asset to resolve (see `charter    │
+│                          pack asset list`).                                  │
+│                          [required]                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit machine-readable JSON instead of rich text.           │
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -1048,7 +1124,7 @@ _Charter pack management commands._
 ```
  Usage: spec-kitty charter pack list [OPTIONS]
 
- List the built-in charter packs shipped with spec-kitty (#3064).
+ List the packs of the project's offering and the presets each ships (FR-004).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Output as JSON.                                            │
@@ -1059,18 +1135,76 @@ _Charter pack management commands._
 ## spec-kitty charter pack path
 
 ```
- Usage: spec-kitty charter pack path [OPTIONS] NAME
+ Usage: spec-kitty charter pack path [OPTIONS] PACK
 
- Resolve a built-in charter pack name to its shipped filesystem path (#3064).
+ Print a pack's root, or with --preset the preset file (FR-006).
 
- Fails closed (exit 1) on an unknown pack name, naming it and the valid set.
+ Fails closed (exit 1) with PACK_NOT_FOUND or PRESET_NOT_FOUND, listing the
+ valid names.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    name      TEXT  Built-in pack name (e.g. 'default', 'minimal').         │
+│ *    pack      TEXT  Pack name (built-in, an org pack name, or project).     │
 │                      [required]                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Output as JSON.                                            │
+│ --preset          TEXT  Print this preset's file instead of the pack root.   │
+│ --json                  Output as JSON.                                      │
+│ --help    -h            Show this message and exit.                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter pack regenerate-graph
+
+```
+ Usage: spec-kitty charter pack regenerate-graph [OPTIONS]
+
+ Regenerate the shipped DRG graph source deterministically (FR-009).
+
+ Composes the DRG extractor + calibrator into per-populated-node-kind
+ ``packs/built-in/*.graph.yaml`` fragments (sharded per mission #2680 WP05;
+ relocated from ``src/charter/offering/`` by the pack flatten),
+ retiring the legacy ``graph.yaml`` monolith in the same write. Running twice
+ on unchanged inputs yields byte-identical fragments. With ``--check`` the
+ command never writes: it regenerates into a temp directory and compares the
+ fragment set against the committed source, exiting non-zero when stale — the
+ operator-facing twin of the freshness gate.
+
+ Both the write path and ``--check`` merge in the enumerable hand-authored
+ overlay (:mod:`charter.offering.drg.migration.hand_authored_overlay`) — the
+ ``in_tension_with``/``reconciles_tension``/``rejects`` edges and
+ ``anti_pattern`` nodes hand-authored directly in the graph fragments
+ (mission doctrine-tension-edges-01KY1WPC). The extractor has no
+ frontmatter mechanism that could ever mint these, so a bare pure
+ regeneration would (a) silently drop them from the committed source on
+ write, and (b) always report "stale" under ``--check`` even when nothing
+ is actually stale.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --check            Do not write; regenerate into a temp directory and        │
+│                    compare the per-kind graph fragments against the          │
+│                    committed packs/built-in source. Exit 1 when stale        │
+│                    (operator-runnable freshness gate). Exit 0 when fresh.    │
+│ --json             Emit machine-readable JSON instead of rich text.          │
+│ --help   -h        Show this message and exit.                               │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter pack validate
+
+```
+ Usage: spec-kitty charter pack validate [OPTIONS] PACK_PATH
+
+ Validate a doctrine pack against schema and DRG constraints.
+
+ Exits 0 when the pack passes validation (advisories do not affect the
+ exit code) and 1 when at least one error is reported.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    pack_path      PATH  Path to the doctrine pack directory to validate.   │
+│                           [required]                                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit machine-readable JSON instead of rich text.           │
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -1190,7 +1324,7 @@ _Charter pack management commands._
  Validate and promote agent-generated project-local doctrine artifacts.
 
  Reads the charter interview answers, resolves synthesis targets from the
- DRG + doctrine, and writes all artifacts to ``.kittify/doctrine/``.
+ DRG + doctrine, and writes all artifacts to ``.kittify/charter-packs/``.
 
  Doctrine generation is performed by the LLM harness (Claude Code, Codex,
  Cursor, etc.) via the spec-kitty-charter-doctrine skill. This command
@@ -1203,10 +1337,10 @@ _Charter pack management commands._
  command short-circuits the adapter pipeline and materializes the
  **minimal artifact set** the runtime requires:
 
- 1. ``.kittify/doctrine/`` — directory marker. ``DoctrineService``'s
+ 1. ``.kittify/charter-packs/`` — directory marker. ``DoctrineService``'s
     project-root resolver (``src/charter/activation/_doctrine_paths.py``) is a
     presence-only check; an empty directory is a valid project layer.
- 2. ``.kittify/doctrine/PROVENANCE.md`` — human-readable record of the
+ 2. ``.kittify/charter-packs/PROVENANCE.md`` — human-readable record of the
     fresh-project seed path, citing #839.
 
  The runtime falls back to the built-in doctrine (``packs/built-in/``) for
@@ -1823,7 +1957,7 @@ _Project health diagnostics_
 │                         ones closed as abandoned.                            │
 │ mission-state           Audit, repair, or TeamSpace-validate mission-state   │
 │                         shapes.                                              │
-│ doctrine                Check org doctrine snapshot status and list          │
+│ charter-packs           Check org charter pack snapshot status and list      │
 │                         installed pack artifacts.                            │
 │ coordination            Run the WP04 #1348 coordination + sparse-checkout    │
 │                         health checks.                                       │
@@ -1880,6 +2014,45 @@ _Project health diagnostics_
  Examples:
      spec-kitty doctor channel
      spec-kitty doctor channel --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Machine-readable JSON output                               │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctor charter-packs
+
+```
+ Usage: spec-kitty doctor charter-packs [OPTIONS]
+
+ Check org charter pack snapshot status and list installed pack artifacts.
+
+ Exit code reflects health (WP01, operator directive: loud over hidden): the
+ command exits **1 when the report is unhealthy** and 0 only when healthy
+ (``report.healthy`` drives the code on every output path). A clear RC=1 with
+ a surfaced error is preferred over an RC=0 that hides a defect.  It
+ enumerates each configured org pack (from ``.kittify/config.yaml``), prints
+ its on-disk version (``git describe`` for git-managed packs, otherwise the
+ ``pack-manifest.yaml`` ``pack_version``), per-artifact YAML counts, and
+ ``org-charter.yaml`` policy status when present.
+
+ Override governance (FR-010 / FR-012): when org packs are configured, any
+ ``org:``-provenance override of a built-in DRG node that is NOT sanctioned
+ by ``.kittify/charter-packs/replaceable-builtins.yaml`` or by the overriding
+ pack's own pack-root ``replaceable-builtins.yaml`` is reported as an
+ ``unsanctioned_overrides`` finding and flips the report unhealthy (RC=1).
+ A pack sanction applies only to overrides that same pack contributes, and
+ the consumer file can withdraw it with ``revoked_pack_sanctions``. Sanctioned
+ overrides and their source are listed as ``sanctioned_overrides``.
+ Project-tier (``.kittify/charter-packs/``) overrides of built-ins are
+ intentionally **ungoverned** — the project layer is the trusted operator tier
+ and is not gated by the consumer-facing allowlist; only org-tier overrides
+ are adjudicated.
+
+ Examples:
+     spec-kitty doctor charter-packs
+     spec-kitty doctor charter-packs --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Machine-readable JSON output                               │
@@ -2073,45 +2246,6 @@ _Project health diagnostics_
 │    --repair                 Rebuild decisions/index.json from the event log  │
 │                             (run offline; not against live decision traffic) │
 │    --help     -h            Show this message and exit.                      │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctor doctrine
-
-```
- Usage: spec-kitty doctor doctrine [OPTIONS]
-
- Check org doctrine snapshot status and list installed pack artifacts.
-
- Exit code reflects health (WP01, operator directive: loud over hidden): the
- command exits **1 when the report is unhealthy** and 0 only when healthy
- (``report.healthy`` drives the code on every output path). A clear RC=1 with
- a surfaced error is preferred over an RC=0 that hides a defect.  It
- enumerates each configured org pack (from ``.kittify/config.yaml``), prints
- its on-disk version (``git describe`` for git-managed packs, otherwise the
- ``pack-manifest.yaml`` ``pack_version``), per-artifact YAML counts, and
- ``org-charter.yaml`` policy status when present.
-
- Override governance (FR-010 / FR-012): when org packs are configured, any
- ``org:``-provenance override of a built-in DRG node that is NOT sanctioned
- by ``.kittify/doctrine/replaceable-builtins.yaml`` or by the overriding
- pack's own pack-root ``replaceable-builtins.yaml`` is reported as an
- ``unsanctioned_overrides`` finding and flips the report unhealthy (RC=1).
- A pack sanction applies only to overrides that same pack contributes, and
- the consumer file can withdraw it with ``revoked_pack_sanctions``. Sanctioned
- overrides and their source are listed as ``sanctioned_overrides``.
- Project-tier (``.kittify/doctrine/``) overrides of built-ins are
- intentionally **ungoverned** — project doctrine is the trusted operator tier
- and is not gated by the consumer-facing allowlist; only org-tier overrides
- are adjudicated.
-
- Examples:
-     spec-kitty doctor doctrine
-     spec-kitty doctor doctrine --json
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Machine-readable JSON output                               │
-│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2507,354 +2641,6 @@ _Project health diagnostics_
 │ --fix             Remove husks that are NOT registered in `git worktree      │
 │                   list` (registered worktrees are never removed)             │
 │ --json            Machine-readable JSON output                               │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine asset
-
-_Resolve shipped and overlay doctrine assets (no install — C-002)._
-
-```
- Usage: spec-kitty doctrine asset [OPTIONS] COMMAND [ARGS]...
-
- Resolve shipped and overlay doctrine assets (no install — C-002).
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ list  List all resolvable doctrine assets and their source tiers.            │
-│ path  Resolve an asset identifier to a filesystem path (fail-closed on       │
-│       miss).                                                                 │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine asset list
-
-```
- Usage: spec-kitty doctrine asset list [OPTIONS]
-
- List all resolvable doctrine assets and their source tiers.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Emit machine-readable JSON instead of rich text.           │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine asset path
-
-```
- Usage: spec-kitty doctrine asset path [OPTIONS] ASSET_ID
-
- Resolve an asset identifier to a filesystem path (fail-closed on miss).
-
- Exits ``0`` and prints the path on success. An unknown id or a containment
- refusal exits non-zero with the offending id named (A-7 / NFR-006).
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    asset_id      TEXT  Identifier of the asset to resolve (see `doctrine   │
-│                          asset list`).                                       │
-│                          [required]                                          │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Emit machine-readable JSON instead of rich text.           │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine fetch
-
-```
- Usage: spec-kitty doctrine fetch [OPTIONS]
-
- Fetch org doctrine pack(s) from their configured remote sources.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --pack             TEXT  Fetch only the named pack (default: fetch all       │
-│                          configured packs).                                  │
-│ --dry-run                Show what would be fetched without contacting any   │
-│                          remote.                                             │
-│ --help     -h            Show this message and exit.                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine mission-type
-
-_Mission type commands._
-
-```
- Usage: spec-kitty doctrine mission-type [OPTIONS] COMMAND [ARGS]...
-
- Mission type commands.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ list  List all mission types in the doctrine layer (FR-013).                 │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine mission-type list
-
-```
- Usage: spec-kitty doctrine mission-type list [OPTIONS]
-
- List all mission types in the doctrine layer (FR-013).
-
- Enumerates built-in, org, and project mission types regardless of
- activation state.  The DRG resolution chain applies: built-in →
- org → project.  An org type with the same id shadows the built-in
- type; a project type shadows the org type.
-
- Use ``spec-kitty charter mission-type list`` to see only types that
- are currently activated for this project.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Output as JSON.                                            │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine new
-
-```
- Usage: spec-kitty doctrine new [OPTIONS] KIND ID
-
- Scaffold a stub doctrine artifact YAML (FR-016).
-
- The scaffolder pre-fills the canonical schema's required fields with
- ``TODO …`` placeholders so the file passes ``doctrine validate`` on
- first emit.  Refuses to overwrite an existing file.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    kind             TEXT  Artifact kind (singular): one of agent_profile,  │
-│                             asset, directive, mission_step_contract,         │
-│                             paradigm, procedure, styleguide, tactic,         │
-│                             toolguide.                                       │
-│                             [required]                                       │
-│ *    artifact_id      ID    Artifact identifier (kebab-case for most kinds;  │
-│                             SCREAMING_SNAKE for directives).                 │
-│                             [required]                                       │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --pack          PATH  Scaffold inside a doctrine pack directory instead of   │
-│                       the project layer. When omitted, the stub lands under  │
-│                       .kittify/doctrine/.                                    │
-│ --help  -h            Show this message and exit.                            │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine org
-
-_Manage org-layer doctrine pack authoring (init, validate)._
-
-```
- Usage: spec-kitty doctrine org [OPTIONS] COMMAND [ARGS]...
-
- Manage org-layer doctrine pack authoring (init, validate).
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ init      Scaffold a minimal org pack or render from a template.             │
-│ validate  Validate an org doctrine pack using schema and DRG checks          │
-│           (FR-006).                                                          │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine org init
-
-```
- Usage: spec-kitty doctrine org init [OPTIONS] PACK_PATH
-
- Scaffold a minimal org pack or render from a template.
-
- Without ``--template``, creates three files under *pack-path*::
-
-     org-charter.yaml   — governance policy stub
-     drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
-     README.md          — authoring quickstart
-
- With ``--template``, copies the full template tree (minus
- ``.templateignore``),
- substitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under
- *pack-path*.
-
- Refuses to overwrite an existing directory unless ``--force`` is passed.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Destination directory for the scaffold or rendered │
-│                           doctrine tree.                                     │
-│                           [required]                                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --force                     Overwrite an existing pack directory.            │
-│ --template            TEXT  Local template directory or git URL (HTTPS/SSH;  │
-│                             optional #branch). When omitted, scaffolds the   │
-│                             minimal three-file pack.                         │
-│ --org-name            TEXT  Validated org/pack identity for {{ORG_NAME}}     │
-│                             (required with --template).                      │
-│ --local-path          TEXT  Value for {{LOCAL_PATH}} (default: pack).        │
-│                             Distinct from PACK_PATH.                         │
-│ --branch              TEXT  Git ref when --template is a git URL (may also   │
-│                             be encoded in TEMPLATE).                         │
-│ --help        -h            Show this message and exit.                      │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine org validate
-
-```
- Usage: spec-kitty doctrine org validate [OPTIONS] PACK_PATH
-
- Validate an org doctrine pack using schema and DRG checks (FR-006).
-
- Calls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`
- loader.  Prints per-file findings with file paths.  Exits non-zero when
- at least one error is found.
-
- Org fragments use id and plural kind (for example, directives) for nodes.
- Validation uses the runtime loader, which supplies pack provenance fields.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Path to the org doctrine pack directory to         │
-│                           validate.                                          │
-│                           [required]                                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine pack
-
-_Validate or assemble doctrine packs._
-
-```
- Usage: spec-kitty doctrine pack [OPTIONS] COMMAND [ARGS]...
-
- Validate or assemble doctrine packs.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ validate  Validate a doctrine pack against schema and DRG constraints.       │
-│ assemble  Assemble multiple doctrine packs into a single distributable.      │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine pack assemble
-
-```
- Usage: spec-kitty doctrine pack assemble [OPTIONS] OUTPUT_PATH INPUT_PACKS...
-
- Assemble multiple doctrine packs into a single distributable.
-
- Exits 0 on success and 1 when conflicts block the merge or when the
- assembled output fails validation.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    output_path      PATH            Output directory for the assembled     │
-│                                       distributable pack.                    │
-│                                       [required]                             │
-│ *    input_packs      INPUT_PACKS...  One or more input pack directories to  │
-│                                       assemble.                              │
-│                                       [required]                             │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --conflicts-out          PATH  Write the conflict report to this path        │
-│                                (JSON).                                       │
-│ --force                        Resolve artifact-id conflicts by              │
-│                                last-pack-wins and drop duplicate DRG edges   │
-│                                silently.                                     │
-│ --json                         Emit machine-readable JSON instead of rich    │
-│                                text.                                         │
-│ --help           -h            Show this message and exit.                   │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine pack validate
-
-```
- Usage: spec-kitty doctrine pack validate [OPTIONS] PACK_PATH
-
- Validate a doctrine pack against schema and DRG constraints.
-
- Exits 0 when the pack passes validation (advisories do not affect the
- exit code) and 1 when at least one error is reported.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Path to the doctrine pack directory to validate.   │
-│                           [required]                                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Emit machine-readable JSON instead of rich text.           │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine regenerate-graph
-
-```
- Usage: spec-kitty doctrine regenerate-graph [OPTIONS]
-
- Regenerate the shipped DRG graph source deterministically (FR-009).
-
- Composes the DRG extractor + calibrator into per-populated-node-kind
- ``packs/built-in/*.graph.yaml`` fragments (sharded per mission #2680 WP05;
- relocated from ``src/charter/offering/`` by the pack flatten),
- retiring the legacy ``graph.yaml`` monolith in the same write. Running twice
- on unchanged inputs yields byte-identical fragments. With ``--check`` the
- command never writes: it regenerates into a temp directory and compares the
- fragment set against the committed source, exiting non-zero when stale — the
- operator-facing twin of the freshness gate.
-
- Both the write path and ``--check`` merge in the enumerable hand-authored
- overlay (:mod:`charter.offering.drg.migration.hand_authored_overlay`) — the
- ``in_tension_with``/``reconciles_tension``/``rejects`` edges and
- ``anti_pattern`` nodes hand-authored directly in the graph fragments
- (mission doctrine-tension-edges-01KY1WPC). The extractor has no
- frontmatter mechanism that could ever mint these, so a bare pure
- regeneration would (a) silently drop them from the committed source on
- write, and (b) always report "stale" under ``--check`` even when nothing
- is actually stale.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --check            Do not write; regenerate into a temp directory and        │
-│                    compare the per-kind graph fragments against the          │
-│                    committed packs/built-in source. Exit 1 when stale        │
-│                    (operator-runnable freshness gate). Exit 0 when fresh.    │
-│ --json             Emit machine-readable JSON instead of rich text.          │
-│ --help   -h        Show this message and exit.                               │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine validate
-
-```
- Usage: spec-kitty doctrine validate [OPTIONS] PATH
-
- Validate project-layer doctrine artifacts against their schemas (FR-017).
-
- When *path* is a single file, validates that file.  When *path* is a
- directory, walks the tree for ``*.yaml`` files whose filename suffix
- matches a canonical artifact kind and validates each one.
-
- Exit code: ``0`` if every artifact validates; ``1`` if any artifact
- fails.  A per-file error report is printed for failures.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    path      PATH  Artifact YAML file or a directory containing            │
-│                      project-layer doctrine artifacts (recurses into         │
-│                      per-kind subdirectories).                               │
-│                      [required]                                              │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -4321,7 +4107,8 @@ _Inspect mission types for this project._
 
  Returns only mission types that are explicitly activated in this
  project's charter (activation-filtered).  For all doctrine-layer
- types regardless of activation, use ``spec-kitty doctrine mission-type list``.
+ types regardless of activation, use ``spec-kitty charter mission-type list
+ --include-inactive``.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Output as JSON.                                            │
@@ -4598,7 +4385,8 @@ _Inspect mission types for this project._
 
  Returns only mission types that are explicitly activated in this
  project's charter (activation-filtered).  For all doctrine-layer
- types regardless of activation, use ``spec-kitty doctrine mission-type list``.
+ types regardless of activation, use ``spec-kitty charter mission-type list
+ --include-inactive``.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Output as JSON.                                            │

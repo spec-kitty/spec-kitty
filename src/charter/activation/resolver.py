@@ -44,6 +44,7 @@ from typing import TYPE_CHECKING, Any
 from charter.activation.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doctrine_root
 from charter.activation.kind_vocabulary import ArtifactKind, UnknownArtifactIdError, resolve_artifact_urn
 from charter.activation.reference_resolver import resolve_references_transitively
+from kernel.charter_pack_paths import project_pack_root
 from charter.activation.schemas import DirectivesConfig, DoctrineSelectionConfig
 from charter.activation.sync import (
     load_directives_config,
@@ -275,7 +276,7 @@ class DoctrineService:
                         token,
                         doctrine_root=doctrine_root,
                         org_roots=list(pack_ctx.org_roots),
-                        layer_roots={"project": pack_ctx.repo_root / ".kittify"},
+                        layer_roots={"project": project_pack_root(pack_ctx.repo_root)},
                     )
                     activated.add(urn.split(":", 1)[1])
                 except UnknownArtifactIdError:
