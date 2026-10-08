@@ -1585,17 +1585,21 @@ def _validate_runtime_lock_removal(
     expected_parent_sha: str | None,
     expected_path_bytes: Mapping[Path, bytes] | None,
     index_only_removals: tuple[Path, ...],
+    runtime_lock_path: Path | None,
     owned: OwnedCheckout | OwnedCreateMission | None,
 ) -> frozenset[str]:
-    """Restrict index-only deletion to the one validated decision lock owner."""
+    """Restrict index-only deletion to the one caller-derived decision lock owner.
+
+    The caller (the decision-domain owner) derives the lock path and passes it as
+    a value; this commit-scope owner only enforces exact-path equality.
+    """
     from mission_runtime import OwnedCheckout
-    from specify_cli.decisions.service import _decisions_lock_path
 
     if not index_only_removals:
         return frozenset()
-    if expected_parent_sha is None or not isinstance(owned, OwnedCheckout):
+    if expected_parent_sha is None or runtime_lock_path is None or not isinstance(owned, OwnedCheckout):
         raise ValueError("index-only removal requires an owned decision runtime lock and expected parent")
-    lock_path = _decisions_lock_path(owned.mission_dir)
+    lock_path = runtime_lock_path
     if worktree_root.resolve() != owned.owned_root or index_only_removals != (lock_path,) or lock_path not in paths:
         raise ValueError("index-only removal is restricted to the owned decision runtime lock")
     owned.files([lock_path])
@@ -1621,6 +1625,7 @@ def safe_commit(
     expected_parent_sha: str | None = None,
     expected_path_bytes: Mapping[Path, bytes] | None = None,
     index_only_removals: tuple[Path, ...] = (),
+    runtime_lock_path: Path | None = None,
     owned: OwnedCheckout | OwnedCreateMission | None = None,
     index_deletions: Sequence[Path] = (),
 ) -> CommitResult:
@@ -1690,6 +1695,8 @@ def safe_commit(
             branch advances only if it still points to that SHA.
         index_only_removals: Internal owner-bound decision lock removal; requires
             a validated owned fact and expected parent. Keeps physical files.
+        runtime_lock_path: The one path ``index_only_removals`` may name; derived
+            by the decision-domain caller and compared for exact equality.
         expected_path_bytes: Optional exact raw bytes expected in selected
             staged blobs. Requires ``expected_parent_sha`` and refuses before
             ref update if a clean filter changes any asserted path.
@@ -1744,7 +1751,7 @@ def safe_commit(
 
     if index_deletions and expected_parent_sha is not None:
         raise ValueError("index_deletions cannot be combined with expected_parent_sha")
-    removals = _validate_runtime_lock_removal(worktree_root, paths, expected_parent_sha, expected_path_bytes, index_only_removals, owned)
+    removals = _validate_runtime_lock_removal(worktree_root, paths, expected_parent_sha, expected_path_bytes, index_only_removals, runtime_lock_path, owned)
 
     normalized_files = preflight_commit(
         repo_root=repo_root,

@@ -1082,6 +1082,7 @@ def _repair_runtime_lock(owned: OwnedCheckout, *, dry_run: bool) -> dict[str, ob
                 expected_parent_sha=parent,
                 expected_path_bytes={ignore: written_ignore} if written_ignore is not None else {},
                 index_only_removals=(lock,) if tracked else (),
+                runtime_lock_path=lock,
             )
         except Exception:
             # Ref updates are conditional. Restore our ignore bytes only when

@@ -176,6 +176,7 @@ def test_index_only_capability_refuses_non_owner_path(owned_checkouts):
             owned=fact,
             expected_parent_sha=git(c.owned_root, "rev-parse", "HEAD"),
             index_only_removals=(path,),
+            runtime_lock_path=_decisions_lock_path(fact.mission_dir),
         )
     assert snapshot(c.owned_root) == before
 
