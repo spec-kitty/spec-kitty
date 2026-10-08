@@ -100,6 +100,9 @@ class Harness:
     perform_kwargs: dict[str, Any] = field(default_factory=dict)
     stamp_owned: list[object] = field(default_factory=list)
     origin_gate_owned: list[object] = field(default_factory=list)
+    #: Cross-collaborator order of the origin gate and the acceptance reads.
+    #: Kept apart from ``calls``, whose exact contents other tests pin.
+    events: list[str] = field(default_factory=list)
     choose_mode_requests: list[str] = field(default_factory=list)
     verify_kwargs: dict[str, Any] = field(default_factory=dict)
     summary: SimpleNamespace = field(default_factory=lambda: _fake_summary(ok=True))
@@ -135,10 +138,12 @@ class Harness:
         return "local" if requested == "auto" else requested
 
     def collect(self, *_args: object, **_kwargs: object) -> SimpleNamespace:
+        self.events.append("collect")
         _raise_if(self.collect_error)
         return self.summary
 
     def verify(self, *_args: object, **kwargs: Any) -> SimpleNamespace:
+        self.events.append("verify")
         self.verify_kwargs = kwargs
         _raise_if(self.verify_error)
         return SimpleNamespace(baseline_merge_commit="base0", pr_merge_commit=_MERGE_COMMIT, anchor_evidence="attested")
@@ -172,6 +177,7 @@ class Harness:
     def origin_gate(self, *_args: object, **kwargs: Any) -> list[str]:
         # #5888: accept checks origin freshness before any acceptance read
         # (#5780); a clean verdict here, so the characterised paths are unchanged.
+        self.events.append("origin_gate")
         self.origin_gate_owned.append(kwargs.get("owned"))
         return []
 
@@ -690,6 +696,9 @@ class TestOwnedEntry:
         assert len(harness.stamp_owned) == 1
         assert harness.stamp_owned[0] is harness.owned
         assert harness.origin_gate_owned == [harness.owned]
+        # The gate runs before the first acceptance read (#5780).
+        assert harness.events[:2] == ["origin_gate", "collect"]
+        assert harness.events.count("origin_gate") == 1
 
     def test_flagless_run_hands_the_stamp_no_fact(self, harness: Harness) -> None:
         result = harness.invoke("--mission", _SLUG)
