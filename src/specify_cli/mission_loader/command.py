@@ -367,8 +367,9 @@ def _ensure_feature_metadata(feature_dir: Path, mission_key: str) -> None:
     if (feature_dir / "meta.json").exists():
         locked_update_meta(feature_dir, _stamp, validate=False)
         return
-    # No meta.json yet: the existence check, the read and the first write share
-    # one Mission write-lock region so a concurrent creator is never overwritten.
+    # No meta.json at the (unlocked) check above: the read and the first write
+    # share one Mission write-lock region, and ``load_meta_or_empty`` re-reads
+    # inside it, so a concurrent creator is never overwritten.
     with mission_write_lock(feature_dir):
         data: dict[str, Any] = load_meta_or_empty(feature_dir)
         _stamp(data)
