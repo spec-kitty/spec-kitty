@@ -35,7 +35,7 @@ from kernel.charter_pack_paths import project_pack_root
 _BUILT_IN_FALLBACK_CANDIDATES: tuple[str, ...] = ("src/charter/offering",)  # relocated code-local built-in-layer path
 
 
-def _project_root_candidates(repo_root: Path) -> tuple[Path, ...]:
+def _candidate_dirs(repo_root: Path) -> tuple[Path, ...]:
     """Return the ordered candidate directories for *repo_root*.
 
     The first candidate is the project pack root, decided by the kernel
@@ -63,12 +63,12 @@ def resolve_project_root(repo_root: Path) -> Path | None:
     Returns:
         The first matching :class:`~pathlib.Path` or ``None``.
     """
-    for path in _project_root_candidates(repo_root):
+    for path in _candidate_dirs(repo_root):
         if path.is_dir():
             return path
     return None
 
 
-# _project_root_candidates / _BUILT_IN_FALLBACK_CANDIDATES: internal; no
+# _candidate_dirs / _BUILT_IN_FALLBACK_CANDIDATES: internal; no
 # cross-module src/ from-import callers (WP01 harden-dead-symbol-gate-01KW0RJR).
 __all__ = ["resolve_project_root"]

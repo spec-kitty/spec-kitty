@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from charter.activation._project_root_candidates import resolve_project_root, _project_root_candidates
+from charter.activation._project_root_candidates import resolve_project_root, _candidate_dirs
 from charter.activation.compiler import _default_active_charter_service
 
 
@@ -101,7 +101,7 @@ class TestResolveProjectRoot:
 
     def test_candidate_order_is_project_pack_then_src(self, tmp_path: Path) -> None:
         """The candidate list has the expected order: project pack root first."""
-        assert _project_root_candidates(tmp_path) == (
+        assert _candidate_dirs(tmp_path) == (
             tmp_path / ".kittify" / "charter-packs",
             tmp_path / "src" / "charter" / "offering",
         )
