@@ -4935,15 +4935,15 @@ pages:
     - {slug: "4-open-questions", text: "4. Open questions", level: 2}
     - {slug: "5-non-goals", text: "5. Non-goals", level: 2}
   - path: "docs/architecture/charter-pack-usage-journey.md"
-    title: "Charter Pack Usage Journey: Apply, Generate, and the Dispatch Safety Net"
+    title: "Activation Preset Usage Journey: Activate, Generate, and the Dispatch Safety Net"
     divio_type: "none"
-    abstract: "Why `charter pack apply` alone does not deliver working governance, the required `generate` follow-up, and how the dispatch fallback behaves before and after compilation."
+    abstract: "Why `charter activate --preset` alone does not deliver working governance on a fresh project, the required `generate` follow-up, and how the dispatch fallback behaves before and after compilation."
     anchors:
     - {slug: "tl-dr", text: "TL;DR", level: 2}
     - {slug: "three-tiers-not-two", text: "Three tiers, not two", level: 2}
-    - {slug: "step-1-charter-pack-apply", text: "Step 1 — `charter pack apply`", level: 2}
+    - {slug: "step-1-charter-activate-preset", text: "Step 1 — `charter activate --preset`", level: 2}
     - {slug: "step-2-compile-the-bundle", text: "Step 2 — compile the bundle", level: 2}
-    - {slug: "why-apply-does-not-auto-compile", text: "Why `apply` does not auto-compile", level: 3}
+    - {slug: "why-activation-does-not-bootstrap-a-bundle", text: "Why activation does not bootstrap a bundle", level: 3}
     - {slug: "the-dispatch-safety-net", text: "The dispatch safety net", level: 2}
     - {slug: "what-empty-means", text: "What \"empty\" means", level: 3}
     - {slug: "the-deliberate-behaviour-change", text: "The deliberate behaviour change", level: 3}
@@ -5434,9 +5434,9 @@ pages:
     - {slug: "what-this-means-for-teams", text: "What this means for teams", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/architecture/org-doctrine-layer.md"
-    title: "Understanding the Org Doctrine Layer"
+    title: "Understanding the Org Layer of the Charter Offering"
     divio_type: "none"
-    abstract: "How the three-layer doctrine model resolves built-in, org, and project artifacts, how provenance tracking works, and how org charter policy composes with the project charter."
+    abstract: "How the three-layer charter offering resolves built-in, org, and project artifacts, how provenance tracking works, and how org charter policy composes with the project charter."
     anchors:
     - {slug: "the-three-layer-model", text: "The three-layer model", level: 2}
     - {slug: "why-the-org-layer-exists", text: "Why the org layer exists", level: 2}
@@ -5545,7 +5545,7 @@ pages:
   - path: "docs/architecture/spdd-reasons.md"
     title: "SPDD and the REASONS Canvas"
     divio_type: "explanation"
-    abstract: "Optional Spec Kitty doctrine pack that records change-intent and change-boundary as a structured artifact alongside the spec and plan."
+    abstract: "Optional set of Spec Kitty built-in artifacts that records change-intent and change-boundary as a structured artifact alongside the spec and plan."
     anchors:
     - {slug: "why-this-exists", text: "Why this exists", level: 2}
     - {slug: "spec-kitty-s-adaptation-of-spdd", text: "Spec Kitty's adaptation of SPDD", level: 2}
@@ -11082,7 +11082,7 @@ pages:
     - {slug: "allow-a-legitimate-word", text: "Allow a legitimate word", level: 3}
     - {slug: "exempt-a-quoted-literal", text: "Exempt a quoted literal", level: 3}
     - {slug: "known-blind-spots", text: "Known blind spots", level: 3}
-    - {slug: "shippable-doctrine-built-in-doctrine-must-work-in-a-consumer-repo", text: "Shippable doctrine: built-in doctrine must work in a consumer repo", level: 2}
+    - {slug: "shippable-doctrine-the-built-in-charter-pack-must-work-in-a-consumer-repo", text: "Shippable doctrine: the built-in Charter Pack must work in a consumer repo", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/index.md"
     title: "Development"
@@ -11548,9 +11548,9 @@ pages:
     - {slug: "good-habits", text: "Good Habits", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/guides/how-to/governance/create-an-org-doctrine-pack.md"
-    title: "How to Create an Org Doctrine Pack"
+    title: "How to Create an Org Charter Pack"
     divio_type: "how-to"
-    abstract: "Author, validate, assemble, publish, and consume a spec-kitty org doctrine pack."
+    abstract: "Author, validate, assemble, publish, and consume a spec-kitty org Charter Pack."
     anchors:
     - {slug: "before-you-start", text: "Before you start", level: 2}
     - {slug: "step-1-lay-out-the-pack-directory", text: "Step 1: Lay out the pack directory", level: 2}
@@ -11673,7 +11673,7 @@ pages:
     - {slug: "3b-validate-the-bundle-schema", text: "3b. Validate the bundle schema", level: 3}
     - {slug: "3c-check-status", text: "3c. Check status", level: 3}
     - {slug: "step-4-synthesize-doctrine", text: "Step 4: Synthesize Doctrine", level: 2}
-    - {slug: "quick-baseline-via-a-starter-pack", text: "Quick baseline via a starter pack", level: 3}
+    - {slug: "quick-baseline-via-an-activation-preset", text: "Quick baseline via an activation preset", level: 3}
     - {slug: "step-5-confirm-governance-is-active", text: "Step 5: Confirm Governance Is Active", level: 2}
     - {slug: "how-context-loading-works", text: "How context loading works", level: 3}
     - {slug: "verify-with-a-real-mission-action", text: "Verify with a real mission action", level: 3}
