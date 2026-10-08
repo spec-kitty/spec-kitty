@@ -13,7 +13,6 @@ import importlib
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -215,21 +214,12 @@ def _plant(slice_: Slice, root: Path) -> None:
         (target_dir / "planted.md").write_text(f"Use the {token} here.\n", encoding="utf-8")
 
 
-_SLICE_PENDING = {
-    "WP22": pending_until("WP22", "FR-010 prose renamed (packs, living docs)"),
-}
-
-
-def _slice_param(key: str, slice_: Slice) -> Any:
-    return pytest.param(key, id=key, marks=_SLICE_PENDING.get(slice_.pending, ()))
-
-
 SLICES = load_slices()
 
 
 @covers("FR-010")
 @pytest.mark.corpus
-@pytest.mark.parametrize("key", [_slice_param(k, s) for k, s in SLICES.items()])
+@pytest.mark.parametrize("key", list(SLICES))
 def test_fr010_retired_identifiers_absent(key: str, tmp_path: Path) -> None:
     slice_ = SLICES[key]
     _plant(slice_, tmp_path)
