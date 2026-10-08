@@ -214,17 +214,6 @@ class FrontmatterManager:
         buffer.write(body)
         return buffer.getvalue()
 
-    def update_fields(self, file_path: Path, updates: dict[str, Any]) -> None:
-        """Update multiple fields in frontmatter.
-
-        Args:
-            file_path: Path to markdown file
-            updates: Dictionary of field updates
-        """
-        frontmatter, body = self.read(file_path)
-        frontmatter.update(updates)
-        self.write(file_path, frontmatter, body)
-
     def get_field(self, file_path: Path, field: str, default: Any = None) -> Any:
         """Get a single field from frontmatter.
 
@@ -376,11 +365,6 @@ def write_frontmatter(file_path: Path, frontmatter: dict[str, Any], body: str) -
     _manager.write(file_path, frontmatter, body)
 
 
-def update_fields(file_path: Path, updates: dict[str, Any]) -> None:
-    """Update multiple fields in frontmatter."""
-    _manager.update_fields(file_path, updates)
-
-
 def locked_update_frontmatter(
     wp_path: Path,
     mutate: Callable[[dict[str, Any]], bool | None],
@@ -452,7 +436,6 @@ __all__ = [
     "FrontmatterManager",
     "read_frontmatter",
     "write_frontmatter",
-    "update_fields",
     "locked_update_frontmatter",
     "get_field",
     "validate_frontmatter",
