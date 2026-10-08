@@ -18,7 +18,7 @@ import pytest
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox, pytest.mark.regression]
 
 BRANCH = "kitty/mission-test-01ABCDEF"
-CHECKOUT = Path(__file__).resolve().parents[4]
+CHECKOUT = Path(__file__).resolve().parents[3]
 
 
 @pytest.fixture

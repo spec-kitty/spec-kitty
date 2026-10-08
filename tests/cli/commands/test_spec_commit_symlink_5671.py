@@ -17,7 +17,7 @@ from tests._owned_fixtures import mint_test_fact
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox, pytest.mark.regression]
 
 SLUG = "m1"
-CHECKOUT = Path(__file__).resolve().parents[4]
+CHECKOUT = Path(__file__).resolve().parents[3]
 META = {
     "mission_id": "01KVMBD6HTBP3A9Y5T4EQ80RA9",
     "mission_slug": SLUG,

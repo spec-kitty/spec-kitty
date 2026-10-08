@@ -9,7 +9,7 @@ through this module, and the commit-scope gate
 :func:`run_committing_op` and :func:`conclude_in_progress_op`, by symbol.
 
 The design relies on these git behaviours (verified on 2026-10-07 and pinned by
-``tests/git_ops/test_merge_conclusion_owner.py``):
+``tests/specify_cli/git_commit_scope/test_merge_conclusion_owner.py``):
 
 1. ``git merge --no-commit --no-edit -m MSG <b>`` followed by
    ``git commit --no-edit`` records ``MSG``: ``MERGE_MSG`` carries the ``-m``.

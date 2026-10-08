@@ -33,7 +33,7 @@ _BRANCH = "work"
 _SLUG = "claim-scope-01M4AKVE"
 _MISSION_ID = "01M4AKVE000000000000000001"
 _CLAIM_SUBJECT = "chore: WP01 claimed for implementation"
-_CHECKOUT = Path(__file__).resolve().parents[4]
+_CHECKOUT = Path(__file__).resolve().parents[3]
 
 
 def _git(repo: Path, *args: str, env: dict[str, str]) -> str:
@@ -127,6 +127,18 @@ def test_claim_commit_with_clean_config_is_exactly_the_claim_written_set(tmp_pat
 # ---------------------------------------------------------------------------
 
 _META_BASE = {"mission_id": _MISSION_ID, "mission_slug": _SLUG, "mid8": "01M4AKVE", "topology": "flat", "target_branch": _BRANCH}
+
+
+@pytest.fixture
+def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """The seeded, activated repository ``implement`` is pointed at.
+
+    Module-local since the move into the cli row's tests/cli tree: the shared
+    ``repo`` fixture lives in tests/specify_cli/cli/commands/conftest.py.
+    """
+    from tests.specify_cli.cli.commands._implement_fixtures import activated_repo
+
+    return activated_repo(tmp_path, monkeypatch)
 
 
 @pytest.fixture
