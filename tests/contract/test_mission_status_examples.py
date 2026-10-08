@@ -1346,8 +1346,6 @@ def test_the_detail_schemas_name_the_provisional_elements() -> None:
 
 
 def test_the_review_cycle_pointer_pattern_is_no_wider_than_the_product_validator() -> None:
-    import re
-
     from specify_cli.review.cycle import ReviewCycleError, validate_review_cycle_pointer
 
     pattern = re.compile(str(_read(MODULE / "schemas" / "ReviewCycle.yaml")["properties"]["feedbackReference"]["pattern"]))
@@ -1486,7 +1484,6 @@ DRIFT_FIXED_SIDES = {
     DRIFT_KIND_BRANCH: ("git", "lanes_json"),
 }
 DRIFT_CAP = 1000
-DRIFT_CHANGELOG_TOKENS = ["DriftKind", "kind", "remedy", "DriftRemedy", "laneComparison", "truncated", "DriftRefusalCode", "code"]
 
 
 def _drift_operation() -> dict[str, Any]:
@@ -1822,12 +1819,9 @@ def test_exactly_the_cap_of_findings_is_accepted_through_both_paths() -> None:
     assert resolver_errors == [] and library_errors == []
 
 
-def test_the_drift_provisional_elements_are_named_in_the_changelog_provisional_section() -> None:
-    text = (MODULE / "CHANGELOG.md").read_text(encoding="utf-8")
-    entry = text.split("## 1.0.0-SNAPSHOT", 1)[1]
-    provisional = entry.split("### Provisional", 1)[1].split("### Deferred", 1)[0]
-    for token in DRIFT_CHANGELOG_TOKENS:
-        assert re.search(r"(?<![\w-])" + re.escape(token) + r"(?![\w-])", provisional), token
+def test_the_changelog_records_the_drift_decisions() -> None:
+    # Which elements are provisional, and that each is named in the Provisional section, is provisional_check's verdict.
+    entry = (MODULE / "CHANGELOG.md").read_text(encoding="utf-8").split("## 1.0.0-SNAPSHOT", 1)[1]
     for statement in ("derived_view_stale", "1000", "not evaluated"):
         assert statement in entry, statement
 
@@ -2241,19 +2235,6 @@ def test_a_credential_typed_into_an_ops_example_would_be_caught_by_the_leak_patt
     planted = clean + "ghp" + "_" + "a" * 36 + "\n"
     assert not any(pattern.search(clean) for pattern in leak_patterns.SECRET_PATTERNS)
     assert any(pattern.search(planted) for pattern in leak_patterns.SECRET_PATTERNS)
-
-
-def _changelog_provisional() -> str:
-    entry = (MODULE / "CHANGELOG.md").read_text(encoding="utf-8").split("## 1.0.0-SNAPSHOT", 1)[1]
-    return entry.split("### Provisional", 1)[1].split("### Deferred", 1)[0]
-
-
-def test_the_ops_provisional_elements_are_named_in_the_changelog_provisional_section() -> None:
-    provisional = _changelog_provisional()
-    for token in ("OpsRefusalCode", "evidence", "totalCount", "skippedCount", "/ops/invocations"):
-        assert re.search(r"(?<![\w-])" + re.escape(token) + r"(?![\w-])", provisional), token
-    assert "OpsRefusal.code" in provisional
-    assert "OpsRefusal.code" not in provisional.replace("OpsRefusal.code", ""), "the plant that removes the qualified name must leave none"
 
 
 def test_the_changelog_added_section_states_the_skipped_record_read_behaviour() -> None:
