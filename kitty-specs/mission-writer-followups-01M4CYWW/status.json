@@ -31,7 +31,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "mission_lock_key + core doors (mission_write_lock, capture guard, mission_write_lock_dir, transaction lock site, coord_status_lock via mission_write_lock); red-first 32cc1fbbb; 18 new tests; blast radius 4908 passed, make test-fast 2464 passed",
-        "Cycle 2: B1 transaction key shares routing decision (red 32cc.. then fixed), S1 legacy no-mid8 bare key, note1 transaction hold registered, note2 pinned by test; blast 5497 passed, test-fast 2468 passed"
+        "Cycle 2: B1 transaction key shares routing decision (red 32cc.. then fixed), S1 legacy no-mid8 bare key, note1 transaction hold registered, note2 pinned by test; blast 5497 passed, test-fast 2468 passed",
+        "Cycle 2 approved by Opus reviewer: B1 transaction key shares the door's routing decision (flat backfilled + bare-directory equality pinned), S1 legacy no-mid8 bare key, transaction hold registered, worktree repo_root reads the main checkout meta; 5 mutations killed; 22/22 x5; status/coordination/lanes 3148 passed. Remaining direct feature_status_lock(.name) callers and owned-checkout hold registration are WP13."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
