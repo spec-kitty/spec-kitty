@@ -335,26 +335,37 @@ def test_repair_persists_exact_local_rule_when_broader_rule_already_ignores_lock
     assert git(c.owned_root, "rev-parse", "HEAD") == head
 
 
+@pytest.mark.parametrize("ignore_state", ["ignored", "modified"])
 @pytest.mark.parametrize("command", ["repair", "next"])
-def test_ignored_operator_ignore_is_refused_without_writes(owned_checkouts, monkeypatch, command):
+def test_dirty_operator_ignore_refuses_repair_but_never_blocks_next(owned_checkouts, monkeypatch, command, ignore_state):
     from specify_cli.cli.commands.next_cmd import _commit_owned_next_mutations
 
     c = owned_checkouts
     lock = seed(c, "untracked")
-    root_ignore = c.owned_root / ".gitignore"
-    root_ignore.write_text(".gitignore\n")
-    git(c.owned_root, "add", "-f", str(root_ignore))
-    git(c.owned_root, "commit", "-qm", "operator ignores ignore files")
     local_ignore = lock.parent / ".gitignore"
-    local_ignore.write_text("operator-owned.tmp\n")
+    if ignore_state == "ignored":
+        root_ignore = c.owned_root / ".gitignore"
+        root_ignore.write_text(".gitignore\n")
+        git(c.owned_root, "add", "-f", str(root_ignore))
+        git(c.owned_root, "commit", "-qm", "operator ignores ignore files")
+        local_ignore.write_text("operator-owned.tmp\n")
+    else:
+        local_ignore.write_text("committed.tmp\n")
+        git(c.owned_root, "add", str(local_ignore))
+        git(c.owned_root, "commit", "-qm", "authored ignore")
+        local_ignore.write_text("committed.tmp\noperator-edit.tmp\n")
+    authored = local_ignore.read_bytes()
     before = snapshot(c.owned_root)
     if command == "repair":
         result = invoke(c, monkeypatch)
         assert result.exit_code == 1, result.output
         assert "preexisting changes" in result.output
+        assert snapshot(c.owned_root) == before
     else:
         fact = resolve_owned_mission(c.repository_root, c.owned_root, c.mission_slug, allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES)
-        with pytest.raises(ValueError, match="preexisting changes"):
-            _commit_owned_next_mutations(fact)
-    assert snapshot(c.owned_root) == before
-    assert local_ignore.read_text() == "operator-owned.tmp\n"
+        (lock.parent / "new-authored.lock").write_text("should be committed\n")
+        _commit_owned_next_mutations(fact)
+        files = git(c.owned_root, "ls-tree", "-r", "--name-only", "HEAD").splitlines()
+        assert str(lock.relative_to(c.owned_root)) not in files
+        assert str((lock.parent / "new-authored.lock").relative_to(c.owned_root)) in files
+    assert local_ignore.read_bytes() == authored

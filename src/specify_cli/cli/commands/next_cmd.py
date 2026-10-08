@@ -383,41 +383,54 @@ def _commit_owned_next_mutations(owned: OwnedCheckout) -> None:
     the fact's own validated target branch (the primary-partition commit target).
     Every input is read straight off the fact -- no handle walk, no resolver.
     """
+    from specify_cli.decisions.service import _decisions_lock_path
+
+    _commit_owned_next_changeset(owned, _decisions_lock_path(owned.mission_dir))
+
+
+def _commit_owned_next_changeset(owned: OwnedCheckout, runtime_lock: Path) -> None:
+    """Commit the owned advancement, never the service-owned decision lock."""
     from specify_cli.core.commit_guard import GuardCapability
+    from specify_cli.decisions.service import _ensure_runtime_lock_ignore, _restore_runtime_lock_ignore
     from specify_cli.git.commit_helpers import _run_git_text, preflight_commit, safe_commit
 
     lifecycle = owned.owned_root / "kitty-ops" / "lifecycle.jsonl"
-    from specify_cli.decisions.service import _decisions_lock_path, _ensure_runtime_lock_ignore, _restore_runtime_lock_ignore
-
-    runtime_lock = _decisions_lock_path(owned.mission_dir)
-    target = placement_seam(owned.repository_root, owned.mission_slug, owned=owned).write_target(MissionArtifactKind.PRIMARY_METADATA)
-    if runtime_lock.exists():
-        preflight_commit(
-            repo_root=owned.owned_root,
-            worktree_root=owned.owned_root,
-            target=target,
-            message=f"chore(next): persist {owned.mission_slug} advancement [skip ci]",
-            paths=(runtime_lock.parent / ".gitignore",),
-            owned=owned,
-        )
-    parent = _run_git_text(owned.owned_root, ["rev-parse", "HEAD"]) if runtime_lock.exists() else None
-    ignore_delta = _ensure_runtime_lock_ignore(owned) if runtime_lock.exists() else None
-    mission_files = tuple(path for path in sorted(owned.mission_dir.rglob("*")) if path.is_file() and path != runtime_lock)
-    paths = mission_files + ((lifecycle,) if lifecycle.is_file() else ())
-    if not paths:
-        return
     # Seam-derived, not a checkout re-derivation: PRIMARY_METADATA is a
     # primary-partition kind, so the owned arm of write_target() resolves
     # deterministically to CommitTarget(ref=owned.write_branch) -- the SAME
     # value the fact already carries -- via the one placement authority
     # rather than constructing CommitTarget(ref=...) by hand here.
-
+    target = placement_seam(owned.repository_root, owned.mission_slug, owned=owned).write_target(MissionArtifactKind.PRIMARY_METADATA)
+    message = f"chore(next): persist {owned.mission_slug} advancement [skip ci]"
+    parent = None
+    ignore_delta = None
+    if runtime_lock.exists():
+        preflight_commit(
+            repo_root=owned.owned_root,
+            worktree_root=owned.owned_root,
+            target=target,
+            message=message,
+            paths=(runtime_lock.parent / ".gitignore",),
+            owned=owned,
+        )
+        parent = _run_git_text(owned.owned_root, ["rev-parse", "HEAD"])
+        try:
+            ignore_delta = _ensure_runtime_lock_ignore(owned)
+        except ValueError:
+            # The operator's own ignore file is dirty, staged, ignored or
+            # unsafe: it is theirs, so provisioning is skipped (the repair
+            # command owns that refusal). The lock is still never committed.
+            ignore_delta = None
+    mission_files = tuple(path for path in sorted(owned.mission_dir.rglob("*")) if path.is_file() and path != runtime_lock)
+    paths = mission_files + ((lifecycle,) if lifecycle.is_file() else ())
+    if not paths:
+        return
     try:
         safe_commit(
             repo_root=owned.owned_root,
             worktree_root=owned.owned_root,
             target=target,
-            message=f"chore(next): persist {owned.mission_slug} advancement [skip ci]",
+            message=message,
             paths=paths,
             capability=GuardCapability.STANDARD,
             owned=owned,
