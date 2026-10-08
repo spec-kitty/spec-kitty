@@ -1,8 +1,8 @@
 """Every ``meta.json`` read-modify-write runs under the Mission write lock (mission-writer-followups WP02, US1).
 
-Each overlap test pauses writer A right after it read ``meta.json`` (an injected pause point on the fail-closed
-reader, not a sleep), lets writer B run its whole setter on another thread, then lets A finish. Without the lock
-A writes its stale copy over B's field; with it, B queues behind A and both fields survive.
+Each overlap test pauses writer A just before it writes ``meta.json`` (an injected pause point, not a sleep), lets
+writer B run its whole setter on another thread, then lets A finish once B is done or observed waiting for the
+lock. Without the lock A writes its stale copy over B's field; with it, B queues behind A and both fields survive.
 """
 
 from __future__ import annotations
@@ -16,7 +16,6 @@ from typing import Any
 
 import pytest
 
-import specify_cli.mission_metadata as mm
 from specify_cli.core.atomic import atomic_write
 from specify_cli.lanes.implement_support import ensure_vcs_locked
 from specify_cli.mission_metadata import (
@@ -32,16 +31,13 @@ from specify_cli.mission_metadata import (
     set_vcs_lock,
 )
 from specify_cli.status import FeatureStatusLockTimeoutError, mission_write_lock
+from tests._meta_overlap import run_overlap
 
 pytestmark = [pytest.mark.unit]
 
 SLUG = "060-test"
 MID8 = "01COORD0"
-# How long writer A stays paused waiting for writer B to finish. Unlocked, B finishes at once and the wait ends
-# early; locked, B is queued behind A, so the wait runs out and A proceeds.
-PAUSE_SECONDS = 0.5
 JOIN_SECONDS = 20.0
-WRITER_A = "writer-a"
 
 ORIGIN_TICKET = {
     "provider": "github",
@@ -113,42 +109,12 @@ PAIRS = [
 
 
 def _run_overlap(monkeypatch: pytest.MonkeyPatch, feature_dir: Path, first: Setter, second: Setter) -> list[Exception]:
-    """Run *first* paused after its read while *second* runs on another thread; return their errors."""
-    a_read = threading.Event()
-    b_done = threading.Event()
-    errors: list[Exception] = []
-    real_read = mm._load_meta_fail_closed
+    """Run *first* paused before its meta.json write while *second* runs on another thread; return their errors.
 
-    def paused_read(directory: Path) -> dict[str, Any] | None:
-        result = real_read(directory)
-        if threading.current_thread().name == WRITER_A and not a_read.is_set():
-            a_read.set()
-            b_done.wait(PAUSE_SECONDS)
-        return result
-
-    monkeypatch.setattr(mm, "_load_meta_fail_closed", paused_read)
-
-    def run_a() -> None:
-        try:
-            first(feature_dir)
-        except Exception as exc:
-            errors.append(exc)
-
-    def run_b() -> None:
-        a_read.wait(JOIN_SECONDS)
-        try:
-            second(feature_dir)
-        except Exception as exc:
-            errors.append(exc)
-        finally:
-            b_done.set()
-
-    threads = [threading.Thread(target=run_a, name=WRITER_A), threading.Thread(target=run_b)]
-    for thread in threads:
-        thread.start()
-    for thread in threads:
-        thread.join(JOIN_SECONDS)
-    return errors
+    The pause is released only once *second* finished or was observed waiting for the Mission lock
+    (``tests/_meta_overlap.py``), never by a timer.
+    """
+    return run_overlap(monkeypatch, lambda: first(feature_dir), lambda: second(feature_dir))
 
 
 @pytest.mark.parametrize(("first", "second"), PAIRS)
@@ -254,9 +220,12 @@ def test_ensure_vcs_locked_writes_through_the_helper_without_a_second_acquisitio
     assert seen[0] < 0  # the outer claim hold is unbounded (NFR-002)
 
 
-def test_uncontended_helper_adds_one_lock_acquisition_and_no_extra_subprocess(mission: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+def test_uncontended_helper_adds_one_lock_acquisition_and_no_subprocess(mission: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
     repo, feature_dir = mission
     import specify_cli.status.mission_write as mission_write
+
+    # Warm the ``git_common_dir`` probe cache first: NFR-003 counts the helper's steady-state cost.
+    locked_update_meta(feature_dir, lambda meta: meta.update(warm=1), repo_root=repo)
 
     acquisitions: list[str] = []
     commands: list[list[str]] = []
@@ -277,8 +246,7 @@ def test_uncontended_helper_adds_one_lock_acquisition_and_no_extra_subprocess(mi
     locked_update_meta(feature_dir, lambda meta: meta.update(probe=1), repo_root=repo)
 
     assert len(acquisitions) == 1
-    # The only git call is the lock primitive's own common-dir lookup; the helper adds none.
-    assert all("--git-common-dir" in command for command in commands), commands
+    assert commands == []
 
 
 def test_restore_meta_text_compare_and_swap(mission: tuple[Path, Path]) -> None:
