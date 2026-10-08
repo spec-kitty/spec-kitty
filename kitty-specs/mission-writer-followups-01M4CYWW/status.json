@@ -161,7 +161,8 @@
       "last_transition_at": "2026-10-08T17:02:43.879871+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Stream B (runtime/templates) claimed for a parallel worktree at /home/user/sk-stream-runtime; operator chose parallel streams 2026-10-08"
+        "Stream B (runtime/templates) claimed for a parallel worktree at /home/user/sk-stream-runtime; operator chose parallel streams 2026-10-08",
+        "Implementing in the stream-B worktree"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer"
