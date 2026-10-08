@@ -385,7 +385,7 @@ def _parse_metadata_mapping(raw: bytes) -> dict[str, object] | None:
 
 
 def _without_version_trio(data: dict[str, object]) -> dict[str, object]:
-    """``data`` minus the version trio and the ``environment`` block, which a stamp write reformats.
+    """``data`` minus the version trio, the ``schema_capabilities`` map and the ``environment`` block, which a stamp write reformats.
 
     What is left (the rest of ``spec_kitty``, the applied migrations, any
     foreign key) is what a restore must preserve rather than overwrite.
@@ -402,10 +402,11 @@ def _without_version_trio(data: dict[str, object]) -> dict[str, object]:
 
 @dataclass(frozen=True)
 class VersionStamp:
-    """The pre-run ``.kittify/metadata.yaml`` version trio, captured to be restored on a failed upgrade.
+    """The pre-run ``.kittify/metadata.yaml`` version trio and capability map, captured to be restored on a failed upgrade.
 
     The trio is ``spec_kitty.version``, ``spec_kitty.last_upgraded_at`` and
-    ``spec_kitty.schema_version`` (#3334 / #4275). This is the single restore
+    ``spec_kitty.schema_version`` (#3334 / #4275); ``spec_kitty.schema_capabilities``,
+    which the schema stamp writes beside it, is restored with it (#5229). This is the single restore
     authority: the runner uses it for a failed migration, the CLI for a failure
     in the final surface repair. The applied-migrations list is deliberately
     NOT restored -- it records what actually ran, so a re-run skips it.
@@ -431,11 +432,11 @@ class VersionStamp:
             return cls(raw=None)
 
     def restore(self, kittify_dir: Path) -> bool:
-        """Put the captured version trio back; return ``True`` when the file was rewritten.
+        """Put the captured version trio and capability map back; return ``True`` when the file was rewritten.
 
-        When nothing but the trio changed since capture the original bytes are
+        When nothing but the trio and the map changed since capture the original bytes are
         written back, so the file is byte-identical to its pre-run state.
-        Otherwise (migrations recorded in between) only the trio is patched
+        Otherwise (migrations recorded in between) only the trio and the map are patched
         into the current content. A file that did not exist before is left as
         the run wrote it (it records the failed migration, and there is no
         earlier stamp to restore); an unparseable capture or current file is
@@ -461,7 +462,7 @@ class VersionStamp:
 
     @staticmethod
     def _patch_trio(path: Path, before: dict[str, object], current: dict[str, object]) -> bool:
-        """Write the captured trio into ``current`` and persist it; ``True`` when the trio actually differed."""
+        """Write the captured trio and capability map into ``current`` and persist it; ``True`` when either actually differed."""
         old_block = before.get("spec_kitty")
         old = old_block if isinstance(old_block, dict) else {}
         block = current.get("spec_kitty")

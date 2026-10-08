@@ -978,6 +978,9 @@ def _temp_index_path(worktree_root: Path) -> Path:
     probe's env: ``--git-path index`` would follow an inherited ``GIT_INDEX_FILE`` and could
     place the temporary index beside it, inside the work tree.
     """
+    # Defensive only: ``--absolute-git-dir`` does not read GIT_INDEX_FILE today, so this scrub is
+    # behavior-neutral (an equivalent mutant). It is kept so the probe stays index-independent if
+    # it is ever switched to an index-sensitive form such as ``--git-path index``.
     probe_env = {key: value for key, value in os.environ.items() if key != "GIT_INDEX_FILE"}
     probe = _git_in(worktree_root, ["rev-parse", "--absolute-git-dir"], probe_env)
     if probe.returncode != 0 or not probe.stdout.strip():

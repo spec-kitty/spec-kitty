@@ -142,8 +142,8 @@ def _current_worktree_root() -> Path:
 def _changed_paths_under(repo_root: Path, rel_dir: str) -> list[str]:
     """Return changed / untracked files (relative to ``repo_root``) under ``rel_dir``.
 
-    Uses ``kernel.git.status_entries`` (untracked files expanded) scoped to the
-    directory so the expansion is validated against the actual worktree state —
+    Uses ``kernel.git.status_entries`` (untracked files expanded), filtered to the
+    directory, so the expansion is validated against the actual worktree state —
     a directory argument resolves to exactly the files git would stage.
 
     A staged rename contributes BOTH sides (#5401): committing only the new
@@ -151,6 +151,10 @@ def _changed_paths_under(repo_root: Path, rel_dir: str) -> list[str]:
     with one side outside ``rel_dir`` is refused, never auto-included. Git only
     pairs a rename when both sides are in the status scope, so the status is
     read for the whole worktree and filtered here by component-wise containment.
+
+    Cost: each directory argument runs one whole-repository ``git status
+    --untracked-files=all``, so a large untracked, non-ignored tree anywhere in
+    the checkout slows the expansion even when it is outside ``rel_dir``.
     """
     try:
         entries = status_entries(repo_root, untracked="all")
@@ -196,7 +200,7 @@ def _expand_arguments(
 
     for path in normalized_files:
         # A symlinked directory is one 120000 entry, never a directory to expand: dropping this
-        # guard reports a bogus "Expanding link/ -> 0 files" (pinned by the symlinked-dir test).
+        # guard reports a bogus "Expanding linkdir/ → 1 files: linkdir" (pinned by the symlinked-dir test).
         if path.is_dir() and not path.is_symlink():
             rel_dir = str(path.relative_to(repo_root))
             contained = _changed_paths_under(repo_root, rel_dir)
