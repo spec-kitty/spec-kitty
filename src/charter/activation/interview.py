@@ -12,7 +12,7 @@ from typing import Any, cast
 from ruamel.yaml import YAML
 
 from charter.activation._io import load_charter_file
-from charter.activation.catalog import DoctrineCatalog, load_doctrine_catalog
+from charter.activation.catalog import OfferingCatalog, load_offering_catalog
 from charter.activation.resolver import DEFAULT_TOOL_REGISTRY
 
 __all__ = [
@@ -310,10 +310,10 @@ def default_interview(
     *,
     mission: str,
     profile: str = "minimal",
-    doctrine_catalog: DoctrineCatalog | None = None,
+    offering_catalog: OfferingCatalog | None = None,
 ) -> CharterInterview:
     """Return deterministic default interview answers."""
-    catalog = doctrine_catalog or load_doctrine_catalog()
+    catalog = offering_catalog or load_offering_catalog()
     defaults = _load_packaged_defaults()
     raw_default_answers = defaults.get("answers", {})
     answers: dict[str, str] = (

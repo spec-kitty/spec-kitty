@@ -1,7 +1,7 @@
 """SC-003 — the clean-environment wheel proof for asset resolution (WP05, T028).
 
 **Why this test exists and why an in-repo test cannot replace it.** In the
-development checkout, ``resolve_doctrine_root()`` /
+development checkout, ``resolve_offering_root()`` /
 ``AssetRepository._default_built_in_dir()`` fall back to the source tree, so an
 in-repo resolution of a shipped asset *always* succeeds and proves nothing about
 whether the asset is addressable from a real installation. SC-003 is therefore

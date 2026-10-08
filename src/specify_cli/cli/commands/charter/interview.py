@@ -69,7 +69,7 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[
     into ``config.yaml`` directly (unchanged pre-relocation behavior).
     """
     from charter.activation.activation_engine import promote_activations
-    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_offering_root
     from charter.activation.effective_set import resolve_effective_sets
     from charter.activation.kind_vocabulary import UnrepresentableDirectiveIdError, resolve_selected_id_to_stem
     from charter.activation.pack_manager import resolve_activation_write_target
@@ -86,7 +86,7 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[
         resolve_org_root_chain,
     )
 
-    doctrine_root = resolve_doctrine_root()
+    doctrine_root = resolve_offering_root()
     org_roots = resolve_org_root_chain(repo_root)
     layer_roots = resolve_layer_roots(repo_root)
     promotions: dict[str, list[str]] = {}

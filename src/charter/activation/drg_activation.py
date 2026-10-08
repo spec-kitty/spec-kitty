@@ -43,7 +43,7 @@ from charter.offering.drg.org_pack_loader import (
     load_org_pack,
 )
 
-from .catalog import resolve_doctrine_root
+from .catalog import resolve_offering_root
 from .kind_vocabulary import (
     MissionTypeNotAnArtifactKind,
     UnknownArtifactIdError,
@@ -343,11 +343,11 @@ def _resolve_activated_urns_by_kind(
     Called once per :func:`filter_graph_by_activation` invocation -- never
     per node -- so resolution is O(kinds x stems), not O(nodes x stems x
     filesystem-walk). ``doctrine_root`` is sourced from
-    :func:`charter.activation.catalog.resolve_doctrine_root` (the same source the
+    :func:`charter.activation.catalog.resolve_offering_root` (the same source the
     surviving compiler ``references.yaml`` projection uses), never
     ``pack_context.pack_roots[0]`` (research.md D2 install-layout guard).
     """
-    doctrine_root = resolve_doctrine_root()
+    doctrine_root = resolve_offering_root()
     org_roots = list(pack_context.org_roots)
     return {
         node_kind: _resolve_activated_urns_for_kind(

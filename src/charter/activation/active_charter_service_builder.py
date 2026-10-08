@@ -139,7 +139,7 @@ def _build_offering_service(
     # behaviour-preserving here; WP04 drops the now-dead param from
     # CharterOfferingService entirely). Mission relocate-builtin-doctrine-packs moved
     # the built-in artefacts out of ``src/doctrine`` into ``packs/built-in``; a
-    # ``resolve_doctrine_root()`` here would point at the emptied ``src/doctrine``
+    # ``resolve_offering_root()`` here would point at the emptied ``src/doctrine``
     # tree and silently load nothing.
     project_root = resolve_project_root(repo_root)
     if interview is None and not prefer_interview:

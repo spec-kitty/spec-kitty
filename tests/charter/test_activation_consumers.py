@@ -160,9 +160,9 @@ def test_reference_resolver_populated_stem_retains_directive_node() -> None:
 
 
 def test_compiler_closure_none_path_matches_no_filter_at_all(tmp_path: Path) -> None:
-    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_offering_root
 
-    doctrine_root = resolve_doctrine_root()
+    doctrine_root = resolve_offering_root()
 
     unfiltered = _resolve_transitive_reference_graph(
         doctrine_root=doctrine_root,
@@ -195,14 +195,14 @@ def test_compiler_closure_populated_stem_retains_directive_node(tmp_path: Path) 
     there) through the same gate. On merge-base the populated stem drops the
     node before the closure walk starts, so the seeded id never reaches the
     ``directives`` bucket. After WP01 it does."""
-    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_offering_root
 
     ctx = _pack_context(
         activated_directives=frozenset({_REAL_DIRECTIVE_STEM}), repo_root=tmp_path
     )
 
     result = _resolve_transitive_reference_graph(
-        doctrine_root=resolve_doctrine_root(),
+        doctrine_root=resolve_offering_root(),
         directives=[_REAL_DIRECTIVE_CANONICAL_ID],
         repo_root=tmp_path,
         pack_context=ctx,

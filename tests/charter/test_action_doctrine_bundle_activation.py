@@ -58,7 +58,7 @@ first follow-on's fix exposed (operator ruling 2, ``reviews/wp02.ruling-2.md``):
 8. ``test_activated_directive_present_only_in_active_graph_still_delivered`` --
    the exclusion-guard allowlist's "None -> all built-ins" default (job 1,
    ruling 1 declared this correct and untouched) was bound to a hardcoded
-   ``load_doctrine_catalog()`` call -- the real, installed built-in catalog --
+   ``load_offering_catalog()`` call -- the real, installed built-in catalog --
    rather than to the graph actually being resolved against. A directive
    genuinely present in the ACTIVE graph (an injected/mocked graph in a test,
    or a graph augmented with org-pack content in production) but absent from
@@ -96,7 +96,7 @@ import pytest
 import yaml
 
 from charter.activation.action_doctrine_bundle import _load_action_doctrine_bundle
-from charter.activation.catalog import load_doctrine_catalog
+from charter.activation.catalog import load_offering_catalog
 from charter.activation.context_renderers.delivery_table import _classify_artifact_urns
 from charter.activation.pack_context import PackContext
 from charter.activation.schemas import DoctrineSelectionConfig
@@ -339,7 +339,7 @@ def test_activated_tactics_and_paradigms_absent_widen_to_full_catalog(
         activated_paradigms=None,
         repo_root=tmp_path,
     )
-    catalog = load_doctrine_catalog()
+    catalog = load_offering_catalog()
 
     with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
         bundle = _load_action_doctrine_bundle(
@@ -645,7 +645,7 @@ def test_activated_directive_present_only_in_active_graph_still_delivered(
     deliberately does NOT, to isolate the catalog-vs-graph source collision).
 
     Without ruling 2's fix, ``project_directives``'s default is
-    ``load_doctrine_catalog().directives`` alone (the real ~34-id catalog),
+    ``load_offering_catalog().directives`` alone (the real ~34-id catalog),
     which does not contain ``_FICTIONAL_DIRECTIVE_ID`` -- the exclusion-guard
     allowlist then drops it even though it is directly scoped to
     ``implement`` and genuinely present in the graph being resolved. This is

@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from charter.offering.drg.models import DRGGraph
     import charter.offering.service as _offering_service_module
 
-from charter.activation.catalog import load_doctrine_catalog
+from charter.activation.catalog import load_offering_catalog
 from charter.activation.language_scope import infer_repo_languages
 from charter.activation.org_pack_discovery import _read_org_required_selections
 from charter.activation.profile_resolution import _normalize_directive_id
@@ -71,7 +71,7 @@ def _catalog_default_or_activated(
     ``catalog_default`` (WP02 ruling 2, ``reviews/wp02.ruling-2.md``): the
     caller passes ``_graph_and_catalog_default_ids`` below -- the ACTIVE DRG
     graph being resolved against, unioned with the real built-in catalog --
-    never a bare ``load_doctrine_catalog()`` call. Binding "all built-ins"
+    never a bare ``load_offering_catalog()`` call. Binding "all built-ins"
     to a hardcoded real catalog is what made a mocked/injected graph and the
     real allowlist disagree (#883, the org-pack-chain regression): a
     fictional or org-authored id genuinely present in the graph being
@@ -92,7 +92,7 @@ def _graph_and_catalog_default_ids(
 ) -> frozenset[str]:
     """The "all built-ins" default for one artifact *kind* (WP02 ruling 2).
 
-    Union of *catalog_default* (``load_doctrine_catalog()``'s real built-in
+    Union of *catalog_default* (``load_offering_catalog()``'s real built-in
     set for *kind*) with every *kind*-node bare id the ACTIVE *graph* itself
     carries. In production the merged graph already contains the real
     catalog as its built-in layer, so this union is a no-op there --
@@ -321,13 +321,13 @@ def _load_action_doctrine_bundle(
             # WP02 ruling 2 (reviews/wp02.ruling-2.md): "all built-ins" now
             # resolves from THIS resolution's own active graph (``merged``,
             # already activation-filtered above) unioned with the real
-            # built-in catalog -- never a bare load_doctrine_catalog() call
+            # built-in catalog -- never a bare load_offering_catalog() call
             # alone -- via _graph_and_catalog_default_ids. Computed here,
             # after ``merged`` exists and before any consumption site (roots
             # below, _classify_artifact_urns) iterates it; the typeless-
             # mission branch below never loads a graph and never consumes
             # these three names, so nothing needs them precomputed earlier.
-            catalog = load_doctrine_catalog()
+            catalog = load_offering_catalog()
             activated_directives_arg = (
                 pack_context.activated_directives if pack_context is not None else None
             )
@@ -365,7 +365,7 @@ def _load_action_doctrine_bundle(
             # is legitimately authored in either stem or canonical form (verified live,
             # tests/charter/test_answers_inert_and_org_union.py::
             # TestOrgRequiredIdFormNormalizedBeforePromotion), while the DRG's
-            # artifact_id and load_doctrine_catalog().directives are canonical-only.
+            # artifact_id and load_offering_catalog().directives are canonical-only.
             # Skipping this would reproduce Decision Record 2's own silent-exclusion
             # mechanism via the org-required path.
             project_directives |= {_normalize_directive_id(d) for d in org_required["directives"]}

@@ -242,7 +242,7 @@ class TestBuildOfferingService:
         built_in_root = tmp_path / "built-in"
         built_in_root.mkdir()
         with (
-            patch("charter.activation.catalog.resolve_doctrine_root", return_value=built_in_root),
+            patch("charter.activation.catalog.resolve_offering_root", return_value=built_in_root),
             patch("charter.offering.service.CharterOfferingService", _StubOfferingService),
             patch("charter.activation.context.infer_repo_languages", return_value=["python"]),
         ):
@@ -260,7 +260,7 @@ class TestBuildOfferingService:
         built_in_root.mkdir()
         org_root = tmp_path / "org"
         with (
-            patch("charter.activation.catalog.resolve_doctrine_root", return_value=built_in_root),
+            patch("charter.activation.catalog.resolve_offering_root", return_value=built_in_root),
             patch("charter.offering.service.CharterOfferingService", _StubOfferingService),
             patch("charter.activation.context.infer_repo_languages", return_value=["python"]),
         ):

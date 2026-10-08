@@ -30,7 +30,7 @@ from specify_cli.upgrade.migrations.m_unify_charter_activation import UnifyChart
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # Real built-in artifacts used across fixtures (must exist in this repo's own
-# doctrine tree — resolve_doctrine_root() is never mocked in this file, it
+# doctrine tree — resolve_offering_root() is never mocked in this file, it
 # always resolves the real packaged/dev doctrine content, matching the WP01
 # test style).
 _DIRECTIVE_010_STEM = "010-specification-fidelity-requirement"
@@ -315,10 +315,10 @@ def test_dry_run_lists_promotions_of_resolved_keys(tmp_path: Path) -> None:
 
 
 def test_resolve_selected_id_to_stem_already_stem() -> None:
-    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_offering_root
     from charter.offering.artifact_kinds import ArtifactKind
 
-    doctrine_root = resolve_doctrine_root()
+    doctrine_root = resolve_offering_root()
     stem = resolve_selected_id_to_stem(
         ArtifactKind.DIRECTIVE, _DIRECTIVE_010_STEM, doctrine_root=doctrine_root
     )
@@ -326,10 +326,10 @@ def test_resolve_selected_id_to_stem_already_stem() -> None:
 
 
 def test_resolve_selected_id_to_stem_canonical_form() -> None:
-    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_offering_root
     from charter.offering.artifact_kinds import ArtifactKind
 
-    doctrine_root = resolve_doctrine_root()
+    doctrine_root = resolve_offering_root()
     stem = resolve_selected_id_to_stem(
         ArtifactKind.DIRECTIVE, _DIRECTIVE_010_CANONICAL, doctrine_root=doctrine_root
     )
@@ -337,10 +337,10 @@ def test_resolve_selected_id_to_stem_canonical_form() -> None:
 
 
 def test_resolve_selected_id_to_stem_unresolvable_returns_none() -> None:
-    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_offering_root
     from charter.offering.artifact_kinds import ArtifactKind
 
-    doctrine_root = resolve_doctrine_root()
+    doctrine_root = resolve_offering_root()
     stem = resolve_selected_id_to_stem(
         ArtifactKind.DIRECTIVE, _MALFORMED_ID, doctrine_root=doctrine_root
     )
@@ -348,7 +348,7 @@ def test_resolve_selected_id_to_stem_unresolvable_returns_none() -> None:
 
 
 def test_ambiguous_answer_is_reported_without_dropping_resolvable_sibling(monkeypatch: pytest.MonkeyPatch) -> None:
-    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_offering_root
     from charter.activation.kind_vocabulary import ArtifactKind, UnrepresentableDirectiveIdError
     from specify_cli.upgrade.migrations import m_unify_charter_activation as migration
 
@@ -364,7 +364,7 @@ def test_ambiguous_answer_is_reported_without_dropping_resolvable_sibling(monkey
         ArtifactKind.DIRECTIVE,
         answers_data={"selected_directives": ["AMBIGUOUS-POLICY", _DIRECTIVE_010_CANONICAL]},
         config_data={"activated_directives": []},
-        doctrine_root=resolve_doctrine_root(),
+        doctrine_root=resolve_offering_root(),
     )
     assert stems == [_DIRECTIVE_010_STEM]
     assert unresolved == ["AMBIGUOUS-POLICY"]

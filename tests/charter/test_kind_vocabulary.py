@@ -18,7 +18,7 @@ import pytest
 
 pytestmark = [pytest.mark.unit]
 
-from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.catalog import resolve_offering_root
 from charter.activation.kind_vocabulary import (
     MissionTypeNotAnArtifactKind,
     UnknownArtifactIdError,
@@ -127,7 +127,7 @@ def test_charter_kind_tokens_artifact_entries_all_resolve() -> None:
 
 @pytest.fixture()
 def doctrine_root() -> Path:
-    return resolve_doctrine_root()
+    return resolve_offering_root()
 
 
 @pytest.mark.parametrize(

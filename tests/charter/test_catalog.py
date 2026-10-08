@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.activation.catalog import _load_yaml_id_catalog, load_doctrine_catalog
+from charter.activation.catalog import _load_yaml_id_catalog, load_offering_catalog
 
 pytestmark = pytest.mark.fast
 
@@ -19,7 +19,7 @@ def test_catalog_loads_packaged_directives_and_paradigms() -> None:
     # (no precondition)
 
     # Act
-    catalog = load_doctrine_catalog()
+    catalog = load_offering_catalog()
 
     # Assert — shipped directives use DIRECTIVE_NNN identifiers
     assert "DIRECTIVE_003" in catalog.directives  # decision-documentation-requirement
@@ -34,7 +34,7 @@ def test_catalog_includes_mission_template_sets() -> None:
     # (no precondition)
 
     # Act
-    catalog = load_doctrine_catalog()
+    catalog = load_offering_catalog()
 
     # Assert
     assert "software-dev-default" in catalog.template_sets
@@ -105,14 +105,14 @@ def test_catalog_filters_language_scoped_artifacts(monkeypatch: pytest.MonkeyPat
         with path.open("w", encoding="utf-8") as handle:
             yaml.dump(data, handle)
 
-    monkeypatch.setattr("charter.activation.catalog.resolve_doctrine_root", lambda: doctrine_root)
+    monkeypatch.setattr("charter.activation.catalog.resolve_offering_root", lambda: doctrine_root)
     # Built-in pack content is flat under ``packs/built-in/<kind>/`` and is
     # resolved per-kind via ``built_in_dir`` (mission
     # doctrine-built-in-seam-consolidation-01KYW3TX, WP02); point it at the
     # tmp root's flat per-kind directories.
     monkeypatch.setattr("charter.activation.catalog.built_in_dir", lambda kind: doctrine_root / kind.plural)
 
-    catalog = load_doctrine_catalog(active_languages=["typescript"])
+    catalog = load_offering_catalog(active_languages=["typescript"])
 
     assert "generic-style" in catalog.styleguides
     assert "python-style" not in catalog.styleguides
@@ -167,14 +167,14 @@ def test_catalog_keeps_language_scoped_artifacts_when_active_languages_are_unset
         with path.open("w", encoding="utf-8") as handle:
             yaml.dump(data, handle)
 
-    monkeypatch.setattr("charter.activation.catalog.resolve_doctrine_root", lambda: doctrine_root)
+    monkeypatch.setattr("charter.activation.catalog.resolve_offering_root", lambda: doctrine_root)
     # Built-in pack content is flat under ``packs/built-in/<kind>/`` and is
     # resolved per-kind via ``built_in_dir`` (mission
     # doctrine-built-in-seam-consolidation-01KYW3TX, WP02); point it at the
     # tmp root's flat per-kind directories.
     monkeypatch.setattr("charter.activation.catalog.built_in_dir", lambda kind: doctrine_root / kind.plural)
 
-    catalog = load_doctrine_catalog()
+    catalog = load_offering_catalog()
 
     assert "python-style" in catalog.styleguides
     assert "python-toolguide" in catalog.toolguides

@@ -188,14 +188,14 @@ class TestLintOrgOverridesAdvisory:
         # underlying resolver before invoking ``checker.run``.
         from specify_cli.charter_runtime.lint.checks import org_layer
 
-        def _fake_resolve_doctrine_root() -> Path:
+        def _fake_resolve_offering_root() -> Path:
             return built_in_root
 
         def _fake_resolve_project_root(_root: Path) -> Path | None:
             return None
 
         monkeypatch.setattr(
-            "charter.activation.catalog.resolve_doctrine_root", _fake_resolve_doctrine_root
+            "charter.activation.catalog.resolve_offering_root", _fake_resolve_offering_root
         )
         monkeypatch.setattr(
             "charter.activation._doctrine_paths.resolve_project_root", _fake_resolve_project_root

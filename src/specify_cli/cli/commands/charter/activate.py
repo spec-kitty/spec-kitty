@@ -40,7 +40,7 @@ from charter.activation.cascade import (
     referenced_but_not_cascaded,
 )
 from charter.drg import DRGLoadError
-from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.catalog import resolve_offering_root
 from charter.activation.drg_activation import load_org_drg
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import (
@@ -157,7 +157,7 @@ def _source_urn(
         resolved: str = resolve_artifact_urn(
             kind_enum,
             artifact_id,
-            doctrine_root=resolve_doctrine_root(),
+            doctrine_root=resolve_offering_root(),
             org_roots=org_roots,
             layer_roots=layer_roots,
         )
@@ -326,7 +326,7 @@ def _render_cascade_activation(
         org_fragments=load_org_drg(repo_root, strict=False),
     )
     result = cascade_activation_targets(graph, source_urn, scope)
-    doctrine_root = resolve_doctrine_root()
+    doctrine_root = resolve_offering_root()
 
     for kind_value in sorted(result.activated):
         kind_token = ArtifactKind(kind_value).operator_token
@@ -462,7 +462,7 @@ def _render_no_cascade_warning(
     report = referenced_but_not_cascaded(graph, source_urn)
     if not report.has_skipped:
         return
-    doctrine_root = resolve_doctrine_root()
+    doctrine_root = resolve_offering_root()
     # A read-only render: one resolution pass parses each artifact file once
     # for every warning line, not once per referenced artifact (#5526).
     render_pass = ResolutionPass()

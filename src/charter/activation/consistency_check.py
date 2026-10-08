@@ -14,7 +14,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from charter.bundle import CHARTER_YAML
-from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.catalog import resolve_offering_root
 from charter.activation.charter_yaml_io import load_charter_yaml
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import (
@@ -719,7 +719,7 @@ def _check_reference_id_parity(
     if references_by_kind is None:
         return  # No compiled reference set yet -- nothing to check against.
 
-    doctrine_root = resolve_doctrine_root()
+    doctrine_root = resolve_offering_root()
     pack_context = ctx.require_pack_context()
     org_roots = list(pack_context.pack_roots[1:])
 
@@ -924,7 +924,7 @@ def _check_graph_kind_parity(
         return
 
     surviving_urns = frozenset(node.urn for node in activated_drg.nodes)
-    doctrine_root = resolve_doctrine_root()
+    doctrine_root = resolve_offering_root()
     org_roots = list(pack_context.org_roots)
 
     for cli_kind in _CLI_KIND_TO_DRG_SINGULAR:

@@ -65,7 +65,7 @@ from typing import Any, ClassVar
 from ruamel.yaml.error import YAMLError
 
 from charter.activation.charter_yaml_io import apply_yaml_write
-from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.catalog import resolve_offering_root
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import ResolutionPass, UnknownArtifactIdError, resolve_artifact_urn, resolve_config_id
 from charter.activation.layer_roots import resolve_layer_roots, resolve_org_root_chain
@@ -325,7 +325,7 @@ class _Roots:
     @classmethod
     def of(cls, repo_root: Path, org_roots: Sequence[Path]) -> _Roots:
         layer_roots = {layer: root for layer, root in resolve_layer_roots(repo_root).items() if layer != "org"}
-        return cls(resolve_doctrine_root(), list(org_roots), layer_roots, ResolutionPass())
+        return cls(resolve_offering_root(), list(org_roots), layer_roots, ResolutionPass())
 
 
 def _artifact_id_resolves(kind: ArtifactKind, raw_id: str, roots: _Roots) -> bool:

@@ -145,7 +145,7 @@ def _pack_context(
 
     ``pack_roots[0]`` is a deliberately unused placeholder -- the resolution
     gate sources the built-in ``doctrine_root`` from
-    ``charter.activation.catalog.resolve_doctrine_root()``, never ``pack_roots[0]``
+    ``charter.activation.catalog.resolve_offering_root()``, never ``pack_roots[0]``
     (research.md D2 install-layout guard, see
     ``charter.drg._resolve_activated_urns_by_kind``'s own docstring); only
     ``PackContext.org_roots`` (``pack_roots[1:]``) is consumed here.

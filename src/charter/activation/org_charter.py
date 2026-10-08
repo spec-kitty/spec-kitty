@@ -396,7 +396,7 @@ def _promote_org_required_to_config(policy: OrgCharterPolicy, repo_root: Path) -
     it; a bare restrictive list is never written.
     """
     from charter.activation.activation_engine import promote_activations
-    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_offering_root
     from charter.activation.pack_manager import resolve_activation_write_target
 
     target_path, config_data, save = resolve_activation_write_target(repo_root)
@@ -409,7 +409,7 @@ def _promote_org_required_to_config(policy: OrgCharterPolicy, repo_root: Path) -
         return []
 
     try:
-        doctrine_root: Path | None = resolve_doctrine_root()
+        doctrine_root: Path | None = resolve_offering_root()
     except Exception:  # noqa: BLE001 — normalization is best-effort, see docstring
         doctrine_root = None
 
@@ -953,7 +953,7 @@ def validate_org_required_directive_stems(repo_root: Path) -> None:
     may still append encoding-provenance ledger entries. Unknown-ID validation
     retains its existing path.
     """
-    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_offering_root
 
     from charter.activation.layer_roots import resolve_layer_roots, resolve_org_root_chain
 
@@ -962,7 +962,7 @@ def validate_org_required_directive_stems(repo_root: Path) -> None:
         _normalize_required_ids(
             "directives",
             list(policy.required_directives),
-            doctrine_root=resolve_doctrine_root(),
+            doctrine_root=resolve_offering_root(),
             org_roots=resolve_org_root_chain(repo_root),
             layer_roots=resolve_layer_roots(repo_root),
         )

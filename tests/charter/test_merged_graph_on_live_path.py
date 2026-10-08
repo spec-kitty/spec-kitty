@@ -26,7 +26,7 @@ def _built_in_from(root: Path) -> Any:
     WP03 (mission #2680) routed ``load_validated_graph`` through the canonical
     :func:`charter.offering.drg.loader.load_built_in_graph` seam, so tests inject the
     built-in layer by patching that seam rather than the retired
-    ``resolve_doctrine_root`` import.
+    ``resolve_offering_root`` import.
     """
     return load_graph_or_dir(root)
 

@@ -173,7 +173,7 @@ class TestBuildContextV2:
         # ``load_validated_graph`` yields the fixture graph exactly once.
         with (
             patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
-            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation.catalog.resolve_offering_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),  # fixture may not pass full validation
         ):
             return build_charter_context(
@@ -208,7 +208,7 @@ class TestBuildContextV2:
 
         with (
             patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
-            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation.catalog.resolve_offering_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
         ):
             # First load: depth=None -> state decides -> 2 (bootstrap)
@@ -259,7 +259,7 @@ class TestBuildContextV2:
                 "charter.activation._drg_helpers.load_validated_graph",
                 return_value=mock_graph,
             ),
-            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation.catalog.resolve_offering_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
         ):
             payload = build_charter_context_json(
@@ -340,7 +340,7 @@ class TestBuildContextV2:
 
         with (
             patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
-            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation.catalog.resolve_offering_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(
@@ -404,7 +404,7 @@ class TestBuildContextV2:
             # WP05 (#2680): patch the merged-graph seam, not per-file load_graph,
             # so the sharded fragment layout does not duplicate the fixture.
             patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
-            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation.catalog.resolve_offering_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
             patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=None),
         ):
@@ -487,7 +487,7 @@ class TestBuildContextV2:
 
         with (
             patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
-            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation.catalog.resolve_offering_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
             patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=None),
         ):
@@ -578,7 +578,7 @@ class TestBuildContextV2:
 
         with (
             patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
-            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation.catalog.resolve_offering_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(tmp_path, action="implement", depth=2)
@@ -612,7 +612,7 @@ class TestBuildContextV2:
 
         with (
             patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
-            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation.catalog.resolve_offering_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(tmp_path, action="implement", depth=2)
@@ -644,7 +644,7 @@ class TestBuildContextV2:
 
         with (
             patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
-            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation.catalog.resolve_offering_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(tmp_path, action="implement", depth=2)
@@ -669,7 +669,7 @@ class TestBuildContextV2:
 
         with (
             patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
-            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation.catalog.resolve_offering_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(tmp_path, action="implement", depth=2)
@@ -958,7 +958,7 @@ def test_action_doctrine_keys_off_meta_json_not_template_set(tmp_path: Path) -> 
         # WP05 (#2680): patch the merged-graph seam, not per-file load_graph, so
         # the sharded fragment layout does not duplicate the fixture on merge.
         patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
-        patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+        patch("charter.activation.catalog.resolve_offering_root", return_value=tmp_path),
         patch("charter.offering.drg.validator.assert_valid"),
     ):
         result = build_charter_context(
@@ -1179,7 +1179,7 @@ def test_build_doctrine_service_prefers_repo_src_overlay(
     project_root = tmp_path / "src" / "charter" / "offering"
     project_root.mkdir(parents=True)
 
-    monkeypatch.setattr("charter.activation.catalog.resolve_doctrine_root", lambda: built_in_root)
+    monkeypatch.setattr("charter.activation.catalog.resolve_offering_root", lambda: built_in_root)
     monkeypatch.setattr("charter.activation.context.infer_repo_languages", lambda repo_root: ["python", "typescript"])
     monkeypatch.setattr("charter.offering.service.CharterOfferingService", StubOfferingService)
 
@@ -1190,7 +1190,7 @@ def test_build_doctrine_service_prefers_repo_src_overlay(
     # _build_offering_service no longer passes a built_in_root kwarg at all --
     # each repository self-resolves the flattened built-in tier via
     # built_in_dir(kind) (packs/built-in/<kind>). Pointing at
-    # resolve_doctrine_root() post-relocation would yield the emptied
+    # resolve_offering_root() post-relocation would yield the emptied
     # src/charter/offering/<kind>/built-in and silently load nothing. The stub's
     # built_in_root default (None) surfaces the same recorded value as before
     # the kwarg was dropped. The project-root overlay wiring is unchanged.
@@ -1257,7 +1257,7 @@ def test_build_doctrine_service_uses_compiled_charter_languages_end_to_end(
             handle,
         )
 
-    monkeypatch.setattr("charter.activation.catalog.resolve_doctrine_root", lambda: built_in_root)
+    monkeypatch.setattr("charter.activation.catalog.resolve_offering_root", lambda: built_in_root)
     monkeypatch.setattr("charter.offering.service.CharterOfferingService", StubOfferingService)
 
     service = _build_offering_service(tmp_path)

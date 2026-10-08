@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from charter.activation.catalog import DoctrineCatalog, load_doctrine_catalog
+from charter.activation.catalog import OfferingCatalog, load_offering_catalog
 from charter.activation.compiler import (
     _resolve_template_set,
     _sanitize_catalog_selection,
@@ -48,7 +48,7 @@ def test_compile_charter_contains_governance_activation_block() -> None:
 
 
 def test_resolve_template_set_uses_smallest_available_fallback() -> None:
-    catalog = DoctrineCatalog(
+    catalog = OfferingCatalog(
         template_sets={"zeta-default", "alpha-default"},
         paradigms=[],
         directives=[],
@@ -622,7 +622,7 @@ def test_compile_with_local_support_file_creates_local_reference() -> None:
 def test_compile_local_support_reference_is_additive_not_replacement() -> None:
     """Local support reference must not replace the shipped directive reference."""
     interview = default_interview(mission="software-dev", profile="minimal")
-    directive_id = sorted(load_doctrine_catalog().directives)[0]
+    directive_id = sorted(load_offering_catalog().directives)[0]
     decl = LocalSupportDeclaration(
         path="docs/custom-directive.md",
         target_kind="directive",
@@ -646,7 +646,7 @@ def test_compile_local_support_reference_is_additive_not_replacement() -> None:
 def test_compile_local_support_overlap_emits_warning_diagnostic() -> None:
     """When local file targets a shipped directive, a diagnostic warning is emitted."""
     interview = default_interview(mission="software-dev", profile="minimal")
-    directive_id = sorted(load_doctrine_catalog().directives)[0]
+    directive_id = sorted(load_offering_catalog().directives)[0]
     decl = LocalSupportDeclaration(
         path="docs/custom.md",
         target_kind="directive",

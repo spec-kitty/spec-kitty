@@ -41,7 +41,7 @@ tooling (`charter.offering.packs`) only through the `charter.packs` and
 | `compiler.py` | `compile_charter()` — transitive resolution producing `charter.md` + `references.yaml` |
 | `context.py` | `build_charter_context()` — action-scoped governance injection |
 | `resolver.py` | `resolve_project_governance()` / `resolve_governance_for_profile()` — profile-aware governance resolution |
-| `catalog.py` | `DoctrineCatalog` / `resolve_doctrine_root()` — discovers available offering artifacts |
+| `catalog.py` | `OfferingCatalog` / `resolve_offering_root()` — discovers available offering artifacts |
 | `defaults.yaml` | Default interview answers for `--non-interactive` and "accept defaults" paths |
 
 ## Architecture references

@@ -54,8 +54,8 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "CharterBundleManifest": ("charter.bundle", "CharterBundleManifest"),
     "SCHEMA_VERSION": ("charter.bundle", "SCHEMA_VERSION"),
     # .catalog -> charter.activation.catalog
-    "DoctrineCatalog": ("charter.activation.catalog", "DoctrineCatalog"),
-    "load_doctrine_catalog": ("charter.activation.catalog", "load_doctrine_catalog"),
+    "OfferingCatalog": ("charter.activation.catalog", "OfferingCatalog"),
+    "load_offering_catalog": ("charter.activation.catalog", "load_offering_catalog"),
     # .compiler -> charter.activation.compiler
     "CompiledCharter": ("charter.activation.compiler", "CompiledCharter"),
     "CharterReference": ("charter.activation.compiler", "CharterReference"),
@@ -156,8 +156,8 @@ __all__ = [
     "CANONICAL_MANIFEST",
     "CharterBundleManifest",
     "SCHEMA_VERSION",
-    "DoctrineCatalog",
-    "load_doctrine_catalog",
+    "OfferingCatalog",
+    "load_offering_catalog",
     "CompiledCharter",
     "CharterReference",
     "WriteBundleResult",

@@ -30,7 +30,7 @@ from specify_cli.cli.console import console
 
 from charter.activation.activation_engine import NoActivationRestrictionsError
 from charter.activation.cascade import CascadeScope, deactivation_plan
-from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.catalog import resolve_offering_root
 from charter.activation.drg_activation import load_org_drg
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import (
@@ -102,7 +102,7 @@ def _source_urn(
         return resolve_artifact_urn(
             kind_enum,
             artifact_id,
-            doctrine_root=resolve_doctrine_root(),
+            doctrine_root=resolve_offering_root(),
             org_roots=org_roots,
             layer_roots=layer_roots,
         )
@@ -129,7 +129,7 @@ def _active_urns(
     Contract C3.4 shared-reference safety (NFR-002: a dropped active URN is a
     silent-wrong-data risk, not merely a display gap).
     """
-    doctrine_root = resolve_doctrine_root()
+    doctrine_root = resolve_offering_root()
     urns: set[str] = set()
     for kind_token, ids in manager.list_activated(ctx_project).items():
         if ids is None:
@@ -184,7 +184,7 @@ def _render_cascade_deactivation(
     )
     active = _active_urns(manager, ctx_project, layer_roots, org_roots)
     plan = deactivation_plan(graph, target_urn, scope, active_urns=active)
-    doctrine_root = resolve_doctrine_root()
+    doctrine_root = resolve_offering_root()
 
     for urn in plan.deactivate:
         kind_value, _, _ = urn.partition(":")

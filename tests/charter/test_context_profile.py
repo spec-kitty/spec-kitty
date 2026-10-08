@@ -141,7 +141,7 @@ def _call_build(
 
     with (
         patch("charter.offering.drg.loader.load_graph", side_effect=_patched_load_graph),
-        patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+        patch("charter.activation.catalog.resolve_offering_root", return_value=tmp_path),
         patch("charter.offering.drg.validator.assert_valid"),
     ):
         result = build_charter_context(

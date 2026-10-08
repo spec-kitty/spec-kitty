@@ -17,7 +17,7 @@ from ruamel.yaml.error import YAMLError
 from charter.activation._catalog_miss import CatalogMissCause, CatalogMissDiagnosis
 from charter.activation._io import load_charter_file
 from kernel.charter_pack_paths import project_pack_root
-from charter.activation.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doctrine_root
+from charter.activation.catalog import OfferingCatalog, load_offering_catalog, resolve_offering_root
 from charter.activation.context_renderers.catalog_diagnosis import _diagnose_catalog_miss
 from charter.activation.charter_yaml_io import (
     PreparedYamlWrite,
@@ -190,7 +190,7 @@ def _resolve_config_activated_ids(
 def _resolve_config_activated_roots(
     *,
     pack_context: PackContext | None,
-    catalog: DoctrineCatalog,
+    catalog: OfferingCatalog,
     doctrine_root: Path,
 ) -> ConfigActivatedRoots:
     """Build the full config-sourced activation bundle for one compile."""
@@ -320,7 +320,7 @@ def _bare_ids_for_kind(urns: frozenset[str], kind: ArtifactKind) -> list[str]:
 def resolve_config_activated_roots(
     *,
     repo_root: Path,
-    doctrine_catalog: DoctrineCatalog | None = None,
+    offering_catalog: OfferingCatalog | None = None,
     pack_context: PackContext | None = None,
 ) -> ConfigActivatedRoots:
     """Resolve ``.kittify/config.yaml`` ``activated_*`` stems to bare canonical ids.
@@ -334,10 +334,10 @@ def resolve_config_activated_roots(
     logic live in ``charter``; ``specify_cli`` orchestrates.
     A supplied ``pack_context`` preflights proposed activations without writing them.
     """
-    catalog = doctrine_catalog or load_doctrine_catalog()
+    catalog = offering_catalog or load_offering_catalog()
     if pack_context is None:
         pack_context = PackContext.from_config(repo_root)
-    doctrine_root = resolve_doctrine_root()
+    doctrine_root = resolve_offering_root()
     return _resolve_config_activated_roots(
         pack_context=pack_context,
         catalog=catalog,
@@ -408,7 +408,7 @@ def compile_charter(
     mission: str,
     interview: CharterInterview,
     template_set: str | None = None,
-    doctrine_catalog: DoctrineCatalog | None = None,
+    offering_catalog: OfferingCatalog | None = None,
     doctrine_service: ActiveCharterService | None = None,
     repo_root: Path | None = None,
     pack_context: PackContext | None = None,
@@ -461,7 +461,7 @@ def compile_charter(
     # read back as authoritative "admit none" — see that function's
     # docstring for the full feedback-loop this closes.
     active_languages = infer_repo_languages(repo_root, interview=interview, prefer_interview=rederive_languages)
-    catalog = doctrine_catalog or load_doctrine_catalog(active_languages=active_languages)
+    catalog = offering_catalog or load_offering_catalog(active_languages=active_languages)
     diagnostics: list[str] = []
     unresolved_reference_records: list[UnresolvedReferenceRecord] = []
 
@@ -471,7 +471,7 @@ def compile_charter(
     if pack_context is None and repo_root is not None:
         pack_context = PackContext.from_config(repo_root)
 
-    doctrine_root = resolve_doctrine_root()
+    doctrine_root = resolve_offering_root()
     config_roots = _resolve_config_activated_roots(
         pack_context=pack_context,
         catalog=catalog,
@@ -1010,7 +1010,7 @@ def _resolve_template_set(
     *,
     mission: str,
     requested_template_set: str | None,
-    catalog: DoctrineCatalog,
+    catalog: OfferingCatalog,
 ) -> str:
     # ``catalog`` resolves to ``Any`` under single-file mypy, so bind the
     # attribute to its declared element type; this lets mypy infer ``str`` for
@@ -1147,7 +1147,7 @@ def _default_active_charter_service(repo_root: Path | None) -> ActiveCharterServ
     # No built_in_root kwarg: repositories self-resolve packs/built-in/<kind>
     # via the built_in_dir seam (default None is behaviour-preserving here;
     # WP04 drops the now-dead param from ActiveCharterService entirely).
-    # resolve_doctrine_root() post-relocation points at the emptied src/doctrine tree.
+    # resolve_offering_root() post-relocation points at the emptied src/doctrine tree.
     return ActiveCharterService(CharterOfferingService(project_root=None))
 
 
@@ -1162,7 +1162,7 @@ def _build_references(
     diagnostics: list[str] | None = None,
     unresolved_reference_records: list[UnresolvedReferenceRecord] | None = None,
 ) -> list[CharterReference]:
-    doctrine_root = resolve_doctrine_root()
+    doctrine_root = resolve_offering_root()
 
     references: list[CharterReference] = []
     references.append(_user_profile_reference(interview))

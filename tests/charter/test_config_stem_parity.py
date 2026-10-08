@@ -33,7 +33,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.catalog import resolve_offering_root
 from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
@@ -93,7 +93,7 @@ def _load_config(repo_root: Path) -> dict[str, object]:
 
 @pytest.fixture(scope="module")
 def doctrine_root() -> Path:
-    return resolve_doctrine_root()
+    return resolve_offering_root()
 
 
 @pytest.fixture(scope="module")

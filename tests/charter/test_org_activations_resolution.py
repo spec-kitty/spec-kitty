@@ -117,7 +117,7 @@ def _build_bootstrap_context(repo_root: Path) -> CharterContextResult:
     mock_graph = _load_mock_graph()
     with (
         patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
-        patch("charter.activation.catalog.resolve_doctrine_root", return_value=repo_root),
+        patch("charter.activation.catalog.resolve_offering_root", return_value=repo_root),
         patch("charter.offering.drg.validator.assert_valid"),
         patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=None),
     ):

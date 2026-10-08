@@ -41,7 +41,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from charter.activation.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doctrine_root
+from charter.activation.catalog import OfferingCatalog, load_offering_catalog, resolve_offering_root
 from charter.activation.kind_vocabulary import ArtifactKind, UnknownArtifactIdError, resolve_artifact_urn
 from charter.activation.reference_resolver import resolve_references_transitively
 from kernel.charter_pack_paths import project_pack_root
@@ -267,7 +267,7 @@ class ActiveCharterService:
         # PackContext and the inner repositories are snapshots. Resolve once
         # for this service; a newly built service observes changed files/config.
         if self._resolved_directive_activation_ids is None:
-            doctrine_root = resolve_doctrine_root()
+            doctrine_root = resolve_offering_root()
             activated: set[str] = set()
             for token in pack_ctx.activated_directives:
                 try:
@@ -654,24 +654,24 @@ class GovernanceResolution:
 
 def _validate_paradigm_selection(
     selected_paradigms: list[str],
-    doctrine_catalog: DoctrineCatalog,
+    offering_catalog: OfferingCatalog,
 ) -> None:
     """Raise GovernanceResolutionError if any selected paradigm is not in the built-in catalog."""
-    if not selected_paradigms or "paradigms" not in doctrine_catalog.domains_present:
+    if not selected_paradigms or "paradigms" not in offering_catalog.domains_present:
         return
-    missing = sorted(p for p in selected_paradigms if p not in doctrine_catalog.paradigms)
+    missing = sorted(p for p in selected_paradigms if p not in offering_catalog.paradigms)
     if missing:
         raise GovernanceResolutionError(
             [
                 "Charter selected unavailable paradigm(s): " + ", ".join(missing),
-                "Available built-in paradigms: " + (", ".join(sorted(doctrine_catalog.paradigms)) or "(none)"),
+                "Available built-in paradigms: " + (", ".join(sorted(offering_catalog.paradigms)) or "(none)"),
                 "Update charter selected_paradigms to values present in packs/built-in/paradigms/.",
             ]
         )
 
 
 def _resolve_paradigm_base(
-    doctrine_catalog: DoctrineCatalog,
+    offering_catalog: OfferingCatalog,
     repo_root: Path,
     diagnostics: list[str],
 ) -> tuple[list[str], str]:
@@ -688,7 +688,7 @@ def _resolve_paradigm_base(
 
     * ``activated_paradigms is None`` (key absent from config; e.g. a bare,
       unconfigured project) → the built-in catalog default
-      (``sorted(doctrine_catalog.paradigms)``), source ``"catalog_fallback"``,
+      (``sorted(offering_catalog.paradigms)``), source ``"catalog_fallback"``,
       with a diagnostic naming the fallback and its size.
     * ``activated_paradigms == frozenset()`` (explicit opt-out) → ``[]``,
       source ``"activation"``.
@@ -705,7 +705,7 @@ def _resolve_paradigm_base(
 
     activated_paradigms = PackContext.from_config(repo_root).activated_paradigms
     if activated_paradigms is None:
-        base = sorted(doctrine_catalog.paradigms)
+        base = sorted(offering_catalog.paradigms)
         diagnostics.append(f"No activated paradigm set configured; using built-in catalog default ({len(base)} paradigms).")
         return base, "catalog_fallback"
     return sorted(activated_paradigms), "activation"
@@ -751,7 +751,7 @@ def _resolve_tools_selection(
 def _resolve_directive_base(
     doctrine: DoctrineSelectionConfig,
     directives_cfg: DirectivesConfig,
-    doctrine_catalog: DoctrineCatalog,
+    offering_catalog: OfferingCatalog,
     repo_root: Path,
     diagnostics: list[str],
 ) -> tuple[list[str], str]:
@@ -772,7 +772,7 @@ def _resolve_directive_base(
 
     * ``activated_directives is None`` (key absent from config; e.g. a bare,
       unconfigured project) → the built-in catalog default
-      (``sorted(doctrine_catalog.directives)``), source ``"catalog_fallback"``,
+      (``sorted(offering_catalog.directives)``), source ``"catalog_fallback"``,
       with a diagnostic naming the fallback and its size.
     * ``activated_directives == frozenset()`` (explicit opt-out) → ``[]``,
       source ``"activation"``.
@@ -810,13 +810,13 @@ def _resolve_directive_base(
     # normalizer this function already applies to the base below.
     local_ids = {_normalize_directive_id(d.id) for d in directives_cfg.directives}
     valid_ids = set(local_ids)
-    if doctrine_catalog.directives:
-        valid_ids.update(_normalize_directive_id(d) for d in doctrine_catalog.directives)
+    if offering_catalog.directives:
+        valid_ids.update(_normalize_directive_id(d) for d in offering_catalog.directives)
     selected_directives = list(dict.fromkeys(_normalize_directive_id(d) for d in doctrine.selected_directives))
 
     activated_directives = PackContext.from_config(repo_root).activated_directives
     if activated_directives is None:
-        base = sorted({_normalize_directive_id(d) for d in doctrine_catalog.directives})
+        base = sorted({_normalize_directive_id(d) for d in offering_catalog.directives})
         diagnostics.append(f"No activated directive set configured; using built-in catalog default ({len(base)} directives).")
         base_source = "catalog_fallback"
     else:
@@ -854,7 +854,7 @@ def _resolve_directive_base(
 def _resolve_directives_selection(
     doctrine: DoctrineSelectionConfig,
     directives_cfg: DirectivesConfig,
-    doctrine_catalog: DoctrineCatalog,
+    offering_catalog: OfferingCatalog,
     repo_root: Path,
     diagnostics: list[str],
 ) -> tuple[list[str], str]:
@@ -875,7 +875,7 @@ def _resolve_directives_selection(
       directives merged and onto which base. Base order is preserved and no base
       id is ever dropped (INV-1/INV-2/INV-3/INV-5).
     """
-    base, base_source = _resolve_directive_base(doctrine, directives_cfg, doctrine_catalog, repo_root, diagnostics)
+    base, base_source = _resolve_directive_base(doctrine, directives_cfg, offering_catalog, repo_root, diagnostics)
 
     local_ids = [d.id for d in directives_cfg.directives]
     if not local_ids:
@@ -893,17 +893,17 @@ def _resolve_directives_selection(
 
 def _resolve_template_set_selection(
     doctrine: DoctrineSelectionConfig,
-    doctrine_catalog: DoctrineCatalog,
+    offering_catalog: OfferingCatalog,
     fallback_template_set: str,
     diagnostics: list[str],
 ) -> tuple[str, str]:
     """Resolve template set from charter selection or fallback."""
     if doctrine.template_set:
-        if "template_sets" in doctrine_catalog.domains_present and doctrine.template_set not in doctrine_catalog.template_sets:
+        if "template_sets" in offering_catalog.domains_present and doctrine.template_set not in offering_catalog.template_sets:
             raise GovernanceResolutionError(
                 [
                     f"Charter selected unavailable template_set: '{doctrine.template_set}'",
-                    "Available template sets: " + (", ".join(sorted(doctrine_catalog.template_sets)) or "(none)"),
+                    "Available template sets: " + (", ".join(sorted(offering_catalog.template_sets)) or "(none)"),
                     "Update charter template_set to a value available in doctrine missions.",
                 ]
             )
@@ -942,7 +942,7 @@ def resolve_project_governance(
     """
     governance = load_governance_config(repo_root)
     directives_cfg = load_directives_config(repo_root)
-    doctrine_catalog = load_doctrine_catalog()
+    offering_catalog = load_offering_catalog()
     doctrine = governance.charter
     diagnostics: list[str] = []
 
@@ -951,8 +951,8 @@ def resolve_project_governance(
     # loud") unions onto it, never substitutes for it. Previously this was an
     # unconditional passthrough with no activated_* read at all.
     selected_paradigms_raw = list(doctrine.selected_paradigms)
-    _validate_paradigm_selection(selected_paradigms_raw, doctrine_catalog)
-    paradigm_base, paradigm_base_source = _resolve_paradigm_base(doctrine_catalog, repo_root, diagnostics)
+    _validate_paradigm_selection(selected_paradigms_raw, offering_catalog)
+    paradigm_base, paradigm_base_source = _resolve_paradigm_base(offering_catalog, repo_root, diagnostics)
     if selected_paradigms_raw:
         paradigm_base_set = set(paradigm_base)
         added_paradigms = [p for p in selected_paradigms_raw if p not in paradigm_base_set]
@@ -969,8 +969,8 @@ def resolve_project_governance(
 
     available_tools = tool_registry or set(DEFAULT_TOOL_REGISTRY)
     resolved_tools, tools_source = _resolve_tools_selection(doctrine, available_tools, diagnostics)
-    resolved_directives, directives_source = _resolve_directives_selection(doctrine, directives_cfg, doctrine_catalog, repo_root, diagnostics)
-    template_set, template_set_source = _resolve_template_set_selection(doctrine, doctrine_catalog, fallback_template_set, diagnostics)
+    resolved_directives, directives_source = _resolve_directives_selection(doctrine, directives_cfg, offering_catalog, repo_root, diagnostics)
+    template_set, template_set_source = _resolve_template_set_selection(doctrine, offering_catalog, fallback_template_set, diagnostics)
 
     return GovernanceResolution(
         paradigms=selected_paradigms,

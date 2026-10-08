@@ -350,11 +350,11 @@ class TestOrgRequiredIdFormNormalizedBeforePromotion:
 
     def test_legacy_declared_directive_id_remains_readable(self) -> None:
         """#4185: old raw-ID activations remain readable; new producers write stems."""
-        from charter.activation.catalog import resolve_doctrine_root
+        from charter.activation.catalog import resolve_offering_root
         from charter.activation.kind_vocabulary import resolve_artifact_urn
         from charter.offering.artifact_kinds import ArtifactKind
 
-        doctrine_root = resolve_doctrine_root()
+        doctrine_root = resolve_offering_root()
         expected = f"directive:{self._DIRECTIVE_001_CANONICAL}"
         assert resolve_artifact_urn(ArtifactKind.DIRECTIVE, self._DIRECTIVE_001_CANONICAL, doctrine_root=doctrine_root) == expected
         assert resolve_artifact_urn(ArtifactKind.DIRECTIVE, self._DIRECTIVE_001_STEM, doctrine_root=doctrine_root) == expected

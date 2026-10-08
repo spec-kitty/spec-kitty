@@ -158,7 +158,7 @@ def _build_bootstrap_context(tmp_path: Path, *, charter_md: str | None) -> Chart
 
     with (
         patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
-        patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+        patch("charter.activation.catalog.resolve_offering_root", return_value=tmp_path),
         patch("charter.offering.drg.validator.assert_valid"),
     ):
         return build_charter_context(

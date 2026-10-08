@@ -113,14 +113,14 @@ def _write_activation_config(root: Path, *, activated_directives: list[str] | No
 
 
 def _patch_catalog(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Fix ``load_doctrine_catalog`` to a small, deterministic catalog.
+    """Fix ``load_offering_catalog`` to a small, deterministic catalog.
 
     The catalog's directive set (:data:`_CATALOG_DEFAULT_DIRECTIVES`) is
     disjoint from every activated-set fixture in this module so tests can
     assert "resolved to the activated set, not the catalog" unambiguously.
     """
     monkeypatch.setattr(
-        "charter.activation.resolver.load_doctrine_catalog",
+        "charter.activation.resolver.load_offering_catalog",
         lambda: SimpleNamespace(
             paradigms=frozenset(),
             directives=_CATALOG_DEFAULT_DIRECTIVES,
@@ -132,7 +132,7 @@ def _patch_catalog(monkeypatch: pytest.MonkeyPatch) -> None:
 
 # ---------------------------------------------------------------------------
 # Journey 6 — apply 5 + compile: resolves to the activated 5, not the catalog
-# (RED before FR-007; the ``sorted(doctrine_catalog.directives)`` fallback at
+# (RED before FR-007; the ``sorted(offering_catalog.directives)`` fallback at
 # the old resolver.py:258-260 made this assert the full catalog instead.)
 # ---------------------------------------------------------------------------
 

@@ -10,7 +10,7 @@ constants exclusively consumed by this render.
 
 Cycle note: three collaborators used here (``_render_profile_sections``,
 ``_select_reference_pointers``'s doctrine-root resolver
-``charter.activation.catalog.resolve_doctrine_root``, and the ``_ActionDoctrineBundle``
+``charter.activation.catalog.resolve_offering_root``, and the ``_ActionDoctrineBundle``
 type) stay in / are typed against ``charter.activation.context`` (profile-driven-
 rendering / catalog / action-doctrine-bundle clusters, relocated by a later
 WP). ``_render_profile_sections`` is imported function-locally to break the
@@ -336,7 +336,7 @@ def _render_bootstrap_text(
     lines.append(REFERENCE_DOCS_HEADER)
     # The reference-pointer resolver walks ``<root>/<kind>/`` for on-disk doctrine
     # docs. Mission relocate-builtin-doctrine-packs moved the built-in artefacts out
-    # of ``src/charter/offering/<kind>/`` into ``packs/built-in/<kind>/``; ``resolve_doctrine_root()``
+    # of ``src/charter/offering/<kind>/`` into ``packs/built-in/<kind>/``; ``resolve_offering_root()``
     # still points at the now-emptied ``src/doctrine`` tree (used for templates), so it
     # resolves nothing and every pointer dies. Resolve the built-in pack root instead,
     # mirroring how the ActiveCharterService repositories self-resolve ``packs/built-in/<kind>``.

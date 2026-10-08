@@ -40,7 +40,7 @@ reported in ``MigrationResult.warnings``.
 
 Scope note
 ----------
-Only the *built-in* doctrine layer is resolved here (``resolve_doctrine_root()``
+Only the *built-in* doctrine layer is resolved here (``resolve_offering_root()``
 with no ``org_roots``/``layer_roots``). An answers-only selection that names an
 org-pack-only artefact is reported as unresolved (a warning, never a silent
 drop) rather than crashing the migration — org-pack promotion is WP04's
@@ -55,7 +55,7 @@ from typing import Any
 from ruamel.yaml import YAML
 
 from charter.activation.activation_engine import EffectiveSet, PromotionOutcome, promote_activations
-from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.catalog import resolve_offering_root
 from charter.activation.kind_vocabulary import ArtifactKind, UnrepresentableDirectiveIdError, resolve_selected_id_to_stem
 
 from ..registry import MigrationRegistry
@@ -200,7 +200,7 @@ class UnifyCharterActivationMigration(BaseMigration):
             return False
 
         try:
-            doctrine_root = resolve_doctrine_root()
+            doctrine_root = resolve_offering_root()
         except Exception:  # noqa: BLE001 — unresolved doctrine root means nothing to detect
             return False
 
@@ -253,7 +253,7 @@ class UnifyCharterActivationMigration(BaseMigration):
             )
 
         try:
-            doctrine_root = resolve_doctrine_root()
+            doctrine_root = resolve_offering_root()
         except Exception as exc:  # noqa: BLE001 — surfaced as a structured migration error
             return MigrationResult(success=False, errors=[f"Could not resolve doctrine root: {exc}"])
 
