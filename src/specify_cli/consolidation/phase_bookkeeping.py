@@ -240,6 +240,13 @@ def _record_mission_number_on_target_tree(run: _MergeRunState) -> None:
 
 def _phase_capture_and_baseline(run: _MergeRunState) -> None:
     """Refresh checkout, capture final snapshots, plan mission_number, RECORD #1827 baseline."""
+    # A previous attempt may have landed the mission before failing here. The
+    # target tip captured earlier in this resumed attempt can then be the
+    # mission's own commit; use the transaction-start anchor persisted before
+    # the first attempt changed the target.
+    if run.is_resume and run.state.pre_mutation_target_sha:
+        run.target_baseline_sha = run.state.pre_mutation_target_sha
+
     # -- WP05/T006 FR-013: Post-merge working-tree refresh --
     # WP03/T011 (#4752): pass the target branch so the refresh's own
     # defense-in-depth guard can refuse a ``reset --hard`` against an

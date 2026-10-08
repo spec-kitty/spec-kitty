@@ -162,6 +162,34 @@ def test_record_then_commit_then_assert_ordering(tmp_path: Path) -> None:
     assert events == ["record", "commit", "assert"], events
 
 
+def test_resume_records_pre_mutation_baseline_after_target_already_advanced(tmp_path: Path) -> None:
+    """A resumed merge must not record its own landed commit as the baseline."""
+    run = _make_run(tmp_path)
+    run.is_resume = True
+    run.state.pre_mutation_target_sha = "pre-mission-target"
+    run.target_baseline_sha = "mission-squash-commit"
+    recorded: list[str] = []
+
+    with (
+        patch_executor_family("_refresh_primary_checkout_after_merge", lambda *_a, **_k: None),
+        patch_executor_family("_capture_merge_snapshots", lambda *_a, **_k: {}),
+        patch.object(
+            phase_bookkeeping,
+            "_target_bookkeeping_status_paths",
+            lambda **_k: (tmp_path / "e.jsonl", tmp_path / "s.json"),
+        ),
+        patch.object(
+            phase_bookkeeping,
+            "_record_baseline_merge_commit",
+            side_effect=lambda _path, sha, **_k: recorded.append(sha),
+        ),
+    ):
+        ex._phase_capture_and_baseline(run)
+
+    assert recorded == ["pre-mission-target"]
+    assert run.target_baseline_sha == "pre-mission-target"
+
+
 # --- INV-6: BaselineMergeCommitError -> restore -> reraise -------------------
 
 
