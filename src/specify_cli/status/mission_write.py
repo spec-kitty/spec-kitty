@@ -133,14 +133,25 @@ def _lock_name_for_ad_hoc_dir(feature_dir: Path) -> str:
 def _primary_meta(root: Path, name: str) -> Mapping[str, object]:
     """The canonical primary ``meta.json`` of *name* under *root*.
 
-    A *root* that is itself a primary checkout (its ``.git`` is a directory) is read directly: it cannot be a
-    lane worktree, and an owned-checkout caller must not resolve the main repo root (owned-checkout authority).
-    Any other root goes through the read-path resolver's primary-directory leaf, which follows a worktree's
-    ``.git`` pointer to the main checkout (plan A4).
+    A *root* whose ``.git`` is a directory (a repository root checkout, e.g. the ``repository_root`` an
+    owned-checkout caller passes) is read directly: it cannot be a lane worktree, and that caller must not
+    resolve a main repo root. Any other root goes through the read-path resolver's primary-directory leaf,
+    which follows a worktree's ``.git`` pointer to the main checkout (plan A4). When the main checkout records
+    nothing for *name* (an owned linked worktree whose Mission exists only in its own checkout), the
+    checkout's own copy is the only record there is, so the transaction and every door read the same one.
     """
+    if not _is_single_segment(name):
+        return {}
     # ``load_meta_or_empty`` / ``literal_primary_meta`` widen to ``Any`` (``follow_imports=skip``); bind them.
-    meta: Mapping[str, object] = load_meta_or_empty(root / KITTY_SPECS_DIR / name) if (root / ".git").is_dir() else literal_primary_meta(root, name)
-    return meta
+    own: Mapping[str, object] = load_meta_or_empty(root / KITTY_SPECS_DIR / name)
+    if (root / ".git").is_dir():
+        return own
+    canonical: Mapping[str, object] = literal_primary_meta(root, name)
+    return canonical or own
+
+
+def _is_single_segment(name: str) -> bool:
+    return name not in {"", ".", ".."} and Path(name).name == name
 
 
 def _lock_name_for_dir(feature_dir: Path, root: Path) -> str:
@@ -166,7 +177,7 @@ def transaction_lock_key(repo_root: Path, mission_slug: str, mid8: str) -> str:
     door can never diverge (plan A1). When the slug names no recorded Mission, *mid8* composes the
     coordination directory name (the bare slug without one, never ``<slug>-``).
     """
-    meta = literal_primary_meta(repo_root, mission_slug)
+    meta = _primary_meta(repo_root, mission_slug)
     if not meta:
         return mission_lock_dir_name(mission_slug, mid8=mid8)
     return _lock_name_from_meta(meta, mission_slug) or mission_slug
@@ -214,6 +225,21 @@ def registered_hold(root: Path, directory_name: str, key: str) -> Iterator[None]
                 held[slot] = before
 
 
+_MID8_SUFFIX_LENGTH = 9  # "-" plus the eight-character mid8
+
+
+def _primary_alias(root: Path, key: str) -> str | None:
+    """The primary directory name whose Mission is keyed *key*, when *key* is a coordination name (plan A4).
+
+    A hold taken through the coordination-named directory (``mission_write_lock_dir``) must also be found by a
+    nested lock taken through the primary directory after the Mission's meta changed inside the hold.
+    """
+    if len(key) <= _MID8_SUFFIX_LENGTH or key[-_MID8_SUFFIX_LENGTH] != "-":
+        return None
+    candidate = key[:-_MID8_SUFFIX_LENGTH]
+    return candidate if _lock_name_from_meta(_primary_meta(root, candidate), candidate) == key else None
+
+
 @contextmanager
 def mission_write_lock(
     feature_dir: Path,
@@ -231,7 +257,12 @@ def mission_write_lock(
     """
     root = resolve_status_lock_root(feature_dir, repo_root)
     key = mission_lock_key(feature_dir, repo_root=root)
-    with feature_status_lock(root, key, timeout=timeout) as held, registered_hold(root, feature_dir.name, key):
+    alias = _primary_alias(root, key) if feature_dir.name == key else None
+    with (
+        feature_status_lock(root, key, timeout=timeout) as held,
+        registered_hold(root, feature_dir.name, key),
+        registered_hold(root, alias or feature_dir.name, key),
+    ):
         yield held
 
 
