@@ -366,7 +366,7 @@ class AgentProfileRepository:
         )
 
         # Org packs, then project, overlay onto the same store in order. Org and
-        # project overlay discovery is recursive via the single doctrine
+        # project overlay discovery is recursive via the single overlay
         # recursion authority (unconditional per C-001), matching the built-in
         # layer above so a nested `agent_profiles/<sub>/x.agent.yaml` is not
         # silently dropped (#3490). This was the third, separate recursion
@@ -924,9 +924,9 @@ class AgentProfileRepository:
         Exposed read-only so the charter render layer can project the profile
         channel's ``suggests`` deliveries (``when`` clauses live on graph edges,
         surfaced by ``charter.activation.progressive_disclosure.profile_channel_references``)
-        against the *same* graph this repository walked — the doctrine layer holds
+        against the *same* graph this repository walked — ``charter.offering`` holds
         the graph but must not import the charter projection (layer direction:
-        charter → doctrine).
+        charter → charter.offering).
         """
         return self._drg
 

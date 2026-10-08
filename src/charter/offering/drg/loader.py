@@ -129,7 +129,7 @@ def built_in_graph_source() -> Path:
     **fail-closed**: if no ``packs/built-in/`` root can be located,
     :class:`~charter.offering.pack_paths.PackRootNotFound` propagates rather than falling
     back to an emptied ``src/charter/offering/`` tree that would silently yield a partial
-    or empty graph (DIR-005). The resolver stays in-layer (doctrine) and never
+    or empty graph (DIR-005). The resolver stays in-layer (``charter.offering``) and never
     imports upward into charter (C-004).
     """
     return built_in_root()

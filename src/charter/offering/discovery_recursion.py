@@ -1,4 +1,4 @@
-"""Single authority for org/project doctrine overlay recursion (C-001, C-006).
+"""Single authority for org/project overlay recursion (C-001, C-006).
 
 Both the loader (:mod:`charter.offering.base`, :mod:`charter.offering.agent_profiles.repository`)
 and the charter-activation resolver (:mod:`charter.activation.kind_vocabulary`) read this
@@ -13,7 +13,7 @@ configured non-recursive. The per-kind function signature exists so the resolver
 it uniformly, and so the parity/totality gate can falsify a reintroduced
 divergence per kind.
 
-Layering (C-006): this module lives in the ``doctrine`` layer and imports only
+Layering (C-006): this module lives in ``charter.offering`` and imports only
 :mod:`charter.offering.artifact_kinds` (itself zero-dependency). ``charter`` imports
 *down* into it; it never imports ``charter`` or ``specify_cli``.
 

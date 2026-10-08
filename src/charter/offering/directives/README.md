@@ -36,5 +36,5 @@ file in this directory.
 
 ## Glossary Reference
 
-See [Directive](../../../docs/context/charter.md#directive) in the doctrine
+See [Directive](../../../docs/context/charter.md#directive) in the charter
 glossary context.

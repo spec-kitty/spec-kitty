@@ -1,4 +1,4 @@
-"""Public doctrine package exports."""
+"""Public charter offering exports."""
 
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.base import BaseArtifactRepository

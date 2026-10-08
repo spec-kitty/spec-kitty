@@ -395,7 +395,7 @@ CHARTER_KIND_TOKENS: tuple[str, ...] = tuple(member.operator_token for member in
 
 
 #: The runtime-managed kinds whose **project-tier overlay** directory is the
-#: *singular* form (``.kittify/doctrine/directive/``, …) rather than the plural.
+#: *singular* form (``.kittify/charter-packs/directive/``, …) rather than the plural.
 #: These four kinds carry per-project overlays that the live loader reads from a
 #: singular directory; every other kind uses its plural. This is the *only*
 #: place that asymmetry is declared.
@@ -483,7 +483,7 @@ CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR: dict[str, str] = {plural: singular for s
 #: **Canonical registration-writing (direct-write) kind set** (WP01 / NFR-002).
 #:
 #: The five artifact kinds that are authored directly into a project's
-#: ``.kittify/doctrine/<dir>/`` overlay and flow through the project scanner and
+#: ``.kittify/charter-packs/<dir>/`` overlay and flow through the project scanner and
 #: the synthesis manifest. This is the single source of truth the DRG project
 #: scanner (``charter.offering.drg.project_scan``) reads instead of re-declaring
 #: its own five-kind tuple; the synthesis manifest's

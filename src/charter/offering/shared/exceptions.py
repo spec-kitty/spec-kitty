@@ -1,4 +1,4 @@
-"""Shared exceptions for the doctrine package."""
+"""Shared exceptions for the charter offering."""
 
 
 class InlineReferenceRejectedError(ValueError):

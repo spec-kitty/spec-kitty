@@ -46,7 +46,7 @@ def _violation_as_validation_error(message: str) -> ValidationError:
 
 
 class PackSkillRepository(BaseArtifactRepository[PackSkill]):
-    """Repository for pack skills across the three doctrine tiers."""
+    """Repository for pack skills across the three Charter Pack tiers."""
 
     def __init__(
         self,

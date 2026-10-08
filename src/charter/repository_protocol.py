@@ -1,14 +1,14 @@
-"""Structural typing seam for doctrine artifact repositories (FR-010, NFR-005).
+"""Structural typing seam for charter offering artifact repositories (FR-010, NFR-005).
 
 ``charter.activation.context`` and ``charter.activation.progressive_disclosure`` both accept a
-doctrine artifact repository (``DirectiveRepository``, ``TacticRepository``,
+charter offering artifact repository (``DirectiveRepository``, ``TacticRepository``,
 ...) at several call sites, historically typed as bare ``object`` and
 therefore needing ``# type: ignore[attr-defined]`` at every ``.get(...)`` /
 ``.get_provenance(...)`` call. :class:`ArtifactRepository` names the shape
 those call sites actually rely on, so mypy can verify the calls without
 suppression.
 
-Every concrete doctrine repository already satisfies this Protocol
+Every concrete offering repository already satisfies this Protocol
 structurally, with no repository-side changes required:
 :class:`charter.offering.base.BaseArtifactRepository` (the shared base class for
 ``DirectiveRepository``, ``TacticRepository``, ``StyleguideRepository``, and
@@ -29,7 +29,7 @@ T = TypeVar("T", covariant=True)
 
 
 class ArtifactRepository(Protocol[T]):
-    """Structural contract satisfied by every concrete doctrine repository.
+    """Structural contract satisfied by every concrete offering repository.
 
     Kept intentionally minimal -- two methods, the only ones the retyped call
     sites in ``charter.activation.context`` / ``charter.activation.progressive_disclosure`` invoke.

@@ -167,8 +167,8 @@ class MissionStepContractRepository(BaseArtifactRepository[MissionStepContract])
     semantics. Built-in contracts ship under
     ``charter.offering.missions.built_in_step_contracts``; project-layer
     contracts live in
-    ``<repo_root>/.kittify/doctrine/mission_step_contracts/``
-    (path unchanged from the legacy location to preserve operator UX).
+    ``<repo_root>/.kittify/charter-packs/mission_step_contracts/``
+    (the project pack root, ``kernel.charter_pack_paths``).
     """
 
     GLOB = "*.step-contract.yaml"
@@ -188,7 +188,7 @@ class MissionStepContractRepository(BaseArtifactRepository[MissionStepContract])
 
     @staticmethod
     def _default_built_in_dir() -> Path:
-        """Locate the built-in step-contract directory packaged with doctrine.
+        """Locate the built-in step-contract directory packaged with the charter offering.
 
         Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
         (FR-005) relocated ``built_in_step_contracts/`` from

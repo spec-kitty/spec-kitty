@@ -53,7 +53,7 @@ _yaml = YAML(typ="safe")
 
 # ---------------------------------------------------------------------------
 # Root resolution (post-flatten: built-in *content* lives in ``packs/built-in/``
-# while ``missions/`` stays inside the ``doctrine`` package).
+# while ``missions/`` stays inside the ``charter.offering`` package).
 # ---------------------------------------------------------------------------
 
 
@@ -69,7 +69,7 @@ def _is_pack_root(root: Path) -> bool:
 
     A pack root ships artifact YAML directly under ``<kind>/`` (post-flatten,
     WP03), so a populated ``directives/`` block is a reliable proxy. The
-    ``doctrine`` **package** root (``src/doctrine``) fails this test — its
+    offering **package** root (``src/charter/offering``, formerly ``src/doctrine``) fails this test — its
     ``directives/`` holds only Python modules — as does an artifact-free
     synthetic or nonexistent test root. ``Path.glob`` on a missing directory
     yields nothing.
@@ -78,8 +78,8 @@ def _is_pack_root(root: Path) -> bool:
 
 
 def _is_offering_package_root(root: Path) -> bool:
-    """True iff *root* is the installed ``doctrine`` package directory itself
-    (``src/doctrine`` in a checkout) — the legacy caller shape whose built-in
+    """True iff *root* is the installed ``charter.offering`` package directory itself
+    (``src/charter/offering`` in a checkout, formerly ``src/doctrine``) — the legacy caller shape whose built-in
     artifacts were relocated out to ``packs/built-in``."""
     pkg = offering_package_dir()
     return pkg is not None and _same_path(root, pkg)
@@ -93,7 +93,7 @@ def _artifacts_root(pack_root: Path) -> Path:
 
     * A *flattened pack root* (:func:`_is_pack_root` true) is honoured unchanged
       — this is what the CLI command and the shipped-graph tests pass.
-    * The ``doctrine`` **package** root (``src/doctrine``,
+    * The offering **package** root (``src/charter/offering``,
       :func:`_is_offering_package_root`) no longer carries artifacts — they were
       relocated to ``packs/built-in`` — so the canonical pack root is resolved
       via :func:`built_in_root` (the same fail-closed seam the loader uses).
@@ -113,15 +113,15 @@ def _missions_root(pack_root: Path) -> Path:
 
     Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
     (FR-005) relocated the missions data subdirectories out of the
-    ``doctrine`` package to ``packs/built-in/missions``, alongside every
+    offering package to ``packs/built-in/missions``, alongside every
     other built-in artifact kind — falsifying this function's previous
-    assumption that missions stayed inside the ``doctrine`` package,
+    assumption that missions stayed inside the offering package,
     untouched by the WP03 flatten.
 
     * A flattened **pack** root (``packs/built-in``, :func:`_is_pack_root`)
       now carries ``missions/`` directly, exactly like every other kind
       directory — ``<root>/missions`` needs no further indirection.
-    * The ``doctrine`` **package** root (``src/doctrine``,
+    * The offering **package** root (``src/charter/offering``,
       :func:`_is_offering_package_root`) no longer carries missions data
       (only the 11 ``.py`` logic modules remain there) — resolved via
       :meth:`~charter.offering.missions.repository.MissionTemplateRepository.default_missions_root`,
@@ -131,7 +131,7 @@ def _missions_root(pack_root: Path) -> Path:
       ``default_missions_root`` resolves the identical
       ``packs/built-in/missions`` directory via the same underlying
       :func:`kernel.sibling_paths.resolve_installed_sibling` primitive,
-      anchored on a sibling module within the same ``doctrine`` package).
+      anchored on a sibling module within the same ``charter.offering`` package).
     * Any **other** root (a synthetic/nonexistent test root) uses its own
       ``<root>/missions`` — so a nonexistent root still resolves to an
       absent, empty missions tree rather than the real shipped one.
@@ -966,7 +966,7 @@ def _emit_operating_procedure_edges(
     walk is 16 small files. The field harvest is delegated to
     :func:`~charter.offering.agent_profiles.operating_procedures.collect_operating_procedure_entries`
     (the single authority, also read by the architectural gate and ``doctor
-    doctrine``) so the three consumers cannot diverge on the falsy-entry policy;
+    charter-packs``) so the three consumers cannot diverge on the falsy-entry policy;
     ``resolve_operating_procedure_entries`` is the single authority for "does
     this entry resolve to a procedure node".
     """

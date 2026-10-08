@@ -14,17 +14,17 @@ Resolution tiers (checked in order):
 4. GLOBAL_MISSION  -- ~/.kittify/missions/{mission}/{templates,command-templates}/
 5. GLOBAL          -- ~/.kittify/{templates,command-templates}/
 6. PACKAGE         -- packs/built-in/missions/{mission}/{templates,command-templates}/
-                      (relocated there from the doctrine package by #3091/#3204;
+                      (relocated there from the offering package by #3091/#3204;
                       resolved via ``MissionTemplateRepository.default()``)
 
 After ``spec-kitty migrate`` has been run (i.e. ``~/.kittify/`` is
 populated), legacy-tier warnings are suppressed.  Pre-migration projects
 receive a single "run ``spec-kitty migrate``" nudge per CLI invocation.
 
-This module lives in **doctrine** so that the ``charter`` layer can
+This module lives in **charter.offering** so that the ``charter`` layer can
 import the resolver without violating the 2.x dependency direction:
 
-    kernel (root) <- doctrine <- charter <- specify_cli
+    kernel (root) <- charter.offering <- charter <- specify_cli
 
 ``specify_cli.runtime.resolver`` re-exports every public symbol for
 backward compatibility.
@@ -160,7 +160,7 @@ def _resolve_asset(
     1a. ``.kittify/overrides/missions/{mission}/{subdir}/{name}`` (mission-scoped)
     1b. ``.kittify/overrides/{subdir}/{name}`` (global, backward-compatible fallback)
 
-    Tier 3 (org) probes each configured org doctrine pack root, in
+    Tier 3 (org) probes each configured org Charter Pack root, in
     declaration order, before falling through to the global-mission tier.
 
     Args:
@@ -197,9 +197,9 @@ def _resolve_asset(
         _warn_legacy_asset(legacy)
         return ResolutionResult(path=legacy, tier=ResolutionTier.LEGACY, mission=mission)
 
-    # Tier 3 -- org (sourced from configured org doctrine packs). Same-layer
-    # direct import (DEC-003: doctrine/resolver.py needs no facade -- it is
-    # already inside the doctrine layer). No try/except around
+    # Tier 3 -- org (sourced from configured org Charter Packs). Same-layer
+    # direct import (DEC-003: charter/offering/resolver.py needs no facade -- it is
+    # already inside charter.offering). No try/except around
     # resolve_org_roots(): OrgPackSubdirEscapeError/OrgPackEnvVarUnsetError
     # are deliberately raised and must propagate (DEC-005, NFR-001). With no
     # org packs configured, resolve_org_roots() returns [] and this loop is a
@@ -369,7 +369,7 @@ def resolve_mission(
         _warn_legacy_asset(legacy)
         return ResolutionResult(path=legacy, tier=ResolutionTier.LEGACY, mission=name)
 
-    # Tier 3 -- org (sourced from configured org doctrine packs). Same-layer
+    # Tier 3 -- org (sourced from configured org Charter Packs). Same-layer
     # direct import (DEC-003); no try/except around resolve_org_roots() --
     # see the identical rationale in _resolve_asset above (DEC-005, NFR-001).
     # ``quiet=True`` -- see the identical rationale in _resolve_asset above.

@@ -1,6 +1,6 @@
-"""Generic three-source loading base class for all doctrine asset repositories.
+"""Generic three-source loading base class for all charter offering repositories.
 
-All doctrine sub-repositories share an identical ``_load()`` pattern:
+All offering repositories share an identical ``_load()`` pattern:
 walk a built-in YAML directory (rglob), optionally walk an org override
 directory (glob), optionally walk a project override directory (glob),
 parse each file with Pydantic ``model_validate``, merge overrides into
@@ -47,7 +47,7 @@ T = TypeVar("T", bound=BaseModel)
 
 
 class ArtifactLayerCollisionWarning(UserWarning):
-    """Emitted when a higher doctrine layer shadows an artifact from a lower layer.
+    """Emitted when a higher layer (project > org > built-in) shadows an artifact from a lower layer.
 
     Field-level merge semantics apply (see ADR
     ``docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md``):
@@ -83,7 +83,7 @@ def _emit_collision_warning(
 
 
 class BaseArtifactRepository(ABC, Generic[T]):
-    """Abstract base for all doctrine asset repositories.
+    """Abstract base for all charter offering repositories.
 
     Provides the three-source loading pattern (built-in rglob + org glob + project glob)
     with field-level merge semantics and warning emission on bad files.
@@ -156,8 +156,8 @@ class BaseArtifactRepository(ABC, Generic[T]):
     def _project_scan(self, project_dir: Path) -> list[Path]:
         """Return the org/project overlay YAML files to load.
 
-        Recursion is sourced from the single doctrine recursion authority
-        (:func:`doctrine.discovery_recursion.overlay_scan_is_recursive`),
+        Recursion is sourced from the single overlay recursion authority
+        (:func:`charter.offering.discovery_recursion.overlay_scan_is_recursive`),
         unconditional per C-001, so org/project overlays discover nested
         artifacts with the same completeness as the built-in tier's ``rglob``
         (:meth:`_load_built_in_items`). The kind-specific ``self._glob`` (C-002)

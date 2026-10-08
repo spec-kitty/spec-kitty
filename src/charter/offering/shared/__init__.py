@@ -1,4 +1,4 @@
-"""Shared utilities and primitive types for the doctrine package.
+"""Shared utilities and primitive types for the charter offering.
 
 Provides cross-cutting concerns used by multiple artifact subpackages:
 

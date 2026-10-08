@@ -16,8 +16,8 @@ Two traps the base class does not handle for this kind, addressed here:
    itself. A single shared anchor rule would double the segment
    (``.../assets/built-in/built-in/...``).
 2. **Layer-correct containment** (A-4). Containment is enforced through the
-   doctrine-layer :func:`resolve_relative_path_within_root` primitive — never
-   the ``specify_cli`` pack-validator convenience helper, which ``doctrine``
+   offering-layer :func:`resolve_relative_path_within_root` primitive — never
+   the ``specify_cli`` pack-validator convenience helper, which ``charter.offering``
    may not import upward (C-001). Traversal and symlink escapes raise a typed,
    named error (NFR-006, fail-closed).
 """
@@ -62,7 +62,7 @@ class AssetNotFoundError(AssetResolutionError):
 class AssetPathEscapeError(AssetResolutionError):
     """Raised when an asset blob ``path`` escapes its anchoring root (NFR-006).
 
-    Wraps the doctrine-layer :class:`OrgPackSubdirEscapeError` in an
+    Wraps the offering-layer :class:`OrgPackSubdirEscapeError` in an
     asset-domain type so containment refusals are catchable by identity.
     """
 
@@ -137,7 +137,7 @@ class AssetRepository(BaseArtifactRepository[AssetManifest]):
         """Resolve *asset_id* to the on-disk blob path, fail-closed.
 
         Anchors the manifest ``path`` at the tier-correct root (A-2) and
-        enforces containment through the doctrine-layer
+        enforces containment through the offering-layer
         :func:`resolve_relative_path_within_root` primitive (A-4).
 
         Raises:
