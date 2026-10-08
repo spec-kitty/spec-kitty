@@ -1,7 +1,7 @@
 {
-  "event_count": 77,
-  "last_event_id": "01M4EDG47789FPWKVFGA8YRSF8",
-  "materialized_at": "2026-10-08T18:48:04.583731+00:00",
+  "event_count": 78,
+  "last_event_id": "01M4EDGDZ3D446YECS1HRN785A",
+  "materialized_at": "2026-10-08T18:48:14.563155+00:00",
   "mission_number": "",
   "mission_slug": "mission-writer-followups-01M4CYWW",
   "mission_type": "software-dev",
@@ -10,10 +10,10 @@
     "approved": 5,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 1,
+    "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 1,
     "planned": 10
   },
@@ -194,14 +194,15 @@
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
-      "lane": "claimed",
-      "last_event_id": "01M4EDG47789FPWKVFGA8YRSF8",
-      "last_transition_at": "2026-10-08T18:48:04.583731+00:00",
+      "lane": "in_progress",
+      "last_event_id": "01M4EDGDZ3D446YECS1HRN785A",
+      "last_transition_at": "2026-10-08T18:48:14.563155+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Stream B (runtime/templates) in the stream/runtime worktree",
         "Stream B (runtime/templates) in the stream/runtime worktree",
-        "Forced only because the stream claim has no claim base; commits 5b4a8c857..9651145e2 merged from stream/runtime. next reads built-in runtime templates from the pack via builtin_missions_root(); src runtime copies deleted; ledger 23->22; query mode reads the frozen template; per-type parity fixture recorded first."
+        "Forced only because the stream claim has no claim base; commits 5b4a8c857..9651145e2 merged from stream/runtime. next reads built-in runtime templates from the pack via builtin_missions_root(); src runtime copies deleted; ledger 23->22; query mode reads the frozen template; per-type parity fixture recorded first.",
+        "Stream B WP06 rework cycle 1"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
