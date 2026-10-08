@@ -1,7 +1,7 @@
 {
-  "event_count": 79,
-  "last_event_id": "01M4EDTECZFGBASSP1HCMMTPZV",
-  "materialized_at": "2026-10-08T18:53:42.687336+00:00",
+  "event_count": 80,
+  "last_event_id": "01M4EDTR94G3Q543B0KVP9MZVS",
+  "materialized_at": "2026-10-08T18:53:52.804662+00:00",
   "mission_number": "",
   "mission_slug": "mission-writer-followups-01M4CYWW",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 2,
     "planned": 10
   },
   "work_packages": {
@@ -189,14 +189,14 @@
       }
     },
     "WP06": {
-      "actor": "claude-runtime",
-      "agent": "claude-runtime",
+      "actor": "claude-reviewer-runtime",
+      "agent": "claude-reviewer-runtime",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 3,
-      "lane": "for_review",
-      "last_event_id": "01M4EDTECZFGBASSP1HCMMTPZV",
-      "last_transition_at": "2026-10-08T18:53:42.687336+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M4EDTR94G3Q543B0KVP9MZVS",
+      "last_transition_at": "2026-10-08T18:53:52.804662+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Stream B (runtime/templates) in the stream/runtime worktree",
@@ -214,9 +214,9 @@
         "reviewer": "claude-reviewer-runtime",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 5084,
+      "shell_pid_created_at": "1791485603.42",
       "subtasks": {
         "T025": "done",
         "T026": "done",
