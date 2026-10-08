@@ -1,0 +1,151 @@
+# Occurrence map — charter-pack-cutover-01M491G6 (#3732).
+#
+# Bulk edit shape: RETIRED-TIER rename with a FULL CUTOVER (no aliases, no shims;
+# ADR 2026-10-06-1 §7 and its 2026-10-06 amendment). The token "doctrine" is
+# polysemous. This map renames ONLY the retired-tier sense (the offer-side tier,
+# the "doctrine pack", the legacy project root, the deprecated CLI group and the
+# skill family) and the old "charter pack" senses (activation preset, active
+# charter). It keeps "doctrine" as governance CONTENT, historical records, and
+# the C-004 names.
+#
+# Unlike the default bulk-edit posture, CLI commands and serialized keys ARE
+# renamed: the owner ruled a full cutover; the FR-012 upgrade migration is the
+# consumer-protection mechanism and the FR-017 changelog/runbook carry the
+# Before/After. Replacement per sense (ADR 2026-10-06-1 §1):
+#   doctrine pack / offer-side tier        -> Charter Pack / charter offering
+#   old "charter pack" (default/minimal)   -> activation preset
+#   project activation state               -> active charter
+#   .kittify/doctrine/                     -> .kittify/charter-packs/ (project layer)
+#   spec-kitty doctrine <cmd>              -> spec-kitty charter ... (FR-006 table)
+#   spk-doctrine-* / folded spec-kitty-*   -> spk-charter-* / spk-practice-* (FR-008)
+#
+# Source of the per-cluster classification: the 2026-10-06 ledger posted on
+# #3732 (clusters C01-C35, measured at b327f5bb); re-measured at the mission
+# base by WP01 (C-006) before any rename lands.
+#
+# Schema: src/charter/offering/schemas/occurrence-map.schema.yaml
+
+target:
+  term: doctrine
+  replacement: charter
+  operation: rename
+
+categories:
+  code_symbols:         { action: rename }          # C16 DoctrineService (both homonyms), C21 Doctrine* identifiers, C22 doctrine_root helpers, C34/C35 CharterPack* old-sense classes; no re-export alias (C-001)
+  import_paths:         { action: rename }          # C17 specify_cli.doctrine split (moves below), C18 doctrine_synthesizer/doctrine_service_factory, C19 charter.activation *_doctrine_* modules, kernel.doctrine_root, C20 cli/commands/*doctrine*
+  filesystem_paths:     { action: rename }          # C09 .kittify/doctrine -> .kittify/charter-packs (FR-016 kernel constant), src/charter/activation/packs/ removed, skill directories (moves below)
+  serialized_keys:      { action: rename }          # C06 doctrine.org.*, organisation_packs, C07 governance.doctrine, C08 tracker `doctrine` ownership key, C10 doctrine_pack_id -> charter_pack_id (OD-1), C11 accompanies_doctrine_pack (removed, OD-2), answers.yaml `doctrine:`; all rewritten once by FR-012
+  cli_commands:         { action: rename }          # C01 `spec-kitty doctrine` group removed after its leaves move (FR-006/FR-007), C03 `charter pack apply` folded into `charter activate --preset`, consistency-check -> `charter consistency-check` (OD-8), C04 `doctor doctrine`, C05 tracker `--doctrine-mode` alias removed
+  user_facing_strings:  { action: manual_review }   # C23-C25, C27-C28: tier-sense prose renamed; content-sense prose ("doctrine" as governance content, C29-C31) kept — each occurrence judged by sense
+  tests_fixtures:       { action: rename }          # tests follow the code; compat-shim tests (e.g. test_lifted_cli_doctrine_charter_cr02_compat) are deleted with their shims, not renamed
+  logs_telemetry:       { action: rename }          # C05 JSON output key `doctrine_mode`, C15 ToolSurfaceKind value `doctrine_skill`, C12 manifest `generated_by` provenance, JSON error code CHARTER_PACK_CONFIG_INVALID (FR-009); listed in the changelog Before/After
+
+exceptions:
+  # --- C-004 names kept -------------------------------------------------------
+  - path: "packs/built-in/agent_profiles/doctrine-daphne.agent.yaml"
+    field_path: "profile-id"
+    action: do_not_change
+    reason: "C-004: the doctrine-daphne profile keeps its id (owner ruling); 'doctrine' is part of a persona name, not the retired tier. URN agent_profile:doctrine-daphne stays everywhere it is referenced. The rest of the file (e.g. a stale `spec-kitty doctrine regenerate-graph` instruction) follows the categories."
+  - path: "packs/built-in/agent_profiles/doctrine-daphne.agent.yaml"
+    field_path: "name"
+    action: do_not_change
+    reason: "C-004: the display name Doctrine Daphne is kept."
+  - path: "packs/built-in/directives/*039*"
+    action: do_not_change
+    reason: "C-004: DIRECTIVE_039 is named for a person; out of scope."
+  - path: "packs/built-in/directives/018-doctrine-versioning-requirement.directive.yaml"
+    action: do_not_change
+    reason: "C29: 'doctrine' as governance content; the artifact id is itself a persisted contract."
+  # --- Historical records (C-002) ---------------------------------------------
+  - path: "kitty-specs/**"
+    action: do_not_change
+    reason: "C-002: other missions' specs are immutable records. This mission's own directory is the only kitty-specs/ path edited."
+  - path: "docs/adr/**"
+    action: do_not_change
+    reason: "C-002: ADRs are immutable records (the governing ADR 2026-10-06-1 is amended by appending, not by rewriting)."
+  - path: "docs/plans/**"
+    action: do_not_change
+    reason: "C-002: design plans record past work."
+  - path: "docs/reports/**"
+    action: do_not_change
+    reason: "C-002: dated reports."
+  - path: ".kittify/evidence/**"
+    action: do_not_change
+    reason: "C-002: evidence records."
+  - path: "docs/migrations/doctrine-local-overlay-to-org-layer.md"
+    action: do_not_change
+    reason: "Superseded runbook, marked historical by FR-017 (banner only)."
+  - path: "docs/migrations/relocate-builtin-doctrine-packs.md"
+    action: do_not_change
+    reason: "Superseded runbook, marked historical by FR-017 (banner only)."
+  # --- Persisted migration identities -------------------------------------------
+  - path: "src/specify_cli/upgrade/migrations/m_*.py"
+    field_path: "migration_id"
+    action: do_not_change
+    reason: "Applied-migration ids are recorded in consumer projects; renaming one re-runs it. Module bodies may still be edited (rc35 neutralised to a no-op, FR-012)."
+  - path: "src/specify_cli/upgrade/metadata.py"
+    action: do_not_change
+    reason: "Historical migration-id alias table; recorded ids in consumer projects."
+  - path: "src/specify_cli/upgrade/migrations/m_*charter_pack_cutover*.py"
+    action: do_not_change
+    reason: "The FR-012 cutover migration must spell every legacy key and path it rewrites (FR-018 exempts this file by name)."
+  # --- Mission-slug citations ---------------------------------------------------
+  - path: "src/**"
+    field_path: "comments:mission-slug"
+    action: do_not_change
+    reason: "C32: historical mission slugs cited in comments (e.g. doctrine-consumer-surface-missions-extraction-01KZ6G6H) are immutable identifiers."
+
+moves:
+  # FR-010 / OD-9: specify_cli.doctrine split by meaning (research/package-split-and-paths.md fixes the per-file order).
+  - from:
+      - src/specify_cli/doctrine/pack_descriptor.py
+      - src/specify_cli/doctrine/pack_manifest.py
+      - src/specify_cli/doctrine/builtin_manifest.py
+      - src/specify_cli/doctrine/pack_lineage.py
+      - src/specify_cli/doctrine/pack_validator.py
+      - src/specify_cli/doctrine/pack_assembler.py
+    to: src/charter/offering/packs
+    reason: "OD-9: pack model and tooling is offer-side charter domain code."
+  - from:
+      - src/specify_cli/doctrine/org_charter.py
+      - src/specify_cli/doctrine/org_charter_loader.py
+      - src/specify_cli/doctrine/config.py
+    to: src/charter/activation
+    reason: "OD-9: org charter composition is activation-side code."
+  - from:
+      - src/specify_cli/doctrine/sources/**
+      - src/specify_cli/doctrine/snapshot.py
+      - src/specify_cli/doctrine/template_render/**
+    to: src/specify_cli/charter_packs
+    reason: "OD-9: fetch and scaffold adapters (network, git, filesystem) stay in the CLI layer."
+  # FR-002 / FR-005: presets become built-in pack data.
+  - from:
+      - src/charter/activation/packs/minimal.yaml
+    to: packs/built-in/presets/minimal.yaml
+    reason: "FR-002: the minimal preset is pack data (content corrected: activated_kinds consistent with its per-kind keys)."
+  - from:
+      - src/charter/activation/packs/default.yaml
+    to: packs/built-in/presets/default.yaml
+    reason: "FR-002: the default preset lists no ids (only mission types); the old id lists survive only as frozen FR-012 snapshot data."
+  # FR-008: skill families.
+  - from: [src/charter/offering/skills/spk-doctrine-charter/**, src/charter/offering/skills/spec-kitty-charter-doctrine/**]
+    to: src/charter/offering/skills/spk-charter-governance
+    reason: "FR-008: charter governance skill; the older spec-kitty-* skill is folded in."
+  - from: [src/charter/offering/skills/spk-doctrine-glossary/**, src/charter/offering/skills/spec-kitty-glossary-context/**]
+    to: src/charter/offering/skills/spk-charter-glossary
+    reason: "FR-008"
+  - from: [src/charter/offering/skills/spk-doctrine-profile-load/**, src/charter/offering/skills/ad-hoc-profile-load/**]
+    to: src/charter/offering/skills/spk-charter-profile-load
+    reason: "FR-008"
+  - from: [src/charter/offering/skills/spk-doctrine-spdd-reasons/**, src/charter/offering/skills/spec-kitty-spdd-reasons/**]
+    to: src/charter/offering/skills/spk-charter-spdd-reasons
+    reason: "FR-008"
+  - from: [src/charter/offering/skills/spk-doctrine-bulk-edit/**, src/charter/offering/skills/spec-kitty-bulk-edit-classification/**]
+    to: src/charter/offering/skills/spk-practice-bulk-edit
+    reason: "FR-008: working practice, not charter governance."
+  - from: [src/charter/offering/skills/spk-doctrine-semantic-compression/**]
+    to: src/charter/offering/skills/spk-practice-semantic-compression
+    reason: "FR-008"
+  - from: [src/charter/offering/skills/spk-doctrine-show-me/**]
+    to: src/charter/offering/skills/spk-practice-show-me
+    reason: "FR-008"

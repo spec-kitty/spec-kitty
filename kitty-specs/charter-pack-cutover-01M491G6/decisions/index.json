@@ -1,0 +1,79 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-06T16:43:40.811256Z",
+      "decision_id": "01M491JXCBGP89BVMJAMKZR41T",
+      "final_answer": "Path half only (B): the mission centralises the .kittify/doctrine / .kittify/charter-packs path constants it already moves; the built-in vs builtin tier spelling stays in #5825 (41 src sites in 22 files, 132 test sites, and a consumer-visible JSON value such as charter context --json \"source\": \"builtin\", so A is not trivial).",
+      "input_key": "tier_vocabulary_scope",
+      "mission_id": "01M491G6102N7NRMAW3219Z2F9",
+      "mission_slug": "charter-pack-cutover-01M491G6",
+      "opened_by": "cli",
+      "options": [
+        "Fold all of #5825",
+        "Path half only",
+        "Neither: leave #5825 separate",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should this mission also fold in #5825 (the built-in tier spelled 'built-in' vs 'builtin', and pack-path literals with no single home), or only its path half (.kittify/doctrine / charter-packs constants), leaving tier spelling to #5825?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T17:41:20.191902Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.tier-vocabulary",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-06T18:26:19.968527Z",
+      "decision_id": "01M497EW60HNWWJQCXDFA99R0H",
+      "final_answer": "A: reset every per-artifact [] key to absent and name each in the upgrade summary with the command to switch the kind off again (owner, 2026-10-06)",
+      "input_key": "normalizer_empty_lists",
+      "mission_id": "01M491G6102N7NRMAW3219Z2F9",
+      "mission_slug": "charter-pack-cutover-01M491G6",
+      "opened_by": "cli",
+      "options": [
+        "Reset only [] keys for kinds the project never listed and report each",
+        "Keep every [] and report it",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Projects where the 3.2.6 normalize-activation-absence migration wrote [] (nothing activated) for kinds that were absent (all active): should the cutover migration reset those [] keys to absent?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T18:31:28.253460Z",
+      "resolved_by": null,
+      "slot_key": "plan.migration.normalizer-empty-lists",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-06T18:26:24.554861Z",
+      "decision_id": "01M497F0NAQARAK3JZFVWF1SD0",
+      "final_answer": "A: remove activated_kinds when it equals the released minimal value [directives, tactics] and report it (owner, 2026-10-06)",
+      "input_key": "minimal_kind_gate",
+      "mission_id": "01M491G6102N7NRMAW3219Z2F9",
+      "mission_slug": "charter-pack-cutover-01M491G6",
+      "opened_by": "cli",
+      "options": [
+        "Remove it when it equals the released minimal value and report it",
+        "Keep it and report it",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Projects that applied the released minimal preset carry activated_kinds: [directives, tactics], which disables six kinds the preset meant to leave open. Should the migration remove that activated_kinds key?",
+      "rationale": null,
+      "resolved_at": "2026-10-06T18:31:32.085064Z",
+      "resolved_by": null,
+      "slot_key": "plan.migration.minimal-kind-gate",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M491G6102N7NRMAW3219Z2F9",
+  "version": 1
+}

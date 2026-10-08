@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from charter.bundle import CHARTER_YAML
-from charter.offering.artifact_kinds import CORE_KIND_PLURALS
+from charter.drg import ArtifactKind
 from ._profile_health_render import _SELECTION_KIND_PLURALS
 
 logger = logging.getLogger(__name__)
@@ -77,7 +77,7 @@ __all__ = [
 ]
 
 
-_ORG_ARTIFACT_DIRS: tuple[str, ...] = CORE_KIND_PLURALS
+_ORG_ARTIFACT_DIRS: tuple[str, ...] = tuple(kind.plural for kind in ArtifactKind if kind.core)
 
 
 def _read_authored_pack_version(pack_root: Path) -> str | None:
@@ -624,7 +624,7 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
 
     # Touch every repository so each one runs through its loader and emits
     # any collision warnings.
-    accessors = CORE_KIND_PLURALS
+    accessors = _ORG_ARTIFACT_DIRS
 
     collisions: list[dict[str, object]] = []
     pattern = re.compile(
