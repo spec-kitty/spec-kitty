@@ -2,14 +2,14 @@
 title: 'Calibration Report: erp-custom'
 description: 'Calibration report for the erp-custom (ERP integration) mission: the §4.5.1 inequality check per step against its overlay and ERP-integration fixture.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/maintainer.md
 ---
 # Calibration Report: erp-custom
 
 **Mission**: erp-custom (ERP Integration custom mission)  
 **Date**: 2026-04-27  
-**Overlay**: `.kittify/doctrine/overlays/calibration-erp-custom.yaml`  
+**Overlay**: `.kittify/charter-packs/overlays/calibration-erp-custom.yaml`  
 **Fixture**: `tests/fixtures/missions/erp-integration/mission.yaml`  
 **Status**: No edge changes required — all steps pass §4.5.1
 

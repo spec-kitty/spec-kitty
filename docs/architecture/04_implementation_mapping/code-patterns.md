@@ -2,7 +2,7 @@
 title: Core Code Patterns Applied in the Codebase
 description: The core code patterns applied across the Spec Kitty codebase, mapping recurring implementation idioms to the architecture components they realize (2.x-era record).
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/04_implementation_mapping/README.md
@@ -112,7 +112,7 @@ the pattern to genuine state-machine work, not every dict update.
 
 ## 3. Two-Source Doctrine Repository (Shipped + Project Override)
 
-**Doctrine:** Implemented in `src/charter/offering/base.py::BaseDoctrineRepository`.
+**Doctrine:** Implemented in `src/charter/offering/base.py::BaseArtifactRepository`.
 
 Doctrine artifacts (tactics, directives, paradigms, toolguides, agent
 profiles) load from **two sources**: the shipped package data
@@ -134,7 +134,7 @@ Properties:
 
 **Reach for it when:** introducing a new artifact type that benefits from
 both a shipped default and project-level override. Use the existing
-`BaseDoctrineRepository[T]` generic; do not write a parallel loader.
+`BaseArtifactRepository[T]` generic; do not write a parallel loader.
 
 ---
 

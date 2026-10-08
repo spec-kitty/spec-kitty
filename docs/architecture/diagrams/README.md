@@ -2,7 +2,7 @@
 title: Architecture Diagrams (living C4)
 description: The living C4 model for the current architecture, carried forward from the 2.x snapshot and refreshed in place against the ratified domain model.
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/README.md
@@ -57,7 +57,7 @@ The two views line up like this:
 | Module | Main packages |
 |---|---|
 | Shared Kernel | `src/kernel/` (root layer) |
-| Governance | `src/charter/` (including `charter/offering/`, the former doctrine package) and `src/glossary/` |
+| Governance | `src/charter/` (including `charter/offering/`, the charter offering package that absorbed the former `doctrine` package) and `src/glossary/` |
 | Execution / Runtime | `src/mission_runtime/` (execution-state surface) and `src/runtime/` (the `spec-kitty next` control loop); workspace resolution under `src/specify_cli/workspace/` |
 | Mission Management | `src/specify_cli/` (status, lanes, consolidation, coordination, the CLI) |
 

@@ -1,24 +1,25 @@
 ---
-title: Understanding the Org Doctrine Layer
-description: How the three-layer doctrine model resolves built-in, org, and project artifacts, how provenance tracking works, and how org charter policy composes with the project charter.
+title: Understanding the Org Layer of the Charter Offering
+description: How the three-layer charter offering resolves built-in, org, and project artifacts, how provenance tracking works, and how org charter policy composes with the project charter.
 doc_status: active
-updated: '2026-10-06'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/charter-synthesis-drg.md
 - docs/architecture/mission-type-resolution.md
 - docs/migrations/doctrine-local-overlay-to-org-layer.md
 ---
-# Understanding the Org Doctrine Layer
+# Understanding the Org Layer of the Charter Offering
 
-Spec Kitty resolves governance doctrine through three layers: a **built-in** layer shipped
-with the CLI, an optional **org** layer fetched from one or more remote packs, and a
-**project** layer maintained in the repository's own `.kittify/doctrine/`. This document
+Spec Kitty resolves governance doctrine through the three layers of the **charter offering**:
+the **built-in** Charter Pack shipped with the CLI, an optional **org** layer of Charter Packs
+fetched from one or more remote sources, and the **project layer** maintained in the
+repository's own `.kittify/charter-packs/`. This document
 explains the model, the resolution rules, the provenance tags you will see in tooling
 output, and the architectural boundary that keeps the three layers cleanly separated.
 
-For step-by-step instructions on producing a pack, see [How to create an org doctrine
-pack](../guides/how-to/governance/create-an-org-doctrine-pack.md). For migration guidance from a local
+For step-by-step instructions on producing a pack, see [How to create an org Charter
+Pack](../guides/how-to/governance/create-an-org-doctrine-pack.md). For migration guidance from a local
 overlay, see [Migrating shared doctrine to the org layer](../migrations/doctrine-local-overlay-to-org-layer.md).
 
 ---
@@ -27,7 +28,7 @@ overlay, see [Migrating shared doctrine to the org layer](../migrations/doctrine
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│  Project layer:   .kittify/doctrine/                       │  ← highest precedence
+│  Project layer:   .kittify/charter-packs/                  │  ← highest precedence
 │  (project-local artifacts and exceptions)                  │
 ├────────────────────────────────────────────────────────────┤
 │  Org layer:       configured packs (e.g. ~/.kittify/org/*) │
@@ -47,7 +48,7 @@ live** and **how they are produced**.
 |-------|--------|----------|------------|
 | Built-in | spec-kitty package | CLI maintainers | Always active |
 | Org | Remote pack(s) declared in `.kittify/config.yaml` | Org governance teams | Opt-in per project |
-| Project | `.kittify/doctrine/` in the repository | Project maintainers | Always active when present |
+| Project | `.kittify/charter-packs/` in the repository | Project maintainers | Always active when present |
 
 The org layer is **purely additive**. Projects that do not declare an org pack are
 unaffected by this feature — the built-in plus project model continues to work exactly
@@ -61,7 +62,7 @@ Before the org layer, an organisation that wanted to share governance across man
 projects had two unattractive options:
 
 1. **Fork the CLI** to embed company-specific directives into the built-in layer.
-2. **Copy/paste** governance artifacts into every project's `.kittify/doctrine/`.
+2. **Copy/paste** governance artifacts into every project's `.kittify/charter-packs/`.
 
 Both approaches drift over time. Fork maintenance is painful; copy/paste means each
 project carries a stale snapshot of the policy.
@@ -91,7 +92,7 @@ the org layer. The **last entry has the highest precedence** — the convention 
 "later wins."
 
 ```yaml
-doctrine:
+charter_packs:
   org:
     packs:
       - name: architecture     # lower precedence
@@ -126,26 +127,26 @@ definition. This keeps override YAML short and focused on what actually
 changes. The trade-off is that operators must understand which fields are
 inherited and which are overridden.
 
-#### Collision warnings (`DoctrineLayerCollisionWarning`)
+#### Collision warnings (`ArtifactLayerCollisionWarning`)
 
 Because field-merge is silent by default, the resolver emits a
-`DoctrineLayerCollisionWarning` whenever a higher layer shadows a lower-layer
+`ArtifactLayerCollisionWarning` whenever a higher layer shadows a lower-layer
 artifact. The warning text records the artifact ID, the higher and lower
 layers, and how many fields were replaced vs inherited:
 
 ```
-Doctrine override: directive DIRECTIVE_018 from project shadowed builtin
+Artifact override: directive DIRECTIVE_018 from project shadowed builtin
 (3 field(s) replaced; 9 field(s) inherited).
 ```
 
-These warnings are categorized as `DoctrineLayerCollisionWarning` (a
+These warnings are categorized as `ArtifactLayerCollisionWarning` (a
 `UserWarning` subclass), so operators who maintain heavy overrides can
 filter them via standard Python `warnings` machinery if desired.
 
 #### Auditing collisions via `spec-kitty doctor charter-packs`
 
-To audit the full set of override collisions across the resolved doctrine
-surface without parsing warning streams, run:
+To audit the full set of override collisions across the resolved charter
+offering without parsing warning streams, run:
 
 ```bash
 spec-kitty doctor charter-packs
@@ -170,11 +171,11 @@ customisation** — the charter "activate and customise" step for a mission type
 A project override for a mission type's governance lives at:
 
 ```
-.kittify/doctrine/mission_types/<type>/governance-profile.yaml
+.kittify/charter-packs/mission_types/<type>/governance-profile.yaml
 ```
 
-Because it sits under `.kittify/doctrine/`, it is an ordinary **project-layer**
-artifact resolved through the existing `doctrine/base.py` overlay loader, giving it
+Because it sits under `.kittify/charter-packs/`, it is an ordinary **project-layer**
+artifact resolved through the existing `charter/offering/base.py` overlay loader, giving it
 the same three behaviours as every other overlaid artifact:
 
 - **Builtin → org → project ordering.** The shipped mission-type governance is the
@@ -182,7 +183,7 @@ the same three behaviours as every other overlaid artifact:
 - **Field-level merge.** Fields present in the override replace same-named fields;
   absent fields fall through from the lower layer — so an override that adjusts a
   single selection need not restate the whole profile.
-- **`DoctrineLayerCollisionWarning`.** The resolver emits the same collision
+- **`ArtifactLayerCollisionWarning`.** The resolver emits the same collision
   warning when the override shadows a lower layer, and `spec-kitty doctor charter-packs`
   audits it alongside every other override.
 
@@ -191,7 +192,7 @@ contract — but it is **not zero-cost plumbing**. The `base.py` overlay loader 
 project artifacts on an `id` field and skips files that lack one, whereas
 `governance-profile.yaml` keys on `mission_type`. Wiring the profile onto the stack
 therefore requires an adapter: either giving `MissionTypeProfile` an `id` and a
-`BaseDoctrineRepository` subclass, or a small explicit field-merge in the resolver.
+`BaseArtifactRepository` subclass, or a small explicit field-merge in the resolver.
 That adapter is owned, tested work — not a free ride. Modulo that adapter, per-type
 governance layering reuses rather than reinvents the merge contract in
 [ADR 2026-05-16-1](https://github.com/spec-kitty/spec-kitty/blob/main/docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md).
@@ -214,7 +215,7 @@ they merge additively:
 
 DRG fragments from the org layer are **additive only** — they may add new nodes and
 new edges, but they must not remove or modify nodes from a lower layer. `spec-kitty
-doctrine pack validate` enforces this and rejects packs whose DRG references dangle
+charter pack validate` enforces this and rejects packs whose DRG references dangle
 or whose extensions try to delete built-in graph state.
 
 This rule is what keeps the three-layer composition safe: org packs cannot
@@ -231,7 +232,7 @@ Every artifact and DRG node carries a `source` tag once it is resolved:
 |-----|---------|
 | `builtin` | Shipped with the CLI |
 | `org` | Loaded from a configured org pack |
-| `project` | Loaded from `.kittify/doctrine/` in the repository |
+| `project` | Loaded from `.kittify/charter-packs/` in the repository |
 
 Provenance shows up in two places you can inspect directly:
 
@@ -246,7 +247,7 @@ uv run spec-kitty doctor charter-packs --json
 ```
 
 When you see an artifact tagged `source: org`, it tells you the artifact resolved
-from one of the packs in your `doctrine.org.packs` config — not from the project
+from one of the packs in your `charter_packs.org.packs` config — not from the project
 overlay or the built-in defaults. That signal is what lets a team lead audit "is our
 security directive actually live in this project?" without having to grep file trees.
 
@@ -273,7 +274,7 @@ The merge across multiple packs follows the same "later wins" rule as artifacts:
 - `governance_policies`: concatenated and deduplicated by `(field, value)`, keeping
   the last occurrence.
 
-Empty packs (no `org-charter.yaml`) contribute no policy — they are doctrine-only.
+Empty packs (no `org-charter.yaml`) contribute no policy — they carry artifacts only.
 
 > **Enforcement note**: In this release, `enforcement` values on
 > `governance_policies` are read but treated uniformly as advisory. Only the literal
@@ -312,29 +313,29 @@ replace of the directory with a `pack-manifest.yaml` recording the fetched versi
 The org layer respects a strict layer rule:
 
 ```
-kernel  ←  doctrine  ←  charter  ←  specify_cli
+kernel  ←  charter  ←  specify_cli
 ```
 
 The `charter` package implements DRG composition (`load_validated_graph`) and accepts
 an explicit `org_root` argument when present. It must not import from
-`specify_cli`. The actual config-aware resolution — reading `.kittify/config.yaml`
-and turning it into a list of pack paths — lives one layer up in
-`specify_cli.doctrine.config.resolve_org_roots`.
+`specify_cli`. The config-aware resolution — reading `.kittify/config.yaml`
+and turning it into a list of pack paths — lives in
+`charter.offering.drg.org_pack_config.resolve_org_roots`.
 
-To preserve the boundary, `charter._drg_helpers._resolve_org_root()` is an **inert
-stub** that always returns `None`. Real callers in `specify_cli` resolve the path
+To preserve the boundary, `charter.activation._drg_helpers._resolve_org_root()` is an **inert
+stub** that always returns `None`. Real callers resolve the path
 themselves and pass it explicitly. This pattern is documented in the source and
 enforced by `tests/architectural/test_layer_rules.py` so that no future change can
 silently introduce a circular dependency.
 
 If you encounter `_resolve_org_root` in the codebase and wonder why it is empty:
-that is the intentional design. The real logic is one layer up.
+that is the intentional design. The real logic lives in `resolve_org_roots`.
 
 ---
 
 ## Breaking change (mission B): missing packs hard-fail
 
-Prior to mission `charter-mediated-doctrine-selection-01KRTZCA`, a doctrine pack
+Prior to mission `charter-mediated-doctrine-selection-01KRTZCA`, an org pack
 configured in `.kittify/config.yaml` whose `local_path` did not exist on disk was
 silently skipped — resolution would degrade to the built-in + project layers
 without surfacing the misconfiguration. This made stale pack entries and typoed
@@ -345,10 +346,9 @@ every downstream command (including `spec-kitty next`) to fail loudly with a
 message naming the pack and the missing path:
 
 ```
-Doctrine pack `very-serious-developers` configured at
-`/home/alice/.kittify/org/very-serious-developers` does not exist on disk. Run
-`spec-kitty charter fetch --pack very-serious-developers` to populate it, or
-remove the pack from .kittify/config.yaml.
+Org pack 'very-serious-developers' configured at
+'/home/alice/.kittify/org/very-serious-developers' not found. Either fetch the pack
+(`spec-kitty charter fetch --pack <name>`) or remove the entry from `.kittify/config.yaml`.
 ```
 
 The diagnostic is intentionally actionable — operators are given two concrete
@@ -362,7 +362,7 @@ in their own UIs.
    on-disk status.
 2. For each missing pack, either:
    - `spec-kitty charter fetch --pack <name>` to populate the snapshot, or
-   - Remove the entry from `.kittify/config.yaml` under `doctrine.org.packs`.
+   - Remove the entry from `.kittify/config.yaml` under `charter_packs.org.packs`.
 3. Re-run `spec-kitty doctor charter-packs` to confirm a clean state before the next
    `charter context` build.
 
@@ -374,7 +374,7 @@ running without the governance their charter assumed. There is no opt-out flag.
 ## Frequently asked questions
 
 **Can I have multiple org layers?**
-Yes — list any number of packs in `doctrine.org.packs`. Within the org layer,
+Yes — list any number of packs in `charter_packs.org.packs`. Within the org layer,
 declaration order determines precedence (later wins).
 
 **Can a project override an org artifact?**
@@ -394,7 +394,7 @@ Yes — and that is the recommended pattern. `charter fetch` is the install step
 treating the snapshot as cache rather than source-controlled artifacts keeps the
 repository small and ensures all consumers pull the same way.
 
-**Does the org layer change how built-in doctrine is loaded?**
+**Does the org layer change how the built-in Charter Pack is loaded?**
 No. The built-in layer is unchanged. The org layer composes on top.
 
 **Where do I see which layer an artifact came from?**
@@ -406,7 +406,7 @@ installed pack contents.
 
 ## See also
 
-- [How to create an org doctrine pack](../guides/how-to/governance/create-an-org-doctrine-pack.md)
+- [How to create an org Charter Pack](../guides/how-to/governance/create-an-org-doctrine-pack.md)
 - [Migrating shared doctrine to the org layer](../migrations/doctrine-local-overlay-to-org-layer.md)
 - [How to set up project governance](../guides/how-to/governance/setup-governance.md)
 - [Understanding Charter: Synthesis, DRG, and Governed Context](charter-synthesis-drg.md)

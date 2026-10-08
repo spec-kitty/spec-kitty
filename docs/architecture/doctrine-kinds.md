@@ -2,7 +2,7 @@
 title: Doctrine artifact kinds
 description: What each doctrine artifact kind is for, with a real built-in example of each — sourced directly from the charter kind-vocabulary code.
 doc_status: active
-updated: '2026-09-29'
+updated: '2026-10-08'
 type: explanation
 audience: docs/context/audience/internal/lead-developer.md
 related:
@@ -18,7 +18,7 @@ Doctrine is the layered set of governed content that shapes how missions and age
 Spec Kitty project — the rules directives enforce, the techniques tactics teach, the personas
 agent profiles define, and so on. Everything in doctrine is one of a fixed set of **kinds**. This
 page explains what each kind is for, with a real example drawn from this repository's own
-built-in doctrine.
+built-in Charter Pack.
 
 ## Single source of truth
 
@@ -213,7 +213,7 @@ execution. Directives are the "must/should" layer of doctrine — the rule, not 
 following it.
 
 **Location.** `packs/built-in/directives/*.directive.yaml` (project overlay:
-`.kittify/doctrine/directive/`).
+`.kittify/charter-packs/directive/`).
 
 **Example.** `DIRECTIVE_001` — "Architectural Integrity Standard"
 (`packs/built-in/directives/001-architectural-integrity-standard.directive.yaml`).
@@ -229,7 +229,7 @@ Tactics are operational and agent-consumable, and can be selected by directives 
 context. Where a directive says "you must," a tactic says "here is how, step by step."
 
 **Location.** `packs/built-in/tactics/**/*.tactic.yaml` (project overlay:
-`.kittify/doctrine/tactic/`).
+`.kittify/charter-packs/tactic/`).
 
 **Example.** `problem-decomposition`
 (`packs/built-in/tactics/architecture/problem-decomposition.tactic.yaml`). Its `steps`
@@ -245,7 +245,7 @@ example coding, documentation, or testing style) that apply across missions and 
 Styleguides are about *how things should look and read*, not about a specific procedure.
 
 **Location.** `packs/built-in/styleguides/*.styleguide.yaml` (project overlay:
-`.kittify/doctrine/styleguide/`).
+`.kittify/charter-packs/styleguide/`).
 
 **Example.** `plain-language`
 (`packs/built-in/styleguides/plain-language.styleguide.yaml`). Its `principles` govern
@@ -261,7 +261,7 @@ contributors during execution. Toolguides are scoped to one external tool, not t
 technique.
 
 **Location.** `packs/built-in/toolguides/*.toolguide.yaml`, each pointing at a
-companion `guide_path` (project overlay: `.kittify/doctrine/toolguides/`).
+companion `guide_path` (project overlay: `.kittify/charter-packs/toolguides/`).
 
 **Example.** `mermaid-diagramming`
 (`packs/built-in/toolguides/mermaid-diagramming.toolguide.yaml`), which points at
@@ -275,7 +275,7 @@ influence the selection and interpretation of directives and tactics but are not
 recipes themselves — they are the lens, not the checklist.
 
 **Location.** `packs/built-in/paradigms/*.paradigm.yaml` (project overlay:
-`.kittify/doctrine/paradigms/`).
+`.kittify/charter-packs/paradigms/`).
 
 **Example.** `domain-driven-design`
 (`packs/built-in/paradigms/domain-driven-design.paradigm.yaml`). Its `summary` frames
@@ -295,7 +295,7 @@ flows that can be paused, resumed, and validated. They are not tracked missions 
 sessions.
 
 **Location.** `packs/built-in/procedures/*.procedure.yaml` (project overlay:
-`.kittify/doctrine/procedure/`).
+`.kittify/charter-packs/procedure/`).
 
 **Example.** `adversarial-squad-deployment`
 (`packs/built-in/procedures/adversarial-squad-deployment.procedure.yaml`). Its
@@ -313,7 +313,7 @@ allowed to operate* — roles, capabilities, directive references, and collabora
 technique or a rule in isolation.
 
 **Location.** `packs/built-in/agent_profiles/*.agent.yaml` (project overlay:
-`.kittify/doctrine/agent_profiles/`; key field is `profile-id`, not `id`).
+`.kittify/charter-packs/agent_profiles/`; key field is `profile-id`, not `id`).
 
 **Example.** `doctrine-daphne`
 (`packs/built-in/agent_profiles/doctrine-daphne.agent.yaml`) — the profile this very page
@@ -329,7 +329,7 @@ type's abstract action sequence (specify → plan → tasks → implement → re
 executable steps — each step can delegate to a directive, tactic, or procedure.
 
 **Location.** `packs/built-in/missions/built_in_step_contracts/*.step-contract.yaml`
-(project overlay: `.kittify/doctrine/mission_step_contracts/`).
+(project overlay: `.kittify/charter-packs/mission_step_contracts/`).
 
 **Example.** `specify` action, software-dev mission
 (`packs/built-in/missions/built_in_step_contracts/specify.step-contract.yaml`). Its `bootstrap`
@@ -349,7 +349,7 @@ member of the charter-activation vocabulary — it *is* charter-activatable via 
 token, unlike `template`/`asset`/`anti_pattern`).
 
 **Location.** `packs/built-in/glossary_packs/*.glossary-pack.yaml` (project overlay:
-`.kittify/doctrine/glossary_packs/`). Activate it like any other kind: `spec-kitty charter activate
+`.kittify/charter-packs/glossary_packs/`). Activate it like any other kind: `spec-kitty charter activate
 glossary-pack <id>`.
 
 **Why it is a pack, not loose terms.** Terminology drifts fastest when definitions are scattered;
@@ -365,7 +365,7 @@ fetches them at run time with `spec-kitty charter context --include <urn>`. Form
 body file) or `wrapper` (a thin shorthand over a `spec-kitty.*` command or `spec-kitty` argv).
 
 **Location.** Org packs: `<pack>/skills/*.skill.yaml` (`packs/internal` never ships); project:
-`.kittify/doctrine/skills/`. `packs/built-in/skills/` is empty at present. Activate it with
+`.kittify/charter-packs/skills/`. `packs/built-in/skills/` is empty at present. Activate it with
 `spec-kitty charter activate skill <id>`; when `activated_skills` is absent, only the org packs'
 `required_skills` are in force (never every available skill). Activated skills are rendered as
 `<skill_namespace>-<id>` into each configured tool's **project** skill root and owned by
@@ -393,8 +393,8 @@ drift guard binds each separately so the two are never conflated.
 
 - To author and activate a new artifact of any of these kinds, follow
   [Create a doctrine artifact](../development/how-to/create-a-doctrine-artifact.md).
-- For how built-in, org, and project doctrine layers combine and override each other, see
-  [Understanding the Org Doctrine Layer](org-doctrine-layer.md).
+- For how the built-in, org and project layers of the charter offering combine and override
+  each other, see [Understanding the Org Layer of the Charter Offering](org-doctrine-layer.md).
 - For the canonical glossary definitions these purpose statements are grounded in, see the
   [doctrine context glossary](../context/charter.md) and the
   [Agent Profile](../context/identity.md#agent-profile) /

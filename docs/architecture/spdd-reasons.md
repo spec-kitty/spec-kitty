@@ -1,20 +1,20 @@
 ---
 title: SPDD and the REASONS Canvas
-description: Optional Spec Kitty doctrine pack that records change-intent and change-boundary as a structured artifact alongside the spec and plan.
+description: Optional set of Spec Kitty built-in artifacts that records change-intent and change-boundary as a structured artifact alongside the spec and plan.
 doc_status: active
-updated: '2026-09-08'
+updated: '2026-10-08'
 type: explanation
 audience: docs/context/audience/internal/lead-developer.md
 ---
-# SPDD and the REASONS Canvas (opt-in doctrine pack)
+# SPDD and the REASONS Canvas (opt-in artifact set)
 
-This is an **optional** doctrine pack. Projects that do not select it see no
+This is an **optional** set of built-in Charter Pack artifacts. Projects that do not activate it see no
 behavior change. Projects that do select it gain a structured way to capture
 the *intent* and *boundary* of a mission's changes — separate from, and
 additive to, the existing `spec.md`, `plan.md`, and `tasks.md`.
 
 Pack scope: paradigm + two tactics + styleguide + directive + template
-fragment + skill + this doc. Activation is one charter selection. There is
+fragment + skill + this doc. Activation is one change to the active charter. There is
 no new artifact kind, no new loader path, and no new template engine.
 
 > **Mission status:** the pack ships with mission
@@ -63,7 +63,7 @@ In Spec Kitty:
   accurate** as new information arrives — *not* mirroring the codebase as
   prose.
 
-This distinction is constraint **C-005** of the doctrine pack mission and
+This distinction is constraint **C-005** of the SPDD/REASONS mission and
 is the philosophical guardrail of every other artifact in this pack. If a
 canvas update would require duplicating the codebase as prose, that is a
 signal the canvas has slid out of scope; trim it back to intent and
