@@ -250,7 +250,7 @@ def get_built_in_pack_root() -> Path:
     resolve to an existing directory, this emits a :class:`UserWarning` naming
     the misconfigured path before falling through to the ancestor walk --
     informing an operator of a broken override beats silently loading whatever
-    doctrine/charter pack the ancestor walk happens to find instead. Resolution
+    Charter Pack the ancestor walk happens to find instead. Resolution
     still does not raise on the override itself; only the silence is removed.
 
     Callers above this layer -- the :func:`get_package_asset_root` door here,
@@ -456,7 +456,7 @@ def render_runtime_path(path: Path, *, for_user: bool = True) -> str:
     paths without reintroducing POSIX-tilde literals in user-facing output
     on Windows (SC-002 of the Windows Compatibility Hardening mission).
     Mirrors :func:`specify_cli.paths.render_runtime_path` with identical
-    semantics; kept here to preserve the kernel<-doctrine<-charter<-specify_cli
+    semantics; kept here to preserve the kernel<-charter<-specify_cli
     dependency direction.
     """
     abs_path = Path(path).resolve(strict=False)

@@ -1,22 +1,7 @@
----
-name: spec-kitty-charter-doctrine
-description: >-
-  Run charter interview, generation, context, and sync workflows for
-  project governance in Spec Kitty 3.x. Access doctrine artifacts
-  programmatically via DoctrineService. Resolve agent profiles. Load
-  action-scoped governance context iteratively, not all at once.
-  Triggers: "interview for charter", "generate charter",
-  "sync charter", "use doctrine", "set up governance",
-  "charter status", "extract governance config", "load doctrine",
-  "agent profile", "DoctrineService", "action index".
-  Does NOT handle: generic spec writing not tied to governance, direct runtime
-  loop advancement, setup/repair diagnostics, or editorial glossary maintenance.
----
-
-# spec-kitty-charter-doctrine
+# Charter Governance Workflow (spk-charter-governance reference)
 
 Manage the charter lifecycle: interview, generate, context-load, sync,
-and status. Access doctrine artifacts programmatically via `DoctrineService`.
+and status. Access doctrine artifacts programmatically via `ActiveCharterService`.
 Resolve agent profiles for role-scoped behavior. Load governance context
 iteratively at action boundaries rather than dumping everything upfront.
 
@@ -27,7 +12,7 @@ source for a project — the single git-tracked, structured file nesting
 runtime never parses or resolves policy from. A repository may also keep
 public governance docs outside `.kittify/`; those docs are human-facing
 authority unless `charter.yaml`'s `governance.charter.governance_references`
-points at them. The doctrine layer (`src/charter/offering/`) provides the
+points at them. The charter offering (`src/charter/offering/`) provides the
 reusable knowledge artifacts (directives, tactics, paradigms, styleguides,
 toolguides, procedures, agent profiles, step contracts) that the charter
 references.
@@ -112,14 +97,14 @@ The current synthesis scope is: `directive`, `tactic`, `styleguide`.
 
 Read shipped examples to understand the expected YAML shape.
 There is no `doctrine list` or `doctrine show` CLI command — use the programmatic
-`DoctrineService` API (documented in the *Programmatic Doctrine Access* section below)
+`ActiveCharterService` API (documented in the *Programmatic Doctrine Access* section below)
 or read the YAML files directly from `packs/built-in/<kind>/` (artifacts live at
 `<type>/<pack>/[<category>/]<name>` — ADR 2026-07-26-2):
 
 ```python
-from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+from charter.activation.active_charter_service_builder import build_active_charter_service
 
-service = build_activation_aware_doctrine_service(project_root)
+service = build_active_charter_service(project_root)
 
 # Read a directive
 directive = service.directives.get("<a-directive-id>")
@@ -133,7 +118,7 @@ styleguide = service.styleguides.get("<a-styleguide-id>")
 
 To validate your project-layer doctrine artifacts run:
 ```bash
-spec-kitty charter validate .kittify/doctrine
+spec-kitty charter validate .kittify/charter-packs
 ```
 
 ### Step 3 — Read the interview mapping to know what to generate
@@ -151,11 +136,11 @@ For each synthesis target, derive: `kind`, `slug` (kebab-case, project-specific)
 
 All five supported project kinds are `directive`, `tactic`, `styleguide`,
 `procedure`, and `agent_profile`. For direct authoring, run `charter new <kind>
-<id>`, complete the scaffold, and run `charter validate .kittify/doctrine`.
+<id>`, complete the scaffold, and run `charter validate .kittify/charter-packs`.
 `charter activate agent-profile <id> --cascade all` registers authored project
 artifacts in the DRG and provenance manifest and activates referenced guidance.
-Project procedures live in `.kittify/doctrine/procedure/`; profiles live in
-`.kittify/doctrine/agent_profiles/`. These source files remain user-owned.
+Project procedures live in `.kittify/charter-packs/procedure/`; profiles live in
+`.kittify/charter-packs/agent_profiles/`. These source files remain user-owned.
 
 For interview-generated directives, tactics and styleguides, use the generated
 input path below. Procedures and profiles use the direct-authoring path above.
@@ -195,13 +180,13 @@ spec-kitty charter synthesize
 
 By default this reads from `.kittify/charter/generated/` via the generated
 adapter and promotes the validated outputs into:
-- `.kittify/doctrine/` for artifact content and project `graph.yaml`
+- `.kittify/charter-packs/` for artifact content and project `graph.yaml`
 - `.kittify/charter/provenance/` plus `synthesis-manifest.yaml` for bookkeeping
 
 ### Step 7 — Commit the promoted charter synthesis state
 
 ```bash
-git add .kittify/doctrine/ .kittify/charter/provenance/ .kittify/charter/synthesis-manifest.yaml
+git add .kittify/charter-packs/ .kittify/charter/provenance/ .kittify/charter/synthesis-manifest.yaml
 git commit -m "feat(charter): promote project-local doctrine from generated inputs"
 ```
 
@@ -225,7 +210,8 @@ the runtime reads it without any parse/extract step in between.
      them except a deliberate hand edit.
    - Flat-root activation keys (`activated_kinds`, `activated_directives`,
      `mission_type_activations`, …) — **hand-authored**, mirrors
-     `src/charter/activation/packs/default.yaml`.
+     the activation presets (`packs/built-in/presets/default.yaml`, applied
+     with `spec-kitty charter activate --preset <name>`).
    - `catalog` / `metadata` — **generator-refreshed**. `charter generate`
      rewrites these two sections deterministically on every run (doctrine
      reference manifest, generation timestamp); everything else in the file
@@ -354,7 +340,7 @@ timestamp.
 ### Doctrine Artifact Kinds
 
 Doctrine organizes knowledge into 8 artifact kinds. Each kind has a
-dedicated repository in `DoctrineService`, follows built-in -> org -> project
+dedicated repository in `ActiveCharterService`, follows built-in -> org -> project
 loading, and is accessible programmatically or via CLI.
 
 **Directives** — Numbered project rules that constrain agent behavior.
@@ -465,25 +451,25 @@ for step in contract.steps:
 ### Discovering Available Artifacts
 
 There is no `doctrine list` or `doctrine show` CLI command. Use the programmatic
-`DoctrineService` API or read artifact YAML files directly:
+`ActiveCharterService` API or read artifact YAML files directly:
 
 ```python
-from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+from charter.activation.active_charter_service_builder import build_active_charter_service
 
-service = build_activation_aware_doctrine_service(project_root)
+service = build_active_charter_service(project_root)
 
 # List or inspect artifacts by kind
 directive = service.directives.get("DIRECTIVE_034")
 tactic = service.tactics.get("tdd-red-green-refactor")
 paradigm = service.paradigms.get("<paradigm-id>")
 # Shipped artifacts: packs/built-in/<kind>/
-# Project-layer artifacts: .kittify/doctrine/<kind dir>/ (written by
+# Project-layer artifacts: .kittify/charter-packs/<kind dir>/ (written by
 # `spec-kitty charter new`; see Step 4 for the per-kind directories)
 ```
 
 To validate project-layer artifacts:
 ```bash
-spec-kitty charter validate .kittify/doctrine
+spec-kitty charter validate .kittify/charter-packs
 ```
 
 To list registered mission types (every visible type, activated or not):
@@ -609,7 +595,7 @@ spec-kitty charter interview --mission-type software-dev --profile comprehensive
 
 Key flags: `--profile minimal|comprehensive`, `--defaults`, `--json`,
 `--selected-paradigms`, `--selected-directives`, `--available-tools`.
-See `references/charter-command-map.md` for all flags.
+See `charter-command-map.md` for all flags.
 
 **Output:** `.kittify/charter/interview/answers.yaml`
 
@@ -673,21 +659,21 @@ reports `synced=False` / `files_written=[]`, regardless of `--force`.
 
 ---
 
-## Programmatic Doctrine Access (DoctrineService)
+## Programmatic Doctrine Access (ActiveCharterService)
 
-`charter.activation.resolver.DoctrineService` — built through
-`charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service` —
+`charter.activation.resolver.ActiveCharterService` — built through
+`charter.activation.active_charter_service_builder.build_active_charter_service` —
 is the single, sanctioned entry point for programmatic access to all doctrine
-artifacts. It wraps the inner `charter.offering.service.DoctrineService` and applies
-charter activation filtering; never construct `charter.offering.service.DoctrineService`
+artifacts. It wraps the inner `charter.offering.service.CharterOfferingService` and applies
+charter activation filtering; never construct `charter.offering.service.CharterOfferingService`
 or `charter.offering.agent_profiles.AgentProfileRepository` directly (five
 architectural gates in `tests/architectural/` ban that construction outside
 this module).
 
 ```python
-from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+from charter.activation.active_charter_service_builder import build_active_charter_service
 
-service = build_activation_aware_doctrine_service(project_root)
+service = build_active_charter_service(project_root)
 ```
 
 ### Available Repositories (gated properties)
@@ -724,7 +710,7 @@ Operations the filtered dict cannot support — `.list_all()`, `.save()`,
 `service.raw_repository(kind)`, which returns the underlying repository
 object unfiltered (a deliberate, sanctioned bypass of activation filtering,
 not of construction: it still comes from the one wrapped `service`, never a
-second `DoctrineService()`):
+second `ActiveCharterService()`):
 
 ```python
 # List all artifacts of a kind (raw repository, not the filtered dict)
@@ -811,7 +797,7 @@ retrieval.
 2. **At each step boundary**: Call `charter context --action <action>`.
    First call gets bootstrap (depth-2), subsequent calls get compact (depth-1).
 3. **Mid-step, when guidance needed**: Pull specific tactic or directive by ID
-   through `DoctrineService`.
+   through `ActiveCharterService`.
 4. **Never**: Load the full doctrine catalog into prompt context.
 
 ### Why This Matters
@@ -860,11 +846,11 @@ Doctrine does NOT constrain when:
    tokens and dilutes relevance. Use action-scoped loading and pull specific
    artifacts on demand.
 
-See `references/doctrine-artifact-structure.md` for the full anti-pattern table.
+See `doctrine-artifact-structure.md` for the full anti-pattern table.
 
 ---
 
 ## References
 
-- `references/charter-command-map.md` -- Full CLI command reference with all flags and output fields
-- `references/doctrine-artifact-structure.md` -- File layout, authority classes, and data flow
+- `charter-command-map.md` -- Full CLI command reference with all flags and output fields
+- `doctrine-artifact-structure.md` -- File layout, authority classes, and data flow

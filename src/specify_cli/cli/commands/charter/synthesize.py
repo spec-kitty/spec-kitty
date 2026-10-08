@@ -136,7 +136,7 @@ def charter_synthesize(  # noqa: C901
     DRG + doctrine, and writes all artifacts to ``.kittify/charter-packs/``.
 
     Doctrine generation is performed by the LLM harness (Claude Code, Codex,
-    Cursor, etc.) via the spec-kitty-charter-doctrine skill. This command
+    Cursor, etc.) via the spk-charter-governance skill. This command
     validates and promotes the artifacts the agent has written.
 
     Fresh-project behavior (issue #839 / WP06 T031-T033)
@@ -146,8 +146,8 @@ def charter_synthesize(  # noqa: C901
     command short-circuits the adapter pipeline and materializes the
     **minimal artifact set** the runtime requires:
 
-    1. ``.kittify/charter-packs/`` — directory marker. ``DoctrineService``'s
-       project-root resolver (``src/charter/activation/_doctrine_paths.py``) is a
+    1. ``.kittify/charter-packs/`` — directory marker. The project-root
+       resolver (``charter.activation._project_root_candidates``) is a
        presence-only check; an empty directory is a valid project layer.
     2. ``.kittify/charter-packs/PROVENANCE.md`` — human-readable record of the
        fresh-project seed path, citing #839.

@@ -2194,10 +2194,10 @@ def merge_hand_authored_overlay(graph: DRGGraph) -> DRGGraph:
     return merged
 
 
-def generate_reference_graph_with_overlay(doctrine_root: Path) -> DRGGraph:
+def generate_reference_graph_with_overlay(pack_root: Path) -> DRGGraph:
     """The in-memory freshness/equality reference: pure extraction + overlay.
 
-    Regenerates *doctrine_root* into a throw-away scratch directory (never
+    Regenerates *pack_root* into a throw-away scratch directory (never
     read back), then merges in :data:`HAND_AUTHORED_NODES` /
     :data:`HAND_AUTHORED_EDGES`. This is the non-vacuous reference every
     shipped-graph comparison should use now that the extractor is no longer
@@ -2206,11 +2206,11 @@ def generate_reference_graph_with_overlay(doctrine_root: Path) -> DRGGraph:
     from charter.offering.drg.migration.extractor import generate_graph
 
     with tempfile.TemporaryDirectory() as scratch:
-        pure = generate_graph(doctrine_root, Path(scratch) / "graph.yaml")
+        pure = generate_graph(pack_root, Path(scratch) / "graph.yaml")
     return merge_hand_authored_overlay(pure)
 
 
-def write_reference_graph_with_overlay(doctrine_root: Path, output_path: Path) -> DRGGraph:
+def write_reference_graph_with_overlay(pack_root: Path, output_path: Path) -> DRGGraph:
     """Like :func:`generate_reference_graph_with_overlay`, but also writes the
     merged reference as per-kind fragments beside *output_path* (via the
     extractor's own canonical writer), so it is byte-comparable against the
@@ -2218,6 +2218,6 @@ def write_reference_graph_with_overlay(doctrine_root: Path, output_path: Path) -
     """
     from charter.offering.drg.migration.extractor import _write_graph_yaml
 
-    merged = generate_reference_graph_with_overlay(doctrine_root)
+    merged = generate_reference_graph_with_overlay(pack_root)
     _write_graph_yaml(merged, output_path)
     return merged

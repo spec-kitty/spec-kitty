@@ -9,7 +9,7 @@ import pytest
 import charter.activation.catalog as catalog_module
 from charter.activation.interview import default_interview
 from charter.activation.resolver import (
-    DoctrineService,
+    ActiveCharterService,
     GovernanceResolutionError,
     collect_governance_diagnostics,
     resolve_governance_for_profile,
@@ -98,22 +98,22 @@ def test_resolve_governance_reads_charter_selections_first(
     """Charter selections (paradigms, directives, tools, template_set) are used
     when explicitly declared and all values exist in the shipped catalog."""
     # Build a minimal doctrine root so shipped paradigm validation passes.
-    doctrine_root = tmp_path / "doctrine_root"
-    (doctrine_root / "paradigms").mkdir(parents=True)
-    (doctrine_root / "paradigms" / "test-first.paradigm.yaml").write_text(
+    offering_root = tmp_path / "offering_root"
+    (offering_root / "paradigms").mkdir(parents=True)
+    (offering_root / "paradigms" / "test-first.paradigm.yaml").write_text(
         "id: test-first\n"
     )
-    (doctrine_root / "directives").mkdir(parents=True)
-    (doctrine_root / "agent_profiles").mkdir(parents=True)
-    (doctrine_root / "missions" / "software-dev").mkdir(parents=True)
-    (doctrine_root / "missions" / "software-dev" / "mission.yaml").write_text(
+    (offering_root / "directives").mkdir(parents=True)
+    (offering_root / "agent_profiles").mkdir(parents=True)
+    (offering_root / "missions" / "software-dev").mkdir(parents=True)
+    (offering_root / "missions" / "software-dev" / "mission.yaml").write_text(
         "name: software-dev\n"
     )
-    monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
+    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: offering_root)
     # Built-in pack content resolves per-kind via ``built_in_dir`` post-relocation
     # (mission doctrine-built-in-seam-consolidation-01KYW3TX, WP02); point it at
     # the synthetic root's flat per-kind directories too.
-    monkeypatch.setattr(catalog_module, "built_in_dir", lambda kind: doctrine_root / kind.plural)
+    monkeypatch.setattr(catalog_module, "built_in_dir", lambda kind: offering_root / kind.plural)
 
     repo_root = tmp_path / "repo"
     _write_charter_files(
@@ -281,7 +281,7 @@ def test_resolve_governance_uses_registry_local_directives_and_template_fallback
     catalog is monkeypatched to a known set so the union is deterministic.
     """
     monkeypatch.setattr(
-        "charter.activation.resolver.load_doctrine_catalog",
+        "charter.activation.resolver.load_offering_catalog",
         lambda: SimpleNamespace(
             paradigms=frozenset(),
             directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
@@ -327,7 +327,7 @@ def test_resolve_governance_uses_catalog_directives_when_no_local_declarations(
 ) -> None:
     _write_charter_files(tmp_path, governance="charter: {}\n")
     monkeypatch.setattr(
-        "charter.activation.resolver.load_doctrine_catalog",
+        "charter.activation.resolver.load_offering_catalog",
         lambda: SimpleNamespace(
             paradigms=frozenset(),
             directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
@@ -350,7 +350,7 @@ def test_bare_project_fallback_emits_catalog_default_diagnostic(
     a diagnostic names the fallback and its size."""
     _write_charter_files(tmp_path, governance="charter: {}\n")
     monkeypatch.setattr(
-        "charter.activation.resolver.load_doctrine_catalog",
+        "charter.activation.resolver.load_offering_catalog",
         lambda: SimpleNamespace(
             paradigms=frozenset(),
             directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
@@ -376,7 +376,7 @@ def test_explicit_selection_and_local_declaration_union(
     narrowed) while a coexisting local declaration is additively merged with a
     diagnostic — never silently dropped."""
     monkeypatch.setattr(
-        "charter.activation.resolver.load_doctrine_catalog",
+        "charter.activation.resolver.load_offering_catalog",
         lambda: SimpleNamespace(
             paradigms=frozenset(),
             directives=frozenset({"DIRECTIVE_A", "DIRECTIVE_C"}),
@@ -419,7 +419,7 @@ def test_local_declaration_matching_catalog_id_dedups_in_base_position(
 ) -> None:
     """INV-5: a local id equal to a catalog id appears once, in base position."""
     monkeypatch.setattr(
-        "charter.activation.resolver.load_doctrine_catalog",
+        "charter.activation.resolver.load_offering_catalog",
         lambda: SimpleNamespace(
             paradigms=frozenset(),
             directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
@@ -460,7 +460,7 @@ def test_activation_base_and_local_declaration_union(
     ``sorted(activated) + [new_local]`` and source ``activation+project_local``.
     """
     monkeypatch.setattr(
-        "charter.activation.resolver.load_doctrine_catalog",
+        "charter.activation.resolver.load_offering_catalog",
         lambda: SimpleNamespace(
             paradigms=frozenset(),
             directives=frozenset({"DIRECTIVE_003", "DIRECTIVE_010"}),
@@ -513,20 +513,20 @@ def test_resolve_governance_for_profile_merges_profile_directives_first() -> Non
             SimpleNamespace(code="PROFILE_SECOND"),
         ],
     )
-    doctrine_service = MagicMock()
-    doctrine_service.agent_profiles.resolve_profile.return_value = profile
-    doctrine_service.directives.get.side_effect = lambda artifact_id: SimpleNamespace(
+    charter_service = MagicMock()
+    charter_service.agent_profiles.resolve_profile.return_value = profile
+    charter_service.directives.get.side_effect = lambda artifact_id: SimpleNamespace(
         id=artifact_id,
         title=artifact_id,
         intent=f"Intent for {artifact_id}",
         tactic_refs=[],
     )
-    doctrine_service.tactics.get.return_value = None
-    doctrine_service.styleguides.get.return_value = None
-    doctrine_service.toolguides.get.return_value = None
-    doctrine_service.procedures.get.return_value = None
+    charter_service.tactics.get.return_value = None
+    charter_service.styleguides.get.return_value = None
+    charter_service.toolguides.get.return_value = None
+    charter_service.procedures.get.return_value = None
 
-    resolution = resolve_governance_for_profile("reviewer", "reviewer", doctrine_service, interview)
+    resolution = resolve_governance_for_profile("reviewer", "reviewer", charter_service, interview)
 
     assert resolution.profile_id == "reviewer"
     assert resolution.role == "reviewer"
@@ -546,8 +546,8 @@ def test_resolve_governance_for_profile_populates_graph_artifacts_and_normalizes
             SimpleNamespace(code="PROFILE_SECOND"),
         ],
     )
-    doctrine_service = MagicMock()
-    doctrine_service.agent_profiles.resolve_profile.return_value = profile
+    charter_service = MagicMock()
+    charter_service.agent_profiles.resolve_profile.return_value = profile
 
     # Post-WP03: monkeypatch charter.activation.resolver.resolve_transitive_refs; its
     # result is a :class:`charter.offering.drg.query.ResolveTransitiveRefsResult`
@@ -570,7 +570,7 @@ def test_resolve_governance_for_profile_populates_graph_artifacts_and_normalizes
         resolution = resolve_governance_for_profile(
             " reviewer ",
             "   ",
-            doctrine_service,
+            charter_service,
             interview,
             graph=stub_graph,
         )
@@ -587,21 +587,21 @@ def test_resolve_governance_for_profile_populates_graph_artifacts_and_normalizes
 
 def test_resolve_governance_for_profile_missing_profile_raises_value_error() -> None:
     interview = default_interview(mission="software-dev", profile="minimal")
-    doctrine_service = MagicMock()
-    doctrine_service.agent_profiles.resolve_profile.side_effect = KeyError("missing")
+    charter_service = MagicMock()
+    charter_service.agent_profiles.resolve_profile.side_effect = KeyError("missing")
 
     with pytest.raises(ValueError) as exc:
-        resolve_governance_for_profile("missing", None, doctrine_service, interview)
+        resolve_governance_for_profile("missing", None, charter_service, interview)
 
     assert "missing" in str(exc.value)
 
 
 def test_resolve_governance_for_profile_rejects_blank_profile_id() -> None:
     interview = default_interview(mission="software-dev", profile="minimal")
-    doctrine_service = MagicMock()
+    charter_service = MagicMock()
 
     with pytest.raises(ValueError, match="Profile ID is required"):
-        resolve_governance_for_profile("   ", None, doctrine_service, interview)
+        resolve_governance_for_profile("   ", None, charter_service, interview)
 
 
 def test_resolve_governance_for_profile_records_unresolved_references_in_diagnostics() -> None:
@@ -617,8 +617,8 @@ def test_resolve_governance_for_profile_records_unresolved_references_in_diagnos
         profile_id="reviewer",
         directive_references=[SimpleNamespace(code="MISSING_DIRECTIVE")],
     )
-    doctrine_service = MagicMock()
-    doctrine_service.agent_profiles.resolve_profile.return_value = profile
+    charter_service = MagicMock()
+    charter_service.agent_profiles.resolve_profile.return_value = profile
 
     monkeypatch_graph = SimpleNamespace(
         tactics=[],
@@ -641,7 +641,7 @@ def test_resolve_governance_for_profile_records_unresolved_references_in_diagnos
         resolution = resolve_governance_for_profile(
             "reviewer",
             None,
-            doctrine_service,
+            charter_service,
             interview,
             graph=stub_graph,
         )
@@ -672,24 +672,24 @@ def test_collect_governance_diagnostics_returns_success_diagnostics(
 
 def _make_doctrine_root(tmp_path: Path, *, with_paradigm: str | None = None) -> Path:
     """Create a minimal doctrine root for resolver tests."""
-    doctrine_root = tmp_path / "doctrine_root"
-    paradigms_shipped = doctrine_root / "paradigms" / "built-in"
+    offering_root = tmp_path / "offering_root"
+    paradigms_shipped = offering_root / "paradigms" / "built-in"
     paradigms_shipped.mkdir(parents=True)
     if with_paradigm:
         (paradigms_shipped / f"{with_paradigm}.paradigm.yaml").write_text(
             f"id: {with_paradigm}\n"
         )
-    (doctrine_root / "directives" / "built-in").mkdir(parents=True)
-    (doctrine_root / "agent_profiles" / "built-in").mkdir(parents=True)
-    (doctrine_root / "missions" / "software-dev").mkdir(parents=True)
-    (doctrine_root / "missions" / "software-dev" / "mission.yaml").write_text("name: software-dev\n")
-    return doctrine_root
+    (offering_root / "directives" / "built-in").mkdir(parents=True)
+    (offering_root / "agent_profiles" / "built-in").mkdir(parents=True)
+    (offering_root / "missions" / "software-dev").mkdir(parents=True)
+    (offering_root / "missions" / "software-dev" / "mission.yaml").write_text("name: software-dev\n")
+    return offering_root
 
 
 def test_paradigm_failure_names_exact_offending_id(tmp_path: Path, monkeypatch) -> None:
     """Error message names the exact paradigm ID that was not in the shipped catalog."""
-    doctrine_root = _make_doctrine_root(tmp_path)
-    monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
+    offering_root = _make_doctrine_root(tmp_path)
+    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: offering_root)
 
     repo_root = tmp_path / "repo"
     _write_charter_files(
@@ -706,17 +706,17 @@ def test_paradigm_failure_names_exact_offending_id(tmp_path: Path, monkeypatch) 
 
 def test_paradigm_failure_skipped_when_shipped_dir_absent(tmp_path: Path, monkeypatch) -> None:
     """When the paradigms shipped directory does not exist, validation is skipped gracefully."""
-    doctrine_root = tmp_path / "doctrine_root"
+    offering_root = tmp_path / "offering_root"
     # Do NOT create paradigms directory at all
-    (doctrine_root / "directives").mkdir(parents=True)
-    (doctrine_root / "agent_profiles").mkdir(parents=True)
-    (doctrine_root / "missions" / "software-dev").mkdir(parents=True)
-    (doctrine_root / "missions" / "software-dev" / "mission.yaml").write_text("name: software-dev\n")
-    monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
+    (offering_root / "directives").mkdir(parents=True)
+    (offering_root / "agent_profiles").mkdir(parents=True)
+    (offering_root / "missions" / "software-dev").mkdir(parents=True)
+    (offering_root / "missions" / "software-dev" / "mission.yaml").write_text("name: software-dev\n")
+    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: offering_root)
     # Built-in pack content resolves per-kind via ``built_in_dir`` post-relocation
     # (mission doctrine-built-in-seam-consolidation-01KYW3TX, WP02); the synthetic
     # root has no paradigms dir, so validation must skip gracefully.
-    monkeypatch.setattr(catalog_module, "built_in_dir", lambda kind: doctrine_root / kind.plural)
+    monkeypatch.setattr(catalog_module, "built_in_dir", lambda kind: offering_root / kind.plural)
 
     repo_root = tmp_path / "repo"
     _write_charter_files(
@@ -731,8 +731,8 @@ def test_paradigm_failure_skipped_when_shipped_dir_absent(tmp_path: Path, monkey
 
 def test_directive_failure_names_exact_offending_id(tmp_path: Path, monkeypatch) -> None:
     """Error message names the exact directive ID that was not found."""
-    doctrine_root = _make_doctrine_root(tmp_path)
-    monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
+    offering_root = _make_doctrine_root(tmp_path)
+    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: offering_root)
 
     repo_root = tmp_path / "repo"
     _write_charter_files(
@@ -748,8 +748,8 @@ def test_directive_failure_names_exact_offending_id(tmp_path: Path, monkeypatch)
 
 def test_template_set_failure_names_exact_offending_value(tmp_path: Path, monkeypatch) -> None:
     """Error message names the exact template_set value that was not in shipped catalog."""
-    doctrine_root = _make_doctrine_root(tmp_path)
-    monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
+    offering_root = _make_doctrine_root(tmp_path)
+    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: offering_root)
 
     repo_root = tmp_path / "repo"
     _write_charter_files(
@@ -772,8 +772,8 @@ def test_tool_outside_registry_appears_in_diagnostic(tmp_path: Path, monkeypatch
     tools and the charter declaration as additive. The diagnostic message
     names the exact tool(s) that came from the charter so operators can audit.
     """
-    doctrine_root = _make_doctrine_root(tmp_path)
-    monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
+    offering_root = _make_doctrine_root(tmp_path)
+    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: offering_root)
 
     repo_root = tmp_path / "repo"
     _write_charter_files(
@@ -792,8 +792,8 @@ def test_tool_outside_registry_appears_in_diagnostic(tmp_path: Path, monkeypatch
 
 def test_local_support_declaration_bypasses_catalog_validation(tmp_path: Path, monkeypatch) -> None:
     """Directives declared in directives.yaml are valid without being in the shipped catalog."""
-    doctrine_root = _make_doctrine_root(tmp_path)
-    monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
+    offering_root = _make_doctrine_root(tmp_path)
+    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: offering_root)
 
     repo_root = tmp_path / "repo"
     _write_charter_files(
@@ -828,12 +828,12 @@ def test_sync_output_does_not_include_agents_yaml(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# DoctrineService wrapper — activation filter coverage (FR-016 / FR-017)
+# ActiveCharterService wrapper — activation filter coverage (FR-016 / FR-017)
 # ---------------------------------------------------------------------------
 
 
 def test_doctrine_service_paradigms_filtered_by_pack_context() -> None:
-    """DoctrineService.paradigms applies pack_context.activated_paradigms filter."""
+    """ActiveCharterService.paradigms applies pack_context.activated_paradigms filter."""
     from unittest.mock import MagicMock
     from charter.activation.pack_context import PackContext
 
@@ -848,7 +848,7 @@ def test_doctrine_service_paradigms_filtered_by_pack_context() -> None:
     pack_ctx = MagicMock(spec=PackContext)
     pack_ctx.activated_paradigms = frozenset({"test-first"})
 
-    service = DoctrineService(inner, pack_context=pack_ctx)
+    service = ActiveCharterService(inner, pack_context=pack_ctx)
     result = service.paradigms
 
     assert "test-first" in result
@@ -856,7 +856,7 @@ def test_doctrine_service_paradigms_filtered_by_pack_context() -> None:
 
 
 def test_doctrine_service_paradigms_unfiltered_when_pack_context_none() -> None:
-    """DoctrineService.paradigms returns all when pack_context is None."""
+    """ActiveCharterService.paradigms returns all when pack_context is None."""
     from unittest.mock import MagicMock
 
     paradigm_a = MagicMock()
@@ -864,14 +864,14 @@ def test_doctrine_service_paradigms_unfiltered_when_pack_context_none() -> None:
     inner = MagicMock()
     inner.paradigms.list_all.return_value = [paradigm_a]
 
-    service = DoctrineService(inner, pack_context=None)
+    service = ActiveCharterService(inner, pack_context=None)
     result = service.paradigms
 
     assert "test-first" in result
 
 
 def test_doctrine_service_procedures_filtered_by_pack_context() -> None:
-    """DoctrineService.procedures applies pack_context.activated_procedures filter."""
+    """ActiveCharterService.procedures applies pack_context.activated_procedures filter."""
     from unittest.mock import MagicMock
     from charter.activation.pack_context import PackContext
 
@@ -886,7 +886,7 @@ def test_doctrine_service_procedures_filtered_by_pack_context() -> None:
     pack_ctx = MagicMock(spec=PackContext)
     pack_ctx.activated_procedures = frozenset({"tdd"})
 
-    service = DoctrineService(inner, pack_context=pack_ctx)
+    service = ActiveCharterService(inner, pack_context=pack_ctx)
     result = service.procedures
 
     assert "tdd" in result
@@ -894,13 +894,13 @@ def test_doctrine_service_procedures_filtered_by_pack_context() -> None:
 
 
 def test_doctrine_service_getattr_delegates_to_inner() -> None:
-    """Unknown attributes on DoctrineService are forwarded to the inner service."""
+    """Unknown attributes on ActiveCharterService are forwarded to the inner service."""
     from unittest.mock import MagicMock
 
     inner = MagicMock()
     inner.some_custom_attr = "sentinel"
 
-    service = DoctrineService(inner, pack_context=None)
+    service = ActiveCharterService(inner, pack_context=None)
 
     assert service.some_custom_attr == "sentinel"
 
@@ -910,7 +910,7 @@ def test_resolve_governance_for_profile_raises_when_profile_not_in_dict() -> Non
     from unittest.mock import MagicMock
     from charter.activation.interview import CharterInterview
 
-    service = MagicMock(spec=DoctrineService)
+    service = MagicMock(spec=ActiveCharterService)
     service.agent_profiles = {}  # empty dict, isinstance check will be True
 
     interview = MagicMock(spec=CharterInterview)
@@ -920,6 +920,6 @@ def test_resolve_governance_for_profile_raises_when_profile_not_in_dict() -> Non
         resolve_governance_for_profile(
             "nonexistent-profile",
             role=None,
-            doctrine_service=service,
+            charter_service=service,
             interview=interview,
         )

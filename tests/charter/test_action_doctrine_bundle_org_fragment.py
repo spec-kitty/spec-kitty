@@ -1,10 +1,10 @@
 """WP04 (#3530): the org ``drg/fragment.yaml`` layer reaches the action bundle.
 
-``_load_action_doctrine_bundle`` resolved its DRG via ``load_validated_graph``
+``_load_action_governance_bundle`` resolved its DRG via ``load_validated_graph``
 without threading the ``org_fragments`` layer, so a pack shipping only
 ``drg/fragment.yaml`` (this repo's own ``packs/internal`` shape) was silently
 dropped from the action-doctrine bundle -- the branch-named silent drop this WP
-closes at the second deficient caller (the ``:245`` DoctrineService seam is a
+closes at the second deficient caller (the ``:245`` ActiveCharterService seam is a
 different path and stays untouched, squad finding F13).
 
 Red-first: :func:`test_valid_fragment_only_pack_node_reaches_bundle_graph` FAILS
@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from charter.activation.action_doctrine_bundle import _load_action_doctrine_bundle
+from charter.activation.action_governance_bundle import _load_action_governance_bundle
 from charter.drg import resolve_existing_org_roots
 from charter.offering.drg.validator import DRGValidationError
 
@@ -84,7 +84,7 @@ def test_valid_fragment_only_pack_node_reaches_bundle_graph(tmp_path: Path) -> N
         ],
     )
 
-    bundle = _load_action_doctrine_bundle(
+    bundle = _load_action_governance_bundle(
         repo_root=repo,
         action="implement",
         effective_depth=3,
@@ -115,7 +115,7 @@ def test_fragment_node_and_edge_are_folded_once_not_twice(tmp_path: Path) -> Non
     org_roots = resolve_existing_org_roots(repo)
     assert org_root in org_roots
 
-    bundle = _load_action_doctrine_bundle(
+    bundle = _load_action_governance_bundle(
         repo_root=repo,
         action="implement",
         effective_depth=3,
@@ -169,7 +169,7 @@ def test_nonexistent_org_governance_selection_fails_loud(tmp_path: Path) -> None
     )
 
     with pytest.raises(DRGValidationError) as excinfo:
-        _load_action_doctrine_bundle(
+        _load_action_governance_bundle(
             repo_root=repo,
             action="implement",
             effective_depth=3,

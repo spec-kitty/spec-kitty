@@ -144,7 +144,7 @@ def _write_org_directive(org_pack_root: Path, *, stem: str, canonical_id: str) -
     ``<root>/<plural>/built-in/*.yaml``. This mirrors that exact shape so the
     fixture is reachable through the precise code path Fix A repairs -- not
     the (different) ``<root>/<plural>/*.yaml`` layout used by
-    ``charter.offering.service.DoctrineService``'s org layer elsewhere in the suite.
+    ``charter.offering.service.CharterOfferingService``'s org layer elsewhere in the suite.
     """
     directive_dir = org_pack_root / "directives" / "built-in"
     directive_dir.mkdir(parents=True, exist_ok=True)
@@ -173,7 +173,7 @@ def test_this_project_charter_pack_is_coherent() -> None:
     assert report.coherent, (
         "Charter pack consistency check failed for this project:\n"
         f"unknown_references={report.unknown_references}\n"
-        f"missing_from_doctrine={report.missing_from_doctrine}\n"
+        f"missing_from_offering={report.missing_from_offering}\n"
         f"kind_violations={report.kind_violations}\n"
         f"reference_id_divergences={report.reference_id_divergences}\n"
         f"graph_kind_gaps={report.graph_kind_gaps}\n"
@@ -388,7 +388,7 @@ def test_org_overlay_activated_artefact_resolves_for_parity(tmp_path: Path) -> N
     # resolves and the missing compiled entry is correctly reported.
     #
     # (`unknown_references` also fires here via a separate, pre-existing
-    # gap: `_collect_all_doctrine_ids`/`ActiveCharterManager.list_available`
+    # gap: `_collect_all_offering_ids`/`ActiveCharterManager.list_available`
     # is called with no `layer_roots` either, so it never sees org
     # artefacts. That is a different call site than the one #2529 reports
     # and is out of scope for this fix -- it does not change what this

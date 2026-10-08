@@ -184,7 +184,7 @@ def _build_synthesis_request(
             f"Unknown adapter '{adapter_name}'. "
             "Supported adapters are '--adapter generated' and '--adapter fixture'. "
             "Doctrine generation is performed by the LLM harness (Claude Code, Codex, "
-            "Cursor, etc.) via the spec-kitty-charter-doctrine skill. "
+            "Cursor, etc.) via the spk-charter-governance skill. "
             "spec-kitty never calls an LLM itself."
         )
 
@@ -286,7 +286,7 @@ def _provenance_to_planned_artifacts(
     """Convert synthesis provenance entries into planned doctrine paths."""
     from charter.activation.synthesizer.artifact_naming import (
         artifact_filename,
-        doctrine_kind_subdir,
+        pack_kind_subdir,
     )
 
     planned: list[dict[str, str]] = []
@@ -298,7 +298,7 @@ def _provenance_to_planned_artifacts(
             artifact_id = prov.artifact_urn.split(":", 1)[1]
         try:
             filename = artifact_filename(kind, slug, artifact_id)
-            subdir = doctrine_kind_subdir(kind)
+            subdir = pack_kind_subdir(kind)
         except Exception:  # noqa: S112
             continue
         planned.append(
@@ -314,7 +314,7 @@ def _staged_to_planned_artifacts(staged_files: list[str]) -> list[dict[str, str]
     """Convert legacy staged ``kind:slug`` selectors to planned artifacts."""
     from charter.activation.synthesizer.artifact_naming import (
         artifact_filename,
-        doctrine_kind_subdir,
+        pack_kind_subdir,
     )
 
     planned: list[dict[str, str]] = []
@@ -327,7 +327,7 @@ def _staged_to_planned_artifacts(staged_files: list[str]) -> list[dict[str, str]
             artifact_id = "PROJECT_000"
         try:
             filename = artifact_filename(kind, slug, artifact_id)
-            subdir = doctrine_kind_subdir(kind)
+            subdir = pack_kind_subdir(kind)
         except Exception:  # noqa: S112
             continue
         planned.append(

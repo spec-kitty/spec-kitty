@@ -44,7 +44,7 @@ def test_project_overrides_org_and_later_org_overrides_earlier(tmp_path: Path) -
     _profile(first / "agent_profiles", "first")
     _profile(second / "agent_profiles", "second")
     _profile(project / "doctrine" / "agent_profiles", "project")
-    kwargs = {"doctrine_root": tmp_path, "org_roots": [first, second]}
+    kwargs = {"offering_root": tmp_path, "org_roots": [first, second]}
     assert resolve_artifact_urn(ArtifactKind.AGENT_PROFILE, "local", **kwargs) == "agent_profile:second"
     assert resolve_artifact_urn(ArtifactKind.AGENT_PROFILE, "local", layer_roots={"project": project / "doctrine"}, **kwargs) == "agent_profile:project"
 

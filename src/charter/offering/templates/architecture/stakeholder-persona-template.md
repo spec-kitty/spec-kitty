@@ -8,8 +8,8 @@
   user-journey-template.md.
 
   Derived from:
-  - Doctrine PERSONA.md (architecture template)
-  - Doctrine audience-persona-template.md (documentation template)
+  - Charter offering PERSONA.md (architecture template)
+  - Charter offering audience-persona-template.md (documentation template)
   
   Adaptations for design mission context:
   - Added "Design Impact" section (how design decisions affect this persona)

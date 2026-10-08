@@ -36,7 +36,7 @@ from charter.activation.compiler import compile_charter
 from charter.activation.effective_set import resolve_effective_sets
 from charter.activation.interview import CharterInterview, default_interview
 from charter.activation.pack_context import PackContext
-from charter.offering.service import DoctrineService
+from charter.offering.service import CharterOfferingService
 from charter.activation.org_charter import (
     REQUIRED_KIND_FIELDS,
     apply_org_charter_to_interview,
@@ -137,12 +137,12 @@ def _read_config_yaml(consumer: Path) -> dict:
 
 def _compile(project_root: Path, interview: CharterInterview):
     pack_context = PackContext.from_config(project_root)
-    doctrine_service = DoctrineService()
+    charter_service = CharterOfferingService()
     return compile_charter(
         mission=interview.mission,
         interview=interview,
         repo_root=project_root,
-        doctrine_service=doctrine_service,
+        charter_service=charter_service,
         pack_context=pack_context,
     )
 
@@ -350,14 +350,14 @@ class TestOrgRequiredIdFormNormalizedBeforePromotion:
 
     def test_legacy_declared_directive_id_remains_readable(self) -> None:
         """#4185: old raw-ID activations remain readable; new producers write stems."""
-        from charter.activation.catalog import resolve_doctrine_root
+        from charter.activation.catalog import resolve_offering_root
         from charter.activation.kind_vocabulary import resolve_artifact_urn
         from charter.offering.artifact_kinds import ArtifactKind
 
-        doctrine_root = resolve_doctrine_root()
+        offering_root = resolve_offering_root()
         expected = f"directive:{self._DIRECTIVE_001_CANONICAL}"
-        assert resolve_artifact_urn(ArtifactKind.DIRECTIVE, self._DIRECTIVE_001_CANONICAL, doctrine_root=doctrine_root) == expected
-        assert resolve_artifact_urn(ArtifactKind.DIRECTIVE, self._DIRECTIVE_001_STEM, doctrine_root=doctrine_root) == expected
+        assert resolve_artifact_urn(ArtifactKind.DIRECTIVE, self._DIRECTIVE_001_CANONICAL, offering_root=offering_root) == expected
+        assert resolve_artifact_urn(ArtifactKind.DIRECTIVE, self._DIRECTIVE_001_STEM, offering_root=offering_root) == expected
 
     def test_unresolvable_required_id_passes_through_verbatim(self, tmp_path: Path) -> None:
         """An id that resolves in neither direction (not a known stem NOR a

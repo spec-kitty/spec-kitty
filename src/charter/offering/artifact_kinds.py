@@ -219,7 +219,7 @@ class ArtifactKind(StrEnum):
         """Whether an org-required list overlays ``selected_<plural>`` on the charter.
 
         ``True`` for the kinds with a ``selected_<plural>`` field on
-        ``DoctrineSelectionConfig`` that org ``required_*`` lists union into
+        ``GovernanceCharterConfig`` that org ``required_*`` lists union into
         (a strict subset of :attr:`org_requirable`: ``GLOSSARY_PACK`` and
         ``ASSET`` are requirable but not overlayable). Backs
         :data:`SELECTION_OVERLAYABLE_KINDS`.
@@ -395,7 +395,7 @@ CHARTER_KIND_TOKENS: tuple[str, ...] = tuple(member.operator_token for member in
 
 
 #: The runtime-managed kinds whose **project-tier overlay** directory is the
-#: *singular* form (``.kittify/doctrine/directive/``, …) rather than the plural.
+#: *singular* form (``.kittify/charter-packs/directive/``, …) rather than the plural.
 #: These four kinds carry per-project overlays that the live loader reads from a
 #: singular directory; every other kind uses its plural. This is the *only*
 #: place that asymmetry is declared.
@@ -412,8 +412,8 @@ _SINGULAR_PROJECT_DIR_KINDS: frozenset[ArtifactKind] = frozenset(
 #: **Canonical project-tier directory authority** (WP03 / R-009 / CC-4).
 #:
 #: Maps every :class:`ArtifactKind` to the directory name its artifacts live
-#: under in a project overlay (``.kittify/doctrine/<dir>/``). This is the single
-#: source of truth the ``charter new`` scaffolder, :class:`DoctrineService`'s
+#: under in a project overlay (``.kittify/charter-packs/<dir>/``). This is the single
+#: source of truth the ``charter new`` scaffolder, :class:`~charter.offering.service.CharterOfferingService`'s
 #: project-dir resolver (``charter.offering.service``), and the charter resolvers
 #: (``charter.activation.kind_vocabulary`` / ``charter.activation.pack_manager``) all import — **no
 #: consumer re-declares it** (the module docstring's "no second kind
@@ -483,7 +483,7 @@ CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR: dict[str, str] = {plural: singular for s
 #: **Canonical registration-writing (direct-write) kind set** (WP01 / NFR-002).
 #:
 #: The five artifact kinds that are authored directly into a project's
-#: ``.kittify/doctrine/<dir>/`` overlay and flow through the project scanner and
+#: ``.kittify/charter-packs/<dir>/`` overlay and flow through the project scanner and
 #: the synthesis manifest. This is the single source of truth the DRG project
 #: scanner (``charter.offering.drg.project_scan``) reads instead of re-declaring
 #: its own five-kind tuple; the synthesis manifest's

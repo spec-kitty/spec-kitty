@@ -48,7 +48,7 @@ from ruamel.yaml import YAML
 
 from charter.activation.compiler import _resolve_transitive_reference_graph
 from charter.activation.consistency_check import _check_drg_cross_kind_refs
-from charter.activation.context import _load_action_doctrine_bundle
+from charter.activation.context import _load_action_governance_bundle
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.pack_context import _BUILTIN_ARTIFACT_KINDS, PackContext
 from charter.activation.reference_resolver import resolve_references_transitively
@@ -117,12 +117,12 @@ def test_reference_resolver_none_path_matches_no_filter_at_all(tmp_path: Path) -
     graph = _single_directive_graph()
 
     unfiltered = resolve_references_transitively(
-        [_REAL_DIRECTIVE_CANONICAL_ID], doctrine_service=None, graph=graph, pack_context=None
+        [_REAL_DIRECTIVE_CANONICAL_ID], charter_service=None, graph=graph, pack_context=None
     )
     default_allow_ctx = _pack_context(activated_directives=None, repo_root=tmp_path)
     default_allow = resolve_references_transitively(
         [_REAL_DIRECTIVE_CANONICAL_ID],
-        doctrine_service=None,
+        charter_service=None,
         graph=graph,
         pack_context=default_allow_ctx,
     )
@@ -144,7 +144,7 @@ def test_reference_resolver_populated_stem_retains_directive_node() -> None:
     )
 
     result = resolve_references_transitively(
-        [_REAL_DIRECTIVE_CANONICAL_ID], doctrine_service=None, graph=graph, pack_context=ctx
+        [_REAL_DIRECTIVE_CANONICAL_ID], charter_service=None, graph=graph, pack_context=ctx
     )
 
     assert result.directives == [_REAL_DIRECTIVE_CANONICAL_ID]
@@ -160,12 +160,12 @@ def test_reference_resolver_populated_stem_retains_directive_node() -> None:
 
 
 def test_compiler_closure_none_path_matches_no_filter_at_all(tmp_path: Path) -> None:
-    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_offering_root
 
-    doctrine_root = resolve_doctrine_root()
+    offering_root = resolve_offering_root()
 
     unfiltered = _resolve_transitive_reference_graph(
-        doctrine_root=doctrine_root,
+        offering_root=offering_root,
         directives=[_REAL_DIRECTIVE_CANONICAL_ID],
         repo_root=tmp_path,
         pack_context=None,
@@ -179,7 +179,7 @@ def test_compiler_closure_none_path_matches_no_filter_at_all(tmp_path: Path) -> 
         activated_directives=None, activated_kinds=_BUILTIN_ARTIFACT_KINDS, repo_root=tmp_path
     )
     default_allow = _resolve_transitive_reference_graph(
-        doctrine_root=doctrine_root,
+        offering_root=offering_root,
         directives=[_REAL_DIRECTIVE_CANONICAL_ID],
         repo_root=tmp_path,
         pack_context=default_allow_ctx,
@@ -195,14 +195,14 @@ def test_compiler_closure_populated_stem_retains_directive_node(tmp_path: Path) 
     there) through the same gate. On merge-base the populated stem drops the
     node before the closure walk starts, so the seeded id never reaches the
     ``directives`` bucket. After WP01 it does."""
-    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_offering_root
 
     ctx = _pack_context(
         activated_directives=frozenset({_REAL_DIRECTIVE_STEM}), repo_root=tmp_path
     )
 
     result = _resolve_transitive_reference_graph(
-        doctrine_root=resolve_doctrine_root(),
+        offering_root=resolve_offering_root(),
         directives=[_REAL_DIRECTIVE_CANONICAL_ID],
         repo_root=tmp_path,
         pack_context=ctx,
@@ -214,7 +214,7 @@ def test_compiler_closure_populated_stem_retains_directive_node(tmp_path: Path) 
 # ---------------------------------------------------------------------------
 # T012 -- charter/consistency_check.py::_check_drg_cross_kind_refs (:424)
 # ---------------------------------------------------------------------------
-# Observable: ``missing_from_doctrine`` -- the KIND-level cross-ref gap
+# Observable: ``missing_from_offering`` -- the KIND-level cross-ref gap
 # report. The check only inspects an edge if BOTH its endpoints survive
 # ``filter_graph_by_activation`` first, so a directive node the gate silently
 # drops means its outgoing edges are never inspected -- a legitimate
@@ -268,16 +268,16 @@ def test_cross_kind_refs_none_path_matches_no_filter_at_all(tmp_path: Path) -> N
     }
 
     ctx = ProjectContext(repo_root=tmp_path, pack_context=default_allow_ctx)
-    missing_from_doctrine: list[str] = []
+    missing_from_offering: list[str] = []
     suggestions: list[str] = []
     _check_drg_cross_kind_refs(
         ctx,
         {"directive": None, "tactic": None},
-        missing_from_doctrine,
+        missing_from_offering,
         suggestions,
     )
 
-    assert missing_from_doctrine == []
+    assert missing_from_offering == []
 
 
 def test_cross_kind_refs_populated_stem_surfaces_kind_gap(tmp_path: Path) -> None:
@@ -308,18 +308,18 @@ def test_cross_kind_refs_populated_stem_surfaces_kind_gap(tmp_path: Path) -> Non
         "directive": frozenset({_REAL_DIRECTIVE_STEM}),
         "tactic": frozenset(),
     }
-    missing_from_doctrine: list[str] = []
+    missing_from_offering: list[str] = []
     suggestions: list[str] = []
 
-    _check_drg_cross_kind_refs(ctx, activated_by_kind, missing_from_doctrine, suggestions)
+    _check_drg_cross_kind_refs(ctx, activated_by_kind, missing_from_offering, suggestions)
 
-    assert f"{_REAL_TACTIC_CLI_KIND}/<all>" in missing_from_doctrine
+    assert f"{_REAL_TACTIC_CLI_KIND}/<all>" in missing_from_offering
 
 
 # ---------------------------------------------------------------------------
-# T013 -- charter/context.py:928 (``_load_action_doctrine_bundle``)
+# T013 -- charter/context.py:928 (``_load_action_governance_bundle``)
 # ---------------------------------------------------------------------------
-# Observable: ``_ActionDoctrineBundle.directive_ids`` -- the resolved
+# Observable: ``_ActionGovernanceBundle.directive_ids`` -- the resolved
 # context's activated directive set.
 
 _ACTION_GRAPH_WITH_DIRECTIVE_001 = {
@@ -356,7 +356,7 @@ def test_context_bundle_none_path_matches_no_filter_at_all(tmp_path: Path) -> No
     graph = _action_graph()
 
     with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
-        unfiltered = _load_action_doctrine_bundle(
+        unfiltered = _load_action_governance_bundle(
             repo_root=tmp_path,
             action="implement",
             effective_depth=2,
@@ -364,7 +364,7 @@ def test_context_bundle_none_path_matches_no_filter_at_all(tmp_path: Path) -> No
             pack_context=None,
         )
         default_allow_ctx = _pack_context(activated_directives=None, repo_root=tmp_path)
-        default_allow = _load_action_doctrine_bundle(
+        default_allow = _load_action_governance_bundle(
             repo_root=tmp_path,
             action="implement",
             effective_depth=2,
@@ -387,7 +387,7 @@ def test_context_bundle_populated_stem_retains_directive_node(tmp_path: Path) ->
     )
 
     with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
-        bundle = _load_action_doctrine_bundle(
+        bundle = _load_action_governance_bundle(
             repo_root=tmp_path,
             action="implement",
             effective_depth=2,

@@ -119,9 +119,9 @@ def _write_activation_config(
 
 
 def _patch_catalog(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Fix ``load_doctrine_catalog`` to the deterministic module-level catalog."""
+    """Fix ``load_offering_catalog`` to the deterministic module-level catalog."""
     monkeypatch.setattr(
-        "charter.activation.resolver.load_doctrine_catalog",
+        "charter.activation.resolver.load_offering_catalog",
         lambda: SimpleNamespace(
             paradigms=_CATALOG_PARADIGMS,
             directives=_CATALOG_DIRECTIVES,

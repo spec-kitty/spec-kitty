@@ -157,7 +157,7 @@ def test_wholly_unconfigured_project_keeps_builtins_convenience(tmp_path: Path) 
     among them) stays genuinely absent, so the "wholly unconfigured w.r.t.
     paradigms/directives" scenario this test actually pins is unchanged.
     """
-    from charter.activation.catalog import load_doctrine_catalog
+    from charter.activation.catalog import load_offering_catalog
 
     # No activated_* keys written -> wholly unconfigured w.r.t. paradigms/
     # directives (the FR-018 boundary under test). Only mission_type_activations
@@ -165,7 +165,7 @@ def test_wholly_unconfigured_project_keeps_builtins_convenience(tmp_path: Path) 
     _write_config(tmp_path, "mission_type_activations:\n  - software-dev\n")
     roots = resolve_config_activated_roots(repo_root=tmp_path)
 
-    catalog = load_doctrine_catalog()
+    catalog = load_offering_catalog()
     assert sorted(roots.paradigms) == sorted(catalog.paradigms)
     assert roots.directives  # non-empty: built-ins still delivered
 

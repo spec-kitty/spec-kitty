@@ -4,7 +4,7 @@
 already ships and is canonical, but the **top-level** JSON payload built by
 :func:`~charter.activation.context.build_charter_context_json` carried no schema
 version of its own, so an external consumer that pins to its shape could
-break silently on any doctrine-layer reshape. ``CONTEXT_SCHEMA_VERSION`` is
+break silently on any offering-layer reshape. ``CONTEXT_SCHEMA_VERSION`` is
 the single-authority stamp for that top-level shape; it is deliberately
 named distinct from the *nested* ``org_charter.schema_version`` field
 (``charter.activation.org_charter.OrgCharterPolicy.schema_version``),

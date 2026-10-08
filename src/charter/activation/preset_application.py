@@ -65,7 +65,7 @@ from typing import Any, ClassVar
 from ruamel.yaml.error import YAMLError
 
 from charter.activation.charter_yaml_io import apply_yaml_write
-from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.catalog import resolve_offering_root
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import ResolutionPass, UnknownArtifactIdError, resolve_artifact_urn, resolve_config_id
 from charter.activation.layer_roots import resolve_layer_roots, resolve_org_root_chain
@@ -317,7 +317,7 @@ def _available_mission_types(repo_root: Path, org_roots: Sequence[Path]) -> froz
 class _Roots:
     """The offering's roots, resolved once per plan (built-in, every org pack, project)."""
 
-    doctrine_root: Path
+    offering_root: Path
     org_roots: list[Path]
     layer_roots: dict[str, Path]
     resolution_pass: ResolutionPass
@@ -325,13 +325,13 @@ class _Roots:
     @classmethod
     def of(cls, repo_root: Path, org_roots: Sequence[Path]) -> _Roots:
         layer_roots = {layer: root for layer, root in resolve_layer_roots(repo_root).items() if layer != "org"}
-        return cls(resolve_doctrine_root(), list(org_roots), layer_roots, ResolutionPass())
+        return cls(resolve_offering_root(), list(org_roots), layer_roots, ResolutionPass())
 
 
 def _artifact_id_resolves(kind: ArtifactKind, raw_id: str, roots: _Roots) -> bool:
     """Whether *raw_id* (a config stem or a declared ``id:``) names an artifact of *kind* in the offering."""
     scope: dict[str, Any] = {
-        "doctrine_root": roots.doctrine_root,
+        "offering_root": roots.offering_root,
         "org_roots": roots.org_roots,
         "layer_roots": roots.layer_roots,
         "resolution_pass": roots.resolution_pass,

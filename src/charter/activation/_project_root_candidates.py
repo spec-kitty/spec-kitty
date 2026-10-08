@@ -1,7 +1,7 @@
-"""Shared DoctrineService project-root candidate resolution.
+"""Shared project-root candidate resolution for the charter offering service.
 
-Both ``src/charter/activation/compiler.py::_default_doctrine_service`` and
-``src/charter/activation/context.py::_build_doctrine_service`` use the same candidate-list
+Both ``src/charter/activation/compiler.py::_default_active_charter_service`` and
+``src/charter/activation/context.py::_build_offering_service`` use the same candidate-list
 ordering.  This module is the **single source of truth** for that ordering so
 the two call-sites cannot drift apart.
 
@@ -35,7 +35,7 @@ from kernel.charter_pack_paths import project_pack_root
 _BUILT_IN_FALLBACK_CANDIDATES: tuple[str, ...] = ("src/charter/offering",)  # relocated code-local built-in-layer path
 
 
-def _project_root_candidates(repo_root: Path) -> tuple[Path, ...]:
+def _candidate_dirs(repo_root: Path) -> tuple[Path, ...]:
     """Return the ordered candidate directories for *repo_root*.
 
     The first candidate is the project pack root, decided by the kernel
@@ -46,15 +46,15 @@ def _project_root_candidates(repo_root: Path) -> tuple[Path, ...]:
 
 
 def resolve_project_root(repo_root: Path) -> Path | None:
-    """Return the first existing project-doctrine directory for *repo_root*.
+    """Return the first existing project-layer directory for *repo_root*.
 
     Returns ``None`` when none of the candidates exist on disk, which means
-    ``DoctrineService`` will be constructed with ``project_root=None`` (built-in
+    ``CharterOfferingService`` will be constructed with ``project_root=None`` (built-in
     layer only — identical to the pre-Phase-3 default).
 
     The function is intentionally a thin directory-presence check: it does
     **not** inspect the directory's contents.  An empty project pack root
-    directory is still a valid candidate (the ``DoctrineService`` will simply
+    directory is still a valid candidate (the ``CharterOfferingService`` will simply
     surface an empty project layer with no built-in-layer impact).
 
     Args:
@@ -63,12 +63,12 @@ def resolve_project_root(repo_root: Path) -> Path | None:
     Returns:
         The first matching :class:`~pathlib.Path` or ``None``.
     """
-    for path in _project_root_candidates(repo_root):
+    for path in _candidate_dirs(repo_root):
         if path.is_dir():
             return path
     return None
 
 
-# _project_root_candidates / _BUILT_IN_FALLBACK_CANDIDATES: internal; no
+# _candidate_dirs / _BUILT_IN_FALLBACK_CANDIDATES: internal; no
 # cross-module src/ from-import callers (WP01 harden-dead-symbol-gate-01KW0RJR).
 __all__ = ["resolve_project_root"]

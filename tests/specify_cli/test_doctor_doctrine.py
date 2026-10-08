@@ -453,7 +453,7 @@ def test_collect_profile_health_surfaces_inline_ref_and_keeps_siblings(
     """C1/C2: inline-ref org profile ⇒ surfaced skip + healthy=false + valid sibling visible.
 
     Function-level integration override (module marker is ``unit``, P-4): this
-    drives the real ``DoctrineService``/``AgentProfileRepository`` org load.
+    drives the real ``CharterOfferingService``/``AgentProfileRepository`` org load.
     """
     from specify_cli.cli.commands.doctor import _collect_profile_health
 
@@ -568,9 +568,9 @@ def test_collector_crash_is_unhealthy_not_vacuous_green() -> None:
     def _boom(*_args: object, **_kwargs: object):  # noqa: ANN202
         raise RuntimeError("simulated profile-load crash")
 
-    # ``DoctrineService`` is imported locally inside ``_collect_profile_health``,
+    # ``CharterOfferingService`` is imported locally inside ``_collect_profile_health``,
     # so patch it at its definition site to force the load to crash.
-    with patch("charter.offering.service.DoctrineService", side_effect=_boom):
+    with patch("charter.offering.service.CharterOfferingService", side_effect=_boom):
         report = doctor_mod._collect_profile_health(_Path("/nonexistent-repo"))
 
     assert report.healthy is False, "a crashed collector must not be green"

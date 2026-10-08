@@ -39,7 +39,7 @@ from charter.offering.drg.loader import load_built_in_graph
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from charter.offering.drg.query import resolve_context
 from charter.offering.drg.reachability import profile_channel_reachable
-from charter.offering.service import DoctrineService
+from charter.offering.service import CharterOfferingService
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
@@ -66,15 +66,15 @@ def graph() -> DRGGraph:
 
 
 @pytest.fixture(scope="module")
-def service() -> DoctrineService:
-    """A DoctrineService over the shipped built-in doctrine tree.
+def service() -> CharterOfferingService:
+    """A CharterOfferingService over the shipped built-in doctrine tree.
 
     No explicit built-in root: each repository self-resolves the flattened
     built-in tier via ``resolve_pack_root("built-in")`` (packs/built-in/<kind>).
     Post-relocation, ``files("charter.offering")`` points at the emptied src/doctrine
     tree and would load nothing.
     """
-    return DoctrineService()
+    return CharterOfferingService()
 
 
 def _kind_filtered(reached: frozenset[str]) -> set[str]:
@@ -96,7 +96,7 @@ class TestA1FamilyAParadigmDelivered:
         reached = profile_channel_reachable(graph, {_ARCHITECT})
         assert _DDD in reached
 
-    def test_render_surfaces_ddd_with_a_when(self, service: DoctrineService) -> None:
+    def test_render_surfaces_ddd_with_a_when(self, service: CharterOfferingService) -> None:
         profile = AgentProfileRepository().resolve_profile("architect-alphonso")
         block = _render_profile_sections(profile, service)
         assert "domain-driven-design" in block
@@ -129,7 +129,7 @@ class TestA2FamilyBTacticsDelivered:
         assert move[0]["relation"] == "suggests"
         assert move[0]["when"] == _MOVE_METHOD_WHEN
 
-    def test_render_surfaces_the_refactoring_tactic(self, service: DoctrineService) -> None:
+    def test_render_surfaces_the_refactoring_tactic(self, service: CharterOfferingService) -> None:
         profile = AgentProfileRepository().resolve_profile("python-pedro")
         block = _render_profile_sections(profile, service)
         assert "refactoring-move-method" in block
@@ -232,7 +232,7 @@ class TestA4DiamondRequiresPrecedence:
 # A5 — suggested artefacts are references (links), never inlined bodies
 # ---------------------------------------------------------------------------
 class TestA5LinksNotBodies:
-    def test_suggested_artefact_renders_as_a_fetch_link(self, service: DoctrineService) -> None:
+    def test_suggested_artefact_renders_as_a_fetch_link(self, service: CharterOfferingService) -> None:
         profile = AgentProfileRepository().resolve_profile("python-pedro")
         lines = render_profile_suggested_doctrine(profile, service)
         block = "\n".join(lines)
@@ -273,7 +273,7 @@ class TestA6ActionChannelIsolation:
 
 
 def test_synthetic_profile_with_no_suggests_reach_renders_empty(
-    service: DoctrineService,
+    service: CharterOfferingService,
 ) -> None:
     """Fail-closed: a profile whose channel reaches no deliverable suggests
     doctrine contributes no section (no fail-open whole-graph fallback)."""
@@ -314,7 +314,7 @@ def test_service_without_agent_profiles_repo_renders_nothing() -> None:
 
     ``getattr(service, "agent_profiles", None)`` is the guard -- a service
     object that never wired the profile repository (e.g. a partial/legacy
-    ``DoctrineService``-like object) must not raise; the profile channel is
+    ``CharterOfferingService``-like object) must not raise; the profile channel is
     simply unavailable, so the renderer contributes nothing.
     """
 

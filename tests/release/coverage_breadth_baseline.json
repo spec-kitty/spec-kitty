@@ -76,7 +76,7 @@
           5,
           5
         ],
-        "src/charter/activation/_doctrine_paths.py": [
+        "src/charter/activation/_project_root_candidates.py": [
           9,
           10
         ],
@@ -88,7 +88,7 @@
           34,
           124
         ],
-        "src/charter/activation/action_doctrine_bundle.py": [
+        "src/charter/activation/action_governance_bundle.py": [
           32,
           89
         ],
@@ -220,7 +220,7 @@
           22,
           31
         ],
-        "src/charter/activation/doctrine_service_builder.py": [
+        "src/charter/activation/active_charter_service_builder.py": [
           24,
           32
         ],

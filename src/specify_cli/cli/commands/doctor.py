@@ -1115,7 +1115,7 @@ def charter_packs_check(
 
     registry = load_pack_registry(repo_root)
 
-    # WP08: build the doctrine health report ONCE (single DoctrineService /
+    # WP08: build the doctrine health report ONCE (single ActiveCharterService /
     # org-DRG load).  Both the human and JSON surfaces are passthroughs of this
     # report — there is no parallel assembly (R-011-C / NFR-001).
     report = _collect_profile_health(repo_root)

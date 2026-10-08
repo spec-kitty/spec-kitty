@@ -4,13 +4,13 @@ Pins the FR-011 / C-005 contract: a project overrides a mission type's
 governance by dropping
 ``.kittify/charter-packs/mission_types/<type>/governance-profile.yaml`` — resolved
 through the *existing* ``doctrine/base.py`` builtin → org → project overlay
-(field-merge + :class:`~charter.offering.base.DoctrineLayerCollisionWarning`), **not** a
+(field-merge + :class:`~charter.offering.base.ArtifactLayerCollisionWarning`), **not** a
 bespoke second merge.  Covers:
 
 * the ``id == mission_type`` overlay invariant (model + shipped profiles);
 * precedence (project override of a field wins over shipped baseline);
 * fall-through (fields absent from the override inherit the shipped value);
-* collision visibility (the shadow emits ``DoctrineLayerCollisionWarning``);
+* collision visibility (the shadow emits ``ArtifactLayerCollisionWarning``);
 * the org layer (project > org > builtin, #832 support comes free);
 * the end-to-end ride through ``resolve_mission_type_context``.
 """
@@ -29,7 +29,7 @@ from charter.activation.mission_type_profiles import (
     MissionTypeProfile,
     resolve_mission_type_context,
 )
-from charter.offering.base import DoctrineLayerCollisionWarning
+from charter.offering.base import ArtifactLayerCollisionWarning
 from charter.offering.missions.mission_type_repository import builtin_mission_type_ids
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -165,7 +165,7 @@ class TestProjectOverrideRidesTheOverlay:
         )
 
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DoctrineLayerCollisionWarning)
+            warnings.simplefilter("ignore", ArtifactLayerCollisionWarning)
             repo = MissionTypeProfileRepository(
                 built_in_dir=built_in, project_dir=project
             )
@@ -193,7 +193,7 @@ class TestProjectOverrideRidesTheOverlay:
             },
         )
 
-        with pytest.warns(DoctrineLayerCollisionWarning, match="software-dev"):
+        with pytest.warns(ArtifactLayerCollisionWarning, match="software-dev"):
             MissionTypeProfileRepository(built_in_dir=built_in, project_dir=project)
 
     def test_id_less_project_override_is_skipped(self, tmp_path: Path) -> None:
@@ -255,7 +255,7 @@ class TestOrgLayerPrecedence:
         )
 
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DoctrineLayerCollisionWarning)
+            warnings.simplefilter("ignore", ArtifactLayerCollisionWarning)
             repo = MissionTypeProfileRepository(
                 built_in_dir=built_in, org_dirs=[org], project_dir=project
             )
@@ -286,7 +286,7 @@ class TestOrgLayerPrecedence:
         )
 
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DoctrineLayerCollisionWarning)
+            warnings.simplefilter("ignore", ArtifactLayerCollisionWarning)
             repo = MissionTypeProfileRepository(built_in_dir=built_in, org_dirs=[org])
 
         profile = repo.get("software-dev")
@@ -318,7 +318,7 @@ class TestOverrideRidesResolverEndToEnd:
             },
         )
 
-        with pytest.warns(DoctrineLayerCollisionWarning, match="software-dev"):
+        with pytest.warns(ArtifactLayerCollisionWarning, match="software-dev"):
             bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
 
         assert bundle.mission_type == "software-dev"

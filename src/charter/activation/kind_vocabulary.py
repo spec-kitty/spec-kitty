@@ -61,10 +61,11 @@ from charter.offering.pack_paths import (
 #: Public re-export of :data:`charter.offering.artifact_kinds.PROJECT_KIND_DIRS`.
 #:
 #: Landing-fold addition (write-side-seam-matrix-tracer Wave B / #3070):
-#: ``specify_cli.cli.commands.charter.authoring``'s ``new`` scaffolder needs the
-#: project-tier directory-per-kind mapping but, as a runtime-layer module,
-#: may not import ``doctrine.*`` directly (the runtime -> charter ->
-#: doctrine boundary ratchet, ``test_runtime_charter_doctrine_boundary.py``).
+#: the ``spec-kitty charter new`` scaffolder
+#: (``specify_cli.cli.commands.charter.authoring``) needs the project-tier
+#: directory-per-kind mapping but, as a runtime-layer module, may not import
+#: ``charter.offering.*`` directly (the runtime -> charter facade ->
+#: charter.offering boundary ratchet, ``test_runtime_charter_doctrine_boundary.py``).
 #: This module already imports the mapping privately (as
 #: ``_PROJECT_KIND_DIRS``, kept for the existing internal partial-table
 #: distinction below); this public alias is the thin facade re-export the
@@ -158,17 +159,17 @@ def _config_stem(path: Path) -> str:
 def _scan_roots(
     kind: ArtifactKind,
     *,
-    _doctrine_root: Path,
+    _offering_root: Path,
     org_roots: list[Path] | None,
     layer_roots: dict[str, Path] | None,
 ) -> list[tuple[Path, bool]]:
     """Return the ``(directory, recursive)`` pairs to scan for *kind*.
 
-    Roots are supplied as data (C-008). ``_doctrine_root`` is the resolved
-    doctrine package root -- retained in the signature for call-site symmetry
+    Roots are supplied as data (C-008). ``_offering_root`` is the resolved
+    ``charter.offering`` package root -- retained in the signature for call-site symmetry
     with :func:`_iter_artifact_paths` (and its callers' diagnostics) but no
     longer used as a scan root itself: built-in content was flattened out of
-    ``<doctrine_root>/<kind>/built-in`` into ``packs/built-in/<kind>``
+    ``<offering_root>/<kind>/built-in`` into ``packs/built-in/<kind>``
     (relocation mission doctrine-built-in-seam-consolidation-01KYW3TX, WP02),
     which resolves via the shared :func:`~charter.offering.pack_paths.built_in_dir`
     seam below instead. ``org_roots`` contributes, for each root, the flat
@@ -179,7 +180,7 @@ def _scan_roots(
     The flat entry's ``recursive`` flag is sourced from the single shared
     recursion authority :func:`charter.offering.discovery_recursion.overlay_scan_is_recursive`
     -- the same authority the live loader consults
-    (:meth:`charter.offering.base.BaseDoctrineRepository._project_scan`, which now
+    (:meth:`charter.offering.base.BaseArtifactRepository._project_scan`, which now
     recurses unconditionally for every kind's org/project overlay, and
     :meth:`charter.offering.agent_profiles.repository.AgentProfileRepository._load`).
     So the resolver and the loader recurse identically for **every** kind
@@ -242,7 +243,7 @@ def _org_scan_dirs(kind: ArtifactKind, org_roots: list[Path] | None) -> list[tup
     **Recursion is sourced from the shared authority (#3426 closed).** The
     flat entry's ``recursive`` flag comes from
     :func:`doctrine.discovery_recursion.overlay_scan_is_recursive` -- the same
-    single authority the live loader (``BaseDoctrineRepository._project_scan``
+    single authority the live loader (``BaseArtifactRepository._project_scan``
     and ``AgentProfileRepository._load``) consults -- so the resolver and the
     loader recurse identically for every kind (unconditional per C-001). This
     closes the prior list-vs-activate divergence: a ``styleguide`` (or any
@@ -338,27 +339,27 @@ class ResolutionPass:
 
 def _scan_cache_key(
     kind: ArtifactKind,
-    doctrine_root: Path,
+    offering_root: Path,
     org_roots: list[Path] | None,
     layer_roots: dict[str, Path] | None,
 ) -> tuple[object, ...]:
     """Return a hashable key identifying one `_iter_artifact_paths` input set."""
     org_key = tuple(org_roots) if org_roots else ()
     layer_key = tuple(sorted((layer_roots or {}).items()))
-    return (kind, doctrine_root, org_key, layer_key)
+    return (kind, offering_root, org_key, layer_key)
 
 
 def _iter_artifact_paths(
     kind: ArtifactKind,
     *,
-    doctrine_root: Path,
+    offering_root: Path,
     org_roots: list[Path] | None,
     layer_roots: dict[str, Path] | None,
     resolution_pass: ResolutionPass | None = None,
 ) -> list[Path]:
     cache_key = None
     if resolution_pass is not None:
-        cache_key = _scan_cache_key(kind, doctrine_root, org_roots, layer_roots)
+        cache_key = _scan_cache_key(kind, offering_root, org_roots, layer_roots)
         cached = resolution_pass.scans.get(cache_key)
         if cached is not None:
             return cached
@@ -369,7 +370,7 @@ def _iter_artifact_paths(
         paths = []
         for scan_dir, recursive in _scan_roots(
             kind,
-            _doctrine_root=doctrine_root,
+            _offering_root=offering_root,
             org_roots=org_roots,
             layer_roots=layer_roots,
         ):
@@ -421,7 +422,7 @@ def resolve_artifact_urn(
     kind: ArtifactKind,
     config_id: str,
     *,
-    doctrine_root: Path,
+    offering_root: Path,
     org_roots: list[Path] | None = None,
     layer_roots: dict[str, Path] | None = None,
     resolution_pass: ResolutionPass | None = None,
@@ -438,7 +439,7 @@ def resolve_artifact_urn(
             :meth:`ArtifactKind.from_operator_token` first).
         config_id: The config/file-stem ID, e.g.
             ``"001-architectural-integrity-standard"``.
-        doctrine_root: Resolved doctrine package root (passed as data, C-008).
+        offering_root: Resolved doctrine package root (passed as data, C-008).
         org_roots: Optional additional org/project doctrine roots to scan.
         layer_roots: Optional modern layer map, e.g. ``{"org": <pack-root>}``.
 
@@ -453,7 +454,7 @@ def resolve_artifact_urn(
     id_field = _id_field_for(kind)
     for path in _iter_artifact_paths(
         kind,
-        doctrine_root=doctrine_root,
+        offering_root=offering_root,
         org_roots=org_roots,
         layer_roots=layer_roots,
         resolution_pass=resolution_pass,
@@ -469,7 +470,7 @@ def resolve_artifact_urn(
         try:
             resolve_config_id(
                 f"{kind.value}:{config_id}",
-                doctrine_root=doctrine_root,
+                offering_root=offering_root,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
                 resolution_pass=resolution_pass,
@@ -479,7 +480,7 @@ def resolve_artifact_urn(
             pass
     raise UnknownArtifactIdError(
         f"No {kind.value} artifact with config ID {config_id!r} found under "
-        f"doctrine root {doctrine_root}{_org_roots_clause(org_roots)}. "
+        f"doctrine root {offering_root}{_org_roots_clause(org_roots)}. "
         f"Searched layers: {_searched_layers(kind, org_roots, layer_roots)}. "
         f"Check activated_{kind.plural} in the charter.yaml activation store "
         f"selected by `.kittify/config.yaml` (or its legacy inline activations) for a stale or "
@@ -538,7 +539,7 @@ def _directive_stem_represents(
     ids_by_stem: dict[str, set[str]],
     *,
     kind: ArtifactKind,
-    doctrine_root: Path,
+    offering_root: Path,
     org_roots: list[Path] | None,
     layer_roots: dict[str, Path] | None,
     resolution_pass: ResolutionPass,
@@ -560,7 +561,7 @@ def _directive_stem_represents(
         resolve_artifact_urn(
             kind,
             stem,
-            doctrine_root=doctrine_root,
+            offering_root=offering_root,
             org_roots=org_roots,
             layer_roots=layer_roots,
             resolution_pass=resolution_pass,
@@ -573,7 +574,7 @@ def _directive_stem_represents(
 def resolve_config_id(
     urn: str,
     *,
-    doctrine_root: Path,
+    offering_root: Path,
     org_roots: list[Path] | None = None,
     layer_roots: dict[str, Path] | None = None,
     resolution_pass: ResolutionPass | None = None,
@@ -587,7 +588,7 @@ def resolve_config_id(
 
     Args:
         urn: A DRG URN node ID, e.g. ``"directive:DIRECTIVE_001"``.
-        doctrine_root: Resolved doctrine package root (passed as data, C-008).
+        offering_root: Resolved doctrine package root (passed as data, C-008).
         org_roots: Optional additional org/project doctrine roots to scan.
         layer_roots: Optional modern layer map, e.g. ``{"org": <pack-root>}``.
         resolution_pass: Optional memo shared by several resolutions in one
@@ -624,7 +625,7 @@ def resolve_config_id(
     active_pass = resolution_pass if resolution_pass is not None else ResolutionPass()
     paths = _iter_artifact_paths(
         kind,
-        doctrine_root=doctrine_root,
+        offering_root=offering_root,
         org_roots=org_roots,
         layer_roots=layer_roots,
         resolution_pass=active_pass,
@@ -648,7 +649,7 @@ def resolve_config_id(
             urn,
             ids_by_stem,
             kind=kind,
-            doctrine_root=doctrine_root,
+            offering_root=offering_root,
             org_roots=org_roots,
             layer_roots=layer_roots,
             resolution_pass=active_pass,
@@ -661,7 +662,7 @@ def resolve_config_id(
         )
     raise UnknownArtifactIdError(
         f"No {kind.value} artifact with id {artifact_id!r} found under "
-        f"doctrine root {doctrine_root}{_org_roots_clause(org_roots)}. "
+        f"doctrine root {offering_root}{_org_roots_clause(org_roots)}. "
         f"Searched layers: {_searched_layers(kind, org_roots, layer_roots)}. "
         f"Check activated_{kind.plural} in the charter.yaml activation store "
         f"selected by `.kittify/config.yaml` (or its legacy inline activations) for a stale or "
@@ -674,7 +675,7 @@ def resolve_selected_id_to_stem(
     kind: ArtifactKind,
     raw_id: str,
     *,
-    doctrine_root: Path,
+    offering_root: Path,
     org_roots: list[Path] | None = None,
     layer_roots: dict[str, Path] | None = None,
 ) -> str | None:
@@ -690,7 +691,7 @@ def resolve_selected_id_to_stem(
         try:
             return resolve_config_id(
                 f"{kind.value}:{raw_id}",
-                doctrine_root=doctrine_root,
+                offering_root=offering_root,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
             )
@@ -704,7 +705,7 @@ def resolve_selected_id_to_stem(
         resolve_artifact_urn(
             kind,
             raw_id,
-            doctrine_root=doctrine_root,
+            offering_root=offering_root,
             org_roots=org_roots,
             layer_roots=layer_roots,
         )
@@ -714,7 +715,7 @@ def resolve_selected_id_to_stem(
     try:
         return resolve_config_id(
             f"{kind.value}:{raw_id}",
-            doctrine_root=doctrine_root,
+            offering_root=offering_root,
             org_roots=org_roots,
             layer_roots=layer_roots,
         )

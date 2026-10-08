@@ -426,7 +426,7 @@ def _built_in_invariant_ids(built_in: DRGGraph) -> frozenset[str]:
 
     Whether a given repo *tolerates* a built-in override is a per-repo
     governance TEST (``tests/architectural/test_builtin_override_policy.py``
-    consults ``.kittify/doctrine/replaceable-builtins.yaml``), not a merge-time
+    consults ``.kittify/charter-packs/replaceable-builtins.yaml``), not a merge-time
     prohibition.
     """
     return frozenset(n.urn for n in built_in.nodes)
@@ -1163,7 +1163,7 @@ def merge_three_layers(
       emitted. The merge does NOT raise. Whether a given repo *tolerates* this
       override is a per-repo governance TEST
       (``tests/architectural/test_builtin_override_policy.py`` consulting
-      ``.kittify/doctrine/replaceable-builtins.yaml``), not a merge prohibition.
+      ``.kittify/charter-packs/replaceable-builtins.yaml``), not a merge prohibition.
     * **Kind-drift** collision (org kind DIFFERS from built-in kind) — hard-fails
       with :class:`OrgDRGConflictError` (``resolution_applied='hard_fail'``). An
       override may replace a built-in's content, never its kind.
@@ -1210,7 +1210,7 @@ def merge_three_layers(
         last org pack that declares it wins (``_resolve_builtin_collision``).
         A kind-drift collision with a built-in node is a hard failure.
     project:
-        Optional project-tier DRG (``.kittify/doctrine/graph.yaml`` loaded and
+        Optional project-tier DRG (``.kittify/charter-packs/graph.yaml`` loaded and
         merged elsewhere). When ``None``, the merge collapses to the
         built-in+org case.
 

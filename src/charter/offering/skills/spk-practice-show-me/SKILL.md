@@ -1,9 +1,9 @@
 ---
-name: spk-doctrine-show-me
+name: spk-practice-show-me
 description: "Explain Spec Kitty work with compact, checkable visuals. Use for specs, plans, architecture, control flow, diffs, status boards, or whenever prose obscures structure."
 ---
 
-# spk-doctrine-show-me
+# spk-practice-show-me
 
 Make the current point visible. Skip the preamble, keep prose brief, and pick
 the smallest representation that answers the question. Do not add a diagram

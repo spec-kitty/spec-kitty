@@ -153,7 +153,7 @@ class TestProjectKindDirs:
 
     :data:`PROJECT_KIND_DIRS` is the one place the project-overlay directory
     name for each :class:`ArtifactKind` is declared. The scaffolder
-    (``doctrine new``), :class:`~charter.offering.service.DoctrineService` (WP04), and
+    (``doctrine new``), :class:`~charter.offering.service.CharterOfferingService` (WP04), and
     the charter resolvers all import it; none re-declares the mapping. It must
     be **total** (fail-closed) so a new kind cannot silently miss an entry.
     """
@@ -179,8 +179,8 @@ class TestProjectKindDirs:
                 assert PROJECT_KIND_DIRS[kind] == kind.plural
 
     def test_asset_project_dir_is_the_plural_assets(self) -> None:
-        # Pins the T018 scaffold/resolver rendezvous: ``doctrine new --kind
-        # asset`` writes under this directory, and DoctrineService (WP04) reads
+        # Pins the T018 scaffold/resolver rendezvous: ``charter new --kind
+        # asset`` writes under this directory, and CharterOfferingService (WP04) reads
         # the same authority for the project tier.
         assert PROJECT_KIND_DIRS[ArtifactKind.ASSET] == "assets"
 

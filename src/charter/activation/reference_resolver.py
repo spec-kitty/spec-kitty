@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from charter.activation._drg_helpers import load_validated_graph
-from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.catalog import resolve_offering_root
 from charter.activation.drg_activation import filter_graph_by_activation
 from charter.offering.drg.loader import load_built_in_graph
 from charter.offering.drg.models import DRGGraph, Relation
@@ -22,7 +22,7 @@ __all__ = [
 
 def resolve_references_transitively(
     directive_ids: list[str],
-    doctrine_service: object,
+    charter_service: object,
     *,
     graph: DRGGraph | None = None,
     repo_root: Path | None = None,
@@ -40,7 +40,7 @@ def resolve_references_transitively(
         (FR-032, FR-036, WP08) before transitive resolution. Pass ``None``
         to skip the filter (backward-compatible behaviour).
     """
-    _ = doctrine_service
+    _ = charter_service
 
     if not directive_ids:
         return ResolveTransitiveRefsResult()
@@ -51,8 +51,8 @@ def resolve_references_transitively(
             if repo_root is not None:
                 resolved_graph = load_validated_graph(repo_root)
             else:
-                doctrine_root = resolve_doctrine_root()
-                if not doctrine_root.exists():
+                offering_root = resolve_offering_root()
+                if not offering_root.exists():
                     return ResolveTransitiveRefsResult(directives=sorted(directive_ids))
                 resolved_graph = load_built_in_graph()
                 assert_valid(resolved_graph)

@@ -263,7 +263,7 @@ def _resolve_org_layer_dir(root: Path, kind: ArtifactKind) -> Path:
     """Return the org-layer scan directory: the flat ``<pack>/<plural>/`` layout.
 
     FR-013 unifies the charter activation subsystem with runtime, which resolves
-    org packs from the flat layout (``resolve_org_roots`` → ``DoctrineService``).
+    org packs from the flat layout (``resolve_org_roots`` → ``ActiveCharterService``).
     The retired nested ``<pack>/doctrine/<plural>/org/`` layout is not read
     (mission ``charter-pack-cutover-01M491G6``, FR-011: no read-side fallback
     for the retired doctrine layout).

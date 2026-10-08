@@ -17,8 +17,8 @@ from kernel.charter_pack_paths import PROJECT_GRAPH_FILENAME, project_pack_path,
 _PROVENANCE_FILENAME = "PROVENANCE.md"
 
 # T031 (#839 minimal artifact set): the runtime consumes ``.kittify/charter-packs/``
-# via ``DoctrineService(project_root=...)``. The candidate-list resolver in
-# ``src/charter/activation/_doctrine_paths.py::resolve_project_root`` treats project-root
+# via ``ActiveCharterService(project_root=...)``. The candidate-list resolver in
+# ``src/charter/activation/_project_root_candidates.py::resolve_project_root`` treats project-root
 # discovery as **directory-presence only** — an empty ``.kittify/charter-packs/`` is
 # a valid candidate, and the built-in layer (``packs/built-in/``) supplies content
 # until the project layer is populated. The minimal artifact set
@@ -42,7 +42,7 @@ _MINIMAL_FRESH_DOCTRINE_PROVENANCE_TEMPLATE = """\
 
 This `.kittify/charter-packs/` tree was materialized by `spec-kitty charter
 synthesize` running against a **fresh project** (no LLM-authored YAML under
-`.kittify/charter/generated/`). It exists so `DoctrineService` discovers a
+`.kittify/charter/generated/`). It exists so `ActiveCharterService` discovers a
 project layer and the runtime can advance; it is intentionally empty.
 
 The runtime falls back to the packaged built-in doctrine
@@ -54,7 +54,7 @@ References
 ----------
 - GitHub issue: https://github.com/spec-kitty/spec-kitty/issues/839
 - Spec assumption A2: public CLI synthesize works on a fresh project.
-- Project-root resolution: `src/charter/activation/_doctrine_paths.py`.
+- Project-root resolution: `src/charter/activation/_project_root_candidates.py`.
 """
 
 

@@ -12,9 +12,9 @@ from typer.testing import CliRunner
 
 import pytest
 
-from charter.offering.service import DoctrineService
+from charter.offering.service import CharterOfferingService
 from specify_cli.cli.commands.charter import app
-from charter.activation.catalog import DoctrineCatalog
+from charter.activation.catalog import OfferingCatalog
 from charter.activation.compiler import compile_charter, write_compiled_charter
 
 from charter.activation.interview import (
@@ -37,10 +37,10 @@ def _write_yaml(path: Path, data: dict[object, object]) -> None:
 def test_profile_aware_charter_compilation_resolves_transitive_references(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # ``built_in_root`` still simulates the doctrine root ``resolve_doctrine_root``
+    # ``built_in_root`` still simulates the doctrine root ``resolve_offering_root``
     # is patched to return below (missions/ and the synthetic graph.yaml -- both
-    # unrelated to the WP04 DoctrineService seam). The directive/tactic/
-    # styleguide/agent_profile content DoctrineService itself resolves lives in
+    # unrelated to the WP04 CharterOfferingService seam). The directive/tactic/
+    # styleguide/agent_profile content CharterOfferingService itself resolves lives in
     # a SEPARATE flat ``packs/built-in/<kind>/`` tree, injected via
     # SPEC_KITTY_PACKS_ROOT (the removed built_in_root= param's replacement).
     built_in_root = tmp_path / "doctrine"
@@ -134,8 +134,8 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(
     # Post `resolution-activation-foundation` (unified single-PACKS_ROOT read):
     # ``MissionTemplateRepository.default_missions_root()`` now resolves the
     # ``missions`` leaf from ``SPEC_KITTY_PACKS_ROOT`` (``packs/built-in/missions``),
-    # not the patched ``resolve_doctrine_root``. ``default_interview`` below reads
-    # it before the ``resolve_doctrine_root`` patch is even applied, so mirror the
+    # not the patched ``resolve_offering_root``. ``default_interview`` below reads
+    # it before the ``resolve_offering_root`` patch is even applied, so mirror the
     # mission template under the packs root or it fails closed with
     # ``MissionsRootNotFound``.
     _write_yaml(
@@ -188,8 +188,8 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(
         },
     )
 
-    doctrine_service = DoctrineService()
-    doctrine_catalog = DoctrineCatalog(
+    charter_service = CharterOfferingService()
+    offering_catalog = OfferingCatalog(
         paradigms=frozenset(),
         directives=frozenset({"REVIEW_FIRST", "INTERVIEW_ONLY"}),
         template_sets=frozenset({"software-dev-default"}),
@@ -217,11 +217,11 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(
     resolution = resolve_governance_for_profile(
         "reviewer",
         "reviewer",
-        doctrine_service,
+        charter_service,
         interview,
         graph=drg,
     )
-    # Monkey-patch resolve_doctrine_root so the compiler's DRG lookup
+    # Monkey-patch resolve_offering_root so the compiler's DRG lookup
     # targets the same synthetic built_in_root as the resolver. The
     # compiler imports the function into its own namespace, so we patch
     # the binding there.
@@ -229,14 +229,14 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(
     # The compiler resolves the *built-in DRG graph* through a SECOND,
     # deliberately-separate seam: ``charter.offering.drg.loader.load_built_in_graph``
     # (via ``built_in_graph_source`` -> ``files("charter.offering")``). That seam does
-    # NOT consult ``resolve_doctrine_root`` -- doctrine sits below charter in
+    # NOT consult ``resolve_offering_root`` -- doctrine sits below charter in
     # the dependency graph (C-004) and must not import upward. Without patching
     # it, the compiler's transitive walk loads the *installed* package graph,
     # where none of the synthetic fixture URNs exist, and every start URN is
     # recorded as an unresolved reference. Patch it to the same synthetic graph
     # the resolver used so both seams agree.
     with patch(
-        "charter.activation.compiler.resolve_doctrine_root",
+        "charter.activation.compiler.resolve_offering_root",
         return_value=built_in_root,
     ), patch(
         "charter.offering.drg.loader.load_built_in_graph",
@@ -250,8 +250,8 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(
                 agent_profile=resolution.profile_id,
                 agent_role=resolution.role,
             ),
-            doctrine_catalog=doctrine_catalog,
-            doctrine_service=doctrine_service,
+            offering_catalog=offering_catalog,
+            charter_service=charter_service,
         )
     result = write_compiled_charter(output_dir, compiled, force=True)
 

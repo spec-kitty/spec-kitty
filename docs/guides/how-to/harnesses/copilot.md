@@ -62,7 +62,7 @@ Exact discovery rules depend on your editor and Copilot version. If `/spec-kitty
 - **Profile not loading.**
   In Copilot Chat, run:
   ```
-  /ad-hoc-profile-load researcher-robbie
+  /spk-charter-profile-load researcher-robbie
   ```
   Use the profile id from the work-package frontmatter.
 

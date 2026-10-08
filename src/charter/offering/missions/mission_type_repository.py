@@ -525,7 +525,7 @@ def _resolve_layered_mission_types_uncached(
 
     Layer precedence, full per-compound-key replacement (never a field-level
     merge -- ``MissionTypeRepository`` does not inherit
-    ``BaseDoctrineRepository``, spec.md Edge Cases): **project > org
+    ``BaseArtifactRepository``, spec.md Edge Cases): **project > org
     (earliest pack_root wins) > built-in-equivalent** -- matching
     ``MissionStepRepository``'s own documented precedence.
 

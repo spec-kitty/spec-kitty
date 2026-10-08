@@ -109,10 +109,10 @@ def _profile_catalog(
     org_roots = [root for root in resolve_org_roots(repo_root) if root.exists()]
     if project_doctrine_profiles.exists() or org_roots:
         from specify_cli.doctrine_service_factory import (
-            build_activation_aware_doctrine_service,
+            build_active_charter_service,
         )
 
-        svc = build_activation_aware_doctrine_service(repo_root)
+        svc = build_active_charter_service(repo_root)
         doctrine_repo: AgentProfileRepository = svc.agent_profile_repository
         for profile in doctrine_repo.list_all():
             layer = doctrine_repo.get_provenance(profile.profile_id)

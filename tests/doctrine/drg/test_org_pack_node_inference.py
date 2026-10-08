@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from charter.activation.action_doctrine_bundle import _load_action_doctrine_bundle
+from charter.activation.action_governance_bundle import _load_action_governance_bundle
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.org_pack_loader import OrgPackSchemaError, load_org_pack
 from specify_cli.cli.commands._doctrine_collect import _collect_org_layer_data
@@ -52,7 +52,7 @@ def test_artifact_reaches_doctor_and_only_its_scoped_action(tmp_path: Path, auth
     assert doctor["errors"] == [], doctor
     assert doctor["configured_packs"][0]["node_count"] == 1
     for action, expected in (("implement", True), ("review", False)):
-        bundle = _load_action_doctrine_bundle(
+        bundle = _load_action_governance_bundle(
             repo_root=repo,
             action=action,
             effective_depth=3,

@@ -17,15 +17,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
-    import charter.offering.service as _doctrine_service_module
+    import charter.offering.service as _offering_service_module
 
     from charter.activation.scope import CharterScope
 
 from ruamel.yaml import YAML as YAML
 
-from charter.activation.action_doctrine_bundle import (
-    _ActionDoctrineBundle as _ActionDoctrineBundle,
-    _load_action_doctrine_bundle as _load_action_doctrine_bundle,
+from charter.activation.action_governance_bundle import (
+    _ActionGovernanceBundle as _ActionGovernanceBundle,
+    _load_action_governance_bundle as _load_action_governance_bundle,
     _resolve_action_bundle as _resolve_action_bundle,
 )
 from charter.bundle import CHARTER_MD, CHARTER_YAML
@@ -62,7 +62,7 @@ from charter.activation.context_renderers.reference_pointers import (
 from charter.activation.context_renderers.template_include import (
     _render_agent_profile_include_selector,
     _render_catalog_kind_include_selector,
-    _render_doctrine_artifact_include as _render_doctrine_artifact_include,  # FR-009 preserved surface
+    _render_offering_artifact_include as _render_offering_artifact_include,  # FR-009 preserved surface
     _render_generic_artifact_include,
     _render_section_include_selector,
     _render_template_include,
@@ -80,16 +80,16 @@ from charter.activation.context_state import (
     _MIN_EFFECTIVE_DEPTH as _MIN_EFFECTIVE_DEPTH,
     _prepare_context_state as _prepare_context_state,
 )
-from charter.activation.doctrine_service_builder import (
-    _build_activation_aware_doctrine_service as _build_activation_aware_doctrine_service,
-    _build_doctrine_service as _build_doctrine_service,
+from charter.activation.active_charter_service_builder import (
+    _build_active_charter_service as _build_active_charter_service,
+    _build_offering_service as _build_offering_service,
 )
 from charter.activation import progressive_disclosure as _pd
 from charter.activation.governance_references import collect_governance_reference_status
 from charter.activation.language_scope import infer_repo_languages as infer_repo_languages
 from charter.activation.org_pack_discovery import (
     _iter_org_charter_docs as _iter_org_charter_docs,
-    _load_doctrine_selection as _load_doctrine_selection,
+    _load_governance_charter_config as _load_governance_charter_config,
     _missing_pack_diagnostic as _missing_pack_diagnostic,
     _read_org_required_selections as _read_org_required_selections,
 )
@@ -116,7 +116,7 @@ _LOGGER = logging.getLogger(__name__)
 BOOTSTRAP_ACTIONS: frozenset[str] = frozenset({"specify", "plan", "implement", "review"})
 
 
-def _action_node_declared(bundle: _ActionDoctrineBundle, action: str) -> bool:
+def _action_node_declared(bundle: _ActionGovernanceBundle, action: str) -> bool:
     """FR-001 (#3596, ADR 2026-08-21-1-charter-gate-predicate-inversion).
 
     Node-URN membership predicate -- NOT an empty-grain check.
@@ -131,13 +131,13 @@ def _action_node_declared(bundle: _ActionDoctrineBundle, action: str) -> bool:
     type was unresolved (typeless), which must always yield ``False``
     (``compact``, FR-003).  ``bundle.mission`` mirrors the type used to
     resolve the bundle (``resolved_type or ""`` -- see
-    ``_load_action_doctrine_bundle`` in
-    ``charter.activation.action_doctrine_bundle``),
+    ``_load_action_governance_bundle`` in
+    ``charter.activation.action_governance_bundle``),
     so reusing it here keeps the membership test on the exact node the
     bundle was resolved against.
 
-    Kept in this module (rather than alongside ``_ActionDoctrineBundle`` in
-    ``charter.activation.action_doctrine_bundle``) because it is WP02's owned-files
+    Kept in this module (rather than alongside ``_ActionGovernanceBundle`` in
+    ``charter.activation.action_governance_bundle``) because it is WP02's owned-files
     boundary (``rc3-charter-gate-predicate-inversion``, #3596): both
     consumers (``build_charter_context`` / ``build_charter_context_json``
     below) live here, and this predicate is inseparable from the two gate
@@ -188,12 +188,12 @@ def build_charter_context(
         ``meta.json`` ``mission_type`` field keys the action doctrine grain when
         ``mission_type`` is not given.
     org_root:
-        Optional path to the configured org doctrine snapshot.  When provided,
+        Optional path to the configured org Charter Pack snapshot.  When provided,
         the three-layer (built-in + org + project) DRG overlay is used and the
-        ``DoctrineService`` is constructed with the org layer included.
+        ``ActiveCharterService`` is constructed with the org layer included.
         Charter-layer callers leave this as ``None``; ``specify_cli`` callers
         resolve the value via :func:`charter.offering.drg.org_pack_config.resolve_org_roots`
-        and pass it explicitly (preserving the kernel <- doctrine <- charter <-
+        and pass it explicitly (preserving the kernel <- charter.offering <- charter <-
         specify_cli dependency direction).
     scope:
         Optional :class:`charter.activation.scope.CharterScope` produced by
@@ -293,7 +293,7 @@ def build_charter_context(
     # NOT depend on charter.md/charter.yaml presence (it reads only the DRG +
     # org/project doctrine), so it is safe to resolve ahead of the
     # charter-presence gate below.
-    doctrine_bundle = _resolve_action_bundle(
+    governance_bundle = _resolve_action_bundle(
         repo_root,
         action=normalized,
         effective_depth=state_bundle.effective_depth,
@@ -313,7 +313,7 @@ def build_charter_context(
     # sources project directives from ``.kittify/config.yaml``/charter.yaml
     # directly and degrades gracefully when absent).
     if normalized not in BOOTSTRAP_ACTIONS and not _action_node_declared(
-        doctrine_bundle, normalized
+        governance_bundle, normalized
     ):
         return _non_bootstrap_context_result(
             repo_root,
@@ -338,7 +338,7 @@ def build_charter_context(
             normalized,
             state_bundle,
             profile_record,
-            doctrine_bundle,
+            governance_bundle,
             suppress_project_resolver=suppress_project_resolver,
             mark_loaded=mark_loaded,
             augment=_augment,
@@ -350,7 +350,7 @@ def build_charter_context(
         charter_path,
         canonical_root,
         state_bundle,
-        doctrine_bundle,
+        governance_bundle,
         profile_record,
         mark_loaded=mark_loaded,
         augment=_augment,
@@ -393,7 +393,7 @@ def build_charter_context_include(
     org_roots = [org_root] if org_root is not None else None
 
     if kind == "artifact":
-        service = _build_doctrine_service(repo_root, org_roots=org_roots)
+        service = _build_offering_service(repo_root, org_roots=org_roots)
         return _render_generic_artifact_include(service, identifier)
 
     # Route every other kind through the canonical operator-token resolver so
@@ -416,7 +416,7 @@ def build_charter_context_include(
     # (``_format_inline_glossary_body``); that fetch pointer must honor the same
     # gate its delivery slot advertises, or ``--include`` leaks back the term
     # definitions the charter withheld from a de-activated pack. This needs no
-    # renderer change: the activation-aware ``charter.activation.resolver.DoctrineService``
+    # renderer change: the activation-aware ``charter.activation.resolver.ActiveCharterService``
     # already gates ``glossary_packs`` (returning a filtered
     # ``dict[str, GlossaryPack]``), and the catalog renderer reaches the repo
     # via ``getattr(service, attr).get(id)`` — a filtered ``dict``'s ``.get``
@@ -426,14 +426,14 @@ def build_charter_context_include(
     # exactly as it would on the plain service — only the service it renders on
     # differs. The gated service is built HERE, once (not inside a sibling
     # helper), so this stays the sole call site of
-    # ``_build_activation_aware_doctrine_service`` — several tests monkeypatch
+    # ``_build_active_charter_service`` — several tests monkeypatch
     # that name on this module.
     gated_service = None
     if canonical_kind in (
         ArtifactKind.AGENT_PROFILE.value,
         ArtifactKind.GLOSSARY_PACK.value,
     ):
-        gated_service = _build_activation_aware_doctrine_service(
+        gated_service = _build_active_charter_service(
             repo_root, org_roots=org_roots
         )
         if canonical_kind == ArtifactKind.AGENT_PROFILE.value:
@@ -443,15 +443,15 @@ def build_charter_context_include(
 
     # Shared catalog render/return. ``service`` is the gated service for the
     # glossary-pack branch and the plain service (built here — the sole call
-    # site of ``_build_doctrine_service`` several tests monkeypatch) for every
+    # site of ``_build_offering_service`` several tests monkeypatch) for every
     # other kind. The ``cast`` reconciles the two nominally distinct
-    # ``DoctrineService`` classes; the renderer only reads ``.glossary_packs``
+    # ``ActiveCharterService`` classes; the renderer only reads ``.glossary_packs``
     # (a gated ``dict``) off the gated service, so it is structurally
     # sufficient.
     service = (
-        cast("_doctrine_service_module.DoctrineService", gated_service)
+        cast("_offering_service_module.CharterOfferingService", gated_service)
         if gated_service is not None
-        else _build_doctrine_service(repo_root, org_roots=org_roots)
+        else _build_offering_service(repo_root, org_roots=org_roots)
     )
     result = _render_catalog_kind_include_selector(
         service, canonical_kind, identifier, selector
@@ -534,7 +534,7 @@ def build_charter_context_json(
         ),
         "governance_references": [],
     }
-    selection = _load_doctrine_selection(repo_root)
+    selection = _load_governance_charter_config(repo_root)
     payload["governance_references"] = [
         status.to_dict()
         for status in collect_governance_reference_status(
@@ -549,11 +549,11 @@ def build_charter_context_json(
 
     # SPEC-ARCH-002 (T018): route through the self-resolving wrapper, the
     # same one ``build_charter_context`` (plain-text) already uses above —
-    # NOT the private ``_load_action_doctrine_bundle`` directly. When
+    # NOT the private ``_load_action_governance_bundle`` directly. When
     # ``org_root`` is None, ``_resolve_action_bundle`` widens to the FULL
     # declaration-ordered org-pack chain via ``resolve_existing_org_roots``
-    # (see ``charter.activation.action_doctrine_bundle``); calling
-    # ``_load_action_doctrine_bundle`` directly here bypassed that widening
+    # (see ``charter.activation.action_governance_bundle``); calling
+    # ``_load_action_governance_bundle`` directly here bypassed that widening
     # entirely and always resolved at most one org pack.
     #
     # FR-001/FR-004 (rc3-charter-gate-predicate-inversion WP02, #3596): the

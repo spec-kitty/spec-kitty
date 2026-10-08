@@ -2,12 +2,12 @@
 
 charter-sole-door-bypass-closure-01KZ3WAA WP01. Proves the C-001 unification
 closed a real divergence: prior to this mission,
-``specify_cli.doctrine_service_factory.build_activation_aware_doctrine_service``
-and ``charter.activation.doctrine_service_builder._build_activation_aware_doctrine_service``
+``specify_cli.doctrine_service_factory.build_active_charter_service``
+and ``charter.activation.active_charter_service_builder._build_active_charter_service``
 were two independent implementations that silently disagreed on two axes
 (``active_languages`` computation and ``org_roots`` self-resolution). Both are
 now thin call-throughs to the single canonical
-:func:`charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service`.
+:func:`charter.activation.active_charter_service_builder.build_active_charter_service`.
 
 Per the post-tasks squad's sequencing correction (data-model.md "Sequencing
 note superseded"), this is written ONCE against the full 9-kind surface in a
@@ -24,7 +24,7 @@ nothing about the gated properties themselves. It is replaced by
 ``test_gated_property_matches_raw_repository_for_bare_project``, which
 compares each entry point's gated view against an INDEPENDENTLY-derived
 expectation built from the raw repository via the public
-:meth:`charter.activation.resolver.DoctrineService.raw_repository` accessor (FR-002
+:meth:`charter.activation.resolver.ActiveCharterService.raw_repository` accessor (FR-002
 Option A) — never ``._inner`` directly (MINOR 4: avoids tripping WP04/T017's
 forthcoming zero-tolerance ``._inner``-on-doctrine-service gate from a test
 file outside ``src/charter/**``). This also proves the bare-project catalog
@@ -40,11 +40,11 @@ import pytest
 from ruamel.yaml import YAML
 
 from tests._support.org_pack_config import write_org_packs
-from charter.activation.doctrine_service_builder import (
-    build_activation_aware_doctrine_service as charter_builder,
+from charter.activation.active_charter_service_builder import (
+    build_active_charter_service as charter_builder,
 )
 from specify_cli.doctrine_service_factory import (
-    build_activation_aware_doctrine_service as specify_cli_builder,
+    build_active_charter_service as specify_cli_builder,
 )
 
 pytestmark = pytest.mark.fast
@@ -142,9 +142,9 @@ def test_specify_cli_entry_point_delegates_to_charter_builder(
     ``specify_cli`` entry point -- proving it is a thin re-export, not an
     independent second implementation that merely happens to agree today.
     """
-    import charter.activation.doctrine_service_builder as builder_module
+    import charter.activation.active_charter_service_builder as builder_module
     from specify_cli.doctrine_service_factory import (
-        build_activation_aware_doctrine_service as specify_cli_entry_point,
+        build_active_charter_service as specify_cli_entry_point,
     )
 
     sentinel = object()
@@ -154,7 +154,7 @@ def test_specify_cli_entry_point_delegates_to_charter_builder(
         calls.append(repo_root)
         return sentinel
 
-    monkeypatch.setattr(builder_module, "build_activation_aware_doctrine_service", _fake_builder)
+    monkeypatch.setattr(builder_module, "build_active_charter_service", _fake_builder)
 
     result = specify_cli_entry_point(tmp_path)
 
@@ -170,7 +170,7 @@ _LANGUAGE_SCOPED_KIND = "tactics"
 
 #: Per-kind key attribute for building an ``{key: item}`` dict from
 #: ``list_all()`` — mirrors each gated property's own key extraction in
-#: ``charter.activation.resolver.DoctrineService`` (``agent_profiles`` keys on
+#: ``charter.activation.resolver.ActiveCharterService`` (``agent_profiles`` keys on
 #: ``profile_id``; every other kind keys on ``id``).
 _KEY_ATTR_BY_PROP: dict[str, str] = {"agent_profiles": "profile_id"}
 
@@ -179,7 +179,7 @@ def test_active_languages_resolution_identical_across_entry_points(repo_root: Pa
     """FR-008 axis 1: ``active_languages`` is always computed, identically.
 
     MINOR 4 cycle-2 fix: reads the resolved value off a raw repository via
-    the public :meth:`~charter.activation.resolver.DoctrineService.raw_repository`
+    the public :meth:`~charter.activation.resolver.ActiveCharterService.raw_repository`
     accessor (FR-002 Option A) — every repository the service constructs
     carries the same ``_active_languages`` value the service resolved — rather
     than reaching into the wrapper's ``._inner`` directly. Uses ``tactics``
@@ -205,7 +205,7 @@ def test_org_roots_resolution_identical_across_entry_points(repo_root: Path) -> 
 
     MINOR 4 cycle-2 fix: compares the per-kind org directories a raw
     repository was constructed with (derived 1:1 from ``org_roots``) via the
-    public :meth:`~charter.activation.resolver.DoctrineService.raw_repository` accessor,
+    public :meth:`~charter.activation.resolver.ActiveCharterService.raw_repository` accessor,
     rather than reaching into the wrapper's ``._inner._org_roots`` directly.
     """
     result_a = charter_builder(repo_root)
@@ -220,7 +220,7 @@ def test_org_roots_resolution_identical_across_entry_points(repo_root: Path) -> 
 def _expected_dict_from_raw_repository(service: object, prop: str) -> dict[str, object]:
     """Independently derive the expected gated-property dict from the raw repository.
 
-    Uses the public :meth:`charter.activation.resolver.DoctrineService.raw_repository`
+    Uses the public :meth:`charter.activation.resolver.ActiveCharterService.raw_repository`
     accessor (FR-002 Option A) rather than reaching into ``._inner`` directly
     (MINOR 4) — the non-fakeable reference the MAJOR 3 fix below compares
     against. Keys on the same attribute each gated property itself uses
@@ -288,7 +288,7 @@ def test_bare_project_admits_language_scoped_builtin_profiles(tmp_path: Path) ->
     infer_repo_languages(repo_root)`` computed ``[]`` for this exact bare
     fixture (no compiled charter, no interview answers), and the four
     language-scoped built-ins below were absent from
-    ``build_activation_aware_doctrine_service(bare_root).agent_profiles``
+    ``build_active_charter_service(bare_root).agent_profiles``
     (14 profiles instead of 18) -- matching the two independent adversarial
     review lenses that reproduced this on PR #3175.
     """

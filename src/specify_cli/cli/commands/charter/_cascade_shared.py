@@ -54,7 +54,7 @@ def render_kind_filtered_line(kind_token: str, config_id: str) -> None:
 
 def drg_urn_to_config_id(
     urn: str,
-    doctrine_root: Path,
+    offering_root: Path,
     layer_roots: dict[str, Path] | None,
     org_roots: list[Path] | None = None,
     resolution_pass: ResolutionPass | None = None,
@@ -85,7 +85,7 @@ def drg_urn_to_config_id(
     try:
         resolved: str = resolve_config_id(
             urn,
-            doctrine_root=doctrine_root,
+            offering_root=offering_root,
             org_roots=org_roots,
             layer_roots=layer_roots,
             resolution_pass=resolution_pass,

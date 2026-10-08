@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from charter.activation.resolver import DoctrineService
+from charter.activation.resolver import ActiveCharterService
 from specify_cli.doctrine_service_factory import (
-    build_activation_aware_doctrine_service,
+    build_active_charter_service,
 )
 
 
@@ -24,4 +24,4 @@ def test_factory_returns_the_charter_activation_wrapper(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    assert isinstance(build_activation_aware_doctrine_service(tmp_path), DoctrineService)
+    assert isinstance(build_active_charter_service(tmp_path), ActiveCharterService)

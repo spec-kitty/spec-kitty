@@ -12,7 +12,7 @@ NFR-001 requires that every ``AgentProfileRepository(`` call site in ``src/``
 resolve its **bound qualname** to the originating module, and that zero of them
 resolve to ``charter.offering.agent_profiles.repository.AgentProfileRepository`` outside
 the sole door (``src/charter/activation/resolver.py``), the one unified builder
-(``src/charter/activation/doctrine_service_builder.py``, FR-008), and the named,
+(``src/charter/activation/active_charter_service_builder.py``, FR-008), and the named,
 composite-key-anchored exclusions below.
 
 **Why a text grep is not acceptable here** (NFR-001, verbatim: "explicitly NOT a
@@ -49,13 +49,13 @@ Gate 2.
 
 Structural exemptions (directory/file keyed, never line keyed)
 ---------------------------------------------------------------
-* ``src/charter/offering/`` — the doctrine layer *owns* this class and the raw
-  ``charter.offering.service.DoctrineService`` that composes it
-  (``doctrine/service.py``'s ``DoctrineService.agent_profiles`` cache). That
+* ``src/charter/offering/`` — the offering *owns* this class and the raw
+  ``charter.offering.service.CharterOfferingService`` that composes it
+  (``charter/offering/service.py``'s ``CharterOfferingService.agent_profiles`` cache). That
   construction is the thing the sole door wraps, not a bypass of it — the same
   shape as Gate 5's ``src/charter/`` exemption.
 * ``src/charter/activation/resolver.py`` — the sole door itself (NFR-001).
-* ``src/charter/activation/doctrine_service_builder.py`` — the ONE unified builder
+* ``src/charter/activation/active_charter_service_builder.py`` — the ONE unified builder
   (FR-008/NFR-001).
 
 Named exclusions are **composite-key anchored, never whole-file**
@@ -101,9 +101,9 @@ The four named exclusions, and their provenance
    as an in-scope FR-001 migration target and then could not close it: the
    factory's ``agent_profile_repository`` accessor is built from a raw service
    whose project-overlay directory comes from
-   ``charter.activation._doctrine_paths.resolve_project_root``'s three fixed candidates
+   ``charter.activation._project_root_candidates.resolve_project_root``'s three fixed candidates
    (``.kittify/doctrine``, ``src/doctrine``, ``doctrine``), none of which is
-   ``.kittify/agent_profiles``, and ``build_activation_aware_doctrine_service``
+   ``.kittify/agent_profiles``, and ``build_active_charter_service``
    exposes no parameter to retarget it. Both WP02's implementer and its reviewer
    independently forced the naive migration and reproduced three real test
    breakages (project-overlay profiles silently dropped). Closing it correctly
@@ -219,7 +219,7 @@ def check_agent_profile_gate(sites: list[ConstructionSite]) -> list[str]:
     return [
         f"{site.describe()} constructs the raw agent-profile repository outside "
         "the charter sole door (FR-001/NFR-001) — obtain it from "
-        "charter.activation.resolver.DoctrineService.agent_profile_repository instead"
+        "charter.activation.resolver.ActiveCharterService.agent_profile_repository instead"
         for site in sites
         if not structurally_exempt(site.rel_path) and site.key not in excluded
     ]

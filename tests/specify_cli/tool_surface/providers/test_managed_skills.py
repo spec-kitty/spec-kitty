@@ -1018,8 +1018,8 @@ def test_repair_default_path_repairs_without_injection(tmp_path: Path) -> None:
     actually restores the file. Cycle-1 reject was masked because every repair
     test injected a ``_StubInstaller``; this one injects nothing.
     """
-    skill_name = "ad-hoc-profile-load"
-    installed_rel = ".agents/skills/ad-hoc-profile-load/SKILL.md"
+    skill_name = "spk-charter-profile-load"
+    installed_rel = ".agents/skills/spk-charter-profile-load/SKILL.md"
     project = tmp_path.resolve()  # dodge macOS /var -> /private/var symlink mismatch
     placeholder_hash = _write_skill_file(project, installed_rel, body="placeholder")
     _write_manifest(

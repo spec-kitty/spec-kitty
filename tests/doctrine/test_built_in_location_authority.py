@@ -182,14 +182,14 @@ class TestDRGRootCallersRouteThroughAuthority:
 
     def test_extractor_artifacts_root_matches_authority_for_package_root(self) -> None:
         from charter.offering.drg.migration.extractor import _artifacts_root
-        from charter.offering.pack_paths import doctrine_package_dir
+        from charter.offering.pack_paths import offering_package_dir
 
-        doctrine_pkg_dir = doctrine_package_dir()
+        doctrine_pkg_dir = offering_package_dir()
         assert doctrine_pkg_dir is not None
         assert _artifacts_root(doctrine_pkg_dir) == built_in_root()
 
-    def test_extractor_uses_the_shared_doctrine_package_dir_function(self) -> None:
-        """The extractor imports :func:`charter.offering.pack_paths.doctrine_package_dir`
+    def test_extractor_uses_the_shared_offering_package_dir_function(self) -> None:
+        """The extractor imports :func:`charter.offering.pack_paths.offering_package_dir`
         rather than carrying its own byte-identical copy (FOLD 5 dedup,
         mission ``doctrine-built-in-seam-consolidation-01KYW3TX``).
 
@@ -198,7 +198,7 @@ class TestDRGRootCallersRouteThroughAuthority:
         duplicate definition was deleted rather than merely made to agree.
         """
         from charter.offering.drg.migration import extractor
-        from charter.offering.pack_paths import doctrine_package_dir
+        from charter.offering.pack_paths import offering_package_dir
 
-        assert extractor.doctrine_package_dir is doctrine_package_dir
+        assert extractor.offering_package_dir is offering_package_dir
         assert not hasattr(extractor, "_doctrine_package_dir")

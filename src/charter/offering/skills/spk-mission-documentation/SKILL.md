@@ -14,7 +14,7 @@ guides, or user-facing explanation.
    docs as acceptance criteria.
 2. Ground docs in current product behavior, not intended future behavior unless
    clearly marked.
-3. Cross-check terms with `spk-doctrine-glossary`.
+3. Cross-check terms with `spk-charter-glossary`.
 4. If docs describe commands or workflows, cross-check `spk-start-command-map`.
 
 ## Completion Standard

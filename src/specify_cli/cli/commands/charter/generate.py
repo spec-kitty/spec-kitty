@@ -34,18 +34,18 @@ def _build_doctrine_service_with_org_layer(
     interview: Any = None,
     prefer_interview: bool = False,
 ) -> Any:
-    """Return an activation-filtered ``DoctrineService`` for charter generation.
+    """Return an activation-filtered ``ActiveCharterService`` for charter generation.
 
     FR-002/FR-008 unification (charter-sole-door-bypass-closure-01KZ3WAA
     WP01): thin call-through to the single canonical builder,
-    :func:`charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service`
+    :func:`charter.activation.active_charter_service_builder.build_active_charter_service`
     — replaces the former inline "build raw, then best-effort wrap" pattern
     that lived here (and independently in
     ``specify_cli.charter_runtime.lint.checks.org_layer`` and
     ``specify_cli.doctrine_service_factory``, C-001). The unified builder
     always self-resolves org roots and always computes ``active_languages``,
     and it always returns the activation-aware
-    :class:`charter.activation.resolver.DoctrineService` wrapper — it never falls back
+    :class:`charter.activation.resolver.ActiveCharterService` wrapper — it never falls back
     to a raw, unwrapped service, closing the fail-open gap FR-002 named at
     this site (the previous code's ``pack_context`` resolution was wrapped in
     a bare ``except Exception: pass`` that silently degraded to an
@@ -56,9 +56,9 @@ def _build_doctrine_service_with_org_layer(
     regenerate resolves the doctrine references under the SAME re-derived
     languages ``compile_charter`` stamps into ``catalog.languages``.
     """
-    from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+    from charter.activation.active_charter_service_builder import build_active_charter_service
 
-    return build_activation_aware_doctrine_service(repo_root, interview=interview, prefer_interview=prefer_interview)
+    return build_active_charter_service(repo_root, interview=interview, prefer_interview=prefer_interview)
 
 
 def _is_inside_git_worktree(repo_root: Path) -> bool:
@@ -550,7 +550,7 @@ def generate(
             interview=interview_data,
             template_set=template_set,
             repo_root=repo_root,
-            doctrine_service=_build_doctrine_service_with_org_layer(
+            charter_service=_build_doctrine_service_with_org_layer(
                 repo_root,
                 interview=interview_data,
                 prefer_interview=rederive_languages,

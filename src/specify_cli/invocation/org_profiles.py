@@ -10,11 +10,11 @@ activation gate (C-008).
 How the gate is honoured (C-006: reuse, never re-implement)
 ----------------------------------------------------------
 The activation gate lives two layers above ``resolve_org_roots`` — on
-:attr:`charter.activation.resolver.DoctrineService.agent_profiles`, which filters the
+:attr:`charter.activation.resolver.ActiveCharterService.agent_profiles`, which filters the
 merged profile set by ``PackContext.activated_agent_profiles`` (three-state:
 ``None`` → all admitted; ``frozenset()`` → none; explicit set → only those).
 This resolver builds that activation-aware service via
-:func:`specify_cli.doctrine_service_factory.build_activation_aware_doctrine_service`
+:func:`specify_cli.doctrine_service_factory.build_active_charter_service`
 and reads its already-gated ``agent_profiles`` mapping.  It then narrows the
 result to org-provenance members by consulting the inner repository's
 ``get_provenance`` / ``get_source_path`` (provenance lives on the repository,
@@ -41,7 +41,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from specify_cli.doctrine_service_factory import build_activation_aware_doctrine_service
+from specify_cli.doctrine_service_factory import build_active_charter_service
 
 if TYPE_CHECKING:
     from charter.profiles import AgentProfile, SkippedProfile
@@ -106,7 +106,7 @@ class OrgProfileResolution(list[ResolvedOrgProfile]):
 def resolve_activated_org_profiles(repo_root: Path) -> OrgProfileResolution:
     """Return the charter-activated, org-provenance agent profiles for ``repo_root``.
 
-    Composes :func:`build_activation_aware_doctrine_service` (the canonical
+    Composes :func:`build_active_charter_service` (the canonical
     activation gate, C-006/C-008) with org-provenance filtering:
 
     1. Build the activation-aware service for ``repo_root``.
@@ -135,7 +135,7 @@ def resolve_activated_org_profiles(repo_root: Path) -> OrgProfileResolution:
     if not _existing_org_roots(repo_root):
         return OrgProfileResolution()
 
-    service = build_activation_aware_doctrine_service(repo_root)
+    service = build_active_charter_service(repo_root)
     activated_profiles: dict[str, AgentProfile] = service.agent_profiles
     inner_repository = service.agent_profile_repository
 

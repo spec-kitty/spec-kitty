@@ -3,7 +3,7 @@
 # TestOverrideRidesResolverEndToEnd) --
 # `.kittify/doctrine/mission_types/<type>/governance-profile.yaml`, resolved
 # by charter.activation.mission_type_profiles via
-# resolve_mission_type_context (project > org > builtin, DoctrineLayerCollisionWarning
+# resolve_mission_type_context (project > org > builtin, ArtifactLayerCollisionWarning
 # on override).
 id: software-dev
 mission_type: software-dev

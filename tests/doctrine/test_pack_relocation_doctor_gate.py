@@ -7,7 +7,7 @@ Three non-fakeable acceptance surfaces for the relocation (NFR-006 / NFR-002):
   ``org_drg`` errors, no skipped glossary packs, and the shipped glossary term
   count matches the source pack. A profiles-only gate would miss
   ``glossary_packs`` / ``assets`` degradation, so the whole report is asserted.
-* **Charter catalog non-empty** — ``charter.activation.catalog.load_doctrine_catalog()``
+* **Charter catalog non-empty** — ``charter.activation.catalog.load_offering_catalog()``
   returns non-empty built-in sets for the 7 catalog kinds. ``doctor`` does NOT
   exercise the catalog, so a missed ``catalog.py`` repoint slips through every
   other gate; this is the dedicated guard.
@@ -33,7 +33,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from charter.activation.catalog import load_doctrine_catalog
+from charter.activation.catalog import load_offering_catalog
 from charter.offering.glossary_packs import GlossaryPackRepository
 from specify_cli.cli.commands.doctor import app as doctor_app
 from tests.doctrine._builtin_inventory import (
@@ -135,7 +135,7 @@ def test_doctor_doctrine_glossary_packs_are_healthy(bare_project_root: Path) -> 
 
 @pytest.mark.fast
 def test_charter_catalog_built_in_sets_are_non_empty() -> None:
-    catalog = load_doctrine_catalog()
+    catalog = load_offering_catalog()
     for kind in CATALOG_KINDS:
         artifacts = getattr(catalog, kind)
         assert artifacts, f"charter catalog kind {kind!r} resolved to an EMPTY set"

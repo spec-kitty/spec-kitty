@@ -544,7 +544,7 @@ def test_source_scan_rejects_module_control_flow_import(spelling: str, block: st
     ("source", "module_level", "lazy"),
     [
         ("if True:\n    from charter.drg import resolve_org_dirs\n", False, False),
-        ("if TYPE_CHECKING:\n    from charter.offering.service import DoctrineService\n", False, False),
+        ("if TYPE_CHECKING:\n    from charter.offering.service import CharterOfferingService\n", False, False),
         ("try:\n    if typing.TYPE_CHECKING:\n        import doctrine.service\nexcept ImportError:\n    pass\n", False, False),
         ("if TYPE_CHECKING:\n    pass\nelse:\n    import doctrine.service\n", True, False),
         ("try:\n    pass\nexcept ImportError:\n    import doctrine.service\n", True, False),

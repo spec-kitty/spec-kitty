@@ -102,7 +102,7 @@ class TestResolveActionBundleSingleLoad:
 
     def test_resolve_action_bundle_loads_graph_exactly_once(self, project: Path) -> None:
         import charter.activation._drg_helpers as drg_helpers
-        from charter.activation.action_doctrine_bundle import _resolve_action_bundle
+        from charter.activation.action_governance_bundle import _resolve_action_bundle
 
         wrapped, calls = _counting_wrapper(drg_helpers.load_validated_graph)
 

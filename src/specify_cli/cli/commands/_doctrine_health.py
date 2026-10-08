@@ -104,7 +104,7 @@ class PackHealth:
 class SkippedGlossaryPack:
     """A single glossary-pack YAML file skipped during repository load (FR-012).
 
-    ``GlossaryPackRepository`` is a plain ``BaseDoctrineRepository`` and does
+    ``GlossaryPackRepository`` is a plain ``BaseArtifactRepository`` and does
     not carry a WP05-style ``SkippedProfile`` diagnostics list — an
     unloadable pack file (bad YAML, a missing required field, a duplicate
     term surface) is only ever surfaced today as a ``UserWarning`` emitted

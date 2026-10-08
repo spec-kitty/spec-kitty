@@ -53,8 +53,8 @@ def reference_graph() -> DRGGraph:
     shipped built-in URN universe against its true full reference rather than
     a subset that would spuriously look "extra" on the shipped side.
     """
-    doctrine_root = built_in_graph_source()
-    return generate_reference_graph_with_overlay(doctrine_root)
+    pack_root = built_in_graph_source()
+    return generate_reference_graph_with_overlay(pack_root)
 
 
 def _lineage_children(graph: DRGGraph) -> list[str]:

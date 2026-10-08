@@ -7,11 +7,11 @@ from typing import TYPE_CHECKING
 
 from charter.profiles import AgentProfile, AgentProfileRepository
 
-from specify_cli.doctrine_service_factory import build_activation_aware_doctrine_service
+from specify_cli.doctrine_service_factory import build_active_charter_service
 from specify_cli.invocation.errors import ProfileNotFoundError
 
 if TYPE_CHECKING:
-    from charter.activation.resolver import DoctrineService
+    from charter.activation.resolver import ActiveCharterService
 
 # Provenance layers exposed by ``AgentProfileRepository.get_provenance``.
 _LAYER_BUILTIN = "builtin"
@@ -56,7 +56,7 @@ class ProfileRegistry:
     * **Activation gate** — the three-state ``activated_agent_profiles``
       contract. With no ``activated_agent_profiles`` key the gate admits
       every doctrine layer (inert).
-    * **Language-scope filter** — ``build_activation_aware_doctrine_service``
+    * **Language-scope filter** — ``build_active_charter_service``
       always computes ``active_languages=infer_repo_languages(repo_root)``
       (FR-008 unification, charter-sole-door-bypass-closure-01KZ3WAA WP01)
       and every language-scoped profile (e.g. ``frontend-freddy``) is
@@ -92,12 +92,12 @@ class ProfileRegistry:
         # One service build feeds both catalogs (routing + local) — the
         # activation-aware builder walks the doctrine tree, so building it
         # twice per registry would double the filesystem reads for no gain.
-        service = build_activation_aware_doctrine_service(repo_root)
+        service = build_active_charter_service(repo_root)
         self._merged = self._build_merged_profiles(service)
         self._local = self._build_local_profiles(service)
 
     def _build_merged_profiles(
-        self, service: DoctrineService
+        self, service: ActiveCharterService
     ) -> dict[str, AgentProfile]:
         """Build the routing catalog: activation-gated doctrine + legacy project.
 
@@ -121,7 +121,7 @@ class ProfileRegistry:
         return merged
 
     def _build_local_profiles(
-        self, service: DoctrineService
+        self, service: ActiveCharterService
     ) -> dict[str, AgentProfile]:
         """Build the local-resolution catalog (#4120): every layer, same gate.
 

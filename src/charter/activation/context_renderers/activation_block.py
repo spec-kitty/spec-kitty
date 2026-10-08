@@ -32,7 +32,7 @@ from charter.activation.activations import ActivationEntry, _activation_identity
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from charter.activation.schemas import DoctrineSelectionConfig
+    from charter.activation.schemas import GovernanceCharterConfig
 
 __all__ = [
     "_render_activation_block",
@@ -48,7 +48,7 @@ def _load_governance_activations(repo_root: Path) -> list[ActivationEntry]:
     The activation registry is a top-level governance field (per
     :mod:`charter.activation.activations`).  We isolate the load here so the call
     site in :func:`_render_bootstrap_text` stays small and a parse failure
-    collapses to an empty list (mirrors :func:`_load_doctrine_selection`'s
+    collapses to an empty list (mirrors :func:`_load_governance_charter_config`'s
     resilience pattern). A retired shape is not a parse failure and is never
     dropped in silence (#3732, FR-011): a retired pack field
     (``RetiredPackFieldError``) or the retired ``governance.doctrine`` key
@@ -130,7 +130,7 @@ def _union_activations(
 
 
 def _render_activation_block(
-    _doctrine_selection: DoctrineSelectionConfig | None,
+    _charter_config: GovernanceCharterConfig | None,
     repo_root: Path | None,
     service: object,
     *,
@@ -143,7 +143,7 @@ def _render_activation_block(
     boilerplate (governance load + safe-call) so the call site in
     :func:`_render_bootstrap_text` is a single line.
 
-    ``_doctrine_selection`` is accepted (and always passed positionally by
+    ``_charter_config`` is accepted (and always passed positionally by
     every caller — see ``bootstrap_text.py`` and the test seams below) but
     not read here: the WP05 stanza renderer draws its selection state from
     *service*/*mission_type*/*action* instead. Kept in the signature to

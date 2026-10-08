@@ -1,9 +1,14 @@
 ---
-name: spk-doctrine-profile-load
-description: "Load a Spec Kitty agent profile on demand for interactive sessions, including identity, governance scope, boundaries, and initialization."
+name: spk-charter-profile-load
+description: >-
+  Load a Spec Kitty agent profile on demand for interactive sessions,
+  including identity, governance scope, boundaries, and initialization.
+  Triggers: "act as the architect", "load the reviewer profile",
+  "switch to researcher", "use the planner role", "adopt a profile".
+argument-hint: "<profile-id>"
 ---
 
-# spk-doctrine-profile-load
+# spk-charter-profile-load
 
 Use this skill when the agent needs a profile outside the runtime loop or the
 user asks to adopt a specific role.
@@ -30,10 +35,11 @@ user asks to adopt a specific role.
 Do not substitute a raw `.agent.yaml` read for resolution. A narrowly scoped
 read-only-harness fallback is documented in the reference below.
 
-## Legacy Alias
+For a one-shot governed request outside a Mission, use:
 
-`ad-hoc-profile-load` is a compatibility alias that points here. This skill
-and its reference are the canonical authority.
+```bash
+spec-kitty dispatch "<request>" --profile <profile-id>
+```
 
 ## References
 

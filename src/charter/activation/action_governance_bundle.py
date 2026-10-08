@@ -1,19 +1,19 @@
-"""Action-doctrine bundle resolution (WP06 T029, #2532).
+"""Action governance bundle resolution (WP06 T029, #2532).
 
 Relocated verbatim from ``charter.activation.context`` (single-owner, no-net-growth for
 that file). Resolves DRG-backed action doctrine artifacts for a given
-``(action, mission_type/feature_dir)`` pair into an :class:`_ActionDoctrineBundle`
+``(action, mission_type/feature_dir)`` pair into an :class:`_ActionGovernanceBundle`
 — the payload both the bootstrap-text renderer and the ``--json`` entrypoint
 consume.
 
-Cycle note: ``_build_doctrine_service`` and ``_normalize_directive_id`` are
+Cycle note: ``_build_offering_service`` and ``_normalize_directive_id`` are
 imported function-locally / from their sibling homes respectively; the
 former stays routed through ``charter.activation.context`` (the single test-patchable
 seam every other builder-consuming module already uses — see
 ``context_renderers/compact_governance.py``'s cycle note for the
 established precedent) rather than importing
-``charter.activation.doctrine_service_builder`` directly, so patching
-``charter.activation.context._build_doctrine_service`` continues to redirect every
+``charter.activation.active_charter_service_builder`` directly, so patching
+``charter.activation.context._build_offering_service`` continues to redirect every
 caller, moved or not.
 """
 
@@ -28,17 +28,17 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from charter.activation.pack_context import PackContext
     from charter.offering.drg.models import DRGGraph
-    import charter.offering.service as _doctrine_service_module
+    import charter.offering.service as _offering_service_module
 
-from charter.activation.catalog import load_doctrine_catalog
+from charter.activation.catalog import load_offering_catalog
 from charter.activation.language_scope import infer_repo_languages
 from charter.activation.org_pack_discovery import _read_org_required_selections
 from charter.activation.profile_resolution import _normalize_directive_id
 from charter.offering.drg.models import NodeKind
 
 __all__ = [
-    "_ActionDoctrineBundle",
-    "_load_action_doctrine_bundle",
+    "_ActionGovernanceBundle",
+    "_load_action_governance_bundle",
     "_resolve_action_bundle",
 ]
 
@@ -71,7 +71,7 @@ def _catalog_default_or_activated(
     ``catalog_default`` (WP02 ruling 2, ``reviews/wp02.ruling-2.md``): the
     caller passes ``_graph_and_catalog_default_ids`` below -- the ACTIVE DRG
     graph being resolved against, unioned with the real built-in catalog --
-    never a bare ``load_doctrine_catalog()`` call. Binding "all built-ins"
+    never a bare ``load_offering_catalog()`` call. Binding "all built-ins"
     to a hardcoded real catalog is what made a mocked/injected graph and the
     real allowlist disagree (#883, the org-pack-chain regression): a
     fictional or org-authored id genuinely present in the graph being
@@ -87,12 +87,10 @@ def _catalog_default_or_activated(
     return set(activated)
 
 
-def _graph_and_catalog_default_ids(
-    graph: DRGGraph, kind: NodeKind, catalog_default: frozenset[str]
-) -> frozenset[str]:
+def _graph_and_catalog_default_ids(graph: DRGGraph, kind: NodeKind, catalog_default: frozenset[str]) -> frozenset[str]:
     """The "all built-ins" default for one artifact *kind* (WP02 ruling 2).
 
-    Union of *catalog_default* (``load_doctrine_catalog()``'s real built-in
+    Union of *catalog_default* (``load_offering_catalog()``'s real built-in
     set for *kind*) with every *kind*-node bare id the ACTIVE *graph* itself
     carries. In production the merged graph already contains the real
     catalog as its built-in layer, so this union is a no-op there --
@@ -103,16 +101,12 @@ def _graph_and_catalog_default_ids(
     narrowing below the real catalog (see ``_catalog_default_or_activated``'s
     docstring for why narrowing would break WP02's own T007 step 5 fixture).
     """
-    graph_ids = {
-        node.urn.split(":", 1)[1]
-        for node in graph.nodes
-        if node.kind is kind and ":" in node.urn
-    }
+    graph_ids = {node.urn.split(":", 1)[1] for node in graph.nodes if node.kind is kind and ":" in node.urn}
     return frozenset(graph_ids | catalog_default)
 
 
 @dataclass(frozen=True)
-class _ActionDoctrineBundle:
+class _ActionGovernanceBundle:
     """Resolved action doctrine artifacts for bootstrap rendering.
 
     ``procedure_ids``/``asset_ids`` are WP10 additions (FR-009/FR-011); ``mission``
@@ -126,7 +120,7 @@ class _ActionDoctrineBundle:
     toolguide_ids: list[str]
     procedure_ids: list[str]
     asset_ids: list[str]
-    service: _doctrine_service_module.DoctrineService
+    service: _offering_service_module.CharterOfferingService
     # WP01 (deliver-loaded-doctrine, FR-001/FR-002): glossary-pack ids delivered
     # to the ``glossary_packs`` slot, mirroring ``procedure_ids``/``asset_ids``.
     # Defaulted (not a trailing required field) so the pre-existing bundle
@@ -165,7 +159,7 @@ _LANGUAGE_SCOPED_SLOTS = ("tactics", "styleguides", "toolguides", "procedures")
 
 def _drop_scope_filtered_ids(
     ids_by_slot: Mapping[str, tuple[str, ...]],
-    service: _doctrine_service_module.DoctrineService,
+    service: _offering_service_module.CharterOfferingService,
     repo_root: Path,
 ) -> Mapping[str, tuple[str, ...]]:
     """For any project with a language signal, drop ids the service scope-filtered out (FR-009, #5357).
@@ -193,8 +187,8 @@ def _resolve_action_bundle(
     org_root: Path | None,
     mission_type: str | None,
     feature_dir: Path | None,
-) -> _ActionDoctrineBundle:
-    """Resolve the action doctrine bundle with the WP06 org-root fallback
+) -> _ActionGovernanceBundle:
+    """Resolve the action governance bundle with the WP06 org-root fallback
     (extracted WP11/T060 so every-load delivery computes it once, before the
     depth-tier branch, without growing ``build_charter_context``).
 
@@ -214,14 +208,14 @@ def _resolve_action_bundle(
         effective_org_roots = resolve_existing_org_roots(repo_root)
         if effective_org_roots:
             # Legacy single-root field, kept for org_root-only callers/back-compat
-            # (e.g. any consumer of ``_ActionDoctrineBundle`` that still expects a
+            # (e.g. any consumer of ``_ActionGovernanceBundle`` that still expects a
             # single representative root); the DRG merge itself uses the full
             # ``effective_org_roots`` chain below, not this single value.
             effective_org_root = effective_org_roots[0]
 
     from charter.activation.pack_context import PackContext as _PackContext  # noqa: PLC0415
 
-    return _load_action_doctrine_bundle(
+    return _load_action_governance_bundle(
         repo_root=repo_root,
         action=action,
         effective_depth=effective_depth,
@@ -233,7 +227,7 @@ def _resolve_action_bundle(
     )
 
 
-def _load_action_doctrine_bundle(
+def _load_action_governance_bundle(
     *,
     repo_root: Path,
     action: str,
@@ -243,7 +237,7 @@ def _load_action_doctrine_bundle(
     pack_context: PackContext | None = None,
     mission_type: str | None = None,
     feature_dir: Path | None = None,
-) -> _ActionDoctrineBundle:
+) -> _ActionGovernanceBundle:
     """Load DRG-backed action doctrine artifacts for bootstrap rendering.
 
     The mission type keying off which the ``action:<mission_type>/<action>``
@@ -260,26 +254,24 @@ def _load_action_doctrine_bundle(
     #3525 Fold B: *org_roots*, when supplied, carries the full
     declaration-ordered org-pack chain and is threaded straight through to
     :func:`charter.activation._drg_helpers.load_validated_graph` (which prefers it over
-    *org_root*) AND to the ``DoctrineService`` built below — both halves now
+    *org_root*) AND to the ``ActiveCharterService`` built below — both halves now
     see every configured pack, not just *org_root*'s single representative
     entry. Callers that only ever supplied *org_root* (no chain resolved)
     keep the pre-fix single-root behaviour byte-identical.
     """
     from charter.activation._drg_helpers import DRGProjectValidationError, load_validated_graph
-    from charter.activation.context import _build_doctrine_service  # noqa: PLC0415
+    from charter.activation.context import _build_offering_service  # noqa: PLC0415
     from charter.activation.context_renderers.delivery_table import _classify_artifact_urns
     from charter.activation.drg_activation import filter_graph_by_activation, load_org_drg
     from charter.activation.mission_type_profiles import resolve_mission_type_key
     from charter.offering.drg.loader import DRGLoadError
     from charter.offering.drg.query import resolve_context
 
-    service = _build_doctrine_service(
+    service = _build_offering_service(
         repo_root,
         org_roots=org_roots if org_roots else ([org_root] if org_root else None),
     )
-    resolved_type = resolve_mission_type_key(
-        mission_type=mission_type, feature_dir=feature_dir
-    )
+    resolved_type = resolve_mission_type_key(mission_type=mission_type, feature_dir=feature_dir)
 
     # The DRG load honours the built-in + org + project three-layer overlay
     # (WP07 T034; charter-internal callers pass org_root=None for two layers).
@@ -310,7 +302,7 @@ def _load_action_doctrine_bundle(
             # WP02 (Decision Record 2, FR-006/007/008/014): project_directives /
             # selected_tactics / selected_paradigms are re-derived from
             # pack_context.activated_* instead of the stale
-            # governance.charter.selected_* (_load_doctrine_selection). A
+            # governance.charter.selected_* (_load_governance_charter_config). A
             # wholly-absent pack_context collapses to the SAME "no filter
             # configured" state as a supplied PackContext whose field is
             # None -- both resolve to the "all built-ins" default, never
@@ -321,16 +313,14 @@ def _load_action_doctrine_bundle(
             # WP02 ruling 2 (reviews/wp02.ruling-2.md): "all built-ins" now
             # resolves from THIS resolution's own active graph (``merged``,
             # already activation-filtered above) unioned with the real
-            # built-in catalog -- never a bare load_doctrine_catalog() call
+            # built-in catalog -- never a bare load_offering_catalog() call
             # alone -- via _graph_and_catalog_default_ids. Computed here,
             # after ``merged`` exists and before any consumption site (roots
             # below, _classify_artifact_urns) iterates it; the typeless-
             # mission branch below never loads a graph and never consumes
             # these three names, so nothing needs them precomputed earlier.
-            catalog = load_doctrine_catalog()
-            activated_directives_arg = (
-                pack_context.activated_directives if pack_context is not None else None
-            )
+            catalog = load_offering_catalog()
+            activated_directives_arg = pack_context.activated_directives if pack_context is not None else None
             project_directives = {
                 _normalize_directive_id(d)
                 for d in _catalog_default_or_activated(
@@ -338,16 +328,12 @@ def _load_action_doctrine_bundle(
                     _graph_and_catalog_default_ids(merged, NodeKind.DIRECTIVE, catalog.directives),
                 )
             }
-            activated_tactics_arg = (
-                pack_context.activated_tactics if pack_context is not None else None
-            )
+            activated_tactics_arg = pack_context.activated_tactics if pack_context is not None else None
             selected_tactics = _catalog_default_or_activated(
                 activated_tactics_arg,
                 _graph_and_catalog_default_ids(merged, NodeKind.TACTIC, catalog.tactics),
             )
-            activated_paradigms_arg = (
-                pack_context.activated_paradigms if pack_context is not None else None
-            )
+            activated_paradigms_arg = pack_context.activated_paradigms if pack_context is not None else None
             selected_paradigms = _catalog_default_or_activated(
                 activated_paradigms_arg,
                 _graph_and_catalog_default_ids(merged, NodeKind.PARADIGM, catalog.paradigms),
@@ -365,7 +351,7 @@ def _load_action_doctrine_bundle(
             # is legitimately authored in either stem or canonical form (verified live,
             # tests/charter/test_answers_inert_and_org_union.py::
             # TestOrgRequiredIdFormNormalizedBeforePromotion), while the DRG's
-            # artifact_id and load_doctrine_catalog().directives are canonical-only.
+            # artifact_id and load_offering_catalog().directives are canonical-only.
             # Skipping this would reproduce Decision Record 2's own silent-exclusion
             # mechanism via the org-required path.
             project_directives |= {_normalize_directive_id(d) for d in org_required["directives"]}
@@ -376,17 +362,19 @@ def _load_action_doctrine_bundle(
             selected_tactics |= set(org_required["tactics"])
             selected_paradigms |= set(org_required["paradigms"])
 
-
             # Explicitly activated project directives govern the project even
             # without an action edge. The filtered graph is the activation
             # authority; repository provenance distinguishes local roots from
             # built-ins, which retain their action-scoped delivery.
-            local_directives = {
-                node.urn.split(":", 1)[1]
-                for node in merged.nodes
-                if node.kind.value == "directive"
-                and service.directives.get_provenance(node.urn.split(":", 1)[1]) == "project"
-            } if pack_context is not None and pack_context.activated_directives is not None else set()
+            local_directives = (
+                {
+                    node.urn.split(":", 1)[1]
+                    for node in merged.nodes
+                    if node.kind.value == "directive" and service.directives.get_provenance(node.urn.split(":", 1)[1]) == "project"
+                }
+                if pack_context is not None and pack_context.activated_directives is not None
+                else set()
+            )
             action_urn = f"action:{resolved_type}/{action}"
             resolved = resolve_context(merged, action_urn, depth=effective_depth)
             ids_by_slot = _classify_artifact_urns(
@@ -427,8 +415,7 @@ def _load_action_doctrine_bundle(
             unarbitrated_tensions = resolved.unarbitrated_tensions
         except (DRGLoadError, DRGProjectValidationError) as exc:
             _LOGGER.warning(
-                "DRG action resolution skipped for %s/%s: %s. "
-                "Charter-level selections still render.",
+                "DRG action resolution skipped for %s/%s: %s. Charter-level selections still render.",
                 resolved_type,
                 action,
                 exc,
@@ -436,7 +423,7 @@ def _load_action_doctrine_bundle(
 
     ids_by_slot = _drop_scope_filtered_ids(ids_by_slot, service, repo_root)
 
-    return _ActionDoctrineBundle(
+    return _ActionGovernanceBundle(
         mission=resolved_type or "",
         directive_ids=list(ids_by_slot.get("directives", ())),
         tactic_ids=list(ids_by_slot.get("tactics", ())),

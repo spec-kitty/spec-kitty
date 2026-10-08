@@ -85,7 +85,7 @@ class DirectiveReference(BaseModel):
 
     ``when``/``reason`` are optional curated edge metadata carried symmetrically
     with the DRG edge the extractor mints from this reference
-    (:class:`doctrine.drg.models.DRGEdge`): ``when`` is the activation trigger and
+    (:class:`charter.offering.drg.models.DRGEdge`): ``when`` is the activation trigger and
     ``reason`` the rationale. They exist so a defensible relationship can live in
     source-artifact frontmatter (single canonical authority) rather than the
     hand-authored overlay — the #3009 residual promotions

@@ -1,4 +1,4 @@
-"""Unit tests for :class:`charter.offering.base.DoctrineLayerCollisionWarning`
+"""Unit tests for :class:`charter.offering.base.ArtifactLayerCollisionWarning`
 coverage across artifact kinds (Mission B WP06 T029 / FR-014).
 
 Mission A wired the collision-warning surface for directives, tactics,
@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.offering.base import DoctrineLayerCollisionWarning
+from charter.offering.base import ArtifactLayerCollisionWarning
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -65,7 +65,7 @@ def test_styleguide_org_collision_warning_names_id_and_kind(
     _write(built_in / "collision-id.styleguide.yaml", built_in_styleguide)
     _write(org / "collision-id.styleguide.yaml", org_styleguide)
 
-    with pytest.warns(DoctrineLayerCollisionWarning) as records:
+    with pytest.warns(ArtifactLayerCollisionWarning) as records:
         StyleguideRepository(built_in_dir=built_in, org_dirs=[org])
 
     matched = [str(r.message) for r in records if "collision-id" in str(r.message)]
@@ -101,7 +101,7 @@ def test_procedure_org_collision_warning_names_id_and_kind(
     _write(built_in / "proc-collide.procedure.yaml", procedure_body)
     _write(org / "proc-collide.procedure.yaml", procedure_body)
 
-    with pytest.warns(DoctrineLayerCollisionWarning) as records:
+    with pytest.warns(ArtifactLayerCollisionWarning) as records:
         ProcedureRepository(built_in_dir=built_in, org_dirs=[org])
 
     matched = [str(r.message) for r in records if "proc-collide" in str(r.message)]
@@ -136,7 +136,7 @@ def test_toolguide_org_collision_warning_names_id_and_kind(
     _write(built_in / "tool-collide.toolguide.yaml", tg_body)
     _write(org / "tool-collide.toolguide.yaml", tg_body)
 
-    with pytest.warns(DoctrineLayerCollisionWarning) as records:
+    with pytest.warns(ArtifactLayerCollisionWarning) as records:
         ToolguideRepository(built_in_dir=built_in, org_dirs=[org])
 
     matched = [str(r.message) for r in records if "tool-collide" in str(r.message)]

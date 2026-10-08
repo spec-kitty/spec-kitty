@@ -127,7 +127,7 @@ class MissionTypeProfile(BaseModel):
 
     Overlay identity (``id``)
     -------------------------
-    ``BaseDoctrineRepository`` (``doctrine/base.py``) keys every overlay on the
+    ``BaseArtifactRepository`` (``doctrine/base.py``) keys every overlay on the
     raw YAML ``id`` field and **skips id-less overlay files** (``base.py:249``),
     so a project override at
     ``.kittify/doctrine/mission_types/<type>/governance-profile.yaml`` only
@@ -635,7 +635,7 @@ def resolve_mission_type_context(
     # UnknownMissionTypeError.registered_ids keeps its documented list shape.
     registered = existing_mission_types(repo_root)
     is_registered = type_key in registered
-    has_override = _project_has_doctrine_overrides(repo_root)
+    has_override = _project_has_pack_overrides(repo_root)
 
     # FR-002 (WP04): construct the real PackContext and thread it into both
     # projection slots below -- sibling to (not a replacement for) the
@@ -647,7 +647,7 @@ def resolve_mission_type_context(
     # PackContext instance -- each constructs its own from the same
     # repo_root. PackContext.from_config() is a plain read (no caching of
     # its own) and is called this way at every other charter call site
-    # (see e.g. charter.activation.compiler, charter.activation.action_doctrine_bundle).
+    # (see e.g. charter.activation.compiler, charter.activation.action_governance_bundle).
     from charter.activation.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular
 
     pack_context = PackContext.from_config(repo_root)
@@ -1316,7 +1316,7 @@ def _load_mission_type_profile(
     project override from
     ``<repo_root>/.kittify/doctrine/mission_types/<mission_type>/governance-profile.yaml``
     via :class:`~charter.activation.mission_type_profile_repository.MissionTypeProfileRepository`
-    (project > org > builtin; :class:`~charter.offering.base.DoctrineLayerCollisionWarning`
+    (project > org > builtin; :class:`~charter.offering.base.ArtifactLayerCollisionWarning`
     on shadow).  Keying on the ``id == mission_type`` invariant means a profile
     whose declared type disagrees with its directory is simply not found under
     ``mission_type`` (returns ``None``) rather than silently mis-routed.
@@ -1350,7 +1350,7 @@ def _load_mission_type_profile(
 # ---------------------------------------------------------------------------
 
 
-def _project_has_doctrine_overrides(repo_root: Path) -> bool:
+def _project_has_pack_overrides(repo_root: Path) -> bool:
     """Return ``True`` iff the project charter declares any selection.
 
     IC-04 (WP04): re-pointed from the retired ``.kittify/charter/
@@ -1381,10 +1381,10 @@ def _project_has_doctrine_overrides(repo_root: Path) -> bool:
     governance = data.get("governance")
     if not isinstance(governance, dict):
         return False
-    doctrine = require_canonical_governance(governance, source=charter_yaml_path).get("charter")
-    if not isinstance(doctrine, dict):
+    charter_block = require_canonical_governance(governance, source=charter_yaml_path).get("charter")
+    if not isinstance(charter_block, dict):
         return False
-    for key, value in doctrine.items():
+    for key, value in charter_block.items():
         if not key.startswith("selected_"):
             continue
         if isinstance(value, list) and value:

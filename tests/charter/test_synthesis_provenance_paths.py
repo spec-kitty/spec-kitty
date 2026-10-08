@@ -28,7 +28,7 @@ validator.
 
 What **is** a genuine, provable, in-scope gap: ``bundle.py``'s
 ``validate_synthesis_state()`` recursively globs for artifacts
-(``doctrine_root.rglob(f"*{suffix}")``) and keys its cross-checks off
+(``pack_root.rglob(f"*{suffix}")``) and keys its cross-checks off
 ``Path.name`` alone. A doubled-leaf copy shares its correctly-placed
 sibling's basename, so the existing checks (``_check_artifacts_have_
 provenance`` / ``_check_provenance_have_artifacts``) never flag it — the

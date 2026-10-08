@@ -1,22 +1,23 @@
-"""Doctrine-layer org-pack schema and per-pack loader (Slice F WP06 / DDD boundary).
+"""Charter-offering org-pack schema and per-pack loader (Slice F WP06 / DDD boundary).
 
 This module is the canonical home for the org-pack on-disk schema.  It was
 split out of ``charter.drg`` per the PR #1119 pre-review comment: org-pack
-schema knowledge belongs in the ``doctrine`` layer so it cannot silently
-drift from the main DRG schema as ``doctrine`` evolves.
+schema knowledge belongs in ``charter.offering`` so it cannot silently
+drift from the main DRG schema as the offering evolves.
 
 Architectural boundary
 ----------------------
 
-``doctrine`` sits below ``charter`` in the dependency hierarchy::
+``charter.offering`` sits below the charter facades and ``charter.activation`` in
+the dependency hierarchy::
 
-    kernel (root) <- doctrine <- charter <- specify_cli
+    kernel (root) <- charter.offering <- charter <- specify_cli
 
 This module MUST NOT import from ``charter`` or ``specify_cli``. Charter
 reads ``charter_packs.org.packs`` from ``.kittify/config.yaml`` (project-config
 knowledge, charter-domain) and calls :func:`load_org_pack` for each
 configured pack root. All per-pack parsing and schema validation is the
-doctrine domain's responsibility and lives here.
+offering's responsibility and lives here.
 
 C-009 / kind universe
 ---------------------

@@ -259,7 +259,7 @@ def _check_item_overrides_builtin(
 def _build_scan_service(repo_root: Path, *, org_roots: list[Path] | None = None) -> Any:
     """Construct the activation-aware provenance-scan service, unfiltered.
 
-    Returns a :class:`charter.activation.resolver.DoctrineService` constructed with
+    Returns a :class:`charter.activation.resolver.ActiveCharterService` constructed with
     ``pack_context=None`` — the sanctioned "unfiltered-diagnostic" form
     named in this mission's ``data-model.md``
     (charter-sole-door-bypass-closure-01KZ3WAA WP01, FR-002 Option A,
@@ -267,7 +267,7 @@ def _build_scan_service(repo_root: Path, *, org_roots: list[Path] | None = None)
     treats ``pack_context is None`` as "admit all"; this call site is
     distinguished from every activation-gated caller ONLY by that explicit
     argument, never by a different class or a raw, unwrapped
-    ``charter.offering.service.DoctrineService`` returned directly (the cycle-1
+    ``charter.offering.service.CharterOfferingService`` returned directly (the cycle-1
     violation: this function previously returned the raw inner service
     under a docstring-authorized "exception" that C-002 does not sanction —
     a docstring is not an escalation, and the claimed
@@ -277,9 +277,9 @@ def _build_scan_service(repo_root: Path, *, org_roots: list[Path] | None = None)
     :class:`OrgOverridesBuiltinChecker` needs the RAW repository objects
     behind the wrapper's gated ``dict`` properties — ``.list_all()`` /
     ``.get_provenance()``, which a ``dict`` has neither of. It reaches them
-    via :meth:`charter.activation.resolver.DoctrineService.raw_repository`, the Option
+    via :meth:`charter.activation.resolver.ActiveCharterService.raw_repository`, the Option
     A accessor this cycle adds (the same "filtered dict can't do repository
-    ops" pattern :attr:`~charter.activation.resolver.DoctrineService.agent_profile_repository`
+    ops" pattern :attr:`~charter.activation.resolver.ActiveCharterService.agent_profile_repository`
     already solves for ``agent_profiles``), instead of this function
     returning an unwrapped service. There is no charter activation
     *decision* being read here at all — only raw on-disk provenance ("which
@@ -288,16 +288,16 @@ def _build_scan_service(repo_root: Path, *, org_roots: list[Path] | None = None)
     documented as not gating.
 
     The inner service is built via
-    :func:`charter.activation.doctrine_service_builder._build_doctrine_service` — the
+    :func:`charter.activation.active_charter_service_builder._build_offering_service` — the
     ONE function in this codebase permitted to construct a raw
-    ``charter.offering.service.DoctrineService`` (NFR-001) — so this scan path
+    ``charter.offering.service.CharterOfferingService`` (NFR-001) — so this scan path
     shares the same ``active_languages``/``project_root`` resolution as
     every other consumer of the unified builder, rather than a bespoke
     shape that could silently drift from it.
 
     This helper also closes the FR-002 fail-open bug named at this module's
     two call sites: the previous code built the raw service, then
-    conditionally attempted to wrap it in ``charter.activation.resolver.DoctrineService``
+    conditionally attempted to wrap it in ``charter.activation.resolver.ActiveCharterService``
     behind a ``try/except ImportError: pass`` that silently returned the
     unwrapped service on import failure. No caller ever passed the
     ``pack_context`` that gated that attempt (verified: zero call sites), so
@@ -311,7 +311,7 @@ def _build_scan_service(repo_root: Path, *, org_roots: list[Path] | None = None)
     (:func:`_build_service_with_org_layer` / :func:`_build_built_in_only_service`)
     treat a ``None`` return as "skip the check" (``OrgOverridesBuiltinChecker.run``'s
     ``if service is None: return []`` / ``if built_in_only is None: return []``).
-    ``charter.activation.doctrine_service_builder`` and ``charter.activation.resolver`` are
+    ``charter.activation.active_charter_service_builder`` and ``charter.activation.resolver`` are
     first-party modules shipped in the same wheel as this one -- there is no
     legitimate partial-install scenario in which this import fails -- so the
     handler could only ever fire on a genuinely broken install, in which case
@@ -319,11 +319,11 @@ def _build_scan_service(repo_root: Path, *, org_roots: list[Path] | None = None)
     org-override report. The import is left function-local (matching this
     module's lazy-import convention) but is no longer guarded.
     """
-    from charter.activation.doctrine_service_builder import _build_doctrine_service
-    from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
+    from charter.activation.active_charter_service_builder import _build_offering_service
+    from charter.activation.resolver import ActiveCharterService
 
-    inner = _build_doctrine_service(repo_root, org_roots=org_roots)
-    return ActivationAwareDoctrineService(inner, pack_context=None)
+    inner = _build_offering_service(repo_root, org_roots=org_roots)
+    return ActiveCharterService(inner, pack_context=None)
 
 
 def _build_service_with_org_layer(repo_root: Path, registry: Any) -> Any:

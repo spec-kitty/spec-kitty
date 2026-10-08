@@ -1,6 +1,6 @@
 """Tests for charter.offering.shared.exceptions — exception class behaviors.
 
-Targets InlineReferenceRejectedError, DoctrineResolutionCycleError attribute
+Targets InlineReferenceRejectedError, ArtifactResolutionCycleError attribute
 and string representation contracts.
 
 Patterns: Non-Identity Inputs (distinct argument values), Boundary Pair
@@ -12,8 +12,8 @@ from __future__ import annotations
 import pytest
 
 from charter.offering.shared.exceptions import (
-    DoctrineArtifactLoadError,
-    DoctrineResolutionCycleError,
+    ArtifactLoadError,
+    ArtifactResolutionCycleError,
     InlineReferenceRejectedError,
 )
 
@@ -75,43 +75,43 @@ class TestInlineReferenceRejectedError:
         assert err_a.forbidden_field != err_b.forbidden_field
 
 
-# ── DoctrineResolutionCycleError ───────────────────────────────────────────────
+# ── ArtifactResolutionCycleError ───────────────────────────────────────────────
 
 
-class TestDoctrineResolutionCycleError:
+class TestArtifactResolutionCycleError:
     """cycle attribute and str() representation."""
 
     def test_cycle_attribute_preserved(self):
         cycle = [("tactic", "t-a"), ("tactic", "t-b")]
-        err = DoctrineResolutionCycleError(cycle)
+        err = ArtifactResolutionCycleError(cycle)
         assert err.cycle == cycle
 
     def test_str_contains_artifact_types(self):
         cycle = [("directive", "d-001"), ("tactic", "t-001")]
-        err = DoctrineResolutionCycleError(cycle)
+        err = ArtifactResolutionCycleError(cycle)
         assert "directive" in str(err)
         assert "tactic" in str(err)
 
     def test_str_contains_artifact_ids(self):
         cycle = [("directive", "specific-id"), ("tactic", "other-id")]
-        err = DoctrineResolutionCycleError(cycle)
+        err = ArtifactResolutionCycleError(cycle)
         assert "specific-id" in str(err)
         assert "other-id" in str(err)
 
     def test_empty_cycle_does_not_raise(self):
-        err = DoctrineResolutionCycleError([])
+        err = ArtifactResolutionCycleError([])
         assert err.cycle == []
 
 
-# ── DoctrineArtifactLoadError ──────────────────────────────────────────────────
+# ── ArtifactLoadError ──────────────────────────────────────────────────
 
 
-class TestDoctrineArtifactLoadError:
-    """DoctrineArtifactLoadError is an Exception subclass."""
+class TestArtifactLoadError:
+    """ArtifactLoadError is an Exception subclass."""
 
     def test_is_exception_subclass(self):
-        assert issubclass(DoctrineArtifactLoadError, Exception)
+        assert issubclass(ArtifactLoadError, Exception)
 
     def test_can_be_raised_and_caught(self):
-        with pytest.raises(DoctrineArtifactLoadError):
-            raise DoctrineArtifactLoadError("load failed")
+        with pytest.raises(ArtifactLoadError):
+            raise ArtifactLoadError("load failed")

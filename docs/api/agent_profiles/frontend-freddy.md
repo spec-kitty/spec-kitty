@@ -36,7 +36,7 @@ Frontend Freddy translates UI specifications and component designs into tested, 
 Inside Claude Code, Codex, or another configured harness, you don't run a CLI command to attach this profile to your session. Instead:
 
 - **Let routing pick it**: describe what you need in natural language (for example, "implement this component" or "fix the accessibility violations on this page") and `spec-kitty dispatch` routes the request to the matching profile automatically.
-- **Ask for it by name**: if your harness supports ad-hoc profile loading, request Frontend Freddy explicitly — see the `ad-hoc-profile-load` skill for the mechanic.
+- **Ask for it by name**: if your harness supports ad-hoc profile loading, request Frontend Freddy explicitly — see the `spk-charter-profile-load` skill for the mechanic.
 
 ## See also
 

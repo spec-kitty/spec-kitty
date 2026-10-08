@@ -1,7 +1,7 @@
 """Pack-skill repository (ADR 2026-09-27-1, FR-005).
 
 Loads ``*.skill.yaml`` from the built-in, org and project tiers through the
-shared :class:`~charter.offering.base.BaseDoctrineRepository` and adds the
+shared :class:`~charter.offering.base.BaseArtifactRepository` and adds the
 pack-skill rules the base cannot express:
 
 * tier validation (reserved prefixes, no ``scripts/``, no ``allowed-tools``);
@@ -22,7 +22,7 @@ from pydantic import ValidationError
 from pydantic_core import InitErrorDetails
 
 from charter.offering.artifact_kinds import ArtifactKind
-from charter.offering.base import BaseDoctrineRepository
+from charter.offering.base import BaseArtifactRepository
 from charter.offering.pack_paths import built_in_dir
 from charter.offering.pack_skills.models import PackSkill
 from charter.offering.pack_skills.validation import (
@@ -45,8 +45,8 @@ def _violation_as_validation_error(message: str) -> ValidationError:
     return ValidationError.from_exception_data("PackSkill", [detail])
 
 
-class PackSkillRepository(BaseDoctrineRepository[PackSkill]):
-    """Repository for pack skills across the three doctrine tiers."""
+class PackSkillRepository(BaseArtifactRepository[PackSkill]):
+    """Repository for pack skills across the three Charter Pack tiers."""
 
     def __init__(
         self,

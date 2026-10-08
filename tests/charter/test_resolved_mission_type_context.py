@@ -361,7 +361,7 @@ class TestResolvedTemplateSet:
     ) -> None:
         _write_config(tmp_path, ["software-dev"])
         # consolidate-charter-bundle (IC-04 / WP04, T028c):
-        # _project_has_doctrine_overrides reads charter.yaml's canonical
+        # _project_has_pack_overrides reads charter.yaml's canonical
         # governance.charter.selected_* (the retired governance.doctrine key
         # fails closed, tests/charter/test_governance_fail_closed.py) -- the
         # retired governance.yaml is never consulted.

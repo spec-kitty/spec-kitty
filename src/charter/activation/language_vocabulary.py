@@ -10,7 +10,7 @@ recogniser in step with whatever doctrine ships, or a project/org extends
 
 The provider is a lightweight YAML scan of the ``applies_to_languages`` field
 (built-in packs, the project overlay, configured org pack roots).  It
-deliberately does not construct a ``DoctrineService`` (sole-door gates) and
+deliberately does not construct an ``ActiveCharterService`` (sole-door gates) and
 never imports :mod:`charter.activation.language_scope`, which calls it.
 """
 
@@ -23,7 +23,7 @@ from pathlib import Path
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from charter.activation._doctrine_paths import resolve_project_root
+from charter.activation._project_root_candidates import resolve_project_root
 from charter.offering.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
 from charter.offering.drg.org_pack_config import resolve_existing_org_roots
 from charter.offering.pack_paths import built_in_dir

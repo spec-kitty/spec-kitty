@@ -21,7 +21,7 @@ from charter.activation.context_renderers import (
     render_authority_paths,
 )
 from charter.activation.context_renderers.authority_paths import DEFAULT_AUTHORITY_PATHS
-from charter.activation.schemas import DoctrineSelectionConfig
+from charter.activation.schemas import GovernanceCharterConfig
 
 pytestmark = pytest.mark.fast
 
@@ -39,7 +39,7 @@ class TestDefaultAuthorityPaths:
         self, tmp_path: Path
     ) -> None:
         _make_dir(tmp_path, "docs/context")
-        result = render_authority_paths(tmp_path, DoctrineSelectionConfig())
+        result = render_authority_paths(tmp_path, GovernanceCharterConfig())
         assert AUTHORITY_PATHS_HEADER in result
         assert "docs/context/" in result
         assert DEFAULT_AUTHORITY_PATHS["docs/context/"] in result
@@ -48,14 +48,14 @@ class TestDefaultAuthorityPaths:
         self, tmp_path: Path
     ) -> None:
         _make_dir(tmp_path, "docs/adr/3.x")
-        result = render_authority_paths(tmp_path, DoctrineSelectionConfig())
+        result = render_authority_paths(tmp_path, GovernanceCharterConfig())
         assert AUTHORITY_PATHS_HEADER in result
         assert "docs/adr/3.x/" in result
         assert DEFAULT_AUTHORITY_PATHS["docs/adr/3.x/"] in result
 
     def test_default_path_skipped_when_directory_missing(self, tmp_path: Path) -> None:
         # No docs/context in tmp_path — render must not list it.
-        result = render_authority_paths(tmp_path, DoctrineSelectionConfig())
+        result = render_authority_paths(tmp_path, GovernanceCharterConfig())
         assert "docs/context/" not in result
 
 
@@ -65,7 +65,7 @@ class TestCharterDeclaredAuthorityPaths:
     def test_charter_declared_path_additive(self, tmp_path: Path) -> None:
         _make_dir(tmp_path, "docs/context")
         _make_dir(tmp_path, "docs/runbooks")
-        selection = DoctrineSelectionConfig(authority_paths=["docs/runbooks/"])
+        selection = GovernanceCharterConfig(authority_paths=["docs/runbooks/"])
         result = render_authority_paths(tmp_path, selection)
         assert "docs/context/" in result
         assert "docs/runbooks/" in result
@@ -75,7 +75,7 @@ class TestCharterDeclaredAuthorityPaths:
         self, tmp_path: Path
     ) -> None:
         _make_dir(tmp_path, "docs/context")
-        selection = DoctrineSelectionConfig(authority_paths=["docs/context/"])
+        selection = GovernanceCharterConfig(authority_paths=["docs/context/"])
         result = render_authority_paths(tmp_path, selection)
         # The path appears exactly once even though both default and
         # declared lists carry it.
@@ -86,6 +86,6 @@ class TestEmptyResult:
     """When no path qualifies, the section header is omitted."""
 
     def test_no_paths_no_section(self, tmp_path: Path) -> None:
-        result = render_authority_paths(tmp_path, DoctrineSelectionConfig())
+        result = render_authority_paths(tmp_path, GovernanceCharterConfig())
         assert result == ""
         assert AUTHORITY_PATHS_HEADER not in result

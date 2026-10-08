@@ -1125,7 +1125,7 @@ class TestProfileSkippedDiagnostics:
         — the module ``AgentProfileRepository._default_built_in_dir``
         actually imported it into), so this fires regardless of which
         construction path calls into the repository (PR-M-002 routes that
-        construction through ``DoctrineService``, which does not change
+        construction through ``ActiveCharterService``, which does not change
         this seam).
         """
         from charter.offering.pack_paths import PackRootNotFound

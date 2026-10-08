@@ -138,7 +138,7 @@ DISPOSITION: dict[str, str] = {
     "charter.offering.drg.validator": "FACADE-ONLY",
     "charter.offering.drg.override_policy": "TICKETED-BASELINE",
     "charter.offering.drg.migration.hand_authored_overlay": "TICKETED-BASELINE",
-    # charter.offering.base — DoctrineLayerCollisionWarning (census-drift: absent from the
+    # charter.offering.base — ArtifactLayerCollisionWarning (census-drift: absent from the
     # snapshot table). Doorable → FACADE-ONLY (prefer a clean door over widening
     # the exempt surface). Consumer _doctrine_collect.py is WP05-owned.
     "charter.offering.base": "FACADE-ONLY",
@@ -194,6 +194,16 @@ ORPHAN_REACHED_EXCEPTIONS: frozenset[tuple[str, str]] = frozenset(
         # test_runtime_charter_doctrine_boundary.py's lazy baseline.
         ("src/runtime/next/runtime_bridge_composition.py", "charter.offering.missions.step_contracts"),
         ("src/runtime/next/runtime_bridge_io.py", "charter.offering.missions.step_projection"),
+        # #3732 (charter-pack-cutover-01M491G6 WP15) moved the retired
+        # ``spec-kitty doctrine`` leaves to their ``charter`` homes. These two
+        # modules are the successors of WP05-owned command files and keep their
+        # predecessors' reaches unchanged: the raw service construction (wrapped
+        # immediately; CONSTRUCTION-ROUTED, pinned by the sole-door gate's
+        # ``_build_asset_repository`` exclusion) and the doorless DRG-regeneration
+        # internal (TICKETED-BASELINE). The owner list above is the frozen
+        # 01KZPDSR record, so the moved files cannot join it.
+        ("src/specify_cli/cli/commands/charter/pack_asset.py", "charter.offering.service"),
+        ("src/specify_cli/cli/commands/charter/pack_tooling.py", "charter.offering.drg.migration.hand_authored_overlay"),
     }
 )
 

@@ -307,13 +307,13 @@ def validate_synthesis_state(repo_root: Path) -> BundleValidationResult:
     result = BundleValidationResult()
     _check_stale_failed_dirs(repo_root, result)
 
-    doctrine_root = project_pack_root(repo_root)
+    pack_root = project_pack_root(repo_root)
     provenance_root = repo_root / PROVENANCE_DIR
     manifest_path = repo_root / SYNTHESIS_MANIFEST_PATH
 
-    _check_no_doubled_leaf_paths(repo_root, provenance_root, doctrine_root, result)
+    _check_no_doubled_leaf_paths(repo_root, provenance_root, pack_root, result)
 
-    artifact_files = _collect_artifact_files(doctrine_root) if doctrine_root.exists() else []
+    artifact_files = _collect_artifact_files(pack_root) if pack_root.exists() else []
     provenance_files = sorted(provenance_root.glob("*.yaml")) if provenance_root.exists() else []
     if not artifact_files and not provenance_files and not manifest_path.exists():
         return result
@@ -334,7 +334,7 @@ def validate_synthesis_state(repo_root: Path) -> BundleValidationResult:
         repo_root, artifact_files, provenance_root, by_artifact_path, result
     )
     _check_provenance_have_artifacts(
-        repo_root, doctrine_root, provenance_root, by_provenance_path, result
+        repo_root, pack_root, provenance_root, by_provenance_path, result
     )
     _check_manifest_integrity(repo_root, result)
     return result
@@ -386,7 +386,7 @@ _DOUBLED_LEAF_BASES: tuple[str, ...] = ("directive", "tactic", "styleguide")
 def _check_no_doubled_leaf_paths(
     repo_root: Path,
     provenance_root: Path,
-    doctrine_root: Path,
+    pack_root: Path,
     result: BundleValidationResult,
 ) -> None:
     """Flag a doubled-leaf synthesis-writer defect (#3819).
@@ -402,7 +402,7 @@ def _check_no_doubled_leaf_paths(
     check inspects the directory structure directly instead.
     """
     candidates = [(provenance_root, "provenance")]
-    candidates.extend((doctrine_root / kind, kind) for kind in _DOUBLED_LEAF_BASES)
+    candidates.extend((pack_root / kind, kind) for kind in _DOUBLED_LEAF_BASES)
 
     for base, leaf in candidates:
         doubled_dir = base / leaf
@@ -416,11 +416,11 @@ def _check_no_doubled_leaf_paths(
             )
 
 
-def _collect_artifact_files(doctrine_root: Path) -> list[Path]:
-    """Collect all synthesized artifact files under the doctrine root."""
+def _collect_artifact_files(pack_root: Path) -> list[Path]:
+    """Collect all synthesized artifact files under the project pack root."""
     files: list[Path] = []
     for suffix in _ALL_ARTIFACT_PATTERNS:
-        files.extend(doctrine_root.rglob(f"*{suffix}"))
+        files.extend(pack_root.rglob(f"*{suffix}"))
     return files
 
 
@@ -502,7 +502,7 @@ def _check_artifacts_have_provenance(
 
 def _check_provenance_have_artifacts(
     repo_root: Path,
-    doctrine_root: Path,
+    pack_root: Path,
     provenance_root: Path,
     manifest_by_provenance_path: dict[str, ManifestArtifactEntry],
     result: BundleValidationResult,
@@ -537,7 +537,7 @@ def _check_provenance_have_artifacts(
         if kind not in _KIND_SUFFIX:
             result.errors.append(f"Provenance file has unknown kind '{kind}': {rel_path}")
             continue
-        if _find_artifact(doctrine_root, kind, slug) is None:
+        if _find_artifact(pack_root, kind, slug) is None:
             result.errors.append(
                 f"Provenance sidecar '{rel_path}' references "
                 f"non-existent artifact (kind={kind}, slug={slug})"
@@ -589,12 +589,12 @@ def _kind_and_slug_from_artifact(path: Path) -> tuple[str | None, str | None]:
     return None, None
 
 
-def _find_artifact(doctrine_root: Path, kind: str, slug: str) -> Path | None:
-    """Find the artifact file for a given (kind, slug) under doctrine_root."""
+def _find_artifact(pack_root: Path, kind: str, slug: str) -> Path | None:
+    """Find the artifact file for a given (kind, slug) under pack_root."""
     suffix = _KIND_SUFFIX.get(kind)
     if suffix is None:
         return None
-    for candidate in doctrine_root.rglob(f"*{suffix}"):
+    for candidate in pack_root.rglob(f"*{suffix}"):
         cand_kind, cand_slug = _kind_and_slug_from_artifact(candidate)
         if cand_kind == kind and cand_slug == slug:
             return candidate

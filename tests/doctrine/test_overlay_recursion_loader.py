@@ -1,6 +1,6 @@
 """Loader-side org/project recursion parity (WP01 / T001, T002, T007).
 
-Red-first: on `main` the base loader (`BaseDoctrineRepository._project_scan`) and
+Red-first: on `main` the base loader (`BaseArtifactRepository._project_scan`) and
 the agent-profile loader scan org/project overlays with a NON-recursive glob, so
 an artifact authored one directory deep is silently dropped (the 71% tactic
 undercount, #3490). After WP01 the loader recurses via the shared authority,

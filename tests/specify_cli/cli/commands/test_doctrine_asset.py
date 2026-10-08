@@ -2,7 +2,7 @@
 
 The asset operator surface is a *read-only* window over the WP04 resolution
 repository (:class:`charter.offering.assets.repository.AssetRepository`, reached through
-:class:`charter.offering.service.DoctrineService` ``.assets``):
+:class:`charter.offering.service.CharterOfferingService` ``.assets``):
 
 * ``asset list [--json]`` enumerates every resolvable asset with its source tier.
 * ``asset path <id> [--json]`` resolves one identifier to a filesystem path,

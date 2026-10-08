@@ -963,11 +963,11 @@ def _resolve_tech_stack_for_profile(repo_root: Path, profile_id: str | None) -> 
         # no such method — so this call site needs the raw accessor, not the
         # filtered property (contracts/charter-doctrine-service-contract.md
         # "Lineage/mutation accessor semantics").
-        from charter.activation.doctrine_service_builder import (  # noqa: PLC0415
-            build_activation_aware_doctrine_service,
+        from charter.activation.active_charter_service_builder import (  # noqa: PLC0415
+            build_active_charter_service,
         )
 
-        service = build_activation_aware_doctrine_service(repo_root)
+        service = build_active_charter_service(repo_root)
         repo = service.agent_profile_repository
         profile = repo.resolve_profile(profile_id)
     except Exception:

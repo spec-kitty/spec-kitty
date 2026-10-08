@@ -104,7 +104,7 @@ def test_collect_profile_health_records_crash(monkeypatch: pytest.MonkeyPatch, t
     def _boom(*_a: Any, **_k: Any) -> Any:
         raise RuntimeError("load failed")
 
-    monkeypatch.setattr(svc, "DoctrineService", _boom)
+    monkeypatch.setattr(svc, "CharterOfferingService", _boom)
     report = collect._collect_profile_health(tmp_path)
     assert any("profile-health load error" in e for e in report.org_drg["errors"])
     # Honest unhealthy: a recorded crash must not be vacuously green.
@@ -181,7 +181,7 @@ class _FakeRepo:
 
 
 class _FakeService:
-    """Stands in for ``charter.activation.resolver.DoctrineService`` (WP03, #2059 followup:
+    """Stands in for ``charter.activation.resolver.ActiveCharterService`` (WP03, #2059 followup:
     charter-sole-door-bypass-closure-01KZ3WAA T013). ``_resolve_artifact_source``
     now reads through the wrapper's ``raw_repository(plural)`` accessor rather
     than plain ``getattr(service, plural)`` (the gated per-kind properties on
@@ -246,7 +246,7 @@ def test_build_selection_block_dedup_and_order(monkeypatch: pytest.MonkeyPatch, 
 
     import charter.offering.service as svc
 
-    monkeypatch.setattr(svc, "DoctrineService", lambda **k: object())
+    monkeypatch.setattr(svc, "CharterOfferingService", lambda **k: object())
 
     block = collect._build_selection_block(tmp_path)
     ids = [e["id"] for e in block["directives"]]

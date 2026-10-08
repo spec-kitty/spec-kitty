@@ -11,7 +11,7 @@ This is a three-layer seam (squad finding F1/M1/M2 on the WP05 prompt):
   :class:`SkippedGlossaryPack`, nested inside
   :class:`DoctrineHealthReport` and folded into its ``healthy`` property.
 * **COLLECT** (``_doctrine_collect.py``) — :func:`_collect_glossary_pack_health`
-  sources loaded packs from ``DoctrineService.glossary_packs`` (the real
+  sources loaded packs from ``ActiveCharterService.glossary_packs`` (the real
   production repository, WP02) and attaches the result to the report built by
   ``_collect_profile_health``. Without this layer the MODEL type would exist
   but the ``--json`` payload would stay silent (the squad's HIGH finding).
@@ -70,7 +70,7 @@ def bare_repo_root(tmp_path: Path) -> Path:
 
     Mirrors the ``kittify_project`` fixture in
     ``tests/specify_cli/cli/commands/test_doctor_doctrine_integrity.py``: just
-    enough for ``locate_project_root``/``DoctrineService`` to resolve without
+    enough for ``locate_project_root``/``ActiveCharterService`` to resolve without
     a real git checkout.
     """
     project_root = tmp_path / "project"

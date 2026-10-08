@@ -1,23 +1,10 @@
----
-name: spec-kitty-glossary-context
-description: >-
-  Curate and apply canonical terminology across Spec Kitty missions.
-  Triggers: "update the glossary", "use canonical terms", "check terminology",
-  "add a term", "fix term drift", "glossary conflicts", "resolve ambiguity",
-  "review terminology consistency", "shape a domain model's terms",
-  "validate domain language against code".
-  Does NOT handle: runtime loop advancement, setup or repair requests,
-  agent configuration, or direct code implementation tasks.
----
-
-# spec-kitty-glossary-context
+# Glossary Workflow (spk-charter-glossary reference)
 
 Maintain semantic integrity by curating the project glossary, detecting term
 drift, and ensuring that all mission artifacts use canonical terminology.
 
-Use this skill when the user wants to inspect, update, or enforce glossary
-terms. Do not use it for purely operational tasks like advancing the runtime
-loop or repairing an installation.
+This reference holds the detailed glossary workflow; the skill's `SKILL.md`
+carries the short flow.
 
 ---
 
@@ -299,7 +286,7 @@ passes all three conditions.
 ## Step 4: Detect and Prevent Semantic Drift
 
 Semantic drift occurs when artifacts gradually diverge from glossary definitions.
-See `references/semantic-drift-examples.md` for six concrete drift patterns.
+See `semantic-drift-examples.md` for six concrete drift patterns.
 
 **Detection:**
 
@@ -338,5 +325,5 @@ and the glossary remains a living, enforced contract.
 
 ## References
 
-- `references/glossary-field-guide.md` -- Seed file schema, scope precedence, status lifecycle, event-sourcing mechanics, and CLI quick reference
-- `references/semantic-drift-examples.md` -- Concrete drift patterns with detection and correction strategies
+- `glossary-field-guide.md` -- Seed file schema, scope precedence, status lifecycle, event-sourcing mechanics, and CLI quick reference
+- `semantic-drift-examples.md` -- Concrete drift patterns with detection and correction strategies

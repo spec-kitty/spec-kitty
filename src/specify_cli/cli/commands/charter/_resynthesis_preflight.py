@@ -7,7 +7,7 @@ from importlib.metadata import version
 from pathlib import Path
 
 from charter.activation.cascade import CascadeScope, cascade_activation_targets
-from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.catalog import resolve_offering_root
 from charter.activation.compiler import resolve_config_activated_roots
 from charter.activation.effective_set import resolve_effective_sets
 from charter.activation.kind_vocabulary import ArtifactKind, resolve_artifact_urn, resolve_config_id
@@ -75,12 +75,12 @@ def preflight_resynthesis(repo_root: Path, kind: str, artifact_id: str, scope: C
     org_roots = resolve_org_root_chain(repo_root)
     if scope is not None and kind != "mission-type":
         source = resolve_artifact_urn(
-            ArtifactKind.from_operator_token(kind), artifact_id, doctrine_root=resolve_doctrine_root(), layer_roots=roots, org_roots=org_roots
+            ArtifactKind.from_operator_token(kind), artifact_id, offering_root=resolve_offering_root(), layer_roots=roots, org_roots=org_roots
         )
         cascaded = cascade_activation_targets(graph, source, scope)
         for kind_value, identifiers in cascaded.activated.items():
             for identifier in identifiers:
-                config_id = resolve_config_id(f"{kind_value}:{identifier}", doctrine_root=resolve_doctrine_root(), layer_roots=roots, org_roots=org_roots)
+                config_id = resolve_config_id(f"{kind_value}:{identifier}", offering_root=resolve_offering_root(), layer_roots=roots, org_roots=org_roots)
                 include(ArtifactKind(kind_value).operator_token, config_id)
     selections = _future_selections(repo_root, context, requested)
     resolve_config_activated_roots(repo_root=repo_root, pack_context=replace(context, **selections))

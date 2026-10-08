@@ -3,8 +3,8 @@
 charter-sole-door-bypass-closure-01KZ3WAA WP03 (FR-002). WP03 migrated
 ``_doctrine_collect.py``'s 4 diagnostic sites (``_collect_profile_health``,
 ``_collect_glossary_pack_health``, ``_collect_doctrine_collisions``,
-``_build_selection_block``) from raw ``charter.offering.service.DoctrineService(...)``
-construction onto ``charter.activation.resolver.DoctrineService(inner, pack_context=None)``
+``_build_selection_block``) from raw ``charter.offering.service.CharterOfferingService(...)``
+construction onto ``charter.activation.resolver.ActiveCharterService(inner, pack_context=None)``
 -- the sanctioned unfiltered-diagnostic construction shape (data-model.md
 "unfiltered-diagnostic contract"). The WP03 task file names the exact risk
 this file guards against: "a plain activation-aware swap compiles and looks
@@ -18,7 +18,7 @@ Two distinct regressions are guarded here:
 
 1. The nine gated *properties* (``paradigms`` .. ``glossary_packs``) must
    return the identical, full catalog under ``pack_context=None`` that a
-   raw, unwrapped ``charter.offering.service.DoctrineService`` would expose -- even
+   raw, unwrapped ``charter.offering.service.CharterOfferingService`` would expose -- even
    for a project where SOME packs are genuinely deactivated (a real
    ``PackContext`` that WOULD narrow the result if it were used instead).
 2. The two raw-*repository* accessors (``agent_profile_repository``,
@@ -39,7 +39,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from charter.activation.pack_context import PackContext
-from charter.activation.resolver import DoctrineService
+from charter.activation.resolver import ActiveCharterService
 
 pytestmark = pytest.mark.fast
 
@@ -99,7 +99,7 @@ def _mock_inner() -> MagicMock:
 def _raw_projection(inner: object, kind: str) -> dict[str, object]:
     """Independently compute the id-keyed dict a raw, unwrapped service's
     catalog for *kind* projects to -- WITHOUT calling any
-    ``charter.activation.resolver.DoctrineService`` code, so the comparison below is a
+    ``charter.activation.resolver.ActiveCharterService`` code, so the comparison below is a
     real check, not a tautological self-comparison (the exact MAJOR 3 defect
     WP01's cycle-1 review found and required fixed elsewhere in this
     mission).
@@ -134,7 +134,7 @@ def _some_packs_deactivated_context(repo_root: Path) -> PackContext:
 
 @pytest.mark.parametrize("kind", _ALL_GATED_KINDS)
 def test_unfiltered_mode_equals_raw_projection(tmp_path: Path, kind: str) -> None:
-    """``DoctrineService(inner, pack_context=None).<kind>`` equals the raw,
+    """``ActiveCharterService(inner, pack_context=None).<kind>`` equals the raw,
     independently-computed projection -- for a project where every kind is
     genuinely (narrowly) activated, i.e. "some packs deactivated" is real,
     not the vacuous no-config default.
@@ -145,7 +145,7 @@ def test_unfiltered_mode_equals_raw_projection(tmp_path: Path, kind: str) -> Non
     # Sanity control: the SAME inner, wrapped with the real (narrowing)
     # PackContext, must NOT equal the raw projection -- otherwise this test
     # would pass even if pack_context had no effect at all.
-    narrowed = getattr(DoctrineService(inner, pack_context=deactivated_ctx), kind)
+    narrowed = getattr(ActiveCharterService(inner, pack_context=deactivated_ctx), kind)
     raw = _raw_projection(inner, kind)
     assert narrowed != raw
     assert narrowed == {f"{kind}-alpha": raw[f"{kind}-alpha"]}
@@ -153,7 +153,7 @@ def test_unfiltered_mode_equals_raw_projection(tmp_path: Path, kind: str) -> Non
     # The actual T014 assertion: pack_context=None ignores the deactivation
     # entirely and matches the raw, unwrapped catalog -- equality, not an
     # existence/non-empty check.
-    unfiltered = getattr(DoctrineService(inner, pack_context=None), kind)
+    unfiltered = getattr(ActiveCharterService(inner, pack_context=None), kind)
     assert unfiltered == raw
 
 
@@ -182,9 +182,9 @@ def test_unfiltered_mode_is_independent_of_which_pack_context_object_is_discarde
     )
 
     # Sanity control: fully deactivated really does mean empty.
-    assert getattr(DoctrineService(inner, pack_context=pack_ctx), kind) == {}
+    assert getattr(ActiveCharterService(inner, pack_context=pack_ctx), kind) == {}
 
-    unfiltered = getattr(DoctrineService(inner, pack_context=None), kind)
+    unfiltered = getattr(ActiveCharterService(inner, pack_context=None), kind)
     assert unfiltered == _raw_projection(inner, kind)
 
 
@@ -207,8 +207,8 @@ def test_agent_profile_repository_accessor_is_unaffected_by_pack_context(
     inner = _mock_inner()
     deactivated_ctx = _some_packs_deactivated_context(tmp_path)
 
-    unfiltered_repo = DoctrineService(inner, pack_context=None).agent_profile_repository
-    filtered_ctx_repo = DoctrineService(inner, pack_context=deactivated_ctx).agent_profile_repository
+    unfiltered_repo = ActiveCharterService(inner, pack_context=None).agent_profile_repository
+    filtered_ctx_repo = ActiveCharterService(inner, pack_context=deactivated_ctx).agent_profile_repository
 
     assert unfiltered_repo is inner.agent_profiles
     assert filtered_ctx_repo is inner.agent_profiles
@@ -228,8 +228,8 @@ def test_raw_repository_accessor_is_unaffected_by_pack_context(
     inner = _mock_inner()
     deactivated_ctx = _some_packs_deactivated_context(tmp_path)
 
-    unfiltered = DoctrineService(inner, pack_context=None).raw_repository(kind)
-    filtered_ctx = DoctrineService(inner, pack_context=deactivated_ctx).raw_repository(kind)
+    unfiltered = ActiveCharterService(inner, pack_context=None).raw_repository(kind)
+    filtered_ctx = ActiveCharterService(inner, pack_context=deactivated_ctx).raw_repository(kind)
 
     assert unfiltered is getattr(inner, kind)
     assert filtered_ctx is getattr(inner, kind)
@@ -242,5 +242,5 @@ def test_raw_repository_returns_none_for_a_non_gated_kind() -> None:
     ``org_layer.py`` call sites.
     """
     inner = _mock_inner()
-    service = DoctrineService(inner, pack_context=None)
+    service = ActiveCharterService(inner, pack_context=None)
     assert service.raw_repository("assets") is None

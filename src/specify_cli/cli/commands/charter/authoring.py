@@ -286,7 +286,7 @@ def new(
         raise typer.Exit(1) from exc
 
     # Pack mode uses the plural pack-layout directory; project mode uses the
-    # single canonical project-tier authority — the same map DoctrineService's
+    # single canonical project-tier authority — the same map ActiveCharterService's
     # resolver reads (charter.offering.artifact_kinds.PROJECT_KIND_DIRS, re-exported
     # here via the charter.activation.kind_vocabulary facade per the runtime -> charter
     # -> doctrine boundary), so the stub lands exactly where the loader will
