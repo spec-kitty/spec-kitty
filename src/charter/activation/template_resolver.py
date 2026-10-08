@@ -1,6 +1,6 @@
 """Project-aware template resolution through the 6-tier override chain.
 
-Composes MissionTemplateRepository (doctrine-level, package-default tier) with the
+Composes MissionTemplateRepository (offering-level, package-default tier) with the
 charter factory's tier chain. Charter is the
 concretization of doctrine into local context-aware legislation.
 
@@ -30,7 +30,7 @@ Scope note: the ``resolve_*_path`` methods below are **not** part of the
 FR-003 seam and are intentionally left reaching
 :class:`MissionTemplateRepository` directly. They are package-default
 repository lookups, not ``charter.offering.resolver`` tier-chain calls — the same
-doctrine surface ``doctrine/resolver.py``'s own package-default tier consumes. There is
+offering surface ``charter/offering/resolver.py``'s own package-default tier consumes. There is
 therefore no second *authority* to consolidate: both these methods and the
 factory's ``resolve_package_default_*`` methods delegate to that one
 repository. Routing them through the factory as well would need
@@ -94,7 +94,7 @@ class CharterTemplateResolver:
             mission: Mission name.
             name: Template name without ``.md`` extension.
             project_dir: Project root for override/legacy lookups.
-                If ``None``, falls back to doctrine-level lookup only.
+                If ``None``, falls back to offering-level lookup only.
 
         Returns:
             TemplateResult with content, origin, and tier.
@@ -110,7 +110,7 @@ class CharterTemplateResolver:
             origin = self._tier_to_origin(result.tier, mission, "command-templates", f"{name}.md")
             return TemplateResult(content=content, origin=origin, tier=result.tier)
 
-        # No project context — doctrine-only lookup
+        # No project context — offering-only lookup
         template = self._repo.get_command_template(mission, name)
         if template is None:
             raise FileNotFoundError(
@@ -134,7 +134,7 @@ class CharterTemplateResolver:
             mission: Mission name.
             name: Template filename with extension.
             project_dir: Project root for override/legacy lookups.
-                If ``None``, falls back to doctrine-level lookup only.
+                If ``None``, falls back to offering-level lookup only.
 
         Returns:
             TemplateResult with content, origin, and tier.
@@ -150,7 +150,7 @@ class CharterTemplateResolver:
             origin = self._tier_to_origin(result.tier, mission, "templates", name)
             return TemplateResult(content=content, origin=origin, tier=result.tier)
 
-        # No project context — doctrine-only lookup
+        # No project context — offering-only lookup
         template = self._repo.get_content_template(mission, name)
         if template is None:
             raise FileNotFoundError(

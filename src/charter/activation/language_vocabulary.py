@@ -10,7 +10,7 @@ recogniser in step with whatever doctrine ships, or a project/org extends
 
 The provider is a lightweight YAML scan of the ``applies_to_languages`` field
 (built-in packs, the project overlay, configured org pack roots).  It
-deliberately does not construct a ``ActiveCharterService`` (sole-door gates) and
+deliberately does not construct an ``ActiveCharterService`` (sole-door gates) and
 never imports :mod:`charter.activation.language_scope`, which calls it.
 """
 

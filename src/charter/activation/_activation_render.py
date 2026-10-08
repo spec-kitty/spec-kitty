@@ -323,9 +323,9 @@ def _infer_kind(artifact_id: str, service: object) -> str | None:
 
 
 def _repo_contains(repo: object, artifact_id: str) -> bool:
-    """Best-effort membership test against a doctrine repository.
+    """Best-effort membership test against an offering repository.
 
-    The doctrine repositories are not a uniform shape; this helper tries
+    The offering repositories are not a uniform shape; this helper tries
     the three patterns commonly observed:
 
     * ``repo[artifact_id]`` raises ``KeyError`` on miss

@@ -9,10 +9,10 @@ appender (:func:`_append_guidelines_lines` — co-located here since
 constants exclusively consumed by this render.
 
 Cycle note: three collaborators used here (``_render_profile_sections``,
-``_select_reference_pointers``'s doctrine-root resolver
+``_select_reference_pointers``'s offering-root resolver
 ``charter.activation.catalog.resolve_offering_root``, and the ``_ActionGovernanceBundle``
 type) stay in / are typed against ``charter.activation.context`` (profile-driven-
-rendering / catalog / action-doctrine-bundle clusters, relocated by a later
+rendering / catalog / action-governance-bundle clusters, relocated by a later
 WP). ``_render_profile_sections`` is imported function-locally to break the
 load-time cycle a top-level import would create (``charter.activation.context`` imports
 this module for its re-export shim); ``_ActionGovernanceBundle`` is imported
@@ -337,9 +337,9 @@ def _render_bootstrap_text(
     # The reference-pointer resolver walks ``<root>/<kind>/`` for on-disk doctrine
     # docs. Mission relocate-builtin-doctrine-packs moved the built-in artefacts out
     # of ``src/charter/offering/<kind>/`` into ``packs/built-in/<kind>/``; ``resolve_offering_root()``
-    # still points at the now-emptied ``src/doctrine`` tree (used for templates), so it
+    # still points at the ``charter.offering`` package (used for templates), so it
     # resolves nothing and every pointer dies. Resolve the built-in pack root instead,
-    # mirroring how the ActiveCharterService repositories self-resolve ``packs/built-in/<kind>``.
+    # mirroring how the offering repositories self-resolve ``packs/built-in/<kind>``.
     # Lazy import: avoids a load-time cycle (see module docstring).
     from charter.offering.pack_paths import built_in_root  # noqa: PLC0415
 

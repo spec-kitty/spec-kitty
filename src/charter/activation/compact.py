@@ -273,7 +273,7 @@ def _render_text(
 
     project_root = resolve_project_root(repo_root)
     if project_root is not None and project_root != repo_root:
-        lines.append(f"  - Doctrine layer root: {project_root}")
+        lines.append(f"  - Project layer root: {project_root}")
 
     return "\n".join(lines)
 

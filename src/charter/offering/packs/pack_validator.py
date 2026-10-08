@@ -1222,7 +1222,7 @@ def _check_profile_skipped_diagnostics(
     *already-built* raw inner ``charter.offering.service.CharterOfferingService``, which is
     the very construction the gate forbids here. Direct
     ``AgentProfileRepository`` construction is therefore the correct seam;
-    do not "fix" this back to a ``ActiveCharterService`` wrapper.
+    do not "fix" this back to an ``ActiveCharterService`` wrapper.
 
     PR-M-001: direct construction does not remove the need for a guard —
     ``AgentProfileRepository.__init__`` resolves the built-in content

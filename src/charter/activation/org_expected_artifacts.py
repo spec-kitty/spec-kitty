@@ -1,6 +1,6 @@
 """Org-tier ``expected-artifacts.yaml`` override (FR-008, WP05).
 
-``MissionTemplateRepository`` (``doctrine/missions/repository.py``) is a
+``MissionTemplateRepository`` (``charter/offering/missions/repository.py``) is a
 bespoke, single-root reader with no org-tier or project-tier mechanism of any
 kind (C-003 forbids restructuring it into a ``BaseArtifactRepository``
 subclass or adding a new method to it). This module is the free-function,

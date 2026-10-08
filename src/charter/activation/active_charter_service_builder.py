@@ -101,9 +101,8 @@ def _build_offering_service(
     """Build a CharterOfferingService for the given repo root.
 
     The project-root candidate list (in priority order):
-    1. ``.kittify/doctrine/``  — Phase 3 synthesis target (FR-009 / T025).
-    2. ``src/charter/offering/``       — code-local built-in-layer path.
-    3. ``doctrine/``           — flat fallback.
+    1. the project pack root (``.kittify/charter-packs/``) — synthesis target.
+    2. ``src/charter/offering/`` — code-local built-in-layer path.
 
     Discovery is conditional on directory presence so legacy (pre-synthesis)
     projects see byte-identical behaviour (R-2 mitigation).
@@ -112,7 +111,7 @@ def _build_offering_service(
     ``resolve_project_root`` helper from ``charter.activation._project_root_candidates``.
 
     WP07: callers in ``specify_cli`` may supply explicit *org_roots* (a list
-    of org doctrine snapshot paths) so the resulting service includes the
+    of org Charter Pack roots) so the resulting service includes the
     configured org layer in provenance tracking.  Charter-internal callers
     omit the argument and get the built-in-plus-project baseline.
 
@@ -139,8 +138,8 @@ def _build_offering_service(
     # behaviour-preserving here; WP04 drops the now-dead param from
     # CharterOfferingService entirely). Mission relocate-builtin-doctrine-packs moved
     # the built-in artefacts out of ``src/doctrine`` into ``packs/built-in``; a
-    # ``resolve_offering_root()`` here would point at the emptied ``src/doctrine``
-    # tree and silently load nothing.
+    # ``resolve_offering_root()`` here would point at the ``charter.offering``
+    # package, which carries no built-in artefacts, and silently load nothing.
     project_root = resolve_project_root(repo_root)
     if interview is None and not prefer_interview:
         active_languages = infer_repo_languages(repo_root)
@@ -202,7 +201,7 @@ def _build_active_charter_service(
     interview: CharterInterview | None = None,
     prefer_interview: bool = False,
 ) -> ActiveCharterService:
-    """Build an *activation-aware* doctrine service for ``--include`` fetches.
+    """Build an *activation-aware* charter service for ``--include`` fetches.
 
     FR-016: ``charter context --include agent-profile:<id>`` must inherit the
     charter activation gate so that a non-activated profile is treated as a

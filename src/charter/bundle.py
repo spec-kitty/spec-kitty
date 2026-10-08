@@ -417,7 +417,7 @@ def _check_no_doubled_leaf_paths(
 
 
 def _collect_artifact_files(pack_root: Path) -> list[Path]:
-    """Collect all synthesized artifact files under the doctrine root."""
+    """Collect all synthesized artifact files under the project pack root."""
     files: list[Path] = []
     for suffix in _ALL_ARTIFACT_PATTERNS:
         files.extend(pack_root.rglob(f"*{suffix}"))

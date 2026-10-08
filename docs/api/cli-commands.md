@@ -1337,8 +1337,8 @@ _Resolve shipped and overlay doctrine assets (no install — C-002)._
  command short-circuits the adapter pipeline and materializes the
  **minimal artifact set** the runtime requires:
 
- 1. ``.kittify/charter-packs/`` — directory marker. ``DoctrineService``'s
-    project-root resolver (``src/charter/activation/_doctrine_paths.py``) is a
+ 1. ``.kittify/charter-packs/`` — directory marker. The project-root
+    resolver (``charter.activation._project_root_candidates``) is a
     presence-only check; an empty directory is a valid project layer.
  2. ``.kittify/charter-packs/PROVENANCE.md`` — human-readable record of the
     fresh-project seed path, citing #839.

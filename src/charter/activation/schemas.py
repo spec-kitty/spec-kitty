@@ -325,8 +325,8 @@ class CharterCatalog(BaseModel):
     ``languages`` is nullable (issue #3292 fix): ``None`` distinguishes "no
     active-language signal was found at compile time" from a genuinely
     persisted empty list. ``charter.activation.language_scope.infer_repo_languages``
-    (the single authority both this compiler and the doctrine-service
-    language gate consume) treats a ``None``/absent field as "keep looking,
+    (the single authority both this compiler and the active charter
+    service's language gate consume) treats a ``None``/absent field as "keep looking,
     then admit all" and a present-but-empty list as authoritative "admit
     none" — collapsing the former into the latter on write is exactly the
     compile-then-read feedback loop #3292 closes. See that function's

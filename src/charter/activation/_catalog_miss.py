@@ -3,7 +3,7 @@
 The charter prompt renderer (``charter.activation.context._render_selected_artifacts``
 and friends) historically emitted a generic
 ``(catalog entry not found; verify charter selection)`` placeholder when an
-ID in the selection was not present in the loaded doctrine catalog. That
+ID in the selection was not present in the loaded offering catalog. That
 fallback hid three very different causes:
 
 1. **Typo** — the charter selected ``"caveman-comemnts"`` but the catalog
@@ -337,7 +337,7 @@ def format_catalog_miss_stanza(
     prompt.
 
     Args:
-        selector_kind: Doctrine kind (e.g. ``"styleguide"``,
+        selector_kind: Artifact kind (e.g. ``"styleguide"``,
             ``"directive"``).
         artifact_id: The missing ID.
         diagnosis: The :class:`CatalogMissDiagnosis` from
@@ -411,7 +411,7 @@ def emit_catalog_miss_warning(
       miss is never silently hidden.
 
     Args:
-        selector_kind: Doctrine kind (e.g. ``"styleguide"``).
+        selector_kind: Artifact kind (e.g. ``"styleguide"``).
         artifact_id: The missing ID.
         diagnosis: The :class:`CatalogMissDiagnosis`.
         context: Optional caller context (e.g. profile ID for

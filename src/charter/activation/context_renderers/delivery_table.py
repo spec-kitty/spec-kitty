@@ -145,7 +145,7 @@ _DELIVERY_REASON_BY_KIND: dict[NodeKind, str] = {
     NodeKind.ANTI_PATTERN: (
         "validation-tier topology only (rejects edges) -- never a delivered bundle artefact"
     ),
-    NodeKind.TEMPLATE: "template-file selection (C-004), not a doctrine bundle artefact",
+    NodeKind.TEMPLATE: "template-file selection (C-004), not an action governance bundle artefact",
     NodeKind.SKILL: "a pack skill is rendered into project skill roots by the skill installer, not delivered in the action bundle",
     NodeKind.ACTION: "an action node is the resolution root, not a delivered artefact",
     NodeKind.MISSION_TYPE: "a mission-type node is graph structure, not a delivered artefact",

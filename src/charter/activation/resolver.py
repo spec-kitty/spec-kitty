@@ -10,7 +10,7 @@ gated properties: ``paradigms``, ``procedures``, ``agent_profiles``
 (pre-existing) plus ``directives``, ``tactics``, ``styleguides``,
 ``toolguides``, ``mission_step_contracts``, and ``glossary_packs`` (FR-005,
 charter-sole-door-bypass-closure-01KZ3WAA WP01).  All other properties
-delegate to the inner doctrine service transparently via ``__getattr__``.
+delegate to the inner offering service transparently via ``__getattr__``.
 
 It also exposes :attr:`ActiveCharterService.agent_profile_repository` — a second,
 explicitly-named accessor (FR-001) returning the raw, lineage/mutation-capable
@@ -23,9 +23,9 @@ hatch, for provenance-scan callers that need raw ``list_all()``/
 ``get_provenance()`` access across any of the nine gated kinds.
 
 Finally (FR-003, charter-sole-door-bypass-closure-01KZ3WAA WP05) this module
-is the **sole charter-layer door** onto ``doctrine/resolver.py``'s 6-tier
+is the **sole charter-layer door** onto ``charter/offering/resolver.py``'s 6-tier
 asset resolution chain. The tier functions themselves stay in
-``doctrine/resolver.py`` (charter must import charter.offering, never the reverse);
+``charter/offering/resolver.py`` (charter must import charter.offering, never the reverse);
 what lives here is the entry point — see the "6-tier resolution axis"
 section of :class:`ActiveCharterService`. Before WP05,
 ``charter.activation.template_resolver.CharterTemplateResolver`` was a *second*
@@ -176,12 +176,12 @@ class ActiveCharterService:
     properties: ``paradigms``, ``procedures``, ``agent_profiles``,
     ``directives``, ``tactics``, ``styleguides``, ``toolguides``,
     ``mission_step_contracts``, and ``glossary_packs``.  All other attributes
-    delegate transparently to the underlying doctrine service.
+    delegate transparently to the underlying offering service.
 
     Layer rule
     ----------
     This class lives in ``charter.*`` so it can import ``PackContext``
-    without violating the ``doctrine ← charter`` dependency direction.
+    without violating the ``charter.offering ← charter.activation`` dependency direction.
     Callers in ``specify_cli.*`` pass a real :class:`PackContext`; callers
     in ``charter.*`` may pass ``pack_context=None`` for unfiltered access.
 
@@ -432,10 +432,10 @@ class ActiveCharterService:
     # FR-003 (charter-sole-door-bypass-closure-01KZ3WAA WP05): the 6-tier
     # template/command/mission resolution axis.
     #
-    # ONE charter-layer door. ``doctrine/resolver.py``'s tier functions
+    # ONE charter-layer door. ``charter/offering/resolver.py``'s tier functions
     # (``_resolve_asset``, ``resolve_mission``) are NOT moved, renamed, or
-    # duplicated — they stay in doctrine because charter imports doctrine and
-    # never the reverse. What consolidates here is the *entry point*: before
+    # duplicated — they stay in ``charter.offering`` because charter.activation
+    # imports the offering and never the reverse. What consolidates here is the *entry point*: before
     # WP05, ``charter.activation.template_resolver.CharterTemplateResolver`` reached
     # ``charter.offering.resolver`` independently of this class, giving the charter
     # layer two doors onto the same chain (C-001 violation). It is now a thin
@@ -616,7 +616,7 @@ class ActiveCharterService:
     # ------------------------------------------------------------------
 
     def __getattr__(self, name: str) -> Any:
-        """Delegate unknown attribute access to the inner doctrine service."""
+        """Delegate unknown attribute access to the inner offering service."""
         inner = object.__getattribute__(self, "_inner")
         return getattr(inner, name)
 
@@ -760,11 +760,11 @@ def _resolve_directive_base(
 
     Base authority order (INVERTED from the pre-FR-012 priority): the
     ``activated_*``-derived value is ALWAYS computed first as the base, and
-    ``doctrine.selected_directives`` — the charter-authored selection — is
+    ``charter_config.selected_directives`` — the charter-authored selection — is
     then UNIONED onto that base when non-empty. It never substitutes for the
     base (mirrors :func:`_resolve_directives_selection`'s existing
     base-plus-project-local union shape). Previously, a non-empty
-    ``doctrine.selected_directives`` short-circuited and returned verbatim,
+    ``charter_config.selected_directives`` short-circuited and returned verbatim,
     silently overriding ``activated_directives`` any time a project had ever
     made an explicit charter selection (FR-012).
 
@@ -791,7 +791,7 @@ def _resolve_directive_base(
     collapse would silently re-route the explicit opt-out case back to the
     catalog default it exists to suppress.
 
-    ``doctrine.selected_directives`` is validated against the local + built-in
+    ``charter_config.selected_directives`` is validated against the local + built-in
     catalog BEFORE the union runs — an entry not in ``valid_ids`` raises
     ``GovernanceResolutionError`` rather than silently dropping (boundary 2,
     unchanged, already "fails loud").
@@ -904,7 +904,7 @@ def _resolve_template_set_selection(
                 [
                     f"Charter selected unavailable template_set: '{charter_config.template_set}'",
                     "Available template sets: " + (", ".join(sorted(offering_catalog.template_sets)) or "(none)"),
-                    "Update charter template_set to a value available in doctrine missions.",
+                    "Update charter template_set to a value available in the built-in missions.",
                 ]
             )
         return charter_config.template_set, "charter"

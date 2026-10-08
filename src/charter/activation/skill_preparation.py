@@ -305,7 +305,7 @@ def prepare_project_skill_activations(repo_root: Path, *, installed_pack_skills:
     holds: a skill that is in force and cannot be rendered (no namespace, a DRG that does not
     load, a record that does not load, a sibling id conflict) is never silently skipped.
 
-    Otherwise resolves the doctrine service, the merged built-in + org-chain DRG and both
+    Otherwise resolves the active charter service, the merged built-in + org-chain DRG and both
     namespaces, and delegates to :func:`_prepare_skill_activations`.
     """
     from charter.activation._drg_helpers import load_validated_graph

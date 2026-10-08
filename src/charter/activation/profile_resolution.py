@@ -90,7 +90,7 @@ def _existing_org_roots(repo_root: Path) -> list[Path]:
     """Return on-disk org-pack roots declared in ``.kittify/config.yaml``.
 
     Best-effort: a missing/corrupt config yields an empty org-root list;
-    project-aware resolution still runs. Imports stay charter→doctrine
+    project-aware resolution still runs. Imports stay charter→charter.offering
     (never charter→specify_cli) so the layer rule holds.
     """
     try:
@@ -211,7 +211,7 @@ def _resolve_agent_profile_record(profile_id: str, repo_root: Path | None) -> Ag
 
 
 def _load_agent_profile(profile_id: str, repo_root: Path | None = None) -> AgentProfile | None:
-    """Resolve *profile_id* via the doctrine layer. Returns ``None`` on miss.
+    """Resolve *profile_id* via the offering layer. Returns ``None`` on miss.
 
     Errors are intentionally swallowed: this helper is on the prompt-build
     hot path and must never raise into the resolver. A diagnostic is logged

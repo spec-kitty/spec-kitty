@@ -8,7 +8,7 @@ the block for a live path never chases a dead one.
 :func:`_select_reference_pointers` is the pipeline entry point: action-scope
 filter (:func:`_filter_references_for_action`) -> per-kind round-robin
 distribution (:func:`_distribute_references_across_kinds`) -> resolve each
-candidate against the on-disk doctrine catalog
+candidate against the on-disk offering catalog
 (:func:`_reference_source_index` / :func:`_resolve_reference_source`),
 keeping only pointers that resolve.
 
@@ -22,7 +22,7 @@ Design notes
   every kind reachable; the emitted slice is capped at a stated limit so the
   block stays bounded.
 * ``_REFERENCE_SOURCE_INDEX_CACHE`` is a process-wide cache of the
-  ``kind -> {key -> source path}`` index, keyed by resolved doctrine root, so
+  ``kind -> {key -> source path}`` index, keyed by resolved offering root, so
   the filesystem walk that builds it runs once per interpreter rather than on
   every :func:`charter.activation.context.build_charter_context` call. The cache lives
   here (not in ``charter.activation.context``) because it is populated and read only by
@@ -67,10 +67,10 @@ _REFERENCE_POINTER_LIMIT = 12
 # still forbidding an empty block.
 _REFERENCE_POINTER_FLOOR = 6
 
-# Reference ``kind`` -> doctrine-source subdirectory under the doctrine root.
-# ``user_profile`` / ``template_set`` are project-generated (no doctrine
+# Reference ``kind`` -> source subdirectory under the offering root.
+# ``user_profile`` / ``template_set`` are project-generated (no offering
 # source), so they carry no entry and are dropped when a pointer is resolved.
-#: Curated membership (the reference kinds that have a doctrine source dir) is
+#: Curated membership (the reference kinds that have an offering source dir) is
 #: named via :class:`ArtifactKind` members; the singular→plural mapping is
 #: derived from the authority so it can never drift from the enum (issue #5409).
 _REFERENCE_KIND_DIRS: dict[str, str] = {
@@ -87,7 +87,7 @@ _REFERENCE_KIND_DIRS: dict[str, str] = {
 }
 
 # Process-wide cache of the ``kind -> {key -> source path}`` index, keyed by
-# resolved doctrine root so the filesystem walk runs once per interpreter.
+# resolved offering root so the filesystem walk runs once per interpreter.
 _REFERENCE_SOURCE_INDEX_CACHE: dict[Path, dict[str, dict[str, Path]]] = {}
 
 
@@ -150,7 +150,7 @@ def _reference_source_index(offering_root: Path) -> dict[str, dict[str, Path]]:
 
 
 def _resolve_reference_source(ref: dict[str, str], index: dict[str, dict[str, Path]]) -> Path | None:
-    """Resolve *ref* to an existing doctrine-source path, or ``None``.
+    """Resolve *ref* to an existing offering-source path, or ``None``.
 
     Tries the catalog artifact id (the part after ``KIND:``) first, then the
     slug carried by the ``_LIBRARY/<kind>-<slug>.md`` local path. Returns

@@ -64,7 +64,7 @@ both only when the trailing kind cannot be resolved statically.
 
 Known limitation (documented, not hidden): this is a static, per-file,
 name-based approximation -- not full dataflow/type inference. A caller that
-threads a ``ActiveCharterService`` through an unconventional indirection (e.g. a
+threads an ``ActiveCharterService`` through an unconventional indirection (e.g. a
 dict of services, a ``for`` loop over a computed iterable, or a return value
 re-assigned across module boundaries) could in principle evade detection.
 This is the same class of tradeoff ``test_mission_resolver_walker_gate.py``

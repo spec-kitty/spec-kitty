@@ -188,12 +188,12 @@ def build_charter_context(
         ``meta.json`` ``mission_type`` field keys the action doctrine grain when
         ``mission_type`` is not given.
     org_root:
-        Optional path to the configured org doctrine snapshot.  When provided,
+        Optional path to the configured org Charter Pack snapshot.  When provided,
         the three-layer (built-in + org + project) DRG overlay is used and the
         ``ActiveCharterService`` is constructed with the org layer included.
         Charter-layer callers leave this as ``None``; ``specify_cli`` callers
         resolve the value via :func:`charter.offering.drg.org_pack_config.resolve_org_roots`
-        and pass it explicitly (preserving the kernel <- doctrine <- charter <-
+        and pass it explicitly (preserving the kernel <- charter.offering <- charter <-
         specify_cli dependency direction).
     scope:
         Optional :class:`charter.activation.scope.CharterScope` produced by

@@ -56,7 +56,7 @@ _LOGGER = logging.getLogger(__name__)
 #: :data:`charter.activation.org_charter.REQUIRED_KIND_FIELDS`).  Kept
 #: as a local constant inside the charter layer so we can do the
 #: cross-pack union without importing ``specify_cli`` (preserves the
-#: kernel <- doctrine <- charter <- specify_cli dependency direction).
+#: kernel <- charter.offering <- charter <- specify_cli dependency direction).
 #:
 #: Derived from the :attr:`ArtifactKind.selection_overlayable` fact: the kinds
 #: whose org ``required_<kind>`` list unions into a ``selected_<kind>`` field of
@@ -125,7 +125,7 @@ def _missing_pack_diagnostic(repo_root: Path) -> str | None:
         return None
     lines = [
         "Charter Context Error:",
-        "  - Doctrine pack(s) referenced in .kittify/config.yaml do NOT exist on disk:",
+        "  - Charter Pack(s) referenced in .kittify/config.yaml do NOT exist on disk:",
     ]
     for name, local_path in missing:
         lines.append(f"    - pack `{name}`: local_path `{local_path}` does not exist")

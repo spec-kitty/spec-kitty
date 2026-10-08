@@ -1,4 +1,4 @@
-"""Helpers for artifact filenames and doctrine subdirectories.
+"""Helpers for artifact filenames and project-pack subdirectories.
 
 These helpers intentionally avoid regex backtracking so they remain safe when
 fed arbitrary artifact IDs from external inputs or persisted manifests.

@@ -11,7 +11,7 @@ from the existing ``charter/compact.py`` (WP03's ``render_compact_view`` /
 
 Cycle note: three collaborators used here (``_load_governance_charter_config``,
 ``_build_offering_service``, ``_render_profile_sections``) stay in
-``charter.activation.context`` (org-pack-discovery / doctrine-service-builder /
+``charter.activation.context`` (org-pack-discovery / active-charter-service-builder /
 profile-driven-rendering clusters, relocated by a later WP). Function-local
 imports break the load-time cycle a top-level import would create
 (``charter.activation.context`` imports this module for its re-export shim), mirroring

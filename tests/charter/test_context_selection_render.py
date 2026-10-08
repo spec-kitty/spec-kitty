@@ -17,7 +17,7 @@ Coverage (per the WP04 task file → "T021 Unit tests"):
 * Catalog miss: an ID that the repository does not carry surfaces the
   placeholder body + fetch stanza (no crash).
 
-The renderers are pure functions over a ``ActiveCharterService``-shaped
+The renderers are pure functions over an ``ActiveCharterService``-shaped
 object; tests stub the repository surface rather than load the real
 shipped tree so failures isolate to the renderer logic.
 """

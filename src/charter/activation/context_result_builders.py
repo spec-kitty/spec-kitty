@@ -155,7 +155,7 @@ def build_bootstrap_context_result(
     mark_loaded: bool,
     augment: Callable[[str], str],
 ) -> CharterContextResult:
-    """Build the full bootstrap-mode result (prose + references + doctrine bundle)."""
+    """Build the full bootstrap-mode result (prose + references + governance bundle)."""
     # FR-005 graceful-degrade: charter.md prose is optional now that presence
     # is authoritative via charter.yaml (SC-002 -- rendering must survive a
     # deleted charter.md), mirroring the existing compact-section handling of
