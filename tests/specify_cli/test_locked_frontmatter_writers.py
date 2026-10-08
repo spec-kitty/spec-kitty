@@ -11,9 +11,11 @@ compare-and-swap restore of its write scope (plan A8, A9).
 
 from __future__ import annotations
 
+import importlib
 import json
 import subprocess
 import sys
+import threading
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -448,3 +450,180 @@ def test_meta_revert_restores_the_original_when_untouched(mission: tuple[Path, P
     assert message is None
     assert meta_path.read_text(encoding="utf-8") == original
 
+
+# ---------------------------------------------------------------------------
+# T019 / A10: the remaining frontmatter and tasks.md writers read and write in one hold
+# ---------------------------------------------------------------------------
+
+PROBE_WAIT = 0.2
+JOIN_SECONDS = 20.0
+
+
+def _another_thread_is_locked_out(feature_dir: Path, repo: Path) -> bool:
+    """Whether a second thread cannot take the Mission write lock right now (it times out)."""
+    from specify_cli.status import FeatureStatusLockTimeoutError, mission_write_lock
+
+    outcome: list[bool] = []
+
+    def attempt() -> None:
+        try:
+            with mission_write_lock(feature_dir, repo_root=repo, timeout=PROBE_WAIT):
+                outcome.append(False)
+        except FeatureStatusLockTimeoutError:
+            outcome.append(True)
+
+    thread = threading.Thread(target=attempt)
+    thread.start()
+    thread.join(JOIN_SECONDS)
+    return outcome == [True]
+
+
+def _probe_before(monkeypatch: pytest.MonkeyPatch, module: Any, name: str, primary: Path, repo: Path) -> list[bool]:
+    """Wrap ``module.name`` so every call first records whether the Mission lock is held by this (calling) thread."""
+    real = getattr(module, name)
+    seen: list[bool] = []
+
+    def probing(*args: Any, **kwargs: Any) -> Any:
+        seen.append(_another_thread_is_locked_out(primary, repo))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(module, name, probing)
+    return seen
+
+
+def _legacy_wp(primary: Path, name: str = "WP02-legacy.md") -> Path:
+    wp_file = primary / "tasks" / name
+    wp_file.write_text(
+        '---\nwork_package_id: "WP02"\ntitle: "Legacy"\nlane: planned\nagent: claude\nshell_pid: "123"\ndependencies: []\n---\n\n# WP02\n',
+        encoding="utf-8",
+    )
+    return wp_file
+
+
+def test_strip_mutable_fields_reads_and_writes_in_one_hold(monkeypatch: pytest.MonkeyPatch, mission: tuple[Path, Path, Path]) -> None:
+    from specify_cli.migration import strip_frontmatter
+
+    repo, primary, _wp = mission
+    legacy = _legacy_wp(primary)
+    seen = _probe_before(monkeypatch, strip_frontmatter, "_remove_mutable_fields", primary, repo)
+
+    result = strip_frontmatter.strip_mutable_fields(primary)
+
+    assert seen == [True, True]  # both work packages stripped inside the hold
+    assert result.lane_records == {"WP02": "planned"}
+    stripped, body = read_frontmatter(legacy)
+    assert "lane" not in stripped
+    assert stripped["title"] == "Legacy"
+    assert body == "\n# WP02\n"
+
+
+def test_strip_mutable_fields_keeps_a_field_a_concurrent_writer_added(monkeypatch: pytest.MonkeyPatch, mission: tuple[Path, Path, Path]) -> None:
+    from specify_cli.frontmatter import locked_update_frontmatter
+    from specify_cli.migration import strip_frontmatter
+
+    repo, primary, _wp = mission
+    legacy = _legacy_wp(primary)
+    errors = _overlap(
+        monkeypatch,
+        lambda: strip_frontmatter.strip_mutable_fields(primary),
+        lambda: locked_update_frontmatter(legacy, lambda fm: fm.update(requirement_refs=["FR-001"]), feature_dir=primary, repo_root=repo),
+    )
+    assert errors == []
+    after, _ = read_frontmatter(legacy)
+    assert after["requirement_refs"] == ["FR-001"]
+    assert "lane" not in after
+
+
+def test_backfill_ownership_applies_to_the_frontmatter_it_reads_under_the_lock(monkeypatch: pytest.MonkeyPatch, mission: tuple[Path, Path, Path]) -> None:
+    backfill_ownership = importlib.import_module("specify_cli.migration.backfill_ownership")  # the package re-exports the function under this name
+
+    _repo, primary, _wp = mission
+    legacy = _legacy_wp(primary)
+    real_infer = backfill_ownership.infer_execution_mode
+
+    def infer_then_a_concurrent_writer_lands(*args: Any, **kwargs: Any) -> Any:
+        frontmatter, body = read_frontmatter(legacy)  # lands after backfill read the file, before it writes
+        frontmatter["requirement_refs"] = ["FR-002"]
+        frontmatter["execution_mode"] = "planning_artifact"
+        write_frontmatter(legacy, frontmatter, body)
+        return real_infer(*args, **kwargs)
+
+    monkeypatch.setattr(backfill_ownership, "infer_execution_mode", infer_then_a_concurrent_writer_lands)
+    backfill_ownership.backfill_ownership(primary, SLUG)
+
+    after, _ = read_frontmatter(legacy)
+    assert after["requirement_refs"] == ["FR-002"]
+    assert after["execution_mode"] == "planning_artifact"  # a field present now is never overwritten
+    assert "owned_files" in after  # an absent one is still backfilled
+
+
+def test_repair_lane_mismatch_reads_and_writes_in_one_hold(monkeypatch: pytest.MonkeyPatch, mission: tuple[Path, Path, Path]) -> None:
+    from specify_cli import task_metadata_validation
+
+    repo, primary, _wp = mission
+    doing = primary / "tasks" / "doing"
+    doing.mkdir()
+    legacy = doing / "WP03-legacy.md"
+    legacy.write_text('---\nwork_package_id: "WP03"\nlane: planned\n---\n\n# WP03\n', encoding="utf-8")
+    seen = _probe_before(monkeypatch, task_metadata_validation, "parse_frontmatter", primary, repo)
+    monkeypatch.setattr(task_metadata_validation, "detect_lane_mismatch", lambda _path: (True, "doing", "planned"))
+
+    repaired, error = task_metadata_validation.repair_lane_mismatch(legacy, add_history=False)
+
+    assert (repaired, error) == (True, None)
+    assert seen == [True]
+    assert "lane: doing" in legacy.read_text(encoding="utf-8")
+
+
+def test_sweep_rebuilds_meta_normalizes_and_rewrites_in_one_hold(monkeypatch: pytest.MonkeyPatch, mission: tuple[Path, Path, Path]) -> None:
+    from specify_cli.upgrade.migrations import m_2_0_6_consistency_sweep as sweep
+
+    repo, primary, _wp = mission
+    _legacy_wp(primary)
+    (primary / "tasks.md").write_text("**Prompt**: `tasks/planned/WP01-test.md`\n", encoding="utf-8")
+    meta_seen = _probe_before(monkeypatch, sweep, "build_baseline_feature_meta", primary, repo)
+    render_seen = _probe_before(monkeypatch, sweep, "_render_frontmatter", primary, repo)
+
+    changes, _warnings = sweep._repair_feature(primary, repo, dry_run=False)
+
+    assert meta_seen == [True]  # the meta.json read, rebuild and write are one hold
+    assert render_seen and all(render_seen)  # each work package is normalized inside its own hold
+    assert (primary / "tasks.md").read_text(encoding="utf-8") == "**Prompt**: `tasks/WP01-test.md`\n"
+    assert any("legacy prompt" in change for change in changes)
+
+
+def test_sweep_dry_run_changes_nothing(mission: tuple[Path, Path, Path]) -> None:
+    from specify_cli.upgrade.migrations import m_2_0_6_consistency_sweep as sweep
+
+    repo, primary, wp_file = mission
+    legacy = _legacy_wp(primary)
+    tasks_md = primary / "tasks.md"
+    tasks_md.write_text("**Prompt**: `tasks/planned/WP01-test.md`\n", encoding="utf-8")
+    before = (wp_file.read_bytes(), legacy.read_bytes(), tasks_md.read_bytes(), (primary / "meta.json").read_bytes())
+
+    sweep._repair_feature(primary, repo, dry_run=True)
+
+    assert (wp_file.read_bytes(), legacy.read_bytes(), tasks_md.read_bytes(), (primary / "meta.json").read_bytes()) == before
+
+
+def test_finalize_tasks_md_regeneration_writes_inside_the_hold(monkeypatch: pytest.MonkeyPatch, mission: tuple[Path, Path, Path]) -> None:
+    from specify_cli.core.wps_manifest import WorkPackageEntry, WpsManifest
+    from specify_cli.status import mission_write
+
+    repo, primary, _wp = mission
+    held_at_write: list[bool] = []
+    real_atomic = mission_write.atomic_write
+
+    def spy(path: Path, *args: Any, **kwargs: Any) -> None:
+        if path.name == "tasks.md":
+            held_at_write.append(holds_status_lock(feature_status_lock_path(repo, COORD_NAME)))
+        real_atomic(path, *args, **kwargs)
+
+    monkeypatch.setattr(mission_write, "atomic_write", spy)
+    manifest = WpsManifest(work_packages=[WorkPackageEntry(id="WP01", title="T1", requirement_refs=["FR-001"])])
+
+    stale = bootstrap._regenerate_or_report_tasks_md(primary, manifest, SLUG, validate_only=False, json_output=True)
+
+    assert stale is False
+    assert held_at_write == [True]
+    assert (primary / "tasks.md").exists()

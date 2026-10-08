@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -141,8 +142,6 @@ def strip_mutable_fields(feature_dir: Path) -> StripResult:
     Returns:
         :class:`StripResult` with counts and the pre-strip lane records.
     """
-    from specify_cli.frontmatter import FrontmatterManager
-
     result = StripResult()
     tasks_dir = feature_dir / "tasks"
 
@@ -150,35 +149,22 @@ def strip_mutable_fields(feature_dir: Path) -> StripResult:
         logger.debug("No tasks/ directory in %s — skipping frontmatter strip", feature_dir.name)
         return result
 
-    manager = FrontmatterManager()
-
     for wp_file in sorted(tasks_dir.glob("WP*.md")):
+        # Derive wp_code for the lane_records key
+        import re
+
+        m = re.match(r"^(WP\d+)", wp_file.stem)
+        wp_code = m.group(1) if m else wp_file.stem
+
         try:
-            frontmatter, body = manager.read(wp_file)
+            stripped_count = _strip_one_file(wp_file, feature_dir, lane_records=result.lane_records, lane_key=wp_code)
         except Exception as exc:
             msg = f"Cannot read {wp_file.name}: {exc} — skipping"
             logger.warning(msg)
             result.warnings.append(msg)
             continue
 
-        # Derive wp_code for the lane_records key
-        import re
-        m = re.match(r"^(WP\d+)", wp_file.stem)
-        wp_code = m.group(1) if m else wp_file.stem
-
-        # Record lane BEFORE stripping
-        if "lane" in frontmatter:
-            result.lane_records[wp_code] = str(frontmatter["lane"])
-
-        # Count and remove mutable fields
-        stripped_count = 0
-        for mf in MUTABLE_FIELDS:
-            if mf in frontmatter:
-                del frontmatter[mf]
-                stripped_count += 1
-
         if stripped_count > 0:
-            manager.write(wp_file, frontmatter, body)
             logger.info(
                 "Stripped %d mutable field(s) from %s",
                 stripped_count,
@@ -192,14 +178,8 @@ def strip_mutable_fields(feature_dir: Path) -> StripResult:
     tasks_md = feature_dir / "tasks.md"
     if tasks_md.exists():
         try:
-            frontmatter, body = manager.read(tasks_md)
-            stripped_count = 0
-            for mf in MUTABLE_FIELDS:
-                if mf in frontmatter:
-                    del frontmatter[mf]
-                    stripped_count += 1
+            stripped_count = _strip_one_file(tasks_md, feature_dir)
             if stripped_count > 0:
-                manager.write(tasks_md, frontmatter, body)
                 logger.info(
                     "Stripped %d mutable field(s) from tasks.md in %s",
                     stripped_count,
@@ -211,3 +191,33 @@ def strip_mutable_fields(feature_dir: Path) -> StripResult:
             logger.debug("tasks.md in %s has no frontmatter or could not be read: %s", feature_dir.name, exc)
 
     return result
+
+
+def _remove_mutable_fields(frontmatter: dict[str, Any]) -> int:
+    """Delete every :data:`MUTABLE_FIELDS` key from *frontmatter* in place; return how many were removed."""
+    present = [name for name in MUTABLE_FIELDS if name in frontmatter]
+    for name in present:
+        del frontmatter[name]
+    return len(present)
+
+
+def _strip_one_file(path: Path, feature_dir: Path, *, lane_records: dict[str, str] | None = None, lane_key: str = "") -> int:
+    """Strip the mutable fields from *path* under the Mission write lock; return how many were removed.
+
+    The frontmatter is read inside the lock, so a field another writer landed meanwhile is neither lost
+    nor missed; the ``lane`` value is recorded from that same read, BEFORE the strip. Nothing is
+    written when no mutable field is present.
+    """
+    from specify_cli.frontmatter import locked_update_frontmatter
+
+    stripped = 0
+
+    def _strip(frontmatter: dict[str, Any]) -> bool:
+        nonlocal stripped
+        if lane_records is not None and "lane" in frontmatter:
+            lane_records[lane_key] = str(frontmatter["lane"])
+        stripped = _remove_mutable_fields(frontmatter)
+        return stripped > 0
+
+    locked_update_frontmatter(path, _strip, feature_dir=feature_dir)
+    return stripped

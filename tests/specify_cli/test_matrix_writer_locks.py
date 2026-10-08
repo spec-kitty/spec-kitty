@@ -103,9 +103,7 @@ def _fake_write_issue_matrix(**kwargs: Any) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_scaffold_does_not_overwrite_a_verdict_recorded_between_its_check_and_its_write(
-    monkeypatch: pytest.MonkeyPatch, flat_mission: tuple[Path, Path]
-) -> None:
+def test_scaffold_does_not_overwrite_a_verdict_recorded_between_its_check_and_its_write(monkeypatch: pytest.MonkeyPatch, flat_mission: tuple[Path, Path]) -> None:
     repo, feature_dir = flat_mission
     monkeypatch.setattr(issue_verdict, "write_issue_matrix", _fake_write_issue_matrix)
 
@@ -258,7 +256,8 @@ def test_the_verdict_guard_and_the_nested_acceptance_record_share_one_reentrant_
 
 def test_the_guard_still_refuses_a_missing_matrix(bare_coord_mission: tuple[Path, Path, Path]) -> None:
     repo, primary, _coord = bare_coord_mission
-    with pytest.raises(acceptance_matrix.AcceptanceVerdictNotReadyError):
-        with acceptance_matrix.locked_acceptance_verdict_guard(repo, primary, timeout=SHORT_LOCK_WAIT):
-            pytest.fail("a missing matrix is never ready")
-
+    with (
+        pytest.raises(acceptance_matrix.AcceptanceVerdictNotReadyError),
+        acceptance_matrix.locked_acceptance_verdict_guard(repo, primary, timeout=SHORT_LOCK_WAIT),
+    ):
+        pytest.fail("a missing matrix is never ready")

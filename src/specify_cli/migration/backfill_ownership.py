@@ -10,6 +10,7 @@ files when the WP has a lane branch in lanes.json.
 
 from __future__ import annotations
 
+import functools
 import logging
 import re
 from pathlib import Path
@@ -48,6 +49,16 @@ def _git_diff_files(repo_root: Path, base_branch: str, wp_branch: str) -> list[s
     return []
 
 
+def _apply_absent_fields(frontmatter: dict[str, Any], *, updates: dict[str, Any]) -> bool:
+    """Set each of *updates* on *frontmatter* when absent (``scope`` is always set: it is the canonical value); say whether anything changed."""
+    changed = False
+    for key, value in updates.items():
+        if key == "scope" or key not in frontmatter:
+            frontmatter[key] = value
+            changed = True
+    return changed
+
+
 def backfill_ownership(feature_dir: Path, feature_slug: str) -> None:
     """Infer and write ownership fields for all WPs in *feature_dir*.
 
@@ -68,7 +79,7 @@ def backfill_ownership(feature_dir: Path, feature_slug: str) -> None:
         feature_dir: Path to the feature directory (e.g. ``kitty-specs/057-…``).
         feature_slug: Slug of the feature (e.g. ``"057-canonical-context-architecture-cleanup"``).
     """
-    from specify_cli.frontmatter import FrontmatterManager
+    from specify_cli.frontmatter import FrontmatterManager, locked_update_frontmatter
 
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.is_dir():
@@ -181,8 +192,9 @@ def backfill_ownership(feature_dir: Path, feature_slug: str) -> None:
                 updates["scope"] = canonical_scope
 
         if updates:
-            frontmatter.update(updates)
-            manager.write(wp_file, frontmatter, body)
+            # Re-applied to the frontmatter read under the Mission lock: a field another writer set since
+            # the read above is never overwritten ("never overwrites existing values"), ``scope`` aside.
+            frontmatter = locked_update_frontmatter(wp_file, functools.partial(_apply_absent_fields, updates=updates), feature_dir=feature_dir)
             logger.info(
                 "Backfilled ownership for %s: execution_mode=%s",
                 wp_file.name,

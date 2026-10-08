@@ -486,16 +486,16 @@ def create_lane_workspace(
         base_commit_sha = _rev_parse(repo_root, base_branch)
         created_at = now_utc_iso()
 
-        from specify_cli.frontmatter import update_fields
+        from specify_cli.frontmatter import locked_update_frontmatter
 
-        update_fields(
-            wp_file,
-            {
-                "base_branch": base_branch,
-                "base_commit": base_commit_sha,
-                "created_at": created_at,
-            },
-        )
+        provenance = {
+            "base_branch": base_branch,
+            "base_commit": base_commit_sha,
+            "created_at": created_at,
+        }
+        # A locked read-modify-write of the work package as it is now (plan A10): a field or note another
+        # writer landed since the claim began (a map-requirements ref) survives.
+        locked_update_frontmatter(wp_file, lambda frontmatter: frontmatter.update(provenance), feature_dir=wp_file.parent.parent, repo_root=repo_root)
 
         # FR-006: persist the lane-specific test-DB env so consumers
         # (agents, test runners) do not have to re-derive it. Empty for

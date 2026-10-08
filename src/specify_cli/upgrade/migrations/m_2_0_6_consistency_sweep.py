@@ -24,6 +24,7 @@ from specify_cli.status import SNAPSHOT_FILENAME, materialize
 from specify_cli.status import EVENTS_FILENAME, StoreError, read_events
 from specify_cli.status import CANONICAL_LANES, resolve_lane_alias
 from specify_cli.status import validate_materialization_drift
+from specify_cli.status.mission_write import mission_write_lock
 from specify_cli.upgrade.feature_meta import (
     build_baseline_feature_meta,
     load_feature_meta,
@@ -127,22 +128,9 @@ def _repair_feature(
     changes: list[str] = []
     warnings: list[str] = []
 
-    meta = None
-    try:
-        meta = load_feature_meta(feature_dir)
-    except json.JSONDecodeError as exc:
-        warnings.append(f"{feature_dir.name}: invalid meta.json ({exc})")
-
-    desired_meta = build_baseline_feature_meta(
-        feature_dir,
-        repo_root,
-        existing_meta=meta,
-    )
-    if meta != desired_meta:
-        action = "Would write" if dry_run else "Wrote"
-        changes.append(f"{feature_dir.name}: {action.lower()} baseline meta.json")
-        if not dry_run:
-            write_feature_meta(feature_dir, desired_meta)
+    meta_changes, meta_warnings = _repair_feature_meta(feature_dir, repo_root, dry_run)
+    changes.extend(meta_changes)
+    warnings.extend(meta_warnings)
 
     normalized_count, normalize_warnings = _normalize_wp_frontmatter(feature_dir, dry_run)
     warnings.extend(f"{feature_dir.name}: {warning}" for warning in normalize_warnings)
@@ -180,6 +168,35 @@ def _repair_feature(
     return changes, warnings
 
 
+def _repair_feature_meta(feature_dir: Path, repo_root: Path, dry_run: bool) -> tuple[list[str], list[str]]:
+    """Read, rebuild and (unless *dry_run*) write the baseline ``meta.json`` in ONE hold of the Mission write lock.
+
+    The read that decides what to write happens inside the hold, so a field another writer sets between
+    the read and the write is never overwritten by a stale baseline. The lock falls back to the directory
+    name for a Mission whose own ``meta.json`` is what this repairs.
+    """
+    changes: list[str] = []
+    warnings: list[str] = []
+    with mission_write_lock(feature_dir, repo_root=repo_root, fallback_to_dir_name=True):
+        meta = None
+        try:
+            meta = load_feature_meta(feature_dir)
+        except json.JSONDecodeError as exc:
+            warnings.append(f"{feature_dir.name}: invalid meta.json ({exc})")
+
+        desired_meta = build_baseline_feature_meta(
+            feature_dir,
+            repo_root,
+            existing_meta=meta,
+        )
+        if meta != desired_meta:
+            action = "Would write" if dry_run else "Wrote"
+            changes.append(f"{feature_dir.name}: {action.lower()} baseline meta.json")
+            if not dry_run:
+                write_feature_meta(feature_dir, desired_meta)
+    return changes, warnings
+
+
 def _normalize_wp_frontmatter(feature_dir: Path, dry_run: bool) -> tuple[int, list[str]]:
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.exists():
@@ -190,27 +207,35 @@ def _normalize_wp_frontmatter(feature_dir: Path, dry_run: bool) -> tuple[int, li
     warnings: list[str] = []
 
     for wp_file in sorted(tasks_dir.glob("WP*.md")):
-        try:
-            original = wp_file.read_text(encoding="utf-8-sig")
-            frontmatter, body = manager.read(wp_file)
-        except FrontmatterError as exc:
-            warnings.append(f"{wp_file.name}: {exc}")
-            continue
-
-        raw_lane = frontmatter.get("lane") or "planned"  # MIGRATION-ONLY: raw dict read-mutate-write
-        canonical_lane = resolve_lane_alias(str(raw_lane))
-        if canonical_lane in CANONICAL_LANES:
-            frontmatter["lane"] = canonical_lane
-
-        rendered = _render_frontmatter(manager, frontmatter, body)
-        if original == rendered:
-            continue
-
-        normalized += 1
-        if not dry_run:
-            wp_file.write_text(rendered, encoding="utf-8")
+        with mission_write_lock(feature_dir, fallback_to_dir_name=True):
+            changed, warning = _normalize_one_wp_frontmatter(manager, wp_file, dry_run)
+        if warning is not None:
+            warnings.append(warning)
+        if changed:
+            normalized += 1
 
     return normalized, warnings
+
+
+def _normalize_one_wp_frontmatter(manager: FrontmatterManager, wp_file: Path, dry_run: bool) -> tuple[bool, str | None]:
+    """Normalize one work package's frontmatter (runs under the Mission write lock); say whether it changed, or why it was skipped."""
+    try:
+        original = wp_file.read_text(encoding="utf-8-sig")
+        frontmatter, body = manager.read(wp_file)
+    except FrontmatterError as exc:
+        return False, f"{wp_file.name}: {exc}"
+
+    raw_lane = frontmatter.get("lane") or "planned"  # MIGRATION-ONLY: raw dict read-mutate-write
+    canonical_lane = resolve_lane_alias(str(raw_lane))
+    if canonical_lane in CANONICAL_LANES:
+        frontmatter["lane"] = canonical_lane
+
+    rendered = _render_frontmatter(manager, frontmatter, body)
+    if original == rendered:
+        return False, None
+    if not dry_run:
+        wp_file.write_text(rendered, encoding="utf-8")
+    return True, None
 
 
 def _render_frontmatter(manager: FrontmatterManager, frontmatter: dict[str, Any], body: str) -> str:
@@ -223,6 +248,12 @@ def _render_frontmatter(manager: FrontmatterManager, frontmatter: dict[str, Any]
 
 
 def _rewrite_tasks_prompt_refs(feature_dir: Path, dry_run: bool) -> int:
+    """Rewrite legacy prompt references in ``tasks.md``; the read and the write are one hold of the Mission write lock."""
+    with mission_write_lock(feature_dir, fallback_to_dir_name=True):
+        return _rewrite_tasks_prompt_refs_locked(feature_dir, dry_run)
+
+
+def _rewrite_tasks_prompt_refs_locked(feature_dir: Path, dry_run: bool) -> int:
     tasks_md = feature_dir / "tasks.md"
     tasks_dir = feature_dir / "tasks"
     if not tasks_md.exists() or not tasks_dir.exists():

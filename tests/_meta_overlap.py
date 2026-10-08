@@ -38,6 +38,18 @@ def _is_meta_json(path: Path) -> bool:
     return path.name == META_NAME
 
 
+def _wrap_atomic_writes(
+    monkeypatch: pytest.MonkeyPatch,
+    modules: Sequence[ModuleType],
+    wrap: Callable[[Callable[..., None]], Callable[..., None]],
+) -> None:
+    """Replace each module's ``atomic_write`` with ``wrap(original)``; a module without one is paused through ``Path.write_text``."""
+    for module in modules:
+        real = getattr(module, "atomic_write", None)
+        if real is not None:
+            monkeypatch.setattr(module, "atomic_write", wrap(real))
+
+
 def run_overlap(
     monkeypatch: pytest.MonkeyPatch,
     writer_a: Callable[[], object],
@@ -88,10 +100,7 @@ def run_overlap(
                 held = stack.enter_context(real_lock(root, key, timeout=timeout))
             yield held
 
-    for module in atomic_modules:
-        real = getattr(module, "atomic_write", None)
-        if real is not None:  # a module that has not adopted ``atomic_write`` yet is paused through ``Path.write_text``
-            monkeypatch.setattr(module, "atomic_write", paused_for(real))
+    _wrap_atomic_writes(monkeypatch, atomic_modules, paused_for)
     monkeypatch.setattr(Path, "write_text", paused_write_text)
     monkeypatch.setattr(mission_write, "feature_status_lock", probing_lock)
 
