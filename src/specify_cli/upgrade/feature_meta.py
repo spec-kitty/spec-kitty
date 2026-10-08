@@ -17,6 +17,7 @@ from typing import Any
 from specify_cli.core.git_ops import resolve_primary_branch
 from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 from specify_cli.mission_metadata import write_meta
+from specify_cli.status.mission_write import mission_write_lock
 
 _BRANCH_PATTERNS = (
     re.compile(r"(?im)^\*\*target branch\*\*:\s*`?([^\n`]+)`?\s*$"),
@@ -57,8 +58,12 @@ def write_feature_meta(feature_dir: Path, meta: dict[str, Any]) -> None:
 
     Validation is disabled (``validate=False``) to match the original
     behaviour, which did not enforce required-field checks.
+
+    The replace runs under the Mission write lock, so it is serialized with every
+    other ``meta.json`` writer of the Mission.
     """
-    write_meta(feature_dir, meta, validate=False)
+    with mission_write_lock(feature_dir, fallback_to_dir_name=True):
+        write_meta(feature_dir, meta, validate=False)
 
 
 def infer_target_branch(

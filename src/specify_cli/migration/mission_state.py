@@ -59,7 +59,7 @@ from specify_cli.migration.canonicalization import (
     MigrationContext,
     apply_rules,
 )
-from specify_cli.status import ULID_PATTERN, Lane, StatusEvent
+from specify_cli.status import ULID_PATTERN, Lane, StatusEvent, mission_write_lock
 from specify_cli.status import materialize_snapshot, materialize_to_json
 from specify_cli.status import (
     ANNOTATION_KIND,
@@ -1749,12 +1749,15 @@ def _repair_meta_phase(
     generated_ids: list[str] | None,
 ) -> dict[str, Any]:
     """Canonicalize and persist ``meta.json``; return the canonical meta."""
-    meta, state.meta_actions = _canonicalize_meta(mission_dir, raw_rows, generated_ids=generated_ids)
-    state.mission_slug = str(meta.get("mission_slug") or state.mission_slug)
-    state.mission_id = str(meta.get("mission_id") or "")
-    before_meta = _file_fingerprint(mission_dir / META_FILENAME)
-    if state.meta_actions:
-        write_meta(mission_dir, meta)
+    # The canonicalizing read, the fingerprint and the whole-file replace share one hold of the
+    # Mission write lock, so a concurrent meta.json writer is never overwritten by a stale copy.
+    with mission_write_lock(mission_dir, repo_root=repo_root, fallback_to_dir_name=True):
+        meta, state.meta_actions = _canonicalize_meta(mission_dir, raw_rows, generated_ids=generated_ids)
+        state.mission_slug = str(meta.get("mission_slug") or state.mission_slug)
+        state.mission_id = str(meta.get("mission_id") or "")
+        before_meta = _file_fingerprint(mission_dir / META_FILENAME)
+        if state.meta_actions:
+            write_meta(mission_dir, meta)
     state.record_change(repo_root, mission_dir / META_FILENAME, before_meta)
     return meta
 

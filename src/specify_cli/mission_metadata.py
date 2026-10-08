@@ -711,6 +711,7 @@ def locked_update_meta(
     repo_root: Path | None = None,
     timeout: float | None = None,
     validate: bool = True,
+    fallback_to_dir_name: bool = False,
 ) -> dict[str, Any]:
     """Read-modify-write ``meta.json`` under the Mission write lock and return the meta written.
 
@@ -724,13 +725,16 @@ def locked_update_meta(
     *timeout* is the lock wait in seconds; ``None`` is the bounded Mission write-lock wait
     (NFR-002), which fails with ``STATUS_LOCK_HELD`` once spent.
 
+    *fallback_to_dir_name* is passed to :func:`~specify_cli.status.mission_write.mission_write_lock`;
+    only the migrations that heal the metadata the lock key is read from set it.
+
     Raises:
         FileNotFoundError: If ``meta.json`` does not exist in *feature_dir*.
     """
     from specify_cli.status.mission_write import MISSION_WRITE_LOCK_TIMEOUT_SECONDS, mission_write_lock
 
     wait = MISSION_WRITE_LOCK_TIMEOUT_SECONDS if timeout is None else timeout
-    with mission_write_lock(feature_dir, repo_root=repo_root, timeout=wait):
+    with mission_write_lock(feature_dir, repo_root=repo_root, timeout=wait, fallback_to_dir_name=fallback_to_dir_name):
         meta = _require_meta(feature_dir)
         if mutate(meta) is not False:
             write_meta(feature_dir, meta, validate=validate)

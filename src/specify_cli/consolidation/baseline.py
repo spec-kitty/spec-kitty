@@ -789,6 +789,7 @@ def _stamp_pr_merge_provenance(
     honour it instead of consuming every recorded anchor as though it were
     proven.
     """
+
     def stamp(meta: dict[str, Any]) -> bool:
         commit_stamped = bool((meta.get(_PR_MERGE_COMMIT_FIELD) or "").strip())
         evidence_stamped = bool((meta.get(_PR_MERGE_EVIDENCE_FIELD) or "").strip())

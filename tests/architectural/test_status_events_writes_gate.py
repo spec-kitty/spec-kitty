@@ -157,6 +157,15 @@ EXPECTED_LOCK_COMPOSITION_SITES: frozenset[str] = frozenset(
         # (``locked_update_meta``, the setters, the CAS ``restore_meta_text``) takes the
         # Mission write lock; it appends no event-log row.
         "specify_cli.mission_metadata",
+        # mission-writer-followups WP03 (#5883): the remaining ``meta.json`` read-modify-writes
+        # (documentation state, the migrations and the upgrade helper) hold the Mission write
+        # lock around a whole-file replace; none appends an event-log row.
+        "specify_cli.doc_analysis.doc_state",
+        "specify_cli.migration.backfill_identity",
+        "specify_cli.migration.backfill_topology",
+        "specify_cli.migration.mission_state",
+        "specify_cli.migration.runtime_state_cutover",
+        "specify_cli.upgrade.feature_meta",
         # concurrent-mission-writers WP03 (#5468, #5796): ``implement`` holds the
         # Mission write lock from the claim emit through the claim commit, and
         # ``ensure_vcs_locked`` runs its meta.json read-modify-write under it.

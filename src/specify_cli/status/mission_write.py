@@ -47,7 +47,7 @@ from typing import BinaryIO
 from kernel.atomic import atomic_write
 from kernel.git import GitCommandError, blob_at, run_git
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.lanes.branch_naming import coordination_lock_dir_name, mission_lock_dir_name
+from specify_cli.lanes.branch_naming import MissionLockKeyUnresolved, coordination_lock_dir_name, mission_lock_dir_name
 from specify_cli.mission_metadata import load_meta_or_empty
 from specify_cli.missions._read_path_resolver import literal_primary_meta
 from specify_cli.status.locking import (
@@ -246,6 +246,7 @@ def mission_write_lock(
     *,
     repo_root: Path | None = None,
     timeout: float = MISSION_WRITE_LOCK_TIMEOUT_SECONDS,
+    fallback_to_dir_name: bool = False,
 ) -> Iterator[Path]:
     """Hold the Mission write lock for *feature_dir*; re-entrant per thread.
 
@@ -254,9 +255,20 @@ def mission_write_lock(
     whichever of the Mission's directories it holds. The key is resolved before the lock
     is entered. A timeout raises
     :class:`~specify_cli.status.locking.FeatureStatusLockTimeoutError`.
+
+    *fallback_to_dir_name* is for the migrations that heal the very metadata the key is read
+    from (``backfill-identity``, ``backfill-topology``, the repair): a coordination-routed
+    Mission that records no resolvable mid8 is locked on ``feature_dir.name`` instead of
+    raising :class:`~specify_cli.lanes.branch_naming.MissionLockKeyUnresolved`. Every other
+    caller keeps the fail-closed default.
     """
     root = resolve_status_lock_root(feature_dir, repo_root)
-    key = mission_lock_key(feature_dir, repo_root=root)
+    try:
+        key = mission_lock_key(feature_dir, repo_root=root)
+    except MissionLockKeyUnresolved:
+        if not fallback_to_dir_name:
+            raise
+        key = feature_dir.name
     alias = _primary_alias(root, key) if feature_dir.name == key else None
     with (
         feature_status_lock(root, key, timeout=timeout) as held,

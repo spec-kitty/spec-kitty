@@ -54,6 +54,7 @@ from specify_cli.core.checkout_identity import Intent
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.core.utils import ensure_within_any
 from specify_cli.mission_metadata import load_meta, write_meta
+from specify_cli.status.mission_write import mission_write_lock
 from specify_cli.workspace import canonicalize_feature_dir
 
 
@@ -324,11 +325,14 @@ def _flip_phase(feature_dir: Path, *, owned: OwnedCheckout | None = None) -> Non
         )
     from specify_cli.core.paths import load_meta_fail_closed
 
-    meta = load_meta_fail_closed(target) or {}
-    if _is_snapshot_authority(meta):
-        return
-    meta[_STATUS_PHASE_KEY] = _SNAPSHOT_AUTHORITY_PHASE
-    write_meta(target, meta, validate=False)
+    # Read, short-circuit and write share one hold of the Mission write lock; the
+    # whole-file replace is kept (a missing meta.json still gets the one-key stub).
+    with mission_write_lock(target, fallback_to_dir_name=True):
+        meta = load_meta_fail_closed(target) or {}
+        if _is_snapshot_authority(meta):
+            return
+        meta[_STATUS_PHASE_KEY] = _SNAPSHOT_AUTHORITY_PHASE
+        write_meta(target, meta, validate=False)
     logger.info("Flipped status_phase -> %s for %s", _SNAPSHOT_AUTHORITY_PHASE, target.name)
 
 

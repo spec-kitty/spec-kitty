@@ -370,3 +370,32 @@ def test_every_writer_takes_the_mission_lock(monkeypatch: pytest.MonkeyPatch, re
 
     assert case.check(_read(feature_dir)), f"{case.name}: writer did not leave its result"
     assert expected_key in acquired, f"{case.name}: wrote meta.json without taking the Mission lock ({acquired})"
+
+
+def _seed_legacy_coordination_mission(repo: Path) -> Path:
+    """A coordination-routed Mission that records no mid8 and no mission_id (what ``backfill-identity`` heals)."""
+    feature_dir = repo / "kitty-specs" / "legacy-mission"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(json.dumps({"slug": "legacy-mission", "coordination_branch": "kitty/x"}), encoding="utf-8")
+    return feature_dir
+
+
+def test_unresolvable_coordination_key_fails_closed_for_ordinary_writers(repo: Path) -> None:
+    from specify_cli.lanes.branch_naming import MissionLockKeyUnresolved
+
+    feature_dir = _seed_legacy_coordination_mission(repo)
+
+    with pytest.raises(MissionLockKeyUnresolved):
+        locked_update_meta(feature_dir, lambda meta: meta.update(probe=1))
+    assert "probe" not in _read(feature_dir)
+
+
+def test_migrations_heal_a_mission_whose_coordination_key_is_unresolvable(repo: Path) -> None:
+    from specify_cli.migration.backfill_identity import backfill_mission
+
+    feature_dir = _seed_legacy_coordination_mission(repo)
+
+    result = backfill_mission(feature_dir)
+
+    assert result.action == "wrote"
+    assert _read(feature_dir)["mission_id"] == result.mission_id

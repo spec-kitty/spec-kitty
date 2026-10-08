@@ -22,7 +22,6 @@ overwritten.
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 from dataclasses import dataclass
@@ -32,7 +31,8 @@ from typing import Any, Literal
 import ulid as _ulid_mod
 from ruamel.yaml import YAML
 
-from specify_cli.mission_metadata import _coerce_mission_number
+from specify_cli.mission_metadata import _coerce_mission_number, locked_update_meta, write_meta
+from specify_cli.status.mission_write import mission_write_lock
 
 logger = logging.getLogger(__name__)
 
@@ -126,82 +126,84 @@ def backfill_mission(feature_dir: Path, *, dry_run: bool = False) -> BackfillRes
             reason="meta.json not found",
         )
 
-    # --- read (post-#2091 canonical reader; existence already verified above) --
-    from specify_cli.core.paths import load_meta_fail_closed, MissionMetaReadError
-    try:
-        meta_result = load_meta_fail_closed(feature_dir)
-        meta: dict[str, Any] = meta_result or {}
-    except MissionMetaReadError as exc:
-        logger.warning("Corrupt meta.json in %s: %s", slug, exc)
-        return BackfillResult(
-            feature_dir=feature_dir,
-            slug=slug,
-            action="error",
-            reason=f"corrupt json: {exc}",
-        )
-
-    changed = False
-
-    # --- mission_id ----------------------------------------------------------
-    existing_id: str | None = meta.get("mission_id") or None  # treat "" as None
-    if existing_id is not None:
-        skip_id = True
-        new_id = existing_id
-    else:
-        skip_id = False
-        new_id = _generate_ulid()
-        meta["mission_id"] = new_id
-        changed = True
-
-    # --- mission_number coercion (T020) --------------------------------------
-    number_coerced = False
-    raw_number = meta.get("mission_number")
-    if isinstance(raw_number, str) and raw_number.strip():
+    # The read, the decisions and the write run in ONE hold of the Mission write lock (dry runs
+    # included, so a dry run reports what a concurrent writer left), never on a stale copy.
+    with mission_write_lock(feature_dir, fallback_to_dir_name=True):
+        # --- read (post-#2091 canonical reader; existence already verified above) --
+        from specify_cli.core.paths import load_meta_fail_closed, MissionMetaReadError
         try:
-            coerced = _coerce_mission_number(raw_number)
-        except (TypeError, ValueError) as exc:
-            # Sentinel strings like "pending" — raise loudly, do not guess.
-            raise ValueError(
-                f"Cannot coerce mission_number {raw_number!r} in {slug}: {exc}"
-            ) from exc
-        if coerced is not None:
-            meta["mission_number"] = coerced
-            number_coerced = True
+            meta_result = load_meta_fail_closed(feature_dir)
+            meta: dict[str, Any] = meta_result or {}
+        except MissionMetaReadError as exc:
+            logger.warning("Corrupt meta.json in %s: %s", slug, exc)
+            return BackfillResult(
+                feature_dir=feature_dir,
+                slug=slug,
+                action="error",
+                reason=f"corrupt json: {exc}",
+            )
+
+        changed = False
+
+        # --- mission_id ----------------------------------------------------------
+        existing_id: str | None = meta.get("mission_id") or None  # treat "" as None
+        if existing_id is not None:
+            skip_id = True
+            new_id = existing_id
+        else:
+            skip_id = False
+            new_id = _generate_ulid()
+            meta["mission_id"] = new_id
             changed = True
 
-    # --- write (sorted keys, standard format matching write_meta) ---------------
-    if changed and not dry_run:
-        content = json.dumps(meta, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
-        meta_path.write_text(content, encoding="utf-8")
+        # --- mission_number coercion (T020) --------------------------------------
+        number_coerced = False
+        raw_number = meta.get("mission_number")
+        if isinstance(raw_number, str) and raw_number.strip():
+            try:
+                coerced = _coerce_mission_number(raw_number)
+            except (TypeError, ValueError) as exc:
+                # Sentinel strings like "pending" — raise loudly, do not guess.
+                raise ValueError(
+                    f"Cannot coerce mission_number {raw_number!r} in {slug}: {exc}"
+                ) from exc
+            if coerced is not None:
+                meta["mission_number"] = coerced
+                number_coerced = True
+                changed = True
 
-    if skip_id and not number_coerced:
+        # --- write (sorted keys, standard format matching write_meta) ---------------
+        if changed and not dry_run:
+            write_meta(feature_dir, meta, validate=False)
+
+        if skip_id and not number_coerced:
+            return BackfillResult(
+                feature_dir=feature_dir,
+                slug=slug,
+                action="skip",
+                mission_id=existing_id,
+                number_coerced=False,
+                reason="mission_id already present",
+            )
+
+        action: BackfillAction = "skip" if dry_run and skip_id else "wrote" if not skip_id else "skip"
+        # If mission_id was already present but number was coerced, report "wrote"
+        if number_coerced and not dry_run:
+            action = "wrote"
+        if dry_run and not skip_id:
+            action = "wrote"  # dry-run would-write
         return BackfillResult(
             feature_dir=feature_dir,
             slug=slug,
-            action="skip",
-            mission_id=existing_id,
-            number_coerced=False,
-            reason="mission_id already present",
+            action=action,
+            mission_id=new_id,
+            number_coerced=number_coerced,
         )
 
-    action: BackfillAction = "skip" if dry_run and skip_id else "wrote" if not skip_id else "skip"
-    # If mission_id was already present but number was coerced, report "wrote"
-    if number_coerced and not dry_run:
-        action = "wrote"
-    if dry_run and not skip_id:
-        action = "wrote"  # dry-run would-write
-    return BackfillResult(
-        feature_dir=feature_dir,
-        slug=slug,
-        action=action,
-        mission_id=new_id,
-        number_coerced=number_coerced,
-    )
 
-
-# ---------------------------------------------------------------------------
-# WP04: repo-level walk
-# ---------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
+    # WP04: repo-level walk
+    # ---------------------------------------------------------------------------
 
 
 def backfill_repo(
@@ -317,7 +319,6 @@ def backfill_mission_ids(repo_root: Path) -> dict[str, str]:
         if not feature_dir.is_dir():
             continue
 
-        meta_path = feature_dir / "meta.json"
         from specify_cli.core.paths import load_meta_fail_closed
         meta = load_meta_fail_closed(feature_dir)
         if meta is None:
@@ -330,13 +331,18 @@ def backfill_mission_ids(repo_root: Path) -> dict[str, str]:
             continue
 
         new_id = _generate_ulid()
-        meta["mission_id"] = new_id
-        mapping[feature_dir.name] = new_id
-        logger.info("Assigned mission_id=%s to feature %s", new_id, feature_dir.name)
 
-        with open(meta_path, "w", encoding="utf-8") as fh:
-            json.dump(meta, fh, indent=2, ensure_ascii=False)
-            fh.write("\n")
+        def assign(fresh: dict[str, Any], candidate: str = new_id) -> bool:
+            # Re-checked on the fresh read under the lock: a concurrent minter wins.
+            if "mission_id" in fresh:
+                return False
+            fresh["mission_id"] = candidate
+            return True
+
+        recorded = locked_update_meta(feature_dir, assign, validate=False, fallback_to_dir_name=True)
+        mapping[feature_dir.name] = recorded["mission_id"]
+        if recorded["mission_id"] == new_id:
+            logger.info("Assigned mission_id=%s to feature %s", new_id, feature_dir.name)
 
     return mapping
 

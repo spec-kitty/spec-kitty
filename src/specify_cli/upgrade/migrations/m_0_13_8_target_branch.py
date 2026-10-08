@@ -16,15 +16,24 @@ Required: Yes
 
 from __future__ import annotations
 
-import json
+from functools import partial
 from pathlib import Path
+from typing import Any
 
 from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
-from specify_cli.mission_metadata import load_meta
+from specify_cli.mission_metadata import load_meta, locked_update_meta
 from specify_cli.upgrade.feature_meta import infer_target_branch
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
+
+
+def _add_target_branch(meta: dict[str, Any], target_branch: str) -> bool:
+    """Add ``target_branch`` to a fresh *meta* unless it already carries one; report whether it changed."""
+    if "target_branch" in meta:
+        return False
+    meta["target_branch"] = target_branch
+    return True
 
 
 def _is_io_failure(exc: BaseException) -> bool:
@@ -111,16 +120,16 @@ class TargetBranchMigration(BaseMigration):
                 if target_branch != "main":
                     warnings.append(f"{feature_dir.name} auto-detected target_branch={target_branch}")
 
-                # Add target_branch field
-                meta["target_branch"] = target_branch
-
                 if dry_run:
                     changes.append(f"Would add target_branch={target_branch} to {feature_dir.name}")
                 else:
-                    # Write updated meta.json with pretty formatting
-                    meta_file.write_text(
-                        json.dumps(meta, indent=2, ensure_ascii=False) + "\n",
-                        encoding="utf-8",
+                    # Add the field on a fresh read under the Mission write lock; a target_branch a
+                    # concurrent writer recorded meanwhile is kept.
+                    locked_update_meta(
+                        feature_dir,
+                        partial(_add_target_branch, target_branch=target_branch),
+                        validate=False,
+                        fallback_to_dir_name=True,
                     )
                     changes.append(f"Added target_branch={target_branch} to {feature_dir.name}")
 
