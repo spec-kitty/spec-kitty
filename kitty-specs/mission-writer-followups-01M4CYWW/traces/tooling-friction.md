@@ -13,3 +13,5 @@ One entry per finding: `YYYY-MM-DD · actor · <text>`.
 2026-10-08 · claude-orchestrator · Parallel streams on a single_branch Mission: implement refuses a second WP with WRITE_CHECKOUT_OCCUPIED (correct for one checkout). To run the runtime stream (WP05->WP06->WP14->WP07) in parallel, the orchestrator records its status with move-task (claimed, in_progress) and the implementer works in a separate git worktree on branch stream/runtime, merged back into the target branch before each review. The CLI has no first-class way to say 'this WP runs in another checkout' for single_branch.
 
 2026-10-08 · claude-runtime · A fresh worktree's first pytest run builds the test venv (about 4 minutes); later runs are fast.
+
+2026-10-08 · claude-runtime · A -n 4 --dist loadfile sweep gave 'Unknown mission type None' failures in tests/integration/test_owned_next_runtime.py (3 tests) that pass serially on the same tree (26/26). Re-run serially before attributing a parallel-run failure to a change.
