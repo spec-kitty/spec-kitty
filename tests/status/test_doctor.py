@@ -1075,10 +1075,11 @@ def test_wp_reconciliation_reports_prompt_without_event_and_ignores_readme(tmp_p
     (tasks_dir / "WP02-work.md").write_text("---\nwork_package_id: WP02\n---\n", encoding="utf-8")
     (tasks_dir / "README.md").write_text("work_package_id: WP03\n", encoding="utf-8")
 
-    findings = check_wp_file_reconciliation(tmp_path, {"WP01"})
+    findings = check_wp_file_reconciliation(tmp_path, {"WP01", "WP04"}, frozenset({"WP04"}))
 
     assert [(finding.wp_id, finding.severity) for finding in findings] == [
         ("WP01", Severity.ERROR),
+        ("WP04", Severity.WARNING),
         ("WP02", Severity.ERROR),
     ]
 

@@ -160,8 +160,16 @@ def check_uninitialized_status(
     ]
 
 
-def check_wp_file_reconciliation(feature_dir: Path, event_wp_ids: set[str]) -> list[Finding]:
-    """Compare reduced event-log membership with authored WP prompts."""
+def check_wp_file_reconciliation(
+    feature_dir: Path,
+    event_wp_ids: set[str],
+    terminal_wp_ids: frozenset[str] = frozenset(),
+) -> list[Finding]:
+    """Compare reduced event-log membership with authored WP prompts.
+
+    A ``done``/``canceled`` WP whose prompt is gone (an archived Mission) is a
+    warning; any other WP without a prompt is an error.
+    """
     file_wp_ids: set[str] = set()
     findings: list[Finding] = []
     for wp_file in wp_task_files(feature_dir / "tasks"):
@@ -183,7 +191,7 @@ def check_wp_file_reconciliation(feature_dir: Path, event_wp_ids: set[str]) -> l
     for wp_id in sorted(event_wp_ids - file_wp_ids):
         findings.append(
             Finding(
-                severity=Severity.ERROR,
+                severity=Severity.WARNING if wp_id in terminal_wp_ids else Severity.ERROR,
                 category=Category.WP_FILE_DRIFT,
                 wp_id=wp_id,
                 message=f"{wp_id} exists in the event log but has no prompt in tasks/.",
@@ -799,6 +807,8 @@ def run_doctor(
         logger.debug("Could not reconcile WP files against the event log", exc_info=True)
         events = []
     if events:
-        result.findings.extend(check_wp_file_reconciliation(feature_dir, set(reduce(events).work_packages)))
+        event_wps = reduce(events).work_packages
+        terminal = frozenset(wp_id for wp_id, state in event_wps.items() if state.get("lane") in TERMINAL_LANES)
+        result.findings.extend(check_wp_file_reconciliation(feature_dir, set(event_wps), terminal))
 
     return result
