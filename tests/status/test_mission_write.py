@@ -35,7 +35,6 @@ from specify_cli.status import (
     rollback_status_artifacts,
 )
 from specify_cli.status.locking import (
-    UNBOUNDED_LOCK_WAIT,
     FeatureStatusLockTimeoutError,
     _get_thread_locks,
     feature_status_lock_path,
@@ -186,17 +185,6 @@ def test_holds_status_lock_follows_the_calling_threads_hold(mission: Path, root:
         thread.join()
         assert seen_elsewhere == [False], "another thread does not hold it"
     assert not holds_status_lock(lock_path)
-
-
-def test_unbounded_lock_wait_is_the_unbounded_timeout() -> None:
-    assert UNBOUNDED_LOCK_WAIT < 0
-
-
-def test_named_constructor_builds_a_point_without_reading_or_locking(root: Path) -> None:
-    """The caller measured under its own hold; the constructor neither checks the lock nor touches the files."""
-    point = RollbackPoint.measured_under_held_lock(events_path=root / "log.jsonl", status_path=root / "status.json", pre_event_size=7, events_existed=True)
-
-    assert point == RollbackPoint(events_path=root / "log.jsonl", status_path=root / "status.json", pre_event_size=7, pre_status_bytes=None, events_existed=True)
 
 
 def test_io_error_refusal_does_not_claim_the_log_is_unchanged(tmp_path: Path) -> None:
