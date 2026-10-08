@@ -128,7 +128,7 @@ def test_save_lets_the_model_win_for_the_fields_it_owns(tmp_path: Path) -> None:
     assert [m["id"] for m in data["migrations"]["applied"]] == ["old_one"]  # type: ignore[index]
 
 
-@pytest.mark.parametrize("garbage", ["just a string\n", "- a\n- list\n", "key: [unclosed\n", ""])
+@pytest.mark.parametrize("garbage", ["just a string\n", "- a\n- list\n", ""])
 def test_save_over_an_unusable_existing_file_writes_the_model(tmp_path: Path, garbage: str) -> None:
     kdir = tmp_path / ".kittify"
     _write(kdir, {"spec_kitty": _base_block()})
@@ -139,6 +139,20 @@ def test_save_over_an_unusable_existing_file_writes_the_model(tmp_path: Path, ga
     assert metadata.save(kdir) is True
 
     assert _read(kdir)["spec_kitty"]["version"] == "9.9.9"  # type: ignore[index]
+
+
+def test_save_refuses_to_replace_unparseable_yaml_and_leaves_it_untouched(tmp_path: Path) -> None:
+    """Replacing a file that is not valid YAML would erase project_uuid and operator keys only the disk holds."""
+    kdir = tmp_path / ".kittify"
+    _write(kdir, {"spec_kitty": _base_block()})
+    metadata = _loaded(kdir)
+    broken = "project_uuid: keep-me\nkey: [unclosed\n"
+    (kdir / "metadata.yaml").write_text(broken, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="refusing to rewrite"):
+        metadata.save(kdir)
+
+    assert (kdir / "metadata.yaml").read_text(encoding="utf-8") == broken
 
 
 @pytest.mark.parametrize("bad_block", ["a string", ["a", "list"]])
