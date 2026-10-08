@@ -749,11 +749,16 @@
     "WP23": {
       "actor": "claude",
       "agent": "claude",
+      "agent_profile": "curator-carla",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "in_progress",
       "last_event_id": "01M4ESTC8QD2111HW6KPRQF9XW",
       "last_transition_at": "2026-10-08T22:23:23.259297+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 17948,
       "shell_pid_created_at": "1791498167.03"
     },
