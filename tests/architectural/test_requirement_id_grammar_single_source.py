@@ -59,7 +59,7 @@ ALLOWLIST_PATH = _THIS.parent / "requirement_id_pattern_allowlist.yaml"
 GRAMMAR_REL_PATH = "src/specify_cli/requirement_mapping/grammar.py"
 
 #: The four kinds the gate's detector recognises (C-001's grammar vocabulary).
-_KINDS: tuple[str, ...] = ("FR", "NFR", "SC", "C")
+_KINDS: tuple[str, ...] = ("FR", "NFR", "SC", "C", "DR", "AR", "QR")
 
 
 class AllowlistEntryError(ValueError):
@@ -176,7 +176,7 @@ def _looks_like_requirement_id_pattern(value: str) -> bool:
     string or a non-letter character -- so ``IC-\\d`` never counts (the kind
     token there is ``C``, immediately preceded by the letter ``I``).
     """
-    if "FR|NFR" in value or "NFR|" in value or "SC|" in value:
+    if any(f"{kind}|" in value or f"|{kind}" in value for kind in _KINDS):
         return True
     for kind in _KINDS:
         needle = f"{kind}-\\d"
@@ -386,6 +386,13 @@ def f(x):
     violations = check_requirement_id_pattern_gate(scratch_src, set())
     assert violations, "self-mutation: a re-introduced requirement-ID pattern literal must be flagged"
     assert any("_BAD" in v for v in violations)
+
+
+def test_research_only_pattern_outside_grammar_is_flagged(tmp_path: Path) -> None:
+    pkg = tmp_path / "src" / "scratch_pkg"
+    pkg.mkdir(parents=True)
+    (pkg / "regressed.py").write_text('import re\n_BAD = re.compile(r"^(?:DR|AR|QR)-[0-9]+$")\n')
+    assert check_requirement_id_pattern_gate(tmp_path / "src", set())
 
 
 def test_self_mutation_clean_control_with_prose_and_docstring_is_not_flagged(tmp_path: Path) -> None:

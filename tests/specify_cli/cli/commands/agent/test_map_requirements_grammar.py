@@ -107,6 +107,25 @@ def _invoke(*args: str) -> object:
     return runner.invoke(tasks_app, ["map-requirements", *args, "--json"])
 
 
+@patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+@patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
+@patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+def test_research_kind_is_accepted_only_for_research_mission(mock_locate: Mock, mock_slug: Mock, mock_branch: Mock, tmp_path: Path) -> None:
+    mock_locate.return_value = tmp_path
+    mock_slug.return_value = "001-test"
+    mock_branch.return_value = (tmp_path, "main")
+    feature_dir = _setup_feature(tmp_path, wp_refs={"WP01": "[]"})
+    (feature_dir / "spec.md").write_text("# Research\n\n- **DR-001**: Collect records.\n")
+
+    refused = _invoke("--wp", "WP01", "--refs", "DR-001")
+    assert refused.exit_code == 1
+
+    (feature_dir / "meta.json").write_text(json.dumps({"mission_type": "research"}))
+    accepted = _invoke("--wp", "WP01", "--refs", "dr-001")
+    assert accepted.exit_code == 0, accepted.stdout
+    assert _raw_refs(feature_dir, "WP01") == ["DR-001"]
+
+
 class TestMapRequirementsGrammarRepros:
     """T015: red-first repros for #2991 and #3519, demoted to focused tests
     once green (T019)."""

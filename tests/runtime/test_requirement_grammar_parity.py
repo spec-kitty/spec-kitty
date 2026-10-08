@@ -216,6 +216,20 @@ def test_accepting_case_both_gates_agree(tmp_path: Path, variant: str) -> None:
 
 
 @pytest.mark.parametrize("variant", ["frontmatter", "tasks_md"])
+def test_research_kind_parity_both_gates_agree(tmp_path: Path, variant: str) -> None:
+    feature_dir = _seed_fixture(tmp_path, {"WP01": ["DR-001", "AR-001", "QR-001", "C-001"]}, variant=variant)
+    (feature_dir / "meta.json").write_text(json.dumps({"mission_slug": "001-test", "mission_type": "research"}))
+    (feature_dir / "spec.md").write_text(
+        "# Research\n\n## Research Requirements\n\n"
+        "- **DR-001**: Collect records.\n- **AR-001**: Analyze records.\n"
+        "- **QR-001**: Check evidence.\n- **C-001**: Retain consent.\n"
+    )
+    result = _invoke_finalize_validate_only(tmp_path, feature_dir)
+    assert result.exit_code == 0, result.stdout
+    assert _runtime_findings(feature_dir) == []
+
+
+@pytest.mark.parametrize("variant", ["frontmatter", "tasks_md"])
 def test_undeclared_sc_positive_control_both_gates_fail_same_reason(tmp_path: Path, variant: str) -> None:
     """Pre-WP04 this was RED: the runtime finding said ``unknown refs: ...``
     and carried no reason vocabulary, so it could never contain the literal

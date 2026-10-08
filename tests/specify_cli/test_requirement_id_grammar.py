@@ -61,6 +61,15 @@ def test_canonical_form() -> None:
     assert grammar.canonical("FR-006-a") is None
 
 
+def test_research_kinds_are_scoped_to_research_missions() -> None:
+    assert grammar.parse("DR-001") is None
+    assert grammar.find_all("AR-1 QR-2", spec_scan=True) == []
+    assert grammar.classify("DR-001", {"DR-001"}).reason == grammar.MALFORMED
+    assert grammar.parse("DR-001", mission_type="research").canonical == "DR-001"
+    assert [item.canonical for item in grammar.find_all("AR-1 QR-2", spec_scan=True, mission_type="research")] == ["AR-1", "QR-2"]
+    assert not lint_spec_requirement_ids("An AR-1 or QR-2 decision is pending.").warnings
+
+
 def test_digit_width_is_significant() -> None:
     assert grammar.parse("C-1") != grammar.parse("C-001")
     assert grammar.parse("C-001") == grammar.parse("c-001")

@@ -65,6 +65,16 @@ class TestParseRequirementIdsFromSpecMd:
         assert "C-001" in result["all"]
         assert result["functional"] == ["FR-001", "FR-002"]
 
+    def test_research_kinds_do_not_change_software_dev_result(self):
+        content = "- **FR-001**: Product behavior\n- **DR-001**: Disaster recovery note\n"
+        software = parse_requirement_ids_from_spec_md(content)
+        assert software["all"] == ["FR-001"]
+        assert software["functional"] == ["FR-001"]
+        assert set(software) == {"all", "functional", "non_functional", "constraint", "success_criteria"}
+        research = parse_requirement_ids_from_spec_md(content, mission_type="research")
+        assert research["all"] == ["DR-001", "FR-001"]
+        assert research["data_collection"] == ["DR-001"]
+
     def test_case_insensitive(self):
         # Case-insensitivity of a DECLARED id (table row) -- a bare prose
         # mention like "fr-001 and nfr-002" is a citation, not a declaration

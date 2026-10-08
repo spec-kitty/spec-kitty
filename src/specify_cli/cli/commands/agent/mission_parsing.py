@@ -64,7 +64,7 @@ def _parse_wp_sections_from_tasks_md(tasks_content: str) -> dict[str, str]:
     return sections
 
 
-def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[str]]:
+def _parse_requirement_refs_from_tasks_md(tasks_content: str, *, mission_type: str = "software-dev") -> dict[str, list[str]]:
     """Parse requirement references per WP from tasks.md content."""
     requirement_refs: dict[str, list[str]] = {}
 
@@ -76,17 +76,17 @@ def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[
             re.IGNORECASE,
         )
         for match in ref_line_matches:
-            refs.extend(str(requirement_id) for requirement_id in grammar.find_all(match, spec_scan=False))
+            refs.extend(str(requirement_id) for requirement_id in grammar.find_all(match, spec_scan=False, mission_type=mission_type))
         requirement_refs[wp_id] = list(dict.fromkeys(refs))
 
     return requirement_refs
 
 
-def _parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str]]:
+def _parse_requirement_ids_from_spec_md(spec_content: str, *, mission_type: str = "software-dev") -> dict[str, list[str]]:
     """Parse requirement IDs from spec.md content."""
     from specify_cli.requirement_mapping import parse_requirement_ids_from_spec_md
 
-    return parse_requirement_ids_from_spec_md(spec_content)
+    return parse_requirement_ids_from_spec_md(spec_content, mission_type=mission_type)
 
 
 def _find_undeclared_requirement_citations(spec_content: str) -> list[str]:

@@ -143,6 +143,27 @@ def test_research_refs_validate_without_fake_fr(tmp_path: Path) -> None:
     assert "QR-001" in json.loads(result.output)["unmapped_functional_requirements"]
 
 
+def test_research_keeps_shared_constraint_and_success_criterion_ids(tmp_path: Path) -> None:
+    spec = """# Research
+
+## Research Requirements
+
+- **DR-001**: Collect records.
+- **AR-001**: Analyze records.
+- **QR-001**: Check evidence.
+- **C-001**: Retain consent.
+- **SC-001**: Publish a report.
+- **NFR-001**: Protect records.
+"""
+    mission = _seed_mission(tmp_path, spec_md=spec, wp_refs={"WP01": ["DR-001", "AR-001", "QR-001", "C-001", "SC-001", "NFR-001"]}, mission_type="research")
+    result = _invoke_finalize(tmp_path, mission, validate_only=True)
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["parsed_spec_ids"]["constraint"] == ["C-001"]
+    assert payload["parsed_spec_ids"]["non_functional"] == ["NFR-001"]
+    assert payload["parsed_spec_ids"]["success_criteria"] == ["SC-001"]
+
+
 def _invoke_finalize(tmp_path: Path, feature_dir: Path, *, validate_only: bool = False):
     """Invoke the real ``finalize-tasks`` typer command (never the phase helpers)."""
     args = ["finalize-tasks", "--json", "--target-branch", "main"]

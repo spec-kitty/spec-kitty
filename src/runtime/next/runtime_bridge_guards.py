@@ -309,7 +309,10 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
         )
 
         spec_content = spec_md.read_text(encoding="utf-8")
-        spec_ids = parse_requirement_ids_from_spec_md(spec_content)
+        from specify_cli.mission import get_mission_type
+
+        mission_type = get_mission_type(feature_dir)
+        spec_ids = parse_requirement_ids_from_spec_md(spec_content, mission_type=mission_type)
         all_spec_requirement_ids = set(spec_ids["all"])
         functional_requirement_ids = set(spec_ids["functional"])
 
@@ -328,7 +331,7 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
         if wps_manifest is None:
             tasks_md = feature_dir / _cores.TASKS_ARTIFACT
             if tasks_md.exists():
-                tasks_md_refs = _cores._parse_requirement_refs_from_tasks_md(tasks_md.read_text(encoding="utf-8"), grammar=grammar)
+                tasks_md_refs = _cores._parse_requirement_refs_from_tasks_md(tasks_md.read_text(encoding="utf-8"), grammar=grammar, mission_type=mission_type)
                 for wp_id, refs in tasks_md_refs.items():
                     if refs and not wp_requirement_refs.get(wp_id):
                         wp_requirement_refs[wp_id] = refs
@@ -343,6 +346,7 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
         wp_requirement_refs={wp_id: tuple(refs) for wp_id, refs in wp_requirement_refs.items()},
         feature_dir_name=feature_dir.name,
         grammar=grammar,
+        mission_type=mission_type,
     )
     return _cores._evaluate_requirement_mapping(facts)
 

@@ -81,6 +81,7 @@ class MappingRequest:
     # shell (``find_bare_prose_requirement_ids`` over spec.md's raw text) --
     # ``plan_mapping`` never touches raw spec text itself (INV-4 pure/no-I/O).
     bare_prose_requirement_ids: frozenset[str] = frozenset()
+    mission_type: str = "software-dev"
 
 
 @dataclass(frozen=True)
@@ -211,7 +212,7 @@ def _replaced_items_removed(existing: list[str], written: list[str]) -> list[str
     return [item for item in existing if _dedup_key(item) not in written_keys]
 
 
-def _classify_new_ref_offenders(all_new_refs: list[str], declared: frozenset[str]) -> MappingOffenders:
+def _classify_new_ref_offenders(all_new_refs: list[str], declared: frozenset[str], mission_type: str = "software-dev") -> MappingOffenders:
     """The PRE-write offender buckets, one grammar verdict per new ref (FR-010/FR-019).
 
     Routes every new ref through the single grammar authority
@@ -225,7 +226,7 @@ def _classify_new_ref_offenders(all_new_refs: list[str], declared: frozenset[str
     malformed: list[str] = []
     unknown: list[str] = []
     for ref in all_new_refs:
-        verdict = grammar.classify(ref, declared)
+        verdict = grammar.classify(ref, declared, mission_type=mission_type)
         if isinstance(verdict, grammar.Rejected):
             if verdict.reason == grammar.MALFORMED:
                 malformed.append(verdict.raw)
@@ -245,7 +246,7 @@ def plan_mapping(req: MappingRequest) -> MappingPlan:
     original positions.
     """
     all_new_refs = [ref for refs in req.new_mappings.values() for ref in refs]
-    offenders = _classify_new_ref_offenders(all_new_refs, req.spec_all_ids)
+    offenders = _classify_new_ref_offenders(all_new_refs, req.spec_all_ids, req.mission_type)
 
     to_write: dict[str, list[str]] = {}
     replaced_refs_removed: dict[str, list[str]] = {}
