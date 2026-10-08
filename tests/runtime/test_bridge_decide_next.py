@@ -61,9 +61,8 @@ _DN_SYMBOLS = (
     "_dn_dependency_gate",
     "_dn_composition_blocked_decision",
     "_dn_composition_dispatch",
-    "_dn_capture_pre_speculative_state",
-    "_dn_rollback_buffered_run_state",
-    "_dn_terminal_retrospective_gate",
+    "_dn_advance_composition_or_refusal",
+    "_retrospective_gate_refused_decision",
     "_dn_decision_materialize",
 )
 
@@ -93,8 +92,7 @@ def _make_ctx(
     phase-local unit tests. ``sync_emitter``/``emitter_for_engine`` are
     opaque sentinels (``Any``) — the phases under test only forward them to
     stubbed collaborators, never call methods on them directly (except
-    ``decision-materialize``'s own buffer-flush target, exercised with a
-    real ``_BufferingRuntimeEmitter`` in its own tests below)."""
+    the emitter handed to the engine)."""
     feature_dir = tmp_path / "kitty-specs" / "042-mission"
     feature_dir.mkdir(parents=True, exist_ok=True)
     (feature_dir / "meta.json").write_text(json.dumps({"mission_type": "software-dev"}), encoding="utf-8")
@@ -148,6 +146,18 @@ def _stub_composition_plan(monkeypatch: pytest.MonkeyPatch) -> list[tuple[Any, .
 
     monkeypatch.setattr(_engine_adapter, "plan_advance", _plan)
     return calls
+
+
+def _engine_returning(decision: NextDecision) -> Any:
+    """Fake ``runtime_next_step``: like the engine, it calls the abort-only
+    ``before_run_completed`` guard on the transition into terminal."""
+
+    def _step(run_ref: Any, *, agent_id: str, result: str, emitter: Any, before_run_completed: Any = None) -> NextDecision:
+        if decision.kind == "terminal" and before_run_completed is not None:
+            before_run_completed()
+        return decision
+
+    return _step
 
 
 def _raising(*_args: Any, **_kwargs: Any) -> Any:
@@ -850,63 +860,7 @@ def test_composition_dispatch_blocks_on_an_unresolvable_significance_configurati
 
 
 # ---------------------------------------------------------------------------
-# 6. _dn_capture_pre_speculative_state / _dn_rollback_buffered_run_state
-# ---------------------------------------------------------------------------
-
-
-def test_capture_pre_speculative_state_reads_existing_files(tmp_path: Path) -> None:
-    run_dir = tmp_path / "run"
-    run_dir.mkdir()
-    (run_dir / "state.json").write_bytes(b'{"a": 1}')
-    (run_dir / "run.events.jsonl").write_bytes(b"event-1\nevent-2\n")
-
-    captured = rb._dn_capture_pre_speculative_state(run_dir)
-
-    assert captured == (b'{"a": 1}', len(b"event-1\nevent-2\n"))
-
-
-def test_capture_pre_speculative_state_defaults_when_files_absent(tmp_path: Path) -> None:
-    run_dir = tmp_path / "run"
-    run_dir.mkdir()
-
-    captured = rb._dn_capture_pre_speculative_state(run_dir)
-
-    assert captured == (None, 0)
-
-
-def test_capture_pre_speculative_state_returns_none_on_os_error(tmp_path: Path) -> None:
-    run_dir = tmp_path / "run"
-    run_dir.mkdir()
-    # A directory in place of state.json makes .read_bytes() raise OSError.
-    (run_dir / "state.json").mkdir()
-
-    assert rb._dn_capture_pre_speculative_state(run_dir) is None
-
-
-def test_rollback_buffered_run_state_restores_bytes_and_truncates_events(tmp_path: Path) -> None:
-    run_dir = tmp_path / "run"
-    run_dir.mkdir()
-    (run_dir / "state.json").write_bytes(b'{"post": true}')
-    (run_dir / "run.events.jsonl").write_bytes(b"event-1\nevent-2\n")
-
-    rb._dn_rollback_buffered_run_state(run_dir, b'{"pre": true}', len(b"event-1\n"))
-
-    assert (run_dir / "state.json").read_bytes() == b'{"pre": true}'
-    assert (run_dir / "run.events.jsonl").read_bytes() == b"event-1\n"
-
-
-def test_rollback_buffered_run_state_is_a_noop_when_nothing_was_captured(tmp_path: Path) -> None:
-    run_dir = tmp_path / "run"
-    run_dir.mkdir()
-    # No pre-existing files at all; both pre_* values are their "absent" sentinels.
-    rb._dn_rollback_buffered_run_state(run_dir, None, None)
-
-    assert not (run_dir / "state.json").exists()
-    assert not (run_dir / "run.events.jsonl").exists()
-
-
-# ---------------------------------------------------------------------------
-# 7. _dn_decision_materialize (+ _dn_terminal_retrospective_gate)
+# 7. _dn_decision_materialize (+ the retrospective gate as the engine hook)
 # ---------------------------------------------------------------------------
 
 
@@ -925,62 +879,15 @@ def test_decision_materialize_returns_blocked_when_engine_raises(tmp_path: Path,
     assert decision.reason == "Runtime engine error: engine boom"
 
 
-def test_decision_materialize_returns_blocked_when_pre_state_capture_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    ctx = _make_ctx(tmp_path)
-    (ctx.run_dir / "state.json").mkdir()  # forces _dn_capture_pre_speculative_state -> None
-    policy = SimpleNamespace(enabled=True, timing="before_completion", failure_policy="block")
-    monkeypatch.setattr(_retrospective_seam, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (policy, {}, None))
-    monkeypatch.setattr(rb, "runtime_next_step", _raising)
-
-    decision = rb._dn_decision_materialize(ctx)
-
-    assert decision.kind == DecisionKind.blocked
-    assert decision.reason is not None
-    assert "Cannot read run state.json" in decision.reason
-
-
-def test_decision_materialize_rolls_back_state_on_retrospective_gate_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    ctx = _make_ctx(tmp_path)
-    state_path = ctx.run_dir / "state.json"
-    events_path = ctx.run_dir / "run.events.jsonl"
-    state_path.write_text('{"pre": true}')
-    events_path.write_text("event-1\n")
-
-    policy = SimpleNamespace(enabled=True, timing="before_completion", failure_policy="block")
-    monkeypatch.setattr(_retrospective_seam, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (policy, {}, None))
-
-    def _fake_runtime_next_step(run_ref: Any, *, agent_id: str, result: str, emitter: Any) -> NextDecision:
-        # Simulate the engine's speculative write before returning terminal —
-        # this is exactly what the real engine would do to state.json /
-        # run.events.jsonl during the advance the gate is about to refuse.
-        state_path.write_text('{"post": true}')
-        events_path.write_text("event-1\nevent-2\n")
-        return NextDecision(kind="terminal", run_id="run-042", mission_key="042-mission")
-
-    monkeypatch.setattr(rb, "runtime_next_step", _fake_runtime_next_step)
-
-    def _raising_capture(**_kw: Any) -> None:
-        raise RuntimeError("gate refused")
-
-    monkeypatch.setattr(_retrospective_seam, "_run_retrospective_learning_capture", _raising_capture)
-    monkeypatch.setattr(_retrospective_seam, "_resolve_mission_id_for_terminus", lambda feature_dir: "mission-id")
-
-    decision = rb._dn_decision_materialize(ctx)
-
-    assert decision.kind == DecisionKind.blocked
-    assert decision.reason == "Retrospective gate refused completion: gate refused"
-    assert state_path.read_text() == '{"pre": true}'
-    assert events_path.read_bytes() == b"event-1\n"
-
-
-def test_decision_materialize_flushes_buffer_and_materializes_after_gate_passes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_decision_materialize_runs_the_blocking_gate_as_the_engine_guard_then_materializes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _make_ctx(tmp_path)
     policy = SimpleNamespace(enabled=True, timing="before_completion", failure_policy="block")
     monkeypatch.setattr(_retrospective_seam, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (policy, {}, None))
 
     runtime_decision = NextDecision(kind="terminal", run_id="run-042", mission_key="042-mission")
-    monkeypatch.setattr(rb, "runtime_next_step", lambda run_ref, *, agent_id, result, emitter: runtime_decision)
-    monkeypatch.setattr(_retrospective_seam, "_run_retrospective_learning_capture", lambda **kw: None)
+    monkeypatch.setattr(rb, "runtime_next_step", _engine_returning(runtime_decision))
+    captures: list[bool] = []
+    monkeypatch.setattr(_retrospective_seam, "_run_retrospective_learning_capture", lambda **kw: captures.append(kw["block_on_failure"]))
     monkeypatch.setattr(_retrospective_seam, "_resolve_mission_id_for_terminus", lambda feature_dir: "mission-id")
 
     sentinel = _sentinel_decision("terminal-sentinel")
@@ -995,6 +902,7 @@ def test_decision_materialize_flushes_buffer_and_materializes_after_gate_passes(
     result = rb._dn_decision_materialize(ctx)
 
     assert result is sentinel
+    assert captures == [True], "the blocking gate runs once, as the engine's before_run_completed guard"
     assert calls == [
         (
             runtime_decision,
@@ -1018,7 +926,7 @@ def test_decision_materialize_fires_non_blocking_retrospective_after_terminal(tm
     monkeypatch.setattr(_retrospective_seam, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (policy, {}, None))
 
     runtime_decision = NextDecision(kind="terminal", run_id="run-042", mission_key="042-mission")
-    monkeypatch.setattr(rb, "runtime_next_step", lambda run_ref, *, agent_id, result, emitter: runtime_decision)
+    monkeypatch.setattr(rb, "runtime_next_step", _engine_returning(runtime_decision))
     monkeypatch.setattr(_retrospective_seam, "_resolve_mission_id_for_terminus", lambda feature_dir: "mission-id")
 
     calls: list[dict[str, Any]] = []
@@ -1051,7 +959,7 @@ def test_decision_materialize_skips_retrospective_for_non_terminal_decision(tmp_
     monkeypatch.setattr(_retrospective_seam, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (policy, {}, None))
 
     runtime_decision = NextDecision(kind="step", run_id="run-042", mission_key="042-mission", step_id="implement")
-    monkeypatch.setattr(rb, "runtime_next_step", lambda run_ref, *, agent_id, result, emitter: runtime_decision)
+    monkeypatch.setattr(rb, "runtime_next_step", _engine_returning(runtime_decision))
     monkeypatch.setattr(_retrospective_seam, "_run_retrospective_learning_capture", _raising)
     monkeypatch.setattr(_retrospective_seam, "_resolve_mission_id_for_terminus", _raising)
 

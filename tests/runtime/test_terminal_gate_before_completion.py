@@ -136,8 +136,7 @@ class _Run:
         self.gate_calls = 0
         #: run files as seen by the gate when it ran
         self.seen_by_gate: list[tuple[bytes, bytes]] = []
-        #: bytes other writers left, captured right before the engine is asked to advance
-        self.foreign_state: bytes = b""
+        #: bytes other writers left in the events log, captured right before the engine is asked to advance
         self.foreign_events: bytes = b""
         self.append_foreign_in_gate = False
         self.gate_failure: Exception = RuntimeError("gate refused")
@@ -244,10 +243,8 @@ def test_allowed_terminal_step_completes_after_the_gate(tmp_path: Path, monkeypa
 
 
 def _gate_decision(code: str = "no_record", detail: str = "no retrospective record") -> Any:
-    from specify_cli.retrospective.gate import GateDecision, GateReason
-    from specify_cli.retrospective.schema import Mode
-
-    return GateDecision(allow_completion=False, mode=Mode(kind="autonomous", source=SimpleNamespace(kind="flag")), reason=GateReason(code=code, detail=detail))
+    """The part of a ``GateDecision`` the refusal reads: ``reason.code`` / ``reason.detail``."""
+    return SimpleNamespace(allow_completion=False, reason=SimpleNamespace(code=code, detail=detail))
 
 
 def _refusal_causes() -> list[Callable[[], Exception]]:

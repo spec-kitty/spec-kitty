@@ -150,17 +150,20 @@ def _seed_emitter(sync_emitter: RuntimeEventEmitter, snapshot: Any) -> None:
     seed_runtime_emitter(sync_emitter, snapshot)
 
 
-class _TerminalRetrospective:
-    """The composition path's retrospective gate around ``MissionRunCompleted``.
+class TerminalRetrospective:
+    """The retrospective gate around ``MissionRunCompleted``, shared by the legacy
+    ``next_step`` / ``commit_advance`` paths and the composition path.
 
     The policy is resolved lazily, on the first terminal call, so a
     non-terminal advance never reads it. :meth:`before_run_completed` is the
-    engine's abort-only guard: under a blocking policy it raises the policy
-    error, if any, else runs the blocking capture (a raising capture aborts
-    the commit before anything is written: no event, no emission, no
-    ``state.json``).
+    engine's abort-only guard, called only on the transition into terminal:
+    under a blocking policy it runs the policy error, if any, else the blocking
+    capture, and maps any failure to the one typed
+    :class:`RetrospectiveGateRefused`. The engine then aborts the commit before
+    anything is written: no event, no emission, no ``state.json``.
     :meth:`after_run_completed` runs the non-blocking capture once the commit
-    has returned.
+    has returned, and only when the guard was reached, so a re-poll of an
+    already-terminal run captures nothing.
 
     owned-checkout-lifecycle-authority WP11 (FR-009): retrospective policy is
     a P-local governance read for an owned mission, so ``config_root`` is the
@@ -172,6 +175,7 @@ class _TerminalRetrospective:
         self._mission_slug = mission_slug
         self._feature_dir = feature_dir
         self._resolved: tuple[bool, bool, Exception | None, str] | None = None
+        self._reached_terminal = False
 
     def _resolve(self) -> tuple[bool, bool, Exception | None, str]:
         if self._resolved is None:
@@ -194,13 +198,19 @@ class _TerminalRetrospective:
         )
 
     def before_run_completed(self) -> None:
-        enabled, blocking, policy_error, mission_id = self._resolve()
-        if enabled and blocking:
-            if policy_error is not None:
-                raise policy_error
-            self._capture(mission_id, block_on_failure=True)
+        self._reached_terminal = True
+        try:
+            enabled, blocking, policy_error, mission_id = self._resolve()
+            if enabled and blocking:
+                if policy_error is not None:
+                    raise policy_error
+                self._capture(mission_id, block_on_failure=True)
+        except Exception as exc:
+            raise _retrospective.RetrospectiveGateRefused(exc) from exc
 
     def after_run_completed(self) -> None:
+        if not self._reached_terminal:
+            return
         enabled, blocking, _policy_error, mission_id = self._resolve()
         if enabled and not blocking:
             self._capture(mission_id, block_on_failure=False)
@@ -238,7 +248,7 @@ def advance_run_state_after_composition(
       This function never plans or resolves on its own.
     * The emitter is seeded from the persisted run before the first emit.
     * The retrospective gate around ``MissionRunCompleted``
-      (:class:`_TerminalRetrospective`): the blocking capture is the engine's
+      (:class:`TerminalRetrospective`): the blocking capture is the engine's
       ``before_run_completed`` guard, the non-blocking capture runs after the
       commit returned.
 
@@ -258,14 +268,13 @@ def advance_run_state_after_composition(
         )
     _seed_emitter(sync_emitter, _read_snapshot(Path(run_ref.run_dir)))
 
-    retrospective = _TerminalRetrospective(
+    retrospective = TerminalRetrospective(
         config_root=owned.owned_root if owned is not None else repo_root,
         mission_slug=mission_slug,
         feature_dir=feature_dir,
     )
     commit_advance(run_ref, plan, agent, sync_emitter, before_run_completed=retrospective.before_run_completed)
-    if plan.decision.kind == "terminal" and plan.completed_step_id is not None:
-        retrospective.after_run_completed()
+    retrospective.after_run_completed()
 
     return _mapping._map_runtime_decision(
         plan.decision,

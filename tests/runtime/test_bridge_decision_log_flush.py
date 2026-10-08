@@ -9,7 +9,7 @@ emitter (``ctx.emitter_for_engine``), so a ``DecisionInputRequested``
 raised on those paths never reached
 ``kitty-specs/<mission>/decisions.events.jsonl``:
 
-* F1 — the strict-retrospective-policy buffer flush
+* F1 — the strict-retrospective-policy path
   (``_dn_decision_materialize``).
 * F2 — composition dispatch (``_dn_composition_dispatch`` ->
   ``advance_run_state_after_composition``).
@@ -215,7 +215,7 @@ def _install_decision_required_engine(monkeypatch: pytest.MonkeyPatch) -> None:
     """Fake ``runtime_next_step``: one non-decision moment, then the decision
     request, into whichever emitter the bridge hands it."""
 
-    def fake_next_step(run_ref: MissionRunRef, *, agent_id: str, result: str, emitter: Any) -> NextDecision:
+    def fake_next_step(run_ref: MissionRunRef, *, agent_id: str, result: str, emitter: Any, before_run_completed: Any = None) -> NextDecision:
         emitter.emit_next_step_auto_completed(SimpleNamespace(run_id=run_ref.run_id, step_id="plan"))
         emitter.emit_decision_input_requested(_requested_payload(run_id=run_ref.run_id))
         return _decision_required(run_ref.run_id)
@@ -234,17 +234,16 @@ def test_fixture_policy_is_strict() -> None:
 
 @pytest.mark.usefixtures("strict_bridge")
 def test_strict_policy_decision_required_reaches_decision_log(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """F1: under the strict retrospective policy the engine writes into the
-    buffer; the flush must replay into the decision-log wrap, not the plain
-    seam. F5: the buffered non-decision moment still reaches ``inner``, in
-    original order, exactly once."""
+    """F1: under the strict retrospective policy the engine emits into the
+    decision-log wrap, not the plain seam. F5: the non-decision moment still
+    reaches ``inner``, in original order, exactly once."""
     h = _Harness(tmp_path)
     _install_decision_required_engine(monkeypatch)
 
     decision = rb._dn_decision_materialize(h.ctx)
 
     assert decision.kind == DecisionKind.decision_required
-    assert h.request_count() == 1, "buffered DecisionInputRequested must be appended to the decision log exactly once"
+    assert h.request_count() == 1, "DecisionInputRequested must be appended to the decision log exactly once"
     assert h.inner.calls == ["emit_next_step_auto_completed", "emit_decision_input_requested"]
     assert h.plain.calls == [], "the plain seam must not be the flush target"
 
@@ -309,12 +308,14 @@ def test_composition_dispatch_decision_required_reaches_decision_log(monkeypatch
 
 @pytest.mark.usefixtures("strict_bridge")
 def test_strict_policy_refused_terminal_gate_writes_nothing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """F3: when the strict gate refuses a terminal advance, the buffer is
-    discarded — zero decision-log writes, no ``MissionRunCompleted`` released
-    to any sink — and run state is rolled back."""
+    """F3: the strict gate runs as the engine's guard BEFORE the engine emits
+    anything, so a refusal leaves zero decision-log writes and no
+    ``MissionRunCompleted`` on any sink (the fake engine's emits after the
+    guard are never reached)."""
     h = _Harness(tmp_path)
 
-    def fake_terminal_step(run_ref: MissionRunRef, *, agent_id: str, result: str, emitter: Any) -> NextDecision:
+    def fake_terminal_step(run_ref: MissionRunRef, *, agent_id: str, result: str, emitter: Any, before_run_completed: Any = None) -> NextDecision:
+        before_run_completed()
         emitter.emit_decision_input_requested(_requested_payload(run_id=run_ref.run_id))
         emitter.emit_mission_run_completed(SimpleNamespace(run_id=run_ref.run_id))
         return NextDecision(kind="terminal", run_id=run_ref.run_id, mission_key=MISSION_TYPE)
@@ -322,17 +323,14 @@ def test_strict_policy_refused_terminal_gate_writes_nothing(monkeypatch: pytest.
     def refuse(**kwargs: Any) -> None:
         raise RuntimeError("gate refused")
 
-    rollbacks: list[tuple[Any, ...]] = []
     monkeypatch.setattr(rb, "runtime_next_step", fake_terminal_step)
     monkeypatch.setattr(_retrospective_seam, "_run_retrospective_learning_capture", refuse)
-    monkeypatch.setattr(rb, "_dn_rollback_buffered_run_state", lambda *args: rollbacks.append(args))
 
     decision = rb._dn_decision_materialize(h.ctx)
 
     assert decision.kind == DecisionKind.blocked
     assert "gate refused" in (decision.reason or "")
     assert h.request_count() == 0, "a refused gate must not write to the decision log"
-    assert rollbacks == [(h.run_dir, b"{}", 0)]
     assert "emit_mission_run_completed" not in h.inner.calls
     assert h.inner.calls == []
     assert h.plain.calls == []
@@ -341,25 +339,15 @@ def test_strict_policy_refused_terminal_gate_writes_nothing(monkeypatch: pytest.
 @pytest.mark.usefixtures("strict_bridge")
 def test_gated_flush_does_not_duplicate(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """F4 / NFR-004: one gated ``decision_required`` advance yields exactly one
-    decision-log entry, and the one-shot buffer cannot replay a second time."""
+    decision-log entry. The engine emits straight into the decision-log wrap,
+    so there is no buffer that could replay a second time."""
     h = _Harness(tmp_path)
     _install_decision_required_engine(monkeypatch)
-    buffers: list[Any] = []
-
-    class _SpyBuffer(_retrospective_seam._BufferingRuntimeEmitter):
-        def __init__(self) -> None:
-            super().__init__()
-            buffers.append(self)
-
-    monkeypatch.setattr(_retrospective_seam, "_BufferingRuntimeEmitter", _SpyBuffer)
 
     rb._dn_decision_materialize(h.ctx)
 
     assert h.request_count() == 1
-    assert len(buffers) == 1  # (exactly one buffer per gated advance)
-    buffers[0].flush(h.log)
-    assert h.request_count() == 1, "re-flushing the one-shot buffer must not duplicate the entry"
-    assert buffers[0].call_count() == 0
+    assert h.inner.calls == ["emit_next_step_auto_completed", "emit_decision_input_requested"]
 
 
 @pytest.mark.parametrize("seed_mode", ["missing", "raises", "lookup_raises"])
