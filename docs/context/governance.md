@@ -2,7 +2,7 @@
 title: 'Context: Governance'
 description: 'Glossary context for governance: rule ownership, precedence, and policy controls in Spec Kitty, including the charter and doctrine-selection terms.'
 doc_status: active
-updated: '2026-06-05'
+updated: '2026-10-08'
 related:
 - docs/context/configuration-project-structure.md
 - docs/context/charter.md
@@ -16,7 +16,7 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 
 | | |
 |---|---|
-| **Definition** | Project-level policy document that captures the HiC's operating constraints, quality rules, and doctrine selections for a repository. Compiled from interview answers and doctrine catalog choices. |
+| **Definition** | Project-level policy document that captures the HiC's operating constraints, quality rules, and active charter for a repository. Compiled from interview answers and charter offering choices. |
 | **Context** | Governance |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -76,7 +76,7 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 
 | | |
 |---|---|
-| **Definition** | A guided question-and-answer process that walks the HiC through their project's preferences, constraints, and doctrine selections. Answers are saved to `answers.yaml` and used to compile the charter. |
+| **Definition** | A guided question-and-answer process that walks the HiC through their project's preferences, constraints, and artifact selections. Answers are saved to `answers.yaml` and used to compile the charter. |
 | **Context** | Governance |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -92,7 +92,7 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 | **Context** | Governance |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Charter](#charter), [Charter Interview](#charter-interview), [Doctrine Catalog](./charter.md#doctrine-catalog) |
+| **Related terms** | [Charter](#charter), [Charter Interview](#charter-interview), [Charter offering](./charter.md#doctrine-catalog) |
 
 ---
 
@@ -100,11 +100,11 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 
 | | |
 |---|---|
-| **Definition** | The result of checking the HiC's charter selections against available doctrine catalogs — confirming that the referenced paradigms, directives, and tools actually exist and are compatible with each other. |
+| **Definition** | The result of checking the HiC's active charter against the charter offering — confirming that the referenced paradigms, directives, and tools actually exist and are compatible with each other. |
 | **Context** | Governance |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Charter Compiler](#charter-compiler), [Doctrine Catalog](./charter.md#doctrine-catalog) |
+| **Related terms** | [Charter Compiler](#charter-compiler), [Charter offering](./charter.md#doctrine-catalog) |
 
 ---
 
@@ -112,7 +112,7 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 
 | | |
 |---|---|
-| **Definition** | The single activation filter applied by `charter.resolver.DoctrineService` (the activation-aware wrapper). It enforces the project charter's per-kind activation state on a doctrine service's `paradigms`, `procedures`, and `agent_profiles` surfaces, so every profile-resolving path passes through one consistent filter rather than re-implementing activation logic. The factory `specify_cli.doctrine_service_factory.build_activation_aware_doctrine_service` is the single construction seam that routes callers through this chokepoint. |
+| **Definition** | The single activation filter applied by `charter.activation.resolver.ActiveCharterService` (the activation-aware wrapper). It enforces the project charter's per-kind activation state on a doctrine service's `paradigms`, `procedures`, and `agent_profiles` surfaces, so every profile-resolving path passes through one consistent filter rather than re-implementing activation logic. The factory `charter.activation.active_charter_service_builder.build_active_charter_service` is the single construction seam that routes callers through this chokepoint. |
 | **Context** | Governance |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
@@ -124,7 +124,7 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 
 | | |
 |---|---|
-| **Definition** | An **available** profile is any agent profile present in a doctrine layer (built-in, org pack, or project). An **activated** profile is an available profile that the project charter has explicitly turned on via `activated_agent_profiles`. Three-state semantics: when the key is absent, every available profile is activated; an explicit empty set activates none; an explicit set activates only the listed IDs. Only activated profiles are directly selectable by default surfaces; available-but-not-activated profiles surface only under `--all`/`--show-available`. |
+| **Definition** | An **available** profile is any agent profile present in a layer of the charter offering (built-in, org pack, or project layer). An **activated** profile is an available profile that the project charter has explicitly turned on via `activated_agent_profiles`. Three-state semantics: when the key is absent, every available profile is activated; an explicit empty set activates none; an explicit set activates only the listed IDs. Only activated profiles are directly selectable by default surfaces; available-but-not-activated profiles surface only under `--all`/`--show-available`. |
 | **Context** | Governance |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
