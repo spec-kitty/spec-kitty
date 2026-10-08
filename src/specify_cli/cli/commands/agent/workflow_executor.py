@@ -233,9 +233,14 @@ def _sync_lane_or_revert(
                 # is the finished state (still restore status.json); a non-empty one must be
                 # exactly the claim's rows, so a foreign row makes the rollback refuse.
                 reverted = appended_event_ids(rollback_point) == []
-                outcome = w._restore_status_artifacts(
-                    rollback_point=rollback_point, repo_root=repo_root, expected_event_ids=None if reverted else claim_event_ids
-                )
+                if reverted or claim_event_ids is not None:
+                    outcome = w._restore_status_artifacts(
+                        rollback_point=rollback_point, repo_root=repo_root, expected_event_ids=None if reverted else claim_event_ids
+                    )
+                else:
+                    # The claim's rows could not be read as whole rows while the lock was held, so
+                    # there is no ownership proof for what follows the capture point: cut nothing.
+                    outcome = RollbackOutcome(rolled_back=False, refusal=RollbackRefusal.TAIL_UNPARSEABLE, events_path=rollback_point.events_path)
             # A rows-still-committed tail means the revert left the claim in place: the
             # output says "committed", so the receipt stays committed too.
             if outcome.refusal is not RollbackRefusal.TAIL_ALREADY_COMMITTED:

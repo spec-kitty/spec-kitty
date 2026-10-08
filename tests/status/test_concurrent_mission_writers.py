@@ -41,7 +41,7 @@ import specify_cli.cli.commands.agent.workflow as workflow
 import specify_cli.cli.commands.agent.workflow_executor as workflow_executor
 import specify_cli.status.locking as locking
 from specify_cli import app as root_app
-from specify_cli.status import STATUS_ROLLBACK_REFUSED, RollbackPoint, capture_rollback_point, mission_write_lock
+from specify_cli.status import STATUS_ROLLBACK_REFUSED, RollbackPoint, RollbackRefusal, capture_rollback_point, mission_write_lock
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.lanes.compute import PLANNING_LANE_ID
 from specify_cli.lanes.models import ExecutionLane
@@ -679,6 +679,27 @@ def test_lane_sync_refusal_keeps_a_row_a_foreign_writer_appended_during_the_sync
 
     assert STATUS_ROLLBACK_REFUSED in capsys.readouterr().out
     assert claimed.events.read_text(encoding="utf-8") == _claim_row("before") + _claim_row("claim") + _claim_row("foreign")
+
+
+def test_lane_sync_refusal_cuts_nothing_when_the_claim_rows_were_unreadable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """No ownership proof (the tail was torn while the lock was held) means no cut, even if the tail is whole by rollback time."""
+    claimed = _claim_repo(tmp_path, commit_claim=False)
+    with claimed.events.open("a", encoding="utf-8") as fh:
+        fh.write('{"event_id": "foreign"')  # torn: no closing brace, no newline
+
+    def _foreign_writer_completes_the_row() -> None:
+        with mission_write_lock(claimed.feature_dir, repo_root=claimed.repo, timeout=2.0), claimed.events.open("a", encoding="utf-8") as fh:
+            fh.write("}\n")
+
+    _coord_claim_with_slow_lane_sync(claimed, monkeypatch, _foreign_writer_completes_the_row)
+
+    with pytest.raises(typer.Exit):
+        _commit_releasing_lock_for_lane_sync(claimed)
+
+    assert RollbackRefusal.TAIL_UNPARSEABLE.value in capsys.readouterr().out
+    assert claimed.events.read_text(encoding="utf-8") == _claim_row("before") + _claim_row("claim") + '{"event_id": "foreign"}\n'
 
 
 def test_claim_wrappers_hand_the_body_a_release_for_the_mission_lock(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
