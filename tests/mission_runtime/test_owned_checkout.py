@@ -222,6 +222,10 @@ def test_files_accepts_link_inside_mission_pointing_outside(tmp_path: Path) -> N
     assert result[0].is_symlink()
     assert not outside_target.is_relative_to(mission)
 
+    # The resolve-time escape screen follows the link and refuses the same path.
+    with pytest.raises(OwnedCheckoutPathRefused):
+        fact.files([Path("kitty-specs") / mission.name / "escape.md"], follow_links=True)
+
 
 def test_files_refuses_link_located_outside_via_symlinked_parent(tmp_path: Path) -> None:
     """The link's own location decides: a parent directory that links out of the mission puts the path outside it."""
