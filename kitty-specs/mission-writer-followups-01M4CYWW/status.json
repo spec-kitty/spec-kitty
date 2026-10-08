@@ -63,7 +63,8 @@
       "last_transition_at": "2026-10-08T11:08:09.525624+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "locked_update_meta + locked setters + CAS restore_meta_text; dead setters removed; accept restamps locked. Red-first 940775817 (6 overlaps fail), 5x green, mutation check fails 6/6. Handoffs: outside owned_files edited tests/specify_cli/test_feature_metadata.py, test_mission_metadata_change_mode.py, tests/architectural/_load_meta_census.py (comment), test_status_events_writes_gate.py (lock census), bulk-edit SKILL.md example. Pre-existing red: MissionLockKeyUnresolved dead-symbol gate (WP01)."
+        "locked_update_meta + locked setters + CAS restore_meta_text; dead setters removed; accept restamps locked. Red-first 940775817 (6 overlaps fail), 5x green, mutation check fails 6/6. Handoffs: outside owned_files edited tests/specify_cli/test_feature_metadata.py, test_mission_metadata_change_mode.py, tests/architectural/_load_meta_census.py (comment), test_status_events_writes_gate.py (lock census), bulk-edit SKILL.md example. Pre-existing red: MissionLockKeyUnresolved dead-symbol gate (WP01).",
+        "Approved: locked_update_meta + 8 locked setters (flatten takes the lock itself, sole-owner ratchet), CAS restore_meta_text, accept restamps via _stamp_accept_commit, dead setters removed. Reviewer mutation (no-op mission_write_lock) fails all 6 overlaps; 15/15 x5; 836 targeted passed; warm path zero subprocess; ruff/format/mypy clean (3 mypy errors pre-existing untouched lines). Non-blocking: timed-event pause, NFR-003 test permits rev-parse instead of warming, flatten rekey window, SKILL.md loses str coercion."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
