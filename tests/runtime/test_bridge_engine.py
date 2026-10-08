@@ -661,7 +661,7 @@ class _StrictPolicy:
 def test_raising_strict_capture_aborts_before_run_completed_and_state_write(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, _stub_map_runtime_decision: _MapDecisionRecorder
 ) -> None:
-    """FR-008: the blocking capture is the engine's ``before_run_completed``
+    """FR-008: the blocking capture (any failure wrapped as RetrospectiveGateRefused) is the engine's ``before_run_completed``
     guard. When it raises, ``MissionRunCompleted`` is neither appended nor
     emitted and ``state.json`` is not written."""
     from runtime.next import runtime_bridge_retrospective as retrospective_seam
@@ -682,9 +682,10 @@ def test_raising_strict_capture_aborts_before_run_completed_and_state_write(
     monkeypatch.setattr(retrospective_seam, "_run_retrospective_learning_capture", _refuse)
     sync_emitter = _FakeSyncEmitter()
 
-    with pytest.raises(RuntimeError, match="capture refused"):
+    with pytest.raises(retrospective_seam.RetrospectiveGateRefused, match="capture refused") as refusal:
         _advance(MissionRunRef(run_id="run-strict", run_dir=str(run_dir), mission_key="software-dev"), tmp_path, sync_emitter)
 
+    assert isinstance(refusal.value.cause, RuntimeError), "the capture error is wrapped in the one typed refusal (B6)"
     assert rec.planned, "the plan_next stub never ran"
     assert rec.written == [], "state.json must not be written when the strict capture refuses"
     assert (run_dir / _STATE_FILE).read_bytes() == state_before
