@@ -37,6 +37,7 @@ from specify_cli.consolidation.baseline import MissionNumberVerificationError
 from specify_cli.consolidation.git_probes import _has_branch_ref, _is_git_repo, path_is_under_worktrees
 from specify_cli.consolidation.mission_number import is_assigned_mission_number
 from specify_cli.consolidation.state import ConsolidationState
+from kernel.git import run_git, status_entries, tree_entry
 from specify_cli.mission_metadata import load_meta, write_meta
 
 __all__ = [
@@ -53,6 +54,10 @@ __all__ = [
 # The cluster's module-logger records keep the logger name they had in
 # ``ordering.py`` (#2600 is a pure move: log labels do not change).
 logger = logging.getLogger("specify_cli.consolidation.ordering")
+
+#: Seconds before the primary ``meta.json`` ``hash-object`` probe is killed: a
+#: clean filter can block on a prompt, and a timeout is a refusal.
+_META_BLOB_PROBE_TIMEOUT_SECONDS = 60.0
 
 
 def assign_next_mission_number(target_branch_path: Path, mission_specs_dir: Path) -> int:
@@ -274,11 +279,60 @@ def _surface_unbaked_mission_number(
     )
 
 
+def _primary_checkout_refusal(main_repo: Path, rel_meta: Path, target_branch: str) -> str | None:
+    """Why the primary checkout must not receive the mission-number commit, or ``None``.
+
+    #5443 / FR-010: the commit may only land on ``target_branch`` and may only
+    carry ``meta.json``. Refuses a detached HEAD, a checkout on another
+    branch, and a ``meta.json`` that is not tracked in HEAD or already differs from it
+    (index or worktree) -- the operator's own edit is never read-modified-written.
+
+    ``git status`` alone cannot prove the worktree side: ``assume-unchanged`` and
+    ``skip-worktree`` hide an edit from it, so the worktree blob, filtered or raw,
+    must equal HEAD's entry (a CRLF blob already in HEAD under ``core.autocrlf``
+    only matches the raw hash).
+    """
+    import subprocess as _subprocess
+
+    head = _subprocess.run(
+        ["git", "symbolic-ref", "--quiet", "--short", "HEAD"],
+        cwd=str(main_repo),
+        capture_output=True,
+        text=True,
+    )
+    branch = head.stdout.strip() if head.returncode == 0 else ""
+    if not branch:
+        return "primary checkout is on a detached HEAD"
+    if branch != target_branch:
+        return f"primary checkout is on {branch!r}, not the merge target {target_branch!r}"
+    # Tracked-in-HEAD AND clean: an untracked (or gitignored) meta.json also
+    # "differs from HEAD" and carries content that is not ours to commit.
+    # A failing probe is a refusal too -- never an exception out of the bake.
+    try:
+        head_entry = tree_entry(main_repo, "HEAD", rel_meta.as_posix())
+        if head_entry is None:
+            return f"{rel_meta} is not tracked on {target_branch!r}"
+        if status_entries(main_repo, pathspecs=(rel_meta.as_posix(),), untracked="no"):
+            return f"{rel_meta} has uncommitted changes on the primary checkout"
+        rel = rel_meta.as_posix()
+        worktree_oids = {
+            run_git(main_repo, *flags, "--", rel, timeout=_META_BLOB_PROBE_TIMEOUT_SECONDS).stdout.decode("ascii").strip()
+            for flags in (("hash-object",), ("hash-object", "--no-filters"))
+        }
+        if head_entry.oid not in worktree_oids:
+            return f"{rel_meta} differs from HEAD on the primary checkout (an assume-unchanged or skip-worktree edit)"
+    except Exception as exc:  # noqa: BLE001 - any probe failure means "do not commit"
+        return f"could not verify {rel_meta} is clean on the primary checkout ({exc})"
+    return None
+
+
 def _bake_mission_number_on_primary_tree(
     main_repo: Path,
     mission_slug: str,
     mission_branch: str,
     next_number: int,
+    *,
+    target_branch: str,
 ) -> bool:
     """#4474 / FR-011 topology-aware fallback: write directly to the PRIMARY tree.
 
@@ -293,6 +347,10 @@ def _bake_mission_number_on_primary_tree(
     resolving into ``.worktrees/`` (the ``path_is_under_worktrees`` guard is
     preserved here exactly as on the mission-branch write path).
 
+    Commits exactly ``meta.json`` on ``target_branch`` via the merge-bookkeeping
+    seam; refuses (unbaked, nothing written) when the primary checkout is
+    off-target, detached, or ``meta.json`` is dirty (#5443 / FR-010).
+
     Returns:
         ``True`` when a fresh number was written and committed directly on
         ``main_repo``'s current checkout (PERSISTED -- the preferred
@@ -304,8 +362,6 @@ def _bake_mission_number_on_primary_tree(
         write lands directly on ``target_branch``, so the executor's own
         target read resolves and verifies it after the squash.
     """
-    import subprocess as _subprocess
-
     from specify_cli.missions._read_path_resolver import compose_meta_json_path as _compose_meta
 
     primary_meta_path = _compose_meta(main_repo, mission_slug)
@@ -325,6 +381,24 @@ def _bake_mission_number_on_primary_tree(
             next_number,
             reason=(f"meta.json is unreachable on both the mission branch {mission_branch!r} and the primary checkout ({primary_meta_path})"),
         )
+        return False
+
+    rel_meta = primary_meta_path.relative_to(main_repo)
+    if path_is_under_worktrees(rel_meta):
+        # FR-035: never stage a path under .worktrees/ (defense in depth).
+        _surface_unbaked_mission_number(
+            mission_slug,
+            mission_branch,
+            next_number,
+            reason=f"refusing to stage {rel_meta}: path is under {WORKTREES_DIR}",
+        )
+        return False
+
+    # #5443 / FR-010: decide BEFORE writing anything -- a refused bake must
+    # leave the operator's tree byte-identical.
+    refusal = _primary_checkout_refusal(main_repo, rel_meta, target_branch)
+    if refusal is not None:
+        _surface_unbaked_mission_number(mission_slug, mission_branch, next_number, reason=refusal)
         return False
 
     # Canonical reader (FR-005/WP12): on_malformed="none" absorbs a JSON-syntax
@@ -355,48 +429,32 @@ def _bake_mission_number_on_primary_tree(
         # ``target_branch``, so the executor's own target-read resolves it).
         return False
 
+    original = primary_meta_path.read_bytes()
     meta_data["mission_number"] = next_number
     write_meta(primary_meta_path.parent, meta_data, validate=False)
 
-    rel_meta = primary_meta_path.relative_to(main_repo)
-    if path_is_under_worktrees(rel_meta):
-        # FR-035: never stage a path under .worktrees/ (defense in depth).
-        _surface_unbaked_mission_number(
-            mission_slug,
-            mission_branch,
-            next_number,
-            reason=f"refusing to stage {rel_meta}: path is under {WORKTREES_DIR}",
-        )
-        return False
-
-    add_result = _subprocess.run(
-        ["git", "add", str(rel_meta)],
-        cwd=str(main_repo),
-        capture_output=True,
-        text=True,
-    )
-    if add_result.returncode != 0:
-        _surface_unbaked_mission_number(
-            mission_slug,
-            mission_branch,
-            next_number,
-            reason=f"git add failed on the primary checkout: {add_result.stderr.strip()}",
-        )
-        return False
+    from specify_cli.git.bookkeeping_commit import commit_merge_bookkeeping
+    from specify_cli.git.commit_helpers import SafeCommitError
 
     commit_msg = f"chore({mission_slug}): assign mission_number={next_number} (primary tree)"
-    commit_result = _subprocess.run(
-        ["git", "-c", "commit.gpgsign=false", "commit", "-m", commit_msg],
-        cwd=str(main_repo),
-        capture_output=True,
-        text=True,
-    )
-    if commit_result.returncode != 0:
+    try:
+        commit_merge_bookkeeping(
+            repo_root=main_repo,
+            worktree_root=main_repo,
+            mission_slug=mission_slug,
+            message=commit_msg,
+            paths=(rel_meta,),
+            destination_ref_override=target_branch,
+        )
+    except (SafeCommitError, RuntimeError) as exc:
+        # A race since the precheck (SafeCommitHeadMismatch) or a rejecting
+        # hook: the operator's tree must look untouched. Never retry without hooks.
+        primary_meta_path.write_bytes(original)
         _surface_unbaked_mission_number(
             mission_slug,
             mission_branch,
             next_number,
-            reason=f"git commit failed on the primary checkout: {commit_result.stderr.strip()}",
+            reason=f"bookkeeping commit refused: {exc}",
         )
         return False
 
@@ -413,6 +471,8 @@ def _write_mission_number_to_branch(
     mission_branch: str,
     mission_slug: str,
     next_number: int,
+    *,
+    target_branch: str,
 ) -> bool:
     """Step 2: write the integer into meta.json on the mission branch, commit,
     and fast-forward the branch ref.
@@ -500,6 +560,7 @@ def _write_mission_number_to_branch(
                 mission_slug,
                 mission_branch,
                 next_number,
+                target_branch=target_branch,
             )
 
         # Canonical reader (FR-005/WP12): on_malformed="none" absorbs BOTH a
@@ -544,15 +605,12 @@ def _write_mission_number_to_branch(
                 WORKTREES_DIR,
             )
             return False
-        _subprocess.run(
-            ["git", "add", str(rel_meta)],
-            cwd=str(mission_tmp_path),
-            capture_output=True,
-            check=True,
-        )
+        # C-005 recorded exception: "the mission-number commit in a fresh detached
+        # temp worktree (`commit --only -- <rel_meta>`)"; safe_commit refuses a
+        # detached HEAD. ``--only`` needs no prior ``git add``; hooks still run.
         commit_msg = f"chore({mission_slug}): assign mission_number={next_number}"
         _subprocess.run(
-            ["git", "-c", "commit.gpgsign=false", "commit", "-m", commit_msg],
+            ["git", "-c", "commit.gpgsign=false", "commit", "--only", "-m", commit_msg, "--", rel_meta.as_posix()],
             cwd=str(mission_tmp_path),
             capture_output=True,
             check=True,
@@ -717,7 +775,7 @@ def _bake_mission_number_into_mission_branch(
     # coord-topology primary-tree fallback's surfaced paths) therefore must
     # NOT discard ``next_number``: returning ``None`` here used to leave the
     # target at ``null`` with exit 0. The number is returned either way.
-    wrote = _write_mission_number_to_branch(main_repo, mission_branch, mission_slug, next_number)
+    wrote = _write_mission_number_to_branch(main_repo, mission_branch, mission_slug, next_number, target_branch=target_branch)
 
     # #4900: the "Assigned" announcement happens AFTER the target-tree
     # read-back verification (``baseline.assert_mission_number_on_target``,
