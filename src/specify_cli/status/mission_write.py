@@ -146,32 +146,8 @@ def _primary_meta(root: Path, name: str) -> Mapping[str, object]:
     own: Mapping[str, object] = load_meta_or_empty(root / KITTY_SPECS_DIR / name)
     if (root / ".git").is_dir():
         return own
-    main = _main_checkout_of_worktree(root)
-    canonical: Mapping[str, object] = load_meta_or_empty(main / KITTY_SPECS_DIR / name) if main is not None else literal_primary_meta(root, name)
+    canonical: Mapping[str, object] = literal_primary_meta(root, name)
     return canonical or own
-
-
-def _main_checkout_of_worktree(root: Path) -> Path | None:
-    """The main checkout a linked worktree at *root* belongs to, read from its ``.git`` pointer file; ``None`` when that is not a plain linked worktree.
-
-    A pure file read: no repository-root resolver is consulted, so a lock taken for an owned checkout's
-    Mission never reads the repository root through ``get_main_repo_root`` (the owned-checkout pin). The
-    pointer is ``gitdir: <common>/worktrees/<name>`` for a linked worktree, and the common directory of a
-    main checkout is ``<main>/.git``.
-    """
-    try:
-        pointer = (root / ".git").read_text(encoding="utf-8").strip()
-    except OSError:
-        return None
-    if not pointer.startswith("gitdir:"):
-        return None
-    gitdir = Path(pointer.removeprefix("gitdir:").strip())
-    if not gitdir.is_absolute():
-        gitdir = root / gitdir
-    common = gitdir.parent.parent
-    if gitdir.parent.name != "worktrees" or common.name != ".git":
-        return None
-    return common.parent
 
 
 def _is_single_segment(name: str) -> bool:
@@ -295,6 +271,7 @@ def mission_write_lock(
     * ``upgrade/migrations/m_0_13_8_target_branch.py``: ``TargetBranchMigration.apply``
     * ``upgrade/migrations/m_2_0_6_consistency_sweep.py``: the meta, work-package and ``tasks.md`` repairs
     * ``migration/backfill_ownership.py``: the work-package ownership backfill
+    * ``mission_metadata.py``: ``flatten_coordination_metadata`` (it heals a Mission whose coordination key cannot be read)
     """
     root = resolve_status_lock_root(feature_dir, repo_root)
     try:

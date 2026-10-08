@@ -125,7 +125,6 @@ from specify_cli.cli.commands.agent.mission_finalize_seams import (
     TASKS_MD_FILENAME as TASKS_MD_FILENAME,
     _OWNED_ENVELOPE_EXTRAS as _OWNED_ENVELOPE_EXTRAS,
     _bootstrap_canonical_state_via_mission as _bootstrap_canonical_state_via_mission,
-    _bootstrap_through_mission as _bootstrap_through_mission,
     _emit_json as _emit_json,
     _read_wp_frontmatter as _read_wp_frontmatter,
     _resolve_planning_branch_via_mission as _resolve_planning_branch_via_mission,
@@ -275,12 +274,10 @@ from specify_cli.cli.commands.agent.mission_finalize_commit import (
     _snapshot_mission_write_scope as _snapshot_mission_write_scope,
     _undo_finalize_write_scope as _undo_finalize_write_scope,
     _undo_one_path as _undo_one_path,
-    _STATUS_FILE_NAMES as _STATUS_FILE_NAMES,
     _ACTIVE_LEDGER as _ACTIVE_LEDGER,
     active_write_ledger as active_write_ledger,
     begin_write_ledger as begin_write_ledger,
     end_write_ledger as end_write_ledger,
-    note_status_files_written as note_status_files_written,
     _warn_missing_meta as _warn_missing_meta,
 )
 
@@ -977,6 +974,14 @@ class _FinalizeOwnershipGates:
     lane_wp_bodies: dict[str, str]
 
 
+def _lock_root_of(ctx: _FinalizeContext) -> Path:
+    """The root every Mission lock of this run is taken against: the owned fact's repository root, else the command's.
+
+    Known up front, so the lock key never consults the repository-root resolver (the owned-checkout pin).
+    """
+    return ctx.owned.repository_root if ctx.owned is not None else ctx.repo_root
+
+
 def _run_finalize_ownership_gates(
     ctx: _FinalizeContext,
     gates: _FinalizeRequirementGates,
@@ -1010,7 +1015,7 @@ def _run_finalize_ownership_gates(
     _surface_post_integration_acceptance_warnings(state, json_output=json_output)
 
     _validate_owned_files_not_in_mission_specs(state.inmemory_frontmatter, json_output=json_output)
-    _flush_frontmatter_writes(state, validate_only=validate_only, repo_root=ctx.repo_root)
+    _flush_frontmatter_writes(state, validate_only=validate_only, repo_root=_lock_root_of(ctx))
 
     # T017: Regenerate tasks.md from wps.yaml manifest (FR-008, FR-011).
     # #3221: the regeneration is a write to a tracked file, so in
@@ -1022,7 +1027,7 @@ def _run_finalize_ownership_gates(
         ctx.mission_slug,
         validate_only=validate_only,
         json_output=json_output,
-        repo_root=ctx.repo_root,
+        repo_root=_lock_root_of(ctx),
     )
 
     wp_frontmatters, wp_bodies = _gather_validation_frontmatter(gates.wp_files, state)

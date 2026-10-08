@@ -587,7 +587,13 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # transaction object; on any setup failure below, release it before
         # propagating the domain error.
         lock_root = owned.owned_root if owned is not None else repo_root
-        lock_cm = _transaction_hold(lock_root, _transaction_lock_key(lock_root, mission_slug, mid8), mission_slug, timeout, main_root=repo_root)
+        lock_cm = _transaction_hold(
+            lock_root,
+            _transaction_lock_key(owned.repository_root if owned is not None else repo_root, mission_slug, mid8),
+            mission_slug,
+            timeout,
+            main_root=repo_root,
+        )
         try:
             lock_cm.__enter__()
         except FeatureStatusLockTimeoutError as exc:

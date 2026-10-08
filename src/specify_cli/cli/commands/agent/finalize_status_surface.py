@@ -177,7 +177,7 @@ class StatusSurfaceGuard:
         self.own_paths = _own_status_paths(status_dir, root)
 
     @contextmanager
-    def recording(self) -> Iterator[None]:
+    def recording(self, *, lock_root: Path | None = None) -> Iterator[None]:
         """Wrap the run's status writes; the tip is recorded when the window closes, even on an error.
 
         The Mission's status lock is held for the whole window, and the tip is
@@ -190,9 +190,11 @@ class StatusSurfaceGuard:
         """
         root, status_dir = self.surface_root, self.status_dir
         # Keyed on ``mission_lock_key``: the key every writer of this surface locks on,
-        # under the git common dir all of the Mission's checkouts share.
+        # under the git common dir all of the Mission's checkouts share. *lock_root* is the
+        # owned fact's repository root when the run has one, so the key needs no resolver read.
+        keyed_root = lock_root or root
         lock = (
-            feature_status_lock(root, mission_lock_key(status_dir, repo_root=root), timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS)
+            feature_status_lock(keyed_root, mission_lock_key(status_dir, repo_root=keyed_root), timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS)
             if root is not None and status_dir is not None
             else nullcontext()
         )
