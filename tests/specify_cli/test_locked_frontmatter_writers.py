@@ -302,7 +302,7 @@ class _LockRecorder:
     def __init__(self, monkeypatch: pytest.MonkeyPatch) -> None:
         self.depth = 0
         self.writes_outside_hold: list[str] = []
-        real = finalize_commit.mission_write_lock
+        real = importlib.import_module(finalize_commit.__name__).mission_write_lock
         recorder = self
         real_write_bytes = Path.write_bytes
         real_unlink = Path.unlink
@@ -695,7 +695,8 @@ def test_sweep_dry_run_changes_nothing(mission: tuple[Path, Path, Path]) -> None
 
 def test_finalize_tasks_md_regeneration_writes_inside_the_hold(monkeypatch: pytest.MonkeyPatch, mission: tuple[Path, Path, Path]) -> None:
     from specify_cli.core.wps_manifest import WorkPackageEntry, WpsManifest
-    from specify_cli.status import mission_write
+
+    mission_write = importlib.import_module("specify_cli.status.mission_write")
 
     repo, primary, _wp = mission
     held_at_write: list[bool] = []

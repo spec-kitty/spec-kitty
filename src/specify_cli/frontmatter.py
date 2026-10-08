@@ -390,7 +390,7 @@ def locked_update_frontmatter(
         FrontmatterError: *wp_path* is missing, has no frontmatter, or the frontmatter is malformed.
     """
     # Lazy: ``specify_cli.status`` imports this module, so the lock door cannot be a module-scope import.
-    from specify_cli.status.mission_write import mission_write_lock
+    from specify_cli.status import mission_write_lock
 
     with mission_write_lock(feature_dir, repo_root=repo_root, fallback_to_dir_name=fallback_to_dir_name):
         frontmatter, body = _manager.read(wp_path)

@@ -546,7 +546,7 @@ def scaffold_issue_matrix(
     from mission_runtime import MissionArtifactKind, coord_read_dir_for
 
     # Lazy: ``specify_cli.status`` reaches back into this module's package through its own imports.
-    from specify_cli.status.mission_write import mission_write_lock
+    from specify_cli.status import mission_write_lock
 
     if owned is not None:
         from mission_runtime import placement_seam

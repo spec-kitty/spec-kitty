@@ -644,7 +644,7 @@ def restore_meta_text(
         ``True`` when the file was restored, ``False`` when it changed since
         *expected_current* and was left alone.
     """
-    from specify_cli.status.mission_write import mission_write_lock
+    from specify_cli.status import mission_write_lock
 
     meta_path = feature_dir / META_FILENAME
     with mission_write_lock(feature_dir, repo_root=repo_root):
@@ -731,7 +731,7 @@ def locked_update_meta(
     Raises:
         FileNotFoundError: If ``meta.json`` does not exist in *feature_dir*.
     """
-    from specify_cli.status.mission_write import MISSION_WRITE_LOCK_TIMEOUT_SECONDS, mission_write_lock
+    from specify_cli.status import MISSION_WRITE_LOCK_TIMEOUT_SECONDS, mission_write_lock
 
     wait = MISSION_WRITE_LOCK_TIMEOUT_SECONDS if timeout is None else timeout
     with mission_write_lock(feature_dir, repo_root=repo_root, timeout=wait, fallback_to_dir_name=fallback_to_dir_name):
@@ -982,7 +982,7 @@ def flatten_coordination_metadata(feature_dir: Path) -> dict[str, Any]:
     # needs). Mirrors the established deferred-import pattern this module
     # already uses for ``core.paths`` in :func:`_load_meta_fail_closed`.
     from specify_cli.migration.backfill_topology import FLATTENED_KEY, TOPOLOGY_KEY
-    from specify_cli.status.mission_write import mission_write_lock
+    from specify_cli.status import mission_write_lock
 
     # The three mutations stay in THIS function (the sole-owner ratchet pins it), so it takes the
     # Mission write lock itself rather than going through a ``locked_update_meta`` closure.

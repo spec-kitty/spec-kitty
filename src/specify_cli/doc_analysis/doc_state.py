@@ -47,7 +47,7 @@ from typing import Any, Literal, TypedDict, cast
 
 from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.mission_metadata import locked_update_meta
-from specify_cli.status.mission_write import mission_write_lock
+from specify_cli.status import mission_write_lock
 
 
 IterationMode = Literal["initial", "gap_filling", "mission_specific"]

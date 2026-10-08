@@ -34,7 +34,7 @@ from specify_cli.lanes.branch_naming import (
     coord_mission_dir_name as _seam_coord_mission_dir_name,
 )
 from specify_cli.mission_metadata import load_meta
-from specify_cli.status.mission_write import transaction_lock_key as _seam_transaction_lock_key
+from specify_cli.status import transaction_lock_key as _seam_transaction_lock_key
 
 logger = logging.getLogger(__name__)
 

@@ -72,7 +72,7 @@ _ALLOWED_WRITE_SEAM_CALLERS: dict[str, str] = {
     # Idempotent create-if-absent at task-finalization time -- never
     # overwrites an existing matrix, so it cannot race a real accept/verdict
     # writer over the SAME row content (D6 / research.md).
-    "src/specify_cli/acceptance/matrix.py::scaffold_acceptance_matrix": "create-if-absent at finalize (idempotent scaffold; D6)",
+    "src/specify_cli/acceptance/matrix.py::_scaffold_acceptance_matrix_locked": "create-if-absent at finalize (idempotent scaffold; D6), one lock hold",
     # No production caller today -- post-consolidation seam routing through
     # the locked seam is explicitly deferred (research.md D6); this
     # is a known, allowlisted blind creator, not an oversight.

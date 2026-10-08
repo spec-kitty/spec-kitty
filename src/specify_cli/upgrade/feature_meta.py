@@ -17,7 +17,7 @@ from typing import Any
 from specify_cli.core.git_ops import resolve_primary_branch
 from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 from specify_cli.mission_metadata import write_meta
-from specify_cli.status.mission_write import mission_write_lock
+from specify_cli.status import mission_write_lock
 
 _BRANCH_PATTERNS = (
     re.compile(r"(?im)^\*\*target branch\*\*:\s*`?([^\n`]+)`?\s*$"),

@@ -272,7 +272,8 @@ def test_acceptance_scaffold_checks_and_writes_in_one_hold(bare_coord_mission: t
 
     def spy(feature_dir: Path, matrix: acceptance_matrix.AcceptanceMatrix) -> Path:
         held_at_write.append(holds_status_lock(lock_path))
-        return real_write(feature_dir, matrix)
+        written: Path = real_write(feature_dir, matrix)
+        return written
 
     monkeypatch.setattr(acceptance_matrix, "write_acceptance_matrix", spy)
 

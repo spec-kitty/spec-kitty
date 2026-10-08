@@ -64,7 +64,7 @@ from specify_cli.coordination.commit_outcome import (
     render_commit_outcome,
 )
 from specify_cli.requirement_mapping import CoverageSummary, grammar
-from specify_cli.status.mission_write import mission_write_lock
+from specify_cli.status import mission_write_lock
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
 
 #: ``actor`` recorded on the ``tracker_refs`` ``InnerStateChanged`` annotation

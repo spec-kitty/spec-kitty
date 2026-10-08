@@ -36,7 +36,7 @@ from mission_runtime import OwnedCheckout
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.ownership.models import OwnershipManifest
 from specify_cli.status import BootstrapResult, WPMetadata
-from specify_cli.status.mission_write import mission_write_lock
+from specify_cli.status import mission_write_lock
 
 if TYPE_CHECKING:
     from specify_cli.cli.commands.agent.mission_finalize_bootstrap import _BootstrapState
@@ -612,7 +612,9 @@ def _emit_tasks_started(
         logger.debug("TasksStarted emission skipped: %s", tasks_started_exc)
     finally:
         if planning_dir is not None:
-            note_status_files_written(planning_dir, owned.repository_root if owned else None)
+            from specify_cli.cli.commands.agent import mission_finalize as _mf
+
+            _mf.note_status_files_written(planning_dir, owned.repository_root if owned else None)
 
 
 def _run_commit_pipeline(

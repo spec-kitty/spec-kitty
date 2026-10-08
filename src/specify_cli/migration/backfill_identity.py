@@ -33,7 +33,7 @@ import ulid as _ulid_mod
 from ruamel.yaml import YAML
 
 from specify_cli.mission_metadata import _coerce_mission_number, locked_update_meta, write_meta
-from specify_cli.status.mission_write import mission_write_lock
+from specify_cli.status import mission_write_lock
 from specify_cli.core.atomic import atomic_write
 
 logger = logging.getLogger(__name__)

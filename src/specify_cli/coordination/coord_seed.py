@@ -869,7 +869,7 @@ def _seed_coord_surface(request: _SeedRequest) -> SeedReport:
         feature_status_lock,
         mission_lock_key,
     )
-    from specify_cli.status.mission_write import registered_hold
+    from specify_cli.status import registered_hold
 
     lock_root = _lock_root(request)
     key = mission_lock_key(request.root_mission_dir, repo_root=lock_root)

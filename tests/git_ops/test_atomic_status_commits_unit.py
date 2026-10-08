@@ -12,6 +12,7 @@ import json
 import os
 import subprocess
 import time
+from typing import Any
 from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -939,20 +940,23 @@ Test content.
     lock_state = {"held": False}
 
     @contextmanager
-    def tracking_lock(repo_root: Path, locked_mission_slug: str):  # type: ignore[no-untyped-def]
-        del repo_root, locked_mission_slug
-        lock_state["held"] = True
-        try:
-            yield
-        finally:
-            lock_state["held"] = False
+    def tracking_lock(repo_root: Path, locked_mission_slug: str, **kwargs: Any):  # type: ignore[no-untyped-def]
+        # Wraps the real lock: the rollback capture refuses to run unless the thread really holds it.
+        from specify_cli.status.locking import feature_status_lock as real_lock
+
+        with real_lock(repo_root, locked_mission_slug, **kwargs) as held:
+            lock_state["held"] = True
+            try:
+                yield held
+            finally:
+                lock_state["held"] = False
 
     def fake_safe_commit(**kwargs: object) -> bool:
         del kwargs
         assert lock_state["held"] is True
         return True
 
-    with patch("specify_cli.cli.commands.agent.workflow.feature_status_lock", tracking_lock):
+    with patch("specify_cli.status.mission_write.feature_status_lock", tracking_lock):
         with patch("specify_cli.cli.commands.agent.workflow.safe_commit", side_effect=fake_safe_commit):
             result = CliRunner().invoke(
                 workflow.app,

@@ -125,9 +125,9 @@ def _bootstrap_canonical_state_via_mission(
     result = _bootstrap_through_mission(planning_dir, mission_slug, dry_run=dry_run, capability=capability, owned=owned)
     if not dry_run:
         # The bootstrap appends status rows: record the files as they are now in this run's write ledger (plan A8).
-        from specify_cli.cli.commands.agent.mission_finalize_commit import note_status_files_written
+        from specify_cli.cli.commands.agent import mission_finalize as _mf
 
-        note_status_files_written(planning_dir, owned.repository_root if owned is not None else None)
+        _mf.note_status_files_written(planning_dir, owned.repository_root if owned is not None else None)
     return result
 
 

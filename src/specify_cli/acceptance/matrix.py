@@ -891,7 +891,8 @@ def scaffold_acceptance_matrix(
     """
     # The exists checks and the write are ONE hold of the Mission write lock, so a verdict recorded
     # between them is never overwritten by the placeholder scaffold (mirrors ``scaffold_issue_matrix``).
-    with mission_write_lock(feature_dir, repo_root=repo_root):
+    lock_root = repo_root if repo_root is not None else (owned.repository_root if owned is not None else None)
+    with mission_write_lock(feature_dir, repo_root=lock_root):
         return _scaffold_acceptance_matrix_locked(feature_dir, mission_slug, requirement_ids, home_dir=home_dir, repo_root=repo_root, policy=policy, owned=owned)
 
 

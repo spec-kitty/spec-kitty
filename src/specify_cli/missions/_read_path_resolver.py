@@ -1891,7 +1891,7 @@ def mission_write_lock_dir(repo_root: Path, mission_handle: str) -> Path:
     The returned directory is named by ``mission_lock_key`` (plan D1), so a bare-directory
     coordination Mission resolves the coordination name whichever directory the handle named.
     """
-    from specify_cli.status.mission_write import mission_lock_key
+    from specify_cli.status import mission_lock_key
 
     try:
         dir_name = candidate_feature_dir_for_mission(repo_root, mission_handle).name

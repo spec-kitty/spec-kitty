@@ -24,7 +24,7 @@ from specify_cli.status import SNAPSHOT_FILENAME, materialize
 from specify_cli.status import EVENTS_FILENAME, StoreError, read_events
 from specify_cli.status import CANONICAL_LANES, resolve_lane_alias
 from specify_cli.status import validate_materialization_drift
-from specify_cli.status.mission_write import mission_write_lock
+from specify_cli.status import mission_write_lock
 from specify_cli.upgrade.feature_meta import (
     build_baseline_feature_meta,
     load_feature_meta,
