@@ -1712,11 +1712,11 @@
           17,
           72
         ],
-        "src/specify_cli/cli/commands/_doctrine_collect.py": [
+        "src/specify_cli/cli/commands/_charter_pack_collect.py": [
           96,
           369
         ],
-        "src/specify_cli/cli/commands/_doctrine_health.py": [
+        "src/specify_cli/cli/commands/_charter_pack_health.py": [
           0,
           66
         ],

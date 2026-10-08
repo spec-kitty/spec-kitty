@@ -984,7 +984,7 @@ entries:
   name: template_nodes
   category: category_c_org_doctrine_closeout
   rationale: '``template_node`` / ``template_nodes`` stay allowlisted: still no live caller.'
-- module: specify_cli.cli.commands._doctrine_health
+- module: specify_cli.cli.commands._charter_pack_health
   name: PackHealth
   category: category_c_org_doctrine_closeout
 - module: specify_cli.session_presence.upgrade_check

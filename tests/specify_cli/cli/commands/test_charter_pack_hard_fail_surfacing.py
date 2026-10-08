@@ -5,7 +5,7 @@ WP08 minted five hard-fail conflict classes (``unresolved_edge_endpoint``,
 ``layer_rule_violation``) and made :func:`charter.offering.drg.merge_three_layers`
 *raise* :class:`OrgDRGConflictError` for them. Every CLI collector caught that
 raise and wrote it to ``collision_warnings`` — an advisory channel no verdict
-reads. ``DoctrineHealthReport.healthy`` reads ``org_drg["errors"]`` only. So a
+reads. ``CharterPackHealthReport.healthy`` reads ``org_drg["errors"]`` only. So a
 graph the merge layer refused to assemble came back::
 
     RC=0, profile_health.healthy=True, org_drg.errors=[]
@@ -46,9 +46,7 @@ from typer.testing import CliRunner
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _REPO_ROOT: Path = Path(__file__).resolve().parents[4]
-_FIXTURE_ORG_PACK: Path = (
-    _REPO_ROOT / "tests" / "architectural" / "_fixtures" / "org_packs" / "example_org"
-)
+_FIXTURE_ORG_PACK: Path = _REPO_ROOT / "tests" / "architectural" / "_fixtures" / "org_packs" / "example_org"
 
 runner = CliRunner()
 
@@ -63,11 +61,7 @@ _DANGLING_TOKEN = "styleguide:plain-languagee"
 #: hard failure and ``merge_three_layers`` RAISES — there is no merged graph.
 _UNRESOLVED_TOKEN = "no-such-bare-node"
 
-_UNRESOLVED_EDGE = (
-    f"  - source: sox-controls\n"
-    f"    target: {_UNRESOLVED_TOKEN}\n"
-    f"    relation: refines\n"
-)
+_UNRESOLVED_EDGE = f"  - source: sox-controls\n    target: {_UNRESOLVED_TOKEN}\n    relation: refines\n"
 
 
 def _write_repo(root: Path, *, dangling: bool = False, unresolved: bool = False) -> Path:
@@ -156,12 +150,10 @@ def test_doctor_doctrine_health_is_monotonic_in_org_pack_defects(
     profile_health = payload["profile_health"]
     assert isinstance(profile_health, dict)
     assert profile_health["healthy"] is expect_healthy, (
-        f"healthy={profile_health['healthy']} for dangling={dangling} "
-        f"unresolved={unresolved}; org_drg={payload['org_drg']}"
+        f"healthy={profile_health['healthy']} for dangling={dangling} unresolved={unresolved}; org_drg={payload['org_drg']}"
     )
     assert exit_code == (0 if expect_healthy else 1), (
-        f"exit code must track the verdict; got RC={exit_code} for "
-        f"healthy={expect_healthy}. Output payload: {payload['org_drg']}"
+        f"exit code must track the verdict; got RC={exit_code} for healthy={expect_healthy}. Output payload: {payload['org_drg']}"
     )
 
 
@@ -182,12 +174,8 @@ def test_hard_fail_conflict_reaches_the_channel_the_verdict_reads(
 
     errors = result["errors"]
     assert isinstance(errors, list)
-    assert any("unresolved_edge_endpoint" in e for e in errors), (
-        f"the refusal class must be named in errors; got {errors}"
-    )
-    assert any(_UNRESOLVED_TOKEN in e for e in errors), (
-        f"the offending token must be named in errors; got {errors}"
-    )
+    assert any("unresolved_edge_endpoint" in e for e in errors), f"the refusal class must be named in errors; got {errors}"
+    assert any(_UNRESOLVED_TOKEN in e for e in errors), f"the offending token must be named in errors; got {errors}"
 
 
 def test_hard_fail_conflict_keeps_its_structured_collision_record(
@@ -230,15 +218,13 @@ def test_charter_status_reports_a_hard_fail_in_its_errors_array(
 
     errors = result["errors"]
     assert isinstance(errors, list)
-    assert any(_UNRESOLVED_TOKEN in e for e in errors), (
-        f"charter status must report the refusal as an error; got {errors}"
-    )
+    assert any(_UNRESOLVED_TOKEN in e for e in errors), f"charter status must report the refusal as an error; got {errors}"
 
 
 def test_human_section_does_not_print_a_clean_dangling_verdict_after_a_refusal(
     tmp_path: Path,
 ) -> None:
-    """"Not checked" and "checked, found nothing" are different answers.
+    """ "Not checked" and "checked, found nothing" are different answers.
 
     When the merge raises there is no merged graph, so the completeness check
     genuinely cannot run. Printing ``dangling endpoints: none`` would assert a
@@ -250,18 +236,13 @@ def test_human_section_does_not_print_a_clean_dangling_verdict_after_a_refusal(
     repo_root = _write_repo(tmp_path, unresolved=True)
 
     buf = StringIO()
-    _render_org_layer_section(
-        repo_root, Console(file=buf, highlight=False, markup=False, width=200)
-    )
+    _render_org_layer_section(repo_root, Console(file=buf, highlight=False, markup=False, width=200))
     output = buf.getvalue()
 
     assert "dangling endpoints: none" not in output, (
-        "the merge refused this graph, so the dangling check never ran; "
-        f"claiming 'none' invents a verdict. Got:\n{output}"
+        f"the merge refused this graph, so the dangling check never ran; claiming 'none' invents a verdict. Got:\n{output}"
     )
-    assert _UNRESOLVED_TOKEN in output, (
-        f"the human section must name the refused endpoint; got:\n{output}"
-    )
+    assert _UNRESOLVED_TOKEN in output, f"the human section must name the refused endpoint; got:\n{output}"
 
 
 def test_dangling_endpoints_key_is_always_present(tmp_path: Path) -> None:
@@ -317,7 +298,4 @@ def test_org_drg_conflict_error_partitions_fatal_from_advisory() -> None:
 
     assert error.hard_failures == [fatal]
     assert error.advisory_conflicts == [advisory]
-    assert error.conflicts == [advisory, fatal], (
-        "the full list stays the primary payload — the properties are a view, "
-        "not a replacement"
-    )
+    assert error.conflicts == [advisory, fatal], "the full list stays the primary payload — the properties are a view, not a replacement"

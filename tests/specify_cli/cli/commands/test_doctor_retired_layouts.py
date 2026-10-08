@@ -109,15 +109,15 @@ def test_repo_root_doctrine_dir_beside_the_project_pack_root_is_not_reported(tmp
 
 
 def test_unreadable_registry_or_pack_root_yields_no_finding(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.cli.commands import _doctrine_collect
+    from specify_cli.cli.commands import _charter_pack_collect
 
     project = _project(tmp_path / "p")
     write_org_packs(project, [{"name": "acme", "local_path": "${SPEC_KITTY_UNSET_PACK_HOME}/acme"}])
     monkeypatch.delenv("SPEC_KITTY_UNSET_PACK_HOME", raising=False)
-    assert _doctrine_collect._retired_layout_findings(project) == []
+    assert _charter_pack_collect._retired_layout_findings(project) == []
 
     def _boom(*_args: object, **_kwargs: object) -> object:
         raise RuntimeError("registry unreadable")
 
     monkeypatch.setattr("charter.drg.load_pack_registry", _boom)
-    assert _doctrine_collect._retired_layout_findings(project) == []
+    assert _charter_pack_collect._retired_layout_findings(project) == []

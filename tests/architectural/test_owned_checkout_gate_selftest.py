@@ -255,7 +255,7 @@ def test_g4_negative_called_org_pack_method_is_not_flagged() -> None:
     "rel_path",
     [
         "src/charter/offering/pack.py",
-        "src/specify_cli/cli/commands/_doctrine_collect.py",
+        "src/specify_cli/cli/commands/_charter_pack_collect.py",
         "src/specify_cli/analysis_inputs.py",
     ],
 )

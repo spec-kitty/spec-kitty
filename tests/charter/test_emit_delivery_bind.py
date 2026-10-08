@@ -6,7 +6,7 @@ main: operating-procedures is data-driven into the DRG
 (``_emit_operating_procedure_edges``,
 ``src/doctrine/drg/migration/extractor.py``) with a fail-closed doctor check
 (``_run_operating_procedures_check``,
-``src/specify_cli/cli/commands/_doctrine_collect.py``); step ``description``
+``src/specify_cli/cli/commands/_charter_pack_collect.py``); step ``description``
 renders (``format_inline_named_body``,
 ``src/charter/context_renderers/profile_sections.py``); styleguide/toolguide
 pointer-only delivery is a *documented, deliberate* NFR-001 token-budget

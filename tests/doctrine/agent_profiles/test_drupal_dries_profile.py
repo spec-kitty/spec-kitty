@@ -153,9 +153,9 @@ class TestMalformedProfileIsObservable:
         assert skipped, "fixture sanity: expected at least one skipped profile"
 
         # Act: derive health the same way ``doctor charter-packs`` does (I-H1,
-        # src/specify_cli/cli/commands/_doctrine_health.py) --
+        # src/specify_cli/cli/commands/_charter_pack_health.py) --
         # healthy iff every discovered profile loaded AND no invalid diagnostics.
-        from specify_cli.cli.commands._doctrine_health import build_pack_health_by_layer
+        from specify_cli.cli.commands._charter_pack_health import build_pack_health_by_layer
 
         packs = build_pack_health_by_layer(
             provenance_by_layer={"builtin": len(repo.list_all())},

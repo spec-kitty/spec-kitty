@@ -26,7 +26,7 @@ from charter.offering.drg.models import DRGGraph
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_COLLECTOR = _REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "_doctrine_collect.py"
+_COLLECTOR = _REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "_charter_pack_collect.py"
 _GATE = Path(__file__).resolve().parent / "test_builtin_override_policy.py"
 
 _REQUIRED_CALLS = frozenset({"load_effective_override_policy", "adjudicate_overrides"})
@@ -130,7 +130,7 @@ def test_collector_and_gate_recipe_reach_identical_verdicts(tmp_path: Path) -> N
         load_effective_override_policy,
         pack_roots_from_fragments,
     )
-    from specify_cli.cli.commands._doctrine_collect import _collect_org_layer_data
+    from specify_cli.cli.commands._charter_pack_collect import _collect_org_layer_data
 
     pack_a = _write_pack(tmp_path, "pack-a", "DIRECTIVE_001", "replaceable_builtins:\n  - urn: directive:DIRECTIVE_001\n    reason: pack A replaces it\n")
     pack_b = _write_pack(tmp_path, "pack-b", "DIRECTIVE_003", None)
@@ -176,7 +176,7 @@ def test_collector_and_gate_recipe_report_identical_policy_errors(tmp_path: Path
         load_effective_override_policy,
         pack_roots_from_fragments,
     )
-    from specify_cli.cli.commands._doctrine_collect import _adjudicate_with_policy, _collect_org_layer_data
+    from specify_cli.cli.commands._charter_pack_collect import _adjudicate_with_policy, _collect_org_layer_data
 
     pack_a = _write_pack(tmp_path, "pack-a", "DIRECTIVE_001", None)
     (tmp_path / ".kittify").mkdir()

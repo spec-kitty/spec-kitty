@@ -104,17 +104,17 @@ _LAZY_BASELINE_ALLOWLIST: frozenset[tuple[str, str]] = frozenset(
         # #3179: wrapped sole-door service construction for asset operations.
         ("src/specify_cli/cli/commands/charter/pack_asset.py", "charter.offering.service"),
         # #3179: wrapped raw service for unfiltered diagnostic repositories.
-        ("src/specify_cli/cli/commands/_doctrine_collect.py", "charter.offering.service"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.service"),
         # #3179: existing operating-procedure diagnostics, pending facade migration.
-        ("src/specify_cli/cli/commands/_doctrine_collect.py", "charter.offering.agent_profiles.operating_procedures"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.agent_profiles.operating_procedures"),
         # #3179: diagnostic node-kind classification, pending charter.drg migration.
-        ("src/specify_cli/cli/commands/_doctrine_collect.py", "charter.offering.artifact_kinds"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.artifact_kinds"),
         # #3179: built-in graph for diagnostics, pending charter.drg migration.
-        ("src/specify_cli/cli/commands/_doctrine_collect.py", "charter.offering.drg.loader"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.drg.loader"),
         # #3179: doorless override-audit management internal (TICKETED-BASELINE).
-        ("src/specify_cli/cli/commands/_doctrine_collect.py", "charter.offering.drg.override_policy"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.drg.override_policy"),
         # #3179: diagnostic pack location, pending facade migration.
-        ("src/specify_cli/cli/commands/_doctrine_collect.py", "charter.offering.pack_paths"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.pack_paths"),
         # #3179: doorless DRG-regeneration internal (TICKETED-BASELINE).
         ("src/specify_cli/cli/commands/charter/pack_tooling.py", "charter.offering.drg.migration.hand_authored_overlay"),
         # #3179: package __file__ metadata, not a symbol reach-through.
@@ -440,7 +440,7 @@ def test_lazy_gate_rejects_added_reach_in_baselined_file(spelling: str) -> None:
 
 def test_lazy_gate_rejects_partial_baseline_removal() -> None:
     """Migrating one import must shrink its entry even when the file still reaches."""
-    target = _REPO_ROOT / "src/specify_cli/cli/commands/_doctrine_collect.py"
+    target = _REPO_ROOT / "src/specify_cli/cli/commands/_charter_pack_collect.py"
     original_read = Path.read_text
     source = target.read_text(encoding="utf-8")
     assert "from charter.offering.drg.loader import" in source
@@ -525,7 +525,7 @@ def test_metadata_exception_rejects_root_member_import(spelling: str, members: s
 )
 def test_source_scan_rejects_module_control_flow_import(spelling: str, block: str) -> None:
     """A classified module in a migration-owned file still violates the top-level gate."""
-    target = _REPO_ROOT / "src/specify_cli/cli/commands/_doctrine_collect.py"
+    target = _REPO_ROOT / "src/specify_cli/cli/commands/_charter_pack_collect.py"
     original_read = Path.read_text
     statement = f"from {spelling}.drg.org_pack_config import resolve_org_dirs"
     mutation = target.read_text(encoding="utf-8") + "\n" + block.format(statement=statement)
@@ -535,7 +535,7 @@ def test_source_scan_rejects_module_control_flow_import(spelling: str, block: st
 
     with (
         patch.object(Path, "read_text", read_source),
-        pytest.raises(AssertionError, match="_doctrine_collect.py"),
+        pytest.raises(AssertionError, match="_charter_pack_collect.py"),
     ):
         test_runtime_has_no_direct_doctrine_imports()
 

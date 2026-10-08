@@ -271,7 +271,7 @@ def _override_fragment(urn_kind: str) -> object:
 
 def test_unsanctioned_findings_flags_unlisted_directive(tmp_path: Path) -> None:
     """The extracted helper flags an unlisted built-in directive override."""
-    from specify_cli.cli.commands._doctrine_collect import (
+    from specify_cli.cli.commands._charter_pack_collect import (
         _adjudicate_with_policy,
         _unsanctioned_findings,
     )
@@ -300,7 +300,7 @@ def test_unsanctioned_findings_flags_unlisted_directive(tmp_path: Path) -> None:
 
 def test_unsanctioned_findings_clears_sanctioned_directive(tmp_path: Path) -> None:
     """A directive override with a non-empty reason clears via the helper."""
-    from specify_cli.cli.commands._doctrine_collect import (
+    from specify_cli.cli.commands._charter_pack_collect import (
         _adjudicate_with_policy,
         _unsanctioned_findings,
     )

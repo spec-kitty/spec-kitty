@@ -258,7 +258,7 @@ class OrgDRGConflictError(Exception):
         """One flat operator-readable line per fatal refusal.
 
         The CLI collectors report findings on a ``list[str]`` errors channel
-        (that is what ``DoctrineHealthReport.healthy`` reads). Formatting lives
+        (that is what ``CharterPackHealthReport.healthy`` reads). Formatting lives
         here, next to :meth:`_format_message`, so the three collectors share one
         wording instead of each inventing its own.
         """

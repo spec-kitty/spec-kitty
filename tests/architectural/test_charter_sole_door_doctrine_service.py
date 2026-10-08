@@ -74,13 +74,13 @@ owns the class.
 
 The six named locality exclusions, and their provenance
 --------------------------------------------------------
-Pre-sanctioned by spec.md FR-002 / C-002 ("the ``_doctrine_collect.py``
+Pre-sanctioned by spec.md FR-002 / C-002 ("the ``_charter_pack_collect.py``
 diagnostic sites' explicit unfiltered mode ... named, reasoned exclusions"):
 
-1. ``_doctrine_collect.py`` / ``_collect_profile_health``
-2. ``_doctrine_collect.py`` / ``_collect_glossary_pack_health``
-3. ``_doctrine_collect.py`` / ``_collect_doctrine_collisions``
-4. ``_doctrine_collect.py`` / ``_build_selection_block``
+1. ``_charter_pack_collect.py`` / ``_collect_profile_health``
+2. ``_charter_pack_collect.py`` / ``_collect_glossary_pack_health``
+3. ``_charter_pack_collect.py`` / ``_collect_layer_collisions``
+4. ``_charter_pack_collect.py`` / ``_build_selection_block``
 
    All four need the unfiltered, all-layer view so ``doctor``/health output is
    not silently narrowed for de-activated packs; all four wrap with an explicit
@@ -223,7 +223,7 @@ def _wrap_verdict_for(raw_call: ast.Call, scan: FileScan, wrapper_sites: set[int
     * **assigned** — the raw call is assigned to one local name that a wrapper
       call in the same scope consumes (``inner = Raw(...)`` then
       ``Wrapper(inner, pack_context=...)`` — the shape used by
-      ``_doctrine_collect.py`` and ``charter/pack_asset.py``).
+      ``_charter_pack_collect.py`` and ``charter/pack_asset.py``).
 
     Deliberately narrow: a raw service threaded through a dict, a return value,
     or another module is NOT accepted as wrapped. Narrowness here errs toward
@@ -388,7 +388,7 @@ def check_unwrapped_escape_gate(raw_sites: tuple[RawSite, ...]) -> list[str]:
 #: before touching this tuple.
 RAW_LOCALITY_EXCLUSIONS: tuple[ContentDescriptor, ...] = (
     ContentDescriptor(
-        rel_path="src/specify_cli/cli/commands/_doctrine_collect.py",
+        rel_path="src/specify_cli/cli/commands/_charter_pack_collect.py",
         qualname="_collect_profile_health",
         token_substring="CharterOfferingService (",
         occurrence=None,
@@ -401,7 +401,7 @@ RAW_LOCALITY_EXCLUSIONS: tuple[ContentDescriptor, ...] = (
         ),
     ),
     ContentDescriptor(
-        rel_path="src/specify_cli/cli/commands/_doctrine_collect.py",
+        rel_path="src/specify_cli/cli/commands/_charter_pack_collect.py",
         qualname="_collect_glossary_pack_health",
         token_substring="CharterOfferingService (",
         occurrence=None,
@@ -413,8 +413,8 @@ RAW_LOCALITY_EXCLUSIONS: tuple[ContentDescriptor, ...] = (
         ),
     ),
     ContentDescriptor(
-        rel_path="src/specify_cli/cli/commands/_doctrine_collect.py",
-        qualname="_collect_doctrine_collisions",
+        rel_path="src/specify_cli/cli/commands/_charter_pack_collect.py",
+        qualname="_collect_layer_collisions",
         token_substring="CharterOfferingService (",
         occurrence=None,
         rationale=(
@@ -425,7 +425,7 @@ RAW_LOCALITY_EXCLUSIONS: tuple[ContentDescriptor, ...] = (
         ),
     ),
     ContentDescriptor(
-        rel_path="src/specify_cli/cli/commands/_doctrine_collect.py",
+        rel_path="src/specify_cli/cli/commands/_charter_pack_collect.py",
         qualname="_build_selection_block",
         token_substring="CharterOfferingService (",
         occurrence=None,

@@ -1,4 +1,4 @@
-"""Focused tests for the ``_doctrine_collect`` collector module (WP03, #2059).
+"""Focused tests for the ``_charter_pack_collect`` collector module (WP03, #2059).
 
 Exercise each Cluster J collector branch directly: pack-version resolution
 (git / manifest / fallback), artifact counting, org-charter summary degradation,
@@ -15,7 +15,7 @@ from typing import Any
 
 import pytest
 
-from specify_cli.cli.commands import _doctrine_collect as collect
+from specify_cli.cli.commands import _charter_pack_collect as collect
 
 pytestmark = [pytest.mark.fast]
 

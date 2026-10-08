@@ -1,8 +1,8 @@
 """T014 — proof that `pack_context=None` is a genuine unfiltered-diagnostic mode.
 
 charter-sole-door-bypass-closure-01KZ3WAA WP03 (FR-002). WP03 migrated
-``_doctrine_collect.py``'s 4 diagnostic sites (``_collect_profile_health``,
-``_collect_glossary_pack_health``, ``_collect_doctrine_collisions``,
+``_charter_pack_collect.py``'s 4 diagnostic sites (``_collect_profile_health``,
+``_collect_glossary_pack_health``, ``_collect_layer_collisions``,
 ``_build_selection_block``) from raw ``charter.offering.service.CharterOfferingService(...)``
 construction onto ``charter.activation.resolver.ActiveCharterService(inner, pack_context=None)``
 -- the sanctioned unfiltered-diagnostic construction shape (data-model.md

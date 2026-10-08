@@ -1,7 +1,7 @@
-"""Single-source doctrine health model for ``spec-kitty doctor charter-packs`` (WP08).
+"""Single-source charter-pack health model for ``spec-kitty doctor charter-packs`` (WP08).
 
 Both the human-readable renderer and the ``--json`` emitter consume one
-:class:`DoctrineHealthReport`; neither assembles its own parallel view of the
+:class:`CharterPackHealthReport`; neither assembles its own parallel view of the
 data (research R-011-C found the old command built the two surfaces
 independently and let pack health "green" on snapshot *presence* rather than on
 whether every discovered profile actually loaded).
@@ -12,7 +12,7 @@ The two invariants this module enforces:
   profile loaded *and* there are no invalid-profile diagnostics
   (``valid_count == discovered_count and not invalid_profiles``).  Health is
   never inferred from snapshot presence (FR-010).
-* **Single source:** :meth:`DoctrineHealthReport.to_dict` is the only JSON
+* **Single source:** :meth:`CharterPackHealthReport.to_dict` is the only JSON
   shape, and the human renderer reads the same dataclasses, so the two output
   surfaces can never drift.
 
@@ -30,7 +30,7 @@ from charter.profiles import SkippedProfile
 
 __all__ = [
     "PackHealth",
-    "DoctrineHealthReport",
+    "CharterPackHealthReport",
     "build_pack_health_by_layer",
     "GlossaryPackHealth",
     "SkippedGlossaryPack",
@@ -94,9 +94,7 @@ class PackHealth:
             "discovered_count": self.discovered_count,
             "valid_count": self.valid_count,
             "healthy": self.healthy,
-            "invalid_profiles": [
-                _skipped_to_dict(profile) for profile in self.invalid_profiles
-            ],
+            "invalid_profiles": [_skipped_to_dict(profile) for profile in self.invalid_profiles],
         }
 
 
@@ -209,10 +207,7 @@ class PackSkillHealth:
             "loaded": self.skill_count,
             "skipped": len(self.invalid_skills),
             "healthy": self.healthy,
-            "invalid_skills": [
-                {"layer": skill.layer, "path": skill.path, "error_summary": skill.error_summary}
-                for skill in self.invalid_skills
-            ],
+            "invalid_skills": [{"layer": skill.layer, "path": skill.path, "error_summary": skill.error_summary} for skill in self.invalid_skills],
         }
 
 
@@ -221,14 +216,14 @@ def _default_glossary_pack_health() -> GlossaryPackHealth:
 
     Zero packs discovered is treated as healthy (never invented as an
     error) — the empty-report anti-pattern I-H1 guards against is specific
-    to the agent-profile dimension (see ``DoctrineHealthReport.healthy``),
+    to the agent-profile dimension (see ``CharterPackHealthReport.healthy``),
     which always expects at least one discovered profile layer.
     """
     return GlossaryPackHealth(pack_count=0, term_count=0)
 
 
 @dataclass(frozen=True)
-class DoctrineHealthReport:
+class CharterPackHealthReport:
     """Aggregate doctrine health consumed by both human and JSON surfaces.
 
     Attributes:
@@ -238,18 +233,14 @@ class DoctrineHealthReport:
             builder so the human and JSON surfaces share a single org-DRG load.
         glossary_packs: Glossary-pack health (FR-012, SC-001) — nested here
             (rather than as a sibling top-level JSON key) so
-            ``_emit_doctrine_json`` stays an unmodified passthrough of
+            ``_emit_charter_packs_json`` stays an unmodified passthrough of
             :meth:`to_dict`.
     """
 
     packs: list[PackHealth] = field(default_factory=list)
     org_drg: dict[str, object] = field(default_factory=dict)
-    glossary_packs: GlossaryPackHealth = field(
-        default_factory=_default_glossary_pack_health
-    )
-    skills: PackSkillHealth = field(
-        default_factory=lambda: PackSkillHealth(skill_count=0)
-    )
+    glossary_packs: GlossaryPackHealth = field(default_factory=_default_glossary_pack_health)
+    skills: PackSkillHealth = field(default_factory=lambda: PackSkillHealth(skill_count=0))
 
     @property
     def healthy(self) -> bool:
@@ -267,16 +258,8 @@ class DoctrineHealthReport:
         * ``self.glossary_packs.healthy`` — an invalid glossary-pack file
           degrades the aggregate too (FR-012, SC-001).
         """
-        org_errors = (
-            self.org_drg.get("errors") if isinstance(self.org_drg, dict) else None
-        )
-        return (
-            bool(self.packs)
-            and all(pack.healthy for pack in self.packs)
-            and not org_errors
-            and self.glossary_packs.healthy
-            and self.skills.healthy
-        )
+        org_errors = self.org_drg.get("errors") if isinstance(self.org_drg, dict) else None
+        return bool(self.packs) and all(pack.healthy for pack in self.packs) and not org_errors and self.glossary_packs.healthy and self.skills.healthy
 
     @property
     def invalid_profiles(self) -> list[SkippedProfile]:

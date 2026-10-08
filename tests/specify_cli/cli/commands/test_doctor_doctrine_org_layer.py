@@ -263,7 +263,7 @@ def test_collect_org_layer_data_reports_a_dangling_org_endpoint(
 
     ``_collect_org_layer_data`` is the caller that DOES hold a complete graph:
     the real shipped built-in against the operator's real configured packs. So
-    it escalates, and — because ``DoctrineHealthReport.healthy`` reads
+    it escalates, and — because ``CharterPackHealthReport.healthy`` reads
     ``org_drg['errors']`` — a typo'd endpoint now flips ``doctor charter-packs`` to
     RC=1 instead of passing clean.
 
@@ -293,7 +293,7 @@ def test_collect_org_layer_data_reports_a_dangling_org_endpoint(
     assert isinstance(errors, list)
     assert any("styleguide:plain-languagee" in e for e in errors), (
         "the finding must reach org_drg['errors'] — that is the channel "
-        f"DoctrineHealthReport.healthy reads; got {errors}"
+        f"CharterPackHealthReport.healthy reads; got {errors}"
     )
 
 
@@ -311,7 +311,7 @@ def test_collect_org_layer_data_reports_no_dangling_endpoint_when_clean(
     assertion previously read ``is None`` and so pinned the key's conditional
     presence — under which "the check ran and found nothing" and "the check
     never ran" produced the identical payload. See
-    ``test_doctrine_hard_fail_surfacing.test_dangling_endpoints_key_is_always_present``.
+    ``test_charter_pack_hard_fail_surfacing.test_dangling_endpoints_key_is_always_present``.
     """
     from specify_cli.cli.commands.doctor import _collect_org_layer_data
 
@@ -331,7 +331,7 @@ def test_collect_org_layer_data_surfaces_a_failed_merge_check(
     bare ``except Exception: pass``. Since the fold, the merge inside it also
     decides whether the org layer is reported complete, so swallowing the
     failure turns "the completeness check crashed" into ``errors: []`` — and
-    ``DoctrineHealthReport.healthy`` reads that array, so ``doctor charter-packs``
+    ``CharterPackHealthReport.healthy`` reads that array, so ``doctor charter-packs``
     would exit 0 having verified nothing.
     """
     import charter.activation.drg_activation as drg_activation

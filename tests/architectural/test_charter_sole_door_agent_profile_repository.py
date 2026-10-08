@@ -77,7 +77,7 @@ kept only as a non-authoritative locator. This is strictly stronger, not a
 weakening: this mission *empirically* demonstrated the drift — every line number
 spec.md pinned had already moved by the time this gate was written
 (``registry.py`` 48→73, ``projection.py`` 84→115, ``profile_resolution.py``
-81→95, and Gate 2's four ``_doctrine_collect.py`` sites 193/283/420/828 →
+81→95, and Gate 2's four ``_charter_pack_collect.py`` sites 193/283/420/828 →
 209/314/468/920). Using the canonical primitive is also the repo rule (never
 improvise a second key-builder).
 

@@ -271,7 +271,7 @@ def _build_scan_service(repo_root: Path, *, org_roots: list[Path] | None = None)
     violation: this function previously returned the raw inner service
     under a docstring-authorized "exception" that C-002 does not sanction —
     a docstring is not an escalation, and the claimed
-    ``_doctrine_collect.py`` precedent was itself an unfixed FR-002
+    ``_charter_pack_collect.py`` precedent was itself an unfixed FR-002
     violation, not a sanctioned pattern).
 
     :class:`OrgOverridesBuiltinChecker` needs the RAW repository objects

@@ -11,7 +11,7 @@ pair. This file pins the half of that contract available on WP04's lane:
   ``schema_version``, hashes) leaking in;
 * neither of this WP's owned source modules
   (``src/charter/offering/packs/pack_assembler.py``,
-  ``src/specify_cli/cli/commands/_doctrine_collect.py``) contains a write
+  ``src/specify_cli/cli/commands/_charter_pack_collect.py``) contains a write
   call targeting the authored filenames.
 
 **Consolidated-branch note:** the *full* NFR-004 guarantee -- "regenerate the
@@ -54,7 +54,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 # themselves, and the two test files) are data/tests, not writers.
 _OWNED_SOURCE_MODULES = (
     _REPO_ROOT / "src" / "charter" / "offering" / "packs" / "pack_assembler.py",
-    _REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "_doctrine_collect.py",
+    _REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "_charter_pack_collect.py",
 )
 
 _AUTHORED_FILENAMES = frozenset({"pack.yaml", "pack.md"})
@@ -141,7 +141,7 @@ def _write_calls(tree: ast.AST) -> list[ast.Call]:
 def test_owned_scope_modules_have_no_write_call_targeting_the_authored_files() -> None:
     """No code in this WP's owned scope writes ``pack.yaml``/``pack.md``.
 
-    ``pack_assembler.py`` and ``_doctrine_collect.py`` both gained a
+    ``pack_assembler.py`` and ``_charter_pack_collect.py`` both gained a
     ``_read_authored_pack_version`` helper (T015) that *reads* ``pack.yaml``
     (via ``.load(descriptor)`` / ``.read_text()``, never a write call) -- this
     scan is deliberately scoped to write-shaped calls only, so those

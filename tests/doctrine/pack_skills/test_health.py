@@ -10,8 +10,8 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands._doctrine_collect import _collect_pack_skill_health, _parse_skipped_pack_skill_warning
-from specify_cli.cli.commands._doctrine_health import DoctrineHealthReport, PackHealth, PackSkillHealth, SkippedPackSkill
+from specify_cli.cli.commands._charter_pack_collect import _collect_pack_skill_health, _parse_skipped_pack_skill_warning
+from specify_cli.cli.commands._charter_pack_health import CharterPackHealthReport, PackHealth, PackSkillHealth, SkippedPackSkill
 from specify_cli.cli.commands.doctor import app as doctor_app
 
 from .conftest import prompt_skill, write_skill
@@ -48,9 +48,9 @@ def test_model_health_flags() -> None:
 
 def test_report_folds_skill_health_into_aggregate() -> None:
     pack = PackHealth(pack_id="builtin", layer="builtin", discovered_count=1, valid_count=1)
-    assert DoctrineHealthReport(packs=[pack]).healthy is True
+    assert CharterPackHealthReport(packs=[pack]).healthy is True
     bad = PackSkillHealth(skill_count=0, invalid_skills=[SkippedPackSkill("org", "x", "y")])
-    report = DoctrineHealthReport(packs=[pack], skills=bad)
+    report = CharterPackHealthReport(packs=[pack], skills=bad)
     assert report.healthy is False
     assert report.to_dict()["skills"]["healthy"] is False
 

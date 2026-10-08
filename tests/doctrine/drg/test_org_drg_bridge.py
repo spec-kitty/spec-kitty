@@ -1076,7 +1076,7 @@ class TestQualifiedEndpointsAreCheckedOnceEveryLayerIsIn:
     validator, not the URN minter". The reasoning is right and the deferral is
     sound — but the control it defers to has to actually run somewhere, and it
     did not: no production caller of :func:`merge_three_layers`
-    (``_doctrine_collect``, ``charter.lint``, ``_profile_health_render``,
+    (``_charter_pack_collect``, ``charter.lint``, ``_profile_health_render``,
     ``charter._status_collectors``) called
     :func:`charter.offering.drg.validator.validate_graph` or ``assert_valid``. Measured
     consequence: a one-character typo in a qualified endpoint merged clean.

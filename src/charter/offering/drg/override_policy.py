@@ -48,7 +48,7 @@ if TYPE_CHECKING:
     from charter.offering.drg.org_pack_loader import OrgDRGFragment
 
 # The functions are the public-by-name API (wired from
-# ``specify_cli.cli.commands._doctrine_collect`` and the architectural gate). The
+# ``specify_cli.cli.commands._charter_pack_collect`` and the architectural gate). The
 # supporting types/constants remain module-level symbols: direct
 # ``from charter.offering.drg.override_policy import X`` still works for the
 # callers that consume them by name; they are simply not part of the

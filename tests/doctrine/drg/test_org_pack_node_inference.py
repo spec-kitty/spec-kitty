@@ -8,7 +8,7 @@ import yaml
 from charter.activation.action_governance_bundle import _load_action_governance_bundle
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.org_pack_loader import OrgPackSchemaError, load_org_pack
-from specify_cli.cli.commands._doctrine_collect import _collect_org_layer_data
+from specify_cli.cli.commands._charter_pack_collect import _collect_org_layer_data
 
 pytestmark = pytest.mark.fast
 

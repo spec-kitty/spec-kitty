@@ -82,7 +82,7 @@ test_no_dead_modules:
   # Lowered 7 -> 6 to lock in observed shrinkage (one further orphan removed).
   # #2082 FR-011 burn-down LANDED: WP08 wired override_policy's three governance
   # predicates into the `spec-kitty doctor doctrine` runtime caller
-  # (specify_cli.cli.commands._doctrine_collect), so the module now has a real
+  # (specify_cli.cli.commands._charter_pack_collect), so the module now has a real
   # src/ caller and is no longer an orphan; WP09 narrowed its __all__ to those
   # three live functions and retired the doctrine.drg.override_policy allowlist
   # entry. Re-lowered 7 -> 6, reversing the prior deliberate bump.

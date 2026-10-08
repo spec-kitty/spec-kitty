@@ -4,8 +4,8 @@ Pure extraction (mission ``tooling-stability-guard-coherence-01KTRC04`` WP08,
 issue #1623 / DIRECTIVE_013 / adversarial finding I-10): the doctrine- and
 profile-health *rendering* helpers that grew on ``doctor.py`` during mission
 ``org-doctrine-profile-integrity-activation-closure-01KT1TV1`` belong beside the
-single-source health model in :mod:`._doctrine_health`.  These helpers turn a
-:class:`._doctrine_health.DoctrineHealthReport` (plus the registry pack entries
+single-source health model in :mod:`._charter_pack_health`.  These helpers turn a
+:class:`._charter_pack_health.CharterPackHealthReport` (plus the registry pack entries
 and selection block assembled by ``doctor.py``'s collectors) into operator
 output — human Rich console lines and the ``--json`` payload.
 
@@ -13,7 +13,7 @@ This is a **pure move**: the bodies are verbatim relocations of the helpers that
 previously lived in ``doctor.py`` (only the module docstring and the imports
 differ).  The data *collectors* (``_collect_profile_health``,
 ``_attach_pack_health``, ``_build_pack_entries``, ``_collect_org_layer_data``,
-``_collect_doctrine_collisions``, ``_build_selection_block``) and the
+``_collect_layer_collisions``, ``_build_selection_block``) and the
 ``doctrine`` command itself stay in ``doctor.py``; only the render-only surface
 moved here.
 
@@ -37,16 +37,16 @@ if TYPE_CHECKING:
 
     from charter.drg import OrgDRGConflict, OrgDRGConflictError
 
-    from ._doctrine_health import DoctrineHealthReport
+    from ._charter_pack_health import CharterPackHealthReport
 
 __all__ = [
     "console",
     "_SELECTION_KIND_PLURALS",
     "_render_pack_invalid_profiles",
-    "_render_doctrine_pack",
-    "_emit_doctrine_human",
-    "_emit_doctrine_json",
-    "_emit_doctrine_no_packs",
+    "_render_charter_pack",
+    "_emit_charter_packs_human",
+    "_emit_charter_packs_json",
+    "_emit_charter_packs_no_packs",
     "_render_org_layer_section",
     "_render_selection_block_lines",
 ]
@@ -99,7 +99,7 @@ def _render_pack_invalid_profiles(pack_health: object) -> None:
         )
 
 
-def _render_doctrine_pack(pack_entry: dict[str, object], pack_index: int) -> None:
+def _render_charter_pack(pack_entry: dict[str, object], pack_index: int) -> None:
     """Render one pack entry to the Rich console (human output for ``doctor charter-packs``).
 
     FR-010: the pack header is colored from derived profile health
@@ -159,7 +159,7 @@ def _render_org_charter_line(charter: object) -> None:
     console.print(f"  org-charter.yaml: {counts_msg}")
 
 
-def _emit_doctrine_human(
+def _emit_charter_packs_human(
     pack_entries: list[dict[str, object]],
     collision_summaries: list[dict[str, object]],
     selection_block: dict[str, list[dict[str, str]]],
@@ -175,7 +175,7 @@ def _emit_doctrine_human(
         f"\n[bold]Org Doctrine[/bold] — {len(pack_entries)} pack(s) configured\n"
     )
     for idx, entry in enumerate(pack_entries):
-        _render_doctrine_pack(entry, idx)
+        _render_charter_pack(entry, idx)
 
     if collision_summaries:
         console.print(
@@ -205,8 +205,8 @@ def _emit_doctrine_human(
     console.print()
 
 
-def _emit_doctrine_json(
-    report: DoctrineHealthReport,
+def _emit_charter_packs_json(
+    report: CharterPackHealthReport,
     *,
     org_configured: bool,
     pack_entries: list[dict[str, object]],
@@ -234,8 +234,8 @@ def _emit_doctrine_json(
     console.print_json(json.dumps(payload, indent=2, default=str))
 
 
-def _emit_doctrine_no_packs(
-    report: DoctrineHealthReport,
+def _emit_charter_packs_no_packs(
+    report: CharterPackHealthReport,
     selection_block: dict[str, list[dict[str, str]]],
     *,
     json_output: bool,
@@ -246,7 +246,7 @@ def _emit_doctrine_no_packs(
     profile health) to audit, so both are emitted before the command exits.
     """
     if json_output:
-        _emit_doctrine_json(
+        _emit_charter_packs_json(
             report,
             org_configured=False,
             pack_entries=[],

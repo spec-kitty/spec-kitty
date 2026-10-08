@@ -1,7 +1,7 @@
 """WP08 — ``doctor charter-packs`` health report tests (FR-008/009/010, NFR-001).
 
 Covers:
-- ``PackHealth`` / ``DoctrineHealthReport`` derived health (I-H1 / FR-010):
+- ``PackHealth`` / ``CharterPackHealthReport`` derived health (I-H1 / FR-010):
   ``healthy = (valid_count == discovered_count) and not invalid_profiles``.
 - ``to_dict()`` emits stable invalid-profile fields
   (layer/path/profile_id/error_summary) as a passthrough of ``SkippedProfile``.
@@ -23,8 +23,8 @@ import pytest
 from typer.testing import CliRunner
 
 from charter.offering.agent_profiles.diagnostics import SkippedProfile
-from specify_cli.cli.commands._doctrine_health import (
-    DoctrineHealthReport,
+from specify_cli.cli.commands._charter_pack_health import (
+    CharterPackHealthReport,
     PackHealth,
     build_pack_health_by_layer,
 )
@@ -35,7 +35,7 @@ runner = CliRunner()
 
 
 # ---------------------------------------------------------------------------
-# T034 — PackHealth / DoctrineHealthReport derived health + stable fields
+# T034 — PackHealth / CharterPackHealthReport derived health + stable fields
 # ---------------------------------------------------------------------------
 
 
@@ -113,13 +113,13 @@ def test_report_healthy_only_when_every_pack_healthy() -> None:
             SkippedProfile("org", "/p/bad.yaml", None, "YAML error")
         ],
     )
-    assert DoctrineHealthReport(packs=[healthy]).healthy is True
-    assert DoctrineHealthReport(packs=[healthy, degraded]).healthy is False
+    assert CharterPackHealthReport(packs=[healthy]).healthy is True
+    assert CharterPackHealthReport(packs=[healthy, degraded]).healthy is False
 
 
 def test_report_to_dict_is_single_json_shape() -> None:
     skipped = SkippedProfile("org", "/p/bad.yaml", "x", "boom")
-    report = DoctrineHealthReport(
+    report = CharterPackHealthReport(
         packs=[PackHealth("org", "org", 2, 1, invalid_profiles=[skipped])],
         org_drg={"configured_packs": [], "errors": []},
     )
@@ -270,8 +270,8 @@ def test_doctor_doctrine_human_renders_degraded_pack_and_invalid_profiles(
 ) -> None:
     """Human render shows a degraded pack header + invalid profiles by layer/path/error.
 
-    Drives the human renderer (``_render_doctrine_pack``) from the same
-    ``DoctrineHealthReport`` the JSON surface uses (T035/T036 validation): a
+    Drives the human renderer (``_render_charter_pack``) from the same
+    ``CharterPackHealthReport`` the JSON surface uses (T035/T036 validation): a
     present snapshot whose profiles failed to load renders *degraded*, not green.
     """
     from io import StringIO
@@ -295,7 +295,7 @@ def test_doctor_doctrine_human_renders_degraded_pack_and_invalid_profiles(
         "pack_health": project_pack.to_dict(),
     }
 
-    # WP08 (#1623): ``_render_doctrine_pack`` and the ``console`` singleton it
+    # WP08 (#1623): ``_render_charter_pack`` and the ``console`` singleton it
     # emits through were extracted to ``_profile_health_render``; patch the
     # canonical owner so the renderer writes to our buffer.
     from specify_cli.cli.commands import _profile_health_render as render_mod
@@ -304,7 +304,7 @@ def test_doctor_doctrine_human_renders_degraded_pack_and_invalid_profiles(
     original = render_mod.console
     render_mod.console = Console(file=buf, highlight=False, markup=True, width=200)
     try:
-        doctor_mod._render_doctrine_pack(entry, 0)
+        doctor_mod._render_charter_pack(entry, 0)
     finally:
         render_mod.console = original
     output = buf.getvalue()
@@ -318,13 +318,13 @@ def test_doctor_doctrine_human_renders_degraded_pack_and_invalid_profiles(
 def test_doctor_doctrine_human_and_json_share_one_report(
     repo_with_invalid_project_profile: Path,
 ) -> None:
-    """Human + JSON derive from the same DoctrineHealthReport (no parallel assembly)."""
+    """Human + JSON derive from the same CharterPackHealthReport (no parallel assembly)."""
     from specify_cli.cli.commands import doctor as doctor_mod
 
     calls: list[int] = []
     real = doctor_mod._collect_profile_health
 
-    def _counting(repo_root: Path) -> DoctrineHealthReport:
+    def _counting(repo_root: Path) -> CharterPackHealthReport:
         calls.append(1)
         return real(repo_root)
 
@@ -501,7 +501,7 @@ def test_doctor_doctrine_json_inline_ref_unhealthy_and_rc1(
     payload = json.loads(result.output)
     # Contract pin: stable top-level + health keys cannot silently regress.
     # WP05 (glossary-pack-doctrine-kind): ``glossary_packs`` is a new nested
-    # health dimension (FR-012/SC-001) folded into ``DoctrineHealthReport``
+    # health dimension (FR-012/SC-001) folded into ``CharterPackHealthReport``
     # alongside the pre-existing agent-profile ``packs``/``org_drg`` keys.
     assert "profile_health" in payload
     health = payload["profile_health"]
@@ -587,7 +587,7 @@ def test_report_unhealthy_when_org_drg_has_errors() -> None:
     blind spot (kills the ``all(...)``-only health computation).
     """
     healthy_pack = PackHealth("builtin", "builtin", 2, 2)
-    report = DoctrineHealthReport(
+    report = CharterPackHealthReport(
         packs=[healthy_pack],
         org_drg={"configured_packs": [], "collision_warnings": [], "errors": ["boom"]},
     )
@@ -596,4 +596,4 @@ def test_report_unhealthy_when_org_drg_has_errors() -> None:
 
 def test_report_empty_packs_is_not_vacuously_healthy() -> None:
     """(b) honest flag: an empty pack list must NOT be vacuously healthy (all([])==True)."""
-    assert DoctrineHealthReport(packs=[]).healthy is False
+    assert CharterPackHealthReport(packs=[]).healthy is False

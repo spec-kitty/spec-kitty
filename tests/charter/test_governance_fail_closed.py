@@ -100,12 +100,12 @@ def test_analysis_inputs_declared_paths_fail_closed(tmp_path: Path) -> None:
 
 def test_doctor_reports_the_retired_key_instead_of_dropping_it(tmp_path: Path) -> None:
     """A diagnostic reports, never crashes, never drops silently (T073 step 3, review B2)."""
-    from specify_cli.cli.commands._doctrine_collect import _read_project_selections, _run_retired_governance_key_check
-    from specify_cli.cli.commands._doctrine_health import DoctrineHealthReport
+    from specify_cli.cli.commands._charter_pack_collect import _read_project_selections, _run_retired_governance_key_check
+    from specify_cli.cli.commands._charter_pack_health import CharterPackHealthReport
 
     path = _write_governance_section(tmp_path, _LEGACY_BODY)
     assert not any(_read_project_selections(tmp_path).values())
-    report = DoctrineHealthReport(org_drg={})
+    report = CharterPackHealthReport(org_drg={})
     _run_retired_governance_key_check(report, tmp_path)
     finding = report.org_drg["retired_governance_key"]
     assert finding["file"] == str(path) and finding["key"] == "governance.doctrine"
@@ -114,7 +114,7 @@ def test_doctor_reports_the_retired_key_instead_of_dropping_it(tmp_path: Path) -
 
     _write_governance_section(tmp_path, _CANONICAL_BODY)
     assert _read_project_selections(tmp_path)["directives"] == ["DIRECTIVE_001"]
-    clean = DoctrineHealthReport(org_drg={})
+    clean = CharterPackHealthReport(org_drg={})
     _run_retired_governance_key_check(clean, tmp_path)
     assert "retired_governance_key" not in clean.org_drg
 
@@ -122,13 +122,13 @@ def test_doctor_reports_the_retired_key_instead_of_dropping_it(tmp_path: Path) -
 @pytest.mark.parametrize("body", ["governance: [not, a, mapping]\n", "governance: {unclosed\n"], ids=["non-mapping", "malformed"])
 def test_retired_key_check_ignores_what_it_cannot_read(tmp_path: Path, body: str) -> None:
     from charter.resolution import resolve_canonical_repo_root
-    from specify_cli.cli.commands._doctrine_collect import _run_retired_governance_key_check
-    from specify_cli.cli.commands._doctrine_health import DoctrineHealthReport
+    from specify_cli.cli.commands._charter_pack_collect import _run_retired_governance_key_check
+    from specify_cli.cli.commands._charter_pack_health import CharterPackHealthReport
 
     charter_dir = resolve_canonical_repo_root(tmp_path) / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
     (charter_dir / "charter.yaml").write_text(body, encoding="utf-8")
-    report = DoctrineHealthReport(org_drg={})
+    report = CharterPackHealthReport(org_drg={})
     _run_retired_governance_key_check(report, tmp_path)
     assert report.org_drg == {}
 

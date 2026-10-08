@@ -1,14 +1,14 @@
-"""Doctrine-health DATA COLLECTORS for the ``doctor doctrine`` command (WP03, #2059).
+"""Charter-pack health DATA COLLECTORS for the ``doctor charter-packs`` command (WP03, #2059).
 
 This module completes the doctrine-health seam that #1623 left behind. #1623
 scoped its extraction to the RENDER layer only (``_profile_health_render``) and
 left the collectors in ``doctor.py``. This module moves Cluster J — the data
-collectors — beside the existing MODEL (:mod:`._doctrine_health`) and RENDER
+collectors — beside the existing MODEL (:mod:`._charter_pack_health`) and RENDER
 (:mod:`._profile_health_render`) modules, finishing the MODEL/RENDER/COLLECT
 triad.
 
 Import discipline (one-way graph, I-2): collect → model / render / shared. This
-module imports from :mod:`._doctrine_health` (MODEL types), from
+module imports from :mod:`._charter_pack_health` (MODEL types), from
 :mod:`._profile_health_render` (the ``_SELECTION_KIND_PLURALS`` constant), and
 from :mod:`._doctor_shared` if shared infra is needed. It must NEVER import
 ``doctor.py`` (the orchestrator re-exports FROM here).
@@ -41,8 +41,8 @@ if TYPE_CHECKING:
         OverrideAdjudication,
     )
 
-    from ._doctrine_health import (
-        DoctrineHealthReport,
+    from ._charter_pack_health import (
+        CharterPackHealthReport,
         GlossaryPackHealth,
         PackSkillHealth,
         SkippedGlossaryPack,
@@ -74,7 +74,7 @@ __all__ = [
     "_run_retired_layout_check",
     "_attach_pack_health",
     "_build_pack_entries",
-    "_collect_doctrine_collisions",
+    "_collect_layer_collisions",
     "_collect_org_layer_data",
     "_build_selection_block",
 ]
@@ -205,7 +205,7 @@ def _summarize_org_charter(snapshot_path: Path) -> dict[str, object]:
     }
 
 
-def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
+def _collect_profile_health(repo_root: Path) -> CharterPackHealthReport:
     """Build the agent-profile + org-DRG health report once (WP08, NFR-001).
 
     Instantiates a single :class:`~charter.offering.service.CharterOfferingService` rooted at
@@ -237,7 +237,7 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
     ``agent_profile_repository`` accessor (FR-001) rather than the gated
     ``agent_profiles`` property, which always returns a filtered ``dict``.
     """
-    from ._doctrine_health import DoctrineHealthReport, build_pack_health_by_layer
+    from ._charter_pack_health import CharterPackHealthReport, build_pack_health_by_layer
 
     from charter.profiles import SkippedProfile
 
@@ -282,7 +282,7 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
         else:  # pragma: no cover — _collect_org_layer_data always returns a dict
             org_drg = {"errors": [load_error]}
     glossary_pack_health = _collect_glossary_pack_health(repo_root)
-    return DoctrineHealthReport(
+    return CharterPackHealthReport(
         packs=packs,
         org_drg=org_drg,
         glossary_packs=glossary_pack_health,
@@ -301,7 +301,7 @@ def _parse_skipped_glossary_pack_warning(message: object) -> SkippedGlossaryPack
     to an ``"unknown"`` layer/path with the full text as the reason, so a
     format drift still surfaces a diagnostic instead of raising.
     """
-    from ._doctrine_health import SkippedGlossaryPack
+    from ._charter_pack_health import SkippedGlossaryPack
 
     text = str(message)
     match = _SKIPPED_GLOSSARY_PACK_PATTERN.match(text)
@@ -324,12 +324,12 @@ def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
     unloadable pack file only ever surfaces as a ``UserWarning`` emitted
     during the repository's (lazy) ``_load()``. This collector captures those
     warnings during the first access to the repository and turns each into a
-    :class:`~._doctrine_health.SkippedGlossaryPack` record — the same
+    :class:`~._charter_pack_health.SkippedGlossaryPack` record — the same
     surfaced-not-swallowed pattern :func:`_collect_profile_health` already
     applies to agent profiles — so an invalid pack degrades the aggregate
     ``healthy`` (SC-001) instead of vanishing silently.
 
-    Diagnostics are READ-ONLY and must never crash ``doctor doctrine`` on
+    Diagnostics are READ-ONLY and must never crash ``doctor charter-packs`` on
     operator misconfiguration: a hard load crash (e.g. a completely
     unreadable doctrine root) degrades to zero packs plus one synthetic
     invalid-pack record, rather than a silent, vacuously-healthy empty report.
@@ -351,25 +351,19 @@ def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
     from charter.activation.resolver import ActiveCharterService
     from charter.drg import resolve_org_roots
 
-    from ._doctrine_health import GlossaryPackHealth, SkippedGlossaryPack
+    from ._charter_pack_health import GlossaryPackHealth, SkippedGlossaryPack
 
     packs: list[GlossaryPack] = []
     invalid: list[SkippedGlossaryPack] = []
     try:
         org_roots = resolve_org_roots(repo_root)
         project_root = _project_pack_root_or_none(repo_root)
-        inner = CharterOfferingService(
-            org_roots=list(org_roots), project_root=project_root
-        )
+        inner = CharterOfferingService(org_roots=list(org_roots), project_root=project_root)
         service = ActiveCharterService(inner, pack_context=None)
         with warnings.catch_warnings(record=True) as captured:
             warnings.simplefilter("always")
             packs = service.raw_repository("glossary_packs").list_all()
-        invalid = [
-            _parse_skipped_glossary_pack_warning(w.message)
-            for w in captured
-            if issubclass(w.category, UserWarning)
-        ]
+        invalid = [_parse_skipped_glossary_pack_warning(w.message) for w in captured if issubclass(w.category, UserWarning)]
     except Exception as exc:  # noqa: BLE001 — diagnostics must never crash
         invalid = [
             SkippedGlossaryPack(
@@ -380,9 +374,7 @@ def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
         ]
 
     term_count = sum(len(pack.terms) for pack in packs)
-    return GlossaryPackHealth(
-        pack_count=len(packs), term_count=term_count, invalid_packs=invalid
-    )
+    return GlossaryPackHealth(pack_count=len(packs), term_count=term_count, invalid_packs=invalid)
 
 
 def _parse_skipped_pack_skill_warning(message: object) -> SkippedPackSkill:
@@ -391,7 +383,7 @@ def _parse_skipped_pack_skill_warning(message: object) -> SkippedPackSkill:
     Shares the fixed ``"Skipping invalid <layer> <kind> <file>: <reason>"``
     shape (and defensive ``unknown`` fallback) with the glossary-pack parser.
     """
-    from ._doctrine_health import SkippedPackSkill
+    from ._charter_pack_health import SkippedPackSkill
 
     text = str(message)
     match = _SKIPPED_GLOSSARY_PACK_PATTERN.match(text)
@@ -411,14 +403,14 @@ def _collect_pack_skill_health(repo_root: Path) -> PackSkillHealth:
     builder (``build_active_charter_service``) and
     :meth:`~charter.activation.resolver.ActiveCharterService.raw_repository`, so
     every installed skill is audited regardless of activation. Load warnings
-    become :class:`~._doctrine_health.SkippedPackSkill` records; a hard load
+    become :class:`~._charter_pack_health.SkippedPackSkill` records; a hard load
     failure (for example two sibling org packs declaring the same skill id)
     degrades to zero skills plus one synthetic invalid record instead of
-    crashing ``doctor doctrine``.
+    crashing ``doctor charter-packs``.
     """
     from charter.activation.active_charter_service_builder import build_active_charter_service
 
-    from ._doctrine_health import PackSkillHealth, SkippedPackSkill
+    from ._charter_pack_health import PackSkillHealth, SkippedPackSkill
 
     loaded = 0
     invalid: list[SkippedPackSkill] = []
@@ -433,7 +425,7 @@ def _collect_pack_skill_health(repo_root: Path) -> PackSkillHealth:
     return PackSkillHealth(skill_count=loaded, invalid_skills=invalid)
 
 
-def _run_cross_grain_check(report: DoctrineHealthReport) -> None:
+def _run_cross_grain_check(report: CharterPackHealthReport) -> None:
     """Fold the FR-013 built-in cross-grain scan into *report* in place (#2666).
 
     Runs :func:`charter.activation.action_grain.scan_builtin_cross_grain_duplicates` — the
@@ -446,7 +438,7 @@ def _run_cross_grain_check(report: DoctrineHealthReport) -> None:
     :func:`_collect_profile_health` already uses for a collector crash:
 
     * appends a human-readable message to ``org_drg["errors"]`` — the honest
-      ``DoctrineHealthReport.healthy`` flag reads this list, so a collision
+      ``CharterPackHealthReport.healthy`` flag reads this list, so a collision
       forces the report unhealthy (RC=1) without a parallel health field.
     * adds a structured ``org_drg["cross_grain_collisions"]`` finding
       (``kind`` / ``artifact``) so both the ``--json`` payload and the human
@@ -456,7 +448,7 @@ def _run_cross_grain_check(report: DoctrineHealthReport) -> None:
     On success (every shipped mission type disjoint) this is a no-op —
     ``report`` is left untouched and the exit code is unaffected.
 
-    Diagnostics are READ-ONLY and must never crash ``doctor doctrine`` on a
+    Diagnostics are READ-ONLY and must never crash ``doctor charter-packs`` on a
     genuine collision: the exception is caught and folded into the report,
     not re-raised.
     """
@@ -478,12 +470,10 @@ def _run_cross_grain_check(report: DoctrineHealthReport) -> None:
         errors = list(existing_errors) if isinstance(existing_errors, list) else []
         errors.append(message)
         org_drg["errors"] = errors
-        org_drg["cross_grain_collisions"] = [
-            {"kind": exc.kind, "artifact": exc.artifact}
-        ]
+        org_drg["cross_grain_collisions"] = [{"kind": exc.kind, "artifact": exc.artifact}]
 
 
-def _run_operating_procedures_check(report: DoctrineHealthReport) -> None:
+def _run_operating_procedures_check(report: CharterPackHealthReport) -> None:
     """Fold the built-in ``operating-procedures`` resolution scan into *report*.
 
     Every ``collaboration.operating-procedures`` entry on a built-in agent
@@ -493,10 +483,10 @@ def _run_operating_procedures_check(report: DoctrineHealthReport) -> None:
     tiers are guarded at edge-emission time, not hard-failed here.
 
     Mirrors :func:`_run_cross_grain_check`'s fail-loud pattern — a non-empty set
-    appends to ``org_drg["errors"]`` (so ``DoctrineHealthReport.healthy`` reports
+    appends to ``org_drg["errors"]`` (so ``CharterPackHealthReport.healthy`` reports
     unhealthy) and always records a structured
     ``org_drg["operating_procedures_unresolved"]`` finding (present-and-empty on
-    a healthy tree). Read-only; never raises ``doctor doctrine``.
+    a healthy tree). Read-only; never raises ``doctor charter-packs``.
     """
     from charter.offering.agent_profiles.operating_procedures import (
         collect_operating_procedure_entries,
@@ -512,12 +502,8 @@ def _run_operating_procedures_check(report: DoctrineHealthReport) -> None:
         return
     try:
         procedure_urns, urns_by_kind = node_universe(load_built_in_graph().nodes)
-        entries = collect_operating_procedure_entries(
-            built_in_dir(ArtifactKind.AGENT_PROFILE)
-        )
-        unresolved = resolve_operating_procedure_entries(
-            entries, procedure_urns, urns_by_kind
-        )
+        entries = collect_operating_procedure_entries(built_in_dir(ArtifactKind.AGENT_PROFILE))
+        unresolved = resolve_operating_procedure_entries(entries, procedure_urns, urns_by_kind)
     except Exception as exc:  # noqa: BLE001 — diagnostics must never crash
         existing = org_drg.get("errors")
         errors = list(existing) if isinstance(existing, list) else []
@@ -536,19 +522,14 @@ def _run_operating_procedures_check(report: DoctrineHealthReport) -> None:
     ]
     if unresolved:
         noun = "entry" if len(unresolved) == 1 else "entries"
-        message = (
-            f"{len(unresolved)} built-in operating-procedures {noun} resolve to "
-            "no procedure node (fictional or wrong-kind)"
-        )
+        message = f"{len(unresolved)} built-in operating-procedures {noun} resolve to no procedure node (fictional or wrong-kind)"
         existing = org_drg.get("errors")
         errors = list(existing) if isinstance(existing, list) else []
         errors.append(message)
         org_drg["errors"] = errors
 
 
-def _attach_pack_health(
-    pack_entries: list[dict[str, object]], report: DoctrineHealthReport
-) -> None:
+def _attach_pack_health(pack_entries: list[dict[str, object]], report: CharterPackHealthReport) -> None:
     """Attach per-layer ``PackHealth`` to registry pack entries for FR-010 rendering.
 
     Org-pack registry entries are org-layer snapshots, so each present pack is
@@ -589,12 +570,12 @@ def _build_pack_entries(registry: object, repo_root: Path) -> list[dict[str, obj
     return pack_entries
 
 
-def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
+def _collect_layer_collisions(repo_root: Path) -> list[dict[str, object]]:
     """Run the doctrine resolver and collect any layer-collision warnings.
 
     Returns a list of structured collision descriptors (kind, item_id,
     higher_layer, lower_layer, replaced, inherited) for surfacing via
-    ``doctor doctrine`` (FR-003 wording per ADR 2026-05-16-1).
+    ``doctor charter-packs`` (FR-003 wording per ADR 2026-05-16-1).
 
     WP03 (charter-sole-door-bypass-closure-01KZ3WAA, FR-002/T013):
     diagnostic-completeness rationale -- collision detection must scan every
@@ -667,7 +648,7 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
 
 
 def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
-    """Return structured org-layer data for ``doctor doctrine --json`` (FR-007).
+    """Return structured org-layer data for ``doctor charter-packs --json`` (FR-007).
 
     Mirrors the human-readable output of :func:`_render_org_layer_section`
     but as a dict suitable for JSON serialisation.  Always returns a dict
@@ -738,16 +719,14 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
         # WP08 (FR-010): reuse the SAME merge the org-layer section already runs
         # (C-006 — no new DRG plumbing). The merged graph is now captured, not
         # discarded, so the promoted predicates can adjudicate built-in overrides.
-        merged = merge_three_layers(
-            built_in=built_in, org_fragments=fragments, project=None
-        )
+        merged = merge_three_layers(built_in=built_in, org_fragments=fragments, project=None)
     except OrgDRGConflictError as exc:
         _record_org_conflicts(result, exc)
     except Exception as exc:  # noqa: BLE001 — doctor must not crash on a bad pack
         # A check that could not RUN is not a check that PASSED. This handler
         # used to be a bare ``pass``; since the block also decides org-layer
         # completeness, swallowing meant a crashed merge produced ``errors: []``
-        # and ``DoctrineHealthReport.healthy`` read that as clean — RC=0 having
+        # and ``CharterPackHealthReport.healthy`` read that as clean — RC=0 having
         # verified nothing. Report it on the same channel the load failure above
         # already uses, so the diagnostic degrades loudly instead of silently.
         _append_org_errors(result, [f"org-layer merge check failed: {exc}"])
@@ -778,7 +757,7 @@ def _record_org_conflicts(result: dict[str, object], exc: OrgDRGConflictError) -
     ``errors``.
 
     That copy is the fix for this module's headline defect: ``errors`` is the
-    only channel ``DoctrineHealthReport.healthy`` reads, so writing a hard
+    only channel ``CharterPackHealthReport.healthy`` reads, so writing a hard
     failure exclusively to ``collision_warnings`` reported a graph the merge
     layer had *refused to assemble* as ``healthy: True`` with ``RC=0``.
     Partitioning by ``resolution_applied`` is delegated to
@@ -838,9 +817,9 @@ def _run_post_merge_org_checks(
 def _append_org_errors(result: dict[str, object], messages: list[str]) -> None:
     """Append *messages* to ``result['errors']`` with isinstance narrowing.
 
-    ``DoctrineHealthReport.healthy`` treats a non-empty ``org_drg['errors']`` as
+    ``CharterPackHealthReport.healthy`` treats a non-empty ``org_drg['errors']`` as
     unhealthy, so this is the in-ownership channel that flips the exit code when
-    an unsanctioned override is found (no edit to ``_doctrine_health.py``).
+    an unsanctioned override is found (no edit to ``_charter_pack_health.py``).
     """
     existing = result.get("errors")
     errors = list(existing) if isinstance(existing, list) else []
@@ -968,7 +947,7 @@ def _record_override_findings(
     key only when non-empty: ``unsanctioned_overrides``, ``sanctioned_overrides``
     and ``pack_sanction_errors``. Every error — including a malformed consumer
     allowlist and an unknown revocation target — is appended to ``errors``, the
-    channel ``DoctrineHealthReport.healthy`` reads, so each flips RC to 1.
+    channel ``CharterPackHealthReport.healthy`` reads, so each flips RC to 1.
     """
     verdicts = _adjudicate_with_policy(merged, built_in_urns, repo_root, fragments)
     effective = verdicts.effective
@@ -980,13 +959,12 @@ def _record_override_findings(
     errors.extend(effective.revocation_errors)
     if verdicts.adjudication.sanctioned:
         result["sanctioned_overrides"] = [
-            {"urn": s.urn, "kind": s.kind, "pack": s.pack, "source": s.source, "reason": s.reason}
-            for s in verdicts.adjudication.sanctioned
+            {"urn": s.urn, "kind": s.kind, "pack": s.pack, "source": s.source, "reason": s.reason} for s in verdicts.adjudication.sanctioned
         ]
     unsanctioned = _unsanctioned_findings(verdicts)
     if unsanctioned:
         # Dedicated key for precise rendering (human/JSON) AND an entry in
-        # ``errors`` so the honest ``DoctrineHealthReport.healthy`` predicate
+        # ``errors`` so the honest ``CharterPackHealthReport.healthy`` predicate
         # flips the report unhealthy (RC=1) without a parallel health path.
         result["unsanctioned_overrides"] = unsanctioned
         errors.extend(f"unsanctioned built-in override: {f['urn']} ({f['kind']}) — {f['why']}" for f in unsanctioned)
@@ -1092,9 +1070,9 @@ def _read_project_selections(repo_root: Path) -> dict[str, list[str]]:
         # LEGACY_CHARTER_STATE gate does NOT catch it (its predicate never reads
         # charter.yaml), so :func:`_run_retired_governance_key_check` reports it
         # as a finding and the selections here stay empty.
-        doctrine_block = require_canonical_governance(governance_block, source=charter_yaml).get("charter") or {}
+        charter_block = require_canonical_governance(governance_block, source=charter_yaml).get("charter") or {}
         for kind in _SELECTION_KIND_PLURALS:
-            value = doctrine_block.get(f"selected_{kind}")
+            value = charter_block.get(f"selected_{kind}")
             if isinstance(value, list):
                 selections[kind] = [str(v) for v in value]
     except ActiveCharterConfigError:
@@ -1109,7 +1087,7 @@ def _read_project_selections(repo_root: Path) -> dict[str, list[str]]:
 _RETIRED_GOVERNANCE_KEY = "governance.doctrine"
 
 
-def _run_retired_governance_key_check(report: DoctrineHealthReport, repo_root: Path) -> None:
+def _run_retired_governance_key_check(report: CharterPackHealthReport, repo_root: Path) -> None:
     """Report a retired ``governance.doctrine`` key in ``charter.yaml`` (#3732, FR-011).
 
     The selections reader cannot use it (it is the retired key), and the CLI-root
@@ -1169,7 +1147,7 @@ def _read_org_required(repo_root: Path) -> dict[str, list[str]]:
         except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError) as exc:
             # Diagnostics must never crash (this function's own contract), but a
             # fail-closed pack-config error must not vanish silently either —
-            # surface it at WARNING so `doctor doctrine` output is explainable.
+            # surface it at WARNING so `doctor charter-packs` output is explainable.
             logger.warning("org pack context unavailable for selection diagnostics: %s", exc)
         except Exception:  # noqa: BLE001 — pack_context is best-effort
             pass
@@ -1194,7 +1172,7 @@ def _build_selection_block(repo_root: Path) -> dict[str, list[dict[str, str]]]:
 
     Mission-type-profile selections are intentionally excluded here:
     profiles apply per-mission (gated by ``meta.json mission_type``)
-    while ``doctor doctrine`` is a project-wide diagnostic.  The
+    while ``doctor charter-packs`` is a project-wide diagnostic.  The
     selections block reflects the *globally* active set so the operator
     can audit charter intent without picking a specific mission.
 
@@ -1242,12 +1220,12 @@ def _build_selection_block(repo_root: Path) -> dict[str, list[dict[str, str]]]:
         project_set = set(project_selections[kind])
         entries: list[dict[str, str]] = []
         for item_id in ordered:
-            entries.append({
-                "id": item_id,
-                "source": _resolve_artifact_source(
-                    item_id, kind, service, org_required, project_set
-                ),
-            })
+            entries.append(
+                {
+                    "id": item_id,
+                    "source": _resolve_artifact_source(item_id, kind, service, org_required, project_set),
+                }
+            )
         result[kind] = entries
     return result
 
@@ -1273,26 +1251,30 @@ def _retired_layout_findings(repo_root: Path) -> list[dict[str, str]]:
             continue
         nested = retired_nested_org_layout(root)
         if nested is not None:
-            findings.append({
-                "path": str(nested),
-                "message": (
-                    f"org pack {pack.name!r} uses the retired nested layout {nested}/<kind>/<layer>/, which is not read; "
-                    f"move its artifacts to the flat layout {root}/<kind>/ (see {_CUTOVER_RUNBOOK})."
-                ),
-            })
+            findings.append(
+                {
+                    "path": str(nested),
+                    "message": (
+                        f"org pack {pack.name!r} uses the retired nested layout {nested}/<kind>/<layer>/, which is not read; "
+                        f"move its artifacts to the flat layout {root}/<kind>/ (see {_CUTOVER_RUNBOOK})."
+                    ),
+                }
+            )
     fallback = retired_repo_root_fallback(repo_root)
     if fallback is not None:
-        findings.append({
-            "path": str(fallback),
-            "message": (
-                f"{fallback} is no longer read as the project layer; move its artifacts to the project pack root "
-                f"{PROJECT_PACK_ROOT_POSIX}/ (see {_CUTOVER_RUNBOOK})."
-            ),
-        })
+        findings.append(
+            {
+                "path": str(fallback),
+                "message": (
+                    f"{fallback} is no longer read as the project layer; move its artifacts to the project pack root "
+                    f"{PROJECT_PACK_ROOT_POSIX}/ (see {_CUTOVER_RUNBOOK})."
+                ),
+            }
+        )
     return findings
 
 
-def _run_retired_layout_check(report: DoctrineHealthReport, repo_root: Path) -> None:
+def _run_retired_layout_check(report: CharterPackHealthReport, repo_root: Path) -> None:
     """Report the retired doctrine layouts that now resolve to nothing (#3732, FR-011).
 
     The nested org-pack layout ``<pack>/doctrine/<plural>/<layer>/`` and the

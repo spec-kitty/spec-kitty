@@ -104,7 +104,7 @@ TAXONOMY: frozenset[str] = frozenset(
 #: mission's intent. WP03 owes no door for these; WP05 keeps them allowlisted.
 TICKETED_BASELINE: dict[str, str] = {
     "charter.offering.drg.override_policy": (
-        "Doctrine-management internal consumed by _doctrine_collect.py (override-audit paths); no clean charter door. Ratchet allowlist, #3179."
+        "Doctrine-management internal consumed by _charter_pack_collect.py (override-audit paths); no clean charter door. Ratchet allowlist, #3179."
     ),
     "charter.offering.drg.migration.hand_authored_overlay": (
         "write_reference_graph_with_overlay is a DRG-regeneration internal consumed by cli/commands/charter/pack_tooling.py; "
@@ -124,7 +124,7 @@ DISPOSITION: dict[str, str] = {
     "charter.offering.agent_profiles.capabilities": "FACADE-ONLY",
     "charter.offering.agent_profiles.diagnostics": "FACADE-ONLY",
     # operating_procedures: the single-authority operating-procedures harvest,
-    # reached by _doctrine_collect.py (doctor charter-packs) + the DRG extractor.
+    # reached by _charter_pack_collect.py (doctor charter-packs) + the DRG extractor.
     # FACADE-ONLY per the cluster: it belongs behind the charter.profiles door;
     # the op-procedures door is a tracked follow-up (see PR #3593).
     "charter.offering.agent_profiles.operating_procedures": "FACADE-ONLY",
@@ -140,7 +140,7 @@ DISPOSITION: dict[str, str] = {
     "charter.offering.drg.migration.hand_authored_overlay": "TICKETED-BASELINE",
     # charter.offering.base — ArtifactLayerCollisionWarning (census-drift: absent from the
     # snapshot table). Doorable → FACADE-ONLY (prefer a clean door over widening
-    # the exempt surface). Consumer _doctrine_collect.py is WP05-owned.
+    # the exempt surface). Consumer _charter_pack_collect.py is WP05-owned.
     "charter.offering.base": "FACADE-ONLY",
     # missions cluster → new charter.missions door
     "charter.offering.missions.step_contracts": "FACADE-ONLY",
@@ -204,6 +204,16 @@ ORPHAN_REACHED_EXCEPTIONS: frozenset[tuple[str, str]] = frozenset(
         # 01KZPDSR record, so the moved files cannot join it.
         ("src/specify_cli/cli/commands/charter/pack_asset.py", "charter.offering.service"),
         ("src/specify_cli/cli/commands/charter/pack_tooling.py", "charter.offering.drg.migration.hand_authored_overlay"),
+        # #3732 (charter-pack-cutover-01M491G6 WP21) renamed the WP05-owned
+        # ``_doctrine_collect.py`` to ``_charter_pack_collect.py`` (git mv, no
+        # change of reach). Same reason as above: the frozen owner list names the
+        # predecessor, so the successor's unchanged reaches are listed pair by pair.
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.agent_profiles.operating_procedures"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.artifact_kinds"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.drg.loader"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.drg.override_policy"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.pack_paths"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.service"),
     }
 )
 
