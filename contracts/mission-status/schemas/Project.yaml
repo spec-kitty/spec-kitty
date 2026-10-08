@@ -68,7 +68,8 @@ properties:
       serving build supports; otherwise schema_drift. The range is that of the serving build, so
       the same project reads healthy or schema_drift depending on which build serves it. It rolls
       up the three non-compatible schema statuses (unmigrated, outdated, cli_outdated); the finer
-      split stays in schemaVersion. It never depends on a drift finding. This property is provisional.
+      split stays in schemaVersion. It never depends on a drift finding. This property is provisional,
+      and a client must tolerate a health value it does not know.
     x-derived:
       rule: >-
         healthy when schemaVersion is not null and MIN_SUPPORTED_SCHEMA <= schemaVersion <=

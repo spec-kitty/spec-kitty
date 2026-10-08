@@ -2,7 +2,9 @@ title: ProjectHealth
 description: >-
   Whether the schema version a project recorded is one the serving build supports: healthy, or
   schema_drift. The supported range is that of the serving build, and schema_drift rolls up the
-  three non-compatible schema statuses (unmigrated, outdated, cli_outdated).
+  three non-compatible schema statuses (unmigrated, outdated, cli_outdated). The vocabulary is
+  provisional: a client must tolerate a value it does not know, because a later minor version may
+  add values to this enum.
 type: string
 enum:
   - healthy
