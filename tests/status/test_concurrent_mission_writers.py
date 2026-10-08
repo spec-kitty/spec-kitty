@@ -930,6 +930,38 @@ def test_single_branch_agent_claims_serialize_on_the_checkout_lock(tmp_path: Pat
     assert "WRITE_CHECKOUT_OCCUPIED" in out
 
 
+def test_agent_claim_with_a_checkout_lock_held_past_its_bound_names_status_lock_held(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """F7: the agent claim prints the STATUS_LOCK_HELD code (exit 1) instead of a bare error."""
+    import specify_cli.status as status_pkg
+
+    repo, mission = _build_flat_two_lane_mission(tmp_path, monkeypatch, mission_slug="agent-lock-held")
+    _make_single_branch(repo, mission)
+    real_lock = status_pkg.write_checkout_claim_lock
+    monkeypatch.setattr(status_pkg, "write_checkout_claim_lock", lambda root, **_kw: real_lock(root, timeout=0.2))
+
+    holding, release = threading.Event(), threading.Event()
+
+    def _hold() -> None:
+        with locking.write_checkout_claim_lock(repo):
+            holding.set()
+            release.wait(WAIT_SECONDS)
+
+    holder = threading.Thread(target=_hold, name="checkout-holder", daemon=True)
+    holder.start()
+    assert holding.wait(WAIT_SECONDS)
+    try:
+        rc = _invoke("agent", "action", "implement", "WP01", "--mission", mission, "--agent", "alice", "--allow-sparse-checkout")
+    finally:
+        release.set()
+        holder.join(WAIT_SECONDS)
+
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "STATUS_LOCK_HELD" in out and "Timed out acquiring status lock" in out
+
+
 def test_checkout_claim_lock_is_shared_across_missions_of_one_checkout(tmp_path: Path) -> None:
     """A claimant of another single_branch Mission waits for the checkout lock too (cross-Mission arm)."""
     from tests.lanes.test_checkout_occupancy import _init_repo, _write_repo_root_lane, _write_single_branch_meta

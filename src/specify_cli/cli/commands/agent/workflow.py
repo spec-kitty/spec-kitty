@@ -95,7 +95,7 @@ from specify_cli.review.cycle import (
     next_review_feedback_source_path,
 )
 from specify_cli.status import feature_status_lock  # noqa: F401 -- late-bound via workflow_executor._wf() / patched by tests
-from specify_cli.status import Lane
+from specify_cli.status import FeatureStatusLockTimeoutError, Lane
 from specify_cli.status import RollbackOutcome, RollbackPoint, rollback_io_failure, rollback_status_artifacts
 from specify_cli.status import (
     ResolvedBinding,
@@ -1815,6 +1815,12 @@ def implement(
         with contextlib.suppress(Exception):
             _print_commit_summary(command_name="implement")
         raise
+    except FeatureStatusLockTimeoutError as e:
+        # A claim lock held past its bound is retryable and has its own code, like the orchestrator API.
+        with contextlib.suppress(Exception):
+            _print_commit_summary(command_name="implement")
+        print(f"Error: {e.error_code}: {e}. Another writer holds the lock; retry the claim.")
+        raise typer.Exit(1)
     except Exception as e:
         # WP06 T029: surface any partial commit summary before exiting,
         # so operators see what got recorded vs. refused.

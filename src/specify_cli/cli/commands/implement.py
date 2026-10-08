@@ -13,6 +13,7 @@ from typing import Annotated, Any
 import typer
 from pydantic import ValidationError
 from rich.markup import escape
+from specify_cli.status import FeatureStatusLockTimeoutError
 from specify_cli.cli.console import console
 
 from specify_cli.cli import StepTracker
@@ -150,6 +151,12 @@ def _print_explicit_base_ref(effective_base: str | None, resolved_workspace: Any
 
 def _render_create_failure(tracker: StepTracker, exc: Exception, workspace_created: bool) -> None:
     """Render a ``create`` step failure (the caller raises ``typer.Exit(1)``)."""
+    if isinstance(exc, FeatureStatusLockTimeoutError):
+        # A claim lock held past its bound is retryable; name the code the orchestrator API uses.
+        tracker.error("create", f"{exc.error_code}: status lock held by another writer")
+        console.print(tracker.render())
+        console.print(f"\n[red]Error:[/red] {exc.error_code}: {escape(str(exc))}. Another writer holds the lock; retry the claim.")
+        return
     tracker.error("create", f"workspace allocation failed: {exc}")
     console.print(tracker.render())
     if workspace_created:
