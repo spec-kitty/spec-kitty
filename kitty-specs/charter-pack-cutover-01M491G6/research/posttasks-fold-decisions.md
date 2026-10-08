@@ -82,3 +82,7 @@ CLI: `charter activate --pack/--preset`, `charter pack list|path <pack> [--prese
 ## Owner ruling 2026-10-07 — edited copies of retired skills (US4, WP18 review)
 
 Option A: when the cutover keeps an edited installed copy of a retired skill, it also drops that copy's skills-manifest entry, so the copy becomes user-owned. It is reported once ("Kept edited skill copy") and never makes a later `spec-kitty upgrade` exit non-zero or print the "delete it and run upgrade again" advice.
+
+## Owner ratification 2026-10-08 — WP20 public names
+
+Ratified (WP20 review): `OfferingCatalog`, `load_offering_catalog`, `resolve_offering_root`, `GovernanceCharterConfig`, `build_active_charter_service`, modules `active_charter_service_builder`, `action_governance_bundle`, `_project_root_candidates`, JSON key `missing_from_offering` (`charter consistency-check --json`), keyword `charter_service=` on `compile_charter` and related functions.
