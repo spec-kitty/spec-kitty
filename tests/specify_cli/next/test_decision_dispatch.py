@@ -254,3 +254,27 @@ class TestMarkerFileContents:
         content = Path(path).read_text(encoding="utf-8")
         assert "software-dev" in content
         assert "specify" in content
+
+
+def test_software_dev_specify_prompt_contains_action_instructions() -> None:
+    """A selected composed step must give the agent its real specify work."""
+    repo_root = Path(__file__).parents[3]
+    mission_slug = "upgrade-preview-mission-health-01M1V6E1"
+    mission_dir = repo_root / "kitty-specs" / mission_slug
+
+    path, error, _error_code = _build_prompt_or_error(
+        action="specify",
+        feature_dir=mission_dir,
+        mission_slug=mission_slug,
+        wp_id=None,
+        agent="codex",
+        repo_root=repo_root,
+        mission_type="software-dev",
+    )
+
+    assert error is None
+    assert path is not None
+    prompt = Path(path).read_text(encoding="utf-8")
+    assert "## Primary Invariant: What Are We Building?" in prompt
+    assert "spec-kitty spec-commit" in prompt
+    assert "This step is dispatched via composition." not in prompt
