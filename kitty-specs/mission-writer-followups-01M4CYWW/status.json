@@ -311,6 +311,7 @@
       "last_transition_at": "2026-10-08T18:58:01.958874+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
+        "Stream B (runtime/templates) in the stream/runtime worktree",
         "Stream B (runtime/templates) in the stream/runtime worktree"
       ],
       "provider": "__resolved_provider_absent__",
