@@ -26,7 +26,7 @@ depend only on ``charter.offering`` / ``kernel``, never on the ``charter`` facad
 
 This file is a **pure re-export** module — no behaviour, no wrappers, no type
 aliases. Enforced by
-``tests/architectural/test_charter_facades_reexport_doctrine.py``.
+``tests/architectural/test_charter_facades_reexport_offering.py``.
 """
 
 from charter.offering.api import (

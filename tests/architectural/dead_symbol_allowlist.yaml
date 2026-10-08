@@ -147,7 +147,7 @@ categories:
     rationale: 'C. mission-type-drg-edges (#2677) charter.drg facade re-export. ``charter.drg`` is a contract-required
       FACADE module: the ``runtime-charter-doctrine-boundary`` plan (docs/plans/doctrine, ~L57) and the
       ``charter-facade-modules.md`` Symbol table mandate it re-export ``load_graph`` so consumers reach
-      the DRG loader through ``charter.drg.*`` -- an invariant independently enforced by ``test_charter_facades_reexport_doctrine``.
+      the DRG loader through ``charter.drg.*`` -- an invariant independently enforced by ``test_charter_facades_reexport_offering``.
       WP03 of this mission rerouted the LAST in-``src/`` consumer of ``charter.drg.load_graph`` to ``load_built_in_graph``,
       so the contract-required re-export now has no cross-file src/ caller (removing it would break the
       facade gate -- two-gate tension). ``load_graph`` is a LIVE COLLISION bare_name (3 live ``__all__``
@@ -246,7 +246,7 @@ categories:
       cluster) that let WP05–WP07 migrate runtime off direct ``doctrine.*`` imports (FR-003, NFR-002,
       contract C2). Those consumer WPs depend on WP03 and have NOT landed in this lane, so each new facade
       re-export currently has no cross-file ``src/`` caller. Every symbol below is a contract-required
-      facade re-export (``test_charter_facades_reexport_doctrine`` independently enforces the object-identity
+      facade re-export (``test_charter_facades_reexport_offering`` independently enforces the object-identity
       + ``__all__`` membership these entries would otherwise let a refactor drop). Each is a LIVE-COLLISION
       bare_name (the same name lives in the doctrine origin ``__all__`` and, for the PUBLIC ones, in ``charter.offering.api``
       too), so the FR-005 classifier escalates it to the module_path tier and it is deliberately NOT covered

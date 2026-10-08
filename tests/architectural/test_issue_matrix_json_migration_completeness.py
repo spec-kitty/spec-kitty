@@ -263,7 +263,7 @@ def test_finalize_lint_is_silent_for_a_valid_json_only_mission(
 # ---------------------------------------------------------------------------
 
 
-def test_doctrine_skills_name_the_json_artifact() -> None:
+def test_shipped_skills_name_the_json_artifact() -> None:
     """The two review skills must mention ``issue-matrix.json``.
 
     A skill is allowed to ALSO mention the legacy ``issue-matrix.md``

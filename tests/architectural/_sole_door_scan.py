@@ -70,13 +70,13 @@ UNIFIED_BUILDER_REL_PATH = "src/charter/activation/active_charter_service_builde
 #: The doctrine layer owns the wrapped subject (Gate 1/Gate 2's shared
 #: rationale: the raw charter.offering.service.CharterOfferingService construction inside
 #: doctrine/service.py IS the thing the sole door wraps, not a bypass of it).
-DOCTRINE_LAYER_PREFIX = "src/charter/offering/"
+OFFERING_LAYER_PREFIX = "src/charter/offering/"
 
 #: Files entitled to construct a watched doctrine class natively. Shared by
 #: Gate 1 (AgentProfileRepository) and Gate 2 (ActiveCharterService), which each
 #: police a different watched class against the same two authorities.
 SOLE_DOOR_EXEMPT_FILES = frozenset({SOLE_DOOR_REL_PATH, UNIFIED_BUILDER_REL_PATH})
-SOLE_DOOR_EXEMPT_PREFIXES = (DOCTRINE_LAYER_PREFIX,)
+SOLE_DOOR_EXEMPT_PREFIXES = (OFFERING_LAYER_PREFIX,)
 
 _MIN_RATIONALE_CHARS = 80
 

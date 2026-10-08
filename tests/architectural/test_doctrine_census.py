@@ -10,7 +10,7 @@ below directly rather than re-deriving a classification (or re-reading prose fro
         DISPOSITION,
         EXEMPT_MANAGEMENT_SURFACE,
         TICKETED_BASELINE,
-        reached_doctrine_paths,
+        reached_offering_paths,
     )
 
 The census is **re-run against the live tree** on every invocation (an AST sweep of
@@ -21,7 +21,7 @@ rather than moving its exemption, NFR-002) — the disposition table is not trus
 reach-through-ed, undoored doctrine path therefore fails CI (FR-002 / SC-002).
 
 Census numbers, re-measured on this tip (post WP05–WP07 migration + the #3522
-``src/runtime`` widening) via ``reached_doctrine_paths()`` — the same live scan the
+``src/runtime`` widening) via ``reached_offering_paths()`` — the same live scan the
 gate runs on every invocation:
 
 * module-level direct ``from charter.offering …`` imports (``ImportFrom.level == 0``): **0**
@@ -36,7 +36,7 @@ gates below passed vacuously. Fixed together with the #3522 widening.)
 (Earlier snapshots recorded 29 files / 54 lines / 23 paths before the WP05–WP07
 migration, and 34 files / 70 lines / 26 paths at planning time — both superseded.
 The gate re-censuses the live tree every run, so it, not this prose, is the
-authority; reproduce the numbers above with ``reached_doctrine_paths()``.)
+authority; reproduce the numbers above with ``reached_offering_paths()``.)
 
 See ``kitty-specs/doctrine-public-api-surface-01KZPDSR/data-model.md`` for the finalized
 per-symbol disposition table and the management-surface / C-007-mission notes.
@@ -116,7 +116,7 @@ TICKETED_BASELINE: dict[str, str] = {
 #: is a **superset** of the currently-reached set: it also classifies paths reached
 #: only under ``TYPE_CHECKING`` today (drg.merge, glossary_packs, assets.models) so
 #: WP02/WP03 have a stable target even as call sites migrate. Every reached path
-#: MUST appear here (test_every_reached_doctrine_path_has_disposition).
+#: MUST appear here (test_every_reached_offering_path_has_disposition).
 DISPOSITION: dict[str, str] = {
     # agent_profiles cluster → charter.profiles (existing door)
     "charter.offering.agent_profiles.profile": "FACADE-ONLY",
@@ -239,13 +239,13 @@ def _is_type_checking(test: ast.expr) -> bool:
     return False
 
 
-def _is_doctrine_name(name: str) -> bool:
+def _is_offering_name(name: str) -> bool:
     """True for an absolute doctrine module name, in EITHER spelling.
 
     Post-relocation (charter-code-topology-01M152G1) the doctrine layer lives at
     ``charter.offering.*``; the legacy ``doctrine``/``doctrine.*`` spelling
     resolves through the ``src/doctrine.py`` shim. The census must recognize
-    both — matching only the legacy spelling left ``reached_doctrine_paths()``
+    both — matching only the legacy spelling left ``reached_offering_paths()``
     EMPTY on the relocated tree, so every census gate passed vacuously (found
     during the #3522 scan-root widening). The boundary gate shares this matcher.
     """
@@ -254,7 +254,7 @@ def _is_doctrine_name(name: str) -> bool:
     return name.startswith("doctrine.") or name.startswith("charter.offering.")
 
 
-def _doctrine_paths(node: ast.AST) -> set[str]:
+def _offering_paths(node: ast.AST) -> set[str]:
     """Absolute doctrine targets; root from-imports include the imported member.
 
     Bare package imports can be pinned for metadata access. Importing a member
@@ -266,12 +266,12 @@ def _doctrine_paths(node: ast.AST) -> set[str]:
         module = node.module or ""
         if module in ("doctrine", "charter.offering"):
             return {f"{module}.{alias.name}" for alias in node.names}
-        if _is_doctrine_name(module):
+        if _is_offering_name(module):
             return {module}
         if module == "charter" and any(alias.name == "offering" for alias in node.names):
             return {"charter.offering"}
     if isinstance(node, ast.Import):
-        return {alias.name for alias in node.names if _is_doctrine_name(alias.name)}
+        return {alias.name for alias in node.names if _is_offering_name(alias.name)}
     return set()
 
 
@@ -285,7 +285,7 @@ class _ReachVisitor(ast.NodeVisitor):
     def _record(self, node: ast.AST) -> None:
         if self._type_checking_depth:
             return
-        self.paths.update(_doctrine_paths(node))
+        self.paths.update(_offering_paths(node))
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         self._record(node)
@@ -305,7 +305,7 @@ class _ReachVisitor(ast.NodeVisitor):
             self.visit(child)
 
 
-def reached_doctrine_paths() -> dict[str, set[str]]:
+def reached_offering_paths() -> dict[str, set[str]]:
     """Map each runtime file → the set of doctrine module-paths it reaches.
 
     Reach = a direct ``from charter.offering…`` / ``import charter.offering`` with
@@ -342,13 +342,13 @@ def _owned_files(task_filename: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def test_every_reached_doctrine_path_has_disposition() -> None:
+def test_every_reached_offering_path_has_disposition() -> None:
     """FR-002 / SC-002: every reached, non-exempt doctrine path is classified.
 
     A newly reach-through-ed doctrine module-path that lacks a disposition entry
     fails here — the machine-checkable "no undoored reach-through" guard.
     """
-    reached: set[str] = set().union(*reached_doctrine_paths().values())
+    reached: set[str] = set().union(*reached_offering_paths().values())
     undoored = undoored_paths(reached, DISPOSITION)
     assert not undoored, (
         "Undoored doctrine reach-through — the following doctrine module-paths are "
@@ -406,7 +406,7 @@ def test_no_reached_file_is_orphaned() -> None:
     census set; any remainder must be a documented ORPHAN_REACHED_EXCEPTIONS entry
     (else the reached file is orphaned and this fails).
     """
-    census = reached_doctrine_paths()
+    census = reached_offering_paths()
     owned: set[str] = set()
     for task_filename in _MIGRATION_WP_FILES:
         owned.update(_owned_files(task_filename))
@@ -422,7 +422,7 @@ def test_no_reached_file_is_orphaned() -> None:
 
 def test_orphan_exceptions_are_actually_reached() -> None:
     """Each excepted file/import pair must still be reached, even in a live file."""
-    census_pairs = {(file, module) for file, modules in reached_doctrine_paths().items() for module in modules}
+    census_pairs = {(file, module) for file, modules in reached_offering_paths().items() for module in modules}
     stale = ORPHAN_REACHED_EXCEPTIONS - census_pairs
     assert not stale, f"Stale ORPHAN_REACHED_EXCEPTIONS entries (no longer reach doctrine — a migration likely landed): {sorted(stale)}. Remove them."
 
@@ -436,7 +436,7 @@ def test_injected_undoored_path_is_flagged() -> None:
     flagged = undoored_paths(reached, DISPOSITION)
     assert flagged == {"charter.offering.brand_new_undoored_module"}
     # And the real, fully-classified reached set must flag nothing.
-    real = set().union(*reached_doctrine_paths().values())
+    real = set().union(*reached_offering_paths().values())
     assert undoored_paths(real, DISPOSITION) == set()
 
 
@@ -497,7 +497,7 @@ def test_census_source_scan_collects_import_forms(package: str, lazy: bool, stat
         return mutation if path == target else original_read(path, encoding=encoding)
 
     with patch.object(Path, "read_text", read_source):
-        assert reached_doctrine_paths().get(str(target.relative_to(_REPO_ROOT)), set()) == expected
+        assert reached_offering_paths().get(str(target.relative_to(_REPO_ROOT)), set()) == expected
 
 
 @pytest.mark.parametrize(
@@ -539,4 +539,4 @@ def test_census_distinguishes_root_members_from_metadata(spelling: str, members:
 
     with patch.object(Path, "read_text", read_source):
         expected = {"charter.offering"} | {f"{spelling}.{member}" for member in targets}
-        assert reached_doctrine_paths()[str(target.relative_to(_REPO_ROOT))] == expected
+        assert reached_offering_paths()[str(target.relative_to(_REPO_ROOT))] == expected

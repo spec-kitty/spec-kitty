@@ -41,7 +41,7 @@
 #   schemas): FR-028 retired both fields and the schemas no longer declare
 #   them. 59 -> 51.
 # - PR #3134 excluded `occurrence-map.schema.yaml` from the schema walk
-#   (`_NON_DOCTRINE_SCHEMAS`): occurrence maps are per-mission planning
+#   (`_NON_ARTIFACT_SCHEMAS`): occurrence maps are per-mission planning
 #   artifacts outside the src-only producer scope, a checker-scope false
 #   positive. Its `from`/`moves`/`to` rows were deleted. 51 -> 48.
 # - PR #3234 retired `toolguide-references` (-1), dead-port-disposition-01M1TZVN

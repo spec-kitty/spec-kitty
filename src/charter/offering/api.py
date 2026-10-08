@@ -4,14 +4,14 @@ This module is the **single, enumerable manifest** of charter offering symbols t
 externally consumable — the exact set the future standalone ``spec-kitty-doctrine``
 wheel is intended to export (FR-001 / FR-008). A maintainer can read one file,
 ``charter/offering/api.py``, and see the complete public contract; the disposition-coupling
-and no-leak gates (``tests/architectural/test_doctrine_public_surface.py``) keep
+and no-leak gates (``tests/architectural/test_charter_offering_public_surface.py``) keep
 this ``__all__`` from silently drifting off the WP01 census.
 
 Note (charter-code-topology-01M152G1, S5): the literal-surface wheel-closure
 pin this docstring previously cited
 (``tests/architectural/test_doctrine_wheel_closure.py::test_doctrine_api_pins_the_real_public_surface``)
 was deleted along with the rest of the dormant, never-built
-``spec-kitty-doctrine`` wheel groundwork (MAP-BUILD). ``test_doctrine_public_surface.py``
+``spec-kitty-doctrine`` wheel groundwork (MAP-BUILD). ``test_charter_offering_public_surface.py``
 remains the live gate for this module's shape (importable, sorted,
 disposition-coupled, facade-routed); it does not additionally pin the exact
 symbol set as a frozen literal.
@@ -31,7 +31,7 @@ Every symbol below is tagged ``PUBLIC`` in the authoritative disposition manifes
 ``tests/architectural/test_doctrine_census.py::DISPOSITION`` (WP01). ``FACADE-ONLY``
 paths (fronted by a charter facade but *not* part of the wheel's public contract)
 and ``INTERNAL`` paths are deliberately absent — the negative guard
-``tests/architectural/test_doctrine_public_surface.py`` asserts that absence.
+``tests/architectural/test_charter_offering_public_surface.py`` asserts that absence.
 
 Contract kind (C-003)
 ---------------------

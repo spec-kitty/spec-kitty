@@ -2442,7 +2442,7 @@ class WallClockCallViolation:
     ``tree`` from (mirrors the ``(tree, module_name)`` signature: this
     function is a pure AST-in, violations-out engine; filesystem walking and
     path bookkeeping are the caller's concern, same division of labour as
-    ``test_kernel_no_doctrine_import.py``'s own ``_scan_file``).
+    ``test_kernel_no_charter_offering_import.py``'s own ``_scan_file``).
 
     ``suggestion`` is the SC-001 message-mapping guidance (WP15): the
     ``kernel.clock`` producer this call site should migrate to. Computed by

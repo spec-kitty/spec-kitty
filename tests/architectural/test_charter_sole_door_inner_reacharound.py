@@ -147,7 +147,7 @@ def _matches_sanctioned_origin(module: str, name: str) -> bool:
     return (module in _FACTORY_MODULES and name == _FACTORY_FUNC_NAME) or (module == _CTOR_MODULE and name == _CTOR_NAME)
 
 
-def _call_constructs_doctrine_service(call: ast.Call, aliases: _Bindings) -> bool:
+def _call_constructs_charter_service(call: ast.Call, aliases: _Bindings) -> bool:
     """True if *call* invokes the factory or the wrapper constructor.
 
     Resolves by import alias (``from module import name as local``), by
@@ -177,7 +177,7 @@ def _taint_if_construction(
     value: ast.expr,
     aliases: _Bindings,
 ) -> None:
-    if isinstance(target, ast.Name) and isinstance(value, ast.Call) and _call_constructs_doctrine_service(value, aliases):
+    if isinstance(target, ast.Name) and isinstance(value, ast.Call) and _call_constructs_charter_service(value, aliases):
         tainted.add(target.id)
 
 
@@ -234,7 +234,7 @@ def _is_inner_dict_subscript(node: ast.Subscript) -> bool:
 def _receiver_is_tainted(receiver: ast.expr, tainted: set[str], aliases: _Bindings) -> bool:
     if isinstance(receiver, ast.Name) and receiver.id in tainted:
         return True
-    return isinstance(receiver, ast.Call) and _call_constructs_doctrine_service(receiver, aliases)
+    return isinstance(receiver, ast.Call) and _call_constructs_charter_service(receiver, aliases)
 
 
 def _attribute_wrapping(tree: ast.AST) -> dict[int, ast.Attribute]:
@@ -365,7 +365,7 @@ def _remedy_message(kind: str | None) -> str:
 # ---------------------------------------------------------------------------
 
 
-def test_no_inner_reacharound_on_doctrine_service_outside_charter() -> None:
+def test_no_inner_reacharound_on_charter_service_outside_charter() -> None:
     """Zero reach-around access on a ``charter.activation.resolver.ActiveCharterService``
     outside ``src/charter/**`` and ``tests/charter/**`` (FR-010, NFR-001).
 

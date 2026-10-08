@@ -23,7 +23,7 @@ test_layer_rules:
 test_runtime_charter_doctrine_boundary:
   lazy_baseline_allowlist: 11  # justification: freeze existing lazy imports as exact (file, module) pairs across six runtime files.
 test_doctrine_census:
-  orphan_reached_exceptions: 2  # justification: freeze runtime_bridge_composition -> step_contracts and runtime_bridge_io -> step_projection as exact pairs.
+  orphan_reached_exceptions: 10  # justification: the two runtime_bridge pairs plus the unchanged reaches of git-mv successors of WP05-owned files the frozen 01KZPDSR owner list cannot name (#3732: charter/pack_asset.py 1 and charter/pack_tooling.py 1 from WP15, _charter_pack_collect.py 6 from WP21); no new reach.
 
 # tests/architectural/test_no_dead_modules.py
 # Per-category breakdown (FR-112 refactor).
@@ -212,7 +212,7 @@ test_example_round_trip:
 #   enhances/overrides excision (8 rows).
 # - 51 -> 48 (PR #3134 fixup): occurrence-map.schema.yaml's `from`/`moves`/`to`
 #   rows deleted; `_inert_slots.py` excludes that whole schema from the slot walk
-#   (`_NON_DOCTRINE_SCHEMAS`) because occurrence maps are per-mission
+#   (`_NON_ARTIFACT_SCHEMAS`) because occurrence maps are per-mission
 #   kitty-specs/ planning artifacts outside the src-only producer scope.
 # - 48 -> 47 (PR #3234): `toolguide-references` became live once
 #   `diagram-daisy.agent.yaml` authored that key.

@@ -40,7 +40,7 @@ import pytest
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_DOCTRINE_MISSIONS_ROOT = _REPO_ROOT / "src" / "charter" / "offering" / "missions"
+_OFFERING_MISSIONS_ROOT = _REPO_ROOT / "src" / "charter" / "offering" / "missions"
 _STALE_FRAGMENT = "src/charter/offering/missions/"
 _SCAN_ROOTS = (
     _REPO_ROOT / "packs",
@@ -64,16 +64,16 @@ def _iter_scan_files() -> Iterator[Path]:
 
 def _resolves_on_disk(remainder: str) -> bool:
     """True if src/charter/offering/missions/<remainder> is a real path today."""
-    candidate = (_DOCTRINE_MISSIONS_ROOT / remainder).resolve()
+    candidate = (_OFFERING_MISSIONS_ROOT / remainder).resolve()
     try:
-        candidate.relative_to(_DOCTRINE_MISSIONS_ROOT.resolve())
+        candidate.relative_to(_OFFERING_MISSIONS_ROOT.resolve())
     except ValueError:
         # remainder escaped the directory (e.g. "../"); never legitimate here.
         return False
     return candidate.exists()
 
 
-def test_no_stale_doctrine_missions_data_path_in_active_doctrine_prose() -> None:
+def test_no_stale_offering_missions_data_path_in_shipped_prose() -> None:
     """packs/** and src/charter/offering/skills/** must not reference retired
     src/charter/offering/missions/ data paths; the canonical data home is
     packs/built-in/missions/. References that still resolve on disk (the
@@ -87,10 +87,7 @@ def test_no_stale_doctrine_missions_data_path_in_active_doctrine_prose() -> None
             if _resolves_on_disk(remainder):
                 continue
             line_no = content.count("\n", 0, match.start()) + 1
-            violations.append(
-                f"{path.relative_to(_REPO_ROOT)}:{line_no}: "
-                f"{_STALE_FRAGMENT}{remainder}"
-            )
+            violations.append(f"{path.relative_to(_REPO_ROOT)}:{line_no}: {_STALE_FRAGMENT}{remainder}")
 
     assert not violations, (
         "Stale src/charter/offering/missions/ data references found in active doctrine "

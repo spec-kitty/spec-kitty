@@ -4,7 +4,7 @@ The public door for ``specify_cli`` to the pack model and tooling that live in
 :mod:`charter.offering.packs` (mission ``charter-pack-cutover-01M491G6``, FR-010 /
 OD-9). Object-identity re-exports only: every name here *is* the offering
 object, so no wrapper, alias or shim can drift from it
-(``tests/architectural/test_charter_facades_reexport_doctrine.py``).
+(``tests/architectural/test_charter_facades_reexport_offering.py``).
 
 ``specify_cli`` modules import these names from here, never from
 ``charter.offering.packs.*`` directly, so the runtime -> charter -> offering

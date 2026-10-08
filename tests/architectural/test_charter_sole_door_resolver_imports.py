@@ -31,7 +31,7 @@ functions".
 Consumers that need the resolution *types* (``ResolutionResult`` /
 ``ResolutionTier``) already have a sanctioned route: the
 ``charter.resolution`` facade, which re-exports them by identity (proven by
-``test_charter_facades_reexport_doctrine.py``). ``specify_cli/runtime/resolver.py``
+``test_charter_facades_reexport_offering.py``). ``specify_cli/runtime/resolver.py``
 is the live example, and its module docstring records why identity-preserving
 re-export matters (~30 CI failures when a duplicate enum existed). So the
 zero-tolerance stance costs a consumer nothing.
@@ -246,7 +246,7 @@ def test_detector_finds_the_real_sanctioned_imports() -> None:
 # =========================================================================== #
 
 
-def test_no_direct_doctrine_resolver_import_outside_the_owning_layers() -> None:
+def test_no_direct_offering_resolver_import_outside_the_owning_layers() -> None:
     """Zero-tolerance forward-looking guard — no allow-list (C-002).
 
     Reminder for anyone citing this test: it proves the boundary is *currently*

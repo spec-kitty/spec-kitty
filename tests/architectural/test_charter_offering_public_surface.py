@@ -39,7 +39,7 @@ pytestmark = [pytest.mark.architectural]
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC_ROOT = _REPO_ROOT / "src"
 _CHARTER_GLOB = "charter/*.py"
-_DOCTRINE_API = _SRC_ROOT / "charter" / "offering" / "api.py"
+_OFFERING_API = _SRC_ROOT / "charter" / "offering" / "api.py"
 
 
 # ---------------------------------------------------------------------------
@@ -60,7 +60,7 @@ def _api_import_origins() -> dict[str, str]:
     Parsed statically from the ``from charter.offering.… import …`` statements so the
     disposition-coupling gate checks the DECLARED origin, not a runtime alias.
     """
-    tree = ast.parse(_DOCTRINE_API.read_text(encoding="utf-8"), filename=str(_DOCTRINE_API))
+    tree = ast.parse(_OFFERING_API.read_text(encoding="utf-8"), filename=str(_OFFERING_API))
     origins: dict[str, str] = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
@@ -261,10 +261,7 @@ def test_every_public_symbol_is_routed_through_a_facade() -> None:
     facade_reexports = _api_symbols_reexported_by_facades()
 
     unknown = sorted(facade_reexports - api_all)
-    assert not unknown, (
-        "A charter facade re-exports names from charter.offering.api that are absent from "
-        f"charter.offering.api.__all__ (surface drift): {unknown}"
-    )
+    assert not unknown, f"A charter facade re-exports names from charter.offering.api that are absent from charter.offering.api.__all__ (surface drift): {unknown}"
 
     coverage_gap = sorted(api_all - facade_reexports)
     assert not coverage_gap, (

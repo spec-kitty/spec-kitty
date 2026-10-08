@@ -268,7 +268,7 @@ class RawSite:
 #: ``(lineno, qualname)`` is ambiguous exactly where it matters —
 #: ``charter/activation/compiler.py`` constructs the wrapper and the raw service on the
 #: same source line.
-DOCTRINE_SERVICE_TARGETS = frozenset(
+CHARTER_SERVICE_TARGETS = frozenset(
     {
         RAW_OFFERING_SERVICE_QUALNAME,
         ACTIVE_CHARTER_SERVICE_QUALNAME,
@@ -297,7 +297,7 @@ def scan_file_raw_sites(path: Path, rel_path: str) -> tuple[list[RawSite], ScanR
         path,
         rel_path,
         candidate_names=CHARTER_SERVICE_CANDIDATE_NAMES,
-        target_qualnames=DOCTRINE_SERVICE_TARGETS,
+        target_qualnames=CHARTER_SERVICE_TARGETS,
     )
     if scan is None:
         return [], ScanResult([], [])
@@ -525,7 +525,7 @@ def test_raw_census_finds_the_unified_builders_own_constructions() -> None:
     assert len(constructions) >= 8, [raw.site.describe() for raw in constructions]
 
 
-def test_no_unresolved_doctrine_service_candidates() -> None:
+def test_no_unresolved_charter_service_candidates() -> None:
     """No ``CharterOfferingService(`` / ``ActiveCharterService(``-shaped call may go unresolved.
 
     An unresolved candidate is a blind spot the gate could not classify as
@@ -541,13 +541,13 @@ def test_no_unresolved_doctrine_service_candidates() -> None:
 # =========================================================================== #
 
 
-def test_no_unwrapped_raw_doctrine_service_escapes_anywhere() -> None:
+def test_no_unwrapped_raw_offering_service_escapes_anywhere() -> None:
     """Policy A — zero tolerance, **no allow-list of any kind** (C-002)."""
     violations = check_unwrapped_escape_gate(raw_service_census()[0])
     assert violations == [], "\n".join(violations)
 
 
-def test_no_raw_doctrine_service_construction_outside_the_sole_door() -> None:
+def test_no_raw_offering_service_construction_outside_the_sole_door() -> None:
     """Policy B — locality, honouring only the six named, wrap-verified sites."""
     violations = check_locality_gate(raw_service_census()[0])
     assert violations == [], "\n".join(violations)
@@ -564,7 +564,7 @@ def _raw_scratch(tmp_path: Path, rel_name: str, source: str) -> tuple[list[RawSi
         rel_name,
         source,
         candidate_names=CHARTER_SERVICE_CANDIDATE_NAMES,
-        target_qualnames=DOCTRINE_SERVICE_TARGETS,
+        target_qualnames=CHARTER_SERVICE_TARGETS,
     )
     return scan_file_raw_sites(tmp_path / Path(rel_name).name, rel_name)
 

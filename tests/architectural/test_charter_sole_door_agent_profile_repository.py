@@ -230,7 +230,7 @@ def check_agent_profile_gate(sites: list[ConstructionSite]) -> list[str]:
 # =========================================================================== #
 
 
-def test_census_is_non_empty_and_includes_the_doctrine_owner() -> None:
+def test_census_is_non_empty_and_includes_the_offering_owner() -> None:
     """The resolver must actually find the known live constructions.
 
     A gate whose scanner silently resolves nothing would pass its

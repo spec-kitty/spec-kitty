@@ -18,7 +18,7 @@ This file is a **pure re-export** module — no behaviour, no wrappers, no type
 aliases. Object identity is preserved (e.g.
 ``charter.missions.MissionTemplateRepository is
 charter.offering.missions.repository.MissionTemplateRepository``), enforced by
-``tests/architectural/test_charter_facades_reexport_doctrine.py``.
+``tests/architectural/test_charter_facades_reexport_offering.py``.
 """
 
 from charter.offering.missions.expected_artifact_manifest import (

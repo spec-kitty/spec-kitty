@@ -18,7 +18,7 @@ charter.offering.assets.repository.AssetRepository``.
 
 This file is a **pure re-export** module — no behaviour, no wrappers, no type
 aliases. Enforced by
-``tests/architectural/test_charter_facades_reexport_doctrine.py``.
+``tests/architectural/test_charter_facades_reexport_offering.py``.
 """
 
 from charter.offering.api import (

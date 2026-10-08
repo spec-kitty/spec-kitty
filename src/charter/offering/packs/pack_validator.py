@@ -1212,7 +1212,7 @@ def _check_profile_skipped_diagnostics(
     call site validates an arbitrary ``pack_dir`` (a pack under authoring,
     not this repo's own doctrine layer), so it needs an explicit
     ``org_roots`` override; the sole-door architectural gate
-    (``tests/architectural/test_charter_sole_door_doctrine_service.py``)
+    (``tests/architectural/test_charter_sole_door_offering_service.py``)
     bans raw ``charter.offering.service.CharterOfferingService`` construction outside
     ``charter.activation.active_charter_service_builder``, and that builder's public entry
     point (``build_active_charter_service``) takes only

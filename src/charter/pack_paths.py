@@ -14,7 +14,7 @@ are re-exported here (from ``charter.offering.pack_paths``, not ``charter.offeri
 This file is a **pure re-export** module — no behaviour, no wrappers, no type
 aliases. Object identity is preserved (``charter.pack_paths.built_in_root is
 charter.offering.pack_paths.built_in_root``), enforced by
-``tests/architectural/test_charter_facades_reexport_doctrine.py``.
+``tests/architectural/test_charter_facades_reexport_offering.py``.
 """
 
 from charter.offering.pack_paths import PackRootNotFound, built_in_dir, built_in_root

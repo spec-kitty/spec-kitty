@@ -15,7 +15,7 @@ This file is a **pure re-export** module — no behaviour, no wrappers, no type
 aliases. Object identity is preserved
 (``charter.spdd_reasons.apply_spdd_blocks_for_project is
 charter.offering.spdd_reasons.apply_spdd_blocks_for_project``), enforced by
-``tests/architectural/test_charter_facades_reexport_doctrine.py``.
+``tests/architectural/test_charter_facades_reexport_offering.py``.
 """
 
 from charter.offering.spdd_reasons import apply_spdd_blocks_for_project

@@ -238,7 +238,7 @@ def collect_forbidden_vocabulary(root: Path, *, relative_to: Path | None = None)
     return found
 
 
-def test_kernel_holds_no_doctrine_or_specify_cli_vocabulary() -> None:
+def test_kernel_holds_no_charter_or_specify_cli_vocabulary() -> None:
     """FR-004 / SC-002: no ``src/kernel/**`` module names doctrine/specify_cli/mission-types.
 
     This is the FR-004 / SC-002 / NFR-002 gate. It fails on module-level

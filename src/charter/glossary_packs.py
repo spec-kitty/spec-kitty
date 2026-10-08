@@ -14,7 +14,7 @@ surface (not from ``charter.offering.api``).
 This file is a **pure re-export** module — no behaviour, no wrappers, no type
 aliases. Object identity is preserved (``charter.glossary_packs.GlossaryPack is
 charter.offering.glossary_packs.GlossaryPack``), enforced by
-``tests/architectural/test_charter_facades_reexport_doctrine.py``.
+``tests/architectural/test_charter_facades_reexport_offering.py``.
 """
 
 from charter.offering.glossary_packs import GlossaryPack
