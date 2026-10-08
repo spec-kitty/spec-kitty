@@ -1,11 +1,9 @@
 """Shared, per-user, sweepable prompt-temp root for spec-kitty prompt writers.
 
-WP02 / FR-003: three prompt writers previously rooted their output directly
-at ``tempfile.gettempdir()`` (a flat, unbounded ``/tmp``):
+WP02 / FR-003: the remaining prompt writers previously rooted their output
+directly at ``tempfile.gettempdir()`` (a flat, unbounded ``/tmp``):
 
 - ``runtime.next.prompt_builder`` (``spec-kitty-next-*``)
-- ``runtime.next.decision`` (``spec-kitty-composed-{action}-*``, two
-  ``mkstemp`` sites — unbounded, a unique suffix per call)
 - ``specify_cli.cli.commands.agent.workflow`` (``spec-kitty-{implement,review}-*``)
 
 WP07 / FR-003 FR-010 FR-011 (#4721): that shared-namespace fix still rooted
@@ -23,7 +21,7 @@ primitive at mode ``0600`` so a symlink planted at the prompt path is
 refused rather than followed, and the file itself is never group/other
 readable.
 
-This module is the single source of truth for the namespace all three
+This module is the single source of truth for the namespace both
 writers write under. Callers must build their prompt path under
 :func:`prompt_tmp_dir` (e.g. pass ``dir=prompt_tmp_dir(repo_root)`` to
 ``tempfile.mkstemp`` / ``NamedTemporaryFile``, or join their filename onto

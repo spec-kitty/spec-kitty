@@ -1,14 +1,12 @@
 """WP02 / FR-003 — drift-proof coverage for the shared /tmp prompt namespace.
 
-Three prompt writers used to root their output directly at the flat, unbounded
+Prompt writers used to root their output directly at the flat, unbounded
 ``tempfile.gettempdir()``:
 
 - ``runtime.next.prompt_builder`` (``spec-kitty-next-*``)
-- ``runtime.next.decision`` (``spec-kitty-composed-{action}-*``, two
-  ``mkstemp`` call sites — unbounded, a unique suffix per call)
 - ``specify_cli.cli.commands.agent.workflow`` (``spec-kitty-{implement,review}-*``)
 
-All three now write under ``runtime.next._tmp_namespace.prompt_tmp_dir`` — the
+Both now write under ``runtime.next._tmp_namespace.prompt_tmp_dir`` — the
 single shared, per-repo, sweepable temp-root WP01's session reaper imports.
 Every assertion below routes through that same helper (never a hand-copied
 path fragment), so a writer silently reverting to a flat ``/tmp`` path — or
@@ -109,15 +107,12 @@ class TestPromptBuilderNamespaced:
 
 
 # ---------------------------------------------------------------------------
-# Writer #2 — runtime.next.decision (`spec-kitty-composed-{action}-*`)
-# Both `mkstemp` sites are unbounded (a unique suffix per call) — the top
-# target per FR-003.
+# Composed actions use prompt_builder's namespaced writer.
 # ---------------------------------------------------------------------------
 
 
-class TestDecisionComposedMarkersNamespaced:
-    def test_fast_path_marker_is_namespaced(self, tmp_path: Path) -> None:
-        """The ``_is_composed_action`` fast path (~decision.py:610)."""
+class TestDecisionComposedPromptsNamespaced:
+    def test_composed_prompt_is_namespaced(self, tmp_path: Path) -> None:
         with patch(
             "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=SimpleNamespace(action_sequence=["specify", "plan"]),
@@ -141,33 +136,8 @@ class TestDecisionComposedMarkersNamespaced:
         finally:
             path.unlink(missing_ok=True)
 
-    def test_file_not_found_fallback_marker_is_namespaced(self, tmp_path: Path) -> None:
-        """The ``FileNotFoundError`` fallback path (~decision.py:657)."""
-        with patch(
-            "runtime.next.prompt_builder.build_prompt",
-            side_effect=FileNotFoundError("no template for 'discovery'"),
-        ):
-            path_str, error, _error_code = _build_prompt_or_error(
-                action="discovery",
-                feature_dir=tmp_path,
-                mission_slug="042-feat",
-                wp_id=None,
-                agent="claude",
-                repo_root=tmp_path,
-                mission_type="software-dev",
-            )
-        assert error is None
-        assert path_str is not None
-        path = Path(path_str)
-        try:
-            _assert_under_namespace(path, tmp_path)
-            assert path.exists()
-        finally:
-            path.unlink(missing_ok=True)
-
-
 # ---------------------------------------------------------------------------
-# Writer #3 — specify_cli.cli.commands.agent.workflow
+# Writer #2 — specify_cli.cli.commands.agent.workflow
 # (`spec-kitty-{implement,review}-*`)
 # ---------------------------------------------------------------------------
 
@@ -204,11 +174,6 @@ class TestSharedConstantSingleSourceOfTruth:
         import runtime.next.prompt_builder as prompt_builder_module
 
         assert prompt_builder_module.prompt_tmp_dir is prompt_tmp_dir
-
-    def test_decision_imports_shared_helper(self) -> None:
-        import runtime.next.decision as decision_module
-
-        assert decision_module.prompt_tmp_dir is prompt_tmp_dir
 
     def test_workflow_imports_shared_helper(self) -> None:
         import specify_cli.cli.commands.agent.workflow_executor as executor_module

@@ -1,14 +1,4 @@
-"""NFR-002 regression gate: _build_prompt_or_error via charter.resolve_mission_type_context.
-
-WP07 / FR-007 / FR-008 / NFR-002.
-
-After deleting _COMPOSED_ACTIONS_FOR_PROMPT, _build_prompt_or_error uses
-charter.resolve_mission_type_context to check whether an action is a composed action
-(and therefore produces a marker prompt file) or a file-based template action.
-
-These tests verify the new path works correctly for all software-dev steps and
-that the frozenset table is gone.
-"""
+"""Prompt resolution for runtime step decisions."""
 
 from __future__ import annotations
 
@@ -59,18 +49,18 @@ class TestFrozensetDeletion:
 
 
 # ---------------------------------------------------------------------------
-# Composed actions produce a marker file (not an error)
+# Composed actions resolve real prompt files
 # ---------------------------------------------------------------------------
 
 
-class TestComposedActionMarkerFile:
-    """_build_prompt_or_error returns a marker file path for composed actions."""
+class TestComposedActionPromptFile:
+    """Composed actions resolve an actionable prompt file."""
 
     @pytest.mark.parametrize("action", _SW_DEV_ACTIONS)
-    def test_software_dev_action_returns_marker_path(
+    def test_software_dev_action_returns_prompt_path(
         self, action: str, tmp_path: Path
     ) -> None:
-        """For software-dev composed actions (wp_id=None), returns a marker path."""
+        """Software-dev actions resolve a prompt when no WP is selected."""
         with patch(
             "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
@@ -85,17 +75,16 @@ class TestComposedActionMarkerFile:
                 mission_type="software-dev",
             )
 
-        assert path is not None, (
-            f"Expected a marker path for composed action '{action}', got error: {error}"
-        )
+        assert path is not None, error
         assert error is None
-        assert Path(path).exists(), f"Marker file {path} does not exist on disk"
+        assert Path(path).exists()
+        assert "This step is dispatched via composition." not in Path(path).read_text(encoding="utf-8")
 
     @pytest.mark.parametrize("action", _DOCUMENTATION_ACTIONS)
-    def test_documentation_action_returns_marker_path(
+    def test_documentation_action_returns_prompt_path(
         self, action: str, tmp_path: Path
     ) -> None:
-        """For documentation composed actions (wp_id=None), returns a marker path."""
+        """Documentation actions resolve a prompt when no WP is selected."""
         with patch(
             "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=SimpleNamespace(action_sequence=_DOCUMENTATION_ACTIONS),
@@ -110,16 +99,15 @@ class TestComposedActionMarkerFile:
                 mission_type="documentation",
             )
 
-        assert path is not None, (
-            f"Expected a marker path for documentation action '{action}', got error: {error}"
-        )
+        assert path is not None, error
         assert error is None
+        assert "This step is dispatched via composition." not in Path(path).read_text(encoding="utf-8")
 
     @pytest.mark.parametrize("action", _RESEARCH_ACTIONS)
-    def test_research_action_returns_marker_path(
+    def test_research_action_returns_prompt_path(
         self, action: str, tmp_path: Path
     ) -> None:
-        """For research composed actions (wp_id=None), returns a marker path."""
+        """Research actions resolve a prompt when no WP is selected."""
         with patch(
             "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=SimpleNamespace(action_sequence=_RESEARCH_ACTIONS),
@@ -134,56 +122,39 @@ class TestComposedActionMarkerFile:
                 mission_type="research",
             )
 
-        assert path is not None, (
-            f"Expected a marker path for research action '{action}', got error: {error}"
-        )
+        assert path is not None, error
         assert error is None
+        assert "This step is dispatched via composition." not in Path(path).read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
-# Charter call site is actually reached
+# Missing prompt is a blocking error
 # ---------------------------------------------------------------------------
 
 
-class TestCharterCallSiteReached:
-    """_build_prompt_or_error uses charter.resolve_mission_type_context, not a table."""
-
-    def test_charter_called_for_composed_action(self, tmp_path: Path) -> None:
-        """_build_prompt_or_error calls charter.resolve_mission_type_context."""
-        call_log: list[str] = []
-
-        def _record_call(
-            repo_root: object, *, mission_type: str | None = None, feature_dir: object = None
-        ) -> SimpleNamespace:
-            call_log.append(mission_type)
-            return SimpleNamespace(action_sequence=_SW_DEV_ACTIONS)
-
-        with patch(
-            "charter.activation.mission_type_profiles.resolve_mission_type_context",
-            side_effect=_record_call,
-        ):
-            _build_prompt_or_error(
-                action="specify",
-                feature_dir=tmp_path,
-                mission_slug="test-mission",
-                wp_id=None,
-                agent="test",
-                repo_root=tmp_path,
-                mission_type="software-dev",
-            )
-
-        assert "software-dev" in call_log, (
-            "_build_prompt_or_error did not call charter.resolve_mission_type_context"
+def test_missing_composed_prompt_is_blocked(tmp_path: Path) -> None:
+    with patch("runtime.next.prompt_builder.build_prompt", side_effect=FileNotFoundError("missing specify.md")):
+        path, error, _error_code = _build_prompt_or_error(
+            action="specify",
+            feature_dir=tmp_path,
+            mission_slug="test-mission",
+            wp_id=None,
+            agent="test",
+            repo_root=tmp_path,
+            mission_type="software-dev",
         )
 
+    assert path is None
+    assert error == "no actionable prompt template for software-dev/specify: missing specify.md"
+
 
 # ---------------------------------------------------------------------------
-# wp_id check: composed fast path only applies when wp_id is None
+# WP prompts keep their own resolution path
 # ---------------------------------------------------------------------------
 
 
 class TestWpIdGuard:
-    """When wp_id is set, the composed fast path MUST NOT be taken."""
+    """A WP-scoped action still resolves a WP prompt."""
 
     def test_wp_id_set_skips_composed_path(self, tmp_path: Path) -> None:
         """When wp_id is provided, the action is treated as a WP prompt (not composed)."""
@@ -194,47 +165,33 @@ class TestWpIdGuard:
             "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
-            # With wp_id set, the code should NOT take the composed path.
-            # It will try to call build_prompt and either fail gracefully or succeed.
             path, _error, _error_code = _build_prompt_or_error(
                 action="implement",
                 feature_dir=tmp_path,
                 mission_slug="test-mission",
-                wp_id="WP01",  # wp_id is NOT None → should skip the composed marker
+                wp_id="WP01",
                 agent="test",
                 repo_root=tmp_path,
                 mission_type="software-dev",
             )
 
-        # The WP-scoped path skips the composed marker entirely.
-        # When wp_id is set, _is_composed_action is always False (because
-        # `wp_id is None` is False), so the composed marker fast-path is never
-        # taken.  Either the template builder succeeds (path is a real path) or
-        # it fails gracefully (path is None, error is set) — but a composed
-        # marker path must never be produced for a WP-scoped action.
+        # A WP prompt may fail when its board and workspace are absent, but
+        # resolution must still give either a real file or a diagnostic.
         if path is not None:
-            assert "spec-kitty-composed-" not in str(path), (
-                "WP-scoped actions must not produce a composed marker; "
-                f"got path: {path}"
-            )
+            assert Path(path).is_file()
         else:
-            # path is None = template builder failed gracefully; that is acceptable,
-            # but _error must explain why (not be an empty string).
-            assert _error, (
-                "When _build_prompt_or_error returns path=None, error must be non-empty"
-            )
+            assert _error
 
 
 # ---------------------------------------------------------------------------
-# NFR-002: marker file contents
+# Prompt content
 # ---------------------------------------------------------------------------
 
 
-class TestMarkerFileContents:
-    """Marker file written for composed actions has the right header."""
+class TestPromptFileContents:
+    """Resolved prompt content identifies the action."""
 
-    def test_marker_file_contains_mission_type_and_action(self, tmp_path: Path) -> None:
-        """Marker file for a composed action names the mission type and action."""
+    def test_prompt_file_contains_mission_type_and_action(self, tmp_path: Path) -> None:
         with patch(
             "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
@@ -278,3 +235,29 @@ def test_software_dev_specify_prompt_contains_action_instructions() -> None:
     assert "## Primary Invariant: What Are We Building?" in prompt
     assert "spec-kitty spec-commit" in prompt
     assert "This step is dispatched via composition." not in prompt
+
+
+@pytest.mark.parametrize(
+    ("mission_type", "action", "instruction"),
+    [
+        ("documentation", "discover", "## What This Step Produces"),
+        ("research", "scoping", "## Core Authorship Focus"),
+        ("plan", "specify", "## What This Step Is — and Is Not"),
+    ],
+)
+def test_other_mission_types_receive_authored_action_instructions(
+    tmp_path: Path, mission_type: str, action: str, instruction: str
+) -> None:
+    path, error, _error_code = _build_prompt_or_error(
+        action=action,
+        feature_dir=tmp_path,
+        mission_slug="test-mission",
+        wp_id=None,
+        agent="codex",
+        repo_root=tmp_path,
+        mission_type=mission_type,
+    )
+
+    assert error is None
+    assert path is not None
+    assert instruction in Path(path).read_text(encoding="utf-8")

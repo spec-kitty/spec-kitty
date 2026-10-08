@@ -30,8 +30,7 @@ Investigation result (T018/T019 — no code changes required, confirmation only)
   pack_context=None)`` at the consumption boundary — still a single
   authority (the step authority), just no longer routed through a
   ``MissionType`` model field as an intermediate.
-- ``runtime.next.decision._build_prompt_or_error`` (:606) and
-  ``runtime.next.runtime_bridge_composition._should_dispatch_via_composition``
+- ``runtime.next.runtime_bridge_composition._should_dispatch_via_composition``
   (:186) / ``_composition_dispatch_inputs`` (:321) all call
   ``charter.activation.mission_type_profiles.resolve_mission_type_context(...).action_sequence``
   — the bundle built from ``_resolve_action_slot`` above — so they consume the
@@ -42,7 +41,7 @@ This module locks that finding with:
 1. Seam-equivalence — the four built-in types' ``action_sequence``/
    ``template_set`` resolved through the seam equal the pinned authored (formerly raw
    YAML-authored) contract values (T020).
-2. Consumer transitivity — the three cited call sites observe the seam's
+2. Consumer transitivity — the two cited call sites observe the seam's
    resolved value rather than bypassing it (T019).
 3. The ``extends`` fallback check (T020) — none of the four built-in types
    sets ``extends``, so switching resolvers onto the cached model does not
@@ -451,40 +450,37 @@ class TestConsumerTransitivity:
         # ever touching run_dir (which does not exist on disk).
         assert result == (None, None)
 
-    def test_build_prompt_or_error_bypasses_prompt_builder_for_seam_action(
+    def test_build_prompt_or_error_uses_prompt_builder_for_seam_action(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """decision.py's composed-action fast path (:606) never reaches the
-        file-based ``build_prompt`` for an action the seam recognises."""
+        """A composed action resolves its selected template through the builder."""
         from runtime.next.decision import _build_prompt_or_error
 
-        def _fail_if_called(**_kwargs: object) -> None:
-            raise AssertionError(
-                "build_prompt should not be called for a seam-recognised "
-                "composed action"
-            )
+        prompt = tmp_path / "prompt.md"
+        prompt.write_text("# Specify\n\nWrite the specification.", encoding="utf-8")
+        calls: list[dict[str, object]] = []
+
+        def _build(**kwargs: object) -> tuple[str, Path]:
+            calls.append(kwargs)
+            return prompt.read_text(encoding="utf-8"), prompt
 
         monkeypatch.setattr(
-            "runtime.next.prompt_builder.build_prompt", _fail_if_called
+            "runtime.next.prompt_builder.build_prompt", _build
         )
 
-        with patch(
-            "charter.activation.mission_type_profiles.existing_mission_types",
-            return_value=list(_BUILTIN_TYPE_IDS),
-        ):
-            path, err, _code = _build_prompt_or_error(
-                action="specify",
-                feature_dir=tmp_path / "kitty-specs" / "some-mission",
-                mission_slug="some-mission",
-                wp_id=None,
-                agent="claude",
-                repo_root=tmp_path,
-                mission_type="software-dev",
-            )
+        path, err, _code = _build_prompt_or_error(
+            action="specify",
+            feature_dir=tmp_path / "kitty-specs" / "some-mission",
+            mission_slug="some-mission",
+            wp_id=None,
+            agent="claude",
+            repo_root=tmp_path,
+            mission_type="software-dev",
+        )
 
         assert err is None
-        assert path is not None
-        assert Path(path).exists()
+        assert path == str(prompt)
+        assert calls[0]["action"] == "specify"
 
 
 # ---------------------------------------------------------------------------

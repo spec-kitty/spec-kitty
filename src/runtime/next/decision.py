@@ -17,9 +17,7 @@ from __future__ import annotations
 import contextlib
 import io
 import logging
-import os
 import re
-import tempfile
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
@@ -27,7 +25,6 @@ from typing import Any
 
 from charter.activation.pack_context import CharterPackConfigError
 from mission_runtime import ActionContextError, OwnedCheckout
-from runtime.next._tmp_namespace import prompt_tmp_dir
 from specify_cli.mission_metadata import mission_identity_fields
 from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
@@ -631,42 +628,10 @@ def _build_prompt_or_error(
     The path is also verified to exist on disk; if ``build_prompt`` returned a
     path that does not resolve, ``error`` is populated and ``path`` is ``None``.
 
-    For composed actions (documentation ``discover``, ``audit``, … and their
-    equivalents in research / software-dev missions), no file-based prompt
-    template exists — dispatch happens through the composition layer.  Rather
-    than returning ``(None, error, None)`` and causing ``_map_runtime_decision``
-    to emit a ``blocked`` decision, this function writes a minimal marker file
-    so the ``kind=step`` invariant is satisfied (FR-007 / T019).
+    Composed actions use their selected mission-step prompt through
+    ``build_prompt``. If no actionable prompt can be resolved, the caller
+    emits a blocked decision with the failure reason.
     """
-    # Root discipline: a composed-action probe and the prompt-tmp-dir home are
-    # P-local governance reads for an owned mission.
-    config_root = owned.owned_root if owned is not None else repo_root
-
-    # Fast path: composed actions do not use file-based templates.  Write a
-    # lightweight marker file and return its path so callers can emit a
-    # ``kind=step`` Decision without hitting the ``if prompt_file is None``
-    # blocked branch in ``_map_runtime_decision``.
-    _is_composed_action = False
-    try:
-        from charter.activation.mission_type_profiles import (  # noqa: PLC0415
-            resolve_mission_type_context,
-        )
-
-        action_sequence = resolve_mission_type_context(config_root, mission_type=mission_type).action_sequence
-        _is_composed_action = wp_id is None and action in action_sequence
-    except Exception:
-        pass
-    if _is_composed_action:
-        composed_prompt = f"# {mission_type} — {action}\n\nThis step is dispatched via composition.\nRun `spec-kitty next --agent <name>` to advance.\n"
-        marker_fd, marker_path = tempfile.mkstemp(
-            prefix=f"spec-kitty-composed-{action}-",
-            suffix=".md",
-            dir=prompt_tmp_dir(config_root),
-        )
-        os.write(marker_fd, composed_prompt.encode("utf-8"))
-        os.close(marker_fd)
-        return marker_path, None, None
-
     try:
         from runtime.next.prompt_builder import build_prompt
 
@@ -692,23 +657,7 @@ def _build_prompt_or_error(
             return None, (f"prompt template path is not stat-able for action '{action}': {exc}"), None
         return path_str, None, None
     except FileNotFoundError as exc:
-        # No file-based template for this non-WP step (e.g. workflow-inserted
-        # steps like ``design-review``, or global-runtime steps like
-        # ``discovery`` that have no mission-step prompt file).  Rather than
-        # returning an error and causing ``_map_runtime_decision`` to emit a
-        # ``kind=blocked`` decision, write a minimal composition marker so the
-        # ``kind=step`` invariant is satisfied (FR-007 / T019).
-        if wp_id is None:
-            composed_prompt = f"# {mission_type} — {action}\n\nThis step is dispatched via composition.\nRun `spec-kitty next --agent <name>` to advance.\n"
-            marker_fd, marker_path = tempfile.mkstemp(
-                prefix=f"spec-kitty-composed-{action}-",
-                suffix=".md",
-                dir=prompt_tmp_dir(repo_root),
-            )
-            os.write(marker_fd, composed_prompt.encode("utf-8"))
-            os.close(marker_fd)
-            return marker_path, None, None
-        return None, (f"prompt resolution failed for action '{action}': FileNotFoundError: {exc}"), None
+        return None, (f"no actionable prompt template for {mission_type}/{action}: {exc}"), None
     except CharterPackConfigError as exc:
         # A corrupt/unreadable ``.kittify/config.yaml`` (bad encoding or
         # malformed YAML) is an operator-facing configuration fault, not an
