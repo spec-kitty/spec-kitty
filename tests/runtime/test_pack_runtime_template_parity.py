@@ -65,8 +65,21 @@ def _baseline() -> dict[str, Any]:
 
 
 def _without_exempt(mission_type: str, steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Drop the exempt steps and splice each one's own prerequisites into its dependants.
+
+    A step that waited on an exempt step (``implement`` waits on ``analyze``) waits on
+    what the exempt step waited on (``tasks``), which is what the baseline recorded.
+    """
     exempt = EXEMPT_STEPS.get(mission_type, set())
-    return [dict(s, depends_on=[d for d in s["depends_on"] if d not in exempt]) for s in steps if s["id"] not in exempt]
+    own_depends = {s["id"]: s["depends_on"] for s in steps if s["id"] in exempt}
+
+    def spliced(depends_on: list[str]) -> list[str]:
+        out: list[str] = []
+        for dep in depends_on:
+            out.extend(own_depends[dep] if dep in own_depends else [dep])
+        return out
+
+    return [dict(s, depends_on=spliced(s["depends_on"])) for s in steps if s["id"] not in exempt]
 
 
 @pytest.mark.parametrize("mission_type", BUILTIN_TYPES)

@@ -13,6 +13,11 @@
 # WP-level iteration within "implement" and "review" steps is managed by the
 # CLI bridge layer, not the runtime.
 #
+# The analyze step sits between tasks and implement and completes only while the
+# recorded analysis report is current (runtime.next.runtime_bridge_cores).
+# analyze/step.yaml keeps in_action_sequence: false, so it is a legacy-DAG step
+# with no action index. A run frozen before this step keeps its recorded order.
+#
 # v2.2.0: Collapse the public tasks action back to a single "tasks" planning
 # step. The outline/packages/finalize substructure now lives inside
 # packs/built-in/missions/built_in_step_contracts/tasks.step-contract.yaml.
@@ -46,9 +51,15 @@ steps:
     prompt_template: tasks.md
     description: Create task breakdown, work package prompts, and finalized dependencies
 
+  - id: analyze
+    title: Analysis
+    depends_on: [tasks]
+    prompt_template: analyze.md
+    description: Cross-artifact consistency analysis, recorded as a current analysis report
+
   - id: implement
     title: Implementation
-    depends_on: [tasks]
+    depends_on: [analyze]
     prompt_template: implement.md
     description: Execute implementation
 
