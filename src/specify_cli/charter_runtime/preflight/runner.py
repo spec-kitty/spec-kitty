@@ -786,15 +786,15 @@ def _annotate_dirty(
     (``.kittify/charter-packs/...``) on ``synthesized_drg``.
     """
     charter_dirty = [p for p in dirty_paths if p.startswith(".kittify/charter/")]
-    doctrine_dirty = [p for p in dirty_paths if p.startswith(_PROJECT_PACK_DIRTY_PREFIX)]
+    project_pack_dirty = [p for p in dirty_paths if p.startswith(_PROJECT_PACK_DIRTY_PREFIX)]
 
     annotated: list[CharterPreflightCheck] = []
     for c in checks:
         suffix: str | None = None
         if c.name in ("charter_source", "synced_bundle") and charter_dirty:
             suffix = "uncommitted: " + ", ".join(charter_dirty)
-        elif c.name == "synthesized_drg" and doctrine_dirty:
-            suffix = "uncommitted: " + ", ".join(doctrine_dirty)
+        elif c.name == "synthesized_drg" and project_pack_dirty:
+            suffix = "uncommitted: " + ", ".join(project_pack_dirty)
         if suffix:
             annotated.append(
                 CharterPreflightCheck(

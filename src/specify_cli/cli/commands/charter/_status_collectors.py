@@ -209,12 +209,12 @@ def _collect_manifest_status(repo_root: Path) -> tuple[dict[str, Any], Any | Non
     from charter.activation.synthesizer.manifest import MANIFEST_PATH, load_yaml, verify
 
     manifest_path = repo_root / MANIFEST_PATH
-    doctrine_root = project_pack_root(repo_root)
+    pack_root = project_pack_root(repo_root)
     provenance_root = repo_root / ".kittify" / "charter" / "provenance"
     from charter.activation.kind_vocabulary import ArtifactKind, PROJECT_KIND_DIRS
 
     live_artifact_count = sum(
-        len(list((doctrine_root / PROJECT_KIND_DIRS[kind]).rglob(kind.glob_pattern)))
+        len(list((pack_root / PROJECT_KIND_DIRS[kind]).rglob(kind.glob_pattern)))
         for kind in (ArtifactKind.DIRECTIVE, ArtifactKind.TACTIC, ArtifactKind.STYLEGUIDE,
                      ArtifactKind.PROCEDURE, ArtifactKind.AGENT_PROFILE)
     )

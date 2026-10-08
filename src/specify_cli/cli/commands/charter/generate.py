@@ -28,7 +28,7 @@ import specify_cli.cli.commands.charter as _charter_pkg
 __all__ = ["generate"]
 
 
-def _build_doctrine_service_with_org_layer(
+def _build_active_charter_service_with_org_layer(
     repo_root: Path,
     *,
     interview: Any = None,
@@ -550,7 +550,7 @@ def generate(
             interview=interview_data,
             template_set=template_set,
             repo_root=repo_root,
-            charter_service=_build_doctrine_service_with_org_layer(
+            charter_service=_build_active_charter_service_with_org_layer(
                 repo_root,
                 interview=interview_data,
                 prefer_interview=rederive_languages,

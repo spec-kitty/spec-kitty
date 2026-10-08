@@ -546,7 +546,7 @@ def recompile_catalog(repo_root: Path) -> list[str]:
 
     from specify_cli.cli.commands.charter._common import _interview_path  # noqa: PLC0415
     from specify_cli.cli.commands.charter.generate import (  # noqa: PLC0415
-        _build_doctrine_service_with_org_layer,
+        _build_active_charter_service_with_org_layer,
         _load_interview_for_generate,
     )
 
@@ -584,7 +584,7 @@ def recompile_catalog(repo_root: Path) -> list[str]:
         mission=resolved_mission,
         interview=interview_data,
         repo_root=repo_root,
-        charter_service=_build_doctrine_service_with_org_layer(repo_root),
+        charter_service=_build_active_charter_service_with_org_layer(repo_root),
         pack_context=PackContext.from_config(repo_root),
     )
     bundle_result = write_compiled_charter(charter_dir, compiled, repo_root=repo_root)

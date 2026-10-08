@@ -327,7 +327,7 @@ def _synthesis_manifest_path(repo_root: Path) -> Path:
     return repo_root / MANIFEST_PATH
 
 
-def _doctrine_graph_path(repo_root: Path) -> Path:
+def _project_pack_graph_path(repo_root: Path) -> Path:
     """Return the project pack graph path (``kernel.charter_pack_paths``, FR-016).
 
     Read through the temporary dual-root reader (FR-011, removed by WP14) so a
@@ -638,7 +638,7 @@ def _compute_synthesized_drg(
     # location). No direct ``_safe_load_yaml`` reads of either file from this
     # module — see module docstring for the FR-013 routing contract.
     manifest_path = _synthesis_manifest_path(repo_root)
-    graph_path = _doctrine_graph_path(repo_root)
+    graph_path = _project_pack_graph_path(repo_root)
     manifest = _load_synthesis_manifest_via_chokepoint(repo_root)
 
     built_in_only = bool(manifest.built_in_only) if manifest is not None else False

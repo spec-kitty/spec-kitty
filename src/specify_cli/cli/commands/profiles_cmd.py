@@ -100,26 +100,26 @@ def _profile_catalog(
         provenance[profile.profile_id] = layer
         owner[profile.profile_id] = legacy_repo
 
-    # Overlay charter doctrine project/org profiles that the legacy invocation
-    # registry cannot see. The doctrine inner repository is read UNGATED so the
+    # Overlay Charter Pack project/org profiles that the legacy invocation
+    # registry cannot see. The charter inner repository is read UNGATED so the
     # catalog view shows every layer; activation state is annotated separately.
-    project_doctrine_profiles = project_pack_root(repo_root) / "agent_profiles"
+    project_layer_profiles = project_pack_root(repo_root) / "agent_profiles"
     from charter.drg import resolve_org_roots
 
     org_roots = [root for root in resolve_org_roots(repo_root) if root.exists()]
-    if project_doctrine_profiles.exists() or org_roots:
+    if project_layer_profiles.exists() or org_roots:
         from charter.activation.active_charter_service_builder import (
             build_active_charter_service,
         )
 
         svc = build_active_charter_service(repo_root)
-        doctrine_repo: AgentProfileRepository = svc.agent_profile_repository
-        for profile in doctrine_repo.list_all():
-            layer = doctrine_repo.get_provenance(profile.profile_id)
+        charter_repo: AgentProfileRepository = svc.agent_profile_repository
+        for profile in charter_repo.list_all():
+            layer = charter_repo.get_provenance(profile.profile_id)
             if layer in {"project", "org"}:
                 by_id[profile.profile_id] = profile
                 provenance[profile.profile_id] = layer
-                owner[profile.profile_id] = doctrine_repo
+                owner[profile.profile_id] = charter_repo
 
     return (
         sorted(by_id.values(), key=lambda p: p.profile_id),

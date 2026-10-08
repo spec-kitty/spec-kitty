@@ -280,7 +280,7 @@ def new(
 
     repo_root = locate_project_root()
     try:
-        doctrine_root = _resolve_scaffold_root(repo_root, pack)
+        pack_root = _resolve_scaffold_root(repo_root, pack)
     except typer.BadParameter as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
@@ -292,7 +292,7 @@ def new(
     # -> doctrine boundary), so the stub lands exactly where the loader will
     # look for it.
     target_dir_name = plural if pack is not None else PROJECT_KIND_DIRS[artifact_kind]
-    target_dir = doctrine_root / target_dir_name
+    target_dir = pack_root / target_dir_name
     target_dir.mkdir(parents=True, exist_ok=True)
     target_path = target_dir / _artifact_filename(artifact_kind, artifact_id)
 

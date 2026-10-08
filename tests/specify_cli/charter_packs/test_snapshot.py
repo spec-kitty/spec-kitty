@@ -20,7 +20,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 @dataclass
 class _ScriptedSource:
-    """Test double implementing the OrgDoctrineSource protocol structurally."""
+    """Test double implementing the OrgCharterPackSource protocol structurally."""
 
     layout: Callable[[Path], None]
     result: FetchResult

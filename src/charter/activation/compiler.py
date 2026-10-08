@@ -351,7 +351,7 @@ if TYPE_CHECKING:
     # ``charter.offering.service.CharterOfferingService``. Every real caller already passes
     # (or, after this WP, receives from :func:`_default_active_charter_service`) a
     # wrapped instance -- ``generate.py``/``pack.py`` via
-    # ``_build_doctrine_service_with_org_layer``, this module via the change
+    # ``_build_active_charter_service_with_org_layer``, this module via the change
     # below -- so the annotation now matches what actually flows through
     # ``compile_charter``'s ``charter_service`` parameter and its helpers.
     from charter.activation.resolver import ActiveCharterService

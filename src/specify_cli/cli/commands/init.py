@@ -624,8 +624,8 @@ def _get_package_templates_root() -> Path | None:
     from charter.activation.catalog import resolve_offering_root  # noqa: PLC0415
 
     try:
-        doctrine_root = resolve_offering_root()
-        templates_dir = doctrine_root / "templates"
+        offering_root = resolve_offering_root()
+        templates_dir = offering_root / "templates"
         if templates_dir.is_dir():
             return Path(templates_dir)
     except FileNotFoundError:

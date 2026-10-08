@@ -107,7 +107,7 @@ def regenerate_graph(
     from charter.drg import DRGValidationError
     from charter.packs import builtin_manifest_is_fresh, generate_builtin_manifest
 
-    doctrine_root = _built_in_pack_root()
+    pack_root = _built_in_pack_root()
 
     if check:
         import tempfile
@@ -115,31 +115,31 @@ def regenerate_graph(
         with tempfile.TemporaryDirectory() as tmp:
             generated_dir = Path(tmp)
             try:
-                write_reference_graph_with_overlay(doctrine_root, generated_dir / "graph.yaml")
+                write_reference_graph_with_overlay(pack_root, generated_dir / "graph.yaml")
             except DRGValidationError as exc:
                 _emit_regen_result(
                     status="invalid",
-                    path=doctrine_root,
+                    path=pack_root,
                     json_output=json_output,
                     detail="; ".join(exc.errors),
                 )
                 raise typer.Exit(1) from exc
             # Freshness covers BOTH the DRG fragments and the generated
             # pack-manifest.yaml — either drifting registers as stale.
-            fresh = _read_graph_source(generated_dir) == _read_graph_source(doctrine_root) and builtin_manifest_is_fresh(doctrine_root)
+            fresh = _read_graph_source(generated_dir) == _read_graph_source(pack_root) and builtin_manifest_is_fresh(pack_root)
         _emit_regen_result(
             status="fresh" if fresh else "stale",
-            path=doctrine_root,
+            path=pack_root,
             json_output=json_output,
         )
         raise typer.Exit(0 if fresh else 1)
 
     try:
-        write_reference_graph_with_overlay(doctrine_root, doctrine_root / "graph.yaml")
+        write_reference_graph_with_overlay(pack_root, pack_root / "graph.yaml")
     except DRGValidationError as exc:
         _emit_regen_result(
             status="invalid",
-            path=doctrine_root,
+            path=pack_root,
             json_output=json_output,
             detail="; ".join(exc.errors),
         )
@@ -147,14 +147,14 @@ def regenerate_graph(
 
     # Regenerate the built-in pack manifest in the same deterministic pass so
     # the shipped DRG fragments and the constituent inventory never drift apart.
-    generate_builtin_manifest(doctrine_root)
+    generate_builtin_manifest(pack_root)
 
-    _emit_regen_result(status="written", path=doctrine_root, json_output=json_output)
+    _emit_regen_result(status="written", path=pack_root, json_output=json_output)
     raise typer.Exit(0)
 
 
-def _read_graph_source(doctrine_dir: Path) -> dict[str, str]:
-    """Return ``{filename: text}`` for the DRG graph source under *doctrine_dir*.
+def _read_graph_source(pack_dir: Path) -> dict[str, str]:
+    """Return ``{filename: text}`` for the DRG graph source under *pack_dir*.
 
     Layout-agnostic (mirrors ``load_graph_or_dir``): the ``graph.yaml`` monolith
     when present, otherwise the ``*.graph.yaml`` fragments. Freshness is a
@@ -162,8 +162,8 @@ def _read_graph_source(doctrine_dir: Path) -> dict[str, str]:
     added, removed, or drifted between the temp regeneration and the committed
     source all register as stale.
     """
-    single = doctrine_dir / "graph.yaml"
-    files = [single] if single.is_file() else sorted(doctrine_dir.glob("*.graph.yaml"))
+    single = pack_dir / "graph.yaml"
+    files = [single] if single.is_file() else sorted(pack_dir.glob("*.graph.yaml"))
     return {p.name: p.read_text(encoding="utf-8") for p in files}
 
 

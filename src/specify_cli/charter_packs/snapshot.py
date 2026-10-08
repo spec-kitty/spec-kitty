@@ -36,7 +36,7 @@ from charter.packs import (
     write_pack_manifest,
 )
 
-from .sources.protocol import FetchResult, OrgDoctrineSource
+from .sources.protocol import FetchResult, OrgCharterPackSource
 
 
 # Suffix → artifact-count bucket name for ``pack-manifest.yaml``.
@@ -56,7 +56,7 @@ _ARTIFACT_BUCKETS: dict[str, str] = {
 
 
 def write_snapshot(
-    source: OrgDoctrineSource,
+    source: OrgCharterPackSource,
     local_path: Path,
     *,
     source_url: str | None = None,
@@ -66,7 +66,7 @@ def write_snapshot(
     """Fetch from ``source`` into a temp dir and atomically move into place.
 
     Args:
-        source: Any object satisfying :class:`OrgDoctrineSource`.
+        source: Any object satisfying :class:`OrgCharterPackSource`.
         local_path: Destination directory.  Replaced atomically on success.
         source_url: Public URL recorded in ``pack-manifest.yaml`` (credentials
             stripped automatically).  Defaults to ``getattr(source, "url",
@@ -208,13 +208,13 @@ def write_snapshot(
 
 
 def _with_stored_etag(
-    source: OrgDoctrineSource,
+    source: OrgCharterPackSource,
     local_path: Path,
     subdir: str | None,
     *,
     source_url: str,
     source_type: str,
-) -> OrgDoctrineSource:
+) -> OrgCharterPackSource:
     """Attach a previously stored ETag as ``If-None-Match`` when supported."""
     from .sources.https_source import HttpsBundleSource
 
@@ -429,7 +429,7 @@ def _snapshot_manifest_is_intact(
     return hmac.compare_digest(stored, current)
 
 
-def _infer_source_type(source: OrgDoctrineSource) -> str:
+def _infer_source_type(source: OrgCharterPackSource) -> str:
     declared = getattr(source, "source_type", None)
     if declared in {"git", "https", "artifactory", "api"}:
         return cast(str, declared)
@@ -446,7 +446,7 @@ def _infer_source_type(source: OrgDoctrineSource) -> str:
 # ----------------------------------------------------------------------
 # Pack-level fetch entry point (consumed by `spec-kitty charter fetch`).
 # ----------------------------------------------------------------------
-def _build_source(pack: OrgPackConfig) -> OrgDoctrineSource:
+def _build_source(pack: OrgPackConfig) -> OrgCharterPackSource:
     """Construct the fetch-source adapter for *pack*.
 
     Raises:
@@ -461,7 +461,7 @@ def _build_source(pack: OrgPackConfig) -> OrgDoctrineSource:
     if pack.source_type == "git":
         from .sources.git_source import GitSource
 
-        return cast(OrgDoctrineSource, GitSource(url=pack.url, ref=pack.ref))
+        return cast(OrgCharterPackSource, GitSource(url=pack.url, ref=pack.ref))
     if pack.source_type in {"https", "artifactory"}:
         from .sources.https_source import HttpsBundleSource
 
@@ -469,7 +469,7 @@ def _build_source(pack: OrgPackConfig) -> OrgDoctrineSource:
     if pack.source_type == "api":
         from .sources.api_source import ApiSource
 
-        return cast(OrgDoctrineSource, ApiSource(url=pack.url, ref=pack.ref))
+        return cast(OrgCharterPackSource, ApiSource(url=pack.url, ref=pack.ref))
 
     raise ValueError(f"Unknown source_type: {pack.source_type!r} for pack '{pack.name}'")
 

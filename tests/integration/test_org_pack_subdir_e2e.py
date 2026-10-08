@@ -176,7 +176,7 @@ def test_sc003_wrong_subdir_reports_errors(tmp_path: Path) -> None:
 
 
 def _make_fake_source(local_path: Path) -> MagicMock:
-    """Return a MagicMock OrgDoctrineSource whose fetch() writes minimal YAML artifacts.
+    """Return a MagicMock OrgCharterPackSource whose fetch() writes minimal YAML artifacts.
 
     The source writes a single directive YAML into the target directory so that
     ``_count_artifacts`` returns a non-empty dict for no-subdir packs.

@@ -18,15 +18,15 @@ _LAYER_BUILTIN = "builtin"
 _LAYER_ORG = "org"
 _LAYER_PROJECT = "project"
 
-# Doctrine layers that the dispatch routing catalog draws from the
+# Charter Pack layers that the dispatch routing catalog draws from the
 # activation-aware service. All three provenance layers are admitted (#4114):
-# a project-layer profile authored under ``.kittify/doctrine/agent_profiles``
+# a project-layer profile authored under ``.kittify/charter-packs/agent_profiles``
 # is routable exactly when the ``activated_agent_profiles`` gate admits it,
 # so ``charter activate agent-profile <id>`` is sufficient to make a project
 # profile dispatchable — routing and governance context agree on every
-# doctrine layer. The legacy ``.kittify/profiles`` invocation project layer
+# Charter Pack layer. The legacy ``.kittify/profiles`` invocation project layer
 # is still overlaid separately (and ungated) below.
-_DOCTRINE_ROUTING_LAYERS = frozenset({_LAYER_BUILTIN, _LAYER_ORG, _LAYER_PROJECT})
+_CHARTER_PACK_ROUTING_LAYERS = frozenset({_LAYER_BUILTIN, _LAYER_ORG, _LAYER_PROJECT})
 
 
 class ProfileRegistry:
@@ -113,7 +113,7 @@ class ProfileRegistry:
         merged: dict[str, AgentProfile] = {
             profile_id: profile
             for profile_id, profile in gated.items()
-            if inner_repo.get_provenance(profile_id) in _DOCTRINE_ROUTING_LAYERS
+            if inner_repo.get_provenance(profile_id) in _CHARTER_PACK_ROUTING_LAYERS
         }
         for profile in self._repo.list_all():
             if self._repo.get_provenance(profile.profile_id) == _LAYER_PROJECT:
@@ -126,7 +126,7 @@ class ProfileRegistry:
         """Build the local-resolution catalog (#4120): every layer, same gate.
 
         The routing catalog above carries the activation-gated doctrine
-        *project* layer (see ``_DOCTRINE_ROUTING_LAYERS``); dispatch routing
+        *project* layer (see ``_CHARTER_PACK_ROUTING_LAYERS``); dispatch routing
         began carrying it with R3 parity (#4114/#4128) — it formerly did not,
         which is why resolving an operator ``--profile`` flag against the
         routing catalog once made every locally-authored profile unresolvable
@@ -142,7 +142,7 @@ class ProfileRegistry:
         org + project), plus the legacy ``.kittify/profiles`` invocation
         project overlay ungated on top (same collision semantics as the routing
         catalog). Unlike the routing catalog it applies no
-        ``_DOCTRINE_ROUTING_LAYERS`` provenance filter to the gated doctrine
+        ``_CHARTER_PACK_ROUTING_LAYERS`` provenance filter to the gated doctrine
         profiles. It is the operator-facing resolution surface behind
         ``resolve_local`` — NOT a routing catalog, and never consumed by the
         dispatch router.
@@ -175,7 +175,7 @@ class ProfileRegistry:
         Unlike :meth:`resolve` (the dispatch *routing* catalog), this resolves
         against the local catalog built by ``_build_local_profiles``: the same
         activation gate, every doctrine layer admitted, minus the routing
-        catalog's ``_DOCTRINE_ROUTING_LAYERS`` provenance filter. The routing
+        catalog's ``_CHARTER_PACK_ROUTING_LAYERS`` provenance filter. The routing
         catalog now carries the activation-gated project layer as well (R3
         parity, #4114/#4128); this remains the operator-facing seam for a
         supplied ``--profile <id>`` on ``agent action implement/review`` — the

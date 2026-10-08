@@ -47,7 +47,7 @@ from specify_cli.cli.commands.charter._common import (  # noqa: F401
 # are also re-exported under their legacy spellings for downstream consumers.
 from specify_cli.cli.commands.charter.interview import interview  # noqa: F401
 from specify_cli.cli.commands.charter.generate import (  # noqa: F401
-    _build_doctrine_service_with_org_layer,
+    _build_active_charter_service_with_org_layer,
     _ensure_gitignore_entries,
     _is_inside_git_worktree,
     _stage_charter_files,
@@ -168,7 +168,7 @@ __all__ = [
     "charter_resynthesize",
     "charter_lint",
     # Generate helpers
-    "_build_doctrine_service_with_org_layer",
+    "_build_active_charter_service_with_org_layer",
     "_is_inside_git_worktree",
     "_stage_charter_files",
     "_ensure_gitignore_entries",

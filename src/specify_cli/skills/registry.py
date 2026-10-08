@@ -88,8 +88,8 @@ class SkillRegistry:
 
         # Installed package: charter.offering carries the doctrine skills tree
         try:
-            doctrine_root = importlib.resources.files("charter.offering")
-            skills_path = Path(str(doctrine_root / "skills"))
+            offering_root = importlib.resources.files("charter.offering")
+            skills_path = Path(str(offering_root / "skills"))
             if skills_path.is_dir():
                 return cls(skills_path)
         except (ModuleNotFoundError, TypeError):
