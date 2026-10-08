@@ -1783,17 +1783,16 @@ def _commit_acceptance_meta(
     except TaskCliError:
         accept_commit = None
 
-    if accept_commit:
-        # Corruption surfaces as the typed ``MissionMetaReadError`` and PROPAGATES
-        # (swallowing it would silently skip stamping ``accept_commit`` into meta.json).
-        if _stamp_accept_commit(summary.feature_dir, accept_commit):
-            run_git(["add", meta_rel], cwd=repo_root, check=True)
-            if _staged_paths(repo_root, meta_rel):
-                run_git(
-                    ["commit", "-m", f"Record acceptance commit for {mission_slug}", "--", meta_rel],
-                    cwd=repo_root,
-                    check=True,
-                )
+    # Corruption surfaces as the typed ``MissionMetaReadError`` and PROPAGATES
+    # (swallowing it would silently skip stamping ``accept_commit`` into meta.json).
+    if accept_commit and _stamp_accept_commit(summary.feature_dir, accept_commit):
+        run_git(["add", meta_rel], cwd=repo_root, check=True)
+        if _staged_paths(repo_root, meta_rel):
+            run_git(
+                ["commit", "-m", f"Record acceptance commit for {mission_slug}", "--", meta_rel],
+                cwd=repo_root,
+                check=True,
+            )
 
     return parent_commit, accept_commit, True
 
@@ -1846,33 +1845,32 @@ def _commit_acceptance_meta_via_router(
 
     accept_commit: str | None = router_result.commit_hash
 
-    if accept_commit:
-        # See the sibling ``_commit_acceptance_meta``; the typed error PROPAGATES.
-        if _stamp_accept_commit(meta_path.parent, accept_commit):
-            # Second commit: record the accept_commit SHA back into meta.json.
-            # T088 (D8): its result was discarded entirely before this WP --
-            # now warn (never raise; this write is best-effort bookkeeping on
-            # top of an already-successful acceptance commit) when a surface
-            # did not land cleanly.
-            second_result = commit_for_mission(
-                repo_root=repo_root,
-                mission_slug=mission_slug,
-                files=(meta_path,),
-                message=f"Record acceptance commit for {mission_slug}",
-                policy=policy,
-                # meta.json → PRIMARY_METADATA (write-surface-coherence WP02 / T009).
-                kind=MissionArtifactKind.PRIMARY_METADATA,
-            )
-            for surface in second_result.surfaces:
-                if surface.status not in ("committed", "unchanged"):
-                    logger.warning(
-                        "accept: recording accept_commit on %s (%s) for %s did not land (%s): %s",
-                        surface.surface,
-                        surface.branch,
-                        mission_slug,
-                        surface.status,
-                        surface.diagnostic or "no diagnostic available",
-                    )
+    # See the sibling ``_commit_acceptance_meta``; the typed error PROPAGATES.
+    if accept_commit and _stamp_accept_commit(meta_path.parent, accept_commit):
+        # Second commit: record the accept_commit SHA back into meta.json.
+        # T088 (D8): its result was discarded entirely before this WP --
+        # now warn (never raise; this write is best-effort bookkeeping on
+        # top of an already-successful acceptance commit) when a surface
+        # did not land cleanly.
+        second_result = commit_for_mission(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            files=(meta_path,),
+            message=f"Record acceptance commit for {mission_slug}",
+            policy=policy,
+            # meta.json → PRIMARY_METADATA (write-surface-coherence WP02 / T009).
+            kind=MissionArtifactKind.PRIMARY_METADATA,
+        )
+        for surface in second_result.surfaces:
+            if surface.status not in ("committed", "unchanged"):
+                logger.warning(
+                    "accept: recording accept_commit on %s (%s) for %s did not land (%s): %s",
+                    surface.surface,
+                    surface.branch,
+                    mission_slug,
+                    surface.status,
+                    surface.diagnostic or "no diagnostic available",
+                )
 
     return parent_commit, accept_commit, True
 

@@ -978,20 +978,23 @@ def flatten_coordination_metadata(feature_dir: Path) -> dict[str, Any]:
     # needs). Mirrors the established deferred-import pattern this module
     # already uses for ``core.paths`` in :func:`_load_meta_fail_closed`.
     from specify_cli.migration.backfill_topology import FLATTENED_KEY, TOPOLOGY_KEY
+    from specify_cli.status.mission_write import mission_write_lock
 
-    cleared: dict[str, Any] = {}
+    # The three mutations stay in THIS function (the sole-owner ratchet pins it), so it takes the
+    # Mission write lock itself rather than going through a ``locked_update_meta`` closure.
+    with mission_write_lock(feature_dir):
+        meta = _require_meta(feature_dir)
 
-    def mutate(meta: dict[str, Any]) -> bool:
         if "coordination_branch" not in meta:
-            return False
-        cleared["coordination_branch"] = meta.pop("coordination_branch")
+            return {}
+
+        cleared: dict[str, Any] = {"coordination_branch": meta.pop("coordination_branch")}
         if TOPOLOGY_KEY in meta:
             cleared[TOPOLOGY_KEY] = meta.pop(TOPOLOGY_KEY)
         meta[FLATTENED_KEY] = True
-        return True
 
-    locked_update_meta(feature_dir, mutate, validate=False)
-    return cleared
+        write_meta(feature_dir, meta, validate=False)
+        return cleared
 
 
 def get_change_mode(feature_dir: Path) -> str | None:

@@ -153,6 +153,10 @@ EXPECTED_LOCK_COMPOSITION_SITES: frozenset[str] = frozenset(
         # concurrent-mission-writers WP01 (#5819): the Mission write primitive
         # (``mission_write_lock``) is the one door non-status writers take.
         "specify_cli.status.mission_write",
+        # mission-writer-followups WP02 (#5883): every ``meta.json`` read-modify-write
+        # (``locked_update_meta``, the setters, the CAS ``restore_meta_text``) takes the
+        # Mission write lock; it appends no event-log row.
+        "specify_cli.mission_metadata",
         # concurrent-mission-writers WP03 (#5468, #5796): ``implement`` holds the
         # Mission write lock from the claim emit through the claim commit, and
         # ``ensure_vcs_locked`` runs its meta.json read-modify-write under it.
