@@ -34,8 +34,6 @@ from ruamel.yaml import YAML
 from charter.activation.pack_manager import YAML_KEY_MAP
 
 __all__ = [
-    "PER_KIND_ACTIVATION_KEYS",
-    "BUILTIN_PACKS",
     "UnknownPackError",
     "resolve_builtin_pack_path",
     "load_pack_yaml",

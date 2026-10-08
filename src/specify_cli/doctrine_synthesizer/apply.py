@@ -31,7 +31,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from kernel.doctrine_root import LEGACY_DOCTRINE_DIRNAME
+from kernel.charter_pack_paths import PROJECT_PACK_ROOT
 
 if TYPE_CHECKING:
     from specify_cli.context.mission_resolver import ResolvedMission
@@ -185,14 +185,9 @@ def _feature_dir(repo_root: Path, mission_slug: str) -> Path:
 _GLOSSARY_BASE = Path(".kittify") / "glossary"
 #: Base path for project-local DRG overlay.
 _DRG_BASE = Path(".kittify") / "drg"
-#: Base path for project-local doctrine artifacts. CR-07 (mission
-#: ``charter-code-topology-01M152G1`` S4): this producer only ever WRITES
-#: (``mkdir`` + create) into this base -- an M3 concern (the actual data
-#: move + write-side cutover to ``.kittify/charter-packs``), not M2's
-#: read-side dual-root reader (``kernel.doctrine_root``). Composed from the
-#: single shared ``LEGACY_DOCTRINE_DIRNAME`` source rather than a re-spelled
-#: ``"doctrine"`` literal so a census over that constant finds this site too.
-_DOCTRINE_BASE = Path(".kittify") / LEGACY_DOCTRINE_DIRNAME
+#: Base path for project-local charter pack artifacts: the project charter
+#: pack root (FR-016, ``kernel.charter_pack_paths``).
+_DOCTRINE_BASE = PROJECT_PACK_ROOT
 
 #: CR-05 (mission ``charter-code-topology-01M152G1`` S4): the canonical
 #: ``target_urn`` scheme prefix this producer emits for newly-synthesized
@@ -309,7 +304,7 @@ def _apply_flag_not_helpful(
     Annotates the doctrine artifact with a "flagged" provenance entry.
     This does NOT remove the artifact (per synthesizer_hook.md §6).
 
-    The annotation is written to .kittify/doctrine/.flags/<urn-slug>.yaml.
+    The annotation is written to .kittify/charter-packs/.flags/<urn-slug>.yaml.
     """
     urn = payload.target.urn
     urn_slug = _safe_path_component(urn)
@@ -418,7 +413,7 @@ def _apply_synthesize(
 ) -> tuple[str, str]:
     """Apply a synthesize_* proposal.
 
-    Writes the artifact body to .kittify/doctrine/<kind>/<artifact_id>.md.
+    Writes the artifact body to .kittify/charter-packs/<kind>/<artifact_id>.md.
     """
     kind_slug = payload.kind.replace("synthesize_", "")  # "directive", "tactic", "procedure"
     doctrine_dir = repo_root / _DOCTRINE_BASE / kind_slug

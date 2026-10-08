@@ -126,7 +126,7 @@ def _seed_fresh_bundle_and_manifest(repo: Path) -> Path:
 
 
 def _seed_graph(repo: Path) -> Path:
-    graph_path = repo / ".kittify" / "doctrine" / "graph.yaml"
+    graph_path = repo / ".kittify" / "charter-packs" / "graph.yaml"
     graph_path.parent.mkdir(parents=True, exist_ok=True)
     graph_path.write_text("schema_version: '1.0'\nnodes: []\nedges: []\n", encoding="utf-8")
     return graph_path
@@ -576,7 +576,7 @@ def test_synthesized_drg_built_in_only_for_legacy_fresh_seed(tmp_path: Path) -> 
     """Preserved by the #2681 fix — the legacy-fresh-seed branch sits above
     the content-hash comparison."""
     _seed_charter_yaml(tmp_path)
-    provenance = tmp_path / ".kittify" / "doctrine" / "PROVENANCE.md"
+    provenance = tmp_path / ".kittify" / "charter-packs" / "PROVENANCE.md"
     provenance.parent.mkdir(parents=True, exist_ok=True)
     provenance.write_text(
         "# Spec Kitty Doctrine — Fresh Project Seed\n\n"
@@ -632,6 +632,21 @@ def test_synthesized_drg_fresh_when_hash_matches(tmp_path: Path) -> None:
     _seed_graph(tmp_path)
     result = compute_freshness(tmp_path)
     assert result.synthesized_drg.state == "fresh"
+
+
+def test_synthesized_drg_legacy_root_read_fallback(tmp_path: Path) -> None:
+    """TEMPORARY (FR-011, deleted by WP14 with the read shim).
+
+    A project whose graph is still only under the retired ``.kittify/doctrine/``
+    root reads as ``fresh``; with the graph gone it reads as ``missing``.
+    """
+    _seed_fresh_bundle_and_manifest(tmp_path)
+    graph = _seed_graph(tmp_path)
+    legacy = tmp_path / ".kittify" / "doctrine"
+    graph.parent.rename(legacy)
+    assert compute_freshness(tmp_path).synthesized_drg.state == "fresh"
+    (legacy / "graph.yaml").unlink()
+    assert compute_freshness(tmp_path).synthesized_drg.state == "missing"
 
 
 # ---------------------------------------------------------------------------

@@ -25,7 +25,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.pack_context import ActiveCharterConfigError
 from mission_runtime import ActionContextError, OwnedCheckout
 from runtime.next._tmp_namespace import prompt_tmp_dir
 from specify_cli.mission_metadata import mission_identity_fields
@@ -708,7 +708,7 @@ def _build_prompt_or_error(
             os.close(marker_fd)
             return marker_path, None, None
         return None, (f"prompt resolution failed for action '{action}': FileNotFoundError: {exc}"), None
-    except CharterPackConfigError as exc:
+    except ActiveCharterConfigError as exc:
         # A corrupt/unreadable ``.kittify/config.yaml`` (bad encoding or
         # malformed YAML) is an operator-facing configuration fault, not an
         # internal crash. Surface the fail-loud body verbatim (it names the

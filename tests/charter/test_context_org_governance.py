@@ -275,7 +275,7 @@ def _write_activation_org_pack(repo_root: Path) -> Path:
               - activation_context:
                   mission_type: software-dev
                   action: implement
-                doctrine_pack_id: {_ACTIVATION_ORG_PACK_NAME}
+                charter_pack_id: {_ACTIVATION_ORG_PACK_NAME}
                 artifact_id: {_ORG_ONLY_ACTIVATION_ARTIFACT_ID}
                 artifact_kind: styleguides
             """

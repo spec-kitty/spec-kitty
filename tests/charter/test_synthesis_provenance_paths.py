@@ -4,7 +4,7 @@ Background / investigation summary
 -----------------------------------
 Issue #3819 was filed after a doubled-leaf write was found committed into a
 PR: byte-identical duplicates at ``.kittify/charter/provenance/provenance/
-<file>`` and ``.kittify/doctrine/styleguide/styleguide/<file>`` — a leaf
+<file>`` and ``.kittify/charter-packs/styleguide/styleguide/<file>`` — a leaf
 directory appended onto a base that already ends in that same leaf.
 
 This WP's brief pointed at ``src/charter/bundle.py`` (``PROVENANCE_DIR``) and
@@ -66,7 +66,7 @@ def _tactic_body(slug: str = "my-tactic") -> bytes:
 
 
 def _write_artifact(repo: Path, subdir: str, filename: str, content: bytes) -> Path:
-    path = repo / ".kittify" / "doctrine" / subdir / filename
+    path = repo / ".kittify" / "charter-packs" / subdir / filename
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(content)
     return path
@@ -204,7 +204,7 @@ class TestFullSynthesisProducesNoDoubledPaths:
 
         repo_root = tmp_path
         (repo_root / ".kittify" / "charter").mkdir(parents=True, exist_ok=True)
-        (repo_root / ".kittify" / "doctrine").mkdir(parents=True, exist_ok=True)
+        (repo_root / ".kittify" / "charter-packs").mkdir(parents=True, exist_ok=True)
 
         # Run twice (a plain re-sync is the common real-world trigger for a
         # double-write defect if one exists in the writer).

@@ -2,7 +2,7 @@
 
 After synthesis, exactly one of the two states holds:
 
-* ``.kittify/doctrine/graph.yaml`` exists AND
+* ``.kittify/charter-packs/graph.yaml`` exists AND
   ``synthesis-manifest.yaml`` has ``built_in_only: false``.
 * ``graph.yaml`` does NOT exist AND ``synthesis-manifest.yaml`` has
   ``built_in_only: true``.
@@ -104,7 +104,7 @@ def _seed_manifest(
 
 
 def _seed_graph(repo: Path) -> Path:
-    p = repo / ".kittify" / "doctrine" / "graph.yaml"
+    p = repo / ".kittify" / "charter-packs" / "graph.yaml"
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text("schema_version: '1.0'\nnodes: []\nedges: []\n", encoding="utf-8")
     return p

@@ -1,0 +1,19 @@
+adapter_id: fixture
+adapter_notes: fixture:d708a417320a
+adapter_version: 1.0.0
+artifact_content_hash: 
+  58323a02431168a9dafb807b055bee09ca48b5807d6c68c79aa94d592b63feb0
+artifact_kind: styleguide
+artifact_slug: python-style-guide
+artifact_urn: styleguide:python-style-guide
+corpus_snapshot_id: (none)
+evidence_bundle_hash:
+generated_at: '2026-01-01T01:00:07.667735+00:00'
+inputs_hash: d708a417320ad40e307fc39c31ffaf916b19ecadfa14a7c08e0a918e9d0eca0f
+produced_at: '2026-10-06T22:00:18.017991+00:00'
+schema_version: '2'
+source_input_ids: []
+source_section: language_scope
+source_urns: []
+synthesis_run_id: 01KPE222CD1MMCYEGB3ZCY51VR
+synthesizer_version: 4.0.0rc6

@@ -85,7 +85,7 @@ def _make_overlay(
 
 def _write_overlay(staging_dir: Path, graph: DRGGraph) -> None:
     """Write a DRGGraph YAML to staging_dir/doctrine/graph.yaml."""
-    doctrine_dir = staging_dir / "doctrine"
+    doctrine_dir = staging_dir / "charter-packs"
     doctrine_dir.mkdir(parents=True, exist_ok=True)
     graph_path = doctrine_dir / "graph.yaml"
 
@@ -180,7 +180,7 @@ class TestPreservedDanglingEndpointIsReportedNotRaised:
         conflict = ReconciliationConflict(
             kind="preserved_dangling_endpoint",
             target_id=_edge_key("directive:PROJECT_001", Relation.APPLIES, "tactic:retired-legacy-tactic"),
-            backing_artifact=".kittify/doctrine/tactic/retired-legacy-tactic.tactic.yaml",
+            backing_artifact=".kittify/charter-packs/tactic/retired-legacy-tactic.tactic.yaml",
             remediation=_RECONCILE_REMEDIATIONS["preserved_dangling_endpoint"],
             provenance="preserved",
         )
@@ -351,7 +351,7 @@ def _inject_legacy_node_with_duplicate_edge(tmp_path: Path) -> None:
     ``provenance="preserved"`` once reconciled — this is the leftover-content
     shape amendment #3 describes, not a collision the current run created.
     """
-    doctrine_dir = tmp_path / ".kittify" / "doctrine"
+    doctrine_dir = tmp_path / ".kittify" / "charter-packs"
     graph_path = doctrine_dir / "graph.yaml"
     graph = _load_graph(graph_path)
     graph["nodes"].append(
@@ -374,7 +374,7 @@ def _inject_legacy_node_with_duplicate_edge(tmp_path: Path) -> None:
 
 def _inject_legacy_node_with_dangling_edge(tmp_path: Path) -> None:
     """Preserved node whose on-disk edge targets a URN nothing emits anymore."""
-    doctrine_dir = tmp_path / ".kittify" / "doctrine"
+    doctrine_dir = tmp_path / ".kittify" / "charter-packs"
     graph_path = doctrine_dir / "graph.yaml"
     graph = _load_graph(graph_path)
     graph["nodes"].append(
@@ -466,7 +466,7 @@ class TestFullPipelinePreservedConflictIsSuppressed:
         assert all(c.remediation for c in reported)
 
         # NFR-003: graph not silently truncated -- the preserved node survives.
-        graph_path = tmp_path / ".kittify" / "doctrine" / "graph.yaml"
+        graph_path = tmp_path / ".kittify" / "charter-packs" / "graph.yaml"
         surviving_urns = {n["urn"] for n in _load_graph(graph_path)["nodes"]}
         assert _LEGACY_URN in surviving_urns
 

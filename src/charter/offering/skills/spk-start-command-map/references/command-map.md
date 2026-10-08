@@ -11,7 +11,7 @@
 | Accept completed mission | `/spec-kitty.accept` | `spk-gate-accept` |
 | Merge mission work | `/spec-kitty.merge` | `spk-gate-merge` |
 | Inspect current state | `spec-kitty agent tasks status` or `spec-kitty agent status ...` | `spk-run-next` |
-| Charter/governance work | `/spec-kitty.charter` | `spk-doctrine-charter` |
+| Charter/governance work | `/spec-kitty.charter` | `spk-charter-governance` |
 
 Generated slash-command files and generated Agent Skills are separate command
 surfaces. Slash-command files use `/spec-kitty.*`; Agent Skills are named

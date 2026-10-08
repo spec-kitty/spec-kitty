@@ -633,10 +633,10 @@ class TestSynthesizeWritesToDisk:
         adapter: FixtureAdapter,
         tmp_path: Path,
     ) -> None:
-        """synthesize() places artifact YAML files under .kittify/doctrine/."""
+        """synthesize() places artifact YAML files under .kittify/charter-packs/."""
         synthesize(full_request, adapter=adapter, repo_root=tmp_path)
 
-        doctrine_root = tmp_path / ".kittify" / "doctrine"
+        doctrine_root = tmp_path / ".kittify" / "charter-packs"
         all_artifacts = list(doctrine_root.rglob("*.yaml"))
         assert len(all_artifacts) >= 1, (
             f"No artifact files found under {doctrine_root}; "
@@ -652,7 +652,7 @@ class TestSynthesizeWritesToDisk:
         """FR-007: synthesize() lands the additive project DRG overlay."""
         synthesize(full_request, adapter=adapter, repo_root=tmp_path)
 
-        graph_path = tmp_path / ".kittify" / "doctrine" / "graph.yaml"
+        graph_path = tmp_path / ".kittify" / "charter-packs" / "graph.yaml"
         assert graph_path.exists(), (
             f"Expected project DRG overlay at {graph_path}; "
             "synthesize() did not wire project_drg.persist into promote()"
@@ -723,14 +723,14 @@ class TestSynthesizeWritesToDisk:
             synthesize(full_request, adapter=adapter, repo_root=tmp_path)
 
         assert not (tmp_path / MANIFEST_PATH).exists()
-        assert not (tmp_path / ".kittify" / "doctrine" / "graph.yaml").exists()
+        assert not (tmp_path / ".kittify" / "charter-packs" / "graph.yaml").exists()
 
         staging_root = tmp_path / ".kittify" / "charter" / ".staging"
         failed_dirs = sorted(
             d for d in staging_root.iterdir() if d.is_dir() and d.name.endswith(".failed")
         )
         assert failed_dirs, "Expected validation failure to preserve a .failed staging directory"
-        assert (failed_dirs[0] / "doctrine" / "graph.yaml").exists(), (
+        assert (failed_dirs[0] / "charter-packs" / "graph.yaml").exists(), (
             "Expected staged project graph to be preserved for debugging when validation fails"
         )
 

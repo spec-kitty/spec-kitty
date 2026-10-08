@@ -78,6 +78,27 @@ _METADATA_YAML = "metadata.yaml"
 _REFERENCES_YAML = "references.yaml"
 _CHARTER_YAML = "charter.yaml"
 
+#: The pre-rename governance selection key of a standalone governance.yaml.
+_LEGACY_GOVERNANCE_SELECTION_KEY = "doctrine"
+
+
+class LegacyGovernanceSelectionKeyError(ValueError):
+    """A standalone governance.yaml still carries the legacy ``doctrine`` key.
+
+    The charter-pack cutover migration (selected first) rewrites
+    ``governance.doctrine`` to ``governance.charter``; composing charter.yaml
+    from the un-rewritten file would silently drop the selection, so the fold
+    refuses instead.
+    """
+
+    def __init__(self, governance_path: Path) -> None:
+        super().__init__(
+            f"{governance_path} still carries the legacy top-level 'doctrine' key "
+            "(governance.doctrine); the charter-pack cutover migration rewrites it to "
+            "'charter' and runs first. Re-run `spec-kitty upgrade` so it can, then retry."
+        )
+
+
 #: The four legacy bundle files this migration folds and retires (data-model.md
 #: "Entity: charter.yaml", contracts/migration-contract.md Inputs).
 LEGACY_BUNDLE_FILENAMES: tuple[str, ...] = (
@@ -227,24 +248,19 @@ def _compose_charter_yaml_document(project_path: Path, config_data: dict[str, An
         DirectivesConfig,
         GovernanceConfig,
     )
-    from charter.activation.sync import (  # noqa: PLC0415 -- lazy charter import (C-002)
-        apply_legacy_governance_selection_key_compat,
-    )
 
     charter_dir = _charter_dir(project_path)
     governance_data = _load_yaml_mapping(charter_dir / _GOVERNANCE_YAML)
     directives_data = _load_yaml_mapping(charter_dir / _DIRECTIVES_YAML)
     references_data = _load_yaml_mapping(charter_dir / _REFERENCES_YAML)
 
-    # CR-01 (charter-authority-flip-01M14RB3 WP03): the retired standalone
-    # governance.yaml this migration reads predates the doctrine -> charter
-    # selection-key rename, so it may still carry the legacy key. Apply the
-    # same dict-level compat the canonical loader uses (charter.activation.sync.
-    # load_governance_config) before validating -- otherwise pydantic's
-    # default extra="ignore" would silently drop the whole selection block
-    # instead of failing loud, defeating this function's own "schema drift
-    # fails loud here" contract.
-    governance_data = apply_legacy_governance_selection_key_compat(governance_data)
+    # The retired standalone governance.yaml predates the doctrine -> charter
+    # selection-key rename. The charter-pack cutover migration runs first and
+    # rewrites ``doctrine`` to ``charter``; a legacy key still present here
+    # would be silently dropped by pydantic (extra="ignore"), so refuse
+    # instead of losing the selection (charter-pack cutover, runtime-seams §3).
+    if _LEGACY_GOVERNANCE_SELECTION_KEY in governance_data:
+        raise LegacyGovernanceSelectionKeyError(charter_dir / _GOVERNANCE_YAML)
     governance = GovernanceConfig.model_validate(governance_data)
     directives = DirectivesConfig.model_validate(directives_data)
     catalog = CharterCatalog(
@@ -415,7 +431,10 @@ class ConsolidateCharterBundleMigration(BaseMigration):
                 _relocate_activation_onto_existing_charter_yaml(charter_yaml_path, config_data)
                 changes.append(f"Relocated activation keys onto existing {charter_yaml_path}")
         else:
-            document = _compose_charter_yaml_document(project_path, config_data)
+            try:
+                document = _compose_charter_yaml_document(project_path, config_data)
+            except LegacyGovernanceSelectionKeyError as exc:
+                return MigrationResult(success=False, errors=[str(exc)])
             _write_new_charter_yaml(charter_yaml_path, document)
             changes.append(f"Composed {charter_yaml_path} from legacy bundle + config activation")
 

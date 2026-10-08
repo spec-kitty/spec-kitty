@@ -71,7 +71,7 @@ def test_cli_accepts_minimal_authored_fragment(tmp_path: Path, command: str) -> 
 )
 def test_malformed_fragments_have_actionable_findings(tmp_path: Path, content: str, category: str, diagnostic: str) -> None:
     from charter.offering.drg.org_pack_loader import OrgPackParseError, OrgPackSchemaError, load_org_pack
-    from specify_cli.doctrine.pack_validator import validate_pack
+    from charter.offering.packs.pack_validator import validate_pack
 
     fragment = tmp_path / "drg" / "fragment.yaml"
     fragment.parent.mkdir()
@@ -98,7 +98,7 @@ def test_malformed_fragments_have_actionable_findings(tmp_path: Path, content: s
 )
 def test_runtime_normalization_matches_pack_validation(tmp_path: Path, content: str) -> None:
     from charter.offering.drg.org_pack_loader import load_org_pack
-    from specify_cli.doctrine.pack_validator import validate_pack
+    from charter.offering.packs.pack_validator import validate_pack
 
     fragment = tmp_path / "drg" / "fragment.yaml"
     fragment.parent.mkdir()
@@ -117,7 +117,7 @@ def test_runtime_normalization_matches_pack_validation(tmp_path: Path, content: 
 
 
 def test_fragment_is_optional(tmp_path: Path) -> None:
-    from specify_cli.doctrine.pack_validator import validate_pack
+    from charter.offering.packs.pack_validator import validate_pack
 
     assert validate_pack(tmp_path).ok
 
@@ -127,7 +127,7 @@ def test_governance_projection_validation(tmp_path: Path, selection: str) -> Non
     import yaml
 
     from charter.offering.drg.org_pack_loader import OrgPackSchemaError, load_org_pack
-    from specify_cli.doctrine.pack_validator import validate_pack
+    from charter.offering.packs.pack_validator import validate_pack
 
     fragment = tmp_path / "drg" / "fragment.yaml"
     fragment.parent.mkdir()
@@ -190,7 +190,7 @@ def test_governance_validation_not_gated_on_fragment(tmp_path: Path, selection: 
     ``drg/fragment.yaml`` previously passed CLI validation green while the
     same loader raised at runtime (#4200 defect 3).
     """
-    from specify_cli.doctrine.pack_validator import validate_pack
+    from charter.offering.packs.pack_validator import validate_pack
 
     profile = tmp_path / "mission_types" / "example" / "governance-profile.yaml"
     profile.parent.mkdir(parents=True)
@@ -228,7 +228,7 @@ def test_non_utf8_governance_profile_is_skipped_not_a_traceback(tmp_path: Path) 
     loader's broad backstop.
     """
     from charter.offering.drg.org_governance import collect_org_governance_scope_edges
-    from specify_cli.doctrine.pack_validator import validate_pack
+    from charter.offering.packs.pack_validator import validate_pack
 
     profile = tmp_path / "mission_types" / "example" / "governance-profile.yaml"
     profile.parent.mkdir(parents=True)
@@ -265,7 +265,7 @@ def test_unreadable_fragment_is_a_finding_not_a_traceback(tmp_path: Path) -> Non
     ``validate`` command with a traceback once it stopped being masked as a
     YAML parse error (#4200 defect 2).
     """
-    from specify_cli.doctrine.pack_validator import validate_pack
+    from charter.offering.packs.pack_validator import validate_pack
 
     fragment = tmp_path / "drg" / "fragment.yaml"
     fragment.parent.mkdir()
@@ -290,7 +290,7 @@ def test_unreadable_fragment_is_a_finding_not_a_traceback(tmp_path: Path) -> Non
 )
 def test_permission_denied_fragment_is_a_finding(tmp_path: Path) -> None:
     """A permission-denied fragment surfaces as ``unreadable_file``, not a crash."""
-    from specify_cli.doctrine.pack_validator import validate_pack
+    from charter.offering.packs.pack_validator import validate_pack
 
     fragment = tmp_path / "drg" / "fragment.yaml"
     fragment.parent.mkdir()
@@ -315,8 +315,8 @@ def test_missing_pack_fault_has_its_own_category(tmp_path: Path, monkeypatch: py
     pinned by simulating the raise at the seam the validator calls.
     """
     from charter.offering.drg.org_pack_loader import OrgPackMissingError
-    from specify_cli.doctrine import pack_validator
-    from specify_cli.doctrine.pack_validator import validate_pack
+    from charter.offering.packs import pack_validator
+    from charter.offering.packs.pack_validator import validate_pack
 
     fragment = tmp_path / "drg" / "fragment.yaml"
     fragment.parent.mkdir()

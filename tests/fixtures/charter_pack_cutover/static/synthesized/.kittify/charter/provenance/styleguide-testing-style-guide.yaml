@@ -1,0 +1,19 @@
+adapter_id: fixture
+adapter_notes: fixture:2c7f70fdb0ec
+adapter_version: 1.0.0
+artifact_content_hash: 
+  73ca8d93abef73369c07dd239b7787336541890699f82e4313ff7f3a158822fe
+artifact_kind: styleguide
+artifact_slug: testing-style-guide
+artifact_urn: styleguide:testing-style-guide
+corpus_snapshot_id: (none)
+evidence_bundle_hash:
+generated_at: '2026-01-01T00:12:26.549501+00:00'
+inputs_hash: 2c7f70fdb0ec0e59ca3caf433df2aa791ec10cdac698dfea8f60308681bb4b20
+produced_at: '2026-10-06T22:00:18.020214+00:00'
+schema_version: '2'
+source_input_ids: []
+source_section: testing_philosophy
+source_urns: []
+synthesis_run_id: 01KPE222CD1MMCYEGB3ZCY51VR
+synthesizer_version: 4.0.0rc6

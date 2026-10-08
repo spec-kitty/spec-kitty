@@ -51,6 +51,9 @@ def _charter_yaml_path(repo: Path) -> Path:
 
 
 def _graph_path(repo: Path) -> Path:
+    # The shared ``seed_graph`` fixture (tests/specify_cli/charter_preflight/_fixtures.py,
+    # used by ~15 suites) still seeds the retired root; freshness reads it through
+    # the temporary read fallback (FR-011) until WP14 removes it.
     return repo / ".kittify" / "doctrine" / "graph.yaml"
 
 

@@ -46,7 +46,7 @@ _ORG_CHARTER_WITH_ACTIVATIONS = textwrap.dedent(
       - activation_context:
           mission_type: software-dev
           action: implement
-        doctrine_pack_id: {_ORG_ACTIVATION_PACK_ID}
+        charter_pack_id: {_ORG_ACTIVATION_PACK_ID}
         artifact_id: {_ORG_ACTIVATION_ARTIFACT_ID}
         artifact_kind: styleguides
     """

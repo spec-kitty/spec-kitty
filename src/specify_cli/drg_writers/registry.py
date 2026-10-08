@@ -20,7 +20,7 @@ Mission ``doctrine-delivery-activation`` WP05 (#3075/#2977) grew
 ``DOCUMENT_WRITERS`` from one member to four: the three sites that used to
 hand-restate the five document-level keys (``charter.activation.synthesizer.project_drg``,
 ``specify_cli.migration.rewrite_opposed_by``,
-``specify_cli.doctrine.pack_assembler``) now delegate to
+``charter.offering.packs.pack_assembler``) now delegate to
 ``graph_document_to_dict`` and join the registry. A companion static-scan
 discovery gate (``tests/architectural/test_drg_writer_discovery.py``) scans
 ``src/`` directly for the two known bypass shapes, so a FUTURE hand-restating
@@ -51,9 +51,9 @@ from charter.drg import (
     graph_document_to_dict,
     model_to_graph_dict,
 )
+from charter.packs import pack_document_dict
 from charter.activation.synthesizer import project_drg as _project_drg
 
-from specify_cli.doctrine import pack_assembler as _pack_assembler
 from specify_cli.migration import rewrite_opposed_by as _rewrite_opposed_by
 
 # ---------------------------------------------------------------------------
@@ -193,8 +193,8 @@ DOCUMENT_WRITERS: Final[tuple[DocumentWriter, ...]] = (
         document_fn=_rewrite_opposed_by._document_dict,
     ),
     _FunctionDocumentWriter(
-        name="specify_cli.doctrine.pack_assembler._document_dict",
-        document_fn=_pack_assembler._document_dict,
+        name="charter.offering.packs.pack_assembler.pack_document_dict",
+        document_fn=pack_document_dict,
     ),
 )
 

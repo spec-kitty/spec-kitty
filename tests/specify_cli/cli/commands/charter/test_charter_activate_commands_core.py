@@ -16,7 +16,7 @@ Covers:
 The old API (--action-sequence, mission-type subcommand, override file) is removed.
 All assertions for override-file behavior are also removed.
 The activate_mission_type_override function is removed (FR-014: activation now goes
-through CharterPackManager.activate() which writes to config.yaml directly).
+through ActiveCharterManager.activate() which writes to config.yaml directly).
 """
 
 from __future__ import annotations

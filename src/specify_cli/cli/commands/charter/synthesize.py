@@ -133,10 +133,10 @@ def charter_synthesize(  # noqa: C901
     """Validate and promote agent-generated project-local doctrine artifacts.
 
     Reads the charter interview answers, resolves synthesis targets from the
-    DRG + doctrine, and writes all artifacts to ``.kittify/doctrine/``.
+    DRG + doctrine, and writes all artifacts to ``.kittify/charter-packs/``.
 
     Doctrine generation is performed by the LLM harness (Claude Code, Codex,
-    Cursor, etc.) via the spec-kitty-charter-doctrine skill. This command
+    Cursor, etc.) via the spk-charter-governance skill. This command
     validates and promotes the artifacts the agent has written.
 
     Fresh-project behavior (issue #839 / WP06 T031-T033)
@@ -146,10 +146,10 @@ def charter_synthesize(  # noqa: C901
     command short-circuits the adapter pipeline and materializes the
     **minimal artifact set** the runtime requires:
 
-    1. ``.kittify/doctrine/`` — directory marker. ``DoctrineService``'s
+    1. ``.kittify/charter-packs/`` — directory marker. ``DoctrineService``'s
        project-root resolver (``src/charter/activation/_doctrine_paths.py``) is a
        presence-only check; an empty directory is a valid project layer.
-    2. ``.kittify/doctrine/PROVENANCE.md`` — human-readable record of the
+    2. ``.kittify/charter-packs/PROVENANCE.md`` — human-readable record of the
        fresh-project seed path, citing #839.
 
     The runtime falls back to the built-in doctrine (``packs/built-in/``) for
@@ -221,7 +221,7 @@ def charter_synthesize(  # noqa: C901
         # the authoritative charter.yaml to exist (the upstream `charter
         # generate` produced it) AND no agent-authored doctrine YAMLs to be
         # present. When both signals fire, we materialize the minimal
-        # .kittify/doctrine/ artifact set documented in T031 so the runtime can
+        # .kittify/charter-packs/ artifact set documented in T031 so the runtime can
         # advance via the built-in doctrine fallback.
         #
         # Gating signal re-pointed from charter.md to charter.yaml for the
@@ -313,7 +313,7 @@ def charter_synthesize(  # noqa: C901
                                     "mode": "fresh_project_seed_dry_run",
                                     "files_planned": planned,
                                     "planned_deletes": planned_deletes,
-                                    "note": ("Fresh project + --dry-run: would materialize minimal .kittify/doctrine/ (no files written). See issue #839."),
+                                    "note": ("Fresh project + --dry-run: would materialize minimal .kittify/charter-packs/ (no files written). See issue #839."),
                                 },
                                 indent=2,
                                 sort_keys=True,
@@ -321,7 +321,9 @@ def charter_synthesize(  # noqa: C901
                         )
                         mark_invocation_succeeded()
                         return
-                    console.print("[yellow]Charter synthesis (fresh project, dry-run)[/yellow]: would materialize minimal .kittify/doctrine/ (no files written).")
+                    console.print(
+                        "[yellow]Charter synthesis (fresh project, dry-run)[/yellow]: would materialize minimal .kittify/charter-packs/ (no files written)."
+                    )
                     for f in planned:
                         console.print(f"  • {f}")
                     for f in planned_deletes:
@@ -355,7 +357,7 @@ def charter_synthesize(  # noqa: C901
                                 "note": (
                                     "Fresh project: no agent-authored YAML under "
                                     ".kittify/charter/generated/. Materialized minimal "
-                                    ".kittify/doctrine/ so the runtime can advance "
+                                    ".kittify/charter-packs/ so the runtime can advance "
                                     "(see issue #839)."
                                 ),
                             },
@@ -366,7 +368,7 @@ def charter_synthesize(  # noqa: C901
                     mark_invocation_succeeded()
                     return
 
-                console.print("[green]Charter synthesis (fresh project)[/green]: minimal .kittify/doctrine/ materialized.")
+                console.print("[green]Charter synthesis (fresh project)[/green]: minimal .kittify/charter-packs/ materialized.")
                 for f in written:
                     console.print(f"  ✓ {f}")
                 _print_synthesis_commit_reminder(repo_root)
@@ -551,7 +553,7 @@ def charter_synthesize(  # noqa: C901
         detail = (
             f"Refused: the on-disk doctrine overlay could not be parsed ({e}). "
             "No write was made. Repair or remove the corrupt overlay under "
-            ".kittify/doctrine/ and re-run `spec-kitty charter synthesize`."
+            ".kittify/charter-packs/ and re-run `spec-kitty charter synthesize`."
         )
         if json_output:
             print(
@@ -685,7 +687,7 @@ def charter_synthesize(  # noqa: C901
         # Contract (kernel.errors): CLI/UI layers catch this base type to render
         # the diagnostic uniformly. Surface both the code AND the informative
         # `.body` instead of swallowing it into "Unexpected error: <code>"
-        # (#2850 follow-up — the CHARTER_PACK_CONFIG_INVALID body was invisible).
+        # (#2850 follow-up — the ACTIVE_CHARTER_CONFIG_INVALID body was invisible).
         detail = f"{e.code}: {e.body}" if e.body else e.code
         if json_output:
             print(

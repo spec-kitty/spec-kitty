@@ -19,14 +19,14 @@ from __future__ import annotations
 import pytest
 
 from charter.offering.artifact_kinds import ArtifactKind
-from specify_cli.doctrine.builtin_manifest import (
+from charter.offering.packs.builtin_manifest import (
     MANIFEST_FILENAME,
     build_builtin_manifest,
     builtin_manifest_is_fresh,
     enumerate_constituents,
     generate_builtin_manifest,
 )
-from specify_cli.doctrine.pack_manifest import load_pack_manifest
+from charter.offering.packs.pack_manifest import load_pack_manifest
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.doctrine]
 
@@ -105,7 +105,7 @@ class TestDeterminism:
         # (constituents) byte set — a re-run is byte-identical regardless.
         a = build_builtin_manifest(pack_root).model_copy(update={"generated_at": "t1", "generated_by": "x"})
         b = build_builtin_manifest(pack_root).model_copy(update={"generated_at": "t2", "generated_by": "y"})
-        from specify_cli.doctrine.pack_manifest import compute_pack_manifest_hash
+        from charter.offering.packs.pack_manifest import compute_pack_manifest_hash
 
         assert compute_pack_manifest_hash(a) == compute_pack_manifest_hash(b)
 

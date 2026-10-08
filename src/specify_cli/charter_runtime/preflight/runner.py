@@ -38,7 +38,8 @@ Performance contract (NFR-001):
 * warm path (everything fresh) — < 300 ms;
 * cold path (refresh runs) — < 1 s;
 * dirty-detection (``git status --porcelain -- .kittify/charter/
-  .kittify/doctrine/``) — < 100 ms on a clean tree.
+  .kittify/charter-packs/``, plus the legacy project root until FR-011)
+  — < 100 ms on a clean tree.
 
 The runner MUST NOT raise on filesystem or subprocess errors — every
 failure produces a result with a sensible ``blocked_reason``.
@@ -54,6 +55,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
+from kernel.charter_pack_paths import KITTIFY_DIRNAME, LEGACY_PROJECT_PACK_DIRNAME, PROJECT_PACK_ROOT_POSIX
 from kernel.git import GitCommandError, status_entries
 from specify_cli.charter_runtime.freshness import compute_freshness
 from specify_cli.charter_runtime.preflight.ambient_warning import dedupe_warnings
@@ -123,10 +125,16 @@ _GIT_STATUS_TIMEOUT_SECS = 5.0
 
 # Paths whose dirty-state blocks auto-refresh.  Per FR-008 we name the
 # directories rather than individual files so future additions under
-# ``.kittify/charter/`` or ``.kittify/doctrine/`` are covered automatically.
+# ``.kittify/charter/`` or the project pack root are covered automatically.
+# Both the project pack root and the legacy root block auto-refresh until
+# FR-011 (WP14) removes the legacy prefix.
+_PROJECT_PACK_DIRTY_PREFIXES: tuple[str, ...] = (
+    f"{PROJECT_PACK_ROOT_POSIX}/",
+    f"{KITTIFY_DIRNAME}/{LEGACY_PROJECT_PACK_DIRNAME}/",
+)
 _DIRTY_SCOPE_PATHS: tuple[str, ...] = (
     ".kittify/charter/",
-    ".kittify/doctrine/",
+    *_PROJECT_PACK_DIRTY_PREFIXES,
 )
 
 # Shared prefix for the refresh-sequence subprocess commands that always
@@ -780,11 +788,11 @@ def _annotate_dirty(
     Per FR-008 and the contract's Safety-rule section: each affected file
     MUST be named in the ``detail`` of the corresponding check.  We bucket
     by directory prefix so ``.kittify/charter/...`` lands on the
-    ``charter_source`` / ``synced_bundle`` rows and ``.kittify/doctrine/...``
-    on ``synthesized_drg``.
+    ``charter_source`` / ``synced_bundle`` rows and project pack root paths
+    (``.kittify/charter-packs/...``, or the legacy root) on ``synthesized_drg``.
     """
     charter_dirty = [p for p in dirty_paths if p.startswith(".kittify/charter/")]
-    doctrine_dirty = [p for p in dirty_paths if p.startswith(".kittify/doctrine/")]
+    doctrine_dirty = [p for p in dirty_paths if p.startswith(_PROJECT_PACK_DIRTY_PREFIXES)]
 
     annotated: list[CharterPreflightCheck] = []
     for c in checks:

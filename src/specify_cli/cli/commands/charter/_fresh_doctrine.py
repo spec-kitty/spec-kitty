@@ -2,7 +2,7 @@
 
 Carved out of ``_synthesis.py`` so the synthesis helper module stays well
 under 500 lines. Behaviour is unchanged — these helpers materialise the
-minimal ``.kittify/doctrine/`` artifact set the runtime needs when no
+minimal ``.kittify/charter-packs/`` artifact set the runtime needs when no
 LLM-authored YAMLs are present (see issue #839 / WP06 T031-T033).
 """
 
@@ -11,17 +11,22 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-# T031 (#839 minimal artifact set): the runtime consumes ``.kittify/doctrine/``
+from kernel.charter_pack_paths import PROJECT_GRAPH_FILENAME, project_pack_path, project_pack_root
+
+#: The human-readable provenance note at the project charter pack root.
+_PROVENANCE_FILENAME = "PROVENANCE.md"
+
+# T031 (#839 minimal artifact set): the runtime consumes ``.kittify/charter-packs/``
 # via ``DoctrineService(project_root=...)``. The candidate-list resolver in
 # ``src/charter/activation/_doctrine_paths.py::resolve_project_root`` treats project-root
-# discovery as **directory-presence only** — an empty ``.kittify/doctrine/`` is
+# discovery as **directory-presence only** — an empty ``.kittify/charter-packs/`` is
 # a valid candidate, and the built-in layer (``packs/built-in/``) supplies content
 # until the project layer is populated. The minimal artifact set
 # ``charter synthesize`` must produce on a fresh project to unblock the runtime
 # is therefore:
 #
-#   1. ``.kittify/doctrine/``                 — directory marker (REQUIRED)
-#   2. ``.kittify/doctrine/PROVENANCE.md``    — human-readable provenance note
+#   1. ``.kittify/charter-packs/``                 — directory marker (REQUIRED)
+#   2. ``.kittify/charter-packs/PROVENANCE.md``    — human-readable provenance note
 #                                                  describing the seed source
 #                                                  (REQUIRED for auditability)
 #   3. ``.kittify/charter/synthesis-manifest.yaml`` — machine-readable marker
@@ -35,7 +40,7 @@ from typing import Any
 _MINIMAL_FRESH_DOCTRINE_PROVENANCE_TEMPLATE = """\
 # Spec Kitty Doctrine — Fresh Project Seed
 
-This `.kittify/doctrine/` tree was materialized by `spec-kitty charter
+This `.kittify/charter-packs/` tree was materialized by `spec-kitty charter
 synthesize` running against a **fresh project** (no LLM-authored YAML under
 `.kittify/charter/generated/`). It exists so `DoctrineService` discovers a
 project layer and the runtime can advance; it is intentionally empty.
@@ -95,7 +100,7 @@ def _fresh_seed_manifest_text() -> str:
 
 
 def _materialize_fresh_doctrine(repo_root: Path) -> list[str]:
-    """Materialize the minimal ``.kittify/doctrine/`` artifact set.
+    """Materialize the minimal ``.kittify/charter-packs/`` artifact set.
 
     Used on a fresh project where ``.kittify/charter/generated/`` has no
     agent-authored YAML (T032 / #839). Sources the canonical seed text from
@@ -105,12 +110,12 @@ def _materialize_fresh_doctrine(repo_root: Path) -> list[str]:
     Idempotent: re-runs produce bytewise-identical output (T033). Returns the
     list of repo-relative paths written.
     """
-    doctrine_dir = repo_root / ".kittify" / "doctrine"
+    doctrine_dir = project_pack_root(repo_root)
     charter_dir = repo_root / ".kittify" / "charter"
     doctrine_dir.mkdir(parents=True, exist_ok=True)
     charter_dir.mkdir(parents=True, exist_ok=True)
 
-    provenance_path = doctrine_dir / "PROVENANCE.md"
+    provenance_path = doctrine_dir / _PROVENANCE_FILENAME
     # Idempotency: only write if content differs (avoids needless mtime churn,
     # though byte-stability is preserved either way).
     new_bytes = _MINIMAL_FRESH_DOCTRINE_PROVENANCE_TEMPLATE.encode("utf-8")
@@ -144,17 +149,17 @@ def _planned_fresh_doctrine_paths(repo_root: Path) -> list[str]:
     the materialization without touching the filesystem. Must mirror the write
     output of :func:`_materialize_fresh_doctrine` exactly.
     """
-    doctrine_dir = repo_root / ".kittify" / "doctrine"
+    doctrine_dir = project_pack_root(repo_root)
     charter_dir = repo_root / ".kittify" / "charter"
     return [
-        str((doctrine_dir / "PROVENANCE.md").relative_to(repo_root)),
+        str((doctrine_dir / _PROVENANCE_FILENAME).relative_to(repo_root)),
         str((charter_dir / "synthesis-manifest.yaml").relative_to(repo_root)),
     ]
 
 
 def _planned_fresh_doctrine_deletes(repo_root: Path) -> list[str]:
     """Return repo-relative paths fresh-project synthesize would delete."""
-    graph_path = repo_root / ".kittify" / "doctrine" / "graph.yaml"
+    graph_path = project_pack_path(repo_root, PROJECT_GRAPH_FILENAME)
     if not graph_path.exists():
         return []
     return [str(graph_path.relative_to(repo_root))]
@@ -197,7 +202,7 @@ def _synthesize_project_doctrine(repo_root: Path, *, dry_run: bool) -> dict[str,
             }
         )
     )
-    provenance_path = plan.repo_root / ".kittify/doctrine/PROVENANCE.md"
+    provenance_path = project_pack_path(plan.repo_root, _PROVENANCE_FILENAME)
     prepared[provenance_path] = (
         "# Project Doctrine Provenance\n\n"
         "This project contains authored doctrine registered by `spec-kitty charter synthesize`.\n"

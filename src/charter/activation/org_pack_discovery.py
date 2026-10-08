@@ -52,7 +52,7 @@ _LOGGER = logging.getLogger(__name__)
 
 #: Artifact-kind suffixes for which an org pack may declare a
 #: ``required_<kind>`` list (mirrors
-#: :data:`specify_cli.doctrine.org_charter.REQUIRED_KIND_FIELDS`).  Kept
+#: :data:`charter.activation.org_charter.REQUIRED_KIND_FIELDS`).  Kept
 #: as a local constant inside the charter layer so we can do the
 #: cross-pack union without importing ``specify_cli`` (preserves the
 #: kernel <- doctrine <- charter <- specify_cli dependency direction).
@@ -172,7 +172,7 @@ def union_required_tokens(into: list[str], items: Iterable[object]) -> None:
     """Union *items* into *into*: stripped, non-empty, first-seen order.
 
     THE merge rule for every ``required_<kind>`` field. The charter-layer
-    readers below and ``specify_cli.doctrine.org_charter`` (which folds parsed
+    readers below and ``charter.activation.org_charter`` (which folds parsed
     policies) both call it, so there is one owner of the semantics.
     """
     for item in items:
@@ -185,7 +185,7 @@ def last_non_empty_token(current: str | None, candidate: object) -> str | None:
     """Last-non-empty-wins fold step for ``skill_namespace``.
 
     Used by :func:`read_org_skill_namespace` (charter layer) and by
-    ``specify_cli.doctrine.org_charter`` when it folds parsed policies. ``org_name``
+    ``charter.activation.org_charter`` when it folds parsed policies. ``org_name``
     follows the same rule but is still open-coded in ``org_charter.py``.
     """
     if isinstance(candidate, str) and candidate.strip():
@@ -201,7 +201,7 @@ def _read_org_required_selections(repo_root: Path) -> dict[str, list[str]]:
     ``{kind: [ids...]}`` map covering the 8 kinds listed in
     :data:`_REQUIRED_KIND_FIELDS`.  Union preserves first-seen order
     across packs (declaration-order precedence, matching the merge
-    semantics of :func:`specify_cli.doctrine.org_charter.load_org_charter_policies`).
+    semantics of :func:`charter.activation.org_charter.load_org_charter_policies`).
     """
     out: dict[str, list[str]] = {kind: [] for kind in _REQUIRED_KIND_FIELDS}
     for _name, raw in _iter_org_charter_docs(repo_root):
@@ -232,7 +232,7 @@ def read_org_skill_namespace(repo_root: Path) -> str | None:
     """Return the org ``skill_namespace`` (last non-empty value across packs wins).
 
     Folds with :func:`last_non_empty_token`, the same helper
-    ``specify_cli.doctrine.org_charter`` uses (single owner of the rule). Every
+    ``charter.activation.org_charter`` uses (single owner of the rule). Every
     value read is checked against the skill-namespace grammar; an invalid one
     raises :class:`~charter.activation.skill_preparation.SkillPreparationError`.
     """

@@ -1,6 +1,6 @@
 """Regression tests for #4998: CRLF frontmatter doubling.
 
-On a source checkout with CRLF line endings, doctrine-skill install
+On a source checkout with CRLF line endings, charter-skill install
 prepended a second, bogus YAML frontmatter block ahead of the real one in
 every installed ``SKILL.md`` (``doctor`` then reported ~275 drifts and
 ``upgrade``/``--fix`` could not repair them). Root cause: two frontmatter
@@ -10,7 +10,7 @@ frontmatter was never recognised as present.
 
 Fix: :func:`kernel.text_decode.normalize_newlines` normalises decoded text to
 LF right after decoding, both in ``ensure_skill_frontmatter`` (the
-doctrine-skill install / verify / repair paths) and in the command-skill
+charter-skill install / verify / repair paths) and in the command-skill
 ``render()`` path.
 
 Contracts pinned here:
@@ -28,7 +28,7 @@ Contracts pinned here:
   manifest-recorded (corrupted) hash, is restored by every repair path:
   ``spec-kitty upgrade`` (via ``upgrade.assessment.prepare_upgrade_repairs``
   / ``apply_upgrade_repairs`` on every invocation, including the "already up
-  to date" path), ``doctor tool-surfaces --kind doctrine-skill --fix``,
+  to date" path), ``doctor tool-surfaces --kind charter-skill --fix``,
   ``install_all_skills`` (the one-shot skill-pack migration path), and, for
   command skills, ``doctor tool-surfaces --kind command-skill --fix``.
   ``doctor skills --fix`` does NOT yet converge a self-consistent command
@@ -102,7 +102,7 @@ _RE_LEADING_FRONTMATTER_BLOCK_TEXT = re.compile(r"^---\r?\n.*?\r?\n---\r?\n?", r
 
 @pytest.fixture(autouse=True)
 def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Isolate HOME/XDG -- doctrine-skill install also writes a GLOBAL copy."""
+    """Isolate HOME/XDG -- charter-skill install also writes a GLOBAL copy."""
     home = tmp_path / "home"
     home.mkdir()
     for key in ("HOME", "USERPROFILE"):
@@ -263,7 +263,7 @@ def test_crlf_doctrine_skill_install_matches_lf_source(tmp_path: Path) -> None:
 
 def test_crlf_doctrine_skill_install_via_real_cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Same install-parity guarantee, driven through the real
-    ``spec-kitty doctor tool-surfaces --kind doctrine-skill --fix`` CLI
+    ``spec-kitty doctor tool-surfaces --kind charter-skill --fix`` CLI
     entry point, not only the installer function.
     """
     names = _sample_skill_names(2)
@@ -277,7 +277,7 @@ def test_crlf_doctrine_skill_install_via_real_cli(tmp_path: Path, monkeypatch: p
     with contextlib.chdir(project):
         result = _runner.invoke(
             doctor_app,
-            ["tool-surfaces", "--kind", "doctrine-skill", "--fix", "--json"],
+            ["tool-surfaces", "--kind", "charter-skill", "--fix", "--json"],
             catch_exceptions=False,
         )
     assert result.exit_code == 0, result.output
@@ -312,7 +312,7 @@ def test_crlf_doctrine_skill_install_via_real_cli(tmp_path: Path, monkeypatch: p
     with contextlib.chdir(project):
         result2 = _runner.invoke(
             doctor_app,
-            ["tool-surfaces", "--kind", "doctrine-skill", "--fix", "--json"],
+            ["tool-surfaces", "--kind", "charter-skill", "--fix", "--json"],
             catch_exceptions=False,
         )
     assert result2.exit_code == 0, result2.output
@@ -455,7 +455,7 @@ def _seed_corrupted_install(
 
 def test_doctrine_skill_fix_converges_when_manifest_hash_matches_corrupted_disk(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Doctrine-skill leg, via the real
-    ``spec-kitty doctor tool-surfaces --kind doctrine-skill --fix`` CLI.
+    ``spec-kitty doctor tool-surfaces --kind charter-skill --fix`` CLI.
     """
     names = _sample_skill_names(1)
     skill_name = names[0]
@@ -479,7 +479,7 @@ def test_doctrine_skill_fix_converges_when_manifest_hash_matches_corrupted_disk(
     with contextlib.chdir(project):
         result = _runner.invoke(
             doctor_app,
-            ["tool-surfaces", "--kind", "doctrine-skill", "--fix", "--json"],
+            ["tool-surfaces", "--kind", "charter-skill", "--fix", "--json"],
             catch_exceptions=False,
         )
     assert result.exit_code == 0, result.output
@@ -504,7 +504,7 @@ def test_doctrine_skill_fix_converges_when_manifest_hash_matches_corrupted_disk(
     with contextlib.chdir(project):
         result2 = _runner.invoke(
             doctor_app,
-            ["tool-surfaces", "--kind", "doctrine-skill", "--fix", "--json"],
+            ["tool-surfaces", "--kind", "charter-skill", "--fix", "--json"],
             catch_exceptions=False,
         )
     assert result2.exit_code == 0, result2.output
@@ -524,7 +524,7 @@ def test_doctrine_skill_repair_converges_via_real_upgrade_cli(tmp_path: Path, mo
     ``upgrade`` plans against. On a real project,
     ``spec-kitty upgrade --yes`` repairs doctrine skills through
     ``upgrade.assessment.prepare_upgrade_repairs``/``apply_upgrade_repairs``
-    (the ``ManagedSkillsProvider``, ``kinds=(DOCTRINE_SKILL,)``) on EVERY
+    (the ``ManagedSkillsProvider``, ``kinds=(CHARTER_SKILL,)``) on EVERY
     invocation -- including the "Project is already up to date!" path where
     no version migration runs at all (``_finalizer_step_surface_repair`` in
     ``cli/commands/upgrade.py``). It
@@ -776,7 +776,7 @@ def test_doctor_skills_fix_converges_self_consistent_drift(tmp_path: Path) -> No
     above). It currently does not, because ``command_installer.verify()``
     (command_installer.py:1101-1146) only compares the on-disk SHA-256 to
     the manifest-RECORDED hash -- it never re-derives an expected hash from
-    the canonical template the way the doctrine-skill verifier does. A
+    the canonical template the way the charter-skill verifier does. A
     corruption whose manifest was written at the same (corrupted) install
     time is therefore invisible to ``verify()``, and
     ``_repair_command_skill_state`` (``_command_surface_doctor.py``) only
@@ -829,7 +829,7 @@ def test_drifted_user_edit_stays_consent_required(tmp_path: Path, monkeypatch: p
     with contextlib.chdir(project):
         result = _runner.invoke(
             doctor_app,
-            ["tool-surfaces", "--kind", "doctrine-skill", "--fix", "--json"],
+            ["tool-surfaces", "--kind", "charter-skill", "--fix", "--json"],
             catch_exceptions=False,
         )
     payload = json.loads(result.output)
@@ -843,7 +843,7 @@ def test_drifted_user_edit_stays_consent_required(tmp_path: Path, monkeypatch: p
     # (installer.py:895), which surfaces in the `doctor tool-surfaces` JSON
     # as this exact surface id landing in `repair.skipped` -- never in
     # `repaired` or `failed`.
-    surface_id = f"{agent}.doctrine_skill.{skill_name}.SKILL.md"
+    surface_id = f"{agent}.charter_skill.{skill_name}.SKILL.md"
     assert payload["repair"]["skipped"] == [surface_id], payload["repair"]
     assert surface_id not in payload["repair"]["repaired"], payload["repair"]
     assert surface_id not in payload["repair"]["failed"], payload["repair"]

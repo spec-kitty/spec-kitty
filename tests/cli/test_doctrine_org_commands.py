@@ -52,7 +52,7 @@ def test_doctrine_org_init_scaffolds_minimal_pack(tmp_path: Path) -> None:
 
     data = YAML(typ="safe").load(org_charter.read_text(encoding="utf-8"))
     assert data is not None
-    from specify_cli.doctrine.org_charter import OrgCharterPolicy
+    from charter.activation.org_charter import OrgCharterPolicy
 
     OrgCharterPolicy.model_validate(data)  # must not raise
 
@@ -309,7 +309,7 @@ def test_doctrine_org_init_from_local_folder(tmp_path: Path) -> None:
 
 def test_doctrine_org_init_from_bitbucket_ssh_at_ref(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Git TEMPLATE: ssh://git@…@feat/… clones via GitSource with parsed ref."""
-    from specify_cli.doctrine.sources.protocol import FetchResult
+    from specify_cli.charter_packs.sources.protocol import FetchResult
 
     calls: dict[str, object] = {}
 
@@ -330,7 +330,7 @@ def test_doctrine_org_init_from_bitbucket_ssh_at_ref(tmp_path: Path, monkeypatch
             return FetchResult(ok=True, artifacts_written=2, pack_version="deadbeef", errors=[])
 
     monkeypatch.setattr(
-        "specify_cli.doctrine.template_render.resolve.GitSource",
+        "specify_cli.charter_packs.template_render.resolve.GitSource",
         FakeGitSource,
     )
 

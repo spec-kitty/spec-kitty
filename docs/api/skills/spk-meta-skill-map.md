@@ -30,8 +30,9 @@ Skills follow `spk-<family>-<action-or-topic>`. Families: `spk-start-*`
 (onboarding), `spk-mission-*` (authoring mission artifacts), `spk-run-*`
 (runtime advancement/orchestration), `spk-gate-*` (accept/merge/review/
 retrospective), `spk-admin-*` (setup/config/upgrade),
-`spk-team-*` (auth/sync/tracker/connectors), `spk-doctrine-*`
-(charter/glossary/SPDD/profiles/bulk-edit), `spk-integrate-*` (external
+`spk-team-*` (auth/sync/tracker/connectors), `spk-charter-*`
+(charter governance/glossary/SPDD/profiles), `spk-practice-*`
+(bulk-edit/visuals/semantic compression), `spk-integrate-*` (external
 APIs/CI), and `spk-meta-*` (skill discovery and authoring, this skill's own
 family).
 

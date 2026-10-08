@@ -33,6 +33,7 @@ from pathlib import Path
 from charter.offering.api import ArtifactKind
 from charter.offering.artifact_kinds import CHARTER_ACTIVATABLE_KINDS, CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL
 from charter.offering.drg.merge import merge_three_layers
+from kernel.charter_pack_paths import resolve_project_pack_read_root
 from charter.offering.drg.models import DRGGraph
 from charter.offering.drg.org_pack_config import load_pack_registry
 from charter.offering.drg.org_pack_loader import (
@@ -359,7 +360,7 @@ def _resolve_activated_urns_by_kind(
             getattr(pack_context, per_kind_field, None),
             doctrine_root=doctrine_root,
             org_roots=org_roots,
-            layer_roots={"project": pack_context.repo_root / ".kittify"},
+            layer_roots={"project": resolve_project_pack_read_root(pack_context.repo_root, quiet=True)},
         )
         for node_kind, per_kind_field in _SINGULAR_TO_PER_KIND_FIELD.items()
     }

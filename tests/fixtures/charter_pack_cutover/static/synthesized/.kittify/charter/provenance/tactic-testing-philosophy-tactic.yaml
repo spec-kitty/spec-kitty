@@ -1,0 +1,19 @@
+adapter_id: fixture
+adapter_notes: fixture:8e04e5c0d422
+adapter_version: 1.0.0
+artifact_content_hash: 
+  55f5227d9336fcc7623be29551705dea289d4fd52366e479355bb68c578b8a0f
+artifact_kind: tactic
+artifact_slug: testing-philosophy-tactic
+artifact_urn: tactic:testing-philosophy-tactic
+corpus_snapshot_id: (none)
+evidence_bundle_hash:
+generated_at: '2026-01-01T00:39:42.685632+00:00'
+inputs_hash: 8e04e5c0d4227431fd84f61e87da88d8cae48ae2032c82995f9fcfba06e69db0
+produced_at: '2026-10-06T22:00:18.015833+00:00'
+schema_version: '2'
+source_input_ids: []
+source_section: testing_philosophy
+source_urns: []
+synthesis_run_id: 01KPE222CD1MMCYEGB3ZCY51VR
+synthesizer_version: 4.0.0rc6

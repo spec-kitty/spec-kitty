@@ -26,17 +26,17 @@ both directions via :mod:`charter.activation.kind_vocabulary` (the WP01 resolver
 concluding an id is unresolved, so a form-only difference is never mistaken
 for an answers-only artefact.
 
-Absent-key built-in safety (WP06 LAND-BLOCKER, reviewer caveat)
-------------------------------------------------------------------
-:func:`promote_activations` materializes the supplied ``default_ids`` for a
-kind whose ``config.activated_<kind>`` key is *absent* before appending the
-promoted ids — but only if the caller actually supplies the real built-in set.
-This migration loads the shipped default pack via the shared
-:func:`charter.activation.default_pack.load_default_pack_activation_ids` loader (the
-same primitive :func:`specify_cli.doctrine.org_charter._promote_org_required_to_config`
-uses — squad finding #2530 dedup) and passes it as ``default_ids`` so a
-first-run/absent-key project keeps every built-in active rather than
-collapsing to a bare, newly-promoted list.
+Absent-key safety (FR-015, #4400)
+---------------------------------
+:func:`promote_activations` seeds a kind whose ``config.activated_<kind>`` key
+is *absent* from that key's effective set before appending the promoted ids,
+so an absent-key project keeps everything that was effective rather than
+collapsing to a bare, newly-promoted list. The set comes from the one public
+seam, :func:`charter.activation.effective_set.resolve_effective_sets` (the same
+seam the interview, the org-charter union and the resynthesis preflight use),
+imported inside :meth:`UnifyCharterActivationMigration.apply` so registry
+discovery stays cheap. A key whose set cannot be resolved stays absent and is
+reported in ``MigrationResult.warnings``.
 
 Scope note
 ----------
@@ -54,14 +54,9 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
-from charter.activation.activation_engine import promote_activations
+from charter.activation.activation_engine import EffectiveSet, PromotionOutcome, promote_activations
 from charter.activation.catalog import resolve_doctrine_root
-from charter.activation.default_pack import load_default_pack_activation_ids
-from charter.activation.kind_vocabulary import (
-    UnrepresentableDirectiveIdError,
-    resolve_selected_id_to_stem as resolve_selected_id_to_stem,
-)
-from charter.activation.kind_vocabulary import ArtifactKind
+from charter.activation.kind_vocabulary import ArtifactKind, UnrepresentableDirectiveIdError, resolve_selected_id_to_stem
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -97,22 +92,6 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     except Exception:  # noqa: BLE001 — malformed YAML degrades to empty, caller decides
         return {}
     return data if isinstance(data, dict) else {}
-
-
-def load_default_pack_ids() -> dict[str, list[str]]:
-    """Load the shipped default-pack IDs, keyed by ``config.yaml`` activation key.
-
-    Public (imported by ``interview.py``'s promotion wiring, T024, and by
-    ``specify_cli.doctrine.org_charter``) so every consumer of the WP06
-    ``promote_activations`` primitive supplies the same real built-in
-    ``default_ids`` rather than each re-deriving it independently. Thin
-    re-export of the canonical :func:`charter.activation.default_pack.load_default_pack_activation_ids`
-    loader — kept under this name (rather than inlined at each call site)
-    because this migration's own tests and ``interview.py`` import it from
-    this module (squad finding #2530: the duplicate *implementations* are
-    gone; the public name here is now a one-line delegation).
-    """
-    return load_default_pack_activation_ids()
 
 
 def _answers_only_ids_for_kind(
@@ -170,6 +149,22 @@ def _compute_promotions(
 
 def _unresolved_warning(unresolved: list[str]) -> str:
     return f"Unresolved answers-only ids skipped (not promoted): {', '.join(unresolved)}"
+
+
+def _dry_run_result(promotions: dict[str, list[str]], effective_sets: dict[str, EffectiveSet], unresolved: list[str]) -> MigrationResult:
+    """Preview what a real run does: the promotions it makes and the keys it leaves absent.
+
+    A key whose effective set is unresolved is never written by a real run
+    (``promote_activations`` leaves it absent), so the preview lists it among
+    the left-absent keys, with the same wording, rather than as a promotion.
+    """
+    preview = PromotionOutcome(left_absent={key: entry.reason or "unknown" for key, entry in effective_sets.items() if not entry.resolved})
+    summary = [f"{key}: +{ids}" for key, ids in promotions.items() if key not in preview.left_absent]
+    changes = [f"dry-run: would promote {summary}"] if summary else ["dry-run: nothing would be promoted"]
+    warnings = [f"dry-run: {message}" for message in preview.left_absent_messages()]
+    if unresolved:
+        warnings.append(_unresolved_warning(unresolved))
+    return MigrationResult(success=True, changes_made=changes, warnings=warnings)
 
 
 @MigrationRegistry.register
@@ -270,30 +265,32 @@ class UnifyCharterActivationMigration(BaseMigration):
                 result.warnings = [_unresolved_warning(unresolved)]
             return result
 
-        if dry_run:
-            summary = [f"{key}: +{ids}" for key, ids in promotions.items()]
-            result = MigrationResult(success=True, changes_made=[f"dry-run: would promote {summary}"])
-            if unresolved:
-                result.warnings = [_unresolved_warning(unresolved)]
-            return result
+        # Lazy (C-002): resolving the effective set builds the doctrine
+        # service; registry discovery must not pay for that.
+        from charter.activation.effective_set import resolve_effective_sets
 
-        default_ids = load_default_pack_ids()
+        absent = [key for key in promotions if config_data.get(key) is None]
+        effective_sets = resolve_effective_sets(project_path, absent) if absent else {}
+
+        if dry_run:
+            return _dry_run_result(promotions, effective_sets, unresolved)
 
         def _save(path: Path, data: dict[str, Any]) -> None:
             path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("w", encoding="utf-8") as fh:
                 yaml.dump(data, fh)
 
-        plans = promote_activations(
+        outcome = promote_activations(
             promotions,
             config_path=config_path,
             config_data=config_data,
             save=_save,
-            default_ids=default_ids,
+            effective_sets=effective_sets,
         )
 
-        changes_made = [f"Promoted {plan.activated} into {plan.yaml_key}" for plan in plans if plan.activated]
-        warnings = [warning for plan in plans for warning in plan.warnings]
+        changes_made = [f"Promoted {plan.activated} into {plan.yaml_key}" for plan in outcome.committed if plan.activated]
+        warnings = [warning for plan in outcome.committed for warning in plan.warnings]
+        warnings.extend(outcome.left_absent_messages())
         if unresolved:
             warnings.append(_unresolved_warning(unresolved))
 

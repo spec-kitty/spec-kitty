@@ -186,7 +186,7 @@ def _dump_graph(path: Path, data: dict[str, Any]) -> None:
 
 
 def _graph_path(repo_root: Path) -> Path:
-    return repo_root / ".kittify" / "doctrine" / "graph.yaml"
+    return repo_root / ".kittify" / "charter-packs" / "graph.yaml"
 
 
 def _manifest_path(repo_root: Path) -> Path:
@@ -209,7 +209,7 @@ def _inject_backed_legacy_content(repo_root: Path) -> None:
     from charter.activation.synthesizer.provenance import load_yaml as load_provenance
     from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
 
-    doctrine_dir = repo_root / ".kittify" / "doctrine"
+    doctrine_dir = repo_root / ".kittify" / "charter-packs"
     graph_path = _graph_path(repo_root)
     graph = _load_graph(graph_path)
     graph["nodes"].append(
@@ -236,7 +236,7 @@ def _inject_backed_legacy_content(repo_root: Path) -> None:
     # (reconcile._backing_path_by_urn) resolves this URN as BACKED, not
     # orphaned -- mirroring what a real prior synthesis run would have
     # written for it.
-    rel_content = ".kittify/doctrine/tactic/legacy-preference-order-3270.tactic.yaml"
+    rel_content = ".kittify/charter-packs/tactic/legacy-preference-order-3270.tactic.yaml"
     rel_prov = ".kittify/charter/provenance/tactic-legacy-preference-order-3270.yaml"
     content_hash = hashlib.sha256(legacy_artifact.read_bytes()).hexdigest()  # noqa: TID251 -- test-only fixture hash, not a production owner
 
@@ -270,7 +270,7 @@ def _seed_baseline_overlay(repo_root: Path) -> None:
     """Establish a REAL on-disk overlay + backed legacy content via the library seam.
 
     A real prior ``synthesize()`` call (``FixtureAdapter``) creates
-    ``.kittify/doctrine/graph.yaml`` + the synthesis manifest, then a backed
+    ``.kittify/charter-packs/graph.yaml`` + the synthesis manifest, then a backed
     legacy node/edge is appended -- the "backed superset overlay" this WP's
     own in-process resynthesize run must preserve (or, for the corrupt-
     overlay test, the file that gets truncated).

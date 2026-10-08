@@ -28,6 +28,8 @@ tactic") is provenance, not a reference, and is not identifier-shaped.
 Allowlist (the only permitted identifier hits):
 
 * the retirement migration module itself (it must name what it retires);
+* the charter-pack cutover's frozen released-list snapshots (they must name
+  what the released ``default.yaml`` files listed);
 * ``packs/internal/`` for the two ids that moved there
   (``iterative-deepening-review`` renamed on the move, and
   ``tracker-organisation-workflow``).
@@ -51,6 +53,9 @@ pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 _MIGRATION_MODULE = "src/specify_cli/upgrade/migrations/m_4_0_0rc5_retire_single_owner_doctrine_ids.py"
+#: Frozen copies of every released ``default.yaml`` list (#3732): historical data
+#: that must spell the ids those releases shipped, retired ones included.
+_RELEASED_SNAPSHOTS_MODULE = "src/specify_cli/upgrade/migrations/_charter_pack_cutover_snapshots.py"
 _INTERNAL_PACK = "packs/internal/"
 _MOVED_TO_INTERNAL = frozenset({"iterative-deepening-review", "tracker-organisation-workflow"})
 
@@ -104,7 +109,7 @@ _PROVENANCE_PHRASES: tuple[tuple[str, str, str], ...] = (
 
 
 def _is_allowlisted(rel: str, stem: str) -> bool:
-    if rel == _MIGRATION_MODULE:
+    if rel in (_MIGRATION_MODULE, _RELEASED_SNAPSHOTS_MODULE):
         return True
     return rel.startswith(_INTERNAL_PACK) and stem in _MOVED_TO_INTERNAL
 

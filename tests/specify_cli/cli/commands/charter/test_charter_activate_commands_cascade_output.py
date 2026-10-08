@@ -134,7 +134,7 @@ class TestCascadeOutputAbsence:
 # ``--suggests--> asset:qa-traceability-lint``) exists only as a hand-built
 # DRG in the engine-level unit tests (``tests/charter/test_cascade.py``); the
 # CLI-level ATDD tests here need real on-disk artifact files so
-# ``_cascade_shared.py``'s ``drg_urn_to_config_id``/``CharterPackManager.activate`` can resolve them,
+# ``_cascade_shared.py``'s ``drg_urn_to_config_id``/``ActiveCharterManager.activate`` can resolve them,
 # and use directive/tactic/asset kinds as the fixture's equivalent kind/id
 # (a directive source rather than a toolguide -- same DRG shape).
 # ---------------------------------------------------------------------------

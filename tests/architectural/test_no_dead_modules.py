@@ -197,6 +197,7 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_3_2_0rc35_fix_prompt_file_workaround",
         "specify_cli.upgrade.migrations.m_3_2_0rc35_charter_bundle_v2",
         "specify_cli.upgrade.migrations.m_3_2_0rc35_charter_manifest_defaults_repair",
+        "specify_cli.upgrade.migrations.m_unify_charter_activation",  # auto-discovered; its last static importer (charter interview) was removed by #4400
         "specify_cli.upgrade.migrations.m_unify_charter_activation_finalize",
         "specify_cli.upgrade.migrations.m_3_2_0rc43_retire_profile_context_command",
         # #5530: removes the retired dashboard command files and runtime state;
@@ -364,6 +365,11 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # registry lookup in
         # tests/specify_cli/upgrade/migrations/test_install_lane_tip_recorder.py.
         "specify_cli.upgrade.migrations.m_4_0_0rc5_install_lane_tip_recorder",
+        # #3732 (charter-pack cutover, FR-012): same shape -- discovered via
+        # pkgutil.iter_modules + @MigrationRegistry.register (runs_first), never
+        # statically imported; verified by registry lookup in
+        # tests/specify_cli/upgrade/migrations/test_charter_pack_cutover_paths.py.
+        "specify_cli.upgrade.migrations.m_4_0_0rc6_charter_pack_cutover",
         # coord-artifact-single-home-01M3V4BE WP11 (FR-009b/#5023): same
         # auto-discovered shape as the m_3_2_6_*/m_3_2_7_* merge-driver
         # migrations above -- never statically imported, registered via
@@ -459,9 +465,10 @@ _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
         # production callers) is the deferred integration WP, tracked in #3518.
         # These two modules are the not-yet-wired adapters awaiting that WP; the
         # AST ratchet test_pack_lineage_no_parallel_resolver.py + the schema/
-        # identity/counts unit suites exercise them meanwhile.
-        "specify_cli.doctrine.pack_descriptor",
-        "specify_cli.doctrine.pack_lineage",
+        # identity/counts unit suites exercise them meanwhile. Moved from
+        # specify_cli.doctrine by charter-pack-cutover-01M491G6 WP04 (#3732).
+        "charter.offering.packs.pack_descriptor",
+        "charter.offering.packs.pack_lineage",
         # specify_cli.cli.commands.charter._charter_write_root removed
         # (#4785 WP03+WP04): activate.py/deactivate.py (WP03) and
         # generate.py/synthesize.py/resynthesize.py (WP04) now wire

@@ -70,7 +70,7 @@ def _init_repo(repo: Path) -> None:
     # type through the project's activation set. The WP04 construction-total
     # pivot moved the empty-activation fail-closed to the create boundary
     # (``create_mission_core``), so an unprovisioned fixture now blocks
-    # creation with ``CharterPackConfigError`` exactly as a real
+    # creation with ``ActiveCharterConfigError`` exactly as a real
     # unprovisioned project would. Declare the built-ins the create tests use.
     (repo / ".kittify" / "config.yaml").write_text(
         "mission_type_activations:\n  - software-dev\n  - documentation\n  - research\n  - plan\n",

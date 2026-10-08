@@ -31,6 +31,7 @@ process is in the picture.
 from __future__ import annotations
 
 from charter.activation.mission_type_key import read_mission_type
+from kernel.charter_pack_paths import resolve_project_pack_read_root
 from mission_runtime import MissionArtifactKind, placement_seam
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -252,7 +253,7 @@ def _resolve_contract_refs(
 
     The on-disk repository is loaded with the same ``project_dir``
     layout the runtime executor uses
-    (``<repo_root>/.kittify/doctrine/mission_step_contracts``); built-in
+    (``<repo_root>/.kittify/charter-packs/mission_step_contracts``); built-in
     contracts come from the package data. This keeps loader semantics
     aligned with the runtime so an id that resolves here will resolve
     at runtime too.
@@ -269,10 +270,7 @@ def _resolve_contract_refs(
             continue
         if repository is None:
             repository = MissionStepContractRepository(
-                project_dir=repo_root
-                / ".kittify"
-                / "doctrine"
-                / "mission_step_contracts",
+                project_dir=resolve_project_pack_read_root(repo_root, quiet=True) / "mission_step_contracts",
                 org_dirs=resolve_org_dirs(repo_root, "mission_step_contracts"),
             )
         if repository.get(step.contract_ref) is None:

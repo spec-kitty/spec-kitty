@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from charter.bundle import CHARTER_YAML
 from charter.drg import ArtifactKind
+from kernel.charter_pack_paths import resolve_project_pack_read_root
 from ._profile_health_render import _SELECTION_KIND_PLURALS
 
 logger = logging.getLogger(__name__)
@@ -80,11 +81,17 @@ __all__ = [
 _ORG_ARTIFACT_DIRS: tuple[str, ...] = tuple(kind.plural for kind in ArtifactKind if kind.core)
 
 
+def _project_pack_root_or_none(repo_root: Path) -> Path | None:
+    """Return the project pack root to read for *repo_root*, or ``None`` when absent."""
+    project_pack = resolve_project_pack_read_root(repo_root, quiet=True)
+    return project_pack if project_pack.exists() else None
+
+
 def _read_authored_pack_version(pack_root: Path) -> str | None:
     """Read ``pack_version`` from an authored ``pack.yaml`` sibling, if any.
 
     IC-06 / FR-008 (pack-metadata-manifest-unification-01M052PT, WP04):
-    mirrors :func:`specify_cli.doctrine.pack_assembler._read_authored_pack_version`
+    mirrors :func:`charter.offering.packs.pack_assembler._read_authored_pack_version`
     (duplicated rather than imported to keep this collect-layer module's
     import discipline — collect → model/render/shared, never reaching into
     the assembler — intact). Returns ``None`` when no authored descriptor
@@ -168,14 +175,14 @@ def _summarize_org_charter(snapshot_path: Path) -> dict[str, object]:
     """Inspect ``org-charter.yaml`` in *snapshot_path* and return a JSON-able summary.
 
     Gracefully degrades when the optional
-    ``specify_cli.doctrine.org_charter`` module is not yet shipped (WP09).
+    ``charter.activation.org_charter`` module is not yet shipped (WP09).
     """
     charter_path = snapshot_path / "org-charter.yaml"
     if not charter_path.exists():
         return {"present": False}
 
     try:
-        from specify_cli.doctrine.org_charter import load_org_charter_policy
+        from charter.activation.org_charter import load_org_charter_policy
     except ImportError:
         # Module not yet shipped — surface presence without policy details.
         return {"present": True, "module_available": False}
@@ -241,8 +248,7 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
         from charter.drg import resolve_org_roots
 
         org_roots = resolve_org_roots(repo_root)
-        project_doctrine = repo_root / ".kittify" / "doctrine"
-        project_root = project_doctrine if project_doctrine.exists() else None
+        project_root = _project_pack_root_or_none(repo_root)
         inner = RawDoctrineService(
             org_roots=list(org_roots),
             project_root=project_root,
@@ -349,8 +355,7 @@ def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
     invalid: list[SkippedGlossaryPack] = []
     try:
         org_roots = resolve_org_roots(repo_root)
-        project_doctrine = repo_root / ".kittify" / "doctrine"
-        project_root = project_doctrine if project_doctrine.exists() else None
+        project_root = _project_pack_root_or_none(repo_root)
         inner = RawDoctrineService(
             org_roots=list(org_roots), project_root=project_root
         )
@@ -613,8 +618,7 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
     from charter.drg import resolve_org_roots
 
     org_roots = resolve_org_roots(repo_root)
-    project_doctrine = repo_root / ".kittify" / "doctrine"
-    project_root = project_doctrine if project_doctrine.exists() else None
+    project_root = _project_pack_root_or_none(repo_root)
 
     inner = RawDoctrineService(
         org_roots=list(org_roots),
@@ -1014,7 +1018,7 @@ def _resolve_artifact_source(
     can pin them byte-for-byte:
 
     * ``built-in`` — artifact comes from the built-in doctrine layer
-    * ``project`` — artifact lives under ``.kittify/doctrine/``
+    * ``project`` — artifact lives under the project pack root (``.kittify/charter-packs/``)
     * ``org`` — artifact lives in an org pack (per-pack attribution is
       not yet tracked at the repository layer; see ``_collect_org_source_map``
       in charter.activation.context for the same limitation)
@@ -1105,11 +1109,12 @@ def _read_org_required(repo_root: Path) -> dict[str, list[str]]:
         OrgPackEnvVarUnsetError,
         OrgPackSubdirEscapeError,
     )
+    from charter.offering.packs.retired_fields import RetiredPackFieldError
 
     org_required: dict[str, list[str]] = {kind: [] for kind in _SELECTION_KIND_PLURALS}
     try:
         from charter.activation.invocation_context import ProjectContext
-        from specify_cli.doctrine.org_charter import load_org_charter_policies
+        from charter.activation.org_charter import load_org_charter_policies
 
         _pack_ctx = None
         try:
@@ -1126,7 +1131,7 @@ def _read_org_required(repo_root: Path) -> dict[str, list[str]]:
         policy = load_org_charter_policies(repo_root, pack_context=_pack_ctx)
         for kind in _SELECTION_KIND_PLURALS:
             org_required[kind] = list(getattr(policy, f"required_{kind}", []) or [])
-    except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError) as exc:
+    except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError, RetiredPackFieldError) as exc:
         logger.warning("org-charter policy load failed for selection diagnostics: %s", exc)
     except Exception:  # noqa: BLE001 — diagnostics must never crash on missing/invalid org
         pass
@@ -1172,8 +1177,7 @@ def _build_selection_block(repo_root: Path) -> dict[str, list[dict[str, str]]]:
 
     # DoctrineService instance for provenance lookup.
     org_roots = resolve_org_roots(repo_root)
-    project_doctrine = repo_root / ".kittify" / "doctrine"
-    project_root = project_doctrine if project_doctrine.exists() else None
+    project_root = _project_pack_root_or_none(repo_root)
     inner = RawDoctrineService(
         org_roots=list(org_roots),
         project_root=project_root,

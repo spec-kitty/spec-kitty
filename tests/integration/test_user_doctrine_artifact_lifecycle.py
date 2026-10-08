@@ -199,7 +199,7 @@ available_tools: [git, spec-kitty, pytest]
 activations:
   - activation_context:
       action: write_comment
-    doctrine_pack_id: project
+    charter_pack_id: project
     artifact_id: caveman-comments
     artifact_kind: styleguide
 ```
@@ -256,7 +256,7 @@ _CHARTER_YAML_CONTEXT_SCOPED_ACTIVATION = textwrap.dedent(
       activations:
         - activation_context:
             action: write_comment
-          doctrine_pack_id: project
+          charter_pack_id: project
           artifact_id: caveman-comments
           artifact_kind: styleguide
     """
@@ -485,7 +485,7 @@ def test_case_1_styleguide_render_includes_trigger_stanza(
     project_with_caveman_styleguide: Path,
 ) -> None:
     """A charter that declares an ``activations:`` registry entry of
-    ``(activation_context: {action: write_comment}, doctrine_pack_id: project,
+    ``(activation_context: {action: write_comment}, charter_pack_id: project,
     artifact_id: caveman-comments)`` MUST cause the implement prompt to carry
     an explicit *when-doing* stanza naming the artifact and instructing the
     agent to fetch it.

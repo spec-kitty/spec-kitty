@@ -352,8 +352,8 @@ remove the pack from .kittify/config.yaml.
 ```
 
 The diagnostic is intentionally actionable — operators are given two concrete
-remediation steps, and the error is raised by `MissingDoctrinePackError`
-(`src/specify_cli/doctrine/org_charter.py`) so callers can catch and report it
+remediation steps, and the error is raised by `OrgPackMissingError`
+(`src/charter/offering/drg/org_pack_loader.py`) so callers can catch and report it
 in their own UIs.
 
 **Migration**

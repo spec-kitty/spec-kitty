@@ -1,8 +1,19 @@
-# Charter Encoding Error & Warning Codes
+# Charter Activation Error & Warning Codes
+
+This file has two parts:
+
+1. **Charter encoding codes** (below): a hand-maintained mirror of the
+   `CharterEncodingDiagnostic` StrEnum.
+2. **Activation configuration codes** (at the end): codes raised when the
+   active charter configuration cannot be read.
+
+# Charter encoding codes
 
 > **Source of truth**: `src/charter/activation/_diagnostics.py` (StrEnum class `CharterEncodingDiagnostic`).
-> This file is a hand-maintained mirror. Until #645's code-to-docs flow exists,
-> the StrEnum members and this file's section count must match per NFR-008.
+> This part is a hand-maintained mirror. Until #645's code-to-docs flow exists,
+> the StrEnum members and this part's `##` section count must match per NFR-008.
+> The NFR-008 mirror rule covers this part only, not the activation
+> configuration codes below.
 
 ## CHARTER_ENCODING_AMBIGUOUS
 
@@ -60,4 +71,42 @@ WARNING: CHARTER_ENCODING_NOT_NORMALIZED
   Detected encoding: utf-8-sig (confidence 1.00)
   Action: BOM stripped; content normalized to plain UTF-8.
   Recommendation: re-save the file as UTF-8 without BOM to avoid this message.
+```
+
+# Activation configuration codes
+
+> **Source of truth**: `src/charter/activation/pack_context.py`
+> (`ActiveCharterConfigError`, which carries the code as `exc.code`). Command
+> boundaries read `exc.code`; they never spell the code string themselves.
+
+## ACTIVE_CHARTER_CONFIG_INVALID
+
+**When it fires**: the active charter configuration has an invalid shape. The
+active charter configuration is `.kittify/config.yaml` or the `charter.yaml`
+its `charter:` pointer names. Typical causes: invalid YAML, a root that is not
+a mapping, a `charter:` pointer that names a missing file, or an activation
+key with the wrong type. Raised by `mission create`, the `charter` commands
+and the runtime prompt builders; with `--json` the code is the payload's
+error code.
+
+**Replaces**: the code this error carried before #3732 (ADR 2026-10-06-1
+section 1; the changelog Before/After names it). No alias is accepted.
+
+**JSON stability**: this code string is stable across minor releases; consumers
+may match it as an opaque identifier. The payload shape is unchanged from the
+code it replaces.
+
+**Remediation**:
+1. Fix the YAML shape in `.kittify/config.yaml` or the `charter.yaml` it points to.
+2. Run `spec-kitty charter list --json` to confirm the configuration loads.
+3. If the configuration cannot be repaired by hand, run `spec-kitty upgrade` to
+   restore the default active charter shape.
+
+**Body example**:
+
+```text
+Error (ACTIVE_CHARTER_CONFIG_INVALID): .kittify/config.yaml 'charter:' pointer names
+/path/to/charter.yaml, which does not exist.
+Remediation: fix .kittify/config.yaml (or the charter.yaml it points to) or run
+`spec-kitty upgrade` to restore the default active charter shape.
 ```

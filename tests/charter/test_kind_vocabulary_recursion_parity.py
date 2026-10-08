@@ -69,7 +69,7 @@ def test_nested_org_tactic_resolves(tmp_path: Path) -> None:
 
 
 def test_nested_project_tactic_resolves(tmp_path: Path) -> None:
-    """The project layer (``<root>/doctrine/tactic/``) also recurses."""
+    """The project layer (``<project pack root>/tactic/``) also recurses."""
     proj = tmp_path / "project"
     _write(
         proj / "doctrine" / "tactic" / "sub" / "wp02p.tactic.yaml",
@@ -79,7 +79,7 @@ def test_nested_project_tactic_resolves(tmp_path: Path) -> None:
         ArtifactKind.TACTIC,
         "wp02p",
         doctrine_root=tmp_path / "doctrine_root",
-        layer_roots={"project": proj},
+        layer_roots={"project": proj / "doctrine"},
     )
     assert urn == "tactic:wp02-project-tactic"
 

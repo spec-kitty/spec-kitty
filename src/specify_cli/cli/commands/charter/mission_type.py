@@ -30,7 +30,7 @@ import typer
 from specify_cli.cli.console import console
 from rich.table import Table
 
-from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.pack_context import ActiveCharterConfigError
 from specify_cli.cli.json_contract import json_error, json_output_guard
 
 from charter.activation.mission_type_profiles import (
@@ -135,12 +135,12 @@ def mission_type_error_boundary(json_output: bool) -> Iterator[None]:
     try:
         with json_output_guard(json_output):
             yield
-    except (CharterPackConfigError, ValueError, OSError) as exc:
-        message = exc.body if isinstance(exc, CharterPackConfigError) else str(exc)
+    except (ActiveCharterConfigError, ValueError, OSError) as exc:
+        message = exc.body if isinstance(exc, ActiveCharterConfigError) else str(exc)
         if json_output:
             code = "invalid_mission_type"
-            if isinstance(exc, CharterPackConfigError):
-                code = "CHARTER_PACK_CONFIG_INVALID"
+            if isinstance(exc, ActiveCharterConfigError):
+                code = exc.code
             elif isinstance(exc, UnknownMissionTypeError):
                 code = "unknown_mission_type"
             console.emit_json(json_error(code, message))

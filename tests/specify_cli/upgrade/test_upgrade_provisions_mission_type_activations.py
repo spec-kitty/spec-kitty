@@ -2,7 +2,7 @@
 ``mission_type_activations`` key for pre-rc39 (rc36-rc38) projects.
 
 PR #3246 removed the implicit "all four built-ins" backfill and made mission
-creation fail closed (``CharterPackConfigError``) whenever a project's
+creation fail closed (``ActiveCharterConfigError``) whenever a project's
 ``.kittify/config.yaml`` lacks ``mission_type_activations``. Fresh
 ``spec-kitty init`` got a provisioner
 (:func:`specify_cli.provisioning.default_charter.provision_default_mission_type_activations`),
@@ -46,13 +46,15 @@ failing closed even after a "successful" upgrade. These additional tests:
   pending for a deliberate empty list); and
 * pin the dangling/unreadable ``charter:`` pointer contract: the preview
   predicate must not crash (``resolve_activation_write_target`` raises
-  ``CharterPackConfigError`` in that case) — it reports a stable, honest
+  ``ActiveCharterConfigError`` in that case) — it reports a stable, honest
   "pending" signal instead of silently swallowing the broken pointer.
 """
 
 from __future__ import annotations
 
 import contextlib
+import json
+import shutil
 import subprocess
 from kernel.clock import now_utc
 from pathlib import Path
@@ -65,7 +67,7 @@ from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
 from charter.activation.mission_type_profiles import existing_mission_types
-from charter.activation.pack_context import CharterPackConfigError, PackContext
+from charter.activation.pack_context import ActiveCharterConfigError, PackContext
 from specify_cli.cli.commands.upgrade import (
     _mission_type_activation_provisioning_pending,
     _provision_missing_mission_type_activations,
@@ -204,7 +206,7 @@ def _run_upgrade(args: list[str], cwd: Path) -> Result:
 
 
 def test_stranded_project_fails_closed_at_the_create_gate(tmp_path: Path) -> None:
-    """A config-absent-key project blocks mission creation with CharterPackConfigError."""
+    """A config-absent-key project blocks mission creation with ActiveCharterConfigError."""
     project = tmp_path / "stranded"
     project.mkdir()
     _write_stranded_project(project)
@@ -212,7 +214,7 @@ def test_stranded_project_fails_closed_at_the_create_gate(tmp_path: Path) -> Non
 
     assert existing_mission_types(project) == []
 
-    with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID") as exc:
+    with pytest.raises(ActiveCharterConfigError, match="ACTIVE_CHARTER_CONFIG_INVALID") as exc:
         create_mission_core(project, "stranded-mission", allow_worktree_context=True)
     assert "spec-kitty upgrade" in exc.value.body
 
@@ -295,7 +297,7 @@ def test_upgrade_preserves_authored_empty_activation_list(tmp_path: Path, monkey
     # Still blocked -- an authored empty list is unchanged (C-008), so the
     # create-gate must still fail closed exactly as before the upgrade.
     assert existing_mission_types(project) == []
-    with pytest.raises(CharterPackConfigError):
+    with pytest.raises(ActiveCharterConfigError):
         create_mission_core(project, "still-empty-mission", allow_worktree_context=True)
 
 
@@ -378,7 +380,7 @@ def test_upgrade_preserves_authored_empty_pointer_activation_and_previews_not_pe
 def test_pending_predicate_is_non_crashing_for_dangling_pointer(tmp_path: Path) -> None:
     """A dangling ``charter:`` pointer must not crash the dry-run preview (C-WP01).
 
-    ``resolve_activation_write_target`` fail-loud raises ``CharterPackConfigError``
+    ``resolve_activation_write_target`` fail-loud raises ``ActiveCharterConfigError``
     for this exact shape (INV-5) -- the *real* write path is meant to propagate
     that. But the *preview* predicate must absorb it into a defined,
     non-crashing signal instead: not an unhandled raise, and not a silent
@@ -410,22 +412,21 @@ def test_provision_helper_is_noop_during_dry_run(tmp_path: Path) -> None:
     assert "mission_type_activations" not in config_data
 
 
-def test_provision_helper_surfaces_missing_default_pack_as_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A broken shipped default pack surfaces as a helper error, not a crash.
+def test_provision_helper_surfaces_missing_default_preset_as_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A missing built-in ``default`` preset surfaces as a coded helper error, not a crash.
 
-    WP01 (#3282) re-routed the helper through
+    The helper routes through
     ``charter.activation.compiler.provision_mission_type_activations``, whose seed-read
-    is ``charter.activation.default_pack.load_default_mission_type_activations`` (module-
-    level import into ``charter.activation.compiler``'s namespace) -- the same fail-closed
-    ``CharterPackConfigError`` seam :func:`_provision_missing_mission_type_activations`
-    now catches (using ``.body``, since ``CharterPackConfigError.__str__`` is
-    just its error code, not the message).
+    is the built-in pack's ``default`` preset; when that preset is gone it raises
+    ``DefaultPresetMissingError`` (``DEFAULT_PRESET_MISSING``), which
+    :func:`_provision_missing_mission_type_activations` reports with its code and
+    body (``str()`` of a coded error is only its code). Driven through a tmp copy
+    of the built-in pack via ``SPEC_KITTY_PACKS_ROOT``.
     """
-
-    def _raise_missing(*args: object, **kwargs: object) -> list[str]:
-        raise CharterPackConfigError("shipped default.yaml declares no mission_type_activations list")
-
-    monkeypatch.setattr("charter.activation.compiler.load_default_mission_type_activations", _raise_missing)
+    packs_root = tmp_path / "packs-root"
+    shutil.copytree(Path(__file__).resolve().parents[3] / "packs" / "built-in", packs_root / "built-in")
+    (packs_root / "built-in" / "presets" / "default.yaml").unlink()
+    monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
 
     project = tmp_path / "project"
     project.mkdir()
@@ -434,4 +435,71 @@ def test_provision_helper_surfaces_missing_default_pack_as_error(tmp_path: Path,
     errors = _provision_missing_mission_type_activations(project, dry_run=False)
 
     assert len(errors) == 1
-    assert "default" in errors[0].lower()
+    assert errors[0].startswith("Error (DEFAULT_PRESET_MISSING): ")
+    assert "default.yaml" in errors[0]
+    assert "mission_type_activations" not in _load_config(project / ".kittify" / "config.yaml")
+
+
+# ---------------------------------------------------------------------------
+# DEFAULT_PRESET_MISSING through the real upgrade CLI (WP09 review cycle 1).
+#
+# The live provisioning path of a real upgrade and of ``--dry-run`` is the
+# prepared repair (``prepare_upgrade_repairs`` -> ``prepare_mission_type_activations``
+# -> ``default_preset_mission_types``), not the ``prepared is None`` fallback the
+# helper test above covers. A missing ``default`` preset must render the coded
+# error and exit 1 there too, never escape as a traceback.
+# ---------------------------------------------------------------------------
+
+
+def _break_default_preset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Point ``SPEC_KITTY_PACKS_ROOT`` at a copy of the built-in pack without ``presets/default.yaml``."""
+    packs_root = tmp_path / "packs-root"
+    shutil.copytree(Path(__file__).resolve().parents[3] / "packs" / "built-in", packs_root / "built-in")
+    preset = packs_root / "built-in" / "presets" / "default.yaml"
+    preset.unlink()
+    monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
+    return preset
+
+
+def _run_upgrade_caught(args: list[str], cwd: Path) -> Result:
+    with contextlib.chdir(cwd):
+        return _runner.invoke(_test_app, args, catch_exceptions=True)
+
+
+@pytest.mark.parametrize("dry_run", [False, True], ids=["upgrade", "dry-run"])
+def test_upgrade_reports_default_preset_missing_without_a_traceback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, dry_run: bool) -> None:
+    project = tmp_path / "stranded"
+    project.mkdir()
+    _write_stranded_project(project)
+    _init_git_repo(project)
+    preset = _break_default_preset(tmp_path, monkeypatch)
+    config = project / ".kittify" / "config.yaml"
+    before = config.read_bytes()
+
+    args = ["--target", _STRANDED_FROM_VERSION, "--force", "--no-worktrees", "--yes"]
+    result = _run_upgrade_caught([*args, "--dry-run"] if dry_run else args, cwd=project)
+
+    output = " ".join(result.output.split())
+    assert result.exception is None or isinstance(result.exception, SystemExit), repr(result.exception)
+    assert "Traceback" not in result.output
+    assert result.exit_code == 1, result.output
+    assert "Error (DEFAULT_PRESET_MISSING):" in output
+    assert str(preset) in output
+    assert config.read_bytes() == before
+
+
+def test_upgrade_plan_json_carries_the_default_preset_missing_body(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    project = tmp_path / "stranded"
+    project.mkdir()
+    _write_stranded_project(project)
+    _init_git_repo(project)
+    preset = _break_default_preset(tmp_path, monkeypatch)
+
+    result = _run_upgrade_caught(["--plan-json", "--no-worktrees"], cwd=project)
+
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.stdout)
+    (diagnostic,) = payload["diagnostics"]
+    assert diagnostic["code"] == "assessment_failed"
+    assert diagnostic["message"].startswith("Error (DEFAULT_PRESET_MISSING): ")
+    assert str(preset) in diagnostic["message"]

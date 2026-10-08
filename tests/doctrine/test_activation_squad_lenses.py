@@ -18,7 +18,9 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
-from charter.activation.default_pack import load_default_pack_activation_ids
+from charter.offering import pack_paths
+from charter.offering.agent_profiles.repository import AgentProfileRepository
+from charter.offering.artifact_kinds import ArtifactKind
 from specify_cli import app as cli_app
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.doctrine]
@@ -45,10 +47,10 @@ def _squad_lens_ids() -> frozenset[str]:
     return frozenset(ids)
 
 
-def _shipped_activated_agent_profiles() -> frozenset[str]:
-    """Load the shipped default pack's profile activation list."""
-    ids = load_default_pack_activation_ids().get("activated_agent_profiles", [])
-    return frozenset(ids)
+def _builtin_agent_profiles() -> frozenset[str]:
+    """Every shipped built-in agent profile id (all are effective while the key is absent)."""
+    repository = AgentProfileRepository(built_in_dir=pack_paths.built_in_dir(ArtifactKind.AGENT_PROFILE))
+    return frozenset(profile.profile_id for profile in repository.list_all())
 
 
 def test_squad_lens_ids_present_in_procedure() -> None:
@@ -56,26 +58,26 @@ def test_squad_lens_ids_present_in_procedure() -> None:
     assert _squad_lens_ids() >= _MISSING_LENSES
 
 
-def test_missing_lenses_are_activated_in_shipped_default_pack() -> None:
-    """#3810: the two missing squad lenses must be in the shipped allowlist."""
-    missing = _MISSING_LENSES - _shipped_activated_agent_profiles()
-    assert not missing, f"src/charter/activation/packs/default.yaml activated_agent_profiles is missing squad lens(es): {sorted(missing)}"
+def test_missing_lenses_are_shipped_builtin_profiles() -> None:
+    """#3810: the two missing squad lenses must ship as built-in agent profiles."""
+    missing = _MISSING_LENSES - _builtin_agent_profiles()
+    assert not missing, f"squad lens(es) are not shipped built-in agent profiles: {sorted(missing)}"
 
 
-def test_adversarial_squad_lenses_are_subset_of_activated_default_profiles() -> None:
-    """Every lens cast by the procedure must be activated by the shipped pack."""
-    missing = _squad_lens_ids() - _shipped_activated_agent_profiles()
-    assert not missing, f"adversarial-squad-deployment procedure casts lens(es) absent from the shipped activated_agent_profiles allowlist: {sorted(missing)}"
+def test_adversarial_squad_lenses_are_subset_of_builtin_profiles() -> None:
+    """Every lens cast by the procedure must be a shipped built-in agent profile."""
+    missing = _squad_lens_ids() - _builtin_agent_profiles()
+    assert not missing, f"adversarial-squad-deployment procedure casts lens(es) that are not shipped built-in agent profiles: {sorted(missing)}"
 
 
 def _write_shipped_default_config(repo_root: Path) -> None:
-    """Create a project whose profile activation state matches the shipped pack."""
+    """Create a project whose profile activation lists every built-in profile explicitly."""
     kittify = repo_root / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
     yaml = YAML()
     with (kittify / "config.yaml").open("w", encoding="utf-8") as handle:
         yaml.dump(
-            {"activated_agent_profiles": sorted(_shipped_activated_agent_profiles())},
+            {"activated_agent_profiles": sorted(_builtin_agent_profiles())},
             handle,
         )
 

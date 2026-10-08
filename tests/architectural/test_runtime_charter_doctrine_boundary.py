@@ -28,21 +28,12 @@ _SCAN_ROOTS: tuple[Path, ...] = (
     _REPO_ROOT / "src" / "specify_cli",
     _REPO_ROOT / "src" / "runtime",
 )
-_EXEMPT_SUBPACKAGE = _REPO_ROOT / "src" / "specify_cli" / "doctrine"
 
 
 def _has_module_level_doctrine_import(source: str) -> bool:
     visitor = _LazyDoctrineVisitor()
     visitor.visit(ast.parse(source))
     return bool(visitor.module_paths)
-
-
-def _is_exempt_subpackage(path: Path) -> bool:
-    try:
-        path.relative_to(_EXEMPT_SUBPACKAGE)
-    except ValueError:
-        return False
-    return True
 
 
 def _iter_runtime_python_files() -> list[Path]:
@@ -61,8 +52,6 @@ def test_boundary_predicate_has_prohibited_and_compliant_controls() -> None:
 def test_runtime_has_no_direct_doctrine_imports() -> None:
     violators: list[str] = []
     for path in _iter_runtime_python_files():
-        if _is_exempt_subpackage(path):
-            continue
         source = read_source(path)
         if _has_module_level_doctrine_import(source):
             violators.append(_rel_to_repo(path))
@@ -138,20 +127,15 @@ _LAZY_BASELINE_ALLOWLIST: frozenset[tuple[str, str]] = frozenset(
 )
 
 
-#: SOURCE-side laundering baseline. Each entry is a ``src/specify_cli/doctrine/*``
-#: module that re-exports doctrine-origin symbols through its own ``__all__`` — a
-#: first-party re-export "laundering" conduit. ``config.py`` re-exports the
-#: shared org-pack-config contract; WP05 closes the conduit, which forces the
-#: stale-entry eviction below. A consumer-side check is impossible: ``from
-#: specify_cli.doctrine.config import load_pack_registry`` (laundered) and ``…
-#: import assert_pack_local_paths_exist`` (genuine first-party) are byte-identical
-#: import syntax, so the rule must be enforced at the SOURCE module's ``__all__``.
-# WP05 (01KZPDSR / C-005, FR-004) CLOSED the ``config.py`` conduit: the
-# doctrine-origin org-pack-config symbols are no longer listed in
-# ``config.__all__``, so the module launders nothing and the baseline is empty.
-# The module-level bindings survive for in-surface + management-surface-test
-# consumers, but ``__all__`` is the enforced surface (a consumer-side check is
-# impossible — see the note above), so an empty baseline is the closed state.
+#: SOURCE-side laundering baseline. Each entry is a scanned-root module (under
+#: ``src/specify_cli/`` or ``src/runtime/``) that re-exports ``charter.offering``-
+#: origin symbols through its own ``__all__`` — a first-party re-export
+#: "laundering" conduit. A consumer-side check is impossible: a laundered import
+#: and a genuine first-party import are byte-identical syntax, so the rule is
+#: enforced at the SOURCE module's ``__all__``. Empty and shrink-only: mission
+#: ``charter-pack-cutover-01M491G6`` WP05 (#3732) deleted the last conduit (the
+#: former management package's config module and its alias re-exports, C-001)
+#: and widened the scan from that package to every scanned root.
 _LAUNDERING_BASELINE: dict[str, frozenset[str]] = {}
 
 
@@ -238,11 +222,9 @@ def _file_has_lazy_doctrine_import(path: Path) -> bool:
 
 
 def _lazy_doctrine_violators() -> set[tuple[str, str]]:
-    """Lazy file/import pairs outside the exempt management surface."""
+    """Lazy file/import pairs under the scanned roots (no subpackage is exempt)."""
     violators: set[tuple[str, str]] = set()
     for path in _iter_runtime_python_files():
-        if _is_exempt_subpackage(path):
-            continue
         violators.update((_rel_to_repo(path), module) for module in _file_lazy_doctrine_paths(path))
     return violators
 
@@ -255,8 +237,7 @@ def _format_lazy_ratchet_failure(*, new_violators: list[tuple[str, str]], stale_
             "Lazy (function-body) doctrine reach-through. The following file/import pairs under\n"
             "the scanned roots (src/specify_cli/, src/runtime/) introduce a NEW nested\n"
             "`from charter.offering.*` / `import\n"
-            "doctrine` import (outside `if TYPE_CHECKING:` and outside the\n"
-            "src/specify_cli/doctrine/ management surface) that is not in the\n"
+            "doctrine` import (outside `if TYPE_CHECKING:`) that is not in the\n"
             "lazy baseline:\n"
             f"  - {bullets}\n"
             "\n"
@@ -324,24 +305,26 @@ def _laundered_symbols(tree: ast.Module) -> set[str]:
     return declared & _doctrine_origin_names(tree)
 
 
-def _source_side_laundering() -> dict[str, frozenset[str]]:
-    """Map each management-surface module → the doctrine symbols it launders."""
+def _source_side_laundering(roots: tuple[Path, ...] = _SCAN_ROOTS) -> dict[str, frozenset[str]]:
+    """Map each module under *roots* → the ``charter.offering`` symbols its ``__all__`` launders."""
     result: dict[str, frozenset[str]] = {}
-    for path in sorted(_EXEMPT_SUBPACKAGE.rglob("*.py")):
-        tree = parse_file(path)
-        laundered = _laundered_symbols(tree)
+    for path in sorted(p for root in roots for p in root.rglob("*.py")):
+        laundered = _laundered_symbols(parse_file(path))
         if laundered:
-            result[_rel_to_repo(path)] = frozenset(laundered)
+            key = _rel_to_repo(path) if path.is_relative_to(_REPO_ROOT) else path.as_posix()
+            result[key] = frozenset(laundered)
     return result
 
 
-def test_exempt_surface_matches_wp01_manifest() -> None:
-    """The lazy ratchet's exempt root is exactly WP01's enumerated management surface.
+def test_no_exempt_surface() -> None:
+    """The boundary scans every file under its roots: WP01's management surface is empty.
 
-    Binds this file's exemption to a single source (WP01's ``EXEMPT_MANAGEMENT_SURFACE``)
-    so the two cannot drift.
+    Mission ``charter-pack-cutover-01M491G6`` WP05 (NFR-002) deleted the former
+    exemption rather than moving it, and binds this file to WP01's manifest so
+    the two cannot drift.
     """
-    assert {_rel_to_repo(_EXEMPT_SUBPACKAGE)} == set(EXEMPT_MANAGEMENT_SURFACE)
+    assert not EXEMPT_MANAGEMENT_SURFACE, sorted(EXEMPT_MANAGEMENT_SURFACE)
+    assert _iter_runtime_python_files(), "control: the scanned roots hold modules"
 
 
 def test_lazy_detector_skips_type_checking_fixture() -> None:
@@ -390,10 +373,10 @@ def test_runtime_has_no_new_lazy_doctrine_imports() -> None:
 def test_source_side_no_new_doctrine_laundering() -> None:
     """Pin the SOURCE-side re-export-laundering surface (C-005 / FR-004).
 
-    No ``src/specify_cli/doctrine/*`` module may add a doctrine-origin symbol to
-    its ``__all__`` beyond the documented baseline (currently ``config.py``). A
-    new laundering module/symbol trips the "grow" direction; when WP05 closes the
-    ``config.py`` conduit, the "stale" direction forces the baseline eviction.
+    No module under the scanned roots may list a ``charter.offering``-origin
+    symbol in its ``__all__`` beyond the (empty) baseline. A new laundering
+    module/symbol trips the "grow" direction; closing a baselined conduit trips
+    the "stale" direction, forcing the eviction.
     """
     actual = _source_side_laundering()
 
@@ -410,8 +393,8 @@ def test_source_side_no_new_doctrine_laundering() -> None:
 
     assert not new_launderers and not stale_baseline, (
         "Source-side doctrine re-export laundering drift.\n\n"
-        f"New/extra laundered symbols (a src/specify_cli/doctrine/* module lists a\n"
-        f"doctrine-origin name in its __all__ beyond the baseline): {new_launderers}\n\n"
+        f"New/extra laundered symbols (a scanned-root module lists a charter.offering-\n"
+        f"origin name in its __all__ beyond the baseline): {new_launderers}\n\n"
         f"Stale baseline entries (a conduit was closed — shrink _LAUNDERING_BASELINE): "
         f"{stale_baseline}\n\n"
         "Fix: the management surface is inbound-only. Do not re-export doctrine\n"
@@ -420,17 +403,18 @@ def test_source_side_no_new_doctrine_laundering() -> None:
     )
 
 
-def test_config_conduit_is_closed() -> None:
-    """Closure-proof (WP05, 01KZPDSR / C-005): ``config.py`` launders nothing.
-
-    Inverts the pre-WP05 ``…is_still_a_conduit`` sanity-pin: once WP05 dropped the
-    doctrine-origin org-pack-config symbols from ``config.__all__``, the module
-    must no longer appear in the source-side laundering map, and the baseline that
-    seeded it must be empty. Re-introducing a doctrine-origin symbol into
-    ``config.__all__`` (re-opening the conduit) reds this guard.
-    """
-    actual = _source_side_laundering()
-    assert "src/specify_cli/doctrine/config.py" not in actual
+def test_laundering_scan_finds_a_planted_conduit(tmp_path: Path) -> None:
+    """Self-test: the source-side scan flags a planted ``__all__`` re-export of an offering symbol."""
+    root = tmp_path / "pkg"
+    root.mkdir()
+    (root / "clean.py").write_text("from charter.drg import ArtifactKind\n__all__ = ['ArtifactKind']\n", encoding="utf-8")
+    (root / "conduit.py").write_text(
+        "from charter.offering.drg.org_pack_config import load_pack_registry as load_pack_registry\n__all__ = ['load_pack_registry']\n",
+        encoding="utf-8",
+    )
+    found = _source_side_laundering((root,))
+    assert [Path(key).name for key in found] == ["conduit.py"]
+    assert set(found.values()) == {frozenset({"load_pack_registry"})}
     assert _LAUNDERING_BASELINE == {}
 
 

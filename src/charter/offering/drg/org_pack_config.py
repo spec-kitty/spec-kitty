@@ -37,6 +37,7 @@ __all__ = [
     "resolve_existing_org_roots",
     "resolve_org_dirs",
     "resolve_org_roots",
+    "require_declared_org_roots",
     "resolve_relative_path_within_root",
     "save_pack_registry",
 ]
@@ -174,7 +175,7 @@ def resolve_relative_path_within_root(root: Path, relative_path: str) -> Path:
 
     Shared containment primitive: :meth:`OrgPackConfig.effective_root` uses
     this for ``subdir`` containment, and
-    ``specify_cli.doctrine.pack_validator._check_asset_path_containment``
+    ``charter.offering.packs.pack_validator._check_asset_path_containment``
     reuses it for ASSET sidecar manifest ``path`` containment (FR-009 /
     NFR-005) — a single canonical escape-detection implementation rather than
     a hand-rolled resolve-then-``relative_to`` at each call site.
@@ -591,6 +592,28 @@ def resolve_org_roots(repo_root: Path, *, quiet: bool = False) -> list[Path]:
         pack.effective_root(repo_root)
         for pack in load_pack_registry(repo_root, quiet=quiet).packs
     ]
+
+
+def require_declared_org_roots(repo_root: Path) -> list[Path]:
+    """Return every declared org pack root in declaration order, failing closed.
+
+    The fail-closed sibling of :func:`resolve_existing_org_roots`: the registry
+    is read strictly and every declared root must be a directory. Raises
+    ``ValueError`` naming the cause otherwise. It is the one precondition both
+    absent-key reasoners share: the effective-set seam
+    (``charter.activation.effective_set``) and ``charter activate --preset``
+    (``charter.activation.preset_application``, #3732 WP08), so neither checks
+    a set it could not fully read.
+    """
+    try:
+        packs = load_pack_registry(repo_root, quiet=True, strict=True).packs
+        roots = [pack.effective_root(repo_root) for pack in packs]
+    except ValueError as exc:
+        raise ValueError(f"the org pack registry cannot be read: {exc}") from exc
+    for root in roots:
+        if not root.is_dir():
+            raise ValueError(f"declared org pack root {root} is not a directory")
+    return roots
 
 
 def resolve_existing_org_roots(repo_root: Path) -> list[Path]:

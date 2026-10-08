@@ -10,7 +10,7 @@ pair. This file pins the half of that contract available on WP04's lane:
   (data-model.md) -- not generated-manifest fields (``constituents``,
   ``schema_version``, hashes) leaking in;
 * neither of this WP's owned source modules
-  (``src/specify_cli/doctrine/pack_assembler.py``,
+  (``src/charter/offering/packs/pack_assembler.py``,
   ``src/specify_cli/cli/commands/_doctrine_collect.py``) contains a write
   call targeting the authored filenames.
 
@@ -39,7 +39,7 @@ import pytest
 import yaml
 
 from charter.offering.pack_paths import built_in_root
-from specify_cli.doctrine.builtin_manifest import (
+from charter.offering.packs.builtin_manifest import (
     MANIFEST_FILENAME,
     generate_builtin_manifest,
 )
@@ -53,7 +53,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 # authored files. Other owned_files entries in that WP (packs/built-in/pack.*
 # themselves, and the two test files) are data/tests, not writers.
 _OWNED_SOURCE_MODULES = (
-    _REPO_ROOT / "src" / "specify_cli" / "doctrine" / "pack_assembler.py",
+    _REPO_ROOT / "src" / "charter" / "offering" / "packs" / "pack_assembler.py",
     _REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "_doctrine_collect.py",
 )
 

@@ -22,7 +22,7 @@ from pathlib import Path
 import pytest
 
 from charter.activation.compiler import resolve_config_activated_roots
-from charter.activation.pack_context import CharterPackConfigError, charter_activated_urns
+from charter.activation.pack_context import ActiveCharterConfigError, charter_activated_urns
 
 
 pytestmark = [pytest.mark.fast]
@@ -187,7 +187,7 @@ def test_activation_error_propagates_to_operator_governance(tmp_path: Path) -> N
 
     The config ``charter:`` pointer names a ``charter.yaml`` that does not exist
     (a dangling pointer). Resolving activation raises the typed, named
-    :class:`CharterPackConfigError`. The runtime prompt builder's governance
+    :class:`ActiveCharterConfigError`. The runtime prompt builder's governance
     seam MUST let that error reach the operator, not swallow it into a degraded
     ``Governance: unavailable (...)`` legacy render (the retired
     ``except Exception: pass`` behavior).
@@ -201,7 +201,7 @@ def test_activation_error_propagates_to_operator_governance(tmp_path: Path) -> N
     charter_dir.mkdir(parents=True, exist_ok=True)
     (charter_dir / "charter.md").write_text("# Charter\n", encoding="utf-8")
     # ...but the 'charter:' pointer names a charter.yaml that does NOT exist ->
-    # activation resolution raises CharterPackConfigError.
+    # activation resolution raises ActiveCharterConfigError.
 
-    with pytest.raises(CharterPackConfigError):
+    with pytest.raises(ActiveCharterConfigError):
         _governance_context(tmp_path, action="specify")

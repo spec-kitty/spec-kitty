@@ -87,7 +87,7 @@ def test_single_entry_with_both_qualifiers_renders_one_stanza(
     qualifiers in the prose."""
     entry = ActivationEntry(
         activation_context={"mission_type": "software-dev", "action": "implement"},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="caveman-comments",
         artifact_kind="styleguide",
     )
@@ -124,7 +124,7 @@ def test_entry_with_fine_grained_action_only_renders_without_mission_qualifier(
     """
     entry = ActivationEntry(
         activation_context={"action": "write_comment"},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="caveman-comments",
         artifact_kind="styleguide",
     )
@@ -157,7 +157,7 @@ def test_activation_when_clauses_match_canonical_when_doing_contract(
     )
     entry = ActivationEntry(
         activation_context={"action": declared_action},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="caveman-comments",
         artifact_kind="styleguide",
     )
@@ -185,7 +185,7 @@ def test_entry_with_generic_mission_type_renders_without_qualifier(
 ) -> None:
     entry = ActivationEntry(
         activation_context={"mission_type": "generic", "action": "implement"},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="caveman-comments",
         artifact_kind="styleguide",
     )
@@ -217,13 +217,13 @@ def test_two_matching_entries_render_two_stanzas_in_declaration_order(
     """
     first = ActivationEntry(
         activation_context={"action": "implement"},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="caveman-comments",
         artifact_kind="styleguide",
     )
     second = ActivationEntry(
         activation_context={"action": "write_comment"},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="caveman-comments",
         artifact_kind="styleguide",
     )
@@ -266,7 +266,7 @@ def test_zero_matches_returns_empty_string(
     header."""
     entry = ActivationEntry(
         activation_context={"action": "review"},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="caveman-comments",
         artifact_kind="styleguide",
     )
@@ -305,7 +305,7 @@ def test_wildcard_only_entry_matches_every_context(
     """
     entry = ActivationEntry(
         activation_context={},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="caveman-comments",
         artifact_kind="styleguide",
     )
@@ -346,7 +346,7 @@ def test_kind_inference_via_service_when_artifact_kind_omitted(
     """
     entry = ActivationEntry(
         activation_context={"action": "implement"},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="caveman-comments",
     )
 
@@ -369,7 +369,7 @@ def test_kind_inference_falls_back_to_artifact_when_service_is_none() -> None:
     selector (best-effort, no crash)."""
     entry = ActivationEntry(
         activation_context={"action": "implement"},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="caveman-comments",
     )
 
@@ -398,7 +398,7 @@ def test_singular_artifact_kind_renders_singular_selector(
     every other fetch stanza (``directive:...``, ``tactic:...``)."""
     entry = ActivationEntry(
         activation_context={"action": "implement"},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="caveman-comments",
         artifact_kind="styleguide",  # singular accepted
     )
@@ -421,7 +421,7 @@ def test_plural_artifact_kind_renders_singular_selector(
 ) -> None:
     entry = ActivationEntry(
         activation_context={"action": "implement"},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="caveman-comments",
         artifact_kind="styleguides",  # plural also accepted
     )

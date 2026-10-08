@@ -4,10 +4,9 @@ Covers:
 - ``YAML_KEY_MAP``: entry count, mission-type outlier, value naming conventions
 - ``activate()``: None-state materialisation, existing-set append, no-duplicate,
   comment preservation, invalid-kind ValueError
-- ``deactivate()``: None-state exit-1 with upgrade guidance, remove from list,
+- ``deactivate()``: None-state exit-1 with activate-first guidance, remove from list,
   warn-when-absent, invalid-kind ValueError
 - ``list_activated()``: None-state returns None per kind, populated returns frozenset
-- ``merge_defaults()``: writes absent keys, preserves present keys, backup on charter
 - Mission-type layer scan (WP05, T011/T012 -- FR-003/FR-005/NFR-002): org/project
   layer resolution for the flat ``mission-type`` kind, built-in->org->project
   precedence order, the missing-project-directory edge case, and the
@@ -27,7 +26,7 @@ from tests._support.eacces import deny_path_method
 from charter.activation.activation_engine import UnknownActivationIdError
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.pack_manager import (
-    CharterPackManager,
+    ActiveCharterManager,
     YAML_KEY_MAP,
 )
 
@@ -54,7 +53,7 @@ def test_deactivate_preserves_entry_boundaries(tmp_path: Path, pointer: bool, ne
     tail = 'metadata: {label: "keep"}\n'.replace("\n", newline).encode()
     target.write_bytes(body.replace("\n", newline).encode() + tail)
     before = snapshot({"project": tmp_path})
-    manager = CharterPackManager()
+    manager = ActiveCharterManager()
     context = ProjectContext(repo_root=tmp_path)
     result = manager.deactivate(context, kind="directive", artifact_id="old")
     assert result.deactivated == ["old"]
@@ -96,7 +95,7 @@ def test_preparation_preserves_target_policy(tmp_path: Path, pointer: object) ->
 @pytest.mark.parametrize("problem", ["dangling", "malformed", "scalar", "unreadable", "config", "link"])
 def test_preparation_refuses_broken_required_inputs(tmp_path: Path, problem: str, monkeypatch: pytest.MonkeyPatch) -> None:
     from ruamel.yaml.error import YAMLError
-    from charter.activation.pack_context import CharterPackConfigError
+    from charter.activation.pack_context import ActiveCharterConfigError
     from charter.activation.pack_manager import prepare_activation_write
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
 
@@ -125,7 +124,7 @@ def test_preparation_refuses_broken_required_inputs(tmp_path: Path, problem: str
         assert target.lstat() == before_stat and config.read_bytes() == before_config
     else:
         before = snapshot({"project": tmp_path})
-        with pytest.raises((ValueError, OSError, YAMLError, CharterPackConfigError)) as caught:
+        with pytest.raises((ValueError, OSError, YAMLError, ActiveCharterConfigError)) as caught:
             prepare_activation_write(tmp_path, {"mission_type_activations": ["research"]})
         assert str(caught.value)
         assert_unchanged(before, snapshot({"project": tmp_path}))
@@ -150,7 +149,7 @@ def ctx(project_root: Path) -> ProjectContext:
     """ProjectContext built from the minimal project root.
 
     Uses the direct constructor rather than ``ProjectContext.from_repo`` --
-    ``CharterPackManager`` only ever calls ``ctx.require_repo_root()``
+    ``ActiveCharterManager`` only ever calls ``ctx.require_repo_root()``
     (``pack_context`` is never read), and ``from_repo`` eagerly resolves
     ``PackContext.from_config()``, which now hard-fails (WP04, C-A1) when
     ``mission_type_activations`` is absent from config.yaml. These tests
@@ -162,8 +161,8 @@ def ctx(project_root: Path) -> ProjectContext:
 
 
 @pytest.fixture()
-def manager() -> CharterPackManager:
-    return CharterPackManager()
+def manager() -> ActiveCharterManager:
+    return ActiveCharterManager()
 
 
 # ---------------------------------------------------------------------------
@@ -204,7 +203,7 @@ class TestYamlKeyMap:
 
 
 class TestActivateNoneState:
-    def test_activates_new_artifact_from_empty_config(self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path) -> None:
+    def test_activates_new_artifact_from_empty_config(self, manager: ActiveCharterManager, ctx: ProjectContext, project_root: Path) -> None:
         """Activating on a fresh config preserves what was effective, then adds the ID.
 
         #4253: this used to materialize ``default.yaml`` — a strict subset of
@@ -225,7 +224,7 @@ class TestActivateNoneState:
         data = yaml.safe_load(config.read_text())
         assert "001-architectural-integrity-standard" in data["activated_directives"]
 
-    def test_warns_about_initializing_from_the_effective_set(self, manager: CharterPackManager, ctx: ProjectContext) -> None:
+    def test_warns_about_initializing_from_the_effective_set(self, manager: ActiveCharterManager, ctx: ProjectContext) -> None:
         """#4253: the warning names what was preserved, not a default pack.
 
         The old wording ("initialized from default pack") described the
@@ -240,7 +239,7 @@ class TestActivateNoneState:
         assert any("had no explicit activation set" in w for w in result.warnings)
         assert any("nothing in force was deactivated" in w for w in result.warnings)
 
-    def test_default_ids_are_present_after_materialize(self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path) -> None:
+    def test_default_ids_are_present_after_materialize(self, manager: ActiveCharterManager, ctx: ProjectContext, project_root: Path) -> None:
         manager.activate(ctx, kind="directive", artifact_id="001-architectural-integrity-standard")
         config = project_root / ".kittify" / "config.yaml"
         data = yaml.safe_load(config.read_text())
@@ -254,7 +253,7 @@ class TestActivateNoneState:
 
 
 class TestActivateExistingSet:
-    def test_appends_to_existing_list(self, manager: CharterPackManager, project_root: Path) -> None:
+    def test_appends_to_existing_list(self, manager: ActiveCharterManager, project_root: Path) -> None:
         config = project_root / ".kittify" / "config.yaml"
         config.write_text(
             "activated_directives:\n  - 001-architectural-integrity-standard\n",
@@ -267,7 +266,7 @@ class TestActivateExistingSet:
         assert "001-architectural-integrity-standard" in data["activated_directives"]
         assert "003-decision-documentation-requirement" in data["activated_directives"]
 
-    def test_no_duplicate_on_double_activate(self, manager: CharterPackManager, project_root: Path) -> None:
+    def test_no_duplicate_on_double_activate(self, manager: ActiveCharterManager, project_root: Path) -> None:
         config = project_root / ".kittify" / "config.yaml"
         config.write_text(
             "activated_directives:\n  - 001-architectural-integrity-standard\n",
@@ -278,7 +277,7 @@ class TestActivateExistingSet:
         data = yaml.safe_load(config.read_text())
         assert data["activated_directives"].count("001-architectural-integrity-standard") == 1
 
-    def test_rejects_malformed_existing_activation_set(self, manager: CharterPackManager, project_root: Path) -> None:
+    def test_rejects_malformed_existing_activation_set(self, manager: ActiveCharterManager, project_root: Path) -> None:
         """A scalar activation set must not be split into characters on write."""
         config = project_root / ".kittify" / "config.yaml"
         config.write_text("activated_directives: not-a-list\n", encoding="utf-8")
@@ -294,7 +293,7 @@ class TestActivateExistingSet:
 
         assert config.read_text(encoding="utf-8") == before
 
-    def test_comments_preserved_in_config(self, manager: CharterPackManager, project_root: Path) -> None:
+    def test_comments_preserved_in_config(self, manager: ActiveCharterManager, project_root: Path) -> None:
         config = project_root / ".kittify" / "config.yaml"
         config.write_text(
             "# project-level comment\nactivated_directives:\n  - 001-architectural-integrity-standard\n",
@@ -312,11 +311,11 @@ class TestActivateExistingSet:
 
 
 class TestActivateInvalidKind:
-    def test_raises_value_error_for_unknown_kind(self, manager: CharterPackManager, ctx: ProjectContext) -> None:
+    def test_raises_value_error_for_unknown_kind(self, manager: ActiveCharterManager, ctx: ProjectContext) -> None:
         with pytest.raises(ValueError, match="Unknown activation kind"):
             manager.activate(ctx, kind="nonexistent-kind", artifact_id="x")
 
-    def test_raises_value_error_for_unknown_artifact_id(self, manager: CharterPackManager, ctx: ProjectContext) -> None:
+    def test_raises_value_error_for_unknown_artifact_id(self, manager: ActiveCharterManager, ctx: ProjectContext) -> None:
         # WP09 delegates activation to the engine, which raises the typed
         # UnknownActivationIdError (a ValueError subclass) with the actionable
         # "Unknown <kind> ID ..." message.
@@ -332,19 +331,19 @@ class TestActivateInvalidKind:
 class TestDeactivateNoneState:
     def test_raises_typed_error_when_no_activation_set(
         self,
-        manager: CharterPackManager,
+        manager: ActiveCharterManager,
         ctx: ProjectContext,
     ) -> None:
         """deactivate() on a None-state kind raises the typed engine error.
 
         WP09/T042: the legacy ``sys.exit(1)`` is gone — the activation engine
-        raises NoActivationRestrictionsError (carrying the "run upgrade first"
+        raises NoActivationRestrictionsError (carrying the "activate one first"
         guidance) for the CLI (WP12) to surface, so the engine/manager never
         touch process state.
         """
         from charter.activation.activation_engine import NoActivationRestrictionsError
 
-        with pytest.raises(NoActivationRestrictionsError, match="spec-kitty upgrade"):
+        with pytest.raises(NoActivationRestrictionsError, match="Activate one first"):
             manager.deactivate(ctx, kind="directive", artifact_id="something")
 
 
@@ -354,7 +353,7 @@ class TestDeactivateNoneState:
 
 
 class TestDeactivateExistingSet:
-    def test_removes_artifact_from_list(self, manager: CharterPackManager, project_root: Path) -> None:
+    def test_removes_artifact_from_list(self, manager: ActiveCharterManager, project_root: Path) -> None:
         config = project_root / ".kittify" / "config.yaml"
         config.write_text(
             "activated_directives:\n  - keep-me\n  - remove-me\n",
@@ -367,7 +366,7 @@ class TestDeactivateExistingSet:
         assert "remove-me" not in data["activated_directives"]
         assert "keep-me" in data["activated_directives"]
 
-    def test_warns_when_artifact_not_in_set(self, manager: CharterPackManager, project_root: Path) -> None:
+    def test_warns_when_artifact_not_in_set(self, manager: ActiveCharterManager, project_root: Path) -> None:
         config = project_root / ".kittify" / "config.yaml"
         config.write_text(
             "activated_directives:\n  - something-else\n",
@@ -378,7 +377,7 @@ class TestDeactivateExistingSet:
         assert result.deactivated == []
         assert any("not in the activation set" in w for w in result.warnings)
 
-    def test_rejects_malformed_existing_activation_set(self, manager: CharterPackManager, project_root: Path) -> None:
+    def test_rejects_malformed_existing_activation_set(self, manager: ActiveCharterManager, project_root: Path) -> None:
         config = project_root / ".kittify" / "config.yaml"
         config.write_text("activated_directives: not-a-list\n", encoding="utf-8")
         ctx = ProjectContext(repo_root=project_root)
@@ -393,14 +392,14 @@ class TestDeactivateExistingSet:
 
 
 class TestListActivated:
-    def test_none_for_all_kinds_on_empty_config(self, manager: CharterPackManager, ctx: ProjectContext) -> None:
+    def test_none_for_all_kinds_on_empty_config(self, manager: ActiveCharterManager, ctx: ProjectContext) -> None:
         """All kinds return None when config.yaml has no activation keys."""
         result = manager.list_activated(ctx)
         assert len(result) == 11
         for kind in YAML_KEY_MAP:
             assert result[kind] is None, f"Expected None for kind '{kind}'"
 
-    def test_returns_frozenset_for_populated_kind(self, manager: CharterPackManager, project_root: Path) -> None:
+    def test_returns_frozenset_for_populated_kind(self, manager: ActiveCharterManager, project_root: Path) -> None:
         config = project_root / ".kittify" / "config.yaml"
         config.write_text(
             "activated_directives:\n  - aaa\n  - bbb\n",
@@ -410,7 +409,7 @@ class TestListActivated:
         result = manager.list_activated(ctx)
         assert result["directive"] == frozenset({"aaa", "bbb"})
 
-    def test_other_kinds_still_none_when_one_populated(self, manager: CharterPackManager, project_root: Path) -> None:
+    def test_other_kinds_still_none_when_one_populated(self, manager: ActiveCharterManager, project_root: Path) -> None:
         config = project_root / ".kittify" / "config.yaml"
         config.write_text(
             "activated_directives:\n  - something\n",
@@ -423,98 +422,12 @@ class TestListActivated:
 
 
 # ---------------------------------------------------------------------------
-# TestMergeDefaults
-# ---------------------------------------------------------------------------
-
-
-class TestMergeDefaults:
-    def test_writes_absent_keys(self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path) -> None:
-        result = manager.merge_defaults(ctx)
-        assert len(result.kinds_written) == 10  # every kind but the opt-in skill kind
-        config = project_root / ".kittify" / "config.yaml"
-        data = yaml.safe_load(config.read_text())
-        for yaml_key in YAML_KEY_MAP.values():
-            if yaml_key == "activated_skills":
-                continue  # default-in-force: an absent skills key stays absent
-            assert yaml_key in data, f"Missing key after merge_defaults: {yaml_key}"
-        assert "activated_skills" not in data
-        assert "skill" not in result.kinds_written
-
-    def test_does_not_overwrite_present_keys(self, manager: CharterPackManager, project_root: Path) -> None:
-        config = project_root / ".kittify" / "config.yaml"
-        config.write_text(
-            "activated_directives:\n  - only-mine\n",
-            encoding="utf-8",
-        )
-        ctx = ProjectContext(repo_root=project_root)
-        result = manager.merge_defaults(ctx)
-        data = yaml.safe_load(config.read_text())
-        # existing directive key must not be overwritten
-        assert data["activated_directives"] == ["only-mine"]
-        # the other 9 absent kinds (all but directive and the opt-in skill kind) are written
-        assert "directive" not in result.kinds_written
-        assert len(result.kinds_written) == 9
-
-    def test_creates_backup_when_charter_exists(self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path) -> None:
-        charter_dir = project_root / ".kittify" / "charter"
-        charter_dir.mkdir(parents=True)
-        charter_file = charter_dir / "charter.md"
-        charter_file.write_text("# My Charter\n", encoding="utf-8")
-
-        result = manager.merge_defaults(ctx)
-        assert result.backup_path is not None
-        assert result.backup_path.exists()
-        assert result.backup_path.read_text() == "# My Charter\n"
-        assert result.backup_path.parent.name == "backups"
-
-    def test_no_backup_when_no_charter(self, manager: CharterPackManager, ctx: ProjectContext) -> None:
-        result = manager.merge_defaults(ctx)
-        assert result.backup_path is None
-
-    def test_backup_filename_matches_pre_migration_golden_bytes(
-        self,
-        manager: CharterPackManager,
-        ctx: ProjectContext,
-        project_root: Path,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """SC-004 persisted-artifact golden (kernel-clock-single-door WP07).
-
-        Captured from the PRE-migration tree (before ``pack_manager.py``
-        routed onto the door): under a frozen instant of
-        ``2026-11-02T14:15:16.654321+00:00``, the raw
-        ``datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%SZ")`` call this method
-        used to make produced the literal backup filename
-        ``charter-20261102T141516Z.md``. This test freezes the door's
-        ``DEFAULT_CLOCK`` (the seam the migrated call now reads through via
-        ``now_utc_compact_stamp()``) to that exact instant and asserts the
-        backup filename this WP's migrated code produces is byte-identical
-        to that pre-migration golden -- proving the swap-to-producer changed
-        no on-disk bytes.
-        """
-        import kernel.clock as clock_module
-        from kernel.clock import UTC, FrozenClock, datetime as door_datetime
-
-        fixed = door_datetime(2026, 11, 2, 14, 15, 16, 654321, tzinfo=UTC)
-        monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=fixed))
-
-        charter_dir = project_root / ".kittify" / "charter"
-        charter_dir.mkdir(parents=True)
-        (charter_dir / "charter.md").write_text("# My Charter\n", encoding="utf-8")
-
-        result = manager.merge_defaults(ctx)
-
-        assert result.backup_path is not None
-        assert result.backup_path.name == "charter-20261102T141516Z.md"
-
-
-# ---------------------------------------------------------------------------
 # TestActivateCascadeWarning
 # ---------------------------------------------------------------------------
 
 
 class TestActivateCascadeWarning:
-    def test_cascade_true_does_not_append_manager_warning(self, manager: CharterPackManager, project_root: Path) -> None:
+    def test_cascade_true_does_not_append_manager_warning(self, manager: ActiveCharterManager, project_root: Path) -> None:
         """activate(cascade=True) keeps manager warnings scoped to activation state."""
         config = project_root / ".kittify" / "config.yaml"
         config.write_text(
@@ -537,7 +450,7 @@ class TestActivateCascadeWarning:
 
 
 class TestDeactivateCascadeAndInvalidKind:
-    def test_cascade_true_does_not_append_manager_warning(self, manager: CharterPackManager, project_root: Path) -> None:
+    def test_cascade_true_does_not_append_manager_warning(self, manager: ActiveCharterManager, project_root: Path) -> None:
         """deactivate(cascade=True) keeps manager warnings scoped to activation state."""
         config = project_root / ".kittify" / "config.yaml"
         config.write_text("activated_directives:\n  - to-remove\n", encoding="utf-8")
@@ -545,7 +458,7 @@ class TestDeactivateCascadeAndInvalidKind:
         result = manager.deactivate(ctx, kind="directive", artifact_id="to-remove", cascade=True)
         assert not any("cascade" in w.lower() for w in result.warnings)
 
-    def test_raises_value_error_for_unknown_kind(self, manager: CharterPackManager, ctx: ProjectContext) -> None:
+    def test_raises_value_error_for_unknown_kind(self, manager: ActiveCharterManager, ctx: ProjectContext) -> None:
         """deactivate() with an unknown kind raises ValueError."""
         with pytest.raises(ValueError, match="Unknown activation kind"):
             manager.deactivate(ctx, kind="not-a-kind", artifact_id="x")
@@ -603,15 +516,17 @@ class TestResolveLayerCandidateMissionTypeLayers:
         assert candidate == tmp_path / "mission_types"
 
     def test_project_layer_resolves_to_kittify_missions_mission_types(self, tmp_path: Path) -> None:
-        """``root`` for the project layer is already ``repo_root / ".kittify"``
-        (see ``specify_cli.cli.commands.charter._layer_roots.resolve_layer_roots``),
-        so the resolved directory is ``.kittify/missions/mission_types`` -- a flat
+        """``root`` for the project layer is the project pack root
+        ``repo_root / ".kittify" / "charter-packs"`` (see
+        ``charter.activation.layer_roots.resolve_layer_roots``); the roster sits
+        outside the pack, at ``.kittify/missions/mission_types`` -- a flat
         sibling of, not nested inside, ``.kittify/missions/<mission_name>/``.
         """
         from charter.activation.pack_manager import _resolve_layer_candidate
 
-        candidate = _resolve_layer_candidate("project", tmp_path, None, "missions/mission_types", layered=False)
-        assert candidate == tmp_path / "missions" / "mission_types"
+        kittify = tmp_path / ".kittify"
+        candidate = _resolve_layer_candidate("project", kittify / "charter-packs", None, "missions/mission_types", layered=False)
+        assert candidate == kittify / "missions" / "mission_types"
 
     def test_built_in_layer_branch_is_unaffected(self, tmp_path: Path) -> None:
         """The pre-existing built-in-layer branch for ``kind is None`` must be
@@ -627,7 +542,7 @@ class TestMissionTypeOrgLayerResolves:
     """FR-003: an org-tier pack's flat ``mission_types/`` directory (CL-005)
     makes a non-built-in mission-type id available."""
 
-    def test_org_pack_mission_type_id_is_available(self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path) -> None:
+    def test_org_pack_mission_type_id_is_available(self, manager: ActiveCharterManager, ctx: ProjectContext, tmp_path: Path) -> None:
         org_root = tmp_path / "org-pack"
         _write_mission_type(org_root / "mission_types", "qa")
 
@@ -635,7 +550,7 @@ class TestMissionTypeOrgLayerResolves:
 
         assert "qa" in result
 
-    def test_org_pack_mission_type_id_reports_org_layer(self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path) -> None:
+    def test_org_pack_mission_type_id_reports_org_layer(self, manager: ActiveCharterManager, ctx: ProjectContext, tmp_path: Path) -> None:
         org_root = tmp_path / "org-pack"
         _write_mission_type(org_root / "mission_types", "qa")
 
@@ -650,24 +565,24 @@ class TestMissionTypeProjectLayerResolves:
     ``.kittify/missions/mission_types/*.yaml`` -- and makes a project-declared
     mission-type id available."""
 
-    def test_project_pack_mission_type_id_is_available(self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path) -> None:
+    def test_project_pack_mission_type_id_is_available(self, manager: ActiveCharterManager, ctx: ProjectContext, project_root: Path) -> None:
         kittify = project_root / ".kittify"
         _write_mission_type(kittify / "missions" / "mission_types", "qa")
 
-        result = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify})
+        result = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify / "charter-packs"})
 
         assert "qa" in result
 
-    def test_project_pack_mission_type_id_reports_project_layer(self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path) -> None:
+    def test_project_pack_mission_type_id_reports_project_layer(self, manager: ActiveCharterManager, ctx: ProjectContext, project_root: Path) -> None:
         kittify = project_root / ".kittify"
         _write_mission_type(kittify / "missions" / "mission_types", "qa")
 
-        detailed = manager.list_available_detailed(ctx, kind="mission-type", layer_roots={"project": kittify})
+        detailed = manager.list_available_detailed(ctx, kind="mission-type", layer_roots={"project": kittify / "charter-packs"})
 
         qa_entries = [entry for entry in detailed if entry.artifact_id == "qa"]
         assert [entry.layer for entry in qa_entries] == ["project"]
 
-    def test_missing_project_mission_types_dir_yields_no_contributions(self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path) -> None:
+    def test_missing_project_mission_types_dir_yields_no_contributions(self, manager: ActiveCharterManager, ctx: ProjectContext, project_root: Path) -> None:
         """spec.md edge case: a project layer root is supplied but
         ``.kittify/missions/mission_types/`` does not exist at all (the
         ``project_root`` fixture's ``.kittify`` has no ``missions/`` dir).
@@ -676,7 +591,7 @@ class TestMissionTypeProjectLayerResolves:
         """
         kittify = project_root / ".kittify"
 
-        result = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify})
+        result = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify / "charter-packs"})
 
         assert "software-dev" in result  # built-in layer unaffected
         assert "qa" not in result
@@ -686,13 +601,13 @@ class TestMissionTypeLayerPrecedenceOrder:
     """FR-003: the built-in -> org -> project precedence order must be
     explicit and tested, not incidental to a dict's iteration order."""
 
-    def test_scan_layer_dirs_order_is_built_in_org_project(self, manager: CharterPackManager, tmp_path: Path) -> None:
+    def test_scan_layer_dirs_order_is_built_in_org_project(self, manager: ActiveCharterManager, tmp_path: Path) -> None:
         org_root = tmp_path / "org-pack"
         _write_mission_type(org_root / "mission_types", "qa")
         project_kittify = tmp_path / "proj" / ".kittify"
         _write_mission_type(project_kittify / "missions" / "mission_types", "qa")
 
-        dirs = manager._scan_layer_dirs("mission-type", layer_roots={"org": org_root, "project": project_kittify})
+        dirs = manager._scan_layer_dirs("mission-type", layer_roots={"org": org_root, "project": project_kittify / "charter-packs"})
 
         layers = [layer for layer, _dir in dirs]
         assert layers == ["built-in", "org", "project"]
@@ -714,7 +629,7 @@ class TestMissionTypeProjectLayerNonCollision:
     that check.
     """
 
-    def test_roster_and_mission_instance_coexist_without_collision(self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path) -> None:
+    def test_roster_and_mission_instance_coexist_without_collision(self, manager: ActiveCharterManager, ctx: ProjectContext, project_root: Path) -> None:
         from specify_cli.mission import _mission_dir_if_valid, list_available_missions
 
         kittify = project_root / ".kittify"
@@ -731,7 +646,7 @@ class TestMissionTypeProjectLayerNonCollision:
 
         # 1. The charter layer resolves "qa" as a mission-type roster entry
         #    -- never "some-mission-instance" or the bare filename "mission".
-        available = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify})
+        available = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify / "charter-packs"})
         assert "qa" in available
         assert "some-mission-instance" not in available
         assert "mission" not in available
@@ -749,7 +664,7 @@ class TestMissionTypeProjectLayerNonCollision:
         assert "some-mission-instance" in names
         assert "mission_types" not in names
 
-    def test_nested_per_type_subdirectory_no_longer_leaks(self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path) -> None:
+    def test_nested_per_type_subdirectory_no_longer_leaks(self, manager: ActiveCharterManager, ctx: ProjectContext, project_root: Path) -> None:
         """CL-005's *flat* layout trap, closed (PR-CONTRACT-002, pre-merge
         squad, mission up-mission-type-seam-01KZY1JB).
 
@@ -777,7 +692,7 @@ class TestMissionTypeProjectLayerNonCollision:
         nested_dir.mkdir(parents=True)
         (nested_dir / "governance-profile.yaml").write_text("id: governance-profile\n", encoding="utf-8")
 
-        available = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify})
+        available = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify / "charter-packs"})
 
         assert "qa" in available
         assert "governance-profile" not in available
@@ -796,7 +711,7 @@ class TestMissionTypeProjectLayerNonCollision:
 
 
 class TestMissionTypeMalformedOrgLayerLoudFails:
-    def test_malformed_org_layer_yaml_is_not_silently_skipped(self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path) -> None:
+    def test_malformed_org_layer_yaml_is_not_silently_skipped(self, manager: ActiveCharterManager, ctx: ProjectContext, tmp_path: Path) -> None:
         """A malformed org-layer mission-type YAML must raise from
         ``list_available_detailed``/``list_available`` -- not be silently
         dropped from the catalog and mistaken for "does not exist"."""
@@ -809,7 +724,7 @@ class TestMissionTypeMalformedOrgLayerLoudFails:
             manager.list_available(ctx, kind="mission-type", layer_roots={"org": org_root})
 
     def test_unreadable_org_layer_directory_raises_naming_the_directory(
-        self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self, manager: ActiveCharterManager, ctx: ProjectContext, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         org_root = tmp_path / "org-pack"
         mt_dir = org_root / "mission_types"
@@ -825,7 +740,7 @@ class TestMissionTypeMalformedOrgLayerLoudFails:
             manager.list_available(ctx, kind="mission-type", layer_roots={"org": org_root})
 
     def test_activate_on_malformed_org_layer_type_raises_real_cause_not_generic_unknown_id(
-        self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path
+        self, manager: ActiveCharterManager, ctx: ProjectContext, tmp_path: Path
     ) -> None:
         """End to end through ``activate()``: a malformed org-layer file must
         surface the real parse failure, never the misleading generic
