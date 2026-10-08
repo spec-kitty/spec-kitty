@@ -132,20 +132,21 @@ class TestComposedActionPromptFile:
 # ---------------------------------------------------------------------------
 
 
-def test_missing_composed_prompt_is_blocked(tmp_path: Path) -> None:
-    with patch("runtime.next.prompt_builder.build_prompt", side_effect=FileNotFoundError("missing specify.md")):
+def test_missing_wp_prompt_is_blocked(tmp_path: Path) -> None:
+    """A WP step with no template stays an error (-> blocked); only non-WP steps get a fallback prompt."""
+    with patch("runtime.next.prompt_builder.build_prompt", side_effect=FileNotFoundError("missing implement.md")):
         path, error, _error_code = _build_prompt_or_error(
-            action="specify",
+            action="implement",
             feature_dir=tmp_path,
             mission_slug="test-mission",
-            wp_id=None,
+            wp_id="WP01",
             agent="test",
             repo_root=tmp_path,
             mission_type="software-dev",
         )
 
     assert path is None
-    assert error == "no actionable prompt template for software-dev/specify: missing specify.md"
+    assert error == "no actionable prompt template for software-dev/implement: missing implement.md"
 
 
 # ---------------------------------------------------------------------------

@@ -64,14 +64,15 @@ class TestBuildPromptOrError:
         assert error is None
         assert os.path.exists(path)
 
-    def test_non_wp_step_gets_composition_marker_when_no_template(
+    def test_non_wp_step_gets_actionable_prompt_when_no_template(
         self, tmp_path: Path
     ) -> None:
-        """Non-WP steps with no file template get a composition marker, not a block.
+        """Non-WP steps with no file template get an actionable step prompt, not a block.
 
         Workflow-inserted steps (e.g. ``design-review``) and global-runtime steps
-        (e.g. ``discovery``) have no mission-step prompt file.  The composition
-        fallback writes a lightweight marker so ``kind=step`` is satisfied.
+        (e.g. ``discovery``) have no mission-step prompt file.  The fallback
+        writes a prompt naming the step and the exact next command (with the
+        Mission selector); it is not the retired composition placeholder.
         """
         with patch(
             "runtime.next.prompt_builder.build_prompt",
@@ -89,8 +90,10 @@ class TestBuildPromptOrError:
 
         assert path is not None
         assert error is None
-        assert os.path.exists(path)
-        assert "discovery" in path
+        text = Path(path).read_text(encoding="utf-8")
+        assert text.startswith("# software-dev — discovery")
+        assert "spec-kitty next --agent claude --mission 042-test" in text
+        assert "dispatched via composition" not in text
 
     def test_wp_step_returns_error_when_build_raises(self, tmp_path: Path) -> None:
         """WP-scoped steps that fail template resolution return an error (no marker)."""

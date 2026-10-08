@@ -17,7 +17,9 @@ from __future__ import annotations
 import contextlib
 import io
 import logging
+import os
 import re
+import tempfile
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
@@ -25,6 +27,7 @@ from typing import Any
 
 from charter.activation.pack_context import CharterPackConfigError
 from mission_runtime import ActionContextError, OwnedCheckout
+from runtime.next._tmp_namespace import prompt_tmp_dir
 from specify_cli.mission_metadata import mission_identity_fields
 from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
@@ -600,6 +603,32 @@ def _build_prompt_safe(
     return path
 
 
+def _write_templateless_step_prompt(
+    action: str,
+    mission_slug: str,
+    agent: str,
+    mission_type: str,
+    repo_root: Path,
+    owned: OwnedCheckout | None,
+) -> str:
+    """Write an actionable prompt for a non-WP step that has no prompt template.
+
+    Names the step, tells the agent to perform it per the Mission's charter and
+    spec, and gives the exact next command including the Mission selector.
+    """
+    config_root = owned.owned_root if owned is not None else repo_root
+    prompt = (
+        f"# {mission_type} — {action}\n\n"
+        f"Perform the `{action}` step for this Mission according to its charter and spec.\n\n"
+        f"When the step is done, advance with:\n\n"
+        f"    spec-kitty next --agent {agent} --mission {mission_slug}\n"
+    )
+    fd, path = tempfile.mkstemp(prefix=f"spec-kitty-step-{action}-", suffix=".md", dir=prompt_tmp_dir(config_root))
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(prompt)
+    return path
+
+
 def _build_prompt_or_error(
     action: str,
     feature_dir: Path,
@@ -628,9 +657,11 @@ def _build_prompt_or_error(
     The path is also verified to exist on disk; if ``build_prompt`` returned a
     path that does not resolve, ``error`` is populated and ``path`` is ``None``.
 
-    Composed actions use their selected mission-step prompt through
-    ``build_prompt``. If no actionable prompt can be resolved, the caller
-    emits a blocked decision with the failure reason.
+    Steps resolve their real mission-step prompt through ``build_prompt``. A
+    non-WP step that genuinely has no prompt template (a workflow-inserted
+    step such as ``design-review``, or ``discovery``) gets a short actionable
+    prompt naming the step and the exact next command. Any other unresolvable
+    prompt makes the caller emit a blocked decision with the failure reason.
     """
     try:
         from runtime.next.prompt_builder import build_prompt
@@ -657,6 +688,8 @@ def _build_prompt_or_error(
             return None, (f"prompt template path is not stat-able for action '{action}': {exc}"), None
         return path_str, None, None
     except FileNotFoundError as exc:
+        if wp_id is None:
+            return _write_templateless_step_prompt(action, mission_slug, agent, mission_type, repo_root, owned), None, None
         return None, (f"no actionable prompt template for {mission_type}/{action}: {exc}"), None
     except CharterPackConfigError as exc:
         # A corrupt/unreadable ``.kittify/config.yaml`` (bad encoding or
