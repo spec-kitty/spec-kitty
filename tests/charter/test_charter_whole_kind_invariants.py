@@ -488,7 +488,7 @@ def test_total_graph_load_failure_yields_loud_diagnostic_not_fail_closed(tmp_pat
 
     _write_dangling_edge_project_overlay(tmp_path)
 
-    doctrine_service = real_compiler_module._default_doctrine_service(tmp_path)
+    doctrine_service = real_compiler_module._default_active_charter_service(tmp_path)
     config_roots = ConfigActivatedRoots(
         directives=[],
         paradigms=[],
@@ -545,7 +545,7 @@ def test_i1_i2_carve_out_transitive_only_id_under_graph_load_failure(tmp_path: P
 
     _write_dangling_edge_project_overlay(tmp_path)
 
-    doctrine_service = real_compiler_module._default_doctrine_service(tmp_path)
+    doctrine_service = real_compiler_module._default_active_charter_service(tmp_path)
     # A directive is activated directly; in a healthy graph its transitive
     # closure would reach further styleguide/tactic ids with no direct
     # config root of their own -- but the graph never loads here, so ONLY
@@ -614,7 +614,7 @@ def test_i1_i2_carve_out_transitive_only_id_under_graph_load_failure(tmp_path: P
 # ---------------------------------------------------------------------------
 
 
-class _RawUnwrappedDoctrineServiceDouble:
+class _RawUnwrappedOfferingServiceDouble:
     """A raw/unwrapped ``charter.offering.service.CharterOfferingService`` double: no
     ``raw_repository`` method (per ``_raw_kind_repository``'s own docstring
     branch), and no attribute matching an untracked kind such as
@@ -639,7 +639,7 @@ def test_raw_kind_repository_degrades_instead_of_raising_for_untracked_kind() ->
     the ``"RAISED"`` sentinel, not ``None`` -- the assertion fails on that
     observed, named difference.
     """
-    doctrine_service = _RawUnwrappedDoctrineServiceDouble()
+    doctrine_service = _RawUnwrappedOfferingServiceDouble()
     assert not hasattr(doctrine_service, "raw_repository")
     assert not hasattr(doctrine_service, "templates")
 

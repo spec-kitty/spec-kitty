@@ -102,9 +102,9 @@ or read the YAML files directly from `packs/built-in/<kind>/` (artifacts live at
 `<type>/<pack>/[<category>/]<name>` — ADR 2026-07-26-2):
 
 ```python
-from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+from charter.activation.active_charter_service_builder import build_active_charter_service
 
-service = build_activation_aware_doctrine_service(project_root)
+service = build_active_charter_service(project_root)
 
 # Read a directive
 directive = service.directives.get("<a-directive-id>")
@@ -454,9 +454,9 @@ There is no `doctrine list` or `doctrine show` CLI command. Use the programmatic
 `ActiveCharterService` API or read artifact YAML files directly:
 
 ```python
-from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+from charter.activation.active_charter_service_builder import build_active_charter_service
 
-service = build_activation_aware_doctrine_service(project_root)
+service = build_active_charter_service(project_root)
 
 # List or inspect artifacts by kind
 directive = service.directives.get("DIRECTIVE_034")
@@ -662,7 +662,7 @@ reports `synced=False` / `files_written=[]`, regardless of `--force`.
 ## Programmatic Doctrine Access (ActiveCharterService)
 
 `charter.activation.resolver.ActiveCharterService` — built through
-`charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service` —
+`charter.activation.active_charter_service_builder.build_active_charter_service` —
 is the single, sanctioned entry point for programmatic access to all doctrine
 artifacts. It wraps the inner `charter.offering.service.CharterOfferingService` and applies
 charter activation filtering; never construct `charter.offering.service.CharterOfferingService`
@@ -671,9 +671,9 @@ architectural gates in `tests/architectural/` ban that construction outside
 this module).
 
 ```python
-from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+from charter.activation.active_charter_service_builder import build_active_charter_service
 
-service = build_activation_aware_doctrine_service(project_root)
+service = build_active_charter_service(project_root)
 ```
 
 ### Available Repositories (gated properties)

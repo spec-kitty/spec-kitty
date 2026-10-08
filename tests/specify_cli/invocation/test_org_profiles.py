@@ -3,7 +3,7 @@
 The resolver under test, :func:`resolve_activated_org_profiles`, is the single
 seam every org-honouring consumer (WP03 dispatch/context, WP04 projection)
 calls.  It must return the **charter-activated** ∩ **org-provenance** subset of
-agent profiles — composed through ``build_activation_aware_doctrine_service``
+agent profiles — composed through ``build_active_charter_service``
 so the per-kind ``activated_agent_profiles`` gate is honoured (C-008) and never
 re-implemented (C-006).
 
@@ -23,7 +23,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from specify_cli.doctrine_service_factory import build_activation_aware_doctrine_service
+from specify_cli.doctrine_service_factory import build_active_charter_service
 from specify_cli.invocation.org_profiles import (
     ResolvedOrgProfile,
     resolve_activated_org_profiles,
@@ -169,7 +169,7 @@ class TestFailClosed:
             },
         )
         _write_config(tmp_path, pack_root, activated=activated)
-        service = build_activation_aware_doctrine_service(tmp_path)
+        service = build_active_charter_service(tmp_path)
         _ = service.agent_profiles
         expected = tuple(item for item in service.agent_profile_repository.skipped_profiles() if item.layer == "org")
         assert len(expected) == 1
@@ -252,7 +252,7 @@ class TestDiagnosticControls:
             # owns attribution. Both layers really fail canonical loading.
             (directory / "orgzilla-alpha.agent.yaml").write_text("[", encoding="utf-8")
         monkeypatch.setattr(AgentProfileRepository, "_default_built_in_dir", staticmethod(lambda: builtin_dir))
-        service = build_activation_aware_doctrine_service(tmp_path)
+        service = build_active_charter_service(tmp_path)
         _ = service.agent_profiles
         canonical = service.agent_profile_repository.skipped_profiles()
         assert {item.layer for item in canonical} == {"builtin", "org", "project"}
@@ -307,7 +307,7 @@ class TestNoOrgPacksShortCircuit:
         def _explode(_repo_root: Path) -> object:
             raise AssertionError("no-org-packs path must not build the activation-aware service")
 
-        monkeypatch.setattr(org_profiles, "build_activation_aware_doctrine_service", _explode)
+        monkeypatch.setattr(org_profiles, "build_active_charter_service", _explode)
 
         # No .kittify/config.yaml at all → no org roots → fast path.
         resolved = resolve_activated_org_profiles(tmp_path)

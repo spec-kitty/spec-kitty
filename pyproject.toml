@@ -328,7 +328,6 @@ exclude = [
     "src/charter/activation/context_renderers/profile_sections.py",
     "src/charter/activation/context_renderers/section_bodies.py",
     "src/charter/activation/corpus/__init__.py",
-    "src/charter/activation/doctrine_service_builder.py",
     "src/charter/activation/evidence/__init__.py",
     "src/charter/activation/evidence/code_reader.py",
     "src/charter/activation/evidence/corpus_loader.py",

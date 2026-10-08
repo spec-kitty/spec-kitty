@@ -20,7 +20,7 @@ The class is retained rather than retired because it is part of the public
 ``charter`` package surface (``charter/__init__.py`` exports it), and this
 mission's own precedent for the identical situation is delegation, not
 deletion: WP01 turned
-``specify_cli.doctrine_service_factory.build_activation_aware_doctrine_service``
+``specify_cli.doctrine_service_factory.build_active_charter_service``
 into a thin re-export of the unified charter builder instead of removing it.
 Its one production caller (``specify_cli/runtime/resolver.py``) no longer
 uses this class at all — it calls the factory directly — so the production

@@ -528,7 +528,7 @@ def resolve_existing_org_roots(repo_root: Path) -> list[Path]:
     ``[r for r in resolve_org_roots(repo_root) if r.exists()]`` comprehension
     independently (previously duplicated in
     ``charter.activation.mission_type_profiles``, ``specify_cli.dossier.manifest``, and
-    ``charter.activation.doctrine_service_builder._self_resolve_existing_org_roots``).
+    ``charter.activation.active_charter_service_builder._self_resolve_existing_org_roots``).
 
     Deliberately silent (no logging): this primitive has no ``subdir``
     context to name in a useful WARNING, and every one of the call sites

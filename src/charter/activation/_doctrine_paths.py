@@ -1,7 +1,7 @@
 """Shared ActiveCharterService project-root candidate resolution.
 
-Both ``src/charter/activation/compiler.py::_default_doctrine_service`` and
-``src/charter/activation/context.py::_build_doctrine_service`` use the same candidate-list
+Both ``src/charter/activation/compiler.py::_default_active_charter_service`` and
+``src/charter/activation/context.py::_build_offering_service`` use the same candidate-list
 ordering.  This module is the **single source of truth** for that ordering so
 the two call-sites cannot drift apart.
 

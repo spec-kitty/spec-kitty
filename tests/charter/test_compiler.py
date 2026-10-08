@@ -243,7 +243,7 @@ def test_compile_with_repo_root_uses_project_drg_overlay(tmp_path: Path) -> None
     """When repo_root is passed, the project DRG overlay at
     <repo_root>/.kittify/doctrine/graph.yaml participates in transitive
     resolution (exercises the repo_root branch of _build_references and
-    _default_doctrine_service).
+    _default_active_charter_service).
 
     Post-merge fix per P2 of the excise-doctrine-curation-and-inline-references-01KP54J6
     mission review.
@@ -279,7 +279,7 @@ def test_compile_with_repo_root_uses_project_drg_overlay(tmp_path: Path) -> None
         "edges: []\n"
     )
 
-    # Also create a project doctrine overlay dir so _default_doctrine_service
+    # Also create a project doctrine overlay dir so _default_active_charter_service
     # exercises the project-root branch (compiler.py lines 267-269).
     (tmp_path / "src" / "charter" / "offering").mkdir(parents=True)
 

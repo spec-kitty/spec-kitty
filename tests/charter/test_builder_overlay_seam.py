@@ -4,7 +4,7 @@ Red-first (C-003): on ``upstream/main`` the builder has no
 ``agent_profile_overlay_dir`` parameter, so the ``overlay-set`` call raises
 ``TypeError`` — the red signal. Once the seam is threaded, the project profile
 authored at ``.kittify/agent_profiles/<id>.agent.yaml`` becomes visible through
-``build_activation_aware_doctrine_service(...).agent_profile_repository`` while
+``build_active_charter_service(...).agent_profile_repository`` while
 the unset call stays byte-identical (NFR-002): it resolves the doctrine-root
 ``agent_profiles`` directory, never ``.kittify/agent_profiles``.
 """
@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+from charter.activation.active_charter_service_builder import build_active_charter_service
 from charter.offering.service import CharterOfferingService
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -52,7 +52,7 @@ def test_overlay_dir_exposes_project_profile(tmp_path: Path) -> None:
     """With the overlay set, the seeded project profile is visible through the seam."""
     overlay_dir = _seed_project_profile(tmp_path)
 
-    service = build_activation_aware_doctrine_service(tmp_path, agent_profile_overlay_dir=overlay_dir)
+    service = build_active_charter_service(tmp_path, agent_profile_overlay_dir=overlay_dir)
     ids = {p.profile_id for p in service.agent_profile_repository.list_all()}
 
     assert _PROFILE_ID in ids
@@ -62,7 +62,7 @@ def test_overlay_unset_is_byte_identical(tmp_path: Path) -> None:
     """Unset (default ``None``) resolves the doctrine root, not ``.kittify/agent_profiles``."""
     _seed_project_profile(tmp_path)
 
-    service = build_activation_aware_doctrine_service(tmp_path)
+    service = build_active_charter_service(tmp_path)
     ids = {p.profile_id for p in service.agent_profile_repository.list_all()}
 
     assert _PROFILE_ID not in ids

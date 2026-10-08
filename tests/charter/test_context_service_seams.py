@@ -1,7 +1,7 @@
 """T033 (WP06, #2532) — focused unit tests for the 5 service/profile-
 resolution seams extracted from ``charter.activation.context``: ``context_json``,
 ``org_pack_discovery``, ``action_doctrine_bundle``, ``profile_resolution``,
-and ``doctrine_service_builder``.
+and ``active_charter_service_builder``.
 
 Each seam module is imported from its NEW home (not re-exported through
 ``charter.activation.context``) so these tests pin the seam itself, independent of the
@@ -9,7 +9,7 @@ FR-009 preserved-surface re-export — mirroring the WP04/WP05 precedent
 (``tests/charter/test_context_leaf_seams.py`` /
 ``tests/charter/test_context_render_seams.py``). Also doubles as the
 seam-existence manifest's real-consumer wiring for ``context_json``,
-``action_doctrine_bundle``, and ``doctrine_service_builder`` — the 3 seams
+``action_doctrine_bundle``, and ``active_charter_service_builder`` — the 3 seams
 whose only OTHER consumer is a lazy, function-local import from
 ``charter.activation.context`` itself (see ``tests/charter/test_context_decomposition_completion.py``).
 """
@@ -33,7 +33,7 @@ from charter.activation.context_json import (
     _project_charter_json_block,
     _relative_json_path,
 )
-from charter.activation.doctrine_service_builder import _build_doctrine_service
+from charter.activation.active_charter_service_builder import _build_offering_service
 from charter.activation.org_pack_discovery import (
     _enumerate_org_pack_paths,
     _load_doctrine_selection,
@@ -227,11 +227,11 @@ def test_reset_agent_profile_cache_clears_both_stores() -> None:
 
 
 # ---------------------------------------------------------------------------
-# doctrine_service_builder.py
+# active_charter_service_builder.py
 # ---------------------------------------------------------------------------
 
 
-class TestBuildDoctrineService:
+class TestBuildOfferingService:
     def test_org_roots_kwarg_omitted_when_empty(self, tmp_path: Path) -> None:
         calls: dict[str, object] = {}
 
@@ -246,7 +246,7 @@ class TestBuildDoctrineService:
             patch("charter.offering.service.CharterOfferingService", _StubOfferingService),
             patch("charter.activation.context.infer_repo_languages", return_value=["python"]),
         ):
-            _build_doctrine_service(tmp_path, org_roots=None)
+            _build_offering_service(tmp_path, org_roots=None)
         assert "org_roots" not in calls
 
     def test_org_roots_kwarg_threaded_when_present(self, tmp_path: Path) -> None:
@@ -264,5 +264,5 @@ class TestBuildDoctrineService:
             patch("charter.offering.service.CharterOfferingService", _StubOfferingService),
             patch("charter.activation.context.infer_repo_languages", return_value=["python"]),
         ):
-            _build_doctrine_service(tmp_path, org_roots=[org_root])
+            _build_offering_service(tmp_path, org_roots=[org_root])
         assert calls["org_roots"] == [org_root]

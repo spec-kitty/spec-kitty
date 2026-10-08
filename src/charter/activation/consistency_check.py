@@ -952,7 +952,7 @@ def _check_graph_kind_parity(
 # DRG-backed always-on gates below (``_check_unreconciled_tensions`` /
 # ``_check_enforcement_lattice`` / ``_check_decision_documentation_on_implement``)
 # instead of each independently calling ``load_validated_graph()`` (and, for
-# the latter two, ``_build_doctrine_service()``) -- the DRG loaded 3x per run
+# the latter two, ``_build_offering_service()``) -- the DRG loaded 3x per run
 # before this WP.
 # ---------------------------------------------------------------------------
 
@@ -1003,10 +1003,10 @@ class _GateResources:
         """Return the ``ActiveCharterService.directives`` repository, built at most once."""
         if not self._directives_loaded:
             self._directives_loaded = True
-            from charter.activation.doctrine_service_builder import _build_doctrine_service  # noqa: PLC0415
+            from charter.activation.active_charter_service_builder import _build_offering_service  # noqa: PLC0415
 
             try:
-                self._directives = _build_doctrine_service(self.repo_root, org_roots=list(self.pack_context.org_roots)).directives
+                self._directives = _build_offering_service(self.repo_root, org_roots=list(self.pack_context.org_roots)).directives
             except Exception as exc:  # noqa: BLE001  # memoized; re-raised below to every caller in this run.
                 self._directives_error = exc
         if self._directives_error is not None:
@@ -1077,17 +1077,17 @@ def _resolve_directives(repo_root: Path, pack_context: PackContext) -> Directive
     resources = _GATE_RESOURCES.get()
     if resources is not None:
         return resources.directives()
-    from charter.activation.doctrine_service_builder import _build_doctrine_service  # noqa: PLC0415
+    from charter.activation.active_charter_service_builder import _build_offering_service  # noqa: PLC0415
 
     # Explicit local annotation (not a bare `return ...`): under this file's
     # `charter.*` mypy override (pyproject.toml [[tool.mypy.overrides]],
-    # follow_imports="skip"), `_build_doctrine_service(...).directives`
+    # follow_imports="skip"), `_build_offering_service(...).directives`
     # resolves to Any at the call site -- see `_GateResources.directives`'s
     # same pattern above, where storing through an annotated field has the
     # same Any-narrowing effect. A bare `return` here would trip
     # mypy's `no-any-return` (this module carries zero pre-existing mypy
     # findings; this narrows the value instead of suppressing the check).
-    directives: DirectiveRepository = _build_doctrine_service(repo_root, org_roots=list(pack_context.org_roots)).directives
+    directives: DirectiveRepository = _build_offering_service(repo_root, org_roots=list(pack_context.org_roots)).directives
     return directives
 
 

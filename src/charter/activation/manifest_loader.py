@@ -186,7 +186,7 @@ def _resolve_existing_org_roots(repo_root: Path) -> list[Path]:
     # (pyproject.toml), so the lazily-imported `resolve_existing_org_roots`
     # resolves to `Any` regardless of its real (already `list[Path]`)
     # signature -- the same pre-existing gap affects the identical pattern in
-    # `charter.activation.doctrine_service_builder._self_resolve_existing_org_roots`.
+    # `charter.activation.active_charter_service_builder._self_resolve_existing_org_roots`.
     return cast("list[Path]", resolve_existing_org_roots(repo_root))
 
 

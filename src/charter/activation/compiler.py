@@ -349,7 +349,7 @@ if TYPE_CHECKING:
     # WP03 (charter-sole-door-bypass-closure-01KZ3WAA, FR-002/T011): this name
     # now denotes the activation-aware wrapper, not the raw
     # ``charter.offering.service.CharterOfferingService``. Every real caller already passes
-    # (or, after this WP, receives from :func:`_default_doctrine_service`) a
+    # (or, after this WP, receives from :func:`_default_active_charter_service`) a
     # wrapped instance -- ``generate.py``/``pack.py`` via
     # ``_build_doctrine_service_with_org_layer``, this module via the change
     # below -- so the annotation now matches what actually flows through
@@ -428,7 +428,7 @@ def compile_charter(
     activation source and is captured purely as an interview record (see
     ``_user_profile_reference``). When *pack_context* is not supplied, it is
     built from ``.kittify/config.yaml`` under *repo_root* (mirroring
-    :func:`_default_doctrine_service`); when neither is available, every kind
+    :func:`_default_active_charter_service`); when neither is available, every kind
     resolves to "all built-ins active" -- the same absent-key default
     :class:`~charter.activation.pack_context.PackContext` already documents.
 
@@ -452,7 +452,7 @@ def compile_charter(
     a recompile never re-litigates the recorded languages).
     """
     # Single authority (issue #3292): route through the SAME function the
-    # doctrine-service language gate (charter.activation.doctrine_service_builder) uses,
+    # doctrine-service language gate (charter.activation.active_charter_service_builder) uses,
     # passing the in-memory *interview* so a not-yet-persisted interview
     # (e.g. `charter generate --no-from-interview`) is still consulted. This
     # replaces an independent `extract_declared_languages` scan that used to
@@ -466,7 +466,7 @@ def compile_charter(
     unresolved_reference_records: list[UnresolvedReferenceRecord] = []
 
     if doctrine_service is None:
-        doctrine_service = _default_doctrine_service(repo_root)
+        doctrine_service = _default_active_charter_service(repo_root)
 
     if pack_context is None and repo_root is not None:
         pack_context = PackContext.from_config(repo_root)
@@ -1086,7 +1086,7 @@ def _sanitize_catalog_selection(
     return []
 
 
-def _default_doctrine_service(repo_root: Path | None) -> ActiveCharterService:
+def _default_active_charter_service(repo_root: Path | None) -> ActiveCharterService:
     """Build an activation-aware ActiveCharterService rooted at built-in doctrine
     plus optional project overlay.
 
@@ -1103,8 +1103,8 @@ def _default_doctrine_service(repo_root: Path | None) -> ActiveCharterService:
     to construct a raw, unwrapped ``charter.offering.service.CharterOfferingService``
     directly -- one of the six original FR-002 violation sites. When
     *repo_root* is available, construction now routes through WP01's single
-    unified builder, :func:`charter.activation.doctrine_service_builder.
-    build_activation_aware_doctrine_service`, which resolves the identical
+    unified builder, :func:`charter.activation.active_charter_service_builder.
+    build_active_charter_service`, which resolves the identical
     ``project_root`` via this same :func:`resolve_project_root` call
     internally, so the R-2 legacy-candidate behaviour above is unchanged.
     This does add real charter-activation filtering (a `PackContext` sourced
@@ -1135,11 +1135,11 @@ def _default_doctrine_service(repo_root: Path | None) -> ActiveCharterService:
     pre-mission unfiltered behaviour for legacy repo-root-less callers.
     """
     if repo_root is not None:
-        from charter.activation.doctrine_service_builder import (
-            build_activation_aware_doctrine_service,
+        from charter.activation.active_charter_service_builder import (
+            build_active_charter_service,
         )
 
-        return build_activation_aware_doctrine_service(repo_root)
+        return build_active_charter_service(repo_root)
 
     from charter.activation.resolver import ActiveCharterService
     from charter.offering.service import CharterOfferingService

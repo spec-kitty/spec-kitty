@@ -541,7 +541,7 @@ class TestFetchSelectorRecovery:
         )
         monkeypatch.setattr(
             context_module,
-            "_build_doctrine_service",
+            "_build_offering_service",
             lambda repo_root, org_roots=None: service,
         )
 
@@ -568,7 +568,7 @@ class TestFetchSelectorRecovery:
         service = _StubService(styleguides=_StubRepo(items={"caveman-comments": sg}))
         monkeypatch.setattr(
             context_module,
-            "_build_doctrine_service",
+            "_build_offering_service",
             lambda repo_root, org_roots=None: service,
         )
 
@@ -601,7 +601,7 @@ class TestFetchSelectorRecovery:
         )
         monkeypatch.setattr(
             context_module,
-            "_build_doctrine_service",
+            "_build_offering_service",
             lambda repo_root, org_roots=None: service,
         )
 
@@ -618,7 +618,7 @@ class TestFetchSelectorRecovery:
     ) -> None:
         monkeypatch.setattr(
             context_module,
-            "_build_doctrine_service",
+            "_build_offering_service",
             lambda repo_root, org_roots=None: _StubService(),
         )
 
@@ -635,7 +635,7 @@ class TestFetchSelectorRecovery:
     ) -> None:
         monkeypatch.setattr(
             context_module,
-            "_build_doctrine_service",
+            "_build_offering_service",
             lambda repo_root, org_roots=None: _StubService(),
         )
 
@@ -659,7 +659,7 @@ class TestFetchSelectorRecovery:
         service = _StubService(styleguides=_StubRepo(items={"caveman-comments": sg}))
         monkeypatch.setattr(
             context_module,
-            "_build_doctrine_service",
+            "_build_offering_service",
             lambda repo_root, org_roots=None: service,
         )
 

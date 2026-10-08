@@ -913,8 +913,8 @@ def test_resolve_tech_stack_for_profile_bare_repo_resolves_python_pedro(tmp_path
     but with a REAL built-in profile id (``python-pedro``) instead of a
     nonexistent one.
 
-    Confirmed red against the pre-fix code: ``build_activation_aware_doctrine_
-    service(tmp_path)`` computed ``active_languages=[]`` (explicitly empty,
+    Confirmed red against the pre-fix code: ``build_active_charter_service(
+    tmp_path)`` computed ``active_languages=[]`` (explicitly empty,
     not ``None``) for this bare fixture, which drops ``python-pedro`` (a
     language-scoped built-in) from ``agent_profile_repository``, so
     ``resolve_profile("python-pedro")`` raised ``KeyError`` -- silently

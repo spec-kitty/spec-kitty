@@ -6,14 +6,14 @@ that file). Resolves DRG-backed action doctrine artifacts for a given
 — the payload both the bootstrap-text renderer and the ``--json`` entrypoint
 consume.
 
-Cycle note: ``_build_doctrine_service`` and ``_normalize_directive_id`` are
+Cycle note: ``_build_offering_service`` and ``_normalize_directive_id`` are
 imported function-locally / from their sibling homes respectively; the
 former stays routed through ``charter.activation.context`` (the single test-patchable
 seam every other builder-consuming module already uses — see
 ``context_renderers/compact_governance.py``'s cycle note for the
 established precedent) rather than importing
-``charter.activation.doctrine_service_builder`` directly, so patching
-``charter.activation.context._build_doctrine_service`` continues to redirect every
+``charter.activation.active_charter_service_builder`` directly, so patching
+``charter.activation.context._build_offering_service`` continues to redirect every
 caller, moved or not.
 """
 
@@ -266,14 +266,14 @@ def _load_action_doctrine_bundle(
     keep the pre-fix single-root behaviour byte-identical.
     """
     from charter.activation._drg_helpers import DRGProjectValidationError, load_validated_graph
-    from charter.activation.context import _build_doctrine_service  # noqa: PLC0415
+    from charter.activation.context import _build_offering_service  # noqa: PLC0415
     from charter.activation.context_renderers.delivery_table import _classify_artifact_urns
     from charter.activation.drg_activation import filter_graph_by_activation, load_org_drg
     from charter.activation.mission_type_profiles import resolve_mission_type_key
     from charter.offering.drg.loader import DRGLoadError
     from charter.offering.drg.query import resolve_context
 
-    service = _build_doctrine_service(
+    service = _build_offering_service(
         repo_root,
         org_roots=org_roots if org_roots else ([org_root] if org_root else None),
     )

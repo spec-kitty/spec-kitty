@@ -334,7 +334,7 @@ class TestNoGovernanceDecisionReadsCharterMdProse:
         context_module._load_action_doctrine_bundle,
         context_module._load_doctrine_selection,
         context_module._classify_artifact_urns,
-        context_module._build_doctrine_service,
+        context_module._build_offering_service,
     )
 
     #: identifiers that mark a reference to the charter.md prose-parsing

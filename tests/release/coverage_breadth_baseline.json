@@ -220,7 +220,7 @@
           22,
           31
         ],
-        "src/charter/activation/doctrine_service_builder.py": [
+        "src/charter/activation/active_charter_service_builder.py": [
           24,
           32
         ],

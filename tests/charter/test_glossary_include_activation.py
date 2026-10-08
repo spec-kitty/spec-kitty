@@ -15,7 +15,7 @@ rendered), while an activated pack renders its definitions exactly as before.
 
 Mirrors ``test_context_include_activation.py`` (the agent-profile gate): the
 doctrine service is a stub double patched onto the single
-``_build_doctrine_service`` seam that both the wrapped and unwrapped paths
+``_build_offering_service`` seam that both the wrapped and unwrapped paths
 share, and activation state is written to ``.kittify/config.yaml``.
 """
 
@@ -80,18 +80,18 @@ class _DummyGlossaryPack:
 
 
 def _patch_service(monkeypatch: pytest.MonkeyPatch, service: _StubService) -> None:
-    """Route ``_build_doctrine_service`` onto a stub doctrine service.
+    """Route ``_build_offering_service`` onto a stub doctrine service.
 
-    ``_build_activation_aware_doctrine_service`` builds its inner service via
-    ``_build_doctrine_service``, so patching this single seam covers both the
+    ``_build_active_charter_service`` builds its inner service via
+    ``_build_offering_service``, so patching this single seam covers both the
     wrapped (glossary) and unwrapped paths.
     """
     monkeypatch.setattr(
         context_module,
-        "_build_doctrine_service",
+        "_build_offering_service",
         # Tolerant signature: the activation-aware builder forwards
         # ``org_roots`` AND ``agent_profile_overlay_dir`` to the inner build,
-        # so absorb any keyword the real ``_build_doctrine_service`` accepts.
+        # so absorb any keyword the real ``_build_offering_service`` accepts.
         lambda repo_root, **_kwargs: service,
     )
 
@@ -212,13 +212,13 @@ class TestGlossaryRoutesActivationAwareService:
         _patch_service(monkeypatch, stub)
 
         built: list[Path] = []
-        real_builder = context_module._build_activation_aware_doctrine_service
+        real_builder = context_module._build_active_charter_service
 
         def _record(repo_root: Path, *, org_roots: Any = None) -> Any:
             built.append(repo_root)
             return real_builder(repo_root, org_roots=org_roots)
 
-        monkeypatch.setattr(context_module, "_build_activation_aware_doctrine_service", _record)
+        monkeypatch.setattr(context_module, "_build_active_charter_service", _record)
 
         build_charter_context_include(tmp_path, "glossary-pack:domain-terms")
 

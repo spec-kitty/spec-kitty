@@ -408,7 +408,7 @@ def _collect_pack_skill_health(repo_root: Path) -> PackSkillHealth:
     """Build the pack-skill health dimension (FR-015), mirroring glossary packs.
 
     Reads the raw (unfiltered) skill repository through the sole sanctioned
-    builder (``build_activation_aware_doctrine_service``) and
+    builder (``build_active_charter_service``) and
     :meth:`~charter.activation.resolver.ActiveCharterService.raw_repository`, so
     every installed skill is audited regardless of activation. Load warnings
     become :class:`~._doctrine_health.SkippedPackSkill` records; a hard load
@@ -416,7 +416,7 @@ def _collect_pack_skill_health(repo_root: Path) -> PackSkillHealth:
     degrades to zero skills plus one synthetic invalid record instead of
     crashing ``doctor doctrine``.
     """
-    from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+    from charter.activation.active_charter_service_builder import build_active_charter_service
 
     from ._doctrine_health import PackSkillHealth, SkippedPackSkill
 
@@ -425,7 +425,7 @@ def _collect_pack_skill_health(repo_root: Path) -> PackSkillHealth:
     try:
         with warnings.catch_warnings(record=True) as captured:
             warnings.simplefilter("always")
-            service = build_activation_aware_doctrine_service(repo_root)
+            service = build_active_charter_service(repo_root)
             loaded = len(service.raw_repository("skills").list_all())
         invalid = [_parse_skipped_pack_skill_warning(w.message) for w in captured if issubclass(w.category, UserWarning)]
     except Exception as exc:  # noqa: BLE001 — diagnostics must never crash

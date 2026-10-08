@@ -635,7 +635,7 @@ def _read_activated_mission_types(data: dict[str, Any]) -> frozenset[str]:
 
     Why totality: ``PackContext`` is constructed on dozens of hot read /
     compose paths (runtime-bridge composition through
-    ``doctrine_service_builder``, invocation ``ProfileRegistry``, charter
+    ``active_charter_service_builder``, invocation ``ProfileRegistry``, charter
     listing, tool-surface projection, ``doctor``) that must not crash on an
     unprovisioned project. Reading an empty activation set is a valid, total
     outcome. The fail-closed "a mission requires at least one activated

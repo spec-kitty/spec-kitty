@@ -101,7 +101,7 @@ def _compile_with_transitive_directive_seed(repo_root: Path) -> Any:
     ``compile_charter``'s own ``config_roots`` derivation) and the
     activation-filtered doctrine service, so this reproduces the real
     two-independent-activation-resolutions shape ``compile_charter`` and
-    ``_default_doctrine_service`` share in production.
+    ``_default_active_charter_service`` share in production.
     """
     pack_context = _pack_context_seeding_procedure_only(repo_root)
     doctrine_service = ActiveCharterService(CharterOfferingService(project_root=None), pack_context=pack_context)

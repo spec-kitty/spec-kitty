@@ -80,9 +80,9 @@ from charter.activation.context_state import (
     _MIN_EFFECTIVE_DEPTH as _MIN_EFFECTIVE_DEPTH,
     _prepare_context_state as _prepare_context_state,
 )
-from charter.activation.doctrine_service_builder import (
-    _build_activation_aware_doctrine_service as _build_activation_aware_doctrine_service,
-    _build_doctrine_service as _build_doctrine_service,
+from charter.activation.active_charter_service_builder import (
+    _build_active_charter_service as _build_active_charter_service,
+    _build_offering_service as _build_offering_service,
 )
 from charter.activation import progressive_disclosure as _pd
 from charter.activation.governance_references import collect_governance_reference_status
@@ -393,7 +393,7 @@ def build_charter_context_include(
     org_roots = [org_root] if org_root is not None else None
 
     if kind == "artifact":
-        service = _build_doctrine_service(repo_root, org_roots=org_roots)
+        service = _build_offering_service(repo_root, org_roots=org_roots)
         return _render_generic_artifact_include(service, identifier)
 
     # Route every other kind through the canonical operator-token resolver so
@@ -426,14 +426,14 @@ def build_charter_context_include(
     # exactly as it would on the plain service — only the service it renders on
     # differs. The gated service is built HERE, once (not inside a sibling
     # helper), so this stays the sole call site of
-    # ``_build_activation_aware_doctrine_service`` — several tests monkeypatch
+    # ``_build_active_charter_service`` — several tests monkeypatch
     # that name on this module.
     gated_service = None
     if canonical_kind in (
         ArtifactKind.AGENT_PROFILE.value,
         ArtifactKind.GLOSSARY_PACK.value,
     ):
-        gated_service = _build_activation_aware_doctrine_service(
+        gated_service = _build_active_charter_service(
             repo_root, org_roots=org_roots
         )
         if canonical_kind == ArtifactKind.AGENT_PROFILE.value:
@@ -443,7 +443,7 @@ def build_charter_context_include(
 
     # Shared catalog render/return. ``service`` is the gated service for the
     # glossary-pack branch and the plain service (built here — the sole call
-    # site of ``_build_doctrine_service`` several tests monkeypatch) for every
+    # site of ``_build_offering_service`` several tests monkeypatch) for every
     # other kind. The ``cast`` reconciles the two nominally distinct
     # ``ActiveCharterService`` classes; the renderer only reads ``.glossary_packs``
     # (a gated ``dict``) off the gated service, so it is structurally
@@ -451,7 +451,7 @@ def build_charter_context_include(
     service = (
         cast("_offering_service_module.CharterOfferingService", gated_service)
         if gated_service is not None
-        else _build_doctrine_service(repo_root, org_roots=org_roots)
+        else _build_offering_service(repo_root, org_roots=org_roots)
     )
     result = _render_catalog_kind_include_selector(
         service, canonical_kind, identifier, selector

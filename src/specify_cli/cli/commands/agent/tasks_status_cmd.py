@@ -960,11 +960,11 @@ def _st_render_human(st: _StatusState, ports: TasksPorts) -> None:
             # the 👤 human-in-charge marker on any project that narrows
             # ``activated_agent_profiles`` to a set excluding
             # ``human-in-charge``.
-            from charter.activation.doctrine_service_builder import (  # noqa: PLC0415
-                build_activation_aware_doctrine_service,
+            from charter.activation.active_charter_service_builder import (  # noqa: PLC0415
+                build_active_charter_service,
             )
 
-            profile_repo = build_activation_aware_doctrine_service(_st_config_root(st)).agent_profile_repository
+            profile_repo = build_active_charter_service(_st_config_root(st)).agent_profile_repository
         except ImportError:
             # Genuinely-absent-module case only: ``charter`` is first-party
             # and ships in the same wheel, so this can only fire under a
@@ -1108,11 +1108,11 @@ def _get_hic_marker(
             # in this module always pass ``repo=`` explicitly (built once per
             # render in ``_st_render_human``), so this self-resolving fallback
             # only fires for direct/external callers (e.g. unit tests).
-            from charter.activation.doctrine_service_builder import (  # noqa: PLC0415
-                build_activation_aware_doctrine_service,
+            from charter.activation.active_charter_service_builder import (  # noqa: PLC0415
+                build_active_charter_service,
             )
 
-            profile_repo = build_activation_aware_doctrine_service(repo_root).agent_profile_repository
+            profile_repo = build_active_charter_service(repo_root).agent_profile_repository
 
         profile = profile_repo.get(agent_profile)
         if profile and profile.sentinel:

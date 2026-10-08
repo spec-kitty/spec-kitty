@@ -367,8 +367,8 @@ def _render_agent_profile_include_selector(
     Takes the already-built *gated_service* (not ``repo_root``/``org_roots``)
     so the caller — ``charter.activation.context.build_charter_context_include`` — stays
     the sole call site of
-    :func:`charter.activation.doctrine_service_builder._build_activation_aware_doctrine_service`.
-    That preserves the existing ``context_module._build_activation_aware_doctrine_service``
+    :func:`charter.activation.active_charter_service_builder._build_active_charter_service`.
+    That preserves the existing ``context_module._build_active_charter_service``
     monkeypatch seam several tests rely on
     (e.g. ``tests/charter/test_context_include_activation.py``).
     """
@@ -393,7 +393,7 @@ def _render_catalog_kind_include_selector(
 
     Takes the already-built *service* (not ``repo_root``/``org_roots``) so the
     caller stays the sole call site of
-    :func:`charter.activation.doctrine_service_builder._build_doctrine_service` — see
+    :func:`charter.activation.active_charter_service_builder._build_offering_service` — see
     :func:`_render_agent_profile_include_selector` for why that matters.
 
     Returns ``None`` when *canonical_kind* has no registered include renderer

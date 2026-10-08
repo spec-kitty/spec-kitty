@@ -66,7 +66,7 @@ SRC_ROOT = REPO_ROOT / "src"
 #: The sole door (NFR-001).
 SOLE_DOOR_REL_PATH = "src/charter/activation/resolver.py"
 #: The ONE unified builder (FR-008).
-UNIFIED_BUILDER_REL_PATH = "src/charter/activation/doctrine_service_builder.py"
+UNIFIED_BUILDER_REL_PATH = "src/charter/activation/active_charter_service_builder.py"
 #: The doctrine layer owns the wrapped subject (Gate 1/Gate 2's shared
 #: rationale: the raw charter.offering.service.CharterOfferingService construction inside
 #: doctrine/service.py IS the thing the sole door wraps, not a bypass of it).

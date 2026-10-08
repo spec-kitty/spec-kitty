@@ -38,7 +38,7 @@ def _build_doctrine_service_with_org_layer(
 
     FR-002/FR-008 unification (charter-sole-door-bypass-closure-01KZ3WAA
     WP01): thin call-through to the single canonical builder,
-    :func:`charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service`
+    :func:`charter.activation.active_charter_service_builder.build_active_charter_service`
     — replaces the former inline "build raw, then best-effort wrap" pattern
     that lived here (and independently in
     ``specify_cli.charter_runtime.lint.checks.org_layer`` and
@@ -56,9 +56,9 @@ def _build_doctrine_service_with_org_layer(
     regenerate resolves the doctrine references under the SAME re-derived
     languages ``compile_charter`` stamps into ``catalog.languages``.
     """
-    from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+    from charter.activation.active_charter_service_builder import build_active_charter_service
 
-    return build_activation_aware_doctrine_service(repo_root, interview=interview, prefer_interview=prefer_interview)
+    return build_active_charter_service(repo_root, interview=interview, prefer_interview=prefer_interview)
 
 
 def _is_inside_git_worktree(repo_root: Path) -> bool:

@@ -1,4 +1,4 @@
-"""Tests for compiler._default_doctrine_service project-root candidate list (T024, R-2).
+"""Tests for compiler._default_active_charter_service project-root candidate list (T024, R-2).
 
 Three locked cases (R-2 / FR-009):
 
@@ -10,7 +10,7 @@ Three locked cases (R-2 / FR-009):
    repositories resolve to empty overlays with no shipped-layer impact.
 
 Also covers ``charter.activation._doctrine_paths.resolve_project_root`` directly and
-verifies the compiler's ``_default_doctrine_service`` uses it correctly.
+verifies the compiler's ``_default_active_charter_service`` uses it correctly.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from charter.activation._doctrine_paths import resolve_project_root, _project_root_candidates
-from charter.activation.compiler import _default_doctrine_service
+from charter.activation.compiler import _default_active_charter_service
 
 
 # ---------------------------------------------------------------------------
@@ -34,7 +34,7 @@ def _write_min_config(repo_root: Path) -> None:
     """Write a minimal ``.kittify/config.yaml`` with only
     ``mission_type_activations`` set.
 
-    ``_default_doctrine_service``/``_build_doctrine_service`` (below) build
+    ``_default_active_charter_service``/``_build_offering_service`` (below) build
     an activation-aware doctrine service via ``PackContext.from_config``,
     which now hard-fails (WP04, C-A1) when ``mission_type_activations`` is
     absent -- unrelated to the project-root candidate-resolution behavior
@@ -115,15 +115,15 @@ class TestResolveProjectRoot:
 
 
 # ---------------------------------------------------------------------------
-# Tests for compiler._default_doctrine_service via resolve_project_root
+# Tests for compiler._default_active_charter_service via resolve_project_root
 # ---------------------------------------------------------------------------
 
-class TestDefaultDoctrineService:
-    """Tests for compiler._default_doctrine_service project-root wiring (T024)."""
+class TestDefaultActiveCharterService:
+    """Tests for compiler._default_active_charter_service project-root wiring (T024)."""
 
     def _project_root_from_service(self, repo_root: Path) -> Path | None:
-        """Call _default_doctrine_service and extract project_root from it."""
-        svc = _default_doctrine_service(repo_root)
+        """Call _default_active_charter_service and extract project_root from it."""
+        svc = _default_active_charter_service(repo_root)
         # ActiveCharterService stores project_root as _project_root
         return getattr(svc, "_project_root", None)
 
@@ -159,7 +159,7 @@ class TestDefaultDoctrineService:
 
     def test_repo_root_none_gives_none_project_root(self) -> None:
         """When repo_root is None, project_root is None (legacy callers)."""
-        svc = _default_doctrine_service(None)
+        svc = _default_active_charter_service(None)
         project_root = getattr(svc, "project_root", None)
         assert project_root is None
 
@@ -185,15 +185,15 @@ class TestDefaultDoctrineService:
 
 
 # ---------------------------------------------------------------------------
-# Tests for context._build_doctrine_service (T025 mirror)
+# Tests for context._build_offering_service (T025 mirror)
 # ---------------------------------------------------------------------------
 
-class TestContextDoctrineService:
-    """The context module's _build_doctrine_service uses the same candidate list."""
+class TestContextOfferingService:
+    """The context module's _build_offering_service uses the same candidate list."""
 
     def _project_root_from_context_service(self, repo_root: Path) -> Path | None:
-        from charter.activation.context import _build_doctrine_service
-        svc = _build_doctrine_service(repo_root)
+        from charter.activation.context import _build_offering_service
+        svc = _build_offering_service(repo_root)
         return getattr(svc, "_project_root", None)
 
     def test_case_r2_1_no_candidate_dirs_none(self, tmp_path: Path) -> None:
@@ -220,7 +220,7 @@ class TestContextDoctrineService:
         kittify_doctrine.mkdir(parents=True)
 
         compiler_root = None
-        svc = _default_doctrine_service(tmp_path)
+        svc = _default_active_charter_service(tmp_path)
         compiler_root = getattr(svc, "_project_root", None)
 
         context_root = self._project_root_from_context_service(tmp_path)

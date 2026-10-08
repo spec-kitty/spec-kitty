@@ -14,7 +14,7 @@ import pytest
 from charter.activation.context import (
     CharterContextResult,
     _ActionDoctrineBundle,
-    _build_doctrine_service,
+    _build_offering_service,
     _bundle_root_for_json,
     _project_charter_json_block,
     _project_directive_entries,
@@ -828,7 +828,7 @@ class TestBuildContextV2:
                 "charter.activation.resolver.resolve_project_governance",
                 return_value=SimpleNamespace(directives=["DIRECTIVE_001"]),
             ),
-            patch("charter.activation.context._build_doctrine_service", side_effect=RuntimeError("no service")),
+            patch("charter.activation.context._build_offering_service", side_effect=RuntimeError("no service")),
         ):
             assert _project_directive_entries(tmp_path) == [
                 {"id": "DIRECTIVE_001", "source": "builtin"}
@@ -841,7 +841,7 @@ class TestBuildContextV2:
                 return_value=SimpleNamespace(directives=[directive]),
             ),
             patch("charter.activation.resolver.resolve_project_governance", side_effect=RuntimeError("no resolver")),
-            patch("charter.activation.context._build_doctrine_service", side_effect=RuntimeError("no service")),
+            patch("charter.activation.context._build_offering_service", side_effect=RuntimeError("no service")),
         ):
             assert _project_directive_entries(tmp_path) == [
                 {"id": "DIR-LOCAL", "source": "project", "title": "Local"}
@@ -865,7 +865,7 @@ class TestBuildContextV2:
                 return_value=SimpleNamespace(directives=["DIRECTIVE_002"]),
             ),
             patch(
-                "charter.activation.context._build_doctrine_service",
+                "charter.activation.context._build_offering_service",
                 return_value=SimpleNamespace(directives=repo),
             ),
         ):
@@ -1183,11 +1183,11 @@ def test_build_doctrine_service_prefers_repo_src_overlay(
     monkeypatch.setattr("charter.activation.context.infer_repo_languages", lambda repo_root: ["python", "typescript"])
     monkeypatch.setattr("charter.offering.service.CharterOfferingService", StubOfferingService)
 
-    service = _build_doctrine_service(tmp_path)
+    service = _build_offering_service(tmp_path)
 
     assert isinstance(service, StubOfferingService)
     # Relocation (WP02, mission doctrine-built-in-seam-consolidation-01KYW3TX):
-    # _build_doctrine_service no longer passes a built_in_root kwarg at all --
+    # _build_offering_service no longer passes a built_in_root kwarg at all --
     # each repository self-resolves the flattened built-in tier via
     # built_in_dir(kind) (packs/built-in/<kind>). Pointing at
     # resolve_doctrine_root() post-relocation would yield the emptied
@@ -1209,7 +1209,7 @@ def test_build_doctrine_service_uses_compiled_charter_languages_end_to_end(
     Writes a real compiled-charter fixture (charter.yaml with the
     ``catalog.languages`` field — WP08 re-pointed tier-1 from the retired
     ``references.yaml`` to this authoritative source) alongside an interview
-    transcript that disagrees, then confirms ``_build_doctrine_service``
+    transcript that disagrees, then confirms ``_build_offering_service``
     receives the compiled value via ``active_languages`` — proving there is
     no separate precedence logic duplicated in ``context.py`` itself.
     """
@@ -1260,7 +1260,7 @@ def test_build_doctrine_service_uses_compiled_charter_languages_end_to_end(
     monkeypatch.setattr("charter.activation.catalog.resolve_doctrine_root", lambda: built_in_root)
     monkeypatch.setattr("charter.offering.service.CharterOfferingService", StubOfferingService)
 
-    service = _build_doctrine_service(tmp_path)
+    service = _build_offering_service(tmp_path)
 
     assert isinstance(service, StubOfferingService)
     assert calls == {"active_languages": ["rust"]}

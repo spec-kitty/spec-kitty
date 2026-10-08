@@ -83,7 +83,7 @@ def test_collect_reports_malformed_skill_as_skipped(repo_root: Path) -> None:
 
 def test_collect_degrades_on_hard_load_failure(repo_root: Path) -> None:
     with patch(
-        "charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service",
+        "charter.activation.active_charter_service_builder.build_active_charter_service",
         side_effect=RuntimeError("boom"),
     ):
         health = _collect_pack_skill_health(repo_root)

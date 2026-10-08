@@ -1,15 +1,15 @@
 """Single construction seam for activation-aware doctrine services (FR-010).
 
-This module exposes :func:`build_activation_aware_doctrine_service`, the one
+This module exposes :func:`build_active_charter_service`, the one
 place profile surfaces (``profile list``/``profile show``, ``charter context
 --include``) should call to obtain a :class:`charter.activation.resolver.ActiveCharterService`
 that already has per-kind charter activation filters applied.
 
 FR-008 unification (charter-sole-door-bypass-closure-01KZ3WAA WP01): this
 function is now a **thin re-export** of the single canonical builder,
-:func:`charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service`
+:func:`charter.activation.active_charter_service_builder.build_active_charter_service`
 (C-001 — one factory, constructed by exactly one unified builder). Prior to
-this mission, this module and ``charter.activation.doctrine_service_builder`` each held
+this mission, this module and ``charter.activation.active_charter_service_builder`` each held
 an independent implementation that silently diverged on two axes
 (``active_languages`` computation and ``org_roots`` self-resolution); see the
 charter-layer module's docstring for the resolved behaviour. This module is
@@ -37,16 +37,16 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from charter.activation.resolver import ActiveCharterService
 
-__all__ = ["build_activation_aware_doctrine_service"]
+__all__ = ["build_active_charter_service"]
 
 
-def build_activation_aware_doctrine_service(
+def build_active_charter_service(
     repo_root: Path,
 ) -> ActiveCharterService:
     """Build an activation-filtered doctrine service for ``repo_root``.
 
     Thin re-export of
-    :func:`charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service`
+    :func:`charter.activation.active_charter_service_builder.build_active_charter_service`
     — see that function's docstring for the full construction contract
     (built-in + project + self-resolved org packs, ``active_languages``
     always computed, wrapped with a :class:`~charter.activation.pack_context.PackContext`
@@ -70,8 +70,8 @@ def build_activation_aware_doctrine_service(
     charter.activation.resolver.ActiveCharterService
         The activation-aware wrapper around the inner doctrine service.
     """
-    from charter.activation.doctrine_service_builder import (
-        build_activation_aware_doctrine_service as _canonical_builder,
+    from charter.activation.active_charter_service_builder import (
+        build_active_charter_service as _canonical_builder,
     )
 
     return _canonical_builder(repo_root)

@@ -25,7 +25,7 @@ decision-log delegate, respectively) that have nothing to do with
 finding, post-tasks squad). This gate instead resolves, per file, which local
 names are bound (directly or by import alias) to a *construction* of a
 ``charter.activation.resolver.ActiveCharterService`` -- either the sanctioned factory
-(``build_activation_aware_doctrine_service``, FR-008's unified builder) or the
+(``build_active_charter_service``, FR-008's unified builder) or the
 wrapper's own constructor (``charter.activation.resolver.ActiveCharterService``) -- and flags a
 reach-around only when its receiver is one of those tainted names, or an inline
 construction call. ``self._inner`` on an untainted receiver (the two
@@ -104,8 +104,8 @@ _EXEMPT_FILES = frozenset({"tests/architectural/test_charter_sole_door_inner_rea
 
 # The one sanctioned construction path for a charter.activation.resolver.ActiveCharterService
 # outside src/charter/** (FR-008's unified builder).
-_FACTORY_FUNC_NAME = "build_activation_aware_doctrine_service"
-_FACTORY_MODULES = frozenset({"specify_cli.doctrine_service_factory", "charter.activation.doctrine_service_builder"})
+_FACTORY_FUNC_NAME = "build_active_charter_service"
+_FACTORY_MODULES = frozenset({"specify_cli.doctrine_service_factory", "charter.activation.active_charter_service_builder"})
 
 # The wrapper's own constructor -- tracked too so the taint heuristic stays
 # correct even though NFR-001's sibling gate independently forbids
@@ -408,12 +408,12 @@ def test_planted_reacharound_at_function_local_scope_is_detected(tmp_path: Path)
     planted = tmp_path / "planted_reacharound.py"
     planted.write_text(
         "from specify_cli.doctrine_service_factory import (\n"
-        "    build_activation_aware_doctrine_service,\n"
+        "    build_active_charter_service,\n"
         ")\n"
         "\n"
         "\n"
         "def build_catalog(repo_root):\n"
-        "    service = build_activation_aware_doctrine_service(repo_root)\n"
+        "    service = build_active_charter_service(repo_root)\n"
         "    inner_repo = service._inner.agent_profiles\n"
         "    return inner_repo\n",
         encoding="utf-8",
@@ -457,12 +457,12 @@ def test_getattr_string_reach_around_is_flagged(tmp_path: Path) -> None:
     planted = tmp_path / "getattr_reacharound.py"
     planted.write_text(
         "from specify_cli.doctrine_service_factory import (\n"
-        "    build_activation_aware_doctrine_service,\n"
+        "    build_active_charter_service,\n"
         ")\n"
         "\n"
         "\n"
         "def build_catalog(repo_root):\n"
-        "    service = build_activation_aware_doctrine_service(repo_root)\n"
+        "    service = build_active_charter_service(repo_root)\n"
         '    return getattr(service, "_inner").agent_profiles\n',
         encoding="utf-8",
     )

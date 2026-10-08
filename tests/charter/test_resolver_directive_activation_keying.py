@@ -101,7 +101,7 @@ def test_canonical_form_in_activated_set_also_resolves(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("activation", ["foo", "ACME-001-FOO", "ACME_001_FOO", "acme-001-foo"])
 def test_org_stem_and_literal_id_do_not_conflate_aliases(tmp_path: Path, activation: str) -> None:
-    from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+    from charter.activation.active_charter_service_builder import build_active_charter_service
 
     (tmp_path / ".kittify").mkdir()
     pack = tmp_path / "org"
@@ -113,14 +113,14 @@ def test_org_stem_and_literal_id_do_not_conflate_aliases(tmp_path: Path, activat
     (tmp_path / ".kittify/config.yaml").write_text(
         f"charter_packs:\n  org:\n    packs:\n      - name: org\n        local_path: '{pack}'\nactivated_directives: ['{activation}']\n"
     )
-    gated = build_activation_aware_doctrine_service(tmp_path).directives
+    gated = build_active_charter_service(tmp_path).directives
     expected = "ACME-001-FOO" if activation in {"foo", "ACME-001-FOO"} else "ACME_001_FOO"
     assert set(gated) == {expected}
 
 
 def test_populated_activation_resolves_once_per_service_and_new_service_refreshes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from charter.activation import resolver
-    from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+    from charter.activation.active_charter_service_builder import build_active_charter_service
 
     (tmp_path / ".kittify").mkdir()
     pack = tmp_path / "org"
@@ -139,7 +139,7 @@ def test_populated_activation_resolves_once_per_service_and_new_service_refreshe
         return original(*args, **kwargs)
 
     monkeypatch.setattr(resolver, "resolve_artifact_urn", counted_resolution)
-    service = build_activation_aware_doctrine_service(tmp_path)
+    service = build_active_charter_service(tmp_path)
     assert set(service.directives) == {"FIRST-POLICY"}
     first_calls = calls
     assert first_calls > 0
@@ -147,7 +147,7 @@ def test_populated_activation_resolves_once_per_service_and_new_service_refreshe
     for _ in range(35):
         assert set(service.directives) == {"FIRST-POLICY"}
     assert calls == first_calls, "Repeated delivery must not rescan activation files"
-    refreshed = build_activation_aware_doctrine_service(tmp_path)
+    refreshed = build_active_charter_service(tmp_path)
     assert set(refreshed.directives) == {"SECOND-POLICY"}
     assert calls > first_calls, "A new service must resolve the new repository snapshot"
 

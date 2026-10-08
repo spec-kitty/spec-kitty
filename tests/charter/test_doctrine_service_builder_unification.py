@@ -2,12 +2,12 @@
 
 charter-sole-door-bypass-closure-01KZ3WAA WP01. Proves the C-001 unification
 closed a real divergence: prior to this mission,
-``specify_cli.doctrine_service_factory.build_activation_aware_doctrine_service``
-and ``charter.activation.doctrine_service_builder._build_activation_aware_doctrine_service``
+``specify_cli.doctrine_service_factory.build_active_charter_service``
+and ``charter.activation.active_charter_service_builder._build_active_charter_service``
 were two independent implementations that silently disagreed on two axes
 (``active_languages`` computation and ``org_roots`` self-resolution). Both are
 now thin call-throughs to the single canonical
-:func:`charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service`.
+:func:`charter.activation.active_charter_service_builder.build_active_charter_service`.
 
 Per the post-tasks squad's sequencing correction (data-model.md "Sequencing
 note superseded"), this is written ONCE against the full 9-kind surface in a
@@ -40,11 +40,11 @@ import pytest
 from ruamel.yaml import YAML
 
 from tests._support.org_pack_config import write_org_packs
-from charter.activation.doctrine_service_builder import (
-    build_activation_aware_doctrine_service as charter_builder,
+from charter.activation.active_charter_service_builder import (
+    build_active_charter_service as charter_builder,
 )
 from specify_cli.doctrine_service_factory import (
-    build_activation_aware_doctrine_service as specify_cli_builder,
+    build_active_charter_service as specify_cli_builder,
 )
 
 pytestmark = pytest.mark.fast
@@ -142,9 +142,9 @@ def test_specify_cli_entry_point_delegates_to_charter_builder(
     ``specify_cli`` entry point -- proving it is a thin re-export, not an
     independent second implementation that merely happens to agree today.
     """
-    import charter.activation.doctrine_service_builder as builder_module
+    import charter.activation.active_charter_service_builder as builder_module
     from specify_cli.doctrine_service_factory import (
-        build_activation_aware_doctrine_service as specify_cli_entry_point,
+        build_active_charter_service as specify_cli_entry_point,
     )
 
     sentinel = object()
@@ -154,7 +154,7 @@ def test_specify_cli_entry_point_delegates_to_charter_builder(
         calls.append(repo_root)
         return sentinel
 
-    monkeypatch.setattr(builder_module, "build_activation_aware_doctrine_service", _fake_builder)
+    monkeypatch.setattr(builder_module, "build_active_charter_service", _fake_builder)
 
     result = specify_cli_entry_point(tmp_path)
 
@@ -288,7 +288,7 @@ def test_bare_project_admits_language_scoped_builtin_profiles(tmp_path: Path) ->
     infer_repo_languages(repo_root)`` computed ``[]`` for this exact bare
     fixture (no compiled charter, no interview answers), and the four
     language-scoped built-ins below were absent from
-    ``build_activation_aware_doctrine_service(bare_root).agent_profiles``
+    ``build_active_charter_service(bare_root).agent_profiles``
     (14 profiles instead of 18) -- matching the two independent adversarial
     review lenses that reproduced this on PR #3175.
     """

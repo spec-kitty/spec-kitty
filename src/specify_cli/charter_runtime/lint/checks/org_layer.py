@@ -288,7 +288,7 @@ def _build_scan_service(repo_root: Path, *, org_roots: list[Path] | None = None)
     documented as not gating.
 
     The inner service is built via
-    :func:`charter.activation.doctrine_service_builder._build_doctrine_service` — the
+    :func:`charter.activation.active_charter_service_builder._build_offering_service` — the
     ONE function in this codebase permitted to construct a raw
     ``charter.offering.service.CharterOfferingService`` (NFR-001) — so this scan path
     shares the same ``active_languages``/``project_root`` resolution as
@@ -311,7 +311,7 @@ def _build_scan_service(repo_root: Path, *, org_roots: list[Path] | None = None)
     (:func:`_build_service_with_org_layer` / :func:`_build_built_in_only_service`)
     treat a ``None`` return as "skip the check" (``OrgOverridesBuiltinChecker.run``'s
     ``if service is None: return []`` / ``if built_in_only is None: return []``).
-    ``charter.activation.doctrine_service_builder`` and ``charter.activation.resolver`` are
+    ``charter.activation.active_charter_service_builder`` and ``charter.activation.resolver`` are
     first-party modules shipped in the same wheel as this one -- there is no
     legitimate partial-install scenario in which this import fails -- so the
     handler could only ever fire on a genuinely broken install, in which case
@@ -319,10 +319,10 @@ def _build_scan_service(repo_root: Path, *, org_roots: list[Path] | None = None)
     org-override report. The import is left function-local (matching this
     module's lazy-import convention) but is no longer guarded.
     """
-    from charter.activation.doctrine_service_builder import _build_doctrine_service
+    from charter.activation.active_charter_service_builder import _build_offering_service
     from charter.activation.resolver import ActiveCharterService
 
-    inner = _build_doctrine_service(repo_root, org_roots=org_roots)
+    inner = _build_offering_service(repo_root, org_roots=org_roots)
     return ActiveCharterService(inner, pack_context=None)
 
 

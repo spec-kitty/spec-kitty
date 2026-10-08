@@ -10,7 +10,7 @@ from the existing ``charter/compact.py`` (WP03's ``render_compact_view`` /
 ``_resolve_governance_summary`` home). The two are not to be conflated.
 
 Cycle note: three collaborators used here (``_load_doctrine_selection``,
-``_build_doctrine_service``, ``_render_profile_sections``) stay in
+``_build_offering_service``, ``_render_profile_sections``) stay in
 ``charter.activation.context`` (org-pack-discovery / doctrine-service-builder /
 profile-driven-rendering clusters, relocated by a later WP). Function-local
 imports break the load-time cycle a top-level import would create
@@ -152,12 +152,12 @@ def _render_compact_governance(
         # service constructor is cheap (catalog directories are mmaped
         # lazily) and the resulting sections compose with the compact
         # block without altering the existing ID/anchor surface.
-        # Cycle note: ``_build_doctrine_service`` / ``_render_profile_sections``
+        # Cycle note: ``_build_offering_service`` / ``_render_profile_sections``
         # stay in ``charter.activation.context`` (see module docstring); function-local
         # imports avoid a load cycle.
-        from charter.activation.context import _build_doctrine_service, _render_profile_sections  # noqa: PLC0415
+        from charter.activation.context import _build_offering_service, _render_profile_sections  # noqa: PLC0415
 
-        service = _build_doctrine_service(repo_root)
+        service = _build_offering_service(repo_root)
         profile_block_str = _render_profile_sections(profile, service)
         if profile_block_str:
             augmented_blocks.append(profile_block_str)

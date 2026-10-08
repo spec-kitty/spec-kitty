@@ -47,7 +47,7 @@ def test_activation_aware_profile_map_returns_cached(monkeypatch: pytest.MonkeyP
     def _must_not_build(*_a: object, **_k: object) -> object:  # pragma: no cover - guard
         raise AssertionError("service was rebuilt despite a cached map")
 
-    monkeypatch.setattr(context, "_build_activation_aware_doctrine_service", _must_not_build)
+    monkeypatch.setattr(context, "_build_active_charter_service", _must_not_build)
     try:
         assert context._activation_aware_profile_map(repo_root, []) is sentinel
     finally:
