@@ -61,13 +61,17 @@ _CANONICAL_GOVERNING_SURFACE = "charter"
 
 #: T004's required Terminology-Canon senses for the new ``### charter`` entry
 #: (plan.md Slice 4 / mission prompt bullet 4).
+#: Mission charter-pack-cutover-01M491G6 (FR-013, ADR 2026-10-06-1 §1) retires the
+#: "Pack Default Charter" sense in favour of the activation preset and adds the
+#: active charter; the entry must name both instead.
 _REQUIRED_CHARTER_CANON_SENSES: tuple[str, ...] = (
     "Charter Bundle",
     "Charter Pack",
     "src/charter/",
     "spec-kitty charter",
     "Active-Inactive Charter",
-    "Pack Default Charter",
+    "Activation preset",
+    "Active charter",
 )
 
 _MD_HEADING_RE = re.compile(r"^### (.+?)\s*$", re.MULTILINE)
@@ -304,8 +308,9 @@ def test_owned_referrer_inline_links_repointed_to_charter_md() -> None:
 
 
 def test_owned_referrer_preserved_anchors_and_link_text() -> None:
-    """T003 preserves the #doctrine-catalog / #procedure anchors + link TEXT
-    ('Doctrine Catalog'/'Procedure' are kept domain vocab, not renamed)."""
+    """T003 preserved the #procedure anchor + link TEXT; the retired Doctrine
+    Catalog entry's links now point at its successor, Charter offering
+    (mission charter-pack-cutover-01M491G6, FR-013)."""
     orchestration = _REPO_ROOT / "docs" / "context" / "orchestration.md"
     governance = _REPO_ROOT / "docs" / "context" / "governance.md"
     config_structure = _REPO_ROOT / "docs" / "context" / "configuration-project-structure.md"
@@ -315,5 +320,5 @@ def test_owned_referrer_preserved_anchors_and_link_text() -> None:
     config_structure_text = config_structure.read_text(encoding="utf-8")
 
     assert "[Procedure](./charter.md#procedure)" in orchestration_text
-    assert "[Doctrine Catalog](./charter.md#doctrine-catalog)" in governance_text
-    assert "[Doctrine Catalog](./charter.md#doctrine-catalog)" in config_structure_text
+    assert "[Charter offering](./charter.md#charter-offering)" in governance_text
+    assert "[Charter offering](./charter.md#charter-offering)" in config_structure_text

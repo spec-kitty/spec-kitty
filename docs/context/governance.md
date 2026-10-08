@@ -92,7 +92,7 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 | **Context** | Governance |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Charter](#charter), [Charter Interview](#charter-interview), [Charter offering](./charter.md#doctrine-catalog) |
+| **Related terms** | [Charter](#charter), [Charter Interview](#charter-interview), [Charter offering](./charter.md#charter-offering) |
 
 ---
 
@@ -104,7 +104,7 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 | **Context** | Governance |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Charter Compiler](#charter-compiler), [Charter offering](./charter.md#doctrine-catalog) |
+| **Related terms** | [Charter Compiler](#charter-compiler), [Charter offering](./charter.md#charter-offering) |
 
 ---
 

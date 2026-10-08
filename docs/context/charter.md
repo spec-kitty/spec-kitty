@@ -2,7 +2,7 @@
 title: 'Context: Charter'
 description: 'Glossary context for the canonical Charter governing term (glossary authority 3) plus the Doctrine domain model and artifact taxonomy for governance behavior and constraints.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-08'
 related:
 - docs/context/configuration-project-structure.md
 - docs/context/execution.md
@@ -28,8 +28,92 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x`, `3.x` |
-| **Do NOT use when** | The concept is the `.kittify/charter/` directory tree and its constituent files (activation state, DRG cache, synthesis manifest) as a unit — use **Charter Bundle**. The concept is a distributable, versioned collection of charter-activatable artifacts *offered* to a project (the offer-side catalog, not the materialized Bundle) — use **Charter Pack**. This is the canonical name for what the current implementation still calls [Doctrine Pack](#doctrine-pack); the code-level collapse of that name into Charter Pack is a later wave of `retire-doctrine-term-01M0JMK9`, not M1. The concept is the `src/charter/` Python package (facades, resolver, synthesis, activation engine) — use **the `src/charter/` package**. The concept is the `spec-kitty charter ...` CLI command group (`interview`, `generate`, `sync`, `context`, `activate`, `deactivate`) — use **the `spec-kitty charter` CLI group**. The concept is a single charter-activatable artifact's own per-project state (the **Active-Inactive Charter** distinction) — use **Active Charter artifact** / **Inactive Charter artifact** (ADR 2026-08-22-2 §76-77). The concept is the shipped default charter template set applied before any project-level customization — use **Pack Default Charter**. Never use bare "doctrine" for any of these senses; the governing term retired to `charter` (mission `retire-doctrine-term-01M0JMK9`, M1). |
-| **Related terms** | [Charter Selection](#charter-selection), [Charter-Mediated Selection](#charter-mediated-selection), [Doctrine Pack](#doctrine-pack), [Charter Facade](#charter-facade) |
+| **Do NOT use when** | The concept is the `.kittify/charter/` directory tree and its files (activation state, DRG cache, synthesis manifest) as a unit — use [Charter Bundle](#charter-bundle). The concept is a distributable bundle of charter components offered to a project — use [Charter Pack](#charter-pack); everything offered to a project, packs and project layer together, is the [Charter offering](#charter-offering). The concept is a named, ready-made set of activations a pack ships (`default`, `minimal`) — use [Activation preset](#activation-preset). The concept is what a project has activated (its `activated_<kind>` keys, `activated_kinds` and `mission_type_activations`) — use [Active charter](#active-charter). The concept is a single artifact's own per-project state (the **Active-Inactive Charter** distinction) — say "an active directive" or "an inactive tactic": "active" and "inactive" alone describe one artifact, "active charter" names the project's activated set as a whole, and the `.kittify/charter/` tree is never called "active" ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-1-charter-offering-active-charter-and-activation-presets.md) §1). The concept is the `src/charter/` Python package (facades, resolver, synthesis, activation engine) — use **the `src/charter/` package**. The concept is the `spec-kitty charter ...` CLI command group (`interview`, `generate`, `context`, `activate`, `deactivate`, `pack`, ...) — use **the `spec-kitty charter` CLI group**. Never use bare "doctrine" for any of these senses; the governing term is `charter`. |
+| **Related terms** | [Charter offering](#charter-offering), [Charter Pack](#charter-pack), [Activation preset](#activation-preset), [Active charter](#active-charter), [Project layer](#project-layer), [Charter Bundle](#charter-bundle), [Charter-Mediated Selection](#charter-mediated-selection), [Charter Facade](#charter-facade) |
+
+---
+
+### Charter offering
+
+| | |
+|---|---|
+| **Definition** | Everything offered to a project: the [Charter Packs](#charter-pack) it can draw from (the built-in pack and each configured org pack) plus the [Project layer](#project-layer). The offer side of the charter; the activation side is the [Active charter](#active-charter). Defined in [ADR 2026-10-06-1](../adr/4.x/2026-10-06-1-charter-offering-active-charter-and-activation-presets.md) §1. |
+| **Context** | Charter |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Location** | `src/charter/offering/`, `packs/` |
+| **Related terms** | [Charter Pack](#charter-pack), [Project layer](#project-layer), [Active charter](#active-charter), [Organization Tier](#organization-tier) |
+| **Do NOT use when** | The concept is what the project has activated from the offering — use [Active charter](#active-charter). The concept is one distributable bundle — use [Charter Pack](#charter-pack). |
+
+---
+
+### Charter Pack
+
+| | |
+|---|---|
+| **Definition** | A distributable bundle of charter components (artifacts and their DRG edges) together with optional [activation presets](#activation-preset) shipped as `presets/<name>.yaml`. An org pack may also enforce activations through `required_<kind>` lists in its `org-charter.yaml`. A pack is identified by its `charter_pack_id` (`built-in`, an org pack's configured name, or `project`); org packs are configured under `charter_packs.org.packs` in `.kittify/config.yaml`. Validated with `spec-kitty charter pack validate`, listed with `spec-kitty charter pack list`. |
+| **Context** | Charter |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Location** | `packs/built-in/`, `charter_packs.org.packs[]`, `src/charter/offering/packs/` |
+| **Related terms** | [Charter offering](#charter-offering), [Activation preset](#activation-preset), [Project layer](#project-layer), [Activation Registry](#activation-registry), [Organization Tier](#organization-tier) |
+| **Do NOT use when** | The concept is a named starting set of activations — use [Activation preset](#activation-preset). The concept is the project's own activation state — use [Active charter](#active-charter). The concept is the `.kittify/charter/` tree — use [Charter Bundle](#charter-bundle). |
+
+---
+
+### Activation preset
+
+| | |
+|---|---|
+| **Definition** | A named set of activations that a [Charter Pack](#charter-pack) ships (`presets/<name>.yaml`: per-kind `activated_<kind>` keys, `activated_kinds`, `mission_type_activations`), applied with `spec-kitty charter activate [--pack <pack>] --preset <name>`. Applying a preset replaces every activation key it governs; changing a customised key needs `--force`. The applied preset name is not stored. The built-in pack ships `default` (no per-kind restriction, so every built-in artifact is in force, plus the built-in mission types) and `minimal` (a small curated baseline). |
+| **Context** | Charter |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Location** | `packs/built-in/presets/`, `<pack>/presets/` |
+| **Related terms** | [Charter Pack](#charter-pack), [Active charter](#active-charter), [activated_&lt;kind&gt;](#activated_kind) |
+| **Do NOT use when** | The concept is a context-scoped activation entry — use [Activation Registry](#activation-registry). The concept is a single artifact's state ("an active directive"). The concept is the project's activation state after a preset was applied — use [Active charter](#active-charter). |
+
+---
+
+### Active charter
+
+| | |
+|---|---|
+| **Definition** | What a project has activated: its `activated_<kind>` keys, `activated_kinds` and `mission_type_activations`, read from `.kittify/config.yaml` or the `charter.yaml` it points to; list it with `spec-kitty charter list --json`. The activation side of the charter, resolved by `PackContext.from_config` and served by `ActiveCharterService`; an invalid shape fails with `ACTIVE_CHARTER_CONFIG_INVALID`. **The "active" guard** ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-1-charter-offering-active-charter-and-activation-presets.md) §1): "active" and "inactive" alone still describe one artifact ("an active directive"); "active charter" names the project's activated set as a whole; the `.kittify/charter/` tree is never called "active". |
+| **Context** | Charter |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Location** | `.kittify/config.yaml`, `.kittify/charter/charter.yaml`, `src/charter/activation/` |
+| **Related terms** | [activated_&lt;kind&gt;](#activated_kind), [Activation preset](#activation-preset), [Charter offering](#charter-offering), [Charter-Mediated Selection](#charter-mediated-selection) |
+| **Do NOT use when** | The concept is what is offered rather than activated — use [Charter offering](#charter-offering). The concept is the materialised `.kittify/charter/` tree — use [Charter Bundle](#charter-bundle). The concept is a ready-made set of activations — use [Activation preset](#activation-preset). |
+
+---
+
+### Project layer
+
+| | |
+|---|---|
+| **Definition** | The project's own charter components, under the one flat root `.kittify/charter-packs/` (`charter_pack_id` `project`). It is part of the [Charter offering](#charter-offering), ships no presets, and is listed by `spec-kitty charter pack list` as the `project` row. `spec-kitty charter synthesize` writes here. |
+| **Context** | Charter |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Location** | `.kittify/charter-packs/` |
+| **Related terms** | [Charter offering](#charter-offering), [Charter Pack](#charter-pack), [Three-layer DRG](#three-layer-drg) |
+| **Do NOT use when** | The concept is the materialised charter output — use [Charter Bundle](#charter-bundle). The concept is an org pack checked into the repository — use [Charter Pack](#charter-pack). |
+
+---
+
+### Charter Bundle
+
+| | |
+|---|---|
+| **Definition** | The materialised `.kittify/charter/` tree as a unit: `charter.md`, the synthesis manifest, the DRG cache and provenance. Produced by `spec-kitty charter generate` and `spec-kitty charter synthesize`; validated by `spec-kitty charter bundle validate`. |
+| **Context** | Charter |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Location** | `.kittify/charter/` |
+| **Related terms** | [charter](#charter), [Active charter](#active-charter), [Project layer](#project-layer) |
+| **Do NOT use when** | The concept is the project's activation state — use [Active charter](#active-charter); never call the bundle "active". The concept is the project's own authored components — use [Project layer](#project-layer). |
 
 ---
 
@@ -55,7 +139,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 | **Status**        | canonical                                                                                                                                                                                                                               |
 | **Applicable to** | `1.x`, `2.x` |
 | **Location**      | Precedence concept in governance model (no dedicated `guidelines/` directory in the current `src/charter/offering/` tree)                                                                                                                           |
-| **Related terms** | [Directive](#directive), [Charter Selection](#charter-selection), [Precedence Hierarchy](./governance.md)                                                                                                                  |
+| **Related terms** | [Directive](#directive), [Active charter](#active-charter), [Precedence Hierarchy](./governance.md)                                                                                                                  |
 
 ---
 
@@ -68,7 +152,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 | **Status**        | canonical                                                                                                                                                                                                                               |
 | **Applicable to** | `1.x`, `2.x` |
 | **Location**      | `packs/built-in/paradigms/`                                                                                                                                                                                                              |
-| **Related terms** | [Directive](#directive), [Tactic](#tactic), [Charter](#charter-selection)                                                                                                                                                   |
+| **Related terms** | [Directive](#directive), [Tactic](#tactic), [Active charter](#active-charter)                                                                                                                                                   |
 
 ---
 
@@ -120,7 +204,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 | **Status**        | canonical                                                                                                                                                                                                                               |
 | **Applicable to** | `1.x`, `2.x` |
 | **Location**      | `src/charter/offering/templates/sets/`                                                                                                                                                                                                         |
-| **Related terms** | [Procedure](#procedure), [Tactic](#tactic), [Charter Selection](#charter-selection)                                                                                                                                         |
+| **Related terms** | [Procedure](#procedure), [Tactic](#tactic), [Active charter](#active-charter)                                                                                                                                         |
 
 ---
 
@@ -133,7 +217,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 | **Status**        | canonical                                                                                                                                                                                                                               |
 | **Applicable to** | `1.x`, `2.x` |
 | **Location**      | `packs/built-in/styleguides/`                                                                                                                                                                                                            |
-| **Related terms** | [Toolguide](#toolguide), [Schema (Doctrine Artifact)](#schema-doctrine-artifact), [Charter Selection](#charter-selection)                                                                                                   |
+| **Related terms** | [Toolguide](#toolguide), [Schema (Doctrine Artifact)](#schema-doctrine-artifact), [Active charter](#active-charter)                                                                                                   |
 
 ---
 
@@ -173,31 +257,6 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 | **Applicable to** | `1.x`, `2.x` |
 | **Location**      | `src/charter/offering/import_candidates/`                                                                                                                             |
 | **Related terms** | [Directive](#directive), [Tactic](#tactic), [Schema (Doctrine Artifact)](#schema-doctrine-artifact), [ADR (Architectural Decision Record)](./governance.md)                          |
-
----
-
-### Charter Selection
-
-|                   |                                                                                                                                                                                                                                         |
-|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Definition**    | The project-level selection layer that activates and narrows doctrine assets (for example selected paradigms, directives, agent profiles, available tools, and template set) without changing doctrine source artifacts.               |
-| **Context**       | Doctrine                                                                                                                                                                                                                                |
-| **Status**        | canonical                                                                                                                                                                                                                               |
-| **Applicable to** | `1.x`, `2.x` |
-| **Location**      | `.kittify/charter/`                                                                                                                                                                                                               |
-| **Related terms** | [Doctrine Domain](#doctrine-domain), [Governance](./governance.md), [Configuration & Project Structure](./configuration-project-structure.md)                                                                                        |
-
----
-
-### Doctrine Catalog
-
-|                   |                                                                                                                                                                                                                                         |
-|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Definition**    | The registry of all available paradigms, directives, template sets, and tools that the HiC can select from when building their charter. The charter compiler validates selections against this catalog.                       |
-| **Context**       | Doctrine                                                                                                                                                                                                                                |
-| **Status**        | canonical                                                                                                                                                                                                                               |
-| **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Charter Selection](#charter-selection), [Charter Compiler](./governance.md#charter-compiler), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic)                                                         |
 
 ---
 
@@ -261,7 +320,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
-| **Related terms** | [Global Selection](#global-selection), [Context-Scoped Selection](#context-scoped-selection), [Charter Facade](#charter-facade), [Doctrine Pack](#doctrine-pack), [activated_&lt;kind&gt;](#activated_kind) |
+| **Related terms** | [Global Selection](#global-selection), [Context-Scoped Selection](#context-scoped-selection), [Charter Facade](#charter-facade), [Charter Pack](#charter-pack), [activated_&lt;kind&gt;](#activated_kind) |
 
 ---
 
@@ -293,11 +352,12 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | Charter-level list of `(activation_context, charter_pack_id, artifact_id)` tuples expressing which doctrine artifacts activate in which contexts. Lives on the charter (not on the artifact) so different projects can activate the same shared artifact in different contexts without forking it. Both project charter and org charter may declare entries; org-declared entries propagate to consumers via the standard org-charter pre-fill. |
+| **Definition** | Charter-level list of `(activation_context, charter_pack_id, artifact_id)` tuples expressing which charter artifacts activate in which contexts (`charter_pack_id` names the [Charter Pack](#charter-pack)). Lives on the charter (not on the artifact) so different projects can activate the same shared artifact in different contexts without forking it. Both project charter and org charter may declare entries; org-declared entries propagate to consumers via the standard org-charter pre-fill. |
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
-| **Related terms** | [Activation Context](#activation-context), [Context-Scoped Selection](#context-scoped-selection), [Doctrine Pack](#doctrine-pack) |
+| **Related terms** | [Activation Context](#activation-context), [Context-Scoped Selection](#context-scoped-selection), [Charter Pack](#charter-pack) |
+| **Do NOT use when** | The concept is a named set of activations a pack ships and `charter activate --preset` applies — use [Activation preset](#activation-preset). The concept is the project's activated set as a whole — use [Active charter](#active-charter). |
 
 ---
 
@@ -310,32 +370,6 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
 | **Related terms** | [Activation Registry](#activation-registry), [Mission-Type Profile](#mission-type-profile) |
-
----
-
-### Doctrine Pack
-
-> **Terminology note:** "Doctrine Pack" is the *current implementation name* for the offer-side catalog whose canonical term is **Charter Pack** (ADR 2026-08-22-2 §74). It is retained here as a code-accurate entry; renaming the module/vocabulary is a later wave of `retire-doctrine-term-01M0JMK9`, out of M1's authority-flip scope.
-
-| | |
-|---|---|
-| **Definition** | A versioned, distributable bundle of doctrine artifacts (glossary terms, tactics, directives, agent profiles, styleguides, and toolguides) that can be installed into a project to govern its development practices. Packs are identified by a stable [Doctrine Pack ID](#doctrine-pack-id) and registered in `.kittify/config.yaml` under `doctrine.org.packs`. The spec-kitty built-in pack is the base layer; project-layer overrides live at `.kittify/doctrine/`. |
-| **Context** | Doctrine |
-| **Status** | canonical |
-| **Applicable to** | `2.x` |
-| **Related terms** | [Doctrine Pack ID](#doctrine-pack-id), [Activation Registry](#activation-registry), [Organization Tier](#organization-tier) |
-
----
-
-### Doctrine Pack ID
-
-| | |
-|---|---|
-| **Definition** | The stable identifier of a doctrine pack (declared in the pack's manifest or in `.kittify/config.yaml` `doctrine.org.packs[].name`). Used as the second tuple element in the [Activation Registry](#activation-registry) to disambiguate when multiple packs ship artifacts with the same id. Special values: `project` (the project-layer pack at `.kittify/doctrine/`), `built-in` (the spec-kitty bundled pack). |
-| **Context** | Doctrine |
-| **Status** | canonical |
-| **Applicable to** | `2.x` |
-| **Related terms** | [Doctrine Pack](#doctrine-pack), [Activation Registry](#activation-registry) |
 
 ---
 
@@ -379,7 +413,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | The field-naming convention for [Global Selection](#global-selection) entries. On the project charter (`DoctrineSelectionConfig`), each artifact kind gets a `selected_<kind>: [<id>, ...]` field — `selected_directives`, `selected_styleguides`, `selected_toolguides`, `selected_paradigms`, `selected_tactics`, `selected_procedures`, `selected_agent_profiles`, `selected_mission_step_contracts`. On the org charter (`OrgCharterPolicy`), the mirror is `required_<kind>: [<id>, ...]`. `apply_org_charter_to_interview` unions the org `required_<kind>` into the project `selected_<kind>` non-destructively. The architectural test `test_artifact_selection_completeness.py` enforces parity — every `DoctrineService` artifact kind has both a `selected_*` and a `required_*` field. These fields are the CHARTER-AUTHORED record of a selection, not an independent activation source: they are unioned as an additive project-local layer over the resolved [activated_&lt;kind&gt;](#activated_kind) base (`PackContext.from_config`) at the surfaces that resolve activation today (e.g. `_resolve_directive_base` in `resolver.py`). |
+| **Definition** | The field-naming convention for [Global Selection](#global-selection) entries. On the project charter (`GovernanceCharterConfig`), each artifact kind gets a `selected_<kind>: [<id>, ...]` field — `selected_directives`, `selected_styleguides`, `selected_toolguides`, `selected_paradigms`, `selected_tactics`, `selected_procedures`, `selected_agent_profiles`, `selected_mission_step_contracts`. On the org charter (`OrgCharterPolicy`), the mirror is `required_<kind>: [<id>, ...]`. `apply_org_charter_to_interview` unions the org `required_<kind>` into the project `selected_<kind>` non-destructively. The architectural test `test_artifact_selection_completeness.py` enforces parity — every `ActiveCharterService` artifact kind has both a `selected_*` and a `required_*` field. These fields are the CHARTER-AUTHORED record of a selection, not an independent activation source: they are unioned as an additive project-local layer over the resolved [activated_&lt;kind&gt;](#activated_kind) base (`PackContext.from_config`) at the surfaces that resolve activation today (e.g. `_resolve_directive_base` in `resolver.py`). |
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
@@ -412,7 +446,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
-| **Related terms** | [Doctrine Pack](#doctrine-pack), [Organization Tier](#organization-tier), [Charter-Mediated Selection](#charter-mediated-selection) |
+| **Related terms** | [Charter Pack](#charter-pack), [Organization Tier](#organization-tier), [Charter-Mediated Selection](#charter-mediated-selection) |
 
 ---
 
@@ -615,12 +649,12 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | The middle layer of the three-layer DRG model, contributed by one or more configured org doctrine packs. Each pack ships an `org-charter.yaml` (governance policies and required artifact selections) and an optional `drg/fragment.yaml` (DRG extension nodes and edges). Organization-tier content propagates to all consumer projects via `apply_org_charter_to_interview` and the standard charter pre-fill path. |
+| **Definition** | The middle layer of the three-layer DRG model, contributed by one or more org [Charter Packs](#charter-pack) configured under `charter_packs.org.packs` in `.kittify/config.yaml`. Each pack ships an `org-charter.yaml` (governance policies and required artifact selections) and an optional `drg/fragment.yaml` (DRG extension nodes and edges). Organization-tier content propagates to all consumer projects via `apply_org_charter_to_interview` and the standard charter pre-fill path. |
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
 | **Alias** | `Organisation Tier` (UK spelling, legacy) |
-| **Related terms** | [Three-layer DRG](#three-layer-drg), [Doctrine Pack](#doctrine-pack), [Charter Selection](#charter-selection) |
+| **Related terms** | [Three-layer DRG](#three-layer-drg), [Charter Pack](#charter-pack), [Active charter](#active-charter) |
 
 ---
 
@@ -704,7 +738,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
-| **Related terms** | [Doctrine Catalog](#doctrine-catalog), [Charter Selection](#charter-selection), [Organization Tier](#organization-tier) |
+| **Related terms** | [Charter offering](#charter-offering), [Active charter](#active-charter), [Organization Tier](#organization-tier) |
 
 ---
 
