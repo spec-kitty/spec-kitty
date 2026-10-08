@@ -40,10 +40,11 @@ the parity contract).
 
 from __future__ import annotations
 
+import functools
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import typer
 from rich.text import Text
@@ -63,6 +64,7 @@ from specify_cli.coordination.commit_outcome import (
     render_commit_outcome,
 )
 from specify_cli.requirement_mapping import CoverageSummary, grammar
+from specify_cli.status.mission_write import mission_write_lock
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
 
 #: ``actor`` recorded on the ``tracker_refs`` ``InnerStateChanged`` annotation
@@ -488,6 +490,18 @@ def _mr_gate_offenders(st: _MapReqState) -> None:
         raise typer.Exit(1)
 
 
+def _mr_set_requirement_refs(frontmatter: dict[str, Any], *, refs: list[str]) -> None:
+    """Set ``requirement_refs`` on the frontmatter read under the lock, after the typed read accepts it.
+
+    The typed model read (``WPMetadata``) fails BEFORE any write on a work package it rejects (for
+    example a non-string ``requirement_refs`` item), leaving the file byte-unchanged (T017).
+    """
+    from specify_cli.status import WPMetadata
+
+    WPMetadata.model_validate(dict(frontmatter), strict=False)
+    frontmatter["requirement_refs"] = list(refs)
+
+
 def _mr_write_frontmatter(st: _MapReqState) -> None:
     """Phase E: apply the core's ``to_write`` to WP frontmatter + emit the
     ``tracker_refs`` annotation (WP08 / FR-006).
@@ -500,8 +514,7 @@ def _mr_write_frontmatter(st: _MapReqState) -> None:
     ``--replace`` (never degraded to a union). No frontmatter read/write is
     involved in the tracker_refs path any more (C-002 typed delta).
     """
-    from specify_cli.frontmatter import write_frontmatter
-    from specify_cli.status import read_wp_frontmatter
+    from specify_cli.frontmatter import locked_update_frontmatter
     from specify_cli.status import emit_inner_state_changed
     from specify_cli.status import WPInnerStateDelta
 
@@ -511,18 +524,20 @@ def _mr_write_frontmatter(st: _MapReqState) -> None:
         if wp_file is None:
             continue
 
-        wp_meta, body = read_wp_frontmatter(wp_file)
-        update_kwargs: dict[str, list[str]] = {}
-
         # Only update requirement_refs when refs were supplied; preserves backward
         # compatibility for the tracker-only invocation. The merged value is the
         # pure core's ``to_write`` (WP04) — the inline replace/union is deleted.
+        # mission-writer-followups WP04 (FR-002): the write is a locked read-modify-write of
+        # the frontmatter and body as they are NOW, so a field or note another writer landed
+        # since the plan was read survives; ``_do_map_requirements`` also holds the same
+        # (re-entrant) Mission lock from the plan read to here, so ``to_write`` is never stale.
         if not st.tracker_only_mode:
-            update_kwargs["requirement_refs"] = st.mapping_plan.to_write[wp_id]
-
-        if update_kwargs:
-            updated_meta = wp_meta.update(**update_kwargs)
-            write_frontmatter(wp_file, updated_meta.model_dump(exclude_none=True), body)
+            locked_update_frontmatter(
+                wp_file,
+                functools.partial(_mr_set_requirement_refs, refs=list(st.mapping_plan.to_write[wp_id])),
+                feature_dir=st.primary_dir,
+                repo_root=st.main_repo_root,
+            )
 
         # T030 / WP08 / FR-006: tracker_refs is event-sourced now. Emit the
         # delta instead of pre-merging a frontmatter read — the reducer owns
@@ -858,9 +873,12 @@ def _do_map_requirements(
         _mr_resolve_context(st)
         ports = ports or _default_map_requirements_ports(st.target_branch)
         _mr_resolve_read_dirs(st, ports)
-        _mr_plan(st)
-        _mr_gate_offenders(st)
-        _mr_write_frontmatter(st)
+        # One hold from the plan's read of the stored refs to the write of the merged ones: a
+        # second invocation's refs are either in this plan or written after it, never lost (FR-002).
+        with mission_write_lock(st.primary_dir, repo_root=st.main_repo_root):
+            _mr_plan(st)
+            _mr_gate_offenders(st)
+            _mr_write_frontmatter(st)
         _mr_stale_gate(st)
         _mr_auto_commit(st, ports)
         _mr_emit_output(st)
