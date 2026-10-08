@@ -240,7 +240,6 @@ def _status(section: str) -> str:
 
 @covers("FR-013")
 @pytest.mark.corpus
-@pending_until("WP24", "the glossary defines the new charter terms")
 def test_fr013_glossary_defines_terms() -> None:
     sections = _glossary_sections()
     assert "charter" in sections, "control: the glossary parses"
@@ -266,7 +265,6 @@ def _deprecated_with_replacement(entry: dict[str, object] | None) -> bool:
 
 @covers("FR-013")
 @pytest.mark.corpus
-@pending_until("WP24", "retired terms retired from charter.md and deprecated in the glossary seed and pack")
 def test_fr013_retired_terms_redirected() -> None:
     """Retire, do not redefine: FR-018 forbids the retired spellings on charter.md, so they live on only
     as ``deprecated`` entries in the FR-018-exempt seed and built-in glossary pack, each naming its successor."""
@@ -287,7 +285,6 @@ def test_fr013_retired_terms_redirected() -> None:
 
 @covers("FR-013")
 @pytest.mark.corpus
-@pending_until("WP24", "no living citation of the missing ADR 2026-08-22-2")
 def test_fr013_no_living_citation_of_missing_adr() -> None:
     assert CUTOVER_ADR.is_file(), "control: the new citation target exists"
     offenders: list[str] = []

@@ -356,7 +356,6 @@ REMOVED_KEYS_AND_PATHS = ("doctrine.org.packs", "organisation_packs", "governanc
 
 @covers("FR-017", "SC-005", "EC:Saved script calling `spec-kitty doctrine fetch`")
 @pytest.mark.corpus
-@pending_until("WP24", "the changelog Before/After names every removed name")
 def test_fr017_changelog_before_after_lists_every_removed_name() -> None:
     names = _contract_before_names()
     assert len(names) >= 15, "control: the contract tables parse"
@@ -396,7 +395,6 @@ def test_fr017_changelog_matching_is_semantic() -> None:
 
 @covers("FR-017")
 @pytest.mark.corpus
-@pending_until("WP24", "runbook exists; superseded runbooks carry a historical banner")
 def test_fr017_runbook_and_historical_banners() -> None:
     assert all(p.is_file() for p in SUPERSEDED_RUNBOOKS), "control: the superseded runbooks exist"
     text = RUNBOOK.read_text(encoding="utf-8")
