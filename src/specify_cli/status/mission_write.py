@@ -293,6 +293,8 @@ def mission_write_lock(
     * ``migration/runtime_state_cutover.py``: ``_flip_phase``
     * ``upgrade/feature_meta.py``: ``write_feature_meta``
     * ``upgrade/migrations/m_0_13_8_target_branch.py``: ``TargetBranchMigration.apply``
+    * ``upgrade/migrations/m_2_0_6_consistency_sweep.py``: the meta, work-package and ``tasks.md`` repairs
+    * ``migration/backfill_ownership.py``: the work-package ownership backfill
     """
     root = resolve_status_lock_root(feature_dir, repo_root)
     try:

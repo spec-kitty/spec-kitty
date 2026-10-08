@@ -261,3 +261,24 @@ def test_the_guard_still_refuses_a_missing_matrix(bare_coord_mission: tuple[Path
         acceptance_matrix.locked_acceptance_verdict_guard(repo, primary, timeout=SHORT_LOCK_WAIT),
     ):
         pytest.fail("a missing matrix is never ready")
+
+
+def test_acceptance_scaffold_checks_and_writes_in_one_hold(bare_coord_mission: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    """``scaffold_acceptance_matrix``'s exists check and write run with the Mission lock held, whichever directory names it."""
+    repo, primary, _coord = bare_coord_mission
+    lock_path = feature_status_lock_path(repo, COORD_NAME)
+    held_at_write: list[bool] = []
+    real_write = acceptance_matrix.write_acceptance_matrix
+
+    def spy(feature_dir: Path, matrix: acceptance_matrix.AcceptanceMatrix) -> Path:
+        held_at_write.append(holds_status_lock(lock_path))
+        return real_write(feature_dir, matrix)
+
+    monkeypatch.setattr(acceptance_matrix, "write_acceptance_matrix", spy)
+
+    path = acceptance_matrix.scaffold_acceptance_matrix(primary, SLUG, ["FR-001"], repo_root=None)
+
+    assert path == primary / "acceptance-matrix.json"
+    assert held_at_write == [True]
+    assert not holds_status_lock(lock_path)
+    assert acceptance_matrix.scaffold_acceptance_matrix(primary, SLUG, ["FR-001"]) == path  # idempotent: the existing matrix is left alone

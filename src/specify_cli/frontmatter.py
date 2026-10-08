@@ -371,6 +371,7 @@ def locked_update_frontmatter(
     *,
     feature_dir: Path,
     repo_root: Path | None = None,
+    fallback_to_dir_name: bool = False,
 ) -> dict[str, Any]:
     """Read-modify-write a work package's frontmatter under the Mission write lock; return what was written.
 
@@ -381,13 +382,17 @@ def locked_update_frontmatter(
     exactly as it was read. *mutate* is only called here (never stored); it returns ``False`` to say nothing
     changed and skip the write, any other value writes.
 
+    *fallback_to_dir_name* is for the healing migrations (see
+    :func:`~specify_cli.status.mission_write.mission_write_lock`): a Mission whose coordination key cannot
+    be read is locked on its directory name.
+
     Raises:
         FrontmatterError: *wp_path* is missing, has no frontmatter, or the frontmatter is malformed.
     """
     # Lazy: ``specify_cli.status`` imports this module, so the lock door cannot be a module-scope import.
     from specify_cli.status.mission_write import mission_write_lock
 
-    with mission_write_lock(feature_dir, repo_root=repo_root):
+    with mission_write_lock(feature_dir, repo_root=repo_root, fallback_to_dir_name=fallback_to_dir_name):
         frontmatter, body = _manager.read(wp_path)
         if mutate(frontmatter) is not False:
             atomic_write(wp_path, _manager.render(frontmatter, body))

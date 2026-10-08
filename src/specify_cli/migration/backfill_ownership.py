@@ -194,7 +194,9 @@ def backfill_ownership(feature_dir: Path, feature_slug: str) -> None:
         if updates:
             # Re-applied to the frontmatter read under the Mission lock: a field another writer set since
             # the read above is never overwritten ("never overwrites existing values"), ``scope`` aside.
-            frontmatter = locked_update_frontmatter(wp_file, functools.partial(_apply_absent_fields, updates=updates), feature_dir=feature_dir)
+            frontmatter = locked_update_frontmatter(
+                wp_file, functools.partial(_apply_absent_fields, updates=updates), feature_dir=feature_dir, fallback_to_dir_name=True
+            )
             logger.info(
                 "Backfilled ownership for %s: execution_mode=%s",
                 wp_file.name,

@@ -889,6 +889,23 @@ def scaffold_acceptance_matrix(
         zero-write refusal — e.g. an unroutable mission) rather than authored
         on the wrong surface.
     """
+    # The exists checks and the write are ONE hold of the Mission write lock, so a verdict recorded
+    # between them is never overwritten by the placeholder scaffold (mirrors ``scaffold_issue_matrix``).
+    with mission_write_lock(feature_dir, repo_root=repo_root):
+        return _scaffold_acceptance_matrix_locked(feature_dir, mission_slug, requirement_ids, home_dir=home_dir, repo_root=repo_root, policy=policy, owned=owned)
+
+
+def _scaffold_acceptance_matrix_locked(
+    feature_dir: Path,
+    mission_slug: str,
+    requirement_ids: list[str] | None,
+    *,
+    home_dir: Path | None,
+    repo_root: Path | None,
+    policy: ProtectionPolicyLike | None,
+    owned: OwnedCheckout | None,
+) -> Path | None:
+    """The body of :func:`scaffold_acceptance_matrix`: runs with the Mission write lock held."""
     home = home_dir if home_dir is not None else feature_dir
     home_path = home / MATRIX_FILENAME
     if home_path.exists():

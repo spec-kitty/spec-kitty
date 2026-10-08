@@ -714,3 +714,22 @@ def test_finalize_tasks_md_regeneration_writes_inside_the_hold(monkeypatch: pyte
     assert stale is False
     assert held_at_write == [True]
     assert (primary / "tasks.md").exists()
+
+
+def test_backfill_ownership_heals_a_mission_whose_coordination_key_is_unresolvable(tmp_path: Path) -> None:
+    """Like the other healing migrations, the ownership backfill falls back to the directory name (no ``MissionLockKeyUnresolved``)."""
+    backfill_ownership = importlib.import_module("specify_cli.migration.backfill_ownership")
+    repo = tmp_path / "legacy"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=repo, check=True, capture_output=True)
+    feature_dir = repo / "kitty-specs" / "legacy-mission"
+    (feature_dir / "tasks").mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(json.dumps({"slug": "legacy-mission", "coordination_branch": "kitty/x"}), encoding="utf-8")
+    wp_file = feature_dir / "tasks" / "WP01-legacy.md"
+    wp_file.write_text('---\nwork_package_id: "WP01"\ntitle: "Legacy"\ndependencies: []\n---\n\n# WP01\n', encoding="utf-8")
+
+    backfill_ownership.backfill_ownership(feature_dir, "legacy-mission")
+
+    healed, body = read_frontmatter(wp_file)
+    assert "execution_mode" in healed
+    assert body == "\n# WP01\n"
