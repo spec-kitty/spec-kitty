@@ -113,7 +113,7 @@ def cli_root() -> click.Group:
     return root
 
 
-def test_builtin_doctrine_names_only_real_cli_commands(cli_root: click.Group) -> None:
+def test_built_in_pack_names_only_real_cli_commands(cli_root: click.Group) -> None:
     violations, checked = _collect_unresolved(cli_root)
     assert checked >= _MINIMUM_REFERENCES_CHECKED, (
         f"Only checked {checked} spec-kitty command references in packs/built-in/ "

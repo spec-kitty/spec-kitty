@@ -76,7 +76,7 @@ def bare_project_root(tmp_path: Path) -> Path:
     return project_root
 
 
-def _invoke_doctrine_json(project_root: Path) -> tuple[int, dict]:
+def _invoke_charter_packs_json(project_root: Path) -> tuple[int, dict]:
     with patch(
         "specify_cli.cli.commands.doctor.locate_project_root",
         return_value=project_root,
@@ -91,8 +91,8 @@ def _invoke_doctrine_json(project_root: Path) -> tuple[int, dict]:
 
 
 @pytest.mark.fast
-def test_doctor_doctrine_reports_full_health(bare_project_root: Path) -> None:
-    exit_code, payload = _invoke_doctrine_json(bare_project_root)
+def test_doctor_charter_packs_reports_full_health(bare_project_root: Path) -> None:
+    exit_code, payload = _invoke_charter_packs_json(bare_project_root)
 
     assert exit_code == 0, f"doctor charter-packs flipped unhealthy: {payload}"
 
@@ -113,8 +113,8 @@ def test_doctor_doctrine_reports_full_health(bare_project_root: Path) -> None:
 
 
 @pytest.mark.fast
-def test_doctor_doctrine_glossary_packs_are_healthy(bare_project_root: Path) -> None:
-    _, payload = _invoke_doctrine_json(bare_project_root)
+def test_doctor_charter_packs_glossary_packs_are_healthy(bare_project_root: Path) -> None:
+    _, payload = _invoke_charter_packs_json(bare_project_root)
 
     glossary = payload["profile_health"]["glossary_packs"]
     assert glossary["healthy"] is True

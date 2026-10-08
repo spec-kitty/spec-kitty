@@ -64,13 +64,13 @@ class TestRegenerationWriteTarget:
     """Regeneration targets the flattened ``packs/built-in/`` home, not the
     retired ``src/charter/offering/`` tree."""
 
-    def test_doctrine_root_resolves_flattened_pack_home(self) -> None:
+    def test_built_in_pack_root_resolves_flattened_pack_home(self) -> None:
         resolved = _built_in_pack_root()
         assert resolved.name == "built-in"
         assert resolved.parent.name == "packs"
         assert resolved == built_in_graph_source()
 
-    def test_old_src_doctrine_home_carries_no_fragments(self) -> None:
+    def test_offering_source_tree_carries_no_fragments(self) -> None:
         stale = sorted((_REPO_ROOT / "src" / "charter" / "offering").glob("*.graph.yaml"))
         assert stale == [], (
             "graph fragments still sit under the retired src/doctrine home: "

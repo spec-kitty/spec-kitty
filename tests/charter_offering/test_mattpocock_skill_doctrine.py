@@ -16,7 +16,7 @@ from charter.offering.missions import MissionTemplateRepository
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DOCTRINE_ROOT = REPO_ROOT / "src" / "charter" / "offering"
+OFFERING_ROOT = REPO_ROOT / "src" / "charter" / "offering"
 PACKS_BUILT_IN = REPO_ROOT / "packs" / "built-in"
 
 
@@ -37,8 +37,8 @@ def test_curated_doctrine_artifacts_exist_with_expected_kinds() -> None:
         PACKS_BUILT_IN / "procedures/domain-aware-decision-interview.procedure.yaml",
         PACKS_BUILT_IN / "procedures/issue-triage-state-machine.procedure.yaml",
         PACKS_BUILT_IN / "styleguides/deployable-skill-authoring.styleguide.yaml",
-        DOCTRINE_ROOT / "templates/triage/agent-brief-template.md",
-        DOCTRINE_ROOT / "templates/triage/out-of-scope-record-template.md",
+        OFFERING_ROOT / "templates/triage/agent-brief-template.md",
+        OFFERING_ROOT / "templates/triage/out-of-scope-record-template.md",
     ]
 
     missing = [str(path) for path in expected_paths if not path.exists()]

@@ -22,11 +22,11 @@ import re
 
 import pytest
 
-from tests.charter_offering.conftest import DOCTRINE_SOURCE_ROOT
+from tests.charter_offering.conftest import OFFERING_SOURCE_ROOT
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
-_MISSION_REVIEW_SKILL = DOCTRINE_SOURCE_ROOT / "skills" / "spec-kitty-mission-review" / "SKILL.md"
+_MISSION_REVIEW_SKILL = OFFERING_SOURCE_ROOT / "skills" / "spec-kitty-mission-review" / "SKILL.md"
 
 _GATE4_HEADING_PATTERN = r"^### Gate 4:.*$"
 

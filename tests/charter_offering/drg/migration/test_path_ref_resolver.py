@@ -29,7 +29,7 @@ from charter.offering.drg.validator import validate_graph
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
-DOCTRINE_ROOT = Path(__file__).resolve().parents[4] / "src" / "charter" / "offering"
+OFFERING_ROOT = Path(__file__).resolve().parents[4] / "src" / "charter" / "offering"
 
 
 # ---------------------------------------------------------------------------
@@ -198,10 +198,10 @@ class TestResolvePathRefMissPatterns:
     def test_glossary_yaml_returns_none(self) -> None:
         assert _resolve_path_ref(".kittify/glossaries/planning-and-tracking.yaml") is None
 
-    def test_non_doctrine_docs_path_returns_none(self) -> None:
+    def test_non_offering_docs_path_returns_none(self) -> None:
         assert _resolve_path_ref("docs/host-surface-parity.md") is None
 
-    def test_doctrine_skills_readme_returns_none(self) -> None:
+    def test_offering_skills_readme_returns_none(self) -> None:
         """skills/README.md matches src/charter/offering/ but is not a recognised artifact kind."""
         assert _resolve_path_ref("src/charter/offering/skills/README.md") is None
 
@@ -263,7 +263,7 @@ class TestStyleguideWalkEdges:
 
     def test_aggregate_design_rules_suggests_paradigm(self) -> None:
         """aggregate-design-rules references domain-driven-design paradigm."""
-        nodes, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        nodes, edges = extract_artifact_edges(OFFERING_ROOT)
         edge_targets = {
             e.target
             for e in edges
@@ -274,7 +274,7 @@ class TestStyleguideWalkEdges:
 
     def test_testing_principles_suggests_directive_030(self) -> None:
         """testing-principles references DIRECTIVE_030."""
-        nodes, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        nodes, edges = extract_artifact_edges(OFFERING_ROOT)
         edge_targets = {
             e.target
             for e in edges
@@ -285,7 +285,7 @@ class TestStyleguideWalkEdges:
 
     def test_testing_principles_suggests_directive_034(self) -> None:
         """testing-principles references DIRECTIVE_034."""
-        nodes, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        nodes, edges = extract_artifact_edges(OFFERING_ROOT)
         edge_targets = {
             e.target
             for e in edges
@@ -296,7 +296,7 @@ class TestStyleguideWalkEdges:
 
     def test_testing_principles_suggests_acceptance_test_first(self) -> None:
         """testing-principles references acceptance-test-first tactic."""
-        nodes, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        nodes, edges = extract_artifact_edges(OFFERING_ROOT)
         edge_targets = {
             e.target
             for e in edges
@@ -307,7 +307,7 @@ class TestStyleguideWalkEdges:
 
     def test_test_desiderata_suggests_testing_principles(self) -> None:
         """test-desiderata-and-boundaries references testing-principles styleguide."""
-        nodes, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        nodes, edges = extract_artifact_edges(OFFERING_ROOT)
         edge_targets = {
             e.target
             for e in edges
@@ -318,7 +318,7 @@ class TestStyleguideWalkEdges:
 
     def test_planning_and_tracking_suggests_github_tracker(self) -> None:
         """planning-and-tracking references github-tracker toolguide."""
-        nodes, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        nodes, edges = extract_artifact_edges(OFFERING_ROOT)
         edge_targets = {
             e.target
             for e in edges
@@ -329,7 +329,7 @@ class TestStyleguideWalkEdges:
 
     def test_java_conventions_suggests_maven_review_checks(self) -> None:
         """java-conventions references maven-review-checks toolguide."""
-        nodes, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        nodes, edges = extract_artifact_edges(OFFERING_ROOT)
         edge_targets = {
             e.target
             for e in edges
@@ -340,7 +340,7 @@ class TestStyleguideWalkEdges:
 
     def test_no_duplicate_styleguide_suggests_edges(self) -> None:
         """No duplicate (source, target, relation) triples from styleguide walk."""
-        _, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        _, edges = extract_artifact_edges(OFFERING_ROOT)
         sg_triples = [
             (e.source, e.target, e.relation.value)
             for e in edges
@@ -351,7 +351,7 @@ class TestStyleguideWalkEdges:
 
     def test_styleguide_suggests_edges_have_valid_targets(self) -> None:
         """All styleguide suggests targets must be registered as nodes."""
-        nodes, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        nodes, edges = extract_artifact_edges(OFFERING_ROOT)
         node_urns = {n.urn for n in nodes}
         for edge in edges:
             if edge.source.startswith("styleguide:") and edge.relation == Relation.SUGGESTS:
@@ -359,9 +359,9 @@ class TestStyleguideWalkEdges:
                     f"Dangling styleguide suggests target: {edge.target}"
                 )
 
-    def test_non_doctrine_refs_produce_no_edges(self) -> None:
+    def test_non_offering_refs_produce_no_edges(self) -> None:
         """URLs and non-doctrine paths must not produce any DRG edges."""
-        _, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        _, edges = extract_artifact_edges(OFFERING_ROOT)
         url_edges = [
             e for e in edges
             if e.source.startswith("styleguide:")
@@ -385,7 +385,7 @@ class TestGraphWithStyleguideEdges:
     ) -> None:
         """Regenerated graph with styleguide edges must pass validator."""
         output = tmp_path / "graph.yaml"
-        graph = generate_graph(DOCTRINE_ROOT, output)
+        graph = generate_graph(OFFERING_ROOT, output)
         errors = validate_graph(graph)
         assert errors == [], f"Validation errors after styleguide walk: {errors}"
 
@@ -394,7 +394,7 @@ class TestGraphWithStyleguideEdges:
     ) -> None:
         """Generated graph must contain at least some styleguide suggests edges."""
         output = tmp_path / "graph.yaml"
-        graph = generate_graph(DOCTRINE_ROOT, output)
+        graph = generate_graph(OFFERING_ROOT, output)
         sg_suggests = [
             e
             for e in graph.edges
@@ -409,7 +409,7 @@ class TestGraphWithStyleguideEdges:
     ) -> None:
         """The generated graph must have more edges than the pre-WP08 baseline of 561."""
         output = tmp_path / "graph.yaml"
-        graph = generate_graph(DOCTRINE_ROOT, output)
+        graph = generate_graph(OFFERING_ROOT, output)
         # Pre-WP08 baseline: 561 edges; after styleguide walk we expect > 561
         assert len(graph.edges) > 561, (
             f"Edge count ({len(graph.edges)}) is not greater than the pre-WP08 "
@@ -439,12 +439,12 @@ class TestGraphWithStyleguideEdges:
             write_reference_graph_with_overlay,
         )
 
-        def _source_hashes(doctrine_dir: Path) -> dict[str, str]:
-            single = doctrine_dir / "graph.yaml"
+        def _source_hashes(pack_dir: Path) -> dict[str, str]:
+            single = pack_dir / "graph.yaml"
             files = (
                 [single]
                 if single.is_file()
-                else sorted(doctrine_dir.glob("*.graph.yaml"))
+                else sorted(pack_dir.glob("*.graph.yaml"))
             )
             return {
                 p.name: hashlib.sha256(  # noqa: TID251 – DRG freshness check, not charter hashing
@@ -453,7 +453,7 @@ class TestGraphWithStyleguideEdges:
                 for p in files
             }
 
-        write_reference_graph_with_overlay(DOCTRINE_ROOT, tmp_path / "graph.yaml")
+        write_reference_graph_with_overlay(OFFERING_ROOT, tmp_path / "graph.yaml")
         committed = _source_hashes(built_in_graph_source())
         regenerated = _source_hashes(tmp_path)
         assert regenerated == committed, (

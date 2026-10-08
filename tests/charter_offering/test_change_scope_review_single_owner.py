@@ -29,13 +29,13 @@ import pytest
 import yaml
 from jsonschema import Draft202012Validator
 
-from tests.charter_offering.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
+from tests.charter_offering.conftest import OFFERING_SOURCE_ROOT, REPO_ROOT
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.doctrine]
 
 _BUILT_IN = REPO_ROOT / "packs" / "built-in"
 _INTERNAL = REPO_ROOT / "packs" / "internal"
-_SCHEMAS = DOCTRINE_SOURCE_ROOT / "schemas"
+_SCHEMAS = OFFERING_SOURCE_ROOT / "schemas"
 
 _RECONCILER = _BUILT_IN / "directives" / "reconcile-change-scope-tensions.directive.yaml"
 _DIRECTIVE_025 = _BUILT_IN / "directives" / "025-boy-scout-rule.directive.yaml"

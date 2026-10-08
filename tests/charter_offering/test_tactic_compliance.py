@@ -19,32 +19,32 @@ import pytest
 import yaml
 from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
-from tests.charter_offering.conftest import DOCTRINE_SOURCE_ROOT
+from tests.charter_offering.conftest import OFFERING_SOURCE_ROOT
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
-DOCTRINE_DIR = DOCTRINE_SOURCE_ROOT
-SCHEMA_DIR = DOCTRINE_DIR / "schemas"
+OFFERING_DIR = OFFERING_SOURCE_ROOT
+SCHEMA_DIR = OFFERING_DIR / "schemas"
 
 _SOURCE_SUBDIRS = ("built-in", "_proposed")
 _BUILT_IN_SUBDIRS = ("built-in",)
-_TACTICS_DIRS = [DOCTRINE_DIR / "tactics" / d for d in _SOURCE_SUBDIRS]
-_BUILT_IN_TACTICS_DIRS = [DOCTRINE_DIR / "tactics" / d for d in _BUILT_IN_SUBDIRS]
-_TEMPLATES_DIR = DOCTRINE_DIR / "templates"
+_TACTICS_DIRS = [OFFERING_DIR / "tactics" / d for d in _SOURCE_SUBDIRS]
+_BUILT_IN_TACTICS_DIRS = [OFFERING_DIR / "tactics" / d for d in _BUILT_IN_SUBDIRS]
+_TEMPLATES_DIR = OFFERING_DIR / "templates"
 
 # Artifact type → (directory, glob pattern) for resolution scanning.
 # Styleguides use recursive glob because subdirectories are allowed.
 ARTIFACT_DIRS: dict[str, list[tuple[Path, str]]] = {
     "tactic": [(d, "**/*.tactic.yaml") for d in _TACTICS_DIRS],
     "styleguide": [
-        (DOCTRINE_DIR / "styleguides" / d, pat)
+        (OFFERING_DIR / "styleguides" / d, pat)
         for d in _BUILT_IN_SUBDIRS
         for pat in ("*.styleguide.yaml", "**/*.styleguide.yaml")
     ],
-    "directive": [(DOCTRINE_DIR / "directives" / d, "*.directive.yaml") for d in _BUILT_IN_SUBDIRS],
-    "toolguide": [(DOCTRINE_DIR / "toolguides" / d, "*.toolguide.yaml") for d in _BUILT_IN_SUBDIRS],
+    "directive": [(OFFERING_DIR / "directives" / d, "*.directive.yaml") for d in _BUILT_IN_SUBDIRS],
+    "toolguide": [(OFFERING_DIR / "toolguides" / d, "*.toolguide.yaml") for d in _BUILT_IN_SUBDIRS],
     "template": [(_TEMPLATES_DIR, "**/*.md")],
-    "procedure": [(DOCTRINE_DIR / "procedures" / d, "*.procedure.yaml") for d in _BUILT_IN_SUBDIRS],
-    "paradigm": [(DOCTRINE_DIR / "paradigms" / d, "*.paradigm.yaml") for d in _BUILT_IN_SUBDIRS],
+    "procedure": [(OFFERING_DIR / "procedures" / d, "*.procedure.yaml") for d in _BUILT_IN_SUBDIRS],
+    "paradigm": [(OFFERING_DIR / "paradigms" / d, "*.paradigm.yaml") for d in _BUILT_IN_SUBDIRS],
 }
 
 # Threshold: if a reference appears in this fraction of steps or more,

@@ -69,7 +69,7 @@ def bare_repo_root(tmp_path: Path) -> Path:
     """A minimal spec-kitty project root — no org packs, no project doctrine.
 
     Mirrors the ``kittify_project`` fixture in
-    ``tests/specify_cli/cli/commands/test_doctor_doctrine_integrity.py``: just
+    ``tests/specify_cli/cli/commands/test_doctor_charter_packs_integrity.py``: just
     enough for ``locate_project_root``/``ActiveCharterService`` to resolve without
     a real git checkout.
     """
@@ -272,7 +272,7 @@ class TestCollectGlossaryPackHealth:
 # ---------------------------------------------------------------------------
 
 
-def _invoke_doctrine_json(project_root: Path) -> tuple[int, dict[str, object]]:
+def _invoke_charter_packs_json(project_root: Path) -> tuple[int, dict[str, object]]:
     with patch(
         "specify_cli.cli.commands.doctor.locate_project_root",
         return_value=project_root,
@@ -282,12 +282,12 @@ def _invoke_doctrine_json(project_root: Path) -> tuple[int, dict[str, object]]:
     return result.exit_code, payload
 
 
-class TestDoctorDoctrineGlossaryPackJson:
+class TestDoctorCharterPacksGlossaryPackJson:
     def test_builtin_pack_loaded_healthy_with_term_count(
         self, bare_repo_root: Path, expected_builtin_term_count: int
     ) -> None:
         """VALID arm (T024): built-in spec-kitty-core pack loads healthy."""
-        exit_code, payload = _invoke_doctrine_json(bare_repo_root)
+        exit_code, payload = _invoke_charter_packs_json(bare_repo_root)
 
         glossary_health = payload["profile_health"]["glossary_packs"]
         assert glossary_health["healthy"] is True
@@ -310,7 +310,7 @@ class TestDoctorDoctrineGlossaryPackJson:
             },
         )
 
-        exit_code, payload = _invoke_doctrine_json(bare_repo_root)
+        exit_code, payload = _invoke_charter_packs_json(bare_repo_root)
 
         glossary_health = payload["profile_health"]["glossary_packs"]
         assert glossary_health["healthy"] is False
@@ -326,18 +326,18 @@ class TestDoctorDoctrineGlossaryPackJson:
 # ---------------------------------------------------------------------------
 
 
-class TestDoctorDoctrineFunctional:
-    """Functional companion to TestDoctorDoctrinePerformance (split, #4015):
+class TestDoctorCharterPacksFunctional:
+    """Functional companion to TestDoctorCharterPacksPerformance (split, #4015):
     the exit-code check must run on the per-PR path, not only nightly."""
 
-    def test_doctor_doctrine_json_succeeds(self, bare_repo_root: Path) -> None:
-        exit_code, _payload = _invoke_doctrine_json(bare_repo_root)
+    def test_doctor_charter_packs_json_succeeds(self, bare_repo_root: Path) -> None:
+        exit_code, _payload = _invoke_charter_packs_json(bare_repo_root)
 
         assert exit_code == 0
 
 
 @pytest.mark.performance
-class TestDoctorDoctrinePerformance:
+class TestDoctorCharterPacksPerformance:
     """NFR-005 wall-clock gate (T026), held out of normal PR runs.
 
     A single-shot wall-clock budget is cold-start/shared-runner bound, so
@@ -346,14 +346,14 @@ class TestDoctorDoctrinePerformance:
     statistical harness is tracked in #3595.
 
     NFR-005 timing budget only (split, #4015): functional coverage moved to
-    TestDoctorDoctrineFunctional, above.
+    TestDoctorCharterPacksFunctional, above.
     """
 
-    def test_doctor_doctrine_json_completes_under_two_seconds(
+    def test_doctor_charter_packs_json_completes_under_two_seconds(
         self, bare_repo_root: Path
     ) -> None:
         start = time.perf_counter()
-        _invoke_doctrine_json(bare_repo_root)
+        _invoke_charter_packs_json(bare_repo_root)
         elapsed = time.perf_counter() - start
 
         assert_timing_budget(elapsed, 2.0, name="doctor_doctrine_json")

@@ -553,7 +553,7 @@ def test_resolution_tier_org_member_exists() -> None:
     assert ResolutionTier.ORG.value == "org"
 
 
-def test_charter_resolution_tier_is_doctrine_resolution_tier_by_identity() -> None:
+def test_charter_resolution_tier_is_offering_resolution_tier_by_identity() -> None:
     """``charter.resolution.ResolutionTier`` is the *same class object* as
     ``charter.offering.resolver.ResolutionTier`` (a pure re-export), not a parallel
     declaration with matching member values. Value equality (``==``) would
@@ -589,7 +589,7 @@ def _write_org_pack_config(repo_root: Path, *, pack_name: str, local_path: Path)
     )
 
 
-def test_org_tier_resolves_template_in_doctrine_resolver(
+def test_org_tier_resolves_template_in_offering_resolver(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -617,7 +617,7 @@ def test_org_tier_resolves_template_in_doctrine_resolver(
     assert result.mission == "software-dev"
 
 
-def test_org_tier_resolves_mission_yaml_in_doctrine_resolver(
+def test_org_tier_resolves_mission_yaml_in_offering_resolver(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -641,7 +641,7 @@ def test_org_tier_resolves_mission_yaml_in_doctrine_resolver(
     assert result.mission == "software-dev"
 
 
-def test_org_tier_sits_below_project_override_in_doctrine_resolver(
+def test_org_tier_sits_below_project_override_in_offering_resolver(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -694,7 +694,7 @@ def test_org_tier_falls_through_to_global_mission_when_org_pack_missing_asset(
     assert result.path == global_template
 
 
-def test_no_org_packs_configured_is_a_noop_in_doctrine_resolver(
+def test_no_org_packs_configured_is_a_noop_in_offering_resolver(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -716,7 +716,7 @@ def test_no_org_packs_configured_is_a_noop_in_doctrine_resolver(
     assert result.path == global_template
 
 
-def test_malformed_org_config_still_resolves_package_default_in_doctrine_resolver(
+def test_malformed_org_config_still_resolves_package_default_in_offering_resolver(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -755,7 +755,7 @@ def test_malformed_org_config_still_resolves_package_default_in_doctrine_resolve
     assert result.path.read_text(encoding="utf-8") == "package template"
 
 
-def test_declared_but_broken_org_pack_still_warns_in_doctrine_resolver(
+def test_declared_but_broken_org_pack_still_warns_in_offering_resolver(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

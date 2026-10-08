@@ -24,7 +24,7 @@ def test_python_m_specify_cli_help_runs() -> None:
     assert "spec-kitty" in result.stdout.lower() or "usage" in result.stdout.lower()
 
 
-def test_doctrine_import_and_profile_repo_smoke() -> None:
+def test_offering_import_and_profile_repo_smoke() -> None:
     result = subprocess.run(
         [
             sys.executable,

@@ -33,7 +33,7 @@ def wheel_path(build_artifacts: dict[str, Path]) -> Path:
     return build_artifacts["wheel"]
 
 
-def test_wheel_contains_doctrine_package_data(wheel_path: Path) -> None:
+def test_wheel_contains_offering_package_data(wheel_path: Path) -> None:
     """Built wheel should include doctrine code and shipped YAML assets."""
     with zipfile.ZipFile(wheel_path, "r") as zf:
         names = set(zf.namelist())
@@ -57,7 +57,7 @@ def test_wheel_contains_doctrine_package_data(wheel_path: Path) -> None:
     assert legacy_paths == [], f"Pre-move {LEGACY_BUILTIN_DIR} wheel assets should be absent: {legacy_paths}"
 
 
-def test_wheel_install_imports_doctrine_and_lists_profiles(
+def test_wheel_install_imports_offering_and_lists_profiles(
     installed_wheel_venv: dict[str, Path],
 ) -> None:
     """Installed wheel should expose doctrine imports and shipped profiles."""

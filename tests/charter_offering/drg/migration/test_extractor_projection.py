@@ -43,7 +43,7 @@ from tests.charter_offering._builtin_inventory import (
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 _REPO_ROOT: Path = Path(__file__).resolve().parents[4]
-DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "charter" / "offering"
+OFFERING_ROOT: Path = _REPO_ROOT / "src" / "charter" / "offering"
 
 #: HISTORICAL LEDGER (#3234). The node/edge counts below are now DERIVED from the
 #: ``packs/built-in`` filesystem inventory (see ``_EXPECTED_NODE_COUNT`` at the end
@@ -1165,7 +1165,7 @@ class TestDRGZeroDelta:
     """The projection re-point leaves the shipped DRG graph unchanged (NFR-002)."""
 
     def test_regenerated_graph_matches_baseline_counts(self, tmp_path: Path) -> None:
-        graph = generate_graph(DOCTRINE_ROOT, tmp_path / "graph.yaml")
+        graph = generate_graph(OFFERING_ROOT, tmp_path / "graph.yaml")
 
         assert len(graph.nodes) == _EXPECTED_NODE_COUNT, (
             "pure regeneration node count drifted from the packs/built-in "
@@ -1241,7 +1241,7 @@ class TestDRGZeroDelta:
         "pure regeneration + the enumerable overlay", not a bare regeneration.
         """
         shipped = load_built_in_graph()
-        regenerated = generate_reference_graph_with_overlay(DOCTRINE_ROOT)
+        regenerated = generate_reference_graph_with_overlay(OFFERING_ROOT)
 
         assert {n.urn for n in regenerated.nodes} == {n.urn for n in shipped.nodes}
         assert {
@@ -1291,7 +1291,7 @@ class TestResidualOrphanWiring:
         """FR-007: each promoted target is de-orphaned in the PURE extractor
         graph (no overlay), sourced from its owning directive's frontmatter with
         the expected ``(source, target)`` pair -- not merely *some* inbound edge."""
-        graph = generate_graph(DOCTRINE_ROOT, tmp_path / "graph.yaml")
+        graph = generate_graph(OFFERING_ROOT, tmp_path / "graph.yaml")
         inbound_pairs = {(edge.source, edge.target) for edge in graph.edges}
         missing = sorted(
             pair for pair in _RESIDUAL_FRONTMATTER_PROMOTIONS if pair not in inbound_pairs
@@ -1320,7 +1320,7 @@ class TestNonSequenceStepsMintNoEdge:
     """``in_action_sequence: false`` steps never mint a mission_type->action edge."""
 
     def test_software_dev_non_sequence_steps_mint_no_edge(self) -> None:
-        edges = extract_mission_type_edges(DOCTRINE_ROOT)
+        edges = extract_mission_type_edges(OFFERING_ROOT)
         sw_dev_targets = {
             e.target
             for e in edges
@@ -1342,7 +1342,7 @@ class TestNonSequenceStepsMintNoEdge:
 
     def test_retrospect_never_appears_as_a_requires_edge_target(self) -> None:
         """``retrospect`` is not a member of any shipped type's action sequence."""
-        edges = extract_mission_type_edges(DOCTRINE_ROOT)
+        edges = extract_mission_type_edges(OFFERING_ROOT)
         retrospect_targets = {
             e.target
             for e in edges
@@ -1356,7 +1356,7 @@ class TestProjectedEdgeSetMatchesActionSequence:
     """Projected edges == the pre-mission ``action_sequence``-derived edges, per type."""
 
     def test_every_type_projected_edges_match_shipped_action_sequence(self) -> None:
-        edges = extract_mission_type_edges(DOCTRINE_ROOT)
+        edges = extract_mission_type_edges(OFFERING_ROOT)
         sequences = _shipped_action_sequences()
 
         assert sequences, "expected at least one shipped mission type"

@@ -36,7 +36,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.corpus]
 # relocate-builtin-doctrine-packs-01KYT87F): the shipped ``*.graph.yaml``
 # fragments and per-kind content now live under ``packs/built-in/``, no longer
 # under ``src/charter/offering/``.
-DOCTRINE_ROOT = Path(__file__).resolve().parents[3] / "packs" / "built-in"
+BUILT_IN_PACK_ROOT = Path(__file__).resolve().parents[3] / "packs" / "built-in"
 
 _FRAGMENT_SUFFIX = ".graph.yaml"
 
@@ -46,21 +46,21 @@ def _fragment_kind(fragment: Path) -> str:
     return fragment.name[: -len(_FRAGMENT_SUFFIX)]
 
 
-def test_monolith_absent_from_shipped_doctrine() -> None:
+def test_monolith_absent_from_built_in_pack() -> None:
     """DD-7: the ``graph.yaml`` monolith must not survive the flip.
 
     While it exists ``load_graph_or_dir`` prefers it and ignores the fragments —
     a silent stale read.
     """
-    assert not (DOCTRINE_ROOT / "graph.yaml").exists(), (
+    assert not (BUILT_IN_PACK_ROOT / "graph.yaml").exists(), (
         "packs/built-in/graph.yaml must be deleted atomically with the fragment "
         "writes (DD-7); its presence masks the *.graph.yaml fragments on load."
     )
 
 
-def test_shipped_doctrine_has_graph_fragments() -> None:
+def test_built_in_pack_has_graph_fragments() -> None:
     """At least one per-kind fragment must ship under the loader glob root."""
-    fragments = sorted(DOCTRINE_ROOT.glob(f"*{_FRAGMENT_SUFFIX}"))
+    fragments = sorted(BUILT_IN_PACK_ROOT.glob(f"*{_FRAGMENT_SUFFIX}"))
     assert fragments, "no packs/built-in/*.graph.yaml fragments present"
 
 
@@ -80,7 +80,7 @@ def test_fragment_per_populated_node_kind() -> None:
     graph = load_built_in_graph()
     populated_kinds = {node.kind.value for node in graph.nodes}
     fragment_kinds = {
-        _fragment_kind(p) for p in DOCTRINE_ROOT.glob(f"*{_FRAGMENT_SUFFIX}")
+        _fragment_kind(p) for p in BUILT_IN_PACK_ROOT.glob(f"*{_FRAGMENT_SUFFIX}")
     }
     assert fragment_kinds == populated_kinds, (
         "fragment set must equal the populated node-kinds exactly; "

@@ -54,7 +54,7 @@ _BUILT_IN_KIND_DIRS: dict[str, str] = {
 }
 
 
-def _doctrine_root() -> Path:
+def _offering_root() -> Path:
     return Path(str(files("charter.offering")))
 
 
@@ -75,7 +75,7 @@ def _discover_field_authored_relations() -> set[tuple[str, str, Relation]]:
     baseline: each entry MUST have exactly one merged DRG edge.
     """
     yaml = YAML(typ="safe")
-    root = _doctrine_root()
+    root = _offering_root()
     found: set[tuple[str, str, Relation]] = set()
 
     for plural, urn_kind in _BUILT_IN_KIND_DIRS.items():

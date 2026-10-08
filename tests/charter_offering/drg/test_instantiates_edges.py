@@ -41,7 +41,7 @@ pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 # Relocated built-in pack root (mission relocate-builtin-doctrine-packs-01KYT87F):
 # the shipped ``*.graph.yaml`` fragments now live under ``packs/built-in/``.
-DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[3] / "packs" / "built-in"
+BUILT_IN_PACK_ROOT: Path = Path(__file__).resolve().parents[3] / "packs" / "built-in"
 
 #: The expected ``(mission_type, step_id, template_file)`` triples, hand-pinned
 #: against the shipped ``step.yaml`` authoring (independent of the extractor
@@ -74,7 +74,7 @@ class TestExtractTemplateInstantiationEdges:
     """Direct coverage of the new extractor pass (before graph composition)."""
 
     def test_mints_exactly_the_expected_triples(self) -> None:
-        nodes, edges = extract_template_instantiation_edges(DOCTRINE_ROOT)
+        nodes, edges = extract_template_instantiation_edges(BUILT_IN_PACK_ROOT)
 
         assert len(_EXPECTED_TRIPLES) == 8
         assert len(nodes) == len(_EXPECTED_TRIPLES)
@@ -91,7 +91,7 @@ class TestExtractTemplateInstantiationEdges:
             assert node.urn.startswith("template:")
 
     def test_edges_are_sorted_by_source_then_target(self) -> None:
-        _nodes, edges = extract_template_instantiation_edges(DOCTRINE_ROOT)
+        _nodes, edges = extract_template_instantiation_edges(BUILT_IN_PACK_ROOT)
         pairs = [(edge.source, edge.target) for edge in edges]
         assert pairs == sorted(pairs)
 
@@ -100,7 +100,7 @@ class TestShippedGraphCarriesInstantiatesEdges:
     """Positive assertion against the fully-composed, freshly regenerated graph."""
 
     def test_every_expected_instantiates_edge_exists(self, tmp_path: Path) -> None:
-        graph = generate_graph(DOCTRINE_ROOT, tmp_path / "graph.yaml")
+        graph = generate_graph(BUILT_IN_PACK_ROOT, tmp_path / "graph.yaml")
 
         node_urns = {node.urn for node in graph.nodes}
         actual_edges = {
@@ -121,7 +121,7 @@ class TestShippedGraphCarriesInstantiatesEdges:
         # ``instantiates`` edge must have an ``action:`` source to land in
         # ``action.graph.yaml`` (not ``template.graph.yaml``, which is
         # nodes-only for this pass).
-        graph = generate_graph(DOCTRINE_ROOT, tmp_path / "graph.yaml")
+        graph = generate_graph(BUILT_IN_PACK_ROOT, tmp_path / "graph.yaml")
 
         instantiates_edges = [
             edge for edge in graph.edges if edge.relation is Relation.INSTANTIATES
@@ -137,7 +137,7 @@ class TestBareTemplateExemplarsUntouched:
     ``instantiates`` target, and their node count is unchanged by this pass."""
 
     def test_bare_exemplar_node_count_unchanged(self, tmp_path: Path) -> None:
-        graph = generate_graph(DOCTRINE_ROOT, tmp_path / "graph.yaml")
+        graph = generate_graph(BUILT_IN_PACK_ROOT, tmp_path / "graph.yaml")
 
         bare_template_urns = {
             node.urn
@@ -149,7 +149,7 @@ class TestBareTemplateExemplarsUntouched:
     def test_bare_exemplars_are_never_an_instantiates_target(
         self, tmp_path: Path
     ) -> None:
-        graph = generate_graph(DOCTRINE_ROOT, tmp_path / "graph.yaml")
+        graph = generate_graph(BUILT_IN_PACK_ROOT, tmp_path / "graph.yaml")
 
         bare_template_urns = {
             node.urn
@@ -164,6 +164,6 @@ class TestBareTemplateExemplarsUntouched:
     def test_shipped_template_fragment_has_no_edges(self) -> None:
         # DD-8: ``template`` is a target-only node kind -- its fragment carries
         # nodes only, regardless of how many other kinds target those nodes.
-        fragment_path = DOCTRINE_ROOT / "template.graph.yaml"
+        fragment_path = BUILT_IN_PACK_ROOT / "template.graph.yaml"
         text = fragment_path.read_text(encoding="utf-8")
         assert text.rstrip().endswith("edges: []")

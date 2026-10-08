@@ -15,11 +15,11 @@ import jsonschema
 from ruamel.yaml import YAML
 
 from charter.offering.drg.migration.id_normalizer import normalize_directive_id
-from tests.charter_offering.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
+from tests.charter_offering.conftest import OFFERING_SOURCE_ROOT, REPO_ROOT
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
-_DOCTRINE_ROOT = DOCTRINE_SOURCE_ROOT
+_OFFERING_ROOT = OFFERING_SOURCE_ROOT
 
 # Built-in doctrine pack content relocated out of ``src/charter/offering/<kind>/built-in``
 # into the flattened top-level ``packs/built-in/<kind>`` pack root (mission
@@ -28,7 +28,7 @@ _DOCTRINE_ROOT = DOCTRINE_SOURCE_ROOT
 _PACKS_BUILT_IN = REPO_ROOT / "packs" / "built-in"
 
 PROFILES_DIR = _PACKS_BUILT_IN / "agent_profiles"
-DIRECTIVE_SCHEMA = _DOCTRINE_ROOT / "schemas" / "directive.schema.yaml"
+DIRECTIVE_SCHEMA = _OFFERING_ROOT / "schemas" / "directive.schema.yaml"
 
 # Pack content is flattened -- one directory per kind, no ``built-in``/``_proposed`` split.
 _DIRECTIVES_DIRS = [_PACKS_BUILT_IN / "directives"]
@@ -37,7 +37,7 @@ _PARADIGMS_DIRS = [_PACKS_BUILT_IN / "paradigms"]
 _STYLEGUIDES_DIRS = [_PACKS_BUILT_IN / "styleguides"]
 _TOOLGUIDES_DIRS = [_PACKS_BUILT_IN / "toolguides"]
 _PROCEDURES_DIRS = [_PACKS_BUILT_IN / "procedures"]
-_TEMPLATES_DIR = _DOCTRINE_ROOT / "templates"
+_TEMPLATES_DIR = _OFFERING_ROOT / "templates"
 _SHIPPED_DIRECTIVES_DIR = _PACKS_BUILT_IN / "directives"
 _BUILT_IN_TACTICS_DIR = _PACKS_BUILT_IN / "tactics"
 _SHIPPED_PARADIGMS_DIR = _PACKS_BUILT_IN / "paradigms"

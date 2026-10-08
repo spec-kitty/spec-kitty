@@ -150,7 +150,7 @@ class TestWiringFires:
         import typer
 
         from charter.offering.drg.migration import hand_authored_overlay
-        from specify_cli.cli.commands.charter import pack_tooling as doctrine_cmd
+        from specify_cli.cli.commands.charter import pack_tooling as pack_tooling_cmd
 
         # Stub the unrelated DRG graph write; keep the real manifest generator.
         monkeypatch.setattr(
@@ -158,11 +158,11 @@ class TestWiringFires:
             "write_reference_graph_with_overlay",
             lambda root, out: out.write_text("nodes: []\n", encoding="utf-8"),
         )
-        monkeypatch.setattr(doctrine_cmd, "_built_in_pack_root", lambda: pack_root)
+        monkeypatch.setattr(pack_tooling_cmd, "_built_in_pack_root", lambda: pack_root)
 
         assert not (pack_root / MANIFEST_FILENAME).exists()
         with pytest.raises(typer.Exit) as exc:
-            doctrine_cmd.regenerate_graph(check=False, json_output=True)
+            pack_tooling_cmd.regenerate_graph(check=False, json_output=True)
         assert exc.value.exit_code == 0
         # The wiring fired: the generator ran as part of the command.
         assert (pack_root / MANIFEST_FILENAME).is_file()

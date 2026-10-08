@@ -146,7 +146,7 @@ _EXPECTED_NODE_COUNT = shipped_builtin_node_count()
 
 # Relocated built-in pack root (mission relocate-builtin-doctrine-packs-01KYT87F):
 # the shipped DRG fragments the seam merges now live under ``packs/built-in/``.
-_DOCTRINE_ROOT = pathlib.Path(__file__).resolve().parents[3] / "packs" / "built-in"
+_BUILT_IN_PACK_ROOT = pathlib.Path(__file__).resolve().parents[3] / "packs" / "built-in"
 
 
 class _FutureNodeKind(StrEnum):
@@ -162,7 +162,7 @@ class _FutureNodeKind(StrEnum):
 
 
 def _shipped_graph() -> DRGGraph:
-    return load_graph_or_dir(_DOCTRINE_ROOT)
+    return load_graph_or_dir(_BUILT_IN_PACK_ROOT)
 
 
 def _every_id_readable_from(result: ResolveTransitiveRefsResult) -> set[str]:

@@ -13,7 +13,7 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
 class TestGlossaryPackRepository:
-    def test_inherits_base_doctrine_repository(self) -> None:
+    def test_inherits_base_artifact_repository(self) -> None:
         """The reviewer-called-out invariant: no re-implemented glob/merge logic."""
         assert issubclass(GlossaryPackRepository, BaseArtifactRepository)
 

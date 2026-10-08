@@ -95,7 +95,7 @@ class TestDrupalDriesProfileLoads:
         # Assert
         assert "yaml" not in languages, f"unexpected 'yaml' in applies_to_languages: {languages}"
 
-    def test_doctor_doctrine_reports_zero_skipped_profiles(self, repo: AgentProfileRepository) -> None:
+    def test_doctor_charter_packs_reports_zero_skipped_profiles(self, repo: AgentProfileRepository) -> None:
         """NFR-002: the shipped pack has no skipped profiles, drupal-dries included."""
         # Arrange / Act
         skipped = repo.skipped_profiles()

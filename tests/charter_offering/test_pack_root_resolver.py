@@ -81,7 +81,7 @@ def _isolate(
     monkeypatch: pytest.MonkeyPatch,
     *,
     module_file: Path,
-    doctrine_dir: Path | None,
+    offering_dir: Path | None,
 ) -> None:
     """Pin the resolver's discovery inputs at the relocated kernel seam.
 
@@ -100,9 +100,9 @@ def _isolate(
     monkeypatch.setattr(kernel_paths, "__file__", str(module_file))
 
     def fake_files(_name: str) -> Path:
-        if doctrine_dir is None:
+        if offering_dir is None:
             raise ModuleNotFoundError(_name)
-        return doctrine_dir
+        return offering_dir
 
     monkeypatch.setattr(pack_paths, "files", fake_files)
 
@@ -114,7 +114,7 @@ def test_editable_resolves_repo_root_packs(tmp_path: Path, monkeypatch: pytest.M
     packs_built_in = repo / "packs" / "built-in"
     packs_built_in.mkdir(parents=True)
 
-    _isolate(monkeypatch, module_file=module_file, doctrine_dir=None)
+    _isolate(monkeypatch, module_file=module_file, offering_dir=None)
 
     assert resolve_pack_root("built-in") == packs_built_in
 
@@ -130,7 +130,7 @@ def test_installed_layout_resolves_site_packages_sibling_via_ancestor_walk(tmp_p
     of its own) -- it delegates entirely to :func:`kernel.paths.get_built_in_pack_root`,
     whose *ancestor walk* reaches the site-packages level naturally because
     ``anchor.parent.parent`` is always one of ``anchor.parents``. ``module_file``
-    is placed *inside* ``doctrine_dir`` itself here, matching how
+    is placed *inside* ``offering_dir`` itself here, matching how
     ``kernel.paths.__file__`` genuinely behaves in a real installed wheel (a
     ``paths.py`` file always lives inside the ``kernel`` package directory);
     the walk started at that file answers at the site-packages ancestor --
@@ -146,7 +146,7 @@ def test_installed_layout_resolves_site_packages_sibling_via_ancestor_walk(tmp_p
     # itself, so its parent.parent is the site-packages level.
     module_file = _make_anchor_file(kernel_dir)
 
-    _isolate(monkeypatch, module_file=module_file, doctrine_dir=None)
+    _isolate(monkeypatch, module_file=module_file, offering_dir=None)
 
     assert resolve_pack_root("built-in") == packs_built_in
 
@@ -167,7 +167,7 @@ def test_symlinked_checkout_resolves_real_repo_root(tmp_path: Path, monkeypatch:
     link.symlink_to(real_pkg, target_is_directory=True)
     module_file = link / "paths.py"
 
-    _isolate(monkeypatch, module_file=module_file, doctrine_dir=None)
+    _isolate(monkeypatch, module_file=module_file, offering_dir=None)
 
     resolved = resolve_pack_root("built-in")
     assert resolved == packs_built_in.resolve()
@@ -184,7 +184,7 @@ def test_env_override_wins(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     env_built_in = env_root / "built-in"
     env_built_in.mkdir(parents=True)
 
-    _isolate(monkeypatch, module_file=module_file, doctrine_dir=None)
+    _isolate(monkeypatch, module_file=module_file, offering_dir=None)
     monkeypatch.setenv(_PACKS_ROOT_ENV, str(env_root))
 
     resolved = resolve_pack_root("built-in")
@@ -199,7 +199,7 @@ def test_env_override_missing_dir_falls_through_to_editable(tmp_path: Path, monk
     editable_packs = repo / "packs" / "built-in"
     editable_packs.mkdir(parents=True)
 
-    _isolate(monkeypatch, module_file=module_file, doctrine_dir=None)
+    _isolate(monkeypatch, module_file=module_file, offering_dir=None)
     monkeypatch.setenv(_PACKS_ROOT_ENV, str(tmp_path / "empty"))
 
     assert resolve_pack_root("built-in") == editable_packs
@@ -211,7 +211,7 @@ def test_fail_closed_when_no_packs_anywhere(tmp_path: Path, monkeypatch: pytest.
     empty_site = tmp_path / "site" / "doctrine"
     empty_site.mkdir(parents=True)  # sibling packs/ deliberately absent
 
-    _isolate(monkeypatch, module_file=module_file, doctrine_dir=empty_site)
+    _isolate(monkeypatch, module_file=module_file, offering_dir=empty_site)
 
     with pytest.raises(PackRootNotFound) as excinfo:
         resolve_pack_root("built-in")
@@ -221,7 +221,7 @@ def test_fail_closed_when_no_packs_anywhere(tmp_path: Path, monkeypatch: pytest.
 def test_fail_closed_when_files_unavailable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """No candidate anywhere in the ancestor walk -> fails closed.
 
-    The ``doctrine_dir=None`` isolation (``files("charter.offering")`` raising) is
+    The ``offering_dir=None`` isolation (``files("charter.offering")`` raising) is
     kept for symmetry with ``_isolate``'s other callers but is not actually
     consulted here: ``_resolve_built_in`` no longer calls ``files()`` at all
     (FR-004) -- what makes this fail closed is that the ancestor walk from
@@ -229,7 +229,7 @@ def test_fail_closed_when_files_unavailable(tmp_path: Path, monkeypatch: pytest.
     """
     module_file = _make_anchor_file(tmp_path / "isolated" / "kernel")
 
-    _isolate(monkeypatch, module_file=module_file, doctrine_dir=None)
+    _isolate(monkeypatch, module_file=module_file, offering_dir=None)
 
     with pytest.raises(PackRootNotFound):
         resolve_pack_root("built-in")

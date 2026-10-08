@@ -184,9 +184,9 @@ class TestDRGRootCallersRouteThroughAuthority:
         from charter.offering.drg.migration.extractor import _artifacts_root
         from charter.offering.pack_paths import offering_package_dir
 
-        doctrine_pkg_dir = offering_package_dir()
-        assert doctrine_pkg_dir is not None
-        assert _artifacts_root(doctrine_pkg_dir) == built_in_root()
+        offering_pkg_dir = offering_package_dir()
+        assert offering_pkg_dir is not None
+        assert _artifacts_root(offering_pkg_dir) == built_in_root()
 
     def test_extractor_uses_the_shared_offering_package_dir_function(self) -> None:
         """The extractor imports :func:`charter.offering.pack_paths.offering_package_dir`

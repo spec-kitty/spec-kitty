@@ -13,12 +13,12 @@ import pytest
 import yaml
 from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
-from tests.charter_offering.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
+from tests.charter_offering.conftest import OFFERING_SOURCE_ROOT, REPO_ROOT
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
-DOCTRINE_DIR = DOCTRINE_SOURCE_ROOT
-SCHEMA_DIR = DOCTRINE_DIR / "schemas"
+OFFERING_DIR = OFFERING_SOURCE_ROOT
+SCHEMA_DIR = OFFERING_DIR / "schemas"
 
 
 def _load_yaml(path: Path) -> dict:
@@ -51,9 +51,9 @@ def _multi_glob(dirs: list[Path], pattern: str) -> list[Path]:
 _BUNDLED_SUBDIRS = ("built-in", "_proposed")
 
 ARTIFACT_GLOBS: dict[str, tuple[list[Path], str]] = {
-    "directive": ([DOCTRINE_DIR / "directives" / d for d in _BUNDLED_SUBDIRS], "*.directive.yaml"),
-    "styleguide": ([DOCTRINE_DIR / "styleguides" / d for d in _BUNDLED_SUBDIRS], "**/*.styleguide.yaml"),
-    "toolguide": ([DOCTRINE_DIR / "toolguides" / d for d in _BUNDLED_SUBDIRS], "*.toolguide.yaml"),
+    "directive": ([OFFERING_DIR / "directives" / d for d in _BUNDLED_SUBDIRS], "*.directive.yaml"),
+    "styleguide": ([OFFERING_DIR / "styleguides" / d for d in _BUNDLED_SUBDIRS], "**/*.styleguide.yaml"),
+    "toolguide": ([OFFERING_DIR / "toolguides" / d for d in _BUNDLED_SUBDIRS], "*.toolguide.yaml"),
 }
 
 
@@ -81,7 +81,7 @@ def test_artifact_files_validate_schema(artifact_type: str, artifact_path: Path)
 def tactic_ids() -> set[str]:
     ids: set[str] = set()
     for tactic_path in _multi_glob(
-        [DOCTRINE_DIR / "tactics" / "built-in"], "*.tactic.yaml"
+        [OFFERING_DIR / "tactics" / "built-in"], "*.tactic.yaml"
     ):
         tactic = _load_yaml(tactic_path)
         tactic_id = tactic.get("id")
@@ -93,7 +93,7 @@ def tactic_ids() -> set[str]:
 @pytest.mark.parametrize(
     "directive_path",
     _multi_glob(
-        [DOCTRINE_DIR / "directives" / d for d in _BUNDLED_SUBDIRS], "*.directive.yaml"
+        [OFFERING_DIR / "directives" / d for d in _BUNDLED_SUBDIRS], "*.directive.yaml"
     ),
     ids=lambda p: str(p.relative_to(REPO_ROOT)),
 )
@@ -115,7 +115,7 @@ def test_directive_has_no_inline_tactic_refs(directive_path: Path) -> None:
 @pytest.mark.parametrize(
     "toolguide_path",
     _multi_glob(
-        [DOCTRINE_DIR / "toolguides" / d for d in _BUNDLED_SUBDIRS], "*.toolguide.yaml"
+        [OFFERING_DIR / "toolguides" / d for d in _BUNDLED_SUBDIRS], "*.toolguide.yaml"
     ),
     ids=lambda p: str(p.relative_to(REPO_ROOT)),
 )

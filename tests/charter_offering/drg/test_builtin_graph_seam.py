@@ -22,7 +22,7 @@ from charter.offering.drg.models import DRGGraph
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.corpus]
 
 
-def test_source_points_at_doctrine_root_directory() -> None:
+def test_source_points_at_built_in_pack_root_directory() -> None:
     """The seam yields the doctrine *directory*, not a ``graph.yaml`` file.
 
     Routing every reader to the directory is what let WP05 delete the monolith

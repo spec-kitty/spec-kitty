@@ -14,18 +14,18 @@ import jsonschema
 from ruamel.yaml import YAML
 import pytest
 
-from tests.charter_offering.conftest import DOCTRINE_SOURCE_ROOT
+from tests.charter_offering.conftest import OFFERING_SOURCE_ROOT
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
-DOCTRINE_ROOT = DOCTRINE_SOURCE_ROOT
-SCHEMA_PATH = DOCTRINE_ROOT / "schemas" / "procedure.schema.yaml"
+OFFERING_ROOT = OFFERING_SOURCE_ROOT
+SCHEMA_PATH = OFFERING_ROOT / "schemas" / "procedure.schema.yaml"
 
 _SCAN_SUBDIRS = ("built-in", "_proposed")
-_PROCEDURE_DIRS = [DOCTRINE_ROOT / "procedures" / subdir for subdir in _SCAN_SUBDIRS]
+_PROCEDURE_DIRS = [OFFERING_ROOT / "procedures" / subdir for subdir in _SCAN_SUBDIRS]
 # Cross-reference checks only apply to shipped artifacts.
-_SHIPPED_PROCEDURE_DIRS = [DOCTRINE_ROOT / "procedures" / "built-in"]
-_TEMPLATES_DIR = DOCTRINE_ROOT / "templates"
+_SHIPPED_PROCEDURE_DIRS = [OFFERING_ROOT / "procedures" / "built-in"]
+_TEMPLATES_DIR = OFFERING_ROOT / "templates"
 
 
 def _multi_glob(dirs: list[Path], pattern: str) -> list[Path]:
@@ -45,7 +45,7 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 
 
 def _shipped_ids(artifact_type: str, pattern: str) -> set[str]:
-    base = DOCTRINE_ROOT / artifact_type / "built-in"
+    base = OFFERING_ROOT / artifact_type / "built-in"
     ids: set[str] = set()
     if not base.exists():
         return ids

@@ -8,16 +8,16 @@ from typing import Any
 from ruamel.yaml import YAML
 import pytest
 
-from tests.charter_offering.conftest import DOCTRINE_SOURCE_ROOT
+from tests.charter_offering.conftest import OFFERING_SOURCE_ROOT
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
-_DOCTRINE_ROOT = DOCTRINE_SOURCE_ROOT
-# DOCTRINE_SOURCE_ROOT is src/charter/offering/ (mission
+_OFFERING_ROOT = OFFERING_SOURCE_ROOT
+# OFFERING_SOURCE_ROOT is src/charter/offering/ (mission
 # charter-code-topology-01M152G1 relocated the former src/charter/offering/), so the
 # repo root is two parents up, not one: parents[0]=src/charter,
 # parents[1]=src, parents[2]=<repo root>.
-_PACKS_BUILT_IN = _DOCTRINE_ROOT.parents[2] / "packs" / "built-in"
+_PACKS_BUILT_IN = _OFFERING_ROOT.parents[2] / "packs" / "built-in"
 _DIRECTIVES_DIRS = [_PACKS_BUILT_IN / "directives"]
 
 

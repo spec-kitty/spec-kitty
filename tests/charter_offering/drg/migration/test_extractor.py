@@ -43,7 +43,7 @@ from charter.offering.missions.mission_type_repository import MissionTypeReposit
 # Path to the shipped doctrine root inside the repo.
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
-DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "charter" / "offering"
+OFFERING_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "charter" / "offering"
 
 _yaml = YAML(typ="safe")
 
@@ -153,12 +153,12 @@ def _count_inline_refs(pack_root: Path) -> int:  # noqa: C901
 @pytest.mark.doctrine
 class TestExtractArtifactEdges:
     def test_returns_nodes_and_edges(self) -> None:
-        nodes, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        nodes, edges = extract_artifact_edges(OFFERING_ROOT)
         assert len(nodes) > 0
         assert len(edges) > 0
 
     def test_directive_nodes_present(self) -> None:
-        nodes, _ = extract_artifact_edges(DOCTRINE_ROOT)
+        nodes, _ = extract_artifact_edges(OFFERING_ROOT)
         directive_urns = {n.urn for n in nodes if n.kind == NodeKind.DIRECTIVE}
         # We know DIRECTIVE_001, DIRECTIVE_024, DIRECTIVE_003 exist
         assert "directive:DIRECTIVE_001" in directive_urns
@@ -166,20 +166,20 @@ class TestExtractArtifactEdges:
         assert "directive:DIRECTIVE_003" in directive_urns
 
     def test_tactic_nodes_present(self) -> None:
-        nodes, _ = extract_artifact_edges(DOCTRINE_ROOT)
+        nodes, _ = extract_artifact_edges(OFFERING_ROOT)
         tactic_urns = {n.urn for n in nodes if n.kind == NodeKind.TACTIC}
         assert "tactic:tdd-red-green-refactor" in tactic_urns
         assert "tactic:adr-drafting-workflow" in tactic_urns
 
     def test_paradigm_nodes_present(self) -> None:
-        nodes, _ = extract_artifact_edges(DOCTRINE_ROOT)
+        nodes, _ = extract_artifact_edges(OFFERING_ROOT)
         paradigm_urns = {n.urn for n in nodes if n.kind == NodeKind.PARADIGM}
         assert "paradigm:domain-driven-design" in paradigm_urns
         assert "paradigm:atomic-design" in paradigm_urns
         assert "paradigm:c4-incremental-detail-modeling" in paradigm_urns
 
     def test_no_duplicate_nodes(self) -> None:
-        nodes, _ = extract_artifact_edges(DOCTRINE_ROOT)
+        nodes, _ = extract_artifact_edges(OFFERING_ROOT)
         urns = [n.urn for n in nodes]
         assert len(urns) == len(set(urns)), "Duplicate node URNs found"
 
@@ -199,7 +199,7 @@ class TestExtractArtifactEdges:
 
     def test_paradigm_directive_refs_normalised(self) -> None:
         """Paradigm directive_refs (DIRECTIVE_NNN format) should be normalised."""
-        _, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        _, edges = extract_artifact_edges(OFFERING_ROOT)
         ddd_requires = [
             e for e in edges
             if e.source == "paradigm:domain-driven-design"
@@ -213,7 +213,7 @@ class TestExtractArtifactEdges:
 
     def test_curated_paradigm_tactic_edges_are_preserved(self) -> None:
         """Curated paradigm tactic edges should survive regeneration."""
-        _, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        _, edges = extract_artifact_edges(OFFERING_ROOT)
         targets = {
             e.target
             for e in edges
@@ -224,7 +224,7 @@ class TestExtractArtifactEdges:
 
     def test_tactic_references_produce_suggests(self) -> None:
         """Tactic references should produce 'suggests' edges."""
-        _, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        _, edges = extract_artifact_edges(OFFERING_ROOT)
         pd_suggests = [
             e for e in edges
             if e.source == "tactic:problem-decomposition"
@@ -604,7 +604,7 @@ class TestExtractArtifactEdges:
 
     def test_procedure_template_references_produce_template_edges(self) -> None:
         """Procedure template references should be represented in the DRG."""
-        _, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        _, edges = extract_artifact_edges(OFFERING_ROOT)
         issue_triage_suggests = [
             e
             for e in edges
@@ -618,7 +618,7 @@ class TestExtractArtifactEdges:
 
     def test_agent_profile_references_produce_requires(self) -> None:
         """Agent profile context and tactic references should enter the DRG."""
-        nodes, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        nodes, edges = extract_artifact_edges(OFFERING_ROOT)
         assert any(
             n.urn == "agent_profile:debugger-debbie"
             and n.kind == NodeKind.AGENT_PROFILE
@@ -633,7 +633,7 @@ class TestExtractArtifactEdges:
         assert "tactic:five-paradigm-parallel-debugging" in targets
 
     def test_walks_all_built_in_directives(self) -> None:
-        nodes, _ = extract_artifact_edges(DOCTRINE_ROOT)
+        nodes, _ = extract_artifact_edges(OFFERING_ROOT)
         directive_count = len(
             list(
                 (built_in_graph_source() / "directives").glob("*.directive.yaml")
@@ -647,7 +647,7 @@ class TestExtractArtifactEdges:
         assert len(graph_directive_nodes) >= directive_count
 
     def test_walks_all_shipped_paradigms(self) -> None:
-        nodes, _ = extract_artifact_edges(DOCTRINE_ROOT)
+        nodes, _ = extract_artifact_edges(OFFERING_ROOT)
         paradigm_files = list(
             (built_in_graph_source() / "paradigms").glob("*.paradigm.yaml")
         )
@@ -666,12 +666,12 @@ class TestExtractArtifactEdges:
 @pytest.mark.doctrine
 class TestExtractActionEdges:
     def test_returns_nodes_and_edges(self) -> None:
-        nodes, edges = extract_action_edges(DOCTRINE_ROOT)
+        nodes, edges = extract_action_edges(OFFERING_ROOT)
         assert len(nodes) > 0
         assert len(edges) > 0
 
     def test_action_nodes_created(self) -> None:
-        nodes, _ = extract_action_edges(DOCTRINE_ROOT)
+        nodes, _ = extract_action_edges(OFFERING_ROOT)
         action_urns = {n.urn for n in nodes if n.kind == NodeKind.ACTION}
         expected = {
             "action:software-dev/specify",
@@ -684,7 +684,7 @@ class TestExtractActionEdges:
 
     def test_directive_slugs_normalised(self) -> None:
         """Directive slugs in action indices should be normalised to DIRECTIVE_NNN."""
-        _, edges = extract_action_edges(DOCTRINE_ROOT)
+        _, edges = extract_action_edges(OFFERING_ROOT)
         implement_edges = [
             e for e in edges
             if e.source == "action:software-dev/implement"
@@ -695,13 +695,13 @@ class TestExtractActionEdges:
 
     def test_scope_edges_only(self) -> None:
         """All action edges should be scope edges."""
-        _, edges = extract_action_edges(DOCTRINE_ROOT)
+        _, edges = extract_action_edges(OFFERING_ROOT)
         for edge in edges:
             assert edge.relation == Relation.SCOPE
 
     def test_empty_lists_produce_no_edges(self) -> None:
         """Empty styleguides/toolguides/procedures lists should produce no edges."""
-        _, edges = extract_action_edges(DOCTRINE_ROOT)
+        _, edges = extract_action_edges(OFFERING_ROOT)
         specify_edges = [
             e for e in edges
             if e.source == "action:software-dev/specify"
@@ -715,7 +715,7 @@ class TestExtractActionEdges:
 
     def test_agent_profile_scope_edges(self) -> None:
         """Action indexes may scope built-in agent profiles."""
-        nodes, edges = extract_action_edges(DOCTRINE_ROOT)
+        nodes, edges = extract_action_edges(OFFERING_ROOT)
         assert any(
             n.urn == "agent_profile:retrospective-facilitator"
             and n.kind == NodeKind.AGENT_PROFILE
@@ -730,7 +730,7 @@ class TestExtractActionEdges:
 
     def test_paradigm_scope_edges(self) -> None:
         """Action indexes may scope built-in paradigms."""
-        nodes, edges = extract_action_edges(DOCTRINE_ROOT)
+        nodes, edges = extract_action_edges(OFFERING_ROOT)
         assert any(
             n.urn == "paradigm:execution-lanes"
             and n.kind == NodeKind.PARADIGM
@@ -745,7 +745,7 @@ class TestExtractActionEdges:
 
     def test_tasks_action_has_seven_refs(self) -> None:
         """The tasks action index should produce 7 scope edges."""
-        _, edges = extract_action_edges(DOCTRINE_ROOT)
+        _, edges = extract_action_edges(OFFERING_ROOT)
         tasks_edges = [
             e for e in edges
             if e.source == "action:software-dev/tasks"
@@ -775,13 +775,13 @@ class TestExtractActionEdges:
 class TestGenerateGraph:
     def test_generates_valid_graph(self, tmp_path: Path) -> None:
         output = tmp_path / "graph.yaml"
-        graph = generate_graph(DOCTRINE_ROOT, output)
+        graph = generate_graph(OFFERING_ROOT, output)
         errors = validate_graph(graph)
         assert errors == [], f"Validation errors: {errors}"
 
     def test_graph_file_exists(self, tmp_path: Path) -> None:
         output = tmp_path / "graph.yaml"
-        generate_graph(DOCTRINE_ROOT, output)
+        generate_graph(OFFERING_ROOT, output)
         # Sharded layout (mission #2680 WP05): the generator writes per-kind
         # ``*.graph.yaml`` fragments into ``output``'s directory and retires any
         # ``graph.yaml`` monolith in the same write (DD-7).
@@ -790,23 +790,23 @@ class TestGenerateGraph:
 
     def test_schema_version(self, tmp_path: Path) -> None:
         output = tmp_path / "graph.yaml"
-        graph = generate_graph(DOCTRINE_ROOT, output)
+        graph = generate_graph(OFFERING_ROOT, output)
         assert graph.schema_version == "1.0"
 
     def test_generated_by(self, tmp_path: Path) -> None:
         output = tmp_path / "graph.yaml"
-        graph = generate_graph(DOCTRINE_ROOT, output)
+        graph = generate_graph(OFFERING_ROOT, output)
         assert graph.generated_by == "drg-migration-v1"
 
     def test_all_node_urns_unique(self, tmp_path: Path) -> None:
         output = tmp_path / "graph.yaml"
-        graph = generate_graph(DOCTRINE_ROOT, output)
+        graph = generate_graph(OFFERING_ROOT, output)
         urns = [n.urn for n in graph.nodes]
         assert len(urns) == len(set(urns))
 
     def test_all_edge_triples_unique(self, tmp_path: Path) -> None:
         output = tmp_path / "graph.yaml"
-        graph = generate_graph(DOCTRINE_ROOT, output)
+        graph = generate_graph(OFFERING_ROOT, output)
         triples = [(e.source, e.target, e.relation.value) for e in graph.edges]
         assert len(triples) == len(set(triples))
 
@@ -816,8 +816,8 @@ class TestGenerateGraph:
         dir2 = tmp_path / "run2"
         dir1.mkdir()
         dir2.mkdir()
-        generate_graph(DOCTRINE_ROOT, dir1 / "graph.yaml")
-        generate_graph(DOCTRINE_ROOT, dir2 / "graph.yaml")
+        generate_graph(OFFERING_ROOT, dir1 / "graph.yaml")
+        generate_graph(OFFERING_ROOT, dir2 / "graph.yaml")
 
         def _fragment_hashes(directory: Path) -> dict[str, str]:
             return {
@@ -845,7 +845,7 @@ class TestGenerateGraph:
         edges or anti-pattern nodes, so a bare regeneration would never match
         even when nothing is actually stale.
         """
-        write_reference_graph_with_overlay(DOCTRINE_ROOT, tmp_path / "graph.yaml")
+        write_reference_graph_with_overlay(OFFERING_ROOT, tmp_path / "graph.yaml")
 
         def _fragments(directory: Path) -> dict[str, str]:
             return {
@@ -865,7 +865,7 @@ class TestGenerateGraph:
     def test_surface_inequalities(self, tmp_path: Path) -> None:
         """Verify governance surface inequalities after calibration."""
         output = tmp_path / "graph.yaml"
-        graph = generate_graph(DOCTRINE_ROOT, output)
+        graph = generate_graph(OFFERING_ROOT, output)
 
         specify = measure_surface("action:software-dev/specify", graph.edges)
         plan = measure_surface("action:software-dev/plan", graph.edges)
@@ -883,7 +883,7 @@ class TestGenerateGraph:
     def test_resolved_surface_inequalities(self, tmp_path: Path) -> None:
         """Generated graph must satisfy shipped resolved-context calibration."""
         output = tmp_path / "graph.yaml"
-        graph = generate_graph(DOCTRINE_ROOT, output)
+        graph = generate_graph(OFFERING_ROOT, output)
 
         def _resolved(action: str) -> int:
             return len(
@@ -913,20 +913,20 @@ class TestGenerateGraph:
 
     def test_discovers_styleguide_nodes(self, tmp_path: Path) -> None:
         output = tmp_path / "graph.yaml"
-        graph = generate_graph(DOCTRINE_ROOT, output)
+        graph = generate_graph(OFFERING_ROOT, output)
         styleguide_nodes = [n for n in graph.nodes if n.kind == NodeKind.STYLEGUIDE]
         # At least the shipped styleguides should be present
         assert len(styleguide_nodes) >= 1
 
     def test_discovers_toolguide_nodes(self, tmp_path: Path) -> None:
         output = tmp_path / "graph.yaml"
-        graph = generate_graph(DOCTRINE_ROOT, output)
+        graph = generate_graph(OFFERING_ROOT, output)
         toolguide_nodes = [n for n in graph.nodes if n.kind == NodeKind.TOOLGUIDE]
         assert len(toolguide_nodes) >= 1
 
     def test_discovers_procedure_nodes(self, tmp_path: Path) -> None:
         output = tmp_path / "graph.yaml"
-        graph = generate_graph(DOCTRINE_ROOT, output)
+        graph = generate_graph(OFFERING_ROOT, output)
         procedure_nodes = [n for n in graph.nodes if n.kind == NodeKind.PROCEDURE]
         assert len(procedure_nodes) >= 1
 
@@ -944,8 +944,8 @@ class TestEdgeCountCompleteness:
         The >= accounts for calibration-added edges.
         """
         output = tmp_path / "graph.yaml"
-        graph = generate_graph(DOCTRINE_ROOT, output)
-        total_inline = _count_inline_refs(DOCTRINE_ROOT)
+        graph = generate_graph(OFFERING_ROOT, output)
+        total_inline = _count_inline_refs(OFFERING_ROOT)
         assert len(graph.edges) >= total_inline, (
             f"Edge count ({len(graph.edges)}) < inline refs ({total_inline}). "
             f"Some references were dropped."
@@ -953,7 +953,7 @@ class TestEdgeCountCompleteness:
 
     def test_per_directive_edges_complete(self) -> None:
         """Each directive's inline refs should have corresponding edges."""
-        _, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        _, edges = extract_artifact_edges(OFFERING_ROOT)
         directives_dir = built_in_graph_source() / "directives"
         for path in sorted(directives_dir.glob("*.directive.yaml")):
             data: Any = _yaml.load(path)
@@ -975,7 +975,7 @@ class TestEdgeCountCompleteness:
 
     def test_per_paradigm_edges_complete(self) -> None:
         """Each paradigm's inline refs should have corresponding edges."""
-        _, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        _, edges = extract_artifact_edges(OFFERING_ROOT)
         paradigms_dir = built_in_graph_source() / "paradigms"
         for path in sorted(paradigms_dir.glob("*.paradigm.yaml")):
             data: Any = _yaml.load(path)
@@ -997,8 +997,8 @@ class TestEdgeCountCompleteness:
 
     def test_per_action_edges_complete(self) -> None:
         """Each action's scope refs should have corresponding edges."""
-        _, edges = extract_action_edges(DOCTRINE_ROOT)
-        missions_dir = DOCTRINE_ROOT / "missions"
+        _, edges = extract_action_edges(OFFERING_ROOT)
+        missions_dir = OFFERING_ROOT / "missions"
         for index_path in sorted(missions_dir.rglob("actions/*/index.yaml")):
             data: Any = _yaml.load(index_path)
             if not data:
@@ -1030,7 +1030,7 @@ class TestEdgeCountCompleteness:
 # Mission-type edge emission (mission-type-drg-edges mission, SC-001)
 # ---------------------------------------------------------------------------
 
-MISSION_TYPES_DIR = DOCTRINE_ROOT / "missions" / "mission_types"
+MISSION_TYPES_DIR = OFFERING_ROOT / "missions" / "mission_types"
 
 
 def _shipped_action_sequences() -> dict[str, list[str]]:
@@ -1062,7 +1062,7 @@ class TestMissionTypeEdges:
 
     def test_plan_emits_exactly_its_four_requires_edges(self) -> None:
         """``mission_type:plan`` emits exactly 4 requires edges to its actions."""
-        edges = extract_mission_type_edges(DOCTRINE_ROOT)
+        edges = extract_mission_type_edges(OFFERING_ROOT)
         plan_edges = [
             e for e in edges if e.source == "mission_type:plan"
         ]
@@ -1078,7 +1078,7 @@ class TestMissionTypeEdges:
 
     def test_documentation_emits_full_seven_edge_sequence(self) -> None:
         """A non-plan type emits its full 7-step sequence (FR-001 breadth)."""
-        edges = extract_mission_type_edges(DOCTRINE_ROOT)
+        edges = extract_mission_type_edges(OFFERING_ROOT)
         doc_edges = [
             e for e in edges if e.source == "mission_type:documentation"
         ]
@@ -1097,7 +1097,7 @@ class TestMissionTypeEdges:
 
     def test_every_mission_type_edge_matches_its_action_sequence(self) -> None:
         """Each shipped type emits one requires edge per action_sequence step."""
-        edges = extract_mission_type_edges(DOCTRINE_ROOT)
+        edges = extract_mission_type_edges(OFFERING_ROOT)
         sequences = _shipped_action_sequences()
 
         for mission_id, steps in sequences.items():
@@ -1118,7 +1118,7 @@ class TestMissionTypeEdges:
         This is a deliberate cardinality contract over the built-in mission
         types, not incidental golden-count debt.
         """
-        edges = extract_mission_type_edges(DOCTRINE_ROOT)
+        edges = extract_mission_type_edges(OFFERING_ROOT)
         requires_edges = [
             e
             for e in edges
@@ -1133,7 +1133,7 @@ class TestMissionTypeEdges:
         """No mission_type node -- and no action node named in a sequence --
         remains an orphan in the fully generated graph (SC-001)."""
         output = tmp_path / "graph.yaml"
-        graph = generate_graph(DOCTRINE_ROOT, output)
+        graph = generate_graph(OFFERING_ROOT, output)
 
         incident: set[str] = set()
         for edge in graph.edges:

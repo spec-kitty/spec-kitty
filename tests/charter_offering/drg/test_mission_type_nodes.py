@@ -29,10 +29,10 @@ from charter.offering.missions.mission_type_repository import MissionTypeReposit
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
-DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[3] / "src" / "charter" / "offering"
+OFFERING_ROOT: Path = Path(__file__).resolve().parents[3] / "src" / "charter" / "offering"
 # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
 # relocated mission_types/ from src/charter/offering/missions/mission_types to
-# packs/built-in/missions/mission_types. DOCTRINE_ROOT itself is unchanged
+# packs/built-in/missions/mission_types. OFFERING_ROOT itself is unchanged
 # (still src/doctrine) and stays correct for generate_graph() below, which
 # internally repoints through _missions_root()'s own FR-005 fix.
 MISSION_TYPES_DIR = Path(__file__).resolve().parents[3] / "packs" / "built-in" / "missions" / "mission_types"
@@ -80,7 +80,7 @@ class TestMissionTypeNodeGeneration:
         self, tmp_path: Path
     ) -> None:
         output = tmp_path / "graph.yaml"
-        graph = generate_graph(DOCTRINE_ROOT, output)
+        graph = generate_graph(OFFERING_ROOT, output)
 
         mission_type_nodes = [
             n for n in graph.nodes if n.kind == NodeKind.MISSION_TYPE
@@ -121,7 +121,7 @@ class TestMissionTypeNodeGeneration:
         # ``action:<id>/<step>`` node. This re-pins the retired nodes-only
         # placeholder (the S0-continuation edges have since landed).
         output = tmp_path / "graph.yaml"
-        graph = generate_graph(DOCTRINE_ROOT, output)
+        graph = generate_graph(OFFERING_ROOT, output)
 
         sequences = self._shipped_action_sequences()
         for mission_id, steps in sequences.items():

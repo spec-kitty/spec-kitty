@@ -5,11 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 import pytest
 
-from tests.charter_offering.conftest import DOCTRINE_SOURCE_ROOT
+from tests.charter_offering.conftest import OFFERING_SOURCE_ROOT
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
-STRUCTURE_DIR = DOCTRINE_SOURCE_ROOT / "templates" / "structure"
+STRUCTURE_DIR = OFFERING_SOURCE_ROOT / "templates" / "structure"
 
 
 def test_structure_templates_exist() -> None:

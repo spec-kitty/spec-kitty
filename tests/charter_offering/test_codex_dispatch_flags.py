@@ -6,16 +6,16 @@ from pathlib import Path
 
 import pytest
 
-from tests.charter_offering.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
+from tests.charter_offering.conftest import OFFERING_SOURCE_ROOT, REPO_ROOT
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
 
 def _skill_markdown_files() -> list[Path]:
-    return sorted((DOCTRINE_SOURCE_ROOT / "skills").rglob("*.md"))
+    return sorted((OFFERING_SOURCE_ROOT / "skills").rglob("*.md"))
 
 
-def test_shipped_doctrine_skills_do_not_dispatch_codex_with_full_auto() -> None:
+def test_shipped_charter_skills_do_not_dispatch_codex_with_full_auto() -> None:
     """Codex --full-auto aliases workspace-write and breaks terminal move-task."""
     violations: list[str] = []
     for path in _skill_markdown_files():
@@ -27,9 +27,9 @@ def test_shipped_doctrine_skills_do_not_dispatch_codex_with_full_auto() -> None:
 
 
 def test_implement_review_codex_dispatch_uses_explicit_git_capable_sandbox() -> None:
-    skill_path = DOCTRINE_SOURCE_ROOT / "skills" / "spec-kitty-implement-review" / "SKILL.md"
+    skill_path = OFFERING_SOURCE_ROOT / "skills" / "spec-kitty-implement-review" / "SKILL.md"
     matrix_path = (
-        DOCTRINE_SOURCE_ROOT
+        OFFERING_SOURCE_ROOT
         / "skills"
         / "spec-kitty-implement-review"
         / "references"

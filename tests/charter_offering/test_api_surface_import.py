@@ -21,7 +21,7 @@ import pytest
 pytestmark = pytest.mark.fast
 
 
-def test_doctrine_api_all_symbols_resolve() -> None:
+def test_offering_api_all_symbols_resolve() -> None:
     import charter.offering.api as api
 
     exported = getattr(api, "__all__", None)

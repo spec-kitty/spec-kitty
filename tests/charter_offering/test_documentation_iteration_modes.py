@@ -18,7 +18,7 @@ from tests.charter_offering.conftest import REPO_ROOT
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
-_DOCUMENTATION_DOCTRINE_ROOTS = (
+_DOCUMENTATION_MISSION_ROOTS = (
     REPO_ROOT / "packs" / "built-in" / "missions" / "documentation",
     REPO_ROOT / "packs" / "built-in" / "missions" / "mission-steps" / "documentation",
 )
@@ -29,7 +29,7 @@ _MODE_TOKEN = re.compile(r"(?<![\w-])(initial|gap[_-]filling|(?:mission|feature)
 
 def _named_modes() -> list[tuple[str, str]]:
     found: list[tuple[str, str]] = []
-    for root in _DOCUMENTATION_DOCTRINE_ROOTS:
+    for root in _DOCUMENTATION_MISSION_ROOTS:
         for path in sorted(root.rglob("*")):
             if path.suffix not in {".md", ".yaml", ".yml"} or not path.is_file():
                 continue
@@ -44,12 +44,12 @@ def _named_modes() -> list[tuple[str, str]]:
     return found
 
 
-def test_documentation_doctrine_names_iteration_modes() -> None:
+def test_documentation_mission_names_iteration_modes() -> None:
     """Non-vacuity: the scan finds the mode lists it is meant to police."""
     tokens = {token for _, token in _named_modes()}
     assert {"initial", "gap_filling", "mission_specific"} <= tokens
 
 
-def test_documentation_doctrine_iteration_modes_are_accepted_by_doc_state() -> None:
+def test_documentation_mission_iteration_modes_are_accepted_by_doc_state() -> None:
     violations = [f"{where}: {token}" for where, token in _named_modes() if token not in ITERATION_MODES]
     assert violations == [], "Doctrine names iteration modes doc_state does not accept:\n" + "\n".join(violations)

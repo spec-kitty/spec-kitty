@@ -12,12 +12,12 @@ import re
 import pytest
 import yaml
 
-from tests.charter_offering.conftest import DOCTRINE_SOURCE_ROOT
+from tests.charter_offering.conftest import OFFERING_SOURCE_ROOT
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 SKILL_PATH = (
-    DOCTRINE_SOURCE_ROOT / "skills" / "spk-charter-spdd-reasons" / "SKILL.md"
+    OFFERING_SOURCE_ROOT / "skills" / "spk-charter-spdd-reasons" / "SKILL.md"
 )
 
 FR_010_TRIGGERS = [

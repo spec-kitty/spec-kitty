@@ -71,7 +71,7 @@ def _resolved_built_in_dir(kind: str) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def test_moved_content_is_absent_under_src_doctrine() -> None:
+def test_moved_content_is_absent_under_src_charter_offering() -> None:
     """Every manifest-recorded path is gone from ``src/charter/offering/`` (exact set)."""
     with CONTENT_MANIFEST.open(encoding="utf-8") as fh:
         moved_paths: list[str] = json.load(fh)
@@ -110,14 +110,14 @@ def test_no_per_kind_importlib_content_anchor_remains() -> None:
     hyphen is not a legal identifier), so any surviving per-kind package anchor
     is a resolution path that never reaches the moved content.
     """
-    doctrine_src = REPO_ROOT / "src" / "charter" / "offering"
+    offering_src = REPO_ROOT / "src" / "charter" / "offering"
     forbidden = tuple(
         anchor
         for kind in RELOCATED_KINDS
         for anchor in (f'files("doctrine.{kind}")', f"files('doctrine.{kind}')")
     )
     offenders: list[str] = []
-    for py_file in doctrine_src.rglob("*.py"):
+    for py_file in offering_src.rglob("*.py"):
         text = py_file.read_text(encoding="utf-8")
         for anchor in forbidden:
             if anchor in text:

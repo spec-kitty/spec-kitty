@@ -12,16 +12,16 @@ from pathlib import Path
 
 import pytest
 
-from tests.charter_offering.conftest import DOCTRINE_SOURCE_ROOT
+from tests.charter_offering.conftest import OFFERING_SOURCE_ROOT
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
-_REPO_ROOT = DOCTRINE_SOURCE_ROOT.parent.parent.parent
-_IMPL_REVIEW = DOCTRINE_SOURCE_ROOT / "skills" / "spec-kitty-implement-review" / "SKILL.md"
+_REPO_ROOT = OFFERING_SOURCE_ROOT.parent.parent.parent
+_IMPL_REVIEW = OFFERING_SOURCE_ROOT / "skills" / "spec-kitty-implement-review" / "SKILL.md"
 _GUIDANCE_FILES = (
     _IMPL_REVIEW,
-    DOCTRINE_SOURCE_ROOT / "skills" / "spec-kitty-runtime-review" / "SKILL.md",
-    DOCTRINE_SOURCE_ROOT / "skills" / "spec-kitty-runtime-review" / "references" / "review-checklist.md",
+    OFFERING_SOURCE_ROOT / "skills" / "spec-kitty-runtime-review" / "SKILL.md",
+    OFFERING_SOURCE_ROOT / "skills" / "spec-kitty-runtime-review" / "references" / "review-checklist.md",
     _REPO_ROOT / "docs" / "guides" / "how-to" / "missions" / "review-work-package.md",
 )
 

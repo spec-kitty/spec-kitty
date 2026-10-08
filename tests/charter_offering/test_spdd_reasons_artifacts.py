@@ -13,7 +13,7 @@ import pytest
 from charter.offering.pack_paths import resolve_pack_root
 from charter.offering.service import CharterOfferingService
 
-from tests.charter_offering.conftest import DOCTRINE_SOURCE_ROOT
+from tests.charter_offering.conftest import OFFERING_SOURCE_ROOT
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
@@ -22,7 +22,7 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 # ``packs/built-in/<kind>/`` (the per-kind ``built-in/`` subdir was removed).
 # ``templates/`` was NOT relocated and still lives under ``src/charter/offering/``.
 PACKS_BUILT_IN = resolve_pack_root("built-in")
-DOCTRINE_ROOT = DOCTRINE_SOURCE_ROOT
+OFFERING_ROOT = OFFERING_SOURCE_ROOT
 
 
 @pytest.fixture(scope="module")
@@ -110,7 +110,7 @@ def test_directive_038_lenient_adherence_with_four_allowances(
 
 def test_template_fragment_has_all_seven_canvas_sections() -> None:
     fragment_path = (
-        DOCTRINE_ROOT / "templates" / "fragments" / "reasons-canvas-template.md"
+        OFFERING_ROOT / "templates" / "fragments" / "reasons-canvas-template.md"
     )
     assert fragment_path.is_file(), f"template fragment missing at {fragment_path}"
     body = fragment_path.read_text(encoding="utf-8")
