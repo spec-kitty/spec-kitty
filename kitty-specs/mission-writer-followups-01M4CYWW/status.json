@@ -95,7 +95,8 @@
       "last_transition_at": "2026-10-08T12:41:23.483637+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "All four subtasks done: doc-state, consolidation and migration meta.json writers take the Mission lock (locked_update_meta or write_meta in a mission_write_lock region). Red-first overlap + lock-acquisition tests, 5/5 repeats, mutation-checked. Adds opt-in fallback_to_dir_name for healing migrations on legacy coordination missions without a mid8. Deviations: mission_write.py, mission_metadata.py, test_status_events_writes_gate.py census, WP02 test + bulk-edit SKILL.md edited outside owned_files."
+        "All four subtasks done: doc-state, consolidation and migration meta.json writers take the Mission lock (locked_update_meta or write_meta in a mission_write_lock region). Red-first overlap + lock-acquisition tests, 5/5 repeats, mutation-checked. Adds opt-in fallback_to_dir_name for healing migrations on legacy coordination missions without a mid8. Deviations: mission_write.py, mission_metadata.py, test_status_events_writes_gate.py census, WP02 test + bulk-edit SKILL.md edited outside owned_files.",
+        "Cycle 1 addressed: planning-only bake tests rewritten against the locked path (missing meta now raises, no stub); lock coverage added for scratch bake (primary key, lock released before git), planning-only assignment, backfill_mission_ids, update_documentation_state; fallback_to_dir_name callers listed in docstring; comment/banner fixed; dead _write_meta_canonical removed."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
