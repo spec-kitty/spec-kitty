@@ -1079,7 +1079,7 @@ class TestWPStepHelpers:
 
 class TestAtomicTaskSteps:
     @pytest.mark.git_repo
-    def test_tasks_outline_guard_blocks_without_tasks_md(self, tmp_path: Path) -> None:
+    def test_tasks_outline_guard_blocks_without_wps_yaml(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
 
@@ -1087,13 +1087,13 @@ class TestAtomicTaskSteps:
 
         failures = _check_cli_guards("tasks_outline", feature_dir)
         assert len(failures) == 1
-        assert "tasks.md" in failures[0]
+        assert "wps.yaml" in failures[0]
 
     @pytest.mark.git_repo
-    def test_tasks_outline_guard_passes_with_tasks_md(self, tmp_path: Path) -> None:
+    def test_tasks_outline_guard_passes_with_wps_yaml(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
-        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+        (feature_dir / "wps.yaml").write_text("work_packages: []\n", encoding="utf-8")
 
         from runtime.next.runtime_bridge import _check_cli_guards
 
@@ -1698,6 +1698,7 @@ class TestAtomicTaskSteps:
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
         # WP file WITHOUT dependencies field in raw frontmatter
         _add_wp_files(feature_dir, {"WP01": "planned"})
+        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
 
         from runtime.next.runtime_bridge import _check_cli_guards
 
@@ -1716,6 +1717,7 @@ class TestAtomicTaskSteps:
             "---\nwork_package_id: WP01\nlane: planned\ndependencies: []\ntitle: WP01\n---\n# WP01\n",
             encoding="utf-8",
         )
+        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
 
         from runtime.next.runtime_bridge import _check_cli_guards
 
@@ -1735,6 +1737,7 @@ class TestAtomicTaskSteps:
             "---\nwork_package_id: WP01\nlane: planned\ntitle: WP01\n---\n# WP01\nContent.\n",
             encoding="utf-8",
         )
+        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
 
         from runtime.next.runtime_bridge import _check_cli_guards
 

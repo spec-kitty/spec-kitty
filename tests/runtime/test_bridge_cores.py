@@ -455,9 +455,7 @@ def test_plan_guard_missing_and_present() -> None:
 
 def test_cli_native_tasks_outline_requires_wps_yaml() -> None:
     assert cores.evaluate_guards(_snapshot(step_id="tasks_outline")) == ["Required artifact missing: wps.yaml"]
-    assert cores.evaluate_guards(_snapshot(present_artifacts=frozenset({"tasks.md"}), step_id="tasks_outline")) == [
-        "Required artifact missing: wps.yaml"
-    ]
+    assert cores.evaluate_guards(_snapshot(present_artifacts=frozenset({"tasks.md"}), step_id="tasks_outline")) == ["Required artifact missing: wps.yaml"]
     assert cores.evaluate_guards(_snapshot(present_artifacts=frozenset({"wps.yaml"}), step_id="tasks_outline")) == []
 
 
@@ -481,17 +479,20 @@ def test_cli_native_tasks_finalize_dir_missing_message_distinct_from_packages() 
     """The dir-missing message for tasks_finalize differs from the
     tasks_packages/composed 'at least one WP*.md file' message -- do not
     unify these two strings."""
-    assert cores.evaluate_guards(_snapshot(step_id="tasks_finalize")) == ["Required: tasks/ directory with finalized WP files"]
+    assert cores.evaluate_guards(_snapshot(step_id="tasks_finalize")) == [
+        "Required artifact missing: tasks.md",
+        "Required: tasks/ directory with finalized WP files",
+    ]
 
 
 def test_cli_native_tasks_finalize_empty_wp_files_message() -> None:
     snapshot = _snapshot(status_facts={"tasks_dir_is_dir": True}, step_id="tasks_finalize")
-    assert cores.evaluate_guards(snapshot) == ["Required: at least one tasks/WP*.md file"]
+    assert cores.evaluate_guards(snapshot) == ["Required artifact missing: tasks.md", "Required: at least one tasks/WP*.md file"]
 
 
 def test_cli_native_tasks_finalize_missing_dependency_uses_full_stem_breaks_on_first() -> None:
     snapshot = _snapshot(
-        present_artifacts=frozenset({"tasks_wp_files"}),
+        present_artifacts=frozenset({"tasks.md", "tasks_wp_files"}),
         status_facts={
             "tasks_dir_is_dir": True,
             "wp_dependency_records": (("WP01-writeside", True), ("WP02-rawjoin", False), ("WP03-docs", False)),
@@ -503,7 +504,7 @@ def test_cli_native_tasks_finalize_missing_dependency_uses_full_stem_breaks_on_f
 
 def test_cli_native_tasks_finalize_occurrence_gate_always_appended() -> None:
     snapshot = _snapshot(
-        present_artifacts=frozenset({"tasks_wp_files"}),
+        present_artifacts=frozenset({"tasks.md", "tasks_wp_files"}),
         status_facts={
             "tasks_dir_is_dir": True,
             "wp_dependency_records": (("WP01-writeside", True),),
@@ -538,10 +539,9 @@ def test_composed_tasks_legacy_outline_requires_wps_yaml() -> None:
     assert cores.evaluate_guards(snapshot) == ["Required artifact missing: wps.yaml"]
 
 
-def test_composed_tasks_legacy_packages_checks_tasks_md_and_requirement_mapping() -> None:
-    # tasks.md IS present here, so only the requirement-mapping fact surfaces.
+def test_composed_tasks_legacy_packages_checks_requirement_mapping_without_tasks_md() -> None:
     snapshot = _snapshot(
-        present_artifacts=frozenset({"tasks.md", "tasks_wp_files"}),
+        present_artifacts=frozenset({"tasks_wp_files"}),
         status_facts={
             "tasks_dir_is_dir": True,
             "requirement_mapping_failures": ("unmapped FRs: FR-009",),
@@ -552,16 +552,9 @@ def test_composed_tasks_legacy_packages_checks_tasks_md_and_requirement_mapping(
     assert cores.evaluate_guards(snapshot) == ["unmapped FRs: FR-009"]
 
 
-def test_composed_tasks_legacy_packages_missing_tasks_md_and_wp_files_both_appended() -> None:
-    """Composed tasks_packages appends BOTH the tasks.md-missing message AND
-    the WP-files-missing message (two independent checks, not else-if) --
-    unlike the CLI-native tasks_packages branch, which only ever emits ONE
-    of these two."""
+def test_composed_tasks_legacy_packages_only_requires_wp_files() -> None:
     snapshot = _snapshot(step_id="tasks", legacy_step_id="tasks_packages")
-    assert cores.evaluate_guards(snapshot) == [
-        "Required artifact missing: tasks.md",
-        "Required: at least one tasks/WP*.md file",
-    ]
+    assert cores.evaluate_guards(snapshot) == ["Required: at least one tasks/WP*.md file"]
 
 
 @pytest.mark.parametrize("legacy_step_id", ["tasks_finalize", None])
@@ -645,6 +638,7 @@ def test_cli_native_tasks_finalize_guard_reads_bare_prose_unconditionally() -> N
     )
     assert cores.evaluate_guards(snapshot) == [
         _BARE_PROSE_TEETH_MESSAGE,
+        "Required artifact missing: tasks.md",
         "Required: tasks/ directory with finalized WP files",
     ]
 
@@ -679,15 +673,11 @@ def test_composed_tasks_terminal_guard_reads_bare_prose_before_tasks_dir_ready()
 
 
 def test_cli_native_and_composed_tasks_vocabularies_diverge_for_same_substep() -> None:
-    """tasks_finalize (CLI-native) and tasks/legacy_step_id=tasks_finalize
-    (composed) are NOT interchangeable -- the composed branch also checks
-    tasks.md existence and requirement-mapping; the CLI-native branch does
-    neither. Pinning both distinctly guards against a future "helpful"
-    unification that would silently change guard_failures."""
+    """The two finalize vocabularies retain distinct WP directory messages."""
     empty_tasks_dir_status = {"tasks_dir_is_dir": False}
     cli_native = cores.evaluate_guards(_snapshot(status_facts=empty_tasks_dir_status, step_id="tasks_finalize"))
     composed = cores.evaluate_guards(_snapshot(status_facts=empty_tasks_dir_status, step_id="tasks", legacy_step_id="tasks_finalize"))
-    assert cli_native == ["Required: tasks/ directory with finalized WP files"]
+    assert cli_native == ["Required artifact missing: tasks.md", "Required: tasks/ directory with finalized WP files"]
     assert composed == [
         "Required artifact missing: tasks.md",
         "Required: at least one tasks/WP*.md file",

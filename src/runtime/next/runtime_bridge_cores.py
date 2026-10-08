@@ -88,6 +88,7 @@ from runtime.next.decision import Decision, DecisionKind, InvalidStepDecision
 SPEC_ARTIFACT = "spec.md"
 PLAN_ARTIFACT = "plan.md"
 TASKS_ARTIFACT = "tasks.md"
+TASKS_INDEX_ARTIFACT = "wps.yaml"
 MISSING_ARTIFACT_MESSAGE = "Required artifact missing: {name}"
 MISSING_TASK_FILES_MESSAGE = "Required: at least one tasks/WP*.md file"
 
@@ -645,8 +646,7 @@ def _first_missing_dependency_failure(snapshot: _ArtifactPresenceSnapshotLike) -
 
 
 def _evaluate_tasks_packages_guard(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
-    """CLI-native ``tasks_packages`` — no tasks.md existence check (unlike
-    the composed vocabulary's equivalent branch).
+    """CLI-native ``tasks_packages`` — generated tasks.md is not required yet.
 
     WP05 (#3396) FR-002: the bare-prose requirement fact is read FIRST,
     unconditionally, before the ``_tasks_dir_ready`` short-circuit below --
@@ -664,9 +664,9 @@ def _evaluate_tasks_packages_guard(snapshot: _ArtifactPresenceSnapshotLike) -> l
 
 
 def _evaluate_tasks_finalize_guard(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
-    """CLI-native ``tasks_finalize`` — distinct dir-missing message from the
-    composed vocabulary, no requirement-mapping check, unconditional
-    occurrence-gate check.
+    """CLI-native ``tasks_finalize`` — check generated tasks.md, with a
+    distinct dir-missing message from the composed vocabulary, no
+    requirement-mapping check, and an unconditional occurrence-gate check.
 
     WP05 (#3396) FR-002: unlike the other three wired guards, this one has
     NO ``_tasks_dir_ready`` call today -- it uses its own inline
@@ -678,6 +678,7 @@ def _evaluate_tasks_finalize_guard(snapshot: _ArtifactPresenceSnapshotLike) -> l
     leaves structurally blind).
     """
     failures = list(snapshot.status_facts.get("bare_prose_requirement_failures", ()))
+    failures.extend(_check_artifact_present(snapshot, TASKS_ARTIFACT))
     if not snapshot.status_facts["tasks_dir_is_dir"]:
         failures.append("Required: tasks/ directory with finalized WP files")
     elif "tasks_wp_files" not in snapshot.present_artifacts:
@@ -690,7 +691,7 @@ def _evaluate_tasks_finalize_guard(snapshot: _ArtifactPresenceSnapshotLike) -> l
 
 def _evaluate_cli_tasks_guard(step_id: str, snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
     if step_id == "tasks_outline":
-        return _check_artifact_present(snapshot, TASKS_ARTIFACT)
+        return _check_artifact_present(snapshot, TASKS_INDEX_ARTIFACT)
     if step_id == "tasks_packages":
         return _evaluate_tasks_packages_guard(snapshot)
     return _evaluate_tasks_finalize_guard(snapshot)
@@ -698,11 +699,9 @@ def _evaluate_cli_tasks_guard(step_id: str, snapshot: _ArtifactPresenceSnapshotL
 
 def _evaluate_composed_tasks_packages_guard(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
     """WP05 (#3396) FR-002: the bare-prose fact is read FIRST, unconditionally,
-    before the ``tasks.md`` presence check and the ``_tasks_dir_ready``
-    short-circuit below -- see ``_evaluate_tasks_packages_guard`` for the
-    full ordering rationale."""
+    before the ``_tasks_dir_ready`` short-circuit below -- see
+    ``_evaluate_tasks_packages_guard`` for the full ordering rationale."""
     failures = list(snapshot.status_facts.get("bare_prose_requirement_failures", ()))
-    failures.extend(_check_artifact_present(snapshot, TASKS_ARTIFACT))
     if not _tasks_dir_ready(snapshot):
         failures.append(MISSING_TASK_FILES_MESSAGE)
     else:
@@ -732,7 +731,7 @@ def _evaluate_composed_tasks_terminal_guard(snapshot: _ArtifactPresenceSnapshotL
 def _evaluate_composed_tasks_guard(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
     legacy_step_id = snapshot.legacy_step_id
     if legacy_step_id == "tasks_outline":
-        return _check_artifact_present(snapshot, TASKS_ARTIFACT)
+        return _check_artifact_present(snapshot, TASKS_INDEX_ARTIFACT)
     if legacy_step_id == "tasks_packages":
         return _evaluate_composed_tasks_packages_guard(snapshot)
     return _evaluate_composed_tasks_terminal_guard(snapshot)
