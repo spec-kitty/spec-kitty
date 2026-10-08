@@ -200,9 +200,12 @@ adapter and promotes the validated outputs into:
 
 ### Step 7 — Commit the promoted charter synthesis state
 
+List what the synthesis actually wrote, then commit exactly those files by name
+(never a blanket or directory add):
+
 ```bash
-git add .kittify/doctrine/ .kittify/charter/provenance/ .kittify/charter/synthesis-manifest.yaml
-git commit -m "feat(charter): promote project-local doctrine from generated inputs"
+git status --porcelain --untracked-files=all -- .kittify/doctrine .kittify/charter/provenance .kittify/charter/synthesis-manifest.yaml
+spec-kitty safe-commit <each path git status listed> -m "feat(charter): promote project-local doctrine from generated inputs"
 ```
 
 ---

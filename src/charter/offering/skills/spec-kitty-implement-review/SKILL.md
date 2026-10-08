@@ -298,7 +298,7 @@ The prompt contains all context, acceptance criteria, and review feedback
     try another command to turn that failure into success.
     The command MUST exit 0. Paste command + exit code into the handoff note.
     Reviewers reject the WP if typecheck was skipped or is red.
-9. Commit: git add -A && git commit -m "feat(WP##): <description>"
+9. Commit only your deliverables: spec-kitty safe-commit <each file you changed> -m "feat(WP##): <description>"
 10. Mark subtasks done: spec-kitty agent tasks mark-status T001 T002 ... --status done
 11. Move to for_review: spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review"
 """,
@@ -827,13 +827,20 @@ cd .worktrees/<mission>-lane-<X>
 # 2. Merge the mission branch (which has earlier lanes merged)
 git merge kitty/mission-<mission-slug> --no-edit
 
-# 3. If conflicts occur, resolve them:
+# 3. If conflicts occur, list them, then resolve them:
+git diff --name-only --diff-filter=U    # the still-unmerged (conflicted) files
 #    - __init__.py conflicts: combine all imports from both sides
 #    - Shared module conflicts: keep both changes (they modify different sections)
 #    - Test __init__.py: usually take the incoming version
 
-# 4. Commit the resolution
-git add -A && git commit -m "merge: resolve lane-<X> conflicts"
+# 4. Commit the resolution: stage only the files you resolved, then conclude the merge
+#    (git refuses a pathspec while concluding a merge, so use --no-edit, not "-- <paths>")
+git add -- <each resolved file>
+git diff --name-only --diff-filter=U    # must print nothing: no unmerged paths remain
+git commit --no-edit
+#    While a merge is being concluded, the staged set is the incoming changes plus
+#    your resolutions. That is expected. Do not unstage the cleanly merged files:
+#    they are part of the merge commit.
 
 # 5. Return to the repository root checkout and retry
 cd /path/to/repository-root

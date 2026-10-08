@@ -1307,7 +1307,7 @@ constituents:
   kind: toolguide
   path: toolguides/git-agent-commit-signing.toolguide.yaml
   provenance_path:
-- content_hash: 847de935dd4bd3fd0d841ad4e831e42a3d5da4111779f3057d5060dac4295165
+- content_hash: 9782ac98bbcb2d9cb46e0d8b83485af0c14cfdcad71e145b7ad020572bea9c6e
   id: git-worktree-pr-workflow
   kind: toolguide
   path: toolguides/git-worktree-pr-workflow.toolguide.yaml
@@ -1375,7 +1375,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 67eede7fd793907e44d1dba6b4e5dc182ef05840d5da67c70a20d4635972165d
+manifest_hash: 3ad2d0ab09b62b1971efb163bb718b6f1c68113ce0530346f6b0e59727d38b0c
 schema_version: '1'
 source_type: built-in
 source_url:
