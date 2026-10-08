@@ -24,22 +24,17 @@ Rollback on any failure: restore backup, report which step failed.
 
 from __future__ import annotations
 
+import io
 import logging
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from kernel.clock import now_utc_iso
+from specify_cli.core.atomic import atomic_write
+from specify_cli.migration.schema_version import CURRENT_SCHEMA_VERSION
 
 logger = logging.getLogger(__name__)
-
-_TARGET_SCHEMA_VERSION = 3
-_TARGET_SCHEMA_CAPABILITIES = [
-    "canonical_context",
-    "event_log_authority",
-    "ownership_manifest",
-    "thin_shims",
-]
 
 # ---------------------------------------------------------------------------
 # Report dataclass
@@ -234,8 +229,22 @@ def _discover_features(repo_root: Path) -> list[Path]:
 
 
 def _update_schema_version(repo_root: Path) -> None:
-    """Set schema_version=3 and capabilities in metadata.yaml."""
+    """Stamp the current schema version and the canonical capability map (#5229).
+
+    Same shape ``init`` stamps: ``CURRENT_SCHEMA_VERSION`` and a
+    ``schema_capabilities`` map (absent -> canonical map, legacy list -> map, an
+    existing map is the operator's). Every other key survives and the write is
+    atomic.
+
+    Raises:
+        FileNotFoundError: ``.kittify/metadata.yaml`` does not exist.
+        ValueError: the file is not parseable YAML, or ``spec_kitty`` is not a mapping.
+    """
     from ruamel.yaml import YAML
+    from ruamel.yaml.error import YAMLError
+
+    # Function-local: ``specify_cli.upgrade`` imports the migrations, which import this module.
+    from specify_cli.upgrade.metadata import canonical_schema_capabilities
 
     metadata_path = repo_root / ".kittify" / "metadata.yaml"
     if not metadata_path.exists():
@@ -245,21 +254,27 @@ def _update_schema_version(repo_root: Path) -> None:
     y.preserve_quotes = True
     y.width = 4096
 
-    with metadata_path.open("r", encoding="utf-8") as fh:
-        data = y.load(fh)
+    try:
+        with metadata_path.open("r", encoding="utf-8") as fh:
+            data = y.load(fh)
+    except YAMLError as exc:
+        raise ValueError(f"metadata.yaml is not valid YAML, refusing to rewrite it: {metadata_path}") from exc
 
     if data is None:
         data = {}
 
     spec_kitty = data.setdefault("spec_kitty", {})
-    spec_kitty["schema_version"] = _TARGET_SCHEMA_VERSION
-    spec_kitty["schema_capabilities"] = _TARGET_SCHEMA_CAPABILITIES
+    if not isinstance(spec_kitty, dict):
+        raise ValueError(f"metadata.yaml spec_kitty must be a mapping, refusing to rewrite it: {metadata_path}")
+    spec_kitty["schema_version"] = CURRENT_SCHEMA_VERSION
+    spec_kitty["schema_capabilities"] = canonical_schema_capabilities(spec_kitty.get("schema_capabilities"))
     spec_kitty["last_upgraded_at"] = now_utc_iso()
 
-    with metadata_path.open("w", encoding="utf-8") as fh:
-        y.dump(data, fh)
+    buf = io.StringIO()
+    y.dump(data, buf)
+    atomic_write(metadata_path, buf.getvalue())
 
-    logger.info("Schema version updated to %d in metadata.yaml", _TARGET_SCHEMA_VERSION)
+    logger.info("Schema version updated to %d in metadata.yaml", CURRENT_SCHEMA_VERSION)
 
 
 # ---------------------------------------------------------------------------

@@ -25,7 +25,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
+from specify_cli.migration.schema_version import CURRENT_SCHEMA_CAPABILITIES, REQUIRED_SCHEMA_VERSION
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner
@@ -316,7 +316,13 @@ def test_current_equals_target_worktree_catchup_ends_byte_identical_to_main(tmp_
     # Main's fixture already carries REQUIRED_SCHEMA_VERSION (a real upgrade
     # run stamps it there before ever reaching `_upgrade_worktrees`), so the
     # byte-identical comparison below is a fair like-for-like check.
-    schema_version_line = f"  schema_version: {REQUIRED_SCHEMA_VERSION}\n" if REQUIRED_SCHEMA_VERSION is not None else ""
+    # #5229: the stamp also settles the canonical capability map, so a stamped main carries it.
+    schema_version_line = (
+        f"  schema_version: {REQUIRED_SCHEMA_VERSION}\n"
+        "  schema_capabilities:\n" + "".join(f"    {name}: {str(enabled).lower()}\n" for name, enabled in CURRENT_SCHEMA_CAPABILITIES.items())
+        if REQUIRED_SCHEMA_VERSION is not None
+        else ""
+    )
     main_metadata_text = (
         "spec_kitty:\n"
         "  version: '3.2.9'\n"
