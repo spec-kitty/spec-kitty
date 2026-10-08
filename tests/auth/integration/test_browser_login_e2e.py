@@ -216,6 +216,8 @@ class TestBrowserLoginE2E:
         assert result.exit_code == 0, f"login failed: stdout={result.stdout!r} exception={result.exception!r}"
         assert "Authenticated" in result.stdout
         assert "alice@example.com" in result.stdout
+        assert "Approve within 5 minutes" in result.stdout
+        assert "spec-kitty auth login --headless" in result.stdout
 
         # Exactly one session was written through the TokenManager
         # pipeline. This confirms FR-016: the flow reached secure storage

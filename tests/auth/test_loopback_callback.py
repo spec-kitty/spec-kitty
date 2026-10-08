@@ -170,11 +170,28 @@ async def test_callback_server_first_callback_wins(callback_server: CallbackServ
 
 async def test_callback_server_wait_for_callback_times_out() -> None:
     """With no request fired, wait_for_callback must raise CallbackTimeoutError."""
-    server = CallbackServer(timeout_seconds=0.3)
+    server = CallbackServer(timeout_seconds=0.3, late_callback_seconds=0.1)
     server.start()
     try:
         with pytest.raises(CallbackTimeoutError, match="timed out"):
             await server.wait_for_callback()
+    finally:
+        server.stop()
+
+
+async def test_late_callback_gets_timeout_page_without_accepting_code() -> None:
+    server = CallbackServer(timeout_seconds=0.1, late_callback_seconds=0.5)
+    server.start()
+    try:
+        waiting = asyncio.create_task(server.wait_for_callback())
+        await asyncio.sleep(0.2)
+        response = await asyncio.to_thread(urlopen, f"{server.callback_url}?code=LATE&state=XYZ", timeout=2.0)
+        body = response.read().decode()
+        assert "timed out" in body.lower()
+        assert "spec-kitty auth login" in body
+        with pytest.raises(CallbackTimeoutError):
+            await waiting
+        assert server._server.callback_params is None
     finally:
         server.stop()
 

@@ -201,7 +201,8 @@ async def _run_browser_flow(tm: TokenManager, saas_url: str) -> None:
     """Run the browser-based OAuth Authorization Code + PKCE flow."""
     from specify_cli.auth.flows.authorization_code import AuthorizationCodeFlow
 
-    console.print("Opening browser for OAuth authentication...")
+    console.print("Opening browser for OAuth authentication. Approve within 5 minutes.")
+    console.print("Need more time? Run [bold]spec-kitty auth login --headless[/bold] instead.")
 
     flow = AuthorizationCodeFlow(
         saas_base_url=saas_url,

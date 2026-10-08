@@ -21,8 +21,9 @@ from __future__ import annotations
 
 import asyncio
 import socket
+import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from threading import Thread
+from threading import Event, Thread
 from urllib.parse import parse_qs, urlparse
 
 from ..errors import CallbackTimeoutError
@@ -30,6 +31,7 @@ from ..errors import CallbackTimeoutError
 _PORT_RANGE = range(28888, 28899)  # 28888..28898 inclusive
 _HOST = "127.0.0.1"
 _DEFAULT_TIMEOUT = 300.0  # 5 minutes
+_LATE_CALLBACK_SECONDS = 300.0  # keep the listener available for late redirects
 _POLL_INTERVAL = 0.1  # seconds between async polls
 
 
@@ -46,6 +48,15 @@ _SUCCESS_HTML = (
 )
 
 _NOT_FOUND_HTML = b"<html><body><h1>404 Not Found</h1></body></html>"
+_TIMEOUT_HTML = (
+    b"<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'>"
+    b"<title>Authentication timed out</title></head><body>"
+    b"<h1>Authentication timed out</h1>"
+    b"<p>The 5-minute approval window has closed. This approval was not accepted.</p>"
+    b"<p>Run <code>spec-kitty auth login</code> again in your terminal. "
+    b"If you need more time, use <code>spec-kitty auth login --headless</code>.</p>"
+    b"</body></html>"
+)
 
 
 class _CallbackHTTPHandler(BaseHTTPRequestHandler):
@@ -59,6 +70,16 @@ class _CallbackHTTPHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(_NOT_FOUND_HTML)))
             self.end_headers()
             self.wfile.write(_NOT_FOUND_HTML)
+            return
+
+        deadline = getattr(self.server, "callback_deadline", None)
+        if deadline is not None and time.monotonic() >= deadline:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(_TIMEOUT_HTML)))
+            self.end_headers()
+            self.wfile.write(_TIMEOUT_HTML)
+            self.server.late_callback_received.set()  # type: ignore[attr-defined]
             return
 
         # parse_qs returns list values; we only care about the first occurrence.
@@ -99,8 +120,13 @@ class CallbackServer:
     to poll via :meth:`wait_for_callback`. ``stop()`` is idempotent.
     """
 
-    def __init__(self, timeout_seconds: float = _DEFAULT_TIMEOUT) -> None:
+    def __init__(
+        self,
+        timeout_seconds: float = _DEFAULT_TIMEOUT,
+        late_callback_seconds: float = _LATE_CALLBACK_SECONDS,
+    ) -> None:
         self._timeout = timeout_seconds
+        self._late_callback_seconds = late_callback_seconds
         self._server: HTTPServer | None = None
         self._thread: Thread | None = None
         self._port: int | None = None
@@ -126,6 +152,8 @@ class CallbackServer:
         self._port = self._find_port()
         self._server = HTTPServer((_HOST, self._port), _CallbackHTTPHandler)  # NOSONAR -- binds to 127.0.0.1 only for OAuth loopback callback
         self._server.callback_params = None  # type: ignore[attr-defined]
+        self._server.callback_deadline = None  # type: ignore[attr-defined]
+        self._server.late_callback_received = Event()  # type: ignore[attr-defined]
         self._thread = Thread(
             target=self._server.serve_forever,
             name="spec-kitty-callback-server",
@@ -161,13 +189,22 @@ class CallbackServer:
         if self._server is None:
             raise RuntimeError("CallbackServer is not started")
 
-        loop = asyncio.get_event_loop()
-        deadline = loop.time() + self._timeout
-        while loop.time() < deadline:
+        deadline = time.monotonic() + self._timeout
+        self._server.callback_deadline = deadline  # type: ignore[attr-defined]
+        while time.monotonic() < deadline:
             params = getattr(self._server, "callback_params", None)
             if params is not None:
                 return dict(params)
             await asyncio.sleep(_POLL_INTERVAL)
+
+        # A callback accepted just before the deadline may land between polls.
+        params = getattr(self._server, "callback_params", None)
+        if params is not None:
+            return dict(params)
+
+        # A late redirect still needs an HTTP response. Keep the listener bound
+        # for a bounded grace period, but never pass its code to the caller.
+        await asyncio.to_thread(self._server.late_callback_received.wait, self._late_callback_seconds)  # type: ignore[attr-defined]
 
         raise CallbackTimeoutError(
             f"Callback timed out after {self._timeout} seconds. "
