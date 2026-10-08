@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import functools
 import time
+from pathlib import Path
 
 from rich.markup import escape
 
@@ -309,6 +310,21 @@ def _refuse_unbuildable_late_window(run: _MergeRunState) -> None:
     )
 
 
+def _commit_projection_and_carry(run: _MergeRunState, paths: list[Path], message: str) -> None:
+    """Commit *paths* onto the target and move the PASS anchor over that commit."""
+    target = run.lanes_manifest.target_branch
+    landed = commit_merge_bookkeeping(
+        repo_root=run.main_repo,
+        worktree_root=run.main_repo,
+        mission_slug=run.mission_slug,
+        branch=target,
+        destination_ref_override=target,
+        message=message,
+        paths=tuple(paths),
+    )
+    _carry_pass_anchor_over_own_commit(run, landed.sha)
+
+
 def _land_late_coordination_commits(run: _MergeRunState) -> None:
     """Project coordination commits that landed after the teardown gate onto the target (#5570).
 
@@ -356,25 +372,23 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
     paths = [path for path in dict.fromkeys([events_path, status_path, *late_paths]) if path.exists()]
     if not _paths_have_status_changes(run.main_repo, paths):
         return
-    landed = commit_merge_bookkeeping(
-        repo_root=run.main_repo,
-        worktree_root=run.main_repo,
-        mission_slug=run.mission_slug,
-        branch=target,
-        destination_ref_override=target,
-        message=f"chore({run.mission_slug}): project coordination commits that landed during teardown (#5570)",
-        paths=tuple(paths),
-    )
-    _carry_pass_anchor_over_own_commit(run, landed.sha)
+    _commit_projection_and_carry(run, paths, f"chore({run.mission_slug}): project coordination commits that landed during teardown (#5570)")
     console.print(f"  Projected the coordination commit(s) that landed during teardown onto {target}")
 
 
 def _fold_coord_status_before_flatten(run: _MergeRunState) -> None:
-    """Commit every coord status event to the primary corpus before deleting its branch."""
+    """Commit every coord status event to the primary corpus before deleting its branch.
+
+    Reads the coordination worktree's WORKING-TREE log (``run.feature_dir``), not the
+    committed coordination tip, so uncommitted seed events are folded too. A git or
+    alias-proof failure is wrapped as :class:`CoordinationTeardownError` (branch kept);
+    any other error, notably a workflow-mutation policy refusal, propagates unchanged.
+    """
     source = run.feature_dir / "status.events.jsonl"
     target = run.target_feature_dir / "status.events.jsonl"
     if source == target or not source.is_file() or not source.read_bytes().strip():
         return
+    target_branch = run.lanes_manifest.target_branch
     try:
         events_path, status_path = _project_status_bookkeeping_to_target(
             main_repo=run.main_repo,
@@ -384,20 +398,11 @@ def _fold_coord_status_before_flatten(run: _MergeRunState) -> None:
         assert_alias_events_preserved(alias_events_path=source, primary_events_path=events_path)
         paths = [events_path, status_path]
         if _paths_have_status_changes(run.main_repo, paths):
-            landed = commit_merge_bookkeeping(
-                repo_root=run.main_repo,
-                worktree_root=run.main_repo,
-                mission_slug=run.mission_slug,
-                branch=run.lanes_manifest.target_branch,
-                destination_ref_override=run.lanes_manifest.target_branch,
-                message=f"chore({run.mission_slug}): fold coordination status before flatten (#3272)",
-                paths=tuple(paths),
-            )
-            _carry_pass_anchor_over_own_commit(run, landed.sha)
-            console.print(f"  Folded the coordination status onto {run.lanes_manifest.target_branch} before teardown")
+            _commit_projection_and_carry(run, paths, f"chore({run.mission_slug}): fold coordination status before flatten (#3272)")
+            console.print(f"  Folded the coordination status onto {target_branch} before teardown")
     except (GitCommandError, AliasStatusEventsNotPreserved) as exc:
         raise CoordinationTeardownError(
-            f"coordination status could not be folded onto {run.lanes_manifest.target_branch!r} ({escape(str(exc))}); "
+            f"coordination status could not be folded onto {target_branch!r} ({escape(str(exc))}); "
             f"branch {run.lanes_manifest.mission_branch!r} was NOT deleted and the mission's coordination marker was left intact. "
             "Re-run `spec-kitty consolidate --resume` once the cause is fixed."
         ) from exc

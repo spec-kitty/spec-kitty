@@ -215,8 +215,11 @@ def test_teardown_folds_coord_seed_events_onto_primary(coord_repo_with_live_work
 
     run = _run_state(repo)
     run.feature_dir = coord_dir
+    tip_before = _git(repo, "rev-parse", "main").stdout.strip()
     phase_teardown._teardown_coordination_triple(run)
 
+    subjects = _git(repo, "log", "--format=%s", f"{tip_before}..main").stdout.splitlines()
+    assert sum("fold coordination status before flatten" in subject for subject in subjects) == 1, subjects
     primary_log = repo / "kitty-specs" / _SLUG / "status.events.jsonl"
     assert "01M1VRA2ZSEED00000000000000" in primary_log.read_text()
     assert "01M1VRA2ZSEED00000000000000" in _git(repo, "show", f"HEAD:kitty-specs/{_SLUG}/status.events.jsonl").stdout
