@@ -1007,7 +1007,7 @@ def _run_finalize_ownership_gates(
     _surface_post_integration_acceptance_warnings(state, json_output=json_output)
 
     _validate_owned_files_not_in_mission_specs(state.inmemory_frontmatter, json_output=json_output)
-    _flush_frontmatter_writes(state, validate_only=validate_only)
+    _flush_frontmatter_writes(state, validate_only=validate_only, repo_root=ctx.repo_root)
 
     # T017: Regenerate tasks.md from wps.yaml manifest (FR-008, FR-011).
     # #3221: the regeneration is a write to a tracked file, so in
@@ -1019,6 +1019,7 @@ def _run_finalize_ownership_gates(
         ctx.mission_slug,
         validate_only=validate_only,
         json_output=json_output,
+        repo_root=ctx.repo_root,
     )
 
     wp_frontmatters, wp_bodies = _gather_validation_frontmatter(gates.wp_files, state)

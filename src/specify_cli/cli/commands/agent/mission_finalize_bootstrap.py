@@ -478,18 +478,18 @@ def _apply_finalize_delta(frontmatter: dict[str, object], wp_file: Path, delta: 
     frontmatter.update(merged.model_dump(exclude_none=True, mode="json"))
 
 
-def _flush_one_frontmatter_write(wp_file: Path, updated_meta: WPMetadata, body: str, delta: dict[str, object] | None) -> None:
+def _flush_one_frontmatter_write(wp_file: Path, updated_meta: WPMetadata, body: str, delta: dict[str, object] | None, *, repo_root: Path | None = None) -> None:
     """Write one queued work package: *delta* onto the file as it is under the lock, else the queued model."""
     feature_dir = wp_file.parent.parent
     if delta is None or not wp_file.exists():
         # Nothing recorded to re-apply, or the file does not exist yet: the queued model is all there is.
-        with mission_write_lock(feature_dir):
+        with mission_write_lock(feature_dir, repo_root=repo_root):
             write_frontmatter(wp_file, updated_meta.model_dump(exclude_none=True, mode="json"), body)
         return
-    locked_update_frontmatter(wp_file, lambda frontmatter: _apply_finalize_delta(frontmatter, wp_file, delta), feature_dir=feature_dir)
+    locked_update_frontmatter(wp_file, lambda frontmatter: _apply_finalize_delta(frontmatter, wp_file, delta), feature_dir=feature_dir, repo_root=repo_root)
 
 
-def _flush_frontmatter_writes(state: _BootstrapState, *, validate_only: bool) -> None:
+def _flush_frontmatter_writes(state: _BootstrapState, *, validate_only: bool, repo_root: Path | None = None) -> None:
     """Phase: write pending frontmatter to disk (gated on not validate_only).
 
     Finalize reads every work package long before it flushes, so each write applies its field delta to the
@@ -499,7 +499,7 @@ def _flush_frontmatter_writes(state: _BootstrapState, *, validate_only: bool) ->
     if validate_only:
         return
     for wp_file, updated_meta, body in state.pending_writes:
-        _flush_one_frontmatter_write(wp_file, updated_meta, body, state.pending_deltas.get(wp_file))
+        _flush_one_frontmatter_write(wp_file, updated_meta, body, state.pending_deltas.get(wp_file), repo_root=repo_root)
 
 
 def _gather_validation_frontmatter(wp_files: list[Path], state: _BootstrapState) -> tuple[dict[str, WPMetadata], dict[str, str]]:
@@ -691,6 +691,7 @@ def _regenerate_or_report_tasks_md(
     *,
     validate_only: bool,
     json_output: bool,
+    repo_root: Path | None = None,
 ) -> bool:
     """Phase: T017 tasks.md regeneration from wps.yaml (FR-008, FR-011) — #3221.
 
@@ -724,7 +725,7 @@ def _regenerate_or_report_tasks_md(
             _mf.console.print("[yellow]⚠[/yellow] tasks.md is stale relative to wps.yaml; run finalize-tasks without --validate-only to regenerate")
         return stale
     # The manifest decides the content; the write takes the Mission lock like every other tasks.md writer (A10).
-    locked_rewrite_text(tasks_md, lambda _current: generated, feature_dir=planning_dir)
+    locked_rewrite_text(tasks_md, lambda _current: generated, feature_dir=planning_dir, repo_root=repo_root)
     if not json_output:
         _mf.console.print(f"[green]Regenerated[/green] tasks.md from wps.yaml ({len(wps_manifest.work_packages)} WPs)")
     return False
