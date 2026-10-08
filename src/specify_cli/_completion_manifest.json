@@ -325,7 +325,7 @@
        "deprecated": false
       },
       "repair-runtime-lock": {
-       "help": "Stop tracking the exact decision lock in an explicitly owned mission.",
+       "help": "Stop tracking the exact decision lock in an explicitly owned mission.\n\nAlso adds the exact ignore rule to the Mission's decisions/.gitignore when\nthe lock is untracked but not ignored.",
        "hidden": false,
        "deprecated": false
       }
