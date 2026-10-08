@@ -152,7 +152,7 @@
     },
     "WP05": {
       "actor": "claude-reviewer-runtime",
-      "agent": "claude-reviewer-runtime",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
@@ -166,6 +166,7 @@
         "Forced only because the parallel-stream claim was recorded with move-task, so no claim base exists; implementation commits 717ef0738..24cba0fe8 are on the branch (ff-merged from stream/runtime). Terminal retrospective gate as the engine's before_run_completed hook on all three legacy paths; speculative rollback deleted; RetrospectiveGateRefused adapter; transition-only capture."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/mission-writer-followups-01M4CYWW/tasks/WP05-runtime-terminal-gate/review-cycle-1.md",
         "reference": "review-cycle://mission-writer-followups-01M4CYWW/WP05-runtime-terminal-gate/review-cycle-1.md",
@@ -173,14 +174,14 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 11285,
-      "shell_pid_created_at": "1791480642.42",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T020": "done",
-        "T021": "done",
-        "T022": "done",
-        "T023": "done",
-        "T024": "done"
+        "T020": "planned",
+        "T021": "planned",
+        "T022": "planned",
+        "T023": "planned",
+        "T024": "planned"
       }
     },
     "WP06": {
