@@ -36,6 +36,7 @@ this module, so a re-exported copy would go stale; read and patch it on
 
 from __future__ import annotations
 
+import math
 import warnings
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -169,6 +170,30 @@ def _mt_review_config_section(main_repo_root: Path) -> Mapping[str, Any]:
         return {}
     review_section = config.get("review") if hasattr(config, "get") else None
     return dict(review_section) if review_section else {}
+
+
+def _mt_pre_review_timeout(scope_source_root: Path) -> float:
+    """Read the head-run budget from the selected scope authority, never skip validation."""
+    key = "pre_review_timeout_seconds"
+    default: int = pre_review_gate._DEFAULT_HEAD_RUN_TIMEOUT
+    try:
+        section = _mt_review_config_section(scope_source_root)
+        if key not in section:
+            return default
+        value = section[key]
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError("budget is not numeric")
+        budget = float(value)
+        if not math.isfinite(budget) or budget <= 0:
+            raise ValueError("budget is not positive and finite")
+        return budget
+    except (OverflowError, TypeError, ValueError):
+        # Never format the invalid value: huge integers can fail even repr().
+        typer.echo(
+            f"Warning: review.pre_review_timeout_seconds must be a positive finite number; using {default:g}s and running validation.",
+            err=True,
+        )
+        return default
 
 
 def _mt_pre_review_block_enabled(main_repo_root: Path) -> bool:
@@ -346,6 +371,7 @@ def _mt_pre_review_gate_with_override_scope(
     baseline: BaselineTestResult | None,
     progress_callback: Callable[[float], None] | None = None,
     status_observer: pre_review_gate.GateStatusObserver | None = None,
+    timeout: float = pre_review_gate._DEFAULT_HEAD_RUN_TIMEOUT,
 ) -> pre_review_gate.GateVerdict:
     """Compose a verdict for an EXPLICIT override scope (FR-004).
 
@@ -382,6 +408,7 @@ def _mt_pre_review_gate_with_override_scope(
         baseline=baseline,
         progress_callback=progress_callback,
         status_observer=status_observer,
+        timeout=timeout,
     )
 
 
@@ -745,6 +772,7 @@ def _mt_build_transition_gate_context(
         from_lane=st.old_lane,
         to_lane=st.target_lane,
         status_observer=status_observer,
+        timeout=_mt_pre_review_timeout(inputs.scope_source_root),
     )
 
 
@@ -880,6 +908,7 @@ def _mt_collect_transition_gate_verdicts(
                     repo_root=inputs.gate_repo_root,
                     baseline=_mt_resolve_gate_baseline(st),
                     status_observer=status_observer,
+                    timeout=_mt_pre_review_timeout(inputs.scope_source_root),
                 ),
                 changed_files=inputs.changed_files,
             )

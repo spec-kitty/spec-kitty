@@ -111,7 +111,7 @@ def _launch_failed_error(exc: OSError) -> str:
     return f"scoped test run failed to launch: {exc}"
 
 
-def _timed_out_error(timeout: int, stderr: str) -> str:
+def _timed_out_error(timeout: float, stderr: str) -> str:
     """Shared timeout message carrying a bounded stderr tail."""
     return f"scoped test run timed out after {timeout}s; stderr tail: {stderr[-_STDERR_TAIL_CHARS:]}"
 
@@ -425,7 +425,7 @@ def run_scoped_tests_at_head(
     test_targets: Sequence[str],
     *,
     repo_root: Path,
-    timeout: int = _DEFAULT_HEAD_RUN_TIMEOUT,
+    timeout: float = _DEFAULT_HEAD_RUN_TIMEOUT,
     progress_callback: _ProgressCallback | None = None,
     monotonic: Callable[[], float] = time.monotonic,
     wait: _ProcessWait = _default_process_wait,
@@ -697,7 +697,7 @@ def _run_raw_command(
     command: Sequence[str],
     *,
     repo_root: Path,
-    timeout: int,
+    timeout: float,
     progress_callback: _ProgressCallback | None,
     monotonic: Callable[[], float],
     wait: _ProcessWait,
@@ -756,7 +756,7 @@ def _evaluate_via_scope_source(
     *,
     repo_root: Path,
     baseline: BaselineTestResult | None,
-    timeout: int,
+    timeout: float,
     progress_callback: _ProgressCallback | None,
     monotonic: Callable[[], float],
     wait: _ProcessWait,
@@ -839,7 +839,7 @@ def evaluate_with_scope(
     *,
     repo_root: Path,
     baseline: BaselineTestResult | None,
-    timeout: int = _DEFAULT_HEAD_RUN_TIMEOUT,
+    timeout: float = _DEFAULT_HEAD_RUN_TIMEOUT,
     progress_callback: _ProgressCallback | None = None,
     monotonic: Callable[[], float] = time.monotonic,
     wait: _ProcessWait = _default_process_wait,
@@ -1037,7 +1037,7 @@ def evaluate_pre_review_gate(
     *,
     repo_root: Path,
     baseline: BaselineTestResult | None,
-    timeout: int = _DEFAULT_HEAD_RUN_TIMEOUT,
+    timeout: float = _DEFAULT_HEAD_RUN_TIMEOUT,
     progress_callback: _ProgressCallback | None = None,
     monotonic: Callable[[], float] = time.monotonic,
     wait: _ProcessWait = _default_process_wait,

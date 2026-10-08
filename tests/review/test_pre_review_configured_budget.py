@@ -15,6 +15,7 @@ import warnings
 import pytest
 
 from specify_cli.cli.commands.agent import tasks_move_task_gates as gates
+from specify_cli.review import baseline
 from specify_cli.review import pre_review_gate as engine
 from specify_cli.review.gate_registry import TransitionGateContext
 from specify_cli.status.models import Lane
@@ -61,12 +62,16 @@ def run_transition(
     commands: list[tuple[str, ...]] = []
     observe = engine._observe_process
     launch = engine._launch_scoped_process
+    expected_env = engine._gate_run_env()
 
     def recording_observe(process: subprocess.Popen[str], **kwargs: Any) -> Any:
         budgets.append(kwargs["timeout"])
         return observe(process, **kwargs)
 
     def recording_launch(command: Sequence[str], **kwargs: Any) -> subprocess.Popen[str]:
+        assert kwargs["env"] == expected_env
+        assert kwargs["repo_root"] == write
+        assert baseline.CAPTURE_BASELINE_TIMEOUT_SECONDS == 300
         commands.append(tuple(command))
         if route == "override":
             junit = next(atom.split("=", 1)[1] for atom in command if atom.startswith("--junitxml="))
@@ -139,6 +144,7 @@ def test_huge_integer_conversion_overflow_still_runs(tmp_path: Path, monkeypatch
 def test_context_positional_observer_compatibility() -> None:
     def observer(_: engine.GateStatusEvent) -> None:
         return None
+
     context = TransitionGateContext((), SimpleNamespace(), None, Path("."), False, Lane.IN_PROGRESS, Lane.FOR_REVIEW, observer)
     assert context.status_observer is observer
     assert context.timeout == 300

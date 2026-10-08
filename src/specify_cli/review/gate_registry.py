@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from specify_cli.review.pre_review_gate import evaluate_pre_review_gate
+from specify_cli.review.pre_review_gate import _DEFAULT_HEAD_RUN_TIMEOUT, evaluate_pre_review_gate
 
 if TYPE_CHECKING:
     from specify_cli.review.baseline import BaselineTestResult
@@ -73,6 +73,7 @@ class TransitionGateContext:
     from_lane: Lane
     to_lane: Lane
     status_observer: GateStatusObserver | None = None
+    timeout: float = _DEFAULT_HEAD_RUN_TIMEOUT
 
 
 @dataclass(frozen=True)
@@ -114,6 +115,7 @@ def _spec_kitty_pre_review_handler(ctx: TransitionGateContext) -> GateVerdict:
         baseline=ctx.baseline,
         scope_source=ctx.scope_source,
         status_observer=ctx.status_observer,
+        timeout=ctx.timeout,
     )
 
 
