@@ -19,8 +19,8 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.doctrine_synthesizer.apply import _repo_relative_posix, apply_proposals
-from specify_cli.doctrine_synthesizer.provenance import load_provenance
+from specify_cli.charter_pack_synthesizer.apply import _repo_relative_posix, apply_proposals
+from specify_cli.charter_pack_synthesizer.provenance import load_provenance
 from specify_cli.retrospective.schema import (
     ActorRef,
     AddEdgePayload,
@@ -875,7 +875,7 @@ class TestAddEdgeExisting:
 
 class TestLoadEventIdsEdgeCases:
     def test_empty_lines_skipped(self, tmp_path: Path) -> None:
-        from specify_cli.doctrine_synthesizer.apply import _load_event_ids
+        from specify_cli.charter_pack_synthesizer.apply import _load_event_ids
 
         events_path = tmp_path / "status.events.jsonl"
         events_path.write_text(
@@ -886,7 +886,7 @@ class TestLoadEventIdsEdgeCases:
         assert "01KQ6YEGT4YBZ3GZF7X680KQ3X" in ids
 
     def test_bad_json_lines_skipped(self, tmp_path: Path) -> None:
-        from specify_cli.doctrine_synthesizer.apply import _load_event_ids
+        from specify_cli.charter_pack_synthesizer.apply import _load_event_ids
 
         events_path = tmp_path / "status.events.jsonl"
         events_path.write_text(
@@ -897,7 +897,7 @@ class TestLoadEventIdsEdgeCases:
         assert "01KQ6YEGT4YBZ3GZF7X680KQ3X" in ids
 
     def test_no_events_file_returns_empty(self, tmp_path: Path) -> None:
-        from specify_cli.doctrine_synthesizer.apply import _load_event_ids
+        from specify_cli.charter_pack_synthesizer.apply import _load_event_ids
 
         ids = _load_event_ids(tmp_path)
         assert ids == set()
@@ -910,7 +910,7 @@ class TestLoadEventIdsEdgeCases:
 
 class TestResolveSourceEventIds:
     def test_missing_kitty_specs_returns_empty(self, tmp_path: Path) -> None:
-        from specify_cli.doctrine_synthesizer.apply import _resolve_source_event_ids
+        from specify_cli.charter_pack_synthesizer.apply import _resolve_source_event_ids
 
         repo_root = tmp_path / "no-kitty-specs"
         repo_root.mkdir()
@@ -918,7 +918,7 @@ class TestResolveSourceEventIds:
         assert result == set()
 
     def test_non_matching_mission_returns_empty(self, tmp_path: Path) -> None:
-        from specify_cli.doctrine_synthesizer.apply import _resolve_source_event_ids
+        from specify_cli.charter_pack_synthesizer.apply import _resolve_source_event_ids
 
         repo_root = tmp_path
         kitty_specs = repo_root / "kitty-specs" / "some-mission"
@@ -930,7 +930,7 @@ class TestResolveSourceEventIds:
         assert result == set()
 
     def test_dir_without_meta_json_skipped(self, tmp_path: Path) -> None:
-        from specify_cli.doctrine_synthesizer.apply import _resolve_source_event_ids
+        from specify_cli.charter_pack_synthesizer.apply import _resolve_source_event_ids
 
         repo_root = tmp_path
         kitty_specs = repo_root / "kitty-specs" / "no-meta-mission"

@@ -103,7 +103,7 @@
     },
     "core_misc": {
       "run_id": "recapture-core_misc-durations-20261005T060627Z",
-      "command": "python scripts/ci/capture_shard_timings.py --module core_misc --run-id recapture-core_misc-durations-20261005T060627Z --write  # pytest tests/core tests/specify_cli/core tests/coordination tests/specify_cli/coordination tests/decisions tests/doctrine_synthesizer tests/specify_cli/tool_surface tests/specify_cli/asset_preservation tests/zeitgeist_client tests/calibration tests/specify_cli/config tests/specify_cli/live_work tests/specify_cli/tasks_authoring tests/specify_cli/bootstrap tests/specify_cli/workspace -m not performance and not stress -p no:randomly -q",
+      "command": "python scripts/ci/capture_shard_timings.py --module core_misc --run-id recapture-core_misc-durations-20261005T060627Z --write  # pytest tests/core tests/specify_cli/core tests/coordination tests/specify_cli/coordination tests/decisions tests/charter_pack_synthesizer tests/specify_cli/tool_surface tests/specify_cli/asset_preservation tests/zeitgeist_client tests/calibration tests/specify_cli/config tests/specify_cli/live_work tests/specify_cli/tasks_authoring tests/specify_cli/bootstrap tests/specify_cli/workspace -m not performance and not stress -p no:randomly -q",
       "captured_at": "2026-10-05T06:19:18.278789+00:00",
       "test_dirs": [
         "tests/core",
@@ -111,7 +111,7 @@
         "tests/coordination",
         "tests/specify_cli/coordination",
         "tests/decisions",
-        "tests/doctrine_synthesizer",
+        "tests/charter_pack_synthesizer",
         "tests/specify_cli/tool_surface",
         "tests/specify_cli/asset_preservation",
         "tests/zeitgeist_client",

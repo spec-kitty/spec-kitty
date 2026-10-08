@@ -22,7 +22,7 @@ from typing import Any
 import pytest
 import yaml  # type: ignore[import-untyped]
 
-from specify_cli.doctrine_synthesizer.apply import apply_proposals
+from specify_cli.charter_pack_synthesizer.apply import apply_proposals
 from runtime.next._internal_runtime.retrospective_terminus import run_terminus
 from specify_cli.retrospective.schema import (
     ActorRef,

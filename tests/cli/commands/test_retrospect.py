@@ -2091,7 +2091,7 @@ class TestSynthesizeFabricateProvenance:
         Now we call the real function and assert the YAML on disk.
         """
         import yaml as _yaml
-        from specify_cli.doctrine_synthesizer import SynthesisResult
+        from specify_cli.charter_pack_synthesizer import SynthesisResult
 
         repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
         feature_dir = self._make_feature_dir(kitty_specs_dir)
@@ -2133,7 +2133,7 @@ class TestSynthesizeFabricateProvenance:
         The event's provenance_kind is distinct from the record's provenance.kind per contract.
         """
         import json as _json
-        from specify_cli.doctrine_synthesizer import SynthesisResult
+        from specify_cli.charter_pack_synthesizer import SynthesisResult
 
         repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
         feature_dir = self._make_feature_dir(kitty_specs_dir)

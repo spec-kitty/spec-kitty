@@ -29,8 +29,8 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.doctrine_synthesizer.apply import apply_proposals
-from specify_cli.doctrine_synthesizer.conflict import detect_conflicts
+from specify_cli.charter_pack_synthesizer.apply import apply_proposals
+from specify_cli.charter_pack_synthesizer.conflict import detect_conflicts
 from specify_cli.retrospective.schema import (
     ActorRef,
     AddEdgePayload,
@@ -79,6 +79,7 @@ def _accepted_state() -> ProposalState:
 
 def _proposal(pid: str, payload: object) -> Proposal:  # type: ignore[type-arg]
     from specify_cli.retrospective.schema import ProposalPayload
+
     return Proposal(
         id=pid,
         kind=payload.kind,  # type: ignore[attr-defined]
@@ -102,6 +103,7 @@ PID = [
 # Helpers for building fixture edges / terms
 # ---------------------------------------------------------------------------
 
+
 def _edge(from_node: str, to_node: str, kind: str = "uses") -> EdgeSpec:
     return EdgeSpec(from_node=from_node, to_node=to_node, kind=kind)
 
@@ -116,75 +118,99 @@ def _remove_edge(pid: str, from_node: str, to_node: str, kind: str = "uses") -> 
 
 def _rewire_edge(
     pid: str,
-    old_from: str, old_to: str,
-    new_from: str, new_to: str,
+    old_from: str,
+    old_to: str,
+    new_from: str,
+    new_to: str,
     kind: str = "uses",
 ) -> Proposal:
-    return _proposal(pid, RewireEdgePayload(
-        kind="rewire_edge",
-        edge_old=_edge(old_from, old_to, kind),
-        edge_new=_edge(new_from, new_to, kind),
-    ))
+    return _proposal(
+        pid,
+        RewireEdgePayload(
+            kind="rewire_edge",
+            edge_old=_edge(old_from, old_to, kind),
+            edge_new=_edge(new_from, new_to, kind),
+        ),
+    )
 
 
 def _add_gloss(pid: str, key: str, defhash: str = "hash-a") -> Proposal:
-    return _proposal(pid, AddGlossaryTermPayload(
-        kind="add_glossary_term",
-        term_key=key,
-        definition=f"definition for {key}",
-        definition_hash=defhash,
-    ))
+    return _proposal(
+        pid,
+        AddGlossaryTermPayload(
+            kind="add_glossary_term",
+            term_key=key,
+            definition=f"definition for {key}",
+            definition_hash=defhash,
+        ),
+    )
 
 
 def _upd_gloss(pid: str, key: str, defhash: str = "hash-a") -> Proposal:
-    return _proposal(pid, UpdateGlossaryTermPayload(
-        kind="update_glossary_term",
-        term_key=key,
-        definition=f"updated definition for {key}",
-        definition_hash=defhash,
-    ))
+    return _proposal(
+        pid,
+        UpdateGlossaryTermPayload(
+            kind="update_glossary_term",
+            term_key=key,
+            definition=f"updated definition for {key}",
+            definition_hash=defhash,
+        ),
+    )
 
 
 def _synth_directive(pid: str, artifact_id: str, body_hash: str = "hash-a") -> Proposal:
-    return _proposal(pid, SynthesizeDirectivePayload(
-        kind="synthesize_directive",
-        artifact_id=artifact_id,
-        body="directive body",
-        body_hash=body_hash,
-        scope=_EMPTY_SCOPE,
-    ))
+    return _proposal(
+        pid,
+        SynthesizeDirectivePayload(
+            kind="synthesize_directive",
+            artifact_id=artifact_id,
+            body="directive body",
+            body_hash=body_hash,
+            scope=_EMPTY_SCOPE,
+        ),
+    )
 
 
 def _synth_tactic(pid: str, artifact_id: str, body_hash: str = "hash-a") -> Proposal:
-    return _proposal(pid, SynthesizeTacticPayload(
-        kind="synthesize_tactic",
-        artifact_id=artifact_id,
-        body="tactic body",
-        body_hash=body_hash,
-        scope=_EMPTY_SCOPE,
-    ))
+    return _proposal(
+        pid,
+        SynthesizeTacticPayload(
+            kind="synthesize_tactic",
+            artifact_id=artifact_id,
+            body="tactic body",
+            body_hash=body_hash,
+            scope=_EMPTY_SCOPE,
+        ),
+    )
 
 
 def _synth_procedure(pid: str, artifact_id: str, body_hash: str = "hash-a") -> Proposal:
-    return _proposal(pid, SynthesizeProcedurePayload(
-        kind="synthesize_procedure",
-        artifact_id=artifact_id,
-        body="procedure body",
-        body_hash=body_hash,
-        scope=_EMPTY_SCOPE,
-    ))
+    return _proposal(
+        pid,
+        SynthesizeProcedurePayload(
+            kind="synthesize_procedure",
+            artifact_id=artifact_id,
+            body="procedure body",
+            body_hash=body_hash,
+            scope=_EMPTY_SCOPE,
+        ),
+    )
 
 
 def _flag(pid: str, urn: str = "drg:node:foo") -> Proposal:
-    return _proposal(pid, FlagNotHelpfulPayload(
-        kind="flag_not_helpful",
-        target=TargetReference(kind="drg_node", urn=urn),
-    ))
+    return _proposal(
+        pid,
+        FlagNotHelpfulPayload(
+            kind="flag_not_helpful",
+            target=TargetReference(kind="drg_node", urn=urn),
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
 # Test: detect_conflicts function directly
 # ---------------------------------------------------------------------------
+
 
 class TestDetectConflictsDirect:
     """Unit tests for detect_conflicts() against each R-006 predicate."""
@@ -405,6 +431,7 @@ class TestDetectConflictsDirect:
 # Test: apply_proposals fails closed on conflict
 # ---------------------------------------------------------------------------
 
+
 class TestApplyFailsClosedOnConflict:
     """Verify FR-023: conflict → nothing applied, conflicts non-empty."""
 
@@ -512,5 +539,5 @@ class TestApplyFailsClosedOnConflict:
                 actor=ACTOR,
                 dry_run=True,
             )
-            assert result.applied == [], f"Predicate {i+1}: expected no applied on conflict"
-            assert len(result.conflicts) >= 1, f"Predicate {i+1}: expected at least one conflict group"
+            assert result.applied == [], f"Predicate {i + 1}: expected no applied on conflict"
+            assert len(result.conflicts) >= 1, f"Predicate {i + 1}: expected at least one conflict group"

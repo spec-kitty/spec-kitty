@@ -6,7 +6,7 @@ load-bearing ``built_in_only``) lands on :class:`CharterProfile` and every
 artifact's ``provenance_path`` survives on its :class:`Constituent`.
 
 T003 pins the charter-manifest reader surface green. Those readers
-(``doctrine_synthesizer/{apply,provenance,__init__}``,
+(``charter_pack_synthesizer/{apply,provenance,__init__}``,
 ``charter_runtime/freshness/computer``, ``charter_runtime/preflight/runner``,
 ``charter_runtime/lint/findings``, ``cli/commands/charter_bundle``,
 ``doctrine/versioning``, and the two ``m_3_2_0rc35_charter_*`` migrations) all

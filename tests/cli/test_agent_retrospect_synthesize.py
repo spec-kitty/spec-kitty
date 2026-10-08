@@ -18,7 +18,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent import app
 from specify_cli.context.mission_resolver import AmbiguousHandleError, ResolvedMission
-from specify_cli.doctrine_synthesizer import (
+from specify_cli.charter_pack_synthesizer import (
     AppliedChange,
     ConflictGroup,
     PlannedApplication,

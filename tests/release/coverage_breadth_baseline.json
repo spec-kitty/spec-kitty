@@ -2924,19 +2924,19 @@
           5,
           7
         ],
-        "src/specify_cli/doctrine_synthesizer/__init__.py": [
+        "src/specify_cli/charter_pack_synthesizer/__init__.py": [
           4,
           4
         ],
-        "src/specify_cli/doctrine_synthesizer/apply.py": [
+        "src/specify_cli/charter_pack_synthesizer/apply.py": [
           63,
           299
         ],
-        "src/specify_cli/doctrine_synthesizer/conflict.py": [
+        "src/specify_cli/charter_pack_synthesizer/conflict.py": [
           10,
           72
         ],
-        "src/specify_cli/doctrine_synthesizer/provenance.py": [
+        "src/specify_cli/charter_pack_synthesizer/provenance.py": [
           15,
           44
         ],

@@ -268,7 +268,7 @@ modules:
   - src/charter/offering/**
   - src/specify_cli/core/**
   - src/specify_cli/coordination/**
-  - src/specify_cli/doctrine_synthesizer/**
+  - src/specify_cli/charter_pack_synthesizer/**
   - src/specify_cli/status/**
   - src/specify_cli/tool_surface/**
   - src/specify_cli/zeitgeist_client/**
@@ -293,7 +293,7 @@ modules:
   - tests/coordination
   - tests/specify_cli/coordination
   - tests/decisions
-  - tests/doctrine_synthesizer
+  - tests/charter_pack_synthesizer
   - tests/specify_cli/tool_surface
   # ownership-boundary-preservation-01M32KEN: the new asset-preservation guard's
   # unit tests, claimed alongside its tool_surface sibling so they run per-PR.

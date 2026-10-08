@@ -324,7 +324,7 @@ class TestReduceRetrospectiveProposalCounts:
         validation, see ``specify_cli.retrospective.events``), so there is no
         runtime ``warnings.warn`` to observe here; "parsed with warning"
         names the operator-facing deprecation this CR records for the
-        producer side (``doctrine_synthesizer.apply``), not a reducer-side
+        producer side (``charter_pack_synthesizer.apply``), not a reducer-side
         side effect. This test is the durable-event-log tolerance pin: the
         legacy prefix must never start failing to parse.
         """
@@ -355,7 +355,7 @@ class TestReduceRetrospectiveProposalCounts:
 
     def test_urn_charter_prefix_canonical(self) -> None:
         """CR-05 counterpart: the canonical ``charter:<kind>:<id>``
-        ``target_urn`` (what ``doctrine_synthesizer.apply`` now emits for
+        ``target_urn`` (what ``charter_pack_synthesizer.apply`` now emits for
         every newly-applied ``synthesize_*`` proposal) reduces identically
         to the legacy ``doctrine:`` form above -- proposal counting never
         keyed on the prefix, so canonicalizing the producer changes nothing

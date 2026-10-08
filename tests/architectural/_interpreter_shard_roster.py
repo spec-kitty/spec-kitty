@@ -213,7 +213,7 @@ INTERPRETER_SHARDS: tuple[InterpreterShard, ...] = (
             "tests/ast_analysis",
             "tests/consolidation",
             "tests/core",
-            "tests/doctrine_synthesizer",
+            "tests/charter_pack_synthesizer",
             "tests/integration",
             "tests/invocation",
             "tests/migrate",

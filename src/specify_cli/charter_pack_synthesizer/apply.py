@@ -1,6 +1,6 @@
 """Synthesizer core — apply_proposals() public API (T031, T033, T035).
 
-This module is the **only** path that mutates project-local doctrine, DRG, or
+This module is the **only** path that mutates the project-layer Charter Pack, DRG, or
 glossary state from a retrospective finding.  It does not auto-run; WP08's CLI
 surface is the trigger.
 
@@ -171,9 +171,7 @@ def _feature_dir(repo_root: Path, mission_slug: str) -> Path:
     # ``specify_cli.*`` -- the same pre-existing systemic pattern documented
     # via the ``_compose_mission_dir`` cast note in ``_read_path_resolver.py``);
     # bind explicitly so the return narrows back to ``Path``.
-    resolved: Path = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.STATUS_STATE
-    )
+    resolved: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
     return resolved
 
 
@@ -187,7 +185,7 @@ _GLOSSARY_BASE = Path(".kittify") / "glossary"
 _DRG_BASE = Path(".kittify") / "drg"
 #: Base path for project-local charter pack artifacts: the project charter
 #: pack root (FR-016, ``kernel.charter_pack_paths``).
-_DOCTRINE_BASE = PROJECT_PACK_ROOT
+_PROJECT_PACK_BASE = PROJECT_PACK_ROOT
 
 #: CR-05 (mission ``charter-code-topology-01M152G1`` S4): the canonical
 #: ``target_urn`` scheme prefix this producer emits for newly-synthesized
@@ -308,7 +306,7 @@ def _apply_flag_not_helpful(
     """
     urn = payload.target.urn
     urn_slug = _safe_path_component(urn)
-    flags_dir = repo_root / _DOCTRINE_BASE / ".flags"
+    flags_dir = repo_root / _PROJECT_PACK_BASE / ".flags"
     flags_dir.mkdir(parents=True, exist_ok=True)
 
     artifact_path = _assert_within(flags_dir, flags_dir / f"{urn_slug}.yaml")
@@ -416,10 +414,10 @@ def _apply_synthesize(
     Writes the artifact body to .kittify/charter-packs/<kind>/<artifact_id>.md.
     """
     kind_slug = payload.kind.replace("synthesize_", "")  # "directive", "tactic", "procedure"
-    doctrine_dir = repo_root / _DOCTRINE_BASE / kind_slug
-    doctrine_dir.mkdir(parents=True, exist_ok=True)
+    project_pack_dir = repo_root / _PROJECT_PACK_BASE / kind_slug
+    project_pack_dir.mkdir(parents=True, exist_ok=True)
 
-    artifact_path = _assert_within(doctrine_dir, doctrine_dir / f"{payload.artifact_id}.md")
+    artifact_path = _assert_within(project_pack_dir, project_pack_dir / f"{payload.artifact_id}.md")
     with artifact_path.open("w", encoding="utf-8") as fh:
         fh.write(payload.body)
 
@@ -443,7 +441,7 @@ def apply_proposals(
 ) -> SynthesisResult:
     """Apply a batch of retrospective proposals to project-local state.
 
-    This is the **only** entry-point for mutating doctrine/DRG/glossary from
+    This is the **only** entry-point for mutating project-layer artifacts/DRG/glossary from
     a retrospective.  The default ``dry_run=True`` means callers must
     explicitly opt in to mutation.
 

@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.doctrine_synthesizer.provenance import (
+from specify_cli.charter_pack_synthesizer.provenance import (
     is_already_applied,
     load_provenance,
     provenance_path,
@@ -73,6 +73,7 @@ def _make_proposal(
 # provenance_path()
 # ---------------------------------------------------------------------------
 
+
 class TestProvenancePath:
     def test_deterministic_given_artifact_and_id(self, tmp_path: Path) -> None:
         artifact = tmp_path / "glossary" / "term.yaml"
@@ -95,6 +96,7 @@ class TestProvenancePath:
 # ---------------------------------------------------------------------------
 # write_provenance() — FR-022 minimum field set
 # ---------------------------------------------------------------------------
+
 
 class TestWriteProvenance:
     def test_writes_all_minimum_fields(self, tmp_path: Path) -> None:
@@ -178,6 +180,7 @@ class TestWriteProvenance:
 # is_already_applied() — idempotency key check
 # ---------------------------------------------------------------------------
 
+
 class TestIsAlreadyApplied:
     def test_false_when_no_sidecar(self, tmp_path: Path) -> None:
         artifact = tmp_path / "glossary" / "term.yaml"
@@ -233,6 +236,7 @@ class TestIsAlreadyApplied:
 # ---------------------------------------------------------------------------
 # Re-run idempotency integration
 # ---------------------------------------------------------------------------
+
 
 class TestReRunIdempotency:
     """Demonstrate T035: re-running with the same proposal sets re_applied=True."""

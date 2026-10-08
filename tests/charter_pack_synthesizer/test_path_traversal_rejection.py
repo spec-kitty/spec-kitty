@@ -162,9 +162,7 @@ def test_synthesize_directive_accepts_documented_artifact_ids(good_id: str) -> N
         "",
     ],
 )
-def test_synthesize_payloads_reject_unsafe_artifact_id(
-    model_cls: type, kind_literal: str, bad_id: str
-) -> None:
+def test_synthesize_payloads_reject_unsafe_artifact_id(model_cls: type, kind_literal: str, bad_id: str) -> None:
     with pytest.raises(ValidationError):
         model_cls(
             kind=kind_literal,
@@ -183,7 +181,7 @@ def test_synthesize_payloads_reject_unsafe_artifact_id(
 def test_assert_within_blocks_targets_outside_base(tmp_path) -> None:
     """Even if a future regression slips a traversal past schema validation,
     ``_assert_within`` MUST refuse to write outside the artifact base."""
-    from specify_cli.doctrine_synthesizer.apply import _assert_within
+    from specify_cli.charter_pack_synthesizer.apply import _assert_within
 
     base = tmp_path / "glossary"
     base.mkdir()
@@ -194,7 +192,7 @@ def test_assert_within_blocks_targets_outside_base(tmp_path) -> None:
 
 
 def test_assert_within_allows_targets_inside_base(tmp_path) -> None:
-    from specify_cli.doctrine_synthesizer.apply import _assert_within
+    from specify_cli.charter_pack_synthesizer.apply import _assert_within
 
     base = tmp_path / "glossary"
     base.mkdir()
