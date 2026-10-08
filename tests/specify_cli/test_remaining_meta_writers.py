@@ -164,6 +164,24 @@ def _repair_meta_phase(repo: Path, feature_dir: Path) -> object:
     return _repair_meta_phase(repo, feature_dir, [], state, generated_ids=None)
 
 
+def _doc_update_state(repo: Path, feature_dir: Path) -> object:
+    from specify_cli.doc_analysis.doc_state import update_documentation_state
+
+    return update_documentation_state(feature_dir / "meta.json", coverage_percentage=0.75)
+
+
+def _assign_planning_only(repo: Path, feature_dir: Path) -> object:
+    from specify_cli.consolidation.mission_number.bake import _assign_planning_only_mission_number_if_needed
+
+    return _assign_planning_only_mission_number_if_needed(repo, feature_dir)
+
+
+def _backfill_mission_ids(repo: Path, feature_dir: Path) -> object:
+    from specify_cli.migration.backfill_identity import backfill_mission_ids
+
+    return backfill_mission_ids(repo)
+
+
 CASES: list[Case] = [
     Case(DOC_FAMILY, "set_audit_metadata", _doc("set_audit_metadata", None, 0.5), lambda m: m["documentation_state"]["coverage_percentage"] == 0.5),
     Case(
@@ -261,6 +279,26 @@ CASES: list[Case] = [
     Case(MIGRATION_FAMILY, "write_feature_meta", _write_feature_meta, lambda m: m.get("baseline_marker") == "written"),
     Case(MIGRATION_FAMILY, "target_branch_migration", _apply_target_branch_migration, lambda m: "target_branch" in m, seed={"drop_target_branch": True}),
     Case(MIGRATION_FAMILY, "repair_meta_phase", _repair_meta_phase, lambda m: bool(m.get("mission_id")), seed={"drop_identity": True}),
+    Case(
+        DOC_FAMILY,
+        "update_documentation_state",
+        _doc_update_state,
+        lambda m: m["documentation_state"]["coverage_percentage"] == 0.75,
+        seed={"mission_type": "documentation", "documentation_state": _doc_state_full()},
+    ),
+    Case(
+        CONSOLIDATION_FAMILY,
+        "assign_planning_only_number",
+        _assign_planning_only,
+        lambda m: isinstance(m.get("mission_number"), int),
+    ),
+    Case(
+        MIGRATION_FAMILY,
+        "backfill_mission_ids",
+        _backfill_mission_ids,
+        lambda m: bool(m.get("mission_id")),
+        seed={"drop_identity": True},
+    ),
 ]
 
 
@@ -408,3 +446,48 @@ def test_migrations_heal_a_mission_whose_coordination_key_is_unresolvable(repo: 
 
     assert result.action == "wrote"
     assert _read(feature_dir)["mission_id"] == result.mission_id
+
+
+def test_scratch_checkout_bake_locks_the_primary_key_and_releases_it_before_git(monkeypatch: pytest.MonkeyPatch, repo: Path) -> None:
+    """The scratch-checkout write takes the Mission's primary key, and no lock is held while git add/commit run."""
+    from contextlib import contextmanager
+
+    from specify_cli.consolidation.mission_number.bake import _write_mission_number_to_branch
+
+    feature_dir = repo / "kitty-specs" / SLUG
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(json.dumps({"slug": SLUG, "mission_slug": SLUG, "mission_number": None}), encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "seed")
+    branch = "kitty/mission-x"
+    _git(repo, "branch", branch)
+
+    keys: list[str] = []
+    depth = {"held": 0}
+    held_during_git: list[list[str]] = []
+    real_lock = mission_write.feature_status_lock
+    real_run = subprocess.run
+
+    @contextmanager
+    def recording_lock(root: Path, key: str, *, timeout: float) -> Any:
+        keys.append(key)
+        with real_lock(root, key, timeout=timeout) as held:
+            depth["held"] += 1
+            try:
+                yield held
+            finally:
+                depth["held"] -= 1
+
+    def recording_run(command: Any, *args: Any, **kwargs: Any) -> Any:
+        if list(command[:2]) == ["git", "add"] or "commit" in list(command[:4]):
+            held_during_git.append(list(command))
+            assert depth["held"] == 0, f"Mission lock held while running {command}"
+        return real_run(command, *args, **kwargs)
+
+    monkeypatch.setattr(mission_write, "feature_status_lock", recording_lock)
+    monkeypatch.setattr(subprocess, "run", recording_run)
+
+    assert _write_mission_number_to_branch(repo, branch, SLUG, 7) is True
+
+    assert keys == [SLUG]  # the Mission's primary key, once
+    assert len(held_during_git) == 2  # git add and git commit both ran, outside the lock
