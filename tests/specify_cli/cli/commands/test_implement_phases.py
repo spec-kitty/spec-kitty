@@ -9,11 +9,12 @@ of substituting spies, so it adds no patch site either.
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from collections.abc import Callable, Collection
 from dataclasses import replace
 from pathlib import Path
-from types import CodeType, FrameType
+from types import CodeType, FrameType, SimpleNamespace
 from typing import Any, TypeVar
 
 import pytest
@@ -690,7 +691,22 @@ class TestEnsureVcsInMeta:
     def test_existing_vcs_is_preserved(self, tmp_path: Path) -> None:
         feature_dir = tmp_path / "kitty-specs" / "010-feature"
         create_meta_json(feature_dir, vcs="git")
-        assert _ensure_vcs_in_meta(feature_dir).value == "git"
+        assert _ensure_vcs_in_meta(feature_dir)[0].value == "git"
+
+    def test_reports_whether_this_call_wrote_the_lock(self, tmp_path: Path) -> None:
+        """First call writes the lock (``True``), the second finds it (``False``).
+
+        Kills a mutant hard-coding ``True``, which would commit an operator-modified ``meta.json`` on every claim (#5673).
+        """
+        feature_dir = tmp_path / "kitty-specs" / "010-feature"
+        create_meta_json(feature_dir, vcs="")
+
+        first = _ensure_vcs_in_meta(feature_dir)
+        second = _ensure_vcs_in_meta(feature_dir)
+
+        assert (first[0].value, first[1]) == ("git", True)
+        assert (second[0].value, second[1]) == ("git", False)
+        assert json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))["vcs"] == "git"
 
     def test_missing_meta_errors(self, tmp_path: Path) -> None:
         feature_dir = tmp_path / "kitty-specs" / "010-feature"
@@ -702,3 +718,82 @@ class TestEnsureVcsInMeta:
         text = _flat(capture.get())
         assert f"Error: meta.json not found in {feature_dir}" in text
         assert "Run /spec-kitty.specify inside your coding agent" in text
+
+
+# ---------------------------------------------------------------------------
+# #5673: the claim commit learns what the claim wrote (_meta_dirty_before_claim, commit_claim threading)
+# ---------------------------------------------------------------------------
+
+
+class TestMetaDirtyBeforeClaim:
+    @staticmethod
+    def _repo(tmp_path: Path) -> tuple[Path, Path]:
+        repo = tmp_path / "repo"
+        feature_dir = repo / "kitty-specs" / "010-feature"
+        create_meta_json(feature_dir, vcs="")
+        for args in (
+            ("init", "-q", "-b", "work"),
+            ("config", "user.email", "t@example.com"),
+            ("config", "user.name", "T"),
+            ("add", "-A"),
+            ("commit", "-qm", "seed"),
+        ):
+            subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+        return repo, feature_dir
+
+    def test_a_committed_clean_meta_is_not_dirty(self, tmp_path: Path) -> None:
+        repo, feature_dir = self._repo(tmp_path)
+
+        assert implement_phases._meta_dirty_before_claim(repo, feature_dir) is False
+
+    @pytest.mark.parametrize("staged", [False, True])
+    def test_a_modified_meta_is_dirty_staged_or_not(self, tmp_path: Path, staged: bool) -> None:
+        """Kills a probe that ignores the index or the worktree."""
+        repo, feature_dir = self._repo(tmp_path)
+        meta = feature_dir / "meta.json"
+        meta.write_text(meta.read_text(encoding="utf-8").replace("{", '{"operator_note": "x",', 1), encoding="utf-8")
+        if staged:
+            subprocess.run(["git", "-C", str(repo), "add", "kitty-specs"], check=True, capture_output=True)
+
+        assert implement_phases._meta_dirty_before_claim(repo, feature_dir) is True
+
+    def test_a_git_failure_counts_as_dirty(self, tmp_path: Path) -> None:
+        """Fail toward not committing ``meta.json``: outside any repository the probe cannot know."""
+        feature_dir = tmp_path / "kitty-specs" / "010-feature"
+        create_meta_json(feature_dir, vcs="")
+
+        assert implement_phases._meta_dirty_before_claim(tmp_path, feature_dir) is True
+
+
+class TestCommitClaimThreadsTheClaimFacts:
+    @staticmethod
+    def _run(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, allocation: implement_phases.AllocationResult | None) -> dict[str, Any]:
+        seen: dict[str, Any] = {}
+        monkeypatch.setattr(implement_phases.implement_claim, "_commit_wp_claim_status", lambda **kwargs: seen.update(kwargs))
+        ctx = SimpleNamespace(repo_root=tmp_path, mission_dir=tmp_path / "kitty-specs" / "m", mission_slug="m", auto_commit=True, wp_file=tmp_path / "WP01.md")
+
+        implement_phases.commit_claim(ctx, "WP01", SimpleNamespace(status_changed=True), allocation)  # type: ignore[arg-type]
+
+        return seen
+
+    @pytest.mark.parametrize(("written", "dirty"), [(True, False), (True, True), (False, False)])
+    def test_the_allocation_flags_reach_the_commit(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, written: bool, dirty: bool) -> None:
+        allocation = implement_phases.AllocationResult(result=None, effective_base=None, meta_written=written, meta_dirty_before=dirty)  # type: ignore[arg-type]
+
+        seen = self._run(monkeypatch, tmp_path, allocation)
+
+        assert (seen["meta_written"], seen["meta_dirty_before"]) == (written, dirty)
+
+    @pytest.mark.parametrize(("stamped", "dirty"), [(True, False), (True, True), (False, False)])
+    def test_the_wp_prompt_facts_reach_the_commit(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stamped: bool, dirty: bool) -> None:
+        allocation = implement_phases.AllocationResult(result=None, effective_base=None, wp_stamped=stamped, wp_dirty_before=dirty)  # type: ignore[arg-type]
+
+        seen = self._run(monkeypatch, tmp_path, allocation)
+
+        assert (seen["wp_stamped"], seen["wp_dirty_before"], seen["wp_file"]) == (stamped, dirty, tmp_path / "WP01.md")
+
+    def test_without_an_allocation_meta_is_never_claimed_as_written(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """Legacy callers: never inferred from ``exists()`` (kills a default of ``True``)."""
+        seen = self._run(monkeypatch, tmp_path, None)
+
+        assert (seen["meta_written"], seen["meta_dirty_before"], seen["wp_stamped"]) == (False, False, False)

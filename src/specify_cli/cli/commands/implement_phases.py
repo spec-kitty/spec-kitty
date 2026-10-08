@@ -15,6 +15,8 @@ import typer
 from rich.panel import Panel
 from specify_cli.cli.console import console
 
+from kernel.git import GitCommandError, status_entries
+
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.cli.commands import implement_claim, implement_planning_commit
 from specify_cli.cli.selector_resolution import resolve_mission_handle
@@ -77,6 +79,14 @@ class AllocationResult:
 
     result: LaneWorkspaceResult
     effective_base: str | None
+    #: The claim's VCS lock wrote ``meta.json`` (first claim of the mission).
+    meta_written: bool = False
+    #: ``meta.json`` already differed from HEAD before the claim wrote into it (#5673).
+    meta_dirty_before: bool = False
+    #: Workspace allocation stamped ``base_branch``/``base_commit``/``created_at`` into the claimed WP prompt in this claim.
+    wp_stamped: bool = False
+    #: The claimed WP prompt already differed from HEAD (index or worktree) before allocation stamped it (#5673).
+    wp_dirty_before: bool = False
 
 
 def detect_mission_context(
@@ -133,8 +143,11 @@ def _validate_base_ref(repo_root: Path, base_ref: str) -> str:
     return resolved[1]
 
 
-def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path | None = None) -> VCSBackend:
-    """Ensure VCS is selected and locked in meta.json (printing adapter over the seam's decision)."""
+def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path | None = None) -> tuple[VCSBackend, bool]:
+    """Ensure VCS is selected and locked in meta.json (printing adapter over the seam's decision).
+
+    Returns the backend and whether this call wrote the lock (False on every later claim).
+    """
     try:
         locked = implement_support.ensure_vcs_locked(feature_dir, repo_root=repo_root)
     except MissionMetaReadError as exc:
@@ -146,7 +159,31 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path | None = None) -> VCS
         raise typer.Exit(1) from exc
     if locked:
         console.print("[cyan]→ VCS locked to git in meta.json[/cyan]")
-    return VCSBackend.GIT
+    return VCSBackend.GIT, locked
+
+
+def _path_dirty_before_claim(repo_root: Path, path: Path) -> bool:
+    """Whether *path* differs from HEAD (index or worktree) before the claim writes to it (#5673).
+
+    Any git failure counts as dirty: the claim then leaves the file uncommitted.
+    """
+    try:
+        rel = path.resolve().relative_to(repo_root.resolve()).as_posix()
+        return bool(status_entries(repo_root, pathspecs=(rel,), untracked="no"))
+    except (ValueError, GitCommandError):
+        return True
+
+
+def _meta_dirty_before_claim(repo_root: Path, feature_dir: Path) -> bool:
+    """Whether the mission's ``meta.json`` was dirty before the claim wrote to it (#5673)."""
+    return _path_dirty_before_claim(repo_root, feature_dir / "meta.json")
+
+
+def _read_bytes_or_none(path: Path) -> bytes | None:
+    try:
+        return path.read_bytes()
+    except OSError:
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -434,7 +471,11 @@ def allocate(ctx: ImplementContext, wp_id: str, selection: WorkspaceSelection, b
     # #5738: a claim whose auto-commit cannot land on the checked-out branch is
     # refused here too, before the VCS lock, the lane worktree and the status write.
     implement_claim._raise_if_claim_commit_head_mismatch(repo_root, mission_slug, wp_id, ctx.auto_commit)
-    vcs_backend = _ensure_vcs_in_meta(feature_dir, repo_root)
+    meta_dirty_before = _meta_dirty_before_claim(repo_root, feature_dir)
+    # The allocator stamps the claimed WP prompt on lanes/coord topologies; observe it (bytes before vs after), never infer it.
+    wp_dirty_before = _path_dirty_before_claim(repo_root, wp_file)
+    wp_bytes_before = _read_bytes_or_none(wp_file)
+    vcs_backend, meta_written = _ensure_vcs_in_meta(feature_dir, repo_root)
 
     # #3571: when --base is provided, validate the ref (planning-lane
     # "ignored" warning applied here, FR-007) and thread the EFFECTIVE
@@ -457,7 +498,8 @@ def allocate(ctx: ImplementContext, wp_id: str, selection: WorkspaceSelection, b
         occupancy_verified=occupancy_verified,
     )
     _report_hook_backup(result)
-    return AllocationResult(result, effective_base)
+    wp_stamped = _read_bytes_or_none(wp_file) != wp_bytes_before
+    return AllocationResult(result, effective_base, meta_written, meta_dirty_before, wp_stamped, wp_dirty_before)
 
 
 def _report_hook_backup(result: LaneWorkspaceResult) -> None:
@@ -485,18 +527,26 @@ def record_claim(ctx: ImplementContext, wp_id: str, effective_actor: str, alloca
     return status_result
 
 
-def commit_claim(ctx: ImplementContext, wp_id: str, status_result: Any) -> None:
-    """Auto-commit the claim; three refusals propagate, anything else is a warning."""
-    repo_root, feature_dir, mission_slug, wp_file, auto_commit = ctx.repo_root, ctx.mission_dir, ctx.mission_slug, ctx.wp_file, ctx.auto_commit
+def commit_claim(ctx: ImplementContext, wp_id: str, status_result: Any, allocation: AllocationResult | None = None) -> None:
+    """Auto-commit the claim; three refusals propagate, anything else is a warning.
+
+    ``meta.json`` and the claimed WP prompt join the commit only when *allocation* says the claim wrote
+    them and they were clean before; without an *allocation* (legacy callers) it never does -- never inferred from ``exists()``.
+    """
+    repo_root, feature_dir, mission_slug, auto_commit = ctx.repo_root, ctx.mission_dir, ctx.mission_slug, ctx.auto_commit
     try:
         implement_claim._commit_wp_claim_status(
             repo_root=repo_root,
             feature_dir=feature_dir,
             mission_slug=mission_slug,
             wp_id=wp_id,
-            wp_file=wp_file,
+            wp_file=ctx.wp_file,
             auto_commit=auto_commit,
             status_result=status_result,
+            wp_stamped=allocation is not None and allocation.wp_stamped,
+            wp_dirty_before=allocation is not None and allocation.wp_dirty_before,
+            meta_written=allocation is not None and allocation.meta_written,
+            meta_dirty_before=allocation is not None and allocation.meta_dirty_before,
         )
     except SafeCommitPathPolicyError:
         # #2155 (FR-002 / T011): a wrong-surface guard refusal must NOT be folded

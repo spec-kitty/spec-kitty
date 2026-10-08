@@ -1,6 +1,6 @@
 """Seam tests for ``cli/commands/implement_claim.py`` (implement-degod WP08).
 
-Covers the pure claim-commit bundle (``claim_commit_paths``), the protected-branch refusal text,
+Covers the pure claim-commit path list (``claim_commit_paths``: exactly what the claim wrote, #5673), the protected-branch refusal text,
 the propagate/soften table of ``_commit_wp_claim_status`` and the error translation of
 ``_start_wp_implementation_status``.
 """
@@ -44,65 +44,49 @@ def _bundle_inputs(tmp_path: Path, *, coord: bool) -> tuple[Path, Path, Path, li
     return repo, primary_dir, wp_file, artifacts
 
 
-def _write_meta_and_config(repo: Path, feature_dir: Path) -> tuple[Path, Path]:
-    meta = feature_dir / "meta.json"
-    meta.write_text("{}", encoding="utf-8")
-    config = repo / ".kittify" / "config.yaml"
-    config.parent.mkdir(parents=True)
-    config.write_text("x: 1\n", encoding="utf-8")
-    return meta, config
+@_FAST
+@pytest.mark.parametrize("coord", [False, True], ids=["flat", "coord"])
+def test_claim_commit_paths_never_carries_tasks_md_wp_file_or_config(tmp_path: Path, coord: bool) -> None:
+    """#5673: ``tasks.md`` is collected beside the status pair but the claim never writes it, on any topology.
+
+    Kills a filter that keeps every collected artifact (the old flat ``tasks.md`` leak).
+    """
+    _repo, feature_dir, _wp_file, artifacts = _bundle_inputs(tmp_path, coord=coord)
+
+    paths = implement_claim.claim_commit_paths(feature_dir=feature_dir, status_artifacts=artifacts, routes_through_coord=coord, meta_written=False)
+
+    assert not any(path.name in {"tasks.md", "config.yaml"} or path.parent.name == "tasks" for path in paths)
+    assert paths == ([] if coord else [artifacts[0].resolve(), artifacts[1].resolve()])
 
 
 @_FAST
-def test_claim_commit_paths_flat_stages_wp_file_then_status_artifacts(tmp_path: Path) -> None:
-    repo, feature_dir, wp_file, artifacts = _bundle_inputs(tmp_path, coord=False)
+def test_claim_commit_paths_flat_is_the_status_pair_in_stable_order(tmp_path: Path) -> None:
+    _repo, feature_dir, _wp_file, artifacts = _bundle_inputs(tmp_path, coord=False)
 
-    paths = implement_claim.claim_commit_paths(repo_root=repo, feature_dir=feature_dir, wp_file=wp_file, status_artifacts=artifacts, routes_through_coord=False)
+    paths = implement_claim.claim_commit_paths(feature_dir=feature_dir, status_artifacts=artifacts, routes_through_coord=False, meta_written=False)
 
-    assert paths == [wp_file.resolve(), *(a.resolve() for a in artifacts)]
-
-
-@_FAST
-def test_claim_commit_paths_coord_drops_worktree_nested_artifacts(tmp_path: Path) -> None:
-    repo, feature_dir, wp_file, artifacts = _bundle_inputs(tmp_path, coord=True)
-
-    paths = implement_claim.claim_commit_paths(repo_root=repo, feature_dir=feature_dir, wp_file=wp_file, status_artifacts=artifacts, routes_through_coord=True)
-
-    assert paths == [wp_file.resolve()]
+    assert [path.name for path in paths] == ["status.events.jsonl", "status.json"]
 
 
 @_FAST
-def test_claim_commit_paths_appends_meta_then_config_when_present(tmp_path: Path) -> None:
-    """Pins today's bundle, including ``.kittify/config.yaml`` (#5673 is NOT fixed here: the claim
-    never changes that file, so the future fix is a one-line removal in ``claim_commit_paths``)."""
-    repo, feature_dir, wp_file, artifacts = _bundle_inputs(tmp_path, coord=False)
-    meta, config = _write_meta_and_config(repo, feature_dir)
+@pytest.mark.parametrize(("coord", "expected_names"), [(False, ["status.events.jsonl", "status.json", "meta.json"]), (True, ["meta.json"])], ids=["flat", "coord"])
+def test_claim_commit_paths_appends_meta_last_only_when_the_claim_wrote_it(tmp_path: Path, coord: bool, expected_names: list[str]) -> None:
+    """``meta.json`` is driven by ``meta_written``, not by the file existing (it exists in both calls)."""
+    _repo, feature_dir, _wp_file, artifacts = _bundle_inputs(tmp_path, coord=coord)
+    (feature_dir / "meta.json").write_text("{}", encoding="utf-8")
 
-    paths = implement_claim.claim_commit_paths(repo_root=repo, feature_dir=feature_dir, wp_file=wp_file, status_artifacts=artifacts, routes_through_coord=False)
+    written = implement_claim.claim_commit_paths(feature_dir=feature_dir, status_artifacts=artifacts, routes_through_coord=coord, meta_written=True)
+    not_written = implement_claim.claim_commit_paths(feature_dir=feature_dir, status_artifacts=artifacts, routes_through_coord=coord, meta_written=False)
 
-    assert paths == [wp_file.resolve(), *(a.resolve() for a in artifacts), meta.resolve(), config.resolve()]
-
-
-@_FAST
-def test_claim_commit_paths_leaves_config_out_when_asked(tmp_path: Path) -> None:
-    """``include_config=False`` (the ``--no-auto-commit`` staging) keeps ``meta.json`` and drops only ``config.yaml``."""
-    repo, feature_dir, wp_file, artifacts = _bundle_inputs(tmp_path, coord=False)
-    meta, _config = _write_meta_and_config(repo, feature_dir)
-
-    paths = implement_claim.claim_commit_paths(
-        repo_root=repo, feature_dir=feature_dir, wp_file=wp_file, status_artifacts=artifacts, routes_through_coord=False, include_config=False
-    )
-
-    assert paths == [wp_file.resolve(), *(a.resolve() for a in artifacts), meta.resolve()]
+    assert [path.name for path in written] == expected_names
+    assert "meta.json" not in [path.name for path in not_written]
 
 
 @_FAST
-def test_claim_commit_paths_skips_absent_meta_and_config(tmp_path: Path) -> None:
-    repo, feature_dir, wp_file, _ = _bundle_inputs(tmp_path, coord=False)
+def test_claim_commit_paths_without_artifacts_or_meta_is_empty(tmp_path: Path) -> None:
+    _repo, feature_dir, _wp_file, _ = _bundle_inputs(tmp_path, coord=False)
 
-    paths = implement_claim.claim_commit_paths(repo_root=repo, feature_dir=feature_dir, wp_file=wp_file, status_artifacts=[], routes_through_coord=False)
-
-    assert paths == [wp_file.resolve()]
+    assert implement_claim.claim_commit_paths(feature_dir=feature_dir, status_artifacts=[], routes_through_coord=False, meta_written=False) == []
 
 
 class _Policy:
@@ -186,15 +170,18 @@ def claim_repo(tmp_path: Path) -> SimpleNamespace:
     return SimpleNamespace(repo=repo, feature_dir=feature_dir, wp_file=wp_file)
 
 
-def _claim(env: SimpleNamespace, *, auto_commit: bool | None = True, status_result: object | None = None) -> None:
+def _claim(
+    env: SimpleNamespace, *, auto_commit: bool | None = True, status_result: object | None = None, meta_written: bool = False, meta_dirty_before: bool = False
+) -> None:
     implement_claim._commit_wp_claim_status(
         repo_root=env.repo,
         feature_dir=env.feature_dir,
         mission_slug=_SLUG,
         wp_id="WP01",
-        wp_file=env.wp_file,
         auto_commit=auto_commit,
         status_result=SimpleNamespace(status_changed=True) if status_result is None else status_result,
+        meta_written=meta_written,
+        meta_dirty_before=meta_dirty_before,
     )
 
 
@@ -212,7 +199,6 @@ def test_claim_commit_is_a_noop_without_a_lane_change(claim_repo: SimpleNamespac
         feature_dir=claim_repo.feature_dir,
         mission_slug=_SLUG,
         wp_id="WP01",
-        wp_file=claim_repo.wp_file,
         auto_commit=True,
         status_result=status_result,
     )
@@ -222,49 +208,80 @@ def test_claim_commit_is_a_noop_without_a_lane_change(claim_repo: SimpleNamespac
 
 
 @_GIT
-def test_claim_commit_without_auto_commit_stages_the_bundle_and_commits_nothing(claim_repo: SimpleNamespace, capsys: pytest.CaptureFixture[str]) -> None:
-    """#3471: ``--no-auto-commit`` stages exactly the claim's own writes and commits nothing.
+def test_claim_commit_without_auto_commit_stages_the_claim_writes_and_commits_nothing(claim_repo: SimpleNamespace, capsys: pytest.CaptureFixture[str]) -> None:
+    """#3471 / #5673: ``--no-auto-commit`` stages exactly the claim's own writes and commits nothing.
 
-    ``.kittify/config.yaml`` is present and uncommitted, yet stays unstaged: the claim never writes
-    it, so the staging leaves it out (``include_config=False``), unlike the auto-commit bundle.
-    Planted breaks (proven red): drop the ``git add`` in ``_stage_claim_writes``; stage with
-    ``include_config=True``.
+    ``.kittify/config.yaml`` and the WP prompt are present and untracked, yet stay unstaged: the claim
+    never writes them. Planted breaks: drop the ``git add`` in ``_stage_claim_writes``; bundle the WP file or ``config.yaml``.
     """
     config = claim_repo.repo / ".kittify" / "config.yaml"
     config.parent.mkdir()
     config.write_text("x: 1\n", encoding="utf-8")
     head_before = git_out(claim_repo.repo, "rev-parse", "HEAD")
 
-    _claim(claim_repo, auto_commit=False)
+    _claim(claim_repo, auto_commit=False, meta_written=True)
 
     assert git_out(claim_repo.repo, "rev-parse", "HEAD") == head_before
     staged = set(git_out(claim_repo.repo, "diff", "--cached", "--name-only").split())
-    assert staged == {
-        f"kitty-specs/{_SLUG}/meta.json",
-        f"kitty-specs/{_SLUG}/tasks/WP01-demo.md",
-        f"kitty-specs/{_SLUG}/status.events.jsonl",
-    }
-    assert ".kittify/config.yaml" not in staged
+    assert staged == {f"kitty-specs/{_SLUG}/meta.json", f"kitty-specs/{_SLUG}/status.events.jsonl"}
     assert "auto-commit disabled, changes staged only" in capsys.readouterr().out
 
 
 @_GIT
-def test_claim_commit_commits_the_bundle_on_the_target_branch(claim_repo: SimpleNamespace, capsys: pytest.CaptureFixture[str]) -> None:
-    _claim(claim_repo)
+def test_claim_commit_commits_exactly_the_claim_written_paths_on_the_target_branch(claim_repo: SimpleNamespace, capsys: pytest.CaptureFixture[str]) -> None:
+    """The WP prompt and ``config.yaml`` (both present, uncommitted) stay out; ``meta.json`` is in because the claim wrote it."""
+    config = claim_repo.repo / ".kittify" / "config.yaml"
+    config.parent.mkdir()
+    config.write_text("x: 1\n", encoding="utf-8")
+
+    _claim(claim_repo, meta_written=True)
 
     assert git_out(claim_repo.repo, "log", "-1", "--format=%s") == "chore: WP01 claimed for implementation"
-    assert _head_files(claim_repo.repo) == {
-        f"kitty-specs/{_SLUG}/meta.json",
-        f"kitty-specs/{_SLUG}/tasks/WP01-demo.md",
-        f"kitty-specs/{_SLUG}/status.events.jsonl",
-    }
+    assert _head_files(claim_repo.repo) == {f"kitty-specs/{_SLUG}/meta.json", f"kitty-specs/{_SLUG}/status.events.jsonl"}
     assert "WP01 moved to 'doing'" in capsys.readouterr().out
+
+
+@_GIT
+def test_claim_commit_leaves_meta_out_when_the_claim_did_not_write_it(claim_repo: SimpleNamespace) -> None:
+    """``meta.json`` exists but the claim did not touch it: the commit does not infer inclusion from ``exists()``."""
+    _claim(claim_repo, meta_written=False)
+
+    assert _head_files(claim_repo.repo) == {f"kitty-specs/{_SLUG}/status.events.jsonl"}
+
+
+@_GIT
+def test_claim_commit_skips_the_commit_when_nothing_is_left_to_commit(
+    claim_repo: SimpleNamespace, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Coord topology: the status pair already went to the coordination branch, so the primary list is empty.
+
+    Kills a mutant that calls ``safe_commit`` with no paths and prints a spurious "Could not auto-commit" warning.
+    """
+    monkeypatch.setattr(implement_claim, "routes_through_coordination", lambda _topology: True)
+    head_before = git_out(claim_repo.repo, "rev-parse", "HEAD")
+
+    _claim(claim_repo)
+
+    assert git_out(claim_repo.repo, "rev-parse", "HEAD") == head_before
+    out = capsys.readouterr().out
+    assert "WP01 moved to 'doing'" in out
+    assert "Could not auto-commit" not in out
+
+
+@_GIT
+def test_claim_commit_warns_and_leaves_a_meta_json_that_was_dirty_before_the_claim(claim_repo: SimpleNamespace, capsys: pytest.CaptureFixture[str]) -> None:
+    _claim(claim_repo, meta_written=True, meta_dirty_before=True)
+
+    assert _head_files(claim_repo.repo) == {f"kitty-specs/{_SLUG}/status.events.jsonl"}
+    out = " ".join(capsys.readouterr().out.split())
+    assert f"kitty-specs/{_SLUG}/meta.json had uncommitted changes before the claim" in out
+    assert "left uncommitted" in out
 
 
 @_GIT
 def test_claim_commit_reraises_path_policy_error(claim_repo: SimpleNamespace, monkeypatch: pytest.MonkeyPatch) -> None:
     """A ``.worktrees/``-nested artifact leaking into the primary bundle trips the real guard."""
-    leaked = claim_repo.repo / ".worktrees" / "coord" / "status.json"
+    leaked = claim_repo.repo / ".worktrees" / "coord" / "kitty-specs" / _SLUG / "status.json"
     leaked.parent.mkdir(parents=True)
     leaked.write_text("{}", encoding="utf-8")
     monkeypatch.setattr("specify_cli.cli.commands.agent.tasks._collect_status_artifacts", lambda feature_dir: [leaked])

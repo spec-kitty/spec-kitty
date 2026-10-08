@@ -445,7 +445,7 @@ def implement(
             _render_create_failure(tracker, exc, workspace_created)
             raise typer.Exit(1) from exc
 
-        implement_phases.commit_claim(ctx, wp_id, status_result)
+        implement_phases.commit_claim(ctx, wp_id, status_result, allocation)
 
     if json_output:
         print(json.dumps(_build_implement_json_payload(ctx.repo_root, ctx.mission_slug, wp_id, workspace_path, branch_name, result, selection.resolved_workspace)))
