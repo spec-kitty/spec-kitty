@@ -185,6 +185,22 @@ def _normalize_ref(ref: str) -> str:
     return ref.removeprefix("refs/heads/")
 
 
+def require_coord_worktree_branch(path: Path, expected_ref: str) -> None:
+    """Refuse a materialized coordination worktree on another branch."""
+    try:
+        actual = subprocess.check_output(
+            ["git", "-C", str(path), "symbolic-ref", "HEAD"],
+            text=True,
+            stderr=subprocess.PIPE,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        actual = "<detached or unreadable HEAD>"
+    if _normalize_ref(actual) != _normalize_ref(expected_ref):
+        raise CoordinationWorkspaceBranchMismatch(
+            worktree_path=path, expected_ref=expected_ref, actual_ref=actual,
+        )
+
+
 def _compose_mission_dir(mission_slug: str, mid8: str) -> str:
     """Return the ``<slug>-<mid8>`` mission directory name (no double-suffix).
 
@@ -323,21 +339,7 @@ class CoordinationWorkspace:
         # holds exactly one path-keyed lock and never nests, so it is deadlock-free.
         with _resolve_lock_for(path):
             if path.exists():
-                # Verify HEAD points at the expected branch.
-                actual = subprocess.check_output(
-                    ["git", "-C", str(path), "symbolic-ref", "HEAD"],
-                    text=True,
-                ).strip()
-                # Canonical comparison: normalize via removeprefix.
-                # Belt-and-suspenders fallback retained for transitional safety.
-                if (
-                    _normalize_ref(actual) != branch
-                    and actual != f"refs/heads/{branch}"
-                    and actual != branch
-                ):
-                    raise CoordinationWorkspaceBranchMismatch(
-                        worktree_path=path, expected_ref=branch, actual_ref=actual,
-                    )
+                require_coord_worktree_branch(path, branch)
                 return path
 
             # Create the worktree pointing at the existing branch.
