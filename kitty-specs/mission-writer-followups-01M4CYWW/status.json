@@ -85,7 +85,7 @@
     },
     "WP03": {
       "actor": "claude-reviewer",
-      "agent": "claude-reviewer",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -98,6 +98,7 @@
         "All four subtasks done: doc-state, consolidation and migration meta.json writers take the Mission lock (locked_update_meta or write_meta in a mission_write_lock region). Red-first overlap + lock-acquisition tests, 5/5 repeats, mutation-checked. Adds opt-in fallback_to_dir_name for healing migrations on legacy coordination missions without a mid8. Deviations: mission_write.py, mission_metadata.py, test_status_events_writes_gate.py census, WP02 test + bulk-edit SKILL.md edited outside owned_files."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/mission-writer-followups-01M4CYWW/tasks/WP03-remaining-meta-writers/review-cycle-1.md",
         "reference": "review-cycle://mission-writer-followups-01M4CYWW/WP03-remaining-meta-writers/review-cycle-1.md",
@@ -105,13 +106,13 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 26158,
-      "shell_pid_created_at": "1791460455.32",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T011": "done",
-        "T012": "done",
-        "T013": "done",
-        "T014": "done"
+        "T011": "planned",
+        "T012": "planned",
+        "T013": "planned",
+        "T014": "planned"
       }
     },
     "WP04": {
