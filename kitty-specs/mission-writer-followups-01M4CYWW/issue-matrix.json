@@ -49,7 +49,7 @@
       "wp": null
     },
     "#5854": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Context-only citation in spec.md (see-also / later #2652 slices); this Mission owes it no work (C-007, C-008).",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,7 +57,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#5883": {
