@@ -64,7 +64,7 @@ All synthesizer tests pass. The non-determinism issue described in #1303 is reso
 Command: `pytest tests/charter_offering/ -q --tb=short -p no:cacheprovider`
 Result: `1975 passed, 84 warnings in 56.88s`
 
-All doctrine/glossary tests pass. Anchor drift issue described in #1304 is resolved.
+All charter offering/glossary tests pass. Anchor drift issue described in #1304 is resolved.
 
 **#1305 — STALE**
 
@@ -154,7 +154,7 @@ WP03's target fixes were absorbed by WP02: all #1301 cluster tests pass with zer
 
 **Date**: 2026-06-01
 
-**T019 Findings**: All four #1304 cluster tests were confirmed to pass before any code changes. The doctrine/glossary tests (`test_glossary_link_integrity` and `test_tactic_compliance`) all pass including the specific anchors `doctrine-pack` and `platform-darwin--platform-linux`, and the `five-paradigm-parallel-debugging` tactic YAML is schema-valid with no unresolved references.
+**T019 Findings**: All four #1304 cluster tests were confirmed to pass before any code changes. The charter offering/glossary tests (`test_glossary_link_integrity` and `test_tactic_compliance`) all pass including the specific anchors `doctrine-pack` and `platform-darwin--platform-linux`, and the `five-paradigm-parallel-debugging` tactic YAML is schema-valid with no unresolved references.
 
 **Full `tests/charter_offering/` result**: 1975 passed, 84 warnings, 0 failed
 

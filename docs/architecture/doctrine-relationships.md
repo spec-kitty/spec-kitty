@@ -8,7 +8,7 @@ audience: docs/context/audience/internal/system-architect.md
 # Doctrine relationships: lineage, delegation, augmentation, and action resolution
 
 This page explains how relationships between doctrine artifacts are modelled in
-Spec Kitty, and — importantly — **how to author them**. As of the org-doctrine
+Spec Kitty, and — importantly — **how to author them**. As of the org Charter Pack
 profile-integrity work (FR-001/FR-003/FR-004, NFR-007), every relationship is a
 **typed edge in the doctrine reference graph (DRG)**. Relationships are *not*
 authored as fields on the artifacts themselves.
