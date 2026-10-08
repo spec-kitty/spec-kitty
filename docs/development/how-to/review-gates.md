@@ -2,7 +2,7 @@
 title: 'Review Gates: Pre-PR Hygiene, Review-Cycle Mechanics, and the Consolidation Gate'
 description: Review-cycle-artifact and consolidation-gate mechanics, the --skip-review-artifact-check override, and issue-matrix discovery, so review focuses on substance.
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -106,11 +106,11 @@ hook resolves *which* named handlers the repo's active doctrine binds to the
 current lane edge (`in_progress->for_review`), dispatches each, and aggregates
 their verdicts (mission `doctrine-controlled-transition-gates`, epic #2535
 half A). In the Spec-Kitty source tree the built-in `software-dev/review`
-step-contract binds the `spec-kitty-pre-review` handler, which derives the CI
-shards covering the WP's changed files and re-runs them — so a WP that broke a
-shared contract pinned by a test *outside* its `owned_files` is caught at review
-time instead of only at consolidation (#572, #1979). By default the gate is
-**warn-only** -- it reports a new failure but the move still proceeds.
+step-contract binds the `spec-kitty-pre-review` handler. This repository
+declares `make test-fast` as its test command, so the gate runs that fast tier
+and compares its JUnit results with the implement-time baseline. By default
+the gate is **warn-only** -- it reports a new failure but the move still
+proceeds.
 
 **How the impl is selected.** Activation, not repo shape, decides whether the
 gate fires. A repo whose active doctrine binds no handler to the edge runs *no*
@@ -134,15 +134,15 @@ Configuration (`.kittify/config.yaml`, under `review:`):
 - `review.fail_on_pre_review_regression` (bool, default `false`) -- opt in to
   **block** the move when the gate finds a new failure. `move-task --force`
   records an override and proceeds anyway.
-- `review.test_command` -- selects which `ScopeSource` implementation the gate
-  runs (`resolve_scope_source`, `scope_source.py`): when set, a portable
-  `DeclaredCommandScopeSource` runs exactly this command; when unset --
-  including in the Spec-Kitty source repo itself -- the gate falls back to the
-  internal `GateCoverageScopeSource`, which derives its own scoped pytest
-  invocation and ignores this key entirely. The block can only be *enforced*
-  when a command is available (declared or derived); opting in to the block
-  without one yields a loud warning (the gate cannot run a command it does not
-  have).
+- `review.test_command` -- selects the test command (`resolve_scope_source`,
+  `scope_source.py`). This repository sets
+  `PYTEST_ADDOPTS="--junitxml={output_file}" make test-fast`, reusing the existing
+  fast-tier target while providing a JUnit artifact for comparison. A repository
+  without this key records a quiet `skipped` verdict; no tests run. To enable
+  the gate in another repository, add `review.test_command` under `review:`
+  in `.kittify/config.yaml`, with a command that writes JUnit XML to
+  `{output_file}`. The block can only be *enforced* when a command is available;
+  opting in without one yields a loud warning.
 - `review.pre_review_test_command` -- **deprecated** and aliased to
   `review.test_command`. A config that still sets it keeps working but earns a
   one-time deprecation warning; move the value to `review.test_command`.

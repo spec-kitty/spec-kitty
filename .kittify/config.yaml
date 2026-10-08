@@ -20,6 +20,10 @@ charter: .kittify/charter/charter.yaml
 # Lane -> mission merges always use merge commits regardless of this setting.
 merge:
   strategy: squash
+# Use the existing fast-tier target for this repo's pre-review regression gate.
+# The gate substitutes an absolute JUnit path for {output_file} on each run.
+review:
+  test_command: 'PYTEST_ADDOPTS="--junitxml={output_file}" make test-fast'
 mission_type_activations:
 - software-dev
 - documentation
