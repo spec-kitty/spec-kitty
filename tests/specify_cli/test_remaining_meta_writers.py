@@ -227,7 +227,13 @@ CASES: list[Case] = [
         lambda m: m.get("flattened") is True,
         seed={"coordination_branch": "kitty/mission-060-test-01COORD0", "mid8": "01COORD0", "mission_id": "01COORD0XXXXXXXXXXXXXXXXXX", "topology": "coord"},
     ),
-    Case(MIGRATION_FAMILY, "backfill_mission", _migration("specify_cli.migration.backfill_identity", "backfill_mission"), lambda m: bool(m.get("mission_id"))),
+    Case(
+        MIGRATION_FAMILY,
+        "backfill_mission",
+        _migration("specify_cli.migration.backfill_identity", "backfill_mission"),
+        lambda m: bool(m.get("mission_id")),
+        seed={"drop_identity": True},
+    ),
     Case(
         MIGRATION_FAMILY,
         "backfill_mission_mission_type",
