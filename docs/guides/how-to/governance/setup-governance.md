@@ -2,7 +2,7 @@
 title: How to Set Up Project Governance
 description: The complete interview-to-generation flow for creating, validating, and activating your Spec Kitty project charter.
 doc_status: active
-updated: '2026-07-20'
+updated: '2026-10-08'
 audience: docs/context/audience/external/tech-lead-evaluator.md
 type: how-to
 related:
@@ -28,10 +28,10 @@ action.
 - For the full doctrine-synthesis workflow (partial resynthesis, provenance, recovery from a
   stale bundle) beyond the quick version in Step 4 below, see
   [How to Synthesize and Maintain Doctrine](synthesize-doctrine.md).
-- For the faster, pack-driven alternative to this interview-driven walkthrough — `charter pack
-  apply` plus the required `charter generate` follow-up, and how the dispatch fallback behaves at
-  each step — see
-  [Charter Pack Usage Journey](../../../architecture/charter-pack-usage-journey.md).
+- For the faster, preset-driven alternative to this interview-driven walkthrough — `charter
+  activate --preset` plus the required `charter generate` follow-up, and how the dispatch fallback
+  behaves at each step — see
+  [Activation Preset Usage Journey](../../../architecture/charter-pack-usage-journey.md).
 
 ## Prerequisites
 
@@ -49,7 +49,7 @@ Two files matter, and they are not peers:
   charter. Its `governance`, `directives`, `catalog`, activation, and `overrides` sections all
   live here. You author `governance`, `directives`, activation, and `overrides` (directly, or via
   the interview); `charter generate` refreshes `catalog` and `metadata` deterministically from
-  the current doctrine selection, without touching your authored sections.
+  the active charter, without touching your authored sections.
 - **`.kittify/charter/charter.md`** is a **curated companion**: a human-readable narrative the
   runtime never parses, scrapes, or resolves policy from. Editing it has no effect on governed
   mission behavior. `charter generate` seeds a starter `charter.md` only when one is absent, and
@@ -110,7 +110,7 @@ spec-kitty charter interview \
 
 ### Override selections
 
-You can override doctrine selections on the command line:
+You can override the interview's artifact selections on the command line:
 
 ```bash
 spec-kitty charter interview \
@@ -130,7 +130,7 @@ Generate (or refresh) the charter bundle from your interview answers:
 spec-kitty charter generate --from-interview --json
 ```
 
-This refreshes `charter.yaml`'s `catalog` and `metadata` sections from your doctrine selection,
+This refreshes `charter.yaml`'s `catalog` and `metadata` sections from the active charter,
 seeds a starter `charter.md` companion if one is not already present (an existing `charter.md` is
 left untouched), and auto-stages the produced files via `git add --force` so the immediately
 following `charter bundle validate` succeeds without a manual `git add`. It also ensures
@@ -217,7 +217,7 @@ both pass and status shows no drift, you are ready to synthesize.
 
 ## Step 4: Synthesize Doctrine
 
-Synthesis promotes agent-generated project-local doctrine artifacts into `.kittify/doctrine/`,
+Synthesis promotes agent-generated project-local doctrine artifacts into `.kittify/charter-packs/`,
 making them available for runtime context injection.
 
 ```bash
@@ -233,33 +233,34 @@ spec-kitty charter status
 
 On a fresh project where `.kittify/charter/generated/` is missing or empty (the agent harness has
 not yet written candidate artifacts), synthesize creates the minimal artifact set — a
-`.kittify/doctrine/` directory marker and a `PROVENANCE.md` record — and the runtime falls back to
-built-in doctrine until a full synthesis run with agent-generated content completes. For partial
+`.kittify/charter-packs/` directory marker and a `PROVENANCE.md` record — and the runtime falls back to
+the built-in Charter Pack until a full synthesis run with agent-generated content completes. For partial
 resynthesis, provenance inspection, and recovery from a stale bundle, see
 [How to Synthesize and Maintain Doctrine](synthesize-doctrine.md).
 
-### Quick baseline via a starter pack
+### Quick baseline via an activation preset
 
-If you'd rather start from a small curated baseline than write directives from scratch, apply a
-built-in charter pack instead of running the full interview:
+If you'd rather start from a small curated baseline than write directives from scratch, activate a
+preset of the built-in Charter Pack instead of running the full interview:
 
 ```bash
-spec-kitty charter pack apply minimal
+spec-kitty charter activate --preset minimal
+spec-kitty charter generate --no-from-interview
 ```
 
-`charter pack apply` merges the pack's activation keys into `.kittify/config.yaml`. This is
-additive by default — a key already present (even one you deliberately set empty) is left
-untouched; pass `--force` to overwrite it. Two honest caveats: activating config entries does not
-by itself guarantee an unmatched `spec-kitty dispatch` routes to a specialist profile — you may
-still need `--profile <profile-id>` to be explicit — and the activations need a compile step
-(`spec-kitty charter generate --no-from-interview`, or `apply --compile` to chain it
-automatically) before they fully render into `.kittify/charter/charter.yaml` (see issue #3105 in
-the project issue tracker; check that issue for current resolution status). That same compile
-step is also what resolves the "routed to the generic agent" symptom in
+`charter activate --preset` writes the preset's activation keys into the active charter
+(`.kittify/config.yaml`, or the pointed-at `charter.yaml`) with replace semantics: keys the preset
+lists are written, keys it governs but leaves out are removed. A change to a key you customised is
+refused unless you pass `--force`. Two honest caveats: activating config entries does not by
+itself guarantee an unmatched `spec-kitty dispatch` routes to a specialist profile — you may still
+need `--profile <profile-id>` to be explicit — and on a fresh project the activations need the
+`charter generate --no-from-interview` compile step before they render into
+`.kittify/charter/charter.yaml` (see issue #3105 in the project issue tracker; check that issue for
+current resolution status). That same compile step is also what resolves the "routed to the
+generic agent" symptom in
 [Troubleshooting Charter Failures](troubleshoot-charter.md#2-missing-doctrine): the generic-agent
-fallback only checks whether the compiled bundle exists, not what it activates, so `apply
---compile` (not plain `apply`) is required to clear it — `minimal` still activates no
-`agent_profiles`, so `--profile` may still be needed to resolve ambiguity.
+fallback only checks whether the compiled bundle exists, not what it activates — `minimal` still
+activates no `agent_profiles`, so `--profile` may still be needed to resolve ambiguity.
 
 ## Step 5: Confirm Governance Is Active
 
@@ -382,8 +383,8 @@ You now have an active, governed charter. From here:
 - [Create a Specification](../missions/create-specification.md) — start a mission with governance active
 - [Switch Missions](../missions/switch-missions.md) — how missions interact with governance
 - [Non-Interactive Init](../installation/non-interactive-init.md) — automated project setup including charter
-- [Charter Pack Usage Journey](../../../architecture/charter-pack-usage-journey.md) — the pack-apply
-  onboarding alternative and the dispatch safety net
+- [Activation Preset Usage Journey](../../../architecture/charter-pack-usage-journey.md) — the
+  preset onboarding alternative and the dispatch safety net
 
 ## Background
 

@@ -1,8 +1,8 @@
 ---
-title: How to Create an Org Doctrine Pack
-description: Author, validate, assemble, publish, and consume a spec-kitty org doctrine pack.
+title: How to Create an Org Charter Pack
+description: Author, validate, assemble, publish, and consume a spec-kitty org Charter Pack.
 doc_status: active
-updated: '2026-10-06'
+updated: '2026-10-08'
 type: how-to
 audience: docs/context/audience/external/tech-lead-evaluator.md
 related:
@@ -10,9 +10,9 @@ related:
 - docs/guides/how-to/governance/synthesize-doctrine.md
 - docs/migrations/doctrine-local-overlay-to-org-layer.md
 ---
-# How to Create an Org Doctrine Pack
+# How to Create an Org Charter Pack
 
-This guide walks a governance system maintainer through producing an org doctrine pack,
+This guide walks a governance system maintainer through producing an org Charter Pack,
 validating it, optionally assembling several packs into a single distributable, publishing
 it, and configuring consumer projects to install it.
 
@@ -20,17 +20,17 @@ You'd build one of these instead of just running [project governance
 setup](setup-governance.md) on each repo separately when you have more than one project
 that needs the same rules — the same testing standard, the same architectural
 conventions, the same review discipline — and you don't want each project's charter to
-drift out of sync as you update the rule. An org doctrine pack is versioned and
+drift out of sync as you update the rule. An org Charter Pack is versioned and
 distributed like any other dependency: you publish once, consumer projects pull a
 specific version, and a rule change is a PR to the pack, not a hand-edit repeated N
 times.
 
-Not the same thing as Spec Kitty's **built-in** doctrine packs (e.g. SPDD) — see
-[Doctrine Packs](../../../architecture/doctrine-kinds.md) for those; this guide is for a pack *you* author
+Not the same thing as Spec Kitty's **built-in** Charter Pack (e.g. the SPDD artifacts) — see
+[Doctrine artifact kinds](../../../architecture/doctrine-kinds.md) for those; this guide is for a pack *you* author
 and distribute.
 
-For background on what the org layer is and how it composes with built-in and project
-doctrine, see [Understanding the Org Doctrine Layer](../../../architecture/org-doctrine-layer.md).
+For background on what the org layer is and how it composes with the built-in Charter Pack and the
+project layer, see [Understanding the Org Layer of the Charter Offering](../../../architecture/org-doctrine-layer.md).
 
 ---
 
@@ -461,12 +461,12 @@ fetch.
 
 ## Step 8: Configure consumers
 
-A consumer project enables the org layer by adding a `doctrine.org` block to its
+A consumer project enables the org layer by adding a `charter_packs.org` block to its
 `.kittify/config.yaml`:
 
 ```yaml
 # .kittify/config.yaml
-doctrine:
+charter_packs:
   org:
     packs:
       - name: security
@@ -519,7 +519,7 @@ promotion.
 without hard-coding a machine-local absolute path:
 
 ```yaml
-doctrine:
+charter_packs:
   org:
     packs:
       - name: security
@@ -562,14 +562,14 @@ and `org-charter.yaml` status. Add `--json` for scripting.
 
 ### Built-in overrides: see what is sanctioned, and withdraw it
 
-Consumers no longer copy the pack's allowlist. `spec-kitty doctor charter-packs` reads each pack's root `replaceable-builtins.yaml` in place and unions it with the consumer's own `.kittify/doctrine/replaceable-builtins.yaml`, which keeps its schema and is checked first. A pack's sanction applies only to overrides that same pack contributes.
+Consumers no longer copy the pack's allowlist. `spec-kitty doctor charter-packs` reads each pack's root `replaceable-builtins.yaml` in place and unions it with the consumer's own `.kittify/charter-packs/replaceable-builtins.yaml`, which keeps its schema and is checked first. A pack's sanction applies only to overrides that same pack contributes.
 
 The report lists every sanctioned built-in override with its source and reason, including on a passing run, under `Sanctioned built-in override(s)`. With `--json` they appear as `sanctioned_overrides` under `profile_health.org_drg`, each with `source` set to `consumer` or `pack`.
 
 To withdraw what a pack delivered without unconfiguring the pack, add `revoked_pack_sanctions` to the consumer file. Each entry names either a URN or a configured pack, with an optional reason:
 
 ```yaml
-# .kittify/doctrine/replaceable-builtins.yaml
+# .kittify/charter-packs/replaceable-builtins.yaml
 revoked_pack_sanctions:
   - urn: directive:MINUTES_STAND_ALONE
     reason: We want to review this replacement ourselves.
@@ -605,7 +605,7 @@ built-in version.
 `doctor charter-packs` found a built-in override that nothing sanctions. The `why` text on the finding says which case applies. Fix it in this order:
 
 1. **Pack root.** If the overriding pack should own the replacement, add the URN to the pack's `replaceable-builtins.yaml` (Step 3b) and refresh the pack with `spec-kitty charter fetch`. A directive needs a non-empty `reason`. The entry counts only for the pack that contributes the override.
-2. **Consumer entry.** If you accept the replacement yourself, append `{urn, reason}` under `replaceable_builtins` in `.kittify/doctrine/replaceable-builtins.yaml`. Append the one entry; do not copy a whole file over yours.
+2. **Consumer entry.** If you accept the replacement yourself, append `{urn, reason}` under `replaceable_builtins` in `.kittify/charter-packs/replaceable-builtins.yaml`. Append the one entry; do not copy a whole file over yours.
 3. **Revoked.** If the finding says the pack sanction was revoked by the consumer file, remove the matching `revoked_pack_sanctions` entry, or use step 2.
 
 If the pack still ships only `templates/setup/replaceable-builtins.yaml`, a template is not a sanction and the run still exits 1. The finding then prints where the pack author should move the file and the exact entry to append to your file for step 2. If the template entry is a directive with no reason, it says a reason is required instead of printing an entry; add one yourself.
@@ -644,7 +644,7 @@ edges or nodes instead.
 
 ## See also
 
-- [Understanding the Org Doctrine Layer](../../../architecture/org-doctrine-layer.md)
+- [Understanding the Org Layer of the Charter Offering](../../../architecture/org-doctrine-layer.md)
 - [Migrating shared doctrine to the org layer](../../../migrations/doctrine-local-overlay-to-org-layer.md)
 - [How to set up project governance](setup-governance.md)
 - [How to synthesize and maintain doctrine](synthesize-doctrine.md)
