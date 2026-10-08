@@ -229,8 +229,6 @@ def _is_sibling_registry_entry_in_flight(output: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-STATE_FILE = "state.json"
-
 
 def _check_cli_guards(
     step_id: str,
