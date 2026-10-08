@@ -36,6 +36,8 @@ from specify_cli.consolidation import (
     phase_teardown,
     run_state,
 )
+from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.store import append_event
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -183,6 +185,37 @@ def test_a_leg_that_does_not_come_down_raises_instead_of_flattening(coord_repo_w
     assert _branch_exists(repo, _MISSION_BRANCH)
 
 
+def test_teardown_folds_coord_seed_events_onto_primary(coord_repo_with_live_worktree: Path) -> None:
+    """A late coord-only seed must be committed before its branch is removed (#3272)."""
+    repo = coord_repo_with_live_worktree
+    coord_path = repo / ".worktrees" / coord_dir_name(_SLUG, mid8=_MID8)
+    coord_dir = coord_path / "kitty-specs" / _SLUG
+    coord_dir.mkdir(parents=True)
+    append_event(
+        coord_dir,
+        StatusEvent(
+            event_id="01M1VRA2ZSEED00000000000000",
+            mission_slug=_SLUG,
+            mission_id=_MISSION_ID,
+            wp_id="WP01",
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.PLANNED,
+            at="2026-08-08T09:59:00+00:00",
+            actor="migration:backfill_runtime_state",
+            force=False,
+            execution_mode="worktree",
+        ),
+    )
+    _git(coord_path, "add", ".")
+    _git(coord_path, "commit", "-m", "seed")
+
+    run = _run_state(repo)
+    run.feature_dir = coord_dir
+    phase_teardown._teardown_coordination_triple(run)
+
+    primary_log = repo / "kitty-specs" / _SLUG / "status.events.jsonl"
+    assert "01M1VRA2ZSEED00000000000000" in primary_log.read_text()
+    assert "01M1VRA2ZSEED00000000000000" in _git(repo, "show", f"HEAD:kitty-specs/{_SLUG}/status.events.jsonl").stdout
 def test_teardown_reads_identity_from_the_primary_metadata_not_the_status_dir(
     coord_repo_with_live_worktree: Path,
 ) -> None:
