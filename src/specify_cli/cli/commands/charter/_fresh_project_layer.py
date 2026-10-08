@@ -1,4 +1,4 @@
-"""Fresh-project doctrine seed materialisation helpers (WP06 split).
+"""Fresh-project project-layer seed materialisation helpers (WP06 split).
 
 Carved out of ``_synthesis.py`` so the synthesis helper module stays well
 under 500 lines. Behaviour is unchanged — these helpers materialise the
@@ -37,7 +37,7 @@ _PROVENANCE_FILENAME = "PROVENANCE.md"
 # is the authoritative "built-in doctrine fallback is intended" marker used by
 # charter freshness/preflight.
 # See spec.md FR-015 / Spec Assumption A2 / GitHub issue #839.
-_MINIMAL_FRESH_DOCTRINE_PROVENANCE_TEMPLATE = """\
+_MINIMAL_FRESH_PROJECT_LAYER_PROVENANCE_TEMPLATE = """\
 # Spec Kitty Doctrine — Fresh Project Seed
 
 This `.kittify/charter-packs/` tree was materialized by `spec-kitty charter
@@ -99,7 +99,7 @@ def _fresh_seed_manifest_text() -> str:
     return text
 
 
-def _materialize_fresh_doctrine(repo_root: Path) -> list[str]:
+def _materialize_fresh_project_layer(repo_root: Path) -> list[str]:
     """Materialize the minimal ``.kittify/charter-packs/`` artifact set.
 
     Used on a fresh project where ``.kittify/charter/generated/`` has no
@@ -110,15 +110,15 @@ def _materialize_fresh_doctrine(repo_root: Path) -> list[str]:
     Idempotent: re-runs produce bytewise-identical output (T033). Returns the
     list of repo-relative paths written.
     """
-    doctrine_dir = project_pack_root(repo_root)
+    project_pack_dir = project_pack_root(repo_root)
     charter_dir = repo_root / ".kittify" / "charter"
-    doctrine_dir.mkdir(parents=True, exist_ok=True)
+    project_pack_dir.mkdir(parents=True, exist_ok=True)
     charter_dir.mkdir(parents=True, exist_ok=True)
 
-    provenance_path = doctrine_dir / _PROVENANCE_FILENAME
+    provenance_path = project_pack_dir / _PROVENANCE_FILENAME
     # Idempotency: only write if content differs (avoids needless mtime churn,
     # though byte-stability is preserved either way).
-    new_bytes = _MINIMAL_FRESH_DOCTRINE_PROVENANCE_TEMPLATE.encode("utf-8")
+    new_bytes = _MINIMAL_FRESH_PROJECT_LAYER_PROVENANCE_TEMPLATE.encode("utf-8")
     if not provenance_path.exists() or provenance_path.read_bytes() != new_bytes:
         provenance_path.write_bytes(new_bytes)
 
@@ -134,7 +134,7 @@ def _materialize_fresh_doctrine(repo_root: Path) -> list[str]:
     # the synthesizer. FR-007: both sites route through the one shared helper.
     from charter.activation.synthesizer.graph_residue import unlink_stale_project_graph  # noqa: PLC0415
 
-    unlink_stale_project_graph(doctrine_dir)
+    unlink_stale_project_graph(project_pack_dir)
 
     return [
         str(provenance_path.relative_to(repo_root)),
@@ -142,22 +142,22 @@ def _materialize_fresh_doctrine(repo_root: Path) -> list[str]:
     ]
 
 
-def _planned_fresh_doctrine_paths(repo_root: Path) -> list[str]:
+def _planned_fresh_project_layer_paths(repo_root: Path) -> list[str]:
     """Return the repo-relative paths a fresh-project synthesize would write.
 
     Used by ``--dry-run`` on a fresh project (#839 follow-up): callers preview
     the materialization without touching the filesystem. Must mirror the write
-    output of :func:`_materialize_fresh_doctrine` exactly.
+    output of :func:`_materialize_fresh_project_layer` exactly.
     """
-    doctrine_dir = project_pack_root(repo_root)
+    project_pack_dir = project_pack_root(repo_root)
     charter_dir = repo_root / ".kittify" / "charter"
     return [
-        str((doctrine_dir / _PROVENANCE_FILENAME).relative_to(repo_root)),
+        str((project_pack_dir / _PROVENANCE_FILENAME).relative_to(repo_root)),
         str((charter_dir / "synthesis-manifest.yaml").relative_to(repo_root)),
     ]
 
 
-def _planned_fresh_doctrine_deletes(repo_root: Path) -> list[str]:
+def _planned_fresh_project_layer_deletes(repo_root: Path) -> list[str]:
     """Return repo-relative paths fresh-project synthesize would delete."""
     graph_path = project_pack_path(repo_root, PROJECT_GRAPH_FILENAME)
     if not graph_path.exists():
@@ -165,7 +165,7 @@ def _planned_fresh_doctrine_deletes(repo_root: Path) -> list[str]:
     return [str(graph_path.relative_to(repo_root))]
 
 
-def _synthesize_project_doctrine(repo_root: Path, *, dry_run: bool) -> dict[str, Any] | None:
+def _synthesize_project_layer(repo_root: Path, *, dry_run: bool) -> dict[str, Any] | None:
     """Preserve a direct-written corpus before considering the empty seed path.
 
     Absence of generated inputs says nothing about the project doctrine tree.

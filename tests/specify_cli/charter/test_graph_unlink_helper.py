@@ -3,7 +3,7 @@
 ``charter.activation.synthesizer.graph_residue.unlink_stale_project_graph`` is the single
 sanctioned removal of a project ``graph.yaml`` that a ``built_in_only`` writer
 disowns. It consolidates the two former bare-``unlink`` sites
-(``project_drg.apply_post_condition`` and ``_fresh_doctrine``). These tests pin
+(``project_drg.apply_post_condition`` and ``_fresh_project_layer``). These tests pin
 its behaviour: present-file removal, missing-file no-op, idempotency, and that
 it touches ONLY ``graph.yaml`` (never sibling artifacts).
 """

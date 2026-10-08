@@ -28,8 +28,8 @@ from specify_cli.cli.commands.charter._charter_write_root import (
 )
 
 # Helpers that tests never patch (``_has_generated_artifacts``,
-# ``_catalog_is_established``, ``_materialize_fresh_doctrine``,
-# ``_planned_fresh_doctrine_paths``, and the WP03 reconciliation-reporting
+# ``_catalog_is_established``, ``_materialize_fresh_project_layer``,
+# ``_planned_fresh_project_layer_paths``, and the WP03 reconciliation-reporting
 # helpers below) can be imported directly. The patchable helpers
 # (``_build_synthesis_request``, ``_collect_evidence_result``,
 # ``_load_written_artifacts_from_manifest``,
@@ -41,10 +41,10 @@ from specify_cli.cli.commands.charter._synthesis import (
     _emit_orphan_refusal,
     _emit_real_run_report,
     _has_generated_artifacts,
-    _materialize_fresh_doctrine,
+    _materialize_fresh_project_layer,
     _orphaned_removals,
-    _planned_fresh_doctrine_deletes,
-    _planned_fresh_doctrine_paths,
+    _planned_fresh_project_layer_deletes,
+    _planned_fresh_project_layer_paths,
     _print_synthesis_commit_reminder,
     _raise_if_bundle_incomplete,
     _reconciliation_preview,
@@ -238,9 +238,9 @@ def charter_synthesize(  # noqa: C901
         is_fresh_project_synthesize = adapter == "generated" and not _has_generated_artifacts(repo_root) and not dry_run_evidence and charter_yaml.is_file()
 
         if is_fresh_project_synthesize:
-            from specify_cli.cli.commands.charter._fresh_doctrine import _synthesize_project_doctrine
+            from specify_cli.cli.commands.charter._fresh_project_layer import _synthesize_project_layer
 
-            # ``_synthesize_project_doctrine`` runs regardless of the
+            # ``_synthesize_project_layer`` runs regardless of the
             # #4785 Finding 2-core established-store check below: it has its
             # OWN internal ``scan_project_artifacts`` gate and only preserves
             # (never destructively resets) real registered direct-write
@@ -248,7 +248,7 @@ def charter_synthesize(  # noqa: C901
             # the raw minimal-seed materialization further down, and one an
             # established store may legitimately still need (e.g. a
             # dry-run/idempotent preview of already-registered content).
-            project_result = _synthesize_project_doctrine(repo_root, dry_run=dry_run)
+            project_result = _synthesize_project_layer(repo_root, dry_run=dry_run)
             if project_result is not None:
                 if json_output:
                     print(json.dumps(project_result, indent=2, sort_keys=True))
@@ -288,8 +288,8 @@ def charter_synthesize(  # noqa: C901
                     _seed_version = "unknown"
 
                 if dry_run:
-                    planned = _planned_fresh_doctrine_paths(repo_root)
-                    planned_deletes = _planned_fresh_doctrine_deletes(repo_root)
+                    planned = _planned_fresh_project_layer_paths(repo_root)
+                    planned_deletes = _planned_fresh_project_layer_deletes(repo_root)
                     fresh_written_artifacts: list[dict[str, Any]] = [
                         {
                             "path": p,
@@ -330,7 +330,7 @@ def charter_synthesize(  # noqa: C901
                         console.print(f"  delete {f}")
                     return
 
-                written = _materialize_fresh_doctrine(repo_root)
+                written = _materialize_fresh_project_layer(repo_root)
                 fresh_written_artifacts = [
                     {
                         "path": p,

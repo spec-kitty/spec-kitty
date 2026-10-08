@@ -6,7 +6,7 @@ FR-007: two ``built_in_only``-writer paths used to each carry their own bare
 * ``charter.activation.synthesizer.project_drg.apply_post_condition`` (inside its atomic
   ``write_text(tmp) → unlink(graph) → guard.replace(tmp, manifest)`` sequence),
   and
-* ``specify_cli.cli.commands.charter._fresh_doctrine`` (a standalone unlink for
+* ``specify_cli.cli.commands.charter._fresh_project_layer`` (a standalone unlink for
   the synthesizer-bypass fresh-seed path).
 
 Both now route through :func:`unlink_stale_project_graph`. The graph filename
