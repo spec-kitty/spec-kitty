@@ -118,6 +118,7 @@ from specify_cli.mission import get_mission_type
 from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 from specify_cli.status import CanonicalStatusNotFoundError
 from runtime.next.decision import (
+    AnalysisCurrency,
     Decision,
     DecisionKind,
     _build_prompt_or_error,
@@ -236,6 +237,7 @@ def _check_cli_guards(
     mission_family: str | None = None,
     repo_root: Path | None = None,
     owned: OwnedCheckout | None = None,
+    analysis_currency: AnalysisCurrency | None = None,
 ) -> list[str]:
     """Evaluate the CLI guards for ``step_id`` and return the failures.
 
@@ -255,15 +257,21 @@ def _check_cli_guards(
     ``None`` (built-in tree only — today's exact behavior for every existing
     caller that does not yet pass a real ``repo_root``).
 
+    ``analysis_currency`` (WP07) is the injected analysis-report check; it is
+    read only for the software-dev ``analyze`` step.
+
     Returns list of failure descriptions; empty list means all guards pass.
     """
     mission_family = mission_family if mission_family is not None else get_mission_type(feature_dir)
+    # Forwarded only when injected: no step but ``analyze`` reads it.
+    injected: dict[str, AnalysisCurrency] = {} if analysis_currency is None else {"analysis_currency": analysis_currency}
     snapshot = _io_seam.gather_artifact_presence(
         feature_dir,
         mission_family=mission_family,
         step_id=step_id,
         repo_root=repo_root,
         owned=owned,
+        **injected,
     )
     if step_id in ("implement", "review"):
         # Intentionally NOT anchored (no repo_root=/mission_slug= forwarded), even
@@ -366,6 +374,10 @@ class DecideNextContext:
     # ownership fact, when this call runs under an owned checkout. ``None``
     # for every non-owned mission — the historical, byte-identical path.
     owned: OwnedCheckout | None = None
+    # WP07 (FR-016): the injected analysis-currency check. The bridge calls it
+    # only on the ``analyze`` step and in the finalized-board override that
+    # would hand out ``implement``; ``None`` there fails closed.
+    analysis_currency: AnalysisCurrency | None = None
 
 
 def _owned_coordination_unavailable_decision(agent: str, mission_slug: str, mission_type: str, now: str, exc: BaseException) -> Decision:
@@ -634,6 +646,12 @@ def _dn_finalized_board_override(ctx: DecideNextContext) -> Decision | None:
         return None
     board = _mapping._resolve_wp_board_action(mission_slug=ctx.mission_slug, repo_root=ctx.repo_root, owned=ctx.owned)
     if board.action is not None and board.board_step is not None:
+        # B3: the board hands out implement as if the DAG had walked through
+        # analyze; check the analysis report first, like the analyze step does.
+        if board.action == _mapping._STEP_IMPLEMENT and ctx.mission_type == MISSION_TYPE_SOFTWARE_DEV:
+            analysis_failures = _cores.evaluate_analysis_currency(_io_seam.gather_analysis_currency(ctx.analysis_currency))
+            if analysis_failures:
+                return _dn_reissue_step_decision(ctx, _cores.ANALYZE_STEP_ID, analysis_failures)
         return _mapping._build_wp_iteration_decision(
             board.board_step,
             ctx.agent,
@@ -663,6 +681,68 @@ def _dn_finalized_board_override(ctx: DecideNextContext) -> Decision | None:
             )
         )
     return None
+
+
+def _dn_reissue_step_decision(ctx: DecideNextContext, step_id: str, guard_failures: list[str]) -> Decision:
+    """Re-issue ``step_id`` as a ``kind=step`` decision carrying ``guard_failures``.
+
+    Shared by the non-WP guard refusal in ``_dn_dependency_gate`` and the
+    finalized-board override's analysis refusal (B3). An analyze-step refusal
+    carries its typed ``error_code``; a prompt-resolution error code wins over
+    it (B5), and the decision then degrades to ``blocked`` as before.
+    """
+    action, wp_id, workspace_path = _state_to_action(
+        step_id,
+        ctx.mission_slug,
+        ctx.feature_dir,
+        ctx.repo_root,
+        ctx.mission_type,
+        owned=ctx.owned,
+    )
+    prompt_file: str | None = None
+    prompt_error: str | None = None
+    prompt_error_code: str | None = None
+    if action:
+        prompt_file, prompt_error, prompt_error_code = _build_prompt_or_error(
+            action,
+            ctx.feature_dir,
+            ctx.mission_slug,
+            wp_id,
+            ctx.agent,
+            ctx.repo_root,
+            ctx.mission_type,
+            owned=ctx.owned,
+        )
+    else:
+        prompt_error = f"no action mapped for step '{step_id}'; cannot resolve prompt"
+    # WP06 (FR-006/FR-013) / WP07 (FR-011): step_or_blocked never
+    # issues kind=step with an unresolvable prompt_file — it falls
+    # back to kind=blocked using this pre-computed reason (matches
+    # the original "prompt_file is None" branch's literal exactly;
+    # the "resolved-but-vanished-by-construction-time" race uses the
+    # core's own hard-coded literal — see DecisionEnvelope's
+    # docstring for why that is safe to share across sites).
+    return _mapping._materialize_decision(
+        _cores.DecisionEnvelope(
+            kind=DecisionKind.step,
+            agent=ctx.agent,
+            mission_slug=ctx.mission_slug,
+            mission=ctx.mission_type,
+            mission_state=step_id,
+            timestamp=ctx.now,
+            reason=prompt_error or "prompt_file_not_resolvable",
+            action=action,
+            wp_id=wp_id,
+            workspace_path=workspace_path,
+            prompt_file=prompt_file,
+            progress=ctx.progress,
+            origin=ctx.origin,
+            run_id=ctx.run_ref.run_id,
+            step_id=step_id,
+            error_code=prompt_error_code or _cores.analysis_error_code(guard_failures),
+        ),
+        guard_failures,
+    )
 
 
 def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
@@ -806,60 +886,10 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
             mission_family=mission_type,
             repo_root=repo_root,
             owned=owned,
+            analysis_currency=ctx.analysis_currency,
         )
         if guard_failures:
-            action, wp_id, workspace_path = _state_to_action(
-                current_step_id,
-                mission_slug,
-                feature_dir,
-                repo_root,
-                mission_type,
-                owned=owned,
-            )
-            prompt_file: str | None = None
-            prompt_error: str | None = None
-            prompt_error_code: str | None = None
-            if action:
-                prompt_file, prompt_error, prompt_error_code = _build_prompt_or_error(
-                    action,
-                    feature_dir,
-                    mission_slug,
-                    wp_id,
-                    agent,
-                    repo_root,
-                    mission_type,
-                    owned=owned,
-                )
-            else:
-                prompt_error = f"no action mapped for step '{current_step_id}'; cannot resolve prompt"
-            # WP06 (FR-006/FR-013) / WP07 (FR-011): step_or_blocked never
-            # issues kind=step with an unresolvable prompt_file — it falls
-            # back to kind=blocked using this pre-computed reason (matches
-            # the original "prompt_file is None" branch's literal exactly;
-            # the "resolved-but-vanished-by-construction-time" race uses the
-            # core's own hard-coded literal — see DecisionEnvelope's
-            # docstring for why that is safe to share across sites).
-            return _mapping._materialize_decision(
-                _cores.DecisionEnvelope(
-                    kind=DecisionKind.step,
-                    agent=agent,
-                    mission_slug=mission_slug,
-                    mission=mission_type,
-                    mission_state=current_step_id,
-                    timestamp=now,
-                    reason=prompt_error or "prompt_file_not_resolvable",
-                    action=action,
-                    wp_id=wp_id,
-                    workspace_path=workspace_path,
-                    prompt_file=prompt_file,
-                    progress=progress,
-                    origin=origin,
-                    run_id=run_ref.run_id,
-                    step_id=current_step_id,
-                    error_code=prompt_error_code,
-                ),
-                guard_failures,
-            )
+            return _dn_reissue_step_decision(ctx, current_step_id, guard_failures)
 
     return None
 
@@ -1276,6 +1306,7 @@ def decide_next_via_runtime(
     repo_root: Path,
     *,
     owned: OwnedCheckout | None = None,
+    analysis_currency: AnalysisCurrency | None = None,
 ) -> Decision:
     """Main entry point replacing old decide_next().
 
@@ -1321,6 +1352,8 @@ def decide_next_via_runtime(
     if early_decision is not None:
         return early_decision
     assert ctx is not None  # _dn_bootstrap always pairs a ctx with None (or vice versa)
+    if analysis_currency is not None:
+        ctx = dataclasses.replace(ctx, analysis_currency=analysis_currency)
 
     for phase in (_dn_finalized_board_override, _dn_dependency_gate, _dn_composition_dispatch, _dn_decision_materialize):
         decision = phase(ctx)

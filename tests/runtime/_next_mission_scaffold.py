@@ -14,6 +14,7 @@ import subprocess
 from pathlib import Path
 
 from mission_runtime import MissionTopology as _MissionTopology
+from runtime.next.decision import AnalysisVerdict
 from tests.integration.test_placement_partition_golden_path import (
     _create_mission as _golden_create_mission,
     _init_git_repo as _golden_init_git_repo,
@@ -24,6 +25,7 @@ from tests.lane_test_utils import write_single_lane_manifest
 __all__ = [
     "add_wp_files",
     "advance_to_step",
+    "analysis_is_current",
     "commit_all",
     "init_git_repo",
     "provision_mission_type_activations",
@@ -41,6 +43,16 @@ __all__ = [
 # bridge_unit.py, tests/next/test_finalized_task_routing.py, and
 # tests/integration/test_{research,documentation}_runtime_walk.py.
 # ---------------------------------------------------------------------------
+
+
+def analysis_is_current() -> AnalysisVerdict:
+    """An injected analysis-currency check that always reports a current report.
+
+    The software-dev ``analyze`` step and the finalized-board override only hand
+    out ``implement`` while the analysis report is current (WP07); a test that is
+    about what happens AFTER that gate passes this as ``analysis_currency=``.
+    """
+    return AnalysisVerdict("current")
 
 
 def init_git_repo(path: Path) -> None:

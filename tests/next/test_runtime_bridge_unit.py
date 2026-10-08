@@ -20,6 +20,7 @@ import pytest
 from tests._factories import provision_test_charter
 from tests._perf_helpers import assert_timing_budget
 from tests.lane_test_utils import write_single_lane_manifest
+from tests.runtime._next_mission_scaffold import analysis_is_current
 from runtime.next.decision import DecisionKind
 from runtime.next._internal_runtime import DiscoveryContext
 from runtime.next import runtime_bridge_decision_mapping as decision_mapping
@@ -493,7 +494,7 @@ class TestWPIteration:
 
         # Advance runtime to implement step
         run_ref = get_or_start_run("042-test-feature", repo_root, "software-dev")
-        step_order = ["discovery", "specify", "plan", "tasks", "implement"]
+        step_order = ["discovery", "specify", "plan", "tasks", "analyze", "implement"]
         for _ in range(len(step_order)):
             snapshot = _read_snapshot(Path(run_ref.run_dir))
             if snapshot.issued_step_id == "implement":
@@ -927,14 +928,15 @@ class TestFullLoop:
 
         seen_steps = []
         for _i in range(40):  # 9 steps need more iterations
-            decision = decide_next_via_runtime("test", "042-test-feature", "success", repo_root)
+            decision = decide_next_via_runtime("test", "042-test-feature", "success", repo_root, analysis_currency=analysis_is_current)
             if decision.kind == DecisionKind.terminal:
                 break
             if decision.step_id:
                 seen_steps.append(decision.step_id)
 
         assert decision.kind == DecisionKind.terminal
-        # Should have visited at least discovery and specify
+        # Should have visited at least discovery and specify, and the analyze gate (WP07)
+        assert "analyze" in seen_steps
         assert "discovery" in seen_steps
 
     def test_repeated_poll_idempotency(self, tmp_path: Path) -> None:

@@ -84,7 +84,7 @@ def _invoke_next_query(
     """
     from runtime.next.runtime_bridge import MissionNotFoundError
 
-    def _raise_not_found(agent: object, mission_slug: str, repo_root: object) -> object:
+    def _raise_not_found(agent: object, mission_slug: str, repo_root: object, **_kwargs: object) -> object:
         raise MissionNotFoundError(mission_slug)
 
     monkeypatch.setattr(

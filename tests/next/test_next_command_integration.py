@@ -22,6 +22,7 @@ import pytest
 
 from tests._factories import provision_test_charter
 from tests.lane_test_utils import write_single_lane_manifest
+from tests.runtime._next_mission_scaffold import analysis_is_current
 
 pytestmark = pytest.mark.git_repo
 
@@ -246,6 +247,7 @@ def _advance_runtime_to_step(
         "specify",
         "plan",
         "tasks",
+        "analyze",
         "implement",
         "review",
         "accept",
@@ -1128,7 +1130,7 @@ class TestAtomicTaskTransitions:
 
         seen_steps = []
         for _i in range(40):
-            decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
+            decision = decide_next("test-agent", "042-test-feature", "success", repo_root, analysis_currency=analysis_is_current)
             if decision.kind == "terminal":
                 break
             if decision.step_id and decision.step_id not in seen_steps:
@@ -1141,5 +1143,6 @@ class TestAtomicTaskTransitions:
 
         plan_idx = seen_steps.index("plan")
         tasks_idx = seen_steps.index("tasks")
+        analyze_idx = seen_steps.index("analyze")
         implement_idx = seen_steps.index("implement")
-        assert plan_idx < tasks_idx < implement_idx, f"Steps out of order: {seen_steps}"
+        assert plan_idx < tasks_idx < analyze_idx < implement_idx, f"Steps out of order: {seen_steps}"

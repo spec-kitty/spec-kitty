@@ -75,7 +75,14 @@ from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-from runtime.next.decision import Decision, DecisionKind, InvalidStepDecision
+from runtime.next.decision import (
+    ANALYSIS_CURRENCY_UNAVAILABLE,
+    ANALYSIS_REPORT_MISSING,
+    ANALYSIS_REPORT_STALE,
+    Decision,
+    DecisionKind,
+    InvalidStepDecision,
+)
 
 # ---------------------------------------------------------------------------
 # Local literal duplicates of runtime_bridge's module constants — avoids a
@@ -90,6 +97,16 @@ PLAN_ARTIFACT = "plan.md"
 TASKS_ARTIFACT = "tasks.md"
 MISSING_ARTIFACT_MESSAGE = "Required artifact missing: {name}"
 MISSING_TASK_FILES_MESSAGE = "Required: at least one tasks/WP*.md file"
+
+# WP07 (FR-016): the software-dev ``analyze`` step. The bridge gathers the
+# injected currency verdict into ``status_facts[ANALYSIS_CURRENCY_FACT]`` (only
+# for that step, or for the finalized-board override that would hand out
+# ``implement``); this module only decides over the gathered fact.
+ANALYZE_STEP_ID = "analyze"
+ANALYSIS_CURRENCY_FACT = "analysis_currency"
+ANALYSIS_MISSING_MESSAGE = "Analysis report missing: analysis-report.md has not been recorded"
+ANALYSIS_STALE_MESSAGE = "Analysis report is stale: {name}"
+ANALYSIS_UNAVAILABLE_MESSAGE = "Analysis currency could not be evaluated: no analysis-currency check is available"
 
 
 # ---------------------------------------------------------------------------
@@ -746,8 +763,44 @@ def _evaluate_wp_iteration_guard(step_id: str, snapshot: _ArtifactPresenceSnapsh
     return ["Not all work packages are approved or done"]
 
 
+def evaluate_analysis_currency(fact: Mapping[str, Any] | None) -> list[str]:
+    """Guard failures of the ``analyze`` step over its gathered currency fact.
+
+    ``fact`` is ``{"status": "current" | "missing" | "stale" | "unavailable",
+    "stale_inputs": (...)}``. An absent or unrecognised fact fails closed as
+    unavailable, never as current. A stale verdict yields one failure per stale
+    input.
+    """
+    if fact is None:
+        return [ANALYSIS_UNAVAILABLE_MESSAGE]
+    status = fact.get("status")
+    if status == "current":
+        return []
+    if status == "missing":
+        return [ANALYSIS_MISSING_MESSAGE]
+    if status == "stale":
+        names = [str(name) for name in fact.get("stale_inputs", ())] or ["analysis-report.md"]
+        return [ANALYSIS_STALE_MESSAGE.format(name=name) for name in names]
+    return [ANALYSIS_UNAVAILABLE_MESSAGE]
+
+
+def analysis_error_code(guard_failures: Sequence[str]) -> str | None:
+    """The ``error_code`` for analyze-step guard failures, ``None`` for any other failure."""
+    stale_prefix = ANALYSIS_STALE_MESSAGE.format(name="")
+    for failure in guard_failures:
+        if failure == ANALYSIS_MISSING_MESSAGE:
+            return ANALYSIS_REPORT_MISSING
+        if failure.startswith(stale_prefix):
+            return ANALYSIS_REPORT_STALE
+        if failure == ANALYSIS_UNAVAILABLE_MESSAGE:
+            return ANALYSIS_CURRENCY_UNAVAILABLE
+    return None
+
+
 def _evaluate_software_dev_guards(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
     step_id = snapshot.step_id
+    if step_id == ANALYZE_STEP_ID:
+        return evaluate_analysis_currency(snapshot.status_facts.get(ANALYSIS_CURRENCY_FACT))
     if step_id == "specify":
         return _check_artifact_present(snapshot, SPEC_ARTIFACT)
     if step_id == "plan":
@@ -996,6 +1049,8 @@ def _step_decision(envelope: DecisionEnvelope, guard_failures: list[str]) -> Dec
         origin=envelope.origin,
         run_id=envelope.run_id,
         step_id=envelope.step_id,
+        # WP07: a re-issued ``analyze`` step carries its typed refusal code.
+        error_code=envelope.error_code,
     )
 
 

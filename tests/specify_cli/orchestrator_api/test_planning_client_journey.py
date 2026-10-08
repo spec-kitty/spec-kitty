@@ -285,6 +285,20 @@ def test_public_next_completes_real_design_actions(tmp_path: Path) -> None:
     outline = _submit(root, mission, "tasks", "outline", OUTLINE, parents)
     _submit(root, mission, "tasks", "work_package", PROMPT, {**parents, "outline": outline["sha256"]}, "WP01")
     _call(root, "tasks", "--mission", mission, "--policy", POLICY)
+    # WP07: after tasks the runtime issues analyze, and holds the run there until
+    # the analysis report is recorded and current; only then does implement follow.
+    assert _advance(root, mission)["action"] == "analyze"
+    held = _advance(root, mission)
+    assert held["action"] == "analyze"
+    assert held["error_code"] == "ANALYSIS_REPORT_MISSING"
+    from specify_cli.analysis_report import write_analysis_report
+
+    write_analysis_report(
+        feature_dir=root / "kitty-specs" / mission,
+        repo_root=root,
+        body="# Analysis\n\nCritical Issues Count: 0\nHigh Issues Count: 0\nPASS\n",
+        analyzer_agent="planning-client",
+    )
     next_action = _advance(root, mission)
     assert next_action["action"] == "implement"
 

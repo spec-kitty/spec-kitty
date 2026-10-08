@@ -17,7 +17,7 @@ import pytest
 from runtime.next.decision import Decision, DecisionKind
 from specify_cli.status.models import Lane
 from tests.next.test_finalized_task_routing import _scaffold
-from tests.runtime._next_mission_scaffold import provision_mission_type_activations
+from tests.runtime._next_mission_scaffold import analysis_is_current, provision_mission_type_activations
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.regression]
 
@@ -41,8 +41,8 @@ def _finalized_board(
 def _advance_and_query(repo: Path, mission_slug: str) -> tuple[Decision, Decision]:
     from runtime.next.runtime_bridge import decide_next_via_runtime, query_current_state
 
-    advance = decide_next_via_runtime("codex", mission_slug, "success", repo)
-    query = query_current_state("codex", mission_slug, repo)
+    advance = decide_next_via_runtime("codex", mission_slug, "success", repo, analysis_currency=analysis_is_current)
+    query = query_current_state("codex", mission_slug, repo, analysis_currency=analysis_is_current)
     return advance, query
 
 
@@ -130,15 +130,16 @@ def test_advance_of_an_already_walked_run_keeps_dag_progression(tmp_path: Path) 
     scaffold_software_dev(repo, slug, with_spec=True, with_plan=True, with_tasks_md=True, wps={"WP01": "planned"})
     advance_to_step(repo, slug, "software-dev", "tasks")
 
-    advance = decide_next_via_runtime("codex", slug, "success", repo)
+    # WP07: the walk now passes through the analyze step between tasks and
+    # implement; the issued decision and the persisted run state still advance together.
+    to_analyze = decide_next_via_runtime("codex", slug, "success", repo, analysis_currency=analysis_is_current)
+    assert to_analyze.kind == DecisionKind.step, to_analyze.reason
+    assert to_analyze.action == "analyze"
+    run_ref = get_or_start_run(slug, repo, "software-dev")
+    assert _read_snapshot(Path(run_ref.run_dir)).issued_step_id == "analyze"
+
+    advance = decide_next_via_runtime("codex", slug, "success", repo, analysis_currency=analysis_is_current)
 
     assert advance.kind == DecisionKind.step, advance.reason
     assert advance.action == "implement"
-    run_ref = get_or_start_run(slug, repo, "software-dev")
     assert _read_snapshot(Path(run_ref.run_dir)).issued_step_id == "implement"
-
-
-def test_run_is_untouched_treats_an_unreadable_snapshot_as_touched(tmp_path: Path) -> None:
-    from runtime.next.runtime_bridge import _run_is_untouched
-
-    assert _run_is_untouched(tmp_path / "no-such-run") is False

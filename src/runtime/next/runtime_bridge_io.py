@@ -86,6 +86,8 @@ from runtime.next._internal_runtime.schema import (
 from runtime.next import run_index
 from runtime.next import runtime_bridge_guards as _guards
 from runtime.next import runtime_bridge_identity as _identity
+from runtime.next.decision import AnalysisCurrency
+from runtime.next.runtime_bridge_cores import ANALYSIS_CURRENCY_FACT, ANALYZE_STEP_ID
 from runtime.next.run_index import FEATURE_RUNS_FILENAME
 from runtime.next.run_index import RunDirOutsideRepoError as RunDirOutsideRepoError  # re-export
 from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
@@ -1378,9 +1380,11 @@ def guard_failure_artifact_paths(
     docs-glob message, which names a glob pattern rather than a single
     checkable file) contribute no entry at all.
     """
-    from runtime.next.runtime_bridge_cores import MISSING_ARTIFACT_MESSAGE  # noqa: PLC0415
+    from runtime.next.runtime_bridge_cores import ANALYSIS_STALE_MESSAGE, MISSING_ARTIFACT_MESSAGE  # noqa: PLC0415
 
-    missing_artifact_prefix = MISSING_ARTIFACT_MESSAGE.format(name="")
+    # WP07: a stale-analysis failure names the input artifact that moved, so it
+    # resolves to that artifact's path exactly like a missing-artifact failure.
+    artifact_prefixes = (MISSING_ARTIFACT_MESSAGE.format(name=""), ANALYSIS_STALE_MESSAGE.format(name=""))
     # Invariant: *mission_family* here must be the family whose guards produced
     # *guard_failures*. The presence vocabulary is resolved per family, so if the
     # path-resolution family ever diverges from the guard-evaluation family, a
@@ -1396,12 +1400,29 @@ def guard_failure_artifact_paths(
     )
     tags: set[str] = set()
     for failure in guard_failures:
-        candidate = failure[len(missing_artifact_prefix) :] if failure.startswith(missing_artifact_prefix) else failure
+        candidate = next((failure[len(prefix) :] for prefix in artifact_prefixes if failure.startswith(prefix)), failure)
         if candidate in known_tags:
             tags.add(candidate)
     if not tags:
         return {}
     return artifact_search_paths(feature_dir, mission_family=mission_family, repo_root=repo_root, names=tags, owned=owned)
+
+
+def gather_analysis_currency(analysis_currency: AnalysisCurrency | None) -> dict[str, Any]:
+    """Gather (never decide) the analysis-currency fact of the ``analyze`` guard (WP07, B5).
+
+    Runs the injected callable once. No callable, or one that raises, gathers
+    ``unavailable`` so the guard fails closed (``ANALYSIS_CURRENCY_UNAVAILABLE``)
+    instead of passing as "not evaluated".
+    """
+    if analysis_currency is None:
+        return {"status": "unavailable", "stale_inputs": ()}
+    try:
+        verdict = analysis_currency()
+    except (OSError, ValueError, RuntimeError) as exc:  # the check's own failure families (I/O, malformed inputs, ActionContextError)
+        _logger.warning("analysis-currency check failed; treating the analysis report as unevaluable: %s", exc)
+        return {"status": "unavailable", "stale_inputs": ()}
+    return {"status": verdict.status, "stale_inputs": tuple(verdict.stale_inputs)}
 
 
 def gather_artifact_presence(
@@ -1412,6 +1433,7 @@ def gather_artifact_presence(
     legacy_step_id: str | None = None,
     repo_root: Path | None = None,
     owned: OwnedCheckout | None = None,
+    analysis_currency: AnalysisCurrency | None = None,
 ) -> ArtifactPresenceSnapshot:
     """Gather (never decide) the facts the two CLI-level guards read today.
 
@@ -1511,6 +1533,10 @@ def gather_artifact_presence(
         "publication_approved": bool(_composition._publication_approved(feature_dir)),
         "has_generated_docs": has_generated_docs,
     }
+    if mission_family == MISSION_TYPE_SOFTWARE_DEV and step_id == ANALYZE_STEP_ID:
+        # B5: the verdict is computed only for the analyze step, so every other
+        # step's snapshot is byte-identical and the cores module stays pure.
+        status_facts[ANALYSIS_CURRENCY_FACT] = gather_analysis_currency(analysis_currency)
 
     blocking_artifact_names: frozenset[str] | None = None
     if _expected_artifacts_manifest_resolves(mission_family, repo_root):
