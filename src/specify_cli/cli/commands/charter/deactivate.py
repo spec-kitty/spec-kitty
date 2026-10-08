@@ -102,7 +102,7 @@ def _source_urn(
         return resolve_artifact_urn(
             kind_enum,
             artifact_id,
-            doctrine_root=resolve_offering_root(),
+            offering_root=resolve_offering_root(),
             org_roots=org_roots,
             layer_roots=layer_roots,
         )
@@ -129,7 +129,7 @@ def _active_urns(
     Contract C3.4 shared-reference safety (NFR-002: a dropped active URN is a
     silent-wrong-data risk, not merely a display gap).
     """
-    doctrine_root = resolve_offering_root()
+    offering_root = resolve_offering_root()
     urns: set[str] = set()
     for kind_token, ids in manager.list_activated(ctx_project).items():
         if ids is None:
@@ -144,7 +144,7 @@ def _active_urns(
                     resolve_artifact_urn(
                         kind_enum,
                         config_id,
-                        doctrine_root=doctrine_root,
+                        offering_root=offering_root,
                         org_roots=org_roots,
                         layer_roots=layer_roots,
                     )
@@ -184,12 +184,12 @@ def _render_cascade_deactivation(
     )
     active = _active_urns(manager, ctx_project, layer_roots, org_roots)
     plan = deactivation_plan(graph, target_urn, scope, active_urns=active)
-    doctrine_root = resolve_offering_root()
+    offering_root = resolve_offering_root()
 
     for urn in plan.deactivate:
         kind_value, _, _ = urn.partition(":")
         kind_token = ArtifactKind(kind_value).operator_token
-        config_id = drg_urn_to_config_id(urn, doctrine_root, layer_roots, org_roots)
+        config_id = drg_urn_to_config_id(urn, offering_root, layer_roots, org_roots)
         try:
             manager.deactivate(
                 ctx_project,
@@ -236,7 +236,7 @@ def _render_cascade_deactivation(
         kind_token = ArtifactKind(kind_value).operator_token
         for filtered_id in plan.not_cascaded_kind_filtered[kind_value]:
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{filtered_id}", doctrine_root, layer_roots, org_roots, render_pass
+                f"{kind_value}:{filtered_id}", offering_root, layer_roots, org_roots, render_pass
             )
             render_kind_filtered_line(kind_token, config_id)
 

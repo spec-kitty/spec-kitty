@@ -699,8 +699,8 @@ def test_compile_invalid_local_support_paths_emit_diagnostics() -> None:
 def test_yaml_fallback_resolves_directives_from_shipped_subdirectory() -> None:
     """YAML fallback path must find directives stored in shipped/ subdirectory.
 
-    Regression: _index_yaml_assets scanned the flat doctrine_root/directives/ dir
-    but all shipped directives live in doctrine_root/directives/built-in/.  The
+    Regression: _index_yaml_assets scanned the flat offering_root/directives/ dir
+    but all shipped directives live in offering_root/directives/built-in/.  The
     result was every directive reference getting summary='Definition unavailable
     in bundled doctrine.' when ActiveCharterService was absent.
     """

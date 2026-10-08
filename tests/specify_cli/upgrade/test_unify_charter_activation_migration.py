@@ -318,9 +318,9 @@ def test_resolve_selected_id_to_stem_already_stem() -> None:
     from charter.activation.catalog import resolve_offering_root
     from charter.offering.artifact_kinds import ArtifactKind
 
-    doctrine_root = resolve_offering_root()
+    offering_root = resolve_offering_root()
     stem = resolve_selected_id_to_stem(
-        ArtifactKind.DIRECTIVE, _DIRECTIVE_010_STEM, doctrine_root=doctrine_root
+        ArtifactKind.DIRECTIVE, _DIRECTIVE_010_STEM, offering_root=offering_root
     )
     assert stem == _DIRECTIVE_010_STEM
 
@@ -329,9 +329,9 @@ def test_resolve_selected_id_to_stem_canonical_form() -> None:
     from charter.activation.catalog import resolve_offering_root
     from charter.offering.artifact_kinds import ArtifactKind
 
-    doctrine_root = resolve_offering_root()
+    offering_root = resolve_offering_root()
     stem = resolve_selected_id_to_stem(
-        ArtifactKind.DIRECTIVE, _DIRECTIVE_010_CANONICAL, doctrine_root=doctrine_root
+        ArtifactKind.DIRECTIVE, _DIRECTIVE_010_CANONICAL, offering_root=offering_root
     )
     assert stem == _DIRECTIVE_010_STEM
 
@@ -340,9 +340,9 @@ def test_resolve_selected_id_to_stem_unresolvable_returns_none() -> None:
     from charter.activation.catalog import resolve_offering_root
     from charter.offering.artifact_kinds import ArtifactKind
 
-    doctrine_root = resolve_offering_root()
+    offering_root = resolve_offering_root()
     stem = resolve_selected_id_to_stem(
-        ArtifactKind.DIRECTIVE, _MALFORMED_ID, doctrine_root=doctrine_root
+        ArtifactKind.DIRECTIVE, _MALFORMED_ID, offering_root=offering_root
     )
     assert stem is None
 
@@ -354,17 +354,17 @@ def test_ambiguous_answer_is_reported_without_dropping_resolvable_sibling(monkey
 
     original = migration.resolve_selected_id_to_stem
 
-    def resolve_with_ambiguity(kind: ArtifactKind, raw_id: str, *, doctrine_root: Path) -> str | None:
+    def resolve_with_ambiguity(kind: ArtifactKind, raw_id: str, *, offering_root: Path) -> str | None:
         if raw_id == "AMBIGUOUS-POLICY":
             raise UnrepresentableDirectiveIdError("Ambiguous policy filename")
-        return original(kind, raw_id, doctrine_root=doctrine_root)
+        return original(kind, raw_id, offering_root=offering_root)
 
     monkeypatch.setattr(migration, "resolve_selected_id_to_stem", resolve_with_ambiguity)
     stems, unresolved = migration._answers_only_ids_for_kind(
         ArtifactKind.DIRECTIVE,
         answers_data={"selected_directives": ["AMBIGUOUS-POLICY", _DIRECTIVE_010_CANONICAL]},
         config_data={"activated_directives": []},
-        doctrine_root=resolve_offering_root(),
+        offering_root=resolve_offering_root(),
     )
     assert stems == [_DIRECTIVE_010_STEM]
     assert unresolved == ["AMBIGUOUS-POLICY"]

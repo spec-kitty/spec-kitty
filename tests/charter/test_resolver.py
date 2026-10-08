@@ -98,22 +98,22 @@ def test_resolve_governance_reads_charter_selections_first(
     """Charter selections (paradigms, directives, tools, template_set) are used
     when explicitly declared and all values exist in the shipped catalog."""
     # Build a minimal doctrine root so shipped paradigm validation passes.
-    doctrine_root = tmp_path / "doctrine_root"
-    (doctrine_root / "paradigms").mkdir(parents=True)
-    (doctrine_root / "paradigms" / "test-first.paradigm.yaml").write_text(
+    offering_root = tmp_path / "offering_root"
+    (offering_root / "paradigms").mkdir(parents=True)
+    (offering_root / "paradigms" / "test-first.paradigm.yaml").write_text(
         "id: test-first\n"
     )
-    (doctrine_root / "directives").mkdir(parents=True)
-    (doctrine_root / "agent_profiles").mkdir(parents=True)
-    (doctrine_root / "missions" / "software-dev").mkdir(parents=True)
-    (doctrine_root / "missions" / "software-dev" / "mission.yaml").write_text(
+    (offering_root / "directives").mkdir(parents=True)
+    (offering_root / "agent_profiles").mkdir(parents=True)
+    (offering_root / "missions" / "software-dev").mkdir(parents=True)
+    (offering_root / "missions" / "software-dev" / "mission.yaml").write_text(
         "name: software-dev\n"
     )
-    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: doctrine_root)
+    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: offering_root)
     # Built-in pack content resolves per-kind via ``built_in_dir`` post-relocation
     # (mission doctrine-built-in-seam-consolidation-01KYW3TX, WP02); point it at
     # the synthetic root's flat per-kind directories too.
-    monkeypatch.setattr(catalog_module, "built_in_dir", lambda kind: doctrine_root / kind.plural)
+    monkeypatch.setattr(catalog_module, "built_in_dir", lambda kind: offering_root / kind.plural)
 
     repo_root = tmp_path / "repo"
     _write_charter_files(
@@ -672,24 +672,24 @@ def test_collect_governance_diagnostics_returns_success_diagnostics(
 
 def _make_doctrine_root(tmp_path: Path, *, with_paradigm: str | None = None) -> Path:
     """Create a minimal doctrine root for resolver tests."""
-    doctrine_root = tmp_path / "doctrine_root"
-    paradigms_shipped = doctrine_root / "paradigms" / "built-in"
+    offering_root = tmp_path / "offering_root"
+    paradigms_shipped = offering_root / "paradigms" / "built-in"
     paradigms_shipped.mkdir(parents=True)
     if with_paradigm:
         (paradigms_shipped / f"{with_paradigm}.paradigm.yaml").write_text(
             f"id: {with_paradigm}\n"
         )
-    (doctrine_root / "directives" / "built-in").mkdir(parents=True)
-    (doctrine_root / "agent_profiles" / "built-in").mkdir(parents=True)
-    (doctrine_root / "missions" / "software-dev").mkdir(parents=True)
-    (doctrine_root / "missions" / "software-dev" / "mission.yaml").write_text("name: software-dev\n")
-    return doctrine_root
+    (offering_root / "directives" / "built-in").mkdir(parents=True)
+    (offering_root / "agent_profiles" / "built-in").mkdir(parents=True)
+    (offering_root / "missions" / "software-dev").mkdir(parents=True)
+    (offering_root / "missions" / "software-dev" / "mission.yaml").write_text("name: software-dev\n")
+    return offering_root
 
 
 def test_paradigm_failure_names_exact_offending_id(tmp_path: Path, monkeypatch) -> None:
     """Error message names the exact paradigm ID that was not in the shipped catalog."""
-    doctrine_root = _make_doctrine_root(tmp_path)
-    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: doctrine_root)
+    offering_root = _make_doctrine_root(tmp_path)
+    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: offering_root)
 
     repo_root = tmp_path / "repo"
     _write_charter_files(
@@ -706,17 +706,17 @@ def test_paradigm_failure_names_exact_offending_id(tmp_path: Path, monkeypatch) 
 
 def test_paradigm_failure_skipped_when_shipped_dir_absent(tmp_path: Path, monkeypatch) -> None:
     """When the paradigms shipped directory does not exist, validation is skipped gracefully."""
-    doctrine_root = tmp_path / "doctrine_root"
+    offering_root = tmp_path / "offering_root"
     # Do NOT create paradigms directory at all
-    (doctrine_root / "directives").mkdir(parents=True)
-    (doctrine_root / "agent_profiles").mkdir(parents=True)
-    (doctrine_root / "missions" / "software-dev").mkdir(parents=True)
-    (doctrine_root / "missions" / "software-dev" / "mission.yaml").write_text("name: software-dev\n")
-    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: doctrine_root)
+    (offering_root / "directives").mkdir(parents=True)
+    (offering_root / "agent_profiles").mkdir(parents=True)
+    (offering_root / "missions" / "software-dev").mkdir(parents=True)
+    (offering_root / "missions" / "software-dev" / "mission.yaml").write_text("name: software-dev\n")
+    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: offering_root)
     # Built-in pack content resolves per-kind via ``built_in_dir`` post-relocation
     # (mission doctrine-built-in-seam-consolidation-01KYW3TX, WP02); the synthetic
     # root has no paradigms dir, so validation must skip gracefully.
-    monkeypatch.setattr(catalog_module, "built_in_dir", lambda kind: doctrine_root / kind.plural)
+    monkeypatch.setattr(catalog_module, "built_in_dir", lambda kind: offering_root / kind.plural)
 
     repo_root = tmp_path / "repo"
     _write_charter_files(
@@ -731,8 +731,8 @@ def test_paradigm_failure_skipped_when_shipped_dir_absent(tmp_path: Path, monkey
 
 def test_directive_failure_names_exact_offending_id(tmp_path: Path, monkeypatch) -> None:
     """Error message names the exact directive ID that was not found."""
-    doctrine_root = _make_doctrine_root(tmp_path)
-    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: doctrine_root)
+    offering_root = _make_doctrine_root(tmp_path)
+    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: offering_root)
 
     repo_root = tmp_path / "repo"
     _write_charter_files(
@@ -748,8 +748,8 @@ def test_directive_failure_names_exact_offending_id(tmp_path: Path, monkeypatch)
 
 def test_template_set_failure_names_exact_offending_value(tmp_path: Path, monkeypatch) -> None:
     """Error message names the exact template_set value that was not in shipped catalog."""
-    doctrine_root = _make_doctrine_root(tmp_path)
-    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: doctrine_root)
+    offering_root = _make_doctrine_root(tmp_path)
+    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: offering_root)
 
     repo_root = tmp_path / "repo"
     _write_charter_files(
@@ -772,8 +772,8 @@ def test_tool_outside_registry_appears_in_diagnostic(tmp_path: Path, monkeypatch
     tools and the charter declaration as additive. The diagnostic message
     names the exact tool(s) that came from the charter so operators can audit.
     """
-    doctrine_root = _make_doctrine_root(tmp_path)
-    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: doctrine_root)
+    offering_root = _make_doctrine_root(tmp_path)
+    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: offering_root)
 
     repo_root = tmp_path / "repo"
     _write_charter_files(
@@ -792,8 +792,8 @@ def test_tool_outside_registry_appears_in_diagnostic(tmp_path: Path, monkeypatch
 
 def test_local_support_declaration_bypasses_catalog_validation(tmp_path: Path, monkeypatch) -> None:
     """Directives declared in directives.yaml are valid without being in the shipped catalog."""
-    doctrine_root = _make_doctrine_root(tmp_path)
-    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: doctrine_root)
+    offering_root = _make_doctrine_root(tmp_path)
+    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: offering_root)
 
     repo_root = tmp_path / "repo"
     _write_charter_files(

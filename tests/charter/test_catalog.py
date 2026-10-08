@@ -41,7 +41,7 @@ def test_catalog_includes_mission_template_sets() -> None:
 
 
 def test_catalog_filters_language_scoped_artifacts(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    doctrine_root = tmp_path / "doctrine"
+    offering_root = tmp_path / "doctrine"
     yaml = YAML()
     yaml.default_flow_style = False
 
@@ -100,17 +100,17 @@ def test_catalog_filters_language_scoped_artifacts(monkeypatch: pytest.MonkeyPat
     }
 
     for relative_path, data in fixtures.items():
-        path = doctrine_root / relative_path
+        path = offering_root / relative_path
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("w", encoding="utf-8") as handle:
             yaml.dump(data, handle)
 
-    monkeypatch.setattr("charter.activation.catalog.resolve_offering_root", lambda: doctrine_root)
+    monkeypatch.setattr("charter.activation.catalog.resolve_offering_root", lambda: offering_root)
     # Built-in pack content is flat under ``packs/built-in/<kind>/`` and is
     # resolved per-kind via ``built_in_dir`` (mission
     # doctrine-built-in-seam-consolidation-01KYW3TX, WP02); point it at the
     # tmp root's flat per-kind directories.
-    monkeypatch.setattr("charter.activation.catalog.built_in_dir", lambda kind: doctrine_root / kind.plural)
+    monkeypatch.setattr("charter.activation.catalog.built_in_dir", lambda kind: offering_root / kind.plural)
 
     catalog = load_offering_catalog(active_languages=["typescript"])
 
@@ -125,7 +125,7 @@ def test_catalog_filters_language_scoped_artifacts(monkeypatch: pytest.MonkeyPat
 def test_catalog_keeps_language_scoped_artifacts_when_active_languages_are_unset(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    doctrine_root = tmp_path / "doctrine"
+    offering_root = tmp_path / "doctrine"
     yaml = YAML()
     yaml.default_flow_style = False
 
@@ -162,17 +162,17 @@ def test_catalog_keeps_language_scoped_artifacts_when_active_languages_are_unset
     }
 
     for relative_path, data in fixtures.items():
-        path = doctrine_root / relative_path
+        path = offering_root / relative_path
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("w", encoding="utf-8") as handle:
             yaml.dump(data, handle)
 
-    monkeypatch.setattr("charter.activation.catalog.resolve_offering_root", lambda: doctrine_root)
+    monkeypatch.setattr("charter.activation.catalog.resolve_offering_root", lambda: offering_root)
     # Built-in pack content is flat under ``packs/built-in/<kind>/`` and is
     # resolved per-kind via ``built_in_dir`` (mission
     # doctrine-built-in-seam-consolidation-01KYW3TX, WP02); point it at the
     # tmp root's flat per-kind directories.
-    monkeypatch.setattr("charter.activation.catalog.built_in_dir", lambda kind: doctrine_root / kind.plural)
+    monkeypatch.setattr("charter.activation.catalog.built_in_dir", lambda kind: offering_root / kind.plural)
 
     catalog = load_offering_catalog()
 

@@ -325,12 +325,12 @@ def test_runtime_tier5_hop_keeps_its_own_package_root_authority(
     redirected every runtime tier-5 lookup.
     """
     runtime_root = tmp_path / "runtime-pkg"
-    doctrine_root = tmp_path / "doctrine-pkg"
+    offering_root = tmp_path / "doctrine-pkg"
     expected = _write(runtime_root / _MISSION / "templates" / _CONTENT_NAME, "runtime root wins")
-    _write(doctrine_root / _MISSION / "templates" / _CONTENT_NAME, "doctrine default")
+    _write(offering_root / _MISSION / "templates" / _CONTENT_NAME, "doctrine default")
     monkeypatch.setattr(runtime_resolver_module, "get_package_asset_root", lambda: runtime_root)
     monkeypatch.setattr(
-        MissionTemplateRepository, "default_missions_root", classmethod(lambda cls: doctrine_root)
+        MissionTemplateRepository, "default_missions_root", classmethod(lambda cls: offering_root)
     )
     charter_resolver_module._mission_template_repository.cache_clear()
 

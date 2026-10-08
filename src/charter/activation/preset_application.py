@@ -317,7 +317,7 @@ def _available_mission_types(repo_root: Path, org_roots: Sequence[Path]) -> froz
 class _Roots:
     """The offering's roots, resolved once per plan (built-in, every org pack, project)."""
 
-    doctrine_root: Path
+    offering_root: Path
     org_roots: list[Path]
     layer_roots: dict[str, Path]
     resolution_pass: ResolutionPass
@@ -331,7 +331,7 @@ class _Roots:
 def _artifact_id_resolves(kind: ArtifactKind, raw_id: str, roots: _Roots) -> bool:
     """Whether *raw_id* (a config stem or a declared ``id:``) names an artifact of *kind* in the offering."""
     scope: dict[str, Any] = {
-        "doctrine_root": roots.doctrine_root,
+        "offering_root": roots.offering_root,
         "org_roots": roots.org_roots,
         "layer_roots": roots.layer_roots,
         "resolution_pass": roots.resolution_pass,

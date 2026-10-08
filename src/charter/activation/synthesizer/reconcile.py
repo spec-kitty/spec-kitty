@@ -536,7 +536,7 @@ def _classify_conflicts(
 # ---------------------------------------------------------------------------
 
 
-def _load_existing_overlay(doctrine_dir: Path) -> DRGGraph | None:
+def _load_existing_overlay(pack_dir: Path) -> DRGGraph | None:
     """Load the on-disk project overlay, or ``None`` when there is none yet.
 
     Fail-closed (FR-007, amendment #2): a *present but unparseable* overlay
@@ -545,9 +545,9 @@ def _load_existing_overlay(doctrine_dir: Path) -> DRGGraph | None:
     at all (e.g. only artifact-body subdirectories from a prior built-in-only
     run) is legitimately "nothing to reconcile against", not corruption.
     """
-    if not doctrine_dir.exists() or not has_graph_files(doctrine_dir):
+    if not pack_dir.exists() or not has_graph_files(pack_dir):
         return None
-    return load_graph_or_dir(doctrine_dir)
+    return load_graph_or_dir(pack_dir)
 
 
 def reconcile_synthesis(
@@ -596,8 +596,8 @@ def reconcile_synthesis(
     # root (warn-once) only while a project has not been migrated. The
     # manifest bookkeeping paths (`rel_content`) always name the project
     # charter pack root (FR-016).
-    doctrine_dir = project_pack_root(repo_root)
-    existing_overlay = _load_existing_overlay(doctrine_dir)
+    pack_dir = project_pack_root(repo_root)
+    existing_overlay = _load_existing_overlay(pack_dir)
     merged_overlay = (
         fresh_overlay
         if existing_overlay is None

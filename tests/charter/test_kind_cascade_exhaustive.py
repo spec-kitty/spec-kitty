@@ -171,21 +171,21 @@ class TestKindVocabularyHandlesNewKinds:
     def test_resolve_artifact_urn_raises_documented_error_not_a_crash(
         self, kind, tmp_path: Path
     ):
-        # No artifacts exist under the empty doctrine_root; the resolver must
+        # No artifacts exist under the empty offering_root; the resolver must
         # surface the documented UnknownArtifactIdError, never a raw KeyError
         # or AttributeError.
         with pytest.raises(UnknownArtifactIdError):
-            resolve_artifact_urn(kind, "some-config-id", doctrine_root=tmp_path)
+            resolve_artifact_urn(kind, "some-config-id", offering_root=tmp_path)
 
     def test_resolve_config_id_handles_asset_urn_without_crash(self, tmp_path: Path):
         with pytest.raises(UnknownArtifactIdError):
-            resolve_config_id("asset:some-id", doctrine_root=tmp_path)
+            resolve_config_id("asset:some-id", offering_root=tmp_path)
 
     def test_resolve_config_id_handles_template_urn_without_crash(
         self, tmp_path: Path
     ):
         with pytest.raises(UnknownArtifactIdError):
-            resolve_config_id("template:some-id", doctrine_root=tmp_path)
+            resolve_config_id("template:some-id", offering_root=tmp_path)
 
 
 # ---------------------------------------------------------------------------

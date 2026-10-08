@@ -86,7 +86,7 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[
         resolve_org_root_chain,
     )
 
-    doctrine_root = resolve_offering_root()
+    offering_root = resolve_offering_root()
     org_roots = resolve_org_root_chain(repo_root)
     layer_roots = resolve_layer_roots(repo_root)
     promotions: dict[str, list[str]] = {}
@@ -98,7 +98,7 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[
                 stem = resolve_selected_id_to_stem(
                     kind,
                     raw_id,
-                    doctrine_root=doctrine_root,
+                    offering_root=offering_root,
                     org_roots=org_roots,
                     layer_roots=layer_roots,
                 )

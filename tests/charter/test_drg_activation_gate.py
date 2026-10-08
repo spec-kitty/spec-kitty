@@ -24,7 +24,7 @@ NFR-001):
   filters (a populated set that does not include the node's canonical id
   drops it).
 - ``test_root_divergence_follows_resolve_offering_root``: install-layout
-  guard (research.md D2) -- the gate must source ``doctrine_root`` from
+  guard (research.md D2) -- the gate must source ``offering_root`` from
   ``charter.activation.catalog.resolve_offering_root()``, never
   ``pack_context.pack_roots[0]``.
 - ``test_resolution_is_batched_once_not_per_node``: proves the stem-to-
@@ -196,7 +196,7 @@ def test_non_activated_directive_is_still_excluded() -> None:
 
 
 def test_root_divergence_follows_resolve_offering_root() -> None:
-    """The gate must source ``doctrine_root`` from ``resolve_offering_root()``,
+    """The gate must source ``offering_root`` from ``resolve_offering_root()``,
     never ``pack_context.pack_roots[0]`` -- a naive ``__file__`` join that can
     disagree with the projection root in installed/wheel layouts (D2).
 
@@ -302,7 +302,7 @@ def test_unresolvable_kind_token_yields_empty_resolution(
     result = drg_module._resolve_activated_urns_for_kind(
         "directive",
         frozenset({_REAL_DIRECTIVE_STEM}),
-        doctrine_root=resolve_offering_root(),
+        offering_root=resolve_offering_root(),
         org_roots=[],
     )
 
@@ -351,7 +351,7 @@ def test_cross_layer_ambiguous_directive_id_resolves_to_no_urn(tmp_path: Path) -
     resolved = drg_module._resolve_activated_urns_for_kind(
         "directive",
         frozenset({"CHOSEN-POLICY"}),
-        doctrine_root=resolve_offering_root(),
+        offering_root=resolve_offering_root(),
         org_roots=[company, team],
     )
 

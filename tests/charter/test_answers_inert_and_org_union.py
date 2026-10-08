@@ -354,10 +354,10 @@ class TestOrgRequiredIdFormNormalizedBeforePromotion:
         from charter.activation.kind_vocabulary import resolve_artifact_urn
         from charter.offering.artifact_kinds import ArtifactKind
 
-        doctrine_root = resolve_offering_root()
+        offering_root = resolve_offering_root()
         expected = f"directive:{self._DIRECTIVE_001_CANONICAL}"
-        assert resolve_artifact_urn(ArtifactKind.DIRECTIVE, self._DIRECTIVE_001_CANONICAL, doctrine_root=doctrine_root) == expected
-        assert resolve_artifact_urn(ArtifactKind.DIRECTIVE, self._DIRECTIVE_001_STEM, doctrine_root=doctrine_root) == expected
+        assert resolve_artifact_urn(ArtifactKind.DIRECTIVE, self._DIRECTIVE_001_CANONICAL, offering_root=offering_root) == expected
+        assert resolve_artifact_urn(ArtifactKind.DIRECTIVE, self._DIRECTIVE_001_STEM, offering_root=offering_root) == expected
 
     def test_unresolvable_required_id_passes_through_verbatim(self, tmp_path: Path) -> None:
         """An id that resolves in neither direction (not a known stem NOR a

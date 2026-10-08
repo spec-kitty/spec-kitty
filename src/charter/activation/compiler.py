@@ -149,7 +149,7 @@ def _resolve_config_activated_ids(
     kind: ArtifactKind,
     activated_stems: frozenset[str] | None,
     *,
-    doctrine_root: Path,
+    offering_root: Path,
     fallback_ids: frozenset[str],
     org_roots: list[Path] | None = None,
     layer_roots: dict[str, Path] | None = None,
@@ -182,7 +182,7 @@ def _resolve_config_activated_ids(
         return sorted(fallback_ids)
 
     resolved = {
-        resolve_artifact_urn(kind, stem, doctrine_root=doctrine_root, org_roots=org_roots, layer_roots=layer_roots).split(":", 1)[1] for stem in activated_stems
+        resolve_artifact_urn(kind, stem, offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots).split(":", 1)[1] for stem in activated_stems
     }
     return sorted(resolved)
 
@@ -191,7 +191,7 @@ def _resolve_config_activated_roots(
     *,
     pack_context: PackContext | None,
     catalog: OfferingCatalog,
-    doctrine_root: Path,
+    offering_root: Path,
 ) -> ConfigActivatedRoots:
     """Build the full config-sourced activation bundle for one compile."""
 
@@ -217,7 +217,7 @@ def _resolve_config_activated_roots(
 
     # ``pack_context.pack_roots`` is ``(builtin_root, *org_pack_roots)``
     # (``PackContext.from_config``); the built-in root is already threaded
-    # separately as ``doctrine_root``, so only the org/project-overlay
+    # separately as ``offering_root``, so only the org/project-overlay
     # entries need to be passed to the resolver. Empty for non-org projects
     # (no behavior change) -- see #2529.
     org_roots: list[Path] | None = list(pack_context.pack_roots[1:]) if pack_context is not None else None
@@ -229,7 +229,7 @@ def _resolve_config_activated_roots(
             directives=_resolve_config_activated_ids(
                 ArtifactKind.DIRECTIVE,
                 _stems("activated_directives"),
-                doctrine_root=doctrine_root,
+                offering_root=offering_root,
                 fallback_ids=catalog.directives,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
@@ -237,7 +237,7 @@ def _resolve_config_activated_roots(
             paradigms=_resolve_config_activated_ids(
                 ArtifactKind.PARADIGM,
                 _stems("activated_paradigms"),
-                doctrine_root=doctrine_root,
+                offering_root=offering_root,
                 fallback_ids=catalog.paradigms,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
@@ -245,7 +245,7 @@ def _resolve_config_activated_roots(
             tactics=_resolve_config_activated_ids(
                 ArtifactKind.TACTIC,
                 _stems("activated_tactics"),
-                doctrine_root=doctrine_root,
+                offering_root=offering_root,
                 fallback_ids=catalog.tactics,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
@@ -253,7 +253,7 @@ def _resolve_config_activated_roots(
             styleguides=_resolve_config_activated_ids(
                 ArtifactKind.STYLEGUIDE,
                 _stems("activated_styleguides"),
-                doctrine_root=doctrine_root,
+                offering_root=offering_root,
                 fallback_ids=catalog.styleguides,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
@@ -261,7 +261,7 @@ def _resolve_config_activated_roots(
             toolguides=_resolve_config_activated_ids(
                 ArtifactKind.TOOLGUIDE,
                 _stems("activated_toolguides"),
-                doctrine_root=doctrine_root,
+                offering_root=offering_root,
                 fallback_ids=catalog.toolguides,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
@@ -269,7 +269,7 @@ def _resolve_config_activated_roots(
             procedures=_resolve_config_activated_ids(
                 ArtifactKind.PROCEDURE,
                 _stems("activated_procedures"),
-                doctrine_root=doctrine_root,
+                offering_root=offering_root,
                 fallback_ids=catalog.procedures,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
@@ -277,7 +277,7 @@ def _resolve_config_activated_roots(
             agent_profiles=_resolve_config_activated_ids(
                 ArtifactKind.AGENT_PROFILE,
                 _stems("activated_agent_profiles"),
-                doctrine_root=doctrine_root,
+                offering_root=offering_root,
                 fallback_ids=catalog.agent_profiles,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
@@ -337,11 +337,11 @@ def resolve_config_activated_roots(
     catalog = offering_catalog or load_offering_catalog()
     if pack_context is None:
         pack_context = PackContext.from_config(repo_root)
-    doctrine_root = resolve_offering_root()
+    offering_root = resolve_offering_root()
     return _resolve_config_activated_roots(
         pack_context=pack_context,
         catalog=catalog,
-        doctrine_root=doctrine_root,
+        offering_root=offering_root,
     )
 
 
@@ -471,11 +471,11 @@ def compile_charter(
     if pack_context is None and repo_root is not None:
         pack_context = PackContext.from_config(repo_root)
 
-    doctrine_root = resolve_offering_root()
+    offering_root = resolve_offering_root()
     config_roots = _resolve_config_activated_roots(
         pack_context=pack_context,
         catalog=catalog,
-        doctrine_root=doctrine_root,
+        offering_root=offering_root,
     )
 
     template = _resolve_template_set(mission=mission, requested_template_set=template_set, catalog=catalog)
@@ -1162,7 +1162,7 @@ def _build_references(
     diagnostics: list[str] | None = None,
     unresolved_reference_records: list[UnresolvedReferenceRecord] | None = None,
 ) -> list[CharterReference]:
-    doctrine_root = resolve_offering_root()
+    offering_root = resolve_offering_root()
 
     references: list[CharterReference] = []
     references.append(_user_profile_reference(interview))
@@ -1171,7 +1171,7 @@ def _build_references(
             mission=mission,
             template_set=template_set,
             config_roots=config_roots,
-            doctrine_root=doctrine_root,
+            offering_root=offering_root,
             doctrine_service=doctrine_service,
             repo_root=repo_root,
             diagnostics=diagnostics if diagnostics is not None else [],
@@ -1626,7 +1626,7 @@ def _build_references_from_service(
     mission: str,
     template_set: str,
     config_roots: ConfigActivatedRoots,
-    doctrine_root: Path,
+    offering_root: Path,
     doctrine_service: ActiveCharterService,
     repo_root: Path | None,
     diagnostics: list[str],
@@ -1656,7 +1656,7 @@ def _build_references_from_service(
     # no directive edge (e.g. the #2524 baseline danglers `aggregate-design-
     # rules` / `contextive`) still resolves.
     graph = _resolve_transitive_reference_graph(
-        doctrine_root=doctrine_root,
+        offering_root=offering_root,
         directives=config_roots.directives,
         direct_root_urns=_direct_root_urns(config_roots),
         repo_root=repo_root,
@@ -1724,7 +1724,7 @@ _GRAPH_LOAD_FAILURE_CAUSE: Final[UnresolvedCause] = "graph_load_failed"
 
 def _resolve_transitive_reference_graph(
     *,
-    doctrine_root: Path,
+    offering_root: Path,
     directives: list[str],
     repo_root: Path | None,
     direct_root_urns: frozenset[str] = frozenset(),
@@ -1780,7 +1780,7 @@ def _resolve_transitive_reference_graph(
         if repo_root is not None:
             merged = load_validated_graph(repo_root)
         else:
-            if not doctrine_root.exists():
+            if not offering_root.exists():
                 return fallback
             merged = load_built_in_graph()
             assert_valid(merged)
@@ -2029,13 +2029,13 @@ def _template_reference(*, mission: str, template_set: str) -> CharterReference:
     """Build the mission template-set reference.
 
     Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
-    (FR-005) retired this function's former ``doctrine_root`` parameter: the
+    (FR-005) retired this function's former ``offering_root`` parameter: the
     primary arm (``repo._mission_config_path``) is the one actually read below
     via ``get_mission_config``, correctly resolved through the FR-004 kernel
     primitive regardless of the mission's relocation. The display-only
     fallback (used when a mission's ``mission.yaml`` genuinely doesn't exist)
     now uses ``repo._missions_root`` -- the same promoted authority -- rather
-    than a stale ``doctrine_root / "missions"`` literal naming the
+    than a stale ``offering_root / "missions"`` literal naming the
     pre-relocation location.
     """
     from charter.offering.missions import MissionTemplateRepository

@@ -719,14 +719,14 @@ def _check_reference_id_parity(
     if references_by_kind is None:
         return  # No compiled reference set yet -- nothing to check against.
 
-    doctrine_root = resolve_offering_root()
+    offering_root = resolve_offering_root()
     pack_context = ctx.require_pack_context()
     org_roots = list(pack_context.pack_roots[1:])
 
     _check_reference_id_forward_parity(
         raw_activated_by_kind,
         references_by_kind,
-        doctrine_root=doctrine_root,
+        offering_root=offering_root,
         org_roots=org_roots,
         reference_id_divergences=reference_id_divergences,
         suggestions=suggestions,
@@ -743,7 +743,7 @@ def _check_reference_id_forward_parity(
     raw_activated_by_kind: dict[str, list[str] | None],
     references_by_kind: dict[str, frozenset[str]],
     *,
-    doctrine_root: Path,
+    offering_root: Path,
     org_roots: list[Path],
     reference_id_divergences: list[str],
     suggestions: list[str],
@@ -767,7 +767,7 @@ def _check_reference_id_forward_parity(
         known_ref_ids = references_by_kind.get(kind_enum.value, frozenset())
         for stem in sorted(set(raw_list)):
             try:
-                urn = resolve_artifact_urn(kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots)
+                urn = resolve_artifact_urn(kind_enum, stem, offering_root=offering_root, org_roots=org_roots)
             except UnknownArtifactIdError:
                 continue  # Already reported by _check_unknown_references.
             _, _, canonical_id = urn.partition(":")
@@ -816,7 +816,7 @@ def _resolve_graph_kind_parity_stem(
     stem: str,
     surviving_urns: frozenset[str],
     *,
-    doctrine_root: Path,
+    offering_root: Path,
     org_roots: list[Path],
     graph_kind_gaps: list[str],
     verification_errors: list[str],
@@ -836,7 +836,7 @@ def _resolve_graph_kind_parity_stem(
     Exception`` would silently misreport a real bug as ordinary drift.
     """
     try:
-        urn = resolve_artifact_urn(kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots)
+        urn = resolve_artifact_urn(kind_enum, stem, offering_root=offering_root, org_roots=org_roots)
     except UnknownArtifactIdError as exc:
         verification_errors.append(f"{cli_kind}/{stem}: {exc}")
         suggestions.append(
@@ -924,7 +924,7 @@ def _check_graph_kind_parity(
         return
 
     surviving_urns = frozenset(node.urn for node in activated_drg.nodes)
-    doctrine_root = resolve_offering_root()
+    offering_root = resolve_offering_root()
     org_roots = list(pack_context.org_roots)
 
     for cli_kind in _CLI_KIND_TO_DRG_SINGULAR:
@@ -938,7 +938,7 @@ def _check_graph_kind_parity(
                 kind_enum,
                 stem,
                 surviving_urns,
-                doctrine_root=doctrine_root,
+                offering_root=offering_root,
                 org_roots=org_roots,
                 graph_kind_gaps=graph_kind_gaps,
                 verification_errors=verification_errors,

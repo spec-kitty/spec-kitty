@@ -547,9 +547,9 @@ def persist(
             allowlist).
         guard: ``PathGuard`` instance that governs all writes.
     """
-    doctrine_dir = staging_dir / PROJECT_PACK_DIRNAME
-    guard.mkdir(doctrine_dir, caller="project_drg.persist")
-    graph_path = doctrine_dir / _GRAPH_FILENAME
+    pack_dir = staging_dir / PROJECT_PACK_DIRNAME
+    guard.mkdir(pack_dir, caller="project_drg.persist")
+    graph_path = pack_dir / _GRAPH_FILENAME
     guard.write_text(graph_path, _serialize_graph(graph), caller="project_drg.persist")
 
 

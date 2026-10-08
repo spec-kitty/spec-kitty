@@ -51,8 +51,8 @@ def resolve_references_transitively(
             if repo_root is not None:
                 resolved_graph = load_validated_graph(repo_root)
             else:
-                doctrine_root = resolve_offering_root()
-                if not doctrine_root.exists():
+                offering_root = resolve_offering_root()
+                if not offering_root.exists():
                     return ResolveTransitiveRefsResult(directives=sorted(directive_ids))
                 resolved_graph = load_built_in_graph()
                 assert_valid(resolved_graph)

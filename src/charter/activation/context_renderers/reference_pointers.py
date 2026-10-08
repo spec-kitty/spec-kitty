@@ -120,7 +120,7 @@ def _filter_references_for_action(references: list[dict[str, str]], action: str)
     return filtered
 
 
-def _reference_source_index(doctrine_root: Path) -> dict[str, dict[str, Path]]:
+def _reference_source_index(offering_root: Path) -> dict[str, dict[str, Path]]:
     """Build (and cache) a ``kind -> {lookup key -> source path}`` index.
 
     Each artifact file contributes its stem (the filename before the first
@@ -128,13 +128,13 @@ def _reference_source_index(doctrine_root: Path) -> dict[str, dict[str, Path]]:
     directives (``001-...``), a ``DIRECTIVE_001`` alias so the catalog id form
     resolves.
     """
-    cached = _REFERENCE_SOURCE_INDEX_CACHE.get(doctrine_root)
+    cached = _REFERENCE_SOURCE_INDEX_CACHE.get(offering_root)
     if cached is not None:
         return cached
 
     index: dict[str, dict[str, Path]] = {}
     for kind, subdir in _REFERENCE_KIND_DIRS.items():
-        base = doctrine_root / subdir
+        base = offering_root / subdir
         kind_index: dict[str, Path] = {}
         if base.is_dir():
             for path in sorted(base.rglob("*.yaml")):
@@ -145,7 +145,7 @@ def _reference_source_index(doctrine_root: Path) -> dict[str, dict[str, Path]]:
                     kind_index.setdefault(f"DIRECTIVE_{numeric.group(1)}", path)
         index[kind] = kind_index
 
-    _REFERENCE_SOURCE_INDEX_CACHE[doctrine_root] = index
+    _REFERENCE_SOURCE_INDEX_CACHE[offering_root] = index
     return index
 
 
@@ -217,7 +217,7 @@ def _distribute_references_across_kinds(references: list[dict[str, str]], action
 def _select_reference_pointers(
     references: list[dict[str, str]],
     action: str,
-    doctrine_root: Path,
+    offering_root: Path,
     *,
     limit: int = _REFERENCE_POINTER_LIMIT,
 ) -> list[tuple[dict[str, str], Path]]:
@@ -231,7 +231,7 @@ def _select_reference_pointers(
     """
     filtered = _filter_references_for_action(references, action)
     distributed = _distribute_references_across_kinds(filtered, action)
-    index = _reference_source_index(doctrine_root)
+    index = _reference_source_index(offering_root)
 
     selected: list[tuple[dict[str, str], Path]] = []
     for ref in distributed:

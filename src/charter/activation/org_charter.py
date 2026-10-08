@@ -295,7 +295,7 @@ def _normalize_required_ids(
     kind_plural: str,
     raw_ids: list[str],
     *,
-    doctrine_root: Path | None,
+    offering_root: Path | None,
     org_roots: list[Path] | None = None,
     layer_roots: dict[str, Path] | None = None,
     warnings: list[str] | None = None,
@@ -309,12 +309,12 @@ def _normalize_required_ids(
     (e.g. ``DIRECTIVE_001``) writes a value the derivation can never match,
     historically crashing the compiled reference set (#2529). Declared
     directive IDs remain readable for recovery, but producers always write
-    stems. An unavailable *doctrine_root* or unknown ID preserves the raw
+    stems. An unavailable *offering_root* or unknown ID preserves the raw
     input for existing downstream validation. A known identity whose filenames
     select another directive raises instead; promotion callers may collect
     warnings and skip only that ambiguous identity.
     """
-    if doctrine_root is None:
+    if offering_root is None:
         return list(raw_ids)
     kind = ArtifactKind.from_plural(kind_plural)
     normalized: list[str] = []
@@ -323,7 +323,7 @@ def _normalize_required_ids(
             stem = resolve_selected_id_to_stem(
                 kind,
                 raw_id,
-                doctrine_root=doctrine_root,
+                offering_root=offering_root,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
             )
@@ -409,9 +409,9 @@ def _promote_org_required_to_config(policy: OrgCharterPolicy, repo_root: Path) -
         return []
 
     try:
-        doctrine_root: Path | None = resolve_offering_root()
+        offering_root: Path | None = resolve_offering_root()
     except Exception:  # noqa: BLE001 — normalization is best-effort, see docstring
-        doctrine_root = None
+        offering_root = None
 
     from charter.activation.layer_roots import (
         resolve_layer_roots,
@@ -425,7 +425,7 @@ def _promote_org_required_to_config(policy: OrgCharterPolicy, repo_root: Path) -
         f"activated_{kind}": _normalize_required_ids(
             kind,
             raw_ids,
-            doctrine_root=doctrine_root,
+            offering_root=offering_root,
             org_roots=org_roots,
             layer_roots=layer_roots,
             warnings=warnings,
@@ -962,7 +962,7 @@ def validate_org_required_directive_stems(repo_root: Path) -> None:
         _normalize_required_ids(
             "directives",
             list(policy.required_directives),
-            doctrine_root=resolve_offering_root(),
+            offering_root=resolve_offering_root(),
             org_roots=resolve_org_root_chain(repo_root),
             layer_roots=resolve_layer_roots(repo_root),
         )

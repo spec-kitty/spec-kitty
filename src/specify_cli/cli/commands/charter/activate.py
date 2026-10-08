@@ -157,7 +157,7 @@ def _source_urn(
         resolved: str = resolve_artifact_urn(
             kind_enum,
             artifact_id,
-            doctrine_root=resolve_offering_root(),
+            offering_root=resolve_offering_root(),
             org_roots=org_roots,
             layer_roots=layer_roots,
         )
@@ -326,7 +326,7 @@ def _render_cascade_activation(
         org_fragments=load_org_drg(repo_root, strict=False),
     )
     result = cascade_activation_targets(graph, source_urn, scope)
-    doctrine_root = resolve_offering_root()
+    offering_root = resolve_offering_root()
 
     for kind_value in sorted(result.activated):
         kind_token = ArtifactKind(kind_value).operator_token
@@ -334,7 +334,7 @@ def _render_cascade_activation(
             # The cascade engine reports DRG bare IDs; activation lists use
             # config-stem IDs. Resolve back through the kind-vocabulary bridge.
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{cascade_drg_id}", doctrine_root, layer_roots, org_roots
+                f"{kind_value}:{cascade_drg_id}", offering_root, layer_roots, org_roots
             )
             try:
                 _activate_cascade_target(
@@ -357,7 +357,7 @@ def _render_cascade_activation(
         kind_token = ArtifactKind(kind_value).operator_token
         for skipped_id in result.skipped_by_scope[kind_value]:
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{skipped_id}", doctrine_root, layer_roots, org_roots, render_pass
+                f"{kind_value}:{skipped_id}", offering_root, layer_roots, org_roots, render_pass
             )
             console.print(
                 f"[dim]Skipped (out of scope)[/dim]: {kind_token}/{config_id}"
@@ -374,7 +374,7 @@ def _render_cascade_activation(
         kind_token = ArtifactKind(kind_value).operator_token
         for filtered_id in result.not_cascaded_kind_filtered[kind_value]:
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{filtered_id}", doctrine_root, layer_roots, org_roots, render_pass
+                f"{kind_value}:{filtered_id}", offering_root, layer_roots, org_roots, render_pass
             )
             render_kind_filtered_line(kind_token, config_id)
 
@@ -462,7 +462,7 @@ def _render_no_cascade_warning(
     report = referenced_but_not_cascaded(graph, source_urn)
     if not report.has_skipped:
         return
-    doctrine_root = resolve_offering_root()
+    offering_root = resolve_offering_root()
     # A read-only render: one resolution pass parses each artifact file once
     # for every warning line, not once per referenced artifact (#5526).
     render_pass = ResolutionPass()
@@ -470,7 +470,7 @@ def _render_no_cascade_warning(
         kind_token = ArtifactKind(kind_value).operator_token
         for skipped_drg_id in report.skipped[kind_value]:
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{skipped_drg_id}", doctrine_root, layer_roots, org_roots, render_pass
+                f"{kind_value}:{skipped_drg_id}", offering_root, layer_roots, org_roots, render_pass
             )
             console.print(
                 f"[yellow]Warning[/yellow]: referenced {kind_token}/{config_id} "
@@ -502,7 +502,7 @@ def _render_no_cascade_warning(
         kind_token = ArtifactKind(kind_value).operator_token
         for filtered_id in report.not_cascaded_kind_filtered[kind_value]:
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{filtered_id}", doctrine_root, layer_roots, org_roots, render_pass
+                f"{kind_value}:{filtered_id}", offering_root, layer_roots, org_roots, render_pass
             )
             render_kind_filtered_line(kind_token, config_id)
 

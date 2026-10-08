@@ -291,7 +291,7 @@ def _resolve_activated_urns_for_kind(
     node_kind: str,
     activated_ids: frozenset[str] | None,
     *,
-    doctrine_root: Path,
+    offering_root: Path,
     org_roots: list[Path],
     layer_roots: dict[str, Path] | None = None,
 ) -> frozenset[str] | None:
@@ -329,7 +329,7 @@ def _resolve_activated_urns_for_kind(
     urns: set[str] = set()
     for stem in activated_ids:
         try:
-            urns.add(resolve_artifact_urn(kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots, layer_roots=layer_roots))
+            urns.add(resolve_artifact_urn(kind_enum, stem, offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots))
         except UnknownArtifactIdError:
             continue  # Skip-with-report (contract): _check_unknown_references reports it.
     return frozenset(urns)
@@ -342,18 +342,18 @@ def _resolve_activated_urns_by_kind(
 
     Called once per :func:`filter_graph_by_activation` invocation -- never
     per node -- so resolution is O(kinds x stems), not O(nodes x stems x
-    filesystem-walk). ``doctrine_root`` is sourced from
+    filesystem-walk). ``offering_root`` is sourced from
     :func:`charter.activation.catalog.resolve_offering_root` (the same source the
     surviving compiler ``references.yaml`` projection uses), never
     ``pack_context.pack_roots[0]`` (research.md D2 install-layout guard).
     """
-    doctrine_root = resolve_offering_root()
+    offering_root = resolve_offering_root()
     org_roots = list(pack_context.org_roots)
     return {
         node_kind: _resolve_activated_urns_for_kind(
             node_kind,
             getattr(pack_context, per_kind_field, None),
-            doctrine_root=doctrine_root,
+            offering_root=offering_root,
             org_roots=org_roots,
             layer_roots={"project": project_pack_root(pack_context.repo_root)},
         )

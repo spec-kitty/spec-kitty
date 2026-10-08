@@ -99,7 +99,7 @@ def _answers_only_ids_for_kind(
     *,
     answers_data: dict[str, Any],
     config_data: dict[str, Any],
-    doctrine_root: Path,
+    offering_root: Path,
 ) -> tuple[list[str], list[str]]:
     """Return ``(answers-only stems to promote, unresolved raw ids)`` for *kind*."""
     raw_answer_ids = answers_data.get(f"selected_{kind.plural}") or []
@@ -109,7 +109,7 @@ def _answers_only_ids_for_kind(
     unresolved: list[str] = []
     for raw_id in raw_answer_ids:
         try:
-            stem = resolve_selected_id_to_stem(kind, str(raw_id), doctrine_root=doctrine_root)
+            stem = resolve_selected_id_to_stem(kind, str(raw_id), offering_root=offering_root)
         except UnrepresentableDirectiveIdError:
             # Preserve the migration's per-ID unresolved warning contract.
             unresolved.append(str(raw_id))
@@ -124,7 +124,7 @@ def _answers_only_ids_for_kind(
 def _compute_promotions(
     answers_data: dict[str, Any],
     config_data: dict[str, Any],
-    doctrine_root: Path,
+    offering_root: Path,
 ) -> tuple[dict[str, list[str]], list[str]]:
     """Compute the full ``{activated_<kind>: [answers-only stems]}`` promotion set.
 
@@ -139,7 +139,7 @@ def _compute_promotions(
             kind,
             answers_data=answers_data,
             config_data=config_data,
-            doctrine_root=doctrine_root,
+            offering_root=offering_root,
         )
         unresolved.extend(f"{kind.operator_token}:{raw}" for raw in kind_unresolved)
         if promote_stems:
@@ -200,11 +200,11 @@ class UnifyCharterActivationMigration(BaseMigration):
             return False
 
         try:
-            doctrine_root = resolve_offering_root()
+            offering_root = resolve_offering_root()
         except Exception:  # noqa: BLE001 — unresolved doctrine root means nothing to detect
             return False
 
-        promotions, _unresolved = _compute_promotions(answers_data, config_data, doctrine_root)
+        promotions, _unresolved = _compute_promotions(answers_data, config_data, offering_root)
         return bool(promotions)
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
@@ -253,11 +253,11 @@ class UnifyCharterActivationMigration(BaseMigration):
             )
 
         try:
-            doctrine_root = resolve_offering_root()
+            offering_root = resolve_offering_root()
         except Exception as exc:  # noqa: BLE001 — surfaced as a structured migration error
             return MigrationResult(success=False, errors=[f"Could not resolve doctrine root: {exc}"])
 
-        promotions, unresolved = _compute_promotions(answers_data, config_data, doctrine_root)
+        promotions, unresolved = _compute_promotions(answers_data, config_data, offering_root)
 
         if not promotions:
             result = MigrationResult(success=True, changes_made=["No answers-only selections to promote"])

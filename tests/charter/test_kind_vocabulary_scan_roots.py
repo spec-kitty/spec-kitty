@@ -60,7 +60,7 @@ def test_scan_roots_degrades_when_built_in_dir_unresolvable(
 
     result = _scan_roots(
         ArtifactKind.TACTIC,
-        _doctrine_root=Path("/nonexistent"),
+        _offering_root=Path("/nonexistent"),
         org_roots=None,
         layer_roots=None,
     )
@@ -83,7 +83,7 @@ def test_scan_roots_still_returns_org_root_when_built_in_unresolvable(
 
     result = _scan_roots(
         ArtifactKind.TACTIC,
-        _doctrine_root=Path("/nonexistent"),
+        _offering_root=Path("/nonexistent"),
         org_roots=[tmp_path],
         layer_roots=None,
     )
@@ -169,12 +169,12 @@ class TestOrgScanDirsHelper:
         (directives_dir / f"{stem}.directive.yaml").write_text(
             "id: FLAT_ONLY_FIXTURE_DIRECTIVE\n", encoding="utf-8"
         )
-        doctrine_root = tmp_path / "doctrine-root-unused"
+        offering_root = tmp_path / "doctrine-root-unused"
 
         urn = resolve_artifact_urn(
             ArtifactKind.DIRECTIVE,
             stem,
-            doctrine_root=doctrine_root,
+            offering_root=offering_root,
             org_roots=[org_root],
         )
 
@@ -234,12 +234,12 @@ class TestOrgScanDirsHelper:
         (legacy_dir / f"{stem}.directive.yaml").write_text(
             "id: DIRECTIVE_LEGACY\n", encoding="utf-8"
         )
-        doctrine_root = tmp_path / "doctrine-root-unused"
+        offering_root = tmp_path / "doctrine-root-unused"
 
         urn = resolve_artifact_urn(
             ArtifactKind.DIRECTIVE,
             stem,
-            doctrine_root=doctrine_root,
+            offering_root=offering_root,
             org_roots=[org_root],
         )
 
@@ -298,12 +298,12 @@ class TestOrgScanDirsHelper:
             if root_order == "flat_root_first"
             else [legacy_root, flat_root]
         )
-        doctrine_root = tmp_path / "doctrine-root-unused"
+        offering_root = tmp_path / "doctrine-root-unused"
 
         urn = resolve_artifact_urn(
             ArtifactKind.DIRECTIVE,
             stem,
-            doctrine_root=doctrine_root,
+            offering_root=offering_root,
             org_roots=org_roots,
         )
 

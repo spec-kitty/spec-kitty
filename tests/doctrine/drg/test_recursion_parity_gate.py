@@ -51,7 +51,7 @@ def _nested_probe(pack: Path, kind: ArtifactKind, artifact_id: str) -> Path:
 def _resolver_paths(pack: Path, kind: ArtifactKind, tmp: Path) -> list[Path]:
     return _iter_artifact_paths(
         kind,
-        doctrine_root=tmp / "doctrine_root",
+        offering_root=tmp / "offering_root",
         org_roots=[pack],
         layer_roots=None,
     )
@@ -92,7 +92,7 @@ def test_loader_and_resolver_agree_for_nested_tactic(tmp_path: Path) -> None:
         p.name == "agree.tactic.yaml"
         for p in _iter_artifact_paths(
             ArtifactKind.TACTIC,
-            doctrine_root=tmp_path / "dr",
+            offering_root=tmp_path / "dr",
             org_roots=[pack],
             layer_roots=None,
         )
@@ -126,7 +126,7 @@ def test_loader_and_resolver_agree_for_nested_agent_profile(tmp_path: Path) -> N
         p.name == "agree.agent.yaml"
         for p in _iter_artifact_paths(
             ArtifactKind.AGENT_PROFILE,
-            doctrine_root=tmp_path / "dr",
+            offering_root=tmp_path / "dr",
             org_roots=[pack],
             layer_roots=None,
         )
@@ -190,7 +190,7 @@ def test_nested_builtin_component_stays_in_parity(tmp_path: Path) -> None:
         p.name == "deep.tactic.yaml"
         for p in _iter_artifact_paths(
             ArtifactKind.TACTIC,
-            doctrine_root=tmp_path / "dr",
+            offering_root=tmp_path / "dr",
             org_roots=[pack],
             layer_roots=None,
         )
@@ -215,7 +215,7 @@ def test_top_level_builtin_still_reserved_flat_wins(tmp_path: Path) -> None:
     urn = resolve_artifact_urn(
         ArtifactKind.TACTIC,
         "flatwin",
-        doctrine_root=tmp_path / "dr",
+        offering_root=tmp_path / "dr",
         org_roots=[pack],
     )
     assert urn == "tactic:FLAT_WIN"

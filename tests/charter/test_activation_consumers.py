@@ -162,10 +162,10 @@ def test_reference_resolver_populated_stem_retains_directive_node() -> None:
 def test_compiler_closure_none_path_matches_no_filter_at_all(tmp_path: Path) -> None:
     from charter.activation.catalog import resolve_offering_root
 
-    doctrine_root = resolve_offering_root()
+    offering_root = resolve_offering_root()
 
     unfiltered = _resolve_transitive_reference_graph(
-        doctrine_root=doctrine_root,
+        offering_root=offering_root,
         directives=[_REAL_DIRECTIVE_CANONICAL_ID],
         repo_root=tmp_path,
         pack_context=None,
@@ -179,7 +179,7 @@ def test_compiler_closure_none_path_matches_no_filter_at_all(tmp_path: Path) -> 
         activated_directives=None, activated_kinds=_BUILTIN_ARTIFACT_KINDS, repo_root=tmp_path
     )
     default_allow = _resolve_transitive_reference_graph(
-        doctrine_root=doctrine_root,
+        offering_root=offering_root,
         directives=[_REAL_DIRECTIVE_CANONICAL_ID],
         repo_root=tmp_path,
         pack_context=default_allow_ctx,
@@ -202,7 +202,7 @@ def test_compiler_closure_populated_stem_retains_directive_node(tmp_path: Path) 
     )
 
     result = _resolve_transitive_reference_graph(
-        doctrine_root=resolve_offering_root(),
+        offering_root=resolve_offering_root(),
         directives=[_REAL_DIRECTIVE_CANONICAL_ID],
         repo_root=tmp_path,
         pack_context=ctx,

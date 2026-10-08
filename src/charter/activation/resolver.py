@@ -267,14 +267,14 @@ class ActiveCharterService:
         # PackContext and the inner repositories are snapshots. Resolve once
         # for this service; a newly built service observes changed files/config.
         if self._resolved_directive_activation_ids is None:
-            doctrine_root = resolve_offering_root()
+            offering_root = resolve_offering_root()
             activated: set[str] = set()
             for token in pack_ctx.activated_directives:
                 try:
                     urn = resolve_artifact_urn(
                         ArtifactKind.DIRECTIVE,
                         token,
-                        doctrine_root=doctrine_root,
+                        offering_root=offering_root,
                         org_roots=list(pack_ctx.org_roots),
                         layer_roots={"project": project_pack_root(pack_ctx.repo_root)},
                     )
