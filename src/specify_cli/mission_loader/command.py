@@ -45,8 +45,9 @@ from specify_cli.mission_loader.errors import (
 )
 from specify_cli.mission_loader.registry import get_runtime_contract_registry
 from specify_cli.mission_loader.validator import validate_custom_mission
-from specify_cli.mission_metadata import load_meta_or_empty, write_meta
+from specify_cli.mission_metadata import load_meta_or_empty, locked_update_meta, write_meta
 from runtime.next import runtime_bridge
+from runtime.next.runtime_bridge_io import resolve_builtin_missions_root
 from runtime.next._internal_runtime.discovery import DiscoveryContext
 from runtime.next._internal_runtime.schema import MissionTemplate
 
@@ -206,7 +207,8 @@ def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
     The runtime bridge's helper is module-private; we duplicate the
     construction here so this module does not depend on a private
     surface. Both implementations point ``builtin_roots`` at the
-    packaged missions directory so built-in keys resolve identically.
+    pack-shipped missions directory (the one ``builtin_missions_root()``
+    accessor) so built-in keys resolve identically.
 
     Also mirrors the runtime bridge's ``org_roots`` population (FR-008,
     DEC-006 site 3 -- the third, independently-duplicated production
@@ -221,9 +223,7 @@ def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
     UserWarning per call (see load_pack_registry's docstring). A genuinely
     declared-but-broken org pack still raises a loud UserWarning regardless.
     """
-    package_missions = (
-        Path(runtime_bridge.__file__).resolve().parent.parent / "missions"
-    )
+    package_missions = resolve_builtin_missions_root()
 
     from charter.drg import resolve_org_roots  # lazy, mirrors the resolve_org_dirs pattern below
 
@@ -357,10 +357,19 @@ def _ensure_feature_metadata(feature_dir: Path, mission_key: str) -> None:
     ``mission run`` -> ``next`` flow falls back to ``software-dev``.
     """
     feature_dir.mkdir(parents=True, exist_ok=True)
+
+    def _stamp(data: dict[str, Any]) -> None:
+        data["mission_type"] = mission_key
+        data["mission_key"] = mission_key
+        data.setdefault("mission", mission_key)
+
+    if (feature_dir / "meta.json").exists():
+        # An existing Mission is edited under its write lock (FR-020).
+        locked_update_meta(feature_dir, _stamp, validate=False)
+        return
+    # First write of a brand-new directory: there is no Mission to lock on yet.
     data: dict[str, Any] = load_meta_or_empty(feature_dir)
-    data["mission_type"] = mission_key
-    data["mission_key"] = mission_key
-    data.setdefault("mission", mission_key)
+    _stamp(data)
     write_meta(feature_dir, data, validate=False)
 
 

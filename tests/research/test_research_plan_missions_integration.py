@@ -53,7 +53,7 @@ pytestmark = [pytest.mark.integration]
 # Helpers
 # ---------------------------------------------------------------------------
 
-MISSIONS_DIR = Path(__file__).resolve().parents[2] / "src" / "specify_cli" / "missions"
+MISSIONS_DIR = Path(__file__).resolve().parents[2] / "packs" / "built-in" / "missions"
 
 _RESEARCH_ARTIFACTS = frozenset({"spec.md", "plan.md", "source-register.csv", "findings.md", "report.md", "research.md"})
 _PLAN_ARTIFACTS = frozenset({"spec.md", "plan.md", "research.md"})

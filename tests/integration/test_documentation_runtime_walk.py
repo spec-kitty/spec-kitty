@@ -197,14 +197,14 @@ def test_documentation_template_resolves_runtime_sidecar() -> None:
     """SC-007: the loader resolves mission-runtime.yaml ahead of legacy mission.yaml.
 
     The runtime sidecar must be present under
-    ``src/specify_cli/missions/documentation/`` and the bridge's resolver
+    ``packs/built-in/missions/documentation/`` and the bridge's resolver
     MUST prefer it over the legacy ``mission.yaml`` fallback. This is the
     structural prerequisite for the composed dispatch path.
     """
     package_root = (
         Path(__file__).resolve().parents[1].parent
-        / "src"
-        / "specify_cli"
+        / "packs"
+        / "built-in"
         / "missions"
     )
     resolved = _resolve_runtime_template_in_root(package_root, "documentation")

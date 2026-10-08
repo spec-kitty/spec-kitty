@@ -1198,3 +1198,29 @@ def test_build_operational_context_for_claim_observes_a_patch_on_resolve_tech_st
 
     assert calls == ["explicit-profile"]
     assert oc.tech_stack == frozenset({"python"})
+
+
+# ---------------------------------------------------------------------------
+# WP06 (FR-018, B8): the built-in tier is the pack's missions directory
+# ---------------------------------------------------------------------------
+
+
+def test_builtin_tier_is_the_pack_missions_root(tmp_path: Path) -> None:
+    from charter.activation.mission_type_profile_repository import builtin_missions_root
+
+    context = io_seam._build_discovery_context(tmp_path)
+    assert context.builtin_roots == [builtin_missions_root().resolve()]
+    assert io_seam._builtin_missions_root() == builtin_missions_root().resolve()
+
+
+def test_missing_pack_root_fails_closed_with_a_named_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from charter.pack_paths import PackRootNotFound
+
+    def _no_pack_root() -> Path:
+        raise PackRootNotFound("built-in")
+
+    monkeypatch.setattr(io_seam, "builtin_missions_root", _no_pack_root)
+    with pytest.raises(io_seam.BuiltinMissionsRootUnavailable) as excinfo:
+        io_seam._runtime_template_key(MISSION_TYPE_SOFTWARE_DEV, tmp_path)
+    assert excinfo.value.error_code == "BUILTIN_MISSIONS_ROOT_UNAVAILABLE"
+    assert "SPEC_KITTY_PACKS_ROOT" in str(excinfo.value)

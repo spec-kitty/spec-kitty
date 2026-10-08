@@ -442,17 +442,18 @@ def _query_read_runtime_plan(
                 repo_root,
             )
             snapshot = _engine_adapter._read_snapshot(Path(run_ref.run_dir))
-            template_path = Path(run_ref.run_dir) / "mission_template_frozen.yaml"
-            template = load_mission_template_file(template_path)
+            live_template_path = Path(run_ref.run_dir) / "mission_template_frozen.yaml"
         else:
             snapshot = _engine_adapter._read_snapshot(Path(run_ref.run_dir))
-            template_path = Path(snapshot.template_path)
-            template = load_mission_template_file(template_path)
+            # The recorded live path feeds only the drift check; it may be gone
+            # (a moved or deleted built-in copy) without breaking the run (B1).
+            live_template_path = Path(snapshot.template_path)  # planner skips drift when it is gone
+        template = load_mission_template_file(Path(run_ref.run_dir) / "mission_template_frozen.yaml")
         runtime_decision = _engine_adapter.plan_next(
             snapshot,
             template,
             snapshot.policy_snapshot,
-            live_template_path=template_path,
+            live_template_path=live_template_path,
         )
     except QueryModeValidationError:
         raise

@@ -170,9 +170,9 @@ class TestRuntimeTemplateKey:
         repo_root = _scaffold_project(tmp_path)
 
         import runtime.next.runtime_bridge_io as runtime_bridge_io
-        import specify_cli
+        from charter.activation.mission_type_profile_repository import builtin_missions_root
 
-        builtin_root = Path(specify_cli.__file__).resolve().parent / "missions"
+        builtin_root = builtin_missions_root().resolve()
 
         # Force deterministic discovery context for this test so user-global
         # ~/.kittify content cannot shadow the builtin fallback tier.
@@ -299,9 +299,9 @@ class TestWorkflowRuntimeTemplate:
         repo_root = _scaffold_project(tmp_path)
 
         import runtime.next.runtime_bridge_io as runtime_bridge_io
-        import specify_cli
+        from charter.activation.mission_type_profile_repository import builtin_missions_root
 
-        builtin_root = Path(specify_cli.__file__).resolve().parent / "missions"
+        builtin_root = builtin_missions_root().resolve()
         user_home = tmp_path / "home"
         global_runtime = user_home / ".kittify" / "missions" / "software-dev" / "mission-runtime.yaml"
         global_runtime.parent.mkdir(parents=True)

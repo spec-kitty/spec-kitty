@@ -19,7 +19,7 @@
 # Runtime outbound ledgers (PR #3888): independent caps, not derived from live sets.
 test_layer_rules:
   mission_runtime_allowed_specify_cli: 10  # justification: freeze the ten existing mission_runtime upward-import subpackage exceptions independently of runtime.
-  runtime_allowed_specify_cli: 23  # justification: freeze 22 existing subpackage exceptions plus the bare-root exception; no new production imports.
+  runtime_allowed_specify_cli: 22  # justification: freeze the 22 existing subpackage exceptions; the bare-root exception went when the built-in runtime-template tier moved to the pack accessor (WP06); no new production imports.
 test_runtime_charter_doctrine_boundary:
   lazy_baseline_allowlist: 11  # justification: freeze existing lazy imports as exact (file, module) pairs across six runtime files.
 test_doctrine_census:

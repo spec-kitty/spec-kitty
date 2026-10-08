@@ -189,7 +189,7 @@ class TestPlanMissionIntegration:
         assert meta["mission_type"] == "plan", "Feature must have mission_type=plan"
 
         # 2. Verify mission-runtime.yaml exists (required for discovery)
-        mission_runtime = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
+        mission_runtime = Path("packs/built-in/missions/plan/mission-runtime.yaml")
         assert mission_runtime.exists(), "mission-runtime.yaml must exist"
 
         # 3. Verify it parses as valid YAML
@@ -263,7 +263,7 @@ class TestPlanMissionRegressions:
         import yaml
 
         # Verify software-dev mission exists and is intact
-        sd_runtime = Path("src/specify_cli/missions/software-dev/mission-runtime.yaml")
+        sd_runtime = Path("packs/built-in/missions/software-dev/mission-runtime.yaml")
         assert sd_runtime.exists(), "software-dev mission-runtime.yaml must exist"
 
         # Load and parse
@@ -291,7 +291,7 @@ class TestPlanMissionRegressions:
         import yaml
 
         # Verify research mission exists and is intact
-        r_mission = Path("src/specify_cli/missions/research/mission.yaml")
+        r_mission = Path("packs/built-in/missions/research/mission.yaml")
         assert r_mission.exists(), "research mission.yaml must exist"
 
         # Load and parse
@@ -312,7 +312,7 @@ class TestPlanMissionRegressions:
         assert data.get("commands"), "research must declare its commands"
 
         # Verify templates directory exists for research
-        templates_dir = Path("src/specify_cli/missions/research/templates")
+        templates_dir = Path("packs/built-in/missions/research/templates")
         assert templates_dir.exists(), "research templates directory must exist"
         assert len(list(templates_dir.glob("*.md"))) > 0, "research must have at least one template"
 
@@ -321,7 +321,7 @@ class TestPlanMissionRegressions:
         import yaml
 
         # Load plan mission-runtime.yaml
-        plan_runtime = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
+        plan_runtime = Path("packs/built-in/missions/plan/mission-runtime.yaml")
         assert plan_runtime.exists(), "plan mission-runtime.yaml must exist"
 
         content = plan_runtime.read_text()
@@ -370,7 +370,7 @@ class TestPlanMissionSteps:
     def test_specify_step_defined_in_mission_runtime(self):
         """Verify specify step is defined in plan mission-runtime.yaml."""
         import yaml
-        runtime = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
+        runtime = Path("packs/built-in/missions/plan/mission-runtime.yaml")
         data = yaml.safe_load(runtime.read_text())
         step_ids = [s["id"] for s in data["mission"]["steps"]]
         assert "specify" in step_ids, "specify step must be defined in plan mission"
@@ -378,7 +378,7 @@ class TestPlanMissionSteps:
     def test_research_step_defined_in_mission_runtime(self):
         """Verify research step is defined in plan mission-runtime.yaml."""
         import yaml
-        runtime = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
+        runtime = Path("packs/built-in/missions/plan/mission-runtime.yaml")
         data = yaml.safe_load(runtime.read_text())
         step_ids = [s["id"] for s in data["mission"]["steps"]]
         assert "research" in step_ids, "research step must be defined in plan mission"
@@ -386,7 +386,7 @@ class TestPlanMissionSteps:
     def test_plan_step_defined_in_mission_runtime(self):
         """Verify plan step is defined in plan mission-runtime.yaml."""
         import yaml
-        runtime = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
+        runtime = Path("packs/built-in/missions/plan/mission-runtime.yaml")
         data = yaml.safe_load(runtime.read_text())
         step_ids = [s["id"] for s in data["mission"]["steps"]]
         assert "plan" in step_ids, "plan step must be defined in plan mission"
@@ -394,7 +394,7 @@ class TestPlanMissionSteps:
     def test_review_step_defined_in_mission_runtime(self):
         """Verify review step is defined in plan mission-runtime.yaml."""
         import yaml
-        runtime = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
+        runtime = Path("packs/built-in/missions/plan/mission-runtime.yaml")
         data = yaml.safe_load(runtime.read_text())
         step_ids = [s["id"] for s in data["mission"]["steps"]]
         assert "review" in step_ids, "review step must be defined in plan mission"
@@ -418,7 +418,7 @@ class TestPlanMissionWorkflow:
 
 
         # Load mission definition
-        mission_yaml = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
+        mission_yaml = Path("packs/built-in/missions/plan/mission-runtime.yaml")
         mission = yaml.safe_load(mission_yaml.read_text())
         steps = mission["mission"]["steps"]
 

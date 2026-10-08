@@ -61,6 +61,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict
 
 import yaml
+from charter.activation.mission_type_profile_repository import builtin_missions_root
+from charter.pack_paths import PackRootNotFound
 from mission_runtime import (
     ActionContextError,
     MissionArtifactKind,
@@ -135,6 +137,34 @@ class _FeatureRunEntry(TypedDict, total=False):
     mission_key: str
     mission_id: str | None
     mission_slug: str
+
+
+class BuiltinMissionsRootUnavailable(MissionRuntimeError):
+    """The built-in pack's ``missions/`` directory cannot be located.
+
+    Fail closed (FR-018, B8): the built-in tier of the runtime-template search
+    is ``packs/built-in/missions``; when :func:`builtin_missions_root` cannot
+    resolve it the runtime refuses rather than planning from nothing.
+    """
+
+    error_code = "BUILTIN_MISSIONS_ROOT_UNAVAILABLE"
+
+
+def resolve_builtin_missions_root() -> Path:
+    """The pack-shipped ``missions/`` directory, or a named refusal.
+
+    The one accessor the runtime's built-in tier and ``mission run`` share
+    (``charter.activation.mission_type_profile_repository.builtin_missions_root``).
+
+    Raises:
+        BuiltinMissionsRootUnavailable: no built-in pack root can be located.
+    """
+    try:
+        return Path(builtin_missions_root()).resolve()
+    except PackRootNotFound as exc:
+        raise BuiltinMissionsRootUnavailable(
+            f"Cannot locate the built-in pack missions directory ({exc}); reinstall spec-kitty or set SPEC_KITTY_PACKS_ROOT to a pack root."
+        ) from exc
 
 
 class RunIdentityMigrationRequired(MissionRuntimeError):
@@ -423,11 +453,7 @@ def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
     docstring). A genuinely declared-but-broken org pack still raises a
     loud UserWarning regardless.
     """
-    import specify_cli  # noqa: PLC0415
-
-    # Runtime bridge uses the legacy runtime templates under specify_cli/missions.
-    # The doctrine mission catalog is not behaviorally equivalent yet.
-    package_root = Path(specify_cli.__file__).resolve().parent / "missions"
+    package_root = resolve_builtin_missions_root()
 
     from charter.drg import resolve_org_roots  # noqa: PLC0415 — lazy, mirrors existing pattern
 
@@ -489,19 +515,12 @@ def _candidate_templates_for_root(root: Path, mission_type: str) -> list[Path]:
 
 
 def _builtin_missions_root() -> Path:
-    """The package-shipped ``missions/`` directory.
+    """The pack-shipped ``missions/`` directory (``packs/built-in/missions``).
 
-    Same expression ``_build_discovery_context`` (WP04) uses for
-    ``builtin_roots`` — recomputed locally rather than imported from there to
-    avoid coupling to a function this WP does not own (plan.md IC-06's
-    `owned_files` note: WP04 owns `_build_discovery_context`, this WP owns
-    `_template_key_for_file`/`_resolve_runtime_template_in_root`). Both
-    expressions must stay in sync by construction — there is exactly one
-    place `specify_cli`'s package-relative missions directory is defined.
+    Same accessor ``_build_discovery_context`` uses for ``builtin_roots``, so the
+    two cannot disagree about where the built-in tier lives.
     """
-    import specify_cli  # noqa: PLC0415
-
-    return (Path(specify_cli.__file__).resolve().parent / "missions").resolve()
+    return resolve_builtin_missions_root()
 
 
 def _is_builtin_missions_dir(parent: Path) -> bool:

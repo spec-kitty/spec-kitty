@@ -18,7 +18,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def test_documentation_runtime_sidecar_wins_over_legacy_mission_yaml() -> None:
     """The package-level loader resolves mission-runtime.yaml for mission_type='documentation'."""
-    package_root = Path(__file__).resolve().parents[2] / "src" / "specify_cli" / "missions"
+    package_root = Path(__file__).resolve().parents[2] / "packs" / "built-in" / "missions"
     resolved = _resolve_runtime_template_in_root(package_root, "documentation")
     assert resolved is not None, "loader returned None for mission_type='documentation'"
     assert resolved.name == "mission-runtime.yaml", (
@@ -34,8 +34,8 @@ def test_documentation_runtime_template_declares_correct_mission_key() -> None:
 
     path = (
         Path(__file__).resolve().parents[2]
-        / "src"
-        / "specify_cli"
+        / "packs"
+        / "built-in"
         / "missions"
         / "documentation"
         / "mission-runtime.yaml"

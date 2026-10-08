@@ -1,11 +1,3 @@
-# DEPRECATED (since #503 / phase 6 wp6.2): this template is no longer the
-# authoritative source for action dispatch on the built-in software-dev
-# mission. The live runtime path is now driven by mission step contracts
-# under packs/built-in/missions/built_in_step_contracts/ via
-# StepContractExecutor + ProfileInvocationExecutor composition. This file
-# is retained as a transitional reference and may be removed in a future
-# slice. Do not extend it.
-#
 # =============================================================================
 # Runtime Planning Template (v2.2.0)
 # =============================================================================
@@ -23,7 +15,7 @@
 #
 # v2.2.0: Collapse the public tasks action back to a single "tasks" planning
 # step. The outline/packages/finalize substructure now lives inside
-# packs/built-in/missions/built_in_step_contracts/tasks.step-contract.yaml.
+# src/charter/offering/missions/built_in_step_contracts/tasks.step-contract.yaml.
 
 mission:
   key: software-dev
@@ -33,7 +25,6 @@ mission:
 steps:
   - id: discovery
     title: Discovery & Research
-    agent-profile: researcher-robbie
     prompt_template: research.md
     description: Research technologies and best practices
 
@@ -46,28 +37,24 @@ steps:
   - id: plan
     title: Implementation Planning
     depends_on: [specify]
-    agent-profile: architect-alphonso
     prompt_template: plan.md
     description: Design technical architecture
 
   - id: tasks
     title: Tasks
     depends_on: [plan]
-    agent-profile: planner-priti
     prompt_template: tasks.md
     description: Create task breakdown, work package prompts, and finalized dependencies
 
   - id: implement
     title: Implementation
     depends_on: [tasks]
-    agent-profile: implementer-ivan
     prompt_template: implement.md
     description: Execute implementation
 
   - id: review
     title: Code Review
     depends_on: [implement]
-    agent-profile: reviewer-renata
     prompt_template: review.md
     description: Review and validate
 
@@ -75,4 +62,4 @@ steps:
     title: Acceptance
     depends_on: [review]
     prompt_template: accept.md
-    description: Validate mission completeness
+    description: Validate feature completeness
