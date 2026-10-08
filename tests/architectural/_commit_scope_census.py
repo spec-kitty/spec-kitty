@@ -39,19 +39,33 @@ the AST, never listed by hand. Everything else in an owner's file is scanned
 like any other file. :func:`census_source` never applies the exemption; the
 planted cases and the positive controls use it.
 
+**Exemption leak guard** (:func:`exempt_helper_leaks`): an exempt private helper
+that itself holds a hit (``commit_helpers._commit_with_index_deletions``) is
+exempt only because an owner symbol calls it, so it must be reached only from
+there. Any other reference to it -- a call or reference from a non-owner
+function of the owner file, or an attribute access or ``from ... import`` of it
+in any other scanned file -- is a leak the gate reports.
+
 **Out of scope / AST blind spots** (none of these shapes exists in ``src/``
 today other than the plumbing commits; ``git grep -n "shell=True" -- src`` finds
 only comments and docstrings): argv grown across statements (``+=``,
 ``.append``, ``.extend``); ``shlex.split(var)``; ``shell=True`` / ``os.system``
 command strings; an argv held in a variable assigned in another function, or
 passed to a runner whose name is not in :data:`GIT_RUNNER_NAMES`; function-local
-string constants; clustered short options (``-am``); ``git rebase`` / ``pull``
+string constants; an argv built by concatenation (``["git"] + [...]``, a
+``BinOp``, is not a list literal, so it is never a candidate); a subcommand or
+flag held in an f-string (``f"{verb}"`` is an unresolved token, so it never
+satisfies a flag or subcommand test); clustered short options (``-am``); ``git rebase`` / ``pull``
 / ``am``, which replay or fetch commits and are outside FR-013's forms; and
 **plumbing commits** (``git commit-tree`` + ``git update-ref``), which create a
 commit without the porcelain ``commit`` subcommand. ``safe_commit``'s
 expected-parent path uses them (``commit_helpers._create_expected_parent_commit``,
 ``_compare_and_swap_commit_ref``); they are outside this gate (follow-up:
-"commit-scope gate: cover commit-tree/update-ref plumbing commits").
+"commit-scope gate: cover commit-tree/update-ref plumbing commits"). Those
+plumbing commits run no hooks. The callers that reach them by passing
+``expected_parent_sha`` are ``coordination/commit_router.py`` (``:357``,
+``:736``) and ``cli/commands/agent/mission_finalize_planning_pin.py``
+(``:586``, ``:788``).
 """
 
 from __future__ import annotations
@@ -81,6 +95,9 @@ __all__ = [
     "census_text",
     "classify_argv",
     "exempt_functions",
+    "exempt_helper_leaks",
+    "exempt_helper_leaks_text",
+    "exempt_hit_holders",
     "src_files",
 ]
 
@@ -94,6 +111,16 @@ class OwnerSymbol(NamedTuple):
 
 class OwnerSymbolMissing(AssertionError):
     """A canonical owner names a symbol its file no longer defines (a rename must fail the gate loudly)."""
+
+
+class HelperLeak(NamedTuple):
+    """A reference to an exempt, hit-holding private helper from outside its owner symbols."""
+
+    path: str
+    lineno: int
+    helper: str
+    referrer: str | None
+    """The enclosing top-level function (``None`` at module level)."""
 
 
 class Hit(NamedTuple):
@@ -342,6 +369,57 @@ def census_text(text: str, rel: str) -> list[Hit]:
         return hits
     exempt = exempt_functions(tree, owner.symbols)
     return [hit for hit in hits if _enclosing_top_level(tree, hit.lineno) not in exempt]
+
+
+def exempt_hit_holders(text: str, rel: str) -> frozenset[str]:
+    """The exempt module-private helpers of owner file *rel* that themselves hold a hit."""
+    owner = _owner_for(rel)
+    if owner is None:
+        return frozenset()
+    tree = ast.parse(text, filename=rel)
+    helpers = exempt_functions(tree, owner.symbols) - set(owner.symbols)
+    return frozenset(name for hit in _tree_hits(rel, tree) if (name := _enclosing_top_level(tree, hit.lineno)) in helpers)
+
+
+def exempt_helper_leaks_text(text: str, rel: str, foreign_holders: Iterable[str] = ()) -> list[HelperLeak]:
+    """References in *text* that reach an exempt, hit-holding helper other than through an owner symbol.
+
+    In an owner file, any name reference to one of its own holders outside the owner's
+    symbols is a leak. In every file, an attribute access or ``from ... import`` of a
+    holder of another owner file (*foreign_holders*) is a leak.
+    """
+    tree = ast.parse(text, filename=rel)
+    owner = _owner_for(rel)
+    own = exempt_hit_holders(text, rel)
+    foreign = frozenset(foreign_holders) - own
+    leaks: list[HelperLeak] = []
+    for node in ast.walk(tree):
+        name: str | None = None
+        if isinstance(node, ast.Name) and node.id in own:
+            if owner is not None and _enclosing_top_level(tree, node.lineno) in owner.symbols:
+                continue
+            name = node.id
+        elif isinstance(node, ast.Attribute) and node.attr in foreign:
+            name = node.attr
+        elif isinstance(node, ast.ImportFrom):
+            name = next((alias.name for alias in node.names if alias.name in foreign), None)
+        if name is not None:
+            leaks.append(HelperLeak(rel, node.lineno, name, _enclosing_top_level(tree, node.lineno)))
+    return leaks
+
+
+def exempt_helper_leaks(paths: Iterable[Path]) -> list[HelperLeak]:
+    """Leaks in every Python file in *paths*; holders come from the real owner files."""
+    holders: set[str] = set()
+    for owner in CANONICAL_OWNERS:
+        owner_path = REPO_ROOT / owner.rel
+        if owner_path.exists():
+            holders |= exempt_hit_holders(owner_path.read_text(encoding="utf-8"), owner.rel)
+    leaks: list[HelperLeak] = []
+    for path in paths:
+        if path.suffix == ".py":
+            leaks.extend(exempt_helper_leaks_text(path.read_text(encoding="utf-8"), _rel(path), holders))
+    return leaks
 
 
 def _rel(path: Path) -> str:

@@ -51,6 +51,9 @@ from tests.architectural._commit_scope_census import (
     census_source,
     census_text,
     classify_argv,
+    exempt_helper_leaks,
+    exempt_helper_leaks_text,
+    exempt_hit_holders,
     src_files,
 )
 from tests.architectural._destructive_op_census import REPO_ROOT
@@ -230,3 +233,32 @@ def test_classify_argv_ignores_unresolved_tokens() -> None:
     assert classify_argv(["git", "commit", "-m", None, "--", None]) == []
     assert classify_argv(["git", "add", None]) == []
     assert classify_argv(["git", "commit", None, "-m", "x"]) == ["commit-no-pathspec"], "an unresolved token is never read as '--'"
+
+
+def test_exempt_hit_holding_helpers_are_reached_only_from_owner_symbols() -> None:
+    """The exemption cannot leak: a private helper holding a hit is referenced only from an owner symbol."""
+    holders = exempt_hit_holders(_owner_text(_COMMIT_HELPERS), _COMMIT_HELPERS)
+    assert "_commit_with_index_deletions" in holders, "non-vacuity: the temp-index commit helper holds a hit"
+    leaks = exempt_helper_leaks(src_files())
+    assert leaks == [], "exempt helper reached outside its owner symbol:\n" + "\n".join(
+        f"  {leak.path}:{leak.lineno} {leak.helper} from {leak.referrer}" for leak in leaks
+    )
+
+
+def test_a_non_owner_caller_of_an_exempt_helper_is_a_leak() -> None:
+    """Planted: a public function in the owner file calls the hit-holding helper."""
+    text = _owner_text(_COMMIT_HELPERS) + "\n\ndef sneaky_commit(root, ref, msg):\n    return _commit_with_index_deletions(root, ref, msg, [], [])\n"
+    leaks = exempt_helper_leaks_text(text, _COMMIT_HELPERS)
+    assert [(leak.helper, leak.referrer) for leak in leaks] == [("_commit_with_index_deletions", "sneaky_commit")]
+
+
+def test_a_foreign_import_of_an_exempt_helper_is_a_leak() -> None:
+    """Planted: another module imports or reaches the hit-holding helper through its module."""
+    text = (
+        "from specify_cli.git.commit_helpers import _commit_with_index_deletions\n"
+        "from specify_cli.git import commit_helpers\n\n"
+        "def elsewhere(root):\n"
+        "    return commit_helpers._commit_with_index_deletions(root, 'main', 'm', [], [])\n"
+    )
+    leaks = exempt_helper_leaks_text(text, "src/specify_cli/other.py", {"_commit_with_index_deletions"})
+    assert sorted((leak.lineno, leak.referrer) for leak in leaks) == [(1, None), (5, "elsewhere")]
