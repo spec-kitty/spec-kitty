@@ -1002,11 +1002,29 @@ def cmd_widen(
 __all__ = ["decision_app"]
 
 
-def _runtime_lock_git(root: Path, *args: str) -> str:
-    """Read selected Git state, refusing an incomplete observation."""
+_RUNTIME_LOCK_PRECONDITION_REFUSED = "RUNTIME_LOCK_PRECONDITION_REFUSED"
+_RUNTIME_LOCK_RACE = "RUNTIME_LOCK_RACE"
+_RUNTIME_LOCK_REPAIR_FAILED = "RUNTIME_LOCK_REPAIR_FAILED"
+
+
+class _RuntimeLockRaceError(RuntimeError):
+    """Index or staging state of the lock changed while the owner lock was awaited."""
+
+
+def _runtime_lock_git(root: Path, *args: str, check: bool = True) -> str:
+    """Read selected Git state; ``check=False`` returns "" on failure instead of raising."""
     import subprocess
 
-    return subprocess.run(["git", *args], cwd=root, check=True, capture_output=True, text=True).stdout.strip()
+    return subprocess.run(["git", *args], cwd=root, check=check, capture_output=True, text=True).stdout.strip()
+
+
+def _runtime_lock_error_code(exc: Exception) -> str:
+    """Map a repair failure to its stable machine-readable code."""
+    if isinstance(exc, _RuntimeLockRaceError):
+        return _RUNTIME_LOCK_RACE
+    if isinstance(exc, ValueError):
+        return _RUNTIME_LOCK_PRECONDITION_REFUSED
+    return _RUNTIME_LOCK_REPAIR_FAILED
 
 
 def _runtime_lock_preflight(owned: OwnedCheckout) -> tuple[Path, Path, bool, bool]:
@@ -1061,9 +1079,9 @@ def _repair_runtime_lock(owned: OwnedCheckout, *, dry_run: bool) -> dict[str, ob
         ignore, ignored_now = _runtime_lock_ignore_state(owned)
         relative_lock = str(lock.relative_to(owned.owned_root))
         if bool(tracked_paths(owned.owned_root, pathspecs=(relative_lock,))) != tracked:
-            raise RuntimeError("Runtime lock index changed while waiting for the owner lock")
+            raise _RuntimeLockRaceError("Runtime lock index changed while waiting for the owner lock")
         if _runtime_lock_git(owned.owned_root, "diff", "--cached", "HEAD", "--", relative_lock):
-            raise RuntimeError("Runtime lock staging changed while waiting for the owner lock")
+            raise _RuntimeLockRaceError("Runtime lock staging changed while waiting for the owner lock")
         parent = _runtime_lock_git(owned.owned_root, "rev-parse", "HEAD")
         old_ignore = ignore.read_bytes() if ignore.exists() else None
         written_ignore: bytes | None = None
@@ -1087,12 +1105,14 @@ def _repair_runtime_lock(owned: OwnedCheckout, *, dry_run: bool) -> dict[str, ob
         except Exception:
             # Ref updates are conditional. Restore our ignore bytes only when
             # the branch has not moved and nobody subsequently changed them.
-            if _runtime_lock_git(owned.owned_root, "rev-parse", "HEAD") == parent and written_ignore is not None and ignore.read_bytes() == written_ignore:
+            # check=False: a failing rev-parse must not mask the original error.
+            if _runtime_lock_git(owned.owned_root, "rev-parse", "HEAD", check=False) == parent and written_ignore is not None and ignore.read_bytes() == written_ignore:
                 _restore_runtime_lock_ignore(ignore, old_ignore, written_ignore)
             raise
         payload["commit"] = result.sha
         if result.diagnostic:
-            raise RuntimeError(result.diagnostic)
+            # The commit already landed: report it, never an error.
+            payload["warning"] = result.diagnostic
     return payload
 
 
@@ -1118,10 +1138,11 @@ def cmd_repair_runtime_lock(
         json_output=True,
         envelope=lambda code, message: {"status": "error", "code": code, "message": message},
     )
-    assert owned is not None
+    if owned is None:
+        raise typer.Exit(1)
     try:
         payload = _repair_runtime_lock(owned, dry_run=dry_run)
     except Exception as exc:
-        typer.echo(json.dumps({"status": "error", "message": str(exc)}))
+        typer.echo(json.dumps({"status": "error", "code": _runtime_lock_error_code(exc), "message": str(exc)}))
         raise typer.Exit(1) from exc
     typer.echo(json.dumps(payload))

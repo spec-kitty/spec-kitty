@@ -196,23 +196,38 @@ def test_repair_reasserts_exact_ignore_after_authored_negation(owned_checkouts, 
     assert subprocess.run(["git", "check-ignore", "--no-index", str(lock.parent / "authored.lock")], cwd=c.owned_root, capture_output=True).returncode == 1
 
 
-def test_repair_compare_and_swap_refusal_preserves_index(owned_checkouts, monkeypatch):
+@pytest.mark.parametrize("failure", ["cas_refusal", "post_commit_diagnostic"])
+def test_repair_commit_outcomes(owned_checkouts, monkeypatch, failure):
+    import json
+    from dataclasses import replace
     from specify_cli.git import commit_helpers
 
     c = owned_checkouts
     lock = seed(c)
     before = snapshot(c.owned_root)
     inode = lock.stat().st_ino
+    if failure == "cas_refusal":
 
-    def refuse(*args, **kwargs):
-        raise RuntimeError("injected expected-parent race")
+        def refuse(*args, **kwargs):
+            raise RuntimeError("injected expected-parent race")
 
-    monkeypatch.setattr(commit_helpers, "_compare_and_swap_commit_ref", refuse)
+        monkeypatch.setattr(commit_helpers, "_compare_and_swap_commit_ref", refuse)
+    else:
+        original = commit_helpers.safe_commit
+        monkeypatch.setattr(commit_helpers, "safe_commit", lambda **kw: replace(original(**kw), diagnostic="post-commit sync advisory"))
     result = invoke(c, monkeypatch)
-    assert result.exit_code != 0
     assert "No such command" not in result.output
-    assert snapshot(c.owned_root) == before
     assert lock.stat().st_ino == inode
+    if failure == "cas_refusal":
+        assert result.exit_code != 0
+        assert json.loads(result.output)["code"] == "RUNTIME_LOCK_REPAIR_FAILED"
+        assert snapshot(c.owned_root) == before
+    else:
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["status"] == "ok"
+        assert payload["warning"] == "post-commit sync advisory"
+        assert payload["commit"] == git(c.owned_root, "rev-parse", "HEAD")
 
 
 def test_repair_requires_explicit_claim(owned_checkouts, monkeypatch):
@@ -309,6 +324,7 @@ def test_repair_rechecks_changes_after_owner_lock_acquisition(owned_checkouts, m
     result = invoke(c, monkeypatch)
     assert result.exit_code == 1
     assert "preexisting changes" in result.output or "staging changed" in result.output
+    assert '"code": "RUNTIME_LOCK_RACE"' in result.output or '"code": "RUNTIME_LOCK_PRECONDITION_REFUSED"' in result.output
     assert git(c.owned_root, "rev-parse", "HEAD") == head
     if race == "ignore":
         assert (lock.parent / ".gitignore").read_text() == "operator race\n"
@@ -361,6 +377,7 @@ def test_dirty_operator_ignore_refuses_repair_but_never_blocks_next(owned_checko
         result = invoke(c, monkeypatch)
         assert result.exit_code == 1, result.output
         assert "preexisting changes" in result.output
+        assert '"code": "RUNTIME_LOCK_PRECONDITION_REFUSED"' in result.output
         assert snapshot(c.owned_root) == before
     else:
         fact = resolve_owned_mission(c.repository_root, c.owned_root, c.mission_slug, allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES)
