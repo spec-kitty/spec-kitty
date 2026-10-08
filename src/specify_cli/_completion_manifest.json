@@ -447,7 +447,7 @@
      "deprecated": false
     },
     "fetch": {
-     "help": "Fetch org doctrine pack(s) from their configured remote sources.",
+     "help": "Fetch org Charter Pack(s) from their configured remote sources.",
      "hidden": false,
      "deprecated": false
     },
@@ -541,12 +541,12 @@
        "deprecated": false
       },
       "validate": {
-       "help": "Validate a doctrine pack against schema and DRG constraints.\n\nExits 0 when the pack passes validation (advisories do not affect the\nexit code) and 1 when at least one error is reported.",
+       "help": "Validate a Charter Pack against schema and DRG constraints.\n\nExits 0 when the pack passes validation (advisories do not affect the\nexit code) and 1 when at least one error is reported.",
        "hidden": false,
        "deprecated": false
       },
       "assemble": {
-       "help": "Assemble multiple doctrine packs into a single distributable.\n\nExits 0 on success and 1 when conflicts block the merge or when the\nassembled output fails validation.",
+       "help": "Assemble multiple Charter Packs into a single distributable.\n\nExits 0 on success and 1 when conflicts block the merge or when the\nassembled output fails validation.",
        "hidden": false,
        "deprecated": false
       },
@@ -575,7 +575,7 @@
      }
     },
     "org": {
-     "help": "Manage org-layer doctrine pack authoring (init, validate).",
+     "help": "Manage org Charter Pack authoring (init, validate).",
      "hidden": false,
      "deprecated": false,
      "commands": {
@@ -585,7 +585,7 @@
        "deprecated": false
       },
       "validate": {
-       "help": "Validate an org doctrine pack using schema and DRG checks (FR-006).\n\nCalls the WP06 :func:`charter.offering.packs.pack_validator.validate_pack`\nloader.  Prints per-file findings with file paths.  Exits non-zero when\nat least one error is found.\n\nOrg fragments use id and plural kind (for example, directives) for nodes.\nValidation uses the runtime loader, which supplies pack provenance fields.",
+       "help": "Validate an org Charter Pack using schema and DRG checks (FR-006).\n\nCalls the WP06 :func:`charter.offering.packs.pack_validator.validate_pack`\nloader.  Prints per-file findings with file paths.  Exits non-zero when\nat least one error is found.\n\nOrg fragments use id and plural kind (for example, directives) for nodes.\nValidation uses the runtime loader, which supplies pack provenance fields.",
        "hidden": false,
        "deprecated": false
       }
