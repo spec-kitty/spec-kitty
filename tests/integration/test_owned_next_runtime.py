@@ -266,6 +266,8 @@ def _count_retry_sleeps(monkeypatch: pytest.MonkeyPatch, on_sleep: Any = None) -
     wait); ``on_sleep`` runs on each back-off, standing in for the sibling."""
     import time
 
+    # Patching ``time.sleep`` module-wide reaches the bridge because it
+    # imports ``time`` inside the retry function, not at module scope.
     sleeps: list[float] = []
 
     def _sleep(seconds: float) -> None:

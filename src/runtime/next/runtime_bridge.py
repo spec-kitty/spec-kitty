@@ -145,7 +145,9 @@ def _resolve_owned_coordination_workspace(
     Two distinct owned missions may reach ``git worktree add`` concurrently.
     Their filesystem destinations do not overlap, but git serializes updates to
     the shared worktree registry.  Retry only that subprocess failure; durable
-    failures still surface unchanged after a short bounded window.  This avoids
+    failures still surface unchanged once the bounded window is spent: at
+    most 20 attempts with a linear back-off of 0.05 s x 1..19, i.e. a
+    worst case of about 9.5 s of sleeping.  This avoids
     a second persistent lock file and therefore cannot leak ownership locks.
     """
     import subprocess

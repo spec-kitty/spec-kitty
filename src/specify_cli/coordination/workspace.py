@@ -169,7 +169,7 @@ class CoordinationWorkspaceUnavailable(subprocess.CalledProcessError):
 
     def __str__(self) -> str:
         """Name git's own diagnostic; the base message omits stderr (#5894)."""
-        detail = (self.stderr or "").strip()
+        detail = " ".join((self.stderr or "").split())
         base = super().__str__()
         return f"{base} git: {detail}" if detail else base
 
