@@ -51,7 +51,9 @@ def acquire_lock_key(monkeypatch: pytest.MonkeyPatch) -> Callable[[Path, str, st
 
     def _key(repo: Path, slug: str, mid8: str) -> str:
         with pytest.raises(_LockTaken):
-            BookkeepingTransaction.acquire(repo_root=repo, mission_id=None, mission_slug=slug, mid8=mid8, destination_ref="main", operation="t")
+            BookkeepingTransaction.acquire(
+                repo_root=repo, mission_id="01TESTMISSIONIDXXXXXXXXXX", mission_slug=slug, mid8=mid8, destination_ref="main", operation="t"
+            )
         return keys[-1]
 
     return _key
@@ -222,12 +224,12 @@ def test_a_transaction_hold_keeps_its_key_when_meta_changes_inside_it(bare_coord
     repo, primary, _coord = bare_coord_mission
     captured: dict[str, Any] = {}
 
-    def _stub(cls: object, **kwargs: Any) -> str:
+    def _stub(cls: Any, /, **kwargs: Any) -> str:
         captured.update(kwargs)
         return "stub"
 
     monkeypatch.setattr(BookkeepingTransaction, "_acquire_locked", classmethod(_stub))
-    BookkeepingTransaction.acquire(repo_root=repo, mission_id=None, mission_slug=SLUG, mid8=MID8, destination_ref="main", operation="t")
+    BookkeepingTransaction.acquire(repo_root=repo, mission_id="01TESTMISSIONIDXXXXXXXXXX", mission_slug=SLUG, mid8=MID8, destination_ref="main", operation="t")
     lock_cm = captured["lock_cm"]
     try:
         flatten_coordination_metadata(primary)
