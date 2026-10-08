@@ -229,7 +229,6 @@ def _is_sibling_registry_entry_in_flight(output: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-
 def _check_cli_guards(
     step_id: str,
     feature_dir: Path,
