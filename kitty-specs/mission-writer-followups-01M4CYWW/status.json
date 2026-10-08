@@ -165,7 +165,8 @@
         "Implementing in the stream-B worktree",
         "Forced only because the parallel-stream claim was recorded with move-task, so no claim base exists; implementation commits 717ef0738..24cba0fe8 are on the branch (ff-merged from stream/runtime). Terminal retrospective gate as the engine's before_run_completed hook on all three legacy paths; speculative rollback deleted; RetrospectiveGateRefused adapter; transition-only capture.",
         "Stream B rework cycle 1 in the stream/runtime worktree",
-        "Stream B rework cycle 1 in the stream/runtime worktree"
+        "Stream B rework cycle 1 in the stream/runtime worktree",
+        "Cycle 1 fix a0e342f8d (merged 30dbf5308): composition strict-retrospective test expects RetrospectiveGateRefused with __cause__ the policy error; composition foreign-append-during-gate case added. Forced only because the stream claim has no claim base."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
