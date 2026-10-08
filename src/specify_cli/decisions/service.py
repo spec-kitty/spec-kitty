@@ -168,21 +168,26 @@ def _runtime_lock_ignore_state(owned: OwnedCheckout) -> tuple[Path, bool]:
     return ignore, ignored.returncode == 0 and exact_owner_rule
 
 
+def _read_ignore_bytes(ignore: Path) -> bytes:
+    """Read the mission-local ignore file through the guarded-read seam."""
+    return read_guarded(ignore, lambda raw: raw if isinstance(raw, bytes) else raw.encode("utf-8"), mode="bytes")
+
+
 def _ensure_runtime_lock_ignore(owned: OwnedCheckout) -> tuple[Path, bytes | None, bytes]:
     """Provision only the exact owner rule, retaining authored local ignore text."""
     from specify_cli.gitignore_manager import GitignoreManager
 
     ignore, ignored = _runtime_lock_ignore_state(owned)
-    before = ignore.read_bytes() if ignore.exists() else None
+    before = _read_ignore_bytes(ignore) if ignore.exists() else None
     if not ignored:
         ignore.parent.mkdir(parents=True, exist_ok=True)
         GitignoreManager(ignore.parent).ensure_entries([f"/{_LOCK_FILENAME}"], force_append=True)
-    return ignore, before, ignore.read_bytes() if ignore.exists() else b""
+    return ignore, before, _read_ignore_bytes(ignore) if ignore.exists() else b""
 
 
 def _restore_runtime_lock_ignore(ignore: Path, before: bytes | None, written: bytes) -> None:
     """Restore only our unchanged ignore delta after a precommit refusal."""
-    if ignore.exists() and not ignore.is_symlink() and ignore.read_bytes() == written:
+    if ignore.exists() and not ignore.is_symlink() and _read_ignore_bytes(ignore) == written:
         if before is None:
             ignore.unlink()
         else:
