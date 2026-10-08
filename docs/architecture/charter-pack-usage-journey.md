@@ -1,6 +1,6 @@
 ---
 title: 'Activation Preset Usage Journey: Activate, Generate, and the Dispatch Safety Net'
-description: Why `charter activate --preset` alone does not deliver working governance on a fresh project, the required `generate` follow-up, and how the dispatch fallback behaves before and after compilation.
+description: Why `charter activate --preset` alone does not deliver governance on a fresh project, the `generate` follow-up, and how the dispatch fallback behaves around compilation.
 doc_status: active
 updated: '2026-10-08'
 audience: docs/context/audience/internal/lead-developer.md
@@ -61,7 +61,7 @@ spec-kitty charter activate --preset minimal
 
 This applies the preset with **replace semantics**: every activation key the preset lists is
 written (plus any ids your org packs require), and every key it governs but leaves out is removed.
-If the change would alter a key you customised by hand, the command refuses and names the key;
+If the change would alter a key you customized by hand, the command refuses and names the key;
 pass `--force` to apply the preset anyway. `--pack <name>` picks the pack whose preset applies
 (default `built-in`), and `--json` prints the applied preset. The command does not touch
 `.kittify/charter/charter.md` at all.

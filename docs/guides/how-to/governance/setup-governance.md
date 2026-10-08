@@ -250,7 +250,7 @@ spec-kitty charter generate --no-from-interview
 
 `charter activate --preset` writes the preset's activation keys into the active charter
 (`.kittify/config.yaml`, or the pointed-at `charter.yaml`) with replace semantics: keys the preset
-lists are written, keys it governs but leaves out are removed. A change to a key you customised is
+lists are written, keys it governs but leaves out are removed. A change to a key you customized is
 refused unless you pass `--force`. Two honest caveats: activating config entries does not by
 itself guarantee an unmatched `spec-kitty dispatch` routes to a specialist profile — you may still
 need `--profile <profile-id>` to be explicit — and on a fresh project the activations need the
