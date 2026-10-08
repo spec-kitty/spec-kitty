@@ -426,6 +426,17 @@ def commit_workflow_change(
         )
 
 
+def claim_status_dir(main_repo_root: Path, mission_slug: str) -> Path:
+    """The status write surface a claim locks on (#5819): the one key both claim paths share.
+
+    ``agent action implement`` and ``implement`` must take the same Mission write lock for one
+    Mission, so both key it on this directory's name (the coordination worktree's Mission
+    directory on a coord Mission, which can differ from the primary directory name).
+    """
+    status_dir: Path = _wf()._canonical_status_feature_dir(main_repo_root, mission_slug)
+    return status_dir
+
+
 def enter_checkout_claim_lock(stack: ExitStack, main_repo_root: Path, mission_slug: str, workspace: ResolvedWorkspace) -> None:
     """Hold the write-checkout claim lock on *stack* for a single_branch repo-root claim (#5796).
 
@@ -1080,7 +1091,7 @@ def implement_claim_transition(
     Mission), so no other writer can append between the capture and the rollback.
     The wait is unbounded, like the review window.
     """
-    wf_feature_dir = _wf()._canonical_status_feature_dir(main_repo_root, mission_slug)
+    wf_feature_dir = claim_status_dir(main_repo_root, mission_slug)
     with ExitStack() as hold:
         hold.enter_context(mission_write_lock(wf_feature_dir, repo_root=main_repo_root, timeout=UNBOUNDED_LOCK_WAIT))
         return _implement_claim_transition_body(
