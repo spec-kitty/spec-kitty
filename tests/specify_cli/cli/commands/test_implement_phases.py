@@ -556,6 +556,20 @@ def test_allocate_locks_the_vcs_and_creates_the_lane_worktree(repo: Path) -> Non
     assert mission.meta()["vcs"] == "git"
 
 
+def test_allocate_takes_a_failed_earlier_claims_vcs_lock_as_its_own_write(repo: Path) -> None:
+    """#5673: the lock a claim wrote before its lane allocation failed is committed by the retry, not left dirty forever."""
+    mission = build_mission(repo, SLUG, MISSION_ID)
+    meta_path = mission.feature_dir / "meta.json"
+    assert "vcs" not in mission.meta()
+    meta_path.write_text(json.dumps(mission.meta() | {"vcs": "git", "vcs_locked_at": "2026-01-01T00:00:00Z"}, indent=2), encoding="utf-8")
+    ctx = implement_phases.detect_context(SLUG, "WP01", repo, False, json_mode=False)
+    selection = implement_phases.select_workspace(ctx, "WP01", implement_phases.claim_preflight(ctx, "WP01"))
+
+    allocation = implement_phases.allocate(ctx, "WP01", selection, None)
+
+    assert (allocation.meta_written, allocation.meta_dirty_before) == (True, False)
+
+
 def test_allocate_reports_where_a_foreign_pre_commit_hook_was_backed_up(repo: Path) -> None:
     """#4895/#5715: the lanes seam returns the backup path and ``allocate`` prints it.
 
@@ -756,6 +770,27 @@ class TestMetaDirtyBeforeClaim:
             subprocess.run(["git", "-C", str(repo), "add", "kitty-specs"], check=True, capture_output=True)
 
         assert implement_phases._meta_dirty_before_claim(repo, feature_dir) is True
+
+    def test_a_meta_outside_the_repo_root_is_judged_by_the_checkout_that_owns_it(self, tmp_path: Path) -> None:
+        """An owned checkout / symlinked mission is not "dirty" just because it is not under ``repo_root``."""
+        repo, _ = self._repo(tmp_path)
+        other, other_feature_dir = self._repo(tmp_path / "owned")
+
+        assert implement_phases._meta_dirty_before_claim(repo, other_feature_dir) is False
+        meta = other_feature_dir / "meta.json"
+        meta.write_text(meta.read_text(encoding="utf-8").replace("{", '{"operator_note": "x",', 1), encoding="utf-8")
+        assert implement_phases._meta_dirty_before_claim(repo, other_feature_dir) is True
+
+    def test_only_the_vcs_lock_keys_differing_is_a_failed_earlier_claims_own_write(self, tmp_path: Path) -> None:
+        """#5673: a lock left by a claim that failed after writing it is retried, an operator edit beside it is not."""
+        repo, feature_dir = self._repo(tmp_path)
+        meta = feature_dir / "meta.json"
+        assert implement_phases._meta_differs_only_by_vcs_lock(repo, feature_dir) is False
+        locked = json.loads(meta.read_text(encoding="utf-8")) | {"vcs": "git", "vcs_locked_at": "2026-01-01T00:00:00Z"}
+        meta.write_text(json.dumps(locked, indent=2), encoding="utf-8")
+        assert implement_phases._meta_differs_only_by_vcs_lock(repo, feature_dir) is True
+        meta.write_text(json.dumps(locked | {"operator_note": "x"}, indent=2), encoding="utf-8")
+        assert implement_phases._meta_differs_only_by_vcs_lock(repo, feature_dir) is False
 
     def test_a_git_failure_counts_as_dirty(self, tmp_path: Path) -> None:
         """Fail toward not committing ``meta.json``: outside any repository the probe cannot know."""

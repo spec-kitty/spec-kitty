@@ -7,6 +7,7 @@ exception handling; the phases raise and never render the tracker.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn
@@ -15,7 +16,8 @@ import typer
 from rich.panel import Panel
 from specify_cli.cli.console import console
 
-from kernel.git import GitCommandError, status_entries
+from kernel.git import GitCommandError, blob_at, status_entries
+from kernel.git_topology import GitTopologyError, git_toplevel
 
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.cli.commands import implement_claim, implement_planning_commit
@@ -162,15 +164,36 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path | None = None) -> tup
     return VCSBackend.GIT, locked
 
 
+#: Printed when a path's pre-claim state could not be read, so the claim cannot tell whether it may commit it.
+_DIRTY_PROBE_UNKNOWN_WARNING = (
+    "[yellow]Warning:[/yellow] Could not tell whether {path} was modified before the claim ({reason}); it is left out of the claim commit."
+)
+
+#: The two ``meta.json`` keys a claim's VCS lock writes (``set_vcs_lock``).
+_VCS_LOCK_KEYS = ("vcs", "vcs_locked_at")
+
+
+def _owning_checkout(repo_root: Path, path: Path) -> Path:
+    """The checkout whose ``git status`` answers for *path*: *repo_root*, else the working tree that owns *path* (owned checkout, symlinked mission)."""
+    resolved = path.resolve()
+    if resolved.is_relative_to(repo_root.resolve()):
+        return repo_root
+    return git_toplevel(resolved.parent)
+
+
 def _path_dirty_before_claim(repo_root: Path, path: Path) -> bool:
     """Whether *path* differs from HEAD (index or worktree) before the claim writes to it (#5673).
 
-    Any git failure counts as dirty: the claim then leaves the file uncommitted.
+    A path outside *repo_root* (an owned checkout, a symlinked mission directory) is asked of the checkout
+    that owns it. When that cannot be established either, or git fails, the path counts as dirty -- the claim
+    then leaves the file uncommitted -- and a warning says the state was unknowable rather than modified.
     """
     try:
-        rel = path.resolve().relative_to(repo_root.resolve()).as_posix()
-        return bool(status_entries(repo_root, pathspecs=(rel,), untracked="no"))
-    except (ValueError, GitCommandError):
+        checkout = _owning_checkout(repo_root, path)
+        rel = path.resolve().relative_to(checkout.resolve()).as_posix()
+        return bool(status_entries(checkout, pathspecs=(rel,), untracked="no"))
+    except (ValueError, GitCommandError, GitTopologyError) as exc:
+        console.print(_DIRTY_PROBE_UNKNOWN_WARNING.format(path=path.name, reason=type(exc).__name__))
         return True
 
 
@@ -179,11 +202,25 @@ def _meta_dirty_before_claim(repo_root: Path, feature_dir: Path) -> bool:
     return _path_dirty_before_claim(repo_root, feature_dir / "meta.json")
 
 
-def _read_bytes_or_none(path: Path) -> bytes | None:
+def _meta_differs_only_by_vcs_lock(repo_root: Path, feature_dir: Path) -> bool:
+    """Whether ``meta.json`` differs from HEAD in nothing but the VCS lock keys.
+
+    That is the leftover of an earlier claim of this mission that wrote the lock and then failed before
+    its commit (e.g. lane allocation raised): the lock is the claim's own write, so a retry commits it
+    instead of treating the file as the operator's dirty work forever.
+    """
+    meta_path = feature_dir / "meta.json"
     try:
-        return path.read_bytes()
-    except OSError:
-        return None
+        checkout = _owning_checkout(repo_root, meta_path)
+        committed = blob_at(checkout, "HEAD", meta_path.resolve().relative_to(checkout.resolve()).as_posix())
+        if committed is None:
+            return False
+        before, after = json.loads(committed), json.loads(meta_path.read_bytes())
+    except (ValueError, OSError, GitCommandError, GitTopologyError):
+        return False
+    if not isinstance(before, dict) or not isinstance(after, dict) or "vcs" not in after or "vcs" in before:
+        return False
+    return {k: v for k, v in after.items() if k not in _VCS_LOCK_KEYS} == before
 
 
 # ---------------------------------------------------------------------------
@@ -472,10 +509,14 @@ def allocate(ctx: ImplementContext, wp_id: str, selection: WorkspaceSelection, b
     # refused here too, before the VCS lock, the lane worktree and the status write.
     implement_claim._raise_if_claim_commit_head_mismatch(repo_root, mission_slug, wp_id, ctx.auto_commit)
     meta_dirty_before = _meta_dirty_before_claim(repo_root, feature_dir)
+    # A lock an earlier, failed claim of this mission left behind is this claim's to commit, not dirty operator work.
+    retry_lock = meta_dirty_before and _meta_differs_only_by_vcs_lock(repo_root, feature_dir)
+    meta_dirty_before = meta_dirty_before and not retry_lock
     # The allocator stamps the claimed WP prompt on lanes/coord topologies and reports it (``result.wp_stamped``);
     # never inferred from the file's bytes, which a concurrent edit outside the Mission write lock would also change.
     wp_dirty_before = _path_dirty_before_claim(repo_root, wp_file)
     vcs_backend, meta_written = _ensure_vcs_in_meta(feature_dir, repo_root)
+    meta_written = meta_written or retry_lock
 
     # #3571: when --base is provided, validate the ref (planning-lane
     # "ignored" warning applied here, FR-007) and thread the EFFECTIVE
