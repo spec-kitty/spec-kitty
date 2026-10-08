@@ -31,3 +31,5 @@ One entry per finding: `YYYY-MM-DD · actor · <text>`.
 2026-10-08 · claude-runtime · WP14: the pack mission.yaml task_types and documentation deliverables had no semantic reader (mission.py pins built-ins to src; the charter compiler only embeds the parsed dict and no golden embeds the text), so making the pack byte-equal to src changed no behaviour and no golden; regenerate-graph produced no diff (these files are not hashed).
 
 2026-10-08 · claude-orchestrator · Carried to WP12: src/charter/offering/skills/spec-kitty-mission-system/SKILL.md (~line 314) still documents a mission.yaml task_types section; after WP14 no built-in type carries one (the MissionConfig field stays optional for custom missions). Reword the skill to say it is optional and unused by built-ins.
+
+2026-10-08 · claude-runtime · WP07: the error_code is derived from the guard-failure message prefix; the board override and query mode gather only the analysis-currency fact (gather_analysis_currency), not a full presence snapshot; _step_decision previously dropped error_code. The first issuance of analyze after tasks carries no error code; the code appears on re-issue and in the board override.
