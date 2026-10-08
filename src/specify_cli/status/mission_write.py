@@ -256,11 +256,19 @@ def mission_write_lock(
     is entered. A timeout raises
     :class:`~specify_cli.status.locking.FeatureStatusLockTimeoutError`.
 
-    *fallback_to_dir_name* is for the migrations that heal the very metadata the key is read
-    from (``backfill-identity``, ``backfill-topology``, the repair): a coordination-routed
-    Mission that records no resolvable mid8 is locked on ``feature_dir.name`` instead of
-    raising :class:`~specify_cli.lanes.branch_naming.MissionLockKeyUnresolved`. Every other
-    caller keeps the fail-closed default.
+    *fallback_to_dir_name* is for the migration/upgrade writers that repair legacy metadata a key
+    cannot be read from: a coordination-routed Mission that records no resolvable mid8 is locked
+    on ``feature_dir.name`` instead of raising
+    :class:`~specify_cli.lanes.branch_naming.MissionLockKeyUnresolved`. Every other caller keeps
+    the fail-closed default. The complete list of callers that set it:
+
+    * ``migration/backfill_identity.py``: ``backfill_mission`` and ``backfill_mission_ids``
+    * ``migration/backfill_topology.py``: ``_stamp_topology`` writer, ``restamp_single_branch_with_code_lanes``
+    * ``migration/backfill_mission_type.py``: ``backfill_mission_mission_type``
+    * ``migration/mission_state.py``: ``_repair_meta_phase``
+    * ``migration/runtime_state_cutover.py``: ``_flip_phase``
+    * ``upgrade/feature_meta.py``: ``write_feature_meta``
+    * ``upgrade/migrations/m_0_13_8_target_branch.py``: ``TargetBranchMigration.apply``
     """
     root = resolve_status_lock_root(feature_dir, repo_root)
     try:

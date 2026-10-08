@@ -561,8 +561,9 @@ def _write_mission_number_to_branch(
             return False
 
         # Route all meta.json mutations through the locked canonical writer API: the scratch
-        # checkout's write locks the scratch Mission's key (resolved from the scratch meta.json),
-        # and the lock is released before any ``git`` subprocess below runs.
+        # checkout's write locks the Mission's PRIMARY key: ``repo_root=main_repo`` makes the key
+        # come from the main repository's primary meta.json (``main_repo/.git`` is a directory),
+        # never from the scratch copy. The lock is released before any ``git`` subprocess below runs.
         # validate=False preserves merge-time tolerance for legacy/partial mission
         # metadata while still enforcing atomic writes + standard format.
         if not _locked_assign_mission_number(meta_path.parent, next_number, repo_root=main_repo):

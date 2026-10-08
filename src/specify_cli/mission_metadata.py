@@ -726,7 +726,7 @@ def locked_update_meta(
     (NFR-002), which fails with ``STATUS_LOCK_HELD`` once spent.
 
     *fallback_to_dir_name* is passed to :func:`~specify_cli.status.mission_write.mission_write_lock`;
-    only the migrations that heal the metadata the lock key is read from set it.
+    only the migration/upgrade writers listed in that docstring set it.
 
     Raises:
         FileNotFoundError: If ``meta.json`` does not exist in *feature_dir*.
