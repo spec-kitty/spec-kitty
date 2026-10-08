@@ -1,7 +1,7 @@
 {
-  "event_count": 177,
-  "last_event_id": "01M4DCW07TQCAGMTZK6YS0ZFYJ",
-  "materialized_at": "2026-10-08T09:17:50.516262+00:00",
+  "event_count": 179,
+  "last_event_id": "01M4DK2QJ68EQKN1NVT0KWCK9K",
+  "materialized_at": "2026-10-08T11:06:22.662402+00:00",
   "mission_number": "",
   "mission_slug": "charter-pack-cutover-01M491G6",
   "mission_type": "software-dev",
@@ -13,8 +13,8 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
-    "in_review": 0,
+    "in_progress": 0,
+    "in_review": 1,
     "planned": 6
   },
   "work_packages": {
@@ -625,18 +625,26 @@
     "WP19": {
       "actor": "claude",
       "agent": "claude",
-      "agent_profile": "lexical-larry",
+      "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M4DCW07TQCAGMTZK6YS0ZFYJ",
-      "last_transition_at": "2026-10-08T09:17:50.516262+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M4DK2QJ68EQKN1NVT0KWCK9K",
+      "last_transition_at": "2026-10-08T11:06:22.662402+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "R1 rename done (lane-s up to c9f7b777): DoctrineService(offering)->CharterOfferingService, BaseDoctrineRepository->BaseArtifactRepository, DoctrineLayerCollisionWarning->ArtifactLayerCollisionWarning, DoctrineArtifactLoadError->ArtifactLoadError, DoctrineResolutionCycleError->ArtifactResolutionCycleError, doctrine_package_dir->offering_package_dir, _is_doctrine_package_root->_is_offering_package_root, doctrine_root->pack_root (extractor/overlay/bundle; recorded deviation from offering_root). No aliases. r1 red(de8d1da4)->green. Step 0 gates fixed in separate commits. Activation wrapper left for WP20 (ActiveCharterService). Activity log: scratchpad wp19-activity-log.md"
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 29324,
-      "shell_pid_created_at": "1791451031.32"
+      "role": "reviewer",
+      "shell_pid": 26919,
+      "shell_pid_created_at": "1791457570.22",
+      "subtasks": {
+        "T092": "done",
+        "T093": "done",
+        "T094": "done"
+      }
     },
     "WP20": {
       "actor": "finalize-tasks",
