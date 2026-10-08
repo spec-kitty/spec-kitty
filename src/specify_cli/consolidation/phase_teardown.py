@@ -50,6 +50,7 @@ from specify_cli.consolidation.bookkeeping_projection import (
     _post_checkpoint_mission_paths,
     _project_status_bookkeeping_to_target,
     _resolve_ref_sha,
+    AliasStatusEventsNotPreserved,
     assert_alias_events_preserved,
 )
 from specify_cli.consolidation.state import (
@@ -394,7 +395,7 @@ def _fold_coord_status_before_flatten(run: _MergeRunState) -> None:
             )
             _carry_pass_anchor_over_own_commit(run, landed.sha)
             console.print(f"  Folded the coordination status onto {run.lanes_manifest.target_branch} before teardown")
-    except Exception as exc:
+    except (GitCommandError, AliasStatusEventsNotPreserved) as exc:
         raise CoordinationTeardownError(
             f"coordination status could not be folded onto {run.lanes_manifest.target_branch!r} ({escape(str(exc))}); "
             f"branch {run.lanes_manifest.mission_branch!r} was NOT deleted and the mission's coordination marker was left intact. "
