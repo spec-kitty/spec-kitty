@@ -30,7 +30,8 @@
       "last_transition_at": "2026-10-08T08:27:29.458375+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "mission_lock_key + core doors (mission_write_lock, capture guard, mission_write_lock_dir, transaction lock site, coord_status_lock via mission_write_lock); red-first 32cc1fbbb; 18 new tests; blast radius 4908 passed, make test-fast 2464 passed"
+        "mission_lock_key + core doors (mission_write_lock, capture guard, mission_write_lock_dir, transaction lock site, coord_status_lock via mission_write_lock); red-first 32cc1fbbb; 18 new tests; blast radius 4908 passed, make test-fast 2464 passed",
+        "Cycle 2: B1 transaction key shares routing decision (red 32cc.. then fixed), S1 legacy no-mid8 bare key, note1 transaction hold registered, note2 pinned by test; blast 5497 passed, test-fast 2468 passed"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
