@@ -131,7 +131,8 @@
         "Frontmatter, finalize and matrix writers take the Mission lock: locked_update_frontmatter (body byte-for-byte); map-requirements plan+write in one hold; finalize flush applies its field delta under the lock; write-scope and meta restores are compare-and-swap with kept-file reporting; matrix helpers/guard/issue-verdict/scaffold key through mission_write_lock; remaining frontmatter and tasks.md writers locked. Red-first and mutation checks recorded in the tracer; 5x repeats green.",
         "Cycle 2: per-write ledger with CAS restore (foreign changes kept and reported), meta text captured in the writing hold, owned pin green (no resolver read for the lock key), owned-root threaded into baseline/cutover/review-cycle locks, bake flow tests follow main, scaffold_acceptance_matrix locked, ownership backfill fallback, status imports via package.",
         "WP04 rework cycle 2 in the main checkout (stream A); claimed with move-task because WP07 holds the single-branch implement slot for stream B",
-        "WP04 rework cycle 2 in the main checkout (stream A); claimed with move-task because WP07 holds the single-branch implement slot for stream B"
+        "WP04 rework cycle 2 in the main checkout (stream A); claimed with move-task because WP07 holds the single-branch implement slot for stream B",
+        "Cycle 3: owned finalize keys every lock on owned.repository_root (flush, status-surface recording, bootstrap transaction); second .git parser deleted; restore keeps and reports a foreign delete (red-first); status appends and vanished-WP fallback ledgered inside their holds; bake reads undo bytes in the hold; kernel observer tests; flatten heals with fallback."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
