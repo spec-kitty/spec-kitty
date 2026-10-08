@@ -228,7 +228,7 @@ def _fixture_profile() -> AgentProfile:
 
 
 def _fixture_service() -> SimpleNamespace:
-    """A ``DoctrineService``-shaped stub: every catalog resolves, deterministically."""
+    """A ``ActiveCharterService``-shaped stub: every catalog resolves, deterministically."""
     return SimpleNamespace(
         directives=_StubCatalogRepo({"DIRECTIVE_999": SimpleNamespace(intent="Do the fixture thing.")}),
         tactics=_StubCatalogRepo({"fixture-tactic": SimpleNamespace(name="Fixture Tactic", purpose="A fixture tactic body.", steps=[])}),

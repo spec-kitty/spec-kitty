@@ -148,7 +148,7 @@ def _render_compact_governance(
 
     profile_block_str = ""
     if profile is not None:
-        # Build a lightweight DoctrineService for the compact path. The
+        # Build a lightweight ActiveCharterService for the compact path. The
         # service constructor is cheap (catalog directories are mmaped
         # lazily) and the resulting sections compose with the compact
         # block without altering the existing ID/anchor surface.

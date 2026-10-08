@@ -4,7 +4,7 @@
 without threading the ``org_fragments`` layer, so a pack shipping only
 ``drg/fragment.yaml`` (this repo's own ``packs/internal`` shape) was silently
 dropped from the action-doctrine bundle -- the branch-named silent drop this WP
-closes at the second deficient caller (the ``:245`` DoctrineService seam is a
+closes at the second deficient caller (the ``:245`` ActiveCharterService seam is a
 different path and stays untouched, squad finding F13).
 
 Red-first: :func:`test_valid_fragment_only_pack_node_reaches_bundle_graph` FAILS

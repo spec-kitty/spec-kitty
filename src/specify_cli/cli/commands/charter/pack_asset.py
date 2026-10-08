@@ -62,7 +62,7 @@ def _build_asset_repository() -> AssetRepository:
 
     WP03 (charter-sole-door-bypass-closure-01KZ3WAA, FR-002/T012): the raw
     inner service is always routed through the sanctioned
-    ``charter.activation.resolver.DoctrineService`` wrapper (normal, activation-aware
+    ``charter.activation.resolver.ActiveCharterService`` wrapper (normal, activation-aware
     construction — a real ``PackContext`` when *repo_root* is available) so
     no code outside ``charter.activation.resolver``/the unified builder constructs
     ``charter.offering.service.CharterOfferingService`` directly (NFR-001). ``.assets`` is a
@@ -75,7 +75,7 @@ def _build_asset_repository() -> AssetRepository:
     overlay, no org packs) is unchanged.
     """
     from charter.offering.service import CharterOfferingService
-    from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
+    from charter.activation.resolver import ActiveCharterService
     from charter.activation.pack_context import PackContext
     from specify_cli.core.paths import locate_project_root
 
@@ -92,7 +92,7 @@ def _build_asset_repository() -> AssetRepository:
         pack_context = PackContext.from_config(repo_root)
 
     inner = CharterOfferingService(project_root=project_root, org_roots=org_roots)
-    service = ActivationAwareDoctrineService(inner, pack_context=pack_context)
+    service = ActiveCharterService(inner, pack_context=pack_context)
     # ``.assets`` delegates through the wrapper's ``__getattr__`` (typed
     # ``-> Any``, since it forwards arbitrary attribute names), so mypy
     # cannot infer the concrete return type on its own; the cast documents

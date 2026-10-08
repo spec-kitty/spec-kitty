@@ -12,7 +12,7 @@ consumer", which is false — *nothing* outside ``src/charter/**`` ever imported
 be read, cited, or summarised as evidence that this mission eliminated a bypass.
 What it does is make the currently-clean state *durable*: the moment a future
 consumer starts reaching around
-:class:`charter.activation.resolver.DoctrineService` into ``charter.offering.resolver``'s tier
+:class:`charter.activation.resolver.ActiveCharterService` into ``charter.offering.resolver``'s tier
 functions, this test reds.
 
 Why the boundary matters
@@ -21,7 +21,7 @@ Why the boundary matters
 GLOBAL_MISSION > GLOBAL > PACKAGE_DEFAULT) plus ``resolve_mission``. The mission
 contract (``contracts/charter-doctrine-service-contract.md``) pins that every
 tier and the mission-config resolution "remains reachable ONLY via a method on
-[``charter.activation.resolver.DoctrineService``] from outside ``src/charter/**``".
+[``charter.activation.resolver.ActiveCharterService``] from outside ``src/charter/**``".
 ``doctrine/resolver.py``'s functions are the implementation those methods
 delegate to. A direct import from a consumer re-opens exactly the second,
 ungated resolution path FR-003 exists to prevent — ``charter/resolver.py``'s own
@@ -41,7 +41,7 @@ Zero-tolerance, no exclusions
 There is no allow-list (C-002) and none is expected: the live census outside the
 two owning layers is empty. Adding an entry here to green a new violation is a
 policy change, not a fix — route the consumer through
-``charter.activation.resolver.DoctrineService`` or the ``charter.resolution`` facade
+``charter.activation.resolver.ActiveCharterService`` or the ``charter.resolution`` facade
 instead.
 
 Why this is not a duplicate of ``test_runtime_charter_doctrine_boundary.py``
@@ -216,7 +216,7 @@ def check_resolver_import_gate(sites: tuple[ResolverImportSite, ...]) -> list[st
     return [
         f"{site.describe()} imports {GUARDED_MODULE} directly from outside "
         f"src/charter/** and src/charter/offering/** — reach the 5 resolver tiers "
-        f"through a charter.activation.resolver.DoctrineService method, or import the "
+        f"through a charter.activation.resolver.ActiveCharterService method, or import the "
         f"resolution types from the {FACADE_MODULE} facade"
         for site in sites
     ]

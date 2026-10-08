@@ -10,7 +10,7 @@ activation gate (C-008).
 How the gate is honoured (C-006: reuse, never re-implement)
 ----------------------------------------------------------
 The activation gate lives two layers above ``resolve_org_roots`` — on
-:attr:`charter.activation.resolver.DoctrineService.agent_profiles`, which filters the
+:attr:`charter.activation.resolver.ActiveCharterService.agent_profiles`, which filters the
 merged profile set by ``PackContext.activated_agent_profiles`` (three-state:
 ``None`` → all admitted; ``frozenset()`` → none; explicit set → only those).
 This resolver builds that activation-aware service via

@@ -4,7 +4,7 @@ This module is the single canonical directive-id normalization authority. It is
 consumed by the DRG migration pipeline, by ``DirectiveRepository`` id resolution
 (so ``--include directive:<slug>`` resolves at parity with the ``--json`` surface,
 #3816), and by the activation-gate membership test in
-``charter.activation.resolver.DoctrineService.directives``.
+``charter.activation.resolver.ActiveCharterService.directives``.
 
 One lock-step copy is intentionally retained: ``charter.activation.
 profile_resolution._normalize_directive_id`` keeps a private duplicate of this

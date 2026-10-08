@@ -92,11 +92,11 @@ class BranchStrategyConfig(BaseModel):
 class DoctrineSelectionConfig(BaseModel):
     """Charter-level selection of active doctrine elements.
 
-    Field naming MUST exactly mirror the corresponding ``DoctrineService``
+    Field naming MUST exactly mirror the corresponding ``ActiveCharterService``
     property name (e.g. ``selected_styleguides`` mirrors
-    ``DoctrineService.styleguides``). This parity rule is pinned by
+    ``ActiveCharterService.styleguides``). This parity rule is pinned by
     ``tests/architectural/test_artifact_selection_completeness.py`` —
-    adding a new ``@property`` to ``DoctrineService`` without the matching
+    adding a new ``@property`` to ``ActiveCharterService`` without the matching
     ``selected_<kind>`` field here is a CI failure.
     """
 
@@ -104,28 +104,28 @@ class DoctrineSelectionConfig(BaseModel):
     selected_directives: list[str] = Field(default_factory=list)
     selected_tactics: list[str] = Field(default_factory=list)
     selected_styleguides: list[str] = Field(default_factory=list)
-    """Charter-active styleguide IDs (mirrors ``DoctrineService.styleguides``).
+    """Charter-active styleguide IDs (mirrors ``ActiveCharterService.styleguides``).
     Default empty preserves backwards compatibility (NFR-005)."""
     selected_toolguides: list[str] = Field(default_factory=list)
-    """Charter-active toolguide IDs (mirrors ``DoctrineService.toolguides``).
+    """Charter-active toolguide IDs (mirrors ``ActiveCharterService.toolguides``).
     Default empty preserves backwards compatibility (NFR-005)."""
     selected_procedures: list[str] = Field(default_factory=list)
-    """Charter-active procedure IDs (mirrors ``DoctrineService.procedures``).
+    """Charter-active procedure IDs (mirrors ``ActiveCharterService.procedures``).
     Default empty preserves backwards compatibility (NFR-005)."""
     selected_agent_profiles: list[str] = Field(default_factory=list)
     """Charter-active agent-profile IDs (mirrors
-    ``DoctrineService.agent_profiles``). Default empty preserves backwards
+    ``ActiveCharterService.agent_profiles``). Default empty preserves backwards
     compatibility (NFR-005)."""
     selected_mission_step_contracts: list[str] = Field(default_factory=list)
     """Charter-active mission-step-contract IDs (mirrors
-    ``DoctrineService.mission_step_contracts``). Default empty preserves
+    ``ActiveCharterService.mission_step_contracts``). Default empty preserves
     backwards compatibility (NFR-005)."""
     selected_glossary_packs: list[str] = Field(default_factory=list)
     """Charter-active glossary-pack IDs (mirrors
-    ``DoctrineService.glossary_packs``). Default empty preserves backwards
+    ``ActiveCharterService.glossary_packs``). Default empty preserves backwards
     compatibility (NFR-005)."""
     selected_assets: list[str] = Field(default_factory=list)
-    """Charter-active asset IDs (mirrors ``DoctrineService.assets``).
+    """Charter-active asset IDs (mirrors ``ActiveCharterService.assets``).
     Default empty preserves backwards compatibility (NFR-005)."""
     available_tools: list[str] = Field(default_factory=list)
     template_set: str | None = None
@@ -252,7 +252,7 @@ class Directive(BaseModel):
     """Catalog IDs (e.g. ``["DIRECTIVE_032"]`` or tactic-id slugs) cross-linked
     from the body of a charter-extracted directive. Populated by WP02 (charter
     sync) from cited catalog IDs detected in the directive body; consumed by
-    WP03/WP04 resolver/renderer via ``DoctrineService``. Default empty preserves
+    WP03/WP04 resolver/renderer via ``ActiveCharterService``. Default empty preserves
     backwards compatibility (NFR-005): existing YAML without this key parses
     unchanged."""
 

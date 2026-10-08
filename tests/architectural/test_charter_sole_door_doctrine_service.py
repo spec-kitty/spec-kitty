@@ -12,17 +12,17 @@ code cannot live inside a ``test_`` module).
 Why this gate cannot be a text match
 -------------------------------------
 There are **two different classes** this gate must tell apart (until #3732
-WP19 they shared the simple name ``DoctrineService``; the raw one is now
-``CharterOfferingService``, and the wrapper keeps its name until WP20):
+they shared the simple name ``DoctrineService``; WP19 renamed the raw one to
+``CharterOfferingService`` and WP20 the wrapper to ``ActiveCharterService``):
 
 * ``charter.offering.service.CharterOfferingService`` — the raw, ungated inner service. Direct
   construction of this outside the sole door is the FR-002 bypass.
-* ``charter.activation.resolver.DoctrineService`` — the activation-aware wrapper. Its
+* ``charter.activation.resolver.ActiveCharterService`` — the activation-aware wrapper. Its
   construction, *including* the ``pack_context=None`` unfiltered-diagnostic
   form, is the sanctioned fix FR-002 asked for.
 
 Worse, live sites import them under ``as``-aliases in the *same* function
-(e.g. ``ActivationAwareDoctrineService``), so alias spellings offer a
+(e.g. ``ActiveCharterService as ActivationAware``), so alias spellings offer a
 text-matcher nothing to key on reliably. This
 gate resolves each call site's bound name to a canonical
 ``__module__``.``__qualname__`` via Gate 1's resolver, and only then decides.
@@ -35,10 +35,10 @@ The two policies this module enforces
 ``charter.offering.service.CharterOfferingService`` may escape *unwrapped*. Every acquisition
 outside the structural authorities must flow immediately — inline as an
 argument, or through one local assignment consumed in the same scope — into a
-``charter.activation.resolver.DoctrineService(...)`` call. This assertion has **no
+``charter.activation.resolver.ActiveCharterService(...)`` call. This assertion has **no
 allow-list at all** (C-002) and is what FR-002 actually established: "Eliminate
 the *unwrapped* raw ... construction sites ... routing each through
-``charter.activation.resolver.DoctrineService``".
+``charter.activation.resolver.ActiveCharterService``".
 
 Policy A covers **two acquisition routes**, because constructing the class is
 not the only way to get one. WP09's sweep found that
@@ -145,11 +145,11 @@ pytestmark = pytest.mark.architectural
 
 #: The raw, ungated inner service. Constructing this outside the sole door is
 #: the FR-002 bypass. Named verbatim by spec.md NFR-001.
-RAW_DOCTRINE_SERVICE_QUALNAME = "charter.offering.service.CharterOfferingService"
+RAW_OFFERING_SERVICE_QUALNAME = "charter.offering.service.CharterOfferingService"
 
 #: The activation-aware wrapper — the sanctioned construction, including its
 #: ``pack_context=None`` unfiltered-diagnostic form.
-WRAPPER_DOCTRINE_SERVICE_QUALNAME = "charter.activation.resolver.DoctrineService"
+ACTIVE_CHARTER_SERVICE_QUALNAME = "charter.activation.resolver.ActiveCharterService"
 
 #: The ONE function permitted to construct the raw service. Calling it is the
 #: other way to *obtain* an unwrapped raw service — see
@@ -157,12 +157,12 @@ WRAPPER_DOCTRINE_SERVICE_QUALNAME = "charter.activation.resolver.DoctrineService
 RAW_BUILDER_QUALNAME = "charter.activation.doctrine_service_builder._build_doctrine_service"
 
 #: Simple names worth canonicalising: the raw class (``CharterOfferingService``)
-#: and the wrapper (``DoctrineService``), each possibly under an ``as``-alias,
+#: and the wrapper (``ActiveCharterService``), each possibly under an ``as``-alias,
 #: which is precisely why the gate must canonicalise rather than text-match.
 #: ``_build_doctrine_service`` is included because obtaining the raw service
 #: from the sanctioned builder is the residual second route to an unwrapped
 #: inner service (see :func:`check_unwrapped_escape_gate`).
-DOCTRINE_SERVICE_CANDIDATE_NAMES = frozenset({"CharterOfferingService", "DoctrineService", "_build_doctrine_service"})
+CHARTER_SERVICE_CANDIDATE_NAMES = frozenset({"CharterOfferingService", "ActiveCharterService", "_build_doctrine_service"})
 
 _PACK_CONTEXT_KWARG = "pack_context"
 
@@ -190,7 +190,7 @@ class WrapVerdict:
 
 
 def _wrapper_calls_in_scope(scope: ast.AST, scan: FileScan, wrapper_sites: set[int]) -> list[ast.Call]:
-    """Every ``charter.activation.resolver.DoctrineService(...)`` call inside *scope*."""
+    """Every ``charter.activation.resolver.ActiveCharterService(...)`` call inside *scope*."""
     return [
         node for node in ast.walk(scope) if isinstance(node, ast.Call) and id(node) in wrapper_sites and enclosing_scope(scan.parents, node, scan.tree) is scope
     ]
@@ -270,15 +270,15 @@ class RawSite:
 #: same source line.
 DOCTRINE_SERVICE_TARGETS = frozenset(
     {
-        RAW_DOCTRINE_SERVICE_QUALNAME,
-        WRAPPER_DOCTRINE_SERVICE_QUALNAME,
+        RAW_OFFERING_SERVICE_QUALNAME,
+        ACTIVE_CHARTER_SERVICE_QUALNAME,
         RAW_BUILDER_QUALNAME,
     }
 )
 
 #: Canonical qualname -> the kind of raw-service acquisition it represents.
 _RAW_KIND_BY_QUALNAME = {
-    RAW_DOCTRINE_SERVICE_QUALNAME: KIND_CONSTRUCTION,
+    RAW_OFFERING_SERVICE_QUALNAME: KIND_CONSTRUCTION,
     RAW_BUILDER_QUALNAME: KIND_BUILDER_CALL,
 }
 
@@ -296,13 +296,13 @@ def scan_file_raw_sites(path: Path, rel_path: str) -> tuple[list[RawSite], ScanR
     scan = scan_file_constructions(
         path,
         rel_path,
-        candidate_names=DOCTRINE_SERVICE_CANDIDATE_NAMES,
+        candidate_names=CHARTER_SERVICE_CANDIDATE_NAMES,
         target_qualnames=DOCTRINE_SERVICE_TARGETS,
     )
     if scan is None:
         return [], ScanResult([], [])
 
-    wrapper_sites = {id(call) for call, site in scan.matches if site.canonical == WRAPPER_DOCTRINE_SERVICE_QUALNAME}
+    wrapper_sites = {id(call) for call, site in scan.matches if site.canonical == ACTIVE_CHARTER_SERVICE_QUALNAME}
     raw_sites = [
         RawSite(
             site,
@@ -371,7 +371,7 @@ def check_unwrapped_escape_gate(raw_sites: tuple[RawSite, ...]) -> list[str]:
     }
     return [
         f"{raw.site.describe()} {verbs[raw.kind]} that is NOT immediately wrapped "
-        "in charter.activation.resolver.DoctrineService (FR-002) — the unwrapped inner "
+        "in charter.activation.resolver.ActiveCharterService (FR-002) — the unwrapped inner "
         "service must never escape its acquisition site"
         for raw in raw_sites
         if _policy_a_applies(raw) and not raw.verdict.wrapped
@@ -444,7 +444,7 @@ RAW_LOCALITY_EXCLUSIONS: tuple[ContentDescriptor, ...] = (
         rationale=(
             "ESCALATED C-002 FINDING (WP09 sweep), reported not absorbed. WP03 "
             "migrated this site into exactly the shape FR-002 prescribed - "
-            "build raw, wrap immediately in charter.activation.resolver.DoctrineService "
+            "build raw, wrap immediately in charter.activation.resolver.ActiveCharterService "
             "with a real PackContext when a repo root exists - and its own "
             "docstring states that intent. It therefore satisfies FR-002 and "
             "Policy A above but not NFR-001's stricter locality phrasing. FR-002 "
@@ -491,7 +491,7 @@ def check_locality_gate(raw_sites: tuple[RawSite, ...]) -> list[str]:
         if raw.key in excluded and raw.verdict.wrapped:
             continue
         suffix = (
-            " (its named locality exclusion no longer applies: the immediate charter.activation.resolver.DoctrineService wrap is gone)"
+            " (its named locality exclusion no longer applies: the immediate charter.activation.resolver.ActiveCharterService wrap is gone)"
             if raw.key in excluded
             else ""
         )
@@ -521,12 +521,12 @@ def test_raw_census_finds_the_unified_builders_own_constructions() -> None:
     constructions = [raw for raw in raw_sites if raw.kind == KIND_CONSTRUCTION]
     builder_sites = [raw for raw in constructions if raw.site.rel_path == "src/charter/activation/doctrine_service_builder.py"]
     assert builder_sites, [raw.site.describe() for raw in constructions]
-    assert all(site.canonical in (RAW_DOCTRINE_SERVICE_QUALNAME, RAW_BUILDER_QUALNAME) for site in result.sites)
+    assert all(site.canonical in (RAW_OFFERING_SERVICE_QUALNAME, RAW_BUILDER_QUALNAME) for site in result.sites)
     assert len(constructions) >= 8, [raw.site.describe() for raw in constructions]
 
 
 def test_no_unresolved_doctrine_service_candidates() -> None:
-    """No ``CharterOfferingService(`` / ``DoctrineService(``-shaped call may go unresolved.
+    """No ``CharterOfferingService(`` / ``ActiveCharterService(``-shaped call may go unresolved.
 
     An unresolved candidate is a blind spot the gate could not classify as
     either class; treating it as clean is how a zero-violation gate goes
@@ -563,7 +563,7 @@ def _raw_scratch(tmp_path: Path, rel_name: str, source: str) -> tuple[list[RawSi
         tmp_path,
         rel_name,
         source,
-        candidate_names=DOCTRINE_SERVICE_CANDIDATE_NAMES,
+        candidate_names=CHARTER_SERVICE_CANDIDATE_NAMES,
         target_qualnames=DOCTRINE_SERVICE_TARGETS,
     )
     return scan_file_raw_sites(tmp_path / Path(rel_name).name, rel_name)
@@ -599,9 +599,9 @@ def test_injected_unwrapped_function_local_raw_service_is_flagged(tmp_path: Path
 def test_wrapper_only_construction_is_not_flagged(tmp_path: Path) -> None:
     """True negative: constructing only the wrapper is never a violation.
 
-    The unfiltered-diagnostic form ``charter.activation.resolver.DoctrineService(inner,
+    The unfiltered-diagnostic form ``charter.activation.resolver.ActiveCharterService(inner,
     pack_context=None)`` shared the simple name ``DoctrineService`` with the
-    forbidden raw construction until #3732 WP19 renamed the raw class; NFR-001
+    forbidden raw construction until #3732 renamed both classes; NFR-001
     calls this out as the exact reason a name-only gate cannot work, and the
     gate still canonicalises rather than trusting either name.
     """
@@ -609,7 +609,7 @@ def test_wrapper_only_construction_is_not_flagged(tmp_path: Path) -> None:
         tmp_path,
         "wrapper_only.py",
         "def build(inner):\n"
-        "    from charter.activation.resolver import DoctrineService as ActivationAware\n"
+        "    from charter.activation.resolver import ActiveCharterService as ActivationAware\n"
         "\n"
         "    return ActivationAware(inner, pack_context=None)\n",
     )
@@ -627,7 +627,7 @@ def test_dropping_the_wrap_at_an_excluded_site_reds_the_gate(tmp_path: Path) -> 
     rel = "src/specify_cli/cli/commands/charter/pack_asset.py"
     original = (REPO_ROOT / rel).read_text(encoding="utf-8")
     mutated = original.replace(
-        "    service = ActivationAwareDoctrineService(inner, pack_context=pack_context)\n",
+        "    service = ActiveCharterService(inner, pack_context=pack_context)\n",
         "    service = inner\n",
     )
     assert mutated != original, "mutation target not found — refresh this test"

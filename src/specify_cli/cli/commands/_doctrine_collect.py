@@ -227,7 +227,7 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
     profile regardless of charter activation state (a deactivated pack's
     profiles still need to be counted/health-checked so the operator sees
     the true installed set, not the currently-activated subset), so the raw
-    inner service is wrapped via ``charter.activation.resolver.DoctrineService(inner,
+    inner service is wrapped via ``charter.activation.resolver.ActiveCharterService(inner,
     pack_context=None)`` -- the sanctioned unfiltered-diagnostic construction
     (data-model.md "unfiltered-diagnostic contract") -- rather than
     constructing ``charter.offering.service.CharterOfferingService`` directly. The
@@ -246,7 +246,7 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
     load_error: str | None = None
     try:
         from charter.offering.service import CharterOfferingService
-        from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
+        from charter.activation.resolver import ActiveCharterService
         from charter.drg import resolve_org_roots
 
         org_roots = resolve_org_roots(repo_root)
@@ -255,7 +255,7 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
             org_roots=list(org_roots),
             project_root=project_root,
         )
-        service = ActivationAwareDoctrineService(inner, pack_context=None)
+        service = ActiveCharterService(inner, pack_context=None)
         repo = service.agent_profile_repository
         for profile in repo.list_all():
             layer = repo.get_provenance(profile.profile_id) or "unknown"
@@ -317,7 +317,7 @@ def _parse_skipped_glossary_pack_warning(message: object) -> SkippedGlossaryPack
 def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
     """Build the glossary-pack health dimension (FR-012, SC-001, WP05).
 
-    Sourced from ``DoctrineService``'s glossary-pack repository — the real
+    Sourced from ``ActiveCharterService``'s glossary-pack repository — the real
     production repository (WP02), not a re-implemented loader. Unlike
     ``AgentProfileRepository``, ``GlossaryPackRepository`` (a plain
     ``BaseArtifactRepository``) has no structured skip-diagnostics list: an
@@ -338,17 +338,17 @@ def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
     diagnostic-completeness rationale -- glossary-pack health must reflect
     every installed pack regardless of charter activation state (the whole
     point is auditing what is on disk, not what is currently activated), so
-    the raw inner service is wrapped via ``charter.activation.resolver.DoctrineService(
+    the raw inner service is wrapped via ``charter.activation.resolver.ActiveCharterService(
     inner, pack_context=None)`` -- the sanctioned unfiltered-diagnostic
     construction (data-model.md "unfiltered-diagnostic contract") -- rather
     than constructing ``charter.offering.service.CharterOfferingService`` directly. FR-005
     made ``glossary_packs`` a gated property that always returns a filtered
     ``dict`` (no ``.list_all()``), so this reads through
-    :meth:`~charter.activation.resolver.DoctrineService.raw_repository` to reach the raw
+    :meth:`~charter.activation.resolver.ActiveCharterService.raw_repository` to reach the raw
     repository's ``list_all()``.
     """
     from charter.offering.service import CharterOfferingService
-    from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
+    from charter.activation.resolver import ActiveCharterService
     from charter.drg import resolve_org_roots
 
     from ._doctrine_health import GlossaryPackHealth, SkippedGlossaryPack
@@ -361,7 +361,7 @@ def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
         inner = CharterOfferingService(
             org_roots=list(org_roots), project_root=project_root
         )
-        service = ActivationAwareDoctrineService(inner, pack_context=None)
+        service = ActiveCharterService(inner, pack_context=None)
         with warnings.catch_warnings(record=True) as captured:
             warnings.simplefilter("always")
             packs = service.raw_repository("glossary_packs").list_all()
@@ -409,7 +409,7 @@ def _collect_pack_skill_health(repo_root: Path) -> PackSkillHealth:
 
     Reads the raw (unfiltered) skill repository through the sole sanctioned
     builder (``build_activation_aware_doctrine_service``) and
-    :meth:`~charter.activation.resolver.DoctrineService.raw_repository`, so
+    :meth:`~charter.activation.resolver.ActiveCharterService.raw_repository`, so
     every installed skill is audited regardless of activation. Load warnings
     become :class:`~._doctrine_health.SkippedPackSkill` records; a hard load
     failure (for example two sibling org packs declaring the same skill id)
@@ -601,7 +601,7 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
     layer regardless of charter activation state (a collision between a
     deactivated pack's artifact and a built-in one is still a real
     cross-layer collision the operator needs to see), so the raw inner
-    service is wrapped via ``charter.activation.resolver.DoctrineService(inner,
+    service is wrapped via ``charter.activation.resolver.ActiveCharterService(inner,
     pack_context=None)`` -- the sanctioned unfiltered-diagnostic construction
     (data-model.md "unfiltered-diagnostic contract") -- rather than
     constructing ``charter.offering.service.CharterOfferingService`` directly. Each gated
@@ -616,7 +616,7 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
 
     from charter.drg import ArtifactLayerCollisionWarning
     from charter.offering.service import CharterOfferingService
-    from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
+    from charter.activation.resolver import ActiveCharterService
     from charter.drg import resolve_org_roots
 
     org_roots = resolve_org_roots(repo_root)
@@ -626,7 +626,7 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
         org_roots=list(org_roots),
         project_root=project_root,
     )
-    service = ActivationAwareDoctrineService(inner, pack_context=None)
+    service = ActiveCharterService(inner, pack_context=None)
 
     # Touch every repository so each one runs through its loader and emits
     # any collision warnings.
@@ -997,7 +997,7 @@ def _record_override_findings(
 class _RawRepositorySource(Protocol):
     """Structural type for a *service* exposing ``raw_repository(kind)``.
 
-    Matches :meth:`charter.activation.resolver.DoctrineService.raw_repository` (FR-002
+    Matches :meth:`charter.activation.resolver.ActiveCharterService.raw_repository` (FR-002
     Option A) without importing ``charter.activation.resolver`` at module scope —
     :func:`_resolve_artifact_source` only needs this one method's shape, and
     the module keeps its existing import discipline (I-2: collect → model /
@@ -1025,12 +1025,12 @@ def _resolve_artifact_source(
       not yet tracked at the repository layer; see ``_collect_org_source_map``
       in charter.activation.context for the same limitation)
     * ``charter`` — declared selected in the project charter but the
-      DoctrineService does not (yet) know about it (e.g. typo or
+      ActiveCharterService does not (yet) know about it (e.g. typo or
       missing snapshot)
     * ``org-required`` — required by an org pack's ``org-charter.yaml``
       but not present in the resolved catalog
 
-    *service* is a :class:`charter.activation.resolver.DoctrineService` and MUST be
+    *service* is a :class:`charter.activation.resolver.ActiveCharterService` and MUST be
     queried via its ``raw_repository(plural)`` accessor, not
     ``getattr(service, plural)`` (WP03, charter-sole-door-bypass-closure-
     01KZ3WAA, FR-002/T013): the gated ``plural`` property always returns a
@@ -1039,7 +1039,7 @@ def _resolve_artifact_source(
     :func:`_collect_profile_health` solves via the more specific
     ``agent_profile_repository`` accessor. *service* is typed via the
     ``_RawRepositorySource`` structural protocol above (rather than
-    importing ``charter.activation.resolver.DoctrineService`` directly) so this
+    importing ``charter.activation.resolver.ActiveCharterService`` directly) so this
     diagnostic helper does not force a hard ``charter`` import at module
     scope.
     """
@@ -1205,7 +1205,7 @@ def _build_selection_block(repo_root: Path) -> dict[str, list[dict[str, str]]]:
     subset (a selection that is charter-declared but not currently activated
     still needs its true provenance reported, not an activation-narrowed
     miss), so the raw inner service is wrapped via
-    ``charter.activation.resolver.DoctrineService(inner, pack_context=None)`` -- the
+    ``charter.activation.resolver.ActiveCharterService(inner, pack_context=None)`` -- the
     sanctioned unfiltered-diagnostic construction (data-model.md
     "unfiltered-diagnostic contract") -- rather than constructing
     ``charter.offering.service.CharterOfferingService`` directly.
@@ -1215,20 +1215,20 @@ def _build_selection_block(repo_root: Path) -> dict[str, list[dict[str, str]]]:
     a filtered ``dict``.
     """
     from charter.offering.service import CharterOfferingService
-    from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
+    from charter.activation.resolver import ActiveCharterService
     from charter.drg import resolve_org_roots
 
     project_selections = _read_project_selections(repo_root)
     org_required = _read_org_required(repo_root)
 
-    # DoctrineService instance for provenance lookup.
+    # ActiveCharterService instance for provenance lookup.
     org_roots = resolve_org_roots(repo_root)
     project_root = _project_pack_root_or_none(repo_root)
     inner = CharterOfferingService(
         org_roots=list(org_roots),
         project_root=project_root,
     )
-    service = ActivationAwareDoctrineService(inner, pack_context=None)
+    service = ActiveCharterService(inner, pack_context=None)
 
     result: dict[str, list[dict[str, str]]] = {}
     for kind in _SELECTION_KIND_PLURALS:

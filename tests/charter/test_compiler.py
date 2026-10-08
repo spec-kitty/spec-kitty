@@ -206,12 +206,12 @@ def test_write_compiled_charter_succeeds_without_force_when_existing(tmp_path: P
 
 
 def test_compile_with_doctrine_service_none_uses_drg_backed_path() -> None:
-    """Calling compile_charter without DoctrineService must NOT emit a YAML
+    """Calling compile_charter without ActiveCharterService must NOT emit a YAML
     fallback diagnostic.
 
     Per C-001 of the excise-doctrine-curation-and-inline-references-01KP54J6
     mission there is no YAML-scanning fallback: the compiler constructs a
-    default :class:`DoctrineService` internally and always takes the
+    default :class:`ActiveCharterService` internally and always takes the
     DRG-backed path. The compiled result includes tactics / procedures /
     toolguides resolved via the graph, not just paradigms + directives.
     """
@@ -224,8 +224,8 @@ def test_compile_with_doctrine_service_none_uses_drg_backed_path() -> None:
     compiled = compile_charter(mission="software-dev", interview=interview, doctrine_service=None)
 
     fallback_msg = (
-        "DoctrineService unavailable; using YAML scanning fallback. "
-        "Profile-aware compilation requires DoctrineService."
+        "ActiveCharterService unavailable; using YAML scanning fallback. "
+        "Profile-aware compilation requires ActiveCharterService."
     )
     assert not any(fallback_msg in d for d in compiled.diagnostics), (
         f"Unexpected legacy fallback diagnostic: {compiled.diagnostics}"
@@ -401,10 +401,10 @@ def test_compile_with_repo_root_handles_missing_shipped_graph(tmp_path: Path, mo
 
 
 def test_compile_with_doctrine_service_uses_repositories() -> None:
-    """When DoctrineService is provided, its repositories are queried."""
+    """When ActiveCharterService is provided, its repositories are queried."""
     interview = default_interview(mission="software-dev", profile="minimal")
 
-    # Build a minimal mock DoctrineService whose repositories return nothing
+    # Build a minimal mock ActiveCharterService whose repositories return nothing
     # (empty lists / None gets), so the code paths that call .get() and
     # the DRG-backed transitive resolution path is exercised.
     mock_service = MagicMock()
@@ -422,9 +422,9 @@ def test_compile_with_doctrine_service_uses_repositories() -> None:
     )
 
     # The fallback diagnostic must NOT be present when service is provided
-    fallback_msg = "DoctrineService unavailable"
+    fallback_msg = "ActiveCharterService unavailable"
     assert not any(fallback_msg in d for d in compiled.diagnostics), (
-        f"Unexpected fallback diagnostic when DoctrineService is present: {compiled.diagnostics}"
+        f"Unexpected fallback diagnostic when ActiveCharterService is present: {compiled.diagnostics}"
     )
     # The compilation still succeeds and produces a valid bundle
     assert compiled.mission == "software-dev"
@@ -702,7 +702,7 @@ def test_yaml_fallback_resolves_directives_from_shipped_subdirectory() -> None:
     Regression: _index_yaml_assets scanned the flat doctrine_root/directives/ dir
     but all shipped directives live in doctrine_root/directives/built-in/.  The
     result was every directive reference getting summary='Definition unavailable
-    in bundled doctrine.' when DoctrineService was absent.
+    in bundled doctrine.' when ActiveCharterService was absent.
     """
     interview = default_interview(mission="software-dev", profile="minimal")
     interview = apply_answer_overrides(
@@ -710,7 +710,7 @@ def test_yaml_fallback_resolves_directives_from_shipped_subdirectory() -> None:
         selected_directives=["DIRECTIVE_003"],
     )
 
-    # Exercise the YAML scanning fallback explicitly (no DoctrineService)
+    # Exercise the YAML scanning fallback explicitly (no ActiveCharterService)
     compiled = compile_charter(mission="software-dev", interview=interview, doctrine_service=None)
 
     directive_refs = [r for r in compiled.references if r.kind == "directive"]

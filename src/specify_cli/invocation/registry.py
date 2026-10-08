@@ -11,7 +11,7 @@ from specify_cli.doctrine_service_factory import build_activation_aware_doctrine
 from specify_cli.invocation.errors import ProfileNotFoundError
 
 if TYPE_CHECKING:
-    from charter.activation.resolver import DoctrineService
+    from charter.activation.resolver import ActiveCharterService
 
 # Provenance layers exposed by ``AgentProfileRepository.get_provenance``.
 _LAYER_BUILTIN = "builtin"
@@ -97,7 +97,7 @@ class ProfileRegistry:
         self._local = self._build_local_profiles(service)
 
     def _build_merged_profiles(
-        self, service: DoctrineService
+        self, service: ActiveCharterService
     ) -> dict[str, AgentProfile]:
         """Build the routing catalog: activation-gated doctrine + legacy project.
 
@@ -121,7 +121,7 @@ class ProfileRegistry:
         return merged
 
     def _build_local_profiles(
-        self, service: DoctrineService
+        self, service: ActiveCharterService
     ) -> dict[str, AgentProfile]:
         """Build the local-resolution catalog (#4120): every layer, same gate.
 

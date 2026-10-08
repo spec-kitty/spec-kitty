@@ -43,7 +43,7 @@ pytestmark = pytest.mark.fast
 
 
 # ---------------------------------------------------------------------------
-# Stub doubles for the DoctrineService repositories
+# Stub doubles for the ActiveCharterService repositories
 # ---------------------------------------------------------------------------
 
 
@@ -61,7 +61,7 @@ class _StubRepo:
 
 
 class _StubService:
-    """DoctrineService stand-in carrying the kinds WP17 routes."""
+    """ActiveCharterService stand-in carrying the kinds WP17 routes."""
 
     def __init__(
         self,

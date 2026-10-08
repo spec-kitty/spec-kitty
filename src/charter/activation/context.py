@@ -190,7 +190,7 @@ def build_charter_context(
     org_root:
         Optional path to the configured org doctrine snapshot.  When provided,
         the three-layer (built-in + org + project) DRG overlay is used and the
-        ``DoctrineService`` is constructed with the org layer included.
+        ``ActiveCharterService`` is constructed with the org layer included.
         Charter-layer callers leave this as ``None``; ``specify_cli`` callers
         resolve the value via :func:`charter.offering.drg.org_pack_config.resolve_org_roots`
         and pass it explicitly (preserving the kernel <- doctrine <- charter <-
@@ -416,7 +416,7 @@ def build_charter_context_include(
     # (``_format_inline_glossary_body``); that fetch pointer must honor the same
     # gate its delivery slot advertises, or ``--include`` leaks back the term
     # definitions the charter withheld from a de-activated pack. This needs no
-    # renderer change: the activation-aware ``charter.activation.resolver.DoctrineService``
+    # renderer change: the activation-aware ``charter.activation.resolver.ActiveCharterService``
     # already gates ``glossary_packs`` (returning a filtered
     # ``dict[str, GlossaryPack]``), and the catalog renderer reaches the repo
     # via ``getattr(service, attr).get(id)`` — a filtered ``dict``'s ``.get``
@@ -445,7 +445,7 @@ def build_charter_context_include(
     # glossary-pack branch and the plain service (built here — the sole call
     # site of ``_build_doctrine_service`` several tests monkeypatch) for every
     # other kind. The ``cast`` reconciles the two nominally distinct
-    # ``DoctrineService`` classes; the renderer only reads ``.glossary_packs``
+    # ``ActiveCharterService`` classes; the renderer only reads ``.glossary_packs``
     # (a gated ``dict``) off the gated service, so it is structurally
     # sufficient.
     service = (

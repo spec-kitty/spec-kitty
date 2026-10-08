@@ -1,7 +1,7 @@
 """Stem → canonical parity guard for ``config.activated_*`` (WP01, C-006, FR-001).
 
 C-006 requires that every ``config.activated_*`` slug-stem normalizes to a
-canonical DRG URN node ID *exactly* as the live ``DoctrineService``/DRG
+canonical DRG URN node ID *exactly* as the live ``ActiveCharterService``/DRG
 resolution does, and that a stem which cannot be resolved is **rejected**
 (raises), never silently dropped. A silent drop would remove the artefact
 *and* its entire transitive closure (tactics → styleguides → toolguides →

@@ -75,7 +75,7 @@ class ActiveCharterConfigError(KittyInternalConsistencyError):
 # Built-in constants
 # ---------------------------------------------------------------------------
 
-#: All built-in artifact kinds (plural form used by DoctrineService). Derived
+#: All built-in artifact kinds (plural form used by ActiveCharterService). Derived
 #: from the single :class:`ArtifactKind` authority — exactly
 #: ``{kind.plural for kind in ArtifactKind}`` — so it can never drift from the
 #: enum (issue #5409; it now includes ``anti_patterns``). Value-equal to

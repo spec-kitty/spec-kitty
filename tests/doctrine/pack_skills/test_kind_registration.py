@@ -8,7 +8,7 @@ import pytest
 
 from charter.activation.context_renderers.delivery_table import _ACTION_BUNDLE_DELIVERY_BY_KIND, _DELIVERY_REASON_BY_KIND
 from charter.activation.pack_context import PackContext
-from charter.activation.resolver import DoctrineService as ActivationService
+from charter.activation.resolver import ActiveCharterService as ActivationService
 from charter.offering.artifact_kinds import (
     CHARTER_ACTIVATABLE_KINDS,
     CHARTER_KIND_TOKENS,

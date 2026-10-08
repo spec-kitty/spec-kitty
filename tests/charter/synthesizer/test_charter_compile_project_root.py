@@ -124,7 +124,7 @@ class TestDefaultDoctrineService:
     def _project_root_from_service(self, repo_root: Path) -> Path | None:
         """Call _default_doctrine_service and extract project_root from it."""
         svc = _default_doctrine_service(repo_root)
-        # DoctrineService stores project_root as _project_root
+        # ActiveCharterService stores project_root as _project_root
         return getattr(svc, "_project_root", None)
 
     def test_case_r2_1_no_candidate_dirs_project_root_is_none(

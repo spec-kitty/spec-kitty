@@ -437,7 +437,7 @@ def _render_selection_block(
     a styleguide whose YAML failed schema validation) still surface their
     org provenance in the prompt.  The catalog-derived map wins when
     both are present — that path retains the per-artifact provenance the
-    DoctrineService computed.
+    ActiveCharterService computed.
     """
     if doctrine_selection is None or service is None:
         return ""

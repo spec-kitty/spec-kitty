@@ -483,7 +483,7 @@ def resolve_org_roots(repo_root: Path, *, quiet: bool = False) -> list[Path]:
 
     Each entry is the pack's ``effective_root`` — i.e. the ``local_path``
     normalised relative to ``repo_root`` and joined with ``subdir`` (when
-    present).  The ~9 ``DoctrineService`` consumers that call this function
+    present).  The ~9 ``ActiveCharterService`` consumers that call this function
     therefore inherit the ``subdir`` seam for free.
 
     ``quiet``: forwarded verbatim to :func:`load_pack_registry` — see its

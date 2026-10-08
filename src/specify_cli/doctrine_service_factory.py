@@ -2,7 +2,7 @@
 
 This module exposes :func:`build_activation_aware_doctrine_service`, the one
 place profile surfaces (``profile list``/``profile show``, ``charter context
---include``) should call to obtain a :class:`charter.activation.resolver.DoctrineService`
+--include``) should call to obtain a :class:`charter.activation.resolver.ActiveCharterService`
 that already has per-kind charter activation filters applied.
 
 FR-008 unification (charter-sole-door-bypass-closure-01KZ3WAA WP01): this
@@ -35,14 +35,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
+    from charter.activation.resolver import ActiveCharterService
 
 __all__ = ["build_activation_aware_doctrine_service"]
 
 
 def build_activation_aware_doctrine_service(
     repo_root: Path,
-) -> ActivationAwareDoctrineService:
+) -> ActiveCharterService:
     """Build an activation-filtered doctrine service for ``repo_root``.
 
     Thin re-export of
@@ -67,7 +67,7 @@ def build_activation_aware_doctrine_service(
 
     Returns
     -------
-    charter.activation.resolver.DoctrineService
+    charter.activation.resolver.ActiveCharterService
         The activation-aware wrapper around the inner doctrine service.
     """
     from charter.activation.doctrine_service_builder import (

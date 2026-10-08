@@ -354,7 +354,7 @@ if TYPE_CHECKING:
     # ``_build_doctrine_service_with_org_layer``, this module via the change
     # below -- so the annotation now matches what actually flows through
     # ``compile_charter``'s ``doctrine_service`` parameter and its helpers.
-    from charter.activation.resolver import DoctrineService
+    from charter.activation.resolver import ActiveCharterService
 
 
 @dataclass(frozen=True)
@@ -409,7 +409,7 @@ def compile_charter(
     interview: CharterInterview,
     template_set: str | None = None,
     doctrine_catalog: DoctrineCatalog | None = None,
-    doctrine_service: DoctrineService | None = None,
+    doctrine_service: ActiveCharterService | None = None,
     repo_root: Path | None = None,
     pack_context: PackContext | None = None,
     rederive_languages: bool = False,
@@ -1086,8 +1086,8 @@ def _sanitize_catalog_selection(
     return []
 
 
-def _default_doctrine_service(repo_root: Path | None) -> DoctrineService:
-    """Build an activation-aware DoctrineService rooted at built-in doctrine
+def _default_doctrine_service(repo_root: Path | None) -> ActiveCharterService:
+    """Build an activation-aware ActiveCharterService rooted at built-in doctrine
     plus optional project overlay.
 
     The project-root candidate list (in priority order):
@@ -1141,14 +1141,14 @@ def _default_doctrine_service(repo_root: Path | None) -> DoctrineService:
 
         return build_activation_aware_doctrine_service(repo_root)
 
-    from charter.activation.resolver import DoctrineService as _ActivationAwareDoctrineService
+    from charter.activation.resolver import ActiveCharterService
     from charter.offering.service import CharterOfferingService
 
     # No built_in_root kwarg: repositories self-resolve packs/built-in/<kind>
     # via the built_in_dir seam (default None is behaviour-preserving here;
-    # WP04 drops the now-dead param from DoctrineService entirely).
+    # WP04 drops the now-dead param from ActiveCharterService entirely).
     # resolve_doctrine_root() post-relocation points at the emptied src/doctrine tree.
-    return _ActivationAwareDoctrineService(CharterOfferingService(project_root=None))
+    return ActiveCharterService(CharterOfferingService(project_root=None))
 
 
 def _build_references(
@@ -1157,7 +1157,7 @@ def _build_references(
     template_set: str,
     interview: CharterInterview,
     config_roots: ConfigActivatedRoots,
-    doctrine_service: DoctrineService,
+    doctrine_service: ActiveCharterService,
     repo_root: Path | None = None,
     diagnostics: list[str] | None = None,
     unresolved_reference_records: list[UnresolvedReferenceRecord] | None = None,
@@ -1181,7 +1181,7 @@ def _build_references(
     return references
 
 
-def _raw_kind_repository(doctrine_service: DoctrineService, kind: str) -> Any:
+def _raw_kind_repository(doctrine_service: ActiveCharterService, kind: str) -> Any:
     """Return the RAW, unfiltered repository for *kind* from *doctrine_service*.
 
     ``compile_charter`` accepts two concrete ``doctrine_service`` shapes in
@@ -1189,7 +1189,7 @@ def _raw_kind_repository(doctrine_service: DoctrineService, kind: str) -> Any:
     including in-repo tests, e.g. ``tests/charter/test_activate_resolves_no_answers_edit.py``
     -- pass the second directly too):
 
-    - the activation-aware wrapper (``charter.activation.resolver.DoctrineService``),
+    - the activation-aware wrapper (``charter.activation.resolver.ActiveCharterService``),
       whose nine gated properties (``.directives`` et al.) return an
       ACTIVATION-FILTERED dict -- so its dedicated ``raw_repository(kind)``
       accessor is used instead (#4785 Finding 4b: a DRG-transitively-reached
@@ -1428,7 +1428,7 @@ def _model_reference(kind: str, model: Any, fields: _ReferenceFields) -> Charter
 def _route_unresolved_urn(
     urn: str,
     *,
-    doctrine_service: DoctrineService,
+    doctrine_service: ActiveCharterService,
     diagnostics: list[str],
     unresolved_records: list[UnresolvedReferenceRecord],
     project_root: Path | None,
@@ -1532,7 +1532,7 @@ def _render_kind_references(
 
     *repository* must be the RAW, unfiltered repository for *kind*
     (:func:`_raw_kind_repository`), not one of
-    ``charter.activation.resolver.DoctrineService``'s nine activation-filtered
+    ``charter.activation.resolver.ActiveCharterService``'s nine activation-filtered
     properties. *ids* is the DRG transitive-closure result (``graph.<kind>``),
     which legitimately reaches ids beyond direct config activation (#4785
     Finding 4b) -- looking those up against the activation-filtered view
@@ -1627,7 +1627,7 @@ def _build_references_from_service(
     template_set: str,
     config_roots: ConfigActivatedRoots,
     doctrine_root: Path,
-    doctrine_service: DoctrineService,
+    doctrine_service: ActiveCharterService,
     repo_root: Path | None,
     diagnostics: list[str],
     unresolved_records: list[UnresolvedReferenceRecord] | None = None,
@@ -2113,7 +2113,7 @@ def _render_charter_markdown(
     selected_directives: list[str],
     available_tools: list[str],
     references: list[CharterReference],
-    doctrine_service: DoctrineService,
+    doctrine_service: ActiveCharterService,
     selected_tactics: list[str] | None = None,
 ) -> str:
     selected_tactics = selected_tactics or []
@@ -2190,7 +2190,7 @@ def _render_charter_markdown(
 def _render_directives(
     interview: CharterInterview,
     selected_directives: list[str],
-    doctrine_service: DoctrineService,
+    doctrine_service: ActiveCharterService,
 ) -> str:
     lines: list[str] = []
     index = 1

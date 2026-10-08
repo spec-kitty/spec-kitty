@@ -4,7 +4,7 @@ Before this fix, ``resolve_project_governance`` was a SECOND, divergent
 directive authority: when the authored charter selection was empty (as it is
 right after apply+compile), ``_resolve_directives_selection`` catalog-fell-back
 to the FULL built-in catalog instead of the operator's config-activated set —
-the same set the doctrine-layer ``DoctrineService`` wrapper filters
+the same set the doctrine-layer ``ActiveCharterService`` wrapper filters
 ``paradigms``/``procedures``/``agent_profiles`` by via
 :class:`~charter.activation.pack_context.PackContext`.
 

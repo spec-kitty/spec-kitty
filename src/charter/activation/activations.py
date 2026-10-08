@@ -134,7 +134,7 @@ _ACTION_WILDCARDS: frozenset[str] = frozenset({"any", "generic"})
 
 
 #: Allowed values for the optional ``artifact_kind`` disambiguator — the plural
-#: property names ``DoctrineService`` exposes for **every** artifact kind
+#: property names ``ActiveCharterService`` exposes for **every** artifact kind
 #: (``templates`` / ``assets`` are node-declarable org-pack DRG kinds; every
 #: other kind is a fetchable repository). Derived from the single
 #: :class:`ArtifactKind` authority so it can never drift from the enum
@@ -150,7 +150,7 @@ _ALLOWED_KINDS: frozenset[str] = frozenset(kind.plural for kind in ArtifactKind)
 
 
 #: Mapping of operator-friendly singular ``artifact_kind`` tokens to the
-#: canonical plural form used by ``DoctrineService`` repositories.  The
+#: canonical plural form used by ``ActiveCharterService`` repositories.  The
 #: contract example in ``contracts/activation-registry.md`` uses the
 #: singular form (``artifact_kind: styleguide``) and the rendered
 #: ``--include <kind>:<id>`` selector also uses the singular per the
@@ -270,7 +270,7 @@ class ActivationEntry(BaseModel):
         if value is None:
             return None
         # Accept both the canonical plural form (``styleguides`` — the
-        # ``DoctrineService`` property name) and the operator-friendly
+        # ``ActiveCharterService`` property name) and the operator-friendly
         # singular form (``styleguide`` — used in the contract example
         # and in the rendered ``--include <kind>:<id>`` fetch selector).
         # Normalise to plural on the way in so internal lookups stay
@@ -278,7 +278,7 @@ class ActivationEntry(BaseModel):
         normalised = normalize_artifact_kind(value)
         if normalised not in _ALLOWED_KINDS:
             raise ValueError(
-                f"artifact_kind={value!r} is not a known DoctrineService kind. "
+                f"artifact_kind={value!r} is not a known ActiveCharterService kind. "
                 f"Accepted (plural): {sorted(_ALLOWED_KINDS)}. "
                 f"Accepted (singular alias): {sorted(_SINGULAR_TO_PLURAL_KIND)}."
             )

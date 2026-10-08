@@ -219,7 +219,7 @@ def check_agent_profile_gate(sites: list[ConstructionSite]) -> list[str]:
     return [
         f"{site.describe()} constructs the raw agent-profile repository outside "
         "the charter sole door (FR-001/NFR-001) — obtain it from "
-        "charter.activation.resolver.DoctrineService.agent_profile_repository instead"
+        "charter.activation.resolver.ActiveCharterService.agent_profile_repository instead"
         for site in sites
         if not structurally_exempt(site.rel_path) and site.key not in excluded
     ]

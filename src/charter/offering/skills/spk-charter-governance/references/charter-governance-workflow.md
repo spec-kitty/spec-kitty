@@ -1,7 +1,7 @@
 # Charter Governance Workflow (spk-charter-governance reference)
 
 Manage the charter lifecycle: interview, generate, context-load, sync,
-and status. Access doctrine artifacts programmatically via `DoctrineService`.
+and status. Access doctrine artifacts programmatically via `ActiveCharterService`.
 Resolve agent profiles for role-scoped behavior. Load governance context
 iteratively at action boundaries rather than dumping everything upfront.
 
@@ -97,7 +97,7 @@ The current synthesis scope is: `directive`, `tactic`, `styleguide`.
 
 Read shipped examples to understand the expected YAML shape.
 There is no `doctrine list` or `doctrine show` CLI command — use the programmatic
-`DoctrineService` API (documented in the *Programmatic Doctrine Access* section below)
+`ActiveCharterService` API (documented in the *Programmatic Doctrine Access* section below)
 or read the YAML files directly from `packs/built-in/<kind>/` (artifacts live at
 `<type>/<pack>/[<category>/]<name>` — ADR 2026-07-26-2):
 
@@ -340,7 +340,7 @@ timestamp.
 ### Doctrine Artifact Kinds
 
 Doctrine organizes knowledge into 8 artifact kinds. Each kind has a
-dedicated repository in `DoctrineService`, follows built-in -> org -> project
+dedicated repository in `ActiveCharterService`, follows built-in -> org -> project
 loading, and is accessible programmatically or via CLI.
 
 **Directives** — Numbered project rules that constrain agent behavior.
@@ -451,7 +451,7 @@ for step in contract.steps:
 ### Discovering Available Artifacts
 
 There is no `doctrine list` or `doctrine show` CLI command. Use the programmatic
-`DoctrineService` API or read artifact YAML files directly:
+`ActiveCharterService` API or read artifact YAML files directly:
 
 ```python
 from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
@@ -659,9 +659,9 @@ reports `synced=False` / `files_written=[]`, regardless of `--force`.
 
 ---
 
-## Programmatic Doctrine Access (DoctrineService)
+## Programmatic Doctrine Access (ActiveCharterService)
 
-`charter.activation.resolver.DoctrineService` — built through
+`charter.activation.resolver.ActiveCharterService` — built through
 `charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service` —
 is the single, sanctioned entry point for programmatic access to all doctrine
 artifacts. It wraps the inner `charter.offering.service.CharterOfferingService` and applies
@@ -710,7 +710,7 @@ Operations the filtered dict cannot support — `.list_all()`, `.save()`,
 `service.raw_repository(kind)`, which returns the underlying repository
 object unfiltered (a deliberate, sanctioned bypass of activation filtering,
 not of construction: it still comes from the one wrapped `service`, never a
-second `DoctrineService()`):
+second `ActiveCharterService()`):
 
 ```python
 # List all artifacts of a kind (raw repository, not the filtered dict)
@@ -797,7 +797,7 @@ retrieval.
 2. **At each step boundary**: Call `charter context --action <action>`.
    First call gets bootstrap (depth-2), subsequent calls get compact (depth-1).
 3. **Mid-step, when guidance needed**: Pull specific tactic or directive by ID
-   through `DoctrineService`.
+   through `ActiveCharterService`.
 4. **Never**: Load the full doctrine catalog into prompt context.
 
 ### Why This Matters

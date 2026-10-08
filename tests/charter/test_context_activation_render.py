@@ -38,7 +38,7 @@ _CANONICAL_WHEN_DOING_RE = re.compile(
 
 
 # ---------------------------------------------------------------------------
-# Tiny in-memory DoctrineService stand-in.
+# Tiny in-memory ActiveCharterService stand-in.
 # ---------------------------------------------------------------------------
 
 

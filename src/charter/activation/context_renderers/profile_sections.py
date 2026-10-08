@@ -131,7 +131,7 @@ _PROFILE_SUGGESTS_DELIVERED_KINDS: frozenset[str] = frozenset(
     }
 )
 
-# Deterministic render order and, per kind, the ``DoctrineService`` catalog-repo
+# Deterministic render order and, per kind, the ``ActiveCharterService`` catalog-repo
 # attribute plus the human section title.
 _SUGGESTS_KIND_RENDER: tuple[tuple[str, str, str], ...] = (
     (NodeKind.PARADIGM.value, "paradigms", "Paradigms"),

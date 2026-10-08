@@ -8,7 +8,7 @@ FR-003 (charter-sole-door-bypass-closure-01KZ3WAA WP05) — **this module is
 now a thin delegate.** :class:`CharterTemplateResolver` used to import
 ``charter.offering.resolver``'s tier functions itself, making it a *second*
 charter-layer door onto that chain alongside
-:class:`charter.activation.resolver.DoctrineService` (the factory) — the C-001
+:class:`charter.activation.resolver.ActiveCharterService` (the factory) — the C-001
 "two doors within charter" seam FR-003 closes. Every tier-chain call now
 routes through the factory's ``resolve_command_asset`` /
 ``resolve_content_asset`` methods, and this module no longer imports
@@ -45,7 +45,7 @@ from pathlib import Path
 from typing import Any
 
 from charter.resolution import ResolutionTier
-from charter.activation.resolver import DoctrineService
+from charter.activation.resolver import ActiveCharterService
 from charter.offering.missions.repository import MissionTemplateRepository, TemplateResult
 
 __all__ = [
@@ -58,7 +58,7 @@ class CharterTemplateResolver:
 
     Resolution order: OVERRIDE > LEGACY > ORG > GLOBAL_MISSION > GLOBAL > PACKAGE_DEFAULT.
 
-    A thin delegate onto :class:`charter.activation.resolver.DoctrineService` for the
+    A thin delegate onto :class:`charter.activation.resolver.ActiveCharterService` for the
     tier chain (FR-003) — see the module docstring.
     """
 
@@ -105,7 +105,7 @@ class CharterTemplateResolver:
         if project_dir is not None:
             # FR-003: tier chain reached through the factory, never through a
             # direct ``charter.offering.resolver`` import of our own.
-            result = DoctrineService.resolve_command_asset(f"{name}.md", project_dir, mission=mission)
+            result = ActiveCharterService.resolve_command_asset(f"{name}.md", project_dir, mission=mission)
             content = result.path.read_text(encoding="utf-8")
             origin = self._tier_to_origin(result.tier, mission, "command-templates", f"{name}.md")
             return TemplateResult(content=content, origin=origin, tier=result.tier)
@@ -145,7 +145,7 @@ class CharterTemplateResolver:
         if project_dir is not None:
             # FR-003: tier chain reached through the factory, never through a
             # direct ``charter.offering.resolver`` import of our own.
-            result = DoctrineService.resolve_content_asset(name, project_dir, mission=mission)
+            result = ActiveCharterService.resolve_content_asset(name, project_dir, mission=mission)
             content = result.path.read_text(encoding="utf-8")
             origin = self._tier_to_origin(result.tier, mission, "templates", name)
             return TemplateResult(content=content, origin=origin, tier=result.tier)

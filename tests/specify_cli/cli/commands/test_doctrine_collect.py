@@ -181,7 +181,7 @@ class _FakeRepo:
 
 
 class _FakeService:
-    """Stands in for ``charter.activation.resolver.DoctrineService`` (WP03, #2059 followup:
+    """Stands in for ``charter.activation.resolver.ActiveCharterService`` (WP03, #2059 followup:
     charter-sole-door-bypass-closure-01KZ3WAA T013). ``_resolve_artifact_source``
     now reads through the wrapper's ``raw_repository(plural)`` accessor rather
     than plain ``getattr(service, plural)`` (the gated per-kind properties on

@@ -46,7 +46,7 @@ three-state contract the other 9 kinds follow:
   narrows the result to exactly that subset.
 
 No test in this suite touches ``charter.activation.mission_type_profile_repository``
-(WP06's exclusive ownership) or adds anything to ``charter.activation.resolver.DoctrineService``.
+(WP06's exclusive ownership) or adds anything to ``charter.activation.resolver.ActiveCharterService``.
 """
 
 from __future__ import annotations

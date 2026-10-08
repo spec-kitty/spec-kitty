@@ -64,13 +64,13 @@ if TYPE_CHECKING:
     # WP02 (charter-sole-door-bypass-closure-01KZ3WAA, FR-001), narrowed by
     # the landing-fold regression fix (defect 1): this alias previously
     # admitted EITHER the activation-*gated* ``dict`` from
-    # ``charter.activation.resolver.DoctrineService.agent_profiles`` OR the raw
+    # ``charter.activation.resolver.ActiveCharterService.agent_profiles`` OR the raw
     # ``AgentProfileRepository`` from ``.agent_profile_repository``, on the
     # theory that both shapes only ever see ``.get(profile_id)`` calls here.
     # That theory was wrong: ``profile.sentinel`` (read inside
     # ``_get_hic_marker``) is a *structural* property, not an
     # activation-gated one -- exactly like ``get_provenance()``, which is why
-    # ``charter.activation.resolver.DoctrineService`` gives callers
+    # ``charter.activation.resolver.ActiveCharterService`` gives callers
     # ``agent_profile_repository`` / ``raw_repository()`` in the first place.
     # A project that narrows ``activated_agent_profiles`` to exclude
     # ``human-in-charge`` silently lost the 👤 marker when a gated dict was
@@ -939,7 +939,7 @@ def _st_render_human(st: _StatusState, ports: TasksPorts) -> None:
     if _needs_profile_lookup:
         try:
             # WP02 (charter-sole-door-bypass-closure-01KZ3WAA, FR-001): routed
-            # through ``charter.activation.resolver.DoctrineService`` instead of
+            # through ``charter.activation.resolver.ActiveCharterService`` instead of
             # constructing ``AgentProfileRepository`` directly. The comment
             # this replaces named a "runtime -> charter -> doctrine boundary
             # ratchet" concern; R3 (research.md) confirms that ratchet only
@@ -1086,7 +1086,7 @@ def _get_hic_marker(
     ``AgentProfileRepository`` -- rather than ``.agent_profiles``, the
     activation-*gated* dict. ``profile.sentinel`` below is a structural
     property, not an activation-gated one (exactly like
-    ``get_provenance()``, which is why ``charter.activation.resolver.DoctrineService``
+    ``get_provenance()``, which is why ``charter.activation.resolver.ActiveCharterService``
     exposes ``agent_profile_repository`` in the first place); reading the
     gated dict silently dropped the 👤 marker on any project that narrows
     ``activated_agent_profiles`` to a set excluding ``human-in-charge``.
@@ -1098,7 +1098,7 @@ def _get_hic_marker(
         profile_repo = repo
         if profile_repo is None:
             # WP02 (charter-sole-door-bypass-closure-01KZ3WAA, FR-001): routed
-            # through ``charter.activation.resolver.DoctrineService`` rather than
+            # through ``charter.activation.resolver.ActiveCharterService`` rather than
             # constructing ``AgentProfileRepository`` directly. As with the
             # sibling call site (``_st_render_human``), the removed comment's
             # "boundary ratchet" concern is confirmed a red herring (R3,

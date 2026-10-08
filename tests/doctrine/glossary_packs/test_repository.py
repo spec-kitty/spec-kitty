@@ -129,7 +129,7 @@ class TestGlossaryPackRepository:
         assert pack.description == "Overridden description"
 
 
-class TestDoctrineServiceGlossaryPacksAccessor:
+class TestCharterOfferingServiceGlossaryPacksAccessor:
     """T009 liveness proof: CharterOfferingService.glossary_packs is really wired.
 
     Constructs the service with a built-in root that ships a fixture pack

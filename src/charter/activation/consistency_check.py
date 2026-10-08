@@ -947,7 +947,7 @@ def _check_graph_kind_parity(
 
 
 # ---------------------------------------------------------------------------
-# Shared gate resources (T009, #3808): one DRG load + one DoctrineService
+# Shared gate resources (T009, #3808): one DRG load + one ActiveCharterService
 # build per ``run_consistency_check`` invocation, shared by the three
 # DRG-backed always-on gates below (``_check_unreconciled_tensions`` /
 # ``_check_enforcement_lattice`` / ``_check_decision_documentation_on_implement``)
@@ -959,7 +959,7 @@ def _check_graph_kind_parity(
 
 @dataclass
 class _GateResources:
-    """Per-``run_consistency_check`` cache: the DRG graph + ``DoctrineService``
+    """Per-``run_consistency_check`` cache: the DRG graph + ``ActiveCharterService``
     directives, each loaded/built at most once and shared by the three
     DRG-backed gates below (#3808 dedup).
 
@@ -1000,7 +1000,7 @@ class _GateResources:
         return self._full_drg
 
     def directives(self) -> DirectiveRepository:
-        """Return the ``DoctrineService.directives`` repository, built at most once."""
+        """Return the ``ActiveCharterService.directives`` repository, built at most once."""
         if not self._directives_loaded:
             self._directives_loaded = True
             from charter.activation.doctrine_service_builder import _build_doctrine_service  # noqa: PLC0415
@@ -1065,7 +1065,7 @@ def _resolve_full_drg(repo_root: Path) -> DRGGraph:
 
 
 def _resolve_directives(repo_root: Path, pack_context: PackContext) -> DirectiveRepository:
-    """Build the ``DoctrineService.directives`` repository, reusing the active
+    """Build the ``ActiveCharterService.directives`` repository, reusing the active
     :class:`_GateResources` cache when established (#3808); otherwise builds
     directly -- unchanged standalone behavior for scan_* callers outside
     ``run_consistency_check``.
@@ -1610,7 +1610,7 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
         # warning (SC-001).
         #
         # T009 (#3808): the three calls below share ONE DRG load (and, for
-        # the latter two, one DoctrineService build) via the
+        # the latter two, one ActiveCharterService build) via the
         # ``_gate_resources_scope`` cache -- down from three independent
         # loads pre-refactor.
         with _gate_resources_scope(ctx):
@@ -1656,7 +1656,7 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
     )
     _check_graph_kind_parity(ctx, raw_activated_by_kind, graph_kind_gaps, verification_errors, suggestions)
     # T009 (#3808): as in the implicit-all-active branch above, these three
-    # calls share ONE DRG load (and one DoctrineService build) via the
+    # calls share ONE DRG load (and one ActiveCharterService build) via the
     # ``_gate_resources_scope`` cache.
     with _gate_resources_scope(ctx):
         _check_unreconciled_tensions(ctx, unreconciled_tensions, verification_errors, suggestions)

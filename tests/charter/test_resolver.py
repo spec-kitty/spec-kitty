@@ -9,7 +9,7 @@ import pytest
 import charter.activation.catalog as catalog_module
 from charter.activation.interview import default_interview
 from charter.activation.resolver import (
-    DoctrineService,
+    ActiveCharterService,
     GovernanceResolutionError,
     collect_governance_diagnostics,
     resolve_governance_for_profile,
@@ -828,12 +828,12 @@ def test_sync_output_does_not_include_agents_yaml(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# DoctrineService wrapper — activation filter coverage (FR-016 / FR-017)
+# ActiveCharterService wrapper — activation filter coverage (FR-016 / FR-017)
 # ---------------------------------------------------------------------------
 
 
 def test_doctrine_service_paradigms_filtered_by_pack_context() -> None:
-    """DoctrineService.paradigms applies pack_context.activated_paradigms filter."""
+    """ActiveCharterService.paradigms applies pack_context.activated_paradigms filter."""
     from unittest.mock import MagicMock
     from charter.activation.pack_context import PackContext
 
@@ -848,7 +848,7 @@ def test_doctrine_service_paradigms_filtered_by_pack_context() -> None:
     pack_ctx = MagicMock(spec=PackContext)
     pack_ctx.activated_paradigms = frozenset({"test-first"})
 
-    service = DoctrineService(inner, pack_context=pack_ctx)
+    service = ActiveCharterService(inner, pack_context=pack_ctx)
     result = service.paradigms
 
     assert "test-first" in result
@@ -856,7 +856,7 @@ def test_doctrine_service_paradigms_filtered_by_pack_context() -> None:
 
 
 def test_doctrine_service_paradigms_unfiltered_when_pack_context_none() -> None:
-    """DoctrineService.paradigms returns all when pack_context is None."""
+    """ActiveCharterService.paradigms returns all when pack_context is None."""
     from unittest.mock import MagicMock
 
     paradigm_a = MagicMock()
@@ -864,14 +864,14 @@ def test_doctrine_service_paradigms_unfiltered_when_pack_context_none() -> None:
     inner = MagicMock()
     inner.paradigms.list_all.return_value = [paradigm_a]
 
-    service = DoctrineService(inner, pack_context=None)
+    service = ActiveCharterService(inner, pack_context=None)
     result = service.paradigms
 
     assert "test-first" in result
 
 
 def test_doctrine_service_procedures_filtered_by_pack_context() -> None:
-    """DoctrineService.procedures applies pack_context.activated_procedures filter."""
+    """ActiveCharterService.procedures applies pack_context.activated_procedures filter."""
     from unittest.mock import MagicMock
     from charter.activation.pack_context import PackContext
 
@@ -886,7 +886,7 @@ def test_doctrine_service_procedures_filtered_by_pack_context() -> None:
     pack_ctx = MagicMock(spec=PackContext)
     pack_ctx.activated_procedures = frozenset({"tdd"})
 
-    service = DoctrineService(inner, pack_context=pack_ctx)
+    service = ActiveCharterService(inner, pack_context=pack_ctx)
     result = service.procedures
 
     assert "tdd" in result
@@ -894,13 +894,13 @@ def test_doctrine_service_procedures_filtered_by_pack_context() -> None:
 
 
 def test_doctrine_service_getattr_delegates_to_inner() -> None:
-    """Unknown attributes on DoctrineService are forwarded to the inner service."""
+    """Unknown attributes on ActiveCharterService are forwarded to the inner service."""
     from unittest.mock import MagicMock
 
     inner = MagicMock()
     inner.some_custom_attr = "sentinel"
 
-    service = DoctrineService(inner, pack_context=None)
+    service = ActiveCharterService(inner, pack_context=None)
 
     assert service.some_custom_attr == "sentinel"
 
@@ -910,7 +910,7 @@ def test_resolve_governance_for_profile_raises_when_profile_not_in_dict() -> Non
     from unittest.mock import MagicMock
     from charter.activation.interview import CharterInterview
 
-    service = MagicMock(spec=DoctrineService)
+    service = MagicMock(spec=ActiveCharterService)
     service.agent_profiles = {}  # empty dict, isinstance check will be True
 
     interview = MagicMock(spec=CharterInterview)

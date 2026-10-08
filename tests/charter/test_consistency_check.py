@@ -327,7 +327,7 @@ def test_run_consistency_check_completes_within_budget(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# #3808 (WP03): shared DRG load / DoctrineService build across the three
+# #3808 (WP03): shared DRG load / ActiveCharterService build across the three
 # always-on gates -- see module docstring for the full list.
 # ---------------------------------------------------------------------------
 

@@ -1,4 +1,4 @@
-"""``DoctrineService`` builders (WP06 T031, #2532) — the US1-frozen region.
+"""``ActiveCharterService`` builders (WP06 T031, #2532) — the US1-frozen region.
 
 Relocated verbatim from ``charter.activation.context``: :func:`_build_doctrine_service`
 and :func:`_build_activation_aware_doctrine_service` — the **LAST** cluster of
@@ -15,7 +15,7 @@ that replaces ``specify_cli.doctrine_service_factory.build_activation_aware_doct
 (the latter becomes a thin re-export of this one, C-001). It is itself a
 thin delegate to :func:`_build_activation_aware_doctrine_service` — the
 SINGLE body in this module that constructs
-:class:`~charter.activation.resolver.DoctrineService` (cycle-2 review fix, Blocker 2:
+:class:`~charter.activation.resolver.ActiveCharterService` (cycle-2 review fix, Blocker 2:
 the public function previously duplicated that body's construction logic
 for the ``org_roots=None`` case, re-creating inside one module the exact
 C-001 divergence risk the WP exists to close). It also collapses the "build
@@ -24,7 +24,7 @@ raw, conditionally wrap" pattern previously duplicated inline at
 scan sites now route the raw inner construction through
 :func:`_build_doctrine_service` below — the one place in this codebase that
 constructs a raw ``charter.offering.service.CharterOfferingService`` — then wrap with
-``charter.activation.resolver.DoctrineService(inner, pack_context=None)``, the
+``charter.activation.resolver.ActiveCharterService(inner, pack_context=None)``, the
 sanctioned unfiltered-diagnostic form; see that module's docstring) and
 ``specify_cli/cli/commands/charter/generate.py`` (FR-002). The two former
 "canonical" builders diverged on two axes; the unification always picks the
@@ -77,7 +77,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from charter.activation.resolver import DoctrineService as _ActivationAwareDoctrineService
+    from charter.activation.resolver import ActiveCharterService
     import charter.offering.service as _offering_service_module
     from charter.activation.interview import CharterInterview
 
@@ -200,7 +200,7 @@ def _build_activation_aware_doctrine_service(
     agent_profile_overlay_dir: Path | None = None,
     interview: CharterInterview | None = None,
     prefer_interview: bool = False,
-) -> _ActivationAwareDoctrineService:
+) -> ActiveCharterService:
     """Build an *activation-aware* doctrine service for ``--include`` fetches.
 
     FR-016: ``charter context --include agent-profile:<id>`` must inherit the
@@ -208,7 +208,7 @@ def _build_activation_aware_doctrine_service(
     structured miss rather than silently rendered. This is the **scoped**
     counterpart to :func:`_build_doctrine_service`: it builds the same inner
     service (identical kwargs) and wraps it with the activation-aware
-    :class:`charter.activation.resolver.DoctrineService`, supplying a freshly constructed
+    :class:`charter.activation.resolver.ActiveCharterService`, supplying a freshly constructed
     :class:`~charter.activation.pack_context.PackContext` for *repo_root*.
 
     Only the ``agent-profile`` include branch routes through this helper; the
@@ -233,7 +233,7 @@ def _build_activation_aware_doctrine_service(
     """
     from charter.activation.context import _build_doctrine_service  # noqa: PLC0415
     from charter.activation.pack_context import PackContext
-    from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
+    from charter.activation.resolver import ActiveCharterService
 
     resolved_org_roots = (
         org_roots if org_roots is not None else _self_resolve_existing_org_roots(repo_root)
@@ -260,7 +260,7 @@ def _build_activation_aware_doctrine_service(
     else:
         inner = _build_doctrine_service(repo_root, org_roots=resolved_org_roots, **language_kwargs)
     pack_context = PackContext.from_config(repo_root)
-    return ActivationAwareDoctrineService(inner, pack_context=pack_context)
+    return ActiveCharterService(inner, pack_context=pack_context)
 
 
 def build_activation_aware_doctrine_service(
@@ -269,8 +269,8 @@ def build_activation_aware_doctrine_service(
     agent_profile_overlay_dir: Path | None = None,
     interview: CharterInterview | None = None,
     prefer_interview: bool = False,
-) -> _ActivationAwareDoctrineService:
-    """Build the ONE canonical activation-aware ``DoctrineService`` (FR-008, C-001).
+) -> ActiveCharterService:
+    """Build the ONE canonical activation-aware ``ActiveCharterService`` (FR-008, C-001).
 
     This is the single unified builder — replacing
     ``specify_cli.doctrine_service_factory.build_activation_aware_doctrine_service``
@@ -286,7 +286,7 @@ def build_activation_aware_doctrine_service(
     public function exposes no ``org_roots`` override — every current call site
     wants the fully-resolved, activation-aware service; a caller that needs an
     explicit ``org_roots`` override (or the unfiltered diagnostic mode,
-    ``pack_context=None``) constructs :class:`charter.activation.resolver.DoctrineService`
+    ``pack_context=None``) constructs :class:`charter.activation.resolver.ActiveCharterService`
     directly, per the "unfiltered-diagnostic contract" documented in this
     mission's ``data-model.md``. The one override it does forward is
     *agent_profile_overlay_dir* (see below).
@@ -303,7 +303,7 @@ def build_activation_aware_doctrine_service(
 
     Returns
     -------
-    charter.activation.resolver.DoctrineService
+    charter.activation.resolver.ActiveCharterService
         The activation-aware wrapper, always wrapped (never a raw, unwrapped
         service — closing the fail-open gap FR-002 named at the three
         collapsed call sites above).
@@ -311,7 +311,7 @@ def build_activation_aware_doctrine_service(
     Cycle-2 review fix (Blocker 2): this is a **thin delegate** to
     :func:`_build_activation_aware_doctrine_service` with no ``org_roots``
     override, rather than a second copy of its construction body. Prior to
-    this fix, both functions independently called ``ActivationAwareDoctrineService(...)``
+    this fix, both functions independently called ``ActiveCharterService(...)``
     with byte-identical logic for the ``org_roots=None`` case — exactly the
     C-001 "two canonical builders can silently diverge" risk this WP exists
     to close, re-created *inside* this one module. Only one body may

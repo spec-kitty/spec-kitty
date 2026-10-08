@@ -1218,11 +1218,11 @@ def _check_profile_skipped_diagnostics(
     point (``build_activation_aware_doctrine_service``) takes only
     ``repo_root`` and self-resolves ``org_roots`` — it cannot target an
     arbitrary pack directory. The gate's documented escape hatch,
-    constructing ``charter.activation.resolver.DoctrineService`` directly, requires an
+    constructing ``charter.activation.resolver.ActiveCharterService`` directly, requires an
     *already-built* raw inner ``charter.offering.service.CharterOfferingService``, which is
     the very construction the gate forbids here. Direct
     ``AgentProfileRepository`` construction is therefore the correct seam;
-    do not "fix" this back to a ``DoctrineService`` wrapper.
+    do not "fix" this back to a ``ActiveCharterService`` wrapper.
 
     PR-M-001: direct construction does not remove the need for a guard —
     ``AgentProfileRepository.__init__`` resolves the built-in content

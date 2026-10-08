@@ -339,7 +339,7 @@ def _render_bootstrap_text(
     # of ``src/charter/offering/<kind>/`` into ``packs/built-in/<kind>/``; ``resolve_doctrine_root()``
     # still points at the now-emptied ``src/doctrine`` tree (used for templates), so it
     # resolves nothing and every pointer dies. Resolve the built-in pack root instead,
-    # mirroring how the DoctrineService repositories self-resolve ``packs/built-in/<kind>``.
+    # mirroring how the ActiveCharterService repositories self-resolve ``packs/built-in/<kind>``.
     # Lazy import: avoids a load-time cycle (see module docstring).
     from charter.offering.pack_paths import built_in_root  # noqa: PLC0415
 

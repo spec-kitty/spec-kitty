@@ -3,7 +3,7 @@
 Resolves active governance from charter selections and validates
 selected references against available profile/tool catalogs.
 
-Exports ``DoctrineService`` — an activation-aware wrapper around
+Exports ``ActiveCharterService`` — an activation-aware wrapper around
 :class:`charter.offering.service.CharterOfferingService`.  The wrapper applies per-kind
 activation filters from :class:`~charter.activation.pack_context.PackContext` to nine
 gated properties: ``paradigms``, ``procedures``, ``agent_profiles``
@@ -12,12 +12,12 @@ gated properties: ``paradigms``, ``procedures``, ``agent_profiles``
 charter-sole-door-bypass-closure-01KZ3WAA WP01).  All other properties
 delegate to the inner doctrine service transparently via ``__getattr__``.
 
-It also exposes :attr:`DoctrineService.agent_profile_repository` — a second,
+It also exposes :attr:`ActiveCharterService.agent_profile_repository` — a second,
 explicitly-named accessor (FR-001) returning the raw, lineage/mutation-capable
 :class:`~charter.offering.agent_profiles.repository.AgentProfileRepository` for
 callers that need ``register_overlay()`` or ``get_provenance()``, which the
 filtered ``agent_profiles`` dict cannot support; and
-:meth:`DoctrineService.raw_repository` (FR-002 Option A) — the generic,
+:meth:`ActiveCharterService.raw_repository` (FR-002 Option A) — the generic,
 per-kind form of that same "filtered dict can't do repository ops" escape
 hatch, for provenance-scan callers that need raw ``list_all()``/
 ``get_provenance()`` access across any of the nine gated kinds.
@@ -27,7 +27,7 @@ is the **sole charter-layer door** onto ``doctrine/resolver.py``'s 6-tier
 asset resolution chain. The tier functions themselves stay in
 ``doctrine/resolver.py`` (charter must import charter.offering, never the reverse);
 what lives here is the entry point — see the "6-tier resolution axis"
-section of :class:`DoctrineService`. Before WP05,
+section of :class:`ActiveCharterService`. Before WP05,
 ``charter.activation.template_resolver.CharterTemplateResolver`` was a *second*
 charter-layer object reaching ``charter.offering.resolver`` independently of this
 one; it is now a thin delegate onto these methods.
@@ -66,7 +66,7 @@ from charter.offering.resolver import (
 
 __all__ = [
     "DEFAULT_TOOL_REGISTRY",
-    "DoctrineService",
+    "ActiveCharterService",
     "GovernanceResolution",
     "GovernanceResolutionError",
     "collect_governance_diagnostics",
@@ -97,7 +97,7 @@ _LOGGER = logging.getLogger(__name__)
 DEFAULT_TEMPLATE_SET = "software-dev-default"
 DEFAULT_TOOL_REGISTRY: frozenset[str] = frozenset({"spec-kitty", "git"})
 
-#: The nine gated-property kinds :meth:`DoctrineService.raw_repository`
+#: The nine gated-property kinds :meth:`ActiveCharterService.raw_repository`
 #: recognizes -- exactly the kinds with a gated ``dict`` property above.
 #: Derived from the single :class:`ArtifactKind` authority (issue #5409): the
 #: charter-activatable kinds that own a standalone repository. ``ANTI_PATTERN``
@@ -164,11 +164,11 @@ def _resolve_unmatched_directive_token(token: str, all_directives: dict[str, Dir
 
 
 # ---------------------------------------------------------------------------
-# Activation-aware DoctrineService wrapper (Pattern B + C wiring)
+# Activation-aware ActiveCharterService wrapper (Pattern B + C wiring)
 # ---------------------------------------------------------------------------
 
 
-class DoctrineService:
+class ActiveCharterService:
     """Activation-aware wrapper around :class:`charter.offering.service.CharterOfferingService`.
 
     Applies per-kind activation filters from
@@ -993,7 +993,7 @@ def resolve_project_governance(
 def resolve_governance_for_profile(
     profile_id: str,
     role: str | None,
-    doctrine_service: DoctrineService,
+    doctrine_service: ActiveCharterService,
     interview: CharterInterview,
     *,
     graph: DRGGraph | None = None,
@@ -1004,7 +1004,7 @@ def resolve_governance_for_profile(
     if not normalized_profile_id:
         raise ValueError("Profile ID is required for profile-aware governance resolution.")
 
-    # Pattern C: agent_profiles may be a filtered dict (DoctrineService wrapper)
+    # Pattern C: agent_profiles may be a filtered dict (ActiveCharterService wrapper)
     # or a repository (raw charter.offering.service.CharterOfferingService / MagicMock in tests).
     agent_profiles_attr = doctrine_service.agent_profiles
     if isinstance(agent_profiles_attr, dict):

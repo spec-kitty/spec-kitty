@@ -109,7 +109,7 @@ _ACTION_PROSE: dict[str, str] = {
 }
 
 
-#: Mapping of the charter-activatable (plural) ``DoctrineService`` property
+#: Mapping of the charter-activatable (plural) ``ActiveCharterService`` property
 #: names to the corresponding ``service.<property>`` attribute name.  Used
 #: by :func:`_infer_kind` to scan the service when an operator omits
 #: ``artifact_kind``.

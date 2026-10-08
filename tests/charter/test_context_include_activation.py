@@ -37,7 +37,7 @@ pytestmark = pytest.mark.fast
 class _StubRepo:
     """Repository stub exposing both ``get`` and ``list_all``.
 
-    The activation-aware wrapper (:class:`charter.activation.resolver.DoctrineService`)
+    The activation-aware wrapper (:class:`charter.activation.resolver.ActiveCharterService`)
     calls ``agent_profiles.list_all()`` to build its filtered dict, so the
     profile repo stub must provide ``list_all`` in addition to the ``get``
     used by the unwrapped render path.
@@ -57,7 +57,7 @@ class _StubRepo:
 
 
 class _StubService:
-    """DoctrineService stand-in carrying the kinds WP05 routes."""
+    """ActiveCharterService stand-in carrying the kinds WP05 routes."""
 
     def __init__(
         self,
@@ -218,7 +218,7 @@ class TestScopedToAgentProfileOnly:
         # activation-aware wrapper, whether or not a restriction is configured.
         # The unrestricted (``None``) case stays byte-identical in *behaviour*
         # because the wrapper's None branch admits every profile.
-        from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
+        from charter.activation.resolver import ActiveCharterService
 
         stub = _StubService(
             agent_profiles=_StubRepo(
@@ -230,7 +230,7 @@ class TestScopedToAgentProfileOnly:
         # Restriction present -> wrapped (activation-aware) service.
         _write_activation_config(tmp_path, activated=["python-pedro"])
         wrapped = context_module._build_activation_aware_doctrine_service(tmp_path)
-        assert isinstance(wrapped, ActivationAwareDoctrineService)
+        assert isinstance(wrapped, ActiveCharterService)
 
         # No restriction -> STILL wrapped, and the None branch admits all so the
         # gated map carries the profile unchanged (single contract, R5).
@@ -241,7 +241,7 @@ class TestScopedToAgentProfileOnly:
             "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
         )
         unrestricted = context_module._build_activation_aware_doctrine_service(tmp_path)
-        assert isinstance(unrestricted, ActivationAwareDoctrineService)
+        assert isinstance(unrestricted, ActiveCharterService)
         assert object.__getattribute__(unrestricted, "_inner") is stub
         assert "python-pedro" in unrestricted.agent_profiles
 

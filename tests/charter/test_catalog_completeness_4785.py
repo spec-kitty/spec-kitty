@@ -16,7 +16,7 @@ was written -- see the WP01 prompt's "confirm empirically" instruction): NOT
 a URN/config-stem id-format mismatch (transitively-reached directive ids
 already match the typed repository's own canonical keys byte-for-byte); the
 mismatch is which repository backs the lookup. ``doctrine_service.directives``
-et al. (the nine gated properties on ``charter.activation.resolver.DoctrineService``)
+et al. (the nine gated properties on ``charter.activation.resolver.ActiveCharterService``)
 return only the DIRECTLY config-activated subset; the DRG transitive closure
 (``graph.directives`` et al.) legitimately reaches ids beyond that subset.
 The fix routes the lookup through the raw, unfiltered repository
@@ -39,7 +39,7 @@ from ruamel.yaml import YAML
 from charter.activation.compiler import _ReferenceFields, _render_kind_references, compile_charter, write_compiled_charter
 from charter.activation.interview import default_interview
 from charter.activation.pack_context import PackContext
-from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
+from charter.activation.resolver import ActiveCharterService
 from charter.offering.service import CharterOfferingService
 
 pytestmark = [pytest.mark.fast, pytest.mark.regression]
@@ -104,7 +104,7 @@ def _compile_with_transitive_directive_seed(repo_root: Path) -> Any:
     ``_default_doctrine_service`` share in production.
     """
     pack_context = _pack_context_seeding_procedure_only(repo_root)
-    doctrine_service = ActivationAwareDoctrineService(CharterOfferingService(project_root=None), pack_context=pack_context)
+    doctrine_service = ActiveCharterService(CharterOfferingService(project_root=None), pack_context=pack_context)
     interview = default_interview(mission="software-dev", profile="minimal")
     return compile_charter(
         mission="software-dev",

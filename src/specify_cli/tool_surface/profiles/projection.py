@@ -116,7 +116,7 @@ def default_profile_repository(project_root: Path) -> AgentProfileRepository:
     with ``org_roots=[]`` (C-008: an org-free base — see the call site) and
     ``agent_profile_overlay_dir=project_root / _PROJECT_PROFILE_SUBDIR``
     (the #3176 builder overlay seam, WP02). That seam resolves the inner
-    ``doctrine.service.DoctrineService``'s agent-profile project overlay at
+    ``charter.offering.service.CharterOfferingService``'s agent-profile project overlay at
     ``.kittify/agent_profiles`` — the path the builder's default
     ``resolve_project_root`` candidates (``.kittify/doctrine`` / ``src/doctrine``
     / ``doctrine``) never reach — so every seeded ``.kittify/agent_profiles/

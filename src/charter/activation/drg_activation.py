@@ -456,7 +456,7 @@ def filter_graph_by_activation(
 
     See module docstring for the FR-006 / FR-018 binding and the WP11 T069
     invariant: this filter applies only to charter-mediated resolution.
-    Direct doctrine-API callers (``DoctrineService.<repo>.get(...)``,
+    Direct doctrine-API callers (``ActiveCharterService.<repo>.get(...)``,
     ``MissionTemplateRepository.get(...)``) are exempt.
     """
     resolved_urns_by_kind = _resolve_activated_urns_by_kind(pack_context)

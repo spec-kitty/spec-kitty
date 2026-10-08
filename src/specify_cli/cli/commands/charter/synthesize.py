@@ -146,7 +146,7 @@ def charter_synthesize(  # noqa: C901
     command short-circuits the adapter pipeline and materializes the
     **minimal artifact set** the runtime requires:
 
-    1. ``.kittify/charter-packs/`` — directory marker. ``DoctrineService``'s
+    1. ``.kittify/charter-packs/`` — directory marker. ``ActiveCharterService``'s
        project-root resolver (``src/charter/activation/_doctrine_paths.py``) is a
        presence-only check; an empty directory is a valid project layer.
     2. ``.kittify/charter-packs/PROVENANCE.md`` — human-readable record of the

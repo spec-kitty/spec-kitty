@@ -260,7 +260,7 @@ def _load_action_doctrine_bundle(
     #3525 Fold B: *org_roots*, when supplied, carries the full
     declaration-ordered org-pack chain and is threaded straight through to
     :func:`charter.activation._drg_helpers.load_validated_graph` (which prefers it over
-    *org_root*) AND to the ``DoctrineService`` built below — both halves now
+    *org_root*) AND to the ``ActiveCharterService`` built below — both halves now
     see every configured pack, not just *org_root*'s single representative
     entry. Callers that only ever supplied *org_root* (no chain resolved)
     keep the pre-fix single-root behaviour byte-identical.

@@ -21,7 +21,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from charter.activation.pack_context import PackContext
-from charter.activation.resolver import DoctrineService
+from charter.activation.resolver import ActiveCharterService
 
 pytestmark = pytest.mark.fast
 
@@ -84,8 +84,8 @@ def test_wrapped_equals_unwrapped_for_bare_project(
 
     _provision_mission_type_activation(tmp_path)
     bare_pack_ctx = PackContext.from_config(tmp_path)
-    wrapped = DoctrineService(inner, pack_context=bare_pack_ctx)
-    unwrapped_inner = DoctrineService(inner, pack_context=None)
+    wrapped = ActiveCharterService(inner, pack_context=bare_pack_ctx)
+    unwrapped_inner = ActiveCharterService(inner, pack_context=None)
 
     assert getattr(wrapped, prop) == getattr(unwrapped_inner, prop)
     assert getattr(wrapped, prop) == {"alpha": items[0], "beta": items[1]}
@@ -105,7 +105,7 @@ def test_explicit_activation_still_filters(tmp_path: Path, prop: str, activated_
     _provision_mission_type_activation(tmp_path)
     pack_ctx = replace(PackContext.from_config(tmp_path), **{activated_field: frozenset({"alpha"})})
 
-    wrapped = DoctrineService(inner, pack_context=pack_ctx)
+    wrapped = ActiveCharterService(inner, pack_context=pack_ctx)
     result = getattr(wrapped, prop)
 
     assert "alpha" in result

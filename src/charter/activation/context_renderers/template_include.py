@@ -354,8 +354,8 @@ def _resolve_include_kind(kind: str, selector: str) -> ArtifactKind:
 
 
 def _render_agent_profile_include_selector(
-    # object (not DoctrineService): the caller forwards either the plain or the
-    # activation-aware service (charter.activation.resolver.DoctrineService, an unrelated
+    # object (not ActiveCharterService): the caller forwards either the plain or the
+    # activation-aware service (charter.activation.resolver.ActiveCharterService, an unrelated
     # class), and this only forwards it to _render_doctrine_artifact_include(service: object).
     gated_service: object,
     canonical_kind: str,

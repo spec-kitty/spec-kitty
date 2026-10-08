@@ -171,7 +171,7 @@ def test_unresolved_reference_records_mirrors_diagnostics_for_a_mixed_fixture(
     from charter.activation.compiler import ConfigActivatedRoots
     from charter.offering.drg.query import ResolveTransitiveRefsResult
 
-    class _StubDoctrineService:
+    class _StubActiveCharterService:
         def raw_repository(self, kind: str) -> Any:
             if kind == "styleguides":
                 return _ScopeFilteredRepository(
@@ -200,7 +200,7 @@ def test_unresolved_reference_records_mirrors_diagnostics_for_a_mixed_fixture(
         template_set="default",
         config_roots=config_roots,
         doctrine_root=compiler_module.resolve_doctrine_root(),
-        doctrine_service=_StubDoctrineService(),
+        doctrine_service=_StubActiveCharterService(),
         repo_root=None,
         diagnostics=diagnostics,
         unresolved_records=unresolved_records,
@@ -233,7 +233,7 @@ def test_graph_unresolved_urn_with_scope_filtered_cause_gets_a_real_placeholder(
     from charter.activation.compiler import ConfigActivatedRoots
     from charter.offering.drg.query import ResolveTransitiveRefsResult
 
-    class _StubDoctrineService:
+    class _StubActiveCharterService:
         def raw_repository(self, kind: str) -> Any:
             if kind == "styleguides":
                 return _ScopeFilteredRepository(
@@ -262,7 +262,7 @@ def test_graph_unresolved_urn_with_scope_filtered_cause_gets_a_real_placeholder(
         template_set="default",
         config_roots=config_roots,
         doctrine_root=compiler_module.resolve_doctrine_root(),
-        doctrine_service=_StubDoctrineService(),
+        doctrine_service=_StubActiveCharterService(),
         repo_root=None,
         diagnostics=diagnostics,
     )

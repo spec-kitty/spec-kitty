@@ -115,7 +115,7 @@ class TestContextGenericArtifactIncludeExcludesNonBareProbeableKinds:
         # repository directly, so `service.directives`/`service.tactics` is now
         # evaluated at the call site — before the monkeypatched includes — so a
         # bare `object()` no longer suffices. The fakes ignore the value;
-        # production always passes a full DoctrineService.)
+        # production always passes a full ActiveCharterService.)
         _probe_service = SimpleNamespace(directives=object(), tactics=object())
         with pytest.raises(ValueError, match="No artifact found"):
             context_mod._render_generic_artifact_include(_probe_service, "some-id")

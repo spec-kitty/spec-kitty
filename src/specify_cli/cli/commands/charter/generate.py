@@ -34,7 +34,7 @@ def _build_doctrine_service_with_org_layer(
     interview: Any = None,
     prefer_interview: bool = False,
 ) -> Any:
-    """Return an activation-filtered ``DoctrineService`` for charter generation.
+    """Return an activation-filtered ``ActiveCharterService`` for charter generation.
 
     FR-002/FR-008 unification (charter-sole-door-bypass-closure-01KZ3WAA
     WP01): thin call-through to the single canonical builder,
@@ -45,7 +45,7 @@ def _build_doctrine_service_with_org_layer(
     ``specify_cli.doctrine_service_factory``, C-001). The unified builder
     always self-resolves org roots and always computes ``active_languages``,
     and it always returns the activation-aware
-    :class:`charter.activation.resolver.DoctrineService` wrapper — it never falls back
+    :class:`charter.activation.resolver.ActiveCharterService` wrapper — it never falls back
     to a raw, unwrapped service, closing the fail-open gap FR-002 named at
     this site (the previous code's ``pack_context`` resolution was wrapped in
     a bare ``except Exception: pass`` that silently degraded to an

@@ -1,4 +1,4 @@
-"""Shared DoctrineService project-root candidate resolution.
+"""Shared ActiveCharterService project-root candidate resolution.
 
 Both ``src/charter/activation/compiler.py::_default_doctrine_service`` and
 ``src/charter/activation/context.py::_build_doctrine_service`` use the same candidate-list
@@ -49,12 +49,12 @@ def resolve_project_root(repo_root: Path) -> Path | None:
     """Return the first existing project-doctrine directory for *repo_root*.
 
     Returns ``None`` when none of the candidates exist on disk, which means
-    ``DoctrineService`` will be constructed with ``project_root=None`` (built-in
+    ``ActiveCharterService`` will be constructed with ``project_root=None`` (built-in
     layer only — identical to the pre-Phase-3 default).
 
     The function is intentionally a thin directory-presence check: it does
     **not** inspect the directory's contents.  An empty project pack root
-    directory is still a valid candidate (the ``DoctrineService`` will simply
+    directory is still a valid candidate (the ``ActiveCharterService`` will simply
     surface an empty project layer with no built-in-layer impact).
 
     Args:

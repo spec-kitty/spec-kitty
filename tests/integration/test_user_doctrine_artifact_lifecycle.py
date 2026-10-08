@@ -49,7 +49,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 _FETCH_CMD_RE = re.compile(
     r"spec-kitty\s+charter\s+context\b|"
     r"spec-kitty\s+doctrine\b|"
-    r"DoctrineService\(",
+    r"ActiveCharterService\(",
     re.IGNORECASE,
 )
 _WHEN_DOING_RE = re.compile(

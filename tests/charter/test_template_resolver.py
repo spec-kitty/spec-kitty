@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from charter.activation.resolver import DoctrineService
+from charter.activation.resolver import ActiveCharterService
 from charter.activation.template_resolver import CharterTemplateResolver
 from charter.offering.missions.repository import TemplateResult
 from charter.offering.resolver import ResolutionResult, ResolutionTier
@@ -25,7 +25,7 @@ def test_resolve_command_template_with_project_context_uses_runtime_chain(
     # ``charter.offering.resolver`` re-export in charter.activation.template_resolver onto the
     # canonical factory, so the patch target moved with it.
     monkeypatch.setattr(
-        DoctrineService,
+        ActiveCharterService,
         "resolve_command_asset",
         lambda *args, **kwargs: ResolutionResult(path=path, tier=ResolutionTier.OVERRIDE, mission="software-dev"),
     )
@@ -46,7 +46,7 @@ def test_resolve_content_template_with_project_context_uses_runtime_chain(
     path.write_text("legacy content", encoding="utf-8")
     # FR-003 (WP05): see the sibling test — patch target follows the seam.
     monkeypatch.setattr(
-        DoctrineService,
+        ActiveCharterService,
         "resolve_content_asset",
         lambda *args, **kwargs: ResolutionResult(path=path, tier=ResolutionTier.LEGACY, mission="software-dev"),
     )

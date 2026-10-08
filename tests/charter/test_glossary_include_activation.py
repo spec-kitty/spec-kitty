@@ -41,7 +41,7 @@ pytestmark = pytest.mark.fast
 class _StubRepo:
     """Repository stub exposing both ``get`` and ``list_all``.
 
-    The activation-aware wrapper (:class:`charter.resolver.DoctrineService`)
+    The activation-aware wrapper (:class:`charter.resolver.ActiveCharterService`)
     builds its filtered ``glossary_packs`` dict via ``list_all()``; the
     unwrapped render path reads through ``get()``. Provide both.
     """
@@ -60,7 +60,7 @@ class _StubRepo:
 
 
 class _StubService:
-    """DoctrineService stand-in carrying the glossary_packs repo R2 routes."""
+    """ActiveCharterService stand-in carrying the glossary_packs repo R2 routes."""
 
     def __init__(self, *, glossary_packs: _StubRepo | None = None) -> None:
         self.glossary_packs = glossary_packs or _StubRepo()

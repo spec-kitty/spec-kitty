@@ -107,11 +107,11 @@ class _StubRepository:
         return list(self.known)
 
 
-class _StubDoctrineService:
+class _StubActiveCharterService:
     """Activation-aware-wrapper double: exposes ``raw_repository(kind)``.
 
     ``_raw_kind_repository`` (compiler.py) prefers this method when present,
-    matching the real ``charter.activation.resolver.DoctrineService`` shape
+    matching the real ``charter.activation.resolver.ActiveCharterService`` shape
     every production caller passes.
     """
 
@@ -157,7 +157,7 @@ def _call_build_references(
     monkeypatch.setattr(compiler_module, "_resolve_transitive_reference_graph", lambda **_kwargs: graph)
     diagnostics: list[str] = []
     unresolved_records: list[dict[str, str]] = []
-    doctrine_service = _StubDoctrineService(**(repositories or {}))
+    doctrine_service = _StubActiveCharterService(**(repositories or {}))
     references = compiler_module._build_references_from_service(
         mission="software-dev",
         template_set="default",
@@ -372,7 +372,7 @@ _UNATTRIBUTABLE_URN_CASES: tuple[tuple[str, str, str, str, str, str], ...] = (
         "some-action-id",
         "unrecognized artifact kind: action",
     ),
-    # NOTE: the stub ``_StubDoctrineService.raw_repository`` (above) never
+    # NOTE: the stub ``_StubActiveCharterService.raw_repository`` (above) never
     # returns ``None`` -- it defaults to an empty ``_StubRepository()`` for
     # any kind not explicitly configured -- so this fixture exercises the
     # "valid, real-repository kind outside the six tracked kinds" contract
