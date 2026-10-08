@@ -726,7 +726,8 @@
       "notes": [
         "WP22 prose cutover: built-in/internal packs, skills, CLI help text, living docs, AGENTS.md/CLAUDE.md; usage-journey rewritten to activation presets; CLI reference + retrieval index regenerated. Prose slice green (0/894). Reviewer: please rule on the fixture exclude for the generated docs-retrieval-index (c5a4154f). Activity log: /tmp/claude-0/-home-user-spec-kitty/f9460057-6c9a-5dbf-a006-51ed9650d09d/scratchpad/WP22-activity-log.md",
         "Changes requested: stale completion manifest (freshness gate red) and retired doctrine: key in environment-variables.md example; two small owned-doc fixes.",
-        "Review cycle 1 fixes: completion manifest regenerated (4cc5bbae, freshness gate red->green); retired config keys/module path in env-vars, configuration, calibration README and org pack guide (6e1019a0). Activity log: /tmp/claude-0/-home-user-spec-kitty/f9460057-6c9a-5dbf-a006-51ed9650d09d/scratchpad/WP22-activity-log.md"
+        "Review cycle 1 fixes: completion manifest regenerated (4cc5bbae, freshness gate red->green); retired config keys/module path in env-vars, configuration, calibration README and org pack guide (6e1019a0). Activity log: /tmp/claude-0/-home-user-spec-kitty/f9460057-6c9a-5dbf-a006-51ed9650d09d/scratchpad/WP22-activity-log.md",
+        "Cycle 2 approved. B1: completion manifest regenerated (freshness gate green). B2: env-var example uses charter_packs.org.packs and parses through load_pack_registry(strict=True). configuration.md and calibration README fixed; extra organisation_packs fix in create-an-org-doctrine-pack.md is correct. Acceptance 310p/1s/43xf/0f/0xp; gates 153p; tests/docs 1741p (1 known WP24 red); test-fast 2281p; docs-lint 0 errors; ruff clean."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
