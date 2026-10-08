@@ -141,7 +141,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Every per-Mission lock caller keys on mission_lock_key; coord_seed + owned-checkout holds registered; A7 rewrites pinned under lock; red-first 14/19 failed pre-fix; 5/5 repeats + 3 mutations fail as required; blast radius 8392+5401 passed; make test-fast 2492 passed",
-        "Changes requested: new mypy issues (mission_write.py:142/143, test :424/:443) and 2 new type: ignore in the test (NFR-005); behaviour, lock order and mutation verified"
+        "Changes requested: new mypy issues (mission_write.py:142/143, test :424/:443) and 2 new type: ignore in the test (NFR-005); behaviour, lock order and mutation verified",
+        "Review 1 addressed: mypy zero new vs 96b5cefa1, no new type: ignore; owned-worktree key agreement (red-first) fixed; mission_write_lock_dir hold found by primary dir (red-first); wording: direct-read shortcut only for repository_root callers whose .git is a directory. Targeted tests only."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
