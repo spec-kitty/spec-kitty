@@ -922,6 +922,9 @@ transition — it never invokes the WP-loop or `next` engines.
 | `ANCESTRY_NOT_ESTABLISHED` | start-implementation, transition | The recorded planning commit or an approved dependency lane's tip is not (yet) a git ancestor of the claimed workspace's HEAD, even after self-heal re-ran the reuse-path merges |
 | `STATUS_LOCK_HELD` | start-implementation | The single_branch write-checkout claim lock stayed held by another claimant past its bound (contract 1.13.0); retry |
 | `SAFE_COMMIT_PATH_POLICY` | append-history | Safe commit refused to stage a path under `.worktrees/` from the primary repo root before mutating the index |
+| `SAFE_COMMIT_PATH_LOOP` | append-history | Safe commit refused a requested path that is, or sits under, a symlink loop, before mutating the index |
+| `SAFE_COMMIT_INDEX_DELETION_CONFLICT` | append-history | Safe commit refused a path that was both requested for commit and listed as an index deletion, before committing |
+| `SAFE_COMMIT_INDEX_RESIDUE` | append-history | An index-deletion commit DID land (`commit_sha`), but the real index still stages a committed path |
 | `STATUS_READ_PATH_NOT_FOUND` | all mission-scoped commands | Coord topology with a stale/unaddressable primary surface (fail-closed read-path guard fired; carries coord/primary candidates) |
 
 ---
