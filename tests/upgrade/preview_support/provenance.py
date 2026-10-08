@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+import shutil
 import sys
 import sysconfig
 
@@ -13,8 +14,11 @@ from tests.upgrade.preview_support.process import run_process
 
 def active_executables() -> tuple[Path, Path]:
     """Use the interpreter running pytest and its matching console scripts."""
-    scripts = Path(sysconfig.get_path("scripts"))
-    return Path(sys.executable), scripts / "spec-kitty"
+    scripts = sysconfig.get_path("scripts")
+    console = shutil.which("spec-kitty", path=scripts)
+    if console is None:
+        raise RuntimeError(f"spec-kitty console script not found in {scripts}")
+    return Path(sys.executable), Path(console)
 
 
 _PROBE = """
