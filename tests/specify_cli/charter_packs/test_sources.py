@@ -39,7 +39,7 @@ from specify_cli.charter_packs.sources import (
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
-class TestOrgDoctrineSourceProtocol:
+class TestOrgCharterPackSourceProtocol:
     """The runtime_checkable protocol must accept all three concrete sources."""
 
     def test_git_source_satisfies_protocol(self) -> None:

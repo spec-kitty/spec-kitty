@@ -108,7 +108,7 @@ _MONOTONICITY_TABLE = [
 ]
 
 
-def _doctor_doctrine_json(repo_root: Path) -> tuple[int, dict[str, object]]:
+def _doctor_charter_packs_json(repo_root: Path) -> tuple[int, dict[str, object]]:
     """Invoke ``doctor charter-packs --json`` and return ``(exit_code, payload)``.
 
     ``merge_three_layers`` emits operator WARNINGs on stderr, which ``CliRunner``
@@ -131,7 +131,7 @@ def _doctor_doctrine_json(repo_root: Path) -> tuple[int, dict[str, object]]:
 
 
 @pytest.mark.parametrize(("dangling", "unresolved", "expect_healthy"), _MONOTONICITY_TABLE)
-def test_doctor_doctrine_health_is_monotonic_in_org_pack_defects(
+def test_doctor_charter_packs_health_is_monotonic_in_org_pack_defects(
     tmp_path: Path,
     dangling: bool,
     unresolved: bool,
@@ -145,7 +145,7 @@ def test_doctor_doctrine_health_is_monotonic_in_org_pack_defects(
     """
     repo_root = _write_repo(tmp_path, dangling=dangling, unresolved=unresolved)
 
-    exit_code, payload = _doctor_doctrine_json(repo_root)
+    exit_code, payload = _doctor_charter_packs_json(repo_root)
 
     profile_health = payload["profile_health"]
     assert isinstance(profile_health, dict)

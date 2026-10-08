@@ -846,11 +846,11 @@ Doctrine does NOT constrain when:
    tokens and dilutes relevance. Use action-scoped loading and pull specific
    artifacts on demand.
 
-See `doctrine-artifact-structure.md` for the full anti-pattern table.
+See `charter-artifact-structure.md` for the full anti-pattern table.
 
 ---
 
 ## References
 
 - `charter-command-map.md` -- Full CLI command reference with all flags and output fields
-- `doctrine-artifact-structure.md` -- File layout, authority classes, and data flow
+- `charter-artifact-structure.md` -- File layout, authority classes, and data flow

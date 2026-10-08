@@ -1,4 +1,4 @@
-# Doctrine Artifact Structure
+# Charter Artifact Structure
 
 File layout, authority classes, and data flow for the charter subsystem.
 

@@ -65,5 +65,5 @@ yourself, then let the CLI validate and promote them.
   `ActiveCharterService` access, profile resolution, and common pitfalls.
 - `references/charter-command-map.md` -- Full CLI command reference with all
   flags and output fields.
-- `references/doctrine-artifact-structure.md` -- File layout, authority
+- `references/charter-artifact-structure.md` -- File layout, authority
   classes, and data flow.
