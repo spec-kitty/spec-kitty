@@ -43,6 +43,17 @@ def test_stamps_the_current_schema_version_and_the_canonical_map(tmp_path: Path)
     assert block["last_upgraded_at"]
 
 
+def test_the_value_on_disk_reaches_the_rule(tmp_path: Path) -> None:
+    """Kills: the runner passing None (not the on-disk map) to the capability rule."""
+    first = next(iter(CURRENT_SCHEMA_CAPABILITIES))
+    owned = {first: True, "my_flag": False}
+    root = _project(tmp_path, yaml.dump({"spec_kitty": {"schema_capabilities": owned}}))
+
+    _update_schema_version(root)
+
+    assert _spec_kitty(root)["schema_capabilities"] == owned
+
+
 def test_every_other_key_survives(tmp_path: Path) -> None:
     text = "# operator comment\nproject:\n  uuid: x\nspec_kitty:\n  project_uuid: 01HZZZZZZZZZZZZZZZZZZZZZZZ\n  custom_flag: true\n"
     root = _project(tmp_path, text)
