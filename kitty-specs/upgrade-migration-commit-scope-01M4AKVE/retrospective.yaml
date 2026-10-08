@@ -1,0 +1,248 @@
+schema_version: 1
+mission_id: 01M4AKVE24MTJ4KNHVK1AAPBW7
+mission_slug: upgrade-migration-commit-scope-01M4AKVE
+mission_number: 222
+friendly_name: Schema-3 upgrade commits only what it changed
+mission_type: software-dev
+target_branch: fix/upgrade-migration-commit-scope
+created_at: '2026-10-08T00:05:30.977193+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-08T00:05:30.977193+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-013
+not_helpful:
+- id: n-014
+  category: doc
+  summary: analysis-report.md records 9 finding(s)
+  evidence_refs:
+  - e-027
+  details: The analysis-report.md artifact for this mission records 9 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-006
+  category: process
+  summary: WP03 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-019
+  details: WP WP03 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-010
+  category: process
+  summary: WP03 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-023
+  details: WP WP03 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-007
+  category: process
+  summary: WP04 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-020
+  details: WP WP04 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-011
+  category: process
+  summary: WP04 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-024
+  details: WP WP04 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-008
+  category: process
+  summary: WP05 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-021
+  details: WP WP05 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-012
+  category: process
+  summary: WP05 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-025
+  details: WP WP05 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-009
+  category: process
+  summary: WP08 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-022
+  details: WP WP08 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-013
+  category: process
+  summary: WP08 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-026
+  details: WP WP08 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-014
+  details: WP WP03 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP04 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-015
+  details: WP WP04 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP06 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-016
+  details: WP WP06 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-004
+  category: review_loop
+  summary: WP07 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-017
+  details: WP WP07 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-005
+  category: review_loop
+  summary: WP08 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-018
+  details: WP WP08 was sent back to an earlier lane with documented review feedback 1 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/tasks/WP01-upgrade-commits-only-what-it-wrote.md
+- id: e-006
+  kind: file
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/tasks/WP02-metadata-writers-canonical-map.md
+- id: e-007
+  kind: file
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/tasks/WP03-claim-commit-written-paths.md
+- id: e-008
+  kind: file
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/tasks/WP04-merge-bookkeeping-meta-only.md
+- id: e-009
+  kind: file
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/tasks/WP05-merge-conclusion-owner-and-gate.md
+- id: e-010
+  kind: file
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/tasks/WP06-remove-sweeping-helpers-and-text.md
+- id: e-011
+  kind: file
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/tasks/WP07-safe-commit-path-normalisation.md
+- id: e-012
+  kind: file
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/tasks/WP08-changelog-entries.md
+- id: e-013
+  kind: file
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/status.events.jsonl
+- id: e-014
+  kind: event_range
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/status.events.jsonl
+  range: 01M4BDYYXHWX7Z14E4RGDKDW14
+- id: e-015
+  kind: event_range
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/status.events.jsonl
+  range: 01M4B9SH0N7KBWGEDW4DKQEHY3
+- id: e-016
+  kind: event_range
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/status.events.jsonl
+  range: 01M4B9FQM9E1N4Z0VG84B07QXW
+- id: e-017
+  kind: event_range
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/status.events.jsonl
+  range: 01M4BJTJKH23B7EKKX1Q8MJSKN
+- id: e-018
+  kind: event_range
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/status.events.jsonl
+  range: 01M4C7T46XP975A2J4DPD7T1T9
+- id: e-019
+  kind: event_range
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/status.events.jsonl
+  range: 01M4CD2JWFRTHSAE9MA9REW10K
+- id: e-020
+  kind: event_range
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/status.events.jsonl
+  range: 01M4CD3CM3SGE52AE509ER44PH
+- id: e-021
+  kind: event_range
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/status.events.jsonl
+  range: 01M4CD3ZBQBX1AT13DNCDJ5GKD
+- id: e-022
+  kind: event_range
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/status.events.jsonl
+  range: 01M4CD4J3D8QNYG12FBVJ8SXP8
+- id: e-023
+  kind: event_range
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/status.events.jsonl
+  range: 01M4CD2JWFRTHSAE9MA9REW10K
+- id: e-024
+  kind: event_range
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/status.events.jsonl
+  range: 01M4CD3CM3SGE52AE509ER44PH
+- id: e-025
+  kind: event_range
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/status.events.jsonl
+  range: 01M4CD3ZBQBX1AT13DNCDJ5GKD
+- id: e-026
+  kind: event_range
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/status.events.jsonl
+  range: 01M4CD4J3D8QNYG12FBVJ8SXP8
+- id: e-027
+  kind: file
+  path: kitty-specs/upgrade-migration-commit-scope-01M4AKVE/analysis-report.md
+generator_version: '1.0'
+provenance_history: []
