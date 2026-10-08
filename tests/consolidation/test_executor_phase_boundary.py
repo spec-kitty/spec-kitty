@@ -162,12 +162,21 @@ def test_record_then_commit_then_assert_ordering(tmp_path: Path) -> None:
     assert events == ["record", "commit", "assert"], events
 
 
-def test_resume_records_pre_mutation_baseline_after_target_already_advanced(tmp_path: Path) -> None:
-    """A resumed merge must not record its own landed commit as the baseline."""
+@pytest.mark.parametrize(
+    ("is_resume", "anchor", "expected"),
+    [
+        (True, "pre-mission-target", "pre-mission-target"),
+        (False, "pre-mission-target", "live-target-tip"),
+        (True, None, "live-target-tip"),
+    ],
+    ids=["resume-uses-anchor", "fresh-run-keeps-live-tip", "resume-without-anchor-keeps-live-tip"],
+)
+def test_resume_records_pre_mutation_baseline_after_target_already_advanced(tmp_path: Path, is_resume: bool, anchor: str | None, expected: str) -> None:
+    """A resumed merge must not record its own landed commit as the baseline; other runs keep the live tip."""
     run = _make_run(tmp_path)
-    run.is_resume = True
-    run.state.pre_mutation_target_sha = "pre-mission-target"
-    run.target_baseline_sha = "mission-squash-commit"
+    run.is_resume = is_resume
+    run.state.pre_mutation_target_sha = anchor
+    run.target_baseline_sha = "live-target-tip"
     recorded: list[str] = []
 
     with (
@@ -186,8 +195,8 @@ def test_resume_records_pre_mutation_baseline_after_target_already_advanced(tmp_
     ):
         ex._phase_capture_and_baseline(run)
 
-    assert recorded == ["pre-mission-target"]
-    assert run.target_baseline_sha == "pre-mission-target"
+    assert recorded == [expected]
+    assert run.target_baseline_sha == expected
 
 
 # --- INV-6: BaselineMergeCommitError -> restore -> reraise -------------------
