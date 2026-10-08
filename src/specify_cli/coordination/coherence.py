@@ -732,13 +732,11 @@ def _revert_recorded_sha(coord_worktree: Path, sha: str, env: dict[str, str]) ->
     in-progress revert is aborted and the swallowed diagnostic is returned so the
     caller can carry it on ``CoordRepairOutcome.error``; ``None`` signals success.
     """
-    revert = subprocess.run(
-        ["git", "-C", str(coord_worktree), "revert", "--no-edit", sha],
-        capture_output=True,
-        text=True,
-        check=False,
-        env=env,
-    )
+    # Function-local, like ``_make_merge_env`` below: ``specify_cli.git`` imports
+    # ``coordination`` back (report_transaction -> commit_router), see the module docstring.
+    from specify_cli.git.merge_conclusion import run_committing_op
+
+    revert = run_committing_op(coord_worktree, "revert", ["--no-edit", sha], env=env, disable_gpgsign=False)
     if revert.returncode == 0:
         return None
     subprocess.run(

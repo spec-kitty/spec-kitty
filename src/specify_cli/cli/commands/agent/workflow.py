@@ -89,6 +89,7 @@ from mission_runtime import CommitTarget, MissionArtifactKind, is_primary_artifa
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
+from specify_cli.git.merge_conclusion import run_committing_op
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.review.cycle import (
     REVIEW_FEEDBACK_SENTINELS,
@@ -657,20 +658,8 @@ def _revert_coordination_commit(receipt: CommitReceipt) -> None:
             f"advanced from {receipt.commit_sha} to {head_result.stdout.strip()}"
         )
 
-    revert_result = subprocess.run(
-        [
-            "git",
-            "-c",
-            "commit.gpgsign=false",
-            "revert",
-            "--no-edit",
-            receipt.commit_sha,
-        ],
-        cwd=receipt.worktree_root,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    # env=None: the rollback inherits the caller's environment, as it always has.
+    revert_result = run_committing_op(Path(receipt.worktree_root), "revert", ["--no-edit", receipt.commit_sha], env=None, disable_gpgsign=True)
     if revert_result.returncode != 0:
         raise RuntimeError(
             "failed to rollback lifecycle coordination commit after lane sync "

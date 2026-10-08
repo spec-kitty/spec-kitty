@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Literal
 
 from specify_cli.coordination.coherence import is_toolchain_generated_churn
+from specify_cli.git.merge_conclusion import MergeConclusionRefused, conclude_in_progress_op, mint_fresh_worktree, run_committing_op
 from specify_cli.git.ref_advance import advance_branch_ref
 from specify_cli.lanes._git import branch_exists as _shared_branch_exists
 from specify_cli.lanes.branch_naming import lane_branch_name, worktree_path as _worktree_path
@@ -918,8 +919,10 @@ def _preserve_target_newer_planning_artifacts(
         # tree equals the parent (target tip) — there is genuinely nothing to
         # integrate, but we keep the (empty) squash commit as the merge record
         # so the ref-advance + downstream bookkeeping stay uniform.
+        # C-005 recorded exception: "the restored-bookkeeping amend in a consolidation worktree
+        # (`commit --amend --only -- <restored>`)" -- path-scoped, so nothing else staged is swept in.
         amend = subprocess.run(
-            ["git", "-c", "commit.gpgsign=false", "commit", "--amend", "--no-edit", "--allow-empty"],
+            ["git", "-c", "commit.gpgsign=false", "commit", "--amend", "--only", "--no-edit", "--allow-empty", "--", *restored],
             cwd=str(worktree),
             capture_output=True,
             text=True,
@@ -1076,8 +1079,9 @@ def _complete_merge_after_target_owned_resolution(worktree: Path, env: dict[str,
     squash and dependency-lane sites); any other remainder stays unmerged.
 
     Returns ``True`` only when at least one target-owned path was resolved, no
-    unmerged path remains, and ``git commit --no-edit`` succeeded. Otherwise the
-    merge is left in progress for the caller's existing abort path, and that
+    unmerged path remains, and the merge-conclusion owner
+    (:func:`specify_cli.git.merge_conclusion.conclude_in_progress_op`) committed
+    it. Otherwise the merge is left in progress for the caller's existing abort path, and that
     includes a conflict set that cannot be read at all (``_unmerged_paths``
     raising ``RuntimeError``): an unknown conflict state fails closed.
     """
@@ -1088,7 +1092,15 @@ def _complete_merge_after_target_owned_resolution(worktree: Path, env: dict[str,
             return False
     except RuntimeError:
         return False
-    return _git_in(worktree, ["-c", "commit.gpgsign=false", "commit", "--no-edit"], env)
+    return _conclude_ok(worktree, env)
+
+
+def _conclude_ok(worktree: Path, env: dict[str, str]) -> bool:
+    """Conclude the in-progress merge through the owner; ``False`` leaves it in progress for the caller's abort."""
+    try:
+        return conclude_in_progress_op(worktree, env=env).returncode == 0
+    except MergeConclusionRefused:
+        return False
 
 
 def _resolve_planning_conflicts(
@@ -1352,6 +1364,9 @@ def _merge_branch_into(
             raise RuntimeError(f"Failed to create merge worktree: {result.stderr.strip()}")
 
         if strategy == MergeStrategy.SQUASH:
+            # The squash conclusion needs proof that this worktree started with nothing staged:
+            # ``git merge --squash`` keeps whatever else is staged (FR-013).
+            fresh = mint_fresh_worktree(tmp_path, _env)
             # #4892: ordinary source conflicts must remain visible. Registered
             # artifact drivers and the history-aware planning policy are the
             # only allowed auto-resolution authorities.
@@ -1407,19 +1422,11 @@ def _merge_branch_into(
                 raise RuntimeError(f"Could not inspect squash merge result for {source_branch} into {target_branch}: {staged.stderr.strip()}")
             # Commit the squashed result. There is guaranteed staged content here
             # (returncode == 1), so no ``--allow-empty`` is ever needed.
-            result = subprocess.run(
-                [
-                    "git",
-                    "-c",
-                    "commit.gpgsign=false",
-                    "commit",
-                    "-m",
-                    f"feat({source_branch}): squash merge of mission",
-                ],
-                cwd=str(tmp_path),
-                capture_output=True,
-                text=True,
+            result = conclude_in_progress_op(
+                tmp_path,
                 env=_env,
+                message=f"feat({source_branch}): squash merge of mission",
+                fresh=fresh,
             )
             if result.returncode != 0:
                 raise RuntimeError(f"Squash commit into {target_branch} failed: {result.stderr.strip() or result.stdout.strip()}")
@@ -1485,12 +1492,12 @@ def _merge_branch_into(
                 check=True,
                 env=_env,
             ).stdout.strip()
-            result = subprocess.run(
-                ["git", "merge", source_branch, "--no-edit", "-m", f"Merge {source_branch} into {target_branch}"],
-                cwd=str(tmp_path),
-                capture_output=True,
-                text=True,
+            result = run_committing_op(
+                tmp_path,
+                "merge",
+                [source_branch, "--no-edit", "-m", f"Merge {source_branch} into {target_branch}"],
                 env=_with_meta_two_way(_env) if meta_two_way else _env,
+                disable_gpgsign=False,
             )
             # #5457: a conflict confined to target-owned bookkeeping resolves to
             # the receiving side (stage 2) and the merge completes; anything else

@@ -35,6 +35,7 @@ from pathlib import Path
 from kernel.git import GitCommandError, changed_entries, changed_paths, tree_paths
 from kernel.locks import MachineFileLock
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.git.merge_conclusion import MergeConclusionRefused, conclude_in_progress_op
 from specify_cli.lanes.consolidation import (
     _ensure_merge_driver_git_config,
     _make_merge_env,
@@ -914,10 +915,12 @@ def _finalize_auto_rebase(
         f"auto-rebase(lane={lane_id}): {len(classifications)} conflicts "
         f"resolved by classifier rules [{', '.join(rule_ids_used)}]"
     )
-    commit_result = _run(
-        ["git", "-c", "commit.gpgsign=false", "commit", "-m", message],
-        worktree_path,
-    )
+    try:
+        commit_result = conclude_in_progress_op(worktree_path, env=_make_merge_env(), message=message)
+    except MergeConclusionRefused as exc:
+        return _abort_with_failure(
+            worktree_path, lane_id, classifications, f"merge commit failed: {exc}",
+        )
     if commit_result.returncode != 0:
         return _abort_with_failure(
             worktree_path, lane_id, classifications,
@@ -1003,10 +1006,7 @@ def attempt_auto_rebase(
             )
 
         if _merge_head_exists(worktree_path):
-            commit_result = _run(
-                ["git", "-c", "commit.gpgsign=false", "commit", "--no-edit"],
-                worktree_path,
-            )
+            commit_result = conclude_in_progress_op(worktree_path, env=_make_merge_env())
             if commit_result.returncode != 0:
                 return _abort_with_failure(
                     worktree_path, lane.lane_id, clean_classifications,
