@@ -1,20 +1,20 @@
 {
-  "event_count": 80,
-  "last_event_id": "01M4EDTR94G3Q543B0KVP9MZVS",
-  "materialized_at": "2026-10-08T18:53:52.804662+00:00",
+  "event_count": 81,
+  "last_event_id": "01M4EE155Q4W06R4TRWWZ8VZ4P",
+  "materialized_at": "2026-10-08T18:57:22.615661+00:00",
   "mission_number": "",
   "mission_slug": "mission-writer-followups-01M4CYWW",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 5,
+    "approved": 6,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 2,
+    "in_review": 1,
     "planned": 10
   },
   "work_packages": {
@@ -194,9 +194,9 @@
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 3,
-      "lane": "in_review",
-      "last_event_id": "01M4EDTR94G3Q543B0KVP9MZVS",
-      "last_transition_at": "2026-10-08T18:53:52.804662+00:00",
+      "lane": "approved",
+      "last_event_id": "01M4EE155Q4W06R4TRWWZ8VZ4P",
+      "last_transition_at": "2026-10-08T18:57:22.615661+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Stream B (runtime/templates) in the stream/runtime worktree",
@@ -209,10 +209,9 @@
       "provider": "__resolved_provider_absent__",
       "review": null,
       "review_result": {
-        "feedback_path": "/home/user/spec-kitty/kitty-specs/mission-writer-followups-01M4CYWW/tasks/WP06-canonical-runtime-templates/review-cycle-1.md",
-        "reference": "review-cycle://mission-writer-followups-01M4CYWW/WP06-canonical-runtime-templates/review-cycle-1.md",
-        "reviewer": "claude-reviewer-runtime",
-        "verdict": "changes_requested"
+        "reference": "auto-approval:WP06:20261008",
+        "reviewer": "Claude",
+        "verdict": "approved"
       },
       "role": "reviewer",
       "shell_pid": 5084,
