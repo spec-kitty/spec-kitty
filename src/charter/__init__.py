@@ -80,7 +80,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     # .schemas -> charter.activation.schemas
     "BranchStrategyConfig": ("charter.activation.schemas", "BranchStrategyConfig"),
     "CommitConfig": ("charter.activation.schemas", "CommitConfig"),
-    "DoctrineSelectionConfig": ("charter.activation.schemas", "DoctrineSelectionConfig"),
+    "GovernanceCharterConfig": ("charter.activation.schemas", "GovernanceCharterConfig"),
     "Directive": ("charter.activation.schemas", "Directive"),
     "DirectivesConfig": ("charter.activation.schemas", "DirectivesConfig"),
     "ExtractionMetadata": ("charter.activation.schemas", "ExtractionMetadata"),
@@ -177,7 +177,7 @@ __all__ = [
     "CharterSection",
     "BranchStrategyConfig",
     "CommitConfig",
-    "DoctrineSelectionConfig",
+    "GovernanceCharterConfig",
     "Directive",
     "DirectivesConfig",
     "ExtractionMetadata",

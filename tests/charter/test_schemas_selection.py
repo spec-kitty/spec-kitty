@@ -1,10 +1,10 @@
 """Unit tests for the additive ``selected_<kind>`` parity fields on
-:class:`charter.activation.schemas.DoctrineSelectionConfig` and their byte-stable
+:class:`charter.activation.schemas.GovernanceCharterConfig` and their byte-stable
 emission via :func:`charter.activation.schemas.emit_yaml` (WP01 of mission
 ``charter-mediated-doctrine-selection-01KRTZCA``).
 
 Coverage:
-  * Defaulting: a freshly-constructed ``DoctrineSelectionConfig`` exposes
+  * Defaulting: a freshly-constructed ``GovernanceCharterConfig`` exposes
     all five new fields as empty lists.
   * Byte-stability (NFR-005): emitted YAML omits the empty new fields
     because they live in :data:`charter.activation.schemas._OPTIONAL_EMPTY_OMIT_KEYS`.
@@ -20,7 +20,7 @@ import pytest
 from ruamel.yaml import YAML
 
 from charter.activation.schemas import (
-    DoctrineSelectionConfig,
+    GovernanceCharterConfig,
     GovernanceConfig,
     _OPTIONAL_EMPTY_OMIT_KEYS,
     _prune_optional_empties,
@@ -46,9 +46,9 @@ _NEW_SELECTED_KEYS = (
 
 
 def test_default_construction_exposes_all_new_selected_fields() -> None:
-    cfg = DoctrineSelectionConfig()
+    cfg = GovernanceCharterConfig()
     for key in _NEW_SELECTED_KEYS:
-        assert hasattr(cfg, key), f"DoctrineSelectionConfig missing field {key}"
+        assert hasattr(cfg, key), f"GovernanceCharterConfig missing field {key}"
         assert getattr(cfg, key) == [], (
             f"Field {key} should default to empty list, got {getattr(cfg, key)!r}"
         )
@@ -71,7 +71,7 @@ def test_new_selected_keys_are_in_optional_omit_set() -> None:
 
 
 def test_prune_omits_empty_new_selected_fields() -> None:
-    raw = DoctrineSelectionConfig().model_dump(mode="json")
+    raw = GovernanceCharterConfig().model_dump(mode="json")
     pruned = _prune_optional_empties(raw)
     for key in _NEW_SELECTED_KEYS:
         assert key not in pruned, (
@@ -81,7 +81,7 @@ def test_prune_omits_empty_new_selected_fields() -> None:
 
 
 def test_prune_keeps_populated_new_selected_fields() -> None:
-    cfg = DoctrineSelectionConfig(selected_styleguides=["caveman-comments"])
+    cfg = GovernanceCharterConfig(selected_styleguides=["caveman-comments"])
     raw = cfg.model_dump(mode="json")
     pruned = _prune_optional_empties(raw)
     assert pruned.get("selected_styleguides") == ["caveman-comments"]
@@ -94,7 +94,7 @@ def test_prune_keeps_populated_new_selected_fields() -> None:
 
 def test_round_trip_through_emit_yaml(tmp_path: Path) -> None:
     governance = GovernanceConfig(
-        charter=DoctrineSelectionConfig(
+        charter=GovernanceCharterConfig(
             selected_styleguides=["caveman-comments"],
             selected_toolguides=["ruff-strict"],
         )
@@ -121,7 +121,7 @@ def test_round_trip_through_emit_yaml(tmp_path: Path) -> None:
 
 def test_governance_config_carries_activations_field(tmp_path: Path) -> None:
     """T008: ``GovernanceConfig.activations`` lives at the top level (not on
-    ``DoctrineSelectionConfig``); defaults to empty; round-trips through
+    ``GovernanceCharterConfig``); defaults to empty; round-trips through
     ``emit_yaml`` with an entry; stays out of YAML when empty (NFR-005)."""
     from charter.activation.activations import ActivationEntry
 

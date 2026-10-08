@@ -38,7 +38,7 @@ from charter.activation.context_renderers import (
     selection_block,
     template_include,
 )
-from charter.activation.schemas import DoctrineSelectionConfig
+from charter.activation.schemas import GovernanceCharterConfig
 
 #: One test in this module (``test_seam_module_imports_standalone_without_
 #: charter_context``) spawns a subprocess to verify standalone importability,
@@ -337,7 +337,7 @@ class TestBootstrapTextSeam:
         assert lines == ["existing"]
 
     def test_resolve_authority_block_missing_repo_root_returns_empty(self) -> None:
-        selection = DoctrineSelectionConfig()
+        selection = GovernanceCharterConfig()
         assert bootstrap_text._resolve_authority_block(None, selection) == ""
 
     def test_resolve_authority_block_missing_selection_returns_empty(self, tmp_path: Path) -> None:
@@ -346,12 +346,12 @@ class TestBootstrapTextSeam:
     def test_resolve_authority_block_delegates_to_renderer(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        selection = DoctrineSelectionConfig()
+        selection = GovernanceCharterConfig()
         captured: dict[str, Any] = {}
 
-        def _fake_render(repo_root: Path, doctrine_selection: DoctrineSelectionConfig) -> str:
+        def _fake_render(repo_root: Path, charter_config: GovernanceCharterConfig) -> str:
             captured["repo_root"] = repo_root
-            captured["doctrine_selection"] = doctrine_selection
+            captured["charter_config"] = charter_config
             return "authority-block-sentinel"
 
         monkeypatch.setattr(bootstrap_text, "render_authority_paths", _fake_render)
@@ -359,10 +359,10 @@ class TestBootstrapTextSeam:
         result = bootstrap_text._resolve_authority_block(tmp_path, selection)
 
         assert result == "authority-block-sentinel"
-        assert captured == {"repo_root": tmp_path, "doctrine_selection": selection}
+        assert captured == {"repo_root": tmp_path, "charter_config": selection}
 
     def test_resolve_reference_block_missing_repo_root_returns_empty(self) -> None:
-        selection = DoctrineSelectionConfig()
+        selection = GovernanceCharterConfig()
         assert bootstrap_text._resolve_reference_block(None, selection) == ""
 
     def test_resolve_reference_block_missing_selection_returns_empty(self, tmp_path: Path) -> None:
@@ -371,7 +371,7 @@ class TestBootstrapTextSeam:
     def test_resolve_reference_block_delegates_to_renderer(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        selection = DoctrineSelectionConfig(governance_references=["spec/constitution.md"])
+        selection = GovernanceCharterConfig(governance_references=["spec/constitution.md"])
         captured: dict[str, Any] = {}
 
         def _fake_render(repo_root: Path, references: list[str]) -> str:
@@ -439,8 +439,8 @@ class TestCompactGovernanceSeam:
             "charter.activation.compact.render_compact_view", _fake_render_compact_view
         )
         monkeypatch.setattr(
-            "charter.activation.context._load_doctrine_selection",
-            lambda _repo_root: DoctrineSelectionConfig(),
+            "charter.activation.context._load_governance_charter_config",
+            lambda _repo_root: GovernanceCharterConfig(),
         )
 
         class _Bundle:
@@ -477,8 +477,8 @@ class TestCompactGovernanceSeam:
             "charter.activation.compact.render_compact_view", _fake_render_compact_view
         )
         monkeypatch.setattr(
-            "charter.activation.context._load_doctrine_selection",
-            lambda _repo_root: DoctrineSelectionConfig(),
+            "charter.activation.context._load_governance_charter_config",
+            lambda _repo_root: GovernanceCharterConfig(),
         )
 
         class _Bundle:

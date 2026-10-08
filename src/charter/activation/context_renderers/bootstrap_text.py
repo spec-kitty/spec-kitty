@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from charter.activation.context import _ActionDoctrineBundle
-    from charter.activation.schemas import DoctrineSelectionConfig
+    from charter.activation.schemas import GovernanceCharterConfig
     from charter.offering.agent_profiles import AgentProfile
 
 __all__ = [
@@ -208,7 +208,7 @@ def _append_block(lines: list[str], block: str) -> None:
 
 def _resolve_authority_block(
     repo_root: Path | None,
-    doctrine_selection: DoctrineSelectionConfig | None,
+    charter_config: GovernanceCharterConfig | None,
 ) -> str:
     """Render the authority-paths block, or "" when a prerequisite is absent.
 
@@ -219,14 +219,14 @@ def _resolve_authority_block(
     cannot make this function's return type look like ``Any`` to mypy.
     """
     block = ""
-    if repo_root is not None and doctrine_selection is not None:
-        block = render_authority_paths(repo_root, doctrine_selection)
+    if repo_root is not None and charter_config is not None:
+        block = render_authority_paths(repo_root, charter_config)
     return block
 
 
 def _resolve_reference_block(
     repo_root: Path | None,
-    doctrine_selection: DoctrineSelectionConfig | None,
+    charter_config: GovernanceCharterConfig | None,
 ) -> str:
     """Render the governance-references block, or "" when a prerequisite is absent.
 
@@ -234,8 +234,8 @@ def _resolve_reference_block(
     ``str`` literal rather than being returned directly from the call.
     """
     block = ""
-    if repo_root is not None and doctrine_selection is not None:
-        block = render_governance_references(repo_root, doctrine_selection.governance_references)
+    if repo_root is not None and charter_config is not None:
+        block = render_governance_references(repo_root, charter_config.governance_references)
     return block
 
 
@@ -274,7 +274,7 @@ def _render_bootstrap_text(
     references: list[dict[str, str]],
     profile: AgentProfile | None = None,
     repo_root: Path | None = None,
-    doctrine_selection: DoctrineSelectionConfig | None = None,
+    charter_config: GovernanceCharterConfig | None = None,
     charter_content: str = "",
 ) -> str:
     """Render the full bootstrap charter context text."""
@@ -291,8 +291,8 @@ def _render_bootstrap_text(
 
     # WP04 (FR-003) — authority paths block, between Policy Summary and the
     # action-critical bodies (resolved-context anchor order, data-model.md §3).
-    _append_block(lines, _resolve_authority_block(repo_root, doctrine_selection))
-    _append_block(lines, _resolve_reference_block(repo_root, doctrine_selection))
+    _append_block(lines, _resolve_authority_block(repo_root, charter_config))
+    _append_block(lines, _resolve_reference_block(repo_root, charter_config))
 
     # WP04 (FR-001) — action-critical charter section bodies; an absent heading
     # emits a fetch stanza so the agent still has a recovery path.
@@ -308,14 +308,14 @@ def _render_bootstrap_text(
     _append_block(lines, profile_block)
 
     # WP04 (FR-005) — charter-level global selection rendering: the 5-kind block
-    # surfaces every ``DoctrineSelectionConfig.selected_<kind>`` (with org provenance).
-    selection_block = _render_selection_block(doctrine_selection, service, repo_root=repo_root)
+    # surfaces every ``GovernanceCharterConfig.selected_<kind>`` (with org provenance).
+    selection_block = _render_selection_block(charter_config, service, repo_root=repo_root)
     _append_block(lines, selection_block)
 
     # WP04 T023 — activation-registry hook (FR-007); renderer body is WP05's
     # surface (``charter.activation._activation_render``), this only ships the call site.
     activation_block = _render_activation_block(
-        doctrine_selection,
+        charter_config,
         repo_root,
         service,
         mission_type=doctrine_bundle.mission,

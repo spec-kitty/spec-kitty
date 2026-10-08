@@ -177,21 +177,21 @@ def test_governance_activations_let_a_retired_shape_through(tmp_path: Path, monk
 
 @pytest.mark.parametrize("make_error", [_retired_field_error, _retired_key_error], ids=["retired-pack-field", "retired-governance-key"])
 def test_doctrine_selection_lets_a_retired_shape_through(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, make_error: Callable[[], Exception]) -> None:
-    from charter.activation.org_pack_discovery import _load_doctrine_selection
+    from charter.activation.org_pack_discovery import _load_governance_charter_config
 
     error = make_error()
     _load_governance_raising(monkeypatch, error)
 
     with pytest.raises(type(error)):
-        _load_doctrine_selection(tmp_path)
+        _load_governance_charter_config(tmp_path)
 
 
 def test_best_effort_loaders_still_degrade_on_other_failures(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from charter.activation.context_renderers.activation_block import _load_governance_activations
-    from charter.activation.org_pack_discovery import _load_doctrine_selection
-    from charter.activation.schemas import DoctrineSelectionConfig
+    from charter.activation.org_pack_discovery import _load_governance_charter_config
+    from charter.activation.schemas import GovernanceCharterConfig
 
     _load_governance_raising(monkeypatch, ValueError("malformed governance section"))
 
     assert _load_governance_activations(tmp_path) == []
-    assert _load_doctrine_selection(tmp_path) == DoctrineSelectionConfig()
+    assert _load_governance_charter_config(tmp_path) == GovernanceCharterConfig()

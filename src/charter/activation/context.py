@@ -89,7 +89,7 @@ from charter.activation.governance_references import collect_governance_referenc
 from charter.activation.language_scope import infer_repo_languages as infer_repo_languages
 from charter.activation.org_pack_discovery import (
     _iter_org_charter_docs as _iter_org_charter_docs,
-    _load_doctrine_selection as _load_doctrine_selection,
+    _load_governance_charter_config as _load_governance_charter_config,
     _missing_pack_diagnostic as _missing_pack_diagnostic,
     _read_org_required_selections as _read_org_required_selections,
 )
@@ -534,7 +534,7 @@ def build_charter_context_json(
         ),
         "governance_references": [],
     }
-    selection = _load_doctrine_selection(repo_root)
+    selection = _load_governance_charter_config(repo_root)
     payload["governance_references"] = [
         status.to_dict()
         for status in collect_governance_reference_status(

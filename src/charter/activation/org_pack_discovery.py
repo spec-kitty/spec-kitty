@@ -3,7 +3,7 @@
 Relocated verbatim from ``charter.activation.context`` (single-owner, no-net-growth for
 that file). Covers configured org-pack path enumeration, the shared raw
 ``org-charter.yaml`` reader, the ``required_<kind>`` union, and the
-charter-level :class:`~charter.activation.schemas.DoctrineSelectionConfig` resolver that
+charter-level :class:`~charter.activation.schemas.GovernanceCharterConfig` resolver that
 folds org-required selections into the project's own selection.
 
 Cycle note: :func:`_iter_org_charter_docs` and
@@ -26,7 +26,7 @@ from typing import Any
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from charter.activation.schemas import DoctrineSelectionConfig
+from charter.activation.schemas import GovernanceCharterConfig
 from charter.activation.skill_preparation import SkillPreparationError, require_valid_skill_namespace
 from charter.offering.artifact_kinds import SELECTION_OVERLAYABLE_KIND_FIELDS, ArtifactKind
 from kernel.charter_pack_paths import pack_org_charter
@@ -37,7 +37,7 @@ __all__ = [
     # were deleted when the DRG became chain-aware; it stays a module-internal
     # (still used by the helpers below).
     "_iter_org_charter_docs",
-    "_load_doctrine_selection",
+    "_load_governance_charter_config",
     "_missing_pack_diagnostic",
     "_read_org_required_selections",
     "last_non_empty_token",
@@ -60,7 +60,7 @@ _LOGGER = logging.getLogger(__name__)
 #:
 #: Derived from the :attr:`ArtifactKind.selection_overlayable` fact: the kinds
 #: whose org ``required_<kind>`` list unions into a ``selected_<kind>`` field of
-#: ``DoctrineSelectionConfig``. This is deliberately a strict subset of the
+#: ``GovernanceCharterConfig``. This is deliberately a strict subset of the
 #: org-requirable kinds (``glossary_pack`` and ``asset`` carry a
 #: ``required_<kind>`` list but no ``selected_<kind>`` overlay). Declaration
 #: order of :class:`ArtifactKind` is preserved.
@@ -288,12 +288,12 @@ def _require_readable_required_skills(yaml: YAML, pack_name: str, charter_path: 
         raise SkillPreparationError(f"`required_skills` in {charter_path} of org pack {pack_name!r} must be a list of skill ids")
 
 
-def _load_doctrine_selection(repo_root: Path) -> DoctrineSelectionConfig:
-    """Return the charter's :class:`DoctrineSelectionConfig` for *repo_root*.
+def _load_governance_charter_config(repo_root: Path) -> GovernanceCharterConfig:
+    """Return the charter's :class:`GovernanceCharterConfig` for *repo_root*.
 
     Best-effort lookup: a failure (missing governance.yaml, parse error,
     unexpected exception) collapses to a default-constructed
-    :class:`DoctrineSelectionConfig`. A retired shape (``RetiredPackFieldError``,
+    :class:`GovernanceCharterConfig`. A retired shape (``RetiredPackFieldError``,
     or the retired ``governance.doctrine`` key as ``ActiveCharterConfigError``)
     propagates instead, so its selections are never dropped in silence.  This keeps the resolver hot path
     resilient (NFR-005) so a malformed governance file never crashes
@@ -320,7 +320,7 @@ def _load_doctrine_selection(repo_root: Path) -> DoctrineSelectionConfig:
         # A retired shape is not a parse failure: never dropped in silence (#3732, FR-011).
         raise
     except Exception:  # noqa: BLE001 — best-effort governance load
-        selection = DoctrineSelectionConfig()
+        selection = GovernanceCharterConfig()
 
     org_required = _read_org_required_selections(repo_root)
     if not any(org_required.values()):

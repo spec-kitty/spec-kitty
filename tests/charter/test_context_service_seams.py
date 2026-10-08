@@ -36,7 +36,7 @@ from charter.activation.context_json import (
 from charter.activation.active_charter_service_builder import _build_offering_service
 from charter.activation.org_pack_discovery import (
     _enumerate_org_pack_paths,
-    _load_doctrine_selection,
+    _load_governance_charter_config,
     _missing_pack_diagnostic,
     _read_org_required_selections,
 )
@@ -146,7 +146,7 @@ class TestReadOrgRequiredSelections:
 
 class TestLoadDoctrineSelection:
     def test_missing_governance_yields_default_selection(self, tmp_path: Path) -> None:
-        selection = _load_doctrine_selection(tmp_path)
+        selection = _load_governance_charter_config(tmp_path)
         assert selection.selected_directives == []
 
 

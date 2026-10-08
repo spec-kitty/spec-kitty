@@ -310,7 +310,7 @@ def _load_action_doctrine_bundle(
             # WP02 (Decision Record 2, FR-006/007/008/014): project_directives /
             # selected_tactics / selected_paradigms are re-derived from
             # pack_context.activated_* instead of the stale
-            # governance.charter.selected_* (_load_doctrine_selection). A
+            # governance.charter.selected_* (_load_governance_charter_config). A
             # wholly-absent pack_context collapses to the SAME "no filter
             # configured" state as a supplied PackContext whose field is
             # None -- both resolve to the "all built-ins" default, never

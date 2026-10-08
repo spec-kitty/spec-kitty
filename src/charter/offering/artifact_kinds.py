@@ -219,7 +219,7 @@ class ArtifactKind(StrEnum):
         """Whether an org-required list overlays ``selected_<plural>`` on the charter.
 
         ``True`` for the kinds with a ``selected_<plural>`` field on
-        ``DoctrineSelectionConfig`` that org ``required_*`` lists union into
+        ``GovernanceCharterConfig`` that org ``required_*`` lists union into
         (a strict subset of :attr:`org_requirable`: ``GLOSSARY_PACK`` and
         ``ASSET`` are requirable but not overlayable). Backs
         :data:`SELECTION_OVERLAYABLE_KINDS`.

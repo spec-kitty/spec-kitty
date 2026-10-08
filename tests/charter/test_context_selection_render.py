@@ -59,7 +59,7 @@ from charter.activation.context_renderers.selection_block import (
 )
 from charter.activation.context_renderers.token_budget import _PROFILE_INLINE_BODY_LIMIT_CHARS
 from charter.activation.profile_resolution import _reset_agent_profile_cache
-from charter.activation.schemas import DoctrineSelectionConfig
+from charter.activation.schemas import GovernanceCharterConfig
 from charter.offering.pack_skills.models import PackSkill
 
 pytestmark = pytest.mark.fast
@@ -218,7 +218,7 @@ class TestEmptySelection:
         assert _render_selected_mission_step_contracts([], _StubService()) == []
 
     def test_selection_block_returns_empty_string_when_all_empty(self) -> None:
-        selection = DoctrineSelectionConfig()
+        selection = GovernanceCharterConfig()
         assert _render_selection_block(selection, _StubService()) == ""
 
 
@@ -869,7 +869,7 @@ class TestCombinedSelectionBlock:
             directives=_StubRepo(items={"DIRECTIVE_999": directive}),
             tactics=_StubRepo(items={"threat-model-first": tactic}),
         )
-        selection = DoctrineSelectionConfig(
+        selection = GovernanceCharterConfig(
             selected_paradigms=["structured-prompt-driven-development"],
             selected_directives=["DIRECTIVE_999"],
             selected_tactics=["threat-model-first"],
@@ -906,7 +906,7 @@ class TestCombinedSelectionBlock:
             agent_profiles=_StubRepo(items={"ap-id": ap}),
             mission_step_contracts=_StubRepo(items={"msc-id": contract}),
         )
-        selection = DoctrineSelectionConfig(
+        selection = GovernanceCharterConfig(
             selected_styleguides=["sg-id"],
             selected_toolguides=["tg-id"],
             selected_procedures=["proc-id"],
@@ -926,7 +926,7 @@ class TestCombinedSelectionBlock:
     def test_only_populated_kinds_emit_headers(self) -> None:
         sg = _DummyStyleguide(title="SG", principles=["a"])
         service = _StubService(styleguides=_StubRepo(items={"sg-id": sg}))
-        selection = DoctrineSelectionConfig(selected_styleguides=["sg-id"])
+        selection = GovernanceCharterConfig(selected_styleguides=["sg-id"])
         block = _render_selection_block(selection, service)
         assert _SELECTED_STYLEGUIDES_HEADER in block
         assert _SELECTED_TOOLGUIDES_HEADER not in block

@@ -9,7 +9,7 @@ NOTE: this is the NEW render seam introduced by this WP — a different module
 from the existing ``charter/compact.py`` (WP03's ``render_compact_view`` /
 ``_resolve_governance_summary`` home). The two are not to be conflated.
 
-Cycle note: three collaborators used here (``_load_doctrine_selection``,
+Cycle note: three collaborators used here (``_load_governance_charter_config``,
 ``_build_offering_service``, ``_render_profile_sections``) stay in
 ``charter.activation.context`` (org-pack-discovery / doctrine-service-builder /
 profile-driven-rendering clusters, relocated by a later WP). Function-local
@@ -120,17 +120,17 @@ def _render_compact_governance(
     # and action-critical-section blocks as the bootstrap path so the
     # prompt-governance contract holds in both modes (R-3 mitigation).
     augmented_blocks: list[str] = []
-    # Cycle note: ``_load_doctrine_selection`` stays in ``charter.activation.context``
+    # Cycle note: ``_load_governance_charter_config`` stays in ``charter.activation.context``
     # (see module docstring); function-local import avoids a load cycle.
-    from charter.activation.context import _load_doctrine_selection  # noqa: PLC0415
+    from charter.activation.context import _load_governance_charter_config  # noqa: PLC0415
 
-    doctrine_selection = _load_doctrine_selection(repo_root)
-    authority_block = render_authority_paths(repo_root, doctrine_selection)
+    charter_config = _load_governance_charter_config(repo_root)
+    authority_block = render_authority_paths(repo_root, charter_config)
     if authority_block:
         augmented_blocks.append(authority_block)
     reference_block = render_governance_references(
         repo_root,
-        doctrine_selection.governance_references,
+        charter_config.governance_references,
     )
     if reference_block:
         augmented_blocks.append(reference_block)

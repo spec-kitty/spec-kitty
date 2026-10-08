@@ -307,7 +307,7 @@ def test_case_1_project_styleguide_appears_in_implement_prompt(
     in the implement prompt — either by embedding the body inline or by
     emitting a fetch + when-doing stanza naming the styleguide id.
 
-    Fails today because ``DoctrineSelectionConfig`` has no
+    Fails today because ``GovernanceCharterConfig`` has no
     ``selected_styleguides`` field — the extractor never sees the
     declaration, so the resolver never renders it. After Mission B WP04
     (global selection schema + renderer), this test passes.
@@ -338,7 +338,7 @@ def test_case_1_project_styleguide_appears_in_implement_prompt(
         "The implement charter context MUST surface the project-selected styleguide "
         "`caveman-comments` — either by ID + body or by ID + fetch command + "
         "canonical when-doing conditional. Today the resolver ignores "
-        "`selected_styleguides` because `DoctrineSelectionConfig` has no such field "
+        "`selected_styleguides` because `GovernanceCharterConfig` has no such field "
         "(see src/charter/activation/schemas.py). Mission B WP04 adds the field and the "
         "matching renderer (_render_selected_styleguides). See "
         "docs/development/mission-b-proposed-scope.md → WP04."
@@ -427,7 +427,7 @@ def test_case_1_selected_styleguides_field_round_trips(
     """The charter declares ``selected_styleguides: [caveman-comments]``. The
     persisted, authoritative charter surface MUST carry the field with the
     styleguide id preserved AND the canonical loader MUST surface it as a
-    populated ``DoctrineSelectionConfig.selected_styleguides``.
+    populated ``GovernanceCharterConfig.selected_styleguides``.
 
     #2773 consolidated the compiled bundle into the git-tracked, authoritative
     ``.kittify/charter/charter.yaml``; the prose->triad ``governance.yaml``
@@ -436,7 +436,7 @@ def test_case_1_selected_styleguides_field_round_trips(
     ``charter.activation.sync.load_governance_config``. This test therefore round-trips
     through the authoritative reader instead of the retired ``governance.yaml``
     derivative — the real invariant it always pinned is that
-    ``DoctrineSelectionConfig.selected_styleguides`` exists and carries the
+    ``GovernanceCharterConfig.selected_styleguides`` exists and carries the
     declared id.
     """
     from charter.activation.sync import ensure_charter_bundle_fresh, load_governance_config
@@ -466,7 +466,7 @@ def test_case_1_selected_styleguides_field_round_trips(
     )
 
     # The canonical reader MUST surface the field as a populated
-    # DoctrineSelectionConfig.selected_styleguides (the field's existence and
+    # GovernanceCharterConfig.selected_styleguides (the field's existence and
     # round-trip is the real invariant this test always pinned).
     governance = load_governance_config(repo_root)
     assert "caveman-comments" in governance.charter.selected_styleguides, (

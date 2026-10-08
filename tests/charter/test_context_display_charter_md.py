@@ -332,7 +332,7 @@ class TestNoGovernanceDecisionReadsCharterMdProse:
     #: selection); none of these may reference the prose seam.
     _DECISION_FUNCTIONS = (
         context_module._load_action_doctrine_bundle,
-        context_module._load_doctrine_selection,
+        context_module._load_governance_charter_config,
         context_module._classify_artifact_urns,
         context_module._build_offering_service,
     )

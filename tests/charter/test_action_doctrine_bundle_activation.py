@@ -99,7 +99,7 @@ from charter.activation.action_doctrine_bundle import _load_action_doctrine_bund
 from charter.activation.catalog import load_offering_catalog
 from charter.activation.context_renderers.delivery_table import _classify_artifact_urns
 from charter.activation.pack_context import PackContext
-from charter.activation.schemas import DoctrineSelectionConfig
+from charter.activation.schemas import GovernanceCharterConfig
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.fast]
@@ -205,7 +205,7 @@ def test_activated_directive_not_in_stale_selected_is_still_delivered(
     tmp_path: Path,
 ) -> None:
     """RED on main: ``project_directives`` is built from
-    ``doctrine_selection.selected_directives`` only -- ``activated_directives``
+    ``charter_config.selected_directives`` only -- ``activated_directives``
     is never consulted for this decision. ``_classify_artifact_urns``'s
     exclusion guard then drops ``DIRECTIVE_038`` because
     ``"DIRECTIVE_038" not in {"DIRECTIVE_010"}`` (verified against the live
@@ -213,19 +213,19 @@ def test_activated_directive_not_in_stale_selected_is_still_delivered(
     """
     graph = _scoped_action_graph(f"directive:{_DIRECTIVE_038_CANONICAL}")
     pack_context = _pack_context(activated_directives=frozenset({_DIRECTIVE_038_STEM}), repo_root=tmp_path)
-    stale_selection = DoctrineSelectionConfig(selected_directives=[_DIRECTIVE_010_CANONICAL])
+    stale_selection = GovernanceCharterConfig(selected_directives=[_DIRECTIVE_010_CANONICAL])
 
     with (
         patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph),
         # create=True: WP02's fix removes action_doctrine_bundle's own
-        # reference to _load_doctrine_selection entirely (replaced by
+        # reference to _load_governance_charter_config entirely (replaced by
         # _read_org_required_selections) -- this patch target therefore only
         # exists pre-fix. create=True keeps the SAME test collectible and
         # correct post-fix too: the patch becomes inert (nothing looks the
         # name up any more) and the real activated_*-derived behavior this
         # case asserts on takes over, unaffected by a stale patch target.
         patch(
-            "charter.activation.action_doctrine_bundle._load_doctrine_selection",
+            "charter.activation.action_doctrine_bundle._load_governance_charter_config",
             return_value=stale_selection,
             create=True,
         ),
@@ -324,7 +324,7 @@ def test_activated_tactics_and_paradigms_absent_widen_to_full_catalog(
     """RED on main, precisely: an absent ``activated_tactics``/
     ``activated_paradigms`` never even reaches this decision on main --
     ``selected_tactics``/``selected_paradigms`` come from
-    ``_load_doctrine_selection``'s stale ``selected_*`` reads, which for this
+    ``_load_governance_charter_config``'s stale ``selected_*`` reads, which for this
     fixture's shape (nothing authored) are also naturally empty -- so
     ``roots``/``start_urns`` carry ZERO tactic/paradigm URNs on main. A
     fixture that instead asserted "no worse than today" would pass on BOTH
@@ -375,7 +375,7 @@ def test_org_required_stem_form_directive_is_normalized_before_union(
     union.
 
     NOTE on this fixture's RED-ness against literal current ``main``: reading
-    ``org_pack_discovery._load_doctrine_selection`` live shows it ALREADY
+    ``org_pack_discovery._load_governance_charter_config`` live shows it ALREADY
     unions raw org-required stems into ``selected_directives`` internally,
     and ``_load_action_doctrine_bundle``'s existing single
     ``_normalize_directive_id`` comprehension over the merged
@@ -383,7 +383,7 @@ def test_org_required_stem_form_directive_is_normalized_before_union(
     exact fixture, run through the current unmodified pipeline, is observed
     GREEN, not red (see this WP's final report for the live-run evidence).
     The severity-4 finding this fixture pins is specific to what happens once
-    ``_load_doctrine_selection`` is replaced by a direct
+    ``_load_governance_charter_config`` is replaced by a direct
     ``_read_org_required_selections`` call (T009 step 2) -- an omit-the-
     normalization-line implementation of THAT replacement is what reddens
     here; that intermediate state was exercised and captured red before the

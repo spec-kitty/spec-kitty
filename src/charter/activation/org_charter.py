@@ -85,7 +85,7 @@ __all__ = [
 # Constants — the canonical list of artifact kinds an org pack can mandate.
 #
 # Naming parity rule (Mission B WP01 + WP06): every entry here corresponds
-# to a ``selected_<kind>`` field on :class:`charter.activation.schemas.DoctrineSelectionConfig`
+# to a ``selected_<kind>`` field on :class:`charter.activation.schemas.GovernanceCharterConfig`
 # and a ``required_<kind>`` field on :class:`OrgCharterPolicy`.  The
 # byte-identical parity is pinned by
 # ``tests/architectural/test_artifact_selection_completeness.py``.
@@ -145,7 +145,7 @@ class OrgCharterPolicy(BaseModel):
     Mission B WP06 extends this model with one ``required_<kind>`` list
     per :data:`REQUIRED_KIND_FIELDS` entry.  Each list mirrors the
     matching ``selected_<kind>`` field on
-    :class:`charter.activation.schemas.DoctrineSelectionConfig` (parity pinned by
+    :class:`charter.activation.schemas.GovernanceCharterConfig` (parity pinned by
     ``tests/architectural/test_artifact_selection_completeness.py``).
     Empty defaults preserve NFR-005 backward compatibility — existing
     ``org-charter.yaml`` files that only declare ``required_directives``

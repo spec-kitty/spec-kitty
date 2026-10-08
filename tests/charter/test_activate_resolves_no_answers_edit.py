@@ -23,7 +23,7 @@ from charter.activation.charter_yaml_io import save_charter_yaml
 from charter.activation.compiler import compile_charter
 from charter.activation.interview import default_interview, read_interview_answers
 from charter.activation.pack_context import PackContext
-from charter.activation.schemas import DirectivesConfig, DoctrineSelectionConfig, GovernanceConfig
+from charter.activation.schemas import DirectivesConfig, GovernanceCharterConfig, GovernanceConfig
 from charter.offering.service import CharterOfferingService
 from charter.offering.spdd_reasons.activation import clear_activation_cache, is_spdd_reasons_active
 from specify_cli.cli.commands.charter import charter_app
@@ -244,7 +244,7 @@ class TestSpddActivationDoesNotFlip:
         ]
 
         governance = GovernanceConfig(
-            charter=DoctrineSelectionConfig(
+            charter=GovernanceCharterConfig(
                 selected_paradigms=selected_paradigms_no_spdd,
                 selected_directives=selected_directives_no_spdd,
                 selected_tactics=selected_tactics_no_spdd,

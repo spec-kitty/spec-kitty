@@ -1381,10 +1381,10 @@ def _project_has_doctrine_overrides(repo_root: Path) -> bool:
     governance = data.get("governance")
     if not isinstance(governance, dict):
         return False
-    doctrine = require_canonical_governance(governance, source=charter_yaml_path).get("charter")
-    if not isinstance(doctrine, dict):
+    charter_block = require_canonical_governance(governance, source=charter_yaml_path).get("charter")
+    if not isinstance(charter_block, dict):
         return False
-    for key, value in doctrine.items():
+    for key, value in charter_block.items():
         if not key.startswith("selected_"):
             continue
         if isinstance(value, list) and value:

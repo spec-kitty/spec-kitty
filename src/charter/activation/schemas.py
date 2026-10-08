@@ -24,7 +24,7 @@ __all__ = [
     "CommitConfig",
     "Directive",
     "DirectivesConfig",
-    "DoctrineSelectionConfig",
+    "GovernanceCharterConfig",
     "ExtractionMetadata",
     "GovernanceConfig",
     "PerformanceConfig",
@@ -89,15 +89,17 @@ class BranchStrategyConfig(BaseModel):
     rules: list[str] = Field(default_factory=list)
 
 
-class DoctrineSelectionConfig(BaseModel):
-    """Charter-level selection of active doctrine elements.
+class GovernanceCharterConfig(BaseModel):
+    """The ``governance.charter`` block: the charter-authored selection of governance artifacts.
 
-    Field naming MUST exactly mirror the corresponding ``ActiveCharterService``
-    property name (e.g. ``selected_styleguides`` mirrors
-    ``ActiveCharterService.styleguides``). This parity rule is pinned by
-    ``tests/architectural/test_artifact_selection_completeness.py`` —
-    adding a new ``@property`` to ``ActiveCharterService`` without the matching
-    ``selected_<kind>`` field here is a CI failure.
+    Field naming mirrors the corresponding ``ActiveCharterService`` property
+    name (e.g. ``selected_styleguides`` mirrors
+    ``ActiveCharterService.styleguides``). The ``selected_<kind>`` field set is
+    pinned against the ``ArtifactKind``-derived kind tables by
+    ``tests/architectural/test_kind_table_derivation.py``
+    (``test_overlayable_is_the_selected_fields_minus_the_non_overlaid_kinds``).
+    The former property-introspection guard
+    (``test_artifact_selection_completeness.py``) no longer exists.
     """
 
     selected_paradigms: list[str] = Field(default_factory=list)
@@ -206,19 +208,18 @@ class GovernanceConfig(BaseModel):
     commits: CommitConfig = Field(default_factory=CommitConfig)
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
     branch_strategy: BranchStrategyConfig = Field(default_factory=BranchStrategyConfig)
-    charter: DoctrineSelectionConfig = Field(default_factory=DoctrineSelectionConfig)
-    """Charter-level selection of active doctrine elements (CR-01: field
+    charter: GovernanceCharterConfig = Field(default_factory=GovernanceCharterConfig)
+    """Charter-level selection of governance artifacts (CR-01: field
     renamed from ``doctrine`` -- ``kitty-specs/retire-doctrine-term-
-    01M0JMK9/inventory.md`` line 163). The value CLASS name
-    ``DoctrineSelectionConfig`` is unchanged (renamed separately, M2); only
-    this field key flips. No populate-by-name alias: the legacy ``doctrine``
-    key is read via a dict-level compat shim in
+    01M0JMK9/inventory.md`` line 163). The value class was renamed
+    separately (#3732: ``DoctrineSelectionConfig`` -> ``GovernanceCharterConfig``).
+    No populate-by-name alias: the legacy ``doctrine`` key is read via a dict-level compat shim in
     ``charter.activation.sync.load_governance_config``, not a pydantic alias (a silent
     alias remap would defeat that shim's warn-once contract)."""
     activations: list[ActivationEntry] = Field(default_factory=list)
     """Charter-level activation registry (FR-006 / WP01 T008). The registry
     lives on :class:`GovernanceConfig` (the top-level governance namespace),
-    NOT on :class:`DoctrineSelectionConfig`, because activations pair
+    NOT on :class:`GovernanceCharterConfig`, because activations pair
     artifacts with runtime contexts rather than selecting global defaults.
     Default empty preserves backwards compatibility (NFR-005): existing
     ``governance.yaml`` files without this key parse unchanged, and the
@@ -408,8 +409,8 @@ class CharterYaml(BaseModel):
 # join the same allow-list without touching the writer logic.
 _OPTIONAL_EMPTY_OMIT_KEYS: frozenset[str] = frozenset({
     "references",                        # Directive.references (cross-link list)
-    "authority_paths",                   # DoctrineSelectionConfig.authority_paths
-    "governance_references",             # DoctrineSelectionConfig.governance_references
+    "authority_paths",                   # GovernanceCharterConfig.authority_paths
+    "governance_references",             # GovernanceCharterConfig.governance_references
     # WP01 (charter-mediated-doctrine-selection): additive `selected_<kind>`
     # parity fields. Keep empty values out of emitted YAML so existing
     # serialized fixtures and user charters stay byte-identical pre-/post-

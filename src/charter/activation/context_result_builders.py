@@ -33,7 +33,7 @@ from charter.activation.context_renderers.compact_governance import (
 )
 from charter.activation.context_renderers.reference_pointers import _load_references
 from charter.activation.context_state import _mark_action_loaded
-from charter.activation.org_pack_discovery import _load_doctrine_selection
+from charter.activation.org_pack_discovery import _load_governance_charter_config
 
 if TYPE_CHECKING:
     from charter.activation.action_doctrine_bundle import _ActionDoctrineBundle
@@ -167,7 +167,7 @@ def build_bootstrap_context_result(
         charter_content = ""
         summary = []
     references = _load_references(canonical_root)
-    doctrine_selection = _load_doctrine_selection(repo_root)
+    charter_config = _load_governance_charter_config(repo_root)
     text = _render_bootstrap_text(
         charter_path=charter_path,
         action=normalized,
@@ -176,7 +176,7 @@ def build_bootstrap_context_result(
         references=references,
         profile=profile_record,
         repo_root=repo_root,
-        doctrine_selection=doctrine_selection,
+        charter_config=charter_config,
         charter_content=charter_content,
     )
 
