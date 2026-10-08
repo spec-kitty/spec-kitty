@@ -300,7 +300,7 @@ Cross-artifact tension/rejection is expressed as first-class DRG edges
 
 **DAG constraint:** Tactic-to-tactic references must form a directed acyclic
 graph. Cycles are detected by `test_tactic_reference_graph_has_no_cycles` in
-`tests/doctrine/test_directive_consistency.py`.
+`tests/charter_offering/test_directive_consistency.py`.
 
 **Tension/rejection semantics:** the DRG relations `in_tension_with` (symmetric,
 non-transitive — e.g. Directive 024 Locality of Change vs. Directive 025 Boy
@@ -373,7 +373,7 @@ Each artifact type has a corresponding JSON Schema file in
 | `agent-profile.schema.yaml` | Agent Profile artifacts (capabilities, constraints) |
 | `mission.schema.yaml` | Mission template definition |
 
-Validation is enforced in tests (`tests/doctrine/`) and through the
+Validation is enforced in tests (`tests/charter_offering/`) and through the
 Schema Validation Gate component. Schemas use `additionalProperties: false`
 on paradigm and tactic types, meaning any new field requires both a schema
 update and a valid fixture update.
@@ -389,10 +389,10 @@ update and a valid fixture update.
 | All 7 artifact types with Pydantic models, repositories, validation | ✅ Complete | `src/charter/offering/*/models.py`, `repository.py`, `validation.py` |
 | JSON Schema validation for all types | ✅ Complete | `src/charter/offering/schemas/*.schema.yaml` |
 | Two-source loading (shipped + project override) | ✅ Complete | `repository.py` field-level merge on each type |
-| Cross-artifact references (`tactic_refs`, `references[]`) | ✅ Complete | Wired with test coverage across `tests/doctrine/` (185 test files, 3,017 collected tests as of 2026-09-07 — this figure grows over time, not a ceiling) |
+| Cross-artifact references (`tactic_refs`, `references[]`) | ✅ Complete | Wired with test coverage across `tests/charter_offering/` (185 test files, 3,017 collected tests as of 2026-09-07 — this figure grows over time, not a ceiling) |
 | Tension/rejection modeling (`in_tension_with`/`reconciles_tension`/`rejects` DRG edges) | ✅ Complete | Hand-authored edges in `packs/built-in/*.graph.yaml`; validated via `assert_valid` |
-| DAG cycle detection — shipped artifacts | ✅ Complete | `test_tactic_reference_graph_has_no_cycles` in `tests/doctrine/test_directive_consistency.py` |
-| Cycle detection at resolution boundary | 🟡 Partial | Moved into the DRG validator: `src/charter/offering/drg/validator.py` rejects `requires` cycles (`_validate_requires_cycles`) and `specializes_from` lineage cycles at load time. The former `reference_resolver._Walker` boundary check is gone, and `ArtifactResolutionCycleError` is defined (`offering/shared/exceptions.py`, covered by `tests/doctrine/shared/test_exceptions.py`) but no longer raised anywhere in `src/`. |
+| DAG cycle detection — shipped artifacts | ✅ Complete | `test_tactic_reference_graph_has_no_cycles` in `tests/charter_offering/test_directive_consistency.py` |
+| Cycle detection at resolution boundary | 🟡 Partial | Moved into the DRG validator: `src/charter/offering/drg/validator.py` rejects `requires` cycles (`_validate_requires_cycles`) and `specializes_from` lineage cycles at load time. The former `reference_resolver._Walker` boundary check is gone, and `ArtifactResolutionCycleError` is defined (`offering/shared/exceptions.py`, covered by `tests/charter_offering/shared/test_exceptions.py`) but no longer raised anywhere in `src/`. |
 | Shared schema loading (`SchemaUtilities`) | ✅ Complete | `src/charter/offering/shared/schema_utils.py`; replaces 6 duplicated per-type loaders |
 | Domain exceptions (`ArtifactLoadError`, `ArtifactResolutionCycleError`) | ✅ Complete | `src/charter/offering/shared/exceptions.py` |
 | `CharterOfferingService` aggregation facade | ✅ Complete | `src/charter/offering/service.py` |

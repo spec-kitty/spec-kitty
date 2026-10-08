@@ -27,9 +27,9 @@ content:
    node, and ``--check`` alone would report "stale" forever even when nothing
    is actually stale.
 2. The doctrine test suite's shipped-graph freshness/equality canaries
-   (``tests/doctrine/drg/migration/test_extractor.py``,
+   (``tests/charter_offering/drg/migration/test_extractor.py``,
    ``test_extractor_projection.py``, ``test_path_ref_resolver.py``,
-   ``tests/doctrine/drg/test_graph_sharding_equality.py``,
+   ``tests/charter_offering/drg/test_graph_sharding_equality.py``,
    ``test_sharding_silent_degrade.py``) -- each compares a pure extractor
    regeneration against the committed shipped graph and must merge this
    overlay into its "expected" side.
@@ -1144,7 +1144,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # the hub was a NEW, non-scoped directive whose outbound `suggests` were never
     # walked (inert). The operator wants this delivery: the BDD + test-quality
     # families become action-reachable at implement/review now, and the pins in
-    # tests/doctrine/drg/test_reachability.py are updated to the measured result
+    # tests/charter_offering/drg/test_reachability.py are updated to the measured result
     # (exactly as family-A did for DDD-at-specify), NOT left unchanged.
     #
     # Measured with the WP08 helper (resolve_context / action_channel_reachable),

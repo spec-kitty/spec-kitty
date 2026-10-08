@@ -112,7 +112,7 @@ def test_new_asset_scaffolds_where_project_resolver_reads(tmp_path: Path) -> Non
     land under the *same* project-tier directory the resolver reads, which is
     the single authority ``charter.offering.artifact_kinds.PROJECT_KIND_DIRS[ASSET]``.
     CharterOfferingService's round-trip over that same authority is WP04's
-    (``tests/doctrine/test_service.py``); here we assert only the written path.
+    (``tests/charter_offering/test_service.py``); here we assert only the written path.
     """
     from charter.offering.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
 

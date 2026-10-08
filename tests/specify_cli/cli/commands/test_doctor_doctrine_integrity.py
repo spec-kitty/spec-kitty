@@ -6,7 +6,7 @@ enumerates every shipped mission type and raises
 artifact URN is declared in both a mission type's *type grain*
 (``governance-profile.yaml``) and its *action grain* (``actions/*/index.yaml``).
 Before this WP that scan had **no ``src`` caller** — it was only exercised by
-``tests/doctrine/drg/test_cross_grain_integrity.py``, so a real collision in a
+``tests/charter_offering/drg/test_cross_grain_integrity.py``, so a real collision in a
 project/org-authored mission type would never surface outside pytest.
 
 This test proves the scan is now load-bearing through
@@ -15,7 +15,7 @@ deliberate type/action collision must flip the command to RC=1 with a
 structured finding in the JSON payload; a disjoint synthetic tree must leave
 the command healthy (RC=0, no finding). The synthetic-tree construction
 mirrors the ``TestNonVacuityTwin`` fixture in
-``tests/doctrine/drg/test_cross_grain_integrity.py`` — same production seam
+``tests/charter_offering/drg/test_cross_grain_integrity.py`` — same production seam
 (``MissionTypeProfileRepository`` -> the type grain / action grain union),
 just driven through the real CLI instead of calling the union function
 directly, and pointed at the scan's root via a monkeypatch of the
@@ -64,7 +64,7 @@ def _write_colliding_tree(built_in_root: Path, *, mission_type: str, action: str
     """Author a synthetic built-in tree where ``colliding_urn`` is declared in
     both ``mission_type``'s type grain and its ``action`` action grain — the
     same fixture shape as ``TestNonVacuityTwin`` in
-    ``tests/doctrine/drg/test_cross_grain_integrity.py``, T013.
+    ``tests/charter_offering/drg/test_cross_grain_integrity.py``, T013.
     """
     _write_mission_type_roster(built_in_root, mission_type, action=action)
 

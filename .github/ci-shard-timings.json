@@ -90,11 +90,11 @@
     },
     "charter": {
       "run_id": "recapture-charter-durations-20261005T054028Z",
-      "command": "python scripts/ci/capture_shard_timings.py --module charter --run-id recapture-charter-durations-20261005T054028Z --write  # pytest tests/charter tests/doctrine -m not performance and not stress -p no:randomly -q",
+      "command": "python scripts/ci/capture_shard_timings.py --module charter --run-id recapture-charter-durations-20261005T054028Z --write  # pytest tests/charter tests/charter_offering -m not performance and not stress -p no:randomly -q",
       "captured_at": "2026-10-05T05:59:09.409685+00:00",
       "test_dirs": [
         "tests/charter",
-        "tests/doctrine"
+        "tests/charter_offering"
       ],
       "selection": "not performance and not stress",
       "unique_tests_measured": 7183,

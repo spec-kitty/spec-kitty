@@ -35,7 +35,7 @@ _SHIPPED_ASSET_ID = "common-docs-structural-lint"
 
 
 def _write_asset_manifest(path: Path, *, asset_id: str, mime: str, blob_path: str) -> None:
-    """Write one ``*.asset.yaml`` sidecar manifest (mirrors ``tests/doctrine/assets``)."""
+    """Write one ``*.asset.yaml`` sidecar manifest (mirrors ``tests/charter_offering/assets``)."""
     path.parent.mkdir(parents=True, exist_ok=True)
     yaml = YAML()
     yaml.default_flow_style = False

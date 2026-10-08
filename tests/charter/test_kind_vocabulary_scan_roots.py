@@ -8,7 +8,7 @@ best-effort ``try/except``: if the built-in root cannot be resolved
 content dir (:class:`~charter.offering.pack_paths.BuiltInContentDirNotAvailable`), the
 charter-catalog *render* path degrades to the org/project roots instead of
 raising. (The authoritative *load* path in ``charter.offering.base`` fails closed on
-``PackRootNotFound`` instead -- see ``tests/doctrine/test_loader_fail_closed.py``;
+``PackRootNotFound`` instead -- see ``tests/charter_offering/test_loader_fail_closed.py``;
 this render path is intentionally the softer sibling.)
 
 This pins that fail-soft branch, which is otherwise only exercised on a broken

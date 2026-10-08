@@ -81,7 +81,7 @@ def _load_seed_terms() -> list[dict[str, Any]]:
 
 
 def _slugify_heading(text: str) -> str:
-    """Mirror ``tests/doctrine/test_glossary_link_integrity.py``'s GitHub-compatible slugger."""
+    """Mirror ``tests/charter_offering/test_glossary_link_integrity.py``'s GitHub-compatible slugger."""
     heading = re.sub(r"\s+#+\s*$", "", text.strip())
     heading = heading.replace("`", "").lower()
     heading = re.sub(r"[^a-z0-9 _-]", "", heading)
@@ -267,7 +267,7 @@ def test_charter_canon_entry_covers_required_senses() -> None:
 # ---------------------------------------------------------------------------
 # Link closure: every relative link inside the new charter Canon section
 # resolves to a real anchor in charter.md (defense-in-depth alongside the
-# generic tests/doctrine/test_glossary_link_integrity.py sweep).
+# generic tests/charter_offering/test_glossary_link_integrity.py sweep).
 # ---------------------------------------------------------------------------
 
 _LINK_RE = re.compile(r"\[[^\]]+\]\(#([^)]+)\)")

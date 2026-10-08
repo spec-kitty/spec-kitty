@@ -23,7 +23,7 @@ Design notes
   surface delivers on this path. The ten still-excluded kinds each have a
   delivery home elsewhere or are not bundle artefacts.
 * Totality is enforced, not trusted: ``tests/charter/test_action_bundle_delivery.py``
-  and ``tests/doctrine/drg/test_unknown_kind_fails_loudly.py`` redden on any
+  and ``tests/charter_offering/drg/test_unknown_kind_fails_loudly.py`` redden on any
   ``NodeKind``-keyed dict that omits a member, and on a kind whose delivery
   row is missing raising anything other than the stated ``LookupError``.
 
@@ -32,7 +32,7 @@ WP04 (mission doctrine-delivery-activation): relocated verbatim from
 modules import these names directly from ``charter.activation.context``
 (``tests/charter/test_action_bundle_delivery.py``,
 ``tests/charter/test_context_display_charter_md.py``,
-``tests/doctrine/drg/test_unknown_kind_fails_loudly.py``) -- ``charter.activation.context``
+``tests/charter_offering/drg/test_unknown_kind_fails_loudly.py``) -- ``charter.activation.context``
 re-exports the full public surface (including ``_Gate``, accessed there as
 ``context._Gate``) so those import paths keep resolving unchanged.
 """
@@ -137,7 +137,7 @@ _ACTION_BUNDLE_DELIVERY_BY_KIND: dict[NodeKind, _KindDelivery] = {
 #: without a reason reddens rather than passing as an unexplained blank. It is a
 #: documented, intentional partial (an audit sidecar, never read via ``[kind]``
 #: on a delivered kind); the totality guard exempts it in
-#: ``tests/doctrine/drg/test_kind_mapping_totality.py::_EXEMPT_GET_PARTIALS``.
+#: ``tests/charter_offering/drg/test_kind_mapping_totality.py::_EXEMPT_GET_PARTIALS``.
 _DELIVERY_REASON_BY_KIND: dict[NodeKind, str] = {
     NodeKind.PARADIGM: "delivered via the charter selection block, not the action bundle",
     NodeKind.AGENT_PROFILE: "delivered through the profile channel (FR-020), not the action bundle",

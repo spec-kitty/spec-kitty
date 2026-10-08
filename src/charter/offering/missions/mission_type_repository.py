@@ -403,7 +403,7 @@ def _load_layered_mission_type_file(
     loudly" but not spec.md's "naming the offending file" half of the Edge
     Cases requirement (CL-006/NFR-002). This wrap is that fix (T005/T006,
     red-first: see the malformed-YAML tests in
-    ``tests/doctrine/missions/test_mission_type_repository.py`` and this
+    ``tests/charter_offering/missions/test_mission_type_repository.py`` and this
     WP's commit history for the pre-fix RED evidence).
 
     ``pack_context`` (mission ``mission-types-empty-action-sequence-01M0RMCA``
@@ -625,7 +625,7 @@ def _resolve_layered_mission_types_cached(
     **not** detect an on-disk edit to an already-cached org/project
     ``mission_types/*.yaml`` file made *after* the first resolution for that
     same key: the second call with the identical key returns the FIRST
-    (now-stale) result. ``tests/doctrine/missions/test_mission_type_repository.py``'s
+    (now-stale) result. ``tests/charter_offering/missions/test_mission_type_repository.py``'s
     ``TestLayeredMissionTypesCacheKeyAndClear.test_same_key_is_a_cache_hit``
     pins this staleness directly (it mutates an org-layer YAML file after a
     first resolution and asserts the second resolution still returns the

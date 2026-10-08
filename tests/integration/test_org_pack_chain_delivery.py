@@ -17,7 +17,7 @@ Two delivery classes and the enumerated fail-loud contrast:
   branch-named silent drop this mission closes.
 
 * **Class-a (multi-org-pack fold)** — ``test_class_a_*``. Built-in + internal +
-  a SECOND minimal org fixture (``tests/doctrine/fixtures/minimal_org_pack_2``).
+  a SECOND minimal org fixture (``tests/charter_offering/fixtures/minimal_org_pack_2``).
   ``merge_three_layers`` iterates ALL fragments (``merge.py:1251``), so a single
   org pack proves only class-b; pinning that fragments PAST THE FIRST are folded
   (finding F10) requires >=2 org packs and an assertion that PACK #2's own
@@ -59,7 +59,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.doctrine]
 
 _REPO_ROOT: Path = Path(__file__).resolve().parents[2]
 _INTERNAL_PACK: Path = _REPO_ROOT / "packs" / "internal"
-_MINIMAL_ORG_PACK_2: Path = _REPO_ROOT / "tests" / "doctrine" / "fixtures" / "minimal_org_pack_2"
+_MINIMAL_ORG_PACK_2: Path = _REPO_ROOT / "tests" / "charter_offering" / "fixtures" / "minimal_org_pack_2"
 
 #: URNs the internal pack contributes (minted ``<singular_kind>:<id>`` from its
 #: plural-kinded fragment nodes). One per declared kind — the class-b coverage.

@@ -419,7 +419,7 @@ def _write_layered_mission_type_yaml(
 ) -> None:
     """Write a minimal mission-type YAML for the layered lookup (WP03 shape).
 
-    Mirrors ``tests/doctrine/missions/test_mission_type_repository.py``'s
+    Mirrors ``tests/charter_offering/missions/test_mission_type_repository.py``'s
     own ``_mission_type_yaml`` helper. ``action_sequence=None`` omits the
     field entirely (the CL-003 empty-action-sequence edge case).
     """
@@ -448,7 +448,7 @@ def _write_org_mission_step_yaml(
     template ref.
 
     Org-pack layout convention (mirrors
-    ``tests/doctrine/missions/test_mission_step_resolver.py::_write_org_step``):
+    ``tests/charter_offering/missions/test_mission_step_resolver.py::_write_org_step``):
     ``{org_root}/mission-steps/{mission_type_id}/{step_id}/step.yaml``.
 
     ``artifact_key``/``template_file`` default to ``None``; the ``template:``
@@ -500,7 +500,7 @@ class TestPackContextProjection:
         # per-test-unique ``tmp_path``, so no two tests here could construct
         # an *equal* cache key. Explicit discipline now, matching
         # ``tests/cli/test_charter_mission_type_commands.py`` and
-        # ``tests/doctrine/missions/test_mission_type_repository.py``.
+        # ``tests/charter_offering/missions/test_mission_type_repository.py``.
         MissionTypeRepository.cache_clear()
 
     def teardown_method(self) -> None:
@@ -838,7 +838,7 @@ def _write_org_pack_config(
 
     Combines the shape ``test_mission_type_profile_override.py``'s
     ``_git_init_minimal`` writes (``mission_type_activations``) with the
-    shape ``tests/doctrine/drg/test_org_pack_config_resolve_org_dirs.py``'s
+    shape ``tests/charter_offering/drg/test_org_pack_config_resolve_org_dirs.py``'s
     ``_write_config`` writes (``doctrine.org.packs``) into one file, so both
     ``existing_mission_types()`` and ``resolve_org_dirs()`` — and therefore
     the real ``resolve_mission_type_context()`` seam under test — read

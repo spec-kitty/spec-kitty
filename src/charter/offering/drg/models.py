@@ -151,7 +151,7 @@ class Relation(StrEnum):
 #: Canonical relation-description registry (single authority, FR-012/A2).
 #: Covers all 15 ``Relation`` members (FR-005/FR-007, mission
 #: ``drg-relation-parity-activation-gate-01KY48PD``); completeness is
-#: enforced by ``tests/doctrine/drg/test_models.py``. This is the ONE seam
+#: enforced by ``tests/charter_offering/drg/test_models.py``. This is the ONE seam
 #: that both a future ``describe(relation)`` call site and the doc-parity
 #: check (``docs/architecture/doctrine-relationships.md``) read from -- do
 #: not duplicate this mapping anywhere else.

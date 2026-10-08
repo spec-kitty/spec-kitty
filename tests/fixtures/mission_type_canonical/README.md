@@ -10,8 +10,8 @@ invented:
 
 - Org-pack `mission_types/<id>.yaml` shape: `charter.offering.missions.models.MissionType`
   (`schema_version`/`id`/`display_name`), `packs/built-in/missions/mission_types/*.yaml`.
-- `charter_packs.org.packs` config block: `tests/doctrine/test_org_pack_subdir.py`,
-  `tests/doctrine/drg/test_org_pack_config_resolve_existing_org_roots.py`,
+- `charter_packs.org.packs` config block: `tests/charter_offering/test_org_pack_subdir.py`,
+  `tests/charter_offering/drg/test_org_pack_config_resolve_existing_org_roots.py`,
   this repo's own `.kittify/config.yaml`. (`charter_packs` is the current
   canonical top-level key per `charter.offering.drg.org_pack_config`
   CR-04; the `doctrine.org.packs` spelling referenced in the WP prompt/spec

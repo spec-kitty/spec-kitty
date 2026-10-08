@@ -53,7 +53,7 @@ _CANONICAL_ORG_PACKS_KEY = "charter_packs"
 # 2016-07-30, all-zero-then-``FG`` entropy) chosen deliberately as a fixed
 # constant — it is NOT freshly generated at runtime. It must stay byte-for-byte
 # identical to ``packs/built-in/pack.yaml``'s ``pack_id`` (bound by
-# tests/doctrine/test_pack_id_identity.py) so the two authorities cannot drift.
+# tests/charter_offering/test_pack_id_identity.py) so the two authorities cannot drift.
 _BUILTIN_PACK_ID = "01ARWG13C000000000000000FG"
 
 

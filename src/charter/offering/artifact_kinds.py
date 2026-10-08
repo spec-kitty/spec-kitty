@@ -422,13 +422,13 @@ _SINGULAR_PROJECT_DIR_KINDS: frozenset[ArtifactKind] = frozenset(
 #:
 #: Declared as an explicit, **total** literal (not a comprehension) so the
 #: kind-mapping totality guard
-#: (``tests/doctrine/drg/test_kind_mapping_totality.py``) discovers it via its
+#: (``tests/charter_offering/drg/test_kind_mapping_totality.py``) discovers it via its
 #: AST scan and certifies exhaustiveness: a new :class:`ArtifactKind` added
 #: without an entry here fails that guard rather than falling through a silent
 #: ``.get`` default. Fail-closed — there is no fallback; a missing key is a
 #: :class:`KeyError`. The four :data:`_SINGULAR_PROJECT_DIR_KINDS` map to their
 #: singular value; every other kind maps to its :attr:`ArtifactKind.plural`
-#: (asserted in ``tests/doctrine/test_artifact_kinds.py``).
+#: (asserted in ``tests/charter_offering/test_artifact_kinds.py``).
 PROJECT_KIND_DIRS: dict[ArtifactKind, str] = {
     ArtifactKind.DIRECTIVE: "directive",
     ArtifactKind.TACTIC: "tactic",

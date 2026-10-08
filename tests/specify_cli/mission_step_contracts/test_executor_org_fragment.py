@@ -413,7 +413,7 @@ def test_strict_load_still_raises_on_malformed_pack(tmp_path: Path) -> None:
 # BY NAME. The per-pack degrade in ``load_org_drg`` and the
 # ``_org_root_folds_fragment`` probe are the two such consumers on the
 # mission-step composition path; each gets a chmod-0 regression test mirroring
-# ``tests/doctrine/drg/test_org_fragment_validation.py::
+# ``tests/charter_offering/drg/test_org_fragment_validation.py::
 # test_permission_denied_fragment_is_a_finding``, plus a directory-fragment
 # variant that exercises the same ``OSError`` channel on every platform
 # (``read_text`` on a directory raises ``OSError`` even for root).

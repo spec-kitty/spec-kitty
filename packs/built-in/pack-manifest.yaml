@@ -665,7 +665,7 @@ constituents:
   kind: styleguide
   path: styleguides/tiered-standards.styleguide.yaml
   provenance_path:
-- content_hash: 293e9480138f64a2e87cc03859ac64e13777701ebf14630d194726ff42c1b7fc
+- content_hash: 77546fb3eae3fc2e150eecd1d1f8091d6f4152014e368f027d34c9fe69577e90
   id: acceptance-criteria-non-vacuity
   kind: tactic
   path: tactics/testing/acceptance-criteria-non-vacuity.tactic.yaml
@@ -1375,7 +1375,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty charter pack regenerate-graph
-manifest_hash: 809e21ddf1905c5f64b66ce96aca4d858cf1bb0a7a9f90604382cf5c5b58d61f
+manifest_hash: d1497d47d1d41bae09e49792c8bde5d6a0eb8328f24e9c841b139e4c64d3e118
 presets:
 - content_hash: f0e3e26b23029c9073d5d7799d41f5ca8bd35e7a13f370d7e1bf400705552fc7
   name: default

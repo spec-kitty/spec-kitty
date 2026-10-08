@@ -124,7 +124,7 @@ _MAX_HOPS_PAST_BOUNDARY = 1
 #: ancestry (an unusual anchor location). Bounds the walk to a small, fixed
 #: number of ancestors -- generous headroom above the depth-2 maximum every
 #: real layout and caller in this codebase requires (see
-#: ``tests/kernel/test_paths.py`` and ``tests/doctrine/test_pack_root_resolver.py``)
+#: ``tests/kernel/test_paths.py`` and ``tests/charter_offering/test_pack_root_resolver.py``)
 #: -- so a broken install fails closed within a few hops instead of silently
 #: climbing toward the filesystem root and matching an unrelated directory
 #: several levels up (the primitive's own contract,

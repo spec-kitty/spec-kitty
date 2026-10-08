@@ -978,7 +978,7 @@ class TestProfileSkippedDiagnostics:
     def test_post_merge_skip_surfaces_as_profile_skipped_issue(self, tmp_path: Path) -> None:
         """AC-1: a profile that passes ``AgentProfile.model_validate`` in
         isolation (proven standalone-valid by
-        ``tests/doctrine/test_agent_profile_model_field.py``'s
+        ``tests/charter_offering/test_agent_profile_model_field.py``'s
         ``TestDeprecatedScalarRoleStandaloneValid``, T008) but is recorded
         via ``AgentProfileRepository``'s ``_record_skip`` during merge-time
         load (the deprecated scalar ``role:`` colliding with the real
@@ -1115,7 +1115,7 @@ class TestProfileSkippedDiagnostics:
         built-in content directory must not propagate as an uncaught
         traceback. The raise path is real (not hypothetical): ``__init__``
         resolves ``built_in_dir()`` through the fail-closed seam pinned by
-        ``tests/doctrine/test_pack_root_resolver.py`` — a stripped
+        ``tests/charter_offering/test_pack_root_resolver.py`` — a stripped
         environment raises ``PackRootNotFound`` there, exactly as the
         sibling ``_load_built_in_ids_per_kind`` guard anticipates for the
         same seam.

@@ -44,7 +44,7 @@ from specify_cli import app as cli_app
 from specify_cli.runtime import agent_commands, agent_skills
 from specify_cli.runtime import bootstrap as runtime_bootstrap
 from tests._factories import provision_test_charter
-from tests.doctrine.test_builtin_cli_command_references import _COMMAND_PATTERN
+from tests.charter_offering.test_builtin_cli_command_references import _COMMAND_PATTERN
 
 pytestmark = [pytest.mark.git_repo]
 

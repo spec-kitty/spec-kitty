@@ -96,7 +96,7 @@ references:
   #   this tactic, and delete-the-assertion-not-the-test already references
   #   acceptance-test-first -- a back-reference to either from here would
   #   close a cycle in the tactic cross-reference graph
-  #   (tests/doctrine/test_directive_consistency.py::
+  #   (tests/charter_offering/test_directive_consistency.py::
   #   test_tactic_reference_graph_has_no_cycles requires a DAG).
   # - architectural-gate-non-vacuity: that tactic --suggests--> directive:
   #   DIRECTIVE_043, which sits in a densely-connected part of the DRG

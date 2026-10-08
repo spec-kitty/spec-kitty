@@ -44,7 +44,7 @@ from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Re
 pytestmark = pytest.mark.unit
 
 #: Root of the shipped doctrine tree, resolved the same way as
-#: ``tests/doctrine/drg/migration/test_extractor.py::DOCTRINE_ROOT`` (this file
+#: ``tests/charter_offering/drg/migration/test_extractor.py::DOCTRINE_ROOT`` (this file
 #: is two directories shallower: ``tests/charter/test_cascade.py`` ->
 #: ``tests/charter`` -> ``tests`` -> repo root).
 _DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[2] / "src" / "charter" / "offering"

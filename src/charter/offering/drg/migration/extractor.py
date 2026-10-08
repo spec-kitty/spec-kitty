@@ -231,7 +231,7 @@ def _resolve_path_ref(path_str: str) -> tuple[str, str] | None:
 #: previously restated 11 of the 16 members by hand and dropped ``anti_pattern``,
 #: ``asset``, ``glossary``, ``glossary_pack`` and ``glossary_scope``. Because the
 #: table is ``str``-keyed it was invisible to the ``NodeKind``-keyed totality
-#: guard in ``tests/doctrine/drg/test_kind_mapping_totality.py`` -- a
+#: guard in ``tests/charter_offering/drg/test_kind_mapping_totality.py`` -- a
 #: hand-restated table one step outside the gate that exists to catch
 #: hand-restated tables. Deriving it removes the restatement instead of
 #: lengthening it: a ``NodeKind`` member added tomorrow is carried with no edit
@@ -520,7 +520,7 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
     # ``enforcement: advisory``), each following an existing
     # (directive -> {directive,procedure}, suggests) pattern in the shipped
     # graph. All five targets are already edge-incident. Ledgered as
-    # composition entry (22) in ``tests/doctrine/drg/migration/
+    # composition entry (22) in ``tests/charter_offering/drg/migration/
     # test_extractor_projection.py``.
     # These five are OUTBOUND-only, so they do NOT de-orphan DIRECTIVE_052
     # itself — ``charter lint``'s ``OrphanChecker`` (checks/orphan.py) flags a
@@ -571,7 +571,7 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
     # it. ``suggests``, advisory, no cascade: it stays consistent with
     # DIRECTIVE_052's own ``enforcement: advisory`` and pulls in no dependents.
     # Ledgered as composition entry (24) in
-    # ``tests/doctrine/drg/migration/test_extractor_projection.py``.
+    # ``tests/charter_offering/drg/migration/test_extractor_projection.py``.
     (
         "procedure:disciplined-defect-diagnosis",
         "directive:DIRECTIVE_052",
@@ -588,7 +588,7 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
     # pointer (the existing tactic -> procedure suggests shape). The inbound
     # edge to the directive is extractor-minted from planner-priti's
     # ``directive-references``. Ledgered as composition entry (23) in
-    # ``tests/doctrine/drg/migration/test_extractor_projection.py``.
+    # ``tests/charter_offering/drg/migration/test_extractor_projection.py``.
     (
         "directive:DIRECTIVE_053",
         "tactic:op-or-mission-selection",
@@ -604,7 +604,7 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
     # below carries a relation the YAML ``references`` path cannot mint for its
     # (source kind, target kind) pair, which is why it is curated here. Ledgered
     # as composition entry (25) in
-    # ``tests/doctrine/drg/migration/test_extractor_projection.py``.
+    # ``tests/charter_offering/drg/migration/test_extractor_projection.py``.
     #
     # The squad procedure delegates model-tier choice to model-task-routing. A
     # procedure's YAML reference to a tactic would mint ``requires``; the choice
@@ -744,7 +744,7 @@ def _reference_edge_kwargs(ref: dict[str, Any]) -> dict[str, str | None]:
     ``when``/``reason`` gained values. (The later agent-profile consolidation,
     mission ``doctrine-drg-silent-drop-boundary-01M0PE7E`` WP02 / #3629 p1, DID
     move the profile edge set -- see ledger entry (21) in
-    ``tests/doctrine/drg/migration/test_extractor_projection.py`` for that
+    ``tests/charter_offering/drg/migration/test_extractor_projection.py`` for that
     re-ledger -- but it re-homed profile *references*, not this procedure
     metadata branch.) Note also that end-to-end frontmatter promotion for a non-directive
     source additionally needs that kind's reference *model* + generated schema

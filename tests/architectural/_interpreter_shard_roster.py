@@ -263,7 +263,7 @@ INTERPRETER_SHARDS: tuple[InterpreterShard, ...] = (
             "tests/auth",
             "tests/characterization",
             "tests/contract",
-            "tests/doctrine",
+            "tests/charter_offering",
             "tests/dossier",
             "tests/git",
             "tests/git_ops",

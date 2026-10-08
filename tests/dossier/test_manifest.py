@@ -1229,7 +1229,7 @@ class TestRepoMissionOverrideTierRetired:
     mission assets lives in this repo"): no per-mission override directory may
     reappear under ``.kittify/overrides/missions/``. The override *mechanism*
     stays supported for consumer projects and is covered by tmp_path fixtures
-    (``tests/runtime/test_resolver_unit.py``, ``tests/doctrine/test_resolver.py``).
+    (``tests/runtime/test_resolver_unit.py``, ``tests/charter_offering/test_resolver.py``).
     """
 
     _REPO_ROOT = Path(__file__).resolve().parents[2]

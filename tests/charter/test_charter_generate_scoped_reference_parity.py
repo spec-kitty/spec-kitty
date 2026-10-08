@@ -19,7 +19,7 @@ NOT an internal helper function) against a fixture repo that activates the six
 drupal-conventions, php/twig-scoped -- C-002: proves the general mechanism, not six
 special cases), then feeds the result through ``run_consistency_check`` directly
 (spec.md Acceptance Scenario 3), rather than
-``tests/doctrine/test_activation_parity_guard.py::test_this_project_charter_pack_is_coherent``,
+``tests/charter_offering/test_activation_parity_guard.py::test_this_project_charter_pack_is_coherent``,
 which is hardcoded to this checkout's own ``_REPO_ROOT`` and cannot be conditioned on
 an arbitrary fixture path.
 

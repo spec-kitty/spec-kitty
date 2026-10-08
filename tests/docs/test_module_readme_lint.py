@@ -36,7 +36,7 @@ _POINTER_CAP_LINES = 30
 # (readme relative path, strict_pointer_only)
 #
 # `src/charter/offering/missions/` is a bound-model module but is EXCLUDED: it is on the
-# pack-relocation content manifest (tests/doctrine/test_pack_relocation_guard.py),
+# pack-relocation content manifest (tests/charter_offering/test_pack_relocation_guard.py),
 # which forbids a README under that path. Its schema docs live in
 # mission-type-resolution.md (linked from the code models directly).
 _RELOCATION_EXCLUDED = frozenset({"missions"})
