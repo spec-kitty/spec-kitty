@@ -429,6 +429,20 @@ def test_an_unreadable_head_fails_closed(mission: Path, root: Path, monkeypatch:
     assert _snapshot(mission) == before
 
 
+def test_a_malformed_committed_line_fails_closed(mission: Path, root: Path) -> None:
+    """The committed ids are unknown when HEAD's log holds a non-JSON line, so no tail may be cut on that proof."""
+    _append(mission / EVENTS, "not json\n")
+    _commit_all(root, "corrupt committed log")
+    point = _point(mission, root)
+    _append(mission / EVENTS, _row("01B"))
+    before = _snapshot(mission)
+
+    outcome = rollback_status_artifacts(point, repo_root=root)
+
+    assert outcome.refusal is RollbackRefusal.HEAD_UNREADABLE
+    assert _snapshot(mission) == before
+
+
 def test_a_head_that_cannot_be_resolved_fails_closed(mission: Path, root: Path) -> None:
     point = _point(mission, root)
     _append(mission / EVENTS, _row("01B"))
