@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from kernel.clock import now_utc_iso
 from kernel._safe_re import re
@@ -28,7 +28,7 @@ from specify_cli.core.paths import (
     load_meta_fail_closed,
     read_target_branch_from_meta,
 )
-from specify_cli.mission_metadata import write_meta
+from specify_cli.mission_metadata import locked_update_meta
 
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
@@ -201,6 +201,21 @@ def record_baseline_merge_commit(
             raise BaselineMergeCommitError(f"Cannot record baseline_merge_commit for modern mission {feature_dir.name}: meta.json could not be loaded.")
         return None
 
+    # The checks above only decide whether to refuse; the idempotency checks and the write run on a
+    # fresh read under the Mission write lock, so a concurrent meta.json writer is never overwritten.
+    wrote = False
+
+    def stamp(fresh: dict[str, Any]) -> bool:
+        nonlocal wrote
+        wrote = _stamp_baseline_fields(fresh, feature_dir, baseline, merged_commit)
+        return wrote
+
+    locked_update_meta(feature_dir, stamp, validate=False)
+    return meta_path if wrote else None
+
+
+def _stamp_baseline_fields(meta: dict[str, Any], feature_dir: Path, baseline: str, merged_commit: str | None) -> bool:
+    """Stamp ``baseline_merge_commit`` and the ``merged_at`` marker into *meta*; return whether anything changed."""
     changed = False
 
     # baseline_merge_commit — only for missions with a captured baseline SHA,
@@ -218,10 +233,7 @@ def record_baseline_merge_commit(
         meta["merged_commit"] = supplied_merged_commit or (_resolve_merge_commit(feature_dir) or baseline)
         changed = True
 
-    if changed:
-        write_meta(feature_dir, meta, validate=False)
-        return meta_path
-    return None
+    return changed
 
 
 def _recorded_baseline_from_working_meta(feature_dir: Path | None) -> str:
@@ -777,21 +789,22 @@ def _stamp_pr_merge_provenance(
     honour it instead of consuming every recorded anchor as though it were
     proven.
     """
+    def stamp(meta: dict[str, Any]) -> bool:
+        commit_stamped = bool((meta.get(_PR_MERGE_COMMIT_FIELD) or "").strip())
+        evidence_stamped = bool((meta.get(_PR_MERGE_EVIDENCE_FIELD) or "").strip())
+        if not commit_stamped:
+            meta[_PR_MERGE_COMMIT_FIELD] = pr_merge_commit
+        if not evidence_stamped:
+            meta[_PR_MERGE_EVIDENCE_FIELD] = pr_merge_evidence
+        return not (commit_stamped and evidence_stamped)
+
+    # Read, set-once check and write share one hold of the Mission write lock.
     try:
-        meta = load_meta_fail_closed(feature_dir)
+        locked_update_meta(feature_dir, stamp, validate=False)
     except MissionMetaReadError as exc:
         raise PrMergeEvidenceError(f"cannot stamp {_PR_MERGE_COMMIT_FIELD} for {feature_dir.name}: meta.json is invalid ({exc}).") from exc
-    if meta is None:
-        raise PrMergeEvidenceError(f"cannot stamp {_PR_MERGE_COMMIT_FIELD} for {feature_dir.name}: meta.json is missing.")
-    commit_stamped = bool((meta.get(_PR_MERGE_COMMIT_FIELD) or "").strip())
-    evidence_stamped = bool((meta.get(_PR_MERGE_EVIDENCE_FIELD) or "").strip())
-    if not commit_stamped:
-        meta[_PR_MERGE_COMMIT_FIELD] = pr_merge_commit
-    if not evidence_stamped:
-        meta[_PR_MERGE_EVIDENCE_FIELD] = pr_merge_evidence
-    if commit_stamped and evidence_stamped:
-        return
-    write_meta(feature_dir, meta, validate=False)
+    except FileNotFoundError as exc:
+        raise PrMergeEvidenceError(f"cannot stamp {_PR_MERGE_COMMIT_FIELD} for {feature_dir.name}: meta.json is missing.") from exc
 
 
 def _record_pr_merge_baseline(

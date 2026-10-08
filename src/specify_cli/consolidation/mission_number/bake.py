@@ -22,6 +22,7 @@ from __future__ import annotations
 import functools
 import logging
 from pathlib import Path
+from typing import Any
 
 from specify_cli.cli.console import console
 from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
@@ -37,7 +38,7 @@ from specify_cli.consolidation.baseline import MissionNumberVerificationError
 from specify_cli.consolidation.git_probes import _has_branch_ref, _is_git_repo, path_is_under_worktrees
 from specify_cli.consolidation.mission_number import is_assigned_mission_number
 from specify_cli.consolidation.state import ConsolidationState
-from specify_cli.mission_metadata import load_meta, write_meta
+from specify_cli.mission_metadata import load_meta, locked_update_meta
 
 __all__ = [
     "assign_next_mission_number",
@@ -274,6 +275,32 @@ def _surface_unbaked_mission_number(
     )
 
 
+def _locked_assign_mission_number(feature_dir: Path, number: int, *, repo_root: Path | None) -> bool:
+    """Record ``mission_number`` in *feature_dir*'s ``meta.json`` under the Mission write lock.
+
+    The read, the idempotency check and the write run in ONE hold of the lock, on a fresh read, so a
+    concurrent writer of another ``meta.json`` field is never overwritten. The lock is held for the
+    ``meta.json`` write only: every ``git`` subprocess of the bake runs after it is released.
+
+    Returns:
+        ``True`` when the number was written; ``False`` when it was already recorded by the time the
+        lock was held (an idempotency hit; nothing written).
+    """
+    wrote = False
+
+    def assign(fresh: dict[str, Any]) -> bool:
+        nonlocal wrote
+        existing = fresh.get("mission_number")
+        if _is_assigned_mission_number(existing) and existing == number:
+            return False
+        fresh["mission_number"] = number
+        wrote = True
+        return True
+
+    locked_update_meta(feature_dir, assign, repo_root=repo_root, validate=False)
+    return wrote
+
+
 def _bake_mission_number_on_primary_tree(
     main_repo: Path,
     mission_slug: str,
@@ -355,8 +382,13 @@ def _bake_mission_number_on_primary_tree(
         # ``target_branch``, so the executor's own target-read resolves it).
         return False
 
-    meta_data["mission_number"] = next_number
-    write_meta(primary_meta_path.parent, meta_data, validate=False)
+    if not _locked_assign_mission_number(primary_meta_path.parent, next_number, repo_root=main_repo):
+        _merge_logger.info(
+            "mission_number=%d already present on primary meta.json for %s; skipping write (idempotency check)",
+            next_number,
+            mission_slug,
+        )
+        return False
 
     rel_meta = primary_meta_path.relative_to(main_repo)
     if path_is_under_worktrees(rel_meta):
@@ -528,11 +560,13 @@ def _write_mission_number_to_branch(
             # see the executor-side NOTE on this function's docstring.
             return False
 
-        meta_data["mission_number"] = next_number
-        # Route all meta.json mutations through the canonical writer API.
+        # Route all meta.json mutations through the locked canonical writer API: the scratch
+        # checkout's write locks the scratch Mission's key (resolved from the scratch meta.json),
+        # and the lock is released before any ``git`` subprocess below runs.
         # validate=False preserves merge-time tolerance for legacy/partial mission
         # metadata while still enforcing atomic writes + standard format.
-        write_meta(meta_path.parent, meta_data, validate=False)
+        if not _locked_assign_mission_number(meta_path.parent, next_number, repo_root=main_repo):
+            return False
 
         rel_meta = meta_path.relative_to(mission_tmp_path)
         if path_is_under_worktrees(rel_meta):
@@ -759,12 +793,10 @@ def _assign_planning_only_mission_number_if_needed(
         main_repo / KITTY_SPECS_DIR,
     )
     # FR-007 route: a corrupt meta.json surfaces the typed
-    # ``MissionMetaReadError`` (never a raw ``ValueError``) and PROPAGATES --
-    # this is a ``route-unwrapped`` census site, so swallowing corruption here
-    # would silently overwrite an unreadable meta.json with a one-key dict.
-    meta = load_meta_fail_closed(feature_dir) or {}
-    meta["mission_number"] = next_number
-    write_meta(feature_dir, meta, validate=False)
+    # ``MissionMetaReadError`` (never a raw ``ValueError``) from the locked
+    # fail-closed re-read and PROPAGATES -- swallowing corruption here would
+    # silently overwrite an unreadable meta.json with a one-key dict.
+    _locked_assign_mission_number(feature_dir, next_number, repo_root=main_repo)
     return next_number
 
 
@@ -803,8 +835,7 @@ def _bake_mission_number_onto_target_tree(
             f"cannot record mission_number={number}: the target meta.json is missing at "
             f"{target_feature_dir / 'meta.json'}; refusing to fabricate a stub meta.json on the target."
         )
-    meta["mission_number"] = number
-    write_meta(target_feature_dir, meta, validate=False)
+    _locked_assign_mission_number(target_feature_dir, number, repo_root=None)
     return target_feature_dir / "meta.json"
 
 
