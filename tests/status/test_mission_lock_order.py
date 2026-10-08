@@ -24,6 +24,7 @@ import specify_cli.status.locking as locking_module
 from specify_cli.coordination.legacy_resolution import _mission_specs_dir_name
 from specify_cli.coordination.transaction import _transaction_hold
 from specify_cli.mission_metadata import flatten_coordination_metadata
+from specify_cli.missions._read_path_resolver import mission_write_lock_dir
 from specify_cli.status import FeatureStatusLockTimeoutError, mission_lock_key
 from specify_cli.status.locking import feature_status_lock_path
 from specify_cli.status.mission_write import mission_write_lock
@@ -476,3 +477,36 @@ def test_the_key_of_a_primary_checkout_root_never_resolves_a_main_repo_root(miss
     repo, primary, _coord = mission
     monkeypatch.setattr(paths_module, "get_main_repo_root", lambda *a, **k: (_ for _ in ()).throw(AssertionError("get_main_repo_root reached")))
     assert mission_lock_key(primary, repo_root=repo) == COORD_NAME
+
+
+# ---------------------------------------------------------------------------
+# Review 1, item 2 -- owned linked worktree, legacy slug, no meta in the repository root checkout
+# ---------------------------------------------------------------------------
+
+
+def test_transaction_and_doors_agree_for_an_owned_worktree_whose_meta_is_not_in_the_root_checkout(mission: Mission, tmp_path: Path) -> None:
+    """The root checkout holds no ``meta.json`` for the slug; the owned linked worktree does (flat, with a mid8)."""
+    from specify_cli.status.mission_write import transaction_lock_key
+
+    repo, primary, _coord = mission
+    (primary / "meta.json").unlink()
+    _git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "--allow-empty", "-q", "-m", "init")
+    owned_root = tmp_path / "owned"
+    _git(repo, "worktree", "add", "-q", str(owned_root), "-b", "owned")
+    owned_dir = owned_root / "kitty-specs" / SLUG
+    owned_dir.mkdir(parents=True)
+    (owned_dir / "meta.json").write_text(json.dumps({"mission_slug": SLUG, "mission_id": f"{MID8}XXXXXXXXXXXXXXXXXX", "mid8": MID8}), encoding="utf-8")
+    assert transaction_lock_key(owned_root, SLUG, MID8) == mission_lock_key(owned_dir, repo_root=owned_root)
+
+
+# ---------------------------------------------------------------------------
+# Review 1, item 3 -- a hold taken through mission_write_lock_dir is found by the primary directory
+# ---------------------------------------------------------------------------
+
+
+def test_a_hold_through_mission_write_lock_dir_is_reused_by_a_nested_lock_on_the_primary_dir(mission: Mission) -> None:
+    repo, primary, _coord = mission
+    with mission_write_lock(mission_write_lock_dir(repo, SLUG), repo_root=repo) as held:
+        flatten_coordination_metadata(primary)
+        with mission_write_lock(primary, repo_root=repo) as nested:
+            assert nested == held
