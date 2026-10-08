@@ -323,6 +323,11 @@
        "help": "[internal] Call the widen endpoint for a decision. Not for end users.",
        "hidden": true,
        "deprecated": false
+      },
+      "repair-runtime-lock": {
+       "help": "Stop tracking the exact decision lock in an explicitly owned mission.",
+       "hidden": false,
+       "deprecated": false
       }
      }
     },

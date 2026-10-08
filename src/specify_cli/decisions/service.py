@@ -17,7 +17,7 @@ mission_id resolution:
 
 from __future__ import annotations
 
-from mission_runtime import MissionArtifactKind, placement_seam
+from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam
 import json
 from collections.abc import Callable
 from pathlib import Path
@@ -136,6 +136,8 @@ def _runtime_lock_ignore_state(owned: OwnedCheckout) -> tuple[Path, bool]:
     """Validate the exact local ignore destination and observe its effective rule."""
     import subprocess
 
+    from kernel.git import status_entries
+
     lock = _decisions_lock_path(owned.mission_dir)
     ignore = lock.parent / ".gitignore"
     owned.files([lock, ignore])
@@ -150,15 +152,12 @@ def _runtime_lock_ignore_state(owned: OwnedCheckout) -> tuple[Path, bool]:
                 raise ValueError(f"Runtime lock repair requires a directory: {current}")
             current = current.parent
     relative_ignore = str(ignore.relative_to(owned.owned_root))
-    status = subprocess.run(
-        ["git", "status", "--porcelain=v1", "--untracked-files=all", "--ignored", "--", relative_ignore],
-        cwd=owned.owned_root, check=True, capture_output=True, text=True,
-    )
-    if status.stdout.strip():
+    if status_entries(owned.owned_root, pathspecs=(relative_ignore,), untracked="all", ignored=True):
         raise ValueError("Runtime lock repair refuses preexisting changes or staging on .gitignore")
     ignored = subprocess.run(
         ["git", "check-ignore", "--no-index", "--quiet", "--", str(lock.relative_to(owned.owned_root))],
-        cwd=owned.owned_root, capture_output=True,
+        cwd=owned.owned_root,
+        capture_output=True,
     )
     if ignored.returncode not in (0, 1):
         raise RuntimeError("Runtime lock repair could not inspect effective ignore rules")

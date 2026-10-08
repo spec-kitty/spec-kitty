@@ -107,7 +107,7 @@ from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability, GuardVerdict, ProtectionState
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
-from kernel.git import GitCommandError, changed_paths
+from kernel.git import GitCommandError, changed_paths, tree_entry
 from kernel.resolution import is_symlink_loop_error, resolve_commit_path
 from kernel.git_topology import (
     GitTopologyError,
@@ -1203,7 +1203,7 @@ def _build_expected_parent_tree(
         raise RuntimeError(f"safe_commit: commit hook changed requested path contents after staging; refusing expected-parent commit for {requested}")
     _verify_expected_parent_tree_bytes(worktree_root, tree, expected_path_bytes, env=env)
     for removed_path in index_only_removals:
-        if _run_git_for_commit(worktree_root, ["ls-tree", tree, "--", removed_path], env=env).stdout.strip():
+        if tree_entry(worktree_root, tree, removed_path, env=env) is not None:
             raise RuntimeError("safe_commit: decision runtime lock remains in candidate tree")
     return tree
 

@@ -1,4 +1,5 @@
 """Exact-owner lock prevention and supported index-only recovery over real Git."""
+
 from __future__ import annotations
 
 import subprocess
@@ -41,18 +42,21 @@ def seed(c, state="tracked"):
 def invoke(c, monkeypatch, *extra):
     monkeypatch.chdir(c.owned_root)
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(c.owned_root))
-    return runner.invoke(decision_app, ["repair-runtime-lock", "--mission", c.mission_slug,
-        "--owned-checkout", str(c.owned_root), *extra])
+    return runner.invoke(decision_app, ["repair-runtime-lock", "--mission", c.mission_slug, "--owned-checkout", str(c.owned_root), *extra])
 
 
 def snapshot(root):
-    return (git(root, "rev-parse", "HEAD"), git(root, "status", "--porcelain=v1", "--untracked-files=all"),
-            git(root, "diff", "--cached", "--binary"),
-            {str(p.relative_to(root)): p.read_bytes() for p in root.rglob("*") if p.is_file() and ".git" not in p.parts})
+    return (
+        git(root, "rev-parse", "HEAD"),
+        git(root, "status", "--porcelain=v1", "--untracked-files=all"),
+        git(root, "diff", "--cached", "--binary"),
+        {str(p.relative_to(root)): p.read_bytes() for p in root.rglob("*") if p.is_file() and ".git" not in p.parts},
+    )
 
 
 def test_owned_next_excludes_only_service_lock(owned_checkouts):
     from specify_cli.cli.commands.next_cmd import _commit_owned_next_mutations
+
     c = owned_checkouts
     lock = seed(c, "untracked")
     authored = lock.parent / "new-authored.lock"
@@ -157,14 +161,22 @@ def test_rejecting_hook_restores_only_own_ignore_delta(owned_checkouts, monkeypa
 
 def test_index_only_capability_refuses_non_owner_path(owned_checkouts):
     from specify_cli.git.commit_helpers import safe_commit
+
     c = owned_checkouts
     fact = resolve_owned_mission(c.repository_root, c.owned_root, c.mission_slug, allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES)
     path = c.owned_root / "README.md"
     before = snapshot(c.owned_root)
     with pytest.raises(ValueError, match="decision runtime lock"):
-        safe_commit(repo_root=c.owned_root, worktree_root=c.owned_root, target=CommitTarget(ref=fact.write_branch),
-                    message="refuse arbitrary removal", paths=(path,), owned=fact,
-                    expected_parent_sha=git(c.owned_root, "rev-parse", "HEAD"), index_only_removals=(path,))
+        safe_commit(
+            repo_root=c.owned_root,
+            worktree_root=c.owned_root,
+            target=CommitTarget(ref=fact.write_branch),
+            message="refuse arbitrary removal",
+            paths=(path,),
+            owned=fact,
+            expected_parent_sha=git(c.owned_root, "rev-parse", "HEAD"),
+            index_only_removals=(path,),
+        )
     assert snapshot(c.owned_root) == before
 
 
@@ -185,12 +197,15 @@ def test_repair_reasserts_exact_ignore_after_authored_negation(owned_checkouts, 
 
 def test_repair_compare_and_swap_refusal_preserves_index(owned_checkouts, monkeypatch):
     from specify_cli.git import commit_helpers
+
     c = owned_checkouts
     lock = seed(c)
     before = snapshot(c.owned_root)
     inode = lock.stat().st_ino
+
     def refuse(*args, **kwargs):
         raise RuntimeError("injected expected-parent race")
+
     monkeypatch.setattr(commit_helpers, "_compare_and_swap_commit_ref", refuse)
     result = invoke(c, monkeypatch)
     assert result.exit_code != 0
@@ -224,6 +239,7 @@ def test_repair_refuses_ignore_symlink(owned_checkouts, monkeypatch):
 def test_repair_preserves_owned_protected_policy(make_owned_checkouts, monkeypatch, policy):
     import json
     from tests.integration.test_owned_protected_single_branch import _rewrite_meta, _commit_all
+
     c = make_owned_checkouts(protected_target=True, target_branch="release")
     if policy == "pr_bound":
         _rewrite_meta(c, pr_bound=True, mission_branch="codex/planning")
@@ -247,15 +263,18 @@ def test_repair_preserves_owned_protected_policy(make_owned_checkouts, monkeypat
 def test_next_ignore_rollback_respects_commit_landing(owned_checkouts, monkeypatch, landed):
     from specify_cli.cli.commands.next_cmd import _commit_owned_next_mutations
     from specify_cli.git import commit_helpers
+
     c = owned_checkouts
     lock = seed(c, "untracked")
     fact = resolve_owned_mission(c.repository_root, c.owned_root, c.mission_slug, allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES)
     before = snapshot(c.owned_root)
     original = commit_helpers.safe_commit
+
     def fail(**kwargs):
         if landed:
             original(**kwargs)
         raise ValueError("injected next commit failure")
+
     monkeypatch.setattr(commit_helpers, "safe_commit", fail)
     with pytest.raises(ValueError, match="injected next"):
         _commit_owned_next_mutations(fact)
@@ -270,10 +289,12 @@ def test_next_ignore_rollback_respects_commit_landing(owned_checkouts, monkeypat
 def test_repair_rechecks_changes_after_owner_lock_acquisition(owned_checkouts, monkeypatch, race):
     from contextlib import contextmanager
     import kernel.locks
+
     c = owned_checkouts
     lock = seed(c)
     head = git(c.owned_root, "rev-parse", "HEAD")
     original = kernel.locks.machine_file_lock
+
     @contextmanager
     def racing_lock(*args, **kwargs):
         with original(*args, **kwargs) as record:
@@ -282,6 +303,7 @@ def test_repair_rechecks_changes_after_owner_lock_acquisition(owned_checkouts, m
             else:
                 git(c.owned_root, "add", "-f", str(lock))
             yield record
+
     monkeypatch.setattr(kernel.locks, "machine_file_lock", racing_lock)
     result = invoke(c, monkeypatch)
     assert result.exit_code == 1
@@ -316,6 +338,7 @@ def test_repair_persists_exact_local_rule_when_broader_rule_already_ignores_lock
 @pytest.mark.parametrize("command", ["repair", "next"])
 def test_ignored_operator_ignore_is_refused_without_writes(owned_checkouts, monkeypatch, command):
     from specify_cli.cli.commands.next_cmd import _commit_owned_next_mutations
+
     c = owned_checkouts
     lock = seed(c, "untracked")
     root_ignore = c.owned_root / ".gitignore"

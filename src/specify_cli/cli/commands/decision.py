@@ -37,7 +37,9 @@ if TYPE_CHECKING:
     from specify_cli.coordination.coord_seed import CoordBranchUndeclaredAndAbsent, CoordSeedForkRefused
     from specify_cli.status import FeatureStatusLockTimeoutError
 
-from mission_runtime import ActionContextError
+from mission_runtime import ActionContextError, OwnedCheckout
+
+from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption
 
 from specify_cli.decisions import DecisionIndexReadError
 from specify_cli.decisions.models import (
@@ -1009,6 +1011,7 @@ def _runtime_lock_git(root: Path, *args: str) -> str:
 
 def _runtime_lock_preflight(owned: OwnedCheckout) -> tuple[Path, Path, bool, bool]:
     """Validate only the service-owned lock and its local ignore file."""
+    from kernel.git import status_entries, tracked_paths
     from specify_cli.decisions.service import _decisions_lock_path
 
     from specify_cli.decisions.service import _runtime_lock_ignore_state
@@ -1017,32 +1020,36 @@ def _runtime_lock_preflight(owned: OwnedCheckout) -> tuple[Path, Path, bool, boo
     ignore, ignored = _runtime_lock_ignore_state(owned)
     relative_lock = str(lock.relative_to(owned.owned_root))
     relative_ignore = str(ignore.relative_to(owned.owned_root))
-    status = _runtime_lock_git(owned.owned_root, "status", "--porcelain=v1", "--untracked-files=all", "--", relative_lock, relative_ignore)
-    for line in status.splitlines():
+    for entry in status_entries(owned.owned_root, pathspecs=(relative_lock, relative_ignore), untracked="all"):
         # An untracked service lock is normal; operator ignore edits and
         # any staged/unstaged tracked-lock change belong to the operator.
-        if line != f"?? {relative_lock}":
+        if not (entry.is_untracked and str(entry.path) == relative_lock):
             raise ValueError("Runtime lock repair refuses preexisting changes or staging on its lock or .gitignore")
-    tracked = bool(_runtime_lock_git(owned.owned_root, "ls-files", "--", relative_lock))
+    tracked = bool(tracked_paths(owned.owned_root, pathspecs=(relative_lock,)))
     return lock, ignore, tracked, ignored
 
 
 def _repair_runtime_lock(owned: OwnedCheckout, *, dry_run: bool) -> dict[str, object]:
     """Untrack one exact service lock without unlinking its synchronization inode."""
+    from kernel.git import tracked_paths
     from kernel.locks import machine_file_lock
-    from mission_runtime import CommitTarget
+    from mission_runtime import MissionArtifactKind, placement_seam
     from specify_cli.decisions.service import _LOCK_ACQUIRE_TIMEOUT_S
     from specify_cli.git.commit_helpers import preflight_commit, safe_commit
     from specify_cli.decisions.service import _ensure_runtime_lock_ignore, _restore_runtime_lock_ignore, _runtime_lock_ignore_state
 
     lock, ignore, tracked, ignored = _runtime_lock_preflight(owned)
     paths = (ignore, lock) if tracked else (ignore,)
-    target = CommitTarget(ref=owned.write_branch)
+    target = placement_seam(owned.repository_root, owned.mission_slug, owned=owned).write_target(MissionArtifactKind.PRIMARY_METADATA)
     message = f"chore(decisions): stop tracking runtime lock for {owned.mission_slug}"
     preflight_commit(repo_root=owned.owned_root, worktree_root=owned.owned_root, target=target, message=message, paths=paths, owned=owned)
     payload: dict[str, object] = {
-        "status": "ok", "mission_slug": owned.mission_slug, "dry_run": dry_run,
-        "tracked": tracked, "ignored": ignored, "changed": tracked or not ignored,
+        "status": "ok",
+        "mission_slug": owned.mission_slug,
+        "dry_run": dry_run,
+        "tracked": tracked,
+        "ignored": ignored,
+        "changed": tracked or not ignored,
     }
     if dry_run or not payload["changed"]:
         return payload
@@ -1053,7 +1060,7 @@ def _repair_runtime_lock(owned: OwnedCheckout, *, dry_run: bool) -> dict[str, ob
         # don't interpret that owned write as an operator modification.
         ignore, ignored_now = _runtime_lock_ignore_state(owned)
         relative_lock = str(lock.relative_to(owned.owned_root))
-        if bool(_runtime_lock_git(owned.owned_root, "ls-files", "--", relative_lock)) != tracked:
+        if bool(tracked_paths(owned.owned_root, pathspecs=(relative_lock,))) != tracked:
             raise RuntimeError("Runtime lock index changed while waiting for the owner lock")
         if _runtime_lock_git(owned.owned_root, "diff", "--cached", "HEAD", "--", relative_lock):
             raise RuntimeError("Runtime lock staging changed while waiting for the owner lock")
@@ -1066,8 +1073,12 @@ def _repair_runtime_lock(owned: OwnedCheckout, *, dry_run: bool) -> dict[str, ob
             written_ignore = ignore.read_bytes() if ignore.exists() else None
             commit_paths = paths if written_ignore is not None else (lock,)
             result = safe_commit(
-                repo_root=owned.owned_root, worktree_root=owned.owned_root, target=target,
-                message=message, paths=commit_paths, owned=owned,
+                repo_root=owned.owned_root,
+                worktree_root=owned.owned_root,
+                target=target,
+                message=message,
+                paths=commit_paths,
+                owned=owned,
                 expected_parent_sha=parent,
                 expected_path_bytes={ignore: written_ignore} if written_ignore is not None else {},
                 index_only_removals=(lock,) if tracked else (),
@@ -1098,9 +1109,13 @@ def cmd_repair_runtime_lock(
     if owned_checkout is None:
         raise typer.BadParameter("repair-runtime-lock requires explicit --owned-checkout")
     owned = resolve_owned_or_refuse(
-        locate_project_root() or Path.cwd(), cast(Path, owned_checkout), mission,
-        cwd=Path.cwd(), allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
-        json_output=True, envelope=lambda code, message: {"status": "error", "code": code, "message": message},
+        locate_project_root() or Path.cwd(),
+        cast(Path, owned_checkout),
+        mission,
+        cwd=Path.cwd(),
+        allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
+        json_output=True,
+        envelope=lambda code, message: {"status": "error", "code": code, "message": message},
     )
     assert owned is not None
     try:

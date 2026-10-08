@@ -515,13 +515,17 @@ _Decision Moment ledger for interview questions._
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ open     Open a new Decision Moment or return idempotently if one already    │
-│          exists.                                                             │
-│ resolve  Resolve a decision with a concrete final answer.                    │
-│ defer    Defer a decision for later resolution.                              │
-│ cancel   Cancel a decision (deemed no longer relevant).                      │
-│ verify   Cross-check deferred decisions against inline sentinel markers.     │
-│ list     List the mission's recorded decision moments (read-only).           │
+│ open                 Open a new Decision Moment or return idempotently if    │
+│                      one already exists.                                     │
+│ resolve              Resolve a decision with a concrete final answer.        │
+│ defer                Defer a decision for later resolution.                  │
+│ cancel               Cancel a decision (deemed no longer relevant).          │
+│ verify               Cross-check deferred decisions against inline sentinel  │
+│                      markers.                                                │
+│ list                 List the mission's recorded decision moments            │
+│                      (read-only).                                            │
+│ repair-runtime-lock  Stop tracking the exact decision lock in an explicitly  │
+│                      owned mission.                                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -624,6 +628,27 @@ _Decision Moment ledger for interview questions._
 │    --json           --no-json          Output JSON (default true)            │
 │                                        [default: json]                       │
 │    --help       -h                     Show this message and exit.           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent decision repair-runtime-lock
+
+```
+ Usage: spec-kitty agent decision repair-runtime-lock [OPTIONS]
+
+ Stop tracking the exact decision lock in an explicitly owned mission.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission                 TEXT  Mission whose decision runtime lock needs │
+│                                    repair                                    │
+│                                    [required]                                │
+│    --owned-checkout          PATH  Run against an owned checkout: a linked   │
+│                                    checkout that owns this mission. Refuses  │
+│                                    the repository root checkout, lane        │
+│                                    worktrees and coordination worktrees.     │
+│    --dry-run                       Validate and inspect without acquiring    │
+│                                    the lock or writing                       │
+│    --help            -h            Show this message and exit.               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

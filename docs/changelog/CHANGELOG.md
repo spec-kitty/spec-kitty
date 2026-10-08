@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 _4.0.0rc7 candidate cycle. Entries land here until the release chore finalizes
 this section at publish._
 
+### Fixed
+
+- **`spec-kitty next --owned-checkout` no longer commits the decision ledger's runtime lock** (#5925). **Before:** an owned advancement committed every file under the Mission directory, so the persistent `decisions/index.json.lock` sidecar the decision service keeps on disk became tracked Mission content. **After:** the advancement commit leaves that one lock out and writes an exact `/index.json.lock` rule to the Mission's `decisions/.gitignore`; other `.lock` files you author are still committed. If an earlier run already committed the lock, `spec-kitty agent decision repair-runtime-lock --mission <handle> --owned-checkout <path>` (try `--dry-run` first) removes it from Git and keeps the file on disk.
+
 ## [4.0.0rc6] - 2026-10-08
 
 ### Upgrade Notes

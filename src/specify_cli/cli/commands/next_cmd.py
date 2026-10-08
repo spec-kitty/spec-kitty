@@ -393,9 +393,12 @@ def _commit_owned_next_mutations(owned: OwnedCheckout) -> None:
     target = placement_seam(owned.repository_root, owned.mission_slug, owned=owned).write_target(MissionArtifactKind.PRIMARY_METADATA)
     if runtime_lock.exists():
         preflight_commit(
-            repo_root=owned.owned_root, worktree_root=owned.owned_root, target=target,
+            repo_root=owned.owned_root,
+            worktree_root=owned.owned_root,
+            target=target,
             message=f"chore(next): persist {owned.mission_slug} advancement [skip ci]",
-            paths=(runtime_lock.parent / ".gitignore",), owned=owned,
+            paths=(runtime_lock.parent / ".gitignore",),
+            owned=owned,
         )
     parent = _run_git_text(owned.owned_root, ["rev-parse", "HEAD"]) if runtime_lock.exists() else None
     ignore_delta = _ensure_runtime_lock_ignore(owned) if runtime_lock.exists() else None
