@@ -323,7 +323,8 @@ class TestPrimarySurfaceStatusPaths:
     (``is_status_state_path``) and let the coord-worktree ``tasks.md`` (a
     ``TASKS_INDEX`` kind) survive; the helper now excludes ANY
     ``is_under_worktrees_segment`` path on coord topology. On a flat/legacy
-    mission every collected artifact is canonical on PRIMARY and stays.
+    mission the status pair is canonical on PRIMARY and stays; ``tasks.md`` is
+    collected beside it but never claim-written, so it is dropped (#5673).
     """
 
     def test_coord_drops_worktrees_nested_tasks_md_and_status_files(
@@ -346,7 +347,7 @@ class TestPrimarySurfaceStatusPaths:
         # Every coord-owned artifact is under .worktrees/ -> nothing survives.
         assert kept == []
 
-    def test_flat_topology_keeps_all_collected_artifacts(
+    def test_flat_topology_keeps_the_status_pair_and_drops_tasks_md(
         self, tmp_path: Path
     ) -> None:
         from specify_cli.cli.commands.implement_claim import _primary_surface_status_paths
@@ -363,8 +364,6 @@ class TestPrimarySurfaceStatusPaths:
             [events, status, tasks_md], routes_through_coord=False
         )
 
-        assert {p.resolve() for p in kept} == {
-            events.resolve(),
-            status.resolve(),
-            tasks_md.resolve(),
-        }
+        # #5673: the claim commit carries only what the claim wrote.
+        assert {p.resolve() for p in kept} == {events.resolve(), status.resolve()}
+        assert tasks_md.resolve() not in {p.resolve() for p in kept}
