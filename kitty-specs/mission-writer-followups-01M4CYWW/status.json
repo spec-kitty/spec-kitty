@@ -1,7 +1,7 @@
 {
-  "event_count": 90,
-  "last_event_id": "01M4EH7DKCA4HS5ZRAYQP1T2SJ",
-  "materialized_at": "2026-10-08T19:53:13.580533+00:00",
+  "event_count": 91,
+  "last_event_id": "01M4EH7PTH1M01BYB6E05XD844",
+  "materialized_at": "2026-10-08T19:53:23.026048+00:00",
   "mission_number": "",
   "mission_slug": "mission-writer-followups-01M4CYWW",
   "mission_type": "software-dev",
@@ -10,10 +10,10 @@
     "approved": 7,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 1,
+    "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 2,
     "in_review": 0,
     "planned": 8
   },
@@ -123,13 +123,14 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "implementer_of_record": "claude",
-      "lane": "claimed",
-      "last_event_id": "01M4EH7DKCA4HS5ZRAYQP1T2SJ",
-      "last_transition_at": "2026-10-08T19:53:13.580533+00:00",
+      "lane": "in_progress",
+      "last_event_id": "01M4EH7PTH1M01BYB6E05XD844",
+      "last_transition_at": "2026-10-08T19:53:23.026048+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Frontmatter, finalize and matrix writers take the Mission lock: locked_update_frontmatter (body byte-for-byte); map-requirements plan+write in one hold; finalize flush applies its field delta under the lock; write-scope and meta restores are compare-and-swap with kept-file reporting; matrix helpers/guard/issue-verdict/scaffold key through mission_write_lock; remaining frontmatter and tasks.md writers locked. Red-first and mutation checks recorded in the tracer; 5x repeats green.",
-        "Cycle 2: per-write ledger with CAS restore (foreign changes kept and reported), meta text captured in the writing hold, owned pin green (no resolver read for the lock key), owned-root threaded into baseline/cutover/review-cycle locks, bake flow tests follow main, scaffold_acceptance_matrix locked, ownership backfill fallback, status imports via package."
+        "Cycle 2: per-write ledger with CAS restore (foreign changes kept and reported), meta text captured in the writing hold, owned pin green (no resolver read for the lock key), owned-root threaded into baseline/cutover/review-cycle locks, bake flow tests follow main, scaffold_acceptance_matrix locked, ownership backfill fallback, status imports via package.",
+        "WP04 rework cycle 2 in the main checkout (stream A); claimed with move-task because WP07 holds the single-branch implement slot for stream B"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
