@@ -579,6 +579,8 @@ def next_step(
     actor_context: dict[str, Any] | None = None,
     context: DiscoveryContext | None = None,  # noqa: ARG001
     emitter: RuntimeEventEmitter | None = None,
+    *,
+    before_run_completed: Callable[[], None] | None = None,
 ) -> NextDecision:
     """Advance current issued step and compute the next deterministic decision.
 
@@ -586,9 +588,13 @@ def next_step(
     path for drift detection. Uses persisted policy_snapshot from run state;
     caller override takes precedence. Plan (:func:`plan_advance`) then commit
     (:func:`_commit_advance`) -- the two halves share one plan.
+
+    ``before_run_completed`` is the same abort-only guard :func:`commit_advance`
+    takes: called on the transition into terminal, before anything is appended
+    or emitted; if it raises, nothing was written.
     """
     plan = plan_advance(run_ref, agent_id, result, policy_snapshot=policy_snapshot, actor_context=actor_context)
-    _commit_advance(run_ref, plan, agent_id, emitter or NullEmitter())
+    _commit_advance(run_ref, plan, agent_id, emitter or NullEmitter(), before_run_completed=before_run_completed)
     return plan.decision
 
 
