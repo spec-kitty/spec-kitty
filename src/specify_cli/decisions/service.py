@@ -132,6 +132,64 @@ def _decisions_lock_path(ledger_dir: Path) -> Path:
     return Path(_store.decisions_dir(ledger_dir) / _LOCK_FILENAME)
 
 
+def _runtime_lock_ignore_state(owned: OwnedCheckout) -> tuple[Path, bool]:
+    """Validate the exact local ignore destination and observe its effective rule."""
+    import subprocess
+
+    lock = _decisions_lock_path(owned.mission_dir)
+    ignore = lock.parent / ".gitignore"
+    owned.files([lock, ignore])
+    for path in (lock, ignore):
+        current = path
+        while current != owned.owned_root:
+            if current.is_symlink():
+                raise ValueError(f"Runtime lock repair refuses symlink: {current}")
+            if current == path and current.exists() and not current.is_file():
+                raise ValueError(f"Runtime lock repair requires a regular file: {current}")
+            if current != path and current.exists() and not current.is_dir():
+                raise ValueError(f"Runtime lock repair requires a directory: {current}")
+            current = current.parent
+    relative_ignore = str(ignore.relative_to(owned.owned_root))
+    status = subprocess.run(
+        ["git", "status", "--porcelain=v1", "--untracked-files=all", "--ignored", "--", relative_ignore],
+        cwd=owned.owned_root, check=True, capture_output=True, text=True,
+    )
+    if status.stdout.strip():
+        raise ValueError("Runtime lock repair refuses preexisting changes or staging on .gitignore")
+    ignored = subprocess.run(
+        ["git", "check-ignore", "--no-index", "--quiet", "--", str(lock.relative_to(owned.owned_root))],
+        cwd=owned.owned_root, capture_output=True,
+    )
+    if ignored.returncode not in (0, 1):
+        raise RuntimeError("Runtime lock repair could not inspect effective ignore rules")
+    from specify_cli.gitignore_manager import read_gitignore_text
+
+    content = read_gitignore_text(ignore)
+    exact_owner_rule = content is not None and f"/{_LOCK_FILENAME}" in content.splitlines()
+    return ignore, ignored.returncode == 0 and exact_owner_rule
+
+
+def _ensure_runtime_lock_ignore(owned: OwnedCheckout) -> tuple[Path, bytes | None, bytes]:
+    """Provision only the exact owner rule, retaining authored local ignore text."""
+    from specify_cli.gitignore_manager import GitignoreManager
+
+    ignore, ignored = _runtime_lock_ignore_state(owned)
+    before = ignore.read_bytes() if ignore.exists() else None
+    if not ignored:
+        ignore.parent.mkdir(parents=True, exist_ok=True)
+        GitignoreManager(ignore.parent).ensure_entries([f"/{_LOCK_FILENAME}"], force_append=True)
+    return ignore, before, ignore.read_bytes() if ignore.exists() else b""
+
+
+def _restore_runtime_lock_ignore(ignore: Path, before: bytes | None, written: bytes) -> None:
+    """Restore only our unchanged ignore delta after a precommit refusal."""
+    if ignore.exists() and not ignore.is_symlink() and ignore.read_bytes() == written:
+        if before is None:
+            ignore.unlink()
+        else:
+            ignore.write_bytes(before)
+
+
 _TERMINAL_STATUSES = {
     DecisionStatus.RESOLVED,
     DecisionStatus.DEFERRED,

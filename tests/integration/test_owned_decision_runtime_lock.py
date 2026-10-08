@@ -64,6 +64,8 @@ def test_owned_next_excludes_only_service_lock(owned_checkouts):
     assert str(lock.relative_to(c.owned_root)) not in files
     assert str(authored.relative_to(c.owned_root)) in files
     assert lock.stat().st_ino == before_inode
+    assert git(c.owned_root, "check-ignore", "--no-index", str(lock))
+    assert git(c.owned_root, "status", "--porcelain=v1") == ""
 
 
 @pytest.mark.parametrize("state", ["tracked", "untracked", "ignored"])
@@ -214,7 +216,7 @@ def test_repair_refuses_ignore_symlink(owned_checkouts, monkeypatch):
     before = snapshot(c.owned_root)
     result = invoke(c, monkeypatch)
     assert result.exit_code != 0
-    assert "symlink" in result.output.lower()
+    assert "symlink" in result.output.lower() or "outside the selected mission" in result.output.lower()
     assert snapshot(c.owned_root) == before
 
 
@@ -239,3 +241,97 @@ def test_repair_preserves_owned_protected_policy(make_owned_checkouts, monkeypat
     assert lock.exists()
     if policy == "pr_bound":
         assert git(c.owned_root, "rev-parse", "release") == before_target
+
+
+@pytest.mark.parametrize("landed", [False, True])
+def test_next_ignore_rollback_respects_commit_landing(owned_checkouts, monkeypatch, landed):
+    from specify_cli.cli.commands.next_cmd import _commit_owned_next_mutations
+    from specify_cli.git import commit_helpers
+    c = owned_checkouts
+    lock = seed(c, "untracked")
+    fact = resolve_owned_mission(c.repository_root, c.owned_root, c.mission_slug, allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES)
+    before = snapshot(c.owned_root)
+    original = commit_helpers.safe_commit
+    def fail(**kwargs):
+        if landed:
+            original(**kwargs)
+        raise ValueError("injected next commit failure")
+    monkeypatch.setattr(commit_helpers, "safe_commit", fail)
+    with pytest.raises(ValueError, match="injected next"):
+        _commit_owned_next_mutations(fact)
+    if landed:
+        assert git(c.owned_root, "check-ignore", "--no-index", str(lock))
+        assert git(c.owned_root, "status", "--porcelain=v1") == ""
+    else:
+        assert snapshot(c.owned_root) == before
+
+
+@pytest.mark.parametrize("race", ["ignore", "index"])
+def test_repair_rechecks_changes_after_owner_lock_acquisition(owned_checkouts, monkeypatch, race):
+    from contextlib import contextmanager
+    import kernel.locks
+    c = owned_checkouts
+    lock = seed(c)
+    head = git(c.owned_root, "rev-parse", "HEAD")
+    original = kernel.locks.machine_file_lock
+    @contextmanager
+    def racing_lock(*args, **kwargs):
+        with original(*args, **kwargs) as record:
+            if race == "ignore":
+                (lock.parent / ".gitignore").write_text("operator race\n")
+            else:
+                git(c.owned_root, "add", "-f", str(lock))
+            yield record
+    monkeypatch.setattr(kernel.locks, "machine_file_lock", racing_lock)
+    result = invoke(c, monkeypatch)
+    assert result.exit_code == 1
+    assert "preexisting changes" in result.output or "staging changed" in result.output
+    assert git(c.owned_root, "rev-parse", "HEAD") == head
+    if race == "ignore":
+        assert (lock.parent / ".gitignore").read_text() == "operator race\n"
+    else:
+        assert git(c.owned_root, "diff", "--cached", "--", str(lock))
+        assert not (lock.parent / ".gitignore").exists()
+
+
+def test_repair_persists_exact_local_rule_when_broader_rule_already_ignores_lock(owned_checkouts, monkeypatch):
+    c = owned_checkouts
+    lock = seed(c, "untracked")
+    root_ignore = c.owned_root / ".gitignore"
+    root_ignore.write_text("*.lock\n")
+    git(c.owned_root, "add", str(root_ignore))
+    git(c.owned_root, "commit", "-qm", "operator broad ignore")
+    inode = lock.stat().st_ino
+    result = invoke(c, monkeypatch)
+    assert result.exit_code == 0, result.output
+    assert "/index.json.lock" in (lock.parent / ".gitignore").read_text().splitlines()
+    assert root_ignore.read_text() == "*.lock\n"
+    assert lock.stat().st_ino == inode
+    assert str((lock.parent / ".gitignore").relative_to(c.owned_root)) in git(c.owned_root, "ls-files").splitlines()
+    head = git(c.owned_root, "rev-parse", "HEAD")
+    assert invoke(c, monkeypatch).exit_code == 0
+    assert git(c.owned_root, "rev-parse", "HEAD") == head
+
+
+@pytest.mark.parametrize("command", ["repair", "next"])
+def test_ignored_operator_ignore_is_refused_without_writes(owned_checkouts, monkeypatch, command):
+    from specify_cli.cli.commands.next_cmd import _commit_owned_next_mutations
+    c = owned_checkouts
+    lock = seed(c, "untracked")
+    root_ignore = c.owned_root / ".gitignore"
+    root_ignore.write_text(".gitignore\n")
+    git(c.owned_root, "add", "-f", str(root_ignore))
+    git(c.owned_root, "commit", "-qm", "operator ignores ignore files")
+    local_ignore = lock.parent / ".gitignore"
+    local_ignore.write_text("operator-owned.tmp\n")
+    before = snapshot(c.owned_root)
+    if command == "repair":
+        result = invoke(c, monkeypatch)
+        assert result.exit_code == 1, result.output
+        assert "preexisting changes" in result.output
+    else:
+        fact = resolve_owned_mission(c.repository_root, c.owned_root, c.mission_slug, allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES)
+        with pytest.raises(ValueError, match="preexisting changes"):
+            _commit_owned_next_mutations(fact)
+    assert snapshot(c.owned_root) == before
+    assert local_ignore.read_text() == "operator-owned.tmp\n"
