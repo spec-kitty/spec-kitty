@@ -170,7 +170,7 @@ def check_wp_file_reconciliation(
     A ``done``/``canceled`` WP whose prompt is gone (an archived Mission) is a
     warning; any other WP without a prompt is an error.
     """
-    file_wp_ids: set[str] = set()
+    file_wp_ids: dict[str, str] = {}
     findings: list[Finding] = []
     for wp_file in wp_task_files(feature_dir / "tasks"):
         try:
@@ -186,9 +186,20 @@ def check_wp_file_reconciliation(
                 )
             )
             continue
-        file_wp_ids.add(metadata.work_package_id)
+        wp_id = metadata.work_package_id
+        first_file = file_wp_ids.setdefault(wp_id, wp_file.name)
+        if first_file != wp_file.name:
+            findings.append(
+                Finding(
+                    severity=Severity.ERROR,
+                    category=Category.WP_FILE_DRIFT,
+                    wp_id=wp_id,
+                    message=f"tasks/{first_file} and tasks/{wp_file.name} both declare {wp_id}.",
+                    recommended_action="Keep one prompt per work package.",
+                )
+            )
 
-    for wp_id in sorted(event_wp_ids - file_wp_ids):
+    for wp_id in sorted(event_wp_ids - file_wp_ids.keys()):
         findings.append(
             Finding(
                 severity=Severity.WARNING if wp_id in terminal_wp_ids else Severity.ERROR,
@@ -198,7 +209,7 @@ def check_wp_file_reconciliation(
                 recommended_action="Restore the work-package prompt or reconcile its event-log lifecycle.",
             )
         )
-    for wp_id in sorted(file_wp_ids - event_wp_ids):
+    for wp_id in sorted(file_wp_ids.keys() - event_wp_ids):
         findings.append(
             Finding(
                 severity=Severity.ERROR,

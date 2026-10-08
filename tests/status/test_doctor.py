@@ -1073,15 +1073,22 @@ def test_wp_reconciliation_reports_prompt_without_event_and_ignores_readme(tmp_p
     tasks_dir = tmp_path / "tasks"
     tasks_dir.mkdir()
     (tasks_dir / "WP02-work.md").write_text("---\nwork_package_id: WP02\n---\n", encoding="utf-8")
+    (tasks_dir / "WP02-work-copy.md").write_text("---\nwork_package_id: WP02\n---\n", encoding="utf-8")
+    (tasks_dir / "WP05-bad.md").write_text("---\nwork_package_id: [unclosed\n---\n", encoding="utf-8")
     (tasks_dir / "README.md").write_text("work_package_id: WP03\n", encoding="utf-8")
 
     findings = check_wp_file_reconciliation(tmp_path, {"WP01", "WP04"}, frozenset({"WP04"}))
 
     assert [(finding.wp_id, finding.severity) for finding in findings] == [
+        ("WP02", Severity.ERROR),
+        (None, Severity.ERROR),
         ("WP01", Severity.ERROR),
         ("WP04", Severity.WARNING),
         ("WP02", Severity.ERROR),
     ]
+    assert findings[0].message == "tasks/WP02-work-copy.md and tasks/WP02-work.md both declare WP02."
+    assert findings[0].recommended_action == "Keep one prompt per work package."
+    assert findings[1].message == "Cannot read work-package identity from tasks/WP05-bad.md."
 
 
 def test_doctor_reports_prompt_without_event_status(tmp_path: Path) -> None:
